@@ -1,0 +1,115 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Cuerpo técnico · CRM Web Stats</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <style>
+      body {
+        font-family: 'Inter', system-ui, sans-serif;
+        background: radial-gradient(circle at top, #0f172a, #050816 60%);
+        color: #eef2ff;
+        min-height: 100vh;
+        margin: 0;
+      }
+      .page {
+        padding: 2rem;
+        max-width: 1100px;
+        margin: 0 auto;
+      }
+      h1 {
+        margin: 0;
+      }
+      .summary-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+      }
+      .tech-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+      }
+      .tech-card {
+        background: rgba(15, 23, 42, 0.9);
+        border-radius: 14px;
+        padding: 1.2rem;
+        border: 1px solid rgba(99, 102, 241, 0.3);
+      }
+      .tech-card h3 {
+        margin-top: 0;
+        font-size: 0.9rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #94a3b8;
+      }
+      .tech-card ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      }
+      .tech-card li {
+        padding: 0.4rem 0;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+      }
+      .tech-card li:last-child {
+        border-bottom: none;
+      }
+      .pill-button {
+        border: none;
+        padding: 0.85rem 1.4rem;
+        border-radius: 999px;
+        background: linear-gradient(135deg, #22d3ee, #6366f1);
+        color: #fff;
+        font-weight: 700;
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        box-shadow: 0 10px 25px rgba(14, 165, 233, 0.35);
+      }
+      .pill-button:hover {
+        transform: translateY(-1px);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header class="summary-header" style="justify-content:space-between;">
+        {% include 'football/includes/dragon_nav.html' %}
+        <div>
+          <h1>Cuerpo técnico</h1>
+          <p>Entrenadores, análisis rival y sesiones</p>
+        </div>
+        <a href="{% url 'dashboard-home' %}" class="pill-button">Volver al inicio</a>
+      </header>
+      <section class="tech-grid">
+        <article class="tech-card">
+          <h3>Entrenadores</h3>
+          <ul class="actions">
+            <li>Entrenador principal · Aitor Castillo</li>
+            <li>Entrenador auxiliar · Antonio Martín</li>
+            <li>Preparador físico · Alonso García</li>
+          </ul>
+          <a class="pill-button" style="margin-top:1rem;" href="{% url 'convocation' %}">Ver convocatoria</a>
+        </article>
+        <article class="tech-card">
+          <h3>Análisis rival</h3>
+          <ul class="actions">
+            <li>Último rival: Atlético de Marbella</li>
+            <li>Consecutivos sin recibir gol: 1</li>
+            <li>Fortaleza: laterales rápidos</li>
+          </ul>
+        </article>
+        <article class="tech-card">
+          <h3>Sesiones</h3>
+          <ul class="actions">
+            <li>Martes AM · Táctica ofensiva</li>
+            <li>Martes PM · Duelo alto</li>
+            <li>Domingo · Video y recuperación</li>
+          </ul>
+        </article>
+      </section>
+    </div>
+  </body>
+</html>

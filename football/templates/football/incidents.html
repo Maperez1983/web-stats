@@ -1,0 +1,108 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Incidencias · C.D. Benagalbón</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <style>
+      :root {
+        --brand-dark: #050816;
+        --brand-panel: rgba(14, 23, 41, 0.9);
+        --brand-accent: #facc15;
+        --brand-accent-strong: #38bdf8;
+      }
+      body {
+        margin: 0;
+        font-family: 'Inter', system-ui, sans-serif;
+        background: var(--brand-dark);
+        color: #f8fafc;
+        min-height: 100vh;
+      }
+      .page {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 2rem 1.25rem 3rem;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 2rem;
+      }
+      header img {
+        width: 72px;
+        height: 72px;
+        border-radius: 12px;
+        border: 2px solid rgba(255, 255, 255, 0.25);
+        background: rgba(255, 255, 255, 0.05);
+      }
+      header h1 {
+        margin: 0;
+        font-size: 1.9rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .panel {
+        background: var(--brand-panel);
+        border-radius: 20px;
+        padding: 2rem;
+        box-shadow: 0 20px 45px rgba(2, 6, 20, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .panel h2 {
+        margin-top: 0;
+        text-transform: uppercase;
+        letter-spacing: 0.2em;
+        color: var(--brand-accent);
+      }
+      .panel p {
+        line-height: 1.6;
+        color: rgba(248, 250, 252, 0.8);
+      }
+      .button {
+        margin-top: 1.5rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.9rem 1.4rem;
+        border-radius: 999px;
+        background: linear-gradient(135deg, #facc15, #f43f5e);
+        color: #050816;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        text-decoration: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header>
+        <img src="{% static 'logos/logo.png' %}" alt="Escudo C.D. Benagalbón" loading="lazy" />
+        <div>
+          <p style="margin:0;">Club Deportivo Benagalbón</p>
+          <h1>Incidencias</h1>
+        </div>
+      </header>
+
+      <article class="panel">
+        <h2>Registro de incidencias</h2>
+        <p>
+          Utiliza esta sección para documentar lesiones, cambios importantes, sanciones o
+          cualquier acontecimiento relevante ocurrido durante el partido. Cada incidencia irá
+          ligada al encuentro y al jugador correspondiente para que después puedas cruzarla con
+          los datos del evento.
+        </p>
+        <p>
+          Cuando el sistema de toma de datos en partido esté listo, este panel se alimentará
+          automáticamente desde esa interfaz; por ahora puedes hacer anotaciones manuales que
+          se guardarán para su posterior análisis.
+        </p>
+        <a class="button" href="{% url 'player-dashboard' %}">
+          IR AL PANEL DE JUGADORES
+        </a>
+      </article>
+    </div>
+  </body>
+</html>

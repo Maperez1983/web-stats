@@ -1,0 +1,512 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Jugador · {{ player.name }}</title>
+    <style>
+      body {
+        font-family: 'Inter', sans-serif;
+        background: #030712;
+        color: #e2e8f0;
+        margin: 0;
+        padding: 2rem;
+      }
+      .container {
+        max-width: 960px;
+        margin: 0 auto;
+      }
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      header h1 {
+        margin: 0;
+        font-size: 2rem;
+      }
+      header a {
+        color: #93c5fd;
+        text-decoration: none;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.35rem 0.8rem;
+        border-radius: 0.7rem;
+        border: 1px solid rgba(148, 163, 184, 0.4);
+        background: rgba(14, 116, 144, 0.4);
+        color: #e0f2fe;
+        text-decoration: none;
+        font-weight: 600;
+      }
+      .card {
+        background: rgba(15, 23, 42, 0.95);
+        border-radius: 1rem;
+        padding: 1.5rem;
+        margin-top: 1rem;
+        border: 1px solid rgba(148, 163, 184, 0.3);
+      }
+      .edit-number-form {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 0.75rem;
+        margin-bottom: 1.25rem;
+      }
+      .edit-number-form label {
+        display: flex;
+        flex-direction: column;
+        font-size: 0.7rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #94a3b8;
+        gap: 0.35rem;
+      }
+      .edit-number-form input {
+        border-radius: 0.65rem;
+        border: 1px solid rgba(148, 163, 184, 0.4);
+        padding: 0.6rem 0.8rem;
+        background: rgba(15, 23, 42, 0.6);
+        color: #e2e8f0;
+        font-size: 1rem;
+      }
+      .edit-number-form button {
+        border-radius: 0.7rem;
+        border: none;
+        background: linear-gradient(135deg, #38bdf8, #6366f1);
+        color: #fff;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        padding: 0.6rem 0.9rem;
+        cursor: pointer;
+        text-transform: uppercase;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1rem;
+        table-layout: fixed;
+      }
+      th, td {
+        text-align: left;
+        padding: 0.3rem 0;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+        vertical-align: middle;
+      }
+      th {
+        color: #94a3b8;
+        font-size: 0.75rem;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+      td:nth-child(1) {
+        width: 20%;
+        font-weight: 600;
+      }
+      td:nth-child(2) {
+        width: 46%;
+      }
+      td:nth-child(3),
+      td:nth-child(4) {
+        width: 17%;
+        text-align: center;
+      }
+      .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 0.8rem;
+        margin-top: 1rem;
+      }
+      .kpi {
+        border-radius: 0.85rem;
+        padding: 0.9rem;
+        background: rgba(15, 23, 42, 0.9);
+        border: 1px solid rgba(148, 163, 184, 0.3);
+      }
+      .kpi .label {
+        font-size: 0.7rem;
+        letter-spacing: 0.08em;
+        color: #94a3b8;
+        text-transform: uppercase;
+      }
+      .kpi .value {
+        font-size: 1.4rem;
+        font-weight: 600;
+        margin-top: 0.3rem;
+      }
+      .duel-section {
+        margin-top: 1rem;
+      }
+      .duel-section p {
+        margin: 0;
+      }
+      .duel-bar {
+        margin-top: 0.5rem;
+        height: 0.9rem;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.8);
+        overflow: hidden;
+        border: 1px solid rgba(56, 189, 248, 0.35);
+      }
+      .duel-bar span {
+        height: 100%;
+        background: linear-gradient(90deg, #22d3ee, #6366f1);
+        display: block;
+      }
+      .detail-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 0.8rem;
+        margin: 1rem 0;
+      }
+      .detail-block {
+        background: rgba(15, 23, 42, 0.9);
+        padding: 0.9rem;
+        border-radius: 0.9rem;
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        text-align: center;
+      }
+      .detail-block .label {
+        font-size: 0.8rem;
+        letter-spacing: 0.08em;
+        color: rgba(148, 163, 184, 0.9);
+        margin-bottom: 0.35rem;
+      }
+      .detail-block .value {
+        font-size: 1.6rem;
+        font-weight: 600;
+        margin-bottom: 0.15rem;
+      }
+      .detail-block .label-soft {
+        color: rgba(148, 163, 184, 0.9);
+        font-size: 0.9rem;
+      }
+      .heatmap-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+        margin-top: 0.8rem;
+      }
+      .heatmap-row.field-surface-row {
+        position: relative;
+        padding: 0.8rem;
+        border-radius: 0;
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        background: #0b1b12;
+        overflow: hidden;
+      }
+      .heatmap-row.field-surface-row > * {
+        position: relative;
+        z-index: 1;
+      }
+      .heatmap-row.field-surface-row .heatmap-card {
+        background: transparent;
+        border: none;
+        padding: 0;
+      }
+      .heatmap-card {
+        background: rgba(15, 23, 42, 0.9);
+        padding: 0.8rem;
+        border-radius: 0.9rem;
+        border: 1px solid rgba(148, 163, 184, 0.25);
+      }
+      .heatmap-card span {
+        display: inline-flex;
+        align-items: center;
+        margin-right: 0.4rem;
+        margin-bottom: 0.4rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.6rem;
+        background: rgba(59, 130, 246, 0.12);
+        font-size: 0.75rem;
+      }
+      .field-diagram {
+        position: relative;
+        width: 100%;
+        padding-bottom: 56%;
+        background: #0b1b12;
+        border-radius: 0;
+        margin-top: 0.8rem;
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        overflow: hidden;
+      }
+      .field-diagram img.field-bg {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        object-position: center;
+      }
+      .field-overlay-lines {
+        display: none;
+      }
+      .field-overlay-lines span {
+        position: absolute;
+        border: 1.5px solid rgba(226, 232, 240, 0.7);
+        box-sizing: border-box;
+      }
+      .field-overlay-lines .center-line {
+        top: 0;
+        bottom: 0;
+        left: 50%;
+      }
+      .field-overlay-lines .center-circle {
+        width: 22%;
+        height: 22%;
+        border-radius: 50%;
+        top: 39%;
+        left: 39%;
+      }
+      .field-overlay-lines .penalty-box.left {
+        left: 0;
+        top: 22%;
+        width: 18%;
+        height: 56%;
+      }
+      .field-overlay-lines .penalty-box.right {
+        right: 0;
+        top: 22%;
+        width: 18%;
+        height: 56%;
+      }
+      .field-overlay-lines .penalty-area.left {
+        left: 0;
+        top: 32%;
+        width: 8%;
+        height: 36%;
+      }
+      .field-overlay-lines .penalty-area.right {
+        right: 0;
+        top: 32%;
+        width: 8%;
+        height: 36%;
+      }
+      .field-overlay-lines .goal-line.left {
+        left: -2%;
+        top: 44%;
+        width: 2%;
+        height: 12%;
+      }
+      .field-overlay-lines .goal-line.right {
+        right: -2%;
+        top: 44%;
+        width: 2%;
+        height: 12%;
+      }
+      .field-zone {
+        position: absolute;
+        border-radius: 14px;
+        background: transparent;
+        border: none;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+        color: #f8fafc;
+        font-weight: 600;
+        text-align: center;
+        padding: 0.25rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        text-shadow: 0 2px 8px rgba(2, 6, 23, 0.95), 0 0 2px rgba(15, 23, 42, 0.9);
+      }
+      .field-zone .zone-label {
+        line-height: 1.1;
+      }
+      .field-zone .zone-count {
+        margin-top: 0.15rem;
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #facc15;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <div>
+          <p style="margin:0;">Jugador · {{ player.team.name }}</p>
+          <h1>{{ player.name }}</h1>
+          {% if match_context %}
+            <p style="margin:0.35rem 0 0;color:#94a3b8;">
+              Partido: {{ match_context.opponent }} · {{ match_context.date }} · {{ match_context.location }} · Jornada {{ match_context.round }}
+            </p>
+          {% endif %}
+        </div>
+        <div style="display:flex;gap:1rem;">
+          <a class="btn" href="{% url 'player-presentation' player.id %}" target="_blank">🎬 Ver presentación</a>
+          <a href="{% url 'player-dashboard' %}">← Volver al tablero</a>
+        </div>
+      </header>
+      <section class="card">
+        <form method="post" class="edit-number-form">
+          {% csrf_token %}
+          <label>
+            Dorsal
+            <input type="number" name="number" min="0" value="{{ player.number|default:'' }}">
+          </label>
+          <label>
+            Posición
+            <input type="text" name="position" value="{{ player.position|default:'' }}">
+          </label>
+          <button type="submit">Guardar</button>
+        </form>
+        <p><strong>Posición:</strong>
+          {% if player.position %}
+            {{ player.position }}
+          {% elif stats.position %}
+            {{ stats.position }}
+          {% else %}
+            Sin registrar
+          {% endif %}
+        </p>
+        <p><strong>Número:</strong>
+          {% if player.number %}
+            {{ player.number }}
+          {% elif stats.number %}
+            {{ stats.number }}
+          {% else %}
+            —
+          {% endif %}
+        </p>
+        {% if stats %}
+          <p><strong>Acciones totales:</strong> {{ stats.total_actions }}</p>
+          <p><strong>Éxitos:</strong> {{ stats.successes }}</p>
+          <p>
+            <strong>PJ:</strong> {{ stats.pj }} ·
+            <strong>PT:</strong> {{ stats.pt }} ·
+            <strong>Minutos:</strong> {{ stats.minutes }}
+          </p>
+          <p>
+            <strong>Goles:</strong> {{ stats.goals }} ·
+            <strong>Asistencias:</strong> {{ stats.assists }} ·
+            <strong>Amarillas:</strong> {{ stats.yellow_cards }} ·
+            <strong>Rojas:</strong> {{ stats.red_cards }}
+          </p>
+          {% if stats.age %}
+            <p><strong>Edad:</strong> {{ stats.age }}</p>
+          {% endif %}
+        {% else %}
+          <p>No hay estadísticas aún para este jugador.</p>
+        {% endif %}
+      </section>
+      {% if stats %}
+        <section class="card">
+          <h2>KPIs y visualizaciones</h2>
+      <div class="kpi-grid">
+        <div class="kpi">
+          <span class="label">Tasa de éxito</span>
+              <span class="value">{{ stats.success_rate|default:0 }}%</span>
+            </div>
+            <div class="kpi">
+              <span class="label">Acciones</span>
+              <span class="value">{{ stats.total_actions }}</span>
+            </div>
+            <div class="kpi">
+              <span class="label">Duelos totales</span>
+              <span class="value">{{ stats.duel_summary.total }}</span>
+            </div>
+            <div class="kpi">
+          <span class="label">Duelos ganados</span>
+          <span class="value">{{ stats.duel_summary.won }}</span>
+        </div>
+      </div>
+      <div class="detail-grid">
+        <div class="detail-block">
+          <p class="label">Disparos</p>
+          <p class="value">{{ stats.shots.attempts }}</p>
+          <p class="label-soft">
+            {{ stats.shots.on_target }} a puerta · {{ stats.shots.accuracy }}%
+          </p>
+        </div>
+        <div class="detail-block">
+          <p class="label">Pases</p>
+          <p class="value">{{ stats.passes.completed }} / {{ stats.passes.attempts }}</p>
+          <p class="label-soft">Completados · {{ stats.passes.accuracy }}%</p>
+        </div>
+      </div>
+      <div class="duel-section">
+        <p>
+          {{ stats.duel_summary.won }} de {{ stats.duel_summary.total }} duelos ganados ·
+              Ratio: <strong>{{ stats.duel_rate|default:0 }}%</strong>
+            </p>
+            <div class="duel-bar">
+              <span style="width: {{ stats.duel_rate|default:0 }}%;"></span>
+            </div>
+          </div>
+          <div class="heatmap-row field-surface-row">
+            <div class="heatmap-card">
+              <p style="margin:0 0 0.4rem;">Zonas con más acciones</p>
+              <div class="field-diagram">
+                <img
+                  class="field-bg"
+                  src="{% static 'football/campo-futbol.jpg' %}"
+                  alt="Campo de fútbol"
+                />
+                <div class="field-overlay-lines" aria-hidden="true">
+                  <span class="center-line"></span>
+                  <span class="center-circle"></span>
+                  <span class="penalty-box left"></span>
+                  <span class="penalty-box right"></span>
+                  <span class="penalty-area left"></span>
+                  <span class="penalty-area right"></span>
+                  <span class="goal-line left"></span>
+                  <span class="goal-line right"></span>
+                </div>
+                {% for zone in stats.field_zones %}
+                  <div
+                    class="field-zone"
+                    style="left: {{ zone.left }}; top: {{ zone.top }}; width: {{ zone.width }}; height: {{ zone.height }};"
+                  >
+                    <span class="zone-label">{{ zone.label }}</span>
+                    <span class="zone-count">{{ zone.count }}</span>
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+        </section>
+      {% endif %}
+      {% if stats and stats.matches %}
+        <section class="card">
+          <h2>Estadísticas por partido</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Jornada</th>
+                <th>Oponente</th>
+                <th>Acciones</th>
+                <th>Éxitos</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for match in stats.matches %}
+                <tr>
+                  <td>{{ match.round }}</td>
+                  <td>
+                    {% if match.match_id %}
+                      <a href="{% url 'player-match-stats' player.id match.match_id %}" style="color:#93c5fd;text-decoration:none;">
+                        {{ match.opponent }}
+                      </a>
+                    {% else %}
+                      {{ match.opponent }}
+                    {% endif %}
+                  </td>
+                  <td>{{ match.actions }}</td>
+                  <td>{{ match.successes }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </section>
+      {% endif %}
+    </div>
+  </body>
+</html>

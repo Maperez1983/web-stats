@@ -1,0 +1,2253 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Registro de acciones · {{ team_name }}</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <style>
+      :root {
+        --bg: #010517;
+        --panel: rgba(4, 8, 25, 0.96);
+        --panel-soft: rgba(13, 23, 52, 0.8);
+        --accent: #facc15;
+        --border: rgba(255, 255, 255, 0.12);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: 'Inter', system-ui, sans-serif;
+        background: radial-gradient(circle at top, rgba(255, 255, 255, 0.05), transparent 45%), var(--bg);
+        color: #f8fafc;
+        min-height: 100vh;
+      }
+      .page {
+        min-height: 100vh;
+        padding: 0;
+      }
+      .action-screen {
+        min-height: 100vh;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(280px, 320px);
+      }
+      .field-column {
+        background: linear-gradient(180deg, rgba(1, 4, 12, 0.95), rgba(2, 11, 27, 0.98));
+        padding: 2rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+        border-radius: 32px;
+        box-shadow: 0 40px 120px rgba(0, 0, 0, 0.8);
+      }
+      .match-header-panels {
+        display: flex;
+        gap: 1rem;
+        align-items: flex-start;
+        flex-wrap: wrap;
+      }
+      .match-info-stack {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 0.85rem;
+      }
+      .match-status-panels {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+      }
+      .status-card {
+        flex: 1;
+        border-radius: 14px;
+        padding: 0.9rem 1rem;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+      }
+      .status-card h5 {
+        margin: 0;
+        text-transform: uppercase;
+        letter-spacing: 0.25em;
+        font-size: 0.65rem;
+        color: rgba(248, 250, 252, 0.6);
+      }
+      .status-card p {
+        margin: 0;
+        font-size: 0.8rem;
+        color: #f8fafc;
+      }
+      .status-card .status-value {
+        font-weight: 600;
+      }
+      .quick-action-columns {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+      }
+      .quick-action-column {
+        flex: 1;
+        min-width: 220px;
+      }
+      .quick-action-card {
+        background: linear-gradient(135deg, rgba(3, 6, 20, 0.95), rgba(11, 17, 32, 0.8));
+        border-radius: 28px;
+        padding: 0.9rem 1.2rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 30px 60px rgba(0, 0, 0, 0.5);
+        position: relative;
+        overflow: hidden;
+      }
+      .quick-action-card::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        border: 1px solid rgba(250, 204, 21, 0.15);
+        pointer-events: none;
+        mix-blend-mode: screen;
+      }
+      .quick-action-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        text-transform: uppercase;
+        letter-spacing: 0.2em;
+        font-size: 0.7rem;
+        color: rgba(248, 250, 252, 0.65);
+      }
+      .quick-action-counts {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+        font-size: 0.75rem;
+        letter-spacing: 0.2em;
+      }
+      .quick-action-counts strong {
+        margin-left: 0.1rem;
+        letter-spacing: 0.1em;
+        font-size: 0.85rem;
+      }
+      .quick-drop-row {
+        display: flex;
+        gap: 0.5rem;
+      }
+      .quick-drop {
+        flex: 1;
+        border-radius: 14px;
+        border: 1px dashed rgba(248, 250, 252, 0.4);
+        padding: 0.75rem 0.35rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.2em;
+        cursor: pointer;
+        background: rgba(1, 4, 12, 0.2);
+        transition: border-color 0.2s ease, background 0.2s ease;
+        box-shadow: inset 0 -8px 18px rgba(0, 0, 0, 0.25);
+      }
+      .quick-history {
+        min-height: 48px;
+        border-radius: 12px;
+        border: 1px solid rgba(250, 204, 21, 0.2);
+        padding: 0.35rem 0.75rem;
+        background: rgba(2, 6, 23, 0.5);
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+        font-size: 0.65rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+      }
+      .quick-history span {
+        display: block;
+      }
+      .quick-drop.is-drag-over {
+        border-color: var(--accent);
+        background: rgba(250, 204, 21, 0.15);
+      }
+      .quick-icon {
+        font-size: 1.5rem;
+      }
+      .sidebar-lineup-builder {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        margin-bottom: 1rem;
+      }
+      .lineup-slot {
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 0.85rem;
+      }
+      .lineup-slot-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.45rem;
+        text-transform: uppercase;
+        letter-spacing: 0.3em;
+        font-size: 0.7rem;
+        color: rgba(248, 250, 252, 0.7);
+      }
+      .lineup-count {
+        font-weight: 600;
+        letter-spacing: 0.15em;
+      }
+      .lineup-drop-area {
+        min-height: 120px;
+        border-radius: 12px;
+        border: 1px dashed rgba(248, 250, 252, 0.35);
+        padding: 0.65rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+        background: rgba(1, 4, 12, 0.4);
+      }
+      .lineup-drop-area.is-drag-over {
+        border-color: var(--accent);
+      }
+      .lineup-chip {
+        font-size: 0.9rem;
+        letter-spacing: 0.05em;
+        cursor: grab;
+        padding: 0.25rem 0.4rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+      }
+      .lineup-chip.selected {
+        border-color: #facc15;
+        background: rgba(250, 204, 21, 0.08);
+      }
+      .lineup-placeholder {
+        font-size: 0.75rem;
+        letter-spacing: 0.28em;
+        text-transform: uppercase;
+        color: rgba(248, 250, 252, 0.5);
+        display: block;
+        font-weight: 600;
+      }
+      .field-wrapper {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        width: 100%;
+      }
+      .match-header {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 1rem;
+      }
+      .match-details {
+        background: rgba(255, 255, 255, 0.05);
+        padding: 1rem 1.2rem;
+        border-radius: 18px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem 2rem;
+        align-items: flex-start;
+      }
+      .match-details .detail {
+        flex: 1 1 160px;
+      }
+      .match-details .detail strong {
+        display: block;
+        font-size: 0.95rem;
+        letter-spacing: 0.02em;
+      }
+      .match-details .detail span {
+        display: block;
+        font-size: 0.65rem;
+        text-transform: uppercase;
+        letter-spacing: 0.35em;
+        color: rgba(248, 250, 252, 0.55);
+      }
+      .lineup-panel {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 18px;
+        padding: 1rem;
+        min-width: 220px;
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+      }
+      .lineup-panel h4 {
+        margin: 0;
+        text-transform: uppercase;
+        letter-spacing: 0.3em;
+        font-size: 0.7rem;
+        color: rgba(248, 250, 252, 0.65);
+      }
+      .lineup-panel ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+      }
+      .lineup-panel li {
+        font-size: 0.9rem;
+        letter-spacing: 0.05em;
+        color: #fff;
+      }
+      .match-event-panels {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 0.75rem;
+      }
+      .match-card,
+      .match-subs {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 14px;
+        padding: 0.9rem 1rem;
+      }
+      .match-card h5,
+      .match-subs h5 {
+        margin: 0 0 0.35rem;
+        text-transform: uppercase;
+        letter-spacing: 0.25em;
+        font-size: 0.7rem;
+        color: rgba(248, 250, 252, 0.6);
+      }
+      .match-card .card-row,
+      .match-subs .subs-row {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.85rem;
+        color: #f8fafc;
+      }
+      .field-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        text-transform: uppercase;
+        letter-spacing: 0.3em;
+        font-size: 0.75rem;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+      }
+      .zone-overlay-toggle {
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        border-radius: 999px;
+        background: transparent;
+        color: #f8fafc;
+        padding: 0.3rem 0.65rem;
+        font-size: 0.65rem;
+        letter-spacing: 0.25em;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
+      .zone-overlay-toggle[data-state='visible'] {
+        background: rgba(250, 204, 21, 0.15);
+      }
+      .clock-card {
+        background: rgba(3, 6, 18, 0.95);
+        border-radius: 22px;
+        border: 1px solid rgba(250, 204, 21, 0.15);
+        padding: 0.75rem 1rem;
+        margin-top: -0.5rem;
+        box-shadow: 0 25px 40px rgba(0, 0, 0, 0.35);
+      }
+      .clock-card-inner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+      }
+      .clock-note {
+        margin: 0;
+        font-size: 0.72rem;
+        letter-spacing: 0.25em;
+        color: rgba(248, 250, 252, 0.65);
+        text-transform: uppercase;
+        flex: 1;
+        min-width: 220px;
+      }
+      .field-header strong {
+        font-size: 1rem;
+        letter-spacing: 0.2em;
+      }
+      .match-info-card {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 18px;
+        padding: 1rem 1.2rem;
+        text-transform: uppercase;
+        letter-spacing: 0.2em;
+        font-size: 0.65rem;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 0.5rem;
+        position: relative;
+        overflow: visible;
+      }
+      .match-info-card .match-info-row {
+        display: flex;
+        flex-direction: column;
+        gap: 0.1rem;
+      }
+      .match-info-card .match-info-row strong {
+        font-size: 0.95rem;
+        letter-spacing: 0.15em;
+        text-transform: none;
+        display: block;
+      }
+      .match-info-card .match-info-row input.match-info-input {
+        display: none;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 999px;
+        padding: 0.25rem 0.75rem;
+        background: rgba(0, 0, 0, 0.2);
+        color: #f8fafc;
+        font-size: 0.85rem;
+      }
+      .match-info-card .match-info-row input.match-info-input:focus {
+        outline: 2px solid rgba(250, 204, 21, 0.6);
+        outline-offset: 2px;
+      }
+      .match-info-card .match-info-row[data-field='opponent'] {
+        cursor: pointer;
+      }
+      .match-info-card .match-info-row[data-field='opponent'] .rival-toggle {
+        margin-top: 0.15rem;
+        font-size: 0.6rem;
+        letter-spacing: 0.2em;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 999px;
+        padding: 0.2rem 0.4rem;
+        background: transparent;
+        color: #f8fafc;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
+      .match-info-card .rival-dropdown {
+        position: absolute;
+        top: 95%;
+        left: 0;
+        right: 0;
+        background: rgba(0, 0, 0, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 12px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
+        padding: 0.75rem;
+        max-height: 240px;
+        overflow-y: auto;
+        display: none;
+        z-index: 3;
+      }
+      .match-info-card .rival-dropdown.is-open {
+        display: block;
+      }
+      .match-info-card .rival-dropdown ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+      }
+      .match-info-card .rival-option {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 12px;
+        padding: 0.4rem 0.6rem;
+        width: 100%;
+        text-align: left;
+        color: #f8fafc;
+        font-size: 0.75rem;
+        letter-spacing: 0.1em;
+        cursor: pointer;
+        transition: border 0.2s ease, transform 0.2s ease;
+      }
+      .match-info-card .rival-option:hover {
+        border-color: rgba(250, 204, 21, 0.7);
+        transform: translateY(-1px);
+      }
+      .match-info-card .rival-option strong {
+        display: inline-block;
+        font-size: 0.8rem;
+        letter-spacing: 0.05em;
+      }
+      .match-info-card .rival-empty {
+        opacity: 0.6;
+        font-size: 0.7rem;
+        letter-spacing: 0.2em;
+      }
+      .match-info-card.is-editing .match-info-row strong {
+        display: none;
+      }
+      .match-info-card.is-editing .match-info-row input.match-info-input {
+        display: block;
+      }
+      .match-info-card .match-info-actions {
+        grid-column: 1 / -1;
+        display: flex;
+        gap: 0.35rem;
+        justify-content: flex-end;
+        margin-top: 0.5rem;
+        flex-wrap: wrap;
+      }
+      .match-info-card .match-info-actions button {
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        color: #f8fafc;
+        border-radius: 999px;
+        padding: 0.25rem 0.65rem;
+        cursor: pointer;
+        font-size: 0.65rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+      }
+      .match-info-card .match-info-actions button.save,
+      .match-info-card .match-info-actions button.reset {
+        display: none;
+      }
+      .match-info-card.is-editing .match-info-actions button.save,
+      .match-info-card.is-editing .match-info-actions button.reset {
+        display: inline-flex;
+      }
+      .match-meta {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(240px, 280px);
+        gap: 1rem;
+        width: 100%;
+      }
+      .initial-lineup {
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+      }
+      .initial-lineup h4 {
+        margin: 0;
+        font-size: 0.7rem;
+        letter-spacing: 0.25em;
+        text-transform: uppercase;
+        color: rgba(248, 250, 252, 0.6);
+      }
+      .initial-lineup span {
+        font-size: 0.9rem;
+        letter-spacing: 0.05em;
+        color: #f8fafc;
+      }
+      .initial-lineup .lineup-name {
+        display: block;
+        font-size: 0.95rem;
+        font-weight: 600;
+      }
+      .action-register {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
+      .register-card {
+        background: rgba(2, 6, 23, 0.9);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 18px;
+        padding: 0.75rem 1rem;
+      }
+      .register-card h3 {
+        margin: 0 0 0.35rem;
+        font-size: 0.9rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+      }
+      .register-card p {
+        margin: 0;
+        color: rgba(248, 250, 252, 0.65);
+        font-size: 0.8rem;
+      }
+      .field-clock {
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+        font-size: 0.75rem;
+        letter-spacing: 0.3em;
+      }
+      .field-clock span {
+        padding: 0.2rem 0.6rem;
+        border-radius: 999px;
+        background: rgba(14, 165, 233, 0.15);
+      }
+      .field-clock button {
+        background: transparent;
+        border: 1px solid rgba(14, 165, 233, 0.4);
+        color: #f8fafc;
+        border-radius: 999px;
+        padding: 0.15rem 0.5rem;
+        cursor: pointer;
+      }
+      .dragon-logo {
+        width: 28px;
+        height: 28px;
+        object-fit: contain;
+        display: block;
+      }
+      .dragon-link {
+        border-radius: 999px;
+        padding: 0.15rem;
+        border: 1px solid transparent;
+        transition: border-color 0.2s ease;
+      }
+      .dragon-link:hover {
+        border-color: rgba(248, 250, 252, 0.4);
+      }
+      .touch-field {
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        position: relative;
+      }
+      .field-surface {
+        width: 100%;
+        min-height: 420px;
+        border-radius: 32px;
+        box-shadow: 0 45px 110px rgba(0, 0, 0, 0.8);
+        position: relative;
+        overflow: hidden;
+        background: transparent;
+      }
+      .field-overlay-lines {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        pointer-events: none;
+      }
+      .field-zone-overlay {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        font-size: 0.6rem;
+        z-index: 1;
+      }
+      .field-zone-overlay .field-zone {
+        position: absolute;
+        border: 1px dashed rgba(250, 204, 21, 0.75);
+        background: rgba(250, 204, 21, 0.08);
+        box-shadow: 0 0 20px rgba(250, 204, 21, 0.12);
+        pointer-events: none;
+      }
+      .field-zone-overlay .field-zone span {
+        position: absolute;
+        top: 6px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 0.2rem 0.55rem;
+        background: rgba(2, 6, 23, 0.85);
+        color: #f8fafc;
+        border-radius: 999px;
+        letter-spacing: 0.2em;
+        font-size: 0.55rem;
+        max-width: 90%;
+      }
+      .field-zone-overlay:not(.is-visible) .field-zone {
+        opacity: 0;
+      }
+      .field-surface img {
+        width: 100%;
+        height: auto;
+        object-fit: cover;
+        display: block;
+        pointer-events: none;
+      }
+      .touch-highlight {
+        position: absolute;
+        width: 46px;
+        height: 46px;
+        border-radius: 50%;
+        border: 2px solid rgba(255, 255, 255, 0.9);
+        pointer-events: none;
+        transform: translate(-50%, -50%);
+        display: none;
+        z-index: 2;
+      }
+      .field-popup {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: min(340px, 90vw);
+        background: rgba(2, 6, 23, 0.92);
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+        box-shadow: 0 40px 90px rgba(0, 0, 0, 0.65);
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(-12px);
+        transition: opacity 0.25s ease, transform 0.25s ease;
+        z-index: 4;
+      }
+      .field-popup.is-visible {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateY(0);
+      }
+      .field-popup .popup-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+      }
+      .field-popup .popup-header strong {
+        font-size: 0.85rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+      }
+      .field-popup .popup-header .close-popup {
+        background: transparent;
+        border: none;
+        color: #f8fafc;
+        font-size: 1.2rem;
+        cursor: pointer;
+      }
+      .field-popup .popup-form {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+      .field-popup .popup-quick-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+      }
+      .field-popup,
+      .field-popup .popup-quick-actions button,
+      .field-popup .popup-actions .button,
+      .quick-history span {
+        text-transform: uppercase;
+      }
+      .field-popup label {
+        font-size: 0.7rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: rgba(248, 250, 252, 0.7);
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        font-weight: 600;
+      }
+      .field-popup input,
+      .field-popup select,
+      .field-popup textarea {
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: rgba(2, 6, 23, 0.9);
+        color: #f8fafc;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.85rem;
+      }
+      .field-popup textarea {
+        min-height: 64px;
+        resize: vertical;
+      }
+      .field-popup .popup-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.4rem;
+        flex-wrap: wrap;
+      }
+      .field-popup .popup-actions .button {
+        padding: 0.55rem 1rem;
+      }
+      .field-popup .popup-actions .close-popup {
+        padding: 0.35rem 0.75rem;
+        font-size: 0.75rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        background: transparent;
+      }
+      .zone-label {
+        position: absolute;
+        padding: 0.35rem 0.75rem;
+        border-radius: 999px;
+        background: rgba(2, 6, 23, 0.85);
+        color: #f8fafc;
+        font-size: 0.75rem;
+        letter-spacing: 0.05em;
+        pointer-events: none;
+        z-index: 3;
+        transform: translate(-50%, -120%);
+        white-space: nowrap;
+        display: none;
+      }
+      .touch-highlight.active {
+        display: block;
+      }
+      .field-footer {
+        text-transform: uppercase;
+        letter-spacing: 0.25em;
+        font-size: 0.7rem;
+        color: rgba(248, 250, 252, 0.7);
+      }
+      .actions-sidebar {
+        background: var(--panel);
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        padding: 2rem 1.5rem;
+        border-left: 1px solid rgba(255, 255, 255, 0.05);
+      }
+      .sidebar-header {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+      }
+      .sidebar-header h1 {
+        margin: 0;
+        font-size: 1.3rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+      }
+      .sidebar-header p {
+        margin: 0;
+        color: rgba(248, 250, 252, 0.65);
+        font-size: 0.85rem;
+        letter-spacing: 0.18em;
+      }
+      .convocation-list {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+        overflow-y: auto;
+        padding-right: 0.25rem;
+      }
+      .convocation-card {
+        padding: 0.75rem 1rem;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        cursor: pointer;
+        transition: border 0.2s ease, transform 0.2s ease;
+      }
+      .convocation-card.is-assigned {
+        opacity: 0;
+        pointer-events: none;
+        height: 0;
+        margin: 0;
+        padding: 0;
+        border: none;
+        overflow: hidden;
+      }
+      .convocation-card header {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.7rem;
+        letter-spacing: 0.3em;
+        text-transform: uppercase;
+        color: rgba(248, 250, 252, 0.6);
+      }
+      .convocation-card strong {
+        display: block;
+        font-size: 1rem;
+        margin-top: 0.35rem;
+      }
+      .convocation-card.selected {
+        border-color: rgba(250, 204, 21, 0.8);
+        transform: translateY(-2px);
+      }
+      .convocation-empty {
+        margin: 0;
+        text-transform: uppercase;
+        letter-spacing: 0.25em;
+        font-size: 0.7rem;
+        color: rgba(248, 250, 252, 0.6);
+      }
+      .action-form {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        padding: 1rem;
+        background: var(--panel-soft);
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        opacity: 0.3;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+      }
+      .action-form label {
+        font-size: 0.75rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: rgba(248, 250, 252, 0.7);
+      }
+      .action-form input {
+        width: 100%;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: rgba(2, 6, 23, 0.7);
+        color: #f8fafc;
+        padding: 0.75rem 1rem;
+        font-size: 0.95rem;
+      }
+      .action-form textarea {
+        min-height: 100px;
+        resize: vertical;
+      }
+      .action-form.is-ready {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      .quick-actions.compact.is-ready {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      .convocation-strip {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+      .convocation-strip h3 {
+        margin: 0;
+        font-size: 0.75rem;
+        letter-spacing: 0.25em;
+        text-transform: uppercase;
+        color: rgba(248, 250, 252, 0.7);
+      }
+      .convocation-strip .convocation-list {
+        display: flex;
+        gap: 0.5rem;
+        overflow-x: auto;
+        padding-bottom: 0.25rem;
+      }
+      .convocation-strip .convocation-card {
+        min-width: 140px;
+        flex: 0 0 auto;
+        padding: 0.6rem 0.85rem;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.04);
+        cursor: pointer;
+        transition: border 0.2s ease, transform 0.2s ease;
+      }
+      .convocation-strip .convocation-card.selected {
+        border-color: rgba(250, 204, 21, 0.8);
+        transform: translateY(-2px);
+      }
+      .convocation-strip .convocation-card strong {
+        display: block;
+        font-size: 0.95rem;
+        margin-top: 0.2rem;
+      }
+      .convocation-strip .convocation-empty {
+        margin: 0;
+        text-transform: uppercase;
+        letter-spacing: 0.25em;
+        font-size: 0.7rem;
+        color: rgba(248, 250, 252, 0.6);
+      }
+      .history-panel {
+        padding: 1rem;
+        border-radius: 18px;
+        background: rgba(8, 13, 29, 0.75);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      .history-panel h3 {
+        margin: 0 0 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.2em;
+        font-size: 0.75rem;
+      }
+      .history-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+      }
+      .history-item {
+        padding: 0.9rem;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        position: relative;
+      }
+      .history-item strong {
+        display: block;
+        margin-bottom: 0.3rem;
+      }
+      .history-item .hist-minute {
+        font-size: 0.7rem;
+        letter-spacing: 0.3em;
+        color: rgba(248, 250, 252, 0.6);
+      }
+      .history-item .hist-text {
+        margin: 0;
+        font-size: 0.8rem;
+        color: rgba(248, 250, 252, 0.75);
+      }
+      .history-delete {
+        position: absolute;
+        top: 0.35rem;
+        right: 0.35rem;
+        width: 30px;
+        height: 30px;
+        border: none;
+        background: rgba(255, 255, 255, 0.05);
+        color: #facc15;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 0.9rem;
+      }
+      .button {
+        border: none;
+        border-radius: 999px;
+        padding: 0.85rem 1.8rem;
+        background: linear-gradient(135deg, #facc15, #f97316);
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        cursor: pointer;
+      }
+      .history-item strong {
+        letter-spacing: 0.05em;
+      }
+      @media (max-width: 1100px) {
+        .action-screen {
+          grid-template-columns: 1fr;
+        }
+        .actions-sidebar {
+          border-left: none;
+          padding: 1.5rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div class="action-screen">
+        <section class="field-column">
+          <div class="field-header">
+            <a href="{% url 'dashboard-home' %}" class="dragon-link" title="Ir al inicio">
+              <img src="{% static 'logos/dragon.png' %}" alt="Dragón · CRM" class="dragon-logo" />
+            </a>
+            <strong>{{ team_name }} · Campo táctil</strong>
+            <span>Registro en vivo</span>
+            <button type="button" id="zone-overlay-toggle" class="zone-overlay-toggle">Ver zonas</button>
+          </div>
+          <div class="clock-card">
+            <div class="clock-card-inner">
+              <div class="field-clock">
+                <span id="match-clock-display">00:00</span>
+                <button type="button" id="field-clock-toggle" aria-label="Arrancar cronómetro">►</button>
+              </div>
+              <p class="clock-note">Cronómetro en vivo · se registra el minuto en cada acción</p>
+            </div>
+          </div>
+          {% if match_info %}
+          <div class="match-header-panels">
+            <div class="match-info-stack">
+              <div class="match-info-card" id="match-info-card" aria-live="polite">
+                <div class="match-info-row" data-field="opponent">
+                  <span>Rival</span>
+                  <strong data-display>{{ match_info.opponent|default:"-" }}</strong>
+                  <button class="rival-toggle" type="button">Ver rivales</button>
+                  <input
+                    class="match-info-input"
+                    type="text"
+                    data-input
+                    value="{{ match_info.opponent|default:''|escape }}"
+                    placeholder="Escribe rival"
+                  />
+                  <div class="rival-dropdown" data-rival-dropdown>
+                    {% if category_rivals %}
+                    <ul>
+                      {% for rival in category_rivals %}
+                      <li>
+                        <button
+                          class="rival-option"
+                          type="button"
+                          data-rival-name="{{ rival.name|escape }}"
+                          data-rival-slug="{{ rival.slug|escape }}"
+                          data-rival-location="{{ rival.field_location|default:''|escape }}"
+                        >
+                          <strong>{{ rival.name }}</strong>
+                          <span>{{ rival.points }} pts · {{ rival.played }}j</span>
+                          {% if rival.field_location %}
+                          <em>{{ rival.field_location }}</em>
+                          {% endif %}
+                        </button>
+                      </li>
+                      {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="rival-empty">No hay rivales disponibles</p>
+                    {% endif %}
+                  </div>
+                </div>
+                <div class="match-info-row" data-field="location">
+                  <span>Campo</span>
+                  <strong data-display>{{ match_info.location|default:"-" }}</strong>
+                  <input
+                    class="match-info-input"
+                    type="text"
+                    data-input
+                    value="{{ match_info.location|default:''|escape }}"
+                    placeholder="Campo de juego"
+                  />
+                </div>
+                <div class="match-info-row" data-field="datetime">
+                  <span>Fecha y hora</span>
+                  <strong data-display>
+                    {% if match_info.date %}
+                    {{ match_info.date }} · {{ match_info.time }}
+                    {% else %}
+                    {{ match_info.time|default:"00:00" }}
+                    {% endif %}
+                  </strong>
+                  <input
+                    class="match-info-input"
+                    type="text"
+                    data-input
+                    value="{% if match_info.date %}{{ match_info.date }} · {{ match_info.time }}{% else %}{{ match_info.time|default:'' }}{% endif %}"
+                    placeholder="dd/mm/aaaa · hh:mm"
+                  />
+                </div>
+                <div class="match-info-row" data-field="round">
+                  <span>Jornada</span>
+                  <strong data-display>{{ match_info.round|default:"-" }}</strong>
+                  <input
+                    class="match-info-input"
+                    type="text"
+                    data-input
+                    value="{{ match_info.round|default:''|escape }}"
+                    placeholder="Jornada o ronda"
+                  />
+                </div>
+                <div class="match-info-actions">
+                  <button type="button" id="match-info-edit-btn">Editar</button>
+                  <button type="button" id="match-info-save-btn" class="save">Guardar</button>
+                  <button type="button" id="match-info-reset-btn" class="reset">Restablecer</button>
+                  <button type="button" id="match-finalize-btn" class="save">Guardar partido</button>
+                </div>
+            </div>
+            <div class="match-status-panels">
+              <article class="status-card">
+                <h5>Tarjetas</h5>
+                  <p>Amarillas · <span class="status-value">0</span></p>
+                  <p>Rojas · <span class="status-value">0</span></p>
+                </article>
+                <article class="status-card">
+                  <h5>Sustituciones</h5>
+                  <p>Realizadas · <span class="status-value">0</span></p>
+                  <p>Disponibles · <span class="status-value">5</span></p>
+              </article>
+            </div>
+            <div class="quick-action-columns">
+              <div class="quick-action-column">
+              <div class="quick-action-card">
+                <div class="quick-action-header">
+                  <span>Tarjetas</span>
+                  <div class="quick-action-counts">
+                    <span>Amarillas · <strong id="yellow-count">0</strong></span>
+                    <span>Rojas · <strong id="red-count">0</strong></span>
+                  </div>
+                </div>
+                <div class="quick-drop-row">
+                  <div
+                    class="quick-drop"
+                    data-drop-key="amarilla"
+                    data-event-type="Tarjeta Amarilla"
+                    data-zone-label="Tarjeta Amarilla"
+                    data-result="Amarilla"
+                  >
+                    <span class="quick-icon">🟡</span>
+                    <span>Amarilla</span>
+                  </div>
+                  <div
+                    class="quick-drop"
+                    data-drop-key="roja"
+                    data-event-type="Tarjeta Roja"
+                    data-zone-label="Tarjeta Roja"
+                    data-result="Roja"
+                  >
+                    <span class="quick-icon">🟥</span>
+                    <span>Roja</span>
+                  </div>
+                </div>
+                <div class="quick-history" id="yellow-history"></div>
+                <div class="quick-history" id="red-history"></div>
+              </div>
+            </div>
+            <div class="quick-action-column">
+              <div class="quick-action-card">
+                <div class="quick-action-header">
+                    <span>Sustituciones</span>
+                    <div class="quick-action-counts">
+                      <span>Realizadas · <strong id="sub-count">0</strong></span>
+                    </div>
+                  </div>
+                <div class="quick-drop-row">
+                  <div
+                    class="quick-drop"
+                    data-drop-key="subida"
+                    data-event-type="Sustitución"
+                    data-zone-label="Sustitución Entrante"
+                    data-result="Entrada"
+                  >
+                    <span class="quick-icon">⬆️</span>
+                    <span>Entrada</span>
+                  </div>
+                  <div
+                    class="quick-drop"
+                    data-drop-key="bajada"
+                    data-event-type="Sustitución"
+                    data-zone-label="Sustitución Saliente"
+                    data-result="Salida"
+                  >
+                    <span class="quick-icon">⬇️</span>
+                    <span>Salida</span>
+                  </div>
+                </div>
+                <div class="quick-history" id="sub-history"></div>
+              </div>
+            </div>
+            </div>
+          </div>
+          </div>
+          {% endif %}
+          <div class="field-wrapper">
+            <div class="touch-field" id="touch-field">
+            <div class="field-surface" id="field-surface">
+              <img
+                id="field-image"
+                src="{% static 'football/campo-futbol.jpg' %}"
+                alt="Campo de fútbol"
+                loading="lazy"
+              />
+              <div class="field-overlay-lines" aria-hidden="true">
+                <span class="center-line"></span>
+                <span class="center-circle"></span>
+                <span class="penalty-box left"></span>
+                <span class="penalty-box right"></span>
+                <span class="penalty-area left"></span>
+                <span class="penalty-area right"></span>
+                <span class="goal-line left"></span>
+                <span class="goal-line right"></span>
+              </div>
+            </div>
+            <div class="field-popup" id="field-popup" aria-hidden="true">
+              <form
+                id="field-popup-form"
+                class="popup-form"
+                method="post"
+                data-submit-url="{% url 'match-action-record' %}"
+              >
+                {% csrf_token %}
+                <div class="popup-header">
+                  <strong>Registrar acción</strong>
+                  <button type="button" class="close-popup" aria-label="Cerrar">×</button>
+                </div>
+                <div class="popup-quick-actions">
+                  {% for action in quick_actions %}
+                  <button type="button" class="pill-button quick-action" data-action="{{ action }}">
+                    {{ action }}
+                  </button>
+                  {% endfor %}
+                </div>
+                <input type="hidden" name="player" id="selected-player" />
+                <label>
+                  Tipo de acción
+                  <input type="text" name="action_type" placeholder="Disparo, pase, recuperación…" required />
+                </label>
+                <label>
+                  Resultado
+                  <select name="result" required>
+                    <option value="">Selecciona resultado</option>
+                    {% for result in result_options %}
+                    <option value="{{ result }}">{{ result }}</option>
+                    {% empty %}
+                    <option value="OK">OK</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label>
+                  Minuto
+                  <input type="number" name="minute" min="0" max="120" placeholder="23" />
+                </label>
+                <label>
+                  Zona del campo
+                  <input type="text" name="zone" placeholder="Ataque centro, defensa derecha…" readonly />
+                </label>
+                <label>
+                  Tercio
+                  <select name="tercio">
+                    <option value="">Selecciona tercio</option>
+                    {% for tercio in tercio_options %}
+                    <option value="{{ tercio }}">{{ tercio }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label>
+                  Observación
+                  <textarea name="observation" placeholder="Comentarios adicionales"></textarea>
+                </label>
+                <div class="popup-actions">
+                  <button class="button" type="submit">Guardar acción</button>
+                  <button type="button" class="close-popup">Cerrar</button>
+                </div>
+              </form>
+            </div>
+          </div>
+          </div>
+          <div class="field-footer">Convocatoria actual · mueve a los jugadores con un toque</div>
+          <section class="action-register">
+            <div class="register-card">
+              <h3>Registro de acciones</h3>
+              <p>Pulsa sobre el césped para marcar la zona y añade el detalle en el formulario táctil.</p>
+            </div>
+            <section class="history-panel">
+              <h3>Historial reciente</h3>
+              <div class="history-grid" id="history-list">
+              {% for event in recent_events %}
+              <article class="history-item" data-event-id="{{ event.id }}">
+                <span class="hist-minute">{{ event.minute|default:"??" }}'</span>
+                {% with event_player=event.player %}
+                <strong>#{{ event_player.number|default:"--" }} {{ event_player.name|default:"Jugador" }}</strong>
+                {% endwith %}
+                <p class="hist-text">{{ event.event_type }} · {{ event.zone|default:"-" }} · {{ event.result|default:"" }}</p>
+                <button type="button" class="history-delete" aria-label="Eliminar acción">🗑</button>
+              </article>
+              {% empty %}
+              <article class="history-item">
+                <span class="hist-minute">—</span>
+                <strong>Sin acciones todavía</strong>
+                <p class="hist-text">Comienza el registro para verás cómo se llenan aquí.</p>
+              </article>
+              {% endfor %}
+            </div>
+          </section>
+        </section>
+      </section>
+      <aside class="actions-sidebar">
+        <div class="sidebar-header">
+          <a href="{% url 'dashboard-home' %}" class="dragon-link" title="Ir al inicio">
+            <img src="{% static 'logos/dragon.png' %}" alt="Dragón · CRM" class="dragon-logo" />
+          </a>
+          <h1>Convocados</h1>
+          <p>Arrastra las fichas para organizar el once y los suplentes.</p>
+        </div>
+        <div class="sidebar-lineup-builder">
+          <div class="lineup-slot">
+            <div class="lineup-slot-header">
+              <span>Once inicial</span>
+              <span class="lineup-count" id="lineup-starters-count">0/11</span>
+            </div>
+            <div class="lineup-drop-area" id="sidebar-initial-lineup" data-section="starters"></div>
+          </div>
+          <div class="lineup-slot">
+            <div class="lineup-slot-header">
+              <span>Suplentes</span>
+              <span class="lineup-count" id="lineup-bench-count">0</span>
+            </div>
+            <div class="lineup-drop-area" id="sidebar-bench-lineup" data-section="bench"></div>
+          </div>
+          <input type="hidden" id="initial-lineup-data" name="initial_lineup" value='{"starters":[],"bench":[]}' />
+        </div>
+        <div class="convocation-list" id="convocation-list">
+          {% if convocation_players %}
+          {% for player in convocation_players %}
+          <article
+            class="convocation-card"
+            draggable="true"
+            data-player-id="{{ player.id }}"
+            data-player-name="{{ player.name|escape }}"
+            data-player-number="{{ player.number|default:'--' }}"
+            data-player-position="{{ player.position|default:'Sin definir'|escape }}"
+          >
+            <header>
+              <span>#{{ player.number|default:"--" }}</span>
+              <span>{{ player.position|default:"Sin definir" }}</span>
+            </header>
+            <strong>{{ player.name }}</strong>
+          </article>
+          {% endfor %}
+          {% else %}
+          <p class="convocation-empty">No hay convocatoria guardada.</p>
+          {% endif %}
+        </div>
+      </aside>
+    </div>
+    {{ field_zone_defs|json_script:"field-zone-defs" }}
+    {{ team_fields|json_script:"team-fields-data" }}
+    <script>
+      const fieldZoneDefs = JSON.parse(
+        document.getElementById('field-zone-defs')?.textContent || '[]',
+      );
+      const touchField = document.getElementById('touch-field');
+      const fieldSurface = document.getElementById('field-surface');
+      const interactiveSurface = fieldSurface || touchField;
+      const fieldPopup = document.getElementById('field-popup');
+      const popupForm = document.getElementById('field-popup-form');
+      const actionInput = popupForm.querySelector('input[name="action_type"]');
+      const zoneInput = popupForm.querySelector('input[name="zone"]');
+      const minuteInput = popupForm.querySelector('input[name="minute"]');
+      const playerInput = document.getElementById('selected-player');
+      const quickButtons = popupForm.querySelectorAll('.quick-action');
+      const popupCloseButtons = popupForm.querySelectorAll('.close-popup');
+      const convocationCards = document.querySelectorAll('.convocation-card');
+      const historyList = document.getElementById('history-list');
+      const lineupInput = document.getElementById('initial-lineup-data');
+      const lineupSections = {
+        starters: {
+          element: document.getElementById('sidebar-initial-lineup'),
+          countEl: document.getElementById('lineup-starters-count'),
+          limit: 11,
+          placeholder: 'Arrastra hasta 11 jugadores desde la convocatoria.',
+        },
+        bench: {
+          element: document.getElementById('sidebar-bench-lineup'),
+          countEl: document.getElementById('lineup-bench-count'),
+          placeholder: 'Arrastra suplentes aquí.',
+        },
+      };
+      const matchClockDisplay = document.getElementById('match-clock-display');
+      const clockToggle = document.getElementById('field-clock-toggle');
+      const highlight = document.createElement('span');
+      const zoneLabel = document.createElement('span');
+      const csrfInput = popupForm.querySelector('input[name="csrfmiddlewaretoken"]');
+      const csrfToken = csrfInput?.value || '';
+      const submitUrl = popupForm.dataset.submitUrl;
+      const deleteUrl = '{% url "match-action-delete" %}';
+      const finalizeUrl = '{% url "match-action-finalize" %}';
+      let elapsedSeconds = 0;
+      let clockInterval = null;
+      let clockRunning = false;
+      let lineupState = {
+        starters: [],
+        bench: [],
+      };
+
+      highlight.className = 'touch-highlight';
+      zoneLabel.className = 'zone-label';
+      interactiveSurface.appendChild(highlight);
+      interactiveSurface.appendChild(zoneLabel);
+      const zoneOverlay = document.createElement('div');
+      zoneOverlay.className = 'field-zone-overlay is-visible';
+      fieldSurface.appendChild(zoneOverlay);
+      const zoneOverlayToggleBtn = document.getElementById('zone-overlay-toggle');
+      let zoneOverlayVisible = true;
+
+      const renderZoneOverlay = () => {
+        zoneOverlay.innerHTML = '';
+        fieldZoneDefs.forEach((zone) => {
+          const zoneEl = document.createElement('div');
+          zoneEl.className = 'field-zone';
+          zoneEl.style.left = zone.left;
+          zoneEl.style.top = zone.top;
+          zoneEl.style.width = zone.width;
+          zoneEl.style.height = zone.height;
+          zoneEl.dataset.zoneKey = zone.key;
+          const label = document.createElement('span');
+          label.textContent = zone.label;
+          zoneEl.appendChild(label);
+          zoneOverlay.appendChild(zoneEl);
+        });
+      };
+
+      const setZoneOverlayVisibility = (visible) => {
+        zoneOverlayVisible = visible;
+        zoneOverlay.classList.toggle('is-visible', visible);
+        if (zoneOverlayToggleBtn) {
+          zoneOverlayToggleBtn.dataset.state = visible ? 'visible' : 'hidden';
+          zoneOverlayToggleBtn.textContent = visible ? 'Ocultar zonas' : 'Ver zonas';
+        }
+      };
+
+      renderZoneOverlay();
+      if (zoneOverlayToggleBtn) {
+        zoneOverlayToggleBtn.addEventListener('click', () => {
+          setZoneOverlayVisibility(!zoneOverlayVisible);
+        });
+        setZoneOverlayVisibility(true);
+      }
+      const hydrateLineupState = () => {
+        if (!lineupInput?.value) {
+          return;
+        }
+        try {
+          const current = JSON.parse(lineupInput.value);
+          lineupState = {
+            starters: Array.isArray(current?.starters) ? current.starters : [],
+            bench: Array.isArray(current?.bench) ? current.bench : [],
+          };
+        } catch (err) {
+          console.error('Invalid lineup payload', err);
+        }
+      };
+      const updateLineupInput = () => {
+        if (lineupInput) {
+          lineupInput.value = JSON.stringify(lineupState);
+        }
+      };
+      let selectedPlayerId = null;
+      const clearPlayerSelection = () => {
+        selectedPlayerId = null;
+        if (playerInput) {
+          playerInput.value = '';
+        }
+        document.querySelectorAll('.lineup-chip.selected').forEach((chip) => chip.classList.remove('selected'));
+        convocationCards.forEach((card) => card.classList.remove('selected'));
+      };
+      const selectPlayer = (playerId) => {
+        selectedPlayerId = playerId;
+        if (playerInput) {
+          playerInput.value = playerId;
+        }
+        document.querySelectorAll('.lineup-chip').forEach((chip) => {
+          chip.classList.toggle('selected', chip.dataset.playerId === playerId);
+        });
+        convocationCards.forEach((card) => {
+          card.classList.toggle('selected', card.dataset.playerId === playerId);
+        });
+      };
+      const createLineupChip = (player, sectionKey) => {
+        const span = document.createElement('span');
+        span.className = 'lineup-name lineup-chip';
+        span.textContent = `#${player.number || '--'} ${player.name}`;
+        span.dataset.playerId = player.id;
+        span.dataset.playerNumber = player.number || '';
+        span.dataset.section = sectionKey;
+        span.draggable = true;
+        span.addEventListener('dragstart', (event) => {
+          event.dataTransfer?.setData('text/plain', JSON.stringify(player));
+          event.dataTransfer?.setData('source-section', sectionKey);
+        });
+        span.addEventListener('click', () => selectPlayer(player.id));
+        span.addEventListener('dblclick', () => removeLineupEntry(player.id));
+        return span;
+      };
+      const renderLineupSection = (sectionKey) => {
+        const section = lineupSections[sectionKey];
+        if (!section?.element) {
+          return;
+        }
+        section.element.innerHTML = '';
+        const players = lineupState[sectionKey] || [];
+        if (!players.length) {
+          const placeholder = document.createElement('span');
+          placeholder.className = 'lineup-placeholder';
+          placeholder.textContent = section.placeholder;
+          section.element.appendChild(placeholder);
+          return;
+        }
+        players.forEach((player) => {
+          section.element.appendChild(createLineupChip(player, sectionKey));
+        });
+      };
+      const refreshLineupCounts = () => {
+        Object.keys(lineupSections).forEach((sectionKey) => {
+          const section = lineupSections[sectionKey];
+          if (!section) {
+            return;
+          }
+          const count = lineupState[sectionKey]?.length || 0;
+          if (section.countEl) {
+            section.countEl.textContent =
+              sectionKey === 'starters' ? `${count}/11` : `${count}`;
+          }
+        });
+      };
+      const refreshCardAssignments = () => {
+        const assigned = new Map();
+        Object.keys(lineupState).forEach((sectionKey) => {
+          lineupState[sectionKey].forEach((player) => {
+            if (player?.id) {
+              assigned.set(String(player.id), sectionKey);
+            }
+          });
+        });
+        convocationCards.forEach((card) => {
+          const playerId = String(card.dataset.playerId);
+          const assignedSection = assigned.get(playerId);
+          card.classList.toggle('is-assigned', Boolean(assignedSection));
+          if (assignedSection) {
+            card.dataset.assignedSection = assignedSection;
+          } else {
+            delete card.dataset.assignedSection;
+          }
+        });
+      };
+      const renderLineup = () => {
+        Object.keys(lineupSections).forEach(renderLineupSection);
+        refreshLineupCounts();
+        updateLineupInput();
+        refreshCardAssignments();
+      };
+      const quickCounters = {
+        amarilla: document.getElementById('yellow-count'),
+        roja: document.getElementById('red-count'),
+        subs: document.getElementById('sub-count'),
+      };
+      const quickStats = {
+        amarilla: 0,
+        roja: 0,
+        subs: 0,
+      };
+      const incrementQuickCounter = (dropKey) => {
+        const counterKey = dropKey === 'amarilla' ? 'amarilla' : dropKey === 'roja' ? 'roja' : 'subs';
+        quickStats[counterKey] += 1;
+        const counterEl = quickCounters[counterKey];
+        if (counterEl) {
+          counterEl.textContent = quickStats[counterKey];
+        }
+      };
+      const quickHistoryContainers = {
+        amarilla: document.getElementById('yellow-history'),
+        roja: document.getElementById('red-history'),
+        subs: document.getElementById('sub-history'),
+      };
+      const appendQuickHistory = (dropKey, playerName, minute, label) => {
+        const container =
+          dropKey === 'subida' || dropKey === 'bajada'
+            ? quickHistoryContainers.subs
+            : quickHistoryContainers[dropKey];
+        if (!container) {
+          return;
+        }
+        const entry = document.createElement('span');
+        entry.textContent = `${playerName} · ${minute}' · ${label || ''}`.trim().toUpperCase();
+        container.appendChild(entry);
+        if (container.children.length > 3) {
+          container.removeChild(container.firstChild);
+        }
+      };
+
+      const registerQuickAction = async (player, config) => {
+        if (!player?.id) {
+          return;
+        }
+        const minute = Math.floor(elapsedSeconds / 60);
+        const payload = new FormData();
+        payload.set('player', player.id);
+        payload.set('action_type', config.eventType);
+        payload.set('result', config.result || '');
+        payload.set('minute', minute);
+        payload.set('zone', config.zoneLabel || '');
+        payload.set('tercio', '');
+        payload.set('observation', '');
+        try {
+          const response = await fetch(submitUrl, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+              'X-CSRFToken': csrfToken,
+              Accept: 'application/json',
+            },
+            body: payload,
+          });
+          const data = await response.json();
+          if (!response.ok) {
+            alert(data.error || 'No se pudo registrar la acción rápida.');
+            return;
+          }
+          appendHistoryEntry({
+            minute: data.minute || 'Ahora',
+            player: data.player,
+            action: data.action,
+            zone: data.zone,
+            result: data.result,
+          });
+          incrementQuickCounter(config.dropKey);
+          appendQuickHistory(
+            config.dropKey,
+            data.player.name,
+            data.minute || minute,
+            config.result,
+          );
+          selectPlayer(player.id);
+        } catch (err) {
+          console.error(err);
+          alert('Error al registrar la acción rápida.');
+        }
+      };
+      const removeLineupEntry = (playerId) => {
+        let changed = false;
+        Object.keys(lineupState).forEach((sectionKey) => {
+          const originalLength = lineupState[sectionKey].length;
+          lineupState[sectionKey] = lineupState[sectionKey].filter((entry) => entry.id !== playerId);
+          if (lineupState[sectionKey].length !== originalLength) {
+            changed = true;
+          }
+        });
+        if (selectedPlayerId === playerId) {
+          clearPlayerSelection();
+        }
+        if (changed) {
+          renderLineup();
+        }
+      };
+      const addPlayerToSection = (sectionKey, player) => {
+        const section = lineupSections[sectionKey];
+        if (!section || !player?.id) {
+          return;
+        }
+        if (section.limit && lineupState[sectionKey].length >= section.limit) {
+          return;
+        }
+        removeLineupEntry(player.id);
+        lineupState[sectionKey].push(player);
+        renderLineup();
+        selectPlayer(player.id);
+      };
+      hydrateLineupState();
+      renderLineup();
+      convocationCards.forEach((card) => {
+        card.setAttribute('draggable', 'true');
+        card.addEventListener('dragstart', (event) => {
+          event.dataTransfer?.setData(
+            'text/plain',
+            JSON.stringify({
+              id: card.dataset.playerId,
+              name: card.dataset.playerName,
+              number: card.dataset.playerNumber,
+            }),
+          );
+        });
+        card.addEventListener('click', () => selectPlayer(card.dataset.playerId));
+      });
+      Object.keys(lineupSections).forEach((sectionKey) => {
+        const section = lineupSections[sectionKey];
+        const container = section?.element;
+        if (!container) {
+          return;
+        }
+        container.addEventListener('dragover', (event) => {
+          event.preventDefault();
+          container.classList.add('is-drag-over');
+        });
+        container.addEventListener('dragleave', () => {
+          container.classList.remove('is-drag-over');
+        });
+        container.addEventListener('drop', (event) => {
+          event.preventDefault();
+          container.classList.remove('is-drag-over');
+          const payload = event.dataTransfer?.getData('text/plain');
+          if (!payload) {
+            return;
+          }
+          try {
+            const player = JSON.parse(payload);
+            addPlayerToSection(sectionKey, player);
+          } catch (err) {
+            console.error('Invalid lineup drop', err);
+          }
+        });
+        container.addEventListener('dblclick', (event) => {
+          const target = event.target.closest('.lineup-chip');
+          if (!target) {
+            return;
+          }
+          removeLineupEntry(target.dataset.playerId);
+        });
+      });
+      const quickDropTargets = document.querySelectorAll('.quick-drop');
+      quickDropTargets.forEach((dropTarget) => {
+        dropTarget.addEventListener('dragover', (event) => {
+          event.preventDefault();
+          dropTarget.classList.add('is-drag-over');
+        });
+        dropTarget.addEventListener('dragleave', () => {
+          dropTarget.classList.remove('is-drag-over');
+        });
+        dropTarget.addEventListener('drop', (event) => {
+          event.preventDefault();
+          dropTarget.classList.remove('is-drag-over');
+          const payload = event.dataTransfer?.getData('text/plain');
+          if (!payload) {
+            return;
+          }
+          try {
+            const player = JSON.parse(payload);
+            const config = {
+              eventType: dropTarget.dataset.eventType,
+              zoneLabel: dropTarget.dataset.zoneLabel,
+              result: dropTarget.dataset.result,
+              dropKey: dropTarget.dataset.dropKey,
+            };
+            registerQuickAction(player, config);
+          } catch (err) {
+            console.error('Invalid quick drop', err);
+          }
+        });
+      });
+
+      const formatClock = (seconds) => {
+        const minutes = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${minutes.toString().padStart(2, '0')}:${secs
+          .toString()
+          .padStart(2, '0')}`;
+      };
+      const updateClockDisplay = () => {
+        if (matchClockDisplay) {
+          matchClockDisplay.textContent = formatClock(elapsedSeconds);
+        }
+        if (minuteInput) {
+          minuteInput.value = Math.floor(elapsedSeconds / 60);
+        }
+      };
+      const startClock = () => {
+        if (clockRunning) return;
+        clockRunning = true;
+        if (clockToggle) {
+          clockToggle.textContent = '||';
+        }
+        clockInterval = setInterval(() => {
+          elapsedSeconds += 1;
+          updateClockDisplay();
+        }, 1000);
+      };
+      const pauseClock = () => {
+        clockRunning = false;
+        if (clockToggle) {
+          clockToggle.textContent = '►';
+        }
+        clearInterval(clockInterval);
+        clockInterval = null;
+      };
+      if (clockToggle) {
+        clockToggle.addEventListener('click', (event) => {
+          event.stopPropagation();
+          if (clockRunning) {
+            pauseClock();
+          } else {
+            startClock();
+          }
+        });
+      }
+      updateClockDisplay();
+
+      const clamp = (value, min, max) => Math.max(min, Math.min(value, max));
+
+      const isPointInsideZone = (zone, xPercent, yPercent) => {
+        const zoneLeft = zone.left_pct;
+        const zoneRight = zone.left_pct + zone.width_pct;
+        const zoneTop = zone.top_pct;
+        const zoneBottom = zone.top_pct + zone.height_pct;
+        return (
+          xPercent >= zoneLeft &&
+          xPercent <= zoneRight &&
+          yPercent >= zoneTop &&
+          yPercent <= zoneBottom
+        );
+      };
+
+      const findClosestZone = (xPercent, yPercent) => {
+        const directMatch = fieldZoneDefs.find((zone) =>
+          isPointInsideZone(zone, xPercent, yPercent),
+        );
+        if (directMatch) {
+          return directMatch;
+        }
+        let closest = null;
+        let closestDist = Infinity;
+        fieldZoneDefs.forEach((zone) => {
+          const centerX = zone.left_pct + zone.width_pct / 2;
+          const centerY = zone.top_pct + zone.height_pct / 2;
+          const dx = xPercent - centerX;
+          const dy = yPercent - centerY;
+          const dist = dx * dx + dy * dy;
+          if (dist < closestDist) {
+            closestDist = dist;
+            closest = zone;
+          }
+        });
+        return closest;
+      };
+
+      const showPopup = (x, y) => {
+        const rect = interactiveSurface.getBoundingClientRect();
+        const width = fieldPopup.offsetWidth;
+        const height = fieldPopup.offsetHeight;
+        const left = clamp(x - width / 2, 8, rect.width - width - 8);
+        let top = y - height - 12;
+        if (top < 8) {
+          top = clamp(y + 12, 8, rect.height - height - 8);
+        }
+        fieldPopup.style.left = `${left}px`;
+        fieldPopup.style.top = `${top}px`;
+        fieldPopup.classList.add('is-visible');
+        if (minuteInput) {
+          minuteInput.value = Math.floor(elapsedSeconds / 60);
+        }
+        actionInput.focus();
+      };
+
+      const hidePopup = () => {
+        fieldPopup.classList.remove('is-visible');
+      };
+
+      popupCloseButtons.forEach((btn) => btn.addEventListener('click', hidePopup));
+
+      fieldPopup.addEventListener('click', (event) => event.stopPropagation());
+
+      quickButtons.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          quickButtons.forEach((other) => other.classList.remove('quake-action-active'));
+          btn.classList.add('quake-action-active');
+          actionInput.value = btn.dataset.action;
+        });
+      });
+
+      convocationCards.forEach((card) => {
+        card.addEventListener('click', () => {
+          convocationCards.forEach((other) => other.classList.remove('selected'));
+          card.classList.add('selected');
+          playerInput.value = card.dataset.playerId;
+        });
+      });
+
+      const appendHistoryEntry = ({ minute, player, action, zone, result, event_id }) => {
+        if (!historyList) return;
+        const item = document.createElement('article');
+        item.className = 'history-item';
+        const numericMinute = Number(minute);
+        const minuteLabel = Number.isFinite(numericMinute) ? `${numericMinute}'` : "Ahora'";
+        item.innerHTML = `
+          <span class="hist-minute">${minuteLabel}</span>
+          <strong>#${player.number || '--'} ${player.name}</strong>
+          <p class="hist-text">${action} · ${zone || '-'} · ${result || ''}</p>
+          <button type="button" class="history-delete" aria-label="Eliminar acción">🗑</button>
+        `;
+        if (event_id) {
+          item.dataset.eventId = event_id;
+        }
+        historyList.prepend(item);
+        if (historyList.children.length > 8) {
+          historyList.removeChild(historyList.lastChild);
+        }
+      };
+
+      historyList.addEventListener('click', async (event) => {
+        const button = event.target.closest('.history-delete');
+        if (!button) {
+          return;
+        }
+        const article = button.closest('[data-event-id]');
+        const eventId = article?.dataset?.eventId;
+        if (!eventId) {
+          return;
+        }
+        try {
+          const response = await fetch(deleteUrl, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+              'X-CSRFToken': csrfToken,
+            },
+            body: new URLSearchParams({ event_id: eventId }),
+          });
+          if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            alert(data.error || 'No se pudo eliminar la acción.');
+            return;
+          }
+          article.remove();
+        } catch (err) {
+          console.error(err);
+          alert('No se pudo eliminar la acción.');
+        }
+      });
+
+      const showZoneLabel = (zoneMatch, x, y) => {
+        if (!zoneMatch) {
+          zoneLabel.style.display = 'none';
+          return;
+        }
+        zoneLabel.textContent = zoneMatch.label;
+        zoneLabel.style.left = `${x}px`;
+        zoneLabel.style.top = `${Math.max(16, y - 10)}px`;
+        zoneLabel.style.display = 'block';
+      };
+
+      interactiveSurface.addEventListener('click', (event) => {
+        if (fieldPopup.contains(event.target) || popupForm.contains(event.target)) {
+          return;
+        }
+        const rect = interactiveSurface.getBoundingClientRect();
+        const fieldX = event.clientX - rect.left;
+        const fieldY = event.clientY - rect.top;
+        if (fieldX < 0 || fieldX > rect.width || fieldY < 0 || fieldY > rect.height) {
+          return;
+        }
+        highlight.style.left = `${fieldX}px`;
+        highlight.style.top = `${fieldY}px`;
+        highlight.classList.add('active');
+        const percentX = (fieldX / rect.width) * 100;
+        const percentY = (fieldY / rect.height) * 100;
+        const zoneMatch = findClosestZone(percentX, percentY);
+        if (zoneMatch) {
+          zoneInput.value = zoneMatch.label;
+          showZoneLabel(zoneMatch, fieldX, fieldY);
+          showPopup(fieldX, fieldY);
+        } else {
+          zoneInput.value = '';
+          zoneLabel.style.display = 'none';
+          hidePopup();
+        }
+      });
+
+      fieldPopup.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          hidePopup();
+        }
+      });
+
+      popupForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (!playerInput.value) {
+          alert('Selecciona primero un jugador convocado.');
+          return;
+        }
+        const payload = new FormData(popupForm);
+        try {
+          const response = await fetch(submitUrl, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+              'X-CSRFToken': csrfToken,
+              Accept: 'application/json',
+            },
+            body: payload,
+          });
+          const data = await response.json();
+          if (!response.ok) {
+            alert(data.error || 'No se pudo guardar la acción.');
+            return;
+          }
+          appendHistoryEntry({
+            minute: data.minute || 'Ahora',
+            player: data.player,
+            action: data.action,
+            zone: data.zone,
+            result: data.result,
+          });
+          hidePopup();
+          zoneLabel.style.display = 'none';
+          quickButtons.forEach((btn) => btn.classList.remove('quake-action-active'));
+          const lastPlayerId = playerInput.value;
+          popupForm.reset();
+          if (csrfInput) {
+            csrfInput.value = csrfToken;
+          }
+          if (lastPlayerId) {
+            playerInput.value = lastPlayerId;
+          }
+        } catch (err) {
+          console.error(err);
+          alert('Error al guardar la acción en el servidor.');
+        }
+      });
+      {% if match_info %}
+      const matchInfoCard = document.getElementById('match-info-card');
+      if (matchInfoCard) {
+        const overridesKey = 'touchFieldMatchInfoOverrides';
+        const matchInfoDate = '{{ match_info.date|default:''|escapejs }}';
+        const matchInfoTime = '{{ match_info.time|default:'00:00'|escapejs }}';
+        const defaultMatchInfo = {
+          opponent: '{{ match_info.opponent|default:''|escapejs }}',
+          location: '{{ match_info.location|default:''|escapejs }}',
+          datetime: matchInfoDate ? `${matchInfoDate} · ${matchInfoTime}` : matchInfoTime,
+          round: '{{ match_info.round|default:''|escapejs }}',
+        };
+        const rows = Array.from(matchInfoCard.querySelectorAll('[data-field]'));
+        const teamFieldsData = JSON.parse(
+          document.getElementById('team-fields-data')?.textContent || '[]',
+        );
+        const fieldLocationMap = teamFieldsData.reduce((acc, field) => {
+          if (field?.team_slug && field.location) {
+            acc[field.team_slug] = field.location;
+          }
+          return acc;
+        }, {});
+        let currentValues = {};
+        const setMatchInfoField = (fieldKey, value) => {
+          const row = matchInfoCard.querySelector(`[data-field="${fieldKey}"]`);
+          if (!row) {
+            return;
+          }
+          const display = row.querySelector('[data-display]');
+          const input = row.querySelector('[data-input]');
+          const normalized = value || '';
+          if (display) {
+            display.textContent = normalized || '—';
+          }
+          if (input) {
+            input.value = normalized;
+          }
+          currentValues = { ...currentValues, [fieldKey]: normalized };
+        };
+        const getStoredOverrides = () => {
+          try {
+            const raw = localStorage.getItem(overridesKey);
+            return raw ? JSON.parse(raw) : {};
+          } catch (err) {
+            console.error('match info overrides', err);
+            return {};
+          }
+        };
+        const applyValues = (values) => {
+          rows.forEach((row) => {
+            const fieldKey = row.dataset.field;
+            const display = row.querySelector('[data-display]');
+            const input = row.querySelector('[data-input]');
+            const value = values[fieldKey] || '';
+            if (display) {
+              display.textContent = value || '—';
+            }
+            if (input) {
+              input.value = value;
+            }
+          });
+        };
+        currentValues = { ...defaultMatchInfo, ...getStoredOverrides() };
+        applyValues(currentValues);
+        const editBtn = document.getElementById('match-info-edit-btn');
+        const saveBtn = document.getElementById('match-info-save-btn');
+        const resetBtn = document.getElementById('match-info-reset-btn');
+        const finalizeBtn = document.getElementById('match-finalize-btn');
+        const rivalToggle = matchInfoCard.querySelector('.rival-toggle');
+        const rivalDropdown = matchInfoCard.querySelector('[data-rival-dropdown]');
+        const rivalOptions = rivalDropdown
+          ? Array.from(rivalDropdown.querySelectorAll('[data-rival-name]'))
+          : [];
+        const enterEditMode = () => {
+          matchInfoCard.classList.add('is-editing');
+        };
+        const exitEditMode = () => {
+          matchInfoCard.classList.remove('is-editing');
+        };
+        if (editBtn) {
+          editBtn.addEventListener('click', () => {
+            enterEditMode();
+          });
+        }
+        if (saveBtn) {
+          saveBtn.addEventListener('click', () => {
+            const overrides = {};
+            rows.forEach((row) => {
+              const fieldKey = row.dataset.field;
+              const input = row.querySelector('[data-input]');
+              if (input) {
+                overrides[fieldKey] = input.value.trim();
+              }
+            });
+            const persisted = {};
+            Object.keys(defaultMatchInfo).forEach((key) => {
+              const value = overrides[key] || '';
+              if (value && value !== defaultMatchInfo[key]) {
+                persisted[key] = value;
+              }
+            });
+            if (Object.keys(persisted).length) {
+              localStorage.setItem(overridesKey, JSON.stringify(persisted));
+            } else {
+              localStorage.removeItem(overridesKey);
+            }
+            currentValues = { ...defaultMatchInfo, ...persisted };
+            applyValues(currentValues);
+            exitEditMode();
+          });
+        }
+        if (resetBtn) {
+          resetBtn.addEventListener('click', () => {
+            localStorage.removeItem(overridesKey);
+            currentValues = { ...defaultMatchInfo };
+            applyValues(currentValues);
+            exitEditMode();
+          });
+        }
+        if (finalizeBtn) {
+          finalizeBtn.addEventListener('click', async () => {
+            if (!confirm('¿Quieres guardar el partido y consolidar las acciones?')) {
+              return;
+            }
+            try {
+              const response = await fetch(finalizeUrl, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                  'X-CSRFToken': csrfToken,
+                  Accept: 'application/json',
+                },
+              });
+              const data = await response.json();
+              if (!response.ok) {
+                alert(data.error || 'No se pudo guardar el partido.');
+                return;
+              }
+              finalizeBtn.textContent = 'Partido guardado';
+              finalizeBtn.disabled = true;
+              const written = data.rows_written || 0;
+              alert(`Partido guardado. Acciones consolidadas: ${data.updated || 0}. BD_EVENTOS: ${written}`);
+            } catch (err) {
+              console.error(err);
+              alert('Error al guardar el partido.');
+            }
+          });
+        }
+        const closeRivalDropdown = () => {
+          rivalDropdown?.classList.remove('is-open');
+        };
+        if (rivalToggle && rivalDropdown) {
+          rivalToggle.addEventListener('click', (event) => {
+            event.stopPropagation();
+            rivalDropdown.classList.toggle('is-open');
+          });
+        }
+        rivalOptions.forEach((button) => {
+          button.addEventListener('click', () => {
+            const rivalName = button.dataset.rivalName;
+            if (!rivalName) {
+              return;
+            }
+            setMatchInfoField('opponent', rivalName);
+            const rivalSlug = button.dataset.rivalSlug;
+            const defaultLocation = button.dataset.rivalLocation || '';
+            const resolvedLocation =
+              (rivalSlug && fieldLocationMap[rivalSlug]) || defaultLocation;
+            if (resolvedLocation) {
+              setMatchInfoField('location', resolvedLocation);
+            }
+            closeRivalDropdown();
+          });
+        });
+        document.addEventListener('click', (event) => {
+          if (matchInfoCard && !matchInfoCard.contains(event.target)) {
+            closeRivalDropdown();
+          }
+        });
+      }
+      {% endif %}
+    </script>
+  </body>
+</html>

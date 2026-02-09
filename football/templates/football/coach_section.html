@@ -1,0 +1,99 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>{{ section_title }} · Cuerpo técnico</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <style>
+      body {
+        margin: 0;
+        font-family: 'Inter', system-ui, sans-serif;
+        background: linear-gradient(180deg, #020417 0%, #050b1c 100%);
+        color: #f8fafc;
+      }
+      .page {
+        max-width: 940px;
+        margin: 0 auto;
+        padding: 2rem 1.25rem 3rem;
+      }
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        margin-bottom: 1.5rem;
+      }
+      header h1 {
+        margin: 0;
+        text-transform: uppercase;
+        letter-spacing: 0.15em;
+      }
+      header p {
+        margin: 0;
+        color: rgba(226, 232, 240, 0.7);
+      }
+      .panel {
+        background: rgba(15, 23, 42, 0.95);
+        border-radius: 24px;
+        padding: 2rem;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 25px 60px rgba(0, 0, 0, 0.55);
+      }
+      .grid {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      }
+      .item {
+        padding: 1rem;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(15, 23, 42, 0.8);
+        min-height: 110px;
+      }
+      .item h3 {
+        margin: 0 0 0.4rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-size: 0.9rem;
+      }
+      .item p {
+        margin: 0;
+        color: rgba(226, 232, 240, 0.8);
+      }
+      .button {
+        margin-top: 1.5rem;
+        border-radius: 999px;
+        padding: 0.9rem 1.6rem;
+        border: none;
+        background: linear-gradient(135deg, #facc15, #f97316);
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header>
+        <div>
+          <p>Área técnica · Cuerpo técnico</p>
+          <h1>{{ section_title }}</h1>
+        </div>
+        <a class="button" href="{% url 'coach-detail' %}">Volver</a>
+      </header>
+      <article class="panel">
+        <p>{{ description }}</p>
+        <div class="grid">
+          {% for item in items %}
+          <div class="item">
+            <h3>{{ section_title }}</h3>
+            <p>{{ item }}</p>
+          </div>
+          {% endfor %}
+        </div>
+      </article>
+    </div>
+  </body>
+</html>

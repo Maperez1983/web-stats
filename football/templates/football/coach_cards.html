@@ -1,0 +1,93 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Panel entrenadores · Cuerpo técnico</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <style>
+      body {
+        margin: 0;
+        font-family: 'Inter', system-ui, sans-serif;
+        background: linear-gradient(180deg, #020617 0%, #050f1f 100%);
+        color: #f8fafc;
+      }
+      .page {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 2rem 1.25rem 3rem;
+      }
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      header h1 {
+        margin: 0;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .grid {
+        margin-top: 2rem;
+        display: grid;
+        gap: 1.25rem;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      }
+      .card {
+        background: rgba(15, 23, 42, 0.95);
+        border-radius: 20px;
+        padding: 1.5rem;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        min-height: 200px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+      .card h3 {
+        margin: 0;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+      }
+      .card p {
+        color: rgba(226, 232, 240, 0.75);
+        margin: 0.75rem 0;
+      }
+      .card strong {
+        letter-spacing: 0.2em;
+        color: #facc15;
+      }
+      .card a {
+        align-self: flex-start;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        font-weight: 700;
+        text-decoration: none;
+        color: #38bdf8;
+      }
+      .card a:hover {
+        color: #facc15;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header>
+        <div>
+          <p style="margin:0;color:rgba(226,232,240,0.6);">Cuerpo técnico · Panel estratégico</p>
+          <h1>Entrenadores</h1>
+        </div>
+        <a class="pill-button" style="border-radius:12px;" href="{% url 'coach-detail' %}">Volver</a>
+      </header>
+      <div class="grid">
+        {% for card in cards %}
+        <article class="card">
+          <h3>{{ card.title }}</h3>
+          <p>{{ card.description }}</p>
+          <strong>{{ card.title }} →</strong>
+          <a href="{% url card.link %}">Abrir</a>
+        </article>
+        {% endfor %}
+      </div>
+    </div>
+  </body>
+</html>

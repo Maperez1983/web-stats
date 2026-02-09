@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Partido · {{ match.opponent }}</title>
+    <style>
+      body {
+        font-family: 'Inter', sans-serif;
+        background: #030712;
+        color: #e2e8f0;
+        margin: 0;
+        padding: 2rem;
+      }
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+      }
+      header h1 {
+        margin: 0;
+        font-size: 1.8rem;
+      }
+      header a {
+        color: #93c5fd;
+        text-decoration: none;
+      }
+      .card {
+        background: rgba(15, 23, 42, 0.9);
+        padding: 1rem 1.2rem;
+        border-radius: 1rem;
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        margin-bottom: 1rem;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 1rem;
+      }
+      .metric-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      }
+      .metric-list li {
+        margin: 0.35rem 0;
+        color: rgba(226, 232, 240, 0.9);
+      }
+      .player-card {
+        background: rgba(2, 6, 23, 0.6);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        border-radius: 0.9rem;
+        padding: 0.8rem 1rem;
+      }
+      .player-card strong {
+        display: block;
+        margin-bottom: 0.25rem;
+      }
+      .player-card span {
+        display: block;
+        font-size: 0.85rem;
+        color: rgba(226, 232, 240, 0.8);
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div>
+        <p style="margin:0;color:#94a3b8;">Estadísticas del partido</p>
+        <h1>{{ match.opponent }} · Jornada {{ match.round }}</h1>
+        <p style="margin:0;color:#94a3b8;">{{ match.date }} · {{ match.location }}</p>
+      </div>
+      <a href="{% url 'player-dashboard' %}">← Volver a jugadores</a>
+    </header>
+
+    <div class="card">
+      <h2 style="margin:0 0 0.6rem;">Resumen del partido</h2>
+      <ul class="metric-list">
+        <li>Total acciones: <strong>{{ team_metrics.total_events }}</strong></li>
+        {% for item in team_metrics.top_event_types %}
+          <li>{{ item.event }} · {{ item.count }}</li>
+        {% empty %}
+          <li>Sin acciones registradas.</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2 style="margin:0 0 0.6rem;">Jugadores del partido</h2>
+      <div class="grid">
+        {% for player in player_cards %}
+          <article class="player-card">
+            <strong>#{{ player.number }} {{ player.name }}</strong>
+            <span>Acciones: {{ player.actions }} · Éxitos: {{ player.successes }}</span>
+            <span>Éxito: {{ player.success_rate }}%</span>
+          </article>
+        {% empty %}
+          <p>Sin jugadores con acciones en este partido.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Ficha PDF · {{ player.name }}</title>
+    <style>
+      @page {
+        size: A4 portrait;
+        margin: 1.5cm;
+      }
+      body {
+        font-family: 'Inter', sans-serif;
+        background: #030712;
+        color: #f8fafc;
+        margin: 0;
+        padding: 0;
+      }
+      .page {
+        background: #050b16;
+        padding: 2rem;
+        border-radius: 1rem;
+        box-shadow: 0 0 40px rgba(0, 0, 0, 0.4);
+      }
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .header h1 {
+        margin: 0;
+        font-size: 2rem;
+      }
+      .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-top: 1.5rem;
+      }
+      .block {
+        background: rgba(14, 23, 41, 0.9);
+        border-radius: 1rem;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        padding: 1rem;
+      }
+      .block h2 {
+        margin: 0 0 0.5rem;
+        font-size: 1rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #94a3b8;
+      }
+      .stat {
+        font-size: 1.3rem;
+        font-weight: 600;
+        margin-bottom: 0.2rem;
+      }
+      .stat-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        color: #94a3b8;
+        letter-spacing: 0.08em;
+      }
+      .detail-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 0.8rem;
+        margin: 1rem 0;
+      }
+      .detail-block {
+        background: rgba(15, 23, 42, 0.9);
+        border-radius: 0.9rem;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        padding: 0.85rem;
+        text-align: center;
+      }
+      .detail-block .label {
+        font-size: 0.8rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(148, 163, 184, 0.9);
+        margin-bottom: 0.3rem;
+      }
+      .detail-block .value {
+        font-size: 1.4rem;
+        font-weight: 600;
+      }
+      .detail-block .label-soft {
+        font-size: 0.85rem;
+        color: rgba(148, 163, 184, 0.9);
+      }
+      .heatmap-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+        margin-top: 1rem;
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.2rem 0.55rem;
+        border-radius: 999px;
+        background: rgba(59, 130, 246, 0.12);
+        color: #bfdbfe;
+        font-size: 0.75rem;
+        margin-right: 0.4rem;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1rem;
+      }
+      th, td {
+        border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+        padding: 0.35rem 0;
+        font-size: 0.85rem;
+      }
+      th {
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #94a3b8;
+      }
+      .tercio-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 0.6rem;
+        margin-top: 0.8rem;
+      }
+      .tercio-bar {
+        height: 0.6rem;
+        background: rgba(15, 23, 42, 0.8);
+        border-radius: 999px;
+        overflow: hidden;
+        margin-top: 0.3rem;
+      }
+      .tercio-fill {
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #38bdf8, #6366f1);
+      }
+      .position-list {
+        margin-top: 0.6rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div class="header">
+        <div>
+          <p style="margin:0;color:#94a3b8;">Jugador · {{ player.team.name }}</p>
+          <h1>{{ player.name }}</h1>
+        </div>
+        <div style="text-align:right;">
+          <div class="chip">{{ stats.dominant_position|default:"Sin posición dominante" }}</div>
+          {% if stats.position_breakdown %}
+            {% for entry in stats.position_breakdown|slice:":2" %}
+              <div class="chip">{{ entry.label }} · {{ entry.count }}</div>
+            {% endfor %}
+          {% endif %}
+        </div>
+      </div>
+      <div class="info-grid">
+        <div class="block">
+          <h2>Resumen oficial</h2>
+          <p class="stat">{{ stats.pj|default:0 }} / {{ stats.pt|default:0 }}</p>
+          <p class="stat-label">Partidos jugados · titular</p>
+          <p class="stat">{{ stats.minutes|default:0 }}</p>
+          <p class="stat-label">Minutos</p>
+          <p class="stat">{{ stats.goals|default:0 }}</p>
+          <p class="stat-label">Goles</p>
+          <p class="stat">{{ stats.yellow_cards|default:0 }} / {{ stats.red_cards|default:0 }}</p>
+          <p class="stat-label">Tarjetas (A/R)</p>
+        </div>
+      <div class="block">
+        <h2>KPIs técnicos</h2>
+        <p class="stat">{{ stats.success_rate|default:0 }}%</p>
+        <p class="stat-label">Tasa de éxito</p>
+        <p class="stat">{{ stats.total_actions|default:0 }}</p>
+        <p class="stat-label">Acciones</p>
+        <p class="stat">{{ stats.duel_summary.total|default:0 }}</p>
+        <p class="stat-label">Duelos totales</p>
+        <p class="stat">{{ stats.duel_summary.won|default:0 }}</p>
+        <p class="stat-label">Duelos ganados</p>
+        <p class="stat">{{ stats.duel_rate|default:0 }}%</p>
+        <p class="stat-label">Ratio de duelos</p>
+      </div>
+      <div class="detail-grid">
+        <div class="detail-block">
+          <p class="label">Disparos</p>
+          <p class="value">{{ stats.shots.attempts|default:0 }}</p>
+          <p class="label-soft">{{ stats.shots.on_target|default:0 }} a puerta · {{ stats.shots.accuracy|default:0 }}%</p>
+        </div>
+        <div class="detail-block">
+          <p class="label">Pases</p>
+          <p class="value">{{ stats.passes.completed|default:0 }} / {{ stats.passes.attempts|default:0 }}</p>
+          <p class="label-soft">Completados · {{ stats.passes.accuracy|default:0 }}%</p>
+        </div>
+      </div>
+      <div class="block">
+        <h2>Mapa de calor</h2>
+        <div>
+          {% for zone in stats.zone_heatmap %}
+            <p class="stat">{{ zone.zone }} · {{ zone.count }}</p>
+          {% empty %}
+            <p class="stat-label">Sin datos de zona</p>
+          {% endfor %}
+        </div>
+        <div class="position-list">
+          {% for entry in stats.position_breakdown %}
+            <span class="chip">{{ entry.label }} · {{ entry.count }}</span>
+          {% empty %}
+            <span class="chip">Posición indefinida</span>
+          {% endfor %}
+        </div>
+        <div class="tercio-row">
+          {% for tercio in stats.tercio_summary %}
+            <div>
+              <p class="stat">{{ tercio.label }} · {{ tercio.count }}</p>
+              <p class="stat-label">{{ tercio.pct }}%</p>
+              <div class="tercio-bar">
+                <div class="tercio-fill" style="width: {{ tercio.pct }}%;"></div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+        <div style="margin-top:0.5rem;">
+          {% for tercio in stats.tercio_heatmap %}
+            <p class="stat">{{ tercio.tercio }} · {{ tercio.count }}</p>
+          {% empty %}
+            <p class="stat-label">Sin datos de tercio</p>
+          {% endfor %}
+        </div>
+      </div>
+      </div>
+      <div class="block" style="margin-top:1.5rem;">
+        <h2>Detalle por partido</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Jornada</th>
+              <th>Oponente</th>
+              <th>Acc.</th>
+              <th>Éx.</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for match in stats.matches %}
+              <tr>
+                <td>
+                  {{ match.round }}
+                  {% if match.home %}<span class="chip">Local</span>{% else %}<span class="chip">Visitante</span>{% endif %}
+                </td>
+                <td>{{ match.opponent }}</td>
+                <td>{{ match.actions }}</td>
+                <td>{{ match.successes }}</td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="4" style="padding-top:0.6rem;">Sin registros por partidos.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </body>
+</html>

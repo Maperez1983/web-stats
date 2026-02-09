@@ -1,0 +1,565 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Convocatoria · {{ team_name }}</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <style>
+      :root {
+        --bg: #020710;
+        --panel: rgba(8, 14, 32, 0.9);
+        --panel-strong: rgba(9, 20, 49, 0.9);
+        --accent: #ffb703;
+        --field: linear-gradient(180deg, #1f7a17 0%, #0d381d 100%);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: 'Inter', system-ui, sans-serif;
+        background: radial-gradient(circle at top, rgba(255, 255, 255, 0.07), transparent 45%), var(--bg);
+        color: #f8fafc;
+      }
+      .page {
+        min-height: 100vh;
+        padding: 2.5rem 1.5rem 3rem;
+      }
+      header {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+      }
+      header h1 {
+        margin: 0;
+        letter-spacing: 0.25em;
+      }
+      header p {
+        margin: 0.35rem 0 0;
+        color: rgba(248, 250, 252, 0.6);
+      }
+      .button {
+        padding: 0.9rem 1.8rem;
+        border-radius: 999px;
+        text-decoration: none;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        color: #020617;
+        background: var(--accent);
+      }
+      .panel {
+        background: var(--panel);
+        border-radius: 30px;
+        padding: 2rem;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 22px 60px rgba(0, 0, 0, 0.55);
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: 280px 1fr 260px;
+        gap: 1.25rem;
+      }
+      .player-pool,
+      .convocation-details {
+        background: rgba(4, 8, 25, 0.85);
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 1.5rem;
+      }
+      .player-pool h3,
+      .convocation-details h3 {
+        margin-top: 0;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+      }
+      .mini-cards {
+        margin-top: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.9rem;
+        max-height: 520px;
+        overflow-y: auto;
+        padding-right: 0.25rem;
+      }
+      .mini-card {
+        position: relative;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(12, 46, 93, 0.8));
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 16px 16px 26px 26px;
+        padding: 0.8rem 1rem 1rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.35rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        cursor: pointer;
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+        transition: transform 0.2s ease;
+      }
+      .mini-card:hover {
+        transform: translateY(-2px);
+      }
+      .mini-card .jersey-number {
+        font-size: 1.3rem;
+        font-weight: 700;
+      }
+      .mini-card .jersey-number {
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: #ffb703;
+      }
+      .mini-card .player-name {
+        font-size: 0.95rem;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+      }
+      .mini-card .position-label {
+        font-size: 0.7rem;
+        color: rgba(248, 250, 252, 0.7);
+        letter-spacing: 0.2em;
+      }
+      .field-area {
+        background: var(--panel-strong);
+        border-radius: 26px;
+        padding: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
+      .field-area h3 {
+        margin: 0;
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+      }
+      .field-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0 0.5rem;
+        margin-bottom: 0.65rem;
+      }
+      .field-score {
+        border-radius: 14px;
+        background: rgba(0, 0, 0, 0.4);
+        padding: 0.7rem 1rem;
+        text-transform: uppercase;
+        letter-spacing: 0.3em;
+        font-size: 0.7rem;
+      }
+      .field-score strong {
+        display: block;
+        font-size: 0.9rem;
+        letter-spacing: 0.25em;
+      }
+      .field-formation {
+        border-radius: 18px;
+        padding: 0.45rem 0.9rem;
+        background: rgba(255, 255, 255, 0.1);
+        font-size: 0.7rem;
+        letter-spacing: 0.25em;
+      }
+      .field-poster {
+        position: relative;
+        border-radius: 22px;
+        background-image: url({% static 'football/campo-futbol.jpg' %});
+        background-size: cover;
+        background-position: center;
+        min-height: 520px;
+        border: 2px solid rgba(255, 255, 255, 0.15);
+        overflow: hidden;
+        box-shadow: inset 0 0 45px rgba(2, 6, 23, 0.85);
+      }
+      .field-overlay {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(180deg, rgba(5, 34, 11, 0.2), rgba(0, 0, 0, 0.75));
+        pointer-events: none;
+      }
+      .field-description {
+        margin: 0.35rem 0 0.65rem;
+        font-size: 0.75rem;
+        color: rgba(248, 250, 252, 0.65);
+        letter-spacing: 0.18em;
+      }
+      .convocation-slots-panel {
+        background: rgba(4, 8, 25, 0.75);
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 1.2rem;
+        margin-top: 1rem;
+      }
+      .convocation-slots-panel h3 {
+        margin: 0;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        font-size: 0.85rem;
+      }
+      .convocation-slots-panel .slot-description {
+        margin-top: 0.35rem;
+        color: rgba(248, 250, 252, 0.55);
+        font-size: 0.7rem;
+        letter-spacing: 0.18em;
+      }
+      .slots-grid {
+        margin-top: 0.75rem;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+        gap: 0.5rem;
+      }
+      .convocation-slot {
+        min-height: 70px;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        color: rgba(248, 250, 252, 0.65);
+        font-size: 0.65rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        position: relative;
+      }
+      .convocation-slot.drag-over,
+      .convocation-slot.has-card {
+        border-color: rgba(255, 183, 3, 0.8);
+      }
+      .convocation-list {
+        list-style: none;
+        margin: 1rem 0 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+      .convocation-list li {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        padding: 0.8rem 1rem;
+      }
+      .convocation-list li strong {
+        display: block;
+        font-size: 0.9rem;
+        letter-spacing: 0.05em;
+      }
+      .convocation-list li span {
+        font-size: 0.65rem;
+        letter-spacing: 0.2em;
+        color: rgba(248, 250, 252, 0.65);
+      }
+      .convocation-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 1rem;
+        margin-bottom: 1rem;
+        align-items: center;
+      }
+      .convocation-actions .button {
+        padding: 0.6rem 1.4rem;
+        font-size: 0.75rem;
+      }
+      .convocation-message {
+        font-size: 0.85rem;
+        color: rgba(16, 185, 129, 0.9);
+      }
+      @media (max-width: 1100px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header>
+        {% include 'football/includes/dragon_nav.html' %}
+        <div>
+          <h1>Convocatoria</h1>
+          <p>Diseña el once titular cambiando camisetas al campo y controla la lista de convocados.</p>
+        </div>
+        <a class="button" href="{% url 'coach-detail' %}">Volver</a>
+      </header>
+      <article class="panel">
+        <div class="convocation-actions">
+          <button id="save-convocation" class="button" type="button">Guardar convocatoria</button>
+          <span id="convocation-message" class="convocation-message"></span>
+        </div>
+        <div class="layout">
+          <section class="player-pool">
+            <h3>Plantilla disponible</h3>
+            <div class="mini-cards">
+              {% for player in players %}
+              <div
+                class="mini-card"
+                draggable="true"
+                data-player-id="{{ player.id }}"
+                data-player-name="{{ player.name|escape }}"
+                data-player-number="{{ player.number|default:'--' }}"
+                data-player-position="{{ player.position|default:'Sin definir'|escape }}"
+              >
+                <div class="jersey-number">#{{ player.number|default:"--" }}</div>
+                <div class="player-name">{{ player.name }}</div>
+                <div class="position-label">{{ player.position|default:"Sin definir" }}</div>
+              </div>
+              {% endfor %}
+              {% if not players %}
+              <p>No hay jugadores registrados todavía.</p>
+              {% endif %}
+            </div>
+          </section>
+          <section class="field-area">
+            <h3>Campo</h3>
+            <p style="margin: 0; color: rgba(248, 250, 252, 0.6);">Arrastra desde la convocatoria para posicionar el once sobre el póster.</p>
+            <div class="field-header">
+              <div class="field-score">
+                <strong>{{ team_name }} · TITULAR</strong>
+                HOME · LINEUPS
+              </div>
+              <div class="field-formation">3-5-2</div>
+            </div>
+            <div class="field-poster">
+              <div class="field-overlay"></div>
+            </div>
+            <div class="convocation-slots-panel">
+              <h3>Convocatoria</h3>
+              <p class="slot-description">Haz clic para sumar un jugador, luego arrástralo al campo desde aquí.</p>
+              <div class="slots-grid">
+                <div class="convocation-slot" data-slot="convocado-01" data-label="1"></div>
+                <div class="convocation-slot" data-slot="convocado-02" data-label="2"></div>
+                <div class="convocation-slot" data-slot="convocado-03" data-label="3"></div>
+                <div class="convocation-slot" data-slot="convocado-04" data-label="4"></div>
+                <div class="convocation-slot" data-slot="convocado-05" data-label="5"></div>
+                <div class="convocation-slot" data-slot="convocado-06" data-label="6"></div>
+                <div class="convocation-slot" data-slot="convocado-07" data-label="7"></div>
+                <div class="convocation-slot" data-slot="convocado-08" data-label="8"></div>
+                <div class="convocation-slot" data-slot="convocado-09" data-label="9"></div>
+                <div class="convocation-slot" data-slot="convocado-10" data-label="10"></div>
+                <div class="convocation-slot" data-slot="convocado-11" data-label="11"></div>
+                <div class="convocation-slot" data-slot="convocado-12" data-label="12"></div>
+                <div class="convocation-slot" data-slot="convocado-13" data-label="13"></div>
+                <div class="convocation-slot" data-slot="convocado-14" data-label="14"></div>
+                <div class="convocation-slot" data-slot="convocado-15" data-label="15"></div>
+              </div>
+            </div>
+          </section>
+          <section class="convocation-details">
+            <h3>Listado convocados</h3>
+            <p>Lista sincronizada con el eleven del campo.</p>
+            <ul id="convocation-list" class="convocation-list">
+              <li class="convocation-empty">Todavía no has definido el once inicial.</li>
+            </ul>
+          </section>
+        </div>
+      </article>
+    </div>
+        <script>
+      const pool = document.querySelector('.mini-cards');
+      const cards = document.querySelectorAll('.mini-card');
+      const fieldPoster = document.querySelector('.field-poster');
+      const convocationSlots = document.querySelectorAll('.convocation-slot');
+      const convocationList = document.querySelector('#convocation-list');
+      const saveButton = document.querySelector('#save-convocation');
+      const messageEl = document.querySelector('#convocation-message');
+      const convocationSet = new Set();
+
+      const getCookie = (name) => {
+        const matches = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+        return matches ? decodeURIComponent(matches[2]) : '';
+      };
+
+      const showMessage = (text, isError = false) => {
+        messageEl.textContent = text || '';
+        messageEl.style.color = isError ? 'rgba(248, 113, 113, 0.9)' : 'rgba(16, 185, 129, 0.9)';
+      };
+
+      const addToConvocation = (card) => {
+        if (card) {
+          convocationSet.add(card.dataset.playerId);
+          updateConvocationList();
+        }
+      };
+
+      const removeFromConvocation = (card) => {
+        if (card) {
+          convocationSet.delete(card.dataset.playerId);
+          updateConvocationList();
+        }
+      };
+
+      const updateConvocationList = () => {
+        const entries = Array.from(convocationSet)
+          .map((playerId) => document.querySelector(`.mini-card[data-player-id="${playerId}"]`))
+          .filter(Boolean)
+          .map((card) => ({
+            number: card.dataset.playerNumber || '--',
+            name: card.dataset.playerName || card.innerText,
+            position: card.dataset.playerPosition || 'Sin definir',
+          }));
+
+        convocationList.innerHTML = '';
+        if (!entries.length) {
+          const empty = document.createElement('li');
+          empty.className = 'convocation-empty';
+          empty.textContent = 'Todavía no has definido el once inicial.';
+          convocationList.appendChild(empty);
+          return;
+        }
+
+        entries.forEach(({ number, name, position }) => {
+          const item = document.createElement('li');
+          item.innerHTML = `<strong>#${number} ${name}</strong><span>${position}</span>`;
+          convocationList.appendChild(item);
+        });
+      };
+
+      const placeCardOnField = (card, x, y) => {
+        const parentSlot = card.closest('.convocation-slot');
+        if (parentSlot) {
+          parentSlot.classList.remove('has-card');
+          parentSlot.innerHTML = '';
+        }
+        card.style.position = 'absolute';
+        card.style.left = `${x}px`;
+        card.style.top = `${y}px`;
+        card.style.transform = 'translate(-50%, -50%)';
+        card.style.zIndex = 2;
+        fieldPoster.appendChild(card);
+        addToConvocation(card);
+      };
+
+      const resetCardStyles = (card) => {
+        card.style.position = '';
+        card.style.left = '';
+        card.style.top = '';
+        card.style.transform = '';
+        card.style.zIndex = '';
+      };
+
+      const fillNextConvSlot = (card) => {
+        const target = Array.from(convocationSlots).find((slot) => !slot.querySelector('.mini-card'));
+        if (target) {
+          target.appendChild(card);
+          target.classList.add('has-card');
+          resetCardStyles(card);
+          addToConvocation(card);
+        }
+      };
+
+      const bindConvSlot = (slot) => {
+        slot.addEventListener('dragover', (event) => {
+          event.preventDefault();
+          slot.classList.add('drag-over');
+        });
+        slot.addEventListener('dragleave', () => {
+          slot.classList.remove('drag-over');
+        });
+        slot.addEventListener('drop', (event) => {
+          event.preventDefault();
+          slot.classList.remove('drag-over');
+          const playerId = event.dataTransfer.getData('text/plain');
+          const card = document.querySelector(`.mini-card[data-player-id="${playerId}"]`);
+          if (!card) {
+            return;
+          }
+          if (slot.querySelector('.mini-card')) {
+            const existing = slot.querySelector('.mini-card');
+            pool.appendChild(existing);
+            removeFromConvocation(existing);
+          }
+          slot.appendChild(card);
+          slot.classList.add('has-card');
+          resetCardStyles(card);
+          addToConvocation(card);
+        });
+      };
+
+      const handleFieldDrop = (event) => {
+        event.preventDefault();
+        const playerId = event.dataTransfer.getData('text/plain');
+        const card = document.querySelector(`.mini-card[data-player-id="${playerId}"]`);
+        if (!card) {
+          return;
+        }
+        const rect = fieldPoster.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        placeCardOnField(card, x, y);
+      };
+
+      const saveConvocation = async () => {
+        if (!convocationSet.size) {
+          showMessage('Añade jugadores antes de guardar.', true);
+          return;
+        }
+        const response = await fetch('{% url "convocation-save" %}', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken'),
+          },
+          body: JSON.stringify(Array.from(convocationSet)),
+        });
+        const payload = await response.json();
+        if (response.ok) {
+          showMessage(`Convocatoria guardada (${payload.count} jugadores).`);
+        } else {
+          showMessage(payload.error || 'No se pudo guardar la convocatoria.', true);
+        }
+      };
+
+      cards.forEach((card) => {
+        card.addEventListener('dragstart', (event) => {
+          card.classList.add('dragging');
+          event.dataTransfer.setData('text/plain', card.dataset.playerId);
+          event.dataTransfer.effectAllowed = 'move';
+        });
+        card.addEventListener('dragend', () => {
+          card.classList.remove('dragging');
+        });
+        card.addEventListener('click', () => {
+          if (!pool.contains(card)) {
+            return;
+          }
+          fillNextConvSlot(card);
+        });
+      });
+
+      fieldPoster.addEventListener('dragover', (event) => {
+        event.preventDefault();
+      });
+      fieldPoster.addEventListener('drop', handleFieldDrop);
+
+      pool.addEventListener('dragover', (event) => {
+        event.preventDefault();
+      });
+      pool.addEventListener('drop', (event) => {
+        event.preventDefault();
+        const playerId = event.dataTransfer.getData('text/plain');
+        const card = document.querySelector(`.mini-card[data-player-id="${playerId}"]`);
+        if (!card) {
+          return;
+        }
+        const originSlot = card.closest('.convocation-slot');
+        if (originSlot) {
+          originSlot.classList.remove('has-card');
+        }
+        removeFromConvocation(card);
+        resetCardStyles(card);
+        pool.appendChild(card);
+      });
+
+      convocationSlots.forEach(bindConvSlot);
+
+      saveButton.addEventListener('click', saveConvocation);
+
+      updateConvocationList();
+    </script>
+  </body>
+</html>
