@@ -219,10 +219,13 @@ class Command(BaseCommand):
                     )
                     players[player_name] = player
 
+            minute = self.safe_int(row.get('minuto'))
+            if minute is not None:
+                minute = max(0, min(minute, 200))
             event = MatchEvent.objects.create(
                 match=match,
                 player=player,
-                minute=self.safe_int(row.get('minuto')),
+                minute=minute,
                 event_type=self.safe_text(row.get('evento')),
                 result=self.safe_text(row.get('resultadoaccion')),
                 zone=self.safe_text(row.get('zona')),

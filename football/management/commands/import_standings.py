@@ -12,7 +12,13 @@ class Command(BaseCommand):
     help = 'Importa una clasificación oficial desde CSV/Excel y actualiza TeamStanding.'
 
     def add_arguments(self, parser):
-        parser.add_argument('path', type=Path, help='Ruta al CSV que contiene la tabla.')
+        parser.add_argument(
+            'path',
+            type=Path,
+            nargs='?',
+            default=Path('data/input/rfaf-standings.csv'),
+            help='Ruta al CSV que contiene la tabla.',
+        )
         parser.add_argument(
             '--competition',
             default='División de Honor Andaluza',
