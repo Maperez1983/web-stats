@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 import sys
 from collections import Counter
@@ -976,6 +977,8 @@ def _normalize_excel_header(value):
 
 def append_events_to_bd_eventos(match, primary_team, events):
     if not events:
+        return 0
+    if os.getenv('WRITE_BD_EVENTOS_EXCEL', 'false').lower() != 'true':
         return 0
     path = Path(settings.BASE_DIR) / 'data' / 'excel' / 'BDT PARTIDOS BENABALBON.xlsm'
     if not path.exists():
