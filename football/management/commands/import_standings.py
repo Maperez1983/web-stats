@@ -46,9 +46,10 @@ class Command(BaseCommand):
             self.stderr.write(f'No existe el archivo {path}')
             return
 
+        source_url = path.resolve().as_uri() if path.is_absolute() else path.as_posix()
         source, _ = ScrapeSource.objects.get_or_create(
             name=options['source_name'],
-            defaults={'url': path.as_uri(), 'is_active': False},
+            defaults={'url': source_url, 'is_active': False},
         )
 
         with path.open(newline='', encoding='utf-8') as handle:
