@@ -170,6 +170,9 @@ class Command(BaseCommand):
         players = {}
         created_events = 0
         cleansed_matches = set()
+        rename_players = {
+            'antonio vilches': 'Antonio Ruiz',
+        }
 
         for row in events:
             partido_id = self.safe_text(row.get('partidoid'))
@@ -209,6 +212,10 @@ class Command(BaseCommand):
                 cleansed_matches.add(match.id)
 
             player_name = self.safe_text(row.get('jugador'))
+            if player_name:
+                normalized = player_name.strip().lower()
+                if normalized in rename_players:
+                    player_name = rename_players[normalized]
             player = None
             if player_name:
                 player = players.get(player_name)

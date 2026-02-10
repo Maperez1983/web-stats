@@ -341,6 +341,7 @@ ALIAS_MAP = {
     'francis': 'francisco-javier-ruiz-perez',
     'juanmi': 'juan-miguel-anaya-bustamante',
     'victor': 'victor-ruiz-postigo',
+    'antonio-ruiz': 'antonio-vilches',
 }
 
 
