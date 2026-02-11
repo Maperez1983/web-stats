@@ -45,6 +45,14 @@
         grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
         margin-top: 1rem;
       }
+      .item-wide {
+        grid-column: span 2;
+      }
+      @media (max-width: 900px) {
+        .item-wide {
+          grid-column: auto;
+        }
+      }
       .item {
         padding: 1rem;
         border-radius: 16px;
@@ -127,6 +135,75 @@
         color: rgba(226, 232, 240, 0.7);
         font-size: 0.85rem;
       }
+      .lineup-field {
+        position: relative;
+        border-radius: 18px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: #0b1b0f;
+        min-height: 420px;
+      }
+      .lineup-field img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+      .lineup-player {
+        position: absolute;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        white-space: nowrap;
+      }
+      .lineup-badge {
+        width: 28px;
+        height: 28px;
+        border-radius: 999px;
+        background: rgba(2, 6, 23, 0.85);
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        color: #f8fafc;
+        display: grid;
+        place-items: center;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+      }
+      .lineup-name {
+        margin-top: 0.2rem;
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: #f8fafc;
+        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
+      }
+      .pos-gk { left: 50%; top: 88%; }
+      .pos-lb { left: 18%; top: 72%; }
+      .pos-cb { left: 50%; top: 72%; }
+      .pos-rcb { left: 62%; top: 72%; }
+      .pos-lcb { left: 38%; top: 72%; }
+      .pos-rb { left: 82%; top: 72%; }
+      .pos-dm { left: 50%; top: 58%; }
+      .pos-lm { left: 26%; top: 55%; }
+      .pos-cm { left: 50%; top: 50%; }
+      .pos-rm { left: 74%; top: 55%; }
+      .pos-am { left: 50%; top: 40%; }
+      .pos-lw { left: 22%; top: 32%; }
+      .pos-st { left: 50%; top: 28%; }
+      .pos-rw { left: 78%; top: 32%; }
+      .pos-unknown { left: 50%; top: 50%; }
+      .lineup-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.75rem;
+        color: rgba(226, 232, 240, 0.7);
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      .lineup-meta strong {
+        color: #facc15;
+      }
     </style>
   </head>
   <body>
@@ -170,16 +247,100 @@
         </form>
         {% if roster %}
         <div class="grid">
-          <div class="item">
+          <div class="item item-wide">
             <h3>11 probable</h3>
-            <ul class="list">
+            <div class="lineup-meta">
+              <span>Formación estimada</span>
+              <strong>{{ formation }}</strong>
+            </div>
+            <div class="lineup-field">
+              <img src="{% static 'football/campo-futbol.jpg' %}" alt="Campo de fútbol" />
               {% for player in probable_eleven %}
-              <li>
-                <strong>{{ player.name }}</strong>
-                <span class="meta">· {{ player.position }} · {{ player.minutes }} min</span>
-              </li>
+                {% with pos=player.position|lower %}
+                  {% if 'portero' in pos %}
+                    <span class="lineup-player pos-gk">
+                      <span class="lineup-badge">GK</span>
+                      <span class="lineup-name">{{ player.name }}</span>
+                    </span>
+                  {% elif 'lateral izquierdo' in pos %}
+                    <span class="lineup-player pos-lb">
+                      <span class="lineup-badge">LI</span>
+                      <span class="lineup-name">{{ player.name }}</span>
+                    </span>
+                  {% elif 'lateral derecho' in pos %}
+                    <span class="lineup-player pos-rb">
+                      <span class="lineup-badge">LD</span>
+                      <span class="lineup-name">{{ player.name }}</span>
+                    </span>
+                  {% elif 'central' in pos and 'izq' in pos %}
+                    <span class="lineup-player pos-lcb">
+                      <span class="lineup-badge">CI</span>
+                      <span class="lineup-name">{{ player.name }}</span>
+                    </span>
+                  {% elif 'central' in pos and 'der' in pos %}
+                    <span class="lineup-player pos-rcb">
+                      <span class="lineup-badge">CD</span>
+                      <span class="lineup-name">{{ player.name }}</span>
+                    </span>
+                  {% elif 'central' in pos %}
+                    <span class="lineup-player pos-cb">
+                      <span class="lineup-badge">C</span>
+                      <span class="lineup-name">{{ player.name }}</span>
+                    </span>
+                  {% elif 'pivote' in pos %}
+                    <span class="lineup-player pos-dm">
+                      <span class="lineup-badge">MC</span>
+                      <span class="lineup-name">{{ player.name }}</span>
+                    </span>
+                  {% elif 'medio centro' in pos %}
+                    <span class="lineup-player pos-cm">
+                      <span class="lineup-badge">MC</span>
+                      <span class="lineup-name">{{ player.name }}</span>
+                    </span>
+                  {% elif 'interior izquierdo' in pos %}
+                    <span class="lineup-player pos-lm">
+                      <span class="lineup-badge">MI</span>
+                      <span class="lineup-name">{{ player.name }}</span>
+                    </span>
+                  {% elif 'interior derecho' in pos %}
+                    <span class="lineup-player pos-rm">
+                      <span class="lineup-badge">MD</span>
+                      <span class="lineup-name">{{ player.name }}</span>
+                    </span>
+                  {% elif 'media punta' in pos %}
+                    <span class="lineup-player pos-am">
+                      <span class="lineup-badge">MP</span>
+                      <span class="lineup-name">{{ player.name }}</span>
+                    </span>
+                  {% elif 'extremo izquierdo' in pos %}
+                    <span class="lineup-player pos-lw">
+                      <span class="lineup-badge">EI</span>
+                      <span class="lineup-name">{{ player.name }}</span>
+                    </span>
+                  {% elif 'extremo derecho' in pos %}
+                    <span class="lineup-player pos-rw">
+                      <span class="lineup-badge">ED</span>
+                      <span class="lineup-name">{{ player.name }}</span>
+                    </span>
+                  {% elif 'delantero centro' in pos %}
+                    <span class="lineup-player pos-st">
+                      <span class="lineup-badge">DC</span>
+                      <span class="lineup-name">{{ player.name }}</span>
+                    </span>
+                  {% elif 'delantero' in pos %}
+                    <span class="lineup-player pos-st">
+                      <span class="lineup-badge">DC</span>
+                      <span class="lineup-name">{{ player.name }}</span>
+                    </span>
+                  {% else %}
+                    <span class="lineup-player pos-unknown">
+                      <span class="lineup-badge">?</span>
+                      <span class="lineup-name">{{ player.name }}</span>
+                    </span>
+                  {% endif %}
+                {% endwith %}
               {% endfor %}
-            </ul>
+            </div>
           </div>
           <div class="item">
             <h3>Máximos goleadores</h3>

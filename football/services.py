@@ -296,56 +296,77 @@ def _extract_name_cell(cell):
     return cell.get_text(' ', strip=True)
 
 
+def _safe_cell(cells, idx):
+    if idx is None:
+        return None
+    try:
+        idx = int(idx)
+    except (TypeError, ValueError):
+        return None
+    if idx < 0 or idx >= len(cells):
+        return None
+    return cells[idx]
+
+
 def parse_preferente_roster(html: str) -> list[dict]:
     if not html:
         return []
     soup = BeautifulSoup(html, 'html.parser')
-    table = soup.find('table', id='tablePlantilla')
-    if not table:
-        for candidate in soup.find_all('table'):
-            header = candidate.find('tr')
-            if not header:
-                continue
-            header_text = ' '.join(
-                cell.get_text(' ', strip=True).lower() for cell in header.find_all(['th', 'td'])
-            )
-            if 'jugador' in header_text and 'min' in header_text:
-                table = candidate
-                break
-    if not table:
-        return parse_preferente_roster_text(html)
-    header_row = table.find('tr')
-    if not header_row:
-        return []
-    headers = [_normalize_table_header(cell.get_text(' ', strip=True)) for cell in header_row.find_all(['th', 'td'])]
-    index = {key: idx for idx, key in enumerate(headers) if key}
-    roster = []
-    for row in table.find_all('tr')[1:]:
-        cells = row.find_all('td')
-        if len(cells) < 6:
+    tables = []
+    for candidate in soup.find_all('table'):
+        header = candidate.find('tr')
+        if not header:
             continue
-        name_idx = index.get('jugador', 0)
-        pos_idx = index.get('demarcacion', 1)
-        name_cell = cells[name_idx] if name_idx < len(cells) else cells[0]
-        position_cell = cells[pos_idx] if pos_idx < len(cells) else cells[1]
-        name = _extract_name_cell(name_cell)
-        if not name:
-            continue
-        position = position_cell.get_text(' ', strip=True)
-        roster.append(
-            {
-                'name': name,
-                'position': position,
-                'age': _parse_int_cell(cells[index.get('edad', 0)]) if index.get('edad') is not None else 0,
-                'pc': _parse_int_cell(cells[index.get('pc', 0)]) if index.get('pc') is not None else 0,
-                'pj': _parse_int_cell(cells[index.get('pj', 0)]) if index.get('pj') is not None else 0,
-                'pt': _parse_int_cell(cells[index.get('pt', 0)]) if index.get('pt') is not None else 0,
-                'minutes': _parse_int_cell(cells[index.get('min', 0)]) if index.get('min') is not None else 0,
-                'goals': _parse_int_cell(cells[index.get('goles', 0)]) if index.get('goles') is not None else 0,
-                'yellow_cards': _parse_int_cell(cells[index.get('ta', 0)]) if index.get('ta') is not None else 0,
-                'red_cards': _parse_int_cell(cells[index.get('tr', 0)]) if index.get('tr') is not None else 0,
-            }
+        header_text = ' '.join(
+            cell.get_text(' ', strip=True).lower() for cell in header.find_all(['th', 'td'])
         )
+        if 'jugador' in header_text and 'min' in header_text:
+            tables.append(candidate)
+    if not tables:
+        return parse_preferente_roster_text(html)
+    roster = []
+    for table in tables:
+        header_row = table.find('tr')
+        if not header_row:
+            continue
+        headers = [_normalize_table_header(cell.get_text(' ', strip=True)) for cell in header_row.find_all(['th', 'td'])]
+        index = {key: idx for idx, key in enumerate(headers) if key}
+        for row in table.find_all('tr')[1:]:
+            cells = row.find_all('td')
+            if len(cells) < 6:
+                continue
+            name_idx = index.get('jugador', 0)
+            pos_idx = index.get('demarcacion', 1)
+            name_cell = _safe_cell(cells, name_idx) or (cells[0] if cells else None)
+            position_cell = _safe_cell(cells, pos_idx) or (cells[1] if len(cells) > 1 else None)
+            if not name_cell:
+                continue
+            name = _extract_name_cell(name_cell)
+            if not name:
+                continue
+            position = position_cell.get_text(' ', strip=True) if position_cell else ''
+            age_cell = _safe_cell(cells, index.get('edad'))
+            pc_cell = _safe_cell(cells, index.get('pc'))
+            pj_cell = _safe_cell(cells, index.get('pj'))
+            pt_cell = _safe_cell(cells, index.get('pt'))
+            min_cell = _safe_cell(cells, index.get('min'))
+            goals_cell = _safe_cell(cells, index.get('goles'))
+            ta_cell = _safe_cell(cells, index.get('ta'))
+            tr_cell = _safe_cell(cells, index.get('tr'))
+            roster.append(
+                {
+                    'name': name,
+                    'position': position,
+                    'age': _parse_int_cell(age_cell.get_text(' ', strip=True) if age_cell else None),
+                    'pc': _parse_int_cell(pc_cell.get_text(' ', strip=True) if pc_cell else None),
+                    'pj': _parse_int_cell(pj_cell.get_text(' ', strip=True) if pj_cell else None),
+                    'pt': _parse_int_cell(pt_cell.get_text(' ', strip=True) if pt_cell else None),
+                    'minutes': _parse_int_cell(min_cell.get_text(' ', strip=True) if min_cell else None),
+                    'goals': _parse_int_cell(goals_cell.get_text(' ', strip=True) if goals_cell else None),
+                    'yellow_cards': _parse_int_cell(ta_cell.get_text(' ', strip=True) if ta_cell else None),
+                    'red_cards': _parse_int_cell(tr_cell.get_text(' ', strip=True) if tr_cell else None),
+                }
+            )
     return roster
 
 
@@ -423,8 +444,18 @@ def parse_preferente_roster_text(raw: str) -> list[dict]:
 def fetch_preferente_team_roster(team_url: str) -> list[dict]:
     if not team_url:
         return []
-    response = requests.get(team_url, headers={'User-Agent': PREFERENTE_USER_AGENT}, timeout=20)
-    response.raise_for_status()
+    try:
+        response = requests.get(
+            team_url,
+            headers={
+                'User-Agent': PREFERENTE_USER_AGENT,
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            },
+            timeout=20,
+        )
+        response.raise_for_status()
+    except requests.RequestException as exc:
+        raise ValueError(f'Error al consultar LaPreferente: {exc}') from exc
     return parse_preferente_roster(response.text)
 
 
@@ -461,6 +492,38 @@ def build_rival_insights(players: list[dict]) -> dict:
         'most_minutes': most_minutes,
         'most_cards': most_cards,
     }
+
+
+def compute_formation(players: list[dict]) -> str:
+    if not players:
+        return 'Auto'
+    def_count = 0
+    mid_count = 0
+    att_count = 0
+    for player in players:
+        pos = (player.get('position') or '').lower()
+        if 'portero' in pos:
+            continue
+        if 'lateral' in pos or 'central' in pos or 'defensa' in pos:
+            def_count += 1
+            continue
+        if (
+            'medio' in pos
+            or 'interior' in pos
+            or 'pivote' in pos
+            or 'media punta' in pos
+            or 'mediapunta' in pos
+        ):
+            mid_count += 1
+            continue
+        if 'delantero' in pos or 'extremo' in pos:
+            att_count += 1
+            continue
+        mid_count += 1
+    total = def_count + mid_count + att_count
+    if total == 0:
+        return 'Auto'
+    return f'{def_count}-{mid_count}-{att_count}'
 
 
 def load_player_roster_stats() -> dict:

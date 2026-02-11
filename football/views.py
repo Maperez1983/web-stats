@@ -35,6 +35,7 @@ from football.models import (
 from football.services import (
     canonical_roster_key,
     compute_probable_eleven,
+    compute_formation,
     build_rival_insights,
     fetch_preferente_team_roster,
     find_roster_entry,
@@ -606,6 +607,7 @@ def analysis_page(request):
     roster = []
     probable_eleven = []
     insights = {}
+    formation = 'Auto'
     error = ''
     if request.method == 'POST':
         team_url = (request.POST.get('team_url') or '').strip()
@@ -623,10 +625,11 @@ def analysis_page(request):
                 roster = fetch_preferente_team_roster(team_url)
             probable_eleven = compute_probable_eleven(roster)
             insights = build_rival_insights(roster)
+            formation = compute_formation(probable_eleven)
             if not roster:
                 error = 'No se han encontrado jugadores en la plantilla.'
-        except Exception:
-            error = 'No se ha podido procesar la plantilla del rival.'
+        except Exception as exc:
+            error = f'No se ha podido procesar la plantilla del rival. {exc}'
         if team and team_url and team.preferente_url != team_url:
             team.preferente_url = team_url
             team.save(update_fields=['preferente_url'])
@@ -643,6 +646,7 @@ def analysis_page(request):
             'roster': roster,
             'probable_eleven': probable_eleven,
             'insights': insights,
+            'formation': formation,
             'error': error,
         },
     )
