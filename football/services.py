@@ -22,6 +22,7 @@ DOWNLOAD_TEXT_PATTERN = re.compile(r'descarg', re.IGNORECASE)
 DOWNLOAD_EXTENSIONS = ('.csv', '.xls', '.xlsx', '.png')
 PLAYER_ROSTER_PATH = Path(settings.BASE_DIR) / 'data' / 'input' / 'player-roster.html'
 MATCH_LISTS_PATH = Path(settings.BASE_DIR) / 'data' / 'excel' / 'FICHA_PARTIDO.xlsx'
+PREFERENTE_USER_AGENT = 'webstats-crm/1.0'
 
 
 def normalize_header(value):
@@ -266,6 +267,200 @@ def _parse_int(value):
 
 def normalize_player_name(value: str) -> str:
     return slugify(value or '')
+
+
+def _normalize_table_header(value: str) -> str:
+    if not value:
+        return ''
+    return re.sub(r'[^a-z0-9]+', '', value.lower())
+
+
+def _parse_int_cell(value):
+    if value is None:
+        return 0
+    text = str(value).strip().replace('.', '').replace(',', '')
+    if not text or text == '-':
+        return 0
+    try:
+        return int(float(text))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _extract_name_cell(cell):
+    spans = cell.find_all('span')
+    if spans:
+        text = spans[-1].get_text(' ', strip=True) or spans[0].get_text(' ', strip=True)
+        if text:
+            return text
+    return cell.get_text(' ', strip=True)
+
+
+def parse_preferente_roster(html: str) -> list[dict]:
+    if not html:
+        return []
+    soup = BeautifulSoup(html, 'html.parser')
+    table = soup.find('table', id='tablePlantilla')
+    if not table:
+        for candidate in soup.find_all('table'):
+            header = candidate.find('tr')
+            if not header:
+                continue
+            header_text = ' '.join(
+                cell.get_text(' ', strip=True).lower() for cell in header.find_all(['th', 'td'])
+            )
+            if 'jugador' in header_text and 'min' in header_text:
+                table = candidate
+                break
+    if not table:
+        return parse_preferente_roster_text(html)
+    header_row = table.find('tr')
+    if not header_row:
+        return []
+    headers = [_normalize_table_header(cell.get_text(' ', strip=True)) for cell in header_row.find_all(['th', 'td'])]
+    index = {key: idx for idx, key in enumerate(headers) if key}
+    roster = []
+    for row in table.find_all('tr')[1:]:
+        cells = row.find_all('td')
+        if len(cells) < 6:
+            continue
+        name_idx = index.get('jugador', 0)
+        pos_idx = index.get('demarcacion', 1)
+        name_cell = cells[name_idx] if name_idx < len(cells) else cells[0]
+        position_cell = cells[pos_idx] if pos_idx < len(cells) else cells[1]
+        name = _extract_name_cell(name_cell)
+        if not name:
+            continue
+        position = position_cell.get_text(' ', strip=True)
+        roster.append(
+            {
+                'name': name,
+                'position': position,
+                'age': _parse_int_cell(cells[index.get('edad', 0)]) if index.get('edad') is not None else 0,
+                'pc': _parse_int_cell(cells[index.get('pc', 0)]) if index.get('pc') is not None else 0,
+                'pj': _parse_int_cell(cells[index.get('pj', 0)]) if index.get('pj') is not None else 0,
+                'pt': _parse_int_cell(cells[index.get('pt', 0)]) if index.get('pt') is not None else 0,
+                'minutes': _parse_int_cell(cells[index.get('min', 0)]) if index.get('min') is not None else 0,
+                'goals': _parse_int_cell(cells[index.get('goles', 0)]) if index.get('goles') is not None else 0,
+                'yellow_cards': _parse_int_cell(cells[index.get('ta', 0)]) if index.get('ta') is not None else 0,
+                'red_cards': _parse_int_cell(cells[index.get('tr', 0)]) if index.get('tr') is not None else 0,
+            }
+        )
+    return roster
+
+
+def parse_preferente_roster_text(raw: str) -> list[dict]:
+    if not raw:
+        return []
+    lines = [line.strip() for line in raw.splitlines()]
+    lines = [line for line in lines if line]
+    status_markers = (
+        'Renovado',
+        'Nuevo Fichaje',
+        'Jugador',
+        'Cuerpo Técnico',
+        'COMPETICIONES',
+        'Ex-Jugadores',
+        'Total de Jugadores',
+    )
+    position_keywords = (
+        'Portero',
+        'Lateral',
+        'Central',
+        'Medio',
+        'Interior',
+        'Media',
+        'Extremo',
+        'Delantero',
+        'Pivote',
+    )
+    roster = []
+    last_name = ''
+    for line in lines:
+        if any(marker in line for marker in status_markers):
+            continue
+        if line.isdigit():
+            continue
+        tokens = line.split()
+        if not tokens:
+            continue
+        has_position = any(keyword in line for keyword in position_keywords)
+        has_numbers = any(token.replace('(', '').replace(')', '').isdigit() for token in tokens)
+        if has_position and has_numbers:
+            position_parts = []
+            stat_tokens = []
+            for token in tokens:
+                cleaned = token.replace('(', '').replace(')', '')
+                if cleaned.replace('-', '').isdigit() or cleaned == '-':
+                    stat_tokens.append(cleaned)
+                else:
+                    position_parts.append(token)
+            position = ' '.join(position_parts).strip()
+            numbers = [int(t) for t in stat_tokens if t.isdigit()]
+            while len(numbers) < 8:
+                numbers.append(0)
+            age, pc, pj, pt, minutes, goals, yellow, red = numbers[:8]
+            if last_name:
+                roster.append(
+                    {
+                        'name': last_name,
+                        'position': position,
+                        'age': age,
+                        'pc': pc,
+                        'pj': pj,
+                        'pt': pt,
+                        'minutes': minutes,
+                        'goals': goals,
+                        'yellow_cards': yellow,
+                        'red_cards': red,
+                    }
+                )
+            continue
+        last_name = line
+    return roster
+
+
+def fetch_preferente_team_roster(team_url: str) -> list[dict]:
+    if not team_url:
+        return []
+    response = requests.get(team_url, headers={'User-Agent': PREFERENTE_USER_AGENT}, timeout=20)
+    response.raise_for_status()
+    return parse_preferente_roster(response.text)
+
+
+def compute_probable_eleven(players: list[dict]) -> list[dict]:
+    if not players:
+        return []
+    eligible = [p for p in players if p.get('minutes', 0) > 0]
+    eligible.sort(key=lambda p: (p.get('minutes', 0), p.get('pt', 0), p.get('pj', 0)), reverse=True)
+    gks = [p for p in eligible if 'portero' in (p.get('position') or '').lower()]
+    lineup = []
+    if gks:
+        lineup.append(gks[0])
+    for player in eligible:
+        if player in lineup:
+            continue
+        lineup.append(player)
+        if len(lineup) >= 11:
+            break
+    return lineup[:11]
+
+
+def build_rival_insights(players: list[dict]) -> dict:
+    if not players:
+        return {'top_scorers': [], 'most_minutes': [], 'most_cards': []}
+    top_scorers = sorted(players, key=lambda p: (p.get('goals', 0), p.get('minutes', 0)), reverse=True)[:3]
+    most_minutes = sorted(players, key=lambda p: p.get('minutes', 0), reverse=True)[:3]
+    most_cards = sorted(
+        players,
+        key=lambda p: (p.get('red_cards', 0) * 2 + p.get('yellow_cards', 0)),
+        reverse=True,
+    )[:3]
+    return {
+        'top_scorers': top_scorers,
+        'most_minutes': most_minutes,
+        'most_cards': most_cards,
+    }
 
 
 def load_player_roster_stats() -> dict:

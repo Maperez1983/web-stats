@@ -34,11 +34,15 @@ from football.models import (
 )
 from football.services import (
     canonical_roster_key,
+    compute_probable_eleven,
+    build_rival_insights,
+    fetch_preferente_team_roster,
     find_roster_entry,
     get_roster_stats_cache,
     load_match_actions,
     load_match_results,
     normalize_player_name,
+    parse_preferente_roster,
     _parse_int,
 )
 
@@ -596,13 +600,50 @@ def fines_page(request):
 
 
 def analysis_page(request):
+    team_url = ''
+    team_id = ''
+    raw_text = ''
+    roster = []
+    probable_eleven = []
+    insights = {}
+    error = ''
+    if request.method == 'POST':
+        team_url = (request.POST.get('team_url') or '').strip()
+        team_id = (request.POST.get('team_id') or '').strip()
+        raw_text = (request.POST.get('raw_text') or '').strip()
+        team = None
+        if team_id:
+            team = Team.objects.filter(id=team_id).first()
+            if team and not team_url:
+                team_url = team.preferente_url or ''
+        try:
+            if raw_text:
+                roster = parse_preferente_roster(raw_text)
+            elif team_url:
+                roster = fetch_preferente_team_roster(team_url)
+            probable_eleven = compute_probable_eleven(roster)
+            insights = build_rival_insights(roster)
+            if not roster:
+                error = 'No se han encontrado jugadores en la plantilla.'
+        except Exception:
+            error = 'No se ha podido procesar la plantilla del rival.'
+        if team and team_url and team.preferente_url != team_url:
+            team.preferente_url = team_url
+            team.save(update_fields=['preferente_url'])
     return render(
         request,
-        'football/coach_section.html',
+        'football/coach_analysis.html',
         {
             'section_title': 'Análisis rival',
             'description': 'Indicadores y notas tácticas para el próximo rival.',
-            'items': ['Situación defensiva', 'Presión alta', 'Referencias de remate'],
+            'team_url': team_url,
+            'team_id': team_id,
+            'teams': Team.objects.order_by('name'),
+            'raw_text': raw_text,
+            'roster': roster,
+            'probable_eleven': probable_eleven,
+            'insights': insights,
+            'error': error,
         },
     )
 

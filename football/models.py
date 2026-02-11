@@ -66,6 +66,7 @@ class Team(models.Model):
     city = models.CharField(max_length=100, blank=True)
     group = models.ForeignKey(Group, on_delete=models.SET_NULL, null=True, blank=True, related_name='teams')
     external_id = models.CharField(max_length=120, blank=True, help_text='Identificador oficial en la web')
+    preferente_url = models.URLField(blank=True, help_text='URL del equipo en LaPreferente')
     is_primary = models.BooleanField(default=False, help_text='Marcar si es el equipo de Benagalbón')
 
     def __str__(self):
