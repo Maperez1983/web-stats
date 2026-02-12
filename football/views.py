@@ -33,6 +33,7 @@ from football.models import (
     ConvocationRecord,
 )
 from football.services import (
+    assign_lineup_slots,
     canonical_roster_key,
     compute_probable_eleven,
     compute_formation,
@@ -606,6 +607,7 @@ def analysis_page(request):
     raw_text = ''
     roster = []
     probable_eleven = []
+    lineup = []
     insights = {}
     formation = 'Auto'
     error = ''
@@ -626,6 +628,7 @@ def analysis_page(request):
             probable_eleven = compute_probable_eleven(roster)
             insights = build_rival_insights(roster)
             formation = compute_formation(probable_eleven)
+            lineup = assign_lineup_slots(probable_eleven, formation)
             if not roster:
                 error = 'No se han encontrado jugadores en la plantilla.'
         except Exception as exc:
@@ -645,6 +648,7 @@ def analysis_page(request):
             'raw_text': raw_text,
             'roster': roster,
             'probable_eleven': probable_eleven,
+            'lineup': lineup,
             'insights': insights,
             'formation': formation,
             'error': error,

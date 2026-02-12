@@ -494,6 +494,116 @@ def build_rival_insights(players: list[dict]) -> dict:
     }
 
 
+def assign_lineup_slots(players: list[dict], formation: str | None = None) -> list[dict]:
+    assigned = []
+
+    def badge_for(position: str) -> str:
+        pos = position.lower()
+        if 'portero' in pos:
+            return 'GK'
+        if 'lateral izquierdo' in pos:
+            return 'LI'
+        if 'lateral derecho' in pos:
+            return 'LD'
+        if 'central' in pos and 'izq' in pos:
+            return 'CI'
+        if 'central' in pos and 'der' in pos:
+            return 'CD'
+        if 'central' in pos:
+            return 'C'
+        if 'pivote' in pos or 'medio centro' in pos:
+            return 'MC'
+        if 'interior izquierdo' in pos:
+            return 'MI'
+        if 'interior derecho' in pos:
+            return 'MD'
+        if 'media punta' in pos:
+            return 'MP'
+        if 'extremo izquierdo' in pos:
+            return 'EI'
+        if 'extremo derecho' in pos:
+            return 'ED'
+        if 'delantero' in pos:
+            return 'DC'
+        return '?'
+
+    def classify(position: str) -> str:
+        pos = position.lower()
+        if 'portero' in pos:
+            return 'gk'
+        if 'lateral' in pos or 'central' in pos or 'defensa' in pos:
+            return 'def'
+        if 'media punta' in pos or 'mediapunta' in pos:
+            return 'am'
+        if 'medio' in pos or 'interior' in pos or 'pivote' in pos:
+            return 'mid'
+        if 'delantero' in pos or 'extremo' in pos:
+            return 'att'
+        return 'mid'
+
+    groups = {'gk': [], 'def': [], 'mid': [], 'att': []}
+    for player in players:
+        groups[classify(player.get('position') or '')].append(player)
+
+    def parse_counts(value: str | None) -> tuple[int, int, int]:
+        if not value:
+            return (4, 4, 2)
+        parts = [p for p in str(value).split('-') if p.isdigit()]
+        if len(parts) != 3:
+            return (4, 4, 2)
+        return (int(parts[0]), int(parts[1]), int(parts[2]))
+
+    def_cap, mid_cap, att_cap = parse_counts(formation)
+    gk_cap = 1
+
+    def spread(count: int, left: float = 12.0, right: float = 88.0) -> list[float]:
+        if count <= 1:
+            return [(left + right) / 2]
+        step = (right - left) / (count - 1)
+        return [left + i * step for i in range(count)]
+
+    def take_from(group_key: str, count: int) -> list[dict]:
+        picked = groups[group_key][:count]
+        groups[group_key] = groups[group_key][count:]
+        return picked
+
+    remaining = []
+    for key in ('def', 'mid', 'att'):
+        remaining.extend(groups[key])
+
+    lineup = []
+    lineup.extend(take_from('gk', gk_cap))
+    def_line = take_from('def', def_cap)
+    mid_line = take_from('mid', mid_cap)
+    att_line = take_from('att', att_cap)
+
+    for line, cap in ((def_line, def_cap), (mid_line, mid_cap), (att_line, att_cap)):
+        while len(line) < cap and remaining:
+            line.append(remaining.pop(0))
+
+    for line, top in ((def_line, 70), (mid_line, 52), (att_line, 32)):
+        xs = spread(len(line)) if line else []
+        for idx, player in enumerate(line):
+            enriched = dict(player)
+            enriched['left'] = xs[idx]
+            enriched['top'] = top
+            enriched['badge'] = badge_for(player.get('position') or '')
+            assigned.append(enriched)
+
+    if lineup:
+        gk = lineup[0]
+        assigned.append(
+            {
+                **gk,
+                'left': 50,
+                'top': 88,
+                'badge': badge_for(gk.get('position') or ''),
+            }
+        )
+
+    return assigned
+
+
 def compute_formation(players: list[dict]) -> str:
     if not players:
         return 'Auto'
@@ -523,6 +633,11 @@ def compute_formation(players: list[dict]) -> str:
     total = def_count + mid_count + att_count
     if total == 0:
         return 'Auto'
+    if def_count == 0:
+        def_count = 4
+    if att_count == 0:
+        att_count = 2
+    mid_count = max(0, total - def_count - att_count)
     return f'{def_count}-{mid_count}-{att_count}'
 
 

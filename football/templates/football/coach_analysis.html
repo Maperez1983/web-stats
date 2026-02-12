@@ -142,8 +142,11 @@
         border: 1px solid rgba(255, 255, 255, 0.08);
         background: #0b1b0f;
         min-height: 420px;
+        aspect-ratio: 3 / 2;
       }
       .lineup-field img {
+        position: absolute;
+        inset: 0;
         width: 100%;
         height: 100%;
         object-fit: cover;
@@ -175,22 +178,10 @@
         font-weight: 600;
         color: #f8fafc;
         text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
+        max-width: 120px;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
-      .pos-gk { left: 50%; top: 88%; }
-      .pos-lb { left: 18%; top: 72%; }
-      .pos-cb { left: 50%; top: 72%; }
-      .pos-rcb { left: 62%; top: 72%; }
-      .pos-lcb { left: 38%; top: 72%; }
-      .pos-rb { left: 82%; top: 72%; }
-      .pos-dm { left: 50%; top: 58%; }
-      .pos-lm { left: 26%; top: 55%; }
-      .pos-cm { left: 50%; top: 50%; }
-      .pos-rm { left: 74%; top: 55%; }
-      .pos-am { left: 50%; top: 40%; }
-      .pos-lw { left: 22%; top: 32%; }
-      .pos-st { left: 50%; top: 28%; }
-      .pos-rw { left: 78%; top: 32%; }
-      .pos-unknown { left: 50%; top: 50%; }
       .lineup-meta {
         display: flex;
         justify-content: space-between;
@@ -255,90 +246,11 @@
             </div>
             <div class="lineup-field">
               <img src="{% static 'football/campo-futbol.jpg' %}" alt="Campo de fútbol" />
-              {% for player in probable_eleven %}
-                {% with pos=player.position|lower %}
-                  {% if 'portero' in pos %}
-                    <span class="lineup-player pos-gk">
-                      <span class="lineup-badge">GK</span>
-                      <span class="lineup-name">{{ player.name }}</span>
-                    </span>
-                  {% elif 'lateral izquierdo' in pos %}
-                    <span class="lineup-player pos-lb">
-                      <span class="lineup-badge">LI</span>
-                      <span class="lineup-name">{{ player.name }}</span>
-                    </span>
-                  {% elif 'lateral derecho' in pos %}
-                    <span class="lineup-player pos-rb">
-                      <span class="lineup-badge">LD</span>
-                      <span class="lineup-name">{{ player.name }}</span>
-                    </span>
-                  {% elif 'central' in pos and 'izq' in pos %}
-                    <span class="lineup-player pos-lcb">
-                      <span class="lineup-badge">CI</span>
-                      <span class="lineup-name">{{ player.name }}</span>
-                    </span>
-                  {% elif 'central' in pos and 'der' in pos %}
-                    <span class="lineup-player pos-rcb">
-                      <span class="lineup-badge">CD</span>
-                      <span class="lineup-name">{{ player.name }}</span>
-                    </span>
-                  {% elif 'central' in pos %}
-                    <span class="lineup-player pos-cb">
-                      <span class="lineup-badge">C</span>
-                      <span class="lineup-name">{{ player.name }}</span>
-                    </span>
-                  {% elif 'pivote' in pos %}
-                    <span class="lineup-player pos-dm">
-                      <span class="lineup-badge">MC</span>
-                      <span class="lineup-name">{{ player.name }}</span>
-                    </span>
-                  {% elif 'medio centro' in pos %}
-                    <span class="lineup-player pos-cm">
-                      <span class="lineup-badge">MC</span>
-                      <span class="lineup-name">{{ player.name }}</span>
-                    </span>
-                  {% elif 'interior izquierdo' in pos %}
-                    <span class="lineup-player pos-lm">
-                      <span class="lineup-badge">MI</span>
-                      <span class="lineup-name">{{ player.name }}</span>
-                    </span>
-                  {% elif 'interior derecho' in pos %}
-                    <span class="lineup-player pos-rm">
-                      <span class="lineup-badge">MD</span>
-                      <span class="lineup-name">{{ player.name }}</span>
-                    </span>
-                  {% elif 'media punta' in pos %}
-                    <span class="lineup-player pos-am">
-                      <span class="lineup-badge">MP</span>
-                      <span class="lineup-name">{{ player.name }}</span>
-                    </span>
-                  {% elif 'extremo izquierdo' in pos %}
-                    <span class="lineup-player pos-lw">
-                      <span class="lineup-badge">EI</span>
-                      <span class="lineup-name">{{ player.name }}</span>
-                    </span>
-                  {% elif 'extremo derecho' in pos %}
-                    <span class="lineup-player pos-rw">
-                      <span class="lineup-badge">ED</span>
-                      <span class="lineup-name">{{ player.name }}</span>
-                    </span>
-                  {% elif 'delantero centro' in pos %}
-                    <span class="lineup-player pos-st">
-                      <span class="lineup-badge">DC</span>
-                      <span class="lineup-name">{{ player.name }}</span>
-                    </span>
-                  {% elif 'delantero' in pos %}
-                    <span class="lineup-player pos-st">
-                      <span class="lineup-badge">DC</span>
-                      <span class="lineup-name">{{ player.name }}</span>
-                    </span>
-                  {% else %}
-                    <span class="lineup-player pos-unknown">
-                      <span class="lineup-badge">?</span>
-                      <span class="lineup-name">{{ player.name }}</span>
-                    </span>
-                  {% endif %}
-                {% endwith %}
+              {% for player in lineup %}
+                <span class="lineup-player" style="left: {{ player.left }}%; top: {{ player.top }}%;">
+                  <span class="lineup-badge">{{ player.badge }}</span>
+                  <span class="lineup-name">{{ player.name }}</span>
+                </span>
               {% endfor %}
             </div>
           </div>
