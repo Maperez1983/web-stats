@@ -841,6 +841,66 @@
         font-size: 0.7rem;
         color: rgba(248, 250, 252, 0.7);
       }
+      .quick-history-modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(2, 6, 23, 0.72);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+        z-index: 50;
+      }
+      .quick-history-modal.is-open {
+        display: flex;
+      }
+      .quick-history-dialog {
+        width: min(680px, 96vw);
+        max-height: min(80vh, 720px);
+        background: rgba(2, 6, 23, 0.97);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 18px;
+        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .quick-history-dialog header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.9rem 1rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .quick-history-dialog h4 {
+        margin: 0;
+        font-size: 0.82rem;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+      .quick-history-dialog .quick-history-close {
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        color: #f8fafc;
+        border-radius: 999px;
+        padding: 0.3rem 0.65rem;
+        cursor: pointer;
+        font-size: 0.75rem;
+      }
+      .quick-history-dialog .quick-history-list {
+        margin: 0;
+        padding: 0.85rem 1rem 1rem 2rem;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 0.55rem;
+      }
+      .quick-history-dialog .quick-history-list li {
+        font-size: 0.82rem;
+        letter-spacing: 0.06em;
+        color: rgba(248, 250, 252, 0.92);
+      }
       .actions-sidebar {
         background: var(--panel);
         display: flex;
@@ -1184,13 +1244,13 @@
             <div class="match-status-panels">
               <article class="status-card">
                 <h5>Tarjetas</h5>
-                  <p>Amarillas · <span class="status-value">0</span></p>
-                  <p>Rojas · <span class="status-value">0</span></p>
+                  <p>Amarillas · <span class="status-value" id="status-yellow-count">0</span></p>
+                  <p>Rojas · <span class="status-value" id="status-red-count">0</span></p>
                 </article>
                 <article class="status-card">
                   <h5>Sustituciones</h5>
-                  <p>Realizadas · <span class="status-value">0</span></p>
-                  <p>Disponibles · <span class="status-value">5</span></p>
+                  <p>Realizadas · <span class="status-value" id="status-subs-used-count">0</span></p>
+                  <p>Disponibles · <span class="status-value" id="status-subs-left-count">5</span></p>
               </article>
             </div>
             <div class="quick-action-columns">
@@ -1225,8 +1285,8 @@
                     <span>Roja</span>
                   </div>
                 </div>
-                <div class="quick-history" id="yellow-history"></div>
-                <div class="quick-history" id="red-history"></div>
+                <div class="quick-history" id="yellow-history" title="Pulsa para ver todas"></div>
+                <div class="quick-history" id="red-history" title="Pulsa para ver todas"></div>
               </div>
             </div>
             <div class="quick-action-column">
@@ -1259,7 +1319,7 @@
                     <span>Salida</span>
                   </div>
                 </div>
-                <div class="quick-history" id="sub-history"></div>
+                <div class="quick-history" id="sub-history" title="Pulsa para ver todas"></div>
               </div>
             </div>
             </div>
@@ -1448,6 +1508,15 @@
         </div>
       </aside>
     </div>
+    <div class="quick-history-modal" id="quick-history-modal" aria-hidden="true">
+      <div class="quick-history-dialog" role="dialog" aria-modal="true" aria-labelledby="quick-history-title">
+        <header>
+          <h4 id="quick-history-title">Historial</h4>
+          <button type="button" class="quick-history-close" id="quick-history-close">Cerrar</button>
+        </header>
+        <ol class="quick-history-list" id="quick-history-list"></ol>
+      </div>
+    </div>
     {{ field_zone_defs|json_script:"field-zone-defs" }}
     {{ team_fields|json_script:"team-fields-data" }}
     <script>
@@ -1458,6 +1527,10 @@
       const fieldSurface = document.getElementById('field-surface');
       const interactiveSurface = fieldSurface || touchField;
       const fieldPopup = document.getElementById('field-popup');
+      const quickHistoryModal = document.getElementById('quick-history-modal');
+      const quickHistoryModalList = document.getElementById('quick-history-list');
+      const quickHistoryModalTitle = document.getElementById('quick-history-title');
+      const quickHistoryModalCloseBtn = document.getElementById('quick-history-close');
       const popupForm = document.getElementById('field-popup-form');
       const actionInput = popupForm.querySelector('input[name="action_type"]');
       const zoneInput = popupForm.querySelector('input[name="zone"]');
@@ -1665,10 +1738,36 @@
         roja: document.getElementById('red-count'),
         subs: document.getElementById('sub-count'),
       };
+      const statusCounters = {
+        amarilla: document.getElementById('status-yellow-count'),
+        roja: document.getElementById('status-red-count'),
+        subsUsed: document.getElementById('status-subs-used-count'),
+        subsLeft: document.getElementById('status-subs-left-count'),
+      };
+      const MAX_SUBSTITUTIONS = 5;
       const quickStats = {
         amarilla: 0,
         roja: 0,
         subs: 0,
+      };
+      const quickHistoryState = {
+        amarilla: [],
+        roja: [],
+        subs: [],
+      };
+      const refreshStatusCounters = () => {
+        if (statusCounters.amarilla) {
+          statusCounters.amarilla.textContent = quickStats.amarilla;
+        }
+        if (statusCounters.roja) {
+          statusCounters.roja.textContent = quickStats.roja;
+        }
+        if (statusCounters.subsUsed) {
+          statusCounters.subsUsed.textContent = quickStats.subs;
+        }
+        if (statusCounters.subsLeft) {
+          statusCounters.subsLeft.textContent = Math.max(0, MAX_SUBSTITUTIONS - quickStats.subs);
+        }
       };
       const incrementQuickCounter = (dropKey) => {
         const counterKey = dropKey === 'amarilla' ? 'amarilla' : dropKey === 'roja' ? 'roja' : 'subs';
@@ -1677,26 +1776,116 @@
         if (counterEl) {
           counterEl.textContent = quickStats[counterKey];
         }
+        refreshStatusCounters();
       };
       const quickHistoryContainers = {
         amarilla: document.getElementById('yellow-history'),
         roja: document.getElementById('red-history'),
         subs: document.getElementById('sub-history'),
       };
-      const appendQuickHistory = (dropKey, playerName, minute, label) => {
-        const container =
-          dropKey === 'subida' || dropKey === 'bajada'
-            ? quickHistoryContainers.subs
-            : quickHistoryContainers[dropKey];
+      const renderQuickHistoryPreview = (historyKey) => {
+        const container = quickHistoryContainers[historyKey];
         if (!container) {
           return;
         }
-        const entry = document.createElement('span');
-        entry.textContent = `${playerName} · ${minute}' · ${label || ''}`.trim().toUpperCase();
-        container.appendChild(entry);
-        if (container.children.length > 3) {
-          container.removeChild(container.firstChild);
+        container.innerHTML = '';
+        const entries = quickHistoryState[historyKey] || [];
+        const previewEntries = entries.slice(-3);
+        previewEntries.forEach((text) => {
+          const entry = document.createElement('span');
+          entry.textContent = text;
+          container.appendChild(entry);
+        });
+        container.classList.toggle('is-clickable', entries.length > 0);
+        container.dataset.totalEntries = String(entries.length);
+      };
+      const appendQuickHistory = (dropKey, playerName, minute, label) => {
+        const historyKey =
+          dropKey === 'subida' || dropKey === 'bajada'
+            ? 'subs'
+            : dropKey;
+        if (!historyKey || typeof historyKey !== 'string') {
+          return;
         }
+        const entryText = `${playerName} · ${minute}' · ${label || ''}`.trim().toUpperCase();
+        if (!quickHistoryState[historyKey]) {
+          quickHistoryState[historyKey] = [];
+        }
+        quickHistoryState[historyKey].push(entryText);
+        renderQuickHistoryPreview(historyKey);
+      };
+      const showQuickHistoryModal = (historyKey, title) => {
+        const entries = quickHistoryState[historyKey] || [];
+        if (!entries.length) {
+          alert(`No hay registros de ${title.toLowerCase()} todavía.`);
+          return;
+        }
+        if (!quickHistoryModal || !quickHistoryModalList || !quickHistoryModalTitle) {
+          const body = entries.map((entry, index) => `${index + 1}. ${entry}`).join('\n');
+          alert(`${title}\n\n${body}`);
+          return;
+        }
+        quickHistoryModalTitle.textContent = `${title} · ${entries.length}`;
+        quickHistoryModalList.innerHTML = '';
+        entries.forEach((entryText) => {
+          const li = document.createElement('li');
+          li.textContent = entryText;
+          quickHistoryModalList.appendChild(li);
+        });
+        quickHistoryModal.classList.add('is-open');
+        quickHistoryModal.setAttribute('aria-hidden', 'false');
+      };
+      const hideQuickHistoryModal = () => {
+        if (!quickHistoryModal) {
+          return;
+        }
+        quickHistoryModal.classList.remove('is-open');
+        quickHistoryModal.setAttribute('aria-hidden', 'true');
+      };
+      if (quickHistoryModalCloseBtn) {
+        quickHistoryModalCloseBtn.addEventListener('click', hideQuickHistoryModal);
+      }
+      if (quickHistoryModal) {
+        quickHistoryModal.addEventListener('click', (event) => {
+          if (event.target === quickHistoryModal) {
+            hideQuickHistoryModal();
+          }
+        });
+      }
+      Object.entries(quickHistoryContainers).forEach(([historyKey, container]) => {
+        if (!container) {
+          return;
+        }
+        container.style.cursor = 'pointer';
+        container.addEventListener('click', () => {
+          const title =
+            historyKey === 'amarilla'
+              ? 'Amonestaciones (amarillas)'
+              : historyKey === 'roja'
+              ? 'Expulsiones (rojas)'
+              : 'Sustituciones';
+          showQuickHistoryModal(historyKey, title);
+        });
+      });
+      refreshStatusCounters();
+      const classifyCounterDropKey = ({ action = '', result = '' }) => {
+        const actionText = String(action || '').toLowerCase();
+        const resultText = String(result || '').toLowerCase();
+        if (actionText.includes('amarilla') || resultText.includes('amarilla')) {
+          return 'amarilla';
+        }
+        if (actionText.includes('roja') || resultText.includes('roja')) {
+          return 'roja';
+        }
+        if (
+          actionText.includes('sustituci') ||
+          actionText.includes('cambio') ||
+          resultText.includes('entrada') ||
+          resultText.includes('salida')
+        ) {
+          return resultText.includes('salida') ? 'bajada' : 'subida';
+        }
+        return '';
       };
 
       const registerQuickAction = async (player, config) => {
@@ -2136,6 +2325,11 @@
           hidePopup();
         }
       });
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          hideQuickHistoryModal();
+        }
+      });
 
       popupForm.addEventListener('submit', async (event) => {
         event.preventDefault();
@@ -2167,6 +2361,19 @@
             zone: data.zone,
             result: data.result,
           });
+          const derivedDropKey = classifyCounterDropKey({
+            action: data.action,
+            result: data.result,
+          });
+          if (derivedDropKey) {
+            incrementQuickCounter(derivedDropKey);
+            appendQuickHistory(
+              derivedDropKey,
+              data.player?.name || 'Jugador',
+              data.minute || getCurrentMatchMinute(),
+              data.result || data.action,
+            );
+          }
           hidePopup();
           zoneLabel.style.display = 'none';
           quickButtons.forEach((btn) => btn.classList.remove('quake-action-active'));
