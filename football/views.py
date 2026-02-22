@@ -408,7 +408,7 @@ def register_match_action(request):
         minute = max(0, min(minute, 120))
     result = (request.POST.get('result') or '').strip()
     zone = (request.POST.get('zone') or '').strip()
-    tercio = zone_to_tercio(zone) or (request.POST.get('tercio') or '').strip()
+    tercio = zone_to_tercio(zone)
     observation = (request.POST.get('observation') or '').strip()
     event = MatchEvent.objects.create(
         match=match,

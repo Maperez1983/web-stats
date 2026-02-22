@@ -718,10 +718,31 @@
         gap: 0.5rem;
         flex-wrap: wrap;
       }
+      .field-popup .popup-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+      }
       .field-popup .popup-header strong {
         font-size: 0.85rem;
         letter-spacing: 0.2em;
         text-transform: uppercase;
+      }
+      .field-popup .popup-edit-toggle {
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        background: rgba(255, 255, 255, 0.04);
+        color: #f8fafc;
+        padding: 0.25rem 0.6rem;
+        font-size: 0.62rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
+      .field-popup .popup-edit-toggle[data-mode='edit'] {
+        border-color: rgba(250, 204, 21, 0.45);
+        background: rgba(250, 204, 21, 0.1);
+        color: #fde047;
       }
       .field-popup .popup-header .close-popup {
         background: transparent;
@@ -769,6 +790,17 @@
       .field-popup textarea {
         min-height: 64px;
         resize: vertical;
+      }
+      .field-popup .auto-field-value {
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: rgba(2, 6, 23, 0.9);
+        color: #f8fafc;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.85rem;
+        min-height: 36px;
+        display: flex;
+        align-items: center;
       }
       .field-popup .popup-actions {
         display: flex;
@@ -1264,7 +1296,17 @@
                 {% csrf_token %}
                 <div class="popup-header">
                   <strong>Registrar acción</strong>
-                  <button type="button" class="close-popup" aria-label="Cerrar">×</button>
+                  <div class="popup-header-actions">
+                    <button
+                      type="button"
+                      class="popup-edit-toggle"
+                      id="popup-edit-toggle"
+                      data-mode="ipad"
+                    >
+                      Modo iPad
+                    </button>
+                    <button type="button" class="close-popup" aria-label="Cerrar">×</button>
+                  </div>
                 </div>
                 <div class="popup-quick-actions">
                   {% for action in quick_actions %}
@@ -1276,7 +1318,15 @@
                 <input type="hidden" name="player" id="selected-player" />
                 <label>
                   Tipo de acción
-                  <input type="text" name="action_type" placeholder="Disparo, pase, recuperación…" required />
+                  <input
+                    type="text"
+                    name="action_type"
+                    placeholder="Pulsa una acción rápida"
+                    required
+                    readonly
+                    inputmode="none"
+                    autocomplete="off"
+                  />
                 </label>
                 <label>
                   Resultado
@@ -1291,7 +1341,8 @@
                 </label>
                 <label>
                   Minuto
-                  <input type="number" name="minute" min="0" max="120" placeholder="23" />
+                  <input type="hidden" name="minute" value="0" />
+                  <span class="auto-field-value" data-minute-display>0'</span>
                 </label>
                 <label>
                   Zona del campo
@@ -1299,16 +1350,17 @@
                 </label>
                 <label>
                   Tercio
-                  <select name="tercio">
-                    <option value="">Selecciona tercio</option>
-                    {% for tercio in tercio_options %}
-                    <option value="{{ tercio }}">{{ tercio }}</option>
-                    {% endfor %}
-                  </select>
+                  <input type="hidden" name="tercio" value="" />
+                  <span class="auto-field-value" data-tercio-display>Se calcula por zona</span>
                 </label>
                 <label>
                   Observación
-                  <textarea name="observation" placeholder="Comentarios adicionales"></textarea>
+                  <textarea
+                    name="observation"
+                    placeholder="No editable en modo partido"
+                    readonly
+                    tabindex="-1"
+                  ></textarea>
                 </label>
                 <div class="popup-actions">
                   <button class="button" type="submit">Guardar acción</button>
@@ -1410,6 +1462,11 @@
       const actionInput = popupForm.querySelector('input[name="action_type"]');
       const zoneInput = popupForm.querySelector('input[name="zone"]');
       const minuteInput = popupForm.querySelector('input[name="minute"]');
+      const minuteDisplay = popupForm.querySelector('[data-minute-display]');
+      const tercioInput = popupForm.querySelector('input[name="tercio"]');
+      const tercioDisplay = popupForm.querySelector('[data-tercio-display]');
+      const observationInput = popupForm.querySelector('textarea[name="observation"]');
+      const popupEditToggle = document.getElementById('popup-edit-toggle');
       const playerInput = document.getElementById('selected-player');
       const quickButtons = popupForm.querySelectorAll('.quick-action');
       const popupCloseButtons = popupForm.querySelectorAll('.close-popup');
@@ -1441,6 +1498,7 @@
       let elapsedSeconds = 0;
       let clockInterval = null;
       let clockRunning = false;
+      let popupEditMode = false;
       let lineupState = {
         starters: [],
         bench: [],
@@ -1807,13 +1865,64 @@
           .toString()
           .padStart(2, '0')}`;
       };
+      const getCurrentMatchMinute = () => Math.floor(elapsedSeconds / 60);
+      const computeTercioFromZone = (zoneLabelText) => {
+        const normalized = (zoneLabelText || '').toLowerCase();
+        if (!normalized) return '';
+        if (normalized.includes('defensa')) return 'Defensa';
+        if (normalized.includes('medio')) return 'Construcción';
+        if (normalized.includes('ataque')) return 'Ataque';
+        return '';
+      };
+      const syncAutoFields = ({ zone = zoneInput?.value || '' } = {}) => {
+        const minute = getCurrentMatchMinute();
+        if (minuteInput) {
+          minuteInput.value = minute;
+        }
+        if (minuteDisplay) {
+          minuteDisplay.textContent = `${minute}'`;
+        }
+        const tercio = computeTercioFromZone(zone);
+        if (tercioInput) {
+          tercioInput.value = tercio;
+        }
+        if (tercioDisplay) {
+          tercioDisplay.textContent = tercio || 'Se calcula por zona';
+        }
+      };
+      const setPopupEditMode = (enabled, { focusField = false } = {}) => {
+        popupEditMode = Boolean(enabled);
+        if (actionInput) {
+          actionInput.readOnly = !popupEditMode;
+          actionInput.inputMode = popupEditMode ? 'text' : 'none';
+          actionInput.placeholder = popupEditMode
+            ? 'Escribe tipo de acción'
+            : 'Pulsa una acción rápida';
+        }
+        if (observationInput) {
+          observationInput.readOnly = !popupEditMode;
+          observationInput.placeholder = popupEditMode
+            ? 'Comentarios adicionales'
+            : 'No editable en modo partido';
+          if (popupEditMode) {
+            observationInput.removeAttribute('tabindex');
+          } else {
+            observationInput.setAttribute('tabindex', '-1');
+          }
+        }
+        if (popupEditToggle) {
+          popupEditToggle.dataset.mode = popupEditMode ? 'edit' : 'ipad';
+          popupEditToggle.textContent = popupEditMode ? 'Modo edición' : 'Modo iPad';
+        }
+        if (popupEditMode && focusField && actionInput) {
+          actionInput.focus();
+        }
+      };
       const updateClockDisplay = () => {
         if (matchClockDisplay) {
           matchClockDisplay.textContent = formatClock(elapsedSeconds);
         }
-        if (minuteInput) {
-          minuteInput.value = Math.floor(elapsedSeconds / 60);
-        }
+        syncAutoFields();
       };
       const startClock = () => {
         if (clockRunning) return;
@@ -1845,6 +1954,7 @@
         });
       }
       updateClockDisplay();
+      setPopupEditMode(false);
 
       const clamp = (value, min, max) => Math.max(min, Math.min(value, max));
 
@@ -1896,17 +2006,20 @@
         fieldPopup.style.left = `${left}px`;
         fieldPopup.style.top = `${top}px`;
         fieldPopup.classList.add('is-visible');
-        if (minuteInput) {
-          minuteInput.value = Math.floor(elapsedSeconds / 60);
-        }
-        actionInput.focus();
+        syncAutoFields();
       };
 
       const hidePopup = () => {
         fieldPopup.classList.remove('is-visible');
+        setPopupEditMode(false);
       };
 
       popupCloseButtons.forEach((btn) => btn.addEventListener('click', hidePopup));
+      if (popupEditToggle) {
+        popupEditToggle.addEventListener('click', () => {
+          setPopupEditMode(!popupEditMode, { focusField: !popupEditMode });
+        });
+      }
 
       fieldPopup.addEventListener('click', (event) => event.stopPropagation());
 
@@ -2007,10 +2120,12 @@
         const zoneMatch = findClosestZone(percentX, percentY);
         if (zoneMatch) {
           zoneInput.value = zoneMatch.label;
+          syncAutoFields({ zone: zoneMatch.label });
           showZoneLabel(zoneMatch, fieldX, fieldY);
           showPopup(fieldX, fieldY);
         } else {
           zoneInput.value = '';
+          syncAutoFields({ zone: '' });
           zoneLabel.style.display = 'none';
           hidePopup();
         }
@@ -2028,6 +2143,7 @@
           alert('Selecciona primero un jugador convocado.');
           return;
         }
+        syncAutoFields();
         const payload = new FormData(popupForm);
         try {
           const response = await fetch(submitUrl, {
@@ -2062,6 +2178,7 @@
           if (lastPlayerId) {
             playerInput.value = lastPlayerId;
           }
+          syncAutoFields();
         } catch (err) {
           console.error(err);
           alert('Error al guardar la acción en el servidor.');
