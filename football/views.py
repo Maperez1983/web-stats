@@ -3,6 +3,7 @@ import os
 import subprocess
 import sys
 from collections import Counter
+from datetime import datetime
 from pathlib import Path
 import unicodedata
 import re
@@ -337,9 +338,10 @@ def match_action_page(request):
     if active_match:
         opponent = active_match.away_team if active_match.home_team == primary_team else active_match.home_team
         match_info = {
-            'opponent': opponent.name if opponent else 'Rival desconocido',
-            'location': active_match.location or 'Campo oficial',
-            'round': active_match.round or 'Partido sin jornada',
+            'match_id': active_match.id,
+            'opponent': opponent.name if opponent else '',
+            'location': active_match.location or '',
+            'round': active_match.round or '',
             'date': active_match.date.strftime('%d/%m/%Y') if active_match.date else None,
             'time': active_match.date.strftime('%H:%M') if active_match.date else '00:00',
         }
@@ -477,6 +479,13 @@ def finalize_match_actions(request):
     match = get_active_match(primary_team)
     if not match:
         return JsonResponse({'error': 'No hay partido activo para guardar'}, status=400)
+    payload = {}
+    try:
+        if request.body:
+            payload = json.loads(request.body.decode('utf-8'))
+    except Exception:
+        payload = {}
+    _apply_match_info_overrides(match, primary_team, payload.get('match_info'))
     pending_events = list(
         MatchEvent.objects.filter(match=match, system='touch-field').select_related('player')
     )
@@ -490,6 +499,7 @@ def finalize_match_actions(request):
             'saved': True,
             'updated': updated,
             'match_id': match.id,
+            'match_label': str(match),
         }
     )
 
@@ -968,6 +978,76 @@ def get_active_match(primary_team):
     if latest:
         return latest
     return qs.order_by('-id').first()
+
+
+def _parse_match_date_from_ui(raw_value):
+    value = (raw_value or '').strip()
+    if not value:
+        return None
+    date_part = value.split('·', 1)[0].strip()
+    for fmt in ('%d/%m/%Y', '%Y-%m-%d'):
+        try:
+            return datetime.strptime(date_part, fmt).date()
+        except ValueError:
+            continue
+    return None
+
+
+def _unique_team_slug(base_name):
+    base_slug = slugify(base_name) or 'rival'
+    slug = base_slug
+    suffix = 2
+    while Team.objects.filter(slug=slug).exists():
+        slug = f'{base_slug}-{suffix}'
+        suffix += 1
+    return slug
+
+
+def _apply_match_info_overrides(match, primary_team, match_info_payload):
+    if not match or not isinstance(match_info_payload, dict):
+        return
+    changed_fields = []
+    round_value = (match_info_payload.get('round') or '').strip()
+    location_value = (match_info_payload.get('location') or '').strip()
+    datetime_value = (match_info_payload.get('datetime') or '').strip()
+    opponent_name = (match_info_payload.get('opponent') or '').strip()
+
+    if round_value != (match.round or ''):
+        match.round = round_value
+        changed_fields.append('round')
+    if location_value != (match.location or ''):
+        match.location = location_value
+        changed_fields.append('location')
+
+    parsed_date = _parse_match_date_from_ui(datetime_value)
+    if parsed_date and parsed_date != match.date:
+        match.date = parsed_date
+        changed_fields.append('date')
+
+    if opponent_name and normalize_label(opponent_name) != normalize_label(primary_team.name):
+        rival_team = Team.objects.filter(name__iexact=opponent_name).first()
+        if not rival_team:
+            rival_team = Team.objects.create(
+                name=opponent_name,
+                slug=_unique_team_slug(opponent_name),
+                short_name=opponent_name[:60],
+                group=match.group or primary_team.group,
+            )
+        if match.home_team_id == primary_team.id:
+            if match.away_team_id != rival_team.id:
+                match.away_team = rival_team
+                changed_fields.append('away_team')
+        elif match.away_team_id == primary_team.id:
+            if match.home_team_id != rival_team.id:
+                match.home_team = rival_team
+                changed_fields.append('home_team')
+        else:
+            match.home_team = primary_team
+            match.away_team = rival_team
+            changed_fields.extend(['home_team', 'away_team'])
+
+    if changed_fields:
+        match.save(update_fields=list(dict.fromkeys(changed_fields)))
 
 
 def gather_team_fields_for_group(group):

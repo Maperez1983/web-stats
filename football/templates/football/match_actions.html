@@ -595,6 +595,16 @@
         padding: 0.15rem 0.5rem;
         cursor: pointer;
       }
+      .match-db-badge {
+        margin: 0;
+        font-size: 0.68rem;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: rgba(248, 250, 252, 0.65);
+      }
+      .match-db-badge strong {
+        color: #facc15;
+      }
       .dragon-logo {
         width: 28px;
         height: 28px;
@@ -1240,6 +1250,7 @@
                   <button type="button" id="match-info-reset-btn" class="reset">Restablecer</button>
                   <button type="button" id="match-finalize-btn" class="save">Guardar partido</button>
                 </div>
+                <p class="match-db-badge">Partido BBDD · ID <strong id="match-db-id">{{ match_info.match_id }}</strong></p>
             </div>
             <div class="match-status-panels">
               <article class="status-card">
@@ -2453,12 +2464,24 @@
             }
           });
         };
+        const collectMatchInfoValues = () => {
+          const values = {};
+          rows.forEach((row) => {
+            const fieldKey = row.dataset.field;
+            const input = row.querySelector('[data-input]');
+            const display = row.querySelector('[data-display]');
+            const rawValue = input ? input.value : display?.textContent || '';
+            values[fieldKey] = (rawValue || '').trim();
+          });
+          return values;
+        };
         currentValues = { ...defaultMatchInfo, ...getStoredOverrides() };
         applyValues(currentValues);
         const editBtn = document.getElementById('match-info-edit-btn');
         const saveBtn = document.getElementById('match-info-save-btn');
         const resetBtn = document.getElementById('match-info-reset-btn');
         const finalizeBtn = document.getElementById('match-finalize-btn');
+        const matchDbIdEl = document.getElementById('match-db-id');
         const rivalToggle = matchInfoCard.querySelector('.rival-toggle');
         const rivalDropdown = matchInfoCard.querySelector('[data-rival-dropdown]');
         const rivalOptions = rivalDropdown
@@ -2516,18 +2539,24 @@
               return;
             }
             try {
+              const finalizePayload = { match_info: collectMatchInfoValues() };
               const response = await fetch(finalizeUrl, {
                 method: 'POST',
                 credentials: 'same-origin',
                 headers: {
                   'X-CSRFToken': csrfToken,
+                  'Content-Type': 'application/json',
                   Accept: 'application/json',
                 },
+                body: JSON.stringify(finalizePayload),
               });
               const data = await response.json();
               if (!response.ok) {
                 alert(data.error || 'No se pudo guardar el partido.');
                 return;
+              }
+              if (matchDbIdEl && data.match_id) {
+                matchDbIdEl.textContent = data.match_id;
               }
               const updatedCount = data.updated || 0;
               finalizeBtn.textContent = updatedCount > 0 ? 'Partido consolidado' : 'Guardar partido';
