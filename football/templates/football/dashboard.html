@@ -446,11 +446,15 @@
         return matches ? decodeURIComponent(matches[1]) : undefined;
       }
 
-      async function refreshData() {
+      async function refreshData({ silent = false } = {}) {
         const button = document.getElementById('refresh-btn');
-        button.disabled = true;
-        button.textContent = 'Actualizando…';
-        refreshMessage.textContent = 'Actualizando datos oficiales…';
+        if (button) {
+          button.disabled = true;
+          button.textContent = 'Actualizando…';
+        }
+        if (refreshMessage && !silent) {
+          refreshMessage.textContent = 'Actualizando datos oficiales…';
+        }
         try {
           const response = await fetch('/api/dashboard/refresh/', {
             method: 'POST',
@@ -463,18 +467,30 @@
             throw new Error('No se pudo actualizar');
           }
           const payload = await response.json();
-          refreshMessage.textContent = 'Actualizado correctamente';
-          refreshLast.textContent = payload.message;
+          if (refreshMessage) {
+            refreshMessage.textContent = 'Actualizado correctamente';
+          }
+          if (refreshLast) {
+            refreshLast.textContent = payload.message;
+          }
+          await renderDashboard();
         } catch (error) {
-          refreshMessage.textContent = 'Error al actualizar: ' + error.message;
+          if (refreshMessage) {
+            refreshMessage.textContent = 'Error al actualizar: ' + error.message;
+          }
         } finally {
-          button.disabled = false;
-          button.textContent = 'Actualizar desde Preferente';
+          if (button) {
+            button.disabled = false;
+            button.textContent = 'Actualizar desde Preferente';
+          }
         }
       }
 
-      document.getElementById('refresh-btn').addEventListener('click', refreshData);
-      renderDashboard();
+      const refreshBtn = document.getElementById('refresh-btn');
+      if (refreshBtn) {
+        refreshBtn.addEventListener('click', () => refreshData());
+      }
+      renderDashboard().then(() => refreshData({ silent: true }));
     </script>
   </body>
 </html>
