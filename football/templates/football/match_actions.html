@@ -2322,10 +2322,13 @@
                 alert(data.error || 'No se pudo guardar el partido.');
                 return;
               }
-              finalizeBtn.textContent = 'Partido guardado';
-              finalizeBtn.disabled = true;
-              const written = data.rows_written || 0;
-              alert(`Partido guardado. Acciones consolidadas: ${data.updated || 0}. BD_EVENTOS: ${written}`);
+              const updatedCount = data.updated || 0;
+              finalizeBtn.textContent = updatedCount > 0 ? 'Partido consolidado' : 'Guardar partido';
+              alert(
+                updatedCount > 0
+                  ? `Partido guardado. Acciones consolidadas en BBDD: ${updatedCount}.`
+                  : 'No hay acciones pendientes por consolidar. Las acciones ya estaban guardadas en la BBDD.',
+              );
             } catch (err) {
               console.error(err);
               alert('Error al guardar el partido.');

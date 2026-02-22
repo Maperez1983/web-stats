@@ -482,10 +482,6 @@ def finalize_match_actions(request):
     )
     if not pending_events:
         return JsonResponse({'saved': True, 'updated': 0, 'match_id': match.id})
-    try:
-        rows_written = append_events_to_bd_eventos(match, primary_team, pending_events)
-    except Exception as exc:
-        return JsonResponse({'error': f'No se pudo escribir en BD_EVENTOS: {exc}'}, status=500)
     updated = MatchEvent.objects.filter(id__in=[event.id for event in pending_events]).update(
         system='touch-field-final'
     )
@@ -493,7 +489,6 @@ def finalize_match_actions(request):
         {
             'saved': True,
             'updated': updated,
-            'rows_written': rows_written,
             'match_id': match.id,
         }
     )
