@@ -584,11 +584,44 @@ def assign_lineup_slots(players: list[dict], formation: str | None = None) -> li
     def_cap, mid_cap, att_cap = parse_counts(formation)
     gk_cap = 1
 
-    def spread(count: int, left: float = 12.0, right: float = 88.0) -> list[float]:
+    def spread(count: int) -> list[float]:
+        presets = {
+            1: [50],
+            2: [42, 58],
+            3: [30, 50, 70],
+            4: [22, 40, 60, 78],
+            5: [16, 33, 50, 67, 84],
+        }
+        if count in presets:
+            return presets[count]
         if count <= 1:
-            return [(left + right) / 2]
+            return [50]
+        left = 12.0
+        right = 88.0
         step = (right - left) / (count - 1)
         return [left + i * step for i in range(count)]
+
+    def side_weight(position: str) -> int:
+        pos = (position or '').lower()
+        left_keys = ('izq', 'izquier', 'left')
+        right_keys = ('der', 'derech', 'right')
+        center_keys = ('central', 'centro', 'medio centro', 'pivote', 'media punta')
+        if any(key in pos for key in left_keys):
+            return -1
+        if any(key in pos for key in right_keys):
+            return 1
+        if any(key in pos for key in center_keys):
+            return 0
+        return 0
+
+    def order_line(line: list[dict]) -> list[dict]:
+        return sorted(
+            line,
+            key=lambda player: (
+                side_weight(player.get('position') or ''),
+                (player.get('name') or '').lower(),
+            ),
+        )
 
     def take_from(group_key: str, count: int) -> list[dict]:
         picked = groups[group_key][:count]
@@ -610,8 +643,9 @@ def assign_lineup_slots(players: list[dict], formation: str | None = None) -> li
             line.append(remaining.pop(0))
 
     for line, top in ((def_line, 70), (mid_line, 52), (att_line, 32)):
-        xs = spread(len(line)) if line else []
-        for idx, player in enumerate(line):
+        ordered = order_line(line)
+        xs = spread(len(ordered)) if ordered else []
+        for idx, player in enumerate(ordered):
             enriched = dict(player)
             enriched['left'] = xs[idx]
             enriched['top'] = top

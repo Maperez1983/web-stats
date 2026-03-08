@@ -637,6 +637,8 @@ def analysis_page(request):
     insights = {}
     formation = 'Auto'
     error = ''
+    auto_loaded = False
+    auto_team_name = ''
     if request.method == 'POST':
         team_url = (request.POST.get('team_url') or '').strip()
         team_id = (request.POST.get('team_id') or '').strip()
@@ -668,6 +670,38 @@ def analysis_page(request):
         if team and team_url and team.preferente_url != team_url:
             team.preferente_url = team_url
             team.save(update_fields=['preferente_url'])
+    else:
+        primary_team = Team.objects.filter(is_primary=True).first()
+        active_match = get_active_match(primary_team) if primary_team else None
+        auto_team = None
+        if active_match and primary_team:
+            auto_team = (
+                active_match.away_team if active_match.home_team == primary_team else active_match.home_team
+            )
+        if auto_team:
+            team_id = str(auto_team.id)
+            auto_team_name = auto_team.name
+            team_url = (auto_team.preferente_url or '').strip()
+            if team_url:
+                try:
+                    roster = fetch_preferente_team_roster(team_url)
+                    probable_eleven = compute_probable_eleven(roster)
+                    insights = build_rival_insights(roster)
+                    formation = compute_formation(probable_eleven)
+                    lineup = assign_lineup_slots(probable_eleven, formation)
+                    auto_loaded = True
+                    if not roster:
+                        error = 'No se han encontrado jugadores en la plantilla.'
+                except Exception:
+                    error = (
+                        f'Rival detectado automáticamente ({auto_team.name}), '
+                        'pero no se ha podido cargar su plantilla.'
+                    )
+            else:
+                error = (
+                    f'Rival detectado automáticamente ({auto_team.name}), '
+                    'pero no tiene URL de La Preferente guardada.'
+                )
     return render(
         request,
         'football/coach_analysis.html',
@@ -684,6 +718,8 @@ def analysis_page(request):
             'insights': insights,
             'formation': formation,
             'error': error,
+            'auto_loaded': auto_loaded,
+            'auto_team_name': auto_team_name,
         },
     )
 

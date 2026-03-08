@@ -214,6 +214,9 @@
         <p>{{ description }}</p>
         <form class="form" method="post">
           {% csrf_token %}
+          {% if auto_loaded %}
+          <p class="meta" style="margin:0;">Rival cargado automáticamente: <strong>{{ auto_team_name }}</strong></p>
+          {% endif %}
           <div>
             <label for="team_id">Equipo rival</label>
             <select id="team_id" name="team_id">
