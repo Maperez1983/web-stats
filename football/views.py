@@ -49,6 +49,7 @@ from football.services import (
     load_match_results,
     normalize_player_name,
     parse_preferente_roster,
+    refresh_primary_roster_cache,
     _parse_int,
 )
 
@@ -225,6 +226,10 @@ def dashboard_data(request):
     group = primary_team.group
     if not group:
         return JsonResponse({'error': 'El equipo principal no está asignado a ningún grupo'}, status=400)
+    try:
+        refresh_primary_roster_cache(primary_team, force=False)
+    except Exception:
+        pass
 
     standings = serialize_standings(group)
     next_match = get_next_match(primary_team, group)
@@ -275,6 +280,10 @@ def player_dashboard_page(request):
     primary_team = Team.objects.filter(is_primary=True).first()
     if not primary_team:
         return JsonResponse({'error': 'No hay equipo principal configurado'}, status=400)
+    try:
+        refresh_primary_roster_cache(primary_team, force=False)
+    except Exception:
+        pass
     player_stats = compute_player_dashboard(primary_team)
     return render(
         request,
@@ -1040,6 +1049,7 @@ def player_match_stats_page(request, player_id, match_id):
 
 @require_POST
 def refresh_scraping(request):
+    primary_team = Team.objects.filter(is_primary=True).first()
     try:
         result = subprocess.run(
             [sys.executable, str(SCRIPT_PATH)],
@@ -1052,7 +1062,11 @@ def refresh_scraping(request):
             raise RuntimeError(result.stderr.strip() or 'Error desconocido al ejecutar el script.')
     except Exception as exc:
         return JsonResponse({'status': 'error', 'message': str(exc)}, status=500)
-    return JsonResponse({'status': 'success', 'message': 'Clasificación actualizada desde RFAF.'})
+    roster_ok, roster_message = refresh_primary_roster_cache(primary_team, force=True)
+    roster_status = 'y plantilla actualizada' if roster_ok else f'plantilla no actualizada ({roster_message})'
+    return JsonResponse(
+        {'status': 'success', 'message': f'Clasificación actualizada desde RFAF, {roster_status}.'}
+    )
 
 
 def serialize_standings(group):

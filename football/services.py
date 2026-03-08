@@ -1,5 +1,6 @@
 import csv
 import re
+import time
 import unicodedata
 from io import BytesIO, StringIO
 from pathlib import Path
@@ -24,6 +25,7 @@ DOWNLOAD_EXTENSIONS = ('.csv', '.xls', '.xlsx', '.png')
 PLAYER_ROSTER_PATH = Path(settings.BASE_DIR) / 'data' / 'input' / 'player-roster.html'
 MATCH_LISTS_PATH = Path(settings.BASE_DIR) / 'data' / 'excel' / 'FICHA_PARTIDO.xlsx'
 PREFERENTE_USER_AGENT = 'webstats-crm/1.0'
+ROSTER_REFRESH_SECONDS = int(getattr(settings, 'PREFERENTE_ROSTER_REFRESH_SECONDS', 6 * 3600))
 
 
 def normalize_header(value):
@@ -749,6 +751,40 @@ def load_player_roster_stats() -> dict:
 
 _ROSTER_CACHE = None
 _ROSTER_CACHE_MTIME = None
+
+
+def refresh_primary_roster_cache(primary_team, force: bool = False):
+    if not primary_team:
+        return False, 'Equipo principal no configurado'
+    team_url = (primary_team.preferente_url or '').strip()
+    if not team_url:
+        return False, 'Sin URL de La Preferente en equipo principal'
+    if not force and PLAYER_ROSTER_PATH.exists():
+        try:
+            age_seconds = time.time() - PLAYER_ROSTER_PATH.stat().st_mtime
+            if age_seconds < ROSTER_REFRESH_SECONDS:
+                return False, f'Cache reciente ({int(age_seconds // 60)} min)'
+        except OSError:
+            pass
+    headers = {
+        'User-Agent': PREFERENTE_USER_AGENT,
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'es-ES,es;q=0.9',
+    }
+    try:
+        response = requests.get(team_url, headers=headers, timeout=25)
+        response.raise_for_status()
+    except requests.RequestException as exc:
+        return False, f'Error consultando La Preferente: {exc}'
+    html = response.text or ''
+    if 'tablePlantilla' not in html:
+        return False, 'HTML sin tabla de plantilla (tablePlantilla)'
+    PLAYER_ROSTER_PATH.parent.mkdir(parents=True, exist_ok=True)
+    PLAYER_ROSTER_PATH.write_text(html, encoding='utf-8')
+    global _ROSTER_CACHE, _ROSTER_CACHE_MTIME
+    _ROSTER_CACHE = None
+    _ROSTER_CACHE_MTIME = None
+    return True, f'Plantilla actualizada desde {team_url}'
 
 
 def get_roster_stats_cache() -> dict:
