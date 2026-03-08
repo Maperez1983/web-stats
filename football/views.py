@@ -227,7 +227,7 @@ def dashboard_data(request):
     if not group:
         return JsonResponse({'error': 'El equipo principal no está asignado a ningún grupo'}, status=400)
     try:
-        refresh_primary_roster_cache(primary_team, force=False)
+        refresh_primary_roster_cache(primary_team, force=True)
     except Exception:
         pass
 
@@ -281,7 +281,7 @@ def player_dashboard_page(request):
     if not primary_team:
         return JsonResponse({'error': 'No hay equipo principal configurado'}, status=400)
     try:
-        refresh_primary_roster_cache(primary_team, force=False)
+        refresh_primary_roster_cache(primary_team, force=True)
     except Exception:
         pass
     player_stats = compute_player_dashboard(primary_team)
