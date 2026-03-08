@@ -527,47 +527,50 @@ def build_rival_insights(players: list[dict]) -> dict:
 def assign_lineup_slots(players: list[dict], formation: str | None = None) -> list[dict]:
     assigned = []
 
-    def badge_for(position: str) -> str:
-        pos = position.lower()
-        if 'portero' in pos:
+    def role_from_position(position: str) -> str:
+        pos = (position or '').lower()
+        compact = pos.replace('.', '').replace('-', ' ').strip()
+        if any(token in compact for token in ('portero', 'por', 'gk')):
             return 'GK'
-        if 'lateral izquierdo' in pos:
+        if 'lateral izquierdo' in compact or compact in {'li', 'dfi'}:
             return 'LI'
-        if 'lateral derecho' in pos:
+        if 'lateral derecho' in compact or compact in {'ld', 'dfd'}:
             return 'LD'
-        if 'central' in pos and 'izq' in pos:
+        if 'central izquierdo' in compact or compact in {'ci'}:
             return 'CI'
-        if 'central' in pos and 'der' in pos:
+        if 'central derecho' in compact or compact in {'cd'}:
             return 'CD'
-        if 'central' in pos:
+        if 'central' in compact or compact in {'c', 'dfc'}:
             return 'C'
-        if 'pivote' in pos or 'medio centro' in pos:
-            return 'MC'
-        if 'interior izquierdo' in pos:
+        if 'interior izquierdo' in compact or compact in {'mi'}:
             return 'MI'
-        if 'interior derecho' in pos:
+        if 'interior derecho' in compact or compact in {'md'}:
             return 'MD'
-        if 'media punta' in pos:
+        if 'media punta' in compact or compact in {'mp', 'mco'}:
             return 'MP'
-        if 'extremo izquierdo' in pos:
+        if 'extremo izquierdo' in compact or compact in {'ei'}:
             return 'EI'
-        if 'extremo derecho' in pos:
+        if 'extremo derecho' in compact or compact in {'ed'}:
             return 'ED'
-        if 'delantero' in pos:
+        if 'pivote' in compact or 'medio centro' in compact or compact in {'mc', 'mcd', 'mci'}:
+            return 'MC'
+        if any(token in compact for token in ('delantero', 'punta', '9', 'dc')):
             return 'DC'
+        if any(token in compact for token in ('medio', 'interior', 'volante', 'media')):
+            return 'MC'
+        if any(token in compact for token in ('defensa', 'lateral', 'central')):
+            return 'C'
         return '?'
 
     def classify(position: str) -> str:
-        pos = position.lower()
-        if 'portero' in pos:
+        role = role_from_position(position)
+        if role == 'GK':
             return 'gk'
-        if 'lateral' in pos or 'central' in pos or 'defensa' in pos:
+        if role in {'LI', 'LD', 'CI', 'CD', 'C'}:
             return 'def'
-        if 'media punta' in pos or 'mediapunta' in pos:
+        if role in {'MI', 'MD', 'MC', 'MP'}:
             return 'mid'
-        if 'medio' in pos or 'interior' in pos or 'pivote' in pos:
-            return 'mid'
-        if 'delantero' in pos or 'extremo' in pos:
+        if role in {'EI', 'ED', 'DC'}:
             return 'att'
         return 'mid'
 
@@ -586,44 +589,82 @@ def assign_lineup_slots(players: list[dict], formation: str | None = None) -> li
     def_cap, mid_cap, att_cap = parse_counts(formation)
     gk_cap = 1
 
-    def spread(count: int) -> list[float]:
-        presets = {
-            1: [50],
-            2: [42, 58],
-            3: [30, 50, 70],
-            4: [22, 40, 60, 78],
-            5: [16, 33, 50, 67, 84],
+    def line_slots(line_key: str, count: int) -> list[str]:
+        if line_key == 'def':
+            presets = {
+                1: ['C'],
+                2: ['LI', 'LD'],
+                3: ['LI', 'C', 'LD'],
+                4: ['LI', 'CI', 'CD', 'LD'],
+                5: ['LI', 'CI', 'C', 'CD', 'LD'],
+            }
+        elif line_key == 'mid':
+            presets = {
+                1: ['MC'],
+                2: ['MC', 'MC'],
+                3: ['MI', 'MC', 'MD'],
+                4: ['MI', 'MC', 'MC', 'MD'],
+                5: ['EI', 'MC', 'MC', 'MD', 'ED'],
+            }
+        else:  # att
+            presets = {
+                1: ['DC'],
+                2: ['DC', 'DC'],
+                3: ['EI', 'DC', 'ED'],
+                4: ['EI', 'DC', 'DC', 'ED'],
+                5: ['EI', 'DC', 'DC', 'DC', 'ED'],
+            }
+        return presets.get(count, ['MC'] * count)
+
+    def score_role_to_slot(role: str, slot: str) -> int:
+        if role == slot:
+            return 10
+        compatible = {
+            'C': {'CI', 'CD', 'C'},
+            'CI': {'CI', 'C'},
+            'CD': {'CD', 'C'},
+            'LI': {'LI', 'MI'},
+            'LD': {'LD', 'MD'},
+            'MC': {'MC', 'MP', 'MI', 'MD'},
+            'MP': {'MP', 'MC', 'DC'},
+            'MI': {'MI', 'EI', 'MC'},
+            'MD': {'MD', 'ED', 'MC'},
+            'EI': {'EI', 'MI', 'DC'},
+            'ED': {'ED', 'MD', 'DC'},
+            'DC': {'DC', 'MP', 'EI', 'ED'},
+            'GK': {'GK'},
+            '?': {'MC', 'C', 'DC'},
         }
-        if count in presets:
-            return presets[count]
-        if count <= 1:
-            return [50]
-        left = 12.0
-        right = 88.0
-        step = (right - left) / (count - 1)
-        return [left + i * step for i in range(count)]
+        if slot in compatible.get(role, set()):
+            return 6
+        return 1
 
-    def side_weight(position: str) -> int:
-        pos = (position or '').lower()
-        left_keys = ('izq', 'izquier', 'left')
-        right_keys = ('der', 'derech', 'right')
-        center_keys = ('central', 'centro', 'medio centro', 'pivote', 'media punta')
-        if any(key in pos for key in left_keys):
-            return -1
-        if any(key in pos for key in right_keys):
-            return 1
-        if any(key in pos for key in center_keys):
-            return 0
-        return 0
+    def best_assign(line_players: list[dict], slots: list[str]) -> list[tuple[dict, str]]:
+        if not line_players or not slots:
+            return []
+        players_with_role = [(player, role_from_position(player.get('position') or '')) for player in line_players]
+        best_score = -1
+        best_pick = []
 
-    def order_line(line: list[dict]) -> list[dict]:
-        return sorted(
-            line,
-            key=lambda player: (
-                side_weight(player.get('position') or ''),
-                (player.get('name') or '').lower(),
-            ),
-        )
+        def walk(slot_idx: int, remaining: list[tuple[dict, str]], acc: list[tuple[dict, str]], score: int):
+            nonlocal best_score, best_pick
+            if slot_idx >= len(slots) or not remaining:
+                if score > best_score:
+                    best_score = score
+                    best_pick = acc.copy()
+                return
+            slot = slots[slot_idx]
+            for idx, pair in enumerate(remaining):
+                player, role = pair
+                pair_score = score_role_to_slot(role, slot)
+                next_remaining = remaining[:idx] + remaining[idx + 1:]
+                acc.append((player, slot))
+                walk(slot_idx + 1, next_remaining, acc, score + pair_score)
+                acc.pop()
+            walk(slot_idx + 1, remaining, acc, score)
+
+        walk(0, players_with_role, [], 0)
+        return best_pick
 
     def take_from(group_key: str, count: int) -> list[dict]:
         picked = groups[group_key][:count]
@@ -644,24 +685,33 @@ def assign_lineup_slots(players: list[dict], formation: str | None = None) -> li
         while len(line) < cap and remaining:
             line.append(remaining.pop(0))
 
-    for line, top in ((def_line, 70), (mid_line, 52), (att_line, 32)):
-        ordered = order_line(line)
-        xs = spread(len(ordered)) if ordered else []
+    for (line_key, line, top) in (('def', def_line, 70), ('mid', mid_line, 52), ('att', att_line, 32)):
+        slots = line_slots(line_key, len(line))
+        assignment = best_assign(line, slots)
+        ordered = [player for player, _ in assignment]
+        slot_labels = [slot for _, slot in assignment]
+        xs = {
+            1: [50],
+            2: [42, 58],
+            3: [30, 50, 70],
+            4: [22, 40, 60, 78],
+            5: [16, 33, 50, 67, 84],
+        }.get(len(ordered), [50])
         for idx, player in enumerate(ordered):
             enriched = dict(player)
             enriched['left'] = xs[idx]
             enriched['top'] = top
-            enriched['badge'] = badge_for(player.get('position') or '')
+            enriched['badge'] = slot_labels[idx] if idx < len(slot_labels) else role_from_position(player.get('position') or '')
             assigned.append(enriched)
 
-    if lineup:
-        gk = lineup[0]
+    gk = (groups['gk'][0] if groups['gk'] else (lineup[0] if lineup else None))
+    if gk:
         assigned.append(
             {
                 **gk,
                 'left': 50,
                 'top': 88,
-                'badge': badge_for(gk.get('position') or ''),
+                'badge': 'GK',
             }
         )
 
