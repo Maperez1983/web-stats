@@ -103,6 +103,9 @@
         position: relative;
         overflow: hidden;
       }
+      .quick-action-card.is-history-clickable {
+        cursor: pointer;
+      }
       .quick-action-card::after {
         content: '';
         position: absolute;
@@ -169,6 +172,12 @@
       }
       .quick-history span {
         display: block;
+      }
+      .quick-history-meta {
+        font-size: 0.68rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: rgba(248, 250, 252, 0.7);
       }
       .quick-drop.is-drag-over {
         border-color: var(--accent);
@@ -1301,7 +1310,13 @@
               </div>
             </div>
             <div class="quick-action-column">
-              <div class="quick-action-card">
+              <div
+                class="quick-action-card is-history-clickable"
+                id="subs-history-card"
+                title="Ver todas las sustituciones"
+                role="button"
+                tabindex="0"
+              >
                 <div class="quick-action-header">
                     <span>Sustituciones</span>
                     <div class="quick-action-counts">
@@ -1331,6 +1346,7 @@
                   </div>
                 </div>
                 <div class="quick-history" id="sub-history" title="Pulsa para ver todas"></div>
+                <div class="quick-history-meta" id="sub-history-meta">Pulsa para ver todos los cambios</div>
               </div>
             </div>
             </div>
@@ -1530,6 +1546,7 @@
     </div>
     {{ field_zone_defs|json_script:"field-zone-defs" }}
     {{ team_fields|json_script:"team-fields-data" }}
+    {{ substitution_history|json_script:"substitution-history-data" }}
     <script>
       const fieldZoneDefs = JSON.parse(
         document.getElementById('field-zone-defs')?.textContent || '[]',
@@ -1542,6 +1559,7 @@
       const quickHistoryModalList = document.getElementById('quick-history-list');
       const quickHistoryModalTitle = document.getElementById('quick-history-title');
       const quickHistoryModalCloseBtn = document.getElementById('quick-history-close');
+      const subsHistoryCard = document.getElementById('subs-history-card');
       const popupForm = document.getElementById('field-popup-form');
       const actionInput = popupForm.querySelector('input[name="action_type"]');
       const zoneInput = popupForm.querySelector('input[name="zone"]');
@@ -1809,6 +1827,14 @@
         });
         container.classList.toggle('is-clickable', entries.length > 0);
         container.dataset.totalEntries = String(entries.length);
+        if (historyKey === 'subs') {
+          const meta = document.getElementById('sub-history-meta');
+          if (meta) {
+            meta.textContent = entries.length
+              ? `Pulsa para ver ${entries.length} cambios`
+              : 'Pulsa para ver todos los cambios';
+          }
+        }
       };
       const appendQuickHistory = (dropKey, playerName, minute, label) => {
         const historyKey =
@@ -1878,6 +1904,37 @@
           showQuickHistoryModal(historyKey, title);
         });
       });
+      if (subsHistoryCard) {
+        const openSubsHistory = (event) => {
+          if (event?.target?.closest('.quick-drop')) {
+            return;
+          }
+          showQuickHistoryModal('subs', 'Sustituciones');
+        };
+        subsHistoryCard.addEventListener('click', openSubsHistory);
+        subsHistoryCard.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            openSubsHistory(event);
+          }
+        });
+      }
+      try {
+        const initialSubHistory = JSON.parse(
+          document.getElementById('substitution-history-data')?.textContent || '[]',
+        );
+        if (Array.isArray(initialSubHistory) && initialSubHistory.length) {
+          quickHistoryState.subs = initialSubHistory.map((value) => String(value || '').trim()).filter(Boolean);
+          if (quickCounters.subs) {
+            quickCounters.subs.textContent = quickHistoryState.subs.length;
+          }
+          quickStats.subs = quickHistoryState.subs.length;
+          renderQuickHistoryPreview('subs');
+          refreshStatusCounters();
+        }
+      } catch (err) {
+        console.warn('No se pudo cargar historial inicial de sustituciones', err);
+      }
       refreshStatusCounters();
       const classifyCounterDropKey = ({ action = '', result = '' }) => {
         const actionText = String(action || '').toLowerCase();

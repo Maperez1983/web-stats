@@ -337,6 +337,7 @@ def match_action_page(request):
         .order_by('-created_at')[:6]
     )
     active_match = get_active_match(primary_team)
+    substitution_history = []
     match_info = None
     if active_match:
         opponent = active_match.away_team if active_match.home_team == primary_team else active_match.home_team
@@ -348,6 +349,22 @@ def match_action_page(request):
             'date': active_match.date.strftime('%d/%m/%Y') if active_match.date else None,
             'time': active_match.date.strftime('%H:%M') if active_match.date else '00:00',
         }
+        substitution_events = (
+            MatchEvent.objects.filter(match=active_match, player__team=primary_team)
+            .select_related('player')
+            .order_by('created_at', 'id')
+        )
+        for event in substitution_events:
+            if not (
+                is_substitution_event(event.event_type, event.zone)
+                or is_substitution_entry(event.event_type, event.result, event.zone)
+                or is_substitution_exit(event.event_type, event.result, event.zone)
+            ):
+                continue
+            minute_label = f"{event.minute}'" if event.minute is not None else "--'"
+            result_label = (event.result or '').strip() or (event.zone or '').strip() or 'Sustitución'
+            player_name = event.player.name if event.player else 'Jugador'
+            substitution_history.append(f"{player_name} · {minute_label} · {result_label}".upper())
     category_rivals = []
     team_fields = []
     group = primary_team.group
@@ -389,6 +406,7 @@ def match_action_page(request):
             'match_info': match_info,
             'category_rivals': category_rivals,
             'team_fields': team_fields,
+            'substitution_history': substitution_history,
         },
     )
 
@@ -633,14 +651,20 @@ def analysis_page(request):
                 roster = parse_preferente_roster(raw_text)
             elif team_url:
                 roster = fetch_preferente_team_roster(team_url)
+
             probable_eleven = compute_probable_eleven(roster)
             insights = build_rival_insights(roster)
             formation = compute_formation(probable_eleven)
-            lineup = assign_lineup_slots(probable_eleven, formation)
+            try:
+                lineup = assign_lineup_slots(probable_eleven, formation)
+            except Exception:
+                lineup = []
+                error = 'Plantilla cargada, pero no se ha podido dibujar el 11 probable.'
+
             if not roster:
                 error = 'No se han encontrado jugadores en la plantilla.'
-        except Exception as exc:
-            error = f'No se ha podido procesar la plantilla del rival. {exc}'
+        except Exception:
+            error = 'No se ha podido procesar la plantilla del rival. Revisa URL o el contenido pegado.'
         if team and team_url and team.preferente_url != team_url:
             team.preferente_url = team_url
             team.save(update_fields=['preferente_url'])

@@ -562,7 +562,7 @@ def assign_lineup_slots(players: list[dict], formation: str | None = None) -> li
         if 'lateral' in pos or 'central' in pos or 'defensa' in pos:
             return 'def'
         if 'media punta' in pos or 'mediapunta' in pos:
-            return 'am'
+            return 'mid'
         if 'medio' in pos or 'interior' in pos or 'pivote' in pos:
             return 'mid'
         if 'delantero' in pos or 'extremo' in pos:
