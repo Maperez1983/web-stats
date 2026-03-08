@@ -251,6 +251,83 @@
         flex-direction: column;
         gap: 0.5rem;
         width: 100%;
+        position: relative;
+      }
+      .live-stats-hud {
+        position: absolute;
+        top: 0.2rem;
+        right: 0.2rem;
+        z-index: 9;
+        width: min(300px, calc(100% - 0.6rem));
+        background: rgba(2, 10, 27, 0.92);
+        border: 1px solid rgba(125, 211, 252, 0.3);
+        border-radius: 14px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
+        overflow: hidden;
+      }
+      .live-stats-hud-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        padding: 0.45rem 0.6rem;
+        background: rgba(14, 116, 144, 0.25);
+      }
+      .live-stats-hud-title {
+        margin: 0;
+        font-size: 0.68rem;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: #bae6fd;
+      }
+      .live-stats-hud-toggle {
+        border: 1px solid rgba(186, 230, 253, 0.5);
+        border-radius: 999px;
+        padding: 0.18rem 0.5rem;
+        background: transparent;
+        color: #e0f2fe;
+        font-size: 0.65rem;
+        letter-spacing: 0.12em;
+        cursor: pointer;
+      }
+      .live-stats-hud-body {
+        padding: 0.5rem 0.6rem 0.65rem;
+        display: grid;
+        gap: 0.5rem;
+      }
+      .live-stats-chips {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.35rem;
+      }
+      .live-stats-chip {
+        border-radius: 10px;
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        background: rgba(15, 23, 42, 0.88);
+        padding: 0.32rem 0.4rem;
+      }
+      .live-stats-chip span {
+        display: block;
+        font-size: 0.58rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.75);
+      }
+      .live-stats-chip strong {
+        display: block;
+        margin-top: 0.12rem;
+        font-size: 0.86rem;
+        letter-spacing: 0.03em;
+      }
+      .live-stats-details {
+        display: grid;
+        gap: 0.22rem;
+        font-size: 0.7rem;
+        letter-spacing: 0.08em;
+        color: rgba(226, 232, 240, 0.9);
+      }
+      .live-stats-hud.is-collapsed .live-stats-hud-body {
+        display: none;
       }
       .match-header {
         display: grid;
@@ -1457,6 +1534,26 @@
             </div>
           </div>
           </div>
+          <section class="live-stats-hud is-collapsed" id="live-stats-hud" aria-live="polite">
+            <header class="live-stats-hud-header">
+              <h4 class="live-stats-hud-title">Stats en vivo</h4>
+              <button type="button" class="live-stats-hud-toggle" id="live-stats-toggle">Mostrar</button>
+            </header>
+            <div class="live-stats-hud-body">
+              <div class="live-stats-chips">
+                <article class="live-stats-chip"><span>Acciones</span><strong id="live-stat-actions">0</strong></article>
+                <article class="live-stats-chip"><span>Posesión aprox</span><strong id="live-stat-possession">50%</strong></article>
+                <article class="live-stats-chip"><span>Ritmo</span><strong id="live-stat-pace">0.0/min</strong></article>
+                <article class="live-stats-chip"><span>Tiros</span><strong id="live-stat-shots">0</strong></article>
+                <article class="live-stats-chip"><span>Pases</span><strong id="live-stat-passes">0</strong></article>
+                <article class="live-stats-chip"><span>Tarjetas</span><strong id="live-stat-cards">0</strong></article>
+              </div>
+              <div class="live-stats-details">
+                <span>Sustituciones: <strong id="live-stat-subs">0</strong></span>
+                <span>Atajo teclado: <strong>S</strong> para mostrar/ocultar</span>
+              </div>
+            </div>
+          </section>
           <div class="field-footer">Convocatoria actual · mueve a los jugadores con un toque</div>
           <section class="action-register">
             <div class="register-card">
@@ -1597,6 +1694,10 @@
       const submitUrl = popupForm.dataset.submitUrl;
       const deleteUrl = '{% url "match-action-delete" %}';
       const finalizeUrl = '{% url "match-action-finalize" %}';
+      const initialMatchDbIdEl = document.getElementById('match-db-id');
+      const lineupStorageKey = initialMatchDbIdEl?.textContent
+        ? `touchFieldLineup:${String(initialMatchDbIdEl.textContent).trim()}`
+        : '';
       let elapsedSeconds = 0;
       let clockInterval = null;
       let clockRunning = false;
@@ -1604,6 +1705,75 @@
       let lineupState = {
         starters: [],
         bench: [],
+      };
+      const liveStatsHud = document.getElementById('live-stats-hud');
+      const liveStatsToggle = document.getElementById('live-stats-toggle');
+      const liveStatEls = {
+        actions: document.getElementById('live-stat-actions'),
+        possession: document.getElementById('live-stat-possession'),
+        pace: document.getElementById('live-stat-pace'),
+        shots: document.getElementById('live-stat-shots'),
+        passes: document.getElementById('live-stat-passes'),
+        cards: document.getElementById('live-stat-cards'),
+        subs: document.getElementById('live-stat-subs'),
+      };
+      const liveEventStore = new Map();
+      const containsText = (value, terms) => {
+        const txt = String(value || '').toLowerCase();
+        if (!txt) return false;
+        return terms.some((term) => txt.includes(term));
+      };
+      const summarizeLiveEvent = ({ action = '', zone = '', result = '' }) => {
+        const shot = containsText(action, ['tiro', 'remate', 'disparo']) || containsText(result, ['tiro', 'remate', 'disparo']);
+        const pass = containsText(action, ['pase']) || containsText(result, ['pase']);
+        const card = containsText(action, ['amarilla', 'roja', 'tarjeta']) || containsText(result, ['amarilla', 'roja']);
+        const sub = containsText(action, ['sustituci', 'cambio']) || containsText(result, ['entrada', 'salida']) || containsText(zone, ['sustituci']);
+        return { shot, pass, card, sub };
+      };
+      const refreshLiveStatsHud = () => {
+        const totals = {
+          actions: liveEventStore.size,
+          shots: 0,
+          passes: 0,
+          cards: 0,
+          subs: 0,
+        };
+        liveEventStore.forEach((eventData) => {
+          const summary = summarizeLiveEvent(eventData);
+          if (summary.shot) totals.shots += 1;
+          if (summary.pass) totals.passes += 1;
+          if (summary.card) totals.cards += 1;
+          if (summary.sub) totals.subs += 1;
+        });
+        const minutes = Math.max(1, elapsedSeconds / 60);
+        const pace = totals.actions / minutes;
+        const possessionApprox = totals.actions
+          ? Math.round(Math.max(35, Math.min(75, 35 + (totals.passes / totals.actions) * 40)))
+          : 50;
+        if (liveStatEls.actions) liveStatEls.actions.textContent = String(totals.actions);
+        if (liveStatEls.shots) liveStatEls.shots.textContent = String(totals.shots);
+        if (liveStatEls.passes) liveStatEls.passes.textContent = String(totals.passes);
+        if (liveStatEls.cards) liveStatEls.cards.textContent = String(totals.cards);
+        if (liveStatEls.subs) liveStatEls.subs.textContent = String(totals.subs);
+        if (liveStatEls.possession) liveStatEls.possession.textContent = `${possessionApprox}%`;
+        if (liveStatEls.pace) liveStatEls.pace.textContent = `${pace.toFixed(1)}/min`;
+      };
+      const registerLiveEvent = ({ id = null, action = '', zone = '', result = '' }) => {
+        const key = id ? `id:${id}` : `tmp:${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+        liveEventStore.set(key, { action, zone, result });
+        refreshLiveStatsHud();
+      };
+      const removeLiveEvent = (eventId) => {
+        if (!eventId) return;
+        liveEventStore.delete(`id:${eventId}`);
+        refreshLiveStatsHud();
+      };
+      const setLiveHudCollapsed = (collapsed) => {
+        if (!liveStatsHud) return;
+        liveStatsHud.classList.toggle('is-collapsed', collapsed);
+        if (liveStatsToggle) {
+          liveStatsToggle.textContent = collapsed ? 'Mostrar' : 'Ocultar';
+        }
       };
 
       highlight.className = 'touch-highlight';
@@ -1650,6 +1820,21 @@
         setZoneOverlayVisibility(true);
       }
       const hydrateLineupState = () => {
+        if (lineupStorageKey) {
+          try {
+            const rawPersisted = localStorage.getItem(lineupStorageKey);
+            if (rawPersisted) {
+              const persisted = JSON.parse(rawPersisted);
+              lineupState = {
+                starters: Array.isArray(persisted?.starters) ? persisted.starters : [],
+                bench: Array.isArray(persisted?.bench) ? persisted.bench : [],
+              };
+              return;
+            }
+          } catch (err) {
+            console.warn('No se pudo recuperar el 11 inicial persistido', err);
+          }
+        }
         if (!lineupInput?.value) {
           return;
         }
@@ -1666,6 +1851,13 @@
       const updateLineupInput = () => {
         if (lineupInput) {
           lineupInput.value = JSON.stringify(lineupState);
+        }
+        if (lineupStorageKey) {
+          try {
+            localStorage.setItem(lineupStorageKey, JSON.stringify(lineupState));
+          } catch (err) {
+            console.warn('No se pudo persistir el 11 inicial', err);
+          }
         }
       };
       let selectedPlayerId = null;
@@ -1990,6 +2182,7 @@
             action: data.action,
             zone: data.zone,
             result: data.result,
+            event_id: data.id,
           });
           incrementQuickCounter(config.dropKey);
           appendQuickHistory(
@@ -2180,6 +2373,7 @@
           matchClockDisplay.textContent = formatClock(elapsedSeconds);
         }
         syncAutoFields();
+        refreshLiveStatsHud();
       };
       const startClock = () => {
         if (clockRunning) return;
@@ -2212,6 +2406,24 @@
       }
       updateClockDisplay();
       setPopupEditMode(false);
+      setLiveHudCollapsed(true);
+      if (liveStatsToggle) {
+        liveStatsToggle.addEventListener('click', () => {
+          const collapsed = liveStatsHud?.classList.contains('is-collapsed');
+          setLiveHudCollapsed(!collapsed);
+        });
+      }
+      document.addEventListener('keydown', (event) => {
+        if ((event.key || '').toLowerCase() === 's' && !event.metaKey && !event.ctrlKey) {
+          const tag = (event.target?.tagName || '').toLowerCase();
+          if (tag === 'input' || tag === 'textarea' || tag === 'select') {
+            return;
+          }
+          event.preventDefault();
+          const collapsed = liveStatsHud?.classList.contains('is-collapsed');
+          setLiveHudCollapsed(!collapsed);
+        }
+      });
 
       const clamp = (value, min, max) => Math.max(min, Math.min(value, max));
 
@@ -2315,7 +2527,18 @@
         if (historyList.children.length > 8) {
           historyList.removeChild(historyList.lastChild);
         }
+        registerLiveEvent({ id: event_id, action, zone, result });
       };
+      historyList.querySelectorAll('.history-item').forEach((item) => {
+        const text = item.querySelector('.hist-text')?.textContent || '';
+        const [action = '', zone = '', result = ''] = text.split('·').map((part) => part.trim());
+        registerLiveEvent({
+          id: item.dataset.eventId || null,
+          action,
+          zone,
+          result,
+        });
+      });
 
       historyList.addEventListener('click', async (event) => {
         const button = event.target.closest('.history-delete');
@@ -2342,6 +2565,7 @@
             return;
           }
           article.remove();
+          removeLiveEvent(eventId);
         } catch (err) {
           console.error(err);
           alert('No se pudo eliminar la acción.');
@@ -2428,6 +2652,7 @@
             action: data.action,
             zone: data.zone,
             result: data.result,
+            event_id: data.id,
           });
           const derivedDropKey = classifyCounterDropKey({
             action: data.action,
@@ -2615,6 +2840,11 @@
               if (matchDbIdEl && data.match_id) {
                 matchDbIdEl.textContent = data.match_id;
               }
+              if (lineupStorageKey) {
+                localStorage.removeItem(lineupStorageKey);
+              }
+              lineupState = { starters: [], bench: [] };
+              renderLineup();
               const updatedCount = data.updated || 0;
               finalizeBtn.textContent = updatedCount > 0 ? 'Partido consolidado' : 'Guardar partido';
               alert(
