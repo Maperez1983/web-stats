@@ -192,6 +192,7 @@ FIELD_ZONE_KEYS = [zone['key'] for zone in FIELD_ZONES]
 STANDARD_TERCIO_LABELS = ['Ataque', 'Construcción', 'Defensa']
 SHOT_KEYWORDS = {'tiro', 'remate', 'disparo', 'chuza', 'chute'}
 PASS_KEYWORDS = {'pase', 'pases', 'pase clave', 'pase al hueco'}
+DRIBBLE_KEYWORDS = {'regate', 'regates', 'dribbling', 'dribble', 'conduccion', 'conducción'}
 GOAL_KEYWORDS = {'gol', 'goles', 'anotado', 'marcado', 'goal'}
 ASSIST_KEYWORDS = {'asistencia', 'asist', 'pase gol', 'asiste'}
 YELLOW_CARD_KEYWORDS = {'amarilla', 'tarjeta amarilla'}
@@ -1616,6 +1617,82 @@ def map_zone_label(zone):
     return None
 
 
+def infer_player_profile(position):
+    normalized = normalize_label(position)
+    if not normalized:
+        return 'midfielder'
+    if 'portero' in normalized:
+        return 'goalkeeper'
+    if any(token in normalized for token in ('delantero', 'punta', 'nueve', '9')):
+        return 'striker'
+    if any(token in normalized for token in ('extremo', 'banda', 'winger')):
+        return 'winger'
+    if any(token in normalized for token in ('defensa', 'central', 'lateral', 'carrilero')):
+        return 'defender'
+    return 'midfielder'
+
+
+def format_profile_label(profile):
+    return {
+        'goalkeeper': 'Portero',
+        'defender': 'Defensa',
+        'midfielder': 'Mediocampo',
+        'winger': 'Extremo',
+        'striker': 'Delantero',
+    }.get(profile, 'Jugador')
+
+
+def build_smart_kpis(stats):
+    profile = infer_player_profile(stats.get('position') or '')
+    pj = max(1, int(stats.get('pj', 0) or 0))
+    success_rate = round((stats.get('successes', 0) / stats.get('total_actions', 0)) * 100, 1) if stats.get('total_actions') else 0
+    shots = int(stats.get('shot_attempts', 0) or 0)
+    goals = int(stats.get('goals', 0) or 0)
+    duels_total = int(stats.get('duels_total', 0) or 0)
+    duels_won = int(stats.get('duels_won', 0) or 0)
+    duel_rate = round((duels_won / duels_total) * 100, 1) if duels_total else 0
+    dribbles_total = int(stats.get('dribbles_attempted', 0) or 0)
+    dribbles_won = int(stats.get('dribbles_completed', 0) or 0)
+    dribble_rate = round((dribbles_won / dribbles_total) * 100, 1) if dribbles_total else 0
+    passes_attempts = int(stats.get('pass_attempts', 0) or 0)
+    passes_completed = int(stats.get('passes_completed', 0) or 0)
+    pass_rate = round((passes_completed / passes_attempts) * 100, 1) if passes_attempts else 0
+    conversion = round((goals / shots) * 100, 1) if shots else 0
+    goals_per_match = round(goals / pj, 2)
+
+    if profile == 'striker':
+        kpis = [
+            {'label': 'Goles/PJ', 'value': f'{goals_per_match}'},
+            {'label': 'Gol/Tiro', 'value': f'{conversion}%'},
+            {'label': 'Efectividad', 'value': f'{success_rate}%'},
+        ]
+    elif profile == 'winger':
+        kpis = [
+            {'label': 'Regates G/T', 'value': f'{dribbles_won}/{dribbles_total}'},
+            {'label': 'Regate %', 'value': f'{dribble_rate}%'},
+            {'label': 'Duelos %', 'value': f'{duel_rate}%'},
+        ]
+    elif profile == 'defender':
+        kpis = [
+            {'label': 'Duelos G/T', 'value': f'{duels_won}/{duels_total}'},
+            {'label': 'Duelos %', 'value': f'{duel_rate}%'},
+            {'label': 'Pase %', 'value': f'{pass_rate}%'},
+        ]
+    elif profile == 'midfielder':
+        kpis = [
+            {'label': 'Duelos G/T', 'value': f'{duels_won}/{duels_total}'},
+            {'label': 'Pase %', 'value': f'{pass_rate}%'},
+            {'label': 'Efectividad', 'value': f'{success_rate}%'},
+        ]
+    else:
+        kpis = [
+            {'label': 'Efectividad', 'value': f'{success_rate}%'},
+            {'label': 'Duelos G/T', 'value': f'{duels_won}/{duels_total}'},
+            {'label': 'Pase %', 'value': f'{pass_rate}%'},
+        ]
+    return profile, format_profile_label(profile), kpis
+
+
 def compute_player_dashboard(primary_team):
     player_stats = {}
     roster_cache = get_roster_stats_cache()
@@ -1676,6 +1753,8 @@ def compute_player_dashboard(primary_team):
                 'shots_on_target': 0,
                 'pass_attempts': 0,
                 'passes_completed': 0,
+                'dribbles_attempted': 0,
+                'dribbles_completed': 0,
                 'age': roster_entry.get('age') if roster_entry else None,
                 'has_events': False,
             },
@@ -1717,6 +1796,10 @@ def compute_player_dashboard(primary_team):
             stats['pass_attempts'] += 1
             if result_is_success(event.result):
                 stats['passes_completed'] += 1
+        if contains_keyword(event.event_type, DRIBBLE_KEYWORDS) or contains_keyword(event.observation, DRIBBLE_KEYWORDS):
+            stats['dribbles_attempted'] += 1
+            if result_is_success(event.result):
+                stats['dribbles_completed'] += 1
         if not match:
             continue
         match_key = match.id
@@ -1817,6 +1900,8 @@ def compute_player_dashboard(primary_team):
                 'shots_on_target': 0,
                 'pass_attempts': 0,
                 'passes_completed': 0,
+                'dribbles_attempted': 0,
+                'dribbles_completed': 0,
                 'age': roster_entry.get('age'),
                 'has_events': False,
             }
@@ -1908,5 +1993,9 @@ def compute_player_dashboard(primary_team):
                 else 0,
             },
         }
+        profile, profile_label, smart_kpis = build_smart_kpis(stats)
+        merged['profile'] = profile
+        merged['profile_label'] = profile_label
+        merged['smart_kpis'] = smart_kpis
         result.append(merged)
     return sorted(result, key=lambda player: player['total_actions'], reverse=True)

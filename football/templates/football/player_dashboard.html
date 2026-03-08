@@ -72,6 +72,41 @@
         margin-bottom: 0.8rem;
         font-size: 0.9rem;
       }
+      .profile {
+        display: inline-flex;
+        margin: 0.25rem 0 0.55rem;
+        padding: 0.12rem 0.55rem;
+        border-radius: 999px;
+        border: 1px solid rgba(56, 189, 248, 0.45);
+        background: rgba(56, 189, 248, 0.12);
+        color: #bae6fd;
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .kpi-row {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.45rem;
+        margin: 0.6rem 0 0.85rem;
+      }
+      .kpi-item {
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        border-radius: 0.65rem;
+        padding: 0.4rem 0.45rem;
+        background: rgba(15, 23, 42, 0.7);
+      }
+      .kpi-item span {
+        display: block;
+        font-size: 0.65rem;
+        letter-spacing: 0.06em;
+        color: #93c5fd;
+      }
+      .kpi-item strong {
+        display: block;
+        margin-top: 0.15rem;
+        font-size: 0.98rem;
+      }
       .summary {
         margin-bottom: 0.6rem;
         font-size: 0.9rem;
@@ -132,12 +167,21 @@
             <h2>{{ player.name }}
               {% if player.number %}<span class="badge">#{{ player.number }}</span>{% endif %}
             </h2>
+            <span class="profile">{{ player.profile_label }}</span>
             <p class="summary">
               PJ: <strong>{{ player.pj }}</strong> · PT: <strong>{{ player.pt }}</strong><br />
               Minutos: <strong>{{ player.minutes }}</strong> · Goles: <strong>{{ player.goals }}</strong><br />
               Amarillas: <strong>{{ player.yellow_cards }}</strong> · Rojas: <strong>{{ player.red_cards }}</strong><br />
               Éxito: <strong>{{ player.success_rate|default:"0" }}%</strong>
             </p>
+            <div class="kpi-row">
+              {% for kpi in player.smart_kpis %}
+              <div class="kpi-item">
+                <span>{{ kpi.label }}</span>
+                <strong>{{ kpi.value }}</strong>
+              </div>
+              {% endfor %}
+            </div>
           </a>
           <div class="matches">
             <p style="margin-bottom:0.4rem;">Detalle por jornada</p>
