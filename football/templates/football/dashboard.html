@@ -313,7 +313,7 @@
           <p>Entrenadores, análisis rival y sesiones.</p>
         </a>
         <a class="selection-card" href="{% url 'player-dashboard' %}">
-          <h2>Jugador</h2>
+          <h2 id="player-cards-scope">Jugador</h2>
           <p>Explora las tarjetas de jugador.</p>
         </a>
         <a class="selection-card" href="{% url 'match-action-page' %}">
@@ -339,7 +339,8 @@
           renderStandings(payload.standings);
           renderNextMatch(payload.next_match);
           renderTeamMetrics(payload.team_metrics);
-        renderPlayerCards(payload.player_cards);
+          renderPlayerCards(payload.player_cards);
+          renderPlayerCardsScope(payload.player_cards_scope);
         } catch (error) {
           console.error(error);
           document.getElementById('standings').textContent = 'Error al cargar';
@@ -437,6 +438,18 @@
             `
           )
           .join('');
+      }
+
+      function renderPlayerCardsScope(scope) {
+        const scopeText = document.getElementById('player-cards-scope');
+        if (!scopeText) {
+          return;
+        }
+        if (scope && scope.type === 'match') {
+          scopeText.textContent = `Jugador · datos del partido ${scope.round} vs ${scope.opponent}`;
+          return;
+        }
+        scopeText.textContent = 'Jugador';
       }
 
       function getCookie(name) {

@@ -229,7 +229,21 @@ def dashboard_data(request):
     next_match = get_next_match(primary_team, group)
     team_metrics = compute_team_metrics(primary_team)
     player_metrics = compute_player_metrics(primary_team)
-    player_cards = compute_player_cards(primary_team)
+    active_match = get_active_match(primary_team)
+    if active_match:
+        player_cards = compute_player_cards_for_match(active_match, primary_team)
+        opponent = (
+            active_match.away_team if active_match.home_team == primary_team else active_match.home_team
+        )
+        player_cards_scope = {
+            'type': 'match',
+            'match_id': active_match.id,
+            'round': active_match.round or 'Partido',
+            'opponent': opponent.name if opponent else 'Rival desconocido',
+        }
+    else:
+        player_cards = compute_player_cards(primary_team)
+        player_cards_scope = {'type': 'global'}
 
     return JsonResponse(
         {
@@ -239,6 +253,7 @@ def dashboard_data(request):
             'team_metrics': team_metrics,
             'player_metrics': player_metrics,
             'player_cards': player_cards,
+            'player_cards_scope': player_cards_scope,
         }
     )
 
