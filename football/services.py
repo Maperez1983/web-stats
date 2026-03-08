@@ -1,5 +1,6 @@
 import csv
 import re
+import unicodedata
 from io import BytesIO, StringIO
 from pathlib import Path
 from typing import Optional
@@ -43,11 +44,15 @@ def ensure_league_structure(competition_name, season_name, group_name):
         defaults={'is_current': True},
     )
     group_slug = slugify(group_name)
-    group, _ = Group.objects.get_or_create(
-        season=season,
-        slug=group_slug,
-        defaults={'name': group_name},
-    )
+    group = Group.objects.filter(season=season, slug=group_slug).first()
+    if not group:
+        group = (
+            Group.objects.filter(season=season, name__iexact=group_name)
+            .order_by('id')
+            .first()
+        )
+    if not group:
+        group = Group.objects.create(season=season, slug=group_slug, name=group_name)
     return competition, season, group
 
 
@@ -58,17 +63,18 @@ def update_team_standings(rows, source_label, source_url, competition_name='Divi
         team_name = row.get('team') or row.get('equipo')
         if not team_name:
             continue
-        team_slug = slugify(team_name)
-        team, _ = Team.objects.get_or_create(
-            slug=team_slug,
-            defaults={'name': team_name, 'group': group},
-        )
+        team = _resolve_team_for_standings(team_name, group)
         updated_slugs.add(team.slug)
         update_fields = []
+        if team.name != team_name:
+            team.name = team_name
+            update_fields.append('name')
         if team.group != group:
             team.group = group
             update_fields.append('group')
-        if 'benagalbon' in team.slug.lower():
+        if 'benagalbon' in _normalize_team_key(team.name):
+            if team.is_primary:
+                Team.objects.exclude(id=team.id).filter(is_primary=True).update(is_primary=False)
             if not team.is_primary:
                 team.is_primary = True
                 update_fields.append('is_primary')
@@ -111,6 +117,28 @@ def update_team_standings(rows, source_label, source_url, competition_name='Divi
             standing.save(update_fields=['position'])
     if updated_slugs:
         TeamStanding.objects.filter(group=group).exclude(team__slug__in=updated_slugs).delete()
+
+
+def _resolve_team_for_standings(team_name: str, group: Group) -> Team:
+    team_slug = slugify(team_name)
+    normalized_name = _normalize_team_key(team_name)
+    if 'benagalbon' in normalized_name:
+        primary_team = Team.objects.filter(is_primary=True).order_by('id').first()
+        if primary_team:
+            return primary_team
+    by_slug = Team.objects.filter(slug=team_slug).first()
+    if by_slug:
+        return by_slug
+    for candidate in Team.objects.filter(group=group):
+        if _normalize_team_key(candidate.name) == normalized_name:
+            return candidate
+    return Team.objects.create(slug=team_slug, name=team_name, group=group)
+
+
+def _normalize_team_key(value: str) -> str:
+    normalized = unicodedata.normalize('NFD', value or '')
+    without_accents = ''.join(ch for ch in normalized if unicodedata.category(ch) != 'Mn')
+    return re.sub(r'[^a-z0-9]+', '', without_accents.lower())
 
 
 def _parse_csv_rows(content):
@@ -686,12 +714,18 @@ def load_player_roster_stats() -> dict:
 
 
 _ROSTER_CACHE = None
+_ROSTER_CACHE_MTIME = None
 
 
 def get_roster_stats_cache() -> dict:
-    global _ROSTER_CACHE
-    if _ROSTER_CACHE is None:
+    global _ROSTER_CACHE, _ROSTER_CACHE_MTIME
+    try:
+        current_mtime = PLAYER_ROSTER_PATH.stat().st_mtime if PLAYER_ROSTER_PATH.exists() else None
+    except OSError:
+        current_mtime = None
+    if _ROSTER_CACHE is None or _ROSTER_CACHE_MTIME != current_mtime:
         _ROSTER_CACHE = load_player_roster_stats()
+        _ROSTER_CACHE_MTIME = current_mtime
     return _ROSTER_CACHE
 
 

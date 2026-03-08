@@ -25,4 +25,5 @@ urlpatterns = [
     path('coach/sesiones/', views.sessions_page, name='sessions'),
     path('coach/multas/', views.fines_page, name='fines'),
     path('coach/analisis/', views.analysis_page, name='analysis'),
+    path('coach/estadisticas-manuales/', views.manual_player_stats_page, name='manual-player-stats'),
 ]

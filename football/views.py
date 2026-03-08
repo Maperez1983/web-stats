@@ -9,7 +9,8 @@ import unicodedata
 import re
 
 from django.conf import settings
-from django.db.models import Count, Q
+from django.db import transaction
+from django.db.models import Count, Max, Q
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import render, redirect
 from django.template.loader import render_to_string
@@ -21,14 +22,16 @@ from django.views.decorators.http import require_POST
 
 try:
     import weasyprint
-except (ImportError, OSError):  # pragma: no cover
+except Exception:  # pragma: no cover
     weasyprint = None
 
 from football.models import (
     Match,
     MatchEvent,
     Player,
+    PlayerStatistic,
     ScrapeSource,
+    Season,
     Team,
     TeamStanding,
     ConvocationRecord,
@@ -661,6 +664,72 @@ def analysis_page(request):
     )
 
 
+def manual_player_stats_page(request):
+    primary_team = Team.objects.filter(is_primary=True).first()
+    if not primary_team:
+        return JsonResponse({'error': 'No hay equipo principal configurado'}, status=400)
+
+    season = None
+    if primary_team.group and primary_team.group.season:
+        season = primary_team.group.season
+    if season is None:
+        season = Season.objects.filter(is_current=True).order_by('-start_date', '-id').first()
+    if season is None:
+        return JsonResponse({'error': 'No hay temporada activa para guardar estadísticas'}, status=400)
+
+    players = list(Player.objects.filter(team=primary_team).order_by('name'))
+    current_overrides = get_manual_player_base_overrides(primary_team, season)
+
+    if request.method == 'POST':
+        with transaction.atomic():
+            for player in players:
+                overrides = {
+                    'manual_pj': _parse_int(request.POST.get(f'pj_{player.id}')) or 0,
+                    'manual_pt': _parse_int(request.POST.get(f'pt_{player.id}')) or 0,
+                    'manual_minutes': _parse_int(request.POST.get(f'minutes_{player.id}')) or 0,
+                    'manual_yellow_cards': _parse_int(request.POST.get(f'yellow_{player.id}')) or 0,
+                }
+                for stat_name, stat_value in overrides.items():
+                    PlayerStatistic.objects.update_or_create(
+                        player=player,
+                        season=season,
+                        match=None,
+                        name=stat_name,
+                        context='manual-base',
+                        defaults={'value': stat_value},
+                    )
+        current_overrides = get_manual_player_base_overrides(primary_team, season)
+        message = 'Estadísticas manuales guardadas.'
+    else:
+        message = ''
+
+    rows = []
+    roster_cache = get_roster_stats_cache()
+    for player in players:
+        roster_entry = find_roster_entry(player.name, roster_cache) or {}
+        manual = current_overrides.get(player.id, {})
+        rows.append(
+            {
+                'player': player,
+                'pj': manual.get('pj', roster_entry.get('pj', 0)),
+                'pt': manual.get('pt', roster_entry.get('pt', 0)),
+                'minutes': manual.get('minutes', roster_entry.get('minutes', 0)),
+                'yellow_cards': manual.get('yellow_cards', roster_entry.get('yellow_cards', 0)),
+            }
+        )
+
+    return render(
+        request,
+        'football/manual_player_stats.html',
+        {
+            'team_name': primary_team.name,
+            'season_name': season.name,
+            'rows': rows,
+            'message': message,
+        },
+    )
+
+
 def player_detail_page(request, player_id):
     primary_team = Team.objects.filter(is_primary=True).first()
     if not primary_team:
@@ -911,7 +980,36 @@ def refresh_scraping(request):
 
 
 def serialize_standings(group):
-    standings = TeamStanding.objects.filter(group=group).order_by('position')
+    standings = TeamStanding.objects.filter(group=group)
+    current_meta = standings.aggregate(total=Count('id'), latest=Max('last_updated'))
+
+    # Si hay grupos duplicados para misma temporada/nombre, priorizar el más reciente.
+    sibling_group = (
+        TeamStanding.objects.filter(
+            group__season=group.season,
+            group__name__iexact=group.name,
+        )
+        .values('group_id')
+        .annotate(total=Count('id'), latest=Max('last_updated'))
+        .order_by('-latest', '-total')
+        .first()
+    )
+    if sibling_group:
+        sibling_is_better = (
+            current_meta['total'] == 0
+            or (
+                sibling_group['group_id'] != group.id
+                and sibling_group['latest']
+                and (
+                    not current_meta['latest']
+                    or sibling_group['latest'] > current_meta['latest']
+                )
+            )
+        )
+        if sibling_is_better:
+            standings = TeamStanding.objects.filter(group_id=sibling_group['group_id'])
+
+    standings = standings.order_by('position')
     if not standings.exists():
         fallback = TeamStanding.objects.filter(group__slug__icontains='grupo-2').order_by('position')
         if fallback.exists():
@@ -1337,6 +1435,41 @@ def min_or_none(current, candidate):
     return min(current, candidate)
 
 
+def get_manual_player_base_overrides(primary_team, season=None):
+    if not primary_team:
+        return {}
+    if season is None:
+        if primary_team.group and primary_team.group.season:
+            season = primary_team.group.season
+        else:
+            season = Season.objects.filter(is_current=True).order_by('-start_date', '-id').first()
+    if season is None:
+        return {}
+    stats = (
+        PlayerStatistic.objects.filter(
+            player__team=primary_team,
+            season=season,
+            match__isnull=True,
+            context='manual-base',
+            name__in=['manual_pj', 'manual_pt', 'manual_minutes', 'manual_yellow_cards'],
+        )
+        .select_related('player')
+    )
+    overrides = {}
+    for stat in stats:
+        player_data = overrides.setdefault(stat.player_id, {})
+        value = int(stat.value or 0)
+        if stat.name == 'manual_pj':
+            player_data['pj'] = value
+        elif stat.name == 'manual_pt':
+            player_data['pt'] = value
+        elif stat.name == 'manual_minutes':
+            player_data['minutes'] = value
+        elif stat.name == 'manual_yellow_cards':
+            player_data['yellow_cards'] = value
+    return overrides
+
+
 def extract_round_number(value):
     if not value:
         return None
@@ -1411,6 +1544,7 @@ def map_zone_label(zone):
 def compute_player_dashboard(primary_team):
     player_stats = {}
     roster_cache = get_roster_stats_cache()
+    manual_overrides = get_manual_player_base_overrides(primary_team)
     match_end_minutes = {}
     player_match_timeline = {}
     events = (
@@ -1430,12 +1564,13 @@ def compute_player_dashboard(primary_team):
             continue
         match = event.match
         roster_entry = find_roster_entry(player.name, roster_cache)
-        base_pc = roster_entry.get('pc', 0) if roster_entry else 0
-        base_pj = roster_entry.get('pj', 0) if roster_entry else 0
-        base_pt = roster_entry.get('pt', 0) if roster_entry else 0
-        base_minutes = roster_entry.get('minutes', 0) if roster_entry else 0
+        manual_entry = manual_overrides.get(player.id, {})
+        base_pj = manual_entry.get('pj', roster_entry.get('pj', 0) if roster_entry else 0)
+        base_pt = manual_entry.get('pt', roster_entry.get('pt', 0) if roster_entry else 0)
+        base_minutes = manual_entry.get('minutes', roster_entry.get('minutes', 0) if roster_entry else 0)
+        base_pc = max(roster_entry.get('pc', 0) if roster_entry else 0, base_pj)
         base_goals = roster_entry.get('goals', 0) if roster_entry else 0
-        base_yellow = roster_entry.get('yellow_cards', 0) if roster_entry else 0
+        base_yellow = manual_entry.get('yellow_cards', roster_entry.get('yellow_cards', 0) if roster_entry else 0)
         base_red = roster_entry.get('red_cards', 0) if roster_entry else 0
         base_assists = roster_entry.get('assists', 0) if roster_entry else 0
         stats = player_stats.setdefault(
@@ -1578,6 +1713,9 @@ def compute_player_dashboard(primary_team):
         if player.id not in player_stats:
             normalized = normalize_player_name(player.name)
             roster_entry = roster_cache.get(normalized, {})
+            manual_entry = manual_overrides.get(player.id, {})
+            base_pj = manual_entry.get('pj', roster_entry.get('pj', 0))
+            base_pt = manual_entry.get('pt', roster_entry.get('pt', 0))
             player_stats[player.id] = {
                 'player_id': player.id,
                 'name': player.name,
@@ -1585,12 +1723,12 @@ def compute_player_dashboard(primary_team):
                 'position': player.position or roster_entry.get('position'),
                 'total_actions': 0,
                 'successes': 0,
-                'pc': roster_entry.get('pc', 0),
-                'pj': roster_entry.get('pj', 0),
-                'pt': roster_entry.get('pt', 0),
-                'minutes': roster_entry.get('minutes', 0),
+                'pc': max(roster_entry.get('pc', 0), base_pj),
+                'pj': base_pj,
+                'pt': base_pt,
+                'minutes': manual_entry.get('minutes', roster_entry.get('minutes', 0)),
                 'goals': roster_entry.get('goals', 0),
-                'yellow_cards': roster_entry.get('yellow_cards', 0),
+                'yellow_cards': manual_entry.get('yellow_cards', roster_entry.get('yellow_cards', 0)),
                 'red_cards': roster_entry.get('red_cards', 0),
                 'assists': roster_entry.get('assists', 0),
                 'matches': {},

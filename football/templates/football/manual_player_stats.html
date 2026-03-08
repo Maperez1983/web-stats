@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ajuste Manual de Estadisticas</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: #0f172a;
+        color: #e2e8f0;
+      }
+      .page {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 1.5rem;
+      }
+      .head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1rem;
+      }
+      .head a {
+        color: #7dd3fc;
+        text-decoration: none;
+      }
+      .card {
+        background: #111827;
+        border: 1px solid #334155;
+        border-radius: 12px;
+        padding: 1rem;
+      }
+      .msg {
+        background: #064e3b;
+        border: 1px solid #10b981;
+        color: #d1fae5;
+        padding: 0.6rem 0.8rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th, td {
+        border-bottom: 1px solid #334155;
+        padding: 0.5rem;
+        text-align: left;
+      }
+      input[type="number"] {
+        width: 90px;
+        padding: 0.35rem 0.4rem;
+        border-radius: 6px;
+        border: 1px solid #475569;
+        background: #0b1220;
+        color: #e2e8f0;
+      }
+      .actions {
+        margin-top: 1rem;
+      }
+      button {
+        padding: 0.6rem 1rem;
+        border: 0;
+        border-radius: 8px;
+        background: #0ea5e9;
+        color: #082f49;
+        font-weight: 700;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div class="head">
+        <div>
+          <h1 style="margin: 0;">Ajuste Manual de Estadisticas</h1>
+          <p style="margin: 0.3rem 0 0;">{{ team_name }} · Temporada {{ season_name }}</p>
+        </div>
+        <a href="{% url 'dashboard-home' %}">Volver al dashboard</a>
+      </div>
+
+      <div class="card">
+        {% if message %}
+          <div class="msg">{{ message }}</div>
+        {% endif %}
+        <form method="post">
+          {% csrf_token %}
+          <table>
+            <thead>
+              <tr>
+                <th>Jugador</th>
+                <th>PJ</th>
+                <th>PT</th>
+                <th>Min</th>
+                <th>Amarillas</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in rows %}
+                <tr>
+                  <td>{{ row.player.name }}</td>
+                  <td><input type="number" min="0" name="pj_{{ row.player.id }}" value="{{ row.pj }}" /></td>
+                  <td><input type="number" min="0" name="pt_{{ row.player.id }}" value="{{ row.pt }}" /></td>
+                  <td><input type="number" min="0" name="minutes_{{ row.player.id }}" value="{{ row.minutes }}" /></td>
+                  <td><input type="number" min="0" name="yellow_{{ row.player.id }}" value="{{ row.yellow_cards }}" /></td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          <div class="actions">
+            <button type="submit">Guardar ajustes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </body>
+</html>
