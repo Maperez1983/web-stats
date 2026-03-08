@@ -1547,6 +1547,8 @@
                 <article class="live-stats-chip"><span>Tiros</span><strong id="live-stat-shots">0</strong></article>
                 <article class="live-stats-chip"><span>Pases</span><strong id="live-stat-passes">0</strong></article>
                 <article class="live-stats-chip"><span>Tarjetas</span><strong id="live-stat-cards">0</strong></article>
+                <article class="live-stats-chip"><span>Duelos G/T</span><strong id="live-stat-duels">0/0</strong></article>
+                <article class="live-stats-chip"><span>Acierto duelo</span><strong id="live-stat-duel-rate">0%</strong></article>
               </div>
               <div class="live-stats-details">
                 <span>Sustituciones: <strong id="live-stat-subs">0</strong></span>
@@ -1716,6 +1718,8 @@
         passes: document.getElementById('live-stat-passes'),
         cards: document.getElementById('live-stat-cards'),
         subs: document.getElementById('live-stat-subs'),
+        duels: document.getElementById('live-stat-duels'),
+        duelRate: document.getElementById('live-stat-duel-rate'),
       };
       const liveEventStore = new Map();
       const containsText = (value, terms) => {
@@ -1728,7 +1732,9 @@
         const pass = containsText(action, ['pase']) || containsText(result, ['pase']);
         const card = containsText(action, ['amarilla', 'roja', 'tarjeta']) || containsText(result, ['amarilla', 'roja']);
         const sub = containsText(action, ['sustituci', 'cambio']) || containsText(result, ['entrada', 'salida']) || containsText(zone, ['sustituci']);
-        return { shot, pass, card, sub };
+        const duel = containsText(action, ['duelo', 'regate', 'robo', 'intercep', 'entrada']) || containsText(zone, ['duelo']);
+        const duelWon = duel && containsText(result, ['ganad', 'ok', 'recuper', 'favorable', 'superado']);
+        return { shot, pass, card, sub, duel, duelWon };
       };
       const refreshLiveStatsHud = () => {
         const totals = {
@@ -1737,6 +1743,8 @@
           passes: 0,
           cards: 0,
           subs: 0,
+          duels: 0,
+          duelsWon: 0,
         };
         liveEventStore.forEach((eventData) => {
           const summary = summarizeLiveEvent(eventData);
@@ -1744,17 +1752,22 @@
           if (summary.pass) totals.passes += 1;
           if (summary.card) totals.cards += 1;
           if (summary.sub) totals.subs += 1;
+          if (summary.duel) totals.duels += 1;
+          if (summary.duelWon) totals.duelsWon += 1;
         });
         const minutes = Math.max(1, elapsedSeconds / 60);
         const pace = totals.actions / minutes;
         const possessionApprox = totals.actions
           ? Math.round(Math.max(35, Math.min(75, 35 + (totals.passes / totals.actions) * 40)))
           : 50;
+        const duelRate = totals.duels ? Math.round((totals.duelsWon / totals.duels) * 100) : 0;
         if (liveStatEls.actions) liveStatEls.actions.textContent = String(totals.actions);
         if (liveStatEls.shots) liveStatEls.shots.textContent = String(totals.shots);
         if (liveStatEls.passes) liveStatEls.passes.textContent = String(totals.passes);
         if (liveStatEls.cards) liveStatEls.cards.textContent = String(totals.cards);
         if (liveStatEls.subs) liveStatEls.subs.textContent = String(totals.subs);
+        if (liveStatEls.duels) liveStatEls.duels.textContent = `${totals.duelsWon}/${totals.duels}`;
+        if (liveStatEls.duelRate) liveStatEls.duelRate.textContent = `${duelRate}%`;
         if (liveStatEls.possession) liveStatEls.possession.textContent = `${possessionApprox}%`;
         if (liveStatEls.pace) liveStatEls.pace.textContent = `${pace.toFixed(1)}/min`;
       };
