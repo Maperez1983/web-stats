@@ -1322,6 +1322,43 @@ def confirmed_events_queryset():
     return MatchEvent.objects.exclude(system='touch-field')
 
 
+def preferred_event_source_by_match(primary_team):
+    """
+    Choose a single authoritative source per match to avoid cross-source double counting.
+    Priority:
+    1) Pizarra final (registro-acciones + touch-field-final)
+    2) Most frequent non-empty source_file in confirmed events
+    """
+    if not primary_team:
+        return {}
+    team_events = confirmed_events_queryset().filter(player__team=primary_team)
+    preferred = {}
+    pizarra_match_ids = set(
+        team_events.filter(source_file='registro-acciones', system='touch-field-final')
+        .values_list('match_id', flat=True)
+        .distinct()
+    )
+    for match_id in pizarra_match_ids:
+        preferred[match_id] = 'registro-acciones'
+
+    fallback_rows = (
+        team_events.exclude(source_file='registro-acciones')
+        .exclude(source_file__isnull=True)
+        .exclude(source_file__exact='')
+        .values('match_id', 'source_file')
+        .annotate(c=Count('id'))
+        .order_by('match_id', '-c', 'source_file')
+    )
+    seen = set(preferred.keys())
+    for row in fallback_rows:
+        match_id = row['match_id']
+        if match_id in seen:
+            continue
+        preferred[match_id] = row['source_file']
+        seen.add(match_id)
+    return preferred
+
+
 def _normalize_excel_header(value):
     if not value:
         return ''
@@ -1418,6 +1455,11 @@ def compute_player_cards_for_match(match, primary_team, source_file=None):
     events = confirmed_events_queryset().filter(match=match, player__team=primary_team)
     if source_file:
         events = events.filter(source_file=source_file)
+    else:
+        preferred_sources = preferred_event_source_by_match(primary_team)
+        preferred_source = preferred_sources.get(match.id)
+        if preferred_source:
+            events = events.filter(source_file=preferred_source)
     aggregated = (
         events.values('player__id', 'player__name', 'player__number')
         .annotate(
@@ -1754,6 +1796,7 @@ def compute_player_dashboard(primary_team):
     player_stats = {}
     roster_cache = get_roster_stats_cache()
     manual_overrides = get_manual_player_base_overrides(primary_team)
+    preferred_sources = preferred_event_source_by_match(primary_team)
     match_end_minutes = {}
     player_match_timeline = {}
     events = (
@@ -1772,6 +1815,9 @@ def compute_player_dashboard(primary_team):
         if not player:
             continue
         match = event.match
+        preferred_source = preferred_sources.get(match.id if match else None)
+        if preferred_source and (event.source_file or '') != preferred_source:
+            continue
         roster_entry = find_roster_entry(player.name, roster_cache)
         manual_entry = manual_overrides.get(player.id, {})
         base_pj = manual_entry.get('pj', roster_entry.get('pj', 0) if roster_entry else 0)
