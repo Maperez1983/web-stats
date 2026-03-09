@@ -489,12 +489,26 @@ def fetch_preferente_team_roster(team_url: str) -> list[dict]:
     return parse_preferente_roster(response.text)
 
 
+def infer_roster_role(position: str) -> str:
+    pos = (position or '').lower().replace('.', ' ').replace('-', ' ')
+    compact = re.sub(r'\s+', ' ', pos).strip()
+    if not compact:
+        return 'MID'
+    if any(token in compact for token in ('portero', 'por', 'gk')):
+        return 'GK'
+    if any(token in compact for token in ('defensa', 'lateral', 'central', 'carrilero', 'li', 'ld', 'ci', 'cd')):
+        return 'DEF'
+    if any(token in compact for token in ('delantero', 'punta', 'extremo', 'dc', 'ei', 'ed', '9')):
+        return 'ATT'
+    return 'MID'
+
+
 def compute_probable_eleven(players: list[dict]) -> list[dict]:
     if not players:
         return []
     eligible = [p for p in players if p.get('minutes', 0) > 0]
     eligible.sort(key=lambda p: (p.get('minutes', 0), p.get('pt', 0), p.get('pj', 0)), reverse=True)
-    gks = [p for p in eligible if 'portero' in (p.get('position') or '').lower()]
+    gks = [p for p in eligible if infer_roster_role(p.get('position') or '') == 'GK']
     lineup = []
     if gks:
         lineup.append(gks[0])
@@ -510,13 +524,42 @@ def compute_probable_eleven(players: list[dict]) -> list[dict]:
 def build_rival_insights(players: list[dict]) -> dict:
     if not players:
         return {'top_scorers': [], 'most_minutes': [], 'most_cards': []}
-    top_scorers = sorted(players, key=lambda p: (p.get('goals', 0), p.get('minutes', 0)), reverse=True)[:3]
-    most_minutes = sorted(players, key=lambda p: p.get('minutes', 0), reverse=True)[:3]
+
+    normalized_players = []
+    for player in players:
+        item = dict(player)
+        item['goals'] = max(0, int(item.get('goals', 0) or 0))
+        item['minutes'] = max(0, int(item.get('minutes', 0) or 0))
+        item['pj'] = max(0, int(item.get('pj', 0) or 0))
+        item['yellow_cards'] = max(0, int(item.get('yellow_cards', 0) or 0))
+        item['red_cards'] = max(0, int(item.get('red_cards', 0) or 0))
+        item['_role'] = infer_roster_role(item.get('position') or '')
+        # Guardrails: un portero como máximo goleador suele indicar parseo roto.
+        if item['_role'] == 'GK' and item['goals'] > 3:
+            item['goals'] = 0
+        normalized_players.append(item)
+
+    scorer_pool = [p for p in normalized_players if p['_role'] != 'GK']
+    if not scorer_pool:
+        scorer_pool = normalized_players
+
+    top_scorers = sorted(
+        scorer_pool,
+        key=lambda p: (
+            p.get('goals', 0),
+            (p.get('goals', 0) / max(1, p.get('pj', 0))),
+            p.get('minutes', 0),
+        ),
+        reverse=True,
+    )[:3]
+    most_minutes = sorted(normalized_players, key=lambda p: p.get('minutes', 0), reverse=True)[:3]
     most_cards = sorted(
-        players,
+        normalized_players,
         key=lambda p: (p.get('red_cards', 0) * 2 + p.get('yellow_cards', 0)),
         reverse=True,
     )[:3]
+    for row in top_scorers + most_minutes + most_cards:
+        row.pop('_role', None)
     return {
         'top_scorers': top_scorers,
         'most_minutes': most_minutes,
