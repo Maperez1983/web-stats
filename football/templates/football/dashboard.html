@@ -445,6 +445,10 @@
         if (!scopeText) {
           return;
         }
+        if (scope && scope.label) {
+          scopeText.textContent = scope.label;
+          return;
+        }
         if (scope && scope.type === 'match') {
           scopeText.textContent = `Jugador · datos del partido ${scope.round} vs ${scope.opponent}`;
           return;

@@ -236,20 +236,49 @@ def dashboard_data(request):
     team_metrics = compute_team_metrics(primary_team)
     player_metrics = compute_player_metrics(primary_team)
     active_match = get_active_match(primary_team)
-    if active_match:
-        player_cards = compute_player_cards_for_match(active_match, primary_team)
+    latest_pizarra_match = get_latest_pizarra_match(primary_team)
+    active_has_pizarra = bool(
+        active_match
+        and MatchEvent.objects.filter(
+            match=active_match,
+            player__team=primary_team,
+            source_file='registro-acciones',
+            system='touch-field-final',
+        ).exists()
+    )
+    cards_match = None
+    cards_source_file = None
+    scope_prefix = 'Jugador'
+    if active_has_pizarra:
+        cards_match = active_match
+        cards_source_file = 'registro-acciones'
+        scope_prefix = 'Jugador · pizarra (partido activo)'
+    elif latest_pizarra_match:
+        cards_match = latest_pizarra_match
+        cards_source_file = 'registro-acciones'
+        scope_prefix = 'Jugador · pizarra (último partido guardado)'
+    elif active_match:
+        cards_match = active_match
+
+    if cards_match:
+        player_cards = compute_player_cards_for_match(
+            cards_match,
+            primary_team,
+            source_file=cards_source_file,
+        )
         opponent = (
-            active_match.away_team if active_match.home_team == primary_team else active_match.home_team
+            cards_match.away_team if cards_match.home_team == primary_team else cards_match.home_team
         )
         player_cards_scope = {
             'type': 'match',
-            'match_id': active_match.id,
-            'round': active_match.round or 'Partido',
+            'match_id': cards_match.id,
+            'round': cards_match.round or 'Partido',
             'opponent': opponent.name if opponent else 'Rival desconocido',
+            'label': f"{scope_prefix}: {cards_match.round or 'Partido'} vs {opponent.name if opponent else 'Rival desconocido'}",
         }
     else:
         player_cards = compute_player_cards(primary_team)
-        player_cards_scope = {'type': 'global'}
+        player_cards_scope = {'type': 'global', 'label': 'Jugador · histórico'}
 
     return JsonResponse(
         {
@@ -1168,6 +1197,18 @@ def get_active_match(primary_team):
     return qs.order_by('-id').first()
 
 
+def get_latest_pizarra_match(primary_team):
+    if not primary_team:
+        return None
+    return (
+        _team_match_queryset(primary_team)
+        .filter(events__source_file='registro-acciones', events__system='touch-field-final')
+        .annotate(last_event_at=Max('events__created_at'))
+        .order_by('-last_event_at', '-id')
+        .first()
+    )
+
+
 def _parse_match_date_from_ui(raw_value):
     value = (raw_value or '').strip()
     if not value:
@@ -1373,8 +1414,10 @@ def compute_team_metrics_for_match(match):
     }
 
 
-def compute_player_cards_for_match(match, primary_team):
+def compute_player_cards_for_match(match, primary_team, source_file=None):
     events = confirmed_events_queryset().filter(match=match, player__team=primary_team)
+    if source_file:
+        events = events.filter(source_file=source_file)
     aggregated = (
         events.values('player__id', 'player__name', 'player__number')
         .annotate(
