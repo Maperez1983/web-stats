@@ -1452,17 +1452,21 @@ def compute_team_metrics_for_match(match):
 
 
 def _event_signature(event):
+    def canon(value):
+        text = ' '.join(str(value or '').split())
+        text = unicodedata.normalize('NFKD', text)
+        text = ''.join(ch for ch in text if not unicodedata.combining(ch))
+        return text.lower().strip()
+
     return (
         event.match_id,
         event.player_id,
         event.minute,
-        (event.event_type or '').strip(),
-        (event.result or '').strip(),
-        (event.zone or '').strip(),
-        (event.tercio or '').strip(),
-        (event.observation or '').strip(),
-        (event.system or '').strip(),
-        (event.source_file or '').strip(),
+        canon(event.event_type),
+        canon(event.result),
+        canon(event.zone),
+        canon(event.tercio),
+        canon(event.observation),
     )
 
 
