@@ -1451,15 +1451,6 @@ def compute_team_metrics_for_match(match):
     }
 
 
-def _normalize_raw_data(raw_data):
-    if raw_data in (None, ''):
-        return ''
-    try:
-        return json.dumps(raw_data, sort_keys=True, ensure_ascii=False)
-    except TypeError:
-        return str(raw_data)
-
-
 def _event_signature(event):
     return (
         event.match_id,
@@ -1472,7 +1463,6 @@ def _event_signature(event):
         (event.observation or '').strip(),
         (event.system or '').strip(),
         (event.source_file or '').strip(),
-        _normalize_raw_data(event.raw_data),
     )
 
 
