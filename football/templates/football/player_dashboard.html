@@ -217,10 +217,10 @@
                 Éxito partido: <strong>{{ player.match_success_rate|default:"0" }}%</strong><br />
                 Acumulado temporada: <strong>{{ player.total_actions|default:"0" }}</strong> acciones
               {% else %}
-                PJ: <strong>{{ player.pj }}</strong> · PT: <strong>{{ player.pt }}</strong><br />
-                Minutos: <strong>{{ player.minutes }}</strong> · Goles: <strong>{{ player.goals }}</strong><br />
-                Amarillas: <strong>{{ player.yellow_cards }}</strong> · Rojas: <strong>{{ player.red_cards }}</strong><br />
-                Éxito: <strong>{{ player.success_rate|default:"0" }}%</strong>
+                Partidos con acciones: <strong>{{ player.match_count|default:"0" }}</strong><br />
+                Acciones acumuladas: <strong>{{ player.total_actions|default:"0" }}</strong> ·
+                Éxitos: <strong>{{ player.successes|default:"0" }}</strong><br />
+                Éxito acumulado: <strong>{{ player.success_rate|default:"0" }}%</strong>
               {% endif %}
             </p>
             <div class="kpi-row">
