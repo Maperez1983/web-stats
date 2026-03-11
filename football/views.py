@@ -1516,11 +1516,23 @@ def _event_signature(event):
         text = ''.join(ch for ch in text if not unicodedata.combining(ch))
         return text.lower().strip()
 
+    # "Acción realizada" for dashboard cards:
+    # keep one action per player/match/minute/type.
+    # If minute is missing, retain more fields to avoid over-collapsing.
+    minute = event.minute
+    action_type = canon(event.event_type)
+    if minute is not None:
+        return (
+            event.match_id,
+            event.player_id,
+            minute,
+            action_type,
+        )
     return (
         event.match_id,
         event.player_id,
-        event.minute,
-        canon(event.event_type),
+        minute,
+        action_type,
         canon(event.result),
         canon(event.zone),
         canon(event.tercio),
