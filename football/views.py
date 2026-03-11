@@ -1451,6 +1451,31 @@ def compute_team_metrics_for_match(match):
     }
 
 
+def _normalize_raw_data(raw_data):
+    if raw_data in (None, ''):
+        return ''
+    try:
+        return json.dumps(raw_data, sort_keys=True, ensure_ascii=False)
+    except TypeError:
+        return str(raw_data)
+
+
+def _event_signature(event):
+    return (
+        event.match_id,
+        event.player_id,
+        event.minute,
+        (event.event_type or '').strip(),
+        (event.result or '').strip(),
+        (event.zone or '').strip(),
+        (event.tercio or '').strip(),
+        (event.observation or '').strip(),
+        (event.system or '').strip(),
+        (event.source_file or '').strip(),
+        _normalize_raw_data(event.raw_data),
+    )
+
+
 def compute_player_cards_for_match(match, primary_team, source_file=None):
     events = confirmed_events_queryset().filter(match=match, player__team=primary_team)
     if source_file:
@@ -1460,29 +1485,36 @@ def compute_player_cards_for_match(match, primary_team, source_file=None):
         preferred_source = preferred_sources.get(match.id)
         if preferred_source:
             events = events.filter(source_file=preferred_source)
-    aggregated = (
-        events.values('player__id', 'player__name', 'player__number')
-        .annotate(
-            actions=Count('id'),
-            successful=Count('id', filter=Q(result__iexact='OK')),
-        )
-        .order_by('-actions')
-    )
-    cards = []
-    for item in aggregated:
-        total_actions = item['actions']
-        success = item['successful']
-        cards.append(
+    rows = events.select_related('player').order_by('id')
+    seen_signatures = set()
+    per_player = {}
+    for event in rows:
+        signature = _event_signature(event)
+        if signature in seen_signatures:
+            continue
+        seen_signatures.add(signature)
+        player = event.player
+        if not player:
+            continue
+        data = per_player.setdefault(
+            player.id,
             {
-                'player_id': item['player__id'],
-                'name': item['player__name'],
-                'number': item.get('player__number') or '--',
-                'actions': total_actions,
-                'successes': success,
-                'success_rate': round((success / total_actions) * 100, 1) if total_actions else 0,
-            }
+                'player_id': player.id,
+                'name': player.name,
+                'number': player.number or '--',
+                'actions': 0,
+                'successes': 0,
+            },
         )
-    return cards
+        data['actions'] += 1
+        if (event.result or '').strip().lower() == 'ok':
+            data['successes'] += 1
+    cards = list(per_player.values())
+    for item in cards:
+        total_actions = item['actions']
+        success = item['successes']
+        item['success_rate'] = round((success / total_actions) * 100, 1) if total_actions else 0
+    return sorted(cards, key=lambda item: item['actions'], reverse=True)
 
 def compute_player_metrics(primary_team):
     events = confirmed_events_queryset().filter(player__team=primary_team)
@@ -1810,6 +1842,7 @@ def compute_player_dashboard(primary_team):
         .select_related('player', 'match')
         .order_by('player__name', 'match__date')
     )
+    seen_signatures = set()
     for event in events:
         player = event.player
         if not player:
@@ -1818,6 +1851,10 @@ def compute_player_dashboard(primary_team):
         preferred_source = preferred_sources.get(match.id if match else None)
         if preferred_source and (event.source_file or '') != preferred_source:
             continue
+        signature = _event_signature(event)
+        if signature in seen_signatures:
+            continue
+        seen_signatures.add(signature)
         roster_entry = find_roster_entry(player.name, roster_cache)
         manual_entry = manual_overrides.get(player.id, {})
         base_pj = manual_entry.get('pj', roster_entry.get('pj', 0) if roster_entry else 0)
