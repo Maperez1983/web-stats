@@ -147,6 +147,29 @@
         font-size: 0.75rem;
         margin-right: 0.4rem;
       }
+      .filters {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+        margin-top: 0.8rem;
+      }
+      .filters select,
+      .filters button {
+        border-radius: 0.5rem;
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        background: rgba(15, 23, 42, 0.9);
+        color: #e2e8f0;
+        padding: 0.45rem 0.6rem;
+      }
+      .filters button {
+        cursor: pointer;
+        font-weight: 600;
+      }
+      .mode-note {
+        margin: 0.45rem 0 0;
+        color: #93c5fd;
+        font-size: 0.9rem;
+      }
     </style>
   </head>
   <body>
@@ -155,6 +178,25 @@
       <div>
         <p style="margin:0;color:#94a3b8;">Dashboard jugadores · {{ team_name }}</p>
         <h1>Estadísticas globales y por partido</h1>
+        <form method="get" class="filters">
+          <select name="match">
+            <option value="">Modo global</option>
+            {% for option in match_options %}
+              <option value="{{ option.id }}" {% if selected_match_id|stringformat:"s" == option.id|stringformat:"s" %}selected{% endif %}>
+                {{ option.label }}
+              </option>
+            {% endfor %}
+          </select>
+          <button type="submit">Aplicar</button>
+        </form>
+        {% if selected_match %}
+          <p class="mode-note">
+            Modo partido: {{ selected_match.round }} vs {{ selected_match.opponent }} ·
+            {% if selected_match.home %}Local{% else %}Visitante{% endif %}
+            {% if selected_match.date %}· {{ selected_match.date }}{% endif %}
+            · Total acciones (cards): <strong>{{ selected_match_total_actions }}</strong>
+          </p>
+        {% endif %}
       </div>
       <div>
         <a href="{% url 'dashboard-home' %}">← Volver al panel</a>
@@ -169,10 +211,17 @@
             </h2>
             <span class="profile">{{ player.profile_label }}</span>
             <p class="summary">
-              PJ: <strong>{{ player.pj }}</strong> · PT: <strong>{{ player.pt }}</strong><br />
-              Minutos: <strong>{{ player.minutes }}</strong> · Goles: <strong>{{ player.goals }}</strong><br />
-              Amarillas: <strong>{{ player.yellow_cards }}</strong> · Rojas: <strong>{{ player.red_cards }}</strong><br />
-              Éxito: <strong>{{ player.success_rate|default:"0" }}%</strong>
+              {% if selected_match %}
+                Acciones partido: <strong>{{ player.match_actions|default:"0" }}</strong> ·
+                Éxitos: <strong>{{ player.match_successes|default:"0" }}</strong><br />
+                Éxito partido: <strong>{{ player.match_success_rate|default:"0" }}%</strong><br />
+                Acumulado temporada: <strong>{{ player.total_actions|default:"0" }}</strong> acciones
+              {% else %}
+                PJ: <strong>{{ player.pj }}</strong> · PT: <strong>{{ player.pt }}</strong><br />
+                Minutos: <strong>{{ player.minutes }}</strong> · Goles: <strong>{{ player.goals }}</strong><br />
+                Amarillas: <strong>{{ player.yellow_cards }}</strong> · Rojas: <strong>{{ player.red_cards }}</strong><br />
+                Éxito: <strong>{{ player.success_rate|default:"0" }}%</strong>
+              {% endif %}
             </p>
             <div class="kpi-row">
               {% for kpi in player.smart_kpis %}
