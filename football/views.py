@@ -1382,26 +1382,25 @@ def confirmed_events_queryset():
 
 def preferred_event_source_by_match(primary_team):
     """
-    Choose a single authoritative source per match to avoid cross-source double counting.
+    Choose one authoritative source per match to avoid cross-source double counting.
     Priority:
-    1) Pizarra final (registro-acciones + touch-field-final)
-    2) Most frequent non-empty source_file in confirmed events
+    1) Any `registro-acciones` events for that match.
+    2) Otherwise, most frequent non-empty source_file.
     """
     if not primary_team:
         return {}
     team_events = confirmed_events_queryset().filter(player__team=primary_team)
     preferred = {}
-    pizarra_match_ids = set(
-        team_events.filter(source_file='registro-acciones', system='touch-field-final')
+    registro_match_ids = set(
+        team_events.filter(source_file='registro-acciones')
         .values_list('match_id', flat=True)
         .distinct()
     )
-    for match_id in pizarra_match_ids:
+    for match_id in registro_match_ids:
         preferred[match_id] = 'registro-acciones'
 
     fallback_rows = (
-        team_events.exclude(source_file='registro-acciones')
-        .exclude(source_file__isnull=True)
+        team_events.exclude(source_file__isnull=True)
         .exclude(source_file__exact='')
         .values('match_id', 'source_file')
         .annotate(c=Count('id'))
