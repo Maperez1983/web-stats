@@ -315,62 +315,10 @@ def player_dashboard_page(request):
         pass
     player_stats = compute_player_dashboard(primary_team)
     match_options = []
-    matches_qs = (
-        Match.objects.filter(
-            Q(home_team=primary_team) | Q(away_team=primary_team),
-            events__player__team=primary_team,
-        )
-        .select_related('home_team', 'away_team')
-        .annotate(last_event_at=Max('events__created_at'))
-        .order_by('-date', '-last_event_at', '-id')
-        .distinct()
-    )
-    for match in matches_qs:
-        opponent = match.away_team if match.home_team == primary_team else match.home_team
-        match_options.append(
-            {
-                'id': match.id,
-                'round': match.round or f'Partido {match.id}',
-                'date': match.date.isoformat() if match.date else '',
-                'opponent': opponent.name if opponent else 'Rival desconocido',
-                'home': match.home_team == primary_team,
-                'label': (
-                    f"{match.round or f'Partido {match.id}'} · "
-                    f"{opponent.name if opponent else 'Rival desconocido'} · "
-                    f"{'Local' if match.home_team == primary_team else 'Visitante'}"
-                ),
-            }
-        )
-
     selected_match = None
-    selected_match_id = request.GET.get('match', '').strip()
-    if selected_match_id.isdigit():
-        selected_match = next(
-            (option for option in match_options if option['id'] == int(selected_match_id)),
-            None,
-        )
-    elif selected_match_id == '' and match_options:
-        # Default to latest match mode so card numbers map to one match by default.
-        selected_match = match_options[0]
-
+    selected_match_id = ''
     selected_match_total_actions = 0
-    if selected_match:
-        filtered_players = []
-        for player in player_stats:
-            entry = next(
-                (row for row in player.get('matches', []) if row.get('match_id') == selected_match['id']),
-                None,
-            )
-            actions = entry.get('actions', 0) if entry else 0
-            successes = entry.get('successes', 0) if entry else 0
-            player['match_actions'] = actions
-            player['match_successes'] = successes
-            player['match_success_rate'] = round((successes / actions) * 100, 1) if actions else 0
-            player['matches'] = [entry] if entry else []
-            if actions > 0:
-                filtered_players.append(player)
-                selected_match_total_actions += actions
-        player_stats = sorted(filtered_players, key=lambda item: item.get('match_actions', 0), reverse=True)
+
     return render(
         request,
         'football/player_dashboard.html',
@@ -379,7 +327,7 @@ def player_dashboard_page(request):
             'team_name': primary_team.name,
             'match_options': match_options,
             'selected_match': selected_match,
-            'selected_match_id': selected_match['id'] if selected_match else '',
+            'selected_match_id': selected_match_id,
             'selected_match_total_actions': selected_match_total_actions,
         },
     )
