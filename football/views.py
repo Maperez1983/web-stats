@@ -349,6 +349,9 @@ def player_dashboard_page(request):
             (option for option in match_options if option['id'] == int(selected_match_id)),
             None,
         )
+    elif selected_match_id == '' and match_options:
+        # Default to latest match mode so card numbers map to one match by default.
+        selected_match = match_options[0]
 
     selected_match_total_actions = 0
     if selected_match:

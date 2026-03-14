@@ -196,6 +196,10 @@
             {% if selected_match.date %}· {{ selected_match.date }}{% endif %}
             · Total acciones (cards): <strong>{{ selected_match_total_actions }}</strong>
           </p>
+        {% else %}
+          <p class="mode-note">
+            Modo global (acumulado de temporada): los valores no corresponden a un único partido.
+          </p>
         {% endif %}
       </div>
       <div>
