@@ -1870,7 +1870,6 @@ def compute_player_dashboard(primary_team):
             continue
         seen_signatures.add(signature)
         roster_entry = find_roster_entry(player.name, roster_cache)
-        manual_entry = manual_overrides.get(player.id, {})
         base_pj = manual_entry.get('pj', roster_entry.get('pj', 0) if roster_entry else 0)
         base_pt = manual_entry.get('pt', roster_entry.get('pt', 0) if roster_entry else 0)
         base_minutes = manual_entry.get('minutes', roster_entry.get('minutes', 0) if roster_entry else 0)
