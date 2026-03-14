@@ -1380,6 +1380,27 @@ def confirmed_events_queryset():
     return MatchEvent.objects.exclude(system='touch-field')
 
 
+def has_finalized_registro_events(primary_team):
+    if not primary_team:
+        return False
+    return MatchEvent.objects.filter(
+        player__team=primary_team,
+        source_file='registro-acciones',
+        system='touch-field-final',
+    ).exists()
+
+
+def team_dashboard_events_queryset(primary_team):
+    """
+    Use finalized on-field registrations as authoritative when available.
+    This prevents mixing manual match capture with imported Excel events.
+    """
+    events = confirmed_events_queryset().filter(player__team=primary_team)
+    if has_finalized_registro_events(primary_team):
+        return events.filter(source_file='registro-acciones', system='touch-field-final')
+    return events
+
+
 def preferred_event_source_by_match(primary_team):
     """
     Choose one authoritative source per match to avoid cross-source double counting.
@@ -1540,7 +1561,7 @@ def _event_signature(event):
 
 
 def compute_player_cards_for_match(match, primary_team, source_file=None):
-    events = confirmed_events_queryset().filter(match=match, player__team=primary_team)
+    events = team_dashboard_events_queryset(primary_team).filter(match=match)
     if source_file:
         events = events.filter(source_file=source_file)
     else:
@@ -1580,7 +1601,7 @@ def compute_player_cards_for_match(match, primary_team, source_file=None):
     return sorted(cards, key=lambda item: item['actions'], reverse=True)
 
 def compute_player_metrics(primary_team):
-    events = confirmed_events_queryset().filter(player__team=primary_team)
+    events = team_dashboard_events_queryset(primary_team)
     aggregated = (
         events.values('player__id', 'player__name')
         .annotate(
@@ -1895,8 +1916,7 @@ def compute_player_dashboard(primary_team):
     match_end_minutes = {}
     player_match_timeline = {}
     events = (
-        confirmed_events_queryset()
-        .filter(player__team=primary_team)
+        team_dashboard_events_queryset(primary_team)
         .select_related('player', 'match')
         .order_by('player__name', 'match__date')
     )
