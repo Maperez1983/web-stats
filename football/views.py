@@ -1913,6 +1913,323 @@ def compute_player_dashboard(primary_team):
                 'has_events': False,
             },
         )
+        if base_pj > 0:
+            stats['has_events'] = True
+        stats['total_actions'] += 1
+        if result_is_success(event.result):
+            stats['successes'] += 1
+        if is_goal_event(event.event_type, event.result, event.observation):
+            stats['goals'] += 1
+        if is_assist_event(event.event_type, event.result, event.observation):
+            stats['assists'] += 1
+        if is_yellow_card_event(event.event_type, event.result, event.zone):
+            stats['yellow_cards'] += 1
+        if is_red_card_event(event.event_type, event.result, event.zone):
+            stats['red_cards'] += 1
+        if is_duel_event(event.event_type, event.observation):
+            stats['duels_total'] += 1
+            if duel_result_is_success(event.result):
+                stats['duels_won'] += 1
+        zone = (event.zone or '').strip()
+        zone_label = map_zone_label(zone)
+        if zone_label:
+            stats['zone_counts'][zone_label] += 1
+        tercio = (event.tercio or '').strip()
+        if tercio:
+            mapped = map_tercio(tercio)
+            if mapped:
+                stats['tercio_counts'][mapped] += 1
+                stats['tercio_totals'][mapped] += 1
+        position_label = categorize_position(player.position, event.zone)
+        if position_label:
+            stats['position_counts'][position_label] += 1
+        if contains_keyword(event.event_type, SHOT_KEYWORDS) or contains_keyword(event.observation, SHOT_KEYWORDS):
+            stats['shot_attempts'] += 1
+            if result_is_success(event.result):
+                stats['shots_on_target'] += 1
+        if contains_keyword(event.event_type, PASS_KEYWORDS) or contains_keyword(event.observation, PASS_KEYWORDS):
+            stats['pass_attempts'] += 1
+            if result_is_success(event.result):
+                stats['passes_completed'] += 1
+        if contains_keyword(event.event_type, DRIBBLE_KEYWORDS) or contains_keyword(event.observation, DRIBBLE_KEYWORDS):
+            stats['dribbles_attempted'] += 1
+            if result_is_success(event.result):
+                stats['dribbles_completed'] += 1
+        if not match:
+            continue
+        match_key = match.id
+        match_entry = stats['matches'].setdefault(
+            match_key,
+            {
+                'match_id': match.id,
+                'round': match.round or 'Partido sin jornada',
+                'date': match.date.isoformat() if match.date else None,
+                'home': match.home_team == primary_team,
+                'opponent': (
+                    match.away_team.name
+                    if match.home_team == primary_team and match.away_team
+                    else match.home_team.name
+                    if match.away_team == primary_team and match.home_team
+                    else 'Rival desconocido'
+                ),
+                'actions': 0,
+                'successes': 0,
+            },
+        )
+        match_entry['actions'] += 1
+        if result_is_success(event.result):
+            match_entry['successes'] += 1
+        match_entry['success_rate'] = round(
+            (match_entry['successes'] / match_entry['actions']) * 100
+        ) if match_entry['actions'] else 0
+    for event in live_events:
+        player = event.player
+        if not player:
+            continue
+        match = event.match
+        if match and event.minute is not None:
+            match_end_minutes[match.id] = max(match_end_minutes.get(match.id, 0), event.minute)
+        if match:
+            timeline = player_match_timeline.setdefault(player.id, {}).setdefault(
+                match.id,
+                {'entry': None, 'exit': None, 'has_event': False},
+            )
+            timeline['has_event'] = True
+            if is_substitution_entry(event.event_type, event.result, event.zone):
+                timeline['entry'] = min_or_none(timeline['entry'], event.minute or 0)
+            if is_substitution_exit(event.event_type, event.result, event.zone):
+                timeline['exit'] = min_or_none(timeline['exit'], event.minute or 0)
+    for player_id, matches in player_match_timeline.items():
+        stats = player_stats.get(player_id)
+        if not stats:
+            continue
+        for match_id, timeline in matches.items():
+            match_end = match_end_minutes.get(match_id, 0)
+            entry_minute = timeline.get('entry')
+            exit_minute = timeline.get('exit')
+            if entry_minute is None:
+                entry_minute = 0
+            if exit_minute is None:
+                exit_minute = match_end
+            if exit_minute is None:
+                exit_minute = entry_minute
+            if exit_minute < entry_minute:
+                exit_minute = entry_minute
+            stats['minutes'] += max(0, exit_minute - entry_minute)
+            stats['pj'] += 1 if timeline.get('has_event') else 0
+            if entry_minute == 0:
+                stats['pt'] += 1
+        stats['pc'] = max(stats.get('pc', 0), stats['pj'])
+    # ensure roster players appear even without events
+    roster_players = Player.objects.filter(team=primary_team)
+    for player in roster_players:
+        if player.id not in player_stats:
+            normalized = normalize_player_name(player.name)
+            roster_entry = roster_cache.get(normalized, {})
+            manual_entry = manual_overrides.get(player.id, {})
+            base_pj = manual_entry.get('pj', roster_entry.get('pj', 0))
+            base_pt = manual_entry.get('pt', roster_entry.get('pt', 0))
+            player_stats[player.id] = {
+                'player_id': player.id,
+                'name': player.name,
+                'number': player.number,
+                'position': player.position or roster_entry.get('position'),
+                'total_actions': 0,
+                'successes': 0,
+                'pc': max(roster_entry.get('pc', 0), base_pj),
+                'pj': base_pj,
+                'pt': base_pt,
+                'minutes': manual_entry.get('minutes', roster_entry.get('minutes', 0)),
+                'goals': roster_entry.get('goals', 0),
+                'yellow_cards': manual_entry.get('yellow_cards', roster_entry.get('yellow_cards', 0)),
+                'red_cards': roster_entry.get('red_cards', 0),
+                'assists': roster_entry.get('assists', 0),
+                'matches': {},
+                'zone_counts': {key: 0 for key in FIELD_ZONE_KEYS},
+                'position_counts': {key: 0 for key in FIELD_ZONE_KEYS},
+                'tercio_counts': {label: 0 for label in STANDARD_TERCIO_LABELS},
+                'tercio_totals': {label: 0 for label in STANDARD_TERCIO_LABELS},
+                'duels_total': 0,
+                'duels_won': 0,
+                'shot_attempts': 0,
+                'shots_on_target': 0,
+                'pass_attempts': 0,
+                'passes_completed': 0,
+                'dribbles_attempted': 0,
+                'dribbles_completed': 0,
+                'age': roster_entry.get('age'),
+                'has_events': False,
+            }
+
+    result = []
+    for stats in player_stats.values():
+        if not stats.get('has_events') or stats.get('pj') == 0:
+            continue
+        matches = sorted(
+            stats['matches'].values(),
+            key=lambda entry: (
+                extract_round_number(entry['round']) is None,
+                extract_round_number(entry['round']) or 9999,
+                entry['date'] or '',
+            ),
+        )
+        roster_entry = find_roster_entry(stats['name'], roster_cache)
+        total_tercios = sum(stats['tercio_totals'].values())
+        position_list = sorted(
+            stats['position_counts'].items(),
+            key=lambda item: item[1],
+            reverse=True,
+        )
+        field_zones = [
+            {**zone, 'count': stats['zone_counts'].get(zone['key'], 0)}
+            for zone in FIELD_ZONES
+        ]
+        merged = {
+            **stats,
+            'matches': matches,
+            'match_count': len(matches),
+            'age': stats.get('age') or (roster_entry.get('age') if roster_entry else None),
+            'success_rate': round(
+                (stats['successes'] / stats['total_actions']) * 100, 1
+            )
+            if stats['total_actions']
+            else 0,
+            'duel_summary': {
+                'won': stats['duels_won'],
+                'total': stats['duels_total'],
+            },
+            'duel_rate': round(
+                (stats['duels_won'] / stats['duels_total']) * 100, 1
+            )
+            if stats['duels_total']
+            else 0,
+            'zone_heatmap': sorted(
+                [
+                    {'zone': zone, 'count': count}
+                    for zone, count in stats['zone_counts'].items()
+                    if count > 0
+                ],
+                key=lambda entry: entry['count'],
+                reverse=True,
+            )[:5],
+            'tercio_summary': [
+                {
+                    'label': tercio_label,
+                    'count': stats['tercio_totals'].get(tercio_label, 0),
+                    'pct': round(
+                        (stats['tercio_totals'].get(tercio_label, 0) / total_tercios) * 100, 1
+                    )
+                    if total_tercios
+                    else 0,
+                }
+                for tercio_label in ('Ataque', 'Construcción', 'Defensa')
+            ],
+            'tercio_heatmap': sorted(
+                [{'tercio': tercio, 'count': count} for tercio, count in stats['tercio_counts'].items()],
+                key=lambda entry: entry['count'],
+                reverse=True,
+            )[:5],
+            'position_breakdown': [
+                {'label': label, 'count': count}
+                for label, count in position_list
+            ],
+            'dominant_position': position_list[0][0] if position_list else player.position,
+            'field_zones': field_zones,
+            'shots': {
+                'attempts': stats['shot_attempts'],
+                'on_target': stats['shots_on_target'],
+                'accuracy': round((stats['shots_on_target'] / stats['shot_attempts']) * 100, 1)
+                if stats['shot_attempts']
+                else 0,
+            },
+            'passes': {
+                'attempts': stats['pass_attempts'],
+                'completed': stats['passes_completed'],
+                'accuracy': round((stats['passes_completed'] / stats['pass_attempts']) * 100, 1)
+                if stats['pass_attempts']
+                else 0,
+            },
+        }
+        profile, profile_label, smart_kpis = build_smart_kpis(stats)
+        merged['profile'] = profile
+        merged['profile_label'] = profile_label
+        merged['smart_kpis'] = smart_kpis
+        result.append(merged)
+    return sorted(result, key=lambda player: player['total_actions'], reverse=True)
+    player_stats = {}
+    roster_cache = get_roster_stats_cache()
+    manual_overrides = get_manual_player_base_overrides(primary_team)
+    preferred_sources = preferred_event_source_by_match(primary_team)
+    match_end_minutes = {}
+    player_match_timeline = {}
+    events = (
+        confirmed_events_queryset()
+        .filter(player__team=primary_team)
+        .select_related('player', 'match')
+        .order_by('player__name', 'match__date')
+    )
+    live_events = (
+        MatchEvent.objects.filter(player__team=primary_team, system='touch-field-final')
+        .select_related('player', 'match')
+        .order_by('player__name', 'match__date')
+    )
+    seen_signatures = set()
+    for event in events:
+        player = event.player
+        if not player:
+            continue
+        match = event.match
+        preferred_source = preferred_sources.get(match.id if match else None)
+        if preferred_source and (event.source_file or '') != preferred_source:
+            continue
+        signature = _event_signature(event)
+        if signature in seen_signatures:
+            continue
+        seen_signatures.add(signature)
+        roster_entry = find_roster_entry(player.name, roster_cache)
+        manual_entry = manual_overrides.get(player.id, {})
+        base_pj = manual_entry.get('pj', roster_entry.get('pj', 0) if roster_entry else 0)
+        base_pt = manual_entry.get('pt', roster_entry.get('pt', 0) if roster_entry else 0)
+        base_minutes = manual_entry.get('minutes', roster_entry.get('minutes', 0) if roster_entry else 0)
+        base_pc = max(roster_entry.get('pc', 0) if roster_entry else 0, base_pj)
+        base_goals = roster_entry.get('goals', 0) if roster_entry else 0
+        base_yellow = manual_entry.get('yellow_cards', roster_entry.get('yellow_cards', 0) if roster_entry else 0)
+        base_red = roster_entry.get('red_cards', 0) if roster_entry else 0
+        base_assists = roster_entry.get('assists', 0) if roster_entry else 0
+        stats = player_stats.setdefault(
+            player.id,
+            {
+                'player_id': player.id,
+                'name': player.name,
+                'number': player.number,
+                'position': player.position or (roster_entry.get('position') if roster_entry else ''),
+                'total_actions': 0,
+                'successes': 0,
+                'pc': base_pc,
+                'pj': base_pj,
+                'pt': base_pt,
+                'minutes': base_minutes,
+                'goals': base_goals,
+                'yellow_cards': base_yellow,
+                'red_cards': base_red,
+                'assists': base_assists,
+                'matches': {},
+                'zone_counts': {key: 0 for key in FIELD_ZONE_KEYS},
+                'position_counts': {key: 0 for key in FIELD_ZONE_KEYS},
+                'tercio_counts': {label: 0 for label in STANDARD_TERCIO_LABELS},
+                'tercio_totals': {label: 0 for label in STANDARD_TERCIO_LABELS},
+                'duels_total': 0,
+                'duels_won': 0,
+                'shot_attempts': 0,
+                'shots_on_target': 0,
+                'pass_attempts': 0,
+                'passes_completed': 0,
+                'dribbles_attempted': 0,
+                'dribbles_completed': 0,
+                'age': roster_entry.get('age') if roster_entry else None,
+                'has_events': False,
+            },
+        )
         # Si base_pj es 0, no damos por válido que ha jugado
         if base_pj > 0:
             stats['has_events'] = True
