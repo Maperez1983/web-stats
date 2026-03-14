@@ -1913,7 +1913,9 @@ def compute_player_dashboard(primary_team):
                 'has_events': False,
             },
         )
-        stats['has_events'] = True
+        # Si base_pj es 0, no damos por válido que ha jugado
+        if base_pj > 0:
+            stats['has_events'] = True
         stats['total_actions'] += 1
         if result_is_success(event.result):
             stats['successes'] += 1
@@ -2060,8 +2062,11 @@ def compute_player_dashboard(primary_team):
                 'has_events': False,
             }
 
+    # Filtrar jugadores sin participación real
     result = []
     for stats in player_stats.values():
+        if not stats.get('has_events'):
+            continue
         matches = sorted(
             stats['matches'].values(),
             key=lambda entry: (
