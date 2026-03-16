@@ -575,6 +575,14 @@ def finalize_match_actions(request):
     )
     if not pending_events:
         return JsonResponse({'saved': True, 'updated': 0, 'match_id': match.id})
+    # Limpiar tarjetas y sustituciones anteriores
+    MatchEvent.objects.filter(
+        match=match,
+        system='touch-field-final',
+    ).filter(
+        Q(event_type__icontains='tarjeta') | Q(event_type__icontains='sustitucion') | Q(event_type__icontains='sustitución') | Q(event_type__icontains='cambio'),
+    ).delete()
+
     updated = MatchEvent.objects.filter(id__in=[event.id for event in pending_events]).update(
         system='touch-field-final'
     )
