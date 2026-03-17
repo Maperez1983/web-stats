@@ -492,6 +492,7 @@ def register_match_action(request):
     minute = _parse_int(request.POST.get('minute'))
     if minute is not None:
         minute = max(0, min(minute, 120))
+    period = _parse_int(request.POST.get('period'))
     result = (request.POST.get('result') or '').strip()
     zone = (request.POST.get('zone') or '').strip()
     tercio = zone_to_tercio(zone)
@@ -500,6 +501,7 @@ def register_match_action(request):
         match=match,
         player=player,
         minute=minute if minute is not None else None,
+        period=period,
         event_type=action_type,
         result=result,
         zone=zone,
@@ -512,6 +514,7 @@ def register_match_action(request):
         {
             'id': event.id,
             'minute': event.minute,
+            'period': event.period,
             'action': event.event_type,
             'zone': event.zone,
             'result': event.result,
@@ -862,29 +865,36 @@ def manual_player_stats_page(request):
 
 
 def player_detail_page(request, player_id):
-    primary_team = Team.objects.filter(is_primary=True).first()
-    if not primary_team:
-        return JsonResponse({'error': 'No hay equipo principal configurado'}, status=400)
-    player = Player.objects.filter(id=player_id, team=primary_team).first()
-    if not player:
-        return JsonResponse({'error': 'Jugador no encontrado'}, status=404)
-    if request.method == 'POST':
-        number = request.POST.get('number', '').strip()
-        position = request.POST.get('position', '').strip()
-        player.number = int(number) if number else None
-        player.position = position
-        player.save()
-        return redirect('player-detail', player_id=player.id)
-    matches = compute_player_dashboard(primary_team)
-    detail = next((p for p in matches if p.get('player_id') == player_id), None)
-    return render(
-        request,
-        'football/player_detail.html',
-        {
-            'player': player,
-            'stats': detail or {},
-        },
-    )
+    try:
+        primary_team = Team.objects.filter(is_primary=True).first()
+        if not primary_team:
+            return JsonResponse({'error': 'No hay equipo principal configurado'}, status=400)
+        player = Player.objects.filter(id=player_id, team=primary_team).first()
+        if not player:
+            return JsonResponse({'error': 'Jugador no encontrado'}, status=404)
+        if request.method == 'POST':
+            number = request.POST.get('number', '').strip()
+            position = request.POST.get('position', '').strip()
+            player.number = int(number) if number else None
+            player.position = position
+            player.save()
+            return redirect('player-detail', player_id=player.id)
+        matches = compute_player_dashboard(primary_team)
+        detail = next((p for p in matches if p.get('player_id') == player_id), None)
+        return render(
+            request,
+            'football/player_detail.html',
+            {
+                'player': player,
+                'stats': detail or {},
+            },
+        )
+    except Exception as e:
+        import logging
+        logging.exception(f"Error en player_detail_page para player_id={player_id}")
+        return HttpResponse(f"Error interno: {e}", status=500)
+
+
 
 
 def player_pdf(request, player_id):
