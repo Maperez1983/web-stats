@@ -212,6 +212,7 @@ class MatchReport(models.Model):
 
 class MatchEvent(models.Model):
     match = models.ForeignKey(Match, on_delete=models.CASCADE, related_name='events')
+    period = models.PositiveSmallIntegerField(null=True, blank=True, help_text='Parte del partido o periodo (1, 2, etc.)')
     player = models.ForeignKey(Player, on_delete=models.SET_NULL, null=True, blank=True, related_name='events')
     minute = models.PositiveSmallIntegerField(null=True, blank=True)
     event_type = models.CharField(max_length=120)

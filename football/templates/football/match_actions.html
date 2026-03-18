@@ -1759,6 +1759,11 @@ updateClockDisplay();
       const lineupStorageKey = initialMatchDbIdEl?.textContent
         ? `touchFieldLineup:${String(initialMatchDbIdEl.textContent).trim()}`
         : '';
+<<<<<<< Updated upstream
+=======
+      let popupEditMode = false;
+      let actionSubmitInFlight = false;
+>>>>>>> Stashed changes
       let lineupState = {
         starters: [],
         bench: [],
@@ -2698,6 +2703,7 @@ updateClockDisplay();
         }
       });
 
+<<<<<<< Updated upstream
      popupForm.addEventListener('submit', async (event) => {
   event.preventDefault();
 
@@ -2770,3 +2776,186 @@ updateClockDisplay();
     actionSubmitInFlight = false;
   }
 });
+=======
+popupForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  if (actionSubmitInFlight) {
+    return;
+  }
+        if (!playerInput.value) {
+          alert('Selecciona primero un jugador convocado.');
+          return;
+        }
+        syncAutoFields();
+        const payload = new FormData(popupForm);
+        try {
+          actionSubmitInFlight = true;
+          const response = await fetch(submitUrl, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+              'X-CSRFToken': csrfToken,
+              Accept: 'application/json',
+            },
+            body: payload,
+          });
+          const data = await response.json();
+          if (!response.ok) {
+            alert(data.error || 'No se pudo guardar la acción.');
+            return;
+          }
+          appendHistoryEntry({
+            minute: data.minute || 'Ahora',
+            player: data.player,
+            action: data.action,
+            zone: data.zone,
+            result: data.result,
+            event_id: data.id,
+          });
+          const derivedDropKey = classifyCounterDropKey({
+            action: data.action,
+            result: data.result,
+          });
+          if (derivedDropKey) {
+            incrementQuickCounter(derivedDropKey);
+            appendQuickHistory(
+              derivedDropKey,
+              data.player?.name || 'Jugador',
+              data.minute || getCurrentMatchMinute(),
+              data.result || data.action,
+            );
+          }
+          hidePopup();
+          zoneLabel.style.display = 'none';
+          quickButtons.forEach((btn) => btn.classList.remove('quake-action-active'));
+          const lastPlayerId = playerInput.value;
+          popupForm.reset();
+          if (csrfInput) {
+            csrfInput.value = csrfToken;
+          }
+          if (lastPlayerId) {
+            playerInput.value = lastPlayerId;
+          }
+          syncAutoFields();
+        } catch (err) {
+          console.error(err);
+          alert('Error al guardar la acción en el servidor.');
+        } finally {
+          actionSubmitInFlight = false;
+        }
+      });
+      {% if match_info %}
+      const matchInfoCard = document.getElementById('match-info-card');
+      if (matchInfoCard) {
+        const overridesKey = 'touchFieldMatchInfoOverrides';
+        const matchInfoDate = '{{ match_info.date|default:''|escapejs }}';
+        const matchInfoTime = '{{ match_info.time|default:'00:00'|escapejs }}';
+        const defaultMatchInfo = {
+          opponent: '{{ match_info.opponent|default:''|escapejs }}',
+          location: '{{ match_info.location|default:''|escapejs }}',
+          datetime: matchInfoDate ? `${matchInfoDate} · ${matchInfoTime}` : matchInfoTime,
+          round: '{{ match_info.round|default:''|escapejs }}',
+        };
+        const rows = Array.from(matchInfoCard.querySelectorAll('[data-field]'));
+        const teamFieldsData = JSON.parse(
+          document.getElementById('team-fields-data')?.textContent || '[]',
+        );
+        const fieldLocationMap = teamFieldsData.reduce((acc, field) => {
+          if (field?.team_slug && field.location) {
+            acc[field.team_slug] = field.location;
+          }
+          return acc;
+        }, {});
+        let currentValues = {};
+        const setMatchInfoField = (fieldKey, value) => {
+          const row = matchInfoCard.querySelector(`[data-field="${fieldKey}"]`);
+          if (!row) {
+            return;
+          }
+          const display = row.querySelector('[data-display]');
+          const input = row.querySelector('[data-input]');
+          const normalized = value || '';
+          if (display) {
+            display.textContent = normalized || '—';
+          }
+          if (input) {
+            input.value = normalized;
+          }
+          currentValues = { ...currentValues, [fieldKey]: normalized };
+        };
+        const getStoredOverrides = () => {
+          try {
+            const raw = localStorage.getItem(overridesKey);
+            return raw ? JSON.parse(raw) : {};
+          } catch (err) {
+            console.error('match info overrides', err);
+            return {};
+          }
+        };
+        const applyValues = (values) => {
+          rows.forEach((row) => {
+            const fieldKey = row.dataset.field;
+            const display = row.querySelector('[data-display]');
+            const input = row.querySelector('[data-input]');
+            const value = values[fieldKey] || '';
+            if (display) {
+              display.textContent = value || '—';
+            }
+            if (input) {
+              input.value = value;
+            }
+          });
+        };
+        const collectMatchInfoValues = () => {
+          const values = {};
+          rows.forEach((row) => {
+            const fieldKey = row.dataset.field;
+            const input = row.querySelector('[data-input]');
+            const display = row.querySelector('[data-display]');
+            const rawValue = input ? input.value : display?.textContent || '';
+            values[fieldKey] = (rawValue || '').trim();
+          });
+          return values;
+        };
+        currentValues = { ...defaultMatchInfo, ...getStoredOverrides() };
+        applyValues(currentValues);
+        const editBtn = document.getElementById('match-info-edit-btn');
+        const saveBtn = document.getElementById('match-info-save-btn');
+        const resetBtn = document.getElementById('match-info-reset-btn');
+        const finalizeBtn = document.getElementById('match-finalize-btn');
+        const matchDbIdEl = document.getElementById('match-db-id');
+        const rivalToggle = matchInfoCard.querySelector('.rival-toggle');
+        const rivalDropdown = matchInfoCard.querySelector('[data-rival-dropdown]');
+        const rivalOptions = rivalDropdown
+          ? Array.from(rivalDropdown.querySelectorAll('[data-rival-name]'))
+          : [];
+        const enterEditMode = () => {
+          matchInfoCard.classList.add('is-editing');
+        };
+        const exitEditMode = () => {
+          matchInfoCard.classList.remove('is-editing');
+        };
+        if (editBtn) {
+          editBtn.addEventListener('click', () => {
+            enterEditMode();
+          });
+        }
+        if (saveBtn) {
+          saveBtn.addEventListener('click', () => {
+            const overrides = {};
+            rows.forEach((row) => {
+              const fieldKey = row.dataset.field;
+              const input = row.querySelector('[data-input]');
+              if (input) {
+                overrides[fieldKey] = input.value.trim();
+              }
+            });
+            const persisted = {};
+            Object.keys(defaultMatchInfo).forEach((key) => {
+              const value = overrides[key] || '';
+              if (value && value !== defaultMatchInfo[key]) {
+                persisted[key] = value;
+              }
+            });
+            if 
+>>>>>>> Stashed changes
