@@ -1887,22 +1887,23 @@ def compute_player_dashboard(primary_team):
         if signature in seen_signatures:
             continue
         seen_signatures.add(signature)
-        roster_entry = find_roster_entry(player.name, roster_cache)
-        base_pj = manual_entry.get('pj', roster_entry.get('pj', 0) if roster_entry else 0)
-        base_pt = manual_entry.get('pt', roster_entry.get('pt', 0) if roster_entry else 0)
-        base_minutes = manual_entry.get('minutes', roster_entry.get('minutes', 0) if roster_entry else 0)
-        base_pc = max(roster_entry.get('pc', 0) if roster_entry else 0, base_pj)
-        base_goals = roster_entry.get('goals', 0) if roster_entry else 0
-        base_yellow = manual_entry.get('yellow_cards', roster_entry.get('yellow_cards', 0) if roster_entry else 0)
-        base_red = roster_entry.get('red_cards', 0) if roster_entry else 0
-        base_assists = roster_entry.get('assists', 0) if roster_entry else 0
+        roster_entry = find_roster_entry(player.name, roster_cache) or {}
+        manual_entry = manual_overrides.get(player.id, {})
+        base_pj = manual_entry.get('pj', roster_entry.get('pj', 0))
+        base_pt = manual_entry.get('pt', roster_entry.get('pt', 0))
+        base_minutes = manual_entry.get('minutes', roster_entry.get('minutes', 0))
+        base_pc = max(roster_entry.get('pc', 0), base_pj)
+        base_goals = roster_entry.get('goals', 0)
+        base_yellow = manual_entry.get('yellow_cards', roster_entry.get('yellow_cards', 0))
+        base_red = roster_entry.get('red_cards', 0)
+        base_assists = roster_entry.get('assists', 0)
         stats = player_stats.setdefault(
             player.id,
             {
                 'player_id': player.id,
                 'name': player.name,
                 'number': player.number,
-                'position': player.position or (roster_entry.get('position') if roster_entry else ''),
+                'position': player.position or roster_entry.get('position', ''),
                 'total_actions': 0,
                 'successes': 0,
                 'pc': base_pc,
@@ -1926,7 +1927,7 @@ def compute_player_dashboard(primary_team):
                 'passes_completed': 0,
                 'dribbles_attempted': 0,
                 'dribbles_completed': 0,
-                'age': roster_entry.get('age') if roster_entry else None,
+                'age': roster_entry.get('age'),
                 'has_events': False,
             },
         )
