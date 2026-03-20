@@ -1471,7 +1471,7 @@ def compute_player_metrics(primary_team):
 
 
 def compute_player_cards(primary_team):
-    players = compute_player_dashboard(primary_team)
+    players = compute_player_dashboard(primary_team) or []
     cards = []
     seen_keys = set()
     for player in players:
@@ -1760,11 +1760,6 @@ def compute_player_dashboard(primary_team):
 
     result = []
     for stats in player_stats.values():
-        has_base_data = any(
-            (stats.get('pj', 0), stats.get('pt', 0), stats.get('minutes', 0), stats.get('goals', 0), stats.get('yellow_cards', 0), stats.get('red_cards', 0))
-        )
-        if not stats.get('has_events') and not has_base_data:
-            continue
         matches = sorted(
             stats['matches'].values(),
             key=lambda entry: (
@@ -1833,7 +1828,7 @@ def compute_player_dashboard(primary_team):
                 {'label': label, 'count': count}
                 for label, count in position_list
             ],
-            'dominant_position': position_list[0][0] if position_list else player.position,
+            'dominant_position': position_list[0][0] if position_list else (stats.get('position') or 'Sin definir'),
             'field_zones': field_zones,
             'shots': {
                 'attempts': stats['shot_attempts'],
@@ -1855,6 +1850,7 @@ def compute_player_dashboard(primary_team):
         merged['profile_label'] = profile_label
         merged['smart_kpis'] = smart_kpis
         result.append(merged)
-    
-    
-   
+    return sorted(
+        result,
+        key=lambda entry: (-entry.get('total_actions', 0), -entry.get('pj', 0), entry.get('name', '')),
+    )
