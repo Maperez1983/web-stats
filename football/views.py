@@ -1755,12 +1755,15 @@ def compute_player_dashboard(primary_team):
                 'dribbles_attempted': 0,
                 'dribbles_completed': 0,
                 'age': roster_entry.get('age'),
-                'has_events': False,
+                'has_events': base_pj > 0,
             }
 
     result = []
     for stats in player_stats.values():
-        if not stats.get('has_events') or stats.get('pj') == 0:
+        has_base_data = any(
+            (stats.get('pj', 0), stats.get('pt', 0), stats.get('minutes', 0), stats.get('goals', 0), stats.get('yellow_cards', 0), stats.get('red_cards', 0))
+        )
+        if not stats.get('has_events') and not has_base_data:
             continue
         matches = sorted(
             stats['matches'].values(),
