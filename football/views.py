@@ -323,6 +323,32 @@ def match_action_page(request):
         .order_by('-created_at')[:6]
     )
     active_match = get_active_match(primary_team)
+    official_next = load_cached_next_match()
+    if not official_next or (official_next.get('status') or '').lower() != 'next':
+        official_next = None
+
+    def _payload_opponent_name(payload):
+        if not isinstance(payload, dict):
+            return ''
+        opponent = payload.get('opponent')
+        if isinstance(opponent, dict):
+            return str(opponent.get('name') or '').strip()
+        if isinstance(opponent, str):
+            return opponent.strip()
+        return str(payload.get('rival') or '').strip()
+
+    def _payload_date_label(payload):
+        raw_date = (payload or {}).get('date')
+        if not raw_date:
+            return None
+        value = str(raw_date).strip()
+        for fmt in ('%Y-%m-%d', '%d-%m-%Y', '%d/%m/%Y'):
+            try:
+                return datetime.strptime(value, fmt).strftime('%d/%m/%Y')
+            except ValueError:
+                continue
+        return None
+
     substitution_history = []
     match_info = None
     if active_match:
@@ -335,6 +361,19 @@ def match_action_page(request):
             'date': active_match.date.strftime('%d/%m/%Y') if active_match.date else None,
             'time': active_match.date.strftime('%H:%M') if active_match.date else '00:00',
         }
+        if official_next:
+            official_opponent = _payload_opponent_name(official_next)
+            official_round = str(official_next.get('round') or '').strip()
+            official_location = str(official_next.get('location') or '').strip()
+            official_date_label = _payload_date_label(official_next)
+            if official_opponent:
+                match_info['opponent'] = official_opponent
+            if official_round:
+                match_info['round'] = official_round
+            if official_location:
+                match_info['location'] = official_location
+            if official_date_label:
+                match_info['date'] = official_date_label
         substitution_events = (
             MatchEvent.objects.filter(match=active_match, player__team=primary_team)
             .select_related('player')
@@ -1212,6 +1251,16 @@ def get_active_match(primary_team):
     upcoming = qs.filter(date__gte=today).order_by('date').first()
     if upcoming:
         return upcoming
+    undated_next = list(qs.filter(date__isnull=True))
+    if undated_next:
+        undated_next.sort(
+            key=lambda match: (
+                extract_round_number(match.round or '') or -1,
+                match.id or 0,
+            ),
+            reverse=True,
+        )
+        return undated_next[0]
     latest = qs.exclude(date__isnull=True).order_by('-date').first()
     if latest:
         return latest
