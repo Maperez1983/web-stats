@@ -1,7 +1,9 @@
 import csv
 import json
+import os
 import re
 import subprocess
+import sys
 import unicodedata
 from datetime import datetime
 from pathlib import Path
@@ -21,7 +23,9 @@ SCHEDULE_TEMPLATE = (
 BASE_DIR = Path(__file__).resolve().parents[1]
 OUTPUT = BASE_DIR / "data" / "input" / "rfaf-standings.csv"
 NEXT_MATCH_FILE = BASE_DIR / "data" / "input" / "rfaf-next-match.json"
-FALLBACK_HTML = Path("/Volumes/Mac Satecchi/Mac/rfaf- visualización de Clasificación.html")
+FALLBACK_HTML = Path(
+    os.getenv("RFAF_FALLBACK_HTML", str(BASE_DIR / "data" / "input" / "rfaf-fallback.html"))
+)
 HEADERS = [
     "position",
     "team",
@@ -271,9 +275,10 @@ def write_csv(rows: List[dict]):
 
 def import_csv():
     subprocess.run(
-        ["python", "manage.py", "import_standings", str(OUTPUT)],
+        [sys.executable, "manage.py", "import_standings", str(OUTPUT)],
         cwd=str(BASE_DIR),
         check=True,
+        timeout=120,
     )
 
 
