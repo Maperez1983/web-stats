@@ -151,6 +151,8 @@ def parse_table() -> (List[dict], str):
 def extract_next_match_from_classification(html: str) -> Optional[Dict[str, str]]:
     soup = BeautifulSoup(html, "html.parser")
     blocks = soup.select("h3")
+    today = datetime.now().date()
+    candidates: List[Dict[str, str]] = []
     for heading in blocks:
         text = heading.get_text(strip=True)
         round_match = re.search(r"Jornada\s*(\d+)", text, re.IGNORECASE)
@@ -190,8 +192,34 @@ def extract_next_match_from_classification(html: str) -> Optional[Dict[str, str]
                 "status": status,
             }
             if status == "next":
-                return payload
-    return None
+                candidates.append(payload)
+    if not candidates:
+        return None
+
+    def _candidate_sort_key(item: Dict[str, str]):
+        raw_date = item.get("date")
+        parsed = None
+        if raw_date:
+            try:
+                parsed = datetime.strptime(str(raw_date), "%Y-%m-%d").date()
+            except ValueError:
+                parsed = None
+        # Prefer upcoming dates >= today; then undated; finally stale past dates.
+        if parsed and parsed >= today:
+            return (0, parsed.toordinal())
+        if parsed is None:
+            return (1, 0)
+        return (2, parsed.toordinal())
+
+    best = sorted(candidates, key=_candidate_sort_key)[0]
+    best_date = best.get("date")
+    if best_date:
+        try:
+            if datetime.strptime(str(best_date), "%Y-%m-%d").date() < today:
+                return None
+        except ValueError:
+            return None
+    return best
 
 
 def extract_next_jornada(html: str) -> Optional[int]:

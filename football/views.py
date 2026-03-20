@@ -101,6 +101,17 @@ def authenticated_write(view_func):
 
 
 def load_cached_next_match():
+    def _parse_payload_date(raw):
+        if not raw:
+            return None
+        value = str(raw).strip()
+        for fmt in ('%Y-%m-%d', '%d-%m-%Y', '%d/%m/%Y'):
+            try:
+                return datetime.strptime(value, fmt).date()
+            except ValueError:
+                continue
+        return None
+
     if not NEXT_MATCH_CACHE.exists():
         return None
     try:
@@ -111,15 +122,16 @@ def load_cached_next_match():
                 status = (payload.get('status') or '').lower()
                 date_raw = payload.get('date')
                 if date_raw:
-                    try:
-                        payload_date = datetime.strptime(str(date_raw), '%Y-%m-%d').date()
-                        today = timezone.localdate()
+                    payload_date = _parse_payload_date(date_raw)
+                    today = timezone.localdate()
+                    if payload_date:
                         if status == 'next' and payload_date < today:
                             return None
                         if status == 'latest' and payload_date < (today - timedelta(days=3)):
                             return None
-                    except ValueError:
-                        pass
+                    elif status == 'next':
+                        # If we cannot parse the date, avoid surfacing stale "next match" payloads.
+                        return None
                 return payload
     except Exception:
         return None
@@ -1049,13 +1061,15 @@ def serialize_standings(group):
 
 def get_next_match(primary_team, group):
     today = timezone.localdate()
-    base_qs = (
-        Match.objects.filter(group=group)
-        .filter(Q(home_team=primary_team) | Q(away_team=primary_team))
+    all_team_matches_qs = (
+        Match.objects.filter(Q(home_team=primary_team) | Q(away_team=primary_team))
         .select_related('home_team', 'away_team')
     )
+    scoped_qs = all_team_matches_qs.filter(group=group) if group else all_team_matches_qs
 
-    upcoming = base_qs.filter(date__gte=today).order_by('date').first()
+    upcoming = scoped_qs.filter(date__gte=today).order_by('date').first()
+    if not upcoming:
+        upcoming = all_team_matches_qs.filter(date__gte=today).order_by('date').first()
     if upcoming:
         return build_match_payload(upcoming, primary_team, status='next')
 
@@ -1063,9 +1077,13 @@ def get_next_match(primary_team, group):
     if cached:
         return cached
 
-    latest = base_qs.exclude(date__isnull=True).order_by('-date').first()
+    latest = scoped_qs.exclude(date__isnull=True).order_by('-date').first()
     if not latest:
-        latest = base_qs.order_by('-id').first()
+        latest = all_team_matches_qs.exclude(date__isnull=True).order_by('-date').first()
+    if not latest:
+        latest = scoped_qs.order_by('-id').first()
+    if not latest:
+        latest = all_team_matches_qs.order_by('-id').first()
     if not latest:
         return None
 
