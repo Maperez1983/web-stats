@@ -1507,7 +1507,6 @@ def compute_player_dashboard(primary_team):
     events = (
         confirmed_events_queryset()
         .filter(player__team=primary_team)
-        .filter(source_file='registro-acciones')
         .select_related('player', 'match')
         .order_by('player__name', 'match__date')
     )
