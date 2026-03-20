@@ -236,6 +236,126 @@ class MatchEvent(models.Model):
         return f'{self.match} - {player_label} - {self.event_type}'
 
 
+class TrainingMicrocycle(models.Model):
+    STATUS_DRAFT = 'draft'
+    STATUS_APPROVED = 'approved'
+    STATUS_CLOSED = 'closed'
+    STATUS_CHOICES = [
+        (STATUS_DRAFT, 'Borrador'),
+        (STATUS_APPROVED, 'Aprobado'),
+        (STATUS_CLOSED, 'Cerrado'),
+    ]
+
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='microcycles')
+    reference_match = models.ForeignKey(
+        Match,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='microcycles',
+    )
+    title = models.CharField(max_length=140, default='Microciclo semanal')
+    objective = models.CharField(max_length=200, blank=True)
+    week_start = models.DateField()
+    week_end = models.DateField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('team', 'week_start')
+        ordering = ['-week_start', '-id']
+
+    def __str__(self):
+        return f'{self.team.name} · {self.week_start:%d/%m} - {self.week_end:%d/%m}'
+
+
+class TrainingSession(models.Model):
+    INTENSITY_LOW = 'low'
+    INTENSITY_MEDIUM = 'medium'
+    INTENSITY_HIGH = 'high'
+    INTENSITY_RECOVERY = 'recovery'
+    INTENSITY_MATCHDAY = 'matchday'
+    INTENSITY_CHOICES = [
+        (INTENSITY_LOW, 'Baja'),
+        (INTENSITY_MEDIUM, 'Media'),
+        (INTENSITY_HIGH, 'Alta'),
+        (INTENSITY_RECOVERY, 'Recuperación'),
+        (INTENSITY_MATCHDAY, 'Pre-partido'),
+    ]
+
+    STATUS_PLANNED = 'planned'
+    STATUS_DONE = 'done'
+    STATUS_CANCELED = 'canceled'
+    STATUS_CHOICES = [
+        (STATUS_PLANNED, 'Planificada'),
+        (STATUS_DONE, 'Realizada'),
+        (STATUS_CANCELED, 'Cancelada'),
+    ]
+
+    microcycle = models.ForeignKey(TrainingMicrocycle, on_delete=models.CASCADE, related_name='sessions')
+    session_date = models.DateField()
+    start_time = models.TimeField(null=True, blank=True)
+    duration_minutes = models.PositiveSmallIntegerField(default=90)
+    intensity = models.CharField(max_length=20, choices=INTENSITY_CHOICES, default=INTENSITY_MEDIUM)
+    focus = models.CharField(max_length=140)
+    content = models.TextField(blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PLANNED)
+    order = models.PositiveSmallIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['session_date', 'start_time', 'order', 'id']
+
+    def __str__(self):
+        return f'{self.session_date:%d/%m} · {self.focus}'
+
+
+class SessionTask(models.Model):
+    BLOCK_ACTIVATION = 'activation'
+    BLOCK_MAIN_1 = 'main_1'
+    BLOCK_MAIN_2 = 'main_2'
+    BLOCK_SET_PIECES = 'set_pieces'
+    BLOCK_CONDITIONING = 'conditioning'
+    BLOCK_RECOVERY = 'recovery'
+    BLOCK_VIDEO = 'video'
+    BLOCK_CHOICES = [
+        (BLOCK_ACTIVATION, 'Activación'),
+        (BLOCK_MAIN_1, 'Principal 1'),
+        (BLOCK_MAIN_2, 'Principal 2'),
+        (BLOCK_SET_PIECES, 'ABP'),
+        (BLOCK_CONDITIONING, 'Condicionante'),
+        (BLOCK_RECOVERY, 'Vuelta calma'),
+        (BLOCK_VIDEO, 'Vídeo'),
+    ]
+
+    STATUS_PLANNED = 'planned'
+    STATUS_DONE = 'done'
+    STATUS_SKIPPED = 'skipped'
+    STATUS_CHOICES = [
+        (STATUS_PLANNED, 'Planificada'),
+        (STATUS_DONE, 'Hecha'),
+        (STATUS_SKIPPED, 'No realizada'),
+    ]
+
+    session = models.ForeignKey(TrainingSession, on_delete=models.CASCADE, related_name='tasks')
+    title = models.CharField(max_length=160)
+    block = models.CharField(max_length=30, choices=BLOCK_CHOICES, default=BLOCK_MAIN_1)
+    duration_minutes = models.PositiveSmallIntegerField(default=15)
+    objective = models.CharField(max_length=180, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PLANNED)
+    order = models.PositiveSmallIntegerField(default=0)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['order', 'id']
+
+    def __str__(self):
+        return f'{self.session} · {self.title}'
+
+
 class DataImportLog(models.Model):
     file_name = models.CharField(max_length=200)
     imported_at = models.DateTimeField(default=timezone.now)

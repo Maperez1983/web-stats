@@ -14,6 +14,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
 from django.db import transaction
 from django.db.models import Count, Max, Q
+from django.db.utils import OperationalError, ProgrammingError
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import render, redirect
 from django.template.loader import render_to_string
@@ -33,10 +34,13 @@ from football.models import (
     MatchEvent,
     Player,
     PlayerStatistic,
+    SessionTask,
     ScrapeSource,
     Season,
     Team,
     TeamStanding,
+    TrainingMicrocycle,
+    TrainingSession,
     ConvocationRecord,
 )
 from football.event_taxonomy import (
@@ -639,13 +643,170 @@ def initial_eleven_page(request):
 
 
 def sessions_page(request):
+    primary_team = Team.objects.filter(is_primary=True).first()
+    if not primary_team:
+        raise Http404('Equipo principal no configurado')
+
+    def parse_date(raw):
+        value = (raw or '').strip()
+        if not value:
+            return None
+        for fmt in ('%Y-%m-%d', '%d/%m/%Y', '%d-%m-%Y'):
+            try:
+                return datetime.strptime(value, fmt).date()
+            except ValueError:
+                continue
+        return None
+
+    feedback = ''
+    error = ''
+    active_match = get_active_match(primary_team)
+    today = timezone.localdate()
+    default_week_start = today - timedelta(days=today.weekday())
+    if active_match and active_match.date:
+        default_week_start = active_match.date - timedelta(days=active_match.date.weekday())
+
+    planner_tables_ready = True
+    try:
+        TrainingMicrocycle.objects.order_by('-id').values_list('id', flat=True).first()
+    except (OperationalError, ProgrammingError):
+        planner_tables_ready = False
+        error = (
+            'El planificador de sesiones requiere migración de base de datos. '
+            'Ejecuta `python manage.py migrate` y recarga la página.'
+        )
+
+    if request.method == 'POST' and planner_tables_ready:
+        planner_action = (request.POST.get('planner_action') or '').strip()
+        try:
+            if planner_action == 'create_microcycle':
+                week_start = parse_date(request.POST.get('week_start')) or default_week_start
+                week_end = week_start + timedelta(days=6)
+                title = (request.POST.get('title') or '').strip() or 'Microciclo semanal'
+                objective = (request.POST.get('objective') or '').strip()
+                notes = (request.POST.get('notes') or '').strip()
+                status = (request.POST.get('status') or TrainingMicrocycle.STATUS_DRAFT).strip()
+                allowed_statuses = {choice[0] for choice in TrainingMicrocycle.STATUS_CHOICES}
+                if status not in allowed_statuses:
+                    status = TrainingMicrocycle.STATUS_DRAFT
+                microcycle, created = TrainingMicrocycle.objects.get_or_create(
+                    team=primary_team,
+                    week_start=week_start,
+                    defaults={
+                        'week_end': week_end,
+                        'title': title,
+                        'objective': objective,
+                        'status': status,
+                        'notes': notes,
+                        'reference_match': active_match,
+                    },
+                )
+                if not created:
+                    microcycle.week_end = week_end
+                    microcycle.title = title
+                    microcycle.objective = objective
+                    microcycle.status = status
+                    microcycle.notes = notes
+                    if active_match:
+                        microcycle.reference_match = active_match
+                    microcycle.save()
+                feedback = 'Microciclo guardado correctamente.'
+            elif planner_action == 'create_session':
+                microcycle_id = _parse_int(request.POST.get('microcycle_id'))
+                session_date = parse_date(request.POST.get('session_date'))
+                focus = (request.POST.get('focus') or '').strip()
+                if not microcycle_id or not session_date or not focus:
+                    raise ValueError('Completa microciclo, fecha y foco de la sesión.')
+                microcycle = TrainingMicrocycle.objects.filter(id=microcycle_id, team=primary_team).first()
+                if not microcycle:
+                    raise ValueError('Microciclo no válido.')
+                start_time = None
+                start_time_raw = (request.POST.get('start_time') or '').strip()
+                if start_time_raw:
+                    try:
+                        start_time = datetime.strptime(start_time_raw, '%H:%M').time()
+                    except ValueError:
+                        raise ValueError('Formato de hora inválido. Usa HH:MM.')
+                duration = _parse_int(request.POST.get('duration_minutes')) or 90
+                intensity = (request.POST.get('intensity') or TrainingSession.INTENSITY_MEDIUM).strip()
+                intensity_choices = {choice[0] for choice in TrainingSession.INTENSITY_CHOICES}
+                if intensity not in intensity_choices:
+                    intensity = TrainingSession.INTENSITY_MEDIUM
+                content = (request.POST.get('content') or '').strip()
+                TrainingSession.objects.create(
+                    microcycle=microcycle,
+                    session_date=session_date,
+                    start_time=start_time,
+                    duration_minutes=max(15, min(duration, 240)),
+                    intensity=intensity,
+                    focus=focus,
+                    content=content,
+                    order=0,
+                )
+                feedback = 'Sesión creada correctamente.'
+            elif planner_action == 'create_task':
+                session_id = _parse_int(request.POST.get('session_id'))
+                title = (request.POST.get('task_title') or '').strip()
+                if not session_id or not title:
+                    raise ValueError('Selecciona sesión y añade el nombre de la tarea.')
+                session = (
+                    TrainingSession.objects
+                    .select_related('microcycle')
+                    .filter(id=session_id, microcycle__team=primary_team)
+                    .first()
+                )
+                if not session:
+                    raise ValueError('Sesión no válida.')
+                block = (request.POST.get('block') or SessionTask.BLOCK_MAIN_1).strip()
+                block_choices = {choice[0] for choice in SessionTask.BLOCK_CHOICES}
+                if block not in block_choices:
+                    block = SessionTask.BLOCK_MAIN_1
+                duration = _parse_int(request.POST.get('task_minutes')) or 15
+                objective = (request.POST.get('task_objective') or '').strip()
+                SessionTask.objects.create(
+                    session=session,
+                    title=title,
+                    block=block,
+                    duration_minutes=max(5, min(duration, 90)),
+                    objective=objective,
+                    order=session.tasks.count() + 1,
+                )
+                feedback = 'Tarea añadida a la sesión.'
+            else:
+                error = 'Acción no reconocida.'
+        except ValueError as exc:
+            error = str(exc)
+        except Exception:
+            error = 'No se pudo guardar la planificación. Revisa los datos y vuelve a intentar.'
+
+    microcycles = []
+    if planner_tables_ready:
+        microcycles = (
+            TrainingMicrocycle.objects
+            .filter(team=primary_team)
+            .select_related('reference_match')
+            .prefetch_related('sessions__tasks')
+            .order_by('-week_start')[:8]
+        )
+    all_sessions = []
+    for microcycle in microcycles:
+        all_sessions.extend(list(microcycle.sessions.all()))
+
     return render(
         request,
-        'football/coach_section.html',
+        'football/sessions_planner.html',
         {
-            'section_title': 'Sesiones',
-            'description': 'Agenda de entrenamientos de la semana.',
-            'items': ['Martes · Táctica ofensiva', 'Jueves · Transiciones'],
+            'team_name': primary_team.name,
+            'feedback': feedback,
+            'error': error,
+            'active_match': active_match,
+            'default_week_start': default_week_start,
+            'microcycles': microcycles,
+            'all_sessions': all_sessions,
+            'microcycle_statuses': TrainingMicrocycle.STATUS_CHOICES,
+            'session_intensities': TrainingSession.INTENSITY_CHOICES,
+            'task_blocks': SessionTask.BLOCK_CHOICES,
+            'planner_tables_ready': planner_tables_ready,
         },
     )
 

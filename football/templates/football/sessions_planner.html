@@ -1,0 +1,407 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Planificador de Microciclos · {{ team_name }}</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <style>
+      :root {
+        --ink: #f3f4f6;
+        --bg: #061226;
+        --panel: rgba(7, 22, 44, 0.92);
+        --line: rgba(255, 255, 255, 0.14);
+        --brand: #22d3ee;
+        --ok: #22c55e;
+        --warn: #f59e0b;
+        --err: #ef4444;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at 5% 0%, rgba(34, 211, 238, 0.16), transparent 28%),
+          radial-gradient(circle at 95% 0%, rgba(245, 158, 11, 0.16), transparent 28%),
+          linear-gradient(180deg, #020916 0%, #081b35 55%, #081329 100%);
+        font-family: "Montserrat", "Avenir Next", "Segoe UI", sans-serif;
+      }
+
+      .page {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 1.25rem;
+      }
+
+      .top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1rem;
+      }
+
+      .top h1 {
+        margin: 0;
+        font-size: 1.15rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .top p {
+        margin: 0.3rem 0 0;
+        color: rgba(235, 245, 255, 0.75);
+      }
+
+      .button {
+        display: inline-flex;
+        text-decoration: none;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 0.55rem 1rem;
+        color: var(--ink);
+        background: rgba(255, 255, 255, 0.06);
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        font-size: 0.74rem;
+      }
+
+      .alerts {
+        display: grid;
+        gap: 0.65rem;
+        margin-bottom: 1rem;
+      }
+
+      .alert {
+        border-radius: 14px;
+        padding: 0.72rem 0.9rem;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.06);
+      }
+
+      .alert.ok { border-color: rgba(34, 197, 94, 0.45); background: rgba(34, 197, 94, 0.15); }
+      .alert.err { border-color: rgba(239, 68, 68, 0.45); background: rgba(239, 68, 68, 0.15); }
+
+      .grid {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: minmax(320px, 0.9fr) minmax(0, 1.3fr);
+      }
+
+      .panel {
+        border-radius: 20px;
+        border: 1px solid var(--line);
+        background: var(--panel);
+        padding: 1rem;
+        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+      }
+
+      .panel h2 {
+        margin: 0 0 0.7rem;
+        font-size: 0.84rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      form {
+        display: grid;
+        gap: 0.65rem;
+        margin-bottom: 0.9rem;
+      }
+
+      .row {
+        display: grid;
+        gap: 0.55rem;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      label {
+        font-size: 0.74rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(224, 234, 255, 0.82);
+        display: grid;
+        gap: 0.35rem;
+      }
+
+      input, select, textarea, button {
+        font: inherit;
+      }
+
+      input, select, textarea {
+        width: 100%;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: rgba(3, 10, 20, 0.75);
+        color: var(--ink);
+        padding: 0.52rem 0.6rem;
+      }
+
+      textarea { min-height: 66px; resize: vertical; }
+
+      button.primary {
+        border: none;
+        border-radius: 999px;
+        padding: 0.68rem 1rem;
+        color: #03243c;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        background: linear-gradient(135deg, #22d3ee, #67e8f9);
+        cursor: pointer;
+      }
+
+      .micro-list {
+        display: grid;
+        gap: 0.85rem;
+      }
+
+      .micro {
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.04);
+        padding: 0.8rem;
+      }
+
+      .micro h3 {
+        margin: 0;
+        font-size: 0.92rem;
+      }
+
+      .meta {
+        margin-top: 0.25rem;
+        font-size: 0.8rem;
+        color: rgba(225, 236, 255, 0.78);
+      }
+
+      .sessions {
+        margin-top: 0.6rem;
+        display: grid;
+        gap: 0.55rem;
+      }
+
+      .session {
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(6, 18, 34, 0.78);
+        padding: 0.62rem;
+      }
+
+      .session strong { font-size: 0.84rem; }
+      .session p { margin: 0.2rem 0 0; font-size: 0.78rem; color: rgba(223, 232, 255, 0.8); }
+
+      .tasks {
+        margin: 0.38rem 0 0;
+        padding-left: 1rem;
+        font-size: 0.75rem;
+        color: rgba(225, 235, 255, 0.78);
+      }
+
+      .empty {
+        margin: 0;
+        font-size: 0.86rem;
+        color: rgba(227, 236, 255, 0.75);
+      }
+
+      @media (max-width: 940px) {
+        .grid { grid-template-columns: 1fr; }
+        .row { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <div class="top">
+        <div>
+          <h1>Planificador de Microciclos · {{ team_name }}</h1>
+          <p>
+            {% if active_match %}
+            Próximo contexto de partido: {{ active_match.round|default:"Sin jornada" }} · {{ active_match.location|default:"Campo por definir" }}
+            {% else %}
+            Sin partido activo detectado: puedes planificar la semana manualmente.
+            {% endif %}
+          </p>
+        </div>
+        <a href="{% url 'coach-detail' %}" class="button">Volver</a>
+      </div>
+
+      <section class="alerts">
+        {% if feedback %}<div class="alert ok">{{ feedback }}</div>{% endif %}
+        {% if error %}<div class="alert err">{{ error }}</div>{% endif %}
+      </section>
+
+      <section class="grid">
+        <article class="panel">
+          <h2>Crear Microciclo</h2>
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="planner_action" value="create_microcycle" />
+            <div class="row">
+              <label>
+                Semana inicio
+                <input type="date" name="week_start" value="{{ default_week_start|date:'Y-m-d' }}" required />
+              </label>
+              <label>
+                Estado
+                <select name="status">
+                  {% for value, label in microcycle_statuses %}
+                  <option value="{{ value }}">{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+            </div>
+            <label>
+              Título
+              <input type="text" name="title" placeholder="Microciclo J-6 a J+1" maxlength="140" />
+            </label>
+            <label>
+              Objetivo semanal
+              <input type="text" name="objective" placeholder="Presión tras pérdida + ABP defensiva" maxlength="200" />
+            </label>
+            <label>
+              Notas
+              <textarea name="notes" placeholder="Cargas, bajas, foco por líneas..."></textarea>
+            </label>
+            <button class="primary" type="submit">Guardar Microciclo</button>
+          </form>
+
+          <h2>Crear Sesión</h2>
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="planner_action" value="create_session" />
+            <label>
+              Microciclo
+              <select name="microcycle_id" required>
+                <option value="">Selecciona...</option>
+                {% for micro in microcycles %}
+                <option value="{{ micro.id }}">{{ micro.week_start|date:"d/m" }} - {{ micro.week_end|date:"d/m" }} · {{ micro.title }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <div class="row">
+              <label>
+                Fecha
+                <input type="date" name="session_date" required />
+              </label>
+              <label>
+                Hora
+                <input type="time" name="start_time" />
+              </label>
+            </div>
+            <div class="row">
+              <label>
+                Duración (min)
+                <input type="number" name="duration_minutes" min="15" max="240" value="90" />
+              </label>
+              <label>
+                Intensidad
+                <select name="intensity">
+                  {% for value, label in session_intensities %}
+                  <option value="{{ value }}">{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+            </div>
+            <label>
+              Foco principal
+              <input type="text" name="focus" maxlength="140" placeholder="Transición defensiva + duelos" required />
+            </label>
+            <label>
+              Contenido
+              <textarea name="content" placeholder="Bloques y consignas de sesión"></textarea>
+            </label>
+            <button class="primary" type="submit">Crear Sesión</button>
+          </form>
+
+          <h2>Crear Tarea</h2>
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="planner_action" value="create_task" />
+            <label>
+              Sesión
+              <select name="session_id" required>
+                <option value="">Selecciona...</option>
+                {% for session in all_sessions %}
+                <option value="{{ session.id }}">{{ session.session_date|date:"d/m" }} · {{ session.focus }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <div class="row">
+              <label>
+                Bloque
+                <select name="block">
+                  {% for value, label in task_blocks %}
+                  <option value="{{ value }}">{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label>
+                Minutos
+                <input type="number" name="task_minutes" min="5" max="90" value="15" />
+              </label>
+            </div>
+            <label>
+              Tarea
+              <input type="text" name="task_title" maxlength="160" placeholder="Rondo + presión tras pérdida" required />
+            </label>
+            <label>
+              Objetivo
+              <input type="text" name="task_objective" maxlength="180" placeholder="Activar vigilancia y saltos coordinados" />
+            </label>
+            <button class="primary" type="submit">Añadir Tarea</button>
+          </form>
+        </article>
+
+        <article class="panel">
+          <h2>Microciclos Recientes</h2>
+          {% if microcycles %}
+          <div class="micro-list">
+            {% for micro in microcycles %}
+            <section class="micro">
+              <h3>{{ micro.title }}</h3>
+              <p class="meta">
+                {{ micro.week_start|date:"d/m/Y" }} - {{ micro.week_end|date:"d/m/Y" }} · {{ micro.get_status_display }}
+                {% if micro.objective %} · Objetivo: {{ micro.objective }}{% endif %}
+              </p>
+              {% if micro.reference_match %}
+              <p class="meta">Partido referencia: {{ micro.reference_match }}</p>
+              {% endif %}
+              <div class="sessions">
+                {% for session in micro.sessions.all %}
+                <article class="session">
+                  <strong>
+                    {{ session.session_date|date:"D d/m" }}
+                    {% if session.start_time %} · {{ session.start_time|time:"H:i" }}{% endif %}
+                    · {{ session.get_intensity_display }}
+                    · {{ session.duration_minutes }} min
+                  </strong>
+                  <p>{{ session.focus }}</p>
+                  {% if session.content %}<p>{{ session.content }}</p>{% endif %}
+                  {% if session.tasks.all %}
+                  <ul class="tasks">
+                    {% for task in session.tasks.all %}
+                    <li>{{ task.get_block_display }} · {{ task.title }} ({{ task.duration_minutes }}')</li>
+                    {% endfor %}
+                  </ul>
+                  {% endif %}
+                </article>
+                {% empty %}
+                <p class="empty">Sin sesiones creadas todavía.</p>
+                {% endfor %}
+              </div>
+            </section>
+            {% endfor %}
+          </div>
+          {% else %}
+          <p class="empty">No hay microciclos creados aún. Empieza con el formulario de la izquierda.</p>
+          {% endif %}
+        </article>
+      </section>
+    </main>
+  </body>
+</html>
