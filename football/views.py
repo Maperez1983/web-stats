@@ -90,6 +90,28 @@ SCRAPE_LOCK_KEY = "football:refresh_scraping_running"
 SCRAPE_LOCK_TIMEOUT_SECONDS = 900
 
 
+def _canonical_action_value(value):
+    return ' '.join(str(value or '').split()).strip().lower()
+
+
+def _serialize_match_event(event, duplicate=False):
+    player = event.player
+    return {
+        'id': event.id,
+        'minute': event.minute,
+        'period': event.period,
+        'action': event.event_type,
+        'zone': event.zone,
+        'result': event.result,
+        'duplicate': bool(duplicate),
+        'player': {
+            'id': player.id if player else None,
+            'name': player.name if player else 'Jugador',
+            'number': (player.number if player and player.number is not None else '--'),
+        },
+    }
+
+
 def authenticated_write(view_func):
     @wraps(view_func)
     def _wrapped(request, *args, **kwargs):
@@ -274,10 +296,14 @@ def match_action_page(request):
             message = f"Acción de partido para {player.name} registrada ({action})."
         else:
             message = "Completa el jugador y el tipo de acción."
+    recent_match_ids = list(
+        Match.objects.filter(Q(home_team=primary_team) | Q(away_team=primary_team))
+        .order_by('-date', '-id')
+        .values_list('id', flat=True)[:12]
+    )
     recent_events = (
-        MatchEvent.objects.filter(
-            Q(match__home_team=primary_team) | Q(match__away_team=primary_team)
-        )
+        MatchEvent.objects.filter(match_id__in=recent_match_ids)
+        .select_related('player')
         .order_by('-created_at')[:6]
     )
     active_match = get_active_match(primary_team)
@@ -379,6 +405,26 @@ def register_match_action(request):
     zone = (request.POST.get('zone') or '').strip()
     tercio = zone_to_tercio(zone)
     observation = (request.POST.get('observation') or '').strip()
+    duplicate_window = timezone.now() - timedelta(seconds=8)
+    recent_duplicates = MatchEvent.objects.filter(
+        match=match,
+        player=player,
+        minute=minute if minute is not None else None,
+        period=period,
+        source_file='registro-acciones',
+        system='touch-field',
+        created_at__gte=duplicate_window,
+    ).order_by('-id')
+    for existing in recent_duplicates:
+        if (
+            _canonical_action_value(existing.event_type) == _canonical_action_value(action_type)
+            and _canonical_action_value(existing.result) == _canonical_action_value(result)
+            and _canonical_action_value(existing.zone) == _canonical_action_value(zone)
+            and _canonical_action_value(existing.tercio) == _canonical_action_value(tercio)
+            and _canonical_action_value(existing.observation) == _canonical_action_value(observation)
+        ):
+            return JsonResponse(_serialize_match_event(existing, duplicate=True))
+
     event = MatchEvent.objects.create(
         match=match,
         player=player,
@@ -392,21 +438,7 @@ def register_match_action(request):
         source_file='registro-acciones',
         system='touch-field',
     )
-    return JsonResponse(
-        {
-            'id': event.id,
-            'minute': event.minute,
-            'period': event.period,
-            'action': event.event_type,
-            'zone': event.zone,
-            'result': event.result,
-            'player': {
-                'id': player.id,
-                'name': player.name,
-                'number': player.number or '--',
-            },
-        }
-    )
+    return JsonResponse(_serialize_match_event(event, duplicate=False))
 
 
 @authenticated_write

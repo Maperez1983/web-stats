@@ -2249,7 +2249,7 @@ updateClockDisplay();
             alert(data.error || 'No se pudo registrar la acción rápida.');
             return;
           }
-          appendHistoryEntry({
+          const inserted = appendHistoryEntry({
             minute: data.minute || 'Ahora',
             player: data.player,
             action: data.action,
@@ -2257,6 +2257,9 @@ updateClockDisplay();
             result: data.result,
             event_id: data.id,
           });
+          if (!inserted) {
+            return;
+          }
           incrementQuickCounter(config.dropKey);
           appendQuickHistory(
             config.dropKey,
@@ -2584,7 +2587,10 @@ updateClockDisplay();
       });
 
       const appendHistoryEntry = ({ minute, player, action, zone, result, event_id }) => {
-        if (!historyList) return;
+        if (!historyList) return false;
+        if (event_id && historyList.querySelector(`[data-event-id="${event_id}"]`)) {
+          return false;
+        }
         const item = document.createElement('article');
         item.className = 'history-item';
         const numericMinute = Number(minute);
@@ -2603,6 +2609,7 @@ updateClockDisplay();
           historyList.removeChild(historyList.lastChild);
         }
         registerLiveEvent({ id: event_id, action, zone, result });
+        return true;
       };
       historyList.querySelectorAll('.history-item').forEach((item) => {
         const text = item.querySelector('.hist-text')?.textContent || '';
@@ -2730,7 +2737,7 @@ updateClockDisplay();
       alert(data.error || 'No se pudo guardar la acción.');
       return;
     }
-    appendHistoryEntry({
+    const inserted = appendHistoryEntry({
       minute: data.minute || 'Ahora',
       player: data.player,
       action: data.action,
@@ -2738,6 +2745,9 @@ updateClockDisplay();
       result: data.result,
       event_id: data.id,
     });
+    if (!inserted) {
+      return;
+    }
     const derivedDropKey = classifyCounterDropKey({
       action: data.action,
       result: data.result,
