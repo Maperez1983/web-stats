@@ -165,7 +165,6 @@ def extract_next_match_from_classification(html: str) -> Optional[Dict[str, str]
         table = heading.find_next("table")
         if not table:
             continue
-        latest_payload = None
         for row in table.select("tr"):
             cells = row.find_all("td")
             if len(cells) < 3:
@@ -192,14 +191,14 @@ def extract_next_match_from_classification(html: str) -> Optional[Dict[str, str]
             }
             if status == "next":
                 return payload
-            latest_payload = payload
-        if latest_payload:
-            return latest_payload
     return None
 
 
 def extract_next_jornada(html: str) -> Optional[int]:
     match = re.search(r"IrA\((\d+)\)", html)
+    if match:
+        return int(match.group(1))
+    match = re.search(r"CodJornada=(\d+)", html)
     if match:
         return int(match.group(1))
     return None
@@ -289,6 +288,8 @@ def main():
     if not next_match:
         next_jornada = extract_next_jornada(html)
         next_match = fetch_schedule(next_jornada) if next_jornada else None
+    if next_match and next_match.get("status") != "next":
+        next_match = None
     save_next_match_cache(next_match)
     print(f"Guardando CSV en {OUTPUT}")
     write_csv(rows)

@@ -3,7 +3,7 @@ import os
 import subprocess
 import sys
 from collections import Counter
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import wraps
 from pathlib import Path
 import unicodedata
@@ -108,6 +108,18 @@ def load_cached_next_match():
             payload = json.load(handle)
             if isinstance(payload, dict):
                 payload.setdefault("status", "next")
+                status = (payload.get('status') or '').lower()
+                date_raw = payload.get('date')
+                if date_raw:
+                    try:
+                        payload_date = datetime.strptime(str(date_raw), '%Y-%m-%d').date()
+                        today = timezone.localdate()
+                        if status == 'next' and payload_date < today:
+                            return None
+                        if status == 'latest' and payload_date < (today - timedelta(days=3)):
+                            return None
+                    except ValueError:
+                        pass
                 return payload
     except Exception:
         return None
