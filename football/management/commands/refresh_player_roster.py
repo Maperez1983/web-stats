@@ -1,10 +1,9 @@
 from pathlib import Path
-
-import requests
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
 from football.models import Team
+from football.services import _fetch_preferente_response
 
 
 class Command(BaseCommand):
@@ -36,13 +35,8 @@ class Command(BaseCommand):
                     "No hay URL disponible. Pasa --url o guarda preferente_url en el equipo principal."
                 )
 
-        headers = {
-            "User-Agent": "webstats-crm/1.0",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Accept-Language": "es-ES,es;q=0.9",
-        }
         try:
-            response = requests.get(url, headers=headers, timeout=timeout)
+            response = _fetch_preferente_response(url, timeout=timeout)
             response.raise_for_status()
         except requests.RequestException as exc:
             raise CommandError(f"No se pudo descargar la plantilla desde {url}: {exc}") from exc

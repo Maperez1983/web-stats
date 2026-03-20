@@ -24,7 +24,12 @@ DOWNLOAD_TEXT_PATTERN = re.compile(r'descarg', re.IGNORECASE)
 DOWNLOAD_EXTENSIONS = ('.csv', '.xls', '.xlsx', '.png')
 PLAYER_ROSTER_PATH = Path(settings.BASE_DIR) / 'data' / 'input' / 'player-roster.html'
 MATCH_LISTS_PATH = Path(settings.BASE_DIR) / 'data' / 'excel' / 'FICHA_PARTIDO.xlsx'
-PREFERENTE_USER_AGENT = 'webstats-crm/1.0'
+PREFERENTE_USER_AGENT = (
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
+    'AppleWebKit/537.36 (KHTML, like Gecko) '
+    'Chrome/123.0.0.0 Safari/537.36'
+)
+PREFERENTE_BASE_URL = 'https://www.lapreferente.com/'
 ROSTER_REFRESH_SECONDS = int(getattr(settings, 'PREFERENTE_ROSTER_REFRESH_SECONDS', 6 * 3600))
 
 
@@ -33,6 +38,31 @@ def normalize_header(value):
         return ''
     text = str(value).strip().lower()
     return text.replace(' ', '_')
+
+
+def _preferente_headers(referer: str = PREFERENTE_BASE_URL) -> dict:
+    return {
+        'User-Agent': PREFERENTE_USER_AGENT,
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+        'Referer': referer,
+    }
+
+
+def _fetch_preferente_response(team_url: str, timeout: int = 25) -> requests.Response:
+    session = requests.Session()
+    try:
+        session.get(PREFERENTE_BASE_URL, headers=_preferente_headers(PREFERENTE_BASE_URL), timeout=timeout)
+    except requests.RequestException:
+        pass
+
+    response = session.get(team_url, headers=_preferente_headers(PREFERENTE_BASE_URL), timeout=timeout)
+    if response.status_code == 403:
+        time.sleep(1.2)
+        response = session.get(team_url, headers=_preferente_headers(PREFERENTE_BASE_URL), timeout=timeout)
+    return response
 
 
 def ensure_league_structure(competition_name, season_name, group_name):
@@ -475,14 +505,7 @@ def fetch_preferente_team_roster(team_url: str) -> list[dict]:
     if not team_url:
         return []
     try:
-        response = requests.get(
-            team_url,
-            headers={
-                'User-Agent': PREFERENTE_USER_AGENT,
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            },
-            timeout=20,
-        )
+        response = _fetch_preferente_response(team_url, timeout=20)
         response.raise_for_status()
     except requests.RequestException as exc:
         raise ValueError(f'Error al consultar LaPreferente: {exc}') from exc
@@ -859,18 +882,17 @@ def refresh_primary_roster_cache(primary_team, force: bool = False):
                 return False, f'Cache reciente ({int(age_seconds // 60)} min)'
         except OSError:
             pass
-    headers = {
-        'User-Agent': PREFERENTE_USER_AGENT,
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'es-ES,es;q=0.9',
-    }
     try:
-        response = requests.get(team_url, headers=headers, timeout=25)
+        response = _fetch_preferente_response(team_url, timeout=25)
         response.raise_for_status()
     except requests.RequestException as exc:
+        if PLAYER_ROSTER_PATH.exists():
+            return False, f'La Preferente no respondió ({exc}); se mantiene la última plantilla en caché.'
         return False, f'Error consultando La Preferente: {exc}'
     html = response.text or ''
     if 'tablePlantilla' not in html:
+        if PLAYER_ROSTER_PATH.exists():
+            return False, 'La respuesta no incluyó la tabla de plantilla; se mantiene la última caché.'
         return False, 'HTML sin tabla de plantilla (tablePlantilla)'
     PLAYER_ROSTER_PATH.parent.mkdir(parents=True, exist_ok=True)
     PLAYER_ROSTER_PATH.write_text(html, encoding='utf-8')
