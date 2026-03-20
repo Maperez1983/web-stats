@@ -133,50 +133,8 @@ def dashboard_data(request):
     next_match = get_next_match(primary_team, group)
     team_metrics = compute_team_metrics(primary_team)
     player_metrics = compute_player_metrics(primary_team)
-    active_match = get_active_match(primary_team)
-    latest_pizarra_match = get_latest_pizarra_match(primary_team)
-    active_has_pizarra = bool(
-        active_match
-        and MatchEvent.objects.filter(
-            match=active_match,
-            player__team=primary_team,
-            source_file='registro-acciones',
-            system='touch-field-final',
-        ).exists()
-    )
-    cards_match = None
-    cards_source_file = None
-    scope_prefix = 'Jugador'
-    if active_has_pizarra:
-        cards_match = active_match
-        cards_source_file = 'registro-acciones'
-        scope_prefix = 'Jugador · pizarra (partido activo)'
-    elif latest_pizarra_match:
-        cards_match = latest_pizarra_match
-        cards_source_file = 'registro-acciones'
-        scope_prefix = 'Jugador · pizarra (último partido guardado)'
-    elif active_match:
-        cards_match = active_match
-
-    if cards_match:
-        player_cards = compute_player_cards_for_match(
-            cards_match,
-            primary_team,
-            source_file=cards_source_file,
-        )
-        opponent = (
-            cards_match.away_team if cards_match.home_team == primary_team else cards_match.home_team
-        )
-        player_cards_scope = {
-            'type': 'match',
-            'match_id': cards_match.id,
-            'round': cards_match.round or 'Partido',
-            'opponent': opponent.name if opponent else 'Rival desconocido',
-            'label': f"{scope_prefix}: {cards_match.round or 'Partido'} vs {opponent.name if opponent else 'Rival desconocido'}",
-        }
-    else:
-        player_cards = compute_player_cards(primary_team)
-        player_cards_scope = {'type': 'global', 'label': 'Jugador · histórico'}
+    player_cards = compute_player_cards(primary_team)
+    player_cards_scope = {'type': 'global', 'label': 'Jugador · datos La Preferente'}
 
     return JsonResponse(
         {
@@ -1471,32 +1429,25 @@ def compute_player_metrics(primary_team):
 
 
 def compute_player_cards(primary_team):
-    players = compute_player_dashboard(primary_team) or []
+    if not primary_team:
+        return []
+
+    roster_cache = get_roster_stats_cache() or {}
     cards = []
-    seen_keys = set()
-    for player in players:
-        key = canonical_roster_key(player['name'])
-        if key in seen_keys:
-            continue
-        seen_keys.add(key)
+    for player in Player.objects.filter(team=primary_team).order_by('name'):
+        roster_entry = find_roster_entry(player.name, roster_cache) or {}
         cards.append(
             {
-                'player_id': player['player_id'],
-                'name': player['name'],
-                'pj': player.get('pj', 0),
-                'pt': player.get('pt', 0),
-                'minutes': player.get('minutes', 0),
-                'goals': player.get('goals', 0),
-                'yellow_cards': player.get('yellow_cards', 0),
-                'red_cards': player.get('red_cards', 0),
-                'actions': player['total_actions'],
-                'successes': player['successes'],
-                'success_rate': round((player['successes'] / player['total_actions']) * 100)
-                if player['total_actions']
-                else 0,
+                'player_id': player.id,
+                'name': player.name,
+                'pj': int(roster_entry.get('pj', 0) or 0),
+                'minutes': int(roster_entry.get('minutes', 0) or 0),
+                'goals': int(roster_entry.get('goals', 0) or 0),
+                'yellow_cards': int(roster_entry.get('yellow_cards', 0) or 0),
+                'red_cards': int(roster_entry.get('red_cards', 0) or 0),
             }
         )
-    return cards
+    return sorted(cards, key=lambda entry: (-entry['goals'], -entry['pj'], entry['name']))
 
 
 def get_manual_player_base_overrides(primary_team, season=None):
