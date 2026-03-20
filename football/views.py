@@ -1108,40 +1108,6 @@ def serialize_standings(group):
 
 
 def get_next_match(primary_team, group):
-    def _payload_round_number(payload):
-        return extract_round_number(str((payload or {}).get('round') or '')) or 0
-
-    def _payload_opponent_name(payload):
-        if not isinstance(payload, dict):
-            return ''
-        opponent = payload.get('opponent')
-        if isinstance(opponent, dict):
-            return str(opponent.get('name') or '').strip()
-        if isinstance(opponent, str):
-            return opponent.strip()
-        return str(payload.get('rival') or '').strip()
-
-    def _prefer_authoritative_next(db_payload, authoritative_payload):
-        if not isinstance(db_payload, dict):
-            return normalize_next_match_payload(authoritative_payload)
-        candidate = normalize_next_match_payload(authoritative_payload)
-        if not isinstance(candidate, dict):
-            return db_payload
-        if (candidate.get('status') or '').lower() != 'next':
-            return db_payload
-
-        db_round = _payload_round_number(db_payload)
-        candidate_round = _payload_round_number(candidate)
-        db_opponent = normalize_label(_payload_opponent_name(db_payload))
-        candidate_opponent = normalize_label(_payload_opponent_name(candidate))
-
-        same_rival = bool(db_opponent and candidate_opponent and db_opponent == candidate_opponent)
-        if same_rival and candidate_round and candidate_round > db_round:
-            return candidate
-        if same_rival and candidate.get('date') and not db_payload.get('date'):
-            return candidate
-        return db_payload
-
     def _pick_undated_next(queryset):
         candidates = list(queryset.filter(date__isnull=True))
         if not candidates:
@@ -1197,26 +1163,19 @@ def get_next_match(primary_team, group):
     )
     scoped_qs = all_team_matches_qs.filter(group=group) if group else all_team_matches_qs
 
+    rfaf_next = _fetch_next_from_rfaf()
+    if rfaf_next:
+        return rfaf_next
+
+    cached_next = load_cached_next_match()
+    if cached_next and (cached_next.get('status') or '').lower() == 'next':
+        return normalize_next_match_payload(cached_next)
+
     upcoming = scoped_qs.filter(date__gte=today).order_by('date').first()
     if not upcoming:
         upcoming = all_team_matches_qs.filter(date__gte=today).order_by('date').first()
     if upcoming:
-        db_next_payload = build_match_payload(upcoming, primary_team, status='next')
-        cached_next = load_cached_next_match()
-        if cached_next and (cached_next.get('status') or '').lower() == 'next':
-            return _prefer_authoritative_next(db_next_payload, cached_next)
-        rfaf_next = _fetch_next_from_rfaf()
-        if rfaf_next:
-            return _prefer_authoritative_next(db_next_payload, rfaf_next)
-        return db_next_payload
-
-    rfaf_fallback = _fetch_next_from_rfaf()
-    if rfaf_fallback:
-        return rfaf_fallback
-
-    cached = load_cached_next_match()
-    if cached and (cached.get('status') or '').lower() == 'next':
-        return cached
+        return build_match_payload(upcoming, primary_team, status='next')
 
     undated_next = _pick_undated_next(scoped_qs)
     if not undated_next:
