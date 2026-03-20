@@ -1060,6 +1060,19 @@ def serialize_standings(group):
 
 
 def get_next_match(primary_team, group):
+    def _pick_undated_next(queryset):
+        candidates = list(queryset.filter(date__isnull=True))
+        if not candidates:
+            return None
+        candidates.sort(
+            key=lambda match: (
+                extract_round_number(match.round or '') or -1,
+                match.id or 0,
+            ),
+            reverse=True,
+        )
+        return candidates[0]
+
     def _fetch_next_from_rfaf():
         try:
             from scripts.import_from_rfef import (
@@ -1108,13 +1121,19 @@ def get_next_match(primary_team, group):
     if upcoming:
         return build_match_payload(upcoming, primary_team, status='next')
 
-    cached = load_cached_next_match()
-    if cached:
-        return cached
-
     rfaf_fallback = _fetch_next_from_rfaf()
     if rfaf_fallback:
         return rfaf_fallback
+
+    cached = load_cached_next_match()
+    if cached and (cached.get('status') or '').lower() == 'next':
+        return cached
+
+    undated_next = _pick_undated_next(scoped_qs)
+    if not undated_next:
+        undated_next = _pick_undated_next(all_team_matches_qs)
+    if undated_next:
+        return build_match_payload(undated_next, primary_team, status='next')
 
     latest = scoped_qs.exclude(date__isnull=True).order_by('-date').first()
     if not latest:
