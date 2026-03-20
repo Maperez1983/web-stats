@@ -567,7 +567,7 @@ def build_rival_insights(players: list[dict]) -> dict:
     }
 
 
-def assign_lineup_slots(players: list[dict], formation: str | None = None) -> list[dict]:
+def assign_lineup_slots(players: list[dict], formation: Optional[str] = None) -> list[dict]:
     assigned = []
 
     def role_from_position(position: str) -> str:
@@ -621,7 +621,7 @@ def assign_lineup_slots(players: list[dict], formation: str | None = None) -> li
     for player in players:
         groups[classify(player.get('position') or '')].append(player)
 
-    def parse_counts(value: str | None) -> tuple[int, int, int]:
+    def parse_counts(value: Optional[str]) -> tuple[int, int, int]:
         if not value:
             return (4, 4, 2)
         parts = [p for p in str(value).split('-') if p.isdigit()]

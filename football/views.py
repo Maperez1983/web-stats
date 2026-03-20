@@ -4,6 +4,7 @@ import subprocess
 import sys
 from collections import Counter
 from datetime import datetime
+from functools import wraps
 from pathlib import Path
 import unicodedata
 import re
@@ -201,6 +202,16 @@ RED_CARD_KEYWORDS = {'roja', 'tarjeta roja'}
 SUBSTITUTION_KEYWORDS = {'sustitucion', 'sustitución', 'cambio'}
 SUB_ENTRY_KEYWORDS = {'entrada', 'entrante', 'subida'}
 SUB_EXIT_KEYWORDS = {'salida', 'saliente', 'bajada'}
+
+
+def authenticated_write(view_func):
+    @wraps(view_func)
+    def _wrapped(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return JsonResponse({'error': 'Autenticación requerida'}, status=401)
+        return view_func(request, *args, **kwargs)
+
+    return _wrapped
 
 
 def load_cached_next_match():
@@ -474,6 +485,7 @@ def match_action_page(request):
     )
 
 
+@authenticated_write
 @require_POST
 def register_match_action(request):
     primary_team = Team.objects.filter(is_primary=True).first()
@@ -527,6 +539,7 @@ def register_match_action(request):
     )
 
 
+@authenticated_write
 @require_POST
 def delete_match_action(request):
     primary_team = Team.objects.filter(is_primary=True).first()
@@ -541,23 +554,9 @@ def delete_match_action(request):
         return JsonResponse({'error': 'Evento no encontrado'}, status=404)
     event.delete()
     return JsonResponse({'deleted': event_id})
-    return JsonResponse(
-        {
-            'id': event.id,
-            'minute': event.minute,
-            'action': event.event_type,
-            'zone': event.zone,
-            'result': event.result,
-            'event_id': event.id,
-            'player': {
-                'id': player.id,
-                'name': player.name,
-                'number': player.number or '--',
-            },
-        }
-    )
 
 
+@authenticated_write
 @require_POST
 def finalize_match_actions(request):
     primary_team = Team.objects.filter(is_primary=True).first()
@@ -614,6 +613,7 @@ def convocation_page(request):
 )
 
 
+@authenticated_write
 @require_POST
 def save_convocation(request):
     primary_team = Team.objects.filter(is_primary=True).first()
@@ -623,7 +623,10 @@ def save_convocation(request):
         payload = json.loads(request.body or '[]')
     except json.JSONDecodeError:
         return JsonResponse({'error': 'Formato JSON inválido'}, status=400)
-    player_ids = [int(pid) for pid in payload if pid]
+    try:
+        player_ids = [int(pid) for pid in payload if pid]
+    except (TypeError, ValueError):
+        return JsonResponse({'error': 'Formato de jugadores inválido'}, status=400)
     players = Player.objects.filter(team=primary_team, id__in=player_ids)
     if not players.exists():
         return JsonResponse({'error': 'No se encontraron jugadores para la convocatoria'}, status=400)
@@ -1103,6 +1106,7 @@ def player_match_stats_page(request, player_id, match_id):
     )
 
 
+@authenticated_write
 @require_POST
 def refresh_scraping(request):
     primary_team = Team.objects.filter(is_primary=True).first()
