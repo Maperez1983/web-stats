@@ -1573,6 +1573,15 @@ def compute_player_dashboard(primary_team):
                 'yellow_cards': base_yellow,
                 'red_cards': base_red,
                 'assists': base_assists,
+                'totals_locked': bool(
+                    base_pj
+                    or base_pt
+                    or base_minutes
+                    or base_goals
+                    or base_yellow
+                    or base_red
+                    or base_assists
+                ),
                 'matches': {},
                 'zone_counts': {key: 0 for key in FIELD_ZONE_KEYS},
                 'position_counts': {key: 0 for key in FIELD_ZONE_KEYS},
@@ -1595,13 +1604,13 @@ def compute_player_dashboard(primary_team):
         stats['total_actions'] += 1
         if result_is_success(event.result):
             stats['successes'] += 1
-        if is_goal_event(event.event_type, event.result, event.observation):
+        if (not stats['totals_locked']) and is_goal_event(event.event_type, event.result, event.observation):
             stats['goals'] += 1
-        if is_assist_event(event.event_type, event.result, event.observation):
+        if (not stats['totals_locked']) and is_assist_event(event.event_type, event.result, event.observation):
             stats['assists'] += 1
-        if is_yellow_card_event(event.event_type, event.result, event.zone):
+        if (not stats['totals_locked']) and is_yellow_card_event(event.event_type, event.result, event.zone):
             stats['yellow_cards'] += 1
-        if is_red_card_event(event.event_type, event.result, event.zone):
+        if (not stats['totals_locked']) and is_red_card_event(event.event_type, event.result, event.zone):
             stats['red_cards'] += 1
         if is_duel_event(event.event_type, event.observation):
             stats['duels_total'] += 1
@@ -1692,11 +1701,13 @@ def compute_player_dashboard(primary_team):
                 exit_minute = entry_minute
             if exit_minute < entry_minute:
                 exit_minute = entry_minute
-            stats['minutes'] += max(0, exit_minute - entry_minute)
-            stats['pj'] += 1 if timeline.get('has_event') else 0
-            if entry_minute == 0:
-                stats['pt'] += 1
-        stats['pc'] = max(stats.get('pc', 0), stats['pj'])
+            if not stats.get('totals_locked'):
+                stats['minutes'] += max(0, exit_minute - entry_minute)
+                stats['pj'] += 1 if timeline.get('has_event') else 0
+                if entry_minute == 0:
+                    stats['pt'] += 1
+        if not stats.get('totals_locked'):
+            stats['pc'] = max(stats.get('pc', 0), stats['pj'])
     # ensure roster players appear even without events
     roster_players = Player.objects.filter(team=primary_team)
     for player in roster_players:
@@ -1721,6 +1732,15 @@ def compute_player_dashboard(primary_team):
                 'yellow_cards': manual_entry.get('yellow_cards', roster_entry.get('yellow_cards', 0)),
                 'red_cards': roster_entry.get('red_cards', 0),
                 'assists': roster_entry.get('assists', 0),
+                'totals_locked': bool(
+                    base_pj
+                    or base_pt
+                    or roster_entry.get('minutes', 0)
+                    or roster_entry.get('goals', 0)
+                    or manual_entry.get('yellow_cards', roster_entry.get('yellow_cards', 0))
+                    or roster_entry.get('red_cards', 0)
+                    or roster_entry.get('assists', 0)
+                ),
                 'matches': {},
                 'zone_counts': {key: 0 for key in FIELD_ZONE_KEYS},
                 'position_counts': {key: 0 for key in FIELD_ZONE_KEYS},
