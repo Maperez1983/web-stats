@@ -526,7 +526,15 @@
 
       function renderNextMatch(nextMatch) {
         const container = document.getElementById('next-match');
-        if (!container || !nextMatch) {
+        if (!container) {
+          return;
+        }
+        if (!nextMatch) {
+          container.innerHTML = `
+            <p><strong>Próximo rival</strong> · Pendiente de sincronización</p>
+            <p>Rival por confirmar · --</p>
+            <p>Fecha sin definir · Campo por confirmar</p>
+          `;
           return;
         }
         const label = nextMatch.status === 'latest' ? 'Último partido' : 'Próximo rival';

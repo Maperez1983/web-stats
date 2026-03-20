@@ -1060,6 +1060,41 @@ def serialize_standings(group):
 
 
 def get_next_match(primary_team, group):
+    def _fetch_next_from_rfaf():
+        try:
+            from scripts.import_from_rfef import (
+                extract_next_jornada,
+                extract_next_match_from_classification,
+                fetch_html,
+                fetch_schedule,
+            )
+            html = fetch_html()
+            payload = extract_next_match_from_classification(html)
+            if not payload:
+                next_jornada = extract_next_jornada(html)
+                payload = fetch_schedule(next_jornada) if next_jornada else None
+            if not isinstance(payload, dict):
+                return None
+            if (payload.get('status') or '').lower() != 'next':
+                return None
+            date_raw = payload.get('date')
+            if date_raw:
+                try:
+                    if datetime.strptime(str(date_raw), '%Y-%m-%d').date() < timezone.localdate():
+                        return None
+                except ValueError:
+                    return None
+            # Refresh file cache so subsequent requests don't depend on network.
+            try:
+                NEXT_MATCH_CACHE.parent.mkdir(parents=True, exist_ok=True)
+                with NEXT_MATCH_CACHE.open('w', encoding='utf-8') as handle:
+                    json.dump(payload, handle)
+            except Exception:
+                pass
+            return payload
+        except Exception:
+            return None
+
     today = timezone.localdate()
     all_team_matches_qs = (
         Match.objects.filter(Q(home_team=primary_team) | Q(away_team=primary_team))
@@ -1076,6 +1111,10 @@ def get_next_match(primary_team, group):
     cached = load_cached_next_match()
     if cached:
         return cached
+
+    rfaf_fallback = _fetch_next_from_rfaf()
+    if rfaf_fallback:
+        return rfaf_fallback
 
     latest = scoped_qs.exclude(date__isnull=True).order_by('-date').first()
     if not latest:
