@@ -10,6 +10,7 @@ import unicodedata
 import re
 
 from django.conf import settings
+from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
 from django.db import transaction
 from django.db.models import Count, Max, Q
@@ -231,6 +232,7 @@ def load_cached_next_match():
     return None
 
 
+@login_required
 def dashboard_data(request):
     """Devuelve los datos principales que alimentarán la home cuerpo técnico/jugador."""
     primary_team = Team.objects.filter(is_primary=True).first()
@@ -307,6 +309,7 @@ def dashboard_data(request):
     )
 
 
+@login_required
 @ensure_csrf_cookie
 def dashboard_page(request):
     sources = list(ScrapeSource.objects.filter(is_active=True))

@@ -32,3 +32,13 @@ class WriteEndpointAuthTests(TestCase):
         response = self.client.post(reverse('dashboard-refresh'))
         self.assertEqual(response.status_code, 429)
         cache.delete(SCRAPE_LOCK_KEY)
+
+    def test_dashboard_page_requires_login(self):
+        response = self.client.get(reverse('dashboard-home'))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/admin/login/', response['Location'])
+
+    def test_dashboard_data_requires_login(self):
+        response = self.client.get(reverse('dashboard-data'))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/admin/login/', response['Location'])

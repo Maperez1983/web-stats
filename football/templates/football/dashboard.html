@@ -485,7 +485,18 @@
             },
           });
           if (!response.ok) {
-            throw new Error('No se pudo actualizar');
+            let serverMessage = 'No se pudo actualizar';
+            try {
+              const errorPayload = await response.json();
+              if (errorPayload && errorPayload.message) {
+                serverMessage = errorPayload.message;
+              } else if (errorPayload && errorPayload.error) {
+                serverMessage = errorPayload.error;
+              }
+            } catch (e) {
+              // keep default message when response is not JSON
+            }
+            throw new Error(serverMessage);
           }
           const payload = await response.json();
           if (refreshMessage) {
