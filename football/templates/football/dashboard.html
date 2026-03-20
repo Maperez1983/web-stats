@@ -7,336 +7,462 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <style>
       :root {
-        --brand-blue: #0d1f34;
-        --brand-deep: #020a14;
-        --brand-accent: #74d2ff;
-        --brand-gold: #facc15;
+        --ink: #eef2ff;
+        --deep: #050913;
+        --panel: #0d1b2f;
+        --line: rgba(255, 255, 255, 0.15);
+        --cyan: #46d3ff;
+        --amber: #ffbf45;
       }
+
+      * {
+        box-sizing: border-box;
+      }
+
       body {
-        font-family: 'Inter', system-ui, sans-serif;
-        background: linear-gradient(180deg, #020616 0%, #050c1b 55%, #090f1f 100%);
-        color: #eef2ff;
-        min-height: 100vh;
         margin: 0;
+        min-height: 100vh;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at 10% -10%, rgba(70, 211, 255, 0.18), transparent 40%),
+          radial-gradient(circle at 90% 0%, rgba(255, 191, 69, 0.15), transparent 35%),
+          linear-gradient(180deg, #03070f 0%, #081120 55%, #0a1427 100%);
+        font-family: "Montserrat", "Avenir Next", "Segoe UI", sans-serif;
       }
-      body::before {
-        content: '';
-        position: fixed;
-        inset: 10% 5% auto auto;
-        width: 320px;
-        height: 320px;
-        background: url("{% static 'logos/dragon.png' %}") no-repeat center/contain;
-        opacity: 0.07;
-        pointer-events: none;
-        z-index: 0;
+
+      .page {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 1.4rem;
       }
-      .site-header {
+
+      .topbar {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin-bottom: 1rem;
-        padding: 1rem 0;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+        gap: 1rem;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 0.65rem 1rem;
+        background: rgba(7, 16, 30, 0.82);
+        backdrop-filter: blur(4px);
       }
-      .site-header img {
-        max-height: 78px;
-        margin-right: 1rem;
-        border-radius: 50%;
-        border: 2px solid rgba(255, 255, 255, 0.25);
-        background: radial-gradient(circle, rgba(255, 255, 255, 0.1), transparent);
-      }
-      .site-header h2 {
-        margin: 0;
-        font-size: 1.8rem;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        color: #fefefe;
-      }
-      .site-header p {
-        margin: 0.25rem 0 0;
-        color: rgba(226, 232, 240, 0.8);
-      }
-      .header-title {
+
+      .topbar-brand {
         display: flex;
-        flex-direction: column;
-      }
-      .logo-banner {
-        margin: 1.5rem auto;
-        width: 180px;
-        text-align: center;
-        display: flex;
-        flex-direction: column;
         align-items: center;
-        gap: 0.25rem;
+        gap: 0.7rem;
       }
-      .logo-banner img {
-        width: 160px;
-        height: 160px;
+
+      .topbar-brand img {
+        width: 42px;
+        height: 42px;
         border-radius: 50%;
-        border: 4px solid rgba(255, 255, 255, 0.25);
-        background: rgba(255, 255, 255, 0.05);
-        box-shadow: 0 20px 45px rgba(2, 6, 20, 0.5);
+        border: 2px solid rgba(255, 255, 255, 0.3);
       }
-      .logo-banner span {
-        letter-spacing: 0.2em;
-        font-size: 0.8rem;
-        color: rgba(245, 158, 11, 0.9);
-      }
-      .page {
-        padding: 2rem;
-        max-width: 1100px;
-        margin: 0 auto;
-      }
-      h1 {
-        margin-bottom: 0.25rem;
-      }
-      .layout {
-        display: grid;
-        gap: 1.5rem;
-      }
-      .combo-grid {
-        display: grid;
-        gap: 1rem;
-        grid-template-columns: minmax(0, 2fr) repeat(2, minmax(220px, 1fr));
-        align-items: stretch;
-      }
-      .standings-card {
-        margin-top: 1rem;
-        border-radius: 20px;
-        padding: 0.5rem;
-        background: rgba(15, 23, 42, 0.6);
-        border: 1px solid rgba(255, 255, 255, 0.06);
-      }
-      .tech-grid {
-        display: grid;
-        gap: 1rem;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      }
-      .tech-card {
-        background: rgba(15, 23, 42, 0.9);
-        border-radius: 14px;
-        padding: 1rem;
-        border: 1px solid rgba(99, 102, 241, 0.25);
-        min-height: 140px;
-      }
-      .tech-card h3 {
-        margin-top: 0;
-        font-size: 0.95rem;
+
+      .topbar-brand h1 {
+        margin: 0;
+        font-size: 1.02rem;
         letter-spacing: 0.08em;
         text-transform: uppercase;
-        color: #94a3b8;
       }
-      .player-grid {
-        display: grid;
-        gap: 1rem;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      }
-      .player-card {
-        border-radius: 14px;
-        border: 1px solid rgba(59, 130, 246, 0.4);
-        background: rgba(15, 23, 42, 0.9);
-        padding: 0;
-        min-height: 160px;
-        overflow: hidden;
-      }
-      .player-link {
-        color: inherit;
-        text-decoration: none;
-        display: block;
-        padding: 1rem;
-        min-height: 160px;
-      }
-      .player-link strong {
-        font-size: 1.1rem;
-        display: block;
-      }
-      .player-link span {
-        font-size: 0.9rem;
-        color: rgba(241, 245, 249, 0.9);
-        display: block;
-        margin-top: 0.2rem;
-      }
-      .panel {
-        background: linear-gradient(180deg, rgba(13, 33, 56, 0.8), rgba(6, 9, 22, 0.9));
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 20px;
-        padding: 1.75rem;
-        box-shadow: 0 25px 60px rgba(2, 6, 20, 0.7);
-      }
-      .flex {
+
+      .module-tabs {
         display: flex;
-        gap: 1rem;
+        gap: 0.55rem;
         flex-wrap: wrap;
       }
-      .card {
-        flex: 1 1 220px;
-        min-height: 150px;
-        background: rgba(15, 23, 42, 0.85);
+
+      .module-tab {
+        display: inline-flex;
+        text-decoration: none;
+        color: var(--ink);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 999px;
+        padding: 0.5rem 0.9rem;
+        font-size: 0.78rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        background: rgba(255, 255, 255, 0.04);
+      }
+
+      .module-tab.is-active {
+        border-color: rgba(70, 211, 255, 0.75);
+        background: rgba(70, 211, 255, 0.18);
+      }
+
+      .hero {
+        margin-top: 1rem;
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.85fr);
+      }
+
+      .team-photo {
+        border-radius: 22px;
+        overflow: hidden;
+        min-height: 330px;
+        border: 1px solid var(--line);
+        background:
+          linear-gradient(180deg, rgba(1, 7, 17, 0.26), rgba(3, 9, 19, 0.88)),
+          var(--hero-image, url('{% static "football/campo-futbol.jpg" %}')) center/cover no-repeat;
+        box-shadow: 0 28px 55px rgba(0, 0, 0, 0.4);
+        display: flex;
+        align-items: end;
+        transition: background-image 0.4s ease;
+      }
+
+      .team-photo-content {
+        padding: 1.25rem;
+      }
+
+      .team-photo-content h2 {
+        margin: 0;
+        font-size: 2rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+
+      .team-photo-content p {
+        margin: 0.35rem 0 0;
+        color: rgba(230, 236, 255, 0.9);
+      }
+
+      .status-panel {
+        border-radius: 22px;
+        border: 1px solid var(--line);
+        background: linear-gradient(170deg, rgba(13, 27, 47, 0.95), rgba(8, 18, 34, 0.97));
         padding: 1rem;
-        border-radius: 18px;
-        border: 1px solid rgba(59, 130, 246, 0.3);
-        position: relative;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
       }
-      .standings {
-        background: rgba(15, 23, 42, 0.9);
+
+      .status-panel h3 {
+        margin: 0;
+        font-size: 0.85rem;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: rgba(214, 225, 255, 0.85);
       }
+
+      .kpi-grid {
+        margin-top: 0.75rem;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.65rem;
+      }
+
+      .kpi {
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.13);
+        background: rgba(255, 255, 255, 0.04);
+        padding: 0.6rem;
+      }
+
+      .kpi span {
+        display: block;
+        font-size: 0.66rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(223, 232, 255, 0.72);
+      }
+
+      .kpi strong {
+        display: block;
+        margin-top: 0.25rem;
+        font-size: 1.25rem;
+      }
+
+      .next-match {
+        margin-top: 0.8rem;
+        border-radius: 14px;
+        border: 1px solid rgba(70, 211, 255, 0.35);
+        background: rgba(70, 211, 255, 0.08);
+        padding: 0.75rem;
+      }
+
+      .next-match p {
+        margin: 0.25rem 0;
+      }
+
+      .pill-button {
+        border: none;
+        border-radius: 999px;
+        padding: 0.75rem 1.2rem;
+        background: linear-gradient(135deg, #14d8ff, #4f46e5);
+        color: #fff;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        cursor: pointer;
+      }
+
+      .pill-button:disabled {
+        opacity: 0.6;
+        cursor: wait;
+      }
+
+      #refresh-message {
+        margin: 0.65rem 0 0;
+        font-size: 0.88rem;
+      }
+
+      .main-grid {
+        margin-top: 1rem;
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+      }
+
+      .block {
+        border-radius: 20px;
+        border: 1px solid var(--line);
+        background: rgba(8, 16, 30, 0.9);
+        padding: 1rem;
+      }
+
+      .block h3 {
+        margin: 0 0 0.6rem;
+        font-size: 0.92rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
       .standings table {
         width: 100%;
         border-collapse: collapse;
-        font-size: 0.95rem;
+        font-size: 0.92rem;
       }
+
       .standings th,
       .standings td {
-        padding: 0.25rem 0.75rem;
+        padding: 0.35rem 0.4rem;
         text-align: left;
       }
+
       .standings tr + tr {
-        border-top: 1px solid rgba(148, 163, 184, 0.3);
+        border-top: 1px solid rgba(255, 255, 255, 0.13);
       }
-      .chip {
-        background: rgba(14, 165, 233, 0.2);
-        padding: 0.4rem 0.8rem;
-        border-radius: 999px;
-        font-size: 0.8rem;
-        display: inline-flex;
-        gap: 0.35rem;
-        align-items: center;
-      }
-      .chip span {
-        width: 0.5rem;
-        height: 0.5rem;
-        background: #14b8a6;
-        border-radius: 999px;
-      }
+
       .actions {
         list-style: none;
         padding: 0;
         margin: 0;
       }
+
       .actions li {
         display: flex;
-        align-items: center;
         justify-content: space-between;
-        padding: 0.35rem 0;
-        border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+        gap: 0.5rem;
+        padding: 0.38rem 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
       }
+
       .actions li:last-child {
         border-bottom: none;
       }
-      .pill-button {
-        border: none;
-        padding: 0.85rem 1.4rem;
-        border-radius: 999px;
-        background: linear-gradient(135deg, #22d3ee, #6366f1);
-        color: #fff;
-        font-weight: 700;
-        cursor: pointer;
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-        box-shadow: 0 10px 25px rgba(14, 165, 233, 0.35);
-      }
-      .pill-button:disabled {
-        opacity: 0.6;
-        cursor: wait;
-      }
-      .pill-button:active {
-        transform: scale(0.97);
-      }
-      .page-header {
+
+      .players-header {
+        margin-top: 1rem;
         display: flex;
-        align-items: center;
+        align-items: end;
+        justify-content: space-between;
         gap: 1rem;
-        margin-bottom: 1rem;
       }
-      .selection-card {
-        border-radius: 20px;
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        background: radial-gradient(circle at top right, rgba(253, 224, 71, 0.15), rgba(15, 23, 42, 0.85));
-        padding: 1.75rem;
-        cursor: pointer;
-        transition: border 0.2s ease, transform 0.18s ease;
+
+      .players-header h2 {
+        margin: 0;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+      }
+
+      .player-grid {
+        margin-top: 0.7rem;
+        display: grid;
+        gap: 0.8rem;
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      }
+
+      .player-card {
+        border-radius: 14px;
+        border: 1px solid rgba(73, 208, 255, 0.26);
+        background: linear-gradient(160deg, rgba(9, 20, 36, 0.95), rgba(7, 16, 30, 0.88));
+        overflow: hidden;
+      }
+
+      .player-link {
+        display: block;
         text-decoration: none;
         color: inherit;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        height: 220px;
+        padding: 0.85rem;
       }
-      .selection-card h2 {
-        margin-bottom: 0.25rem;
-        text-transform: uppercase;
-        letter-spacing: 0.12em;
+
+      .player-link strong {
+        display: block;
+        font-size: 1.05rem;
       }
-      .selection-card span {
-        font-size: 0.9rem;
-        color: rgba(226, 232, 240, 0.85);
+
+      .player-link span {
+        display: block;
+        margin-top: 0.24rem;
+        font-size: 0.83rem;
+        color: rgba(224, 232, 255, 0.9);
       }
-      .selection-card:hover {
-        border-color: rgba(255, 204, 0, 0.8);
-        transform: translateY(-4px);
+
+      @media (max-width: 980px) {
+        .hero,
+        .main-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .kpi-grid {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 640px) {
+        .page {
+          padding: 0.8rem;
+        }
+
+        .topbar {
+          align-items: start;
+          flex-direction: column;
+        }
+
+        .kpi-grid {
+          grid-template-columns: 1fr;
+        }
       }
     </style>
   </head>
   <body>
     <div class="page">
-      <div class="page-header">
-        {% include 'football/includes/dragon_nav.html' %}
-        <div>
+      <header class="topbar">
+        <div class="topbar-brand">
+          {% include 'football/includes/dragon_nav.html' %}
+          <img src="{% static 'logos/logo.png' %}" alt="Escudo C.D. Benagalbón" loading="lazy" />
           <h1>CRM · Cuerpo técnico</h1>
-          <p>Resumen en tiempo real combinando clasificación oficial y datos recogidos en partido.</p>
         </div>
-      </div>
+        <nav class="module-tabs">
+          <a class="module-tab is-active" href="{% url 'dashboard-home' %}">Resumen</a>
+          <a class="module-tab" href="{% url 'coach-detail' %}">Cuerpo técnico</a>
+          <a class="module-tab" href="{% url 'player-dashboard' %}">Jugadores</a>
+          <a class="module-tab" href="{% url 'match-action-page' %}">Registro</a>
+          <a class="module-tab" href="{% url 'manual-player-stats' %}">Ajuste manual</a>
+        </nav>
+      </header>
 
-      <section class="layout">
-        <article class="panel">
-          <header class="site-header">
-            <div class="header-title">
-              <h2>Clasificación & Rival</h2>
-              <p>Resumen oficial con clasificaciones y métricas clave.</p>
-            </div>
-            <button class="pill-button" id="refresh-btn">Actualizar desde Preferente</button>
-          </header>
-          <div class="logo-banner">
-            <img src="{% static 'logos/logo.png' %}" alt="Escudo C.D. Benagalbón" loading="lazy" />
-            <span>División de Honor Andaluza · Grupo 2</span>
+      <section class="hero">
+        <article class="team-photo" id="team-hero">
+          <div class="team-photo-content">
+            <h2 id="hero-team-name">C.D. Benagalbón</h2>
+            <p>División de Honor Andaluza · Grupo 2</p>
+            <p id="player-cards-scope">Jugador · histórico</p>
           </div>
-          <div class="standings-card">
-            <div class="card standings" id="standings">Cargando clasificación…</div>
+        </article>
+
+        <aside class="status-panel">
+          <h3>Estado del equipo</h3>
+          <div class="kpi-grid">
+            <article class="kpi">
+              <span>Posición</span>
+              <strong id="kpi-rank">-</strong>
+            </article>
+            <article class="kpi">
+              <span>Puntos</span>
+              <strong id="kpi-points">-</strong>
+            </article>
+            <article class="kpi">
+              <span>Partidos</span>
+              <strong id="kpi-played">-</strong>
+            </article>
           </div>
-          <p id="refresh-message" style="margin-top:0.5rem;">Última ejecución registrada: <strong id="refresh-last">sin datos</strong></p>
+
+          <div class="next-match" id="next-match">
+            <p>Próximo rival pendiente de carga...</p>
+          </div>
+
+          <div style="margin-top:0.8rem; display:flex; align-items:center; gap:0.65rem; flex-wrap:wrap;">
+            <button class="pill-button" id="refresh-btn">Actualizar clasificación</button>
+            <span id="refresh-last" style="font-size:0.8rem; color:rgba(220,230,255,0.8);">sin datos</span>
+          </div>
+          <p id="refresh-message">Última ejecución registrada.</p>
+        </aside>
+      </section>
+
+      <section class="main-grid">
+        <article class="block standings" id="standings-block">
+          <h3>Clasificación</h3>
+          <div id="standings">Cargando clasificación…</div>
+        </article>
+        <article class="block" id="team-metrics-block">
+          <h3>Indicadores de partido</h3>
+          <div id="team-metrics">Cargando métricas…</div>
         </article>
       </section>
 
-      <section class="layout">
-        <a class="selection-card" href="{% url 'coach-detail' %}">
-          <h2>Cuerpo técnico</h2>
-          <p>Entrenadores, análisis rival y sesiones.</p>
-        </a>
-        <a class="selection-card" href="{% url 'player-dashboard' %}">
-          <h2 id="player-cards-scope">Jugador</h2>
-          <p>Explora las tarjetas de jugador.</p>
-        </a>
-        <a class="selection-card" href="{% url 'match-action-page' %}">
-          <h2>Registrar acción</h2>
-          <p>Introduce cada jugada o incidencia del partido en vivo.</p>
-        </a>
-        <a class="selection-card" href="{% url 'manual-player-stats' %}">
-          <h2>Ajuste manual</h2>
-          <p>Edita PJ, PT, minutos y amarillas sin usar shell.</p>
-        </a>
+      <section class="players-header">
+        <h2>Zona jugadores</h2>
+        <a class="module-tab" href="{% url 'player-dashboard' %}">Ver panel completo</a>
       </section>
+      <section class="player-grid" id="player-cards"></section>
     </div>
 
     <script>
       const refreshMessage = document.getElementById('refresh-message');
       const refreshLast = document.getElementById('refresh-last');
+      const heroElement = document.getElementById('team-hero');
+      const heroImageCandidates = [
+        '{% static "football/images/team-01.jpg" %}',
+        '{% static "football/images/team-02.jpg" %}',
+        '{% static "football/images/team-03.jpg" %}',
+      ];
+      const heroFallback = '{% static "football/campo-futbol.jpg" %}';
+      let heroImageList = [];
+      let heroIndex = 0;
+      let heroTimer = null;
+
+      function preloadImage(src) {
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.onload = () => resolve(src);
+          img.onerror = () => resolve(null);
+          img.src = src;
+        });
+      }
+
+      function setHeroImage(src) {
+        if (!heroElement) return;
+        heroElement.style.setProperty('--hero-image', `url('${src}')`);
+      }
+
+      async function initHeroImages() {
+        const loaded = await Promise.all(heroImageCandidates.map(preloadImage));
+        heroImageList = loaded.filter(Boolean);
+        if (!heroImageList.length) {
+          setHeroImage(heroFallback);
+          return;
+        }
+        setHeroImage(heroImageList[0]);
+        if (heroImageList.length === 1) return;
+        heroTimer = window.setInterval(() => {
+          heroIndex = (heroIndex + 1) % heroImageList.length;
+          setHeroImage(heroImageList[heroIndex]);
+        }, 6500);
+      }
+
       async function renderDashboard() {
         try {
           const response = await fetch('/api/dashboard/');
           if (!response.ok) throw new Error('No se pudo cargar la dashboard');
           const payload = await response.json();
 
-          renderStandings(payload.standings);
+          if (payload.team && payload.team.name) {
+            const heroName = document.getElementById('hero-team-name');
+            if (heroName) heroName.textContent = payload.team.name;
+          }
+
+          renderStandings(payload.standings, payload.team);
           renderNextMatch(payload.next_match);
           renderTeamMetrics(payload.team_metrics);
           renderPlayerCards(payload.player_cards);
@@ -344,16 +470,26 @@
         } catch (error) {
           console.error(error);
           document.getElementById('standings').textContent = 'Error al cargar';
+          const playerCards = document.getElementById('player-cards');
+          if (playerCards) playerCards.innerHTML = '<p>No se pudieron cargar los jugadores.</p>';
         }
       }
 
-      function renderStandings(standings) {
+      function renderStandings(standings, team) {
         const container = document.getElementById('standings');
         if (!standings || !standings.length) {
           container.textContent = 'No hay datos de clasificación todavía.';
           return;
         }
+
+        const teamName = (team && team.name ? team.name : '').toUpperCase();
+        const teamRow = standings.find((row) => row.team === teamName) || standings[0];
+        document.getElementById('kpi-rank').textContent = teamRow?.rank ?? '-';
+        document.getElementById('kpi-points').textContent = teamRow?.points ?? '-';
+        document.getElementById('kpi-played').textContent = teamRow?.played ?? '-';
+
         const rows = standings
+          .slice(0, 10)
           .map(
             (standing) => `
             <tr>
@@ -363,7 +499,7 @@
               <td>${standing.wins}</td>
               <td>${standing.draws}</td>
               <td>${standing.losses}</td>
-              <td>${standing.points} pts</td>
+              <td>${standing.points}</td>
               <td>${standing.goal_difference >= 0 ? '+' : ''}${standing.goal_difference}</td>
             </tr>
           `
@@ -379,8 +515,8 @@
                 <th>PG</th>
                 <th>PE</th>
                 <th>PP</th>
-                <th>Puntos</th>
-                    <th>DG</th>
+                <th>PTS</th>
+                <th>DG</th>
               </tr>
             </thead>
             <tbody>${rows}</tbody>
@@ -395,9 +531,9 @@
         }
         const label = nextMatch.status === 'latest' ? 'Último partido' : 'Próximo rival';
         container.innerHTML = `
-          <div class="chip"><span></span>${label} · Jornada ${nextMatch.round}</div>
-          <p style="margin:0.4rem 0;">${nextMatch.opponent.name} · ${nextMatch.home ? 'Local' : 'Visitante'}</p>
-          <p style="margin:0;">${nextMatch.date || 'Fecha sin definir'} · ${nextMatch.location || 'Campo por confirmar'}</p>
+          <p><strong>${label}</strong> · Jornada ${nextMatch.round || '-'}</p>
+          <p>${nextMatch.opponent?.name || 'Rival por confirmar'} · ${nextMatch.home ? 'Local' : 'Visitante'}</p>
+          <p>${nextMatch.date || 'Fecha sin definir'} · ${nextMatch.location || 'Campo por confirmar'}</p>
         `;
       }
 
@@ -406,32 +542,33 @@
         if (!container || !metrics) {
           return;
         }
-        const events = metrics.top_event_types
-          .map((item) => `<li>${item.event}: ${item.count}</li>`)
+        const events = (metrics.top_event_types || [])
+          .map((item) => `<li><span>${item.event}</span><strong>${item.count}</strong></li>`)
           .join('');
         container.innerHTML = `
-          <p><strong>${metrics.total_events}</strong> acciones registradas</p>
-          <ul class="actions">${events}</ul>
+          <p><strong>${metrics.total_events || 0}</strong> acciones registradas</p>
+          <ul class="actions">${events || '<li><span>Sin datos</span><strong>-</strong></li>'}</ul>
         `;
       }
 
       function renderPlayerCards(cards) {
         const container = document.getElementById('player-cards');
-        if (!container) {
-          return;
-        }
+        if (!container) return;
+
         if (!cards || !cards.length) {
-          container.innerHTML = '<p>No hay jugadores con acciones registradas de momento.</p>';
+          container.innerHTML = '<p>No hay jugadores disponibles de momento.</p>';
           return;
         }
+
         container.innerHTML = cards
+          .slice(0, 12)
           .map(
             (player) => `
               <article class="player-card">
                 <a class="player-link" href="/player/${player.player_id}/">
                   <strong>${player.name}</strong>
-                  <span>${player.actions} acciones · ${player.successes} éxitos</span>
                   <span>${player.pj} PJ · ${player.pt} PT · ${player.minutes} min</span>
+                  <span>${player.actions} acciones · ${player.successes} éxitos</span>
                   <span>${player.goals} goles · ${player.yellow_cards}/${player.red_cards} tarjetas</span>
                 </a>
               </article>
@@ -442,18 +579,13 @@
 
       function renderPlayerCardsScope(scope) {
         const scopeText = document.getElementById('player-cards-scope');
-        if (!scopeText) {
-          return;
-        }
+        if (!scopeText) return;
+
         if (scope && scope.label) {
           scopeText.textContent = scope.label;
           return;
         }
-        if (scope && scope.type === 'match') {
-          scopeText.textContent = `Jugador · datos del partido ${scope.round} vs ${scope.opponent}`;
-          return;
-        }
-        scopeText.textContent = 'Jugador';
+        scopeText.textContent = 'Jugador · histórico';
       }
 
       function getCookie(name) {
@@ -513,7 +645,7 @@
         } finally {
           if (button) {
             button.disabled = false;
-            button.textContent = 'Actualizar desde Preferente';
+            button.textContent = 'Actualizar clasificación';
           }
         }
       }
@@ -522,6 +654,8 @@
       if (refreshBtn) {
         refreshBtn.addEventListener('click', () => refreshData());
       }
+
+      initHeroImages();
       renderDashboard().then(() => refreshData({ silent: true }));
     </script>
   </body>
