@@ -344,6 +344,7 @@ class SessionTask(models.Model):
     block = models.CharField(max_length=30, choices=BLOCK_CHOICES, default=BLOCK_MAIN_1)
     duration_minutes = models.PositiveSmallIntegerField(default=15)
     objective = models.CharField(max_length=180, blank=True)
+    tactical_layout = models.JSONField(default=dict, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PLANNED)
     order = models.PositiveSmallIntegerField(default=0)
     notes = models.TextField(blank=True)

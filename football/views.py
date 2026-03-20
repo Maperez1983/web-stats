@@ -669,6 +669,7 @@ def sessions_page(request):
     planner_tables_ready = True
     try:
         TrainingMicrocycle.objects.order_by('-id').values_list('id', flat=True).first()
+        SessionTask.objects.order_by('-id').values_list('tactical_layout', flat=True).first()
     except (OperationalError, ProgrammingError):
         planner_tables_ready = False
         error = (
@@ -763,12 +764,22 @@ def sessions_page(request):
                     block = SessionTask.BLOCK_MAIN_1
                 duration = _parse_int(request.POST.get('task_minutes')) or 15
                 objective = (request.POST.get('task_objective') or '').strip()
+                tactical_layout_raw = (request.POST.get('tactical_layout') or '').strip()
+                tactical_layout = {}
+                if tactical_layout_raw:
+                    try:
+                        parsed_layout = json.loads(tactical_layout_raw)
+                        if isinstance(parsed_layout, dict):
+                            tactical_layout = parsed_layout
+                    except Exception:
+                        tactical_layout = {}
                 SessionTask.objects.create(
                     session=session,
                     title=title,
                     block=block,
                     duration_minutes=max(5, min(duration, 90)),
                     objective=objective,
+                    tactical_layout=tactical_layout,
                     order=session.tasks.count() + 1,
                 )
                 feedback = 'Tarea añadida a la sesión.'
@@ -807,6 +818,7 @@ def sessions_page(request):
             'session_intensities': TrainingSession.INTENSITY_CHOICES,
             'task_blocks': SessionTask.BLOCK_CHOICES,
             'planner_tables_ready': planner_tables_ready,
+            'roster_players': Player.objects.filter(team=primary_team).order_by('name')[:28],
         },
     )
 

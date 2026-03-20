@@ -208,9 +208,171 @@
         color: rgba(227, 236, 255, 0.75);
       }
 
+      .task-tools {
+        display: flex;
+        gap: 0.55rem;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .secondary {
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 999px;
+        padding: 0.5rem 0.9rem;
+        color: var(--ink);
+        background: rgba(255, 255, 255, 0.06);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .pad-note {
+        margin: 0;
+        font-size: 0.75rem;
+        color: rgba(228, 237, 255, 0.74);
+      }
+
+      .task-badge {
+        display: inline-block;
+        margin-left: 0.35rem;
+        border-radius: 999px;
+        padding: 0.1rem 0.45rem;
+        background: rgba(34, 211, 238, 0.2);
+        border: 1px solid rgba(34, 211, 238, 0.45);
+        font-size: 0.62rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      .pad-modal {
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+        background: rgba(2, 8, 20, 0.78);
+        z-index: 40;
+      }
+
+      .pad-modal.is-open { display: flex; }
+
+      .pad-dialog {
+        width: min(980px, 100%);
+        border-radius: 20px;
+        border: 1px solid var(--line);
+        background: #071631;
+        padding: 0.9rem;
+        display: grid;
+        gap: 0.8rem;
+        grid-template-columns: 250px minmax(0, 1fr);
+      }
+
+      .pad-panel {
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.05);
+        padding: 0.7rem;
+      }
+
+      .pad-panel h4 {
+        margin: 0 0 0.55rem;
+        font-size: 0.75rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+
+      .palette-list {
+        display: grid;
+        gap: 0.35rem;
+        max-height: 300px;
+        overflow: auto;
+      }
+
+      .palette-btn {
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 10px;
+        background: rgba(0, 0, 0, 0.2);
+        color: var(--ink);
+        padding: 0.4rem 0.55rem;
+        text-align: left;
+        font-size: 0.74rem;
+        cursor: pointer;
+      }
+
+      .pad-field {
+        position: relative;
+        min-height: 420px;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.24);
+        background:
+          linear-gradient(180deg, rgba(6, 40, 16, 0.78), rgba(5, 53, 18, 0.92)),
+          repeating-linear-gradient(
+            0deg,
+            transparent 0 26px,
+            rgba(255, 255, 255, 0.05) 26px 27px
+          );
+        overflow: hidden;
+      }
+
+      .field-line-mid {
+        position: absolute;
+        left: 50%;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: rgba(255, 255, 255, 0.5);
+        transform: translateX(-50%);
+      }
+
+      .field-circle-mid {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 92px;
+        height: 92px;
+        border-radius: 50%;
+        border: 2px solid rgba(255, 255, 255, 0.55);
+        transform: translate(-50%, -50%);
+      }
+
+      .pad-token {
+        position: absolute;
+        min-width: 34px;
+        min-height: 34px;
+        border-radius: 999px;
+        border: 2px solid rgba(255, 255, 255, 0.7);
+        color: #fff;
+        background: rgba(14, 116, 144, 0.86);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 0.45rem;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        cursor: grab;
+        user-select: none;
+        touch-action: none;
+        transform: translate(-50%, -50%);
+      }
+
+      .pad-token.material {
+        background: rgba(245, 158, 11, 0.85);
+      }
+
+      .pad-footer {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.6rem;
+      }
+
       @media (max-width: 940px) {
         .grid { grid-template-columns: 1fr; }
         .row { grid-template-columns: 1fr; }
+        .pad-dialog { grid-template-columns: 1fr; }
       }
     </style>
   </head>
@@ -322,6 +484,7 @@
           <form method="post">
             {% csrf_token %}
             <input type="hidden" name="planner_action" value="create_task" />
+            <input type="hidden" name="tactical_layout" id="tactical-layout-input" value="{}" />
             <label>
               Sesión
               <select name="session_id" required>
@@ -353,6 +516,10 @@
               Objetivo
               <input type="text" name="task_objective" maxlength="180" placeholder="Activar vigilancia y saltos coordinados" />
             </label>
+            <div class="task-tools">
+              <button class="secondary" type="button" id="open-tactical-pad">Abrir Tactical Pad</button>
+              <p class="pad-note" id="pad-summary">Sin distribución táctica guardada.</p>
+            </div>
             <button class="primary" type="submit">Añadir Tarea</button>
           </form>
         </article>
@@ -385,7 +552,10 @@
                   {% if session.tasks.all %}
                   <ul class="tasks">
                     {% for task in session.tasks.all %}
-                    <li>{{ task.get_block_display }} · {{ task.title }} ({{ task.duration_minutes }}')</li>
+                    <li>
+                      {{ task.get_block_display }} · {{ task.title }} ({{ task.duration_minutes }}')
+                      {% if task.tactical_layout.tokens %}<span class="task-badge">Tactical Pad</span>{% endif %}
+                    </li>
                     {% endfor %}
                   </ul>
                   {% endif %}
@@ -402,6 +572,197 @@
           {% endif %}
         </article>
       </section>
+
+      <section class="pad-modal" id="pad-modal" aria-hidden="true">
+        <div class="pad-dialog">
+          <aside class="pad-panel">
+            <h4>Jugadores</h4>
+            <div class="palette-list">
+              {% for player in roster_players %}
+              <button
+                type="button"
+                class="palette-btn"
+                data-pad-add="player"
+                data-label="{{ player.number|default:'--' }}"
+                data-title="{{ player.name }}"
+              >
+                #{{ player.number|default:"--" }} · {{ player.name }}
+              </button>
+              {% endfor %}
+            </div>
+            <h4 style="margin-top:0.9rem;">Material</h4>
+            <div class="palette-list">
+              <button type="button" class="palette-btn" data-pad-add="material" data-label="CONO" data-title="Cono">Cono</button>
+              <button type="button" class="palette-btn" data-pad-add="material" data-label="PICA" data-title="Pica">Pica</button>
+              <button type="button" class="palette-btn" data-pad-add="material" data-label="ARO" data-title="Aro">Aro</button>
+              <button type="button" class="palette-btn" data-pad-add="material" data-label="B1" data-title="Balón">Balón</button>
+            </div>
+          </aside>
+          <article class="pad-panel">
+            <h4>Distribución en Campo</h4>
+            <div class="pad-field" id="pad-field">
+              <span class="field-line-mid"></span>
+              <span class="field-circle-mid"></span>
+            </div>
+            <div class="pad-footer" style="margin-top:0.7rem;">
+              <button type="button" class="secondary" id="pad-clear">Limpiar</button>
+              <div style="display:flex; gap:0.5rem;">
+                <button type="button" class="secondary" id="pad-cancel">Cancelar</button>
+                <button type="button" class="primary" id="pad-save">Guardar distribución</button>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
     </main>
+    <script>
+      const padModal = document.getElementById('pad-modal');
+      const openPadBtn = document.getElementById('open-tactical-pad');
+      const closePadBtn = document.getElementById('pad-cancel');
+      const clearPadBtn = document.getElementById('pad-clear');
+      const savePadBtn = document.getElementById('pad-save');
+      const padField = document.getElementById('pad-field');
+      const tacticalLayoutInput = document.getElementById('tactical-layout-input');
+      const padSummary = document.getElementById('pad-summary');
+      const addButtons = Array.from(document.querySelectorAll('[data-pad-add]'));
+
+      let padState = { tokens: [] };
+      let activeDragTokenId = null;
+
+      function safeParseLayout(raw) {
+        if (!raw) return { tokens: [] };
+        try {
+          const parsed = JSON.parse(raw);
+          if (!parsed || !Array.isArray(parsed.tokens)) return { tokens: [] };
+          return { tokens: parsed.tokens };
+        } catch (err) {
+          return { tokens: [] };
+        }
+      }
+
+      function clamp(value, min, max) {
+        return Math.max(min, Math.min(max, value));
+      }
+
+      function updatePadSummary() {
+        const total = (padState.tokens || []).length;
+        if (!padSummary) return;
+        if (!total) {
+          padSummary.textContent = 'Sin distribución táctica guardada.';
+          return;
+        }
+        const players = padState.tokens.filter((token) => token.type === 'player').length;
+        const materials = total - players;
+        padSummary.textContent = `${players} jugador(es) · ${materials} material(es) distribuidos`;
+      }
+
+      function tokenHtml(token) {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = `pad-token ${token.type === 'material' ? 'material' : ''}`;
+        item.dataset.tokenId = token.id;
+        item.style.left = `${token.x}%`;
+        item.style.top = `${token.y}%`;
+        item.textContent = token.label || '?';
+        item.title = token.title || token.label || 'Elemento';
+        item.addEventListener('pointerdown', (event) => {
+          activeDragTokenId = token.id;
+          item.setPointerCapture(event.pointerId);
+        });
+        item.addEventListener('dblclick', () => {
+          padState.tokens = padState.tokens.filter((entry) => entry.id !== token.id);
+          renderPadTokens();
+        });
+        return item;
+      }
+
+      function renderPadTokens() {
+        if (!padField) return;
+        Array.from(padField.querySelectorAll('.pad-token')).forEach((node) => node.remove());
+        (padState.tokens || []).forEach((token) => {
+          padField.appendChild(tokenHtml(token));
+        });
+        updatePadSummary();
+      }
+
+      function addToken(type, label, title) {
+        const token = {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          type,
+          label,
+          title,
+          x: 50,
+          y: 50,
+        };
+        padState.tokens.push(token);
+        renderPadTokens();
+      }
+
+      function openPad() {
+        if (!padModal) return;
+        padState = safeParseLayout(tacticalLayoutInput?.value || '{}');
+        padModal.classList.add('is-open');
+        padModal.setAttribute('aria-hidden', 'false');
+        renderPadTokens();
+      }
+
+      function closePad() {
+        if (!padModal) return;
+        padModal.classList.remove('is-open');
+        padModal.setAttribute('aria-hidden', 'true');
+        activeDragTokenId = null;
+      }
+
+      addButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+          const type = button.dataset.padAdd;
+          const label = button.dataset.label || 'X';
+          const title = button.dataset.title || label;
+          addToken(type, label, title);
+        });
+      });
+
+      if (padField) {
+        padField.addEventListener('pointermove', (event) => {
+          if (!activeDragTokenId) return;
+          const rect = padField.getBoundingClientRect();
+          const x = clamp(((event.clientX - rect.left) / rect.width) * 100, 2, 98);
+          const y = clamp(((event.clientY - rect.top) / rect.height) * 100, 2, 98);
+          padState.tokens = padState.tokens.map((token) => (
+            token.id === activeDragTokenId ? { ...token, x, y } : token
+          ));
+          renderPadTokens();
+        });
+        padField.addEventListener('pointerup', () => {
+          activeDragTokenId = null;
+        });
+      }
+
+      if (openPadBtn) openPadBtn.addEventListener('click', openPad);
+      if (closePadBtn) closePadBtn.addEventListener('click', closePad);
+      if (clearPadBtn) {
+        clearPadBtn.addEventListener('click', () => {
+          padState = { tokens: [] };
+          renderPadTokens();
+        });
+      }
+      if (savePadBtn) {
+        savePadBtn.addEventListener('click', () => {
+          if (tacticalLayoutInput) {
+            tacticalLayoutInput.value = JSON.stringify(padState);
+          }
+          updatePadSummary();
+          closePad();
+        });
+      }
+      if (padModal) {
+        padModal.addEventListener('click', (event) => {
+          if (event.target === padModal) closePad();
+        });
+      }
+
+      padState = safeParseLayout(tacticalLayoutInput?.value || '{}');
+      updatePadSummary();
+    </script>
   </body>
 </html>
