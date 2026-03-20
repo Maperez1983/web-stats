@@ -140,6 +140,7 @@ def load_cached_next_match():
         with NEXT_MATCH_CACHE.open(encoding="utf-8") as handle:
             payload = json.load(handle)
             if isinstance(payload, dict):
+                payload = normalize_next_match_payload(payload)
                 payload.setdefault("status", "next")
                 status = (payload.get('status') or '').lower()
                 date_raw = payload.get('date')
@@ -158,6 +159,21 @@ def load_cached_next_match():
     except Exception:
         return None
     return None
+
+
+def normalize_next_match_payload(payload):
+    if not isinstance(payload, dict):
+        return payload
+    opponent = payload.get('opponent')
+    if isinstance(opponent, str):
+        payload['opponent'] = {'name': opponent.strip() or 'Rival por confirmar'}
+    elif isinstance(opponent, dict):
+        name = str(opponent.get('name') or '').strip()
+        payload['opponent'] = {'name': name or 'Rival por confirmar'}
+    else:
+        fallback = str(payload.get('rival') or '').strip()
+        payload['opponent'] = {'name': fallback or 'Rival por confirmar'}
+    return payload
 
 
 @login_required
@@ -1136,7 +1152,7 @@ def get_next_match(primary_team, group):
                     json.dump(payload, handle)
             except Exception:
                 pass
-            return payload
+            return normalize_next_match_payload(payload)
         except Exception:
             return None
 
@@ -1313,14 +1329,14 @@ def gather_team_fields_for_group(group):
 
 def build_match_payload(match, primary_team, status):
     opponent = match.away_team if match.home_team == primary_team else match.home_team
-    return {
+    return normalize_next_match_payload({
         'round': match.round,
         'date': match.date.isoformat() if match.date else None,
         'location': match.location,
         'opponent': {'name': opponent.name if opponent else 'Rival desconocido'},
         'home': match.home_team == primary_team,
         'status': status,
-    }
+    })
 
 
 def confirmed_events_queryset():

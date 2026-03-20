@@ -538,9 +538,13 @@
           return;
         }
         const label = nextMatch.status === 'latest' ? 'Último partido' : 'Próximo rival';
+        const opponentName =
+          typeof nextMatch.opponent === 'string'
+            ? nextMatch.opponent
+            : nextMatch.opponent?.name || nextMatch.rival || 'Rival por confirmar';
         container.innerHTML = `
           <p><strong>${label}</strong> · Jornada ${nextMatch.round || '-'}</p>
-          <p>${nextMatch.opponent?.name || 'Rival por confirmar'} · ${nextMatch.home ? 'Local' : 'Visitante'}</p>
+          <p>${opponentName} · ${nextMatch.home ? 'Local' : 'Visitante'}</p>
           <p>${nextMatch.date || 'Fecha sin definir'} · ${nextMatch.location || 'Campo por confirmar'}</p>
         `;
       }
