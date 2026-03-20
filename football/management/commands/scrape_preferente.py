@@ -84,9 +84,15 @@ class Command(BaseCommand):
             defaults={'name': group_name},
         )
 
-        response = requests.get(url, headers={'User-Agent': 'webstats-crm/1.0'})
-        if response.status_code != 200:
-            raise CommandError(f'No se pudo descargar la URL ({response.status_code}).')
+        try:
+            response = requests.get(
+                url,
+                headers={'User-Agent': 'webstats-crm/1.0'},
+                timeout=30,
+            )
+            response.raise_for_status()
+        except requests.RequestException as exc:
+            raise CommandError(f'No se pudo descargar la URL: {exc}') from exc
 
         soup = BeautifulSoup(response.text, 'html.parser')
         standings_table = self.find_standings_table(soup)

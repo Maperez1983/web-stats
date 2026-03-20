@@ -10,6 +10,7 @@ import unicodedata
 import re
 
 from django.conf import settings
+from django.core.cache import cache
 from django.db import transaction
 from django.db.models import Count, Max, Q
 from django.http import Http404, HttpResponse, JsonResponse
@@ -57,6 +58,8 @@ from football.services import (
 SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "import_from_rfef.py"
 MANAGE_PY_DIR = SCRIPT_PATH.parents[1]
 NEXT_MATCH_CACHE = Path(settings.BASE_DIR) / "data" / "input" / "rfaf-next-match.json"
+SCRAPE_LOCK_KEY = "football:refresh_scraping_running"
+SCRAPE_LOCK_TIMEOUT_SECONDS = 900
 SUCCESS_RESULTS = {"ok", "ganado", "g", "ganó", "goles", "anotado", "marcado"}
 DUEL_EVENT_KEYWORDS = {
     "duelo",
@@ -630,9 +633,10 @@ def save_convocation(request):
     players = Player.objects.filter(team=primary_team, id__in=player_ids)
     if not players.exists():
         return JsonResponse({'error': 'No se encontraron jugadores para la convocatoria'}, status=400)
-    ConvocationRecord.objects.filter(team=primary_team, is_current=True).update(is_current=False)
-    record = ConvocationRecord.objects.create(team=primary_team)
-    record.players.set(players.distinct())
+    with transaction.atomic():
+        ConvocationRecord.objects.filter(team=primary_team, is_current=True).update(is_current=False)
+        record = ConvocationRecord.objects.create(team=primary_team)
+        record.players.set(players.distinct())
     return JsonResponse({'saved': True, 'count': players.count()})
 
 
@@ -1109,6 +1113,11 @@ def player_match_stats_page(request, player_id, match_id):
 @authenticated_write
 @require_POST
 def refresh_scraping(request):
+    if not cache.add(SCRAPE_LOCK_KEY, "1", timeout=SCRAPE_LOCK_TIMEOUT_SECONDS):
+        return JsonResponse(
+            {'status': 'error', 'message': 'Ya hay una actualización en curso. Inténtalo en unos minutos.'},
+            status=429,
+        )
     primary_team = Team.objects.filter(is_primary=True).first()
     try:
         result = subprocess.run(
@@ -1122,6 +1131,8 @@ def refresh_scraping(request):
             raise RuntimeError(result.stderr.strip() or 'Error desconocido al ejecutar el script.')
     except Exception as exc:
         return JsonResponse({'status': 'error', 'message': str(exc)}, status=500)
+    finally:
+        cache.delete(SCRAPE_LOCK_KEY)
     roster_ok, roster_message = refresh_primary_roster_cache(primary_team, force=True)
     roster_status = 'y plantilla actualizada' if roster_ok else f'plantilla no actualizada ({roster_message})'
     return JsonResponse(
