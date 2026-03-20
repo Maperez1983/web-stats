@@ -11,3 +11,7 @@ __pycache__/
 node_modules/
 staticfiles/
 media/
+data/input/rfaf_storage_state.json
+data/debug/
+data/input/universo-rfaf-capture.json
+data/input/universo-rfaf-snapshot.json

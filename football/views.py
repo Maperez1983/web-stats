@@ -90,6 +90,7 @@ from football.services import (
 SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "import_from_rfef.py"
 MANAGE_PY_DIR = SCRIPT_PATH.parents[1]
 NEXT_MATCH_CACHE = Path(settings.BASE_DIR) / "data" / "input" / "rfaf-next-match.json"
+UNIVERSO_SNAPSHOT_PATH = Path(settings.BASE_DIR) / "data" / "input" / "universo-rfaf-snapshot.json"
 SCRAPE_LOCK_KEY = "football:refresh_scraping_running"
 SCRAPE_LOCK_TIMEOUT_SECONDS = 900
 
@@ -180,6 +181,59 @@ def normalize_next_match_payload(payload):
     return payload
 
 
+def load_universo_snapshot():
+    if not UNIVERSO_SNAPSHOT_PATH.exists():
+        return None
+    try:
+        with UNIVERSO_SNAPSHOT_PATH.open(encoding='utf-8') as handle:
+            payload = json.load(handle)
+            return payload if isinstance(payload, dict) else None
+    except Exception:
+        return None
+
+
+def _safe_int(value, default=0):
+    try:
+        return int(str(value).strip())
+    except Exception:
+        return default
+
+
+def _serialize_universo_standings(snapshot):
+    if not isinstance(snapshot, dict):
+        return []
+    rows = snapshot.get('standings')
+    if not isinstance(rows, list):
+        return []
+    normalized = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        team = str(row.get('team') or '').strip()
+        if not team:
+            continue
+        gf = _safe_int(row.get('goals_for'))
+        ga = _safe_int(row.get('goals_against'))
+        gd = row.get('goal_difference')
+        if gd in (None, ''):
+            gd = gf - ga
+        normalized.append(
+            {
+                'rank': _safe_int(row.get('position'), default=0),
+                'team': team.upper(),
+                'played': _safe_int(row.get('played')),
+                'wins': _safe_int(row.get('wins')),
+                'draws': _safe_int(row.get('draws')),
+                'losses': _safe_int(row.get('losses')),
+                'goals_for': gf,
+                'goals_against': ga,
+                'goal_difference': _safe_int(gd),
+                'points': _safe_int(row.get('points')),
+            }
+        )
+    return sorted(normalized, key=lambda x: (x['rank'] <= 0, x['rank'], -x['points'], x['team']))
+
+
 @login_required
 def dashboard_data(request):
     """Devuelve los datos principales que alimentarán la home cuerpo técnico/jugador."""
@@ -195,8 +249,13 @@ def dashboard_data(request):
     except Exception:
         pass
 
-    standings = serialize_standings(group)
-    next_match = get_next_match(primary_team, group)
+    universo_snapshot = load_universo_snapshot()
+    standings = _serialize_universo_standings(universo_snapshot) or serialize_standings(group)
+    next_match = (
+        normalize_next_match_payload(universo_snapshot.get('next_match'))
+        if isinstance(universo_snapshot, dict) and isinstance(universo_snapshot.get('next_match'), dict)
+        else get_next_match(primary_team, group)
+    )
     team_metrics = compute_team_metrics(primary_team)
     player_metrics = compute_player_metrics(primary_team)
     player_cards = compute_player_cards(primary_team)
