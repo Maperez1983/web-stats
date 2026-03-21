@@ -115,6 +115,18 @@ def _canonical_action_value(value):
     return ' '.join(str(value or '').split()).strip().lower()
 
 
+def _build_pdf_response_or_html_fallback(request, html: str, filename: str):
+    if not weasyprint:
+        return HttpResponse(html, content_type='text/html; charset=utf-8')
+    try:
+        pdf_file = weasyprint.HTML(string=html, base_url=request.build_absolute_uri('/')).write_pdf()
+        response = HttpResponse(pdf_file, content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{filename}.pdf"'
+        return response
+    except Exception:
+        return HttpResponse(html, content_type='text/html; charset=utf-8')
+
+
 def _serialize_match_event(event, duplicate=False):
     player = event.player
     return {
@@ -872,13 +884,8 @@ def convocation_pdf(request):
     }
 
     html = render_to_string('football/convocation_pdf.html', context)
-    if weasyprint is None:
-        return HttpResponse(html)
-    pdf_file = weasyprint.HTML(string=html, base_url=request.build_absolute_uri('/')).write_pdf()
-    response = HttpResponse(pdf_file, content_type='application/pdf')
     filename = f'convocatoria-{timezone.localdate().isoformat()}'
-    response['Content-Disposition'] = f'attachment; filename="{filename}.pdf"'
-    return response
+    return _build_pdf_response_or_html_fallback(request, html, filename)
 
 
 @login_required
@@ -933,13 +940,8 @@ def session_task_pdf(request, task_id):
         'generated_at': timezone.localtime(),
     }
     html = render_to_string('football/session_task_pdf.html', context)
-    if weasyprint is None:
-        return HttpResponse(html)
-    pdf_file = weasyprint.HTML(string=html, base_url=request.build_absolute_uri('/')).write_pdf()
-    response = HttpResponse(pdf_file, content_type='application/pdf')
     filename = slugify(f'tarea-{task.session.session_date}-{task.title}') or f'tarea-{task.id}'
-    response['Content-Disposition'] = f'attachment; filename="{filename}.pdf"'
-    return response
+    return _build_pdf_response_or_html_fallback(request, html, filename)
 
 
 def coach_cards_page(request):
@@ -1384,8 +1386,6 @@ def player_pdf(request, player_id):
     primary_team = Team.objects.filter(is_primary=True).first()
     if not primary_team:
         raise Http404('Equipo principal no configurado')
-    if not weasyprint:
-        raise Http404('La generación de PDF no está disponible en este entorno')
     player = Player.objects.filter(id=player_id, team=primary_team).first()
     if not player:
         raise Http404('Jugador no encontrado')
@@ -1398,11 +1398,8 @@ def player_pdf(request, player_id):
         {'player': player, 'stats': detail},
         request=request,
     )
-    pdf_file = weasyprint.HTML(string=html, base_url=request.build_absolute_uri('/')).write_pdf()
-    response = HttpResponse(pdf_file, content_type='application/pdf')
     filename = slugify(player.name or 'jugador')
-    response['Content-Disposition'] = f'attachment; filename="{filename}.pdf"'
-    return response
+    return _build_pdf_response_or_html_fallback(request, html, filename)
 
 
 def player_presentation(request, player_id):

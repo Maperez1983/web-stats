@@ -625,6 +625,7 @@
                 data-label="{{ item.label }}"
                 data-title="{{ item.title }}"
                 data-kind="{{ item.kind }}"
+                data-icon="{{ item.icon|default:'•' }}"
               >
                 <span class="icon">{{ item.icon|default:"•" }}</span>{{ item.title }}
               </button>
@@ -658,16 +659,59 @@
       const tacticalLayoutInput = document.getElementById('tactical-layout-input');
       const padSummary = document.getElementById('pad-summary');
       const addButtons = Array.from(document.querySelectorAll('[data-pad-add]'));
+      const MATERIAL_ICON_BY_KIND = {
+        cone: '▲',
+        pole: '┃',
+        ring: '◯',
+        ball: '●',
+        hurdle: '⊓',
+        ladder: '☷',
+        mannequin: '♟',
+        goal: '⌷',
+        bib: '▣',
+        marker: '◉',
+        tape: '⎍',
+        timer: '◷',
+      };
+      const MATERIAL_ICON_BY_LABEL = {
+        CONO: '▲',
+        PICA: '┃',
+        ARO: '◯',
+        BAL: '●',
+        MINI: '⊓',
+        ESC: '☷',
+        MANIQ: '♟',
+        PORT: '⌷',
+        PETO: '▣',
+        SETA: '◉',
+        CINTA: '⎍',
+        CRONO: '◷',
+      };
 
       let padState = { tokens: [] };
       let activeDragTokenId = null;
+
+      function resolveMaterialIcon(token) {
+        if (!token || token.type !== 'material') return '';
+        const explicit = String(token.icon || '').trim();
+        if (explicit) return explicit;
+        const kindKey = String(token.kind || '').trim().toLowerCase();
+        if (kindKey && MATERIAL_ICON_BY_KIND[kindKey]) return MATERIAL_ICON_BY_KIND[kindKey];
+        const labelKey = String(token.label || '').trim().toUpperCase();
+        return MATERIAL_ICON_BY_LABEL[labelKey] || '•';
+      }
 
       function safeParseLayout(raw) {
         if (!raw) return { tokens: [] };
         try {
           const parsed = JSON.parse(raw);
           if (!parsed || !Array.isArray(parsed.tokens)) return { tokens: [] };
-          return { tokens: parsed.tokens };
+          const normalizedTokens = parsed.tokens.map((token) => {
+            if (!token || typeof token !== 'object') return token;
+            if (token.type !== 'material') return token;
+            return { ...token, icon: resolveMaterialIcon(token) };
+          });
+          return { tokens: normalizedTokens };
         } catch (err) {
           return { tokens: [] };
         }
@@ -697,7 +741,14 @@
         item.dataset.tokenId = token.id;
         item.style.left = `${token.x}%`;
         item.style.top = `${token.y}%`;
-        item.textContent = token.label || '?';
+        if (token.type === 'material') {
+          item.textContent = resolveMaterialIcon(token);
+          item.style.fontSize = '1.05rem';
+          item.style.minWidth = '34px';
+          item.style.padding = '0 0.25rem';
+        } else {
+          item.textContent = token.label || '?';
+        }
         item.title = token.title || token.label || 'Elemento';
         item.addEventListener('pointerdown', (event) => {
           activeDragTokenId = token.id;
@@ -719,13 +770,14 @@
         updatePadSummary();
       }
 
-      function addToken(type, label, title, kind = '') {
+      function addToken(type, label, title, kind = '', icon = '') {
         const token = {
           id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
           type,
           label,
           title,
           kind,
+          icon: type === 'material' ? (icon || MATERIAL_ICON_BY_KIND[String(kind || '').toLowerCase()] || MATERIAL_ICON_BY_LABEL[String(label || '').toUpperCase()] || '•') : '',
           x: 50,
           y: 50,
         };
@@ -754,7 +806,8 @@
           const label = button.dataset.label || 'X';
           const title = button.dataset.title || label;
           const kind = button.dataset.kind || '';
-          addToken(type, label, title, kind);
+          const icon = button.dataset.icon || '';
+          addToken(type, label, title, kind, icon);
         });
       });
 
