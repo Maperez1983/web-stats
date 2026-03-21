@@ -2083,6 +2083,70 @@ def player_detail_page(request, player_id):
             latest_injury_record and latest_injury_record.is_active
         )
         player_photo_url = resolve_player_photo_url(request, player)
+
+        def _to_int_value(value):
+            return _parse_int(value) or 0
+
+        stats_source = detail or {}
+        pj = _to_int_value(stats_source.get('pj'))
+        pt = _to_int_value(stats_source.get('pt'))
+        minutes = _to_int_value(stats_source.get('minutes'))
+        goals = _to_int_value(stats_source.get('goals'))
+        yellow_cards = _to_int_value(stats_source.get('yellow_cards'))
+        red_cards = _to_int_value(stats_source.get('red_cards'))
+        second_yellow_cards = _to_int_value(stats_source.get('second_yellow_cards'))
+        suplente = max(pj - pt, 0)
+        goals_per_match = round((goals / pj), 2) if pj else 0
+        max_minutes = pj * 90
+        minute_ratio = round((minutes / max_minutes) * 100, 1) if max_minutes else 0
+        minute_ratio = max(0, min(minute_ratio, 100))
+
+        standings_rows = _serialize_universo_standings(load_universo_snapshot())
+        if not standings_rows and primary_team.group:
+            standings_rows = serialize_standings(primary_team.group)
+        team_points = 0
+        team_rank = 0
+        team_key = _normalize_team_lookup_key(primary_team.name)
+        for row in standings_rows:
+            candidate_key = _normalize_team_lookup_key(row.get('full_name') or row.get('team'))
+            if team_key and candidate_key == team_key:
+                team_points = _to_int_value(row.get('points'))
+                team_rank = _to_int_value(row.get('rank'))
+                break
+        if not team_points and not team_rank and standings_rows:
+            preferred_aliases = ('benagalbon', 'c.d. benagalbon', 'cd benagalbon')
+            for row in standings_rows:
+                full_name = str(row.get('full_name') or row.get('team') or '').lower()
+                if any(alias in full_name for alias in preferred_aliases):
+                    team_points = _to_int_value(row.get('points'))
+                    team_rank = _to_int_value(row.get('rank'))
+                    break
+
+        season_label = ''
+        division_label = ''
+        if primary_team.group:
+            division_label = primary_team.group.name or ''
+            season = primary_team.group.season
+            if season:
+                if season.start_date and season.end_date:
+                    season_label = f'{season.start_date.year}-{season.end_date.year}'
+                else:
+                    season_label = season.name or ''
+        if not season_label:
+            season_label = 'Temporada actual'
+
+        general_kpis = [
+            {'label': 'Partidos', 'value': pj, 'pct': 100 if pj else 0},
+            {'label': 'Titular', 'value': pt, 'pct': round((pt / pj) * 100, 1) if pj else 0},
+            {'label': 'Suplente', 'value': suplente, 'pct': round((suplente / pj) * 100, 1) if pj else 0},
+            {'label': 'Minutos', 'value': minutes, 'pct': minute_ratio},
+            {'label': 'Total goles', 'value': goals, 'pct': round((goals / pj) * 100, 1) if pj else 0},
+            {'label': 'Media goles/partido', 'value': goals_per_match, 'pct': round(min(goals_per_match * 100, 100), 1)},
+            {'label': 'Amarillas', 'value': yellow_cards, 'pct': round(min(yellow_cards * 15, 100), 1)},
+            {'label': 'Rojas', 'value': red_cards, 'pct': round(min(red_cards * 30, 100), 1)},
+            {'label': 'Doble amarilla', 'value': second_yellow_cards, 'pct': round(min(second_yellow_cards * 30, 100), 1)},
+        ]
+
         return render(
             request,
             'football/player_detail.html',
@@ -2100,6 +2164,11 @@ def player_detail_page(request, player_id):
                 'current_convocation': current_convocation,
                 'active_match': active_match,
                 'player_photo_url': player_photo_url,
+                'general_kpis': general_kpis,
+                'team_points': team_points,
+                'team_rank': team_rank,
+                'season_label': season_label,
+                'division_label': division_label,
             },
         )
     except Exception as e:

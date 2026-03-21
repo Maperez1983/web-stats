@@ -1,4 +1,4 @@
-{% load static %}
+{% load static football_extras %}
 <!DOCTYPE html>
 <html lang="es">
   <head>
@@ -209,6 +209,20 @@
         border: 1px solid rgba(255, 255, 255, 0.24);
         background: rgba(255, 255, 255, 0.08);
       }
+      .convocation-list .entry-avatar {
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.62rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        color: #e2e8f0;
+        border: 1px solid rgba(255, 255, 255, 0.24);
+        background: linear-gradient(145deg, #0f766e, #164e63);
+      }
       .convocation-list li span {
         display: block;
         font-size: 0.7rem;
@@ -290,6 +304,16 @@
         object-position: top center;
         border: 1px solid rgba(255, 255, 255, 0.26);
         background: rgba(255, 255, 255, 0.08);
+      }
+      .mini-card .player-photo.fallback {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.88rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        color: #e2e8f0;
+        background: linear-gradient(145deg, #0f766e, #164e63);
       }
       .mini-card.injury-alert {
         border-color: rgba(248, 113, 113, 0.95);
@@ -466,6 +490,8 @@
           <div class="player-name">{{ player.name|upper }}</div>
           {% if player.photo_url %}
           <img class="player-photo" src="{{ player.photo_url }}" alt="{{ player.name }}" loading="lazy" />
+          {% else %}
+          <span class="player-photo fallback">{{ player.name|initials }}</span>
           {% endif %}
           <div class="jersey-number">#{{ player.number|default:"--" }}</div>
           <div class="position-label">{{ player.position|default:"Sin definir" }}</div>
@@ -477,6 +503,14 @@
       </div>
     </section>
     <script>
+      const getInitials = (value) => {
+        const raw = String(value || '').trim();
+        if (!raw) return '?';
+        const words = raw.split(/\s+/).filter(Boolean);
+        if (!words.length) return '?';
+        if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+        return (words[0][0] + words[1][0]).toUpperCase();
+      };
       const pool = document.querySelector('.mini-cards');
       const cards = document.querySelectorAll('.mini-card');
       const fieldPoster = document.querySelector('.field-poster');
@@ -558,7 +592,10 @@
           const isInjured = card ? card.dataset.playerInjured === '1' : false;
           item.innerHTML = `
             <div class="entry">
-              ${photo ? `<img src="${photo}" alt="${name}" loading="lazy">` : ''}
+              ${photo
+                ? `<img src="${photo}" alt="${name}" loading="lazy">`
+                : `<span class="entry-avatar">${getInitials(name)}</span>`
+              }
               <strong>${isInjured ? '✚ ' : ''}#${number} ${name}</strong>
             </div>
             <span>${position}${isInjured ? ' · Alerta lesión' : ''}</span>

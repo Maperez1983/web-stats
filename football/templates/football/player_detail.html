@@ -1,4 +1,4 @@
-{% load static %}
+{% load static football_extras %}
 <!DOCTYPE html>
 <html lang="es">
   <head>
@@ -84,9 +84,118 @@
         letter-spacing: 0.06em;
         text-align: center;
       }
+      .player-photo-placeholder {
+        width: 100%;
+        aspect-ratio: 3 / 4;
+        border-radius: 0.7rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        color: #e2e8f0;
+        background: linear-gradient(145deg, #0f766e, #164e63);
+        border: 1px solid rgba(148, 163, 184, 0.3);
+      }
+      .general-overview {
+        margin-top: 1rem;
+        border-radius: 1rem;
+        border: 1px solid rgba(45, 212, 191, 0.35);
+        background: linear-gradient(160deg, rgba(241, 245, 249, 0.98), rgba(226, 232, 240, 0.96));
+        padding: 1.1rem;
+        color: #102734;
+      }
+      .general-head {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        gap: 0.7rem;
+        align-items: center;
+        text-align: center;
+      }
+      .general-season {
+        margin: 0;
+        font-size: 0.95rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #0d9488;
+        font-weight: 700;
+      }
+      .general-team {
+        margin: 0.2rem 0 0;
+        font-size: 1.85rem;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+      }
+      .general-division {
+        margin: 0.25rem 0 0;
+        font-size: 0.95rem;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        color: #0f766e;
+        font-weight: 700;
+      }
+      .general-score {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-width: 90px;
+      }
+      .general-score .value {
+        font-size: 2.4rem;
+        font-weight: 800;
+        line-height: 1;
+      }
+      .general-score .label {
+        margin-top: 0.2rem;
+        font-size: 0.8rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: rgba(15, 23, 42, 0.8);
+      }
+      .general-crest img {
+        width: 96px;
+        height: 96px;
+        object-fit: contain;
+      }
+      .kpi-rings {
+        margin-top: 1.1rem;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 1rem;
+      }
+      .kpi-ring {
+        text-align: center;
+      }
+      .kpi-ring-chart {
+        --pct: 0;
+        width: 96px;
+        height: 96px;
+        margin: 0 auto;
+        border-radius: 50%;
+        background:
+          radial-gradient(closest-side, #f8fafc 68%, transparent 70% 100%),
+          conic-gradient(#0d9488 calc(var(--pct) * 1%), #d1d5db 0);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .kpi-ring-value {
+        font-size: 1.7rem;
+        font-weight: 800;
+        color: #111827;
+      }
+      .kpi-ring-label {
+        margin-top: 0.35rem;
+        font-weight: 700;
+        color: rgba(17, 24, 39, 0.75);
+      }
       @media (max-width: 900px) {
         .personal-layout { grid-template-columns: 1fr; }
         .player-photo-card { max-width: 200px; }
+        .general-head { grid-template-columns: 1fr; }
+        .general-crest img { width: 74px; height: 74px; }
       }
     </style>
   </head>
@@ -237,12 +346,14 @@
             </div>
             <div style="margin-top:0.85rem;"><button type="submit">Guardar ficha</button></div>
           </form>
-          {% if player_photo_url %}
           <aside class="player-photo-card">
+            {% if player_photo_url %}
             <img src="{{ player_photo_url }}" alt="{{ player.name }}" />
+            {% else %}
+            <div class="player-photo-placeholder">{{ player.name|initials }}</div>
+            {% endif %}
             <p>Foto del jugador</p>
           </aside>
-          {% endif %}
         </div>
 
         <div style="display:flex;gap:0.6rem;align-items:center;margin-top:1rem;">
@@ -256,13 +367,37 @@
           {% endif %}
         </div>
 
-        <div class="stats-grid">
-          <article class="stat"><div class="label">Partidos jugados</div><div class="value">{{ stats.pj|default:0 }}</div></article>
-          <article class="stat"><div class="label">Titular</div><div class="value">{{ stats.pt|default:0 }}</div></article>
-          <article class="stat"><div class="label">Minutos</div><div class="value">{{ stats.minutes|default:0 }}</div></article>
-          <article class="stat"><div class="label">Goles</div><div class="value">{{ stats.goals|default:0 }}</div></article>
-          <article class="stat"><div class="label">Amarillas</div><div class="value">{{ stats.yellow_cards|default:0 }}</div></article>
-          <article class="stat"><div class="label">Rojas</div><div class="value">{{ stats.red_cards|default:0 }}</div></article>
+        <div class="general-overview">
+          <div class="general-head">
+            <div class="general-score">
+              <span class="value">{{ team_points|default:0 }}</span>
+              <span class="label">Puntos</span>
+            </div>
+            <div>
+              <p class="general-season">Estadísticas {{ season_label }}</p>
+              <h3 class="general-team">{{ player.team.name }}</h3>
+              <p class="general-division">{{ division_label|default:'Categoría principal' }}</p>
+            </div>
+            <div class="general-score">
+              <span class="value">{{ team_rank|default:0 }}º</span>
+              <span class="label">Posición</span>
+            </div>
+          </div>
+          <div class="general-head" style="grid-template-columns: 1fr; margin-top:0.6rem;">
+            <div class="general-crest">
+              <img src="{% static 'football/images/cdb-logo.png' %}" alt="Escudo {{ player.team.name }}" />
+            </div>
+          </div>
+          <div class="kpi-rings">
+            {% for item in general_kpis %}
+              <article class="kpi-ring">
+                <div class="kpi-ring-chart" style="--pct: {{ item.pct|default:0 }};">
+                  <span class="kpi-ring-value">{{ item.value|default:0|floatformat:-2 }}</span>
+                </div>
+                <div class="kpi-ring-label">{{ item.label }}</div>
+              </article>
+            {% endfor %}
+          </div>
         </div>
         <p class="subtle" style="margin-top:0.8rem;">Base estadística consolidada desde fuentes federativas/caché de plantilla y registro interno.</p>
 
