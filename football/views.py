@@ -34,6 +34,8 @@ from football.models import (
     Match,
     MatchEvent,
     Player,
+    PlayerCommunication,
+    PlayerPhysicalMetric,
     PlayerStatistic,
     SessionTask,
     ScrapeSource,
@@ -1429,21 +1431,91 @@ def player_detail_page(request, player_id):
         player = Player.objects.filter(id=player_id, team=primary_team).first()
         if not player:
             return JsonResponse({'error': 'Jugador no encontrado'}, status=404)
+        active_match = get_active_match(primary_team)
+        current_convocation = get_current_convocation_record(primary_team, match=active_match)
+        is_called_up = bool(
+            current_convocation
+            and current_convocation.players.filter(id=player.id).exists()
+        )
+
+        def _parse_date_value(raw_value):
+            value = str(raw_value or '').strip()
+            if not value:
+                return None
+            for fmt in ('%Y-%m-%d', '%d/%m/%Y', '%d-%m-%Y'):
+                try:
+                    return datetime.strptime(value, fmt).date()
+                except ValueError:
+                    continue
+            return None
+
+        def _parse_datetime_value(raw_value):
+            value = str(raw_value or '').strip()
+            if not value:
+                return None
+            for fmt in ('%Y-%m-%dT%H:%M', '%Y-%m-%d %H:%M', '%d/%m/%Y %H:%M'):
+                try:
+                    return datetime.strptime(value, fmt)
+                except ValueError:
+                    continue
+            return None
+
         if request.method == 'POST':
-            number = request.POST.get('number', '').strip()
-            position = request.POST.get('position', '').strip()
-            player.number = int(number) if number else None
-            player.position = position
-            player.save()
-            return redirect('player-detail', player_id=player.id)
+            form_action = (request.POST.get('form_action') or 'profile').strip().lower()
+
+            if form_action == 'profile':
+                number = request.POST.get('number', '').strip()
+                player.number = int(number) if number else None
+                player.position = request.POST.get('position', '').strip()
+                player.full_name = request.POST.get('full_name', '').strip()
+                player.birth_date = _parse_date_value(request.POST.get('birth_date'))
+                player.injury = request.POST.get('injury', '').strip()
+                player.injury_date = _parse_date_value(request.POST.get('injury_date'))
+                player.save()
+                return redirect(f"{reverse('player-detail', args=[player.id])}?tab=general")
+
+            if form_action == 'physical':
+                PlayerPhysicalMetric.objects.create(
+                    player=player,
+                    recorded_on=_parse_date_value(request.POST.get('recorded_on')) or timezone.localdate(),
+                    workload=request.POST.get('workload', '').strip(),
+                    rpe=_parse_int(request.POST.get('rpe')),
+                    wellness=_parse_int(request.POST.get('wellness')),
+                    weight_kg=request.POST.get('weight_kg', '').strip() or None,
+                    notes=request.POST.get('physical_notes', '').strip(),
+                )
+                return redirect(f"{reverse('player-detail', args=[player.id])}?tab=physical")
+
+            if form_action == 'communication':
+                message = request.POST.get('message', '').strip()
+                if message:
+                    PlayerCommunication.objects.create(
+                        player=player,
+                        match=active_match,
+                        category=request.POST.get('category') or PlayerCommunication.CATEGORY_INTERNAL,
+                        message=message,
+                        scheduled_for=_parse_datetime_value(request.POST.get('scheduled_for')),
+                        created_by=(request.user.get_username() if request.user.is_authenticated else ''),
+                    )
+                return redirect(f"{reverse('player-detail', args=[player.id])}?tab=communication")
+
         matches = compute_player_dashboard(primary_team)
         detail = next((p for p in matches if p.get('player_id') == player_id), None)
+        active_tab = (request.GET.get('tab') or 'general').strip().lower()
+        physical_metrics = player.physical_metrics.all()[:20]
+        communications = player.communications.select_related('match').all()[:20]
         return render(
             request,
             'football/player_detail.html',
             {
                 'player': player,
                 'stats': detail or {},
+                'active_tab': active_tab,
+                'physical_metrics': physical_metrics,
+                'communications': communications,
+                'is_called_up': is_called_up,
+                'current_convocation': current_convocation,
+                'active_match': active_match,
             },
         )
     except Exception as e:
@@ -2220,6 +2292,7 @@ def compute_player_cards(primary_team):
     universo_snapshot = load_universo_snapshot() or {}
     universo_players = universo_snapshot.get('players') if isinstance(universo_snapshot, dict) else []
     universo_map = {}
+    universo_by_number = {}
     if isinstance(universo_players, list):
         for item in universo_players:
             if not isinstance(item, dict):
@@ -2230,7 +2303,11 @@ def compute_player_cards(primary_team):
             name = str(item.get('name') or '').strip()
             if not name:
                 continue
-            universo_map[normalize_player_name(name)] = item
+            key = normalize_player_name(name)
+            universo_map[key] = item
+            dorsal_raw = str(item.get('dorsal') or '').strip()
+            if dorsal_raw.isdigit():
+                universo_by_number[int(dorsal_raw)] = item
 
     def _to_int(value):
         try:
@@ -2238,15 +2315,23 @@ def compute_player_cards(primary_team):
         except Exception:
             return 0
 
-    def _find_universo_entry(player_name):
-        key = normalize_player_name(player_name)
+    def _find_universo_entry(player_obj):
+        key = normalize_player_name(player_obj.name)
         direct = universo_map.get(key)
         if direct:
             return direct
+        if player_obj.number is not None and player_obj.number in universo_by_number:
+            return universo_by_number[player_obj.number]
         target = key.replace('-', '')
         for ukey, entry in universo_map.items():
             compact = ukey.replace('-', '')
             if target in compact or compact in target:
+                return entry
+        player_tokens = [token for token in target.split('-') if token]
+        for ukey, entry in universo_map.items():
+            compact_tokens = [token for token in ukey.replace('-', ' ').split() if token]
+            overlap = sum(1 for token in player_tokens if token in compact_tokens)
+            if overlap >= 2:
                 return entry
         return {}
 
@@ -2254,25 +2339,31 @@ def compute_player_cards(primary_team):
     for player in Player.objects.filter(team=primary_team).order_by('name'):
         roster_entry = find_roster_entry(player.name, roster_cache) or {}
         manual_entry = manual_overrides.get(player.id, {})
-        universo_entry = _find_universo_entry(player.name) or {}
+        universo_entry = _find_universo_entry(player) or {}
 
         pj = (
-            manual_entry.get('pj')
+            universo_entry.get('pj')
+            if universo_entry.get('pj') not in (None, '')
+            else manual_entry.get('pj')
             if manual_entry.get('pj') is not None
-            else roster_entry.get('pj', universo_entry.get('pj', 0))
+            else roster_entry.get('pj', 0)
         )
         minutes = (
-            manual_entry.get('minutes')
+            universo_entry.get('minutes')
+            if universo_entry.get('minutes') not in (None, '')
+            else manual_entry.get('minutes')
             if manual_entry.get('minutes') is not None
-            else roster_entry.get('minutes', universo_entry.get('minutes', 0))
+            else roster_entry.get('minutes', 0)
         )
-        goals = roster_entry.get('goals', universo_entry.get('goals', 0))
+        goals = universo_entry.get('goals', roster_entry.get('goals', 0))
         yellow_cards = (
-            manual_entry.get('yellow_cards')
+            universo_entry.get('yellow_cards')
+            if universo_entry.get('yellow_cards') not in (None, '')
+            else manual_entry.get('yellow_cards')
             if manual_entry.get('yellow_cards') is not None
-            else roster_entry.get('yellow_cards', universo_entry.get('yellow_cards', 0))
+            else roster_entry.get('yellow_cards', 0)
         )
-        red_cards = roster_entry.get('red_cards', universo_entry.get('red_cards', 0))
+        red_cards = universo_entry.get('red_cards', roster_entry.get('red_cards', 0))
 
         cards.append(
             {
@@ -2327,6 +2418,45 @@ def compute_player_dashboard(primary_team):
     player_stats = {}
     roster_cache = get_roster_stats_cache()
     manual_overrides = get_manual_player_base_overrides(primary_team)
+    universo_snapshot = load_universo_snapshot() or {}
+    universo_players = universo_snapshot.get('players') if isinstance(universo_snapshot, dict) else []
+    universo_map = {}
+    universo_by_number = {}
+    if isinstance(universo_players, list):
+        for item in universo_players:
+            if not isinstance(item, dict):
+                continue
+            team_name = str(item.get('team') or '').strip().lower()
+            if team_name and 'benagalbon' not in team_name:
+                continue
+            name = str(item.get('name') or '').strip()
+            if not name:
+                continue
+            key = normalize_player_name(name)
+            universo_map[key] = item
+            dorsal_raw = str(item.get('dorsal') or '').strip()
+            if dorsal_raw.isdigit():
+                universo_by_number[int(dorsal_raw)] = item
+
+    def _find_universo_entry(player_obj):
+        key = normalize_player_name(player_obj.name)
+        direct = universo_map.get(key)
+        if direct:
+            return direct
+        if player_obj.number is not None and player_obj.number in universo_by_number:
+            return universo_by_number[player_obj.number]
+        compact = key.replace('-', '')
+        for ukey, entry in universo_map.items():
+            ucompact = ukey.replace('-', '')
+            if compact in ucompact or ucompact in compact:
+                return entry
+        tokens = [token for token in compact.split('-') if token]
+        for ukey, entry in universo_map.items():
+            u_tokens = [token for token in ukey.replace('-', ' ').split() if token]
+            overlap = sum(1 for token in tokens if token in u_tokens)
+            if overlap >= 2:
+                return entry
+        return {}
     preferred_sources = preferred_event_source_by_match(primary_team)
     match_end_minutes = {}
     player_match_timeline = {}
@@ -2356,13 +2486,38 @@ def compute_player_dashboard(primary_team):
         seen_signatures.add(signature)
         roster_entry = find_roster_entry(player.name, roster_cache) or {}
         manual_entry = manual_overrides.get(player.id, {})
-        base_pj = manual_entry.get('pj', roster_entry.get('pj', 0))
-        base_pt = manual_entry.get('pt', roster_entry.get('pt', 0))
-        base_minutes = manual_entry.get('minutes', roster_entry.get('minutes', 0))
+        universo_entry = _find_universo_entry(player) or {}
+        base_pj = (
+            _parse_int(universo_entry.get('pj'))
+            if universo_entry.get('pj') not in (None, '')
+            else manual_entry.get('pj', roster_entry.get('pj', 0))
+        )
+        base_pt = (
+            _parse_int(universo_entry.get('pt'))
+            if universo_entry.get('pt') not in (None, '')
+            else manual_entry.get('pt', roster_entry.get('pt', 0))
+        )
+        base_minutes = (
+            _parse_int(universo_entry.get('minutes'))
+            if universo_entry.get('minutes') not in (None, '')
+            else manual_entry.get('minutes', roster_entry.get('minutes', 0))
+        )
         base_pc = max(roster_entry.get('pc', 0), base_pj)
-        base_goals = roster_entry.get('goals', 0)
-        base_yellow = manual_entry.get('yellow_cards', roster_entry.get('yellow_cards', 0))
-        base_red = roster_entry.get('red_cards', 0)
+        base_goals = (
+            _parse_int(universo_entry.get('goals'))
+            if universo_entry.get('goals') not in (None, '')
+            else roster_entry.get('goals', 0)
+        )
+        base_yellow = (
+            _parse_int(universo_entry.get('yellow_cards'))
+            if universo_entry.get('yellow_cards') not in (None, '')
+            else manual_entry.get('yellow_cards', roster_entry.get('yellow_cards', 0))
+        )
+        base_red = (
+            _parse_int(universo_entry.get('red_cards'))
+            if universo_entry.get('red_cards') not in (None, '')
+            else roster_entry.get('red_cards', 0)
+        )
         base_assists = roster_entry.get('assists', 0)
         stats = player_stats.setdefault(
             player.id,
@@ -2370,7 +2525,7 @@ def compute_player_dashboard(primary_team):
                 'player_id': player.id,
                 'name': player.name,
                 'number': player.number,
-                'position': player.position or roster_entry.get('position', ''),
+                'position': player.position or universo_entry.get('position') or roster_entry.get('position', ''),
                 'total_actions': 0,
                 'successes': 0,
                 'pc': base_pc,
@@ -2403,7 +2558,7 @@ def compute_player_dashboard(primary_team):
                 'passes_completed': 0,
                 'dribbles_attempted': 0,
                 'dribbles_completed': 0,
-                'age': roster_entry.get('age'),
+                'age': _parse_int(universo_entry.get('age')) or roster_entry.get('age'),
                 'has_events': False,
             },
         )
@@ -2523,22 +2678,47 @@ def compute_player_dashboard(primary_team):
             normalized = normalize_player_name(player.name)
             roster_entry = roster_cache.get(normalized, {})
             manual_entry = manual_overrides.get(player.id, {})
-            base_pj = manual_entry.get('pj', roster_entry.get('pj', 0))
-            base_pt = manual_entry.get('pt', roster_entry.get('pt', 0))
+            universo_entry = _find_universo_entry(player) or {}
+            base_pj = (
+                _parse_int(universo_entry.get('pj'))
+                if universo_entry.get('pj') not in (None, '')
+                else manual_entry.get('pj', roster_entry.get('pj', 0))
+            )
+            base_pt = (
+                _parse_int(universo_entry.get('pt'))
+                if universo_entry.get('pt') not in (None, '')
+                else manual_entry.get('pt', roster_entry.get('pt', 0))
+            )
             player_stats[player.id] = {
                 'player_id': player.id,
                 'name': player.name,
                 'number': player.number,
-                'position': player.position or roster_entry.get('position'),
+                'position': player.position or universo_entry.get('position') or roster_entry.get('position'),
                 'total_actions': 0,
                 'successes': 0,
                 'pc': max(roster_entry.get('pc', 0), base_pj),
                 'pj': base_pj,
                 'pt': base_pt,
-                'minutes': manual_entry.get('minutes', roster_entry.get('minutes', 0)),
-                'goals': roster_entry.get('goals', 0),
-                'yellow_cards': manual_entry.get('yellow_cards', roster_entry.get('yellow_cards', 0)),
-                'red_cards': roster_entry.get('red_cards', 0),
+                'minutes': (
+                    _parse_int(universo_entry.get('minutes'))
+                    if universo_entry.get('minutes') not in (None, '')
+                    else manual_entry.get('minutes', roster_entry.get('minutes', 0))
+                ),
+                'goals': (
+                    _parse_int(universo_entry.get('goals'))
+                    if universo_entry.get('goals') not in (None, '')
+                    else roster_entry.get('goals', 0)
+                ),
+                'yellow_cards': (
+                    _parse_int(universo_entry.get('yellow_cards'))
+                    if universo_entry.get('yellow_cards') not in (None, '')
+                    else manual_entry.get('yellow_cards', roster_entry.get('yellow_cards', 0))
+                ),
+                'red_cards': (
+                    _parse_int(universo_entry.get('red_cards'))
+                    if universo_entry.get('red_cards') not in (None, '')
+                    else roster_entry.get('red_cards', 0)
+                ),
                 'assists': roster_entry.get('assists', 0),
                 'totals_locked': bool(
                     base_pj
@@ -2562,7 +2742,7 @@ def compute_player_dashboard(primary_team):
                 'passes_completed': 0,
                 'dribbles_attempted': 0,
                 'dribbles_completed': 0,
-                'age': roster_entry.get('age'),
+                'age': _parse_int(universo_entry.get('age')) or roster_entry.get('age'),
                 'has_events': base_pj > 0,
             }
 

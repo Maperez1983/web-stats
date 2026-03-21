@@ -33,7 +33,19 @@ class TeamAdmin(admin.ModelAdmin):
 
 @admin.register(models.Player)
 class PlayerAdmin(admin.ModelAdmin):
-    list_display = ('name', 'team', 'number', 'position')
+    list_display = ('name', 'team', 'number', 'position', 'injury', 'injury_date')
+
+
+@admin.register(models.PlayerPhysicalMetric)
+class PlayerPhysicalMetricAdmin(admin.ModelAdmin):
+    list_display = ('player', 'recorded_on', 'workload', 'rpe', 'wellness')
+    list_filter = ('recorded_on',)
+
+
+@admin.register(models.PlayerCommunication)
+class PlayerCommunicationAdmin(admin.ModelAdmin):
+    list_display = ('player', 'category', 'match', 'scheduled_for', 'created_at')
+    list_filter = ('category', 'created_at')
 
 
 @admin.register(models.Match)

@@ -180,13 +180,19 @@ def _extract_player_stats(captures: List[Dict[str, Any]]) -> List[Dict[str, Any]
             "code": code,
             "name": name,
             "team": str(payload.get("equipo") or "").strip(),
+            "team_code": str(payload.get("codigo_equipo") or "").strip(),
             "pj": partidos_map.get("jugados", partidos_map.get("partidos jugados", "0")) or "0",
+            "pt": partidos_map.get("titular", "0") or "0",
+            "convocados": partidos_map.get("convocados", "0") or "0",
             "minutes": str(payload.get("minutos_totales_jugados") or "").strip() or "0",
             "goals": partidos_map.get("total goles", partidos_map.get("goles", "0")) or "0",
             "yellow_cards": tarjetas_map.get("amarillas", "0") or "0",
             "red_cards": tarjetas_map.get("rojas", "0") or "0",
             "season": str(payload.get("nombre_temporada") or "").strip(),
             "category": str(payload.get("categoria_equipo") or "").strip(),
+            "position": str(payload.get("posicion_jugador") or "").strip(),
+            "dorsal": str(payload.get("dorsal_jugador") or "").strip(),
+            "age": str(payload.get("edad") or "").strip(),
         }
 
         existing = players_by_code.get(code)
@@ -226,6 +232,32 @@ def _extract_player_stats(captures: List[Dict[str, Any]]) -> List[Dict[str, Any]
                     )
                 return players
     return []
+
+
+def _extract_candidate_player_ids(captures: List[Dict[str, Any]]) -> List[str]:
+    ids = set()
+    key_candidates = (
+        "codigo_jugador",
+        "id_player",
+        "id_jugador",
+        "player_id",
+        "cod_jugador",
+    )
+    for item in captures:
+        payload = item.get("json")
+        if not payload:
+            continue
+        for node in _iter_nodes(payload):
+            if not isinstance(node, dict):
+                continue
+            for key in key_candidates:
+                value = node.get(key)
+                if value is None:
+                    continue
+                raw = str(value).strip()
+                if raw.isdigit():
+                    ids.add(raw)
+    return sorted(ids)
 
 
 def _find_next_match(captures: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
@@ -404,6 +436,14 @@ class Command(BaseCommand):
             help="URL de resultados para capturar endpoints de clasificación/partidos.",
         )
         parser.add_argument(
+            "--team-url",
+            default="",
+            help=(
+                "URL de equipo (ej. /team/834315?...). "
+                "Si se indica, se intenta capturar estadísticas de toda la plantilla."
+            ),
+        )
+        parser.add_argument(
             "--storage-state",
             default=str(Path("data") / "input" / "rfaf_storage_state.json"),
             help="Ruta al storage_state generado en login manual.",
@@ -442,6 +482,7 @@ class Command(BaseCommand):
 
         dashboard_url = str(options["dashboard_url"]).strip()
         results_url = str(options["results_url"]).strip()
+        team_url = str(options.get("team_url") or "").strip()
         parsed_target = urlparse(dashboard_url)
         if not parsed_target.scheme or not parsed_target.netloc:
             raise CommandError(f"URL de dashboard inválida: {dashboard_url}")
@@ -450,6 +491,13 @@ class Command(BaseCommand):
             raise CommandError(f"URL de resultados inválida: {results_url}")
         if parsed_results.netloc != parsed_target.netloc:
             raise CommandError("results-url debe tener el mismo dominio que dashboard-url.")
+        parsed_team = None
+        if team_url:
+            parsed_team = urlparse(team_url)
+            if not parsed_team.scheme or not parsed_team.netloc:
+                raise CommandError(f"URL de equipo inválida: {team_url}")
+            if parsed_team.netloc != parsed_target.netloc:
+                raise CommandError("team-url debe tener el mismo dominio que dashboard-url.")
 
         wait_ms = int(options["wait_ms"])
         manual_browse_ms = int(options["manual_browse_ms"])
@@ -465,6 +513,11 @@ class Command(BaseCommand):
             ) from exc
 
         captures: List[Dict[str, Any]] = []
+        target_team_id = ""
+        if team_url:
+            match = re.search(r"/team/(\d+)", team_url)
+            if match:
+                target_team_id = match.group(1)
 
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=headless)
@@ -514,6 +567,66 @@ class Command(BaseCommand):
                 page.wait_for_timeout(wait_ms)
                 page.goto(results_url, wait_until="domcontentloaded", timeout=30000)
                 page.wait_for_timeout(wait_ms)
+                if team_url:
+                    page.goto(team_url, wait_until="domcontentloaded", timeout=30000)
+                    page.wait_for_timeout(wait_ms)
+                    try:
+                        dom_ids = page.evaluate(
+                            """() => {
+                                const ids = new Set();
+                                const fromHref = (value) => {
+                                    const m = String(value || '').match(/\\/player\\/(\\d+)/);
+                                    if (m) ids.add(m[1]);
+                                };
+                                document.querySelectorAll('a[href*="/player/"]').forEach((el) => fromHref(el.getAttribute('href')));
+                                document.querySelectorAll('[data-player-id],[data-id-player],[data-id_jugador]').forEach((el) => {
+                                    const raw = el.getAttribute('data-player-id') || el.getAttribute('data-id-player') || el.getAttribute('data-id_jugador');
+                                    if (raw && /^\\d+$/.test(raw)) ids.add(raw);
+                                });
+                                return Array.from(ids);
+                            }"""
+                        ) or []
+                    except Exception:
+                        dom_ids = []
+
+                    for pid in dom_ids[:120]:
+                        try:
+                            page.evaluate(
+                                """async (playerId) => {
+                                    const form = new FormData();
+                                    form.append('id_player', String(playerId));
+                                    await fetch('/api/novanet/player/get-player-general-stats', {
+                                        method: 'POST',
+                                        body: form,
+                                        credentials: 'include',
+                                    });
+                                }""",
+                                pid,
+                            )
+                            page.wait_for_timeout(150)
+                        except Exception:
+                            continue
+                    page.wait_for_timeout(1200)
+
+                    api_ids = _extract_candidate_player_ids(captures)
+                    for pid in api_ids[:200]:
+                        try:
+                            page.evaluate(
+                                """async (playerId) => {
+                                    const form = new FormData();
+                                    form.append('id_player', String(playerId));
+                                    await fetch('/api/novanet/player/get-player-general-stats', {
+                                        method: 'POST',
+                                        body: form,
+                                        credentials: 'include',
+                                    });
+                                }""",
+                                pid,
+                            )
+                            page.wait_for_timeout(80)
+                        except Exception:
+                            continue
+                    page.wait_for_timeout(1200)
                 if manual_browse_ms > 0:
                     self.stdout.write(
                         f"Modo interacción manual activo: {manual_browse_ms}ms en {results_url}"
@@ -547,9 +660,13 @@ class Command(BaseCommand):
         standings = _extract_standings(captures)
         next_match = _find_next_match(captures)
         players = _extract_player_stats(captures)
+        if target_team_id:
+            players = [p for p in players if str(p.get("team_code") or "").strip() == target_team_id]
         snapshot = {
             "captured_at": datetime.now().isoformat(),
             "source": "universo-rfaf",
+            "team_url": team_url or None,
+            "team_id": target_team_id or None,
             "next_match": next_match,
             "standings": standings,
             "players": players,

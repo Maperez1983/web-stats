@@ -76,8 +76,12 @@ class Team(models.Model):
 class Player(models.Model):
     team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='players')
     name = models.CharField(max_length=120)
+    full_name = models.CharField(max_length=180, blank=True)
+    birth_date = models.DateField(null=True, blank=True)
     number = models.PositiveSmallIntegerField(null=True, blank=True)
     position = models.CharField(max_length=60, blank=True)
+    injury = models.CharField(max_length=180, blank=True)
+    injury_date = models.DateField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
     notes = models.TextField(blank=True)
 
@@ -86,6 +90,48 @@ class Player(models.Model):
 
     def __str__(self):
         return f'{self.name} ({self.team.name})'
+
+
+class PlayerPhysicalMetric(models.Model):
+    player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='physical_metrics')
+    recorded_on = models.DateField(default=timezone.localdate)
+    workload = models.CharField(max_length=120, blank=True, help_text='Ej. Fuerza + resistencia')
+    rpe = models.PositiveSmallIntegerField(null=True, blank=True, help_text='Percepción del esfuerzo 1-10')
+    wellness = models.PositiveSmallIntegerField(null=True, blank=True, help_text='Bienestar 1-10')
+    weight_kg = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-recorded_on', '-id']
+
+    def __str__(self):
+        return f'{self.player.name} · métrica {self.recorded_on:%d/%m/%Y}'
+
+
+class PlayerCommunication(models.Model):
+    CATEGORY_CONVOCATION = 'convocatoria'
+    CATEGORY_INTERNAL = 'interna'
+    CATEGORY_MEDICAL = 'medica'
+    CATEGORY_CHOICES = [
+        (CATEGORY_CONVOCATION, 'Convocatoria'),
+        (CATEGORY_INTERNAL, 'Comunicación interna'),
+        (CATEGORY_MEDICAL, 'Parte médico'),
+    ]
+
+    player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='communications')
+    match = models.ForeignKey('Match', on_delete=models.SET_NULL, null=True, blank=True, related_name='player_communications')
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default=CATEGORY_INTERNAL)
+    message = models.TextField()
+    scheduled_for = models.DateTimeField(null=True, blank=True, help_text='Fecha/hora objetivo de la comunicación')
+    created_by = models.CharField(max_length=80, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.player.name} · {self.category}'
 
 
 class ConvocationRecord(models.Model):
