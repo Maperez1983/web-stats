@@ -1606,8 +1606,15 @@ def refresh_scraping(request):
         return JsonResponse({'status': 'error', 'message': str(exc)}, status=500)
     finally:
         cache.delete(SCRAPE_LOCK_KEY)
-    roster_ok, roster_message = refresh_primary_roster_cache(primary_team, force=True)
-    roster_status = 'y plantilla actualizada' if roster_ok else f'plantilla no actualizada ({roster_message})'
+    # Si trabajamos con Universo RFAF, evitamos depender de La Preferente en este flujo.
+    preferente_refresh_enabled = str(
+        os.getenv('PREFERENTE_ROSTER_REFRESH_ENABLED', '0')
+    ).strip().lower() in {'1', 'true', 'yes', 'on'}
+    if preferente_refresh_enabled:
+        roster_ok, roster_message = refresh_primary_roster_cache(primary_team, force=True)
+        roster_status = 'y plantilla actualizada' if roster_ok else f'plantilla no actualizada ({roster_message})'
+    else:
+        roster_status = 'plantilla gestionada por Universo RFAF'
     return JsonResponse(
         {'status': 'success', 'message': f'Clasificación actualizada desde RFAF, {roster_status}.'}
     )
