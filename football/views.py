@@ -273,6 +273,20 @@ def resolve_player_photo_url(request, player):
         return static(static_path)
 
 
+def get_active_injury_player_ids(player_ids):
+    normalized_ids = [int(pid) for pid in set(player_ids or []) if pid]
+    if not normalized_ids:
+        return set()
+    try:
+        return set(
+            PlayerInjuryRecord.objects
+            .filter(player_id__in=normalized_ids, is_active=True)
+            .values_list('player_id', flat=True)
+        )
+    except (OperationalError, ProgrammingError):
+        return set()
+
+
 def _serialize_match_event(event, duplicate=False):
     player = event.player
     return {
@@ -1039,14 +1053,10 @@ def convocation_page(request):
     all_players = list(Player.objects.filter(team=primary_team, is_active=True).order_by('name'))
     for player in all_players:
         player.photo_url = resolve_player_photo_url(request, player)
-    active_injury_ids = set(
-        PlayerInjuryRecord.objects
-        .filter(player_id__in=[p.id for p in all_players], is_active=True)
-        .values_list('player_id', flat=True)
-    )
+    active_injury_ids = get_active_injury_player_ids([p.id for p in all_players])
     filtered_players = []
     for player in all_players:
-        player.has_active_injury = bool(player.injury) or (player.id in active_injury_ids)
+        player.has_active_injury = player.id in active_injury_ids
         if player.has_active_injury:
             continue
         filtered_players.append(player)
@@ -1134,11 +1144,7 @@ def save_convocation(request):
     except (TypeError, ValueError):
         return JsonResponse({'error': 'Formato de jugadores inválido'}, status=400)
     players = Player.objects.filter(team=primary_team, is_active=True, id__in=player_ids)
-    blocked_injury_ids = set(
-        PlayerInjuryRecord.objects
-        .filter(player_id__in=players.values_list('id', flat=True), is_active=True)
-        .values_list('player_id', flat=True)
-    )
+    blocked_injury_ids = get_active_injury_player_ids(players.values_list('id', flat=True))
     players = players.exclude(id__in=blocked_injury_ids)
     if not players.exists():
         return JsonResponse({'error': 'No se encontraron jugadores para la convocatoria'}, status=400)
@@ -1199,15 +1205,11 @@ def save_convocation(request):
             },
         )
 
-    active_injury_ids = set(
-        PlayerInjuryRecord.objects
-        .filter(player_id__in=players.values_list('id', flat=True), is_active=True)
-        .values_list('player_id', flat=True)
-    )
+    active_injury_ids = get_active_injury_player_ids(players.values_list('id', flat=True))
     injured_players = [
         player.name
         for player in players
-        if player.id in active_injury_ids or bool(player.injury)
+        if player.id in active_injury_ids
     ]
 
     with transaction.atomic():
@@ -2188,9 +2190,9 @@ def player_detail_page(request, player_id):
         communications = player.communications.select_related('match').all()[:20]
         injury_records = player.injury_records.all()[:20]
         latest_injury_record = injury_records[0] if injury_records else None
-        has_active_injury = bool(player.injury) or bool(
-            latest_injury_record and latest_injury_record.is_active
-        )
+        has_active_injury = player.id in get_active_injury_player_ids([player.id])
+        if not has_active_injury and latest_injury_record:
+            has_active_injury = bool(latest_injury_record.is_active)
         player_photo_url = resolve_player_photo_url(request, player)
 
         def _to_int_value(value):
