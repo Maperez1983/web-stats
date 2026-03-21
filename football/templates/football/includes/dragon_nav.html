@@ -1,17 +1,17 @@
 {% load static %}
 <div class="dragon-nav">
-  <a href="{% url 'dashboard-home' %}" class="dragon-link">
-    <img src="{% static 'logos/dragon.png' %}" alt="Dragón · CRM" loading="lazy" />
+  <a href="{% url 'dashboard-home' %}" class="dragon-link" title="Volver al inicio">
+    <img src="{% static 'logos/logo.png' %}" alt="Escudo C.D. Benagalbón" loading="lazy" />
   </a>
 </div>
 <style>
 .dragon-nav {
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
+  width: 94px;
+  height: 94px;
+  border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.25);
-  background: linear-gradient(135deg, rgba(8, 68, 139, 0.95), rgba(5, 25, 87, 0.95));
-  padding: 0.25rem;
+  background: linear-gradient(135deg, rgba(7, 23, 53, 0.95), rgba(5, 25, 87, 0.95));
+  padding: 0.35rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -21,27 +21,22 @@
   display: flex;
   width: 100%;
   height: 100%;
-  border-radius: 50%;
+  border-radius: 12px;
   overflow: hidden;
-  position: relative;
+  align-items: center;
+  justify-content: center;
 }
 .dragon-link img {
-  display: none;
-}
-.dragon-link::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: #fff;
-  mask: url("{% static 'logos/dragon.png' %}") center/contain no-repeat;
-  -webkit-mask: url("{% static 'logos/dragon.png' %}") center/contain no-repeat;
-  opacity: 0.95;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 @media (max-width: 768px) {
   .dragon-nav {
-    position: static;
-    margin: 0 auto 1rem;
-    border-radius: 1rem;
+    width: 82px;
+    height: 82px;
+    margin: 0 auto 0.8rem;
   }
 }
 </style>

@@ -36,17 +36,18 @@
       }
       .side {
         display: table-cell;
-        width: 86px;
+        width: 72px;
         border-right: 1px solid #c8d9d0;
         text-align: center;
         vertical-align: middle;
+        overflow: hidden;
       }
       .side span {
         writing-mode: vertical-rl;
         transform: rotate(180deg);
-        font-size: 80px;
-        line-height: 0.92;
-        letter-spacing: 0.01em;
+        font-size: 62px;
+        line-height: 0.9;
+        letter-spacing: 0.005em;
         color: #0f4f47;
         font-weight: 600;
       }
@@ -71,7 +72,32 @@
         color: #114f46;
         letter-spacing: 0.02em;
       }
-      .duel strong { font-size: 20px; }
+      .duel-line {
+        display: table;
+        margin: 0 auto;
+      }
+      .duel-crest,
+      .duel-name,
+      .duel-vs {
+        display: table-cell;
+        vertical-align: middle;
+      }
+      .duel-name {
+        font-size: 26px;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+      .duel-vs {
+        padding: 0 10px;
+        font-size: 20px;
+        font-weight: 700;
+      }
+      .duel-crest img {
+        width: 28px;
+        height: 28px;
+        object-fit: contain;
+        margin-right: 6px;
+      }
       .body {
         display: table;
         width: 100%;
@@ -123,7 +149,7 @@
         display: table-cell;
         width: 50%;
         vertical-align: top;
-        padding-right: 8px;
+        padding-right: 10px;
       }
       .players {
         margin: 0;
@@ -131,11 +157,41 @@
         list-style: none;
       }
       .players li {
-        margin: 0 0 2px;
-        font-size: 24px;
-        line-height: 1.08;
+        margin: 0 0 5px;
+      }
+      .player-row {
+        display: table;
+        width: 100%;
+      }
+      .player-photo-cell,
+      .player-name-cell {
+        display: table-cell;
+        vertical-align: middle;
+      }
+      .player-photo-cell {
+        width: 38px;
+      }
+      .player-name-cell {
+        font-size: 23px;
+        line-height: 1.04;
         font-weight: 700;
         color: #0f4f47;
+      }
+      .player-thumb {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        object-fit: cover;
+        object-position: top center;
+        border: 1px solid rgba(15, 79, 71, 0.32);
+        background: #e8efec;
+      }
+      .player-thumb-placeholder {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: rgba(15, 79, 71, 0.14);
+        border: 1px solid rgba(15, 79, 71, 0.2);
       }
       .hashtag {
         margin: 6px 0 0;
@@ -150,23 +206,6 @@
         object-position: center;
         border-radius: 8px;
       }
-      .sponsors {
-        margin-top: 8px;
-        border-top: 2px solid #95b9ac;
-        padding: 6px 2px 2px;
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: space-between;
-        gap: 8px;
-      }
-      .sponsor {
-        font-family: "Trebuchet MS", Arial, sans-serif;
-        font-size: 10px;
-        color: #0f4f47;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        font-weight: 700;
-      }
     </style>
   </head>
   <body>
@@ -180,7 +219,16 @@
         <main class="content">
           <header class="top">
             <p class="motto">{{ club_motto }}</p>
-            <p class="duel"><strong>{{ team_name }}</strong> vs. <strong>{{ rival_label }}</strong></p>
+            <div class="duel">
+              <div class="duel-line">
+                <span class="duel-name">{{ team_name }}</span>
+                <span class="duel-vs">vs.</span>
+                {% if rival_crest_url %}
+                <span class="duel-crest"><img src="{{ rival_crest_url }}" alt="{{ rival_full_name }}" /></span>
+                {% endif %}
+                <span class="duel-name">{{ rival_full_name }}</span>
+              </div>
+            </div>
           </header>
 
           <section class="body">
@@ -197,14 +245,36 @@
                 <div class="col">
                   <ul class="players">
                     {% for player in left_column_players %}
-                    <li>{{ player.number|default:"--" }} {{ player.name|upper }}</li>
+                    <li>
+                      <div class="player-row">
+                        <div class="player-photo-cell">
+                          {% if player.photo_url %}
+                          <img class="player-thumb" src="{{ player.photo_url }}" alt="{{ player.name }}" />
+                          {% else %}
+                          <span class="player-thumb-placeholder"></span>
+                          {% endif %}
+                        </div>
+                        <div class="player-name-cell">{{ player.number|default:"--" }} {{ player.name|upper }}</div>
+                      </div>
+                    </li>
                     {% endfor %}
                   </ul>
                 </div>
                 <div class="col">
                   <ul class="players">
                     {% for player in right_column_players %}
-                    <li>{{ player.number|default:"--" }} {{ player.name|upper }}</li>
+                    <li>
+                      <div class="player-row">
+                        <div class="player-photo-cell">
+                          {% if player.photo_url %}
+                          <img class="player-thumb" src="{{ player.photo_url }}" alt="{{ player.name }}" />
+                          {% else %}
+                          <span class="player-thumb-placeholder"></span>
+                          {% endif %}
+                        </div>
+                        <div class="player-name-cell">{{ player.number|default:"--" }} {{ player.name|upper }}</div>
+                      </div>
+                    </li>
                     {% endfor %}
                   </ul>
                 </div>
@@ -217,12 +287,6 @@
               <img class="coach" src="{{ coach_photo_url }}" alt="{{ coach_name }}" />
             </div>
           </section>
-
-          <footer class="sponsors">
-            {% for sponsor in sponsor_names %}
-              <span class="sponsor">{{ sponsor }}</span>
-            {% endfor %}
-          </footer>
         </main>
       </div>
     </section>

@@ -403,6 +403,61 @@ def load_preferred_next_match_payload():
     return None
 
 
+def _build_next_match_from_convocation(primary_team):
+    record = get_current_convocation_record(primary_team)
+    if not record:
+        return None
+
+    opponent_name = (record.opponent_name or '').strip()
+    round_label = (record.round or '').strip()
+    location_label = (record.location or '').strip()
+    date_iso = record.match_date.isoformat() if record.match_date else None
+    time_label = record.match_time.strftime('%H:%M') if record.match_time else ''
+
+    if not any([opponent_name, round_label, date_iso, time_label, location_label]):
+        return None
+
+    home_flag = None
+    match = record.match
+    if match and primary_team:
+        if match.home_team_id == primary_team.id:
+            home_flag = True
+        elif match.away_team_id == primary_team.id:
+            home_flag = False
+
+    payload = {
+        'round': round_label or 'Jornada por confirmar',
+        'date': date_iso,
+        'time': time_label,
+        'location': location_label or 'Campo por confirmar',
+        'opponent': {
+            'name': opponent_name or 'Rival por confirmar',
+            'full_name': opponent_name or 'Rival por confirmar',
+            'crest_url': '',
+            'team_code': '',
+        },
+        'home': home_flag if home_flag is not None else True,
+        'status': 'next',
+        'source': 'convocation-manual',
+    }
+    return normalize_next_match_payload(payload)
+
+
+def _next_match_payload_is_reliable(payload):
+    if not isinstance(payload, dict):
+        return False
+    status = str(payload.get('status') or '').strip().lower()
+    if status != 'next':
+        return False
+    opponent_name = _payload_opponent_name(payload).strip().lower()
+    if not opponent_name or opponent_name in {'rival por confirmar', 'rival desconocido'}:
+        return False
+    payload_date = _parse_payload_date(payload.get('date'))
+    if payload_date and payload_date < timezone.localdate():
+        return False
+    return True
+
+
 def load_universo_snapshot():
     if not UNIVERSO_SNAPSHOT_PATH.exists():
         return None
@@ -477,6 +532,9 @@ def dashboard_data(request):
     universo_snapshot = load_universo_snapshot()
     standings = _serialize_universo_standings(universo_snapshot) or serialize_standings(group)
     next_match = load_preferred_next_match_payload() or get_next_match(primary_team, group)
+    convocation_next_match = _build_next_match_from_convocation(primary_team)
+    if convocation_next_match and not _next_match_payload_is_reliable(next_match):
+        next_match = convocation_next_match
     team_metrics = compute_team_metrics(primary_team)
     player_metrics = compute_player_metrics(primary_team)
     player_cards = compute_player_cards(primary_team)
@@ -870,7 +928,7 @@ def convocation_page(request):
     primary_team = Team.objects.filter(is_primary=True).first()
     if not primary_team:
         raise Http404('Equipo principal no configurado')
-    players = list(Player.objects.filter(team=primary_team).order_by('name'))
+    players = list(Player.objects.filter(team=primary_team, is_active=True).order_by('name'))
     for player in players:
         player.photo_url = resolve_player_photo_url(request, player)
     active_injury_ids = set(
@@ -878,8 +936,13 @@ def convocation_page(request):
         .filter(player_id__in=[p.id for p in players], is_active=True)
         .values_list('player_id', flat=True)
     )
+    filtered_players = []
     for player in players:
         player.has_active_injury = bool(player.injury) or (player.id in active_injury_ids)
+        if player.has_active_injury:
+            continue
+        filtered_players.append(player)
+    players = filtered_players
     active_match = get_active_match(primary_team)
     convocation_record = get_current_convocation_record(primary_team, match=active_match)
     selected_player_ids = []
@@ -1069,9 +1132,18 @@ def convocation_pdf(request):
         return (number, (player.name or '').lower())
 
     ordered_players = sorted(players, key=_sort_player_key)
-    midpoint = (len(ordered_players) + 1) // 2
-    left_column_players = ordered_players[:midpoint]
-    right_column_players = ordered_players[midpoint:]
+
+    player_rows = [
+        {
+            'number': player.number,
+            'name': player.name,
+            'photo_url': resolve_player_photo_url(request, player),
+        }
+        for player in ordered_players
+    ]
+    midpoint = (len(player_rows) + 1) // 2
+    left_column_players = player_rows[:midpoint]
+    right_column_players = player_rows[midpoint:]
 
     date_label = convocation_record.match_date.strftime('%d/%m/%Y') if convocation_record.match_date else '--'
     time_label = convocation_record.match_time.strftime('%H:%M') if convocation_record.match_time else '--:--'
@@ -1085,6 +1157,28 @@ def convocation_pdf(request):
         )
         rival_label = opponent.name if opponent else ''
 
+    rival_name = (rival_label or '').strip() or 'Rival por confirmar'
+    rival_full_name = rival_name
+    rival_crest_url = ''
+
+    preferred_next = load_preferred_next_match_payload()
+    preferred_opponent = preferred_next.get('opponent') if isinstance(preferred_next, dict) else None
+    if isinstance(preferred_opponent, dict):
+        preferred_name = str(preferred_opponent.get('name') or '').strip()
+        preferred_full_name = str(preferred_opponent.get('full_name') or '').strip()
+        if (
+            preferred_name
+            and _normalize_team_lookup_key(preferred_name) == _normalize_team_lookup_key(rival_name)
+        ):
+            rival_full_name = preferred_full_name or preferred_name
+            rival_crest_url = str(preferred_opponent.get('crest_url') or '').strip()
+
+    if not rival_crest_url or rival_full_name == rival_name:
+        universo_lookup = _build_universo_standings_lookup(load_universo_snapshot())
+        rival_meta = universo_lookup.get(_normalize_team_lookup_key(rival_name), {})
+        rival_full_name = str(rival_meta.get('full_name') or rival_full_name or rival_name).strip() or rival_name
+        rival_crest_url = rival_crest_url or str(rival_meta.get('crest_url') or '').strip()
+
     round_digits = ''.join(re.findall(r'\d+', convocation_record.round or ''))
     round_short = f'J{round_digits}' if round_digits else 'J'
     date_human = date_label
@@ -1095,12 +1189,6 @@ def convocation_pdf(request):
         month = month_map[convocation_record.match_date.month - 1]
         date_human = f'{weekday} {convocation_record.match_date.day} {month}'
 
-    sponsors_raw = os.getenv(
-        'TEAM_SPONSORS',
-        'Rincón de la Victoria,Los Curros,Modernia,Clínicas Rincón Dental,Ventorrillo,Copesol',
-    )
-    sponsor_names = [entry.strip() for entry in sponsors_raw.split(',') if entry.strip()]
-
     context = {
         'team_name': primary_team.name,
         'round_label': convocation_record.round or 'Jornada por confirmar',
@@ -1109,14 +1197,15 @@ def convocation_pdf(request):
         'date_human': date_human,
         'time_label': time_label,
         'location_label': location_label or 'Campo por confirmar',
-        'rival_label': rival_label or 'Rival por confirmar',
-        'players': ordered_players,
+        'rival_label': rival_name,
+        'rival_full_name': rival_full_name,
+        'rival_crest_url': rival_crest_url,
+        'players': player_rows,
         'left_column_players': left_column_players,
         'right_column_players': right_column_players,
         'coach_name': os.getenv('TEAM_COACH_NAME', 'Aitor Castillo'),
         'club_motto': os.getenv('TEAM_MOTTO', 'Orgullo Benalbino'),
         'club_hashtag': os.getenv('TEAM_HASHTAG', '#VamosVerdes'),
-        'sponsor_names': sponsor_names,
         'logo_url': request.build_absolute_uri(static('football/images/cdb-logo.png')),
         'team_photo_url': request.build_absolute_uri(static('football/images/team-01.jpg')),
         'coach_photo_url': request.build_absolute_uri(static(os.getenv('TEAM_COACH_PHOTO', 'football/images/team-01.jpg'))),
@@ -1693,7 +1782,9 @@ def manual_player_stats_page(request):
                     'manual_pj': _parse_int(request.POST.get(f'pj_{player.id}')) or 0,
                     'manual_pt': _parse_int(request.POST.get(f'pt_{player.id}')) or 0,
                     'manual_minutes': _parse_int(request.POST.get(f'minutes_{player.id}')) or 0,
+                    'manual_goals': _parse_int(request.POST.get(f'goals_{player.id}')) or 0,
                     'manual_yellow_cards': _parse_int(request.POST.get(f'yellow_{player.id}')) or 0,
+                    'manual_red_cards': _parse_int(request.POST.get(f'red_{player.id}')) or 0,
                 }
                 for stat_name, stat_value in overrides.items():
                     PlayerStatistic.objects.update_or_create(
@@ -1720,7 +1811,9 @@ def manual_player_stats_page(request):
                 'pj': manual.get('pj', roster_entry.get('pj', 0)),
                 'pt': manual.get('pt', roster_entry.get('pt', 0)),
                 'minutes': manual.get('minutes', roster_entry.get('minutes', 0)),
+                'goals': manual.get('goals', roster_entry.get('goals', 0)),
                 'yellow_cards': manual.get('yellow_cards', roster_entry.get('yellow_cards', 0)),
+                'red_cards': manual.get('red_cards', roster_entry.get('red_cards', 0)),
             }
         )
 
@@ -1781,6 +1874,11 @@ def player_detail_page(request, player_id):
                 return round(float(value), 2)
             except Exception:
                 return None
+
+        def _resolve_season():
+            if primary_team.group and primary_team.group.season:
+                return primary_team.group.season
+            return Season.objects.filter(is_current=True).order_by('-start_date', '-id').first()
 
         if request.method == 'POST':
             form_action = (request.POST.get('form_action') or 'profile').strip().lower()
@@ -1872,6 +1970,29 @@ def player_detail_page(request, player_id):
                     active_injury.is_active = False
                     active_injury.save(update_fields=['return_date', 'is_active', 'updated_at'])
 
+                return redirect(f"{reverse('player-detail', args=[player.id])}?tab=general")
+
+            if form_action == 'manual_stats':
+                season = _resolve_season()
+                if season:
+                    manual_values = {
+                        'manual_pj': _parse_int(request.POST.get('manual_pj')) or 0,
+                        'manual_pt': _parse_int(request.POST.get('manual_pt')) or 0,
+                        'manual_minutes': _parse_int(request.POST.get('manual_minutes')) or 0,
+                        'manual_goals': _parse_int(request.POST.get('manual_goals')) or 0,
+                        'manual_yellow_cards': _parse_int(request.POST.get('manual_yellow_cards')) or 0,
+                        'manual_red_cards': _parse_int(request.POST.get('manual_red_cards')) or 0,
+                    }
+                    with transaction.atomic():
+                        for stat_name, stat_value in manual_values.items():
+                            PlayerStatistic.objects.update_or_create(
+                                player=player,
+                                season=season,
+                                match=None,
+                                name=stat_name,
+                                context='manual-base',
+                                defaults={'value': stat_value},
+                            )
                 return redirect(f"{reverse('player-detail', args=[player.id])}?tab=general")
 
             if form_action == 'physical':
@@ -2762,28 +2883,40 @@ def compute_player_cards(primary_team):
         universo_entry = _find_universo_entry(player) or {}
 
         pj = (
-            universo_entry.get('pj')
-            if universo_entry.get('pj') not in (None, '')
-            else manual_entry.get('pj')
+            manual_entry.get('pj')
             if manual_entry.get('pj') is not None
+            else universo_entry.get('pj')
+            if universo_entry.get('pj') not in (None, '')
             else roster_entry.get('pj', 0)
         )
         minutes = (
-            universo_entry.get('minutes')
-            if universo_entry.get('minutes') not in (None, '')
-            else manual_entry.get('minutes')
+            manual_entry.get('minutes')
             if manual_entry.get('minutes') is not None
+            else universo_entry.get('minutes')
+            if universo_entry.get('minutes') not in (None, '')
             else roster_entry.get('minutes', 0)
         )
-        goals = universo_entry.get('goals', roster_entry.get('goals', 0))
+        goals = (
+            manual_entry.get('goals')
+            if manual_entry.get('goals') is not None
+            else universo_entry.get('goals')
+            if universo_entry.get('goals') not in (None, '')
+            else roster_entry.get('goals', 0)
+        )
         yellow_cards = (
-            universo_entry.get('yellow_cards')
-            if universo_entry.get('yellow_cards') not in (None, '')
-            else manual_entry.get('yellow_cards')
+            manual_entry.get('yellow_cards')
             if manual_entry.get('yellow_cards') is not None
+            else universo_entry.get('yellow_cards')
+            if universo_entry.get('yellow_cards') not in (None, '')
             else roster_entry.get('yellow_cards', 0)
         )
-        red_cards = universo_entry.get('red_cards', roster_entry.get('red_cards', 0))
+        red_cards = (
+            manual_entry.get('red_cards')
+            if manual_entry.get('red_cards') is not None
+            else universo_entry.get('red_cards')
+            if universo_entry.get('red_cards') not in (None, '')
+            else roster_entry.get('red_cards', 0)
+        )
 
         cards.append(
             {
@@ -2816,7 +2949,14 @@ def get_manual_player_base_overrides(primary_team, season=None):
             season=season,
             match__isnull=True,
             context='manual-base',
-            name__in=['manual_pj', 'manual_pt', 'manual_minutes', 'manual_yellow_cards'],
+            name__in=[
+                'manual_pj',
+                'manual_pt',
+                'manual_minutes',
+                'manual_goals',
+                'manual_yellow_cards',
+                'manual_red_cards',
+            ],
         )
         .select_related('player')
     )
@@ -2830,8 +2970,12 @@ def get_manual_player_base_overrides(primary_team, season=None):
             player_data['pt'] = value
         elif stat.name == 'manual_minutes':
             player_data['minutes'] = value
+        elif stat.name == 'manual_goals':
+            player_data['goals'] = value
         elif stat.name == 'manual_yellow_cards':
             player_data['yellow_cards'] = value
+        elif stat.name == 'manual_red_cards':
+            player_data['red_cards'] = value
     return overrides
 
 
@@ -2910,33 +3054,45 @@ def compute_player_dashboard(primary_team):
         manual_entry = manual_overrides.get(player.id, {})
         universo_entry = _find_universo_entry(player) or {}
         base_pj = (
-            _parse_int(universo_entry.get('pj'))
+            manual_entry.get('pj')
+            if manual_entry.get('pj') is not None
+            else _parse_int(universo_entry.get('pj'))
             if universo_entry.get('pj') not in (None, '')
-            else manual_entry.get('pj', roster_entry.get('pj', 0))
+            else roster_entry.get('pj', 0)
         )
         base_pt = (
-            _parse_int(universo_entry.get('pt'))
+            manual_entry.get('pt')
+            if manual_entry.get('pt') is not None
+            else _parse_int(universo_entry.get('pt'))
             if universo_entry.get('pt') not in (None, '')
-            else manual_entry.get('pt', roster_entry.get('pt', 0))
+            else roster_entry.get('pt', 0)
         )
         base_minutes = (
-            _parse_int(universo_entry.get('minutes'))
+            manual_entry.get('minutes')
+            if manual_entry.get('minutes') is not None
+            else _parse_int(universo_entry.get('minutes'))
             if universo_entry.get('minutes') not in (None, '')
-            else manual_entry.get('minutes', roster_entry.get('minutes', 0))
+            else roster_entry.get('minutes', 0)
         )
         base_pc = max(roster_entry.get('pc', 0), base_pj)
         base_goals = (
-            _parse_int(universo_entry.get('goals'))
+            manual_entry.get('goals')
+            if manual_entry.get('goals') is not None
+            else _parse_int(universo_entry.get('goals'))
             if universo_entry.get('goals') not in (None, '')
             else roster_entry.get('goals', 0)
         )
         base_yellow = (
-            _parse_int(universo_entry.get('yellow_cards'))
+            manual_entry.get('yellow_cards')
+            if manual_entry.get('yellow_cards') is not None
+            else _parse_int(universo_entry.get('yellow_cards'))
             if universo_entry.get('yellow_cards') not in (None, '')
-            else manual_entry.get('yellow_cards', roster_entry.get('yellow_cards', 0))
+            else roster_entry.get('yellow_cards', 0)
         )
         base_red = (
-            _parse_int(universo_entry.get('red_cards'))
+            manual_entry.get('red_cards')
+            if manual_entry.get('red_cards') is not None
+            else _parse_int(universo_entry.get('red_cards'))
             if universo_entry.get('red_cards') not in (None, '')
             else roster_entry.get('red_cards', 0)
         )
@@ -3104,14 +3260,18 @@ def compute_player_dashboard(primary_team):
             manual_entry = manual_overrides.get(player.id, {})
             universo_entry = _find_universo_entry(player) or {}
             base_pj = (
-                _parse_int(universo_entry.get('pj'))
+                manual_entry.get('pj')
+                if manual_entry.get('pj') is not None
+                else _parse_int(universo_entry.get('pj'))
                 if universo_entry.get('pj') not in (None, '')
-                else manual_entry.get('pj', roster_entry.get('pj', 0))
+                else roster_entry.get('pj', 0)
             )
             base_pt = (
-                _parse_int(universo_entry.get('pt'))
+                manual_entry.get('pt')
+                if manual_entry.get('pt') is not None
+                else _parse_int(universo_entry.get('pt'))
                 if universo_entry.get('pt') not in (None, '')
-                else manual_entry.get('pt', roster_entry.get('pt', 0))
+                else roster_entry.get('pt', 0)
             )
             player_stats[player.id] = {
                 'player_id': player.id,
@@ -3125,22 +3285,30 @@ def compute_player_dashboard(primary_team):
                 'pj': base_pj,
                 'pt': base_pt,
                 'minutes': (
-                    _parse_int(universo_entry.get('minutes'))
+                    manual_entry.get('minutes')
+                    if manual_entry.get('minutes') is not None
+                    else _parse_int(universo_entry.get('minutes'))
                     if universo_entry.get('minutes') not in (None, '')
-                    else manual_entry.get('minutes', roster_entry.get('minutes', 0))
+                    else roster_entry.get('minutes', 0)
                 ),
                 'goals': (
-                    _parse_int(universo_entry.get('goals'))
+                    manual_entry.get('goals')
+                    if manual_entry.get('goals') is not None
+                    else _parse_int(universo_entry.get('goals'))
                     if universo_entry.get('goals') not in (None, '')
                     else roster_entry.get('goals', 0)
                 ),
                 'yellow_cards': (
-                    _parse_int(universo_entry.get('yellow_cards'))
+                    manual_entry.get('yellow_cards')
+                    if manual_entry.get('yellow_cards') is not None
+                    else _parse_int(universo_entry.get('yellow_cards'))
                     if universo_entry.get('yellow_cards') not in (None, '')
-                    else manual_entry.get('yellow_cards', roster_entry.get('yellow_cards', 0))
+                    else roster_entry.get('yellow_cards', 0)
                 ),
                 'red_cards': (
-                    _parse_int(universo_entry.get('red_cards'))
+                    manual_entry.get('red_cards')
+                    if manual_entry.get('red_cards') is not None
+                    else _parse_int(universo_entry.get('red_cards'))
                     if universo_entry.get('red_cards') not in (None, '')
                     else roster_entry.get('red_cards', 0)
                 ),

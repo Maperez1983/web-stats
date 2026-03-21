@@ -95,7 +95,9 @@
                 <th>PJ</th>
                 <th>PT</th>
                 <th>Min</th>
+                <th>Goles</th>
                 <th>Amarillas</th>
+                <th>Rojas</th>
               </tr>
             </thead>
             <tbody>
@@ -105,7 +107,9 @@
                   <td><input type="number" min="0" name="pj_{{ row.player.id }}" value="{{ row.pj }}" /></td>
                   <td><input type="number" min="0" name="pt_{{ row.player.id }}" value="{{ row.pt }}" /></td>
                   <td><input type="number" min="0" name="minutes_{{ row.player.id }}" value="{{ row.minutes }}" /></td>
+                  <td><input type="number" min="0" name="goals_{{ row.player.id }}" value="{{ row.goals }}" /></td>
                   <td><input type="number" min="0" name="yellow_{{ row.player.id }}" value="{{ row.yellow_cards }}" /></td>
+                  <td><input type="number" min="0" name="red_{{ row.player.id }}" value="{{ row.red_cards }}" /></td>
                 </tr>
               {% endfor %}
             </tbody>

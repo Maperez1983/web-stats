@@ -311,6 +311,10 @@
       .mini-card.injury-alert .injury-mark {
         display: inline-flex;
       }
+      .mini-card.selected {
+        border-color: rgba(255, 183, 3, 0.95);
+        box-shadow: 0 0 0 1px rgba(255, 183, 3, 0.4), inset 0 0 0 1px rgba(255, 183, 3, 0.32);
+      }
       .mini-card:focus-visible,
       .mini-card:hover {
         outline: none;
@@ -504,6 +508,7 @@
       const addToConvocation = (card) => {
         if (card) {
           convocationSet.add(card.dataset.playerId);
+          card.classList.add('selected');
           updateConvocationList();
         }
       };
@@ -511,6 +516,7 @@
       const removeFromConvocation = (card) => {
         if (card) {
           convocationSet.delete(card.dataset.playerId);
+          card.classList.remove('selected');
           updateConvocationList();
         }
       };
@@ -580,16 +586,6 @@
         card.style.top = '';
         card.style.transform = '';
         card.style.zIndex = '';
-      };
-
-      const fillNextConvSlot = (card) => {
-        const target = Array.from(convocationSlots).find((slot) => !slot.querySelector('.mini-card'));
-        if (target) {
-          target.appendChild(card);
-          target.classList.add('has-card');
-          resetCardStyles(card);
-          addToConvocation(card);
-        }
       };
 
       const bindConvSlot = (slot) => {
@@ -690,10 +686,11 @@
           card.classList.remove('dragging');
         });
         card.addEventListener('click', () => {
-          if (!pool.contains(card)) {
+          if (convocationSet.has(card.dataset.playerId)) {
+            removeFromConvocation(card);
             return;
           }
-          fillNextConvSlot(card);
+          addToConvocation(card);
         });
       });
 
@@ -741,7 +738,7 @@
         initialSelectedIds.forEach((playerId) => {
           const card = document.querySelector(`.mini-card[data-player-id="${playerId}"]`);
           if (!card) return;
-          fillNextConvSlot(card);
+          addToConvocation(card);
         });
       };
 
