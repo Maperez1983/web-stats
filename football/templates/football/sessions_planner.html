@@ -300,10 +300,49 @@
         overflow: auto;
       }
 
+      .palette-toolbar {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0.42rem;
+        margin-bottom: 0.55rem;
+      }
+
+      .palette-filter {
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        background: rgba(6, 14, 28, 0.9);
+        color: var(--ink);
+        padding: 0.4rem 0.5rem;
+        font-size: 0.74rem;
+      }
+
+      .palette-groups {
+        display: grid;
+        gap: 0.5rem;
+        max-height: 340px;
+        overflow: auto;
+        padding-right: 0.2rem;
+      }
+
+      .palette-group {
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 10px;
+        background: rgba(6, 13, 27, 0.6);
+        padding: 0.45rem;
+      }
+
+      .palette-group-title {
+        margin: 0 0 0.35rem;
+        font-size: 0.66rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(190, 225, 255, 0.84);
+      }
+
       .palette-btn {
         border: 1px solid rgba(255, 255, 255, 0.18);
         border-radius: 10px;
-        background: rgba(0, 0, 0, 0.2);
+        background: linear-gradient(160deg, rgba(255, 255, 255, 0.08), rgba(9, 17, 35, 0.75));
         color: var(--ink);
         padding: 0.4rem 0.55rem;
         text-align: left;
@@ -316,6 +355,7 @@
         text-align: center;
         margin-right: 0.35rem;
         font-weight: 800;
+        color: #fde68a;
       }
 
       .pad-field {
@@ -376,7 +416,28 @@
       }
 
       .pad-token.material {
-        background: rgba(245, 158, 11, 0.85);
+        background: linear-gradient(160deg, rgba(251, 191, 36, 0.95), rgba(217, 119, 6, 0.95));
+        color: #102130;
+        border-color: rgba(255, 251, 235, 0.95);
+      }
+
+      .pad-token.material.material-ball,
+      .pad-token.material.material-medicine-ball {
+        border-radius: 50%;
+      }
+
+      .pad-token.material.material-goal,
+      .pad-token.material.material-mini-goal,
+      .pad-token.material.material-gk-goal {
+        border-radius: 8px;
+      }
+
+      .pad-token.material.material-pole,
+      .pad-token.material.material-slalom,
+      .pad-token.material.material-stake {
+        border-radius: 7px;
+        min-width: 20px;
+        padding: 0 0.2rem;
       }
 
       .pad-footer {
@@ -616,19 +677,38 @@
               {% endfor %}
             </div>
             <h4 style="margin-top:0.9rem;">Material</h4>
-            <div class="palette-list">
-              {% for item in task_materials %}
-              <button
-                type="button"
-                class="palette-btn"
-                data-pad-add="material"
-                data-label="{{ item.label }}"
-                data-title="{{ item.title }}"
-                data-kind="{{ item.kind }}"
-                data-icon="{{ item.icon|default:'•' }}"
-              >
-                <span class="icon">{{ item.icon|default:"•" }}</span>{{ item.title }}
-              </button>
+            <div class="palette-toolbar">
+              <select class="palette-filter" id="material-category-filter">
+                <option value="">Todas las categorías</option>
+                {% for category in material_categories %}
+                <option value="{{ category.value }}">{{ category.label }}</option>
+                {% endfor %}
+              </select>
+              <input class="palette-filter" id="material-search" type="search" placeholder="Buscar material..." />
+            </div>
+            <div class="palette-groups" id="materials-groups">
+              {% for category in material_categories %}
+              <section class="palette-group" data-category="{{ category.value }}">
+                <p class="palette-group-title">{{ category.label }}</p>
+                <div class="palette-list">
+                  {% for item in task_materials %}
+                  {% if item.category == category.value %}
+                  <button
+                    type="button"
+                    class="palette-btn"
+                    data-pad-add="material"
+                    data-category="{{ category.value }}"
+                    data-label="{{ item.label }}"
+                    data-title="{{ item.title }}"
+                    data-kind="{{ item.kind }}"
+                    data-icon="{{ item.icon|default:'•' }}"
+                  >
+                    <span class="icon">{{ item.icon|default:"•" }}</span>{{ item.title }}
+                  </button>
+                  {% endif %}
+                  {% endfor %}
+                </div>
+              </section>
               {% endfor %}
             </div>
           </aside>
@@ -659,19 +739,40 @@
       const tacticalLayoutInput = document.getElementById('tactical-layout-input');
       const padSummary = document.getElementById('pad-summary');
       const addButtons = Array.from(document.querySelectorAll('[data-pad-add]'));
+      const materialCategoryFilter = document.getElementById('material-category-filter');
+      const materialSearch = document.getElementById('material-search');
+      const materialGroups = Array.from(document.querySelectorAll('#materials-groups .palette-group'));
       const MATERIAL_ICON_BY_KIND = {
-        cone: '▲',
+        cone: '△',
         pole: '┃',
         ring: '◯',
         ball: '●',
         hurdle: '⊓',
         ladder: '☷',
-        mannequin: '♟',
+        mannequin: '♞',
         goal: '⌷',
         bib: '▣',
         marker: '◉',
-        tape: '⎍',
+        tape: '═',
         timer: '◷',
+        slalom: '╽',
+        'mini-hurdle': '⫍',
+        'mini-goal': '⌸',
+        'gk-goal': '▭',
+        'medicine-ball': '◒',
+        dummy: '♜',
+        wall: '▥',
+        gps: '⌖',
+        whistle: '⌇',
+        board: '▤',
+        band: '∞',
+        trx: '⟂',
+        box: '▧',
+        sled: '⎍',
+        stake: '⎸',
+        arc: '◠',
+        target: '◎',
+        'marker-flat': '◍',
       };
       const MATERIAL_ICON_BY_LABEL = {
         CONO: '▲',
@@ -686,6 +787,17 @@
         SETA: '◉',
         CINTA: '⎍',
         CRONO: '◷',
+        DISCO: '◍',
+        VALLA: '⊓',
+        SLALOM: '╽',
+        MPORT: '⌸',
+        PGK: '▭',
+        MED: '◒',
+        MURO: '▥',
+        SILB: '⌇',
+        GOMA: '∞',
+        TRINEO: '⎍',
+        OBJ: '◎',
       };
 
       let padState = { tokens: [] };
@@ -810,6 +922,30 @@
           addToken(type, label, title, kind, icon);
         });
       });
+
+      function applyMaterialFilters() {
+        const selectedCategory = (materialCategoryFilter?.value || '').trim();
+        const search = (materialSearch?.value || '').trim().toLowerCase();
+        materialGroups.forEach((group) => {
+          const groupCategory = group.dataset.category || '';
+          const categoryMatch = !selectedCategory || selectedCategory === groupCategory;
+          const buttons = Array.from(group.querySelectorAll('.palette-btn'));
+          let anyVisible = false;
+          buttons.forEach((btn) => {
+            const title = (btn.dataset.title || '').toLowerCase();
+            const label = (btn.dataset.label || '').toLowerCase();
+            const textMatch = !search || title.includes(search) || label.includes(search);
+            const visible = categoryMatch && textMatch;
+            btn.style.display = visible ? '' : 'none';
+            if (visible) anyVisible = true;
+          });
+          group.style.display = anyVisible ? '' : 'none';
+        });
+      }
+
+      materialCategoryFilter?.addEventListener('change', applyMaterialFilters);
+      materialSearch?.addEventListener('input', applyMaterialFilters);
+      applyMaterialFilters();
 
       if (padField) {
         padField.addEventListener('pointermove', (event) => {

@@ -9,15 +9,18 @@
         margin: 14mm;
       }
       body {
-        font-family: Arial, sans-serif;
+        font-family: "Segoe UI", Arial, sans-serif;
         font-size: 11px;
         color: #0f172a;
+        background: #f8fbff;
       }
       .header {
         display: table;
         width: 100%;
-        border-bottom: 2px solid #0f172a;
-        padding-bottom: 8px;
+        border-bottom: 2px solid #0e7490;
+        padding: 8px 10px;
+        border-radius: 10px;
+        background: linear-gradient(120deg, #f0f9ff, #ecfeff);
         margin-bottom: 10px;
       }
       .logo,
@@ -38,6 +41,7 @@
         font-size: 20px;
         letter-spacing: 0.06em;
         text-transform: uppercase;
+        color: #0c4a6e;
       }
       .subtitle {
         margin-top: 3px;
@@ -64,6 +68,7 @@
         border-radius: 6px;
         margin-bottom: 8px;
         overflow: hidden;
+        background: #ffffff;
       }
       .block h2 {
         margin: 0;
@@ -128,8 +133,24 @@
         color: #ffffff;
       }
       .token.material {
-        background: #f59e0b;
+        background: linear-gradient(145deg, #facc15, #f59e0b);
         color: #111827;
+      }
+
+      .token.material.material-pole,
+      .token.material.material-slalom,
+      .token.material.material-stake {
+        min-width: 16px;
+        border-radius: 6px;
+      }
+      .token.material.material-goal,
+      .token.material.material-mini-goal,
+      .token.material.material-gk-goal {
+        border-radius: 6px;
+      }
+      .token.material.material-ball,
+      .token.material.material-medicine-ball {
+        border-radius: 50%;
       }
       .footer {
         margin-top: 10px;
@@ -214,8 +235,12 @@
         <span class="mid-line"></span>
         <span class="mid-circle"></span>
         {% for token in tokens %}
-        <span class="token {% if token.type == 'material' %}material{% else %}player{% endif %}" style="left:{{ token.x }}%; top:{{ token.y }}%;" title="{{ token.title }}">
-          {{ token.label }}
+        <span class="token {% if token.type == 'material' %}material material-{{ token.kind }}{% else %}player{% endif %}" style="left:{{ token.x }}%; top:{{ token.y }}%;" title="{{ token.title }}">
+          {% if token.type == 'material' %}
+            {{ token.icon|default:token.label }}
+          {% else %}
+            {{ token.label }}
+          {% endif %}
         </span>
         {% endfor %}
       </div>

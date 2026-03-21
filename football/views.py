@@ -98,18 +98,36 @@ SCRAPE_LOCK_KEY = "football:refresh_scraping_running"
 SCRAPE_LOCK_TIMEOUT_SECONDS = 900
 
 TASK_MATERIAL_LIBRARY = [
-    {'label': 'CONO', 'title': 'Cono', 'kind': 'cone', 'icon': '▲'},
-    {'label': 'PICA', 'title': 'Pica', 'kind': 'pole', 'icon': '┃'},
-    {'label': 'ARO', 'title': 'Aro', 'kind': 'ring', 'icon': '◯'},
-    {'label': 'BAL', 'title': 'Balón', 'kind': 'ball', 'icon': '●'},
-    {'label': 'MINI', 'title': 'Mini valla', 'kind': 'hurdle', 'icon': '⊓'},
-    {'label': 'ESC', 'title': 'Escalera coordinación', 'kind': 'ladder', 'icon': '☷'},
-    {'label': 'MANIQ', 'title': 'Maniquí', 'kind': 'mannequin', 'icon': '♟'},
-    {'label': 'PORT', 'title': 'Portería móvil', 'kind': 'goal', 'icon': '⌷'},
-    {'label': 'PETO', 'title': 'Petos', 'kind': 'bib', 'icon': '▣'},
-    {'label': 'SETA', 'title': 'Seta delimitadora', 'kind': 'marker', 'icon': '◉'},
-    {'label': 'CINTA', 'title': 'Cinta delimitación', 'kind': 'tape', 'icon': '⎍'},
-    {'label': 'CRONO', 'title': 'Cronómetro', 'kind': 'timer', 'icon': '◷'},
+    {'label': 'CONO', 'title': 'Cono alto', 'kind': 'cone', 'category': 'delimitacion', 'icon': '△'},
+    {'label': 'SETA', 'title': 'Seta baja', 'kind': 'marker', 'category': 'delimitacion', 'icon': '◉'},
+    {'label': 'DISCO', 'title': 'Disco plano', 'kind': 'marker-flat', 'category': 'delimitacion', 'icon': '◍'},
+    {'label': 'PICA', 'title': 'Pica', 'kind': 'pole', 'category': 'delimitacion', 'icon': '┃'},
+    {'label': 'CINTA', 'title': 'Cinta delimitación', 'kind': 'tape', 'category': 'delimitacion', 'icon': '═'},
+    {'label': 'ARO', 'title': 'Aro coordinación', 'kind': 'ring', 'category': 'coordinacion', 'icon': '◯'},
+    {'label': 'ESC', 'title': 'Escalera coordinación', 'kind': 'ladder', 'category': 'coordinacion', 'icon': '☷'},
+    {'label': 'VALLA', 'title': 'Valla coordinación', 'kind': 'hurdle', 'category': 'coordinacion', 'icon': '⊓'},
+    {'label': 'SLALOM', 'title': 'Palo slalom', 'kind': 'slalom', 'category': 'coordinacion', 'icon': '╽'},
+    {'label': 'MINI', 'title': 'Mini valla velocidad', 'kind': 'mini-hurdle', 'category': 'coordinacion', 'icon': '⫍'},
+    {'label': 'BAL', 'title': 'Balón', 'kind': 'ball', 'category': 'juego', 'icon': '●'},
+    {'label': 'MED', 'title': 'Balón medicinal', 'kind': 'medicine-ball', 'category': 'fisico', 'icon': '◒'},
+    {'label': 'PORT', 'title': 'Portería móvil', 'kind': 'goal', 'category': 'porterias', 'icon': '⌷'},
+    {'label': 'MPORT', 'title': 'Mini portería', 'kind': 'mini-goal', 'category': 'porterias', 'icon': '⌸'},
+    {'label': 'PGK', 'title': 'Portería portero', 'kind': 'gk-goal', 'category': 'porterias', 'icon': '▭'},
+    {'label': 'MANIQ', 'title': 'Maniquí', 'kind': 'mannequin', 'category': 'oposicion', 'icon': '♞'},
+    {'label': 'DUMMY', 'title': 'Dummie inflable', 'kind': 'dummy', 'category': 'oposicion', 'icon': '♜'},
+    {'label': 'MURO', 'title': 'Muro faltas', 'kind': 'wall', 'category': 'oposicion', 'icon': '▥'},
+    {'label': 'PETO', 'title': 'Petos', 'kind': 'bib', 'category': 'organizacion', 'icon': '▣'},
+    {'label': 'GPS', 'title': 'GPS chaleco', 'kind': 'gps', 'category': 'control', 'icon': '⌖'},
+    {'label': 'CRONO', 'title': 'Cronómetro', 'kind': 'timer', 'category': 'control', 'icon': '◷'},
+    {'label': 'SILB', 'title': 'Silbato', 'kind': 'whistle', 'category': 'control', 'icon': '⌇'},
+    {'label': 'TAB', 'title': 'Pizarra coach', 'kind': 'board', 'category': 'control', 'icon': '▤'},
+    {'label': 'GOMA', 'title': 'Goma resistencia', 'kind': 'band', 'category': 'fisico', 'icon': '∞'},
+    {'label': 'TRX', 'title': 'Suspensión TRX', 'kind': 'trx', 'category': 'fisico', 'icon': '⟂'},
+    {'label': 'CAJON', 'title': 'Cajón pliometría', 'kind': 'box', 'category': 'fisico', 'icon': '▧'},
+    {'label': 'TRINEO', 'title': 'Trineo arrastre', 'kind': 'sled', 'category': 'fisico', 'icon': '⎍'},
+    {'label': 'ESTACA', 'title': 'Estaca zona', 'kind': 'stake', 'category': 'delimitacion', 'icon': '⎸'},
+    {'label': 'ARCO', 'title': 'Arco precisión', 'kind': 'arc', 'category': 'finalizacion', 'icon': '◠'},
+    {'label': 'OBJ', 'title': 'Objetivo diana', 'kind': 'target', 'category': 'finalizacion', 'icon': '◎'},
 ]
 
 
@@ -919,6 +937,39 @@ def session_task_pdf(request, task_id):
     tokens = []
     tactical_layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
     raw_tokens = tactical_layout.get('tokens') if isinstance(tactical_layout, dict) else []
+    material_icon_by_kind = {
+        'cone': '△',
+        'marker': '◉',
+        'marker-flat': '◍',
+        'pole': '┃',
+        'ring': '◯',
+        'ball': '●',
+        'hurdle': '⊓',
+        'ladder': '☷',
+        'slalom': '╽',
+        'mini-hurdle': '⫍',
+        'goal': '⌷',
+        'mini-goal': '⌸',
+        'gk-goal': '▭',
+        'mannequin': '♞',
+        'dummy': '♜',
+        'wall': '▥',
+        'bib': '▣',
+        'gps': '⌖',
+        'timer': '◷',
+        'whistle': '⌇',
+        'board': '▤',
+        'band': '∞',
+        'trx': '⟂',
+        'box': '▧',
+        'sled': '⎍',
+        'stake': '⎸',
+        'arc': '◠',
+        'target': '◎',
+        'medicine-ball': '◒',
+        'tape': '═',
+    }
+
     if isinstance(raw_tokens, list):
         for token in raw_tokens:
             if not isinstance(token, dict):
@@ -927,12 +978,18 @@ def session_task_pdf(request, task_id):
             y = _parse_int(token.get('y'))
             x = max(2, min(x if x is not None else 50, 98))
             y = max(2, min(y if y is not None else 50, 98))
+            token_type = str(token.get('type') or '').strip()
+            token_kind = str(token.get('kind') or '').strip()
+            token_icon = ''
+            if token_type == 'material':
+                token_icon = str(token.get('icon') or '').strip() or material_icon_by_kind.get(token_kind, '•')
             tokens.append(
                 {
                     'label': str(token.get('label') or '?')[:16],
                     'title': str(token.get('title') or token.get('label') or '').strip(),
-                    'type': str(token.get('type') or '').strip(),
-                    'kind': str(token.get('kind') or '').strip(),
+                    'type': token_type,
+                    'kind': token_kind,
+                    'icon': token_icon,
                     'x': x,
                     'y': y,
                 }
@@ -1241,6 +1298,31 @@ def sessions_page(request):
     for microcycle in microcycles:
         all_sessions.extend(list(microcycle.sessions.all()))
 
+    category_labels = {
+        'delimitacion': 'Delimitación',
+        'coordinacion': 'Coordinación',
+        'juego': 'Juego',
+        'porterias': 'Porterías',
+        'oposicion': 'Oposición',
+        'organizacion': 'Organización',
+        'control': 'Control',
+        'fisico': 'Físico',
+        'finalizacion': 'Finalización',
+    }
+    material_categories = []
+    materials_by_category = {}
+    for item in TASK_MATERIAL_LIBRARY:
+        category = str(item.get('category') or 'otros')
+        if category not in materials_by_category:
+            materials_by_category[category] = []
+            material_categories.append(
+                {
+                    'value': category,
+                    'label': category_labels.get(category, category.title()),
+                }
+            )
+        materials_by_category[category].append(item)
+
     return render(
         request,
         'football/sessions_planner.html',
@@ -1256,6 +1338,8 @@ def sessions_page(request):
             'session_intensities': TrainingSession.INTENSITY_CHOICES,
             'task_blocks': SessionTask.BLOCK_CHOICES,
             'task_materials': TASK_MATERIAL_LIBRARY,
+            'material_categories': material_categories,
+            'materials_by_category': materials_by_category,
             'planner_tables_ready': planner_tables_ready,
             'roster_players': Player.objects.filter(team=primary_team).order_by('name')[:28],
         },
