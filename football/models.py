@@ -90,6 +90,18 @@ class Player(models.Model):
 
 class ConvocationRecord(models.Model):
     team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='convocations')
+    match = models.ForeignKey(
+        'Match',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='convocations',
+    )
+    round = models.CharField(max_length=60, blank=True)
+    match_date = models.DateField(null=True, blank=True)
+    match_time = models.TimeField(null=True, blank=True)
+    location = models.CharField(max_length=200, blank=True)
+    opponent_name = models.CharField(max_length=150, blank=True)
     players = models.ManyToManyField(Player, related_name='convocations')
     created_at = models.DateTimeField(auto_now_add=True)
     is_current = models.BooleanField(default=True)
@@ -344,6 +356,8 @@ class SessionTask(models.Model):
     block = models.CharField(max_length=30, choices=BLOCK_CHOICES, default=BLOCK_MAIN_1)
     duration_minutes = models.PositiveSmallIntegerField(default=15)
     objective = models.CharField(max_length=180, blank=True)
+    coaching_points = models.TextField(blank=True, help_text='Consignas clave para ejecutar la tarea')
+    confrontation_rules = models.TextField(blank=True, help_text='Reglas de confrontación y puntuación')
     tactical_layout = models.JSONField(default=dict, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PLANNED)
     order = models.PositiveSmallIntegerField(default=0)

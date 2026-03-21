@@ -201,6 +201,15 @@
         font-size: 0.75rem;
         color: rgba(225, 235, 255, 0.78);
       }
+      .task-link {
+        margin-left: 0.4rem;
+        color: #67e8f9;
+        text-decoration: none;
+        font-weight: 700;
+      }
+      .task-link:hover {
+        text-decoration: underline;
+      }
 
       .empty {
         margin: 0;
@@ -300,6 +309,13 @@
         text-align: left;
         font-size: 0.74rem;
         cursor: pointer;
+      }
+      .palette-btn .icon {
+        display: inline-block;
+        min-width: 18px;
+        text-align: center;
+        margin-right: 0.35rem;
+        font-weight: 800;
       }
 
       .pad-field {
@@ -516,6 +532,14 @@
               Objetivo
               <input type="text" name="task_objective" maxlength="180" placeholder="Activar vigilancia y saltos coordinados" />
             </label>
+            <label>
+              Consignas (una por línea)
+              <textarea name="task_coaching_points" placeholder="Ejemplo:&#10;- Perfil corporal orientado&#10;- Comunicación previa al salto"></textarea>
+            </label>
+            <label>
+              Reglas de confrontación (una por línea)
+              <textarea name="task_confrontation_rules" placeholder="Ejemplo:&#10;- 3 puntos si recupera en 6''&#10;- 2 toques máximo en zona de finalización"></textarea>
+            </label>
             <div class="task-tools">
               <button class="secondary" type="button" id="open-tactical-pad">Abrir Tactical Pad</button>
               <p class="pad-note" id="pad-summary">Sin distribución táctica guardada.</p>
@@ -554,6 +578,7 @@
                     {% for task in session.tasks.all %}
                     <li>
                       {{ task.get_block_display }} · {{ task.title }} ({{ task.duration_minutes }}')
+                      <a class="task-link" href="{% url 'session-task-pdf' task.id %}" target="_blank" rel="noopener">PDF UEFA B</a>
                       {% if task.tactical_layout.tokens %}<span class="task-badge">Tactical Pad</span>{% endif %}
                     </li>
                     {% endfor %}
@@ -592,10 +617,18 @@
             </div>
             <h4 style="margin-top:0.9rem;">Material</h4>
             <div class="palette-list">
-              <button type="button" class="palette-btn" data-pad-add="material" data-label="CONO" data-title="Cono">Cono</button>
-              <button type="button" class="palette-btn" data-pad-add="material" data-label="PICA" data-title="Pica">Pica</button>
-              <button type="button" class="palette-btn" data-pad-add="material" data-label="ARO" data-title="Aro">Aro</button>
-              <button type="button" class="palette-btn" data-pad-add="material" data-label="B1" data-title="Balón">Balón</button>
+              {% for item in task_materials %}
+              <button
+                type="button"
+                class="palette-btn"
+                data-pad-add="material"
+                data-label="{{ item.label }}"
+                data-title="{{ item.title }}"
+                data-kind="{{ item.kind }}"
+              >
+                <span class="icon">{{ item.icon|default:"•" }}</span>{{ item.title }}
+              </button>
+              {% endfor %}
             </div>
           </aside>
           <article class="pad-panel">
@@ -659,7 +692,8 @@
       function tokenHtml(token) {
         const item = document.createElement('button');
         item.type = 'button';
-        item.className = `pad-token ${token.type === 'material' ? 'material' : ''}`;
+        const kindClass = token.kind ? `material-${String(token.kind).replace(/[^a-z0-9_-]/gi, '').toLowerCase()}` : '';
+        item.className = `pad-token ${token.type === 'material' ? `material ${kindClass}` : ''}`.trim();
         item.dataset.tokenId = token.id;
         item.style.left = `${token.x}%`;
         item.style.top = `${token.y}%`;
@@ -685,12 +719,13 @@
         updatePadSummary();
       }
 
-      function addToken(type, label, title) {
+      function addToken(type, label, title, kind = '') {
         const token = {
           id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
           type,
           label,
           title,
+          kind,
           x: 50,
           y: 50,
         };
@@ -718,7 +753,8 @@
           const type = button.dataset.padAdd;
           const label = button.dataset.label || 'X';
           const title = button.dataset.title || label;
-          addToken(type, label, title);
+          const kind = button.dataset.kind || '';
+          addToken(type, label, title, kind);
         });
       });
 

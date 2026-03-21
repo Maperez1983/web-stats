@@ -18,6 +18,7 @@ from django.db.utils import OperationalError, ProgrammingError
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import render, redirect
 from django.template.loader import render_to_string
+from django.templatetags.static import static
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.text import slugify
@@ -93,6 +94,21 @@ NEXT_MATCH_CACHE = Path(settings.BASE_DIR) / "data" / "input" / "rfaf-next-match
 UNIVERSO_SNAPSHOT_PATH = Path(settings.BASE_DIR) / "data" / "input" / "universo-rfaf-snapshot.json"
 SCRAPE_LOCK_KEY = "football:refresh_scraping_running"
 SCRAPE_LOCK_TIMEOUT_SECONDS = 900
+
+TASK_MATERIAL_LIBRARY = [
+    {'label': 'CONO', 'title': 'Cono', 'kind': 'cone', 'icon': '▲'},
+    {'label': 'PICA', 'title': 'Pica', 'kind': 'pole', 'icon': '┃'},
+    {'label': 'ARO', 'title': 'Aro', 'kind': 'ring', 'icon': '◯'},
+    {'label': 'BAL', 'title': 'Balón', 'kind': 'ball', 'icon': '●'},
+    {'label': 'MINI', 'title': 'Mini valla', 'kind': 'hurdle', 'icon': '⊓'},
+    {'label': 'ESC', 'title': 'Escalera coordinación', 'kind': 'ladder', 'icon': '☷'},
+    {'label': 'MANIQ', 'title': 'Maniquí', 'kind': 'mannequin', 'icon': '♟'},
+    {'label': 'PORT', 'title': 'Portería móvil', 'kind': 'goal', 'icon': '⌷'},
+    {'label': 'PETO', 'title': 'Petos', 'kind': 'bib', 'icon': '▣'},
+    {'label': 'SETA', 'title': 'Seta delimitadora', 'kind': 'marker', 'icon': '◉'},
+    {'label': 'CINTA', 'title': 'Cinta delimitación', 'kind': 'tape', 'icon': '⎍'},
+    {'label': 'CRONO', 'title': 'Cronómetro', 'kind': 'timer', 'icon': '◷'},
+]
 
 
 def _canonical_action_value(value):
@@ -354,8 +370,19 @@ def incident_page(request):
     )
 
 
-def get_current_convocation(team):
-    record = ConvocationRecord.objects.filter(team=team, is_current=True).first()
+def get_current_convocation_record(team, match=None):
+    if not team:
+        return None
+    qs = ConvocationRecord.objects.filter(team=team, is_current=True).prefetch_related('players')
+    if match:
+        by_match = qs.filter(match=match).order_by('-created_at').first()
+        if by_match:
+            return by_match
+    return qs.order_by('-created_at').first()
+
+
+def get_current_convocation(team, match=None):
+    record = get_current_convocation_record(team, match=match)
     if record:
         return record.players.order_by('name')
     return Player.objects.filter(team=team, is_active=True).order_by('name')
@@ -365,7 +392,13 @@ def match_action_page(request):
     primary_team = Team.objects.filter(is_primary=True).first()
     if not primary_team:
         raise Http404('Equipo principal no configurado')
-    convocation_players = get_current_convocation(primary_team)
+    active_match = get_active_match(primary_team)
+    convocation_record = get_current_convocation_record(primary_team, match=active_match)
+    convocation_players = (
+        convocation_record.players.order_by('name')
+        if convocation_record
+        else get_current_convocation(primary_team, match=active_match)
+    )
     message = None
     if request.method == 'POST':
         action = request.POST.get('action_type', '').strip()
@@ -385,7 +418,6 @@ def match_action_page(request):
         .select_related('player')
         .order_by('-created_at')[:6]
     )
-    active_match = get_active_match(primary_team)
     official_next = load_cached_next_match()
     if not official_next or (official_next.get('status') or '').lower() != 'next':
         official_next = None
@@ -437,6 +469,17 @@ def match_action_page(request):
                 match_info['location'] = official_location
             if official_date_label:
                 match_info['date'] = official_date_label
+        if convocation_record:
+            if convocation_record.opponent_name:
+                match_info['opponent'] = convocation_record.opponent_name
+            if convocation_record.round:
+                match_info['round'] = convocation_record.round
+            if convocation_record.location:
+                match_info['location'] = convocation_record.location
+            if convocation_record.match_date:
+                match_info['date'] = convocation_record.match_date.strftime('%d/%m/%Y')
+            if convocation_record.match_time:
+                match_info['time'] = convocation_record.match_time.strftime('%H:%M')
         substitution_events = (
             MatchEvent.objects.filter(match=active_match, player__team=primary_team)
             .select_related('player')
@@ -515,6 +558,9 @@ def register_match_action(request):
     match = get_active_match(primary_team)
     if not match:
         return JsonResponse({'error': 'No hay partido disponible para registrar acciones'}, status=400)
+    convocation_record = get_current_convocation_record(primary_team, match=match)
+    if convocation_record and not convocation_record.players.filter(id=player.id).exists():
+        return JsonResponse({'error': 'Jugador fuera de convocatoria para este partido'}, status=400)
     minute = _parse_int(request.POST.get('minute'))
     if minute is not None:
         minute = max(0, min(minute, 120))
@@ -623,14 +669,53 @@ def convocation_page(request):
     if not primary_team:
         raise Http404('Equipo principal no configurado')
     players = Player.objects.filter(team=primary_team).order_by('name')
+    active_match = get_active_match(primary_team)
+    convocation_record = get_current_convocation_record(primary_team, match=active_match)
+    selected_player_ids = []
+    if convocation_record:
+        selected_player_ids = list(convocation_record.players.values_list('id', flat=True))
+
+    next_match_payload = get_next_match(primary_team, primary_team.group) if primary_team.group else None
+    default_match_info = normalize_next_match_payload(next_match_payload or {}) if next_match_payload else {}
+
+    opponent_name = ''
+    if isinstance(default_match_info, dict):
+        opponent = default_match_info.get('opponent')
+        if isinstance(opponent, dict):
+            opponent_name = str(opponent.get('name') or '').strip()
+        elif isinstance(opponent, str):
+            opponent_name = opponent.strip()
+
+    match_info = {
+        'round': str(default_match_info.get('round') or '').strip() if isinstance(default_match_info, dict) else '',
+        'date': str(default_match_info.get('date') or '').strip() if isinstance(default_match_info, dict) else '',
+        'time': str(default_match_info.get('time') or '').strip() if isinstance(default_match_info, dict) else '',
+        'location': str(default_match_info.get('location') or '').strip() if isinstance(default_match_info, dict) else '',
+        'opponent': opponent_name,
+    }
+    if convocation_record:
+        if convocation_record.round:
+            match_info['round'] = convocation_record.round
+        if convocation_record.match_date:
+            match_info['date'] = convocation_record.match_date.isoformat()
+        if convocation_record.match_time:
+            match_info['time'] = convocation_record.match_time.strftime('%H:%M')
+        if convocation_record.location:
+            match_info['location'] = convocation_record.location
+        if convocation_record.opponent_name:
+            match_info['opponent'] = convocation_record.opponent_name
+
     return render(
         request,
         'football/convocation.html',
         {
             'players': players,
-        'team_name': primary_team.name,
-    },
-)
+            'team_name': primary_team.name,
+            'selected_player_ids_json': json.dumps(selected_player_ids),
+            'match_info': match_info,
+            'has_saved_convocation': bool(convocation_record and selected_player_ids),
+        },
+    )
 
 
 @authenticated_write
@@ -643,18 +728,199 @@ def save_convocation(request):
         payload = json.loads(request.body or '[]')
     except json.JSONDecodeError:
         return JsonResponse({'error': 'Formato JSON inválido'}, status=400)
+
+    if isinstance(payload, dict):
+        raw_players = payload.get('players') or payload.get('player_ids') or []
+        match_info = payload.get('match_info') if isinstance(payload.get('match_info'), dict) else {}
+    else:
+        raw_players = payload
+        match_info = {}
+
     try:
-        player_ids = [int(pid) for pid in payload if pid]
+        player_ids = [int(pid) for pid in raw_players if pid]
     except (TypeError, ValueError):
         return JsonResponse({'error': 'Formato de jugadores inválido'}, status=400)
     players = Player.objects.filter(team=primary_team, id__in=player_ids)
     if not players.exists():
         return JsonResponse({'error': 'No se encontraron jugadores para la convocatoria'}, status=400)
+
+    round_value = str(match_info.get('round') or '').strip()
+    location_value = str(match_info.get('location') or '').strip()
+    opponent_value = str(match_info.get('opponent') or '').strip()
+    date_value_raw = str(match_info.get('date') or '').strip()
+    time_value_raw = str(match_info.get('time') or '').strip()
+
+    parsed_match_date = None
+    if date_value_raw:
+        for fmt in ('%Y-%m-%d', '%d/%m/%Y', '%d-%m-%Y'):
+            try:
+                parsed_match_date = datetime.strptime(date_value_raw, fmt).date()
+                break
+            except ValueError:
+                continue
+    parsed_match_time = None
+    if time_value_raw:
+        for fmt in ('%H:%M', '%H:%M:%S'):
+            try:
+                parsed_match_time = datetime.strptime(time_value_raw, fmt).time()
+                break
+            except ValueError:
+                continue
+
+    target_match = get_active_match(primary_team)
+    if not target_match:
+        season = None
+        if primary_team.group and primary_team.group.season:
+            season = primary_team.group.season
+        if not season:
+            season = Season.objects.filter(is_current=True).order_by('-start_date', '-id').first()
+        if season:
+            target_match = Match.objects.create(
+                season=season,
+                group=primary_team.group,
+                round=round_value,
+                date=parsed_match_date,
+                location=location_value,
+                home_team=primary_team,
+                away_team=None,
+            )
+
+    if target_match:
+        datetime_label = date_value_raw
+        if time_value_raw:
+            datetime_label = f'{date_value_raw} · {time_value_raw}' if date_value_raw else time_value_raw
+        _apply_match_info_overrides(
+            target_match,
+            primary_team,
+            {
+                'round': round_value,
+                'location': location_value,
+                'datetime': datetime_label,
+                'opponent': opponent_value,
+            },
+        )
+
     with transaction.atomic():
         ConvocationRecord.objects.filter(team=primary_team, is_current=True).update(is_current=False)
-        record = ConvocationRecord.objects.create(team=primary_team)
+        record = ConvocationRecord.objects.create(
+            team=primary_team,
+            match=target_match,
+            round=round_value,
+            match_date=parsed_match_date,
+            match_time=parsed_match_time,
+            location=location_value,
+            opponent_name=opponent_value,
+        )
         record.players.set(players.distinct())
-    return JsonResponse({'saved': True, 'count': players.count()})
+    return JsonResponse({'saved': True, 'count': players.count(), 'match_id': target_match.id if target_match else None})
+
+
+@login_required
+def convocation_pdf(request):
+    primary_team = Team.objects.filter(is_primary=True).first()
+    if not primary_team:
+        raise Http404('Equipo principal no configurado')
+    active_match = get_active_match(primary_team)
+    convocation_record = get_current_convocation_record(primary_team, match=active_match)
+    if not convocation_record:
+        return HttpResponse('No hay convocatoria guardada.', status=400)
+
+    players = list(convocation_record.players.order_by('number', 'name'))
+    if not players:
+        return HttpResponse('No hay jugadores convocados.', status=400)
+
+    date_label = convocation_record.match_date.strftime('%d/%m/%Y') if convocation_record.match_date else '--'
+    time_label = convocation_record.match_time.strftime('%H:%M') if convocation_record.match_time else '--:--'
+    location_label = convocation_record.location or (convocation_record.match.location if convocation_record.match else '')
+    rival_label = convocation_record.opponent_name
+    if not rival_label and convocation_record.match:
+        opponent = (
+            convocation_record.match.away_team
+            if convocation_record.match.home_team_id == primary_team.id
+            else convocation_record.match.home_team
+        )
+        rival_label = opponent.name if opponent else ''
+
+    context = {
+        'team_name': primary_team.name,
+        'round_label': convocation_record.round or 'Jornada por confirmar',
+        'date_label': date_label,
+        'time_label': time_label,
+        'location_label': location_label or 'Campo por confirmar',
+        'rival_label': rival_label or 'Rival por confirmar',
+        'players': players,
+        'logo_url': request.build_absolute_uri(static('football/images/cdb-logo.png')),
+    }
+
+    html = render_to_string('football/convocation_pdf.html', context)
+    if weasyprint is None:
+        return HttpResponse(html)
+    pdf_file = weasyprint.HTML(string=html, base_url=request.build_absolute_uri('/')).write_pdf()
+    response = HttpResponse(pdf_file, content_type='application/pdf')
+    filename = f'convocatoria-{timezone.localdate().isoformat()}'
+    response['Content-Disposition'] = f'attachment; filename="{filename}.pdf"'
+    return response
+
+
+@login_required
+def session_task_pdf(request, task_id):
+    task = (
+        SessionTask.objects
+        .select_related('session__microcycle__team')
+        .filter(id=task_id)
+        .first()
+    )
+    if not task:
+        raise Http404('Tarea no encontrada')
+
+    team = task.session.microcycle.team
+    tokens = []
+    tactical_layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
+    raw_tokens = tactical_layout.get('tokens') if isinstance(tactical_layout, dict) else []
+    if isinstance(raw_tokens, list):
+        for token in raw_tokens:
+            if not isinstance(token, dict):
+                continue
+            x = _parse_int(token.get('x'))
+            y = _parse_int(token.get('y'))
+            x = max(2, min(x if x is not None else 50, 98))
+            y = max(2, min(y if y is not None else 50, 98))
+            tokens.append(
+                {
+                    'label': str(token.get('label') or '?')[:16],
+                    'title': str(token.get('title') or token.get('label') or '').strip(),
+                    'type': str(token.get('type') or '').strip(),
+                    'kind': str(token.get('kind') or '').strip(),
+                    'x': x,
+                    'y': y,
+                }
+            )
+
+    def _split_lines(value):
+        text = str(value or '').replace('\r', '\n')
+        lines = [line.strip() for line in text.split('\n') if line.strip()]
+        return lines or ['-']
+
+    context = {
+        'team_name': team.name,
+        'task': task,
+        'session': task.session,
+        'microcycle': task.session.microcycle,
+        'objective_lines': _split_lines(task.objective),
+        'coaching_lines': _split_lines(task.coaching_points),
+        'rules_lines': _split_lines(task.confrontation_rules),
+        'tokens': tokens,
+        'logo_url': request.build_absolute_uri(static('football/images/cdb-logo.png')),
+        'generated_at': timezone.localtime(),
+    }
+    html = render_to_string('football/session_task_pdf.html', context)
+    if weasyprint is None:
+        return HttpResponse(html)
+    pdf_file = weasyprint.HTML(string=html, base_url=request.build_absolute_uri('/')).write_pdf()
+    response = HttpResponse(pdf_file, content_type='application/pdf')
+    filename = slugify(f'tarea-{task.session.session_date}-{task.title}') or f'tarea-{task.id}'
+    response['Content-Disposition'] = f'attachment; filename="{filename}.pdf"'
+    return response
 
 
 def coach_cards_page(request):
@@ -823,6 +1089,8 @@ def sessions_page(request):
                     block = SessionTask.BLOCK_MAIN_1
                 duration = _parse_int(request.POST.get('task_minutes')) or 15
                 objective = (request.POST.get('task_objective') or '').strip()
+                coaching_points = (request.POST.get('task_coaching_points') or '').strip()
+                confrontation_rules = (request.POST.get('task_confrontation_rules') or '').strip()
                 tactical_layout_raw = (request.POST.get('tactical_layout') or '').strip()
                 tactical_layout = {}
                 if tactical_layout_raw:
@@ -838,6 +1106,8 @@ def sessions_page(request):
                     block=block,
                     duration_minutes=max(5, min(duration, 90)),
                     objective=objective,
+                    coaching_points=coaching_points,
+                    confrontation_rules=confrontation_rules,
                     tactical_layout=tactical_layout,
                     order=session.tasks.count() + 1,
                 )
@@ -876,6 +1146,7 @@ def sessions_page(request):
             'microcycle_statuses': TrainingMicrocycle.STATUS_CHOICES,
             'session_intensities': TrainingSession.INTENSITY_CHOICES,
             'task_blocks': SessionTask.BLOCK_CHOICES,
+            'task_materials': TASK_MATERIAL_LIBRARY,
             'planner_tables_ready': planner_tables_ready,
             'roster_players': Player.objects.filter(team=primary_team).order_by('name')[:28],
         },

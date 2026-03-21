@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Convocatoria {{ team_name }}</title>
+    <style>
+      @page {
+        size: A4;
+        margin: 20mm;
+      }
+      body {
+        font-family: Arial, sans-serif;
+        color: #0f172a;
+        font-size: 12px;
+      }
+      .header {
+        display: table;
+        width: 100%;
+        margin-bottom: 14px;
+      }
+      .logo,
+      .title {
+        display: table-cell;
+        vertical-align: middle;
+      }
+      .logo {
+        width: 90px;
+      }
+      .logo img {
+        width: 72px;
+        height: 72px;
+        object-fit: contain;
+      }
+      h1 {
+        margin: 0 0 4px;
+        font-size: 22px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .subtitle {
+        margin: 0;
+        font-size: 13px;
+        color: #334155;
+      }
+      .match-box {
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        padding: 10px 12px;
+        margin-bottom: 14px;
+        background: #f8fafc;
+      }
+      .match-row {
+        margin: 2px 0;
+      }
+      .match-label {
+        display: inline-block;
+        min-width: 70px;
+        font-weight: bold;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        border: 1px solid #cbd5e1;
+        padding: 8px;
+        text-align: left;
+      }
+      th {
+        background: #e2e8f0;
+        text-transform: uppercase;
+        font-size: 11px;
+      }
+      td.number {
+        width: 90px;
+        text-align: center;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="header">
+      <div class="logo">
+        <img src="{{ logo_url }}" alt="Escudo {{ team_name }}" />
+      </div>
+      <div class="title">
+        <h1>Convocatoria</h1>
+        <p class="subtitle">{{ team_name }} · {{ round_label }}</p>
+      </div>
+    </header>
+
+    <section class="match-box">
+      <p class="match-row"><span class="match-label">Rival:</span> {{ rival_label }}</p>
+      <p class="match-row"><span class="match-label">Día:</span> {{ date_label }}</p>
+      <p class="match-row"><span class="match-label">Hora:</span> {{ time_label }}</p>
+      <p class="match-row"><span class="match-label">Lugar:</span> {{ location_label }}</p>
+    </section>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Dorsal</th>
+          <th>Jugador</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for player in players %}
+        <tr>
+          <td class="number">{{ player.number|default:"--" }}</td>
+          <td>{{ player.name }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </body>
+</html>

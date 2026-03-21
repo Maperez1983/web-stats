@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Tarea UEFA B · {{ task.title }}</title>
+    <style>
+      @page {
+        size: A4;
+        margin: 14mm;
+      }
+      body {
+        font-family: Arial, sans-serif;
+        font-size: 11px;
+        color: #0f172a;
+      }
+      .header {
+        display: table;
+        width: 100%;
+        border-bottom: 2px solid #0f172a;
+        padding-bottom: 8px;
+        margin-bottom: 10px;
+      }
+      .logo,
+      .title {
+        display: table-cell;
+        vertical-align: middle;
+      }
+      .logo {
+        width: 76px;
+      }
+      .logo img {
+        width: 64px;
+        height: 64px;
+        object-fit: contain;
+      }
+      h1 {
+        margin: 0;
+        font-size: 20px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .subtitle {
+        margin-top: 3px;
+        color: #334155;
+      }
+      .meta-grid {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 10px;
+      }
+      .meta-grid td {
+        border: 1px solid #cbd5e1;
+        padding: 6px 8px;
+      }
+      .meta-grid strong {
+        display: block;
+        font-size: 10px;
+        text-transform: uppercase;
+        color: #475569;
+        margin-bottom: 2px;
+      }
+      .block {
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        margin-bottom: 8px;
+        overflow: hidden;
+      }
+      .block h2 {
+        margin: 0;
+        padding: 6px 8px;
+        background: #e2e8f0;
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .block ul {
+        margin: 0;
+        padding: 8px 20px 10px;
+      }
+      .field {
+        position: relative;
+        height: 290px;
+        border: 2px solid #0f172a;
+        margin-top: 6px;
+        background:
+          linear-gradient(180deg, rgba(34, 197, 94, 0.28), rgba(22, 163, 74, 0.35)),
+          repeating-linear-gradient(
+            0deg,
+            rgba(255, 255, 255, 0.14) 0 1px,
+            transparent 1px 24px
+          );
+      }
+      .mid-line {
+        position: absolute;
+        left: 50%;
+        top: 0;
+        bottom: 0;
+        width: 1px;
+        background: #ffffff;
+        transform: translateX(-50%);
+      }
+      .mid-circle {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 78px;
+        height: 78px;
+        border: 1px solid #ffffff;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+      }
+      .token {
+        position: absolute;
+        min-width: 26px;
+        min-height: 26px;
+        border-radius: 999px;
+        padding: 0 6px;
+        border: 1px solid #0f172a;
+        font-size: 9px;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transform: translate(-50%, -50%);
+      }
+      .token.player {
+        background: #0ea5e9;
+        color: #ffffff;
+      }
+      .token.material {
+        background: #f59e0b;
+        color: #111827;
+      }
+      .footer {
+        margin-top: 10px;
+        font-size: 9px;
+        color: #475569;
+        text-align: right;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="header">
+      <div class="logo">
+        <img src="{{ logo_url }}" alt="Escudo {{ team_name }}" />
+      </div>
+      <div class="title">
+        <h1>Ficha Tarea UEFA B</h1>
+        <div class="subtitle">{{ team_name }} · {{ task.title }}</div>
+      </div>
+    </header>
+
+    <table class="meta-grid">
+      <tr>
+        <td>
+          <strong>Microciclo</strong>
+          {{ microcycle.title }} ({{ microcycle.week_start|date:"d/m" }} - {{ microcycle.week_end|date:"d/m" }})
+        </td>
+        <td>
+          <strong>Sesión</strong>
+          {{ session.session_date|date:"d/m/Y" }}{% if session.start_time %} · {{ session.start_time|time:"H:i" }}{% endif %}
+        </td>
+        <td>
+          <strong>Duración</strong>
+          {{ task.duration_minutes }} min
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <strong>Bloque</strong>
+          {{ task.get_block_display }}
+        </td>
+        <td>
+          <strong>Intensidad</strong>
+          {{ session.get_intensity_display }}
+        </td>
+        <td>
+          <strong>Generado</strong>
+          {{ generated_at|date:"d/m/Y H:i" }}
+        </td>
+      </tr>
+    </table>
+
+    <section class="block">
+      <h2>Objetivos</h2>
+      <ul>
+        {% for line in objective_lines %}
+        <li>{{ line }}</li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    <section class="block">
+      <h2>Consignas</h2>
+      <ul>
+        {% for line in coaching_lines %}
+        <li>{{ line }}</li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    <section class="block">
+      <h2>Reglas de Confrontación</h2>
+      <ul>
+        {% for line in rules_lines %}
+        <li>{{ line }}</li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    <section class="block">
+      <h2>Representación Gráfica</h2>
+      <div class="field">
+        <span class="mid-line"></span>
+        <span class="mid-circle"></span>
+        {% for token in tokens %}
+        <span class="token {% if token.type == 'material' %}material{% else %}player{% endif %}" style="left:{{ token.x }}%; top:{{ token.y }}%;" title="{{ token.title }}">
+          {{ token.label }}
+        </span>
+        {% endfor %}
+      </div>
+    </section>
+
+    <p class="footer">Formato referencia UEFA B · Plan de tarea individual</p>
+  </body>
+</html>

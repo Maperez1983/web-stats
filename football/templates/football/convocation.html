@@ -126,6 +126,28 @@
         gap: 0.75rem;
         flex-wrap: wrap;
       }
+      .match-meta {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.65rem;
+      }
+      .match-meta label {
+        font-size: 0.7rem;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: rgba(248, 250, 252, 0.68);
+      }
+      .match-meta input {
+        width: 100%;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.06);
+        color: #f8fafc;
+        padding: 0.55rem 0.6rem;
+      }
+      .match-meta .full {
+        grid-column: 1 / -1;
+      }
       .button {
         border: none;
         border-radius: 999px;
@@ -340,7 +362,25 @@
           </div>
           <div class="convocation-actions">
             <button id="save-convocation" class="button" type="button">Guardar convocatoria</button>
+            <a href="{% url 'convocation-pdf' %}" class="button ghost" id="pdf-convocation">PDF</a>
             <span id="convocation-message" class="convocation-message"></span>
+          </div>
+          <div class="match-meta">
+            <label class="full">Rival
+              <input id="match-opponent" type="text" value="{{ match_info.opponent|default:''|escape }}" />
+            </label>
+            <label>Jornada
+              <input id="match-round" type="text" value="{{ match_info.round|default:''|escape }}" />
+            </label>
+            <label>Día
+              <input id="match-date" type="date" value="{{ match_info.date|default:''|escape }}" />
+            </label>
+            <label>Hora
+              <input id="match-time" type="time" value="{{ match_info.time|default:''|escape }}" />
+            </label>
+            <label class="full">Lugar
+              <input id="match-location" type="text" value="{{ match_info.location|default:''|escape }}" />
+            </label>
           </div>
           <h3>Listado convocados</h3>
           <p class="slot-description">Se rellenan automáticamente con cada jugador que pases al campo.</p>
@@ -389,7 +429,13 @@
       const drawer = document.querySelector('#player-pool-drawer');
       const poolToggle = document.querySelector('#pool-toggle');
       const closePool = document.querySelector('#close-pool');
+      const matchOpponent = document.querySelector('#match-opponent');
+      const matchRound = document.querySelector('#match-round');
+      const matchDate = document.querySelector('#match-date');
+      const matchTime = document.querySelector('#match-time');
+      const matchLocation = document.querySelector('#match-location');
       const convocationSet = new Set();
+      const initialSelectedIds = {{ selected_player_ids_json|safe }};
 
       const getCookie = (name) => {
         const matches = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
@@ -423,7 +469,15 @@
             number: card.dataset.playerNumber || '--',
             name: card.dataset.playerName || card.innerText,
             position: card.dataset.playerPosition || 'Sin definir',
-          }));
+          }))
+          .sort((a, b) => {
+            const aNum = parseInt(a.number, 10);
+            const bNum = parseInt(b.number, 10);
+            if (Number.isNaN(aNum) && Number.isNaN(bNum)) return a.name.localeCompare(b.name, 'es');
+            if (Number.isNaN(aNum)) return 1;
+            if (Number.isNaN(bNum)) return -1;
+            return aNum - bNum;
+          });
 
         convocationList.innerHTML = '';
         if (!entries.length) {
@@ -520,19 +574,29 @@
           showMessage('Añade jugadores antes de guardar.', true);
           return;
         }
+        const requestPayload = {
+          players: Array.from(convocationSet),
+          match_info: {
+            opponent: matchOpponent?.value || '',
+            round: matchRound?.value || '',
+            date: matchDate?.value || '',
+            time: matchTime?.value || '',
+            location: matchLocation?.value || '',
+          },
+        };
         const response = await fetch('{% url "convocation-save" %}', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'X-CSRFToken': getCookie('csrftoken'),
           },
-          body: JSON.stringify(Array.from(convocationSet)),
+          body: JSON.stringify(requestPayload),
         });
-        const payload = await response.json();
+        const responsePayload = await response.json();
         if (response.ok) {
-          showMessage(`Convocatoria guardada (${payload.count} jugadores).`);
+          showMessage(`Convocatoria guardada (${responsePayload.count} jugadores).`);
         } else {
-          showMessage(payload.error || 'No se pudo guardar la convocatoria.', true);
+          showMessage(responsePayload.error || 'No se pudo guardar la convocatoria.', true);
         }
       };
 
@@ -595,6 +659,16 @@
 
       convocationSlots.forEach(bindConvSlot);
 
+      const hydrateInitialConvocation = () => {
+        if (!Array.isArray(initialSelectedIds)) return;
+        initialSelectedIds.forEach((playerId) => {
+          const card = document.querySelector(`.mini-card[data-player-id="${playerId}"]`);
+          if (!card) return;
+          fillNextConvSlot(card);
+        });
+      };
+
+      hydrateInitialConvocation();
       updateConvocationList();
     </script>
   </body>
