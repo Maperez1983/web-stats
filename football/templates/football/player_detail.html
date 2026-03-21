@@ -47,19 +47,32 @@
       th, td { text-align: left; padding: 0.45rem 0.25rem; border-bottom: 1px solid rgba(148, 163, 184, 0.2); vertical-align: middle; }
       th { color: #94a3b8; font-size: 0.72rem; letter-spacing: 0.05em; text-transform: uppercase; }
       .subtle { color: #94a3b8; font-size: 0.9rem; }
-      .player-hero {
-        margin-top: 0.85rem;
+      .personal-layout { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 0.9rem; align-items: start; }
+      .player-photo-card {
         border: 1px solid rgba(148, 163, 184, 0.3);
-        border-radius: 1rem;
-        padding: 0.55rem;
+        border-radius: 0.9rem;
+        padding: 0.45rem;
         background: rgba(15, 23, 42, 0.92);
-        max-width: 320px;
       }
-      .player-hero img {
+      .player-photo-card img {
         width: 100%;
+        aspect-ratio: 3 / 4;
         display: block;
-        border-radius: 0.8rem;
+        border-radius: 0.7rem;
         object-fit: cover;
+        object-position: top center;
+      }
+      .player-photo-card p {
+        margin: 0.45rem 0 0;
+        color: #94a3b8;
+        font-size: 0.68rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        text-align: center;
+      }
+      @media (max-width: 900px) {
+        .personal-layout { grid-template-columns: 1fr; }
+        .player-photo-card { max-width: 200px; }
       }
     </style>
   </head>
@@ -79,12 +92,6 @@
         </div>
       </header>
 
-      {% if player_photo_url %}
-      <section class="player-hero">
-        <img src="{{ player_photo_url }}" alt="{{ player.name }}" />
-      </section>
-      {% endif %}
-
       <div class="tabs" role="tablist">
         <button class="tab-btn" data-tab="general" role="tab">Datos + Estadísticas</button>
         <button class="tab-btn" data-tab="performance" role="tab">KPI + Mapa</button>
@@ -94,37 +101,45 @@
 
       <section class="card tab-pane" data-pane="general">
         <h2 style="margin-top:0;">Datos personales y estadísticas generales</h2>
-        <form method="post">
-          {% csrf_token %}
-          <input type="hidden" name="form_action" value="profile" />
-          <div class="form-grid">
-            <label>Nombre completo
-              <input type="text" name="full_name" value="{{ player.full_name|default:player.name }}" />
-            </label>
-            <label>Fecha nacimiento
-              <input type="date" name="birth_date" value="{{ player.birth_date|date:'Y-m-d' }}" />
-            </label>
-            <label>Altura (cm)
-              <input type="number" name="height_cm" min="100" max="240" value="{{ player.height_cm|default:'' }}" />
-            </label>
-            <label>Peso base (kg)
-              <input type="number" step="0.01" min="0" name="weight_kg_base" value="{{ player.weight_kg|default:'' }}" />
-            </label>
-            <label>Dorsal
-              <input type="number" name="number" min="0" value="{{ player.number|default:'' }}" />
-            </label>
-            <label>Posición
-              <input type="text" name="position" value="{{ player.position|default:stats.position }}" />
-            </label>
-            <label>Lesión
-              <input type="text" name="injury" value="{{ player.injury|default:'' }}" placeholder="Ej. Isquios derecha" />
-            </label>
-            <label>Fecha lesión
-              <input type="date" name="injury_date" value="{{ player.injury_date|date:'Y-m-d' }}" />
-            </label>
-          </div>
-          <div style="margin-top:0.85rem;"><button type="submit">Guardar ficha</button></div>
-        </form>
+        <div class="personal-layout">
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="form_action" value="profile" />
+            <div class="form-grid">
+              <label>Nombre completo
+                <input type="text" name="full_name" value="{{ player.full_name|default:player.name }}" />
+              </label>
+              <label>Fecha nacimiento
+                <input type="date" name="birth_date" value="{{ player.birth_date|date:'Y-m-d' }}" />
+              </label>
+              <label>Altura (cm)
+                <input type="number" name="height_cm" min="100" max="240" value="{{ player.height_cm|default:'' }}" />
+              </label>
+              <label>Peso base (kg)
+                <input type="number" step="0.01" min="0" name="weight_kg_base" value="{{ player.weight_kg|default:'' }}" />
+              </label>
+              <label>Dorsal
+                <input type="number" name="number" min="0" value="{{ player.number|default:'' }}" />
+              </label>
+              <label>Posición
+                <input type="text" name="position" value="{{ player.position|default:stats.position }}" />
+              </label>
+              <label>Lesión
+                <input type="text" name="injury" value="{{ player.injury|default:'' }}" placeholder="Ej. Isquios derecha" />
+              </label>
+              <label>Fecha lesión
+                <input type="date" name="injury_date" value="{{ player.injury_date|date:'Y-m-d' }}" />
+              </label>
+            </div>
+            <div style="margin-top:0.85rem;"><button type="submit">Guardar ficha</button></div>
+          </form>
+          {% if player_photo_url %}
+          <aside class="player-photo-card">
+            <img src="{{ player_photo_url }}" alt="{{ player.name }}" />
+            <p>Foto del jugador</p>
+          </aside>
+          {% endif %}
+        </div>
 
         <div style="display:flex;gap:0.6rem;align-items:center;margin-top:1rem;">
           {% if is_called_up %}
