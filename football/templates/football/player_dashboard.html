@@ -89,6 +89,26 @@
         justify-content: space-between;
         gap: 0.6rem;
       }
+      .head-main {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        min-width: 0;
+      }
+      .head-main h2 {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .avatar {
+        width: 42px;
+        height: 42px;
+        border-radius: 10px;
+        object-fit: cover;
+        object-position: top center;
+        border: 1px solid #33415599;
+        background: #0b1222;
+      }
       .head h2 {
         margin: 0;
         font-size: 1.05rem;
@@ -229,7 +249,12 @@
           <article class="card" data-player-name="{{ player.name|lower }}" data-player="{{ player.player_id }}">
             <a class="card-link" href="{% url 'player-detail' player.player_id %}">
               <div class="head">
-                <h2>{{ player.name }}</h2>
+                <div class="head-main">
+                  {% if player.photo_url %}
+                  <img class="avatar" src="{{ player.photo_url }}" alt="{{ player.name }}" loading="lazy" />
+                  {% endif %}
+                  <h2>{{ player.name }}</h2>
+                </div>
                 {% if player.number %}<span class="badge">#{{ player.number }}</span>{% endif %}
               </div>
               <div class="subline">{{ player.profile_label }}</div>

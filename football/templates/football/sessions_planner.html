@@ -350,12 +350,20 @@
         cursor: pointer;
       }
       .palette-btn .icon {
-        display: inline-block;
-        min-width: 18px;
-        text-align: center;
+        display: inline-flex;
+        width: 20px;
+        height: 20px;
+        align-items: center;
+        justify-content: center;
         margin-right: 0.35rem;
         font-weight: 800;
         color: #fde68a;
+        vertical-align: middle;
+      }
+      .palette-btn .icon img {
+        width: 18px;
+        height: 18px;
+        object-fit: contain;
       }
 
       .pad-field {
@@ -419,6 +427,19 @@
         background: linear-gradient(160deg, rgba(251, 191, 36, 0.95), rgba(217, 119, 6, 0.95));
         color: #102130;
         border-color: rgba(255, 251, 235, 0.95);
+      }
+      .pad-token.material.has-asset {
+        background: rgba(255, 255, 255, 0.94);
+        border-color: rgba(255, 255, 255, 0.98);
+        border-radius: 10px;
+        min-width: 36px;
+        min-height: 36px;
+        padding: 0.15rem;
+      }
+      .pad-token.material.has-asset img {
+        width: 28px;
+        height: 28px;
+        object-fit: contain;
       }
 
       .pad-token.material.material-ball,
@@ -702,8 +723,16 @@
                     data-title="{{ item.title }}"
                     data-kind="{{ item.kind }}"
                     data-icon="{{ item.icon|default:'•' }}"
+                    data-asset="{% if item.asset %}{% static item.asset %}{% endif %}"
                   >
-                    <span class="icon">{{ item.icon|default:"•" }}</span>{{ item.title }}
+                    <span class="icon">
+                      {% if item.asset %}
+                      <img src="{% static item.asset %}" alt="{{ item.title }}" loading="lazy" />
+                      {% else %}
+                      {{ item.icon|default:"•" }}
+                      {% endif %}
+                    </span>
+                    {{ item.title }}
                   </button>
                   {% endif %}
                   {% endfor %}
@@ -849,15 +878,24 @@
         const item = document.createElement('button');
         item.type = 'button';
         const kindClass = token.kind ? `material-${String(token.kind).replace(/[^a-z0-9_-]/gi, '').toLowerCase()}` : '';
-        item.className = `pad-token ${token.type === 'material' ? `material ${kindClass}` : ''}`.trim();
+        const hasAsset = token.type === 'material' && String(token.asset || '').trim();
+        item.className = `pad-token ${token.type === 'material' ? `material ${kindClass} ${hasAsset ? 'has-asset' : ''}` : ''}`.trim();
         item.dataset.tokenId = token.id;
         item.style.left = `${token.x}%`;
         item.style.top = `${token.y}%`;
         if (token.type === 'material') {
-          item.textContent = resolveMaterialIcon(token);
-          item.style.fontSize = '1.05rem';
-          item.style.minWidth = '34px';
-          item.style.padding = '0 0.25rem';
+          if (hasAsset) {
+            const img = document.createElement('img');
+            img.src = token.asset;
+            img.alt = token.title || token.label || 'Material';
+            img.loading = 'lazy';
+            item.appendChild(img);
+          } else {
+            item.textContent = resolveMaterialIcon(token);
+            item.style.fontSize = '1.05rem';
+            item.style.minWidth = '34px';
+            item.style.padding = '0 0.25rem';
+          }
         } else {
           item.textContent = token.label || '?';
         }
@@ -882,7 +920,7 @@
         updatePadSummary();
       }
 
-      function addToken(type, label, title, kind = '', icon = '') {
+      function addToken(type, label, title, kind = '', icon = '', asset = '') {
         const token = {
           id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
           type,
@@ -890,6 +928,7 @@
           title,
           kind,
           icon: type === 'material' ? (icon || MATERIAL_ICON_BY_KIND[String(kind || '').toLowerCase()] || MATERIAL_ICON_BY_LABEL[String(label || '').toUpperCase()] || '•') : '',
+          asset: type === 'material' ? String(asset || '').trim() : '',
           x: 50,
           y: 50,
         };
@@ -919,7 +958,8 @@
           const title = button.dataset.title || label;
           const kind = button.dataset.kind || '';
           const icon = button.dataset.icon || '';
-          addToken(type, label, title, kind, icon);
+          const asset = button.dataset.asset || '';
+          addToken(type, label, title, kind, icon, asset);
         });
       });
 

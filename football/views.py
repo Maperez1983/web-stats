@@ -34,6 +34,7 @@ from football.models import (
     Match,
     MatchEvent,
     Player,
+    PlayerInjuryRecord,
     PlayerCommunication,
     PlayerPhysicalMetric,
     PlayerStatistic,
@@ -129,6 +130,32 @@ TASK_MATERIAL_LIBRARY = [
     {'label': 'ARCO', 'title': 'Arco precisión', 'kind': 'arc', 'category': 'finalizacion', 'icon': '◠'},
     {'label': 'OBJ', 'title': 'Objetivo diana', 'kind': 'target', 'category': 'finalizacion', 'icon': '◎'},
 ]
+TASK_MATERIAL_PPT_DIR = Path(settings.BASE_DIR) / 'static' / 'football' / 'images' / 'task-materials' / 'ppt'
+
+
+def build_task_material_library():
+    materials = [dict(item) for item in TASK_MATERIAL_LIBRARY]
+    if not TASK_MATERIAL_PPT_DIR.exists():
+        return materials
+
+    allowed_suffixes = {'.png', '.gif', '.jpg', '.jpeg', '.webp'}
+    icon_files = [
+        path
+        for path in sorted(TASK_MATERIAL_PPT_DIR.iterdir())
+        if path.is_file() and path.suffix.lower() in allowed_suffixes
+    ]
+    for index, icon_file in enumerate(icon_files, start=1):
+        materials.append(
+            {
+                'label': f'P{index:02d}',
+                'title': f'Recurso visual PPT {index:02d}',
+                'kind': f'ppt-{index:02d}',
+                'category': 'ppt',
+                'icon': '',
+                'asset': f"football/images/task-materials/ppt/{icon_file.name}",
+            }
+        )
+    return materials
 
 
 def _canonical_action_value(value):
@@ -147,7 +174,7 @@ def _build_pdf_response_or_html_fallback(request, html: str, filename: str):
         return HttpResponse(html, content_type='text/html; charset=utf-8')
 
 
-def resolve_player_photo_url(request, player):
+def resolve_player_photo_static_path(player):
     if not player:
         return ''
     players_dir = Path(settings.BASE_DIR) / 'static' / 'football' / 'images' / 'players'
@@ -190,7 +217,7 @@ def resolve_player_photo_url(request, player):
         seen.add(filename)
         file_path = players_dir / filename
         if file_path.exists():
-            return request.build_absolute_uri(static(f'football/images/players/{filename}'))
+            return f'football/images/players/{filename}'
     if number_value != '':
         wildcard_patterns = [
             f'*-n{number_value}-final.*',
@@ -201,8 +228,20 @@ def resolve_player_photo_url(request, player):
         for pattern in wildcard_patterns:
             for file_path in players_dir.glob(pattern):
                 if file_path.is_file():
-                    return request.build_absolute_uri(static(f'football/images/players/{file_path.name}'))
+                    return f'football/images/players/{file_path.name}'
     return ''
+
+
+def resolve_player_photo_url(request, player):
+    static_path = resolve_player_photo_static_path(player)
+    if not static_path:
+        return ''
+    if request is None:
+        return static(static_path)
+    try:
+        return request.build_absolute_uri(static(static_path))
+    except Exception:
+        return static(static_path)
 
 
 def _serialize_match_event(event, duplicate=False):
@@ -565,11 +604,14 @@ def match_action_page(request):
         if convocation_record
         else get_current_convocation(primary_team, match=active_match)
     )
+    convocation_players = list(convocation_players)
+    for player in convocation_players:
+        player.photo_url = resolve_player_photo_url(request, player)
     message = None
     if request.method == 'POST':
         action = request.POST.get('action_type', '').strip()
         player_id = request.POST.get('player')
-        player = convocation_players.filter(id=player_id).first()
+        player = next((item for item in convocation_players if str(item.id) == str(player_id)), None)
         if action and player:
             message = f"Acción de partido para {player.name} registrada ({action})."
         else:
@@ -828,7 +870,16 @@ def convocation_page(request):
     primary_team = Team.objects.filter(is_primary=True).first()
     if not primary_team:
         raise Http404('Equipo principal no configurado')
-    players = Player.objects.filter(team=primary_team).order_by('name')
+    players = list(Player.objects.filter(team=primary_team).order_by('name'))
+    for player in players:
+        player.photo_url = resolve_player_photo_url(request, player)
+    active_injury_ids = set(
+        PlayerInjuryRecord.objects
+        .filter(player_id__in=[p.id for p in players], is_active=True)
+        .values_list('player_id', flat=True)
+    )
+    for player in players:
+        player.has_active_injury = bool(player.injury) or (player.id in active_injury_ids)
     active_match = get_active_match(primary_team)
     convocation_record = get_current_convocation_record(primary_team, match=active_match)
     selected_player_ids = []
@@ -876,6 +927,7 @@ def convocation_page(request):
             'players': players,
             'team_name': primary_team.name,
             'selected_player_ids_json': json.dumps(selected_player_ids),
+            'injured_player_ids_json': json.dumps([p.id for p in players if getattr(p, 'has_active_injury', False)]),
             'match_info': match_info,
             'has_saved_convocation': bool(convocation_record and selected_player_ids),
         },
@@ -964,6 +1016,17 @@ def save_convocation(request):
             },
         )
 
+    active_injury_ids = set(
+        PlayerInjuryRecord.objects
+        .filter(player_id__in=players.values_list('id', flat=True), is_active=True)
+        .values_list('player_id', flat=True)
+    )
+    injured_players = [
+        player.name
+        for player in players
+        if player.id in active_injury_ids or bool(player.injury)
+    ]
+
     with transaction.atomic():
         ConvocationRecord.objects.filter(team=primary_team, is_current=True).update(is_current=False)
         record = ConvocationRecord.objects.create(
@@ -976,7 +1039,15 @@ def save_convocation(request):
             opponent_name=opponent_value,
         )
         record.players.set(players.distinct())
-    return JsonResponse({'saved': True, 'count': players.count(), 'match_id': target_match.id if target_match else None})
+    return JsonResponse(
+        {
+            'saved': True,
+            'count': players.count(),
+            'match_id': target_match.id if target_match else None,
+            'injury_warning_count': len(injured_players),
+            'injury_warning_players': injured_players[:8],
+        }
+    )
 
 
 @login_required
@@ -1115,8 +1186,15 @@ def session_task_pdf(request, task_id):
             token_type = str(token.get('type') or '').strip()
             token_kind = str(token.get('kind') or '').strip()
             token_icon = ''
+            token_asset = str(token.get('asset') or '').strip()
             if token_type == 'material':
                 token_icon = str(token.get('icon') or '').strip() or material_icon_by_kind.get(token_kind, '•')
+            token_asset_url = ''
+            if token_asset:
+                if token_asset.startswith('/'):
+                    token_asset_url = request.build_absolute_uri(token_asset)
+                else:
+                    token_asset_url = request.build_absolute_uri(static(token_asset))
             tokens.append(
                 {
                     'label': str(token.get('label') or '?')[:16],
@@ -1124,6 +1202,7 @@ def session_task_pdf(request, task_id):
                     'type': token_type,
                     'kind': token_kind,
                     'icon': token_icon,
+                    'asset_url': token_asset_url,
                     'x': x,
                     'y': y,
                 }
@@ -1442,10 +1521,12 @@ def sessions_page(request):
         'control': 'Control',
         'fisico': 'Físico',
         'finalizacion': 'Finalización',
+        'ppt': 'Biblioteca PPT',
     }
+    task_materials = build_task_material_library()
     material_categories = []
     materials_by_category = {}
-    for item in TASK_MATERIAL_LIBRARY:
+    for item in task_materials:
         category = str(item.get('category') or 'otros')
         if category not in materials_by_category:
             materials_by_category[category] = []
@@ -1471,7 +1552,7 @@ def sessions_page(request):
             'microcycle_statuses': TrainingMicrocycle.STATUS_CHOICES,
             'session_intensities': TrainingSession.INTENSITY_CHOICES,
             'task_blocks': SessionTask.BLOCK_CHOICES,
-            'task_materials': TASK_MATERIAL_LIBRARY,
+            'task_materials': task_materials,
             'material_categories': material_categories,
             'materials_by_category': materials_by_category,
             'planner_tables_ready': planner_tables_ready,
@@ -1706,15 +1787,91 @@ def player_detail_page(request, player_id):
 
             if form_action == 'profile':
                 number = request.POST.get('number', '').strip()
+                injury_name = request.POST.get('injury', '').strip()
+                injury_type = request.POST.get('injury_type', '').strip()
+                injury_zone = request.POST.get('injury_zone', '').strip()
+                injury_side = request.POST.get('injury_side', '').strip()
+                injury_notes = request.POST.get('injury_notes', '').strip()
+                injury_date = _parse_date_value(request.POST.get('injury_date'))
+                injury_return_date = _parse_date_value(request.POST.get('injury_return_date'))
                 player.number = int(number) if number else None
                 player.position = request.POST.get('position', '').strip()
                 player.full_name = request.POST.get('full_name', '').strip()
+                player.nickname = request.POST.get('nickname', '').strip()
                 player.birth_date = _parse_date_value(request.POST.get('birth_date'))
                 player.height_cm = _parse_int(request.POST.get('height_cm'))
                 player.weight_kg = _parse_decimal_value(request.POST.get('weight_kg_base'))
-                player.injury = request.POST.get('injury', '').strip()
-                player.injury_date = _parse_date_value(request.POST.get('injury_date'))
+                player.injury = injury_name
+                player.injury_type = injury_type
+                player.injury_zone = injury_zone
+                player.injury_side = injury_side
+                player.injury_date = injury_date
                 player.save()
+
+                active_injury = (
+                    PlayerInjuryRecord.objects
+                    .filter(player=player, is_active=True)
+                    .order_by('-injury_date', '-id')
+                    .first()
+                )
+                if injury_name and injury_date:
+                    same_record = (
+                        PlayerInjuryRecord.objects
+                        .filter(
+                            player=player,
+                            injury__iexact=injury_name,
+                            injury_date=injury_date,
+                        )
+                        .order_by('-id')
+                        .first()
+                    )
+                    if same_record:
+                        updated_fields = []
+                        if injury_type != same_record.injury_type:
+                            same_record.injury_type = injury_type
+                            updated_fields.append('injury_type')
+                        if injury_zone != same_record.injury_zone:
+                            same_record.injury_zone = injury_zone
+                            updated_fields.append('injury_zone')
+                        if injury_side != same_record.injury_side:
+                            same_record.injury_side = injury_side
+                            updated_fields.append('injury_side')
+                        if injury_notes != same_record.notes:
+                            same_record.notes = injury_notes
+                            updated_fields.append('notes')
+                        if injury_return_date != same_record.return_date:
+                            same_record.return_date = injury_return_date
+                            updated_fields.append('return_date')
+                        should_be_active = not bool(injury_return_date)
+                        if same_record.is_active != should_be_active:
+                            same_record.is_active = should_be_active
+                            updated_fields.append('is_active')
+                        if updated_fields:
+                            same_record.save(update_fields=updated_fields + ['updated_at'])
+                    else:
+                        PlayerInjuryRecord.objects.create(
+                            player=player,
+                            injury=injury_name,
+                            injury_type=injury_type,
+                            injury_zone=injury_zone,
+                            injury_side=injury_side,
+                            injury_date=injury_date,
+                            return_date=injury_return_date,
+                            notes=injury_notes,
+                            is_active=not bool(injury_return_date),
+                        )
+                    if active_injury and active_injury.injury.lower() != injury_name.lower():
+                        active_injury.is_active = False
+                        if not active_injury.return_date:
+                            active_injury.return_date = injury_return_date or timezone.localdate()
+                            active_injury.save(update_fields=['is_active', 'return_date', 'updated_at'])
+                        else:
+                            active_injury.save(update_fields=['is_active', 'updated_at'])
+                elif active_injury and injury_return_date:
+                    active_injury.return_date = injury_return_date
+                    active_injury.is_active = False
+                    active_injury.save(update_fields=['return_date', 'is_active', 'updated_at'])
+
                 return redirect(f"{reverse('player-detail', args=[player.id])}?tab=general")
 
             if form_action == 'physical':
@@ -1748,6 +1905,11 @@ def player_detail_page(request, player_id):
         physical_metrics = player.physical_metrics.all()[:20]
         latest_physical_metric = physical_metrics[0] if physical_metrics else None
         communications = player.communications.select_related('match').all()[:20]
+        injury_records = player.injury_records.all()[:20]
+        latest_injury_record = injury_records[0] if injury_records else None
+        has_active_injury = bool(player.injury) or bool(
+            latest_injury_record and latest_injury_record.is_active
+        )
         player_photo_url = resolve_player_photo_url(request, player)
         return render(
             request,
@@ -1759,6 +1921,9 @@ def player_detail_page(request, player_id):
                 'physical_metrics': physical_metrics,
                 'latest_physical_metric': latest_physical_metric,
                 'communications': communications,
+                'injury_records': injury_records,
+                'latest_injury_record': latest_injury_record,
+                'has_active_injury': has_active_injury,
                 'is_called_up': is_called_up,
                 'current_convocation': current_convocation,
                 'active_match': active_match,
@@ -2493,12 +2658,14 @@ def compute_player_cards_for_match(match, primary_team, source_file=None):
         player = event.player
         if not player:
             continue
+        photo_path = resolve_player_photo_static_path(player)
         data = per_player.setdefault(
             player.id,
             {
                 'player_id': player.id,
                 'name': player.name,
                 'number': player.number or '--',
+                'photo_url': static(photo_path) if photo_path else '',
                 'actions': 0,
                 'successes': 0,
             },
@@ -2589,6 +2756,7 @@ def compute_player_cards(primary_team):
 
     cards = []
     for player in Player.objects.filter(team=primary_team).order_by('name'):
+        photo_path = resolve_player_photo_static_path(player)
         roster_entry = find_roster_entry(player.name, roster_cache) or {}
         manual_entry = manual_overrides.get(player.id, {})
         universo_entry = _find_universo_entry(player) or {}
@@ -2621,6 +2789,7 @@ def compute_player_cards(primary_team):
             {
                 'player_id': player.id,
                 'name': player.name,
+                'photo_url': static(photo_path) if photo_path else '',
                 'pj': _to_int(pj),
                 'minutes': _to_int(minutes),
                 'goals': _to_int(goals),
@@ -2728,6 +2897,7 @@ def compute_player_dashboard(primary_team):
         player = event.player
         if not player:
             continue
+        photo_path = resolve_player_photo_static_path(player)
         match = event.match
         preferred_source = preferred_sources.get(match.id if match else None)
         if preferred_source and (event.source_file or '') != preferred_source:
@@ -2777,6 +2947,7 @@ def compute_player_dashboard(primary_team):
                 'player_id': player.id,
                 'name': player.name,
                 'number': player.number,
+                'photo_url': static(photo_path) if photo_path else '',
                 'position': player.position or universo_entry.get('position') or roster_entry.get('position', ''),
                 'total_actions': 0,
                 'successes': 0,
@@ -2927,6 +3098,7 @@ def compute_player_dashboard(primary_team):
     roster_players = Player.objects.filter(team=primary_team)
     for player in roster_players:
         if player.id not in player_stats:
+            photo_path = resolve_player_photo_static_path(player)
             normalized = normalize_player_name(player.name)
             roster_entry = roster_cache.get(normalized, {})
             manual_entry = manual_overrides.get(player.id, {})
@@ -2945,6 +3117,7 @@ def compute_player_dashboard(primary_team):
                 'player_id': player.id,
                 'name': player.name,
                 'number': player.number,
+                'photo_url': static(photo_path) if photo_path else '',
                 'position': player.position or universo_entry.get('position') or roster_entry.get('position'),
                 'total_actions': 0,
                 'successes': 0,

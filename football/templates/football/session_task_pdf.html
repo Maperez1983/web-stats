@@ -152,6 +152,18 @@
       .token.material.material-medicine-ball {
         border-radius: 50%;
       }
+      .token.material.has-asset {
+        background: #ffffff;
+        border-radius: 7px;
+        min-width: 30px;
+        min-height: 30px;
+        padding: 2px;
+      }
+      .token.material.has-asset img {
+        width: 24px;
+        height: 24px;
+        object-fit: contain;
+      }
       .footer {
         margin-top: 10px;
         font-size: 9px;
@@ -235,9 +247,13 @@
         <span class="mid-line"></span>
         <span class="mid-circle"></span>
         {% for token in tokens %}
-        <span class="token {% if token.type == 'material' %}material material-{{ token.kind }}{% else %}player{% endif %}" style="left:{{ token.x }}%; top:{{ token.y }}%;" title="{{ token.title }}">
+        <span class="token {% if token.type == 'material' %}material material-{{ token.kind }} {% if token.asset_url %}has-asset{% endif %}{% else %}player{% endif %}" style="left:{{ token.x }}%; top:{{ token.y }}%;" title="{{ token.title }}">
           {% if token.type == 'material' %}
+            {% if token.asset_url %}
+            <img src="{{ token.asset_url }}" alt="{{ token.title|default:token.label }}" />
+            {% else %}
             {{ token.icon|default:token.label }}
+            {% endif %}
           {% else %}
             {{ token.label }}
           {% endif %}

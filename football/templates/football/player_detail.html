@@ -9,6 +9,20 @@
       .container { max-width: 1100px; margin: 0 auto; }
       header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }
       header h1 { margin: 0.2rem 0 0; font-size: 2rem; }
+      .injury-alert-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        margin-left: 0.45rem;
+        border-radius: 999px;
+        background: rgba(239, 68, 68, 0.2);
+        border: 1px solid rgba(248, 113, 113, 0.9);
+        color: #fecaca;
+        font-size: 1rem;
+        vertical-align: middle;
+      }
       .btn { display: inline-flex; align-items: center; padding: 0.35rem 0.8rem; border-radius: 0.7rem; border: 1px solid rgba(148, 163, 184, 0.4); background: rgba(14, 116, 144, 0.4); color: #e0f2fe; text-decoration: none; font-weight: 600; }
       .card { background: rgba(15, 23, 42, 0.95); border-radius: 1rem; padding: 1.2rem; margin-top: 1rem; border: 1px solid rgba(148, 163, 184, 0.3); }
       .tabs { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; }
@@ -81,7 +95,15 @@
       <header>
         <div>
           <p style="margin:0;" class="subtle">Jugador · {{ player.team.name }}</p>
-          <h1>{{ player.name }}</h1>
+          <h1>
+            {{ player.name }}
+            {% if has_active_injury %}
+              <span class="injury-alert-icon" title="Jugador con lesión activa">✚</span>
+            {% endif %}
+          </h1>
+          {% if player.nickname %}
+            <p style="margin:0.2rem 0 0;" class="subtle">Apodo: {{ player.nickname }}</p>
+          {% endif %}
           {% if current_convocation %}
             <p style="margin:0.35rem 0 0;" class="subtle">Convocatoria activa: {{ current_convocation.round|default:"Sin jornada" }} · {{ current_convocation.opponent_name|default:"Rival pendiente" }}</p>
           {% endif %}
@@ -109,6 +131,9 @@
               <label>Nombre completo
                 <input type="text" name="full_name" value="{{ player.full_name|default:player.name }}" />
               </label>
+              <label>Apodo
+                <input type="text" name="nickname" value="{{ player.nickname|default:'' }}" placeholder="Ej. Pepe" />
+              </label>
               <label>Fecha nacimiento
                 <input type="date" name="birth_date" value="{{ player.birth_date|date:'Y-m-d' }}" />
               </label>
@@ -127,8 +152,28 @@
               <label>Lesión
                 <input type="text" name="injury" value="{{ player.injury|default:'' }}" placeholder="Ej. Isquios derecha" />
               </label>
+              <label>Tipo lesión
+                <input type="text" name="injury_type" value="{{ player.injury_type|default:'' }}" placeholder="Muscular, articular, tendinosa..." />
+              </label>
+              <label>Zona lesión
+                <input type="text" name="injury_zone" value="{{ player.injury_zone|default:'' }}" placeholder="Isquios, aductor, tobillo..." />
+              </label>
+              <label>Lado
+                <select name="injury_side">
+                  <option value="" {% if not player.injury_side %}selected{% endif %}>No aplica</option>
+                  <option value="izquierdo" {% if player.injury_side == 'izquierdo' %}selected{% endif %}>Izquierdo</option>
+                  <option value="derecho" {% if player.injury_side == 'derecho' %}selected{% endif %}>Derecho</option>
+                  <option value="bilateral" {% if player.injury_side == 'bilateral' %}selected{% endif %}>Bilateral</option>
+                </select>
+              </label>
               <label>Fecha lesión
                 <input type="date" name="injury_date" value="{{ player.injury_date|date:'Y-m-d' }}" />
+              </label>
+              <label>Fecha de alta
+                <input type="date" name="injury_return_date" value="{% if latest_injury_record and latest_injury_record.is_active == False and latest_injury_record.return_date %}{{ latest_injury_record.return_date|date:'Y-m-d' }}{% endif %}" />
+              </label>
+              <label>Notas lesión
+                <input type="text" name="injury_notes" value="{% if latest_injury_record %}{{ latest_injury_record.notes|default:'' }}{% endif %}" placeholder="Contexto, diagnóstico, limitaciones..." />
               </label>
             </div>
             <div style="margin-top:0.85rem;"><button type="submit">Guardar ficha</button></div>
@@ -161,6 +206,26 @@
           <article class="stat"><div class="label">Rojas</div><div class="value">{{ stats.red_cards|default:0 }}</div></article>
         </div>
         <p class="subtle" style="margin-top:0.8rem;">Base estadística consolidada desde fuentes federativas/caché de plantilla y registro interno.</p>
+
+        <h3 style="margin-top:1rem;">Historial de lesiones</h3>
+        <table>
+          <thead>
+            <tr><th>Lesión</th><th>Tipo · Zona · Lado</th><th>Fecha lesión</th><th>Fecha alta</th><th>Estado</th></tr>
+          </thead>
+          <tbody>
+            {% for item in injury_records %}
+            <tr>
+              <td>{{ item.injury }}</td>
+              <td>{{ item.injury_type|default:"--" }} · {{ item.injury_zone|default:"--" }} · {{ item.injury_side|default:"--" }}</td>
+              <td>{{ item.injury_date|date:"d/m/Y" }}</td>
+              <td>{% if item.return_date %}{{ item.return_date|date:"d/m/Y" }}{% else %}--{% endif %}</td>
+              <td>{% if item.is_active %}<span class="pill warn">Activa</span>{% else %}<span class="pill ok">Alta</span>{% endif %}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="subtle">Sin lesiones registradas.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </section>
 
       <section class="card tab-pane" data-pane="performance">

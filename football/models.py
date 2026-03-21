@@ -77,12 +77,16 @@ class Player(models.Model):
     team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='players')
     name = models.CharField(max_length=120)
     full_name = models.CharField(max_length=180, blank=True)
+    nickname = models.CharField(max_length=80, blank=True)
     birth_date = models.DateField(null=True, blank=True)
     height_cm = models.PositiveSmallIntegerField(null=True, blank=True)
     weight_kg = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     number = models.PositiveSmallIntegerField(null=True, blank=True)
     position = models.CharField(max_length=60, blank=True)
     injury = models.CharField(max_length=180, blank=True)
+    injury_type = models.CharField(max_length=80, blank=True)
+    injury_zone = models.CharField(max_length=80, blank=True)
+    injury_side = models.CharField(max_length=20, blank=True)
     injury_date = models.DateField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
     notes = models.TextField(blank=True)
@@ -92,6 +96,26 @@ class Player(models.Model):
 
     def __str__(self):
         return f'{self.name} ({self.team.name})'
+
+
+class PlayerInjuryRecord(models.Model):
+    player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='injury_records')
+    injury = models.CharField(max_length=180)
+    injury_type = models.CharField(max_length=80, blank=True)
+    injury_zone = models.CharField(max_length=80, blank=True)
+    injury_side = models.CharField(max_length=20, blank=True)
+    injury_date = models.DateField()
+    return_date = models.DateField(null=True, blank=True, help_text='Fecha de alta médica/deportiva')
+    notes = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-injury_date', '-id']
+
+    def __str__(self):
+        return f'{self.player.name} · {self.injury} ({self.injury_date:%d/%m/%Y})'
 
 
 class PlayerPhysicalMetric(models.Model):

@@ -226,6 +226,9 @@
         border-color: var(--accent);
       }
       .lineup-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
         font-size: 0.9rem;
         letter-spacing: 0.05em;
         cursor: grab;
@@ -233,6 +236,14 @@
         border-radius: 999px;
         background: rgba(255, 255, 255, 0.08);
         border: 1px solid rgba(255, 255, 255, 0.2);
+      }
+      .lineup-chip img {
+        width: 24px;
+        height: 24px;
+        border-radius: 999px;
+        object-fit: cover;
+        object-position: top center;
+        border: 1px solid rgba(255, 255, 255, 0.25);
       }
       .lineup-chip.selected {
         border-color: #facc15;
@@ -1051,6 +1062,21 @@
         cursor: pointer;
         transition: border 0.2s ease, transform 0.2s ease;
       }
+      .convocation-card-body {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        margin-top: 0.35rem;
+      }
+      .convocation-card-photo {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        object-fit: cover;
+        object-position: top center;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        background: rgba(255, 255, 255, 0.08);
+      }
       .convocation-card.is-assigned {
         opacity: 0;
         pointer-events: none;
@@ -1639,12 +1665,18 @@
             data-player-name="{{ player.name|escape }}"
             data-player-number="{{ player.number|default:'--' }}"
             data-player-position="{{ player.position|default:'Sin definir'|escape }}"
+            data-player-photo="{{ player.photo_url|default:''|escape }}"
           >
             <header>
               <span>#{{ player.number|default:"--" }}</span>
               <span>{{ player.position|default:"Sin definir" }}</span>
             </header>
-            <strong>{{ player.name }}</strong>
+            <div class="convocation-card-body">
+              {% if player.photo_url %}
+              <img class="convocation-card-photo" src="{{ player.photo_url }}" alt="{{ player.name }}" loading="lazy" />
+              {% endif %}
+              <strong>{{ player.name }}</strong>
+            </div>
           </article>
           {% endfor %}
           {% else %}
@@ -1971,7 +2003,15 @@ updateClockDisplay();
       const createLineupChip = (player, sectionKey) => {
         const span = document.createElement('span');
         span.className = 'lineup-name lineup-chip';
-        span.textContent = `#${player.number || '--'} ${player.name}`;
+        const photo = String(player.photo || '').trim();
+        if (photo) {
+          const img = document.createElement('img');
+          img.src = photo;
+          img.alt = player.name || 'Jugador';
+          img.loading = 'lazy';
+          span.appendChild(img);
+        }
+        span.appendChild(document.createTextNode(`#${player.number || '--'} ${player.name}`));
         span.dataset.playerId = player.id;
         span.dataset.playerNumber = player.number || '';
         span.dataset.section = sectionKey;
@@ -2333,6 +2373,7 @@ updateClockDisplay();
               id: card.dataset.playerId,
               name: card.dataset.playerName,
               number: card.dataset.playerNumber,
+              photo: card.dataset.playerPhoto || '',
             }),
           );
         });

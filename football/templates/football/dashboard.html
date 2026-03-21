@@ -321,6 +321,20 @@
         color: inherit;
         padding: 0.85rem;
       }
+      .player-head {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+      }
+      .player-avatar {
+        width: 44px;
+        height: 44px;
+        border-radius: 10px;
+        object-fit: cover;
+        object-position: top center;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.08);
+      }
 
       .player-link strong {
         display: block;
@@ -619,7 +633,10 @@
             (player) => `
               <article class="player-card">
                 <a class="player-link" href="/player/${player.player_id}/">
-                  <strong>${player.name}</strong>
+                  <div class="player-head">
+                    ${player.photo_url ? `<img class="player-avatar" src="${player.photo_url}" alt="${player.name}" loading="lazy">` : ''}
+                    <strong>${player.name}</strong>
+                  </div>
                   <span>${player.pj} PJ · ${player.minutes} min</span>
                   <span>${player.goals} goles</span>
                   <span>${player.yellow_cards} amarillas · ${player.red_cards} rojas</span>
