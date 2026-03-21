@@ -174,7 +174,20 @@ def _build_pdf_response_or_html_fallback(request, html: str, filename: str):
     if not weasyprint:
         return HttpResponse(html, content_type='text/html; charset=utf-8')
     try:
-        pdf_file = weasyprint.HTML(string=html, base_url=request.build_absolute_uri('/')).write_pdf()
+        def _safe_url_fetcher(url, timeout=4, ssl_context=None):
+            try:
+                default_fetcher = getattr(weasyprint, 'default_url_fetcher', None)
+                if callable(default_fetcher):
+                    return default_fetcher(url, timeout=timeout, ssl_context=ssl_context)
+            except Exception:
+                pass
+            return {'string': b'', 'mime_type': 'text/plain'}
+
+        pdf_file = weasyprint.HTML(
+            string=html,
+            base_url=request.build_absolute_uri('/'),
+            url_fetcher=_safe_url_fetcher,
+        ).write_pdf()
         response = HttpResponse(pdf_file, content_type='application/pdf')
         response['Content-Disposition'] = f'attachment; filename="{filename}.pdf"'
         return response
@@ -726,7 +739,7 @@ def incident_page(request):
     )
 
 
-def get_current_convocation_record(team, match=None):
+def get_current_convocation_record(team, match=None, fallback_to_latest=True):
     if not team:
         return None
     qs = ConvocationRecord.objects.filter(team=team, is_current=True).prefetch_related('players')
@@ -734,6 +747,8 @@ def get_current_convocation_record(team, match=None):
         by_match = qs.filter(match=match).order_by('-created_at').first()
         if by_match:
             return by_match
+        if not fallback_to_latest:
+            return None
     return qs.order_by('-created_at').first()
 
 
@@ -1021,26 +1036,30 @@ def convocation_page(request):
     primary_team = Team.objects.filter(is_primary=True).first()
     if not primary_team:
         raise Http404('Equipo principal no configurado')
-    players = list(Player.objects.filter(team=primary_team, is_active=True).order_by('name'))
-    for player in players:
+    all_players = list(Player.objects.filter(team=primary_team, is_active=True).order_by('name'))
+    for player in all_players:
         player.photo_url = resolve_player_photo_url(request, player)
     active_injury_ids = set(
         PlayerInjuryRecord.objects
-        .filter(player_id__in=[p.id for p in players], is_active=True)
+        .filter(player_id__in=[p.id for p in all_players], is_active=True)
         .values_list('player_id', flat=True)
     )
     filtered_players = []
-    for player in players:
+    for player in all_players:
         player.has_active_injury = bool(player.injury) or (player.id in active_injury_ids)
         if player.has_active_injury:
             continue
         filtered_players.append(player)
     players = filtered_players
-    active_match = get_active_match(primary_team)
-    convocation_record = get_current_convocation_record(primary_team, match=active_match)
+    convocation_record = get_current_convocation_record(primary_team)
     selected_player_ids = []
     if convocation_record:
-        selected_player_ids = list(convocation_record.players.values_list('id', flat=True))
+        available_ids = {player.id for player in players}
+        selected_player_ids = [
+            player_id
+            for player_id in convocation_record.players.values_list('id', flat=True)
+            if player_id in available_ids
+        ]
 
     next_match_payload = load_preferred_next_match_payload()
     if not next_match_payload and primary_team.group:
@@ -1083,7 +1102,9 @@ def convocation_page(request):
             'players': players,
             'team_name': primary_team.name,
             'selected_player_ids_json': json.dumps(selected_player_ids),
-            'injured_player_ids_json': json.dumps([p.id for p in players if getattr(p, 'has_active_injury', False)]),
+            'injured_player_ids_json': json.dumps(
+                [p.id for p in all_players if getattr(p, 'has_active_injury', False)]
+            ),
             'match_info': match_info,
             'has_saved_convocation': bool(convocation_record and selected_player_ids),
         },
@@ -1112,7 +1133,13 @@ def save_convocation(request):
         player_ids = [int(pid) for pid in raw_players if pid]
     except (TypeError, ValueError):
         return JsonResponse({'error': 'Formato de jugadores inválido'}, status=400)
-    players = Player.objects.filter(team=primary_team, id__in=player_ids)
+    players = Player.objects.filter(team=primary_team, is_active=True, id__in=player_ids)
+    blocked_injury_ids = set(
+        PlayerInjuryRecord.objects
+        .filter(player_id__in=players.values_list('id', flat=True), is_active=True)
+        .values_list('player_id', flat=True)
+    )
+    players = players.exclude(id__in=blocked_injury_ids)
     if not players.exists():
         return JsonResponse({'error': 'No se encontraron jugadores para la convocatoria'}, status=400)
 
@@ -1211,8 +1238,7 @@ def convocation_pdf(request):
     primary_team = Team.objects.filter(is_primary=True).first()
     if not primary_team:
         raise Http404('Equipo principal no configurado')
-    active_match = get_active_match(primary_team)
-    convocation_record = get_current_convocation_record(primary_team, match=active_match)
+    convocation_record = get_current_convocation_record(primary_team)
     if not convocation_record:
         return HttpResponse('No hay convocatoria guardada.', status=400)
 
@@ -1277,10 +1303,6 @@ def convocation_pdf(request):
                     break
         rival_full_name = str(rival_meta.get('full_name') or rival_full_name or rival_name).strip() or rival_name
         rival_crest_url = rival_crest_url or str(rival_meta.get('crest_url') or '').strip()
-
-    # Evita URLs remotas en PDF para impedir timeouts/502 en Render.
-    if str(rival_crest_url).strip().lower().startswith(('http://', 'https://')):
-        rival_crest_url = ''
 
     round_digits = ''.join(re.findall(r'\d+', convocation_record.round or ''))
     round_short = f'J{round_digits}' if round_digits else 'J'
