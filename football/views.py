@@ -1162,11 +1162,31 @@ def convocation_pdf(request):
 
     ordered_players = sorted(players, key=_sort_player_key)
 
+    static_root = Path(settings.BASE_DIR) / 'static'
+
+    def _static_file_url(static_rel_path):
+        rel = str(static_rel_path or '').strip().lstrip('/')
+        if not rel:
+            return ''
+        abs_path = static_root / rel
+        if abs_path.exists():
+            try:
+                return abs_path.resolve().as_uri()
+            except Exception:
+                return ''
+        return ''
+
+    def _player_photo_file_url(player):
+        static_rel = resolve_player_photo_static_path(player)
+        if static_rel:
+            return _static_file_url(static_rel)
+        return ''
+
     player_rows = [
         {
             'number': player.number,
             'name': player.name,
-            'photo_url': resolve_player_photo_url(request, player),
+            'photo_url': _player_photo_file_url(player),
         }
         for player in ordered_players
     ]
@@ -1208,6 +1228,10 @@ def convocation_pdf(request):
         rival_full_name = str(rival_meta.get('full_name') or rival_full_name or rival_name).strip() or rival_name
         rival_crest_url = rival_crest_url or str(rival_meta.get('crest_url') or '').strip()
 
+    # Evita URLs remotas en PDF para impedir timeouts/502 en Render.
+    if str(rival_crest_url).strip().lower().startswith(('http://', 'https://')):
+        rival_crest_url = ''
+
     round_digits = ''.join(re.findall(r'\d+', convocation_record.round or ''))
     round_short = f'J{round_digits}' if round_digits else 'J'
     date_human = date_label
@@ -1235,9 +1259,9 @@ def convocation_pdf(request):
         'coach_name': os.getenv('TEAM_COACH_NAME', 'Aitor Castillo'),
         'club_motto': os.getenv('TEAM_MOTTO', 'Orgullo Benalbino'),
         'club_hashtag': os.getenv('TEAM_HASHTAG', '#VamosVerdes'),
-        'logo_url': request.build_absolute_uri(static('football/images/cdb-logo.png')),
-        'team_photo_url': request.build_absolute_uri(static('football/images/team-01.jpg')),
-        'coach_photo_url': request.build_absolute_uri(static(os.getenv('TEAM_COACH_PHOTO', 'football/images/team-01.jpg'))),
+        'logo_url': _static_file_url('football/images/cdb-logo.png'),
+        'team_photo_url': _static_file_url('football/images/team-01.jpg'),
+        'coach_photo_url': _static_file_url(os.getenv('TEAM_COACH_PHOTO', 'football/images/team-01.jpg')),
     }
 
     html = render_to_string('football/convocation_pdf.html', context)
