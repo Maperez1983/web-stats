@@ -2,6 +2,8 @@ import json
 import os
 import subprocess
 import sys
+import base64
+import mimetypes
 from collections import Counter
 from datetime import datetime, timedelta
 from functools import wraps
@@ -273,6 +275,49 @@ def resolve_player_photo_url(request, player):
         return static(static_path)
 
 
+def _file_as_data_uri(file_path):
+    try:
+        path = Path(file_path)
+        if not path.exists() or not path.is_file():
+            return ''
+        mime_type, _ = mimetypes.guess_type(str(path))
+        if not mime_type:
+            mime_type = 'image/png'
+        encoded = base64.b64encode(path.read_bytes()).decode('ascii')
+        return f'data:{mime_type};base64,{encoded}'
+    except Exception:
+        return ''
+
+
+def resolve_team_photo_for_pdf(request):
+    default_path = Path(settings.BASE_DIR) / 'static' / 'football' / 'images' / 'team-01.jpg'
+    fallback_url = request.build_absolute_uri(static('football/images/team-01.jpg'))
+    fallback_data_uri = _file_as_data_uri(default_path)
+    source_path = default_path
+    source_url = fallback_url
+
+    carousel_cover = (
+        HomeCarouselImage.objects
+        .filter(is_active=True)
+        .order_by('order', '-created_at', '-id')
+        .first()
+    )
+    if carousel_cover and carousel_cover.image:
+        try:
+            source_url = request.build_absolute_uri(carousel_cover.image.url)
+            if getattr(carousel_cover.image, 'path', None):
+                source_path = Path(carousel_cover.image.path)
+        except Exception:
+            source_path = default_path
+            source_url = fallback_url
+
+    data_uri = _file_as_data_uri(source_path) or fallback_data_uri
+    return {
+        'url': source_url or fallback_url,
+        'data_uri': data_uri or '',
+    }
+
+
 def get_active_injury_player_ids(player_ids):
     normalized_ids = [int(pid) for pid in set(player_ids or []) if pid]
     if not normalized_ids:
@@ -285,6 +330,57 @@ def get_active_injury_player_ids(player_ids):
         )
     except (OperationalError, ProgrammingError):
         return set()
+
+
+def get_competition_total_rounds(primary_team):
+    if not primary_team:
+        return 0
+    group = primary_team.group
+    if not group:
+        return 0
+    matches = Match.objects.filter(group=group)
+    round_numbers = []
+    for round_value in matches.values_list('round', flat=True):
+        round_num = extract_round_number(round_value)
+        if round_num is not None:
+            round_numbers.append(round_num)
+    total_by_rounds = max(round_numbers) if round_numbers else 0
+    teams_count = Team.objects.filter(group=group).exclude(id__isnull=True).count()
+    total_double_round_robin = max((teams_count - 1) * 2, 0) if teams_count >= 2 else 0
+    return max(total_by_rounds, total_double_round_robin)
+
+
+def get_previous_match(primary_team, reference_match=None):
+    if not primary_team:
+        return None
+    qs = _team_match_queryset(primary_team)
+    if not qs.exists():
+        return None
+    if reference_match and reference_match.date:
+        previous = qs.exclude(id=reference_match.id).filter(date__lt=reference_match.date).order_by('-date', '-id').first()
+        if previous:
+            return previous
+    today = timezone.localdate()
+    previous = qs.filter(date__lt=today).order_by('-date', '-id').first()
+    if previous:
+        return previous
+    return None
+
+
+def get_sanctioned_player_ids_from_previous_round(primary_team, reference_match=None):
+    previous_match = get_previous_match(primary_team, reference_match=reference_match)
+    if not previous_match:
+        return set()
+    sanctioned_ids = set()
+    events = (
+        confirmed_events_queryset()
+        .filter(match=previous_match, player__team=primary_team)
+        .select_related('player')
+    )
+    for event in events:
+        if event.player_id and is_red_card_event(event.event_type, event.result, event.zone):
+            sanctioned_ids.add(event.player_id)
+    return sanctioned_ids
 
 
 def _serialize_match_event(event, duplicate=False):
@@ -425,6 +521,114 @@ def _build_universo_standings_lookup(snapshot):
             'team_code': str(row.get('team_code') or '').strip(),
         }
     return lookup
+
+
+def _absolute_universo_url(path_or_url):
+    value = str(path_or_url or '').strip()
+    if not value:
+        return ''
+    if value.startswith('http://') or value.startswith('https://'):
+        return value
+    if value.startswith('/'):
+        return f'https://www.universorfaf.es{value}'
+    return f'https://www.universorfaf.es/{value.lstrip("/")}'
+
+
+def _build_universo_capture_team_lookup():
+    lookup = {}
+    capture_path = Path(settings.BASE_DIR) / 'data' / 'input' / 'universo-rfaf-capture.json'
+    if not capture_path.exists():
+        return lookup
+    try:
+        payload = json.loads(capture_path.read_text(encoding='utf-8'))
+    except Exception:
+        return lookup
+    items = payload.get('items') if isinstance(payload, dict) else None
+    if not isinstance(items, list):
+        return lookup
+
+    def _push(team_name, crest):
+        full_name = str(team_name or '').strip()
+        if not full_name:
+            return
+        key = _normalize_team_lookup_key(full_name)
+        if not key:
+            return
+        crest_url = _absolute_universo_url(crest)
+        current = lookup.get(key, {})
+        if not current:
+            lookup[key] = {
+                'full_name': full_name,
+                'crest_url': crest_url,
+            }
+            return
+        if len(full_name) > len(current.get('full_name') or ''):
+            current['full_name'] = full_name
+        if crest_url and not current.get('crest_url'):
+            current['crest_url'] = crest_url
+        lookup[key] = current
+
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        data = item.get('json')
+        if isinstance(data, dict):
+            _push(data.get('nombre_equipo') or data.get('equipo'), data.get('escudo_equipo'))
+            competitions = data.get('competiciones_participa')
+            if isinstance(competitions, list):
+                for row in competitions:
+                    if isinstance(row, dict):
+                        _push(row.get('nombre_equipo') or row.get('nombre_club'), row.get('escudo_equipo'))
+
+            for bucket in data.values():
+                if isinstance(bucket, list):
+                    for row in bucket:
+                        if isinstance(row, dict):
+                            _push(row.get('nombre_equipo') or row.get('equipo'), row.get('escudo_equipo'))
+    return lookup
+
+
+def _resolve_rival_identity(rival_name, preferred_opponent=None):
+    rival_name = str(rival_name or '').strip() or 'Rival por confirmar'
+    rival_full_name = rival_name
+    rival_crest_url = ''
+    rival_key = _normalize_team_lookup_key(rival_name)
+
+    if isinstance(preferred_opponent, dict):
+        preferred_name = str(preferred_opponent.get('name') or '').strip()
+        preferred_full_name = str(preferred_opponent.get('full_name') or '').strip()
+        preferred_key = _normalize_team_lookup_key(preferred_name or preferred_full_name)
+        if preferred_key and rival_key and (preferred_key == rival_key or preferred_key in rival_key or rival_key in preferred_key):
+            rival_full_name = preferred_full_name or preferred_name or rival_full_name
+            rival_crest_url = str(preferred_opponent.get('crest_url') or '').strip()
+
+    standings_lookup = _build_universo_standings_lookup(load_universo_snapshot())
+    capture_lookup = _build_universo_capture_team_lookup()
+
+    best_meta = {}
+    candidates = [standings_lookup.get(rival_key, {}), capture_lookup.get(rival_key, {})]
+    for source in (standings_lookup, capture_lookup):
+        if best_meta.get('full_name') and best_meta.get('crest_url'):
+            break
+        for key, meta in source.items():
+            if not key or not rival_key:
+                continue
+            if rival_key in key or key in rival_key:
+                if len(str(meta.get('full_name') or '')) > len(str(best_meta.get('full_name') or '')):
+                    best_meta['full_name'] = str(meta.get('full_name') or '').strip()
+                if meta.get('crest_url') and not best_meta.get('crest_url'):
+                    best_meta['crest_url'] = str(meta.get('crest_url') or '').strip()
+    for meta in candidates:
+        if not isinstance(meta, dict):
+            continue
+        if len(str(meta.get('full_name') or '')) > len(str(best_meta.get('full_name') or '')):
+            best_meta['full_name'] = str(meta.get('full_name') or '').strip()
+        if meta.get('crest_url') and not best_meta.get('crest_url'):
+            best_meta['crest_url'] = str(meta.get('crest_url') or '').strip()
+
+    rival_full_name = best_meta.get('full_name') or rival_full_name
+    rival_crest_url = best_meta.get('crest_url') or rival_crest_url
+    return rival_full_name, rival_crest_url
 
 
 def load_preferred_next_match_payload():
@@ -778,12 +982,12 @@ def match_action_page(request):
     if not primary_team:
         raise Http404('Equipo principal no configurado')
     active_match = get_active_match(primary_team)
-    convocation_record = get_current_convocation_record(primary_team, match=active_match)
-    convocation_players = (
-        convocation_record.players.order_by('name')
-        if convocation_record
-        else get_current_convocation(primary_team, match=active_match)
+    convocation_record = get_current_convocation_record(
+        primary_team,
+        match=active_match,
+        fallback_to_latest=True,
     )
+    convocation_players = convocation_record.players.order_by('name') if convocation_record else Player.objects.none()
     convocation_players = list(convocation_players)
     for player in convocation_players:
         player.photo_url = resolve_player_photo_url(request, player)
@@ -931,17 +1135,23 @@ def register_match_action(request):
     if not primary_team:
         return JsonResponse({'error': 'Equipo principal no configurado'}, status=400)
     player_id = request.POST.get('player')
-    player = Player.objects.filter(team=primary_team, id=player_id).first()
+    convocation_record = get_current_convocation_record(
+        primary_team,
+        match=get_active_match(primary_team),
+        fallback_to_latest=True,
+    )
+    if not convocation_record:
+        return JsonResponse({'error': 'No hay convocatoria activa guardada para registrar acciones'}, status=400)
+    player = convocation_record.players.filter(id=player_id).first()
     if not player:
-        return JsonResponse({'error': 'Selecciona un jugador válido'}, status=400)
+        return JsonResponse({'error': 'Selecciona un jugador convocado válido'}, status=400)
     action_type = (request.POST.get('action_type') or '').strip()
     if not action_type:
         return JsonResponse({'error': 'Especifica el tipo de acción'}, status=400)
     match = get_active_match(primary_team)
     if not match:
         return JsonResponse({'error': 'No hay partido disponible para registrar acciones'}, status=400)
-    convocation_record = get_current_convocation_record(primary_team, match=match)
-    if convocation_record and not convocation_record.players.filter(id=player.id).exists():
+    if not convocation_record.players.filter(id=player.id).exists():
         return JsonResponse({'error': 'Jugador fuera de convocatoria para este partido'}, status=400)
     minute = _parse_int(request.POST.get('minute'))
     if minute is not None:
@@ -1095,6 +1305,11 @@ def convocation_page(request):
                 return entry
         return {}
     active_injury_ids = get_active_injury_player_ids([p.id for p in all_players])
+    active_match = get_active_match(primary_team)
+    sanctioned_player_ids = get_sanctioned_player_ids_from_previous_round(
+        primary_team,
+        reference_match=active_match,
+    )
     filtered_players = []
     for player in all_players:
         roster_entry = find_roster_entry(player.name, roster_cache) or {}
@@ -1116,8 +1331,8 @@ def convocation_page(request):
         )
         player.yellow_cards = int(yellow_cards or 0)
         player.red_cards = int(red_cards or 0)
-        player.is_sanctioned = player.red_cards > 0
-        player.is_apercibido = (player.yellow_cards % 5 == 4) and not player.is_sanctioned
+        player.is_sanctioned = player.id in sanctioned_player_ids
+        player.is_apercibido = player.yellow_cards in {4, 9, 14}
         player.has_active_injury = player.id in active_injury_ids
         filtered_players.append(player)
     players = filtered_players
@@ -1215,19 +1430,6 @@ def convocation_page(request):
             }
         )
 
-    team_photo_url = request.build_absolute_uri(static('football/images/team-01.jpg'))
-    carousel_cover = (
-        HomeCarouselImage.objects
-        .filter(is_active=True)
-        .order_by('order', '-created_at', '-id')
-        .first()
-    )
-    if carousel_cover and carousel_cover.image:
-        try:
-            team_photo_url = request.build_absolute_uri(carousel_cover.image.url)
-        except Exception:
-            pass
-
     return render(
         request,
         'football/convocation.html',
@@ -1242,7 +1444,6 @@ def convocation_page(request):
             'has_saved_convocation': bool(convocation_record and selected_player_ids),
             'opponent_options_json': json.dumps(opponent_options, ensure_ascii=False),
             'home_location_label': home_location,
-            'team_photo_url': team_photo_url,
         },
     )
 
@@ -1405,32 +1606,13 @@ def convocation_pdf(request):
         rival_label = opponent.name if opponent else ''
 
     rival_name = (rival_label or '').strip() or 'Rival por confirmar'
-    rival_full_name = rival_name
-    rival_crest_url = ''
-
     preferred_next = load_preferred_next_match_payload()
     preferred_opponent = preferred_next.get('opponent') if isinstance(preferred_next, dict) else None
-    if isinstance(preferred_opponent, dict):
-        preferred_name = str(preferred_opponent.get('name') or '').strip()
-        preferred_full_name = str(preferred_opponent.get('full_name') or '').strip()
-        if (
-            preferred_name
-            and _normalize_team_lookup_key(preferred_name) == _normalize_team_lookup_key(rival_name)
-        ):
-            rival_full_name = preferred_full_name or preferred_name
-            rival_crest_url = str(preferred_opponent.get('crest_url') or '').strip()
-
-    if not rival_crest_url or rival_full_name == rival_name:
-        universo_lookup = _build_universo_standings_lookup(load_universo_snapshot())
-        rival_meta = universo_lookup.get(_normalize_team_lookup_key(rival_name), {})
-        if not rival_meta:
-            rival_key = _normalize_team_lookup_key(rival_name)
-            for key, meta in universo_lookup.items():
-                if rival_key and (rival_key in key or key in rival_key):
-                    rival_meta = meta
-                    break
-        rival_full_name = str(rival_meta.get('full_name') or rival_full_name or rival_name).strip() or rival_name
-        rival_crest_url = rival_crest_url or str(rival_meta.get('crest_url') or '').strip()
+    rival_full_name, rival_crest_url = _resolve_rival_identity(
+        rival_name,
+        preferred_opponent=preferred_opponent,
+    )
+    rival_crest_url = _absolute_universo_url(rival_crest_url)
 
     round_digits = ''.join(re.findall(r'\d+', convocation_record.round or ''))
     round_short = f'J{round_digits}' if round_digits else 'J'
@@ -1461,21 +1643,13 @@ def convocation_pdf(request):
         'club_hashtag': os.getenv('TEAM_HASHTAG', '#VamosVerdes'),
         'logo_url': request.build_absolute_uri(static('football/images/cdb-logo.png')),
         'team_photo_url': request.build_absolute_uri(static('football/images/team-01.jpg')),
+        'team_photo_data_uri': '',
         'coach_photo_url': request.build_absolute_uri(static(os.getenv('TEAM_COACH_PHOTO', 'football/images/team-01.jpg'))),
     }
-
-    carousel_cover = (
-        HomeCarouselImage.objects
-        .filter(is_active=True)
-        .order_by('order', '-created_at', '-id')
-        .first()
-    )
-    if carousel_cover and carousel_cover.image:
-        try:
-            context['team_photo_url'] = request.build_absolute_uri(carousel_cover.image.url)
-            context['coach_photo_url'] = request.build_absolute_uri(carousel_cover.image.url)
-        except Exception:
-            pass
+    team_photo = resolve_team_photo_for_pdf(request)
+    context['team_photo_url'] = team_photo.get('url') or context['team_photo_url']
+    context['coach_photo_url'] = context['team_photo_url']
+    context['team_photo_data_uri'] = team_photo.get('data_uri') or ''
 
     html = render_to_string('football/convocation_pdf.html', context)
     filename = f'convocatoria-{timezone.localdate().isoformat()}'
@@ -2159,6 +2333,8 @@ def player_detail_page(request, player_id):
                 injury_notes = request.POST.get('injury_notes', '').strip()
                 injury_date = _parse_date_value(request.POST.get('injury_date'))
                 injury_return_date = _parse_date_value(request.POST.get('injury_return_date'))
+                injury_record_mode = (request.POST.get('injury_record_mode') or '').strip().lower()
+                force_new_injury_record = injury_record_mode in {'new', 'add', 'create'}
                 player.number = int(number) if number else None
                 player.position = request.POST.get('position', '').strip()
                 player.full_name = request.POST.get('full_name', '').strip()
@@ -2201,16 +2377,18 @@ def player_detail_page(request, player_id):
                     .first()
                 )
                 if injury_name and injury_date:
-                    same_record = (
-                        PlayerInjuryRecord.objects
-                        .filter(
-                            player=player,
-                            injury__iexact=injury_name,
-                            injury_date=injury_date,
+                    same_record = None
+                    if not force_new_injury_record:
+                        same_record = (
+                            PlayerInjuryRecord.objects
+                            .filter(
+                                player=player,
+                                injury__iexact=injury_name,
+                                injury_date=injury_date,
+                            )
+                            .order_by('-id')
+                            .first()
                         )
-                        .order_by('-id')
-                        .first()
-                    )
                     if same_record:
                         updated_fields = []
                         if injury_type != same_record.injury_type:
@@ -2332,6 +2510,12 @@ def player_detail_page(request, player_id):
         yellow_cards = _to_int_value(stats_source.get('yellow_cards'))
         red_cards = _to_int_value(stats_source.get('red_cards'))
         second_yellow_cards = _to_int_value(stats_source.get('second_yellow_cards'))
+        competition_total_rounds = _to_int_value(stats_source.get('competition_total_rounds')) or get_competition_total_rounds(primary_team)
+        participation_pct = (
+            round(min((pj / competition_total_rounds) * 100, 100), 1)
+            if competition_total_rounds > 0
+            else 0
+        )
         suplente = max(pj - pt, 0)
         goals_per_match = round((goals / pj), 2) if pj else 0
         max_minutes = pj * 90
@@ -2379,6 +2563,7 @@ def player_detail_page(request, player_id):
             {'label': 'Minutos', 'value': minutes, 'pct': minute_ratio},
             {'label': 'Total goles', 'value': goals, 'pct': round((goals / pj) * 100, 1) if pj else 0},
             {'label': 'Media goles/partido', 'value': goals_per_match, 'pct': round(min(goals_per_match * 100, 100), 1)},
+            {'label': '% participación', 'value': participation_pct, 'pct': participation_pct},
             {'label': 'Amarillas', 'value': yellow_cards, 'pct': round(min(yellow_cards * 15, 100), 1)},
             {'label': 'Rojas', 'value': red_cards, 'pct': round(min(red_cards * 30, 100), 1)},
             {'label': 'Doble amarilla', 'value': second_yellow_cards, 'pct': round(min(second_yellow_cards * 30, 100), 1)},
@@ -3340,6 +3525,15 @@ def get_manual_player_base_overrides(primary_team, season=None):
 
 def compute_player_dashboard(primary_team):
     player_stats = {}
+    competition_total_rounds = get_competition_total_rounds(primary_team)
+    roster_players = list(Player.objects.filter(team=primary_team))
+    player_by_id = {player.id: player for player in roster_players}
+    active_injury_ids = get_active_injury_player_ids([player.id for player in roster_players])
+    active_match = get_active_match(primary_team)
+    sanctioned_player_ids = get_sanctioned_player_ids_from_previous_round(
+        primary_team,
+        reference_match=active_match,
+    )
     roster_cache = get_roster_stats_cache()
     manual_overrides = get_manual_player_base_overrides(primary_team)
     universo_snapshot = load_universo_snapshot() or {}
@@ -3610,7 +3804,6 @@ def compute_player_dashboard(primary_team):
         if not stats.get('totals_locked'):
             stats['pc'] = max(stats.get('pc', 0), stats['pj'])
     # ensure roster players appear even without events
-    roster_players = Player.objects.filter(team=primary_team)
     for player in roster_players:
         if player.id not in player_stats:
             photo_path = resolve_player_photo_static_path(player)
@@ -3723,6 +3916,7 @@ def compute_player_dashboard(primary_team):
             **stats,
             'matches': matches,
             'match_count': len(matches),
+            'competition_total_rounds': competition_total_rounds,
             'age': stats.get('age') or (roster_entry.get('age') if roster_entry else None),
             'success_rate': round(
                 (stats['successes'] / stats['total_actions']) * 100, 1
@@ -3785,6 +3979,19 @@ def compute_player_dashboard(primary_team):
                 else 0,
             },
         }
+        player_obj = player_by_id.get(stats.get('player_id'))
+        red_cards_value = int(stats.get('red_cards') or 0)
+        yellow_cards_value = int(stats.get('yellow_cards') or 0)
+        merged['has_active_injury'] = bool(player_obj and player_obj.id in active_injury_ids)
+        merged['is_sanctioned'] = bool(player_obj and player_obj.id in sanctioned_player_ids)
+        merged['is_apercibido'] = yellow_cards_value in {4, 9, 14}
+        if competition_total_rounds > 0:
+            merged['participation_pct'] = round(
+                min((int(stats.get('pj') or 0) / competition_total_rounds) * 100, 100),
+                1,
+            )
+        else:
+            merged['participation_pct'] = 0
         profile, profile_label, smart_kpis = build_smart_kpis(stats)
         merged['profile'] = profile
         merged['profile_label'] = profile_label

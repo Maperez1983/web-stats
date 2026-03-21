@@ -192,11 +192,50 @@
         gap: 1rem;
         margin-bottom: 1rem;
       }
+      .lineup-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+      }
+      .lineup-toolbar button {
+        border: 1px solid rgba(255, 255, 255, 0.28);
+        border-radius: 999px;
+        padding: 0.28rem 0.68rem;
+        font-size: 0.62rem;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: #f8fafc;
+        background: rgba(8, 19, 44, 0.65);
+        cursor: pointer;
+      }
+      .lineup-toolbar button.primary {
+        border-color: rgba(250, 204, 21, 0.6);
+        background: rgba(250, 204, 21, 0.14);
+        color: #fde68a;
+      }
+      .lineup-toolbar button.danger {
+        border-color: rgba(248, 113, 113, 0.6);
+        background: rgba(127, 29, 29, 0.25);
+        color: #fecaca;
+      }
+      .lineup-status {
+        font-size: 0.62rem;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: rgba(248, 250, 252, 0.72);
+        margin-top: -0.2rem;
+      }
       .lineup-slot {
         border-radius: 18px;
         background: rgba(255, 255, 255, 0.02);
         border: 1px solid rgba(255, 255, 255, 0.08);
         padding: 0.85rem;
+      }
+      .lineup-slot.is-valid {
+        border-color: rgba(74, 222, 128, 0.75);
+      }
+      .lineup-slot.is-invalid {
+        border-color: rgba(248, 113, 113, 0.72);
       }
       .lineup-slot-header {
         display: flex;
@@ -1683,6 +1722,12 @@
           <p>Arrastra las fichas para organizar el once y los suplentes.</p>
         </div>
         <div class="sidebar-lineup-builder">
+          <div class="lineup-toolbar">
+            <button type="button" class="primary" id="lineup-auto-pick-btn">Auto 11</button>
+            <button type="button" id="lineup-fill-bench-btn">Completar banquillo</button>
+            <button type="button" class="danger" id="lineup-clear-btn">Limpiar</button>
+          </div>
+          <div class="lineup-status" id="lineup-status-msg">Define 11 titulares para cerrar el once inicial.</div>
           <div class="lineup-slot">
             <div class="lineup-slot-header">
               <span>Once inicial</span>
@@ -1781,17 +1826,23 @@
       const lineupInput = document.getElementById('initial-lineup-data');
       const lineupSections = {
         starters: {
+          wrapper: document.querySelector('#sidebar-initial-lineup')?.closest('.lineup-slot') || null,
           element: document.getElementById('sidebar-initial-lineup'),
           countEl: document.getElementById('lineup-starters-count'),
           limit: 11,
           placeholder: 'Arrastra hasta 11 jugadores desde la convocatoria.',
         },
         bench: {
+          wrapper: document.querySelector('#sidebar-bench-lineup')?.closest('.lineup-slot') || null,
           element: document.getElementById('sidebar-bench-lineup'),
           countEl: document.getElementById('lineup-bench-count'),
           placeholder: 'Arrastra suplentes aquí.',
         },
       };
+      const lineupStatusMsg = document.getElementById('lineup-status-msg');
+      const lineupAutoPickBtn = document.getElementById('lineup-auto-pick-btn');
+      const lineupFillBenchBtn = document.getElementById('lineup-fill-bench-btn');
+      const lineupClearBtn = document.getElementById('lineup-clear-btn');
       const matchClockDisplay = document.getElementById('match-clock-display');
       const clockToggle = document.getElementById('field-clock-toggle');
 const changeHalfBtn = document.getElementById('change-half-btn');
@@ -2148,6 +2199,23 @@ updateClockDisplay();
       const renderLineup = () => {
         Object.keys(lineupSections).forEach(renderLineupSection);
         refreshLineupCounts();
+        const startersCount = lineupState.starters?.length || 0;
+        const startersWrapper = lineupSections.starters?.wrapper;
+        if (startersWrapper) {
+          startersWrapper.classList.remove('is-valid', 'is-invalid');
+          if (startersCount === 11) {
+            startersWrapper.classList.add('is-valid');
+          } else if (startersCount > 0) {
+            startersWrapper.classList.add('is-invalid');
+          }
+        }
+        if (lineupStatusMsg) {
+          if (startersCount === 11) {
+            lineupStatusMsg.textContent = 'Once inicial completo y listo (11/11).';
+          } else {
+            lineupStatusMsg.textContent = `Faltan ${Math.max(0, 11 - startersCount)} titulares para completar el once.`;
+          }
+        }
         updateLineupInput();
         refreshCardAssignments();
       };
@@ -2432,8 +2500,76 @@ updateClockDisplay();
         renderLineup();
         selectPlayer(player.id);
       };
+      const normalizePositionText = (value) => String(value || '').trim().toLowerCase();
+      const playerPositionRank = (player) => {
+        const pos = normalizePositionText(player.position || '');
+        if (pos.includes('portero')) return 0;
+        if (pos.includes('defen')) return 1;
+        if (pos.includes('medio') || pos.includes('centro') || pos.includes('interior') || pos.includes('pivote')) return 2;
+        if (pos.includes('extremo') || pos.includes('delanter') || pos.includes('punta')) return 3;
+        return 9;
+      };
+      const parsePlayerNumber = (value) => {
+        const parsed = parseInt(String(value || '').replace(/[^\d]/g, ''), 10);
+        return Number.isFinite(parsed) ? parsed : 999;
+      };
+      const getConvocationPlayerPool = () => {
+        return Array.from(convocationCards).map((card) => ({
+          id: card.dataset.playerId,
+          name: card.dataset.playerName,
+          number: card.dataset.playerNumber,
+          photo: card.dataset.playerPhoto || '',
+          position: card.dataset.playerPosition || '',
+        }));
+      };
+      const autoPickStarters = () => {
+        const pool = getConvocationPlayerPool();
+        if (!pool.length) return;
+        const sorted = [...pool].sort((a, b) => {
+          const byRank = playerPositionRank(a) - playerPositionRank(b);
+          if (byRank !== 0) return byRank;
+          return parsePlayerNumber(a.number) - parsePlayerNumber(b.number);
+        });
+        const keeper = sorted.find((p) => playerPositionRank(p) === 0);
+        const starters = [];
+        if (keeper) {
+          starters.push(keeper);
+        }
+        for (const player of sorted) {
+          if (starters.length >= 11) break;
+          if (starters.some((entry) => String(entry.id) === String(player.id))) continue;
+          starters.push(player);
+        }
+        lineupState.starters = starters.slice(0, 11);
+        lineupState.bench = pool.filter(
+          (player) => !lineupState.starters.some((starter) => String(starter.id) === String(player.id)),
+        );
+        renderLineup();
+      };
+      const fillBenchFromRemaining = () => {
+        const pool = getConvocationPlayerPool();
+        const starters = lineupState.starters || [];
+        lineupState.bench = pool.filter(
+          (player) => !starters.some((starter) => String(starter.id) === String(player.id)),
+        );
+        renderLineup();
+      };
+      const clearLineupState = () => {
+        lineupState = { starters: [], bench: [] };
+        clearPlayerSelection();
+        renderLineup();
+      };
       hydrateLineupState();
       renderLineup();
+      if (lineupAutoPickBtn) {
+        lineupAutoPickBtn.addEventListener('click', autoPickStarters);
+      }
+      if (lineupFillBenchBtn) {
+        lineupFillBenchBtn.addEventListener('click', fillBenchFromRemaining);
+      }
+      if (lineupClearBtn) {
+        lineupClearBtn.addEventListener('click', clearLineupState);
+      }
       convocationCards.forEach((card) => {
         card.setAttribute('draggable', 'true');
         card.addEventListener('dragstart', (event) => {
@@ -2444,6 +2580,7 @@ updateClockDisplay();
               name: card.dataset.playerName,
               number: card.dataset.playerNumber,
               photo: card.dataset.playerPhoto || '',
+              position: card.dataset.playerPosition || '',
             }),
           );
         });
