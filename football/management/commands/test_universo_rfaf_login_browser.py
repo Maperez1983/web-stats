@@ -133,6 +133,7 @@ class Command(BaseCommand):
             'input[name="username"]',
             'input[name="user"]',
             'input[name="email"]',
+            'input[id="email"]',
             'input[autocomplete="username"]',
             'input[type="email"]',
             'input[type="text"]',
@@ -141,6 +142,7 @@ class Command(BaseCommand):
             'input[type="password"]',
             'input[name="password"]',
             'input[name*="pass"]',
+            'input[id="password"]',
             'input[autocomplete="current-password"]',
         ]
         submit_selectors = [
@@ -304,6 +306,34 @@ class Command(BaseCommand):
                 pass_input.fill('')
                 pass_input.type(password, delay=20)
 
+                # Force exact located elements (works better with controlled components).
+                try:
+                    user_input.evaluate(
+                        """
+                        (el, value) => {
+                          el.focus();
+                          el.value = value;
+                          el.dispatchEvent(new Event('input', { bubbles: true }));
+                          el.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                        """,
+                        username,
+                    )
+                    pass_input.evaluate(
+                        """
+                        (el, value) => {
+                          el.focus();
+                          el.value = value;
+                          el.dispatchEvent(new Event('input', { bubbles: true }));
+                          el.dispatchEvent(new Event('change', { bubbles: true }));
+                          el.dispatchEvent(new Event('blur', { bubbles: true }));
+                        }
+                        """,
+                        password,
+                    )
+                except Exception:
+                    pass
+
                 # Fallback for React/controlled inputs: force value + dispatch events.
                 try:
                     page.evaluate(
@@ -350,6 +380,21 @@ class Command(BaseCommand):
                         'Los campos de login siguen vacíos tras escribir. '
                         'Puede haber inputs espejo/ocultos o bloqueo JS.'
                     )
+
+                try:
+                    validity_message = page.evaluate(
+                        """
+                        () => {
+                          const invalid = Array.from(document.querySelectorAll('input:invalid'));
+                          if (!invalid.length) return '';
+                          return invalid.map((el) => el.getAttribute('name') || el.getAttribute('id') || 'field').join(', ');
+                        }
+                        """
+                    ) or ''
+                    if validity_message:
+                        self.stdout.write(f'Campos aún inválidos antes de submit: {validity_message}')
+                except Exception:
+                    pass
 
                 submit_btn, submit_selector = _first_existing(page, submit_selectors)
                 submit_disabled_before = None
