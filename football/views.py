@@ -97,6 +97,8 @@ NEXT_MATCH_CACHE = Path(settings.BASE_DIR) / "data" / "input" / "rfaf-next-match
 UNIVERSO_SNAPSHOT_PATH = Path(settings.BASE_DIR) / "data" / "input" / "universo-rfaf-snapshot.json"
 SCRAPE_LOCK_KEY = "football:refresh_scraping_running"
 SCRAPE_LOCK_TIMEOUT_SECONDS = 900
+DASHBOARD_CACHE_KEY_PREFIX = "football:dashboard_payload"
+DASHBOARD_CACHE_SECONDS = int(os.getenv('DASHBOARD_CACHE_SECONDS', '90'))
 
 TASK_MATERIAL_LIBRARY = [
     {'label': 'CONO', 'title': 'Cono alto', 'kind': 'cone', 'category': 'delimitacion', 'icon': '△'},
@@ -458,6 +460,10 @@ def _next_match_payload_is_reliable(payload):
     return True
 
 
+def _dashboard_cache_key(team_id):
+    return f'{DASHBOARD_CACHE_KEY_PREFIX}:{team_id}'
+
+
 def load_universo_snapshot():
     if not UNIVERSO_SNAPSHOT_PATH.exists():
         return None
@@ -524,10 +530,20 @@ def dashboard_data(request):
     group = primary_team.group
     if not group:
         return JsonResponse({'error': 'El equipo principal no está asignado a ningún grupo'}, status=400)
-    try:
-        refresh_primary_roster_cache(primary_team, force=True)
-    except Exception:
-        pass
+
+    cache_key = _dashboard_cache_key(primary_team.id)
+    cached_payload = cache.get(cache_key)
+    if isinstance(cached_payload, dict):
+        return JsonResponse(cached_payload)
+
+    refresh_roster_on_load = str(
+        os.getenv('PREFERENTE_ROSTER_REFRESH_ON_LOAD', '0')
+    ).strip().lower() in {'1', 'true', 'yes', 'on'}
+    if refresh_roster_on_load:
+        try:
+            refresh_primary_roster_cache(primary_team, force=False)
+        except Exception:
+            pass
 
     universo_snapshot = load_universo_snapshot()
     standings = _serialize_universo_standings(universo_snapshot) or serialize_standings(group)
@@ -540,17 +556,17 @@ def dashboard_data(request):
     player_cards = compute_player_cards(primary_team)
     player_cards_scope = {'type': 'global', 'label': 'Jugador · datos La Preferente'}
 
-    return JsonResponse(
-        {
-            'team': {'name': primary_team.name, 'group': group.name},
-            'standings': standings,
-            'next_match': next_match,
-            'team_metrics': team_metrics,
-            'player_metrics': player_metrics,
-            'player_cards': player_cards,
-            'player_cards_scope': player_cards_scope,
-        }
-    )
+    payload = {
+        'team': {'name': primary_team.name, 'group': group.name},
+        'standings': standings,
+        'next_match': next_match,
+        'team_metrics': team_metrics,
+        'player_metrics': player_metrics,
+        'player_cards': player_cards,
+        'player_cards_scope': player_cards_scope,
+    }
+    cache.set(cache_key, payload, DASHBOARD_CACHE_SECONDS)
+    return JsonResponse(payload)
 
 
 @login_required
@@ -2292,6 +2308,8 @@ def refresh_scraping(request):
         roster_status = 'y plantilla actualizada' if roster_ok else f'plantilla no actualizada ({roster_message})'
     else:
         roster_status = 'plantilla gestionada por Universo RFAF'
+    if primary_team:
+        cache.delete(_dashboard_cache_key(primary_team.id))
     return JsonResponse(
         {'status': 'success', 'message': f'Clasificación actualizada desde RFAF, {roster_status}.'}
     )
