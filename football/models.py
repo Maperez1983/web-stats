@@ -500,3 +500,19 @@ class ScrapeRun(models.Model):
             'started_at': self.started_at.isoformat(),
             'completed_at': self.completed_at.isoformat() if self.completed_at else None,
         }
+
+
+class HomeCarouselImage(models.Model):
+    title = models.CharField(max_length=120, blank=True)
+    image = models.ImageField(upload_to='home-carousel/')
+    order = models.PositiveSmallIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['order', '-created_at', '-id']
+        verbose_name = 'Imagen carrusel home'
+        verbose_name_plural = 'Imágenes carrusel home'
+
+    def __str__(self):
+        return self.title or f'Imagen {self.id}'

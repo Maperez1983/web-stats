@@ -191,6 +191,76 @@
         font-weight: 700;
         color: rgba(17, 24, 39, 0.75);
       }
+      .performance-overview {
+        margin-top: 1rem;
+        border-radius: 1rem;
+        border: 1px solid rgba(34, 211, 238, 0.35);
+        background: linear-gradient(160deg, rgba(241, 245, 249, 0.98), rgba(226, 232, 240, 0.96));
+        padding: 1.1rem;
+        color: #102734;
+      }
+      .performance-overview h3 {
+        margin: 0;
+        text-align: center;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #0f766e;
+      }
+      .performance-rings {
+        margin-top: 0.95rem;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+      }
+      .performance-rings .kpi-ring-chart {
+        background:
+          radial-gradient(closest-side, #f8fafc 68%, transparent 70% 100%),
+          conic-gradient(#0e7490 calc(var(--pct) * 1%), #d1d5db 0);
+      }
+      .performance-blocks {
+        margin-top: 1rem;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 0.7rem;
+      }
+      .performance-block {
+        border-radius: 0.85rem;
+        padding: 0.75rem 0.8rem;
+        border: 1px solid rgba(15, 118, 110, 0.22);
+        background: rgba(255, 255, 255, 0.75);
+        text-align: center;
+      }
+      .performance-block .label {
+        display: block;
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(15, 23, 42, 0.75);
+      }
+      .performance-block .value {
+        display: block;
+        margin-top: 0.25rem;
+        font-size: 1.35rem;
+        font-weight: 800;
+        color: #0f172a;
+      }
+      .performance-map {
+        margin-top: 1rem;
+        padding: 0.8rem;
+        border-radius: 0.9rem;
+        border: 1px solid rgba(15, 118, 110, 0.24);
+        background: rgba(255, 255, 255, 0.7);
+      }
+      .performance-table {
+        margin-top: 1rem;
+        padding: 0.8rem;
+        border-radius: 0.9rem;
+        border: 1px solid rgba(15, 118, 110, 0.24);
+        background: rgba(255, 255, 255, 0.7);
+      }
+      .performance-table table { margin-top: 0; }
+      .performance-table th { color: rgba(15, 23, 42, 0.7); }
+      .performance-table td { color: #0f172a; }
       @media (max-width: 900px) {
         .personal-layout { grid-template-columns: 1fr; }
         .player-photo-card { max-width: 200px; }
@@ -452,60 +522,81 @@
       <section class="card tab-pane" data-pane="performance">
         <h2 style="margin-top:0;">Rendimiento, KPI y mapa de calor</h2>
         {% if stats %}
-          <div class="kpi-grid">
-            <div class="kpi"><span class="label">Tasa éxito</span><span class="value">{{ stats.success_rate|default:0 }}%</span></div>
-            <div class="kpi"><span class="label">Acciones</span><span class="value">{{ stats.total_actions|default:0 }}</span></div>
-            <div class="kpi"><span class="label">Duelos</span><span class="value">{{ stats.duel_summary.total|default:0 }}</span></div>
-            <div class="kpi"><span class="label">Duelos ganados</span><span class="value">{{ stats.duel_summary.won|default:0 }}</span></div>
-          </div>
-          <div class="detail-grid">
-            <div class="detail-block">
-              <p class="label">Disparos</p>
-              <p class="value">{{ stats.shots.attempts|default:0 }}</p>
-              <p class="label-soft">{{ stats.shots.on_target|default:0 }} a puerta · {{ stats.shots.accuracy|default:0 }}%</p>
+          <div class="performance-overview">
+            <h3>KPI de rendimiento</h3>
+            <div class="performance-rings">
+              <article class="kpi-ring">
+                <div class="kpi-ring-chart" style="--pct: {{ stats.success_rate|default:0 }};">
+                  <span class="kpi-ring-value">{{ stats.success_rate|default:0|floatformat:-1 }}%</span>
+                </div>
+                <div class="kpi-ring-label">Tasa de éxito</div>
+              </article>
+              <article class="kpi-ring">
+                <div class="kpi-ring-chart" style="--pct: {{ stats.duel_rate|default:0 }};">
+                  <span class="kpi-ring-value">{{ stats.duel_rate|default:0|floatformat:-1 }}%</span>
+                </div>
+                <div class="kpi-ring-label">Duelos ganados</div>
+              </article>
+              <article class="kpi-ring">
+                <div class="kpi-ring-chart" style="--pct: {{ stats.passes.accuracy|default:0 }};">
+                  <span class="kpi-ring-value">{{ stats.passes.accuracy|default:0|floatformat:-1 }}%</span>
+                </div>
+                <div class="kpi-ring-label">Precisión de pase</div>
+              </article>
+              <article class="kpi-ring">
+                <div class="kpi-ring-chart" style="--pct: {{ stats.shots.accuracy|default:0 }};">
+                  <span class="kpi-ring-value">{{ stats.shots.accuracy|default:0|floatformat:-1 }}%</span>
+                </div>
+                <div class="kpi-ring-label">Tiro a puerta</div>
+              </article>
             </div>
-            <div class="detail-block">
-              <p class="label">Pases</p>
-              <p class="value">{{ stats.passes.completed|default:0 }} / {{ stats.passes.attempts|default:0 }}</p>
-              <p class="label-soft">Completados · {{ stats.passes.accuracy|default:0 }}%</p>
+            <div class="performance-blocks">
+              <div class="performance-block"><span class="label">Acciones</span><span class="value">{{ stats.total_actions|default:0 }}</span></div>
+              <div class="performance-block"><span class="label">Duelos</span><span class="value">{{ stats.duel_summary.won|default:0 }}/{{ stats.duel_summary.total|default:0 }}</span></div>
+              <div class="performance-block"><span class="label">Pases</span><span class="value">{{ stats.passes.completed|default:0 }}/{{ stats.passes.attempts|default:0 }}</span></div>
+              <div class="performance-block"><span class="label">Disparos</span><span class="value">{{ stats.shots.on_target|default:0 }}/{{ stats.shots.attempts|default:0 }}</span></div>
+              <div class="performance-block"><span class="label">Goles</span><span class="value">{{ stats.goals|default:0 }}</span></div>
+              <div class="performance-block"><span class="label">Asistencias</span><span class="value">{{ stats.assists|default:0 }}</span></div>
             </div>
           </div>
-          <p>{{ stats.duel_summary.won|default:0 }} de {{ stats.duel_summary.total|default:0 }} duelos ganados · Ratio <strong>{{ stats.duel_rate|default:0 }}%</strong></p>
-          <div class="duel-bar"><span style="width: {{ stats.duel_rate|default:0 }}%;"></span></div>
 
-          <div class="field-diagram">
-            <img class="field-bg" src="{% static 'football/campo-futbol.jpg' %}" alt="Campo" />
-            {% for zone in stats.field_zones %}
-              <div class="field-zone" style="left: {{ zone.left }}; top: {{ zone.top }}; width: {{ zone.width }}; height: {{ zone.height }};">
-                <span>{{ zone.label }}</span>
-                <span class="zone-count">{{ zone.count }}</span>
-              </div>
-            {% endfor %}
+          <div class="performance-map">
+            <div class="field-diagram">
+              <img class="field-bg" src="{% static 'football/campo-futbol.jpg' %}" alt="Campo" />
+              {% for zone in stats.field_zones %}
+                <div class="field-zone" style="left: {{ zone.left }}; top: {{ zone.top }}; width: {{ zone.width }}; height: {{ zone.height }};">
+                  <span>{{ zone.label }}</span>
+                  <span class="zone-count">{{ zone.count }}</span>
+                </div>
+              {% endfor %}
+            </div>
           </div>
 
           {% if stats.matches %}
-          <h3 style="margin-top:1rem;">Por partido</h3>
-          <table>
-            <thead>
-              <tr><th>Jornada</th><th>Rival</th><th>Acciones</th><th>Éxitos</th></tr>
-            </thead>
-            <tbody>
-              {% for match in stats.matches %}
-              <tr>
-                <td>{{ match.round }}</td>
-                <td>
-                  {% if match.match_id %}
-                    <a href="{% url 'player-match-stats' player.id match.match_id %}" style="color:#93c5fd;text-decoration:none;">{{ match.opponent }}</a>
-                  {% else %}
-                    {{ match.opponent }}
-                  {% endif %}
-                </td>
-                <td>{{ match.actions }}</td>
-                <td>{{ match.successes }}</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+          <div class="performance-table">
+            <h3 style="margin-top:0;">Por partido</h3>
+            <table>
+              <thead>
+                <tr><th>Jornada</th><th>Rival</th><th>Acciones</th><th>Éxitos</th></tr>
+              </thead>
+              <tbody>
+                {% for match in stats.matches %}
+                <tr>
+                  <td>{{ match.round }}</td>
+                  <td>
+                    {% if match.match_id %}
+                      <a href="{% url 'player-match-stats' player.id match.match_id %}" style="color:#0e7490;text-decoration:none;">{{ match.opponent }}</a>
+                    {% else %}
+                      {{ match.opponent }}
+                    {% endif %}
+                  </td>
+                  <td>{{ match.actions }}</td>
+                  <td>{{ match.successes }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
           {% endif %}
         {% else %}
           <p>No hay datos de rendimiento disponibles.</p>

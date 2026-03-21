@@ -51,6 +51,7 @@ from football.models import (
     TrainingMicrocycle,
     TrainingSession,
     ConvocationRecord,
+    HomeCarouselImage,
 )
 from football.event_taxonomy import (
     DRIBBLE_KEYWORDS,
@@ -585,12 +586,54 @@ def dashboard_data(request):
 @login_required
 @ensure_csrf_cookie
 def dashboard_page(request):
+    if request.method == 'POST':
+        form_action = (request.POST.get('form_action') or '').strip().lower()
+        if form_action == 'carousel_upload':
+            uploaded = request.FILES.get('carousel_image')
+            if uploaded:
+                title = (request.POST.get('carousel_title') or '').strip()
+                order = _parse_int(request.POST.get('carousel_order')) or 0
+                is_active = str(request.POST.get('carousel_is_active') or '').lower() in {'1', 'true', 'on', 'yes'}
+                HomeCarouselImage.objects.create(
+                    title=title,
+                    image=uploaded,
+                    order=order,
+                    is_active=is_active,
+                )
+            return redirect(f"{reverse('dashboard-home')}#carousel-manager")
+
+        if form_action == 'carousel_update':
+            image_id = _parse_int(request.POST.get('carousel_id'))
+            item = HomeCarouselImage.objects.filter(id=image_id).first()
+            if item:
+                item.title = (request.POST.get('carousel_title') or '').strip()
+                item.order = _parse_int(request.POST.get('carousel_order')) or 0
+                item.is_active = str(request.POST.get('carousel_is_active') or '').lower() in {'1', 'true', 'on', 'yes'}
+                item.save(update_fields=['title', 'order', 'is_active'])
+            return redirect(f"{reverse('dashboard-home')}#carousel-manager")
+
+        if form_action == 'carousel_delete':
+            image_id = _parse_int(request.POST.get('carousel_id'))
+            item = HomeCarouselImage.objects.filter(id=image_id).first()
+            if item:
+                if item.image:
+                    try:
+                        item.image.delete(save=False)
+                    except Exception:
+                        pass
+                item.delete()
+            return redirect(f"{reverse('dashboard-home')}#carousel-manager")
+
     sources = list(ScrapeSource.objects.filter(is_active=True))
+    carousel_images = list(HomeCarouselImage.objects.all())
+    hero_image_candidates = [item.image.url for item in carousel_images if item.is_active and item.image]
     return render(
         request,
         'football/dashboard.html',
         {
             'scrape_sources': sources,
+            'carousel_images': carousel_images,
+            'hero_image_candidates': hero_image_candidates,
         },
     )
 
