@@ -45,7 +45,7 @@
       .side span {
         writing-mode: vertical-rl;
         transform: rotate(180deg);
-        font-size: 62px;
+        font-size: 56px;
         line-height: 0.9;
         letter-spacing: 0.005em;
         color: #0f4f47;
@@ -59,15 +59,8 @@
       .top {
         text-align: center;
       }
-      .motto {
-        margin: 0;
-        font-size: 56px;
-        line-height: 0.85;
-        color: #0f4f47;
-        font-weight: 700;
-      }
       .duel {
-        margin: 6px 0 4px;
+        margin: 6px 0 6px;
         font-size: 16px;
         color: #114f46;
         letter-spacing: 0.02em;
@@ -93,10 +86,10 @@
         font-weight: 700;
       }
       .duel-crest img {
-        width: 28px;
-        height: 28px;
+        width: 30px;
+        height: 30px;
         object-fit: contain;
-        margin-right: 6px;
+        margin: 0 6px;
       }
       .body {
         display: table;
@@ -125,6 +118,9 @@
         line-height: 1.02;
         font-weight: 700;
         color: #0f4f47;
+      }
+      .meta .round-chip {
+        font-size: 24px;
       }
       .meta .small {
         font-size: 24px;
@@ -213,15 +209,15 @@
       <div class="watermark"></div>
       <div class="layout">
         <aside class="side">
-          <span>Convocatoria {{ round_short }}</span>
+          <span>Convocatoria</span>
         </aside>
 
         <main class="content">
           <header class="top">
-            <p class="motto">{{ club_motto }}</p>
             <div class="duel">
               <div class="duel-line">
-                <span class="duel-name">{{ team_name }}</span>
+                <span class="duel-crest"><img src="{{ logo_url }}" alt="{{ team_full_name }}" /></span>
+                <span class="duel-name">{{ team_full_name }}</span>
                 <span class="duel-vs">vs.</span>
                 {% if rival_crest_url %}
                 <span class="duel-crest"><img src="{{ rival_crest_url }}" alt="{{ rival_full_name }}" /></span>
@@ -234,7 +230,7 @@
           <section class="body">
             <div class="left">
               <div class="meta">
-                <p class="small">{{ round_label|upper }}</p>
+                <p class="round-chip">{{ round_short|upper }}</p>
                 <p>{{ date_human }}</p>
                 <p>{{ time_label }}</p>
                 <p class="micro">{{ location_label|upper }}</p>
@@ -284,7 +280,7 @@
             </div>
 
             <div class="right">
-              <img class="coach" src="{{ coach_photo_url }}" alt="{{ coach_name }}" />
+              <img class="coach" src="{{ team_photo_url }}" alt="{{ team_name }}" />
             </div>
           </section>
         </main>

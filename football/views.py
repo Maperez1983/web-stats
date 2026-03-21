@@ -1205,31 +1205,11 @@ def convocation_pdf(request):
 
     ordered_players = sorted(players, key=_sort_player_key)
 
-    static_root = Path(settings.BASE_DIR) / 'static'
-
-    def _static_file_url(static_rel_path):
-        rel = str(static_rel_path or '').strip().lstrip('/')
-        if not rel:
-            return ''
-        abs_path = static_root / rel
-        if abs_path.exists():
-            try:
-                return abs_path.resolve().as_uri()
-            except Exception:
-                return ''
-        return ''
-
-    def _player_photo_file_url(player):
-        static_rel = resolve_player_photo_static_path(player)
-        if static_rel:
-            return _static_file_url(static_rel)
-        return ''
-
     player_rows = [
         {
             'number': player.number,
             'name': player.name,
-            'photo_url': _player_photo_file_url(player),
+            'photo_url': resolve_player_photo_url(request, player),
         }
         for player in ordered_players
     ]
@@ -1268,6 +1248,12 @@ def convocation_pdf(request):
     if not rival_crest_url or rival_full_name == rival_name:
         universo_lookup = _build_universo_standings_lookup(load_universo_snapshot())
         rival_meta = universo_lookup.get(_normalize_team_lookup_key(rival_name), {})
+        if not rival_meta:
+            rival_key = _normalize_team_lookup_key(rival_name)
+            for key, meta in universo_lookup.items():
+                if rival_key and (rival_key in key or key in rival_key):
+                    rival_meta = meta
+                    break
         rival_full_name = str(rival_meta.get('full_name') or rival_full_name or rival_name).strip() or rival_name
         rival_crest_url = rival_crest_url or str(rival_meta.get('crest_url') or '').strip()
 
@@ -1287,6 +1273,7 @@ def convocation_pdf(request):
 
     context = {
         'team_name': primary_team.name,
+        'team_full_name': primary_team.name,
         'round_label': convocation_record.round or 'Jornada por confirmar',
         'round_short': round_short,
         'date_label': date_label,
@@ -1300,12 +1287,24 @@ def convocation_pdf(request):
         'left_column_players': left_column_players,
         'right_column_players': right_column_players,
         'coach_name': os.getenv('TEAM_COACH_NAME', 'Aitor Castillo'),
-        'club_motto': os.getenv('TEAM_MOTTO', 'Orgullo Benalbino'),
         'club_hashtag': os.getenv('TEAM_HASHTAG', '#VamosVerdes'),
-        'logo_url': _static_file_url('football/images/cdb-logo.png'),
-        'team_photo_url': _static_file_url('football/images/team-01.jpg'),
-        'coach_photo_url': _static_file_url(os.getenv('TEAM_COACH_PHOTO', 'football/images/team-01.jpg')),
+        'logo_url': request.build_absolute_uri(static('football/images/cdb-logo.png')),
+        'team_photo_url': request.build_absolute_uri(static('football/images/team-01.jpg')),
+        'coach_photo_url': request.build_absolute_uri(static(os.getenv('TEAM_COACH_PHOTO', 'football/images/team-01.jpg'))),
     }
+
+    carousel_cover = (
+        HomeCarouselImage.objects
+        .filter(is_active=True)
+        .order_by('order', '-created_at', '-id')
+        .first()
+    )
+    if carousel_cover and carousel_cover.image:
+        try:
+            context['team_photo_url'] = request.build_absolute_uri(carousel_cover.image.url)
+            context['coach_photo_url'] = request.build_absolute_uri(carousel_cover.image.url)
+        except Exception:
+            pass
 
     html = render_to_string('football/convocation_pdf.html', context)
     filename = f'convocatoria-{timezone.localdate().isoformat()}'
