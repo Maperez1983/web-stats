@@ -326,8 +326,10 @@
         color: var(--accent);
       }
       .player-name {
-        font-size: 0.95rem;
+        font-size: 0.82rem;
         font-weight: 600;
+        text-align: center;
+        line-height: 1.1;
       }
       .position-label {
         font-size: 0.65rem;
@@ -454,18 +456,18 @@
           class="mini-card"
           draggable="true"
           data-player-id="{{ player.id }}"
-          data-player-name="{{ player.name|escape }}"
+          data-player-name="{{ player.name|upper|escape }}"
           data-player-number="{{ player.number|default:'--' }}"
           data-player-position="{{ player.position|default:'Sin definir'|escape }}"
           data-player-photo="{{ player.photo_url|default:''|escape }}"
           data-player-injured="{% if player.has_active_injury %}1{% else %}0{% endif %}"
         >
           <div class="injury-mark" title="Lesión activa">✚</div>
+          <div class="player-name">{{ player.name|upper }}</div>
           {% if player.photo_url %}
           <img class="player-photo" src="{{ player.photo_url }}" alt="{{ player.name }}" loading="lazy" />
           {% endif %}
           <div class="jersey-number">#{{ player.number|default:"--" }}</div>
-          <div class="player-name">{{ player.name }}</div>
           <div class="position-label">{{ player.position|default:"Sin definir" }}</div>
         </div>
         {% endfor %}

@@ -634,7 +634,7 @@
                 <a class="player-link" href="/player/${player.player_id}/">
                   <div class="player-head">
                     ${player.photo_url ? `<img class="player-avatar" src="${player.photo_url}" alt="${player.name}" loading="lazy">` : ''}
-                    <strong>${player.name}</strong>
+                    <strong>${(player.name || '').toUpperCase()}</strong>
                   </div>
                   <span>${player.pj} PJ · ${player.minutes} min</span>
                   <span>${player.goals} goles</span>

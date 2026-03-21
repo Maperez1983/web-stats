@@ -226,24 +226,39 @@
         border-color: var(--accent);
       }
       .lineup-chip {
-        display: inline-flex;
+        display: flex;
+        flex-direction: column;
         align-items: center;
-        gap: 0.35rem;
-        font-size: 0.9rem;
-        letter-spacing: 0.05em;
+        gap: 0.3rem;
+        font-size: 0.72rem;
+        letter-spacing: 0.07em;
         cursor: grab;
-        padding: 0.25rem 0.4rem;
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.08);
-        border: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 0.45rem 0.5rem;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.09);
+        border: 1px solid rgba(255, 255, 255, 0.26);
+        text-transform: uppercase;
+        font-weight: 700;
       }
       .lineup-chip img {
-        width: 24px;
-        height: 24px;
-        border-radius: 999px;
+        width: 42px;
+        height: 42px;
+        border-radius: 10px;
         object-fit: cover;
         object-position: top center;
         border: 1px solid rgba(255, 255, 255, 0.25);
+      }
+      .lineup-chip-name {
+        display: block;
+        text-align: center;
+        line-height: 1.1;
+      }
+      .lineup-chip-number {
+        display: block;
+        font-size: 0.66rem;
+        font-weight: 700;
+        color: rgba(248, 250, 252, 0.72);
+        letter-spacing: 0.12em;
       }
       .lineup-chip.selected {
         border-color: #facc15;
@@ -1064,8 +1079,9 @@
       }
       .convocation-card-body {
         display: flex;
+        flex-direction: column;
         align-items: center;
-        gap: 0.55rem;
+        gap: 0.45rem;
         margin-top: 0.35rem;
       }
       .convocation-card-photo {
@@ -1096,8 +1112,10 @@
       }
       .convocation-card strong {
         display: block;
-        font-size: 1rem;
-        margin-top: 0.35rem;
+        font-size: 0.9rem;
+        margin-top: 0;
+        text-align: center;
+        letter-spacing: 0.06em;
       }
       .convocation-card.selected {
         border-color: rgba(250, 204, 21, 0.8);
@@ -1614,7 +1632,7 @@
               <article class="history-item" data-event-id="{{ event.id }}">
                 <span class="hist-minute">{{ event.minute|default:"??" }}'</span>
                 {% with event_player=event.player %}
-                <strong>#{{ event_player.number|default:"--" }} {{ event_player.name|default:"Jugador" }}</strong>
+                <strong>#{{ event_player.number|default:"--" }} {{ event_player.name|default:"Jugador"|upper }}</strong>
                 {% endwith %}
                 <p class="hist-text">{{ event.event_type }} · {{ event.zone|default:"-" }} · {{ event.result|default:"" }}</p>
                 <button type="button" class="history-delete" aria-label="Eliminar acción">🗑</button>
@@ -1662,7 +1680,7 @@
             class="convocation-card"
             draggable="true"
             data-player-id="{{ player.id }}"
-            data-player-name="{{ player.name|escape }}"
+            data-player-name="{{ player.name|upper|escape }}"
             data-player-number="{{ player.number|default:'--' }}"
             data-player-position="{{ player.position|default:'Sin definir'|escape }}"
             data-player-photo="{{ player.photo_url|default:''|escape }}"
@@ -1672,10 +1690,10 @@
               <span>{{ player.position|default:"Sin definir" }}</span>
             </header>
             <div class="convocation-card-body">
+              <strong>{{ player.name|upper }}</strong>
               {% if player.photo_url %}
               <img class="convocation-card-photo" src="{{ player.photo_url }}" alt="{{ player.name }}" loading="lazy" />
               {% endif %}
-              <strong>{{ player.name }}</strong>
             </div>
           </article>
           {% endfor %}
@@ -2003,15 +2021,25 @@ updateClockDisplay();
       const createLineupChip = (player, sectionKey) => {
         const span = document.createElement('span');
         span.className = 'lineup-name lineup-chip';
+        const displayName = (player.name || 'JUGADOR').toUpperCase();
+        const numberLabel = `#${player.number || '--'}`;
+        const title = document.createElement('strong');
+        title.className = 'lineup-chip-name';
+        title.textContent = displayName;
+        span.appendChild(title);
+
         const photo = String(player.photo || '').trim();
         if (photo) {
           const img = document.createElement('img');
           img.src = photo;
-          img.alt = player.name || 'Jugador';
+          img.alt = displayName;
           img.loading = 'lazy';
           span.appendChild(img);
         }
-        span.appendChild(document.createTextNode(`#${player.number || '--'} ${player.name}`));
+        const number = document.createElement('span');
+        number.className = 'lineup-chip-number';
+        number.textContent = numberLabel;
+        span.appendChild(number);
         span.dataset.playerId = player.id;
         span.dataset.playerNumber = player.number || '';
         span.dataset.section = sectionKey;
@@ -2656,7 +2684,7 @@ updateClockDisplay();
         const minuteLabel = Number.isFinite(numericMinute) ? `${numericMinute}'` : "Ahora'";
         item.innerHTML = `
           <span class="hist-minute">${minuteLabel}</span>
-          <strong>#${player.number || '--'} ${player.name}</strong>
+          <strong>#${player.number || '--'} ${(player.name || 'JUGADOR').toUpperCase()}</strong>
           <p class="hist-text">${action} · ${zone || '-'} · ${result || ''}</p>
           <button type="button" class="history-delete" aria-label="Eliminar acción">🗑</button>
         `;
