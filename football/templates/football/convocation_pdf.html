@@ -103,6 +103,18 @@
       .meta .small {
         font-size: 24px;
       }
+      .meta .micro {
+        font-size: 20px;
+      }
+      .convocados-title {
+        margin: 4px 0 6px;
+        font-size: 21px;
+        line-height: 1;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #0f4f47;
+      }
       .players-cols {
         display: table;
         width: 100%;
@@ -177,8 +189,10 @@
                 <p class="small">{{ round_label|upper }}</p>
                 <p>{{ date_human }}</p>
                 <p>{{ time_label }}</p>
+                <p class="micro">{{ location_label|upper }}</p>
               </div>
 
+              <p class="convocados-title">Convocados</p>
               <div class="players-cols">
                 <div class="col">
                   <ul class="players">

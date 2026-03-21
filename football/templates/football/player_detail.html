@@ -104,6 +104,12 @@
             <label>Fecha nacimiento
               <input type="date" name="birth_date" value="{{ player.birth_date|date:'Y-m-d' }}" />
             </label>
+            <label>Altura (cm)
+              <input type="number" name="height_cm" min="100" max="240" value="{{ player.height_cm|default:'' }}" />
+            </label>
+            <label>Peso base (kg)
+              <input type="number" step="0.01" min="0" name="weight_kg_base" value="{{ player.weight_kg|default:'' }}" />
+            </label>
             <label>Dorsal
               <input type="number" name="number" min="0" value="{{ player.number|default:'' }}" />
             </label>
@@ -207,6 +213,20 @@
 
       <section class="card tab-pane" data-pane="physical">
         <h2 style="margin-top:0;">Métricas físicas (staff)</h2>
+        <div class="stats-grid" style="margin-top:0;">
+          <article class="stat">
+            <div class="label">Altura base</div>
+            <div class="value">{% if player.height_cm %}{{ player.height_cm }}{% else %}--{% endif %}</div>
+          </article>
+          <article class="stat">
+            <div class="label">Peso base</div>
+            <div class="value">{% if player.weight_kg %}{{ player.weight_kg }}{% else %}--{% endif %}</div>
+          </article>
+          <article class="stat">
+            <div class="label">Último peso</div>
+            <div class="value">{% if latest_physical_metric and latest_physical_metric.weight_kg %}{{ latest_physical_metric.weight_kg }}{% else %}--{% endif %}</div>
+          </article>
+        </div>
         <form method="post">
           {% csrf_token %}
           <input type="hidden" name="form_action" value="physical" />

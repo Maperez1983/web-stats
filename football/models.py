@@ -78,6 +78,8 @@ class Player(models.Model):
     name = models.CharField(max_length=120)
     full_name = models.CharField(max_length=180, blank=True)
     birth_date = models.DateField(null=True, blank=True)
+    height_cm = models.PositiveSmallIntegerField(null=True, blank=True)
+    weight_kg = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     number = models.PositiveSmallIntegerField(null=True, blank=True)
     position = models.CharField(max_length=60, blank=True)
     injury = models.CharField(max_length=180, blank=True)

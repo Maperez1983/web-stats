@@ -568,6 +568,19 @@
         font-size: 0.8rem;
         letter-spacing: 0.05em;
       }
+      .match-info-card .rival-option-head {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+      }
+      .match-info-card .rival-option-head img {
+        width: 22px;
+        height: 22px;
+        border-radius: 999px;
+        object-fit: cover;
+        background: rgba(255, 255, 255, 0.92);
+        padding: 1px;
+      }
       .match-info-card .rival-empty {
         opacity: 0.6;
         font-size: 0.7rem;
@@ -1278,7 +1291,12 @@
                           data-rival-slug="{{ rival.slug|escape }}"
                           data-rival-location="{{ rival.field_location|default:''|escape }}"
                         >
-                          <strong>{{ rival.name }}</strong>
+                          <div class="rival-option-head">
+                            {% if rival.crest_url %}
+                            <img src="{{ rival.crest_url }}" alt="Escudo {{ rival.name }}" loading="lazy" />
+                            {% endif %}
+                            <strong>{{ rival.name }}</strong>
+                          </div>
                           <span>{{ rival.points }} pts · {{ rival.played }}j</span>
                           {% if rival.field_location %}
                           <em>{{ rival.field_location }}</em>

@@ -266,13 +266,30 @@ def normalize_next_match_payload(payload):
         return payload
     opponent = payload.get('opponent')
     if isinstance(opponent, str):
-        payload['opponent'] = {'name': opponent.strip() or 'Rival por confirmar'}
+        clean_name = opponent.strip() or 'Rival por confirmar'
+        payload['opponent'] = {
+            'name': clean_name,
+            'full_name': clean_name,
+            'crest_url': '',
+            'team_code': '',
+        }
     elif isinstance(opponent, dict):
-        name = str(opponent.get('name') or '').strip()
-        payload['opponent'] = {'name': name or 'Rival por confirmar'}
+        name = str(opponent.get('name') or opponent.get('full_name') or '').strip()
+        full_name = str(opponent.get('full_name') or name).strip()
+        payload['opponent'] = {
+            'name': name or 'Rival por confirmar',
+            'full_name': full_name or name or 'Rival por confirmar',
+            'crest_url': str(opponent.get('crest_url') or '').strip(),
+            'team_code': str(opponent.get('team_code') or '').strip(),
+        }
     else:
         fallback = str(payload.get('rival') or '').strip()
-        payload['opponent'] = {'name': fallback or 'Rival por confirmar'}
+        payload['opponent'] = {
+            'name': fallback or 'Rival por confirmar',
+            'full_name': fallback or 'Rival por confirmar',
+            'crest_url': '',
+            'team_code': '',
+        }
     return payload
 
 
@@ -293,10 +310,39 @@ def _payload_opponent_name(payload):
         return ''
     opponent = payload.get('opponent')
     if isinstance(opponent, dict):
-        return str(opponent.get('name') or '').strip()
+        return str(opponent.get('full_name') or opponent.get('name') or '').strip()
     if isinstance(opponent, str):
         return opponent.strip()
     return str(payload.get('rival') or '').strip()
+
+
+def _normalize_team_lookup_key(value):
+    text = str(value or '').strip()
+    if not text:
+        return ''
+    normalized = unicodedata.normalize('NFKD', text)
+    normalized = ''.join(ch for ch in normalized if not unicodedata.combining(ch))
+    normalized = re.sub(r'[^a-z0-9]+', '', normalized.lower())
+    return normalized
+
+
+def _build_universo_standings_lookup(snapshot):
+    lookup = {}
+    if not isinstance(snapshot, dict):
+        return lookup
+    for row in snapshot.get('standings') or []:
+        if not isinstance(row, dict):
+            continue
+        team_name = str(row.get('team') or row.get('full_name') or '').strip()
+        key = _normalize_team_lookup_key(team_name)
+        if not key:
+            continue
+        lookup[key] = {
+            'full_name': str(row.get('full_name') or team_name).strip() or team_name,
+            'crest_url': str(row.get('crest_url') or '').strip(),
+            'team_code': str(row.get('team_code') or '').strip(),
+        }
+    return lookup
 
 
 def load_preferred_next_match_payload():
@@ -357,7 +403,10 @@ def _serialize_universo_standings(snapshot):
         normalized.append(
             {
                 'rank': _safe_int(row.get('position'), default=0),
-                'team': team.upper(),
+                'team': team,
+                'full_name': str(row.get('full_name') or team).strip() or team,
+                'crest_url': str(row.get('crest_url') or '').strip(),
+                'team_code': str(row.get('team_code') or '').strip(),
                 'played': _safe_int(row.get('played')),
                 'wins': _safe_int(row.get('wins')),
                 'draws': _safe_int(row.get('draws')),
@@ -368,7 +417,7 @@ def _serialize_universo_standings(snapshot):
                 'points': _safe_int(row.get('points')),
             }
         )
-    return sorted(normalized, key=lambda x: (x['rank'] <= 0, x['rank'], -x['points'], x['team']))
+    return sorted(normalized, key=lambda x: (x['rank'] <= 0, x['rank'], -x['points'], x['full_name']))
 
 
 @login_required
@@ -601,6 +650,7 @@ def match_action_page(request):
             result_label = (event.result or '').strip() or (event.zone or '').strip() or 'Sustitución'
             player_name = event.player.name if event.player else 'Jugador'
             substitution_history.append(f"{player_name} · {minute_label} · {result_label}".upper())
+    universo_lookup = _build_universo_standings_lookup(load_universo_snapshot())
     category_rivals = []
     team_fields = []
     group = primary_team.group
@@ -614,11 +664,16 @@ def match_action_page(request):
         )
         for standing in standings:
             team = standing.team
+            team_name = team.name if team else ''
+            team_meta = universo_lookup.get(_normalize_team_lookup_key(team_name), {})
+            full_name = team_meta.get('full_name') or team_name
             category_rivals.append(
                 {
                     'position': standing.position,
-                    'name': team.name,
-                    'short_name': team.short_name or team.name,
+                    'name': full_name,
+                    'short_name': team.short_name or full_name,
+                    'crest_url': team_meta.get('crest_url') or '',
+                    'team_code': team_meta.get('team_code') or '',
                     'points': standing.points,
                     'played': standing.played,
                     'slug': team.slug,
@@ -1637,6 +1692,15 @@ def player_detail_page(request, player_id):
                     continue
             return None
 
+        def _parse_decimal_value(raw_value):
+            value = str(raw_value or '').strip().replace(',', '.')
+            if not value:
+                return None
+            try:
+                return round(float(value), 2)
+            except Exception:
+                return None
+
         if request.method == 'POST':
             form_action = (request.POST.get('form_action') or 'profile').strip().lower()
 
@@ -1646,6 +1710,8 @@ def player_detail_page(request, player_id):
                 player.position = request.POST.get('position', '').strip()
                 player.full_name = request.POST.get('full_name', '').strip()
                 player.birth_date = _parse_date_value(request.POST.get('birth_date'))
+                player.height_cm = _parse_int(request.POST.get('height_cm'))
+                player.weight_kg = _parse_decimal_value(request.POST.get('weight_kg_base'))
                 player.injury = request.POST.get('injury', '').strip()
                 player.injury_date = _parse_date_value(request.POST.get('injury_date'))
                 player.save()
@@ -1680,6 +1746,7 @@ def player_detail_page(request, player_id):
         detail = next((p for p in matches if p.get('player_id') == player_id), None)
         active_tab = (request.GET.get('tab') or 'general').strip().lower()
         physical_metrics = player.physical_metrics.all()[:20]
+        latest_physical_metric = physical_metrics[0] if physical_metrics else None
         communications = player.communications.select_related('match').all()[:20]
         player_photo_url = resolve_player_photo_url(request, player)
         return render(
@@ -1690,6 +1757,7 @@ def player_detail_page(request, player_id):
                 'stats': detail or {},
                 'active_tab': active_tab,
                 'physical_metrics': physical_metrics,
+                'latest_physical_metric': latest_physical_metric,
                 'communications': communications,
                 'is_called_up': is_called_up,
                 'current_convocation': current_convocation,
@@ -2231,7 +2299,12 @@ def build_match_payload(match, primary_team, status):
         'round': match.round,
         'date': match.date.isoformat() if match.date else None,
         'location': match.location,
-        'opponent': {'name': opponent.name if opponent else 'Rival desconocido'},
+        'opponent': {
+            'name': opponent.name if opponent else 'Rival desconocido',
+            'full_name': opponent.name if opponent else 'Rival desconocido',
+            'crest_url': '',
+            'team_code': '',
+        },
         'home': match.home_team == primary_team,
         'status': status,
     })

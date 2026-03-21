@@ -31,6 +31,17 @@ def _safe_get(payload: Dict[str, Any], *keys: str) -> Any:
     return None
 
 
+def _absolute_url(url: Any, base: str = "https://www.rfaf.es") -> str:
+    raw = str(url or "").strip()
+    if not raw:
+        return ""
+    if raw.startswith("http://") or raw.startswith("https://"):
+        return raw
+    if raw.startswith("/"):
+        return f"{base}{raw}"
+    return raw
+
+
 def _iter_nodes(node: Any):
     if isinstance(node, dict):
         yield node
@@ -107,6 +118,8 @@ def _extract_standings(captures: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
                 {
                     "position": _safe_get(row, "posicion", "position", "rank"),
                     "team": _safe_get(row, "nombre", "team", "equipo"),
+                    "crest_url": _absolute_url(_safe_get(row, "url_img", "escudo", "logo")),
+                    "team_code": str(_safe_get(row, "codequipo", "cod_equipo", "team_code") or "").strip(),
                     "points": _safe_get(row, "puntos", "points", "pts"),
                     "played": _safe_get(row, "jugados", "played", "pj"),
                     "wins": _safe_get(row, "ganados", "wins", "pg"),
@@ -132,6 +145,8 @@ def _extract_standings(captures: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
                         {
                             "position": _safe_get(row, "position", "posicion", "rank", "puesto", "orden"),
                             "team": _safe_get(row, "team", "equipo", "club", "nombre"),
+                            "crest_url": _absolute_url(_safe_get(row, "url_img", "escudo", "logo")),
+                            "team_code": str(_safe_get(row, "codequipo", "cod_equipo", "team_code") or "").strip(),
                             "points": _safe_get(row, "points", "puntos", "pts", "pt"),
                             "played": _safe_get(row, "played", "jugados", "pj", "matches"),
                             "wins": _safe_get(row, "wins", "pg", "ganados"),
@@ -283,11 +298,20 @@ def _find_next_match(captures: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]
         opponent = away_team if is_home else home_team
         if not opponent:
             opponent = _safe_get(proximo, "rival", "opponent")
+        opponent_crest = (
+            _safe_get(proximo, "url_img_visitante", "escudo_visitante")
+            if is_home
+            else _safe_get(proximo, "url_img_local", "escudo_local")
+        )
         return {
             "round": str(_safe_get(proximo, "jornada", "round") or "").strip(),
             "date": date_iso,
             "time": str(_safe_get(proximo, "hora", "time") or "").strip(),
-            "opponent": {"name": str(opponent or "").strip() or "Rival por confirmar"},
+            "opponent": {
+                "name": str(opponent or "").strip() or "Rival por confirmar",
+                "full_name": str(opponent or "").strip() or "Rival por confirmar",
+                "crest_url": _absolute_url(opponent_crest),
+            },
             "home": is_home,
             "source_url": url,
             "status": "next",
@@ -333,7 +357,15 @@ def _find_next_match(captures: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]
                     "round": jornada,
                     "date": date_iso,
                     "time": str(_safe_get(match, "hora", "time") or "").strip(),
-                    "opponent": {"name": str(opponent or "").strip() or "Rival por confirmar"},
+                    "opponent": {
+                        "name": str(opponent or "").strip() or "Rival por confirmar",
+                        "full_name": str(opponent or "").strip() or "Rival por confirmar",
+                        "crest_url": _absolute_url(
+                            _safe_get(match, "url_img_visitante")
+                            if bena_home
+                            else _safe_get(match, "url_img_local")
+                        ),
+                    },
                     "home": bool(bena_home),
                     "source_url": url,
                     "status": "next",
@@ -404,7 +436,15 @@ def _find_next_match(captures: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]
                     "round": str(round_raw or "").strip(),
                     "date": date_iso,
                     "time": str(time_raw or "").strip(),
-                    "opponent": {"name": str(opponent_name or "").strip() or "Rival por confirmar"},
+                    "opponent": {
+                        "name": str(opponent_name or "").strip() or "Rival por confirmar",
+                        "full_name": str(opponent_name or "").strip() or "Rival por confirmar",
+                        "crest_url": _absolute_url(
+                            _safe_get(node, "url_img_visitante")
+                            if bena_home
+                            else _safe_get(node, "url_img_local")
+                        ),
+                    },
                     "home": bool(bena_home) if (bena_home or bena_away) else None,
                     "source_url": item.get("url"),
                 }

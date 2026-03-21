@@ -184,6 +184,32 @@
       .next-match p {
         margin: 0.25rem 0;
       }
+      .next-match-opponent {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+      }
+      .next-match-opponent img {
+        width: 28px;
+        height: 28px;
+        border-radius: 999px;
+        object-fit: cover;
+        background: rgba(255, 255, 255, 0.9);
+        padding: 2px;
+      }
+      .team-cell {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+      }
+      .team-cell img {
+        width: 20px;
+        height: 20px;
+        object-fit: cover;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.9);
+        padding: 1px;
+      }
 
       .pill-button {
         border: none;
@@ -482,8 +508,11 @@
           return;
         }
 
-        const teamName = (team && team.name ? team.name : '').toUpperCase();
-        const teamRow = standings.find((row) => row.team === teamName) || standings[0];
+        const normalize = (value) => (value || '').toString().trim().toUpperCase();
+        const teamName = normalize(team && team.name ? team.name : '');
+        const teamRow =
+          standings.find((row) => normalize(row.full_name || row.team) === teamName || normalize(row.team) === teamName) ||
+          standings[0];
         document.getElementById('kpi-rank').textContent = teamRow?.rank ?? '-';
         document.getElementById('kpi-points').textContent = teamRow?.points ?? '-';
         document.getElementById('kpi-played').textContent = teamRow?.played ?? '-';
@@ -494,7 +523,12 @@
             (standing) => `
             <tr>
               <td><strong>${standing.rank}</strong></td>
-              <td>${standing.team}</td>
+              <td>
+                <div class="team-cell">
+                  ${standing.crest_url ? `<img src="${standing.crest_url}" alt="Escudo ${standing.full_name || standing.team}" loading="lazy">` : ''}
+                  <span>${standing.full_name || standing.team}</span>
+                </div>
+              </td>
               <td>${standing.played}</td>
               <td>${standing.wins}</td>
               <td>${standing.draws}</td>
@@ -541,11 +575,18 @@
         const opponentName =
           typeof nextMatch.opponent === 'string'
             ? nextMatch.opponent
-            : nextMatch.opponent?.name || nextMatch.rival || 'Rival por confirmar';
+            : nextMatch.opponent?.full_name || nextMatch.opponent?.name || nextMatch.rival || 'Rival por confirmar';
+        const opponentCrest =
+          typeof nextMatch.opponent === 'object' ? (nextMatch.opponent?.crest_url || '') : '';
+        const dateLabel = nextMatch.date || 'Fecha sin definir';
+        const timeLabel = nextMatch.time ? ` ${nextMatch.time}` : '';
         container.innerHTML = `
           <p><strong>${label}</strong> · Jornada ${nextMatch.round || '-'}</p>
-          <p>${opponentName} · ${nextMatch.home ? 'Local' : 'Visitante'}</p>
-          <p>${nextMatch.date || 'Fecha sin definir'} · ${nextMatch.location || 'Campo por confirmar'}</p>
+          <p class="next-match-opponent">
+            ${opponentCrest ? `<img src="${opponentCrest}" alt="Escudo ${opponentName}" loading="lazy">` : ''}
+            <span>${opponentName} · ${nextMatch.home ? 'Local' : 'Visitante'}</span>
+          </p>
+          <p>${dateLabel}${timeLabel} · ${nextMatch.location || 'Campo por confirmar'}</p>
         `;
       }
 
