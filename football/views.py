@@ -862,6 +862,14 @@ def convocation_pdf(request):
     if not players:
         return HttpResponse('No hay jugadores convocados.', status=400)
 
+    def _sort_player_key(player):
+        number = player.number if player.number is not None else 999
+        return (number, (player.name or '').lower())
+
+    ordered_players = sorted(players, key=_sort_player_key)
+    starters = ordered_players[:11]
+    substitutes = ordered_players[11:]
+
     date_label = convocation_record.match_date.strftime('%d/%m/%Y') if convocation_record.match_date else '--'
     time_label = convocation_record.match_time.strftime('%H:%M') if convocation_record.match_time else '--:--'
     location_label = convocation_record.location or (convocation_record.match.location if convocation_record.match else '')
@@ -881,8 +889,14 @@ def convocation_pdf(request):
         'time_label': time_label,
         'location_label': location_label or 'Campo por confirmar',
         'rival_label': rival_label or 'Rival por confirmar',
-        'players': players,
+        'players': ordered_players,
+        'starters': starters,
+        'substitutes': substitutes,
+        'coach_name': os.getenv('TEAM_COACH_NAME', 'Aitor Castillo'),
+        'club_motto': os.getenv('TEAM_MOTTO', 'Orgullo Benalbino'),
+        'club_hashtag': os.getenv('TEAM_HASHTAG', '#VamosVerdes'),
         'logo_url': request.build_absolute_uri(static('football/images/cdb-logo.png')),
+        'team_photo_url': request.build_absolute_uri(static('football/images/team-01.jpg')),
     }
 
     html = render_to_string('football/convocation_pdf.html', context)
