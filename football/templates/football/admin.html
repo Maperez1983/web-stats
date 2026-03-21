@@ -1,0 +1,185 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Admin · Carrusel Home</title>
+    <style>
+      :root {
+        --bg: #050b16;
+        --panel: rgba(7, 16, 30, 0.9);
+        --line: rgba(121, 170, 230, 0.28);
+        --text: #e2e8f0;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        padding: 1rem;
+        font-family: 'Inter', system-ui, sans-serif;
+        background: radial-gradient(circle at top, #111827, #030712 55%);
+        color: var(--text);
+      }
+      .page { max-width: 1200px; margin: 0 auto; }
+      .topbar {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-bottom: 1rem;
+      }
+      .module-tabs { display: flex; gap: 0.55rem; flex-wrap: wrap; }
+      .module-tab {
+        text-decoration: none;
+        color: #cbd5e1;
+        border: 1px solid rgba(121, 170, 230, 0.24);
+        padding: 0.48rem 0.8rem;
+        border-radius: 999px;
+        font-size: 0.85rem;
+      }
+      .module-tab.is-active {
+        color: #041323;
+        background: linear-gradient(135deg, #14d8ff, #4f46e5);
+        border-color: transparent;
+        font-weight: 700;
+      }
+      .block {
+        border-radius: 16px;
+        border: 1px solid rgba(121, 170, 230, 0.22);
+        background: var(--panel);
+        padding: 0.9rem;
+      }
+      .carousel-manager h2 { margin: 0 0 0.65rem; }
+      .carousel-upload-form,
+      .carousel-item-form {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+        gap: 0.55rem;
+        align-items: end;
+      }
+      label {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        font-size: 0.72rem;
+        letter-spacing: 0.04em;
+        color: rgba(205, 225, 255, 0.85);
+      }
+      input[type="text"],
+      input[type="number"],
+      input[type="file"] {
+        width: 100%;
+        border-radius: 0.55rem;
+        border: 1px solid var(--line);
+        background: rgba(9, 20, 36, 0.72);
+        color: #e2e8f0;
+        padding: 0.45rem 0.55rem;
+      }
+      .pill-button {
+        border: none;
+        border-radius: 999px;
+        padding: 0.58rem 1rem;
+        background: linear-gradient(135deg, #14d8ff, #4f46e5);
+        color: #f8fbff;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .carousel-item {
+        margin-top: 0.55rem;
+        padding: 0.6rem;
+        border-radius: 0.7rem;
+        border: 1px solid rgba(121, 170, 230, 0.22);
+        background: rgba(7, 16, 30, 0.78);
+      }
+      .carousel-thumb {
+        width: 130px;
+        height: 76px;
+        border-radius: 0.55rem;
+        object-fit: cover;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+      }
+      .button-danger {
+        border: 1px solid rgba(248, 113, 113, 0.65);
+        color: #fecaca;
+        background: rgba(127, 29, 29, 0.5);
+        border-radius: 0.55rem;
+        padding: 0.5rem 0.8rem;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header class="topbar">
+        <div class="topbar-brand">
+          {% include 'football/includes/dragon_nav.html' %}
+        </div>
+        <nav class="module-tabs">
+          <a class="module-tab" href="{% url 'dashboard-home' %}">Resumen</a>
+          <a class="module-tab" href="{% url 'coach-detail' %}">Cuerpo técnico</a>
+          <a class="module-tab" href="{% url 'player-dashboard' %}">Jugadores</a>
+          <a class="module-tab" href="{% url 'match-action-page' %}">Registro</a>
+          <a class="module-tab is-active" href="{% url 'admin-page' %}">Admin</a>
+        </nav>
+      </header>
+
+      <section class="block carousel-manager" id="carousel-manager">
+        <h2>Carrusel Home</h2>
+        <form method="post" enctype="multipart/form-data" class="carousel-upload-form">
+          {% csrf_token %}
+          <input type="hidden" name="form_action" value="carousel_upload" />
+          <label>
+            <span>Título</span>
+            <input type="text" name="carousel_title" placeholder="Entrenamiento, Partido..." />
+          </label>
+          <label>
+            <span>Orden</span>
+            <input type="number" name="carousel_order" min="0" value="0" />
+          </label>
+          <label>
+            <span>Imagen</span>
+            <input type="file" name="carousel_image" accept="image/*" required />
+          </label>
+          <label>
+            <span>Activa</span>
+            <input type="checkbox" name="carousel_is_active" checked />
+          </label>
+          <button class="pill-button" type="submit">Subir imagen</button>
+        </form>
+        {% for item in carousel_images %}
+          <article class="carousel-item">
+            <form method="post" class="carousel-item-form">
+              {% csrf_token %}
+              <input type="hidden" name="form_action" value="carousel_update" />
+              <input type="hidden" name="carousel_id" value="{{ item.id }}" />
+              <img class="carousel-thumb" src="{{ item.image.url }}" alt="{{ item.title|default:'Imagen carrusel' }}" loading="lazy" />
+              <label>
+                <span>Título</span>
+                <input type="text" name="carousel_title" value="{{ item.title }}" />
+              </label>
+              <label>
+                <span>Orden</span>
+                <input type="number" name="carousel_order" min="0" value="{{ item.order }}" />
+              </label>
+              <label>
+                <span>Activa</span>
+                <input type="checkbox" name="carousel_is_active" {% if item.is_active %}checked{% endif %} />
+              </label>
+              <button class="pill-button" type="submit">Guardar</button>
+            </form>
+            <form method="post" style="margin-top:0.45rem;">
+              {% csrf_token %}
+              <input type="hidden" name="form_action" value="carousel_delete" />
+              <input type="hidden" name="carousel_id" value="{{ item.id }}" />
+              <button class="button-danger" type="submit">Eliminar</button>
+            </form>
+          </article>
+        {% empty %}
+          <p style="margin-top:0.55rem;color:rgba(205,225,255,0.82);">No hay imágenes cargadas en el carrusel todavía.</p>
+        {% endfor %}
+      </section>
+    </div>
+  </body>
+</html>

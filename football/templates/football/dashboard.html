@@ -357,67 +357,6 @@
         font-size: 0.83rem;
         color: rgba(224, 232, 255, 0.9);
       }
-      .carousel-manager {
-        margin-top: 1rem;
-      }
-      .carousel-manager h3 {
-        margin: 0 0 0.65rem;
-      }
-      .carousel-upload-form,
-      .carousel-item-form {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-        gap: 0.55rem;
-        align-items: end;
-      }
-      .carousel-upload-form label,
-      .carousel-item-form label {
-        display: flex;
-        flex-direction: column;
-        gap: 0.25rem;
-        font-size: 0.72rem;
-        letter-spacing: 0.04em;
-        color: rgba(205, 225, 255, 0.85);
-      }
-      .carousel-upload-form input[type="text"],
-      .carousel-upload-form input[type="number"],
-      .carousel-upload-form input[type="file"],
-      .carousel-item-form input[type="text"],
-      .carousel-item-form input[type="number"] {
-        width: 100%;
-        border-radius: 0.55rem;
-        border: 1px solid rgba(121, 170, 230, 0.28);
-        background: rgba(9, 20, 36, 0.72);
-        color: #e2e8f0;
-        padding: 0.45rem 0.55rem;
-      }
-      .carousel-item {
-        margin-top: 0.55rem;
-        padding: 0.6rem;
-        border-radius: 0.7rem;
-        border: 1px solid rgba(121, 170, 230, 0.22);
-        background: rgba(7, 16, 30, 0.78);
-      }
-      .carousel-thumb {
-        width: 120px;
-        height: 70px;
-        border-radius: 0.55rem;
-        object-fit: cover;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-      }
-      .carousel-actions {
-        display: flex;
-        gap: 0.5rem;
-        flex-wrap: wrap;
-      }
-      .button-danger {
-        border: 1px solid rgba(248, 113, 113, 0.65);
-        color: #fecaca;
-        background: rgba(127, 29, 29, 0.5);
-        border-radius: 0.55rem;
-        padding: 0.5rem 0.8rem;
-        cursor: pointer;
-      }
 
       @media (max-width: 980px) {
         .hero,
@@ -458,6 +397,7 @@
           <a class="module-tab" href="{% url 'coach-detail' %}">Cuerpo técnico</a>
           <a class="module-tab" href="{% url 'player-dashboard' %}">Jugadores</a>
           <a class="module-tab" href="{% url 'match-action-page' %}">Registro</a>
+          <a class="module-tab" href="{% url 'admin-page' %}">Admin</a>
         </nav>
       </header>
 
@@ -515,64 +455,6 @@
         <a class="module-tab" href="{% url 'player-dashboard' %}">Ver panel completo</a>
       </section>
       <section class="player-grid" id="player-cards"></section>
-
-      <section class="block carousel-manager" id="carousel-manager">
-        <h3>Carrusel Home</h3>
-        <form method="post" enctype="multipart/form-data" class="carousel-upload-form">
-          {% csrf_token %}
-          <input type="hidden" name="form_action" value="carousel_upload" />
-          <label>
-            <span>Título</span>
-            <input type="text" name="carousel_title" placeholder="Entrenamiento, Partido..." />
-          </label>
-          <label>
-            <span>Orden</span>
-            <input type="number" name="carousel_order" min="0" value="0" />
-          </label>
-          <label>
-            <span>Imagen</span>
-            <input type="file" name="carousel_image" accept="image/*" required />
-          </label>
-          <label>
-            <span>Activa</span>
-            <input type="checkbox" name="carousel_is_active" checked />
-          </label>
-          <button class="pill-button" type="submit">Subir imagen</button>
-        </form>
-        {% for item in carousel_images %}
-          <article class="carousel-item">
-            <form method="post" class="carousel-item-form">
-              {% csrf_token %}
-              <input type="hidden" name="form_action" value="carousel_update" />
-              <input type="hidden" name="carousel_id" value="{{ item.id }}" />
-              <img class="carousel-thumb" src="{{ item.image.url }}" alt="{{ item.title|default:'Imagen carrusel' }}" loading="lazy" />
-              <label>
-                <span>Título</span>
-                <input type="text" name="carousel_title" value="{{ item.title }}" />
-              </label>
-              <label>
-                <span>Orden</span>
-                <input type="number" name="carousel_order" min="0" value="{{ item.order }}" />
-              </label>
-              <label>
-                <span>Activa</span>
-                <input type="checkbox" name="carousel_is_active" {% if item.is_active %}checked{% endif %} />
-              </label>
-              <div class="carousel-actions">
-                <button class="pill-button" type="submit">Guardar</button>
-              </div>
-            </form>
-            <form method="post" style="margin-top:0.45rem;">
-              {% csrf_token %}
-              <input type="hidden" name="form_action" value="carousel_delete" />
-              <input type="hidden" name="carousel_id" value="{{ item.id }}" />
-              <button class="button-danger" type="submit">Eliminar</button>
-            </form>
-          </article>
-        {% empty %}
-          <p style="margin-top:0.55rem;color:rgba(205,225,255,0.82);">No hay imágenes cargadas en el carrusel todavía.</p>
-        {% endfor %}
-      </section>
     </div>
 
     {{ hero_image_candidates|json_script:"hero-images-json" }}
