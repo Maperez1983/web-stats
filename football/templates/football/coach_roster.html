@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Plantilla · {{ team_name }}</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <style>
+      body {
+        margin: 0;
+        font-family: "Inter", "Segoe UI", sans-serif;
+        background: linear-gradient(180deg, #020617 0%, #07162f 100%);
+        color: #e2e8f0;
+      }
+      .page {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 1.3rem;
+      }
+      .top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+      }
+      h1 {
+        margin: 0;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+        font-size: 1.3rem;
+      }
+      .button {
+        text-decoration: none;
+        border-radius: 10px;
+        padding: 0.55rem 0.85rem;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: #e2e8f0;
+      }
+      .panel {
+        margin-top: 1rem;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(15, 23, 42, 0.92);
+        padding: 1rem;
+      }
+      .alert {
+        margin: 0 0 0.85rem;
+        padding: 0.6rem 0.7rem;
+        border-radius: 10px;
+      }
+      .ok { background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.4); }
+      .err { background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.4); }
+      form.add {
+        display: grid;
+        gap: 0.6rem;
+        grid-template-columns: 2fr 120px 1fr 140px auto;
+        align-items: end;
+      }
+      label {
+        display: grid;
+        gap: 0.3rem;
+        font-size: 0.74rem;
+        text-transform: uppercase;
+        letter-spacing: 0.09em;
+      }
+      input, select, button {
+        font: inherit;
+      }
+      input, select {
+        width: 100%;
+        border-radius: 9px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: rgba(2, 6, 23, 0.7);
+        color: #e2e8f0;
+        padding: 0.45rem 0.55rem;
+      }
+      button.primary {
+        border: none;
+        border-radius: 999px;
+        background: linear-gradient(135deg, #22d3ee, #38bdf8);
+        color: #022c43;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        padding: 0.64rem 1rem;
+        cursor: pointer;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1rem;
+      }
+      th, td {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        padding: 0.58rem 0.45rem;
+        text-align: left;
+      }
+      th {
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: #94a3b8;
+      }
+      .badge {
+        display: inline-block;
+        border-radius: 999px;
+        padding: 0.1rem 0.5rem;
+        font-size: 0.7rem;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+      }
+      .badge.ok { color: #86efac; }
+      .badge.off { color: #fca5a5; }
+      button.inline {
+        border: 1px solid rgba(239, 68, 68, 0.4);
+        background: rgba(239, 68, 68, 0.2);
+        color: #fecaca;
+        border-radius: 8px;
+        padding: 0.3rem 0.5rem;
+        cursor: pointer;
+      }
+      @media (max-width: 900px) {
+        form.add {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <header class="top">
+        <div>
+          <p style="margin:0;color:#94a3b8;">Cuerpo técnico</p>
+          <h1>Plantilla · {{ team_name }}</h1>
+        </div>
+        <a class="button" href="{% url 'coach-cards' %}">Volver</a>
+      </header>
+
+      <section class="panel">
+        {% if message %}<p class="alert ok">{{ message }}</p>{% endif %}
+        {% if error %}<p class="alert err">{{ error }}</p>{% endif %}
+
+        <form method="post" class="add">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add" />
+          <label>
+            Nombre
+            <input type="text" name="name" maxlength="120" required />
+          </label>
+          <label>
+            Dorsal
+            <input type="number" name="number" min="1" max="99" />
+          </label>
+          <label>
+            Posición
+            <input type="text" name="position" maxlength="60" placeholder="MC, DC, LD..." />
+          </label>
+          <label>
+            Estado
+            <select name="is_active">
+              <option value="1">Activo</option>
+              <option value="0">Inactivo</option>
+            </select>
+          </label>
+          <button class="primary" type="submit">Guardar jugador</button>
+        </form>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Dorsal</th>
+              <th>Nombre</th>
+              <th>Posición</th>
+              <th>Estado</th>
+              <th>Acción</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for player in players %}
+            <tr>
+              <td>{{ player.number|default:"--" }}</td>
+              <td>{{ player.name }}</td>
+              <td>{{ player.position|default:"-" }}</td>
+              <td>
+                {% if player.is_active %}
+                <span class="badge ok">Activo</span>
+                {% else %}
+                <span class="badge off">Inactivo</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if player.is_active %}
+                <form method="post" style="margin:0;">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="deactivate" />
+                  <input type="hidden" name="player_id" value="{{ player.id }}" />
+                  <button class="inline" type="submit">Desactivar</button>
+                </form>
+                {% else %}
+                -
+                {% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="5">No hay jugadores en plantilla.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </section>
+    </main>
+  </body>
+</html>

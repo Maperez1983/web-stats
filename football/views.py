@@ -947,6 +947,11 @@ def session_task_pdf(request, task_id):
 def coach_cards_page(request):
     cards = [
         {
+            'title': 'Plantilla',
+            'description': 'Alta rápida de jugadores y gestión de dorsal/posición sin entrar al admin.',
+            'link': 'coach-roster',
+        },
+        {
             'title': 'Convocatoria',
             'description': 'Lista oficial de jugadores llamados a la siguiente jornada.',
             'link': 'convocation',
@@ -972,6 +977,73 @@ def coach_cards_page(request):
         'football/coach_cards.html',
         {
             'cards': cards,
+        },
+    )
+
+
+def coach_roster_page(request):
+    primary_team = Team.objects.filter(is_primary=True).first()
+    if not primary_team:
+        raise Http404('Equipo principal no configurado')
+
+    message = ''
+    error = ''
+    if request.method == 'POST':
+        action = (request.POST.get('action') or 'add').strip()
+        player_id = _parse_int(request.POST.get('player_id'))
+        name = (request.POST.get('name') or '').strip()
+        number_raw = (request.POST.get('number') or '').strip()
+        position = (request.POST.get('position') or '').strip()
+        is_active = (request.POST.get('is_active') or '1').strip() in {'1', 'true', 'on', 'yes'}
+
+        try:
+            if action == 'deactivate':
+                if not player_id:
+                    raise ValueError('Jugador no válido para desactivar.')
+                player = Player.objects.filter(id=player_id, team=primary_team).first()
+                if not player:
+                    raise ValueError('Jugador no encontrado.')
+                player.is_active = False
+                player.save(update_fields=['is_active'])
+                message = f'{player.name} marcado como inactivo.'
+            else:
+                if not name:
+                    raise ValueError('El nombre es obligatorio.')
+                number = _parse_int(number_raw) if number_raw else None
+                player = (
+                    Player.objects.filter(team=primary_team, name__iexact=name)
+                    .order_by('id')
+                    .first()
+                )
+                if player:
+                    player.number = number
+                    player.position = position
+                    player.is_active = is_active
+                    player.save(update_fields=['number', 'position', 'is_active'])
+                    message = f'Jugador actualizado: {player.name}.'
+                else:
+                    Player.objects.create(
+                        team=primary_team,
+                        name=name,
+                        number=number,
+                        position=position,
+                        is_active=is_active,
+                    )
+                    message = f'Jugador añadido: {name}.'
+        except ValueError as exc:
+            error = str(exc)
+        except Exception:
+            error = 'No se pudo guardar el jugador. Revisa los datos.'
+
+    players = Player.objects.filter(team=primary_team).order_by('is_active', 'number', 'name')
+    return render(
+        request,
+        'football/coach_roster.html',
+        {
+            'team_name': primary_team.name,
+            'players': players,
+            'message': message,
+            'error': error,
         },
     )
 

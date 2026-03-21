@@ -22,6 +22,7 @@ urlpatterns = [
     path('convocatoria/save/', views.save_convocation, name='convocation-save'),
     path('convocatoria/pdf/', views.convocation_pdf, name='convocation-pdf'),
     path('coach/cards/', views.coach_cards_page, name='coach-cards'),
+    path('coach/plantilla/', views.coach_roster_page, name='coach-roster'),
     path('coach/11-inicial/', views.initial_eleven_page, name='initial-eleven'),
     path('coach/sesiones/', views.sessions_page, name='sessions'),
     path('coach/sesiones/tarea/<int:task_id>/pdf/', views.session_task_pdf, name='session-task-pdf'),
