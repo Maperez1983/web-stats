@@ -144,17 +144,6 @@ def authenticated_write(view_func):
 
 
 def load_cached_next_match():
-    def _parse_payload_date(raw):
-        if not raw:
-            return None
-        value = str(raw).strip()
-        for fmt in ('%Y-%m-%d', '%d-%m-%Y', '%d/%m/%Y'):
-            try:
-                return datetime.strptime(value, fmt).date()
-            except ValueError:
-                continue
-        return None
-
     if not NEXT_MATCH_CACHE.exists():
         return None
     try:
@@ -195,6 +184,48 @@ def normalize_next_match_payload(payload):
         fallback = str(payload.get('rival') or '').strip()
         payload['opponent'] = {'name': fallback or 'Rival por confirmar'}
     return payload
+
+
+def _parse_payload_date(raw):
+    if not raw:
+        return None
+    value = str(raw).strip()
+    for fmt in ('%Y-%m-%d', '%d-%m-%Y', '%d/%m/%Y'):
+        try:
+            return datetime.strptime(value, fmt).date()
+        except ValueError:
+            continue
+    return None
+
+
+def _payload_opponent_name(payload):
+    if not isinstance(payload, dict):
+        return ''
+    opponent = payload.get('opponent')
+    if isinstance(opponent, dict):
+        return str(opponent.get('name') or '').strip()
+    if isinstance(opponent, str):
+        return opponent.strip()
+    return str(payload.get('rival') or '').strip()
+
+
+def load_preferred_next_match_payload():
+    today = timezone.localdate()
+    snapshot = load_universo_snapshot()
+    if isinstance(snapshot, dict) and isinstance(snapshot.get('next_match'), dict):
+        snapshot_next = normalize_next_match_payload(snapshot.get('next_match'))
+        status = str(snapshot_next.get('status') or 'next').lower()
+        payload_date = _parse_payload_date(snapshot_next.get('date'))
+        if status == 'next' and payload_date and payload_date >= today:
+            return snapshot_next
+
+    cached_next = load_cached_next_match()
+    if isinstance(cached_next, dict):
+        status = str(cached_next.get('status') or '').lower()
+        payload_date = _parse_payload_date(cached_next.get('date'))
+        if status == 'next' and payload_date and payload_date >= today:
+            return normalize_next_match_payload(cached_next)
+    return None
 
 
 def load_universo_snapshot():
@@ -267,11 +298,7 @@ def dashboard_data(request):
 
     universo_snapshot = load_universo_snapshot()
     standings = _serialize_universo_standings(universo_snapshot) or serialize_standings(group)
-    next_match = (
-        normalize_next_match_payload(universo_snapshot.get('next_match'))
-        if isinstance(universo_snapshot, dict) and isinstance(universo_snapshot.get('next_match'), dict)
-        else get_next_match(primary_team, group)
-    )
+    next_match = load_preferred_next_match_payload() or get_next_match(primary_team, group)
     team_metrics = compute_team_metrics(primary_team)
     player_metrics = compute_player_metrics(primary_team)
     player_cards = compute_player_cards(primary_team)
@@ -418,19 +445,7 @@ def match_action_page(request):
         .select_related('player')
         .order_by('-created_at')[:6]
     )
-    official_next = load_cached_next_match()
-    if not official_next or (official_next.get('status') or '').lower() != 'next':
-        official_next = None
-
-    def _payload_opponent_name(payload):
-        if not isinstance(payload, dict):
-            return ''
-        opponent = payload.get('opponent')
-        if isinstance(opponent, dict):
-            return str(opponent.get('name') or '').strip()
-        if isinstance(opponent, str):
-            return opponent.strip()
-        return str(payload.get('rival') or '').strip()
+    official_next = load_preferred_next_match_payload()
 
     def _payload_date_label(payload):
         raw_date = (payload or {}).get('date')
@@ -675,7 +690,11 @@ def convocation_page(request):
     if convocation_record:
         selected_player_ids = list(convocation_record.players.values_list('id', flat=True))
 
-    next_match_payload = get_next_match(primary_team, primary_team.group) if primary_team.group else None
+    next_match_payload = load_preferred_next_match_payload()
+    if not next_match_payload and primary_team.group:
+        next_match_payload = get_next_match(primary_team, primary_team.group)
+    if isinstance(next_match_payload, dict) and str(next_match_payload.get('status') or '').lower() != 'next':
+        next_match_payload = None
     default_match_info = normalize_next_match_payload(next_match_payload or {}) if next_match_payload else {}
 
     opponent_name = ''
@@ -2121,18 +2140,73 @@ def compute_player_cards(primary_team):
         return []
 
     roster_cache = get_roster_stats_cache() or {}
+    manual_overrides = get_manual_player_base_overrides(primary_team)
+    universo_snapshot = load_universo_snapshot() or {}
+    universo_players = universo_snapshot.get('players') if isinstance(universo_snapshot, dict) else []
+    universo_map = {}
+    if isinstance(universo_players, list):
+        for item in universo_players:
+            if not isinstance(item, dict):
+                continue
+            team_name = str(item.get('team') or '').strip().lower()
+            if team_name and 'benagalbon' not in team_name:
+                continue
+            name = str(item.get('name') or '').strip()
+            if not name:
+                continue
+            universo_map[normalize_player_name(name)] = item
+
+    def _to_int(value):
+        try:
+            return int(str(value).strip())
+        except Exception:
+            return 0
+
+    def _find_universo_entry(player_name):
+        key = normalize_player_name(player_name)
+        direct = universo_map.get(key)
+        if direct:
+            return direct
+        target = key.replace('-', '')
+        for ukey, entry in universo_map.items():
+            compact = ukey.replace('-', '')
+            if target in compact or compact in target:
+                return entry
+        return {}
+
     cards = []
     for player in Player.objects.filter(team=primary_team).order_by('name'):
         roster_entry = find_roster_entry(player.name, roster_cache) or {}
+        manual_entry = manual_overrides.get(player.id, {})
+        universo_entry = _find_universo_entry(player.name) or {}
+
+        pj = (
+            manual_entry.get('pj')
+            if manual_entry.get('pj') is not None
+            else roster_entry.get('pj', universo_entry.get('pj', 0))
+        )
+        minutes = (
+            manual_entry.get('minutes')
+            if manual_entry.get('minutes') is not None
+            else roster_entry.get('minutes', universo_entry.get('minutes', 0))
+        )
+        goals = roster_entry.get('goals', universo_entry.get('goals', 0))
+        yellow_cards = (
+            manual_entry.get('yellow_cards')
+            if manual_entry.get('yellow_cards') is not None
+            else roster_entry.get('yellow_cards', universo_entry.get('yellow_cards', 0))
+        )
+        red_cards = roster_entry.get('red_cards', universo_entry.get('red_cards', 0))
+
         cards.append(
             {
                 'player_id': player.id,
                 'name': player.name,
-                'pj': int(roster_entry.get('pj', 0) or 0),
-                'minutes': int(roster_entry.get('minutes', 0) or 0),
-                'goals': int(roster_entry.get('goals', 0) or 0),
-                'yellow_cards': int(roster_entry.get('yellow_cards', 0) or 0),
-                'red_cards': int(roster_entry.get('red_cards', 0) or 0),
+                'pj': _to_int(pj),
+                'minutes': _to_int(minutes),
+                'goals': _to_int(goals),
+                'yellow_cards': _to_int(yellow_cards),
+                'red_cards': _to_int(red_cards),
             }
         )
     return sorted(cards, key=lambda entry: (-entry['goals'], -entry['pj'], entry['name']))
