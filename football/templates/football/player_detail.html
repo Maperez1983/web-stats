@@ -147,7 +147,29 @@
                 <input type="number" name="number" min="0" value="{{ player.number|default:'' }}" />
               </label>
               <label>Posición
-                <input type="text" name="position" value="{{ player.position|default:stats.position }}" />
+                {% with current_position=player.position|default:stats.position %}
+                <select name="position">
+                  <option value="" {% if not current_position %}selected{% endif %}>Sin definir</option>
+                  {% if current_position and current_position != 'POR' and current_position != 'DFC' and current_position != 'LD' and current_position != 'LI' and current_position != 'CARRILERO D' and current_position != 'CARRILERO I' and current_position != 'MCD' and current_position != 'MC' and current_position != 'INTERIOR D' and current_position != 'INTERIOR I' and current_position != 'MP' and current_position != 'ED' and current_position != 'EI' and current_position != 'SD' and current_position != 'DC' %}
+                  <option value="{{ current_position }}" selected>{{ current_position }}</option>
+                  {% endif %}
+                  <option value="POR" {% if current_position == 'POR' %}selected{% endif %}>Portero (POR)</option>
+                  <option value="DFC" {% if current_position == 'DFC' %}selected{% endif %}>Defensa central (DFC)</option>
+                  <option value="LD" {% if current_position == 'LD' %}selected{% endif %}>Lateral derecho (LD)</option>
+                  <option value="LI" {% if current_position == 'LI' %}selected{% endif %}>Lateral izquierdo (LI)</option>
+                  <option value="CARRILERO D" {% if current_position == 'CARRILERO D' %}selected{% endif %}>Carrilero derecho</option>
+                  <option value="CARRILERO I" {% if current_position == 'CARRILERO I' %}selected{% endif %}>Carrilero izquierdo</option>
+                  <option value="MCD" {% if current_position == 'MCD' %}selected{% endif %}>Mediocentro defensivo (MCD)</option>
+                  <option value="MC" {% if current_position == 'MC' %}selected{% endif %}>Mediocentro (MC)</option>
+                  <option value="INTERIOR D" {% if current_position == 'INTERIOR D' %}selected{% endif %}>Interior derecho</option>
+                  <option value="INTERIOR I" {% if current_position == 'INTERIOR I' %}selected{% endif %}>Interior izquierdo</option>
+                  <option value="MP" {% if current_position == 'MP' %}selected{% endif %}>Mediapunta (MP)</option>
+                  <option value="ED" {% if current_position == 'ED' %}selected{% endif %}>Extremo derecho (ED)</option>
+                  <option value="EI" {% if current_position == 'EI' %}selected{% endif %}>Extremo izquierdo (EI)</option>
+                  <option value="SD" {% if current_position == 'SD' %}selected{% endif %}>Segundo delantero (SD)</option>
+                  <option value="DC" {% if current_position == 'DC' %}selected{% endif %}>Delantero centro (DC)</option>
+                </select>
+                {% endwith %}
               </label>
               <label>Lesión
                 <select name="injury">
