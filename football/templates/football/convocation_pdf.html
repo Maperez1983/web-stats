@@ -6,112 +6,177 @@
     <style>
       @page {
         size: A4;
-        margin: 20mm;
+        margin: 14mm;
       }
       body {
-        font-family: Arial, sans-serif;
-        color: #0f172a;
+        font-family: "Helvetica Neue", Arial, sans-serif;
+        color: #0b1727;
         font-size: 12px;
+        margin: 0;
+        background: #f4f7fb;
+      }
+      .sheet {
+        background: #ffffff;
+        border: 1px solid #d7e0ea;
+        border-radius: 14px;
+        overflow: hidden;
       }
       .header {
+        background: linear-gradient(120deg, #0f2c4f, #0a6a6b);
+        color: #ffffff;
+        padding: 16px 18px;
         display: table;
         width: 100%;
-        margin-bottom: 14px;
       }
-      .logo,
+      .logo {
+        display: table-cell;
+        vertical-align: middle;
+        width: 76px;
+      }
+      .logo img {
+        width: 60px;
+        height: 60px;
+        object-fit: contain;
+        filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+      }
       .title {
         display: table-cell;
         vertical-align: middle;
       }
-      .logo {
-        width: 90px;
-      }
-      .logo img {
-        width: 72px;
-        height: 72px;
-        object-fit: contain;
-      }
       h1 {
-        margin: 0 0 4px;
-        font-size: 22px;
-        letter-spacing: 0.06em;
+        margin: 0;
+        font-size: 30px;
+        letter-spacing: 0.08em;
         text-transform: uppercase;
       }
       .subtitle {
-        margin: 0;
-        font-size: 13px;
-        color: #334155;
+        margin: 4px 0 0;
+        font-size: 12px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.86);
       }
-      .match-box {
-        border: 1px solid #cbd5e1;
+      .body {
+        padding: 14px 16px 12px;
+      }
+      .meta-grid {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 8px;
+        margin: 0 0 10px;
+      }
+      .meta-grid td {
+        width: 50%;
+        border: 1px solid #d8e1eb;
         border-radius: 8px;
-        padding: 10px 12px;
-        margin-bottom: 14px;
-        background: #f8fafc;
+        padding: 8px 10px;
+        background: #f8fbff;
+        vertical-align: top;
       }
-      .match-row {
-        margin: 2px 0;
+      .meta-label {
+        font-size: 9px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: #5a6b7d;
+        margin-bottom: 3px;
       }
-      .match-label {
-        display: inline-block;
-        min-width: 70px;
-        font-weight: bold;
+      .meta-value {
+        font-size: 14px;
+        font-weight: 700;
+        color: #0f2237;
       }
       table {
         width: 100%;
         border-collapse: collapse;
+        border: 1px solid #d8e1eb;
+        border-radius: 10px;
+        overflow: hidden;
       }
       th,
       td {
-        border: 1px solid #cbd5e1;
-        padding: 8px;
+        border-bottom: 1px solid #e4ebf2;
+        padding: 9px 10px;
         text-align: left;
       }
       th {
-        background: #e2e8f0;
+        background: #e9f0f8;
         text-transform: uppercase;
-        font-size: 11px;
+        font-size: 10px;
+        letter-spacing: 0.08em;
+        color: #29435e;
       }
       td.number {
-        width: 90px;
+        width: 84px;
         text-align: center;
-        font-weight: bold;
+        font-weight: 800;
+        color: #0f385e;
+      }
+      tr:nth-child(even) td {
+        background: #fbfdff;
+      }
+      .footer {
+        margin-top: 10px;
+        font-size: 9px;
+        color: #6b7c8e;
+        text-align: right;
       }
     </style>
   </head>
   <body>
-    <header class="header">
-      <div class="logo">
-        <img src="{{ logo_url }}" alt="Escudo {{ team_name }}" />
-      </div>
-      <div class="title">
-        <h1>Convocatoria</h1>
-        <p class="subtitle">{{ team_name }} · {{ round_label }}</p>
-      </div>
-    </header>
+    <section class="sheet">
+      <header class="header">
+        <div class="logo">
+          <img src="{{ logo_url }}" alt="Escudo {{ team_name }}" />
+        </div>
+        <div class="title">
+          <h1>Convocatoria</h1>
+          <p class="subtitle">{{ team_name }} · {{ round_label }}</p>
+        </div>
+      </header>
 
-    <section class="match-box">
-      <p class="match-row"><span class="match-label">Rival:</span> {{ rival_label }}</p>
-      <p class="match-row"><span class="match-label">Día:</span> {{ date_label }}</p>
-      <p class="match-row"><span class="match-label">Hora:</span> {{ time_label }}</p>
-      <p class="match-row"><span class="match-label">Lugar:</span> {{ location_label }}</p>
+      <div class="body">
+        <table class="meta-grid">
+          <tr>
+            <td>
+              <div class="meta-label">Rival</div>
+              <div class="meta-value">{{ rival_label }}</div>
+            </td>
+            <td>
+              <div class="meta-label">Lugar</div>
+              <div class="meta-value">{{ location_label }}</div>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <div class="meta-label">Día</div>
+              <div class="meta-value">{{ date_label }}</div>
+            </td>
+            <td>
+              <div class="meta-label">Hora</div>
+              <div class="meta-value">{{ time_label }}</div>
+            </td>
+          </tr>
+        </table>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Dorsal</th>
+              <th>Jugador</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for player in players %}
+            <tr>
+              <td class="number">{{ player.number|default:"--" }}</td>
+              <td>{{ player.name }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+
+        <p class="footer">Documento interno de convocatoria · {{ team_name }}</p>
+      </div>
     </section>
-
-    <table>
-      <thead>
-        <tr>
-          <th>Dorsal</th>
-          <th>Jugador</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for player in players %}
-        <tr>
-          <td class="number">{{ player.number|default:"--" }}</td>
-          <td>{{ player.name }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
   </body>
 </html>
