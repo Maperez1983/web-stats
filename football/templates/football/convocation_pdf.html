@@ -4,179 +4,156 @@
     <meta charset="UTF-8" />
     <title>Convocatoria {{ team_name }}</title>
     <style>
-      @page {
-        size: A4;
-        margin: 8mm;
-      }
-      * {
-        box-sizing: border-box;
-      }
+      @page { size: A4; margin: 6mm; }
+      * { box-sizing: border-box; }
       body {
         margin: 0;
-        font-family: "Trebuchet MS", "Segoe UI", sans-serif;
-        color: #0b2f2a;
-        background: #eef3ef;
+        font-family: "Cormorant Garamond", "Times New Roman", serif;
+        color: #0f4f47;
+        background: #f3f6f4;
       }
       .poster {
-        width: 100%;
         min-height: 100%;
+        border: 2px solid #cfe0d7;
         position: relative;
-        border: 2px solid #d5e0d9;
-        background:
-          linear-gradient(90deg, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0.94) 56%, rgba(238, 247, 241, 0.96) 100%),
-          radial-gradient(circle at 14% 12%, rgba(24, 112, 89, 0.09), transparent 35%);
         overflow: hidden;
+        background:
+          linear-gradient(180deg, rgba(255,255,255,0.94), rgba(244,251,247,0.94)),
+          radial-gradient(circle at 30% 45%, rgba(15, 79, 71, 0.08), transparent 45%);
       }
       .watermark {
         position: absolute;
         inset: 0;
-        background-image: url("{{ logo_url }}");
-        background-repeat: no-repeat;
-        background-size: 44%;
-        background-position: 22% 58%;
-        opacity: 0.06;
-        pointer-events: none;
+        background: url("{{ logo_url }}") no-repeat 30% 52%;
+        background-size: 46%;
+        opacity: 0.055;
       }
       .layout {
         position: relative;
         z-index: 2;
         display: table;
         width: 100%;
-        min-height: 279mm;
       }
-      .left-strip {
+      .side {
         display: table-cell;
-        width: 72px;
-        vertical-align: middle;
+        width: 86px;
+        border-right: 1px solid #c8d9d0;
         text-align: center;
-        border-right: 1px solid #d8e4dd;
+        vertical-align: middle;
       }
-      .left-strip .round {
+      .side span {
         writing-mode: vertical-rl;
         transform: rotate(180deg);
-        font-size: 58px;
-        letter-spacing: 0.05em;
-        color: #1a5f52;
-        font-weight: 700;
-        line-height: 1;
+        font-size: 80px;
+        line-height: 0.92;
+        letter-spacing: 0.01em;
+        color: #0f4f47;
+        font-weight: 600;
       }
-      .main {
+      .content {
         display: table-cell;
         width: auto;
-        vertical-align: top;
-        padding: 12px 16px 16px;
+        padding: 12px 16px 8px;
       }
-      .hero {
-        display: table;
-        width: 100%;
-        margin-bottom: 8px;
-      }
-      .hero-left {
-        display: table-cell;
-        vertical-align: top;
-        width: 60%;
-        padding-right: 12px;
-      }
-      .hero-right {
-        display: table-cell;
-        vertical-align: bottom;
-        width: 40%;
-        text-align: right;
+      .top {
+        text-align: center;
       }
       .motto {
         margin: 0;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        color: #1a5f52;
-        font-size: 14px;
+        font-size: 56px;
+        line-height: 0.85;
+        color: #0f4f47;
         font-weight: 700;
       }
-      .title {
-        margin: 2px 0 6px;
-        font-size: 34px;
-        line-height: 1;
-        color: #0f443a;
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-      }
       .duel {
-        margin: 0;
-        font-size: 22px;
-        color: #113d34;
-        line-height: 1.25;
+        margin: 6px 0 4px;
+        font-size: 16px;
+        color: #114f46;
+        letter-spacing: 0.02em;
       }
-      .meta {
-        margin: 8px 0 0;
-        font-size: 12px;
-        color: #335b50;
-      }
-      .photo {
-        width: 100%;
-        max-height: 190px;
-        object-fit: cover;
-        border-radius: 10px;
-        border: 1px solid #c8d8d0;
-        box-shadow: 0 8px 20px rgba(17, 61, 52, 0.16);
-      }
-      .blocks {
+      .duel strong { font-size: 20px; }
+      .body {
         display: table;
         width: 100%;
-        border-spacing: 10px 0;
+        margin-top: 8px;
       }
-      .block {
+      .left {
+        display: table-cell;
+        width: 62%;
+        padding-right: 8px;
+        vertical-align: top;
+      }
+      .right {
+        display: table-cell;
+        width: 38%;
+        vertical-align: bottom;
+      }
+      .meta {
+        border-bottom: 2px solid #95b9ac;
+        padding-bottom: 6px;
+        margin-bottom: 8px;
+      }
+      .meta p {
+        margin: 0;
+        font-size: 30px;
+        line-height: 1.02;
+        font-weight: 700;
+        color: #0f4f47;
+      }
+      .meta .small {
+        font-size: 24px;
+      }
+      .players-cols {
+        display: table;
+        width: 100%;
+      }
+      .col {
         display: table-cell;
         width: 50%;
         vertical-align: top;
-        background: rgba(255, 255, 255, 0.7);
-        border: 1px solid #d1dfd8;
-        border-radius: 10px;
-        padding: 10px 12px;
+        padding-right: 8px;
       }
-      .block h3 {
-        margin: 0 0 6px;
-        font-size: 16px;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        color: #1a5f52;
-      }
-      .list {
+      .players {
         margin: 0;
         padding: 0;
         list-style: none;
       }
-      .list li {
-        margin: 0 0 4px;
+      .players li {
+        margin: 0 0 2px;
         font-size: 24px;
-        line-height: 1.1;
+        line-height: 1.08;
         font-weight: 700;
-        letter-spacing: 0.02em;
-        color: #113d34;
+        color: #0f4f47;
       }
-      .list li.small {
-        font-size: 15px;
-        font-weight: 600;
+      .hashtag {
+        margin: 6px 0 0;
+        font-size: 26px;
+        font-weight: 700;
+        color: #0f4f47;
       }
       .coach {
-        margin: 12px 0 0;
-        font-size: 28px;
-        color: #113d34;
-        font-weight: 700;
+        width: 100%;
+        max-height: 560px;
+        object-fit: cover;
+        object-position: center;
+        border-radius: 8px;
       }
-      .footer {
-        margin-top: 10px;
-        padding-top: 7px;
-        border-top: 1px solid #d2ded7;
-        font-size: 18px;
-        color: #1a5f52;
-        font-weight: 700;
-        letter-spacing: 0.04em;
+      .sponsors {
+        margin-top: 8px;
+        border-top: 2px solid #95b9ac;
+        padding: 6px 2px 2px;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 8px;
       }
-      .logos {
-        margin-top: 5px;
-        color: #5c786f;
+      .sponsor {
+        font-family: "Trebuchet MS", Arial, sans-serif;
         font-size: 10px;
+        color: #0f4f47;
         text-transform: uppercase;
         letter-spacing: 0.08em;
+        font-weight: 700;
       }
     </style>
   </head>
@@ -184,49 +161,54 @@
     <section class="poster">
       <div class="watermark"></div>
       <div class="layout">
-        <aside class="left-strip">
-          <div class="round">{{ round_label }}</div>
+        <aside class="side">
+          <span>Convocatoria {{ round_short }}</span>
         </aside>
 
-        <main class="main">
-          <section class="hero">
-            <div class="hero-left">
-              <p class="motto">{{ club_motto }}</p>
-              <h1 class="title">XI Verde</h1>
-              <p class="duel"><strong>{{ team_name }}</strong> vs <strong>{{ rival_label }}</strong></p>
-              <p class="meta">{{ date_label }} · {{ time_label }} · {{ location_label }}</p>
+        <main class="content">
+          <header class="top">
+            <p class="motto">{{ club_motto }}</p>
+            <p class="duel"><strong>{{ team_name }}</strong> vs. <strong>{{ rival_label }}</strong></p>
+          </header>
+
+          <section class="body">
+            <div class="left">
+              <div class="meta">
+                <p class="small">{{ round_label|upper }}</p>
+                <p>{{ date_human }}</p>
+                <p>{{ time_label }}</p>
+              </div>
+
+              <div class="players-cols">
+                <div class="col">
+                  <ul class="players">
+                    {% for player in left_column_players %}
+                    <li>{{ player.number|default:"--" }} {{ player.name|upper }}</li>
+                    {% endfor %}
+                  </ul>
+                </div>
+                <div class="col">
+                  <ul class="players">
+                    {% for player in right_column_players %}
+                    <li>{{ player.number|default:"--" }} {{ player.name|upper }}</li>
+                    {% endfor %}
+                  </ul>
+                </div>
+              </div>
+
+              <p class="hashtag">{{ club_hashtag }}</p>
             </div>
-            <div class="hero-right">
-              <img class="photo" src="{{ team_photo_url }}" alt="Equipo {{ team_name }}" />
+
+            <div class="right">
+              <img class="coach" src="{{ coach_photo_url }}" alt="{{ coach_name }}" />
             </div>
           </section>
 
-          <section class="blocks">
-            <article class="block">
-              <h3>XI Inicial</h3>
-              <ul class="list">
-                {% for player in starters %}
-                  <li>{{ player.number|default:"--" }} {{ player.name|upper }}</li>
-                {% empty %}
-                  <li class="small">Sin jugadores titulares.</li>
-                {% endfor %}
-              </ul>
-            </article>
-            <article class="block">
-              <h3>Suplentes</h3>
-              <ul class="list">
-                {% for player in substitutes %}
-                  <li class="small">{{ player.number|default:"--" }} {{ player.name|upper }}</li>
-                {% empty %}
-                  <li class="small">Sin suplentes definidos.</li>
-                {% endfor %}
-              </ul>
-            </article>
-          </section>
-
-          <p class="coach">DT: {{ coach_name|upper }}</p>
-          <p class="footer">{{ club_hashtag }}</p>
-          <p class="logos">Documento oficial de convocatoria · {{ team_name }}</p>
+          <footer class="sponsors">
+            {% for sponsor in sponsor_names %}
+              <span class="sponsor">{{ sponsor }}</span>
+            {% endfor %}
+          </footer>
         </main>
       </div>
     </section>

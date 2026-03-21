@@ -147,6 +147,64 @@ def _build_pdf_response_or_html_fallback(request, html: str, filename: str):
         return HttpResponse(html, content_type='text/html; charset=utf-8')
 
 
+def resolve_player_photo_url(request, player):
+    if not player:
+        return ''
+    players_dir = Path(settings.BASE_DIR) / 'static' / 'football' / 'images' / 'players'
+    if not players_dir.exists():
+        return ''
+
+    name_slug = slugify(player.name or '')
+    number_value = player.number if player.number is not None else ''
+    candidates = []
+    if name_slug and number_value != '':
+        candidates.extend(
+            [
+                f'{name_slug}-n{number_value}-final.png',
+                f'{name_slug}-n{number_value}.png',
+                f'{name_slug}-{number_value}.png',
+            ]
+        )
+    if name_slug:
+        candidates.extend(
+            [
+                f'{name_slug}-final.png',
+                f'{name_slug}.png',
+                f'{name_slug}.jpg',
+                f'{name_slug}.jpeg',
+            ]
+        )
+    if number_value != '':
+        candidates.extend(
+            [
+                f'n{number_value}-{name_slug}.png',
+                f'{name_slug}-n{number_value}-cut.png',
+                f'{name_slug}-n{number_value}-crop.png',
+            ]
+        )
+
+    seen = set()
+    for filename in candidates:
+        if filename in seen:
+            continue
+        seen.add(filename)
+        file_path = players_dir / filename
+        if file_path.exists():
+            return request.build_absolute_uri(static(f'football/images/players/{filename}'))
+    if number_value != '':
+        wildcard_patterns = [
+            f'*-n{number_value}-final.*',
+            f'*-n{number_value}-cut.*',
+            f'*-n{number_value}-crop.*',
+            f'*-n{number_value}.*',
+        ]
+        for pattern in wildcard_patterns:
+            for file_path in players_dir.glob(pattern):
+                if file_path.is_file():
+                    return request.build_absolute_uri(static(f'football/images/players/{file_path.name}'))
+    return ''
+
+
 def _serialize_match_event(event, duplicate=False):
     player = event.player
     return {
@@ -885,8 +943,9 @@ def convocation_pdf(request):
         return (number, (player.name or '').lower())
 
     ordered_players = sorted(players, key=_sort_player_key)
-    starters = ordered_players[:11]
-    substitutes = ordered_players[11:]
+    midpoint = (len(ordered_players) + 1) // 2
+    left_column_players = ordered_players[:midpoint]
+    right_column_players = ordered_players[midpoint:]
 
     date_label = convocation_record.match_date.strftime('%d/%m/%Y') if convocation_record.match_date else '--'
     time_label = convocation_record.match_time.strftime('%H:%M') if convocation_record.match_time else '--:--'
@@ -900,21 +959,41 @@ def convocation_pdf(request):
         )
         rival_label = opponent.name if opponent else ''
 
+    round_digits = ''.join(re.findall(r'\d+', convocation_record.round or ''))
+    round_short = f'J{round_digits}' if round_digits else 'J'
+    date_human = date_label
+    if convocation_record.match_date:
+        day_map = ['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB', 'DOM']
+        month_map = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC']
+        weekday = day_map[convocation_record.match_date.weekday()]
+        month = month_map[convocation_record.match_date.month - 1]
+        date_human = f'{weekday} {convocation_record.match_date.day} {month}'
+
+    sponsors_raw = os.getenv(
+        'TEAM_SPONSORS',
+        'Rincón de la Victoria,Los Curros,Modernia,Clínicas Rincón Dental,Ventorrillo,Copesol',
+    )
+    sponsor_names = [entry.strip() for entry in sponsors_raw.split(',') if entry.strip()]
+
     context = {
         'team_name': primary_team.name,
         'round_label': convocation_record.round or 'Jornada por confirmar',
+        'round_short': round_short,
         'date_label': date_label,
+        'date_human': date_human,
         'time_label': time_label,
         'location_label': location_label or 'Campo por confirmar',
         'rival_label': rival_label or 'Rival por confirmar',
         'players': ordered_players,
-        'starters': starters,
-        'substitutes': substitutes,
+        'left_column_players': left_column_players,
+        'right_column_players': right_column_players,
         'coach_name': os.getenv('TEAM_COACH_NAME', 'Aitor Castillo'),
         'club_motto': os.getenv('TEAM_MOTTO', 'Orgullo Benalbino'),
         'club_hashtag': os.getenv('TEAM_HASHTAG', '#VamosVerdes'),
+        'sponsor_names': sponsor_names,
         'logo_url': request.build_absolute_uri(static('football/images/cdb-logo.png')),
         'team_photo_url': request.build_absolute_uri(static('football/images/team-01.jpg')),
+        'coach_photo_url': request.build_absolute_uri(static(os.getenv('TEAM_COACH_PHOTO', 'football/images/team-01.jpg'))),
     }
 
     html = render_to_string('football/convocation_pdf.html', context)
@@ -1602,6 +1681,7 @@ def player_detail_page(request, player_id):
         active_tab = (request.GET.get('tab') or 'general').strip().lower()
         physical_metrics = player.physical_metrics.all()[:20]
         communications = player.communications.select_related('match').all()[:20]
+        player_photo_url = resolve_player_photo_url(request, player)
         return render(
             request,
             'football/player_detail.html',
@@ -1614,6 +1694,7 @@ def player_detail_page(request, player_id):
                 'is_called_up': is_called_up,
                 'current_convocation': current_convocation,
                 'active_match': active_match,
+                'player_photo_url': player_photo_url,
             },
         )
     except Exception as e:

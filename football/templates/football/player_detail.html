@@ -47,6 +47,20 @@
       th, td { text-align: left; padding: 0.45rem 0.25rem; border-bottom: 1px solid rgba(148, 163, 184, 0.2); vertical-align: middle; }
       th { color: #94a3b8; font-size: 0.72rem; letter-spacing: 0.05em; text-transform: uppercase; }
       .subtle { color: #94a3b8; font-size: 0.9rem; }
+      .player-hero {
+        margin-top: 0.85rem;
+        border: 1px solid rgba(148, 163, 184, 0.3);
+        border-radius: 1rem;
+        padding: 0.55rem;
+        background: rgba(15, 23, 42, 0.92);
+        max-width: 320px;
+      }
+      .player-hero img {
+        width: 100%;
+        display: block;
+        border-radius: 0.8rem;
+        object-fit: cover;
+      }
     </style>
   </head>
   <body>
@@ -64,6 +78,12 @@
           <a class="btn" href="{% url 'player-dashboard' %}">Volver</a>
         </div>
       </header>
+
+      {% if player_photo_url %}
+      <section class="player-hero">
+        <img src="{{ player_photo_url }}" alt="{{ player.name }}" />
+      </section>
+      {% endif %}
 
       <div class="tabs" role="tablist">
         <button class="tab-btn" data-tab="general" role="tab">Datos + Estadísticas</button>
