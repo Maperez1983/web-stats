@@ -198,6 +198,11 @@
         border-color: rgba(248, 113, 113, 0.7);
         cursor: not-allowed;
       }
+      .roster-card.sanctioned {
+        opacity: 0.55;
+        border-color: rgba(239, 68, 68, 0.9);
+        cursor: not-allowed;
+      }
       .roster-photo,
       .roster-avatar {
         width: 58px;
@@ -232,9 +237,62 @@
         border-radius: 999px;
         padding: 0.06rem 0.45rem;
       }
+      .status-badges {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        min-height: 1.1rem;
+      }
+      .status-dot {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 24px;
+        height: 20px;
+        padding: 0 0.34rem;
+        border-radius: 7px;
+        font-size: 0.72rem;
+        font-weight: 800;
+        line-height: 1;
+        letter-spacing: 0.02em;
+      }
+      .status-dot.injury {
+        color: #fecaca;
+        border: 1px solid rgba(248, 113, 113, 0.8);
+        background: rgba(127, 29, 29, 0.9);
+      }
+      .status-dot.red-card {
+        color: #fee2e2;
+        border: 1px solid rgba(239, 68, 68, 0.85);
+        background: rgba(127, 29, 29, 0.95);
+      }
+      .status-dot.yellow-card {
+        color: #1f2937;
+        border: 1px solid rgba(234, 179, 8, 0.85);
+        background: rgba(250, 204, 21, 0.95);
+      }
       .selected-wrap {
         display: grid;
         gap: 0.7rem;
+      }
+      .team-photo-box {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        overflow: hidden;
+        background: rgba(7, 16, 34, 0.74);
+      }
+      .team-photo-box img {
+        width: 100%;
+        display: block;
+        aspect-ratio: 16 / 10;
+        object-fit: cover;
+        object-position: center;
+      }
+      .team-photo-label {
+        padding: 0.5rem 0.6rem;
+        font-size: 0.86rem;
+        color: var(--muted);
+        letter-spacing: 0.03em;
       }
       .selected-list {
         list-style: none;
@@ -358,7 +416,8 @@
       <section class="panel match-box">
         <div class="match-grid">
           <label class="full">Rival
-            <input id="match-opponent" type="text" value="{{ match_info.opponent|default:''|escape }}" />
+            <select id="match-opponent-select"></select>
+            <input id="match-opponent-manual" type="text" placeholder="Escribe rival manual..." style="display:none;margin-top:0.35rem;" />
           </label>
           <label>Jornada
             <input id="match-round" type="text" value="{{ match_info.round|default:''|escape }}" />
@@ -370,7 +429,8 @@
             <input id="match-time" type="time" value="{{ match_info.time|default:''|escape }}" />
           </label>
           <label class="full">Lugar
-            <input id="match-location" type="text" value="{{ match_info.location|default:''|escape }}" />
+            <select id="match-location-select"></select>
+            <input id="match-location-manual" type="text" placeholder="Escribe campo manual..." style="display:none;margin-top:0.35rem;" />
           </label>
         </div>
         <div class="actions">
@@ -406,6 +466,8 @@
               data-player-position="{{ player.position|default:'Sin definir'|escape }}"
               data-player-photo="{{ player.photo_url|default:''|escape }}"
               data-player-injured="{% if player.has_active_injury %}1{% else %}0{% endif %}"
+              data-player-sanctioned="{% if player.is_sanctioned %}1{% else %}0{% endif %}"
+              data-player-warn="{% if player.is_apercibido %}1{% else %}0{% endif %}"
             >
               {% if player.photo_url %}
               <img class="roster-photo" src="{{ player.photo_url }}" alt="{{ player.name }}" loading="lazy" />
@@ -414,9 +476,17 @@
               {% endif %}
               <div class="roster-name">{{ player.name|upper }}</div>
               <div class="roster-meta">#{{ player.number|default:"--" }} · {{ player.position|default:"Sin definir" }}</div>
-              {% if player.has_active_injury %}
-              <span class="injury-dot">✚ LESIÓN</span>
-              {% endif %}
+              <div class="status-badges">
+                {% if player.has_active_injury %}
+                <span class="status-dot injury" title="Lesionado">✚</span>
+                {% endif %}
+                {% if player.is_sanctioned %}
+                <span class="status-dot red-card" title="Sancionado por tarjeta roja">🟥</span>
+                {% endif %}
+                {% if player.is_apercibido %}
+                <span class="status-dot yellow-card" title="Apercibido (4 amarillas)">🟨</span>
+                {% endif %}
+              </div>
             </div>
             {% empty %}
             <div class="empty">No hay jugadores disponibles.</div>
@@ -427,6 +497,10 @@
         <article class="panel block">
           <h2>Convocados</h2>
           <div class="selected-wrap">
+            <div class="team-photo-box">
+              <img src="{{ team_photo_url }}" alt="Foto equipo {{ team_name }}" loading="lazy" />
+              <div class="team-photo-label">Foto equipo (portada activa)</div>
+            </div>
             <ul id="selected-list" class="selected-list"></ul>
           </div>
         </article>
@@ -444,11 +518,18 @@
       const dropInjuredBtn = document.querySelector('#drop-injured');
       const saveButton = document.querySelector('#save-convocation');
       const messageEl = document.querySelector('#convocation-message');
-      const matchOpponent = document.querySelector('#match-opponent');
+      const opponentOptions = {{ opponent_options_json|safe }};
+      const parsedHomeLocation = "{{ home_location_label|default:'ESTADIO CAÑA CHAQUETA'|escapejs }}";
+      const parsedCurrentOpponent = "{{ match_info.opponent|default:''|escapejs }}";
+      const parsedCurrentLocation = "{{ match_info.location|default:''|escapejs }}";
+
+      const matchOpponentSelect = document.querySelector('#match-opponent-select');
+      const matchOpponentManual = document.querySelector('#match-opponent-manual');
       const matchRound = document.querySelector('#match-round');
       const matchDate = document.querySelector('#match-date');
       const matchTime = document.querySelector('#match-time');
-      const matchLocation = document.querySelector('#match-location');
+      const matchLocationSelect = document.querySelector('#match-location-select');
+      const matchLocationManual = document.querySelector('#match-location-manual');
 
       const selectedSet = new Set(({{ selected_player_ids_json|safe }} || []).map((item) => String(item)));
       const injuredPlayerIds = new Set(({{ injured_player_ids_json|safe }} || []).map((item) => String(item)));
@@ -489,6 +570,8 @@
         position: String(card.dataset.playerPosition || 'Sin definir').trim(),
         photo: String(card.dataset.playerPhoto || '').trim(),
         injured: String(card.dataset.playerInjured || '0') === '1' || injuredPlayerIds.has(String(card.dataset.playerId || '')),
+        sanctioned: String(card.dataset.playerSanctioned || '0') === '1',
+        warned: String(card.dataset.playerWarn || '0') === '1',
       });
 
       const refreshCounter = () => {
@@ -529,7 +612,7 @@
               }
               <div class="selected-text">
                 <strong>#${player.number} ${player.name}</strong>
-                <span>${player.position}${player.injured ? ' · Lesión activa' : ''}</span>
+                <span>${player.position}${player.injured ? ' · Lesión activa' : ''}${player.sanctioned ? ' · Sancionado' : ''}${player.warned ? ' · Apercibido' : ''}</span>
               </div>
             </div>
             <button class="remove" type="button" data-remove="${player.id}">Quitar</button>
@@ -543,7 +626,9 @@
         cards.forEach((card) => {
           const id = String(card.dataset.playerId || '');
           const injured = injuredPlayerIds.has(id) || String(card.dataset.playerInjured || '0') === '1';
+          const sanctioned = String(card.dataset.playerSanctioned || '0') === '1';
           card.classList.toggle('injured', injured);
+          card.classList.toggle('sanctioned', sanctioned);
           card.classList.toggle('selected', selectedSet.has(id));
         });
       };
@@ -581,8 +666,13 @@
         const id = String(card.dataset.playerId || '');
         if (!id) return;
         const injured = injuredPlayerIds.has(id) || String(card.dataset.playerInjured || '0') === '1';
+        const sanctioned = String(card.dataset.playerSanctioned || '0') === '1';
         if (injured) {
           showMessage('Jugador bloqueado por lesión activa.', 'warn');
+          return;
+        }
+        if (sanctioned) {
+          showMessage('Jugador bloqueado por sanción.', 'warn');
           return;
         }
         if (selectedSet.has(id)) {
@@ -594,6 +684,148 @@
         renderSelected();
       };
 
+      const normalizeKey = (value) =>
+        String(value || '')
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, ' ')
+          .trim();
+
+      const getOpponentValue = () => {
+        const selected = String(matchOpponentSelect?.value || '');
+        if (selected === '__manual__') return String(matchOpponentManual?.value || '').trim();
+        return selected.trim();
+      };
+
+      const getLocationValue = () => {
+        const selected = String(matchLocationSelect?.value || '');
+        if (selected === '__manual__') return String(matchLocationManual?.value || '').trim();
+        return selected.trim();
+      };
+
+      const setManualVisibility = () => {
+        const opponentManual = String(matchOpponentSelect?.value || '') === '__manual__';
+        const locationManual = String(matchLocationSelect?.value || '') === '__manual__';
+        if (matchOpponentManual) {
+          matchOpponentManual.style.display = opponentManual ? 'block' : 'none';
+        }
+        if (matchLocationManual) {
+          matchLocationManual.style.display = locationManual ? 'block' : 'none';
+        }
+      };
+
+      const hydrateOpponentSelect = () => {
+        if (!matchOpponentSelect) return;
+        const uniqueMap = new Map();
+        (Array.isArray(opponentOptions) ? opponentOptions : []).forEach((item) => {
+          const name = String(item?.name || '').trim();
+          if (!name) return;
+          const key = normalizeKey(name);
+          if (!key || uniqueMap.has(key)) return;
+          uniqueMap.set(key, {
+            name,
+            short_name: String(item?.short_name || name).trim(),
+            location: String(item?.location || '').trim(),
+          });
+        });
+        matchOpponentSelect.innerHTML = '';
+        const blankOption = document.createElement('option');
+        blankOption.value = '';
+        blankOption.textContent = 'Seleccionar rival...';
+        matchOpponentSelect.appendChild(blankOption);
+
+        Array.from(uniqueMap.values())
+          .sort((a, b) => a.name.localeCompare(b.name, 'es'))
+          .forEach((item) => {
+            const option = document.createElement('option');
+            option.value = item.name;
+            option.textContent = item.short_name || item.name;
+            option.dataset.location = item.location || '';
+            matchOpponentSelect.appendChild(option);
+          });
+
+        const manualOption = document.createElement('option');
+        manualOption.value = '__manual__';
+        manualOption.textContent = 'Otro (manual)';
+        matchOpponentSelect.appendChild(manualOption);
+
+        const currentKey = normalizeKey(parsedCurrentOpponent);
+        let selectedFound = false;
+        Array.from(matchOpponentSelect.options).forEach((option) => {
+          if (normalizeKey(option.value) === currentKey && currentKey) {
+            option.selected = true;
+            selectedFound = true;
+          }
+        });
+        if (!selectedFound && parsedCurrentOpponent) {
+          matchOpponentSelect.value = '__manual__';
+          if (matchOpponentManual) matchOpponentManual.value = parsedCurrentOpponent;
+        }
+      };
+
+      const updateLocationOptions = () => {
+        if (!matchLocationSelect) return;
+        const selectedOpponentName = getOpponentValue();
+        const selectedKey = normalizeKey(selectedOpponentName);
+        let rivalLocation = '';
+
+        Array.from(matchOpponentSelect?.options || []).forEach((option) => {
+          if (normalizeKey(option.value) === selectedKey) {
+            rivalLocation = String(option.dataset.location || '').trim();
+          }
+        });
+        if (!rivalLocation && selectedKey) {
+          const fromData = (Array.isArray(opponentOptions) ? opponentOptions : []).find(
+            (item) => normalizeKey(item?.name) === selectedKey
+          );
+          rivalLocation = String(fromData?.location || '').trim();
+        }
+
+        const currentValue = getLocationValue();
+        matchLocationSelect.innerHTML = '';
+        const baseOptions = [];
+        const homeLabel = String(parsedHomeLocation || 'ESTADIO CAÑA CHAQUETA').trim();
+        if (homeLabel) {
+          baseOptions.push(homeLabel);
+        }
+        if (rivalLocation) {
+          baseOptions.push(rivalLocation);
+        }
+        const seen = new Set();
+        baseOptions.forEach((label) => {
+          const key = normalizeKey(label);
+          if (!key || seen.has(key)) return;
+          seen.add(key);
+          const option = document.createElement('option');
+          option.value = label;
+          option.textContent = label;
+          matchLocationSelect.appendChild(option);
+        });
+
+        const manualOption = document.createElement('option');
+        manualOption.value = '__manual__';
+        manualOption.textContent = 'Otro campo (manual)';
+        matchLocationSelect.appendChild(manualOption);
+
+        const targetKey = normalizeKey(currentValue || parsedCurrentLocation);
+        let matched = false;
+        Array.from(matchLocationSelect.options).forEach((option) => {
+          if (normalizeKey(option.value) === targetKey && targetKey) {
+            option.selected = true;
+            matched = true;
+          }
+        });
+        if (!matched) {
+          const initialLocation = String(currentValue || parsedCurrentLocation || '').trim();
+          if (initialLocation) {
+            matchLocationSelect.value = '__manual__';
+            if (matchLocationManual) matchLocationManual.value = initialLocation;
+          }
+        }
+        setManualVisibility();
+      };
+
       const saveConvocation = async () => {
         if (!selectedSet.size) {
           showMessage('Añade jugadores antes de guardar.', 'error');
@@ -602,11 +834,11 @@
         const requestPayload = {
           players: Array.from(selectedSet),
           match_info: {
-            opponent: matchOpponent?.value || '',
+            opponent: getOpponentValue(),
             round: matchRound?.value || '',
             date: matchDate?.value || '',
             time: matchTime?.value || '',
-            location: matchLocation?.value || '',
+            location: getLocationValue(),
           },
         };
         const response = await fetch('{% url "convocation-save" %}', {
@@ -648,13 +880,19 @@
 
       filterText?.addEventListener('input', applyFilters);
       filterPosition?.addEventListener('change', applyFilters);
+      matchOpponentSelect?.addEventListener('change', () => {
+        setManualVisibility();
+        updateLocationOptions();
+      });
+      matchLocationSelect?.addEventListener('change', setManualVisibility);
 
       selectVisibleBtn?.addEventListener('click', () => {
         cards.forEach((card) => {
           if (card.classList.contains('hidden')) return;
           const id = String(card.dataset.playerId || '');
           const injured = injuredPlayerIds.has(id) || String(card.dataset.playerInjured || '0') === '1';
-          if (!injured) selectedSet.add(id);
+          const sanctioned = String(card.dataset.playerSanctioned || '0') === '1';
+          if (!injured && !sanctioned) selectedSet.add(id);
         });
         syncCardStates();
         renderSelected();
@@ -675,6 +913,9 @@
       saveButton?.addEventListener('click', saveConvocation);
 
       hydratePositionFilter();
+      hydrateOpponentSelect();
+      updateLocationOptions();
+      setManualVisibility();
       applyFilters();
       syncCardStates();
       renderSelected();

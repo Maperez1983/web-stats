@@ -1053,12 +1053,72 @@ def convocation_page(request):
     all_players = list(Player.objects.filter(team=primary_team, is_active=True).order_by('name'))
     for player in all_players:
         player.photo_url = resolve_player_photo_url(request, player)
+    roster_cache = get_roster_stats_cache()
+    manual_overrides = get_manual_player_base_overrides(primary_team)
+    universo_snapshot = load_universo_snapshot() or {}
+    universo_players = universo_snapshot.get('players') if isinstance(universo_snapshot, dict) else []
+    universo_map = {}
+    universo_by_number = {}
+    if isinstance(universo_players, list):
+        for item in universo_players:
+            if not isinstance(item, dict):
+                continue
+            team_name = str(item.get('team') or '').strip().lower()
+            if team_name and 'benagalbon' not in team_name:
+                continue
+            name = str(item.get('name') or '').strip()
+            if not name:
+                continue
+            key = normalize_player_name(name)
+            universo_map[key] = item
+            dorsal_raw = str(item.get('dorsal') or '').strip()
+            if dorsal_raw.isdigit():
+                universo_by_number[int(dorsal_raw)] = item
+
+    def _find_universo_entry(player_obj):
+        key = normalize_player_name(player_obj.name)
+        direct = universo_map.get(key)
+        if direct:
+            return direct
+        if player_obj.number is not None and player_obj.number in universo_by_number:
+            return universo_by_number[player_obj.number]
+        compact = key.replace('-', '')
+        for ukey, entry in universo_map.items():
+            ucompact = ukey.replace('-', '')
+            if compact in ucompact or ucompact in compact:
+                return entry
+        tokens = [token for token in compact.split('-') if token]
+        for ukey, entry in universo_map.items():
+            u_tokens = [token for token in ukey.replace('-', ' ').split() if token]
+            overlap = sum(1 for token in tokens if token in u_tokens)
+            if overlap >= 2:
+                return entry
+        return {}
     active_injury_ids = get_active_injury_player_ids([p.id for p in all_players])
     filtered_players = []
     for player in all_players:
+        roster_entry = find_roster_entry(player.name, roster_cache) or {}
+        manual_entry = manual_overrides.get(player.id, {})
+        universo_entry = _find_universo_entry(player) or {}
+        yellow_cards = (
+            manual_entry.get('yellow_cards')
+            if manual_entry.get('yellow_cards') is not None
+            else _parse_int(universo_entry.get('yellow_cards'))
+            if universo_entry.get('yellow_cards') not in (None, '')
+            else roster_entry.get('yellow_cards', 0)
+        )
+        red_cards = (
+            manual_entry.get('red_cards')
+            if manual_entry.get('red_cards') is not None
+            else _parse_int(universo_entry.get('red_cards'))
+            if universo_entry.get('red_cards') not in (None, '')
+            else roster_entry.get('red_cards', 0)
+        )
+        player.yellow_cards = int(yellow_cards or 0)
+        player.red_cards = int(red_cards or 0)
+        player.is_sanctioned = player.red_cards > 0
+        player.is_apercibido = (player.yellow_cards % 5 == 4) and not player.is_sanctioned
         player.has_active_injury = player.id in active_injury_ids
-        if player.has_active_injury:
-            continue
         filtered_players.append(player)
     players = filtered_players
     convocation_record = get_current_convocation_record(primary_team)
@@ -1105,6 +1165,69 @@ def convocation_page(request):
         if convocation_record.opponent_name:
             match_info['opponent'] = convocation_record.opponent_name
 
+    home_location = 'ESTADIO CAÑA CHAQUETA'
+    recent_home_match = (
+        Match.objects.filter(
+            group=primary_team.group,
+            home_team=primary_team,
+        )
+        .exclude(location__isnull=True)
+        .exclude(location__exact='')
+        .order_by('-date', '-id')
+        .first()
+    )
+    if recent_home_match and recent_home_match.location:
+        home_location = recent_home_match.location.strip()
+
+    team_fields = gather_team_fields_for_group(primary_team.group)
+    field_map = {
+        normalize_label(item.get('team_name') or ''): (item.get('location') or '').strip()
+        for item in team_fields
+        if item.get('team_name')
+    }
+
+    opponent_options = []
+    seen_opponents = set()
+    group_teams = Team.objects.filter(group=primary_team.group).order_by('name') if primary_team.group else Team.objects.none()
+    for team in group_teams:
+        if team.id == primary_team.id:
+            continue
+        key = normalize_label(team.name)
+        if not key or key in seen_opponents:
+            continue
+        seen_opponents.add(key)
+        opponent_options.append(
+            {
+                'name': team.name,
+                'short_name': team.short_name or team.name,
+                'location': field_map.get(key, ''),
+            }
+        )
+
+    current_opponent = str(match_info.get('opponent') or '').strip()
+    current_key = normalize_label(current_opponent)
+    if current_opponent and current_key and current_key not in seen_opponents:
+        opponent_options.append(
+            {
+                'name': current_opponent,
+                'short_name': current_opponent,
+                'location': field_map.get(current_key, ''),
+            }
+        )
+
+    team_photo_url = request.build_absolute_uri(static('football/images/team-01.jpg'))
+    carousel_cover = (
+        HomeCarouselImage.objects
+        .filter(is_active=True)
+        .order_by('order', '-created_at', '-id')
+        .first()
+    )
+    if carousel_cover and carousel_cover.image:
+        try:
+            team_photo_url = request.build_absolute_uri(carousel_cover.image.url)
+        except Exception:
+            pass
+
     return render(
         request,
         'football/convocation.html',
@@ -1117,6 +1240,9 @@ def convocation_page(request):
             ),
             'match_info': match_info,
             'has_saved_convocation': bool(convocation_record and selected_player_ids),
+            'opponent_options_json': json.dumps(opponent_options, ensure_ascii=False),
+            'home_location_label': home_location,
+            'team_photo_url': team_photo_url,
         },
     )
 
