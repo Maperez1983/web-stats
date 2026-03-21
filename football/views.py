@@ -26,6 +26,11 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_POST
 
 try:
+    from PIL import Image
+except Exception:  # pragma: no cover
+    Image = None
+
+try:
     import weasyprint
 except Exception:  # pragma: no cover
     weasyprint = None
@@ -186,6 +191,14 @@ def resolve_player_photo_static_path(player):
     name_slug = slugify(player.name or '')
     number_value = player.number if player.number is not None else ''
     candidates = []
+    candidates.extend(
+        [
+            f'player-{player.id}.png',
+            f'player-{player.id}.jpg',
+            f'player-{player.id}.jpeg',
+            f'player-{player.id}.webp',
+        ]
+    )
     if name_slug and number_value != '':
         candidates.extend(
             [
@@ -1900,6 +1913,7 @@ def player_detail_page(request, player_id):
             form_action = (request.POST.get('form_action') or 'profile').strip().lower()
 
             if form_action == 'profile':
+                uploaded_photo = request.FILES.get('player_photo')
                 number = request.POST.get('number', '').strip()
                 injury_name = request.POST.get('injury', '').strip()
                 injury_type = request.POST.get('injury_type', '').strip()
@@ -1921,6 +1935,27 @@ def player_detail_page(request, player_id):
                 player.injury_side = injury_side
                 player.injury_date = injury_date
                 player.save()
+                if uploaded_photo:
+                    players_dir = Path(settings.BASE_DIR) / 'static' / 'football' / 'images' / 'players'
+                    players_dir.mkdir(parents=True, exist_ok=True)
+                    output_path = players_dir / f'player-{player.id}.png'
+                    try:
+                        if Image is not None:
+                            with Image.open(uploaded_photo) as image:
+                                if image.mode in ('RGBA', 'LA', 'P'):
+                                    converted = image.convert('RGBA')
+                                    background = Image.new('RGBA', converted.size, (3, 7, 18, 255))
+                                    background.alpha_composite(converted)
+                                    final_image = background.convert('RGB')
+                                else:
+                                    final_image = image.convert('RGB')
+                                final_image.save(output_path, format='PNG', optimize=True)
+                        else:
+                            with output_path.open('wb') as destination:
+                                for chunk in uploaded_photo.chunks():
+                                    destination.write(chunk)
+                    except Exception:
+                        pass
 
                 active_injury = (
                     PlayerInjuryRecord.objects

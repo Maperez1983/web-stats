@@ -124,7 +124,7 @@
       <section class="card tab-pane" data-pane="general">
         <h2 style="margin-top:0;">Datos personales y estadísticas generales</h2>
         <div class="personal-layout">
-          <form method="post">
+          <form method="post" enctype="multipart/form-data">
             {% csrf_token %}
             <input type="hidden" name="form_action" value="profile" />
             <div class="form-grid">
@@ -142,6 +142,9 @@
               </label>
               <label>Peso base (kg)
                 <input type="number" step="0.01" min="0" name="weight_kg_base" value="{{ player.weight_kg|default:'' }}" />
+              </label>
+              <label>Foto del jugador
+                <input type="file" name="player_photo" accept="image/*" />
               </label>
               <label>Dorsal
                 <input type="number" name="number" min="0" value="{{ player.number|default:'' }}" />
