@@ -1495,16 +1495,30 @@ def match_action_page(request):
             message = f"Acción de partido para {player.name} registrada ({action})."
         else:
             message = "Completa el jugador y el tipo de acción."
-    recent_match_ids = list(
-        Match.objects.filter(Q(home_team=primary_team) | Q(away_team=primary_team))
-        .order_by('-date', '-id')
-        .values_list('id', flat=True)[:12]
-    )
-    recent_events = (
-        MatchEvent.objects.filter(match_id__in=recent_match_ids)
-        .select_related('player')
-        .order_by('-created_at')[:6]
-    )
+    # Persistencia de registro en vivo:
+    # prioriza siempre las acciones pendientes del partido activo (touch-field)
+    # para que al recargar no "desaparezcan" hasta guardar/finalizar.
+    if active_match:
+        recent_events = (
+            MatchEvent.objects.filter(
+                match=active_match,
+                source_file='registro-acciones',
+                system='touch-field',
+            )
+            .select_related('player')
+            .order_by('-created_at', '-id')[:120]
+        )
+    else:
+        recent_match_ids = list(
+            Match.objects.filter(Q(home_team=primary_team) | Q(away_team=primary_team))
+            .order_by('-date', '-id')
+            .values_list('id', flat=True)[:12]
+        )
+        recent_events = (
+            MatchEvent.objects.filter(match_id__in=recent_match_ids)
+            .select_related('player')
+            .order_by('-created_at', '-id')[:20]
+        )
     official_next = load_preferred_next_match_payload()
 
     def _payload_date_label(payload):
