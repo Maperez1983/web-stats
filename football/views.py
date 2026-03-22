@@ -2765,6 +2765,9 @@ def sessions_page(request):
                 video_reference = (request.POST.get('task_video_reference') or '').strip()
                 staff_notes = (request.POST.get('task_staff_notes') or '').strip()
                 usefulness_rating = (request.POST.get('task_usefulness_rating') or '').strip()
+                task_collection = (request.POST.get('task_collection') or '').strip()
+                task_context = (request.POST.get('task_context') or '').strip()
+                age_band = (request.POST.get('task_age_band') or '').strip()
                 constraints = [str(v).strip() for v in request.POST.getlist('task_constraints') if str(v).strip()]
                 tactical_pad_enabled = str(request.POST.get('task_tactical_pad_enabled') or '').strip().lower() in {'1', 'true', 'on', 'yes'}
                 blueprint_id = _parse_int(request.POST.get('task_blueprint_id'))
@@ -2817,6 +2820,9 @@ def sessions_page(request):
                 video_reference = video_reference or str(blueprint_payload.get('task_video_reference') or '').strip()
                 staff_notes = staff_notes or str(blueprint_payload.get('task_staff_notes') or '').strip()
                 usefulness_rating = usefulness_rating or str(blueprint_payload.get('task_usefulness_rating') or '').strip()
+                task_collection = task_collection or str(blueprint_payload.get('task_collection') or '').strip()
+                task_context = task_context or str(blueprint_payload.get('task_context') or '').strip()
+                age_band = age_band or str(blueprint_payload.get('task_age_band') or '').strip()
                 if not constraints:
                     raw_constraints = blueprint_payload.get('task_constraints')
                     if isinstance(raw_constraints, list):
@@ -2879,6 +2885,12 @@ def sessions_page(request):
                     meta['staff_notes'] = staff_notes
                 if usefulness_rating in {'1', '2', '3', '4', '5'}:
                     meta['usefulness_rating'] = usefulness_rating
+                if task_collection:
+                    meta['collection'] = task_collection
+                if task_context:
+                    meta['context'] = task_context
+                if age_band:
+                    meta['age_band'] = age_band
                 if constraints:
                     meta['constraints'] = constraints
                 meta['tactical_pad_enabled'] = bool(tactical_pad_enabled)
@@ -2935,6 +2947,9 @@ def sessions_page(request):
                         'task_video_reference': video_reference,
                         'task_staff_notes': staff_notes,
                         'task_usefulness_rating': usefulness_rating,
+                        'task_collection': task_collection,
+                        'task_context': task_context,
+                        'task_age_band': age_band,
                         'task_constraints': constraints,
                     }
                     TaskBlueprint.objects.update_or_create(
@@ -3005,6 +3020,54 @@ def sessions_page(request):
                 for index, task_id in enumerate(valid_ids, start=1):
                     SessionTask.objects.filter(id=task_id, session=session).update(order=index)
                 feedback = 'Orden de tareas actualizado.'
+            elif planner_action == 'set_task_status':
+                task_id = _parse_int(request.POST.get('task_id'))
+                new_status = (request.POST.get('task_status') or '').strip()
+                allowed = {choice[0] for choice in SessionTask.STATUS_CHOICES}
+                task = (
+                    SessionTask.objects
+                    .select_related('session__microcycle')
+                    .filter(id=task_id, session__microcycle__team=primary_team)
+                    .first()
+                )
+                if not task:
+                    raise ValueError('Tarea no encontrada.')
+                if new_status not in allowed:
+                    raise ValueError('Estado de tarea no válido.')
+                task.status = new_status
+                task.save(update_fields=['status'])
+                feedback = 'Estado de la tarea actualizado.'
+            elif planner_action == 'add_library_task_to_session':
+                source_task_id = _parse_int(request.POST.get('source_task_id'))
+                target_session_id = _parse_int(request.POST.get('target_session_id'))
+                source_task = (
+                    SessionTask.objects
+                    .select_related('session__microcycle')
+                    .filter(id=source_task_id, session__microcycle__team=primary_team)
+                    .first()
+                )
+                target_session = (
+                    TrainingSession.objects
+                    .select_related('microcycle')
+                    .filter(id=target_session_id, microcycle__team=primary_team)
+                    .first()
+                )
+                if not source_task or not target_session:
+                    raise ValueError('Origen o sesión destino no válidos.')
+                SessionTask.objects.create(
+                    session=target_session,
+                    title=source_task.title,
+                    block=source_task.block,
+                    duration_minutes=source_task.duration_minutes,
+                    objective=source_task.objective,
+                    coaching_points=source_task.coaching_points,
+                    confrontation_rules=source_task.confrontation_rules,
+                    tactical_layout=source_task.tactical_layout if isinstance(source_task.tactical_layout, dict) else {},
+                    status=SessionTask.STATUS_PLANNED,
+                    order=SessionTask.objects.filter(session=target_session).count() + 1,
+                    notes=source_task.notes,
+                )
+                feedback = 'Tarea enviada a la sesión destino.'
             else:
                 error = 'Acción no reconocida.'
         except ValueError as exc:
@@ -3122,6 +3185,7 @@ def sessions_page(request):
             'microcycle_statuses': TrainingMicrocycle.STATUS_CHOICES,
             'session_intensities': TrainingSession.INTENSITY_CHOICES,
             'task_blocks': SessionTask.BLOCK_CHOICES,
+            'task_status_choices': SessionTask.STATUS_CHOICES,
             'task_materials': task_materials,
             'task_surface_choices': TASK_SURFACE_CHOICES,
             'task_pitch_format_choices': TASK_PITCH_FORMAT_CHOICES,

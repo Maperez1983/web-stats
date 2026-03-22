@@ -801,6 +801,20 @@
                 {% endfor %}
               </select>
             </label>
+            <div class="row">
+              <label>
+                Colección
+                <input type="text" name="task_collection" maxlength="120" placeholder="Ej: MD-3 presión alta" />
+              </label>
+              <label>
+                Contexto de tarea
+                <input type="text" name="task_context" maxlength="120" placeholder="Ej: rival bloque medio, campo corto" />
+              </label>
+            </div>
+            <label>
+              Franja de edad
+              <input type="text" name="task_age_band" maxlength="60" placeholder="Ej: Senior, Juvenil, Cadete" />
+            </label>
             <label>
               Constraints (reglas condicionales)
               <select name="task_constraints" multiple size="4">
@@ -924,11 +938,22 @@
                       {% if task.tactical_layout.meta.complexity %}<span class="task-badge">{{ task.tactical_layout.meta.complexity }}</span>{% endif %}
                       {% if task.tactical_layout.meta.cognitive_load %}<span class="task-badge">Cog {{ task.tactical_layout.meta.cognitive_load }}/10</span>{% endif %}
                       {% if task.tactical_layout.meta.usefulness_rating %}<span class="task-badge">★ {{ task.tactical_layout.meta.usefulness_rating }}/5</span>{% endif %}
+                      {% if task.tactical_layout.meta.collection %}<span class="task-badge">{{ task.tactical_layout.meta.collection }}</span>{% endif %}
                       <form method="post" style="display:inline;">
                         {% csrf_token %}
                         <input type="hidden" name="planner_action" value="duplicate_task" />
                         <input type="hidden" name="task_id" value="{{ task.id }}" />
                         <button type="submit" class="task-link" style="background:none;border:none;cursor:pointer;">Duplicar</button>
+                      </form>
+                      <form method="post" style="display:inline;">
+                        {% csrf_token %}
+                        <input type="hidden" name="planner_action" value="set_task_status" />
+                        <input type="hidden" name="task_id" value="{{ task.id }}" />
+                        <select name="task_status" onchange="this.form.submit()" style="margin-left:0.4rem; border-radius:999px; padding:0.16rem 0.5rem;">
+                          {% for status_value, status_label in task_status_choices %}
+                          <option value="{{ status_value }}" {% if task.status == status_value %}selected{% endif %}>{{ status_label }}</option>
+                          {% endfor %}
+                        </select>
                       </form>
                     </li>
                     {% endfor %}
@@ -1034,8 +1059,21 @@
               {% if t.meta.methodology %}<span class="task-badge">{{ t.meta.methodology }}</span>{% endif %}
               {% if t.meta.complexity %}<span class="task-badge">{{ t.meta.complexity }}</span>{% endif %}
               {% if t.usefulness_rating %}<span class="task-badge">★ {{ t.usefulness_rating }}/5</span>{% endif %}
+              {% if t.meta.collection %}<span class="task-badge">{{ t.meta.collection }}</span>{% endif %}
             </p>
             {% if t.objective %}<p style="margin:0.3rem 0;">{{ t.objective }}</p>{% endif %}
+            <form method="post" style="margin-top:0.45rem; display:grid; grid-template-columns:1fr auto; gap:0.45rem;">
+              {% csrf_token %}
+              <input type="hidden" name="planner_action" value="add_library_task_to_session" />
+              <input type="hidden" name="source_task_id" value="{{ t.id }}" />
+              <select name="target_session_id" required>
+                <option value="">Enviar a sesión...</option>
+                {% for session in all_sessions %}
+                <option value="{{ session.id }}">{{ session.session_date|date:"d/m" }} · {{ session.focus }}</option>
+                {% endfor %}
+              </select>
+              <button type="submit" class="secondary">Usar</button>
+            </form>
           </article>
           {% endfor %}
         </div>
