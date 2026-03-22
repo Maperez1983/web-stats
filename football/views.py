@@ -2439,26 +2439,38 @@ def session_task_canva_export(request, task_id):
 
 
 def coach_cards_page(request):
+    role_to_member = {}
+    for role_row in AppUserRole.objects.select_related('user').all():
+        if not role_row.user.is_active:
+            continue
+        display_name = role_row.user.get_full_name().strip() or role_row.user.username
+        if display_name:
+            role_to_member[role_row.role] = display_name
+
     cards = [
         {
             'title': 'Entrenador',
             'description': 'Convocatoria, 11 inicial, sesiones y multas en un único bloque.',
             'link': 'coach-role-trainer',
+            'member_name': role_to_member.get(AppUserRole.ROLE_COACH, 'Sin asignar'),
         },
         {
             'title': 'Preparador porteros',
             'description': 'Repositorio táctico y tareas específicas de porteros.',
             'link': 'coach-role-goalkeeper',
+            'member_name': role_to_member.get(AppUserRole.ROLE_GOALKEEPER, 'Sin asignar'),
         },
         {
             'title': 'Preparación física',
             'description': 'Espacio preparado para métricas y carga física.',
             'link': 'coach-role-fitness',
+            'member_name': role_to_member.get(AppUserRole.ROLE_FITNESS, 'Sin asignar'),
         },
         {
             'title': 'ABP',
             'description': 'Repositorio de sesiones ABP y pizarra táctica con simulación.',
             'link': 'coach-role-abp',
+            'member_name': role_to_member.get(AppUserRole.ROLE_ANALYST, 'Sin asignar'),
         },
     ]
     return render(

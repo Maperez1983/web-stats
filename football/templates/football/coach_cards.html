@@ -52,6 +52,12 @@
         color: rgba(226, 232, 240, 0.75);
         margin: 0.75rem 0;
       }
+      .card .member {
+        margin: 0.25rem 0 0.9rem;
+        color: #bae6fd;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+      }
       .card strong {
         letter-spacing: 0.2em;
         color: #facc15;
@@ -84,6 +90,7 @@
         <article class="card">
           <h3>{{ card.title }}</h3>
           <p>{{ card.description }}</p>
+          <p class="member">Responsable: {{ card.member_name }}</p>
           <strong>{{ card.title }} →</strong>
           <a href="{% url card.link %}">Abrir</a>
         </article>
