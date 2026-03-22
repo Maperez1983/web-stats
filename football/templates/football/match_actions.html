@@ -1399,6 +1399,7 @@
               <div class="position-fixed-clock" style="display: flex; align-items: center; gap: 8px;">
   <span id="match-clock-display" style="font-size: 2.2rem; font-weight: 700;">00:00</span>
   <button type="button" id="field-clock-toggle" aria-label="Arrancar cronómetro" style="font-size: 1.5rem; padding: 6px 12px; border-radius: 9999px; border: none; cursor: pointer;">►</button>
+  <button type="button" id="field-clock-reset" aria-label="Reiniciar cronómetro" style="font-size: 1rem; padding: 6px 12px; border-radius: 9999px; border: none; cursor: pointer; background: #ef4444; color: #ffffff; font-weight: 700;">Reset</button>
   <button type="button" id="change-half-btn" aria-label="Cambiar de parte" style="font-size: 1rem; padding: 6px 12px; border-radius: 9999px; border: none; cursor: pointer; background: #facc15; color: #0f172a; font-weight: 600;">1ª Parte</button>
 </div>
               <p class="clock-note">Cronómetro en vivo · se registra el minuto en cada acción</p>
@@ -1892,68 +1893,14 @@
       const lineupClearBtn = document.getElementById('lineup-clear-btn');
       const matchClockDisplay = document.getElementById('match-clock-display');
       const clockToggle = document.getElementById('field-clock-toggle');
-const changeHalfBtn = document.getElementById('change-half-btn');
-
-let elapsedSeconds = 0;
-let clockInterval = null;
-let clockRunning = false;
-let currentHalf = 1;
-let popupEditMode = false;
-let actionSubmitInFlight = false;
-
-function formatClock(seconds) {
-  const minutes = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  return `${minutes.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
-}
-
-function updateClockDisplay() {
-  matchClockDisplay.textContent = formatClock(elapsedSeconds);
-  if (persistentClockEl) persistentClockEl.textContent = formatClock(elapsedSeconds);
-}
-
-function startClock() {
-  if(clockRunning) return;
-  clockRunning = true;
-  if(clockToggle) clockToggle.textContent = '||';
-  clockInterval = setInterval(() => {
-    elapsedSeconds++;
-    updateClockDisplay();
-  }, 1000);
-}
-
-function pauseClock() {
-  clockRunning = false;
-  if(clockToggle) clockToggle.textContent = '►';
-  clearInterval(clockInterval);
-  clockInterval = null;
-}
-
-clockToggle.addEventListener('click', () => {
-  if(clockRunning) {
-    pauseClock();
-  } else {
-    startClock();
-  }
-      });
-    </script>
-  </body>
-</html>
-
-changeHalfBtn.addEventListener('click', () => {
-  if(currentHalf === 1) {
-    currentHalf = 2;
-    elapsedSeconds = 45 * 60;  // Ajustar el cronómetro a 45 minutos para segunda parte
-    changeHalfBtn.textContent = '2ª Parte';
-  } else {
-    currentHalf = 1;
-    elapsedSeconds = 0;
-    changeHalfBtn.textContent = '1ª Parte';
-  }
-  updateClockDisplay();
-});
-
-updateClockDisplay();
+      const clockResetBtn = document.getElementById('field-clock-reset');
+      const changeHalfBtn = document.getElementById('change-half-btn');
+      let elapsedSeconds = 0;
+      let clockInterval = null;
+      let clockRunning = false;
+      let currentHalf = 1;
+      let popupEditMode = false;
+      let actionSubmitInFlight = false;
       const highlight = document.createElement('span');
       const zoneLabel = document.createElement('span');
       const csrfInput = popupForm.querySelector('input[name="csrfmiddlewaretoken"]');
@@ -2835,6 +2782,17 @@ updateClockDisplay();
         clearInterval(clockInterval);
         clockInterval = null;
       };
+      const resetClock = ({ keepHalf = false } = {}) => {
+        pauseClock();
+        elapsedSeconds = keepHalf && currentHalf === 2 ? 45 * 60 : 0;
+        if (!keepHalf) {
+          currentHalf = 1;
+          if (changeHalfBtn) {
+            changeHalfBtn.textContent = '1ª Parte';
+          }
+        }
+        updateClockDisplay();
+      };
       if (clockToggle) {
         clockToggle.addEventListener('click', (event) => {
           event.stopPropagation();
@@ -2843,6 +2801,28 @@ updateClockDisplay();
           } else {
             startClock();
           }
+        });
+      }
+      if (clockResetBtn) {
+        clockResetBtn.addEventListener('click', (event) => {
+          event.stopPropagation();
+          resetClock();
+        });
+      }
+      if (changeHalfBtn) {
+        changeHalfBtn.addEventListener('click', (event) => {
+          event.stopPropagation();
+          pauseClock();
+          if (currentHalf === 1) {
+            currentHalf = 2;
+            elapsedSeconds = 45 * 60;
+            changeHalfBtn.textContent = '2ª Parte';
+          } else {
+            currentHalf = 1;
+            elapsedSeconds = 0;
+            changeHalfBtn.textContent = '1ª Parte';
+          }
+          updateClockDisplay();
         });
       }
       updateClockDisplay();
