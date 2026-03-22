@@ -624,3 +624,40 @@ class AppUserRole(models.Model):
 
     def __str__(self):
         return f'{self.user.username} · {self.get_role_display()}'
+
+
+class TaskBlueprint(models.Model):
+    CATEGORY_BUILD = 'build_up'
+    CATEGORY_PRESS = 'pressing'
+    CATEGORY_TRANSITION = 'transition'
+    CATEGORY_FINISH = 'finishing'
+    CATEGORY_ABP = 'abp'
+    CATEGORY_GK = 'goalkeeper'
+    CATEGORY_PHYSICAL = 'physical'
+    CATEGORY_OTHER = 'other'
+    CATEGORY_CHOICES = [
+        (CATEGORY_BUILD, 'Inicio y progresión'),
+        (CATEGORY_PRESS, 'Presión y recuperación'),
+        (CATEGORY_TRANSITION, 'Transiciones'),
+        (CATEGORY_FINISH, 'Finalización'),
+        (CATEGORY_ABP, 'ABP'),
+        (CATEGORY_GK, 'Porteros'),
+        (CATEGORY_PHYSICAL, 'Condicionante físico'),
+        (CATEGORY_OTHER, 'Otros'),
+    ]
+
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='task_blueprints')
+    name = models.CharField(max_length=160)
+    category = models.CharField(max_length=32, choices=CATEGORY_CHOICES, default=CATEGORY_OTHER)
+    description = models.CharField(max_length=220, blank=True)
+    payload = models.JSONField(default=dict, blank=True)
+    created_by = models.CharField(max_length=80, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['category', 'name', '-updated_at']
+        unique_together = ('team', 'name')
+
+    def __str__(self):
+        return f'{self.team.name} · {self.name}'

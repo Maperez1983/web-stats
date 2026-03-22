@@ -593,6 +593,15 @@
               </select>
             </label>
             <label>
+              Repositorio de plantillas guardadas
+              <select name="task_blueprint_id">
+                <option value="">Sin plantilla guardada</option>
+                {% for bp in task_blueprints %}
+                <option value="{{ bp.id }}">{{ bp.name }} · {{ bp.get_category_display }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>
               Sesión
               <select name="session_id" required>
                 <option value="">Selecciona...</option>
@@ -721,6 +730,24 @@
               <input type="checkbox" name="task_tactical_pad_enabled" value="1" />
               Usar pizarra táctica para esta tarea (opcional)
             </label>
+            <div class="row">
+              <label>
+                Guardar como plantilla reusable
+                <input type="text" name="task_blueprint_name" maxlength="160" placeholder="Ej: Presión tras pérdida MD-3" />
+              </label>
+              <label>
+                Categoría plantilla
+                <select name="task_blueprint_category">
+                  {% for value, label in task_blueprint_categories %}
+                  <option value="{{ value }}">{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+            </div>
+            <label style="display:flex; flex-direction:row; align-items:center; gap:0.5rem;">
+              <input type="checkbox" name="task_save_as_blueprint" value="1" />
+              Guardar esta tarea como plantilla en repositorio
+            </label>
             <div class="task-tools">
               <button class="secondary" type="button" id="open-tactical-pad">Abrir Tactical Pad (recurso auxiliar)</button>
               <p class="pad-note" id="pad-summary">Sin distribución táctica guardada.</p>
@@ -761,6 +788,12 @@
                       {{ task.get_block_display }} · {{ task.title }} ({{ task.duration_minutes }}')
                       <a class="task-link" href="{% url 'session-task-pdf' task.id %}" target="_blank" rel="noopener">PDF UEFA B</a>
                       {% if task.tactical_layout.meta.tactical_pad_enabled %}<span class="task-badge">Tactical Pad</span>{% endif %}
+                      <form method="post" style="display:inline;">
+                        {% csrf_token %}
+                        <input type="hidden" name="planner_action" value="duplicate_task" />
+                        <input type="hidden" name="task_id" value="{{ task.id }}" />
+                        <button type="submit" class="task-link" style="background:none;border:none;cursor:pointer;">Duplicar</button>
+                      </form>
                     </li>
                     {% endfor %}
                   </ul>
@@ -777,6 +810,28 @@
           <p class="empty">No hay microciclos creados aún. Empieza con el formulario de la izquierda.</p>
           {% endif %}
         </article>
+      </section>
+      <section class="panel" style="margin-top:1rem;">
+        <h2>Repositorio de Plantillas</h2>
+        <p class="meta" style="margin-bottom:0.6rem;">Flujo Canva recomendado: diseña tarea aquí → exporta PDF UEFA B → reutiliza como base visual en Canva para publicación.</p>
+        {% if task_blueprints %}
+        <div class="micro-list">
+          {% for bp in task_blueprints %}
+          <article class="micro" style="padding:0.8rem;">
+            <h3 style="margin:0;">{{ bp.name }}</h3>
+            <p class="meta" style="margin-top:0.25rem;">{{ bp.get_category_display }}{% if bp.description %} · {{ bp.description }}{% endif %}</p>
+            <form method="post" style="margin-top:0.4rem;">
+              {% csrf_token %}
+              <input type="hidden" name="planner_action" value="delete_blueprint" />
+              <input type="hidden" name="blueprint_id" value="{{ bp.id }}" />
+              <button type="submit" class="secondary">Eliminar plantilla</button>
+            </form>
+          </article>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="empty">No hay plantillas guardadas todavía. Marca "Guardar esta tarea como plantilla".</p>
+        {% endif %}
       </section>
 
       <section class="pad-modal" id="pad-modal" aria-hidden="true">

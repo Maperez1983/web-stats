@@ -58,6 +58,7 @@ from football.models import (
     RivalVideo,
     RivalAnalysisReport,
     AppUserRole,
+    TaskBlueprint,
 )
 from football.event_taxonomy import (
     DRIBBLE_KEYWORDS,
@@ -2555,8 +2556,14 @@ def sessions_page(request):
                 scoring_model = (request.POST.get('task_scoring_model') or '').strip()
                 success_criteria = (request.POST.get('task_success_criteria') or '').strip()
                 tactical_pad_enabled = str(request.POST.get('task_tactical_pad_enabled') or '').strip().lower() in {'1', 'true', 'on', 'yes'}
+                blueprint_id = _parse_int(request.POST.get('task_blueprint_id'))
                 tactical_layout_raw = (request.POST.get('tactical_layout') or '').strip()
                 tactical_layout = {}
+                blueprint_payload = {}
+                if blueprint_id:
+                    blueprint = TaskBlueprint.objects.filter(id=blueprint_id, team=primary_team).first()
+                    if blueprint and isinstance(blueprint.payload, dict):
+                        blueprint_payload = dict(blueprint.payload)
                 if tactical_layout_raw:
                     try:
                         parsed_layout = json.loads(tactical_layout_raw)
@@ -2567,6 +2574,25 @@ def sessions_page(request):
                 meta = tactical_layout.get('meta') if isinstance(tactical_layout, dict) else {}
                 if not isinstance(meta, dict):
                     meta = {}
+                surface = surface or str(blueprint_payload.get('task_surface') or '').strip()
+                pitch_format = pitch_format or str(blueprint_payload.get('task_pitch_format') or '').strip()
+                space = space or str(blueprint_payload.get('task_space') or '').strip()
+                organization = organization or str(blueprint_payload.get('task_organization') or '').strip()
+                players_distribution = players_distribution or str(blueprint_payload.get('task_players_distribution') or '').strip()
+                load_target = load_target or str(blueprint_payload.get('task_load_target') or '').strip()
+                resources_summary = resources_summary or str(blueprint_payload.get('task_resources_summary') or '').strip()
+                progression = progression or str(blueprint_payload.get('task_progression') or '').strip()
+                regression = regression or str(blueprint_payload.get('task_regression') or '').strip()
+                work_rest = work_rest or str(blueprint_payload.get('task_work_rest') or '').strip()
+                series = series or str(blueprint_payload.get('task_series') or '').strip()
+                repetitions = repetitions or str(blueprint_payload.get('task_repetitions') or '').strip()
+                principle = principle or str(blueprint_payload.get('task_principle') or '').strip()
+                subprinciple = subprinciple or str(blueprint_payload.get('task_subprinciple') or '').strip()
+                scoring_model = scoring_model or str(blueprint_payload.get('task_scoring_model') or '').strip()
+                success_criteria = success_criteria or str(blueprint_payload.get('task_success_criteria') or '').strip()
+                objective = objective or str(blueprint_payload.get('task_objective') or '').strip()
+                coaching_points = coaching_points or str(blueprint_payload.get('task_coaching_points') or '').strip()
+                confrontation_rules = confrontation_rules or str(blueprint_payload.get('task_confrontation_rules') or '').strip()
                 if surface:
                     meta['surface'] = surface
                 if pitch_format:
@@ -2601,7 +2627,7 @@ def sessions_page(request):
                     meta['success_criteria'] = success_criteria
                 meta['tactical_pad_enabled'] = bool(tactical_pad_enabled)
                 tactical_layout['meta'] = meta
-                SessionTask.objects.create(
+                created_task = SessionTask.objects.create(
                     session=session,
                     title=title,
                     block=block,
@@ -2612,7 +2638,77 @@ def sessions_page(request):
                     tactical_layout=tactical_layout,
                     order=session.tasks.count() + 1,
                 )
+                save_as_blueprint = str(request.POST.get('task_save_as_blueprint') or '').strip().lower() in {'1', 'true', 'on', 'yes'}
+                blueprint_name = (request.POST.get('task_blueprint_name') or '').strip()
+                blueprint_category = (request.POST.get('task_blueprint_category') or TaskBlueprint.CATEGORY_OTHER).strip()
+                allowed_categories = {item[0] for item in TaskBlueprint.CATEGORY_CHOICES}
+                if blueprint_category not in allowed_categories:
+                    blueprint_category = TaskBlueprint.CATEGORY_OTHER
+                if save_as_blueprint and blueprint_name:
+                    payload = {
+                        'task_title': title,
+                        'task_objective': objective,
+                        'task_surface': surface,
+                        'task_pitch_format': pitch_format,
+                        'task_space': space,
+                        'task_organization': organization,
+                        'task_players_distribution': players_distribution,
+                        'task_load_target': load_target,
+                        'task_resources_summary': resources_summary,
+                        'task_coaching_points': coaching_points,
+                        'task_confrontation_rules': confrontation_rules,
+                        'task_progression': progression,
+                        'task_regression': regression,
+                        'task_work_rest': work_rest,
+                        'task_series': series,
+                        'task_repetitions': repetitions,
+                        'task_principle': principle,
+                        'task_subprinciple': subprinciple,
+                        'task_scoring_model': scoring_model,
+                        'task_success_criteria': success_criteria,
+                    }
+                    TaskBlueprint.objects.update_or_create(
+                        team=primary_team,
+                        name=blueprint_name,
+                        defaults={
+                            'category': blueprint_category,
+                            'description': f'Plantilla creada desde {created_task.title}',
+                            'payload': payload,
+                            'created_by': request.user.get_username() if request.user.is_authenticated else '',
+                        },
+                    )
                 feedback = 'Tarea añadida a la sesión.'
+            elif planner_action == 'delete_blueprint':
+                blueprint_id = _parse_int(request.POST.get('blueprint_id'))
+                blueprint = TaskBlueprint.objects.filter(id=blueprint_id, team=primary_team).first() if blueprint_id else None
+                if not blueprint:
+                    raise ValueError('Plantilla no encontrada.')
+                blueprint.delete()
+                feedback = 'Plantilla eliminada.'
+            elif planner_action == 'duplicate_task':
+                task_id = _parse_int(request.POST.get('task_id'))
+                base_task = (
+                    SessionTask.objects
+                    .select_related('session__microcycle')
+                    .filter(id=task_id, session__microcycle__team=primary_team)
+                    .first()
+                )
+                if not base_task:
+                    raise ValueError('Tarea no encontrada para duplicar.')
+                SessionTask.objects.create(
+                    session=base_task.session,
+                    title=f'{base_task.title} (copia)',
+                    block=base_task.block,
+                    duration_minutes=base_task.duration_minutes,
+                    objective=base_task.objective,
+                    coaching_points=base_task.coaching_points,
+                    confrontation_rules=base_task.confrontation_rules,
+                    tactical_layout=base_task.tactical_layout if isinstance(base_task.tactical_layout, dict) else {},
+                    status=SessionTask.STATUS_PLANNED,
+                    order=SessionTask.objects.filter(session=base_task.session).count() + 1,
+                    notes=base_task.notes,
+                )
+                feedback = 'Tarea duplicada correctamente.'
             else:
                 error = 'Acción no reconocida.'
         except ValueError as exc:
@@ -2659,6 +2755,7 @@ def sessions_page(request):
                 }
             )
         materials_by_category[category].append(item)
+    blueprints = list(TaskBlueprint.objects.filter(team=primary_team).order_by('category', 'name'))
 
     return render(
         request,
@@ -2678,6 +2775,8 @@ def sessions_page(request):
             'task_surface_choices': TASK_SURFACE_CHOICES,
             'task_pitch_format_choices': TASK_PITCH_FORMAT_CHOICES,
             'task_template_library': TASK_TEMPLATE_LIBRARY,
+            'task_blueprints': blueprints,
+            'task_blueprint_categories': TaskBlueprint.CATEGORY_CHOICES,
             'material_categories': material_categories,
             'materials_by_category': materials_by_category,
             'planner_tables_ready': planner_tables_ready,
