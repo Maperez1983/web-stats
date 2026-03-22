@@ -212,7 +212,28 @@
           {{ generated_at|date:"d/m/Y H:i" }}
         </td>
       </tr>
+      <tr>
+        <td>
+          <strong>Superficie / Formato</strong>
+          {{ task_meta.surface|default:"-" }} · {{ task_meta.pitch_format|default:"-" }}
+        </td>
+        <td>
+          <strong>Espacio / Organización</strong>
+          {{ task_meta.space|default:"-" }} · {{ task_meta.organization|default:"-" }}
+        </td>
+        <td>
+          <strong>Distribución / Carga</strong>
+          {{ task_meta.players_distribution|default:"-" }} · {{ task_meta.load_target|default:"-" }}
+        </td>
+      </tr>
     </table>
+
+    {% if task_meta.resources_summary %}
+    <section class="block">
+      <h2>Recursos</h2>
+      <ul><li>{{ task_meta.resources_summary }}</li></ul>
+    </section>
+    {% endif %}
 
     <section class="block">
       <h2>Objetivos</h2>
@@ -240,6 +261,12 @@
         {% endfor %}
       </ul>
     </section>
+    {% if task_meta.progression %}
+    <section class="block">
+      <h2>Progresión / Variantes</h2>
+      <div style="padding:8px 10px; white-space:pre-line;">{{ task_meta.progression }}</div>
+    </section>
+    {% endif %}
 
     <section class="block">
       <h2>Representación Gráfica</h2>
@@ -260,6 +287,11 @@
         </span>
         {% endfor %}
       </div>
+      {% if animation_frames_count %}
+      <p style="margin:6px 8px 8px;font-size:10px;color:#334155;">
+        Timeline táctico grabado: {{ animation_frames_count }} eventos.
+      </p>
+      {% endif %}
     </section>
 
     <p class="footer">Formato referencia UEFA B · Plan de tarea individual</p>

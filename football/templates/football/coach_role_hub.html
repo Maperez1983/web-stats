@@ -1,0 +1,146 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>{{ role_title }} · Cuerpo técnico</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <style>
+      body {
+        margin: 0;
+        font-family: 'Inter', system-ui, sans-serif;
+        background: linear-gradient(180deg, #020617 0%, #050f1f 100%);
+        color: #f8fafc;
+      }
+      .page {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 2rem 1.25rem 3rem;
+      }
+      header {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: center;
+      }
+      .title h1 {
+        margin: 0;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .title p {
+        margin: 0.35rem 0 0;
+        color: rgba(226, 232, 240, 0.72);
+      }
+      .grid {
+        margin-top: 1.6rem;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1rem;
+      }
+      .kpis {
+        margin-top: 1rem;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+        gap: 0.85rem;
+      }
+      .kpi {
+        border-radius: 14px;
+        padding: 0.7rem;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        background: rgba(2, 6, 23, 0.7);
+        text-align: center;
+      }
+      .kpi-ring {
+        width: 84px;
+        height: 84px;
+        margin: 0 auto 0.4rem;
+        border-radius: 999px;
+        display: grid;
+        place-items: center;
+        background:
+          radial-gradient(circle at center, rgba(2, 6, 23, 0.96) 58%, transparent 59%),
+          conic-gradient(#22d3ee calc(var(--pct, 0) * 1%), rgba(148, 163, 184, 0.2) 0);
+      }
+      .kpi-value {
+        font-size: 1rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+      }
+      .kpi-label {
+        font-size: 0.68rem;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.75);
+      }
+      .kpi-note {
+        margin-top: 0.55rem;
+        font-size: 0.75rem;
+        color: rgba(186, 230, 253, 0.8);
+      }
+      .card {
+        border-radius: 18px;
+        padding: 1.2rem;
+        background: rgba(15, 23, 42, 0.86);
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        min-height: 180px;
+        display: flex;
+        flex-direction: column;
+        gap: 0.8rem;
+      }
+      .card h3 {
+        margin: 0;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+      }
+      .card p {
+        margin: 0;
+        color: rgba(226, 232, 240, 0.8);
+      }
+      .card a {
+        margin-top: auto;
+        text-decoration: none;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: #7dd3fc;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      {% include 'football/includes/dragon_nav.html' %}
+      <header>
+        <div class="title">
+          <h1>{{ role_title }}</h1>
+          <p>{{ role_description }}</p>
+        </div>
+        <a class="pill-button" style="border-radius:12px;" href="{% url 'coach-cards' %}">Volver</a>
+      </header>
+      {% if kpis %}
+      <section class="kpis">
+        {% for kpi in kpis %}
+        <article class="kpi">
+          <div class="kpi-ring" style="--pct: {{ kpi.pct|default:0 }};">
+            <div class="kpi-value">{{ kpi.value }}</div>
+          </div>
+          <div class="kpi-label">{{ kpi.label }}</div>
+        </article>
+        {% endfor %}
+      </section>
+      {% if kpi_note %}
+      <p class="kpi-note">{{ kpi_note }}</p>
+      {% endif %}
+      {% endif %}
+      <section class="grid">
+        {% for module in modules %}
+        <article class="card">
+          <h3>{{ module.title }}</h3>
+          <p>{{ module.description }}</p>
+          <a href="{% url module.link %}">Abrir</a>
+        </article>
+        {% endfor %}
+      </section>
+    </div>
+  </body>
+</html>

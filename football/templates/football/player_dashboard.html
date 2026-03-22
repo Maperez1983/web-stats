@@ -101,6 +101,31 @@
         overflow: hidden;
         text-overflow: ellipsis;
       }
+      .status-icons {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.2rem;
+      }
+      .status-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+        border-radius: 6px;
+        font-size: 0.72rem;
+        line-height: 1;
+      }
+      .status-icon.injury {
+        color: #fecaca;
+        border: 1px solid rgba(248, 113, 113, 0.8);
+        background: rgba(127, 29, 29, 0.9);
+      }
+      .status-icon.sanction {
+        color: #fee2e2;
+        border: 1px solid rgba(239, 68, 68, 0.85);
+        background: rgba(127, 29, 29, 0.95);
+      }
       .avatar {
         width: 42px;
         height: 42px;
@@ -267,6 +292,14 @@
                   <span class="avatar fallback" aria-label="{{ player.name }}">{{ player.name|initials }}</span>
                   {% endif %}
                   <h2>{{ player.name }}</h2>
+                  <span class="status-icons">
+                    {% if player.has_active_injury %}
+                      <span class="status-icon injury" title="Lesión activa">✚</span>
+                    {% endif %}
+                    {% if player.is_sanctioned %}
+                      <span class="status-icon sanction" title="Sancionado">🟥</span>
+                    {% endif %}
+                  </span>
                 </div>
                 {% if player.number %}<span class="badge">#{{ player.number }}</span>{% endif %}
               </div>

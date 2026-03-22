@@ -476,6 +476,7 @@
   </head>
   <body>
     <main class="page">
+      {% include 'football/includes/dragon_nav.html' %}
       <div class="top">
         <div>
           <h1>Planificador de Microciclos · {{ team_name }}</h1>
@@ -614,6 +615,50 @@
               Objetivo
               <input type="text" name="task_objective" maxlength="180" placeholder="Activar vigilancia y saltos coordinados" />
             </label>
+            <div class="row">
+              <label>
+                Superficie
+                <select name="task_surface">
+                  <option value="">Selecciona...</option>
+                  {% for value, label in task_surface_choices %}
+                  <option value="{{ value }}">{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label>
+                Formato de campo
+                <select name="task_pitch_format">
+                  <option value="">Selecciona...</option>
+                  {% for value, label in task_pitch_format_choices %}
+                  <option value="{{ value }}">{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+            </div>
+            <div class="row">
+              <label>
+                Espacio / Dimensiones
+                <input type="text" name="task_space" maxlength="120" placeholder="Ej: 40x32m · 3 calles" />
+              </label>
+              <label>
+                Organización
+                <input type="text" name="task_organization" maxlength="120" placeholder="Ej: 6v4 + 2 comodines" />
+              </label>
+            </div>
+            <div class="row">
+              <label>
+                Distribución jugadores
+                <input type="text" name="task_players_distribution" maxlength="120" placeholder="Ej: 3x4 jugadores + 2 porteros" />
+              </label>
+              <label>
+                Carga objetivo
+                <input type="text" name="task_load_target" maxlength="120" placeholder="Ej: RPE 7 · HI 18 min" />
+              </label>
+            </div>
+            <label>
+              Recursos / Material resumen
+              <input type="text" name="task_resources_summary" maxlength="220" placeholder="Conos (20), petos (12), 2 porterías, 10 balones..." />
+            </label>
             <label>
               Consignas (una por línea)
               <textarea name="task_coaching_points" placeholder="Ejemplo:&#10;- Perfil corporal orientado&#10;- Comunicación previa al salto"></textarea>
@@ -621,6 +666,10 @@
             <label>
               Reglas de confrontación (una por línea)
               <textarea name="task_confrontation_rules" placeholder="Ejemplo:&#10;- 3 puntos si recupera en 6''&#10;- 2 toques máximo en zona de finalización"></textarea>
+            </label>
+            <label>
+              Progresión / Variantes
+              <textarea name="task_progression" placeholder="Ejemplo:&#10;- Reducir espacio en 5m&#10;- Pasar de 2 a 1 toque&#10;- Añadir finalización tras robo"></textarea>
             </label>
             <div class="task-tools">
               <button class="secondary" type="button" id="open-tactical-pad">Abrir Tactical Pad</button>
@@ -743,6 +792,11 @@
           </aside>
           <article class="pad-panel">
             <h4>Distribución en Campo</h4>
+            <div class="pad-footer" style="margin-bottom:0.5rem;">
+              <button type="button" class="secondary" id="pad-record">Grabar movimientos</button>
+              <button type="button" class="secondary" id="pad-stop">Detener</button>
+              <button type="button" class="secondary" id="pad-play">Reproducir</button>
+            </div>
             <div class="pad-field" id="pad-field">
               <span class="field-line-mid"></span>
               <span class="field-circle-mid"></span>
@@ -764,6 +818,9 @@
       const closePadBtn = document.getElementById('pad-cancel');
       const clearPadBtn = document.getElementById('pad-clear');
       const savePadBtn = document.getElementById('pad-save');
+      const recordPadBtn = document.getElementById('pad-record');
+      const stopPadBtn = document.getElementById('pad-stop');
+      const playPadBtn = document.getElementById('pad-play');
       const padField = document.getElementById('pad-field');
       const tacticalLayoutInput = document.getElementById('tactical-layout-input');
       const padSummary = document.getElementById('pad-summary');
@@ -829,8 +886,10 @@
         OBJ: '◎',
       };
 
-      let padState = { tokens: [] };
+      let padState = { tokens: [], timeline: [] };
       let activeDragTokenId = null;
+      let padRecording = false;
+      let padPlayback = false;
 
       function resolveMaterialIcon(token) {
         if (!token || token.type !== 'material') return '';
@@ -843,18 +902,22 @@
       }
 
       function safeParseLayout(raw) {
-        if (!raw) return { tokens: [] };
+        if (!raw) return { tokens: [], timeline: [], meta: {} };
         try {
           const parsed = JSON.parse(raw);
-          if (!parsed || !Array.isArray(parsed.tokens)) return { tokens: [] };
+          if (!parsed || !Array.isArray(parsed.tokens)) return { tokens: [], timeline: [], meta: {} };
           const normalizedTokens = parsed.tokens.map((token) => {
             if (!token || typeof token !== 'object') return token;
             if (token.type !== 'material') return token;
             return { ...token, icon: resolveMaterialIcon(token) };
           });
-          return { tokens: normalizedTokens };
+          return {
+            tokens: normalizedTokens,
+            timeline: Array.isArray(parsed.timeline) ? parsed.timeline : [],
+            meta: parsed.meta && typeof parsed.meta === 'object' ? parsed.meta : {},
+          };
         } catch (err) {
-          return { tokens: [] };
+          return { tokens: [], timeline: [], meta: {} };
         }
       }
 
@@ -871,7 +934,8 @@
         }
         const players = padState.tokens.filter((token) => token.type === 'player').length;
         const materials = total - players;
-        padSummary.textContent = `${players} jugador(es) · ${materials} material(es) distribuidos`;
+        const moves = Array.isArray(padState.timeline) ? padState.timeline.filter((frame) => frame.type === 'move').length : 0;
+        padSummary.textContent = `${players} jugador(es) · ${materials} material(es) · ${moves} movimientos`;
       }
 
       function tokenHtml(token) {
@@ -933,6 +997,9 @@
           y: 50,
         };
         padState.tokens.push(token);
+        if (padRecording) {
+          padState.timeline.push({ t: Date.now(), type: 'add', token_id: token.id, x: token.x, y: token.y });
+        }
         renderPadTokens();
       }
 
@@ -989,13 +1056,16 @@
 
       if (padField) {
         padField.addEventListener('pointermove', (event) => {
-          if (!activeDragTokenId) return;
+          if (!activeDragTokenId || padPlayback) return;
           const rect = padField.getBoundingClientRect();
           const x = clamp(((event.clientX - rect.left) / rect.width) * 100, 2, 98);
           const y = clamp(((event.clientY - rect.top) / rect.height) * 100, 2, 98);
           padState.tokens = padState.tokens.map((token) => (
             token.id === activeDragTokenId ? { ...token, x, y } : token
           ));
+          if (padRecording) {
+            padState.timeline.push({ t: Date.now(), type: 'move', token_id: activeDragTokenId, x, y });
+          }
           renderPadTokens();
         });
         padField.addEventListener('pointerup', () => {
@@ -1007,8 +1077,42 @@
       if (closePadBtn) closePadBtn.addEventListener('click', closePad);
       if (clearPadBtn) {
         clearPadBtn.addEventListener('click', () => {
-          padState = { tokens: [] };
+          padState = { tokens: [], timeline: [], meta: padState.meta || {} };
           renderPadTokens();
+        });
+      }
+      if (recordPadBtn) {
+        recordPadBtn.addEventListener('click', () => {
+          padRecording = true;
+          if (!Array.isArray(padState.timeline)) padState.timeline = [];
+          padState.timeline.push({ t: Date.now(), type: 'marker', label: 'record-start' });
+          if (padSummary) {
+            padSummary.textContent = 'Grabando movimientos...';
+          }
+        });
+      }
+      if (stopPadBtn) {
+        stopPadBtn.addEventListener('click', () => {
+          if (padRecording) {
+            padState.timeline.push({ t: Date.now(), type: 'marker', label: 'record-stop' });
+          }
+          padRecording = false;
+          updatePadSummary();
+        });
+      }
+      if (playPadBtn) {
+        playPadBtn.addEventListener('click', async () => {
+          if (padPlayback || !Array.isArray(padState.timeline) || !padState.timeline.length) return;
+          padPlayback = true;
+          const sequence = [...padState.timeline].filter((frame) => frame.type === 'move');
+          for (const frame of sequence) {
+            await new Promise((resolve) => setTimeout(resolve, 35));
+            padState.tokens = padState.tokens.map((token) => (
+              token.id === frame.token_id ? { ...token, x: frame.x, y: frame.y } : token
+            ));
+            renderPadTokens();
+          }
+          padPlayback = false;
         });
       }
       if (savePadBtn) {

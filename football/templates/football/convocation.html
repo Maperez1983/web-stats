@@ -275,25 +275,6 @@
         display: grid;
         gap: 0.7rem;
       }
-      .team-photo-box {
-        border: 1px solid var(--line);
-        border-radius: 12px;
-        overflow: hidden;
-        background: rgba(7, 16, 34, 0.74);
-      }
-      .team-photo-box img {
-        width: 100%;
-        display: block;
-        aspect-ratio: 16 / 10;
-        object-fit: cover;
-        object-position: center;
-      }
-      .team-photo-label {
-        padding: 0.5rem 0.6rem;
-        font-size: 0.86rem;
-        color: var(--muted);
-        letter-spacing: 0.03em;
-      }
       .selected-list {
         list-style: none;
         margin: 0;
@@ -405,6 +386,7 @@
   </head>
   <body>
     <main class="page">
+      {% include 'football/includes/dragon_nav.html' %}
       <section class="panel header">
         <div>
           <h1>Convocatoria</h1>
@@ -497,10 +479,6 @@
         <article class="panel block">
           <h2>Convocados</h2>
           <div class="selected-wrap">
-            <div class="team-photo-box">
-              <img src="{{ team_photo_url }}" alt="Foto equipo {{ team_name }}" loading="lazy" />
-              <div class="team-photo-label">Foto equipo (portada activa)</div>
-            </div>
             <ul id="selected-list" class="selected-list"></ul>
           </div>
         </article>

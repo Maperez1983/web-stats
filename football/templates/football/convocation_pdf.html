@@ -13,7 +13,7 @@
         background: #f3f6f4;
       }
       .poster {
-        min-height: 100%;
+        min-height: auto;
         border: 2px solid #cfe0d7;
         position: relative;
         overflow: hidden;
@@ -92,20 +92,15 @@
         margin: 0 6px;
       }
       .body {
-        display: table;
+        display: block;
         width: 100%;
         margin-top: 8px;
       }
       .left {
-        display: table-cell;
-        width: 62%;
-        padding-right: 8px;
+        display: block;
+        width: 100%;
+        padding-right: 0;
         vertical-align: top;
-      }
-      .right {
-        display: table-cell;
-        width: 38%;
-        vertical-align: bottom;
       }
       .meta {
         border-bottom: 2px solid #95b9ac;
@@ -195,13 +190,6 @@
         font-weight: 700;
         color: #0f4f47;
       }
-      .coach {
-        width: 100%;
-        max-height: 560px;
-        object-fit: cover;
-        object-position: center;
-        border-radius: 8px;
-      }
     </style>
   </head>
   <body>
@@ -277,10 +265,6 @@
               </div>
 
               <p class="hashtag">{{ club_hashtag }}</p>
-            </div>
-
-            <div class="right">
-              <img class="coach" src="{{ team_photo_url }}" alt="{{ team_name }}" />
             </div>
           </section>
         </main>

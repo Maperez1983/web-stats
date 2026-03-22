@@ -1,0 +1,299 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Pizarra ABP · {{ team_name }}</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <style>
+      body {
+        margin: 0;
+        font-family: 'Inter', system-ui, sans-serif;
+        background: radial-gradient(circle at top, #0f172a, #020617 58%);
+        color: #e2e8f0;
+      }
+      .page {
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 1.2rem;
+      }
+      .top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+      }
+      .top h1 {
+        margin: 0;
+        font-size: 1.4rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .board-layout {
+        margin-top: 1rem;
+        display: grid;
+        grid-template-columns: 300px minmax(0, 1fr);
+        gap: 1rem;
+      }
+      .panel {
+        border-radius: 14px;
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        background: rgba(15, 23, 42, 0.82);
+        padding: 0.8rem;
+      }
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        margin-bottom: 0.75rem;
+      }
+      .controls button {
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        background: rgba(15, 23, 42, 0.9);
+        color: #f8fafc;
+        padding: 0.35rem 0.7rem;
+        font-size: 0.75rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
+      .controls .primary {
+        border-color: rgba(56, 189, 248, 0.8);
+        color: #bae6fd;
+      }
+      .players {
+        max-height: 520px;
+        overflow: auto;
+        display: grid;
+        gap: 0.45rem;
+      }
+      .player-chip {
+        border-radius: 10px;
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        background: rgba(2, 6, 23, 0.85);
+        padding: 0.4rem 0.55rem;
+        cursor: pointer;
+        font-size: 0.85rem;
+      }
+      .player-chip small {
+        color: rgba(226, 232, 240, 0.72);
+      }
+      .field-wrap {
+        position: relative;
+        border-radius: 16px;
+        overflow: hidden;
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        background: linear-gradient(160deg, #0f5132, #14532d 60%, #064e3b);
+        min-height: 680px;
+      }
+      .field {
+        position: relative;
+        height: 680px;
+        background:
+          radial-gradient(circle at 50% 50%, rgba(255,255,255,0.08) 0, rgba(255,255,255,0.08) 11%, transparent 12%),
+          linear-gradient(90deg, transparent 49.5%, rgba(255,255,255,0.6) 50%, transparent 50.5%),
+          repeating-linear-gradient(0deg, rgba(255,255,255,0.03) 0, rgba(255,255,255,0.03) 52px, rgba(255,255,255,0.07) 53px, rgba(255,255,255,0.07) 106px);
+      }
+      .token {
+        position: absolute;
+        width: 44px;
+        height: 44px;
+        border-radius: 999px;
+        border: 2px solid rgba(255,255,255,0.85);
+        background: #0ea5e9;
+        color: #082f49;
+        font-weight: 800;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: grab;
+        user-select: none;
+        box-shadow: 0 8px 16px rgba(2, 6, 23, 0.45);
+      }
+      .token.rival {
+        background: #f97316;
+        color: #431407;
+      }
+      .token.selected {
+        outline: 3px solid rgba(250, 204, 21, 0.8);
+      }
+      .moves {
+        margin-top: 0.7rem;
+        font-size: 0.82rem;
+        color: rgba(226, 232, 240, 0.82);
+        max-height: 110px;
+        overflow: auto;
+      }
+      @media (max-width: 980px) {
+        .board-layout { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      {% include 'football/includes/dragon_nav.html' %}
+      <div class="top">
+        <h1>Pizarra ABP · {{ team_name }}</h1>
+        <a class="pill-button" style="border-radius:12px;" href="{% url 'coach-role-abp' %}">Volver</a>
+      </div>
+      <section class="board-layout">
+        <aside class="panel">
+          <div class="controls">
+            <button class="primary" id="record-btn" type="button">Grabar</button>
+            <button id="stop-btn" type="button">Parar</button>
+            <button id="play-btn" type="button">Reproducir</button>
+            <button id="clear-btn" type="button">Limpiar</button>
+            <button id="export-btn" type="button">Exportar JSON</button>
+          </div>
+          <p style="margin:0 0 0.5rem;color:rgba(186,230,253,0.86);font-size:0.8rem;">Pulsa jugador para añadir ficha al campo. Arrastra para simular jugada.</p>
+          <div class="players" id="players-list">
+            {% for player in players %}
+            <button class="player-chip" type="button" data-player="{{ player.name|upper|escape }}" data-number="{{ player.number|default:'--' }}">
+              #{{ player.number|default:"--" }} {{ player.name|upper }}
+              <br /><small>{{ player.position|default:"Sin definir" }}</small>
+            </button>
+            {% empty %}
+            <p>No hay jugadores activos para cargar en la pizarra.</p>
+            {% endfor %}
+          </div>
+          <div class="moves" id="moves-log"></div>
+        </aside>
+        <section class="field-wrap">
+          <div class="field" id="abp-field"></div>
+        </section>
+      </section>
+    </div>
+    <script>
+      const field = document.getElementById('abp-field');
+      const movesLog = document.getElementById('moves-log');
+      const playersList = document.getElementById('players-list');
+      const recordBtn = document.getElementById('record-btn');
+      const stopBtn = document.getElementById('stop-btn');
+      const playBtn = document.getElementById('play-btn');
+      const clearBtn = document.getElementById('clear-btn');
+      const exportBtn = document.getElementById('export-btn');
+      const state = { recording: false, timeline: [], tokens: [], selectedTokenId: null, playing: false };
+
+      const log = (text) => {
+        const line = document.createElement('div');
+        line.textContent = text;
+        movesLog.prepend(line);
+      };
+      const uid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      const fieldRect = () => field.getBoundingClientRect();
+      const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+
+      const writeSnapshot = (type, token) => {
+        if (!state.recording || !token) return;
+        state.timeline.push({
+          t: Date.now(),
+          type,
+          tokenId: token.dataset.id,
+          label: token.dataset.label,
+          x: parseFloat(token.dataset.x || '50'),
+          y: parseFloat(token.dataset.y || '50'),
+        });
+      };
+
+      const placeToken = (token, xPct, yPct) => {
+        const x = clamp(xPct, 2, 98);
+        const y = clamp(yPct, 2, 98);
+        token.style.left = `${x}%`;
+        token.style.top = `${y}%`;
+        token.dataset.x = String(x);
+        token.dataset.y = String(y);
+      };
+
+      const createToken = (label, number = '--') => {
+        const token = document.createElement('div');
+        token.className = 'token';
+        token.textContent = number;
+        token.title = label;
+        token.dataset.label = label;
+        token.dataset.id = uid();
+        placeToken(token, 50, 50);
+        token.addEventListener('pointerdown', (event) => {
+          if (state.playing) return;
+          token.classList.add('selected');
+          state.selectedTokenId = token.dataset.id;
+          token.setPointerCapture(event.pointerId);
+          const onMove = (moveEvent) => {
+            const rect = fieldRect();
+            const xPct = ((moveEvent.clientX - rect.left) / rect.width) * 100;
+            const yPct = ((moveEvent.clientY - rect.top) / rect.height) * 100;
+            placeToken(token, xPct, yPct);
+            writeSnapshot('move', token);
+          };
+          const onUp = () => {
+            token.classList.remove('selected');
+            token.removeEventListener('pointermove', onMove);
+            token.removeEventListener('pointerup', onUp);
+            token.removeEventListener('pointercancel', onUp);
+          };
+          token.addEventListener('pointermove', onMove);
+          token.addEventListener('pointerup', onUp);
+          token.addEventListener('pointercancel', onUp);
+        });
+        field.appendChild(token);
+        state.tokens.push(token);
+        writeSnapshot('add', token);
+      };
+
+      playersList?.addEventListener('click', (event) => {
+        const btn = event.target.closest('.player-chip');
+        if (!btn) return;
+        createToken(btn.dataset.player || 'JUGADOR', btn.dataset.number || '--');
+        log(`Añadido ${btn.dataset.player || 'jugador'} al campo`);
+      });
+
+      recordBtn?.addEventListener('click', () => {
+        state.recording = true;
+        log('Grabación iniciada');
+      });
+      stopBtn?.addEventListener('click', () => {
+        state.recording = false;
+        log('Grabación detenida');
+      });
+      clearBtn?.addEventListener('click', () => {
+        state.tokens.forEach((token) => token.remove());
+        state.tokens = [];
+        state.timeline = [];
+        log('Pizarra reseteada');
+      });
+      playBtn?.addEventListener('click', async () => {
+        if (!state.timeline.length || state.playing) return;
+        state.playing = true;
+        log(`Reproduciendo ${state.timeline.length} movimientos`);
+        const first = state.timeline[0].t;
+        for (const frame of state.timeline) {
+          const wait = Math.max(0, frame.t - first);
+          await new Promise((resolve) => setTimeout(resolve, Math.min(wait, 300)));
+          const token = state.tokens.find((item) => item.dataset.id === frame.tokenId);
+          if (token) placeToken(token, frame.x, frame.y);
+        }
+        state.playing = false;
+      });
+      exportBtn?.addEventListener('click', () => {
+        const payload = {
+          generated_at: new Date().toISOString(),
+          timeline: state.timeline,
+          tokens: state.tokens.map((token) => ({
+            id: token.dataset.id,
+            label: token.dataset.label,
+            x: token.dataset.x,
+            y: token.dataset.y,
+          })),
+        };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'abp-playbook.json';
+        link.click();
+        URL.revokeObjectURL(url);
+      });
+    </script>
+  </body>
+</html>

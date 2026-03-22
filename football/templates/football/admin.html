@@ -108,6 +108,39 @@
         padding: 0.5rem 0.8rem;
         cursor: pointer;
       }
+      .roster-manager { margin-top: 1rem; }
+      .roster-manager h2 { margin: 0 0 0.65rem; }
+      .roster-form {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+        gap: 0.55rem;
+        align-items: end;
+      }
+      .roster-list {
+        margin-top: 0.65rem;
+        display: grid;
+        gap: 0.4rem;
+      }
+      .roster-item {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.55rem;
+        border-radius: 0.65rem;
+        border: 1px solid rgba(121, 170, 230, 0.22);
+        background: rgba(7, 16, 30, 0.78);
+      }
+      .badge-active {
+        border-radius: 999px;
+        padding: 0.2rem 0.5rem;
+        font-size: 0.7rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .badge-active.on { background: rgba(34, 197, 94, 0.2); color: #bbf7d0; }
+      .badge-active.off { background: rgba(244, 63, 94, 0.2); color: #fecdd3; }
+      .form-inline { display: inline; }
     </style>
   </head>
   <body>
@@ -117,7 +150,7 @@
           {% include 'football/includes/dragon_nav.html' %}
         </div>
         <nav class="module-tabs">
-          <a class="module-tab" href="{% url 'dashboard-home' %}">Resumen</a>
+          <a class="module-tab" href="{% url 'dashboard-home' %}">Dashboard</a>
           <a class="module-tab" href="{% url 'coach-detail' %}">Cuerpo técnico</a>
           <a class="module-tab" href="{% url 'player-dashboard' %}">Jugadores</a>
           <a class="module-tab" href="{% url 'match-action-page' %}">Registro</a>
@@ -179,6 +212,67 @@
         {% empty %}
           <p style="margin-top:0.55rem;color:rgba(205,225,255,0.82);">No hay imágenes cargadas en el carrusel todavía.</p>
         {% endfor %}
+      </section>
+
+      <section class="block roster-manager" id="roster-manager">
+        <h2>Plantilla · {{ team_name|default:"Equipo" }}</h2>
+        {% if roster_message %}
+        <p style="color:#86efac;">{{ roster_message }}</p>
+        {% endif %}
+        {% if roster_error %}
+        <p style="color:#fecaca;">{{ roster_error }}</p>
+        {% endif %}
+        <form method="post" class="roster-form">
+          {% csrf_token %}
+          <input type="hidden" name="form_action" value="roster_add_or_update" />
+          <label>
+            <span>Nombre</span>
+            <input type="text" name="name" required />
+          </label>
+          <label>
+            <span>Dorsal</span>
+            <input type="number" name="number" min="1" max="99" />
+          </label>
+          <label>
+            <span>Posición</span>
+            <input type="text" name="position" placeholder="Defensa, Medio, Delantero..." />
+          </label>
+          <label>
+            <span>Activo</span>
+            <input type="checkbox" name="is_active" checked />
+          </label>
+          <button class="pill-button" type="submit">Guardar jugador</button>
+        </form>
+        <div class="roster-list">
+          {% for player in roster_players %}
+          <article class="roster-item">
+            <div>
+              <strong>#{{ player.number|default:"--" }} {{ player.name|upper }}</strong>
+              <div style="opacity:.75;">{{ player.position|default:"Sin posición" }}</div>
+            </div>
+            <span class="badge-active {% if player.is_active %}on{% else %}off{% endif %}">
+              {% if player.is_active %}Activo{% else %}Inactivo{% endif %}
+            </span>
+            {% if player.is_active %}
+            <form method="post" class="form-inline">
+              {% csrf_token %}
+              <input type="hidden" name="form_action" value="roster_deactivate" />
+              <input type="hidden" name="player_id" value="{{ player.id }}" />
+              <button class="button-danger" type="submit">Desactivar</button>
+            </form>
+            {% else %}
+            <form method="post" class="form-inline">
+              {% csrf_token %}
+              <input type="hidden" name="form_action" value="roster_reactivate" />
+              <input type="hidden" name="player_id" value="{{ player.id }}" />
+              <button class="pill-button" type="submit">Reactivar</button>
+            </form>
+            {% endif %}
+          </article>
+          {% empty %}
+          <p style="margin:0.55rem 0;color:rgba(205,225,255,0.82);">No hay jugadores en plantilla.</p>
+          {% endfor %}
+        </div>
       </section>
     </div>
   </body>

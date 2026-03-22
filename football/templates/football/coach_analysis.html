@@ -199,10 +199,21 @@
       .lineup-meta strong {
         color: #facc15;
       }
+      .video-item video {
+        width: 100%;
+        max-height: 280px;
+        border-radius: 12px;
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        background: #020617;
+      }
+      .video-item h4 {
+        margin: 0 0 0.35rem;
+      }
     </style>
   </head>
   <body>
     <div class="page">
+      {% include 'football/includes/dragon_nav.html' %}
       <header>
         <div>
           <p>Área técnica · Cuerpo técnico</p>
@@ -214,6 +225,10 @@
         <p>{{ description }}</p>
         <form class="form" method="post">
           {% csrf_token %}
+          <input type="hidden" name="form_action" value="analyze" />
+          {% if home_rival_name %}
+          <p class="meta" style="margin:0;">Rival marcado en Home: <strong>{{ home_rival_name }}</strong></p>
+          {% endif %}
           {% if auto_loaded %}
           <p class="meta" style="margin:0;">Rival cargado automáticamente: <strong>{{ auto_team_name }}</strong></p>
           {% endif %}
@@ -243,6 +258,76 @@
           <p class="error">{{ error }}</p>
           {% endif %}
         </form>
+        <div class="grid" style="margin-top:1rem;">
+          <div class="item item-wide">
+            <h3>Componentes extraídos del rival</h3>
+            <ul class="list">
+              <li><strong>Prioridad de fuente:</strong> <span class="meta">{{ extracted.source_priority }}</span></li>
+              <li><strong>Rival:</strong> <span class="meta">{{ extracted.rival_name }}</span></li>
+              <li><strong>Jornada:</strong> <span class="meta">{{ extracted.next_match_round|default:"-" }}</span></li>
+              <li><strong>Fecha/Hora:</strong> <span class="meta">{{ extracted.next_match_date|default:"-" }} {{ extracted.next_match_time|default:"" }}</span></li>
+              <li><strong>Campo:</strong> <span class="meta">{{ extracted.next_match_location|default:"-" }}</span></li>
+              <li><strong>Tabla cargada:</strong> <span class="meta">{{ extracted.standings_count }} equipos</span></li>
+              <li><strong>URL Preferente:</strong> <span class="meta">{{ extracted.preferente_url|default:"No definida" }}</span></li>
+            </ul>
+          </div>
+          <div class="item item-wide">
+            <h3>Repositorio vídeos rival</h3>
+            <form class="form" method="post" enctype="multipart/form-data" style="margin-top:0.5rem;">
+              {% csrf_token %}
+              <input type="hidden" name="form_action" value="upload_video" />
+              <input type="hidden" name="video_team_id" value="{{ team_id }}" />
+              <div>
+                <label for="video_title">Título</label>
+                <input id="video_title" name="video_title" type="text" placeholder="Análisis jornada, ABP, transiciones..." />
+              </div>
+              <div>
+                <label for="video_source">Fuente</label>
+                <select id="video_source" name="video_source">
+                  {% for value,label in video_sources %}
+                  <option value="{{ value }}">{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div>
+                <label for="video_file">Vídeo</label>
+                <input id="video_file" name="video_file" type="file" accept="video/*" required />
+              </div>
+              <div>
+                <label for="video_notes">Notas</label>
+                <textarea id="video_notes" name="video_notes" style="min-height:80px;"></textarea>
+              </div>
+              <div class="actions">
+                <button class="button" type="submit">Subir vídeo</button>
+              </div>
+            </form>
+            {% if video_message %}
+            <p class="meta" style="color:#86efac;margin-top:0.5rem;">{{ video_message }}</p>
+            {% endif %}
+            {% if video_error %}
+            <p class="error">{{ video_error }}</p>
+            {% endif %}
+            <div class="grid">
+              {% for video in rival_videos %}
+              <article class="item video-item">
+                <h4>{{ video.title }}</h4>
+                <p class="meta">{{ video.get_source_display }} · {{ video.created_at|date:"d/m/Y H:i" }}</p>
+                <video controls preload="metadata">
+                  <source src="{{ video.video.url }}" />
+                </video>
+                <form method="post" style="margin-top:0.55rem;">
+                  {% csrf_token %}
+                  <input type="hidden" name="form_action" value="delete_video" />
+                  <input type="hidden" name="video_id" value="{{ video.id }}" />
+                  <button class="button ghost" type="submit">Eliminar</button>
+                </form>
+              </article>
+              {% empty %}
+              <article class="item"><p class="meta">Sin vídeos cargados todavía.</p></article>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
         {% if roster %}
         <div class="grid">
           <div class="item item-wide">

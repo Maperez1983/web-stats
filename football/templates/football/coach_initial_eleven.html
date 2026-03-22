@@ -1,0 +1,346 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>11 Inicial · {{ team_name }}</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <style>
+      body {
+        margin: 0;
+        font-family: 'Inter', system-ui, sans-serif;
+        background: linear-gradient(180deg, #020617 0%, #050f1f 100%);
+        color: #f8fafc;
+      }
+      .page {
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 1.3rem;
+      }
+      .top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+      }
+      .top h1 {
+        margin: 0;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+      }
+      .layout {
+        margin-top: 1rem;
+        display: grid;
+        grid-template-columns: 330px minmax(0, 1fr);
+        gap: 1rem;
+      }
+      .panel {
+        border-radius: 16px;
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        background: rgba(15, 23, 42, 0.85);
+        padding: 0.9rem;
+      }
+      .panel h3 {
+        margin: 0 0 0.65rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        font-size: 0.82rem;
+      }
+      .players {
+        display: grid;
+        gap: 0.5rem;
+        max-height: 720px;
+        overflow: auto;
+      }
+      .player-card {
+        display: grid;
+        grid-template-columns: 44px minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 0.55rem;
+        border-radius: 12px;
+        border: 1px solid rgba(148, 163, 184, 0.3);
+        padding: 0.45rem;
+        background: rgba(2, 6, 23, 0.76);
+      }
+      .player-card img,
+      .avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        object-fit: cover;
+        object-position: top center;
+      }
+      .avatar {
+        display: grid;
+        place-items: center;
+        font-size: 0.7rem;
+        border: 1px solid rgba(148, 163, 184, 0.3);
+      }
+      .player-card input {
+        transform: scale(1.2);
+      }
+      .player-name {
+        font-weight: 700;
+        letter-spacing: 0.04em;
+      }
+      .player-meta {
+        color: rgba(226, 232, 240, 0.7);
+        font-size: 0.78rem;
+      }
+      .field {
+        position: relative;
+        min-height: 760px;
+        border-radius: 18px;
+        overflow: hidden;
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        background:
+          radial-gradient(circle at 50% 50%, rgba(255,255,255,0.08), transparent 18%),
+          linear-gradient(90deg, transparent 49.4%, rgba(255,255,255,0.65) 50%, transparent 50.6%),
+          repeating-linear-gradient(0deg, rgba(255,255,255,0.02) 0 48px, rgba(255,255,255,0.06) 49px 98px),
+          linear-gradient(165deg, #0f5132, #14532d 55%, #064e3b);
+      }
+      .slot {
+        position: absolute;
+        transform: translate(-50%, -50%);
+        width: 92px;
+        min-height: 58px;
+        border-radius: 12px;
+        border: 1px dashed rgba(248, 250, 252, 0.45);
+        background: rgba(2, 6, 23, 0.45);
+        padding: 0.25rem;
+        text-align: center;
+      }
+      .slot-label {
+        font-size: 0.6rem;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+        color: rgba(248, 250, 252, 0.7);
+      }
+      .token {
+        margin-top: 0.2rem;
+        border-radius: 8px;
+        border: 1px solid rgba(125, 211, 252, 0.5);
+        background: rgba(14, 116, 144, 0.8);
+        font-size: 0.69rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        padding: 0.2rem 0.25rem;
+      }
+      .toolbar {
+        margin-top: 0.75rem;
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+      }
+      .toolbar button {
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        background: rgba(8, 19, 44, 0.7);
+        color: #f8fafc;
+        border-radius: 999px;
+        padding: 0.36rem 0.7rem;
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
+      .toolbar .primary {
+        border-color: rgba(56, 189, 248, 0.8);
+        color: #bae6fd;
+      }
+      .status {
+        margin-top: 0.5rem;
+        color: rgba(186, 230, 253, 0.9);
+        font-size: 0.78rem;
+      }
+      @media (max-width: 980px) {
+        .layout { grid-template-columns: 1fr; }
+        .field { min-height: 620px; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      {% include 'football/includes/dragon_nav.html' %}
+      <header class="top">
+        <h1>11 inicial · {{ team_name }}</h1>
+        <a class="pill-button" style="border-radius:12px;" href="{% url 'coach-role-trainer' %}">Volver</a>
+      </header>
+      <section class="layout">
+        <aside class="panel">
+          <h3>Convocados</h3>
+          {% if convocation_record %}
+          <p style="margin:0 0 0.6rem;color:rgba(186,230,253,0.85);">
+            {{ convocation_record.round|default:"Sin jornada" }} · {{ convocation_record.opponent_name|default:"Rival por confirmar" }}
+          </p>
+          {% endif %}
+          <div class="players" id="player-list">
+            {% for player in convocation_players %}
+            <label class="player-card" data-player-id="{{ player.id }}" data-player-name="{{ player.name|upper|escape }}" data-player-number="{{ player.number|default:'--' }}" data-player-position="{{ player.position|default:''|escape }}">
+              {% if player.photo_url %}
+              <img src="{{ player.photo_url }}" alt="{{ player.name }}" loading="lazy" />
+              {% else %}
+              <span class="avatar">{{ player.name|initials }}</span>
+              {% endif %}
+              <span>
+                <span class="player-name">{{ player.name|upper }}</span>
+                <span class="player-meta">#{{ player.number|default:"--" }} · {{ player.position|default:"Sin definir" }}</span>
+              </span>
+              <input type="checkbox" />
+            </label>
+            {% empty %}
+            <p>No hay jugadores convocados.</p>
+            {% endfor %}
+          </div>
+          <div class="toolbar">
+            <button type="button" id="auto-fill-btn">Auto completar</button>
+            <button type="button" id="clear-btn">Limpiar</button>
+            <button type="button" class="primary" id="save-btn">Guardar 11</button>
+          </div>
+          <p class="status" id="status-msg">Selecciona convocados y se colocan en campo automáticamente.</p>
+        </aside>
+        <article class="panel">
+          <h3>Campo</h3>
+          <div class="field" id="lineup-field"></div>
+        </article>
+      </section>
+    </main>
+    {{ lineup_seed_json|json_script:"lineup-seed-data" }}
+    <script>
+      const saveUrl = '{% url "match-lineup-save" %}';
+      const playerCards = Array.from(document.querySelectorAll('.player-card'));
+      const field = document.getElementById('lineup-field');
+      const statusMsg = document.getElementById('status-msg');
+      const saveBtn = document.getElementById('save-btn');
+      const clearBtn = document.getElementById('clear-btn');
+      const autoFillBtn = document.getElementById('auto-fill-btn');
+      const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]')?.value
+        || document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('csrftoken='))?.split('=')[1]
+        || '';
+
+      const slots = [
+        { key: 'gk', label: 'POR', x: 50, y: 92 },
+        { key: 'lb', label: 'LI', x: 18, y: 75 },
+        { key: 'lcb', label: 'DFC', x: 37, y: 76 },
+        { key: 'rcb', label: 'DFC', x: 63, y: 76 },
+        { key: 'rb', label: 'LD', x: 82, y: 75 },
+        { key: 'lcm', label: 'MC', x: 32, y: 56 },
+        { key: 'cm', label: 'MCD', x: 50, y: 52 },
+        { key: 'rcm', label: 'MC', x: 68, y: 56 },
+        { key: 'lw', label: 'EI', x: 22, y: 32 },
+        { key: 'st', label: 'DC', x: 50, y: 22 },
+        { key: 'rw', label: 'ED', x: 78, y: 32 },
+      ];
+
+      let lineupState = { starters: [], bench: [] };
+      try {
+        const seed = JSON.parse(document.getElementById('lineup-seed-data')?.textContent || '{}');
+        if (seed && typeof seed === 'object') {
+          lineupState = {
+            starters: Array.isArray(seed.starters) ? seed.starters : [],
+            bench: Array.isArray(seed.bench) ? seed.bench : [],
+          };
+        }
+      } catch (_) {}
+
+      const renderField = () => {
+        field.innerHTML = '';
+        slots.forEach((slot, index) => {
+          const box = document.createElement('div');
+          box.className = 'slot';
+          box.style.left = `${slot.x}%`;
+          box.style.top = `${slot.y}%`;
+          const title = document.createElement('div');
+          title.className = 'slot-label';
+          title.textContent = slot.label;
+          box.appendChild(title);
+          const player = lineupState.starters[index];
+          if (player) {
+            const token = document.createElement('div');
+            token.className = 'token';
+            token.textContent = `#${player.number || '--'} ${String(player.name || '').toUpperCase()}`;
+            box.appendChild(token);
+          }
+          field.appendChild(box);
+        });
+        const missing = Math.max(0, 11 - lineupState.starters.length);
+        statusMsg.textContent = missing ? `Faltan ${missing} jugadores para completar el 11.` : '11 inicial completo.';
+      };
+
+      const parseCard = (card) => ({
+        id: String(card.dataset.playerId || ''),
+        name: String(card.dataset.playerName || '').toUpperCase(),
+        number: String(card.dataset.playerNumber || '--'),
+        position: String(card.dataset.playerPosition || ''),
+        photo: '',
+      });
+
+      const syncFromChecks = () => {
+        const selected = playerCards
+          .filter((card) => card.querySelector('input[type="checkbox"]')?.checked)
+          .map(parseCard);
+        lineupState.starters = selected.slice(0, 11);
+        lineupState.bench = selected.slice(11);
+        renderField();
+      };
+
+      const hydrateChecks = () => {
+        const starterIds = new Set((lineupState.starters || []).map((row) => String(row.id)));
+        const benchIds = new Set((lineupState.bench || []).map((row) => String(row.id)));
+        playerCards.forEach((card) => {
+          const id = String(card.dataset.playerId || '');
+          const checked = starterIds.has(id) || benchIds.has(id);
+          const input = card.querySelector('input[type="checkbox"]');
+          if (input) input.checked = checked;
+        });
+      };
+
+      playerCards.forEach((card) => {
+        const input = card.querySelector('input[type="checkbox"]');
+        input?.addEventListener('change', syncFromChecks);
+      });
+
+      clearBtn?.addEventListener('click', () => {
+        lineupState = { starters: [], bench: [] };
+        playerCards.forEach((card) => {
+          const input = card.querySelector('input[type="checkbox"]');
+          if (input) input.checked = false;
+        });
+        renderField();
+      });
+
+      autoFillBtn?.addEventListener('click', () => {
+        const all = playerCards.map(parseCard);
+        lineupState.starters = all.slice(0, 11);
+        lineupState.bench = all.slice(11);
+        hydrateChecks();
+        renderField();
+      });
+
+      saveBtn?.addEventListener('click', async () => {
+        try {
+          const response = await fetch(saveUrl, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': csrfToken,
+              Accept: 'application/json',
+            },
+            body: JSON.stringify({ lineup: lineupState }),
+          });
+          const data = await response.json();
+          if (!response.ok) {
+            statusMsg.textContent = data.error || 'No se pudo guardar el 11.';
+            return;
+          }
+          statusMsg.textContent = `11 guardado (${data.starters}/11) · Suplentes: ${data.bench}.`;
+        } catch (err) {
+          statusMsg.textContent = 'Error guardando el 11 inicial.';
+        }
+      });
+
+      hydrateChecks();
+      renderField();
+    </script>
+  </body>
+</html>
