@@ -1466,7 +1466,8 @@ def match_action_page(request):
     primary_team = Team.objects.filter(is_primary=True).first()
     if not primary_team:
         raise Http404('Equipo principal no configurado')
-    active_match = get_active_match(primary_team)
+    requested_match = get_requested_match(request, primary_team)
+    active_match = requested_match or get_active_match(primary_team)
     convocation_record = get_current_convocation_record(
         primary_team,
         match=active_match,
@@ -1616,6 +1617,10 @@ def match_action_page(request):
                     'field_location': field_map.get(team.slug, ''),
                 }
             )
+    match_selector_options = list(
+        _team_match_queryset(primary_team).order_by('-date', '-id')[:25]
+    )
+    selected_match_id = active_match.id if active_match else None
     return render(
         request,
         'football/match_actions.html',
@@ -1635,6 +1640,8 @@ def match_action_page(request):
             'team_fields': team_fields,
             'substitution_history': substitution_history,
             'initial_lineup_json': json.dumps(initial_lineup_payload, ensure_ascii=False),
+            'match_selector_options': match_selector_options,
+            'selected_match_id': selected_match_id,
         },
     )
 
@@ -1648,9 +1655,11 @@ def register_match_action(request):
     player_id = request.POST.get('player')
     action_type = (request.POST.get('action_type') or '').strip()
     action_type_key = action_type.lower()
+    requested_match = get_requested_match(request, primary_team)
+    target_match = requested_match or get_active_match(primary_team)
     convocation_record = get_current_convocation_record(
         primary_team,
-        match=get_active_match(primary_team),
+        match=target_match,
         fallback_to_latest=True,
     )
     if not convocation_record:
@@ -1664,7 +1673,7 @@ def register_match_action(request):
 
     if not action_type:
         return JsonResponse({'error': 'Especifica el tipo de acción'}, status=400)
-    match = get_active_match(primary_team)
+    match = target_match
     if not match:
         return JsonResponse({'error': 'No hay partido disponible para registrar acciones'}, status=400)
     if player and (not convocation_record.players.filter(id=player.id).exists()):
@@ -1719,9 +1728,11 @@ def save_match_lineup(request):
     primary_team = Team.objects.filter(is_primary=True).first()
     if not primary_team:
         return JsonResponse({'error': 'Equipo principal no configurado'}, status=400)
+    requested_match = get_requested_match(request, primary_team)
+    target_match = requested_match or get_active_match(primary_team)
     convocation_record = get_current_convocation_record(
         primary_team,
-        match=get_active_match(primary_team),
+        match=target_match,
         fallback_to_latest=True,
     )
     if not convocation_record:
@@ -1746,10 +1757,14 @@ def delete_match_action(request):
     if not primary_team:
         return JsonResponse({'error': 'Equipo principal no configurado'}, status=400)
     event_id = request.POST.get('event_id')
+    requested_match = get_requested_match(request, primary_team)
+    candidate_events = MatchEvent.objects.filter(
+        Q(match__home_team=primary_team) | Q(match__away_team=primary_team)
+    )
+    if requested_match:
+        candidate_events = candidate_events.filter(match=requested_match)
     try:
-        event = MatchEvent.objects.filter(
-            Q(match__home_team=primary_team) | Q(match__away_team=primary_team)
-        ).get(id=event_id)
+        event = candidate_events.get(id=event_id)
     except MatchEvent.DoesNotExist:
         return JsonResponse({'error': 'Evento no encontrado'}, status=404)
     event.delete()
@@ -1762,7 +1777,8 @@ def finalize_match_actions(request):
     primary_team = Team.objects.filter(is_primary=True).first()
     if not primary_team:
         return JsonResponse({'error': 'Equipo principal no configurado'}, status=400)
-    match = get_active_match(primary_team)
+    requested_match = get_requested_match(request, primary_team)
+    match = requested_match or get_active_match(primary_team)
     if not match:
         return JsonResponse({'error': 'No hay partido activo para guardar'}, status=400)
     payload = {}
@@ -4690,6 +4706,16 @@ def get_active_match(primary_team):
     if latest:
         return latest
     return qs.order_by('-id').first()
+
+
+def get_requested_match(request, primary_team):
+    if not primary_team:
+        return None
+    raw_match_id = request.GET.get('match_id') or request.POST.get('match_id')
+    match_id = _parse_int(raw_match_id)
+    if not match_id:
+        return None
+    return _team_match_queryset(primary_team).filter(id=match_id).first()
 
 
 def get_latest_pizarra_match(primary_team):

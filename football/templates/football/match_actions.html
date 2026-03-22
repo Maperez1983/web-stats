@@ -700,6 +700,27 @@
       .match-info-card .match-info-actions #match-finalize-btn {
         display: inline-flex;
       }
+      .match-selector-form {
+        margin-top: 0.5rem;
+        display: flex;
+        gap: 0.45rem;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .match-selector-form select,
+      .match-selector-form button {
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        background: rgba(255, 255, 255, 0.05);
+        color: #f8fafc;
+        padding: 0.25rem 0.65rem;
+        font-size: 0.68rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .match-selector-form button {
+        cursor: pointer;
+      }
       .match-info-card.is-editing .match-info-actions button.save,
       .match-info-card.is-editing .match-info-actions button.reset {
         display: inline-flex;
@@ -1501,6 +1522,17 @@
                   <button type="button" id="match-finalize-btn" class="save">Guardar partido</button>
                 </div>
                 <p class="match-db-badge">Partido BBDD · ID <strong id="match-db-id">{{ match_info.match_id }}</strong></p>
+                <form class="match-selector-form" method="get" action="{% url 'match-action-page' %}">
+                  <label for="match-selector">Editar partido:</label>
+                  <select id="match-selector" name="match_id">
+                    {% for match_option in match_selector_options %}
+                    <option value="{{ match_option.id }}" {% if selected_match_id == match_option.id %}selected{% endif %}>
+                      #{{ match_option.id }} · {{ match_option.home_team.name|default:"-" }} vs {{ match_option.away_team.name|default:"-" }} · {{ match_option.date|date:"d/m/Y"|default:"Sin fecha" }}
+                    </option>
+                    {% endfor %}
+                  </select>
+                  <button type="submit">Cargar</button>
+                </form>
             </div>
             <div class="match-status-panels">
               <article class="status-card">
@@ -1664,6 +1696,7 @@
                 data-submit-url="{% url 'match-action-record' %}"
               >
                 {% csrf_token %}
+                <input type="hidden" name="match_id" value="{{ selected_match_id|default:'' }}" />
                 <div class="popup-header">
                   <strong>Registrar acción</strong>
                   <div class="popup-header-actions">
@@ -1952,10 +1985,16 @@
       const csrfInput = popupForm.querySelector('input[name="csrfmiddlewaretoken"]');
       const csrfToken = csrfInput?.value || '';
       const submitUrl = popupForm.dataset.submitUrl;
-      const deleteUrl = '{% url "match-action-delete" %}';
-      const finalizeUrl = '{% url "match-action-finalize" %}';
-      const lineupSaveUrl = '{% url "match-lineup-save" %}';
       const initialMatchDbIdEl = document.getElementById('match-db-id');
+      const currentMatchId = String(initialMatchDbIdEl?.textContent || '').trim();
+      const urlWithMatchId = (baseUrl) => {
+        if (!currentMatchId) return baseUrl;
+        const joiner = baseUrl.includes('?') ? '&' : '?';
+        return `${baseUrl}${joiner}match_id=${encodeURIComponent(currentMatchId)}`;
+      };
+      const deleteUrl = urlWithMatchId('{% url "match-action-delete" %}');
+      const finalizeUrl = urlWithMatchId('{% url "match-action-finalize" %}');
+      const lineupSaveUrl = urlWithMatchId('{% url "match-lineup-save" %}');
       const lineupStorageKey = initialMatchDbIdEl?.textContent
         ? `touchFieldLineup:${String(initialMatchDbIdEl.textContent).trim()}`
         : '';
@@ -2565,6 +2604,9 @@
         payload.set('zone', config.zoneLabel || '');
         payload.set('tercio', '');
         payload.set('observation', '');
+        if (currentMatchId) {
+          payload.set('match_id', currentMatchId);
+        }
         try {
           actionSubmitInFlight = true;
           const response = await fetch(submitUrl, {
@@ -3089,7 +3131,10 @@
             headers: {
               'X-CSRFToken': csrfToken,
             },
-            body: new URLSearchParams({ event_id: eventId }),
+            body: new URLSearchParams({
+              event_id: eventId,
+              match_id: currentMatchId,
+            }),
           });
           if (!response.ok) {
             const data = await response.json().catch(() => ({}));
@@ -3178,6 +3223,9 @@
 
   syncAutoFields();
   const payload = new FormData(popupForm);
+  if (currentMatchId && !payload.get('match_id')) {
+    payload.set('match_id', currentMatchId);
+  }
   if (isTeamOnlyAction) {
     payload.delete('player');
   }
