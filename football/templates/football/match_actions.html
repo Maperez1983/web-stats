@@ -1520,6 +1520,7 @@
                   <button type="button" id="match-info-save-btn" class="save">Guardar</button>
                   <button type="button" id="match-info-reset-btn" class="reset">Restablecer</button>
                   <button type="button" id="match-finalize-btn" class="save">Guardar partido</button>
+                  <button type="button" id="match-reset-btn" class="reset">Reiniciar registro</button>
                 </div>
                 <p class="match-db-badge">Partido BBDD · ID <strong id="match-db-id">{{ match_info.match_id }}</strong></p>
                 <form class="match-selector-form" method="get" action="{% url 'match-action-page' %}">
@@ -1994,6 +1995,7 @@
       };
       const deleteUrl = urlWithMatchId('{% url "match-action-delete" %}');
       const finalizeUrl = urlWithMatchId('{% url "match-action-finalize" %}');
+      const resetRegisterUrl = urlWithMatchId('{% url "match-action-reset" %}');
       const lineupSaveUrl = urlWithMatchId('{% url "match-lineup-save" %}');
       const lineupStorageKey = initialMatchDbIdEl?.textContent
         ? `touchFieldLineup:${String(initialMatchDbIdEl.textContent).trim()}`
@@ -2368,6 +2370,39 @@
         subs: [],
         corner_for: [],
         corner_against: [],
+      };
+      const clearRegisterHistoryUI = () => {
+        if (!historyList) {
+          return;
+        }
+        historyList.innerHTML = '';
+        const emptyItem = document.createElement('article');
+        emptyItem.className = 'history-item';
+        emptyItem.innerHTML = `
+          <span class="hist-minute">—</span>
+          <strong>Sin acciones todavía</strong>
+          <p class="hist-text">Comienza el registro para verás cómo se llenan aquí.</p>
+        `;
+        historyList.appendChild(emptyItem);
+      };
+      const resetRegisterHudState = () => {
+        liveEventStore.clear();
+        refreshLiveStatsHud();
+        quickStats.amarilla = 0;
+        quickStats.roja = 0;
+        quickStats.subs = 0;
+        quickStats.corner_for = 0;
+        quickStats.corner_against = 0;
+        Object.keys(quickHistoryState).forEach((key) => {
+          quickHistoryState[key] = [];
+          renderQuickHistoryPreview(key);
+        });
+        Object.entries(quickCounters).forEach(([key, el]) => {
+          if (el) {
+            el.textContent = String(quickStats[key] || 0);
+          }
+        });
+        refreshStatusCounters();
       };
       const refreshStatusCounters = () => {
         if (statusCounters.amarilla) {
@@ -3148,6 +3183,40 @@
           alert('No se pudo eliminar la acción.');
         }
       });
+
+      const matchResetBtn = document.getElementById('match-reset-btn');
+      if (matchResetBtn) {
+        matchResetBtn.addEventListener('click', async () => {
+          const confirmed = confirm('¿Reiniciar todo el registro de acciones de este partido?');
+          if (!confirmed) {
+            return;
+          }
+          try {
+            const response = await fetch(resetRegisterUrl, {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: {
+                'X-CSRFToken': csrfToken,
+                Accept: 'application/json',
+              },
+              body: new URLSearchParams({
+                match_id: currentMatchId,
+              }),
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+              alert(data.error || 'No se pudo reiniciar el registro.');
+              return;
+            }
+            clearRegisterHistoryUI();
+            resetRegisterHudState();
+            resetClock();
+          } catch (err) {
+            console.error(err);
+            alert('Error al reiniciar el registro.');
+          }
+        });
+      }
 
       const showZoneLabel = (zoneMatch, x, y) => {
         if (!zoneMatch) {

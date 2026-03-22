@@ -2002,6 +2002,31 @@ def finalize_match_actions(request):
     )
 
 
+@authenticated_write
+@require_POST
+def reset_match_action_register(request):
+    primary_team = Team.objects.filter(is_primary=True).first()
+    if not primary_team:
+        return JsonResponse({'error': 'Equipo principal no configurado'}, status=400)
+    requested_match = get_requested_match(request, primary_team)
+    match = requested_match or get_active_match(primary_team)
+    if not match:
+        return JsonResponse({'error': 'No hay partido activo para reiniciar'}, status=400)
+    deleted_count, _ = MatchEvent.objects.filter(
+        match=match,
+        source_file='registro-acciones',
+    ).filter(
+        Q(system='touch-field') | Q(system='touch-field-final'),
+    ).delete()
+    return JsonResponse(
+        {
+            'reset': True,
+            'deleted': int(deleted_count),
+            'match_id': match.id,
+        }
+    )
+
+
 def convocation_page(request):
     primary_team = Team.objects.filter(is_primary=True).first()
     if not primary_team:
@@ -5478,7 +5503,11 @@ def compute_player_dashboard(primary_team):
         photo_path = resolve_player_photo_static_path(player)
         match = event.match
         preferred_source = preferred_sources.get(match.id if match else None)
-        if preferred_source and (event.source_file or '') != preferred_source:
+        event_source = (event.source_file or '').strip().lower()
+        # Keep admin/manual edits visible in player stats even when another source
+        # is preferred for that match.
+        is_manual_source = event_source == 'admin-manual' or 'manual' in event_source
+        if preferred_source and (event.source_file or '') != preferred_source and not is_manual_source:
             continue
         signature = _event_signature(event)
         if signature in seen_signatures:
