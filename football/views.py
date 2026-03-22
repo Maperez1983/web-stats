@@ -1408,11 +1408,15 @@ def admin_page(request):
     players_users = [u for u in users if u.role_value == AppUserRole.ROLE_PLAYER]
     guests_users = [u for u in users if u.role_value == AppUserRole.ROLE_GUEST]
     users_filtered = technical_users if users_segment == 'technical' else players_users if users_segment == 'players' else guests_users
-    admin_matches = (
-        list(_team_match_queryset(primary_team).order_by('-date', '-id')[:60])
-        if primary_team
-        else []
-    )
+    admin_match_qs = _team_match_queryset(primary_team) if primary_team else Match.objects.none()
+    if primary_team and primary_team.group_id:
+        league_matches_qs = admin_match_qs.filter(group_id=primary_team.group_id)
+        admin_matches = list(
+            (league_matches_qs if league_matches_qs.exists() else admin_match_qs)
+            .order_by('-date', '-id')[:60]
+        )
+    else:
+        admin_matches = list(admin_match_qs.order_by('-date', '-id')[:60])
     selected_admin_match_id = _parse_int(request.GET.get('match_id') or request.POST.get('match_id'))
     selected_admin_match = (
         next((m for m in admin_matches if m.id == selected_admin_match_id), None)
