@@ -43,6 +43,11 @@
         flex-direction: column;
         justify-content: space-between;
       }
+      .card-link {
+        color: inherit;
+        text-decoration: none;
+        display: block;
+      }
       .card h3 {
         margin: 0;
         text-transform: uppercase;
@@ -62,16 +67,10 @@
         letter-spacing: 0.2em;
         color: #facc15;
       }
-      .card a {
-        align-self: flex-start;
-        text-transform: uppercase;
-        letter-spacing: 0.12em;
-        font-weight: 700;
-        text-decoration: none;
-        color: #38bdf8;
-      }
-      .card a:hover {
-        color: #facc15;
+      .card-link:hover .card {
+        transform: translateY(-2px);
+        border-color: rgba(56, 189, 248, 0.45);
+        box-shadow: 0 12px 30px rgba(2, 6, 23, 0.45);
       }
     </style>
   </head>
@@ -87,13 +86,14 @@
       </header>
       <div class="grid">
         {% for card in cards %}
-        <article class="card">
-          <h3>{{ card.title }}</h3>
-          <p>{{ card.description }}</p>
-          <p class="member">Responsable: {{ card.member_name }}</p>
-          <strong>{{ card.title }} →</strong>
-          <a href="{% url card.link %}">Abrir</a>
-        </article>
+        <a class="card-link" href="{% url card.link %}">
+          <article class="card">
+            <h3>{{ card.title }}</h3>
+            <p>{{ card.description }}</p>
+            <p class="member">Responsable: {{ card.member_name }}</p>
+            <strong>{{ card.title }} →</strong>
+          </article>
+        </a>
         {% endfor %}
       </div>
     </div>

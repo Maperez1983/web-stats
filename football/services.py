@@ -1000,7 +1000,18 @@ def _read_match_list_sheet():
     return actions, results
 
 
-DEFAULT_QUICK_ACTIONS = ['Disparo', 'Pase clave', 'Robo', 'Falta', 'Cambio', 'Duelo aéreo', 'Regate']
+DEFAULT_QUICK_ACTIONS = [
+    'Disparo',
+    'Pase clave',
+    'Robo',
+    'Falta',
+    'Cambio',
+    'Duelo aéreo',
+    'Regate',
+    'Parada',
+    'Saque de esquina a favor',
+    'Saque de esquina en contra',
+]
 
 def load_match_actions():
     actions, _ = _read_match_list_sheet()

@@ -585,7 +585,7 @@
               {% for zone in stats.field_zones %}
                 <div class="field-zone" style="left: {{ zone.left }}; top: {{ zone.top }}; width: {{ zone.width }}; height: {{ zone.height }};">
                   <span>{{ zone.label }}</span>
-                  <span class="zone-count">{{ zone.count }}</span>
+                  <span class="zone-count" title="{{ zone.count }} acciones">{{ zone.pct|default:0|floatformat:-1 }}%</span>
                 </div>
               {% endfor %}
             </div>

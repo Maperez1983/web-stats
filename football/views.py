@@ -7,7 +7,7 @@ import mimetypes
 import io
 import csv
 import zipfile
-from collections import Counter
+from collections import Counter, defaultdict
 from datetime import datetime, timedelta
 from functools import wraps
 from pathlib import Path
@@ -558,10 +558,32 @@ def _serialize_match_event(event, duplicate=False):
         'duplicate': bool(duplicate),
         'player': {
             'id': player.id if player else None,
-            'name': player.name if player else 'Jugador',
+            'name': player.name if player else 'Equipo',
             'number': (player.number if player and player.number is not None else '--'),
         },
     }
+
+
+TEAM_ONLY_ACTION_TYPES = {
+    'saque de esquina a favor',
+    'saque de esquina en contra',
+}
+
+
+def _is_team_only_action(action_type: str) -> bool:
+    normalized = (action_type or '').strip().lower()
+    if not normalized:
+        return False
+    folded = ''.join(
+        ch for ch in unicodedata.normalize('NFKD', normalized) if not unicodedata.combining(ch)
+    )
+    team_only_aliases = {
+        'saque de esquina a favor',
+        'saque de esquina en contra',
+        'corner a favor',
+        'corner en contra',
+    }
+    return folded in team_only_aliases
 
 
 def authenticated_write(view_func):
@@ -1610,6 +1632,8 @@ def register_match_action(request):
     if not primary_team:
         return JsonResponse({'error': 'Equipo principal no configurado'}, status=400)
     player_id = request.POST.get('player')
+    action_type = (request.POST.get('action_type') or '').strip()
+    action_type_key = action_type.lower()
     convocation_record = get_current_convocation_record(
         primary_team,
         match=get_active_match(primary_team),
@@ -1617,16 +1641,19 @@ def register_match_action(request):
     )
     if not convocation_record:
         return JsonResponse({'error': 'No hay convocatoria activa guardada para registrar acciones'}, status=400)
-    player = convocation_record.players.filter(id=player_id).first()
-    if not player:
-        return JsonResponse({'error': 'Selecciona un jugador convocado válido'}, status=400)
-    action_type = (request.POST.get('action_type') or '').strip()
+
+    player = None
+    if not _is_team_only_action(action_type_key):
+        player = convocation_record.players.filter(id=player_id).first()
+        if not player:
+            return JsonResponse({'error': 'Selecciona un jugador convocado válido'}, status=400)
+
     if not action_type:
         return JsonResponse({'error': 'Especifica el tipo de acción'}, status=400)
     match = get_active_match(primary_team)
     if not match:
         return JsonResponse({'error': 'No hay partido disponible para registrar acciones'}, status=400)
-    if not convocation_record.players.filter(id=player.id).exists():
+    if player and (not convocation_record.players.filter(id=player.id).exists()):
         return JsonResponse({'error': 'Jugador fuera de convocatoria para este partido'}, status=400)
     minute = _parse_int(request.POST.get('minute'))
     if minute is not None:
@@ -1639,7 +1666,7 @@ def register_match_action(request):
     duplicate_window = timezone.now() - timedelta(seconds=8)
     recent_duplicates = MatchEvent.objects.filter(
         match=match,
-        player=player,
+        player=player if player else None,
         minute=minute if minute is not None else None,
         period=period,
         source_file='registro-acciones',
@@ -1658,7 +1685,7 @@ def register_match_action(request):
 
     event = MatchEvent.objects.create(
         match=match,
-        player=player,
+        player=player if player else None,
         minute=minute if minute is not None else None,
         period=period,
         event_type=action_type,
@@ -2439,38 +2466,36 @@ def session_task_canva_export(request, task_id):
 
 
 def coach_cards_page(request):
-    role_to_member = {}
-    for role_row in AppUserRole.objects.select_related('user').all():
-        if not role_row.user.is_active:
-            continue
-        display_name = role_row.user.get_full_name().strip() or role_row.user.username
-        if display_name:
-            role_to_member[role_row.role] = display_name
-
     cards = [
         {
             'title': 'Entrenador',
             'description': 'Convocatoria, 11 inicial, sesiones y multas en un único bloque.',
             'link': 'coach-role-trainer',
-            'member_name': role_to_member.get(AppUserRole.ROLE_COACH, 'Sin asignar'),
+            'member_name': 'Aitor · Antonio',
         },
         {
             'title': 'Preparador porteros',
             'description': 'Repositorio táctico y tareas específicas de porteros.',
             'link': 'coach-role-goalkeeper',
-            'member_name': role_to_member.get(AppUserRole.ROLE_GOALKEEPER, 'Sin asignar'),
+            'member_name': 'Sin asignar',
         },
         {
             'title': 'Preparación física',
             'description': 'Espacio preparado para métricas y carga física.',
             'link': 'coach-role-fitness',
-            'member_name': role_to_member.get(AppUserRole.ROLE_FITNESS, 'Sin asignar'),
+            'member_name': 'Sin asignar',
         },
         {
             'title': 'ABP',
             'description': 'Repositorio de sesiones ABP y pizarra táctica con simulación.',
             'link': 'coach-role-abp',
-            'member_name': role_to_member.get(AppUserRole.ROLE_ANALYST, 'Sin asignar'),
+            'member_name': 'Alonso',
+        },
+        {
+            'title': 'Análisis',
+            'description': 'Análisis de rival, vídeo y reportes tácticos de partido.',
+            'link': 'analysis',
+            'member_name': 'Miguel Ángel Pérez · Jose García Menéndez',
         },
     ]
     return render(
@@ -2521,6 +2546,56 @@ def coach_role_trainer_page(request):
     goals_conceded_per_match = round((goals_against / season_played_matches), 2) if season_played_matches else 0.0
     card_total = yellows + reds
     cards_per_match = round((card_total / season_played_matches), 2) if season_played_matches else 0.0
+
+    def _summarize_events(event_list):
+        total = len(event_list)
+        successes_local = sum(1 for event in event_list if result_is_success(event.result))
+        duels_local = [event for event in event_list if is_duel_event(event.event_type, event.observation)]
+        duels_won_local = [event for event in duels_local if duel_result_is_success(event.result)]
+        shots_attempts = 0
+        shots_on_target = 0
+        passes_attempts = 0
+        passes_completed = 0
+        yellow_local = 0
+        red_local = 0
+        zone_counts_local = {key: 0 for key in FIELD_ZONE_KEYS}
+        for event in event_list:
+            if is_yellow_card_event(event.event_type, event.result, event.zone):
+                yellow_local += 1
+            if is_red_card_event(event.event_type, event.result, event.zone):
+                red_local += 1
+            if contains_keyword(event.event_type, SHOT_KEYWORDS) or contains_keyword(event.observation, SHOT_KEYWORDS):
+                shots_attempts += 1
+                if result_is_success(event.result):
+                    shots_on_target += 1
+            if contains_keyword(event.event_type, PASS_KEYWORDS) or contains_keyword(event.observation, PASS_KEYWORDS):
+                passes_attempts += 1
+                if result_is_success(event.result):
+                    passes_completed += 1
+            zone_label = map_zone_label((event.zone or '').strip())
+            if zone_label:
+                zone_counts_local[zone_label] += 1
+        return {
+            'total_actions': total,
+            'success_rate': round((successes_local / total) * 100, 1) if total else 0.0,
+            'duels_total': len(duels_local),
+            'duel_rate': round((len(duels_won_local) / len(duels_local)) * 100, 1) if duels_local else 0.0,
+            'yellow_cards': yellow_local,
+            'red_cards': red_local,
+            'shots_attempts': shots_attempts,
+            'shots_on_target': shots_on_target,
+            'passes_attempts': passes_attempts,
+            'passes_completed': passes_completed,
+            'zone_counts': zone_counts_local,
+            'field_zones': [
+                {
+                    **zone,
+                    'count': zone_counts_local.get(zone['key'], 0),
+                    'pct': round((zone_counts_local.get(zone['key'], 0) / total) * 100, 1) if total else 0,
+                }
+                for zone in FIELD_ZONES
+            ],
+        }
 
     # General overview based on player base stats (Universo/cache/manual) + actions dataset.
     player_cards = compute_player_cards(primary_team) if primary_team else []
@@ -2628,6 +2703,45 @@ def coach_role_trainer_page(request):
         {'label': '% Duelo ganado', 'value': f'{duel_rate:.1f}%', 'pct': min(100, max(0, duel_rate)), 'suffix': ''},
     ]
 
+    team_events = list(events.select_related('match', 'match__home_team', 'match__away_team').order_by('match__date', 'id'))
+    totals_breakdown = _summarize_events(team_events)
+    coach_total_field_zones = totals_breakdown['field_zones']
+    coach_total_actions_count = totals_breakdown['total_actions']
+    match_events_map = defaultdict(list)
+    for event in team_events:
+        if event.match_id:
+            match_events_map[event.match_id].append(event)
+    team_matches = list(_team_match_queryset(primary_team).select_related('home_team', 'away_team').order_by('-date', '-id'))
+    coach_match_rows = []
+    for match in team_matches:
+        match_events = match_events_map.get(match.id, [])
+        metrics = _summarize_events(match_events)
+        if match.home_team == primary_team:
+            opponent_name = match.away_team.name if match.away_team else 'Rival desconocido'
+        else:
+            opponent_name = match.home_team.name if match.home_team else 'Rival desconocido'
+        coach_match_rows.append(
+            {
+                'match_id': match.id,
+                'round': match.round or f'Partido {match.id}',
+                'date': match.date.strftime('%d/%m/%Y') if match.date else '--/--/----',
+                'opponent': opponent_name,
+                'location': match.location or 'Campo por confirmar',
+                'total_actions': metrics['total_actions'],
+                'success_rate': metrics['success_rate'],
+                'duel_rate': metrics['duel_rate'],
+                'yellow_cards': metrics['yellow_cards'],
+                'red_cards': metrics['red_cards'],
+            }
+        )
+
+    selected_match_id = _parse_int(request.GET.get('match'))
+    valid_match_ids = {row['match_id'] for row in coach_match_rows}
+    if selected_match_id not in valid_match_ids:
+        selected_match_id = coach_match_rows[0]['match_id'] if coach_match_rows else None
+    selected_match_row = next((row for row in coach_match_rows if row['match_id'] == selected_match_id), None)
+    selected_match_metrics = _summarize_events(match_events_map.get(selected_match_id, [])) if selected_match_id else None
+
     modules = [
         {'title': 'Convocatoria', 'description': 'Define lista oficial y PDF del partido.', 'link': 'convocation'},
         {'title': '11 inicial', 'description': 'Pantalla táctica visual para construir la alineación titular y banquillo.', 'link': 'initial-eleven'},
@@ -2645,6 +2759,11 @@ def coach_role_trainer_page(request):
             'kpi_note': '* Posesión estimada sobre registros de acciones.',
             'coach_general_stats': coach_general_stats,
             'coach_player_leaders': coach_player_leaders,
+            'coach_total_field_zones': coach_total_field_zones,
+            'coach_total_actions_count': coach_total_actions_count,
+            'coach_match_rows': coach_match_rows,
+            'coach_selected_match': selected_match_row,
+            'coach_selected_match_metrics': selected_match_metrics,
         },
     )
 
@@ -4290,8 +4409,15 @@ def player_match_stats_page(request, player_id, match_id):
         if stats['pass_attempts']
         else 0,
     }
+    total_zone_actions = max(1, int(stats.get('total_actions') or 0))
     stats['field_zones'] = [
-        {**zone, 'count': stats['zone_counts'].get(zone['key'], 0)}
+        {
+            **zone,
+            'count': stats['zone_counts'].get(zone['key'], 0),
+            'pct': round((stats['zone_counts'].get(zone['key'], 0) / total_zone_actions) * 100, 1)
+            if stats.get('total_actions')
+            else 0,
+        }
         for zone in FIELD_ZONES
     ]
     match_payload = {
@@ -5086,6 +5212,18 @@ def compute_player_dashboard(primary_team):
                 return entry
         return {}
     preferred_sources = preferred_event_source_by_match(primary_team)
+    lineup_by_match = {}
+    convocation_qs = (
+        ConvocationRecord.objects.filter(team=primary_team, match__isnull=False)
+        .exclude(lineup_data={})
+        .order_by('match_id', '-created_at')
+    )
+    for record in convocation_qs:
+        if record.match_id in lineup_by_match:
+            continue
+        allowed = list(record.players.all())
+        normalized = _normalize_lineup_payload(record.lineup_data if isinstance(record.lineup_data, dict) else {}, allowed)
+        lineup_by_match[record.match_id] = normalized
     match_end_minutes = {}
     player_match_timeline = {}
     events = (
@@ -5095,7 +5233,12 @@ def compute_player_dashboard(primary_team):
         .order_by('player__name', 'match__date')
     )
     live_events = (
-        MatchEvent.objects.filter(player__team=primary_team, system='touch-field-final')
+        MatchEvent.objects.filter(
+            system='touch-field-final',
+        ).filter(
+            Q(player__team=primary_team) | Q(player__isnull=True),
+            Q(match__home_team=primary_team) | Q(match__away_team=primary_team),
+        )
         .select_related('player', 'match')
         .order_by('player__name', 'match__date')
     )
@@ -5178,14 +5321,10 @@ def compute_player_dashboard(primary_team):
                 'yellow_cards': base_yellow,
                 'red_cards': base_red,
                 'assists': base_assists,
-                'totals_locked': bool(
-                    base_pj
-                    or base_pt
-                    or base_minutes
-                    or base_goals
-                    or base_yellow
-                    or base_red
-                    or base_assists
+                # Only manual-base overrides should lock auto aggregation.
+                'totals_locked': any(
+                    key in manual_entry
+                    for key in ('pj', 'pt', 'minutes', 'goals', 'yellow_cards', 'red_cards')
                 ),
                 'matches': {},
                 'zone_counts': {key: 0 for key in FIELD_ZONE_KEYS},
@@ -5274,12 +5413,12 @@ def compute_player_dashboard(primary_team):
             (match_entry['successes'] / match_entry['actions']) * 100
         ) if match_entry['actions'] else 0
     for event in live_events:
-        player = event.player
-        if not player:
-            continue
         match = event.match
         if match and event.minute is not None:
             match_end_minutes[match.id] = max(match_end_minutes.get(match.id, 0), event.minute)
+        player = event.player
+        if not player:
+            continue
         if match:
             timeline = player_match_timeline.setdefault(player.id, {}).setdefault(
                 match.id,
@@ -5290,16 +5429,29 @@ def compute_player_dashboard(primary_team):
                 timeline['entry'] = min_or_none(timeline['entry'], event.minute or 0)
             if is_substitution_exit(event.event_type, event.result, event.zone):
                 timeline['exit'] = min_or_none(timeline['exit'], event.minute or 0)
+    processed_lineup_matches = defaultdict(set)
     for player_id, matches in player_match_timeline.items():
         stats = player_stats.get(player_id)
         if not stats:
             continue
         for match_id, timeline in matches.items():
+            processed_lineup_matches[player_id].add(match_id)
             match_end = match_end_minutes.get(match_id, 0)
+            lineup_seed = lineup_by_match.get(match_id) or {}
+            lineup_starters = {
+                str(item.get('id'))
+                for item in (lineup_seed.get('starters') or [])
+                if isinstance(item, dict)
+            }
+            player_key = str(player_id)
             entry_minute = timeline.get('entry')
             exit_minute = timeline.get('exit')
+            if entry_minute is None and player_key in lineup_starters:
+                entry_minute = 0
             if entry_minute is None:
                 entry_minute = 0
+            if match_end <= 0 and player_key in lineup_starters:
+                match_end = 90
             if exit_minute is None:
                 exit_minute = match_end
             if exit_minute is None:
@@ -5307,9 +5459,10 @@ def compute_player_dashboard(primary_team):
             if exit_minute < entry_minute:
                 exit_minute = entry_minute
             if not stats.get('totals_locked'):
+                played_match = bool(timeline.get('has_event')) or (player_key in lineup_starters)
                 stats['minutes'] += max(0, exit_minute - entry_minute)
-                stats['pj'] += 1 if timeline.get('has_event') else 0
-                if entry_minute == 0:
+                stats['pj'] += 1 if played_match else 0
+                if player_key in lineup_starters:
                     stats['pt'] += 1
         if not stats.get('totals_locked'):
             stats['pc'] = max(stats.get('pc', 0), stats['pj'])
@@ -5375,14 +5528,9 @@ def compute_player_dashboard(primary_team):
                     else roster_entry.get('red_cards', 0)
                 ),
                 'assists': roster_entry.get('assists', 0),
-                'totals_locked': bool(
-                    base_pj
-                    or base_pt
-                    or roster_entry.get('minutes', 0)
-                    or roster_entry.get('goals', 0)
-                    or manual_entry.get('yellow_cards', roster_entry.get('yellow_cards', 0))
-                    or roster_entry.get('red_cards', 0)
-                    or roster_entry.get('assists', 0)
+                'totals_locked': any(
+                    key in manual_entry
+                    for key in ('pj', 'pt', 'minutes', 'goals', 'yellow_cards', 'red_cards')
                 ),
                 'matches': {},
                 'zone_counts': {key: 0 for key in FIELD_ZONE_KEYS},
@@ -5400,6 +5548,58 @@ def compute_player_dashboard(primary_team):
                 'age': _parse_int(universo_entry.get('age')) or roster_entry.get('age'),
                 'has_events': base_pj > 0,
             }
+
+    lineup_matches = {
+        match.id: match
+        for match in Match.objects.filter(id__in=list(lineup_by_match.keys())).select_related('home_team', 'away_team')
+    }
+    for match_id, lineup_seed in lineup_by_match.items():
+        starters = {
+            int(item.get('id'))
+            for item in (lineup_seed.get('starters') or [])
+            if isinstance(item, dict) and str(item.get('id') or '').isdigit()
+        }
+        if not starters:
+            continue
+        match = lineup_matches.get(match_id)
+        match_end = match_end_minutes.get(match_id, 90)
+        if match_end <= 0:
+            match_end = 90
+        for player_id in starters:
+            if match_id in processed_lineup_matches[player_id]:
+                continue
+            stats = player_stats.get(player_id)
+            if not stats:
+                continue
+            if stats.get('totals_locked'):
+                processed_lineup_matches[player_id].add(match_id)
+                continue
+            stats['pt'] += 1
+            stats['pj'] += 1
+            stats['minutes'] += match_end
+            stats['pc'] = max(stats.get('pc', 0), stats['pj'])
+            stats['has_events'] = True
+            if match:
+                stats['matches'].setdefault(
+                    match_id,
+                    {
+                        'match_id': match.id,
+                        'round': match.round or 'Partido sin jornada',
+                        'date': match.date.isoformat() if match.date else None,
+                        'home': match.home_team == primary_team,
+                        'opponent': (
+                            match.away_team.name
+                            if match.home_team == primary_team and match.away_team
+                            else match.home_team.name
+                            if match.away_team == primary_team and match.home_team
+                            else 'Rival desconocido'
+                        ),
+                        'actions': 0,
+                        'successes': 0,
+                        'success_rate': 0,
+                    },
+                )
+            processed_lineup_matches[player_id].add(match_id)
 
     result = []
     today = timezone.localdate()
@@ -5419,10 +5619,17 @@ def compute_player_dashboard(primary_team):
             key=lambda item: item[1],
             reverse=True,
         )
-        field_zones = [
-            {**zone, 'count': stats['zone_counts'].get(zone['key'], 0)}
-            for zone in FIELD_ZONES
-        ]
+        field_zones = []
+        total_zone_actions = max(1, int(stats.get('total_actions') or 0))
+        for zone in FIELD_ZONES:
+            zone_count = stats['zone_counts'].get(zone['key'], 0)
+            field_zones.append(
+                {
+                    **zone,
+                    'count': zone_count,
+                    'pct': round((zone_count / total_zone_actions) * 100, 1) if stats.get('total_actions') else 0,
+                }
+            )
         merged = {
             **stats,
             'matches': matches,

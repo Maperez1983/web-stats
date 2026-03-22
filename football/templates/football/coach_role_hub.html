@@ -133,6 +133,93 @@
         background: rgba(15, 23, 42, 0.66);
         font-size: 0.84rem;
       }
+      .coach-map-wrap {
+        margin-top: 0.9rem;
+        border-radius: 14px;
+        padding: 0.8rem;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        background: rgba(2, 6, 23, 0.7);
+      }
+      .coach-map-wrap h3 {
+        margin: 0 0 0.55rem;
+        font-size: 0.78rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: rgba(186, 230, 253, 0.9);
+      }
+      .field-diagram {
+        position: relative;
+        width: 100%;
+        padding-bottom: 56%;
+        border-radius: 12px;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        background: #0b1b12;
+        overflow: hidden;
+      }
+      .field-diagram img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
+      .field-zone {
+        position: absolute;
+        border-radius: 12px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        color: #f8fafc;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        text-shadow: 0 2px 8px rgba(2, 6, 23, 0.95), 0 0 2px rgba(15, 23, 42, 0.9);
+      }
+      .field-zone .zone-count {
+        margin-top: 0.15rem;
+        color: #facc15;
+        font-size: 0.92rem;
+      }
+      .coach-match-table {
+        margin-top: 0.9rem;
+        border-radius: 14px;
+        padding: 0.8rem;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        background: rgba(2, 6, 23, 0.7);
+      }
+      .coach-match-table h3 {
+        margin: 0 0 0.55rem;
+        font-size: 0.78rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: rgba(186, 230, 253, 0.9);
+      }
+      .coach-match-table table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .coach-match-table th,
+      .coach-match-table td {
+        border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+        padding: 0.45rem 0.35rem;
+        font-size: 0.82rem;
+      }
+      .coach-match-table th {
+        text-align: left;
+        color: rgba(226, 232, 240, 0.8);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        font-size: 0.68rem;
+      }
+      .coach-match-table tr.is-selected td {
+        background: rgba(14, 116, 144, 0.18);
+      }
+      .coach-match-table a {
+        color: #7dd3fc;
+        text-decoration: none;
+      }
       .leaders .meta {
         font-size: 0.72rem;
         color: rgba(226, 232, 240, 0.72);
@@ -149,6 +236,11 @@
         flex-direction: column;
         gap: 0.8rem;
       }
+      .card-link {
+        color: inherit;
+        text-decoration: none;
+        display: block;
+      }
       .card h3 {
         margin: 0;
         text-transform: uppercase;
@@ -158,13 +250,10 @@
         margin: 0;
         color: rgba(226, 232, 240, 0.8);
       }
-      .card a {
-        margin-top: auto;
-        text-decoration: none;
-        font-weight: 700;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-        color: #7dd3fc;
+      .card-link:hover .card {
+        transform: translateY(-2px);
+        border-color: rgba(125, 211, 252, 0.5);
+        box-shadow: 0 12px 30px rgba(2, 6, 23, 0.4);
       }
     </style>
   </head>
@@ -223,13 +312,68 @@
         {% endif %}
       </section>
       {% endif %}
+      {% if coach_total_field_zones %}
+      <section class="coach-map-wrap">
+        <h3>Mapa de acciones del equipo (totales)</h3>
+        <p style="margin:0 0 0.6rem;color:rgba(226,232,240,0.75);">Total acciones acumuladas: <strong>{{ coach_total_actions_count }}</strong></p>
+        <div class="field-diagram">
+          <img src="{% static 'football/campo-futbol.jpg' %}" alt="Campo de fútbol" />
+          {% for zone in coach_total_field_zones %}
+          <div class="field-zone" style="left: {{ zone.left }}; top: {{ zone.top }}; width: {{ zone.width }}; height: {{ zone.height }};">
+            <span>{{ zone.label }}</span>
+            <span class="zone-count" title="{{ zone.count }} acciones">{{ zone.count }} · {{ zone.pct|default:0|floatformat:-1 }}%</span>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+      {% if coach_match_rows %}
+      <section class="coach-match-table">
+        <h3>Análisis por partido</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Jornada</th>
+              <th>Fecha</th>
+              <th>Rival</th>
+              <th>Acciones</th>
+              <th>% éxito</th>
+              <th>% duelo</th>
+              <th>Tarjetas</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in coach_match_rows %}
+            <tr class="{% if coach_selected_match and coach_selected_match.match_id == row.match_id %}is-selected{% endif %}">
+              <td><a href="?match={{ row.match_id }}">{{ row.round }}</a></td>
+              <td>{{ row.date }}</td>
+              <td>{{ row.opponent }}</td>
+              <td>{{ row.total_actions }}</td>
+              <td>{{ row.success_rate|floatformat:-1 }}%</td>
+              <td>{{ row.duel_rate|floatformat:-1 }}%</td>
+              <td>{{ row.yellow_cards }}A · {{ row.red_cards }}R</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% if coach_selected_match and coach_selected_match_metrics %}
+        <p style="margin:0.7rem 0 0;color:rgba(186,230,253,0.9);">
+          Seleccionado: <strong>{{ coach_selected_match.round }}</strong> vs <strong>{{ coach_selected_match.opponent }}</strong>
+          · Acciones {{ coach_selected_match_metrics.total_actions }}
+          · Pases {{ coach_selected_match_metrics.passes_completed }}/{{ coach_selected_match_metrics.passes_attempts }}
+          · Disparos {{ coach_selected_match_metrics.shots_on_target }}/{{ coach_selected_match_metrics.shots_attempts }}
+        </p>
+        {% endif %}
+      </section>
+      {% endif %}
       <section class="grid">
         {% for module in modules %}
-        <article class="card">
-          <h3>{{ module.title }}</h3>
-          <p>{{ module.description }}</p>
-          <a href="{% url module.link %}">Abrir</a>
-        </article>
+        <a class="card-link" href="{% url module.link %}">
+          <article class="card">
+            <h3>{{ module.title }}</h3>
+            <p>{{ module.description }}</p>
+          </article>
+        </a>
         {% endfor %}
       </section>
     </div>

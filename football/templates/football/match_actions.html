@@ -1509,6 +1509,11 @@
                   <p>Realizadas · <span class="status-value" id="status-subs-used-count">0</span></p>
                   <p>Disponibles · <span class="status-value" id="status-subs-left-count">5</span></p>
               </article>
+              <article class="status-card">
+                <h5>Córners</h5>
+                <p>A favor · <span class="status-value" id="status-corner-for-count">0</span></p>
+                <p>En contra · <span class="status-value" id="status-corner-against-count">0</span></p>
+            </article>
             </div>
             <div class="quick-action-columns">
               <div class="quick-action-column">
@@ -1584,6 +1589,43 @@
                 </div>
                 <div class="quick-history" id="sub-history" title="Pulsa para ver todas"></div>
                 <div class="quick-history-meta" id="sub-history-meta">Pulsa para ver todos los cambios</div>
+              </div>
+            </div>
+            <div class="quick-action-column">
+              <div class="quick-action-card">
+                <div class="quick-action-header">
+                  <span>Córners</span>
+                  <div class="quick-action-counts">
+                    <span>A favor · <strong id="corner-for-count">0</strong></span>
+                    <span>En contra · <strong id="corner-against-count">0</strong></span>
+                  </div>
+                </div>
+                <div class="quick-drop-row">
+                  <div
+                    class="quick-drop"
+                    data-drop-key="corner_for"
+                    data-event-type="Saque de esquina a favor"
+                    data-zone-label="ABP ofensiva"
+                    data-result="A favor"
+                    data-team-only="true"
+                  >
+                    <span class="quick-icon">🏳️</span>
+                    <span>Córner a favor</span>
+                  </div>
+                  <div
+                    class="quick-drop"
+                    data-drop-key="corner_against"
+                    data-event-type="Saque de esquina en contra"
+                    data-zone-label="ABP defensiva"
+                    data-result="En contra"
+                    data-team-only="true"
+                  >
+                    <span class="quick-icon">🚩</span>
+                    <span>Córner en contra</span>
+                  </div>
+                </div>
+                <div class="quick-history" id="corner-for-history" title="Pulsa para ver todas"></div>
+                <div class="quick-history" id="corner-against-history" title="Pulsa para ver todas"></div>
               </div>
             </div>
             </div>
@@ -2258,23 +2300,31 @@
         amarilla: document.getElementById('yellow-count'),
         roja: document.getElementById('red-count'),
         subs: document.getElementById('sub-count'),
+        corner_for: document.getElementById('corner-for-count'),
+        corner_against: document.getElementById('corner-against-count'),
       };
       const statusCounters = {
         amarilla: document.getElementById('status-yellow-count'),
         roja: document.getElementById('status-red-count'),
         subsUsed: document.getElementById('status-subs-used-count'),
         subsLeft: document.getElementById('status-subs-left-count'),
+        cornerFor: document.getElementById('status-corner-for-count'),
+        cornerAgainst: document.getElementById('status-corner-against-count'),
       };
       const MAX_SUBSTITUTIONS = 5;
       const quickStats = {
         amarilla: 0,
         roja: 0,
         subs: 0,
+        corner_for: 0,
+        corner_against: 0,
       };
       const quickHistoryState = {
         amarilla: [],
         roja: [],
         subs: [],
+        corner_for: [],
+        corner_against: [],
       };
       const refreshStatusCounters = () => {
         if (statusCounters.amarilla) {
@@ -2298,9 +2348,24 @@
         if (statusCounters.subsLeft) {
           statusCounters.subsLeft.textContent = Math.max(0, MAX_SUBSTITUTIONS - quickStats.subs);
         }
+        if (statusCounters.cornerFor) {
+          statusCounters.cornerFor.textContent = quickStats.corner_for;
+        }
+        if (statusCounters.cornerAgainst) {
+          statusCounters.cornerAgainst.textContent = quickStats.corner_against;
+        }
       };
       const incrementQuickCounter = (dropKey) => {
-        const counterKey = dropKey === 'amarilla' ? 'amarilla' : dropKey === 'roja' ? 'roja' : 'subs';
+        const counterKey =
+          dropKey === 'amarilla'
+            ? 'amarilla'
+            : dropKey === 'roja'
+            ? 'roja'
+            : dropKey === 'corner_for'
+            ? 'corner_for'
+            : dropKey === 'corner_against'
+            ? 'corner_against'
+            : 'subs';
         quickStats[counterKey] += 1;
         const counterEl = quickCounters[counterKey];
         if (counterEl) {
@@ -2312,6 +2377,8 @@
         amarilla: document.getElementById('yellow-history'),
         roja: document.getElementById('red-history'),
         subs: document.getElementById('sub-history'),
+        corner_for: document.getElementById('corner-for-history'),
+        corner_against: document.getElementById('corner-against-history'),
       };
       const renderQuickHistoryPreview = (historyKey) => {
         const container = quickHistoryContainers[historyKey];
@@ -2401,6 +2468,10 @@
               ? 'Amonestaciones (amarillas)'
               : historyKey === 'roja'
               ? 'Expulsiones (rojas)'
+              : historyKey === 'corner_for'
+              ? 'Córners a favor'
+              : historyKey === 'corner_against'
+              ? 'Córners en contra'
               : 'Sustituciones';
           showQuickHistoryModal(historyKey, title);
         });
@@ -2447,6 +2518,20 @@
           return 'roja';
         }
         if (
+          actionText.includes('saque de esquina a favor') ||
+          actionText.includes('corner a favor') ||
+          resultText.includes('a favor')
+        ) {
+          return 'corner_for';
+        }
+        if (
+          actionText.includes('saque de esquina en contra') ||
+          actionText.includes('corner en contra') ||
+          resultText.includes('en contra')
+        ) {
+          return 'corner_against';
+        }
+        if (
           actionText.includes('sustituci') ||
           actionText.includes('cambio') ||
           resultText.includes('entrada') ||
@@ -2461,12 +2546,15 @@
         if (actionSubmitInFlight) {
           return;
         }
-        if (!player?.id) {
+        const isTeamOnly = String(config?.teamOnly || '').toLowerCase() === 'true';
+        if (!isTeamOnly && !player?.id) {
           return;
         }
         const minute = Math.floor(elapsedSeconds / 60);
         const payload = new FormData();
-        payload.set('player', player.id);
+        if (!isTeamOnly && player?.id) {
+          payload.set('player', player.id);
+        }
         payload.set('action_type', config.eventType);
         payload.set('result', config.result || '');
         payload.set('minute', minute);
@@ -2503,11 +2591,13 @@
           incrementQuickCounter(config.dropKey);
           appendQuickHistory(
             config.dropKey,
-            data.player.name,
+            data.player?.name || 'Equipo',
             data.minute || minute,
             config.result,
           );
-          selectPlayer(player.id);
+          if (!isTeamOnly && player?.id) {
+            selectPlayer(player.id);
+          }
         } catch (err) {
           console.error(err);
           alert('Error al registrar la acción rápida.');
@@ -2688,11 +2778,24 @@
               zoneLabel: dropTarget.dataset.zoneLabel,
               result: dropTarget.dataset.result,
               dropKey: dropTarget.dataset.dropKey,
+              teamOnly: dropTarget.dataset.teamOnly || '',
             };
             registerQuickAction(player, config);
           } catch (err) {
             console.error('Invalid quick drop', err);
           }
+        });
+        dropTarget.addEventListener('click', () => {
+          if (String(dropTarget.dataset.teamOnly || '').toLowerCase() !== 'true') {
+            return;
+          }
+          registerQuickAction(null, {
+            eventType: dropTarget.dataset.eventType,
+            zoneLabel: dropTarget.dataset.zoneLabel,
+            result: dropTarget.dataset.result,
+            dropKey: dropTarget.dataset.dropKey,
+            teamOnly: 'true',
+          });
         });
       });
 
@@ -3055,13 +3158,25 @@
     return;
   }
 
-  if (!playerInput.value) {
+  const teamOnlyActions = [
+    'saque de esquina a favor',
+    'saque de esquina en contra',
+    'corner a favor',
+    'corner en contra',
+  ];
+  const currentAction = String(actionInput?.value || '').trim().toLowerCase();
+  const isTeamOnlyAction = teamOnlyActions.includes(currentAction);
+
+  if (!isTeamOnlyAction && !playerInput.value) {
     alert('Selecciona primero un jugador convocado.');
     return;
   }
 
   syncAutoFields();
   const payload = new FormData(popupForm);
+  if (isTeamOnlyAction) {
+    payload.delete('player');
+  }
 
   try {
     actionSubmitInFlight = true;

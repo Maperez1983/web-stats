@@ -157,7 +157,7 @@
                   style="left: {{ zone.left }}; top: {{ zone.top }}; width: {{ zone.width }}; height: {{ zone.height }};"
                 >
                   <span class="zone-label">{{ zone.label }}</span>
-                  <span class="zone-count">{{ zone.count }}</span>
+                  <span class="zone-count" title="{{ zone.count }} acciones">{{ zone.pct|default:0|floatformat:-1 }}%</span>
                 </div>
               {% endfor %}
             </div>
