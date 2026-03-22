@@ -835,15 +835,17 @@ def _build_next_match_from_convocation(primary_team):
         elif match.away_team_id == primary_team.id:
             home_flag = False
 
+    rival_full_name, rival_crest_url = _resolve_rival_identity(opponent_name or 'Rival por confirmar')
+
     payload = {
         'round': round_label or 'Jornada por confirmar',
         'date': date_iso,
         'time': time_label,
         'location': location_label or 'Campo por confirmar',
         'opponent': {
-            'name': opponent_name or 'Rival por confirmar',
-            'full_name': opponent_name or 'Rival por confirmar',
-            'crest_url': '',
+            'name': opponent_name or rival_full_name or 'Rival por confirmar',
+            'full_name': rival_full_name or opponent_name or 'Rival por confirmar',
+            'crest_url': _absolute_universo_url(rival_crest_url),
             'team_code': '',
         },
         'home': home_flag if home_flag is not None else True,
