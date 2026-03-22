@@ -297,6 +297,7 @@
       <div class="tabs" role="tablist">
         <button class="tab-btn" data-tab="general" role="tab">Datos + Estadísticas</button>
         <button class="tab-btn" data-tab="performance" role="tab">KPI + Mapa</button>
+        <button class="tab-btn" data-tab="fines" role="tab">Multas</button>
         <button class="tab-btn" data-tab="physical" role="tab">Métricas físicas</button>
         <button class="tab-btn" data-tab="communication" role="tab">Comunicación</button>
       </div>
@@ -680,6 +681,46 @@
             </tr>
             {% empty %}
             <tr><td colspan="6">Sin métricas registradas.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </section>
+
+      <section class="card tab-pane" data-pane="fines">
+        <h2 style="margin-top:0;">Multas recibidas</h2>
+        <div class="stats-grid" style="margin-top:0.4rem;">
+          <article class="stat">
+            <div class="label">Total</div>
+            <div class="value">{{ fines_summary.total|default:0 }}</div>
+          </article>
+          <article class="stat">
+            <div class="label">Multas registradas</div>
+            <div class="value">{{ fines_summary.registered_fines|default:0 }}</div>
+          </article>
+          <article class="stat">
+            <div class="label">Importe total</div>
+            <div class="value">{{ fines_summary.registered_total|default:0 }}€</div>
+          </article>
+          <article class="stat">
+            <div class="label">Sanción manual</div>
+            <div class="value">{{ fines_summary.manual_sanctions|default:0 }}</div>
+          </article>
+        </div>
+
+        <table>
+          <thead>
+            <tr><th>Tipo</th><th>Cantidad</th><th>Fecha / Hasta</th><th>Detalle</th></tr>
+          </thead>
+          <tbody>
+            {% for item in fines_records %}
+            <tr>
+              <td>{{ item.type }}</td>
+              <td>{{ item.amount|default:0 }}€</td>
+              <td>{{ item.date }}</td>
+              <td>{{ item.detail|default:'-' }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4">Sin multas registradas.</td></tr>
             {% endfor %}
           </tbody>
         </table>

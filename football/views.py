@@ -47,6 +47,7 @@ from football.models import (
     Player,
     PlayerInjuryRecord,
     PlayerCommunication,
+    PlayerFine,
     PlayerPhysicalMetric,
     PlayerStatistic,
     SessionTask,
@@ -3779,13 +3780,60 @@ def sessions_page(request):
 
 
 def fines_page(request):
+    primary_team = Team.objects.filter(is_primary=True).first()
+    if not primary_team:
+        return JsonResponse({'error': 'No hay equipo principal configurado'}, status=400)
+    error = ''
+    message = ''
+    if request.method == 'POST':
+        form_action = (request.POST.get('form_action') or 'add').strip().lower()
+        if form_action == 'delete':
+            fine_id = _parse_int(request.POST.get('fine_id'))
+            fine = PlayerFine.objects.filter(id=fine_id, player__team=primary_team).first() if fine_id else None
+            if not fine:
+                error = 'Multa no encontrada.'
+            else:
+                fine.delete()
+                message = 'Multa eliminada.'
+        else:
+            player_id = _parse_int(request.POST.get('player_id'))
+            reason = (request.POST.get('reason') or '').strip()
+            amount = _parse_int(request.POST.get('amount')) or 0
+            note = (request.POST.get('note') or '').strip()
+            player = Player.objects.filter(id=player_id, team=primary_team).first() if player_id else None
+            valid_reasons = {item[0] for item in PlayerFine.REASON_CHOICES}
+            if not player:
+                error = 'Selecciona un jugador válido.'
+            elif reason not in valid_reasons:
+                error = 'Selecciona un motivo válido.'
+            elif amount <= 0 or amount % 5 != 0:
+                error = 'La cantidad debe ser un múltiplo de 5.'
+            else:
+                PlayerFine.objects.create(
+                    player=player,
+                    reason=reason,
+                    amount=amount,
+                    note=note,
+                    created_by=(request.user.get_username() if request.user.is_authenticated else ''),
+                )
+                message = 'Multa registrada.'
+    players = list(Player.objects.filter(team=primary_team, is_active=True).order_by('number', 'name'))
+    fines = list(PlayerFine.objects.filter(player__team=primary_team).select_related('player')[:120])
+    reason_labels = dict(PlayerFine.REASON_CHOICES)
+    summary_total = sum((item.amount or 0) for item in fines)
     return render(
         request,
-        'football/coach_section.html',
+        'football/fines.html',
         {
-            'section_title': 'Multas',
-            'description': 'Seguimiento de sanciones disciplinarias.',
-            'items': ['Jugador X · 1 partido', 'Jugador Y · trabajo extra'],
+            'team_name': primary_team.name,
+            'players': players,
+            'fines': fines,
+            'reason_choices': PlayerFine.REASON_CHOICES,
+            'reason_labels': reason_labels,
+            'summary_count': len(fines),
+            'summary_total': summary_total,
+            'message': message,
+            'error': error,
         },
     )
 
@@ -4369,6 +4417,45 @@ def player_detail_page(request, player_id):
             has_active_injury = bool(latest_injury_record.is_active)
         has_manual_sanction = is_manual_sanction_active(player)
         player_photo_url = resolve_player_photo_url(request, player)
+        fines_summary = {
+            'registered_fines': 0,
+            'registered_total': 0,
+            'manual_sanctions': 1 if has_manual_sanction else 0,
+            'total': 0,
+        }
+        fines_records = []
+        player_fines = list(player.fines.all()[:80])
+        reason_labels = dict(PlayerFine.REASON_CHOICES)
+        for fine in player_fines:
+            fines_summary['registered_fines'] += 1
+            fines_summary['registered_total'] += int(fine.amount or 0)
+            fines_records.append(
+                {
+                    'type': reason_labels.get(fine.reason, fine.reason),
+                    'amount': int(fine.amount or 0),
+                    'date': fine.created_at.strftime('%d/%m/%Y'),
+                    'detail': fine.note or '-',
+                }
+            )
+        if has_manual_sanction:
+            until_label = (
+                player.manual_sanction_until.strftime('%d/%m/%Y')
+                if player.manual_sanction_until
+                else 'Sin fecha fin'
+            )
+            fines_records.insert(
+                0,
+                {
+                    'type': 'Sanción manual',
+                    'amount': 0,
+                    'date': until_label,
+                    'detail': player.manual_sanction_reason or 'Sanción configurada en ficha',
+                }
+            )
+        fines_summary['total'] = (
+            fines_summary['registered_fines']
+            + fines_summary['manual_sanctions']
+        )
 
         def _to_int_value(value):
             return _parse_int(value) or 0
@@ -4463,6 +4550,8 @@ def player_detail_page(request, player_id):
                 'team_rank': team_rank,
                 'season_label': season_label,
                 'division_label': division_label,
+                'fines_summary': fines_summary,
+                'fines_records': fines_records,
             },
         )
     except Exception as e:

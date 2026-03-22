@@ -1,0 +1,104 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Multas · Cuerpo técnico</title>
+    <style>
+      body { margin: 0; font-family: 'Inter', system-ui, sans-serif; background: #020617; color: #e2e8f0; }
+      .page { max-width: 1040px; margin: 0 auto; padding: 1.5rem 1.1rem 2rem; }
+      .panel { background: rgba(15, 23, 42, 0.96); border: 1px solid rgba(148, 163, 184, 0.25); border-radius: 16px; padding: 1rem; }
+      .top { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 0.9rem; }
+      .btn { display: inline-block; border-radius: 999px; padding: 0.45rem 0.9rem; text-decoration: none; background: #0f766e; color: #fff; font-weight: 700; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.7rem; }
+      label { display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.76rem; letter-spacing: 0.05em; text-transform: uppercase; color: #94a3b8; }
+      input, select { border-radius: 10px; border: 1px solid rgba(148, 163, 184, 0.35); background: rgba(2, 6, 23, 0.65); color: #f8fafc; padding: 0.6rem 0.7rem; }
+      button { border: none; border-radius: 999px; padding: 0.7rem 1rem; font-weight: 700; background: linear-gradient(135deg, #22d3ee, #2563eb); color: #fff; cursor: pointer; }
+      table { width: 100%; border-collapse: collapse; margin-top: 0.9rem; }
+      th, td { text-align: left; padding: 0.5rem 0.3rem; border-bottom: 1px solid rgba(148, 163, 184, 0.2); }
+      th { color: #94a3b8; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; }
+      .msg { margin: 0.5rem 0; font-weight: 700; }
+      .ok { color: #86efac; }
+      .err { color: #fecaca; }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      {% include 'football/includes/dragon_nav.html' %}
+      <div class="top">
+        <div>
+          <p style="margin:0;color:#94a3b8;">Cuerpo técnico · {{ team_name }}</p>
+          <h1 style="margin:0.2rem 0 0;">Multas</h1>
+        </div>
+        <a class="btn" href="{% url 'coach-detail' %}">Volver</a>
+      </div>
+      <section class="panel">
+        <div class="grid" style="margin-bottom:0.8rem;">
+          <div><strong>Total multas:</strong> {{ summary_count|default:0 }}</div>
+          <div><strong>Total importe:</strong> {{ summary_total|default:0 }}€</div>
+        </div>
+        {% if message %}<p class="msg ok">{{ message }}</p>{% endif %}
+        {% if error %}<p class="msg err">{{ error }}</p>{% endif %}
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="form_action" value="add" />
+          <div class="grid">
+            <label>Jugador
+              <select name="player_id" required>
+                <option value="">Selecciona jugador</option>
+                {% for p in players %}
+                <option value="{{ p.id }}">#{{ p.number|default:"--" }} {{ p.name|upper }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>Motivo
+              <select name="reason" required>
+                <option value="">Selecciona motivo</option>
+                {% for value,label in reason_choices %}
+                <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>Cantidad (€)
+              <input type="number" name="amount" min="5" step="5" required placeholder="Ej. 5, 10, 15..." />
+            </label>
+            <label>Nota (opcional)
+              <input type="text" name="note" maxlength="220" placeholder="Contexto de la multa" />
+            </label>
+          </div>
+          <div style="margin-top:0.75rem;">
+            <button type="submit">Registrar multa</button>
+          </div>
+        </form>
+
+        <table>
+          <thead>
+            <tr><th>Fecha</th><th>Jugador</th><th>Motivo</th><th>Cantidad</th><th>Nota</th><th></th></tr>
+          </thead>
+          <tbody>
+            {% for fine in fines %}
+            <tr>
+              <td>{{ fine.created_at|date:'d/m/Y H:i' }}</td>
+              <td>#{{ fine.player.number|default:"--" }} {{ fine.player.name }}</td>
+              <td>{{ fine.get_reason_display }}</td>
+              <td>{{ fine.amount }}€</td>
+              <td>{{ fine.note|default:'-' }}</td>
+              <td>
+                <form method="post" style="margin:0;">
+                  {% csrf_token %}
+                  <input type="hidden" name="form_action" value="delete" />
+                  <input type="hidden" name="fine_id" value="{{ fine.id }}" />
+                  <button type="submit" style="background:#b91c1c;">Eliminar</button>
+                </form>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6">Sin multas registradas.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </section>
+    </div>
+  </body>
+</html>

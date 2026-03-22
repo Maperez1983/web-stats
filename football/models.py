@@ -164,6 +164,32 @@ class PlayerCommunication(models.Model):
         return f'{self.player.name} · {self.category}'
 
 
+class PlayerFine(models.Model):
+    REASON_ABSENCE = 'absence'
+    REASON_LATE = 'late'
+    REASON_INDISCIPLINE = 'indiscipline'
+    REASON_EXPULSION = 'expulsion'
+    REASON_CHOICES = [
+        (REASON_ABSENCE, 'Ausencia'),
+        (REASON_LATE, 'Retraso'),
+        (REASON_INDISCIPLINE, 'Indisciplina'),
+        (REASON_EXPULSION, 'Expulsión'),
+    ]
+
+    player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='fines')
+    reason = models.CharField(max_length=20, choices=REASON_CHOICES)
+    amount = models.PositiveSmallIntegerField(help_text='Importe en euros, múltiplo de 5')
+    note = models.CharField(max_length=220, blank=True)
+    created_by = models.CharField(max_length=80, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+
+    def __str__(self):
+        return f'{self.player.name} · {self.get_reason_display()} · {self.amount}€'
+
+
 class ConvocationRecord(models.Model):
     team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='convocations')
     match = models.ForeignKey(
