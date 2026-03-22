@@ -227,9 +227,110 @@
         <a class="admin-tab {% if active_tab == 'roster' %}is-active{% endif %}" href="{% url 'admin-page' %}?tab=roster">Plantilla</a>
         <a class="admin-tab {% if active_tab == 'carousel' %}is-active{% endif %}" href="{% url 'admin-page' %}?tab=carousel">Fotos Home</a>
         <a class="admin-tab {% if active_tab == 'users' %}is-active{% endif %}" href="{% url 'admin-page' %}?tab=users">Usuarios y Roles</a>
+        {% if is_admin_user %}
+        <a class="admin-tab {% if active_tab == 'actions' %}is-active{% endif %}" href="{% url 'admin-page' %}?tab=actions">Partidos y Acciones</a>
+        {% endif %}
       </nav>
 
-      {% if active_tab == 'carousel' %}
+      {% if active_tab == 'actions' and is_admin_user %}
+      <section class="block">
+        <h2>Edición manual de partidos y acciones</h2>
+        {% if actions_message %}
+        <p style="color:#86efac;">{{ actions_message }}</p>
+        {% endif %}
+        {% if actions_error %}
+        <p style="color:#fecaca;">{{ actions_error }}</p>
+        {% endif %}
+
+        <form method="post" class="users-form" style="margin-bottom:1rem;">
+          {% csrf_token %}
+          <input type="hidden" name="form_action" value="admin_match_save" />
+          <input type="hidden" name="active_tab" value="actions" />
+          <input type="hidden" name="match_id" value="{{ selected_admin_match.id|default:'' }}" />
+          <label>
+            <span>Rival</span>
+            <input type="text" name="opponent_name" value="{% if selected_admin_match %}{{ selected_admin_match.away_team.name }}{% endif %}" required />
+          </label>
+          <label>
+            <span>Jornada</span>
+            <input type="text" name="round" value="{{ selected_admin_match.round|default:'' }}" />
+          </label>
+          <label>
+            <span>Campo</span>
+            <input type="text" name="location" value="{{ selected_admin_match.location|default:'' }}" />
+          </label>
+          <label>
+            <span>Fecha</span>
+            <input type="date" name="match_date" value="{{ selected_admin_match.date|date:'Y-m-d' }}" />
+          </label>
+          <label>
+            <span>Hora</span>
+            <input type="time" name="match_time" value="{% if selected_admin_match.date %}{{ selected_admin_match.date|date:'H:i' }}{% endif %}" />
+          </label>
+          <button class="pill-button" type="submit">Guardar partido</button>
+        </form>
+
+        <form method="get" class="users-form" style="margin-bottom:1rem;">
+          <input type="hidden" name="tab" value="actions" />
+          <label>
+            <span>Partido a editar</span>
+            <select name="match_id">
+              {% for match in admin_matches %}
+              <option value="{{ match.id }}" {% if selected_admin_match and selected_admin_match.id == match.id %}selected{% endif %}>
+                #{{ match.id }} · {{ match.home_team.name }} vs {{ match.away_team.name }} · {{ match.date|date:"d/m/Y"|default:"Sin fecha" }}
+              </option>
+              {% endfor %}
+            </select>
+          </label>
+          <button class="pill-button" type="submit">Cargar partido</button>
+        </form>
+
+        {% if selected_admin_match %}
+        <form method="post" class="users-form">
+          {% csrf_token %}
+          <input type="hidden" name="form_action" value="admin_action_bulk_add" />
+          <input type="hidden" name="active_tab" value="actions" />
+          <input type="hidden" name="match_id" value="{{ selected_admin_match.id }}" />
+          <label>
+            <span>Jugador</span>
+            <select name="player_id" required>
+              <option value="">Selecciona</option>
+              {% for player in admin_players %}
+              <option value="{{ player.id }}">#{{ player.number|default:"--" }} {{ player.name|upper }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            <span>Acción</span>
+            <select name="action_type" required>
+              <option value="">Selecciona</option>
+              {% for action in admin_action_choices %}
+              <option value="{{ action }}">{{ action }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            <span>Resultado</span>
+            <select name="result" required>
+              <option value="">Selecciona</option>
+              {% for result in admin_result_choices %}
+              <option value="{{ result }}">{{ result }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            <span>Zona</span>
+            <input type="text" name="zone" placeholder="Centro del campo, último tercio..." />
+          </label>
+          <label>
+            <span>Cantidad</span>
+            <input type="number" name="quantity" min="1" max="500" value="1" required />
+          </label>
+          <button class="pill-button" type="submit">Añadir acciones</button>
+        </form>
+        {% endif %}
+      </section>
+      {% elif active_tab == 'carousel' %}
       <section class="block carousel-manager" id="carousel-manager">
         <h2>Carrusel Home</h2>
         {% if carousel_message %}

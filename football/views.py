@@ -8,7 +8,7 @@ import io
 import csv
 import zipfile
 from collections import Counter, defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 from functools import wraps
 from pathlib import Path
 import unicodedata
@@ -1078,13 +1078,17 @@ def admin_page(request):
         return full or user_obj.username
 
     primary_team = Team.objects.filter(is_primary=True).first()
+    current_role = AppUserRole.objects.filter(user=request.user).values_list('role', flat=True).first()
+    is_admin_user = bool(request.user.is_staff or current_role == AppUserRole.ROLE_ADMIN)
     roster_message = ''
     roster_error = ''
     carousel_message = ''
     user_message = ''
     user_error = ''
+    actions_message = ''
+    actions_error = ''
     active_tab = (request.GET.get('tab') or request.POST.get('active_tab') or 'roster').strip().lower()
-    if active_tab not in {'roster', 'carousel', 'users'}:
+    if active_tab not in {'roster', 'carousel', 'users', 'actions'}:
         active_tab = 'roster'
     users_segment = (request.GET.get('segment') or request.POST.get('users_segment') or 'technical').strip().lower()
     if users_segment not in {'technical', 'players', 'guests'}:
@@ -1249,6 +1253,132 @@ def admin_page(request):
                     if user_obj.is_active
                     else f'Usuario {user_obj.username} desactivado.'
                 )
+        elif form_action in {'admin_match_save', 'admin_action_bulk_add'}:
+            active_tab = 'actions'
+            if not is_admin_user:
+                actions_error = 'Solo administradores pueden editar partidos y acciones.'
+            elif not primary_team:
+                actions_error = 'No hay equipo principal configurado.'
+            elif form_action == 'admin_match_save':
+                match_id = _parse_int(request.POST.get('match_id'))
+                opponent_name = (request.POST.get('opponent_name') or '').strip()
+                round_value = (request.POST.get('round') or '').strip()
+                location = (request.POST.get('location') or '').strip()
+                date_raw = (request.POST.get('match_date') or '').strip()
+                time_raw = (request.POST.get('match_time') or '').strip()
+                if not opponent_name:
+                    actions_error = 'El rival es obligatorio.'
+                else:
+                    match_date = None
+                    for fmt in ('%Y-%m-%d', '%d/%m/%Y'):
+                        try:
+                            match_date = datetime.strptime(date_raw, fmt).date() if date_raw else None
+                            break
+                        except ValueError:
+                            continue
+                    match_time = None
+                    if time_raw:
+                        try:
+                            match_time = datetime.strptime(time_raw, '%H:%M').time()
+                        except ValueError:
+                            actions_error = 'Hora inválida. Usa HH:MM.'
+                    if not actions_error:
+                        rival_team = Team.objects.filter(name__iexact=opponent_name).first()
+                        if not rival_team:
+                            rival_team = Team.objects.create(
+                                slug=_unique_team_slug(opponent_name),
+                                name=opponent_name,
+                                short_name=opponent_name[:24],
+                                group=primary_team.group,
+                            )
+                        match_dt = None
+                        if match_date:
+                            match_dt = timezone.make_aware(
+                                datetime.combine(match_date, match_time or time(hour=0, minute=0)),
+                                timezone.get_current_timezone(),
+                            )
+                        match_obj = Match.objects.filter(id=match_id).first() if match_id else None
+                        if not match_obj:
+                            match_obj = Match.objects.create(
+                                home_team=primary_team,
+                                away_team=rival_team,
+                                date=match_date,
+                                round=round_value,
+                                location=location,
+                            )
+                        else:
+                            match_obj.away_team = rival_team
+                            match_obj.date = match_date
+                            match_obj.round = round_value
+                            match_obj.location = location
+                            match_obj.save(update_fields=['away_team', 'date', 'round', 'location'])
+                        # compatibilidad: guardar datetime cuando exista
+                        if match_dt:
+                            try:
+                                match_obj.datetime = match_dt
+                                match_obj.save(update_fields=['datetime'])
+                            except Exception:
+                                pass
+                        actions_message = f'Partido guardado (ID {match_obj.id}).'
+            elif form_action == 'admin_action_bulk_add':
+                match_id = _parse_int(request.POST.get('match_id'))
+                player_id = _parse_int(request.POST.get('player_id'))
+                action_type = (request.POST.get('action_type') or '').strip()
+                result = (request.POST.get('result') or '').strip()
+                zone = (request.POST.get('zone') or '').strip()
+                quantity = _parse_int(request.POST.get('quantity')) or 1
+                if quantity < 1:
+                    quantity = 1
+                if quantity > 500:
+                    quantity = 500
+                match_obj = Match.objects.filter(id=match_id).first() if match_id else None
+                player_obj = Player.objects.filter(id=player_id, team=primary_team).first() if player_id else None
+                if not match_obj:
+                    actions_error = 'Selecciona un partido válido.'
+                elif not player_obj:
+                    actions_error = 'Selecciona un jugador válido.'
+                elif not action_type:
+                    actions_error = 'Selecciona una acción.'
+                elif not result:
+                    actions_error = 'Selecciona un resultado.'
+                else:
+                    tercio = zone_to_tercio(zone)
+                    base_minute = 1
+                    try:
+                        last_min = (
+                            MatchEvent.objects.filter(match=match_obj)
+                            .exclude(minute__isnull=True)
+                            .order_by('-minute')
+                            .values_list('minute', flat=True)
+                            .first()
+                        )
+                        if isinstance(last_min, int):
+                            base_minute = max(1, min(120, last_min))
+                    except Exception:
+                        pass
+                    events = []
+                    for idx in range(quantity):
+                        minute_value = min(120, base_minute + (idx % 5))
+                        events.append(
+                            MatchEvent(
+                                match=match_obj,
+                                player=player_obj,
+                                minute=minute_value,
+                                period=1 if minute_value <= 45 else 2,
+                                event_type=action_type,
+                                result=result,
+                                zone=zone,
+                                tercio=tercio,
+                                observation='Carga manual admin',
+                                source_file='admin-manual',
+                                system='touch-field-final',
+                            )
+                        )
+                    MatchEvent.objects.bulk_create(events, batch_size=200)
+                    actions_message = (
+                        f'Se añadieron {quantity} acciones a {player_obj.name} '
+                        f'en partido ID {match_obj.id}.'
+                    )
     carousel_images = list(HomeCarouselImage.objects.all())
     roster_players = (
         list(Player.objects.filter(team=primary_team).order_by('-is_active', 'number', 'name'))
@@ -1278,6 +1408,24 @@ def admin_page(request):
     players_users = [u for u in users if u.role_value == AppUserRole.ROLE_PLAYER]
     guests_users = [u for u in users if u.role_value == AppUserRole.ROLE_GUEST]
     users_filtered = technical_users if users_segment == 'technical' else players_users if users_segment == 'players' else guests_users
+    admin_matches = (
+        list(_team_match_queryset(primary_team).order_by('-date', '-id')[:60])
+        if primary_team
+        else []
+    )
+    selected_admin_match_id = _parse_int(request.GET.get('match_id') or request.POST.get('match_id'))
+    selected_admin_match = (
+        next((m for m in admin_matches if m.id == selected_admin_match_id), None)
+        if selected_admin_match_id
+        else (admin_matches[0] if admin_matches else None)
+    )
+    admin_players = (
+        list(Player.objects.filter(team=primary_team).order_by('number', 'name'))
+        if primary_team
+        else []
+    )
+    admin_action_choices = load_match_actions()
+    admin_result_choices = load_match_results()
     return render(
         request,
         'football/admin.html',
@@ -1298,6 +1446,14 @@ def admin_page(request):
             'players_users_count': len(players_users),
             'guests_users_count': len(guests_users),
             'users_filtered': users_filtered,
+            'is_admin_user': is_admin_user,
+            'admin_matches': admin_matches,
+            'selected_admin_match': selected_admin_match,
+            'admin_players': admin_players,
+            'admin_action_choices': admin_action_choices,
+            'admin_result_choices': admin_result_choices,
+            'actions_message': actions_message,
+            'actions_error': actions_error,
         },
     )
 
