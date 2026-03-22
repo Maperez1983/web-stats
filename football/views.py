@@ -1049,6 +1049,9 @@ def admin_page(request):
     active_tab = (request.GET.get('tab') or request.POST.get('active_tab') or 'roster').strip().lower()
     if active_tab not in {'roster', 'carousel', 'users'}:
         active_tab = 'roster'
+    users_segment = (request.GET.get('segment') or request.POST.get('users_segment') or 'technical').strip().lower()
+    if users_segment not in {'technical', 'players', 'guests'}:
+        users_segment = 'technical'
     if request.method == 'POST':
         form_action = (request.POST.get('form_action') or '').strip()
         if form_action in {'roster_add_or_update', 'roster_deactivate', 'roster_reactivate'} and primary_team:
@@ -1134,6 +1137,40 @@ def admin_page(request):
                 user_error = str(exc)
             except Exception:
                 user_error = 'No se pudo crear el usuario.'
+        elif form_action == 'user_update':
+            active_tab = 'users'
+            user_id = _parse_int(request.POST.get('user_id'))
+            username = (request.POST.get('username') or '').strip().lower()
+            email = (request.POST.get('email') or '').strip()
+            password = (request.POST.get('password') or '').strip()
+            role_value = (request.POST.get('role') or AppUserRole.ROLE_PLAYER).strip()
+            role_choices = {choice[0] for choice in AppUserRole.ROLE_CHOICES}
+            if role_value not in role_choices:
+                role_value = AppUserRole.ROLE_PLAYER
+            user_obj = User.objects.filter(id=user_id).first() if user_id else None
+            try:
+                if not user_obj:
+                    raise ValueError('Usuario no encontrado.')
+                if not username:
+                    raise ValueError('El usuario es obligatorio.')
+                username_taken = User.objects.filter(username__iexact=username).exclude(id=user_obj.id).exists()
+                if username_taken:
+                    raise ValueError('Ese nombre de usuario ya está en uso.')
+                user_obj.username = username
+                user_obj.email = email
+                if password:
+                    if len(password) < 6:
+                        raise ValueError('La contraseña debe tener al menos 6 caracteres.')
+                    user_obj.set_password(password)
+                should_staff = role_value == AppUserRole.ROLE_ADMIN
+                user_obj.is_staff = should_staff
+                user_obj.save()
+                AppUserRole.objects.update_or_create(user=user_obj, defaults={'role': role_value})
+                user_message = f'Usuario actualizado: {user_obj.username}.'
+            except ValueError as exc:
+                user_error = str(exc)
+            except Exception:
+                user_error = 'No se pudo actualizar el usuario.'
         elif form_action == 'user_update_role':
             active_tab = 'users'
             user_id = _parse_int(request.POST.get('user_id'))
@@ -1184,6 +1221,17 @@ def admin_page(request):
         role_value = role_map.get(item.id, AppUserRole.ROLE_PLAYER)
         item.role_value = role_value
         item.role_label = role_labels.get(role_value, 'Jugador')
+    technical_roles = {
+        AppUserRole.ROLE_COACH,
+        AppUserRole.ROLE_FITNESS,
+        AppUserRole.ROLE_GOALKEEPER,
+        AppUserRole.ROLE_ANALYST,
+        AppUserRole.ROLE_ADMIN,
+    }
+    technical_users = [u for u in users if u.role_value in technical_roles]
+    players_users = [u for u in users if u.role_value == AppUserRole.ROLE_PLAYER]
+    guests_users = [u for u in users if u.role_value == AppUserRole.ROLE_GUEST]
+    users_filtered = technical_users if users_segment == 'technical' else players_users if users_segment == 'players' else guests_users
     return render(
         request,
         'football/admin.html',
@@ -1199,6 +1247,11 @@ def admin_page(request):
             'user_error': user_error,
             'active_tab': active_tab,
             'team_name': primary_team.name if primary_team else '',
+            'users_segment': users_segment,
+            'technical_users_count': len(technical_users),
+            'players_users_count': len(players_users),
+            'guests_users_count': len(guests_users),
+            'users_filtered': users_filtered,
         },
     )
 
@@ -1233,12 +1286,23 @@ def player_dashboard_page(request):
 
 def coach_overview_page(request):
     sources = list(ScrapeSource.objects.filter(is_active=True))
+    technical_roles = {
+        AppUserRole.ROLE_COACH,
+        AppUserRole.ROLE_FITNESS,
+        AppUserRole.ROLE_GOALKEEPER,
+        AppUserRole.ROLE_ANALYST,
+        AppUserRole.ROLE_ADMIN,
+    }
+    role_labels = dict(AppUserRole.ROLE_CHOICES)
+    technical_members = []
+    for role_row in AppUserRole.objects.select_related('user').filter(role__in=technical_roles):
+        if not role_row.user.is_active:
+            continue
+        technical_members.append(f'{role_labels.get(role_row.role, "Técnico")} · {role_row.user.username}')
+    if not technical_members:
+        technical_members = ['Sin miembros técnicos configurados en Admin']
     summary = {
-        'entrainers': [
-            'Entrenador principal · Aitor Castillo',
-            'Entrenador auxiliar · Antonio Martín',
-            'Preparador físico · Alonso García',
-        ],
+        'entrainers': technical_members,
         'rival': [
             'Último rival: Atlético de Marbella',
             'Consecutivos sin recibir gol: 1',

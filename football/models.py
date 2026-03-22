@@ -598,6 +598,7 @@ class RivalAnalysisReport(models.Model):
 
 class AppUserRole(models.Model):
     ROLE_PLAYER = 'jugador'
+    ROLE_GUEST = 'invitado'
     ROLE_COACH = 'entrenador'
     ROLE_FITNESS = 'preparador_fisico'
     ROLE_GOALKEEPER = 'preparador_portero'
@@ -605,6 +606,7 @@ class AppUserRole(models.Model):
     ROLE_ADMIN = 'administrador'
     ROLE_CHOICES = [
         (ROLE_PLAYER, 'Jugador'),
+        (ROLE_GUEST, 'Invitado'),
         (ROLE_COACH, 'Entrenador'),
         (ROLE_FITNESS, 'Preparador físico'),
         (ROLE_GOALKEEPER, 'Preparador portero'),

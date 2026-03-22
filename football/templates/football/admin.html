@@ -173,9 +173,29 @@
         display: grid;
         gap: 0.4rem;
       }
+      .users-segments {
+        display: flex;
+        gap: 0.45rem;
+        flex-wrap: wrap;
+        margin: 0.65rem 0 0.4rem;
+      }
+      .users-segment {
+        text-decoration: none;
+        color: #cbd5e1;
+        border: 1px solid rgba(121, 170, 230, 0.24);
+        padding: 0.35rem 0.7rem;
+        border-radius: 999px;
+        font-size: 0.78rem;
+      }
+      .users-segment.is-active {
+        color: #041323;
+        background: linear-gradient(135deg, #14d8ff, #4f46e5);
+        border-color: transparent;
+        font-weight: 700;
+      }
       .user-item {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) auto auto;
+        grid-template-columns: minmax(0, 1fr) auto;
         align-items: center;
         gap: 0.6rem;
         padding: 0.55rem;
@@ -284,6 +304,7 @@
           {% csrf_token %}
           <input type="hidden" name="form_action" value="user_create" />
           <input type="hidden" name="active_tab" value="users" />
+          <input type="hidden" name="users_segment" value="{{ users_segment }}" />
           <label>
             <span>Usuario</span>
             <input type="text" name="username" required />
@@ -306,28 +327,47 @@
           </label>
           <button class="pill-button" type="submit">Crear usuario</button>
         </form>
+        <nav class="users-segments">
+          <a class="users-segment {% if users_segment == 'technical' %}is-active{% endif %}" href="{% url 'admin-page' %}?tab=users&segment=technical">Miembros técnicos ({{ technical_users_count }})</a>
+          <a class="users-segment {% if users_segment == 'players' %}is-active{% endif %}" href="{% url 'admin-page' %}?tab=users&segment=players">Jugadores ({{ players_users_count }})</a>
+          <a class="users-segment {% if users_segment == 'guests' %}is-active{% endif %}" href="{% url 'admin-page' %}?tab=users&segment=guests">Invitados ({{ guests_users_count }})</a>
+        </nav>
         <div class="users-list">
-          {% for item in users %}
+          {% for item in users_filtered %}
           <article class="user-item">
-            <div>
-              <strong>{{ item.username }}</strong>
-              <div style="opacity:.75;">{{ item.email|default:"sin email" }} · {{ item.role_label }}</div>
-            </div>
-            <form method="post" class="form-inline">
+            <form method="post" class="users-form" style="grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); margin:0;">
               {% csrf_token %}
-              <input type="hidden" name="form_action" value="user_update_role" />
+              <input type="hidden" name="form_action" value="user_update" />
               <input type="hidden" name="active_tab" value="users" />
+              <input type="hidden" name="users_segment" value="{{ users_segment }}" />
               <input type="hidden" name="user_id" value="{{ item.id }}" />
-              <select name="role" class="role-select" onchange="this.form.submit()">
+              <label>
+                <span>Usuario</span>
+                <input type="text" name="username" value="{{ item.username }}" required />
+              </label>
+              <label>
+                <span>Email</span>
+                <input type="text" name="email" value="{{ item.email }}" />
+              </label>
+              <label>
+                <span>Nueva contraseña</span>
+                <input type="text" name="password" placeholder="Dejar vacío para mantener" />
+              </label>
+              <label>
+                <span>Rol</span>
+                <select name="role" class="role-select">
                 {% for value, label in role_choices %}
                 <option value="{{ value }}" {% if item.role_value == value %}selected{% endif %}>{{ label }}</option>
                 {% endfor %}
               </select>
+              </label>
+              <button class="pill-button" type="submit">Guardar</button>
             </form>
             <form method="post" class="form-inline">
               {% csrf_token %}
               <input type="hidden" name="form_action" value="user_toggle_active" />
               <input type="hidden" name="active_tab" value="users" />
+              <input type="hidden" name="users_segment" value="{{ users_segment }}" />
               <input type="hidden" name="user_id" value="{{ item.id }}" />
               {% if item.is_active %}
               <button class="button-danger" type="submit">Desactivar</button>
@@ -337,7 +377,7 @@
             </form>
           </article>
           {% empty %}
-          <p style="margin:0.55rem 0;color:rgba(205,225,255,0.82);">No hay usuarios registrados.</p>
+          <p style="margin:0.55rem 0;color:rgba(205,225,255,0.82);">No hay usuarios en esta subpestaña.</p>
           {% endfor %}
         </div>
       </section>
