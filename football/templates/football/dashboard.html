@@ -258,6 +258,26 @@
         border-collapse: collapse;
         font-size: 0.92rem;
       }
+      .standings-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+      }
+      .standings-toggle {
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 999px;
+        padding: 0.32rem 0.75rem;
+        font-size: 0.72rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #e5efff;
+        background: rgba(255, 255, 255, 0.08);
+        cursor: pointer;
+      }
+      .standings-toggle[hidden] {
+        display: none;
+      }
 
       .standings th,
       .standings td {
@@ -437,7 +457,10 @@
 
       <section class="main-grid">
         <article class="block standings" id="standings-block">
-          <h3>Clasificación</h3>
+          <div class="standings-header">
+            <h3>Clasificación</h3>
+            <button id="standings-toggle" class="standings-toggle" type="button" hidden>Ver toda</button>
+          </div>
           <div id="standings">Cargando clasificación…</div>
         </article>
         <article class="block" id="team-metrics-block">
@@ -459,18 +482,25 @@
       const refreshLast = document.getElementById('refresh-last');
       const heroElement = document.getElementById('team-hero');
       const managedHeroImages = JSON.parse(document.getElementById('hero-images-json')?.textContent || '[]');
-      const heroImageCandidates = (managedHeroImages || []).filter(Boolean).length
-        ? managedHeroImages
-        : [
-            '{% static "football/images/team-01.jpg" %}',
-            '{% static "football/images/team-02.jpg" %}',
-            '{% static "football/images/team-03.jpg" %}',
-          ];
+      const staticHeroFallbacks = [
+        '{% static "football/images/team-01.jpg" %}',
+        '{% static "football/images/team-02.jpg" %}',
+        '{% static "football/images/team-03.jpg" %}',
+      ];
+      const heroImageCandidates = [];
+      [...(managedHeroImages || []), ...staticHeroFallbacks].forEach((src) => {
+        const value = String(src || '').trim();
+        if (!value) return;
+        if (!heroImageCandidates.includes(value)) {
+          heroImageCandidates.push(value);
+        }
+      });
       const heroFallback = '{% static "football/campo-futbol.jpg" %}';
       const playerAvatarFallback = '{% static "football/images/player-avatar.svg" %}';
       let heroImageList = [];
       let heroIndex = 0;
       let heroTimer = null;
+      let standingsExpanded = false;
 
       function preloadImage(src) {
         return new Promise((resolve) => {
@@ -527,8 +557,10 @@
 
       function renderStandings(standings, team) {
         const container = document.getElementById('standings');
+        const toggleBtn = document.getElementById('standings-toggle');
         if (!standings || !standings.length) {
           container.textContent = 'No hay datos de clasificación todavía.';
+          if (toggleBtn) toggleBtn.hidden = true;
           return;
         }
 
@@ -541,8 +573,17 @@
         document.getElementById('kpi-points').textContent = teamRow?.points ?? '-';
         document.getElementById('kpi-played').textContent = teamRow?.played ?? '-';
 
-        const rows = standings
-          .slice(0, 10)
+        const visibleRows = standingsExpanded ? standings : standings.slice(0, 10);
+        if (toggleBtn) {
+          if (standings.length > 10) {
+            toggleBtn.hidden = false;
+            toggleBtn.textContent = standingsExpanded ? 'Mostrar top 10' : 'Ver toda';
+          } else {
+            toggleBtn.hidden = true;
+          }
+        }
+
+        const rows = visibleRows
           .map(
             (standing) => `
             <tr>
@@ -736,6 +777,13 @@
       const refreshBtn = document.getElementById('refresh-btn');
       if (refreshBtn) {
         refreshBtn.addEventListener('click', () => refreshData());
+      }
+      const standingsToggle = document.getElementById('standings-toggle');
+      if (standingsToggle) {
+        standingsToggle.addEventListener('click', () => {
+          standingsExpanded = !standingsExpanded;
+          renderDashboard();
+        });
       }
 
       initHeroImages();
