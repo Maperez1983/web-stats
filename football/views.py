@@ -1042,6 +1042,19 @@ def _handle_home_carousel_post(request):
 @login_required
 @ensure_csrf_cookie
 def admin_page(request):
+    def _split_full_name(value):
+        text = str(value or '').strip()
+        if not text:
+            return '', ''
+        parts = [part for part in text.split() if part]
+        if len(parts) == 1:
+            return parts[0], ''
+        return parts[0], ' '.join(parts[1:])
+
+    def _display_full_name(user_obj):
+        full = user_obj.get_full_name().strip()
+        return full or user_obj.username
+
     primary_team = Team.objects.filter(is_primary=True).first()
     roster_message = ''
     roster_error = ''
@@ -1112,6 +1125,7 @@ def admin_page(request):
         elif form_action == 'user_create':
             active_tab = 'users'
             username = (request.POST.get('username') or '').strip().lower()
+            full_name = (request.POST.get('full_name') or '').strip()
             email = (request.POST.get('email') or '').strip()
             password = (request.POST.get('password') or '').strip()
             role_value = (request.POST.get('role') or AppUserRole.ROLE_PLAYER).strip()
@@ -1125,10 +1139,13 @@ def admin_page(request):
                     raise ValueError('Ese usuario ya existe.')
                 if len(password) < 6:
                     raise ValueError('La contraseña debe tener al menos 6 caracteres.')
+                first_name, last_name = _split_full_name(full_name)
                 user = User.objects.create_user(
                     username=username,
                     email=email,
                     password=password,
+                    first_name=first_name,
+                    last_name=last_name,
                 )
                 if role_value == AppUserRole.ROLE_ADMIN:
                     user.is_staff = True
@@ -1143,6 +1160,7 @@ def admin_page(request):
             active_tab = 'users'
             user_id = _parse_int(request.POST.get('user_id'))
             username = (request.POST.get('username') or '').strip().lower()
+            full_name = (request.POST.get('full_name') or '').strip()
             email = (request.POST.get('email') or '').strip()
             password = (request.POST.get('password') or '').strip()
             role_value = (request.POST.get('role') or AppUserRole.ROLE_PLAYER).strip()
@@ -1158,7 +1176,10 @@ def admin_page(request):
                 username_taken = User.objects.filter(username__iexact=username).exclude(id=user_obj.id).exists()
                 if username_taken:
                     raise ValueError('Ese nombre de usuario ya está en uso.')
+                first_name, last_name = _split_full_name(full_name)
                 user_obj.username = username
+                user_obj.first_name = first_name
+                user_obj.last_name = last_name
                 user_obj.email = email
                 if password:
                     if len(password) < 6:
@@ -1223,6 +1244,7 @@ def admin_page(request):
         role_value = role_map.get(item.id, AppUserRole.ROLE_PLAYER)
         item.role_value = role_value
         item.role_label = role_labels.get(role_value, 'Jugador')
+        item.full_name_display = _display_full_name(item)
     technical_roles = {
         AppUserRole.ROLE_COACH,
         AppUserRole.ROLE_FITNESS,
@@ -1300,7 +1322,8 @@ def coach_overview_page(request):
     for role_row in AppUserRole.objects.select_related('user').filter(role__in=technical_roles):
         if not role_row.user.is_active:
             continue
-        technical_members.append(f'{role_labels.get(role_row.role, "Técnico")} · {role_row.user.username}')
+        full_name = role_row.user.get_full_name().strip() or role_row.user.username
+        technical_members.append(f'{role_labels.get(role_row.role, "Técnico")} · {full_name}')
     if not technical_members:
         technical_members = ['Sin miembros técnicos configurados en Admin']
     summary = {

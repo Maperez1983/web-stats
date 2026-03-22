@@ -306,6 +306,10 @@
           <input type="hidden" name="active_tab" value="users" />
           <input type="hidden" name="users_segment" value="{{ users_segment }}" />
           <label>
+            <span>Nombre completo</span>
+            <input type="text" name="full_name" placeholder="Nombre y apellidos" required />
+          </label>
+          <label>
             <span>Usuario</span>
             <input type="text" name="username" required />
           </label>
@@ -341,6 +345,10 @@
               <input type="hidden" name="active_tab" value="users" />
               <input type="hidden" name="users_segment" value="{{ users_segment }}" />
               <input type="hidden" name="user_id" value="{{ item.id }}" />
+              <label>
+                <span>Nombre completo</span>
+                <input type="text" name="full_name" value="{{ item.full_name_display }}" required />
+              </label>
               <label>
                 <span>Usuario</span>
                 <input type="text" name="username" value="{{ item.username }}" required />
