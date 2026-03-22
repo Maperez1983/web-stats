@@ -497,6 +497,18 @@
         justify-content: space-between;
         gap: 0.6rem;
       }
+      .advanced-toggle-wrap {
+        display: flex;
+        justify-content: flex-start;
+        margin: 0.25rem 0 0.35rem;
+      }
+      .advanced-section {
+        display: none;
+        gap: 0.65rem;
+      }
+      .advanced-section.is-open {
+        display: grid;
+      }
 
       @media (max-width: 940px) {
         .grid { grid-template-columns: 1fr; }
@@ -672,6 +684,10 @@
               Objetivo
               <input type="text" name="task_objective" maxlength="180" placeholder="Activar vigilancia y saltos coordinados" />
             </label>
+            <div class="advanced-toggle-wrap">
+              <button class="secondary" type="button" id="toggle-advanced-task">Mostrar opciones avanzadas</button>
+            </div>
+            <div class="advanced-section" id="advanced-task-section">
             <div class="row">
               <label>
                 Superficie
@@ -849,6 +865,7 @@
               Notas de staff
               <textarea name="task_staff_notes" placeholder="Ajustes para PF, porteros, analista, readaptación"></textarea>
             </label>
+            </div>
             <label>
               Consignas (una por línea)
               <textarea name="task_coaching_points" placeholder="Ejemplo:&#10;- Perfil corporal orientado&#10;- Comunicación previa al salto"></textarea>
@@ -1183,6 +1200,8 @@
       const materialSearch = document.getElementById('material-search');
       const materialGroups = Array.from(document.querySelectorAll('#materials-groups .palette-group'));
       const taskTemplateSelect = document.getElementById('task-template-select');
+      const toggleAdvancedTaskBtn = document.getElementById('toggle-advanced-task');
+      const advancedTaskSection = document.getElementById('advanced-task-section');
       const taskTemplateLibrary = JSON.parse(document.getElementById('task-template-library-data')?.textContent || '[]');
       const MATERIAL_ICON_BY_KIND = {
         cone: '△',
@@ -1422,6 +1441,13 @@
         const key = String(event.target.value || '');
         if (!key || key === 'none') return;
         applyTaskTemplate(key);
+      });
+      toggleAdvancedTaskBtn?.addEventListener('click', () => {
+        if (!advancedTaskSection) return;
+        const open = advancedTaskSection.classList.toggle('is-open');
+        toggleAdvancedTaskBtn.textContent = open
+          ? 'Ocultar opciones avanzadas'
+          : 'Mostrar opciones avanzadas';
       });
       applyMaterialFilters();
 

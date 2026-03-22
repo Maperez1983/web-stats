@@ -192,11 +192,26 @@
         border-radius: 8px;
         border: 1px solid rgba(255, 255, 255, 0.82);
         background: linear-gradient(145deg, rgba(22, 163, 74, 0.95), rgba(21, 128, 61, 0.95));
-        font-size: 0.69rem;
         font-weight: 700;
         letter-spacing: 0.04em;
-        padding: 0.2rem 0.25rem;
+        padding: 0.2rem 0.3rem;
         color: #f0fdf4;
+        display: grid;
+        grid-template-columns: 18px minmax(0, 1fr);
+        align-items: center;
+        gap: 0.25rem;
+      }
+      .token-photo {
+        width: 18px;
+        height: 18px;
+        border-radius: 999px;
+        object-fit: cover;
+        object-position: top center;
+        border: 1px solid rgba(255, 255, 255, 0.7);
+      }
+      .token-name {
+        font-size: 0.62rem;
+        line-height: 1.1;
       }
       .toolbar {
         margin-top: 0.75rem;
@@ -247,7 +262,7 @@
           {% endif %}
           <div class="players" id="player-list">
             {% for player in convocation_players %}
-            <label class="player-card" data-player-id="{{ player.id }}" data-player-name="{{ player.name|upper|escape }}" data-player-number="{{ player.number|default:'--' }}" data-player-position="{{ player.position|default:''|escape }}">
+            <label class="player-card" data-player-id="{{ player.id }}" data-player-name="{{ player.name|upper|escape }}" data-player-number="{{ player.number|default:'--' }}" data-player-position="{{ player.position|default:''|escape }}" data-player-photo="{{ player.photo_url|default:''|escape }}">
               {% if player.photo_url %}
               <img src="{{ player.photo_url }}" alt="{{ player.name }}" loading="lazy" />
               {% else %}
@@ -304,6 +319,7 @@
       ];
 
       let lineupState = { starters: [], bench: [] };
+      const avatarFallback = '{% static "football/images/player-avatar.svg" %}';
       try {
         const seed = JSON.parse(document.getElementById('lineup-seed-data')?.textContent || '{}');
         if (seed && typeof seed === 'object') {
@@ -342,7 +358,20 @@
           if (player) {
             const token = document.createElement('div');
             token.className = 'token';
-            token.textContent = `#${player.number || '--'} ${String(player.name || '').toUpperCase()}`;
+            const photo = document.createElement('img');
+            photo.className = 'token-photo';
+            photo.src = player.photo || avatarFallback;
+            photo.alt = player.name || 'Jugador';
+            photo.loading = 'lazy';
+            photo.onerror = () => {
+              photo.onerror = null;
+              photo.src = avatarFallback;
+            };
+            const name = document.createElement('span');
+            name.className = 'token-name';
+            name.textContent = `#${player.number || '--'} ${String(player.name || '').toUpperCase()}`;
+            token.appendChild(photo);
+            token.appendChild(name);
             box.appendChild(token);
           }
           field.appendChild(box);
@@ -356,7 +385,7 @@
         name: String(card.dataset.playerName || '').toUpperCase(),
         number: String(card.dataset.playerNumber || '--'),
         position: String(card.dataset.playerPosition || ''),
-        photo: '',
+        photo: String(card.dataset.playerPhoto || ''),
       });
 
       const syncFromChecks = () => {
