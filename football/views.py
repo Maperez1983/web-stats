@@ -4,6 +4,9 @@ import subprocess
 import sys
 import base64
 import mimetypes
+import io
+import csv
+import zipfile
 from collections import Counter
 from datetime import datetime, timedelta
 from functools import wraps
@@ -2142,6 +2145,139 @@ def session_task_pdf(request, task_id):
     html = render_to_string('football/session_task_pdf.html', context)
     filename = slugify(f'tarea-{task.session.session_date}-{task.title}') or f'tarea-{task.id}'
     return _build_pdf_response_or_html_fallback(request, html, filename)
+
+
+def _resolve_static_asset_file(asset_value):
+    raw = str(asset_value or '').strip()
+    if not raw:
+        return None
+    if raw.startswith('/static/'):
+        rel = raw[len('/static/'):]
+    else:
+        rel = raw
+    rel = rel.lstrip('/')
+    roots = [
+        Path(settings.BASE_DIR) / 'static',
+        Path(settings.BASE_DIR) / 'football' / 'static',
+    ]
+    for root in roots:
+        candidate = root / rel
+        if candidate.exists() and candidate.is_file():
+            return candidate
+    return None
+
+
+@login_required
+def session_task_canva_export(request, task_id):
+    task = (
+        SessionTask.objects
+        .select_related('session__microcycle__team')
+        .filter(id=task_id)
+        .first()
+    )
+    if not task:
+        raise Http404('Tarea no encontrada')
+
+    team = task.session.microcycle.team
+    session = task.session
+    tactical_layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
+    meta = tactical_layout.get('meta') if isinstance(tactical_layout, dict) else {}
+    if not isinstance(meta, dict):
+        meta = {}
+    tokens = tactical_layout.get('tokens') if isinstance(tactical_layout, dict) else []
+    if not isinstance(tokens, list):
+        tokens = []
+    timeline = tactical_layout.get('timeline') if isinstance(tactical_layout, dict) else []
+    if not isinstance(timeline, list):
+        timeline = []
+
+    canva_fields = {
+        'equipo': team.name,
+        'fecha_sesion': session.session_date.isoformat() if session.session_date else '',
+        'foco_sesion': session.focus or '',
+        'tarea': task.title or '',
+        'bloque': task.get_block_display() if hasattr(task, 'get_block_display') else task.block,
+        'duracion_min': str(task.duration_minutes or ''),
+        'objetivo': task.objective or '',
+        'consignas': task.coaching_points or '',
+        'reglas': task.confrontation_rules or '',
+        'superficie': str(meta.get('surface') or ''),
+        'formato_campo': str(meta.get('pitch_format') or ''),
+        'espacio': str(meta.get('space') or ''),
+        'organizacion': str(meta.get('organization') or ''),
+        'distribucion': str(meta.get('players_distribution') or ''),
+        'carga_objetivo': str(meta.get('load_target') or ''),
+        'material': str(meta.get('resources_summary') or ''),
+        'progresion': str(meta.get('progression') or ''),
+        'regresion': str(meta.get('regression') or ''),
+        'trabajo_pausa': str(meta.get('work_rest') or ''),
+        'series': str(meta.get('series') or ''),
+        'repeticiones': str(meta.get('repetitions') or ''),
+        'principio': str(meta.get('principle') or ''),
+        'subprincipio': str(meta.get('subprinciple') or ''),
+        'puntuacion': str(meta.get('scoring_model') or ''),
+        'criterio_exito': str(meta.get('success_criteria') or ''),
+    }
+
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, mode='w', compression=zipfile.ZIP_DEFLATED) as zf:
+        csv_buffer = io.StringIO()
+        writer = csv.DictWriter(csv_buffer, fieldnames=list(canva_fields.keys()))
+        writer.writeheader()
+        writer.writerow(canva_fields)
+        zf.writestr('canva/canva_task_data.csv', csv_buffer.getvalue())
+
+        payload = {
+            'task_id': task.id,
+            'session_id': session.id,
+            'team': team.name,
+            'created_at': timezone.now().isoformat(),
+            'task': canva_fields,
+            'tactical_layout': tactical_layout,
+        }
+        zf.writestr(
+            'canva/task_payload.json',
+            json.dumps(payload, ensure_ascii=False, indent=2),
+        )
+        zf.writestr(
+            'canva/tactical_layout.json',
+            json.dumps(
+                {'tokens': tokens, 'timeline': timeline, 'meta': meta},
+                ensure_ascii=False,
+                indent=2,
+            ),
+        )
+
+        readme = (
+            'PACK EXPORT CANVA - WEB STATS\n\n'
+            '1) Canva > Crear diseño.\n'
+            '2) Apps > Bulk create > Subir CSV: canva/canva_task_data.csv\n'
+            '3) Vincula los campos del CSV a textos de tu plantilla.\n'
+            '4) Usa canva/tactical_layout.json como referencia de pizarra.\n'
+            '5) Usa assets/ para arrastrar iconos/imagenes al diseño.\n'
+        )
+        zf.writestr('README_CANVA.txt', readme)
+
+        seen_names = set()
+        for token in tokens:
+            if not isinstance(token, dict):
+                continue
+            asset_value = token.get('asset')
+            source_file = _resolve_static_asset_file(asset_value)
+            if not source_file:
+                continue
+            filename = source_file.name
+            if filename in seen_names:
+                continue
+            seen_names.add(filename)
+            zf.write(source_file, arcname=f'assets/{filename}')
+
+    buffer.seek(0)
+    slug = slugify(task.title or f'tarea-{task.id}') or f'tarea-{task.id}'
+    filename = f'canva-task-{slug}.zip'
+    response = HttpResponse(buffer.getvalue(), content_type='application/zip')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
 
 
 def coach_cards_page(request):

@@ -787,6 +787,7 @@
                     <li>
                       {{ task.get_block_display }} · {{ task.title }} ({{ task.duration_minutes }}')
                       <a class="task-link" href="{% url 'session-task-pdf' task.id %}" target="_blank" rel="noopener">PDF UEFA B</a>
+                      <a class="task-link" href="{% url 'session-task-canva-export' task.id %}">Export Canva ZIP</a>
                       {% if task.tactical_layout.meta.tactical_pad_enabled %}<span class="task-badge">Tactical Pad</span>{% endif %}
                       <form method="post" style="display:inline;">
                         {% csrf_token %}

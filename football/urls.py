@@ -33,6 +33,7 @@ urlpatterns = [
     path('coach/11-inicial/', views.initial_eleven_page, name='initial-eleven'),
     path('coach/sesiones/', views.sessions_page, name='sessions'),
     path('coach/sesiones/tarea/<int:task_id>/pdf/', views.session_task_pdf, name='session-task-pdf'),
+    path('coach/sesiones/tarea/<int:task_id>/canva/', views.session_task_canva_export, name='session-task-canva-export'),
     path('coach/multas/', views.fines_page, name='fines'),
     path('coach/analisis/', views.analysis_page, name='analysis'),
     path('coach/estadisticas-manuales/', views.manual_player_stats_page, name='manual-player-stats'),
