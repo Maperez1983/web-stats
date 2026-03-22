@@ -1771,13 +1771,41 @@ def finalize_match_actions(request):
         Q(event_type__icontains='tarjeta') | Q(event_type__icontains='sustitucion') | Q(event_type__icontains='sustitución') | Q(event_type__icontains='cambio'),
     ).delete()
 
-    updated = MatchEvent.objects.filter(id__in=[event.id for event in pending_events]).update(
-        system='touch-field-final'
-    )
+    # Evita consolidar duplicados por doble click/reintento de red en pocos segundos.
+    # Importante: no eliminar acciones reales repetidas a lo largo del partido.
+    dedupe_seconds = 12
+    existing_final_by_signature = defaultdict(list)
+    for event in MatchEvent.objects.filter(match=match, system='touch-field-final').select_related('player'):
+        existing_final_by_signature[_event_signature(event)].append(event.created_at)
+    seen_pending_by_signature = defaultdict(list)
+    keep_ids = []
+    drop_ids = []
+    for event in sorted(pending_events, key=lambda e: e.created_at or timezone.now()):
+        signature = _event_signature(event)
+        created_at = event.created_at or timezone.now()
+        existing_times = existing_final_by_signature.get(signature, [])
+        pending_times = seen_pending_by_signature.get(signature, [])
+        is_near_duplicate = any(
+            abs((created_at - known).total_seconds()) <= dedupe_seconds
+            for known in [*existing_times, *pending_times]
+        )
+        if is_near_duplicate:
+            drop_ids.append(event.id)
+            continue
+        seen_pending_by_signature[signature].append(created_at)
+        keep_ids.append(event.id)
+
+    if drop_ids:
+        MatchEvent.objects.filter(id__in=drop_ids, match=match, system='touch-field').delete()
+
+    updated = 0
+    if keep_ids:
+        updated = MatchEvent.objects.filter(id__in=keep_ids).update(system='touch-field-final')
     return JsonResponse(
         {
             'saved': True,
             'updated': updated,
+            'deduplicated': len(drop_ids),
             'match_id': match.id,
             'match_label': str(match),
         }
