@@ -209,6 +209,18 @@
       .video-item h4 {
         margin: 0 0 0.35rem;
       }
+      .manual-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 0.75rem;
+      }
+      .manual-grid .wide {
+        grid-column: 1 / -1;
+      }
+      .ok {
+        color: #86efac;
+        margin-top: 0.55rem;
+      }
     </style>
   </head>
   <body>
@@ -270,6 +282,118 @@
               <li><strong>Tabla cargada:</strong> <span class="meta">{{ extracted.standings_count }} equipos</span></li>
               <li><strong>URL Preferente:</strong> <span class="meta">{{ extracted.preferente_url|default:"No definida" }}</span></li>
             </ul>
+          </div>
+          <div class="item item-wide">
+            <h3>Informe manual de analista (plan partido)</h3>
+            <form class="form" method="post" style="margin-top:0.35rem;">
+              {% csrf_token %}
+              <input type="hidden" name="form_action" value="save_manual_report" />
+              <input type="hidden" name="team_id" value="{{ team_id }}" />
+              <div class="manual-grid">
+                <div>
+                  <label for="manual_report_title">Título informe</label>
+                  <input id="manual_report_title" name="manual_report_title" type="text" value="{{ manual_initial.report_title }}" placeholder="Ej. Plan J25 vs Alhaurín" />
+                </div>
+                <div>
+                  <label for="manual_rival_name">Rival</label>
+                  <input id="manual_rival_name" name="manual_rival_name" type="text" value="{{ manual_initial.rival_name }}" />
+                </div>
+                <div>
+                  <label for="manual_match_round">Jornada</label>
+                  <input id="manual_match_round" name="manual_match_round" type="text" value="{{ manual_initial.match_round }}" />
+                </div>
+                <div>
+                  <label for="manual_match_date">Fecha/Hora</label>
+                  <input id="manual_match_date" name="manual_match_date" type="text" value="{{ manual_initial.match_date }}" />
+                </div>
+                <div class="wide">
+                  <label for="manual_match_location">Campo</label>
+                  <input id="manual_match_location" name="manual_match_location" type="text" value="{{ manual_initial.match_location }}" />
+                </div>
+                <div>
+                  <label for="manual_tactical_system">Sistema rival</label>
+                  <input id="manual_tactical_system" name="manual_tactical_system" type="text" value="{{ manual_initial.tactical_system }}" placeholder="1-4-2-3-1 / 1-4-4-2..." />
+                </div>
+                <div>
+                  <label for="manual_confidence">Nivel confianza (1-5)</label>
+                  <input id="manual_confidence" name="manual_confidence" type="number" min="1" max="5" value="{{ manual_initial.confidence|default:3 }}" />
+                </div>
+                <div>
+                  <label for="manual_status">Estado</label>
+                  <select id="manual_status" name="manual_status">
+                    {% for value,label in manual_report_status_choices %}
+                    <option value="{{ value }}" {% if manual_initial.status == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="wide">
+                  <label for="manual_attacking_patterns">Patrones ofensivos del rival</label>
+                  <textarea id="manual_attacking_patterns" name="manual_attacking_patterns" style="min-height:96px;">{{ manual_initial.attacking_patterns }}</textarea>
+                </div>
+                <div class="wide">
+                  <label for="manual_defensive_patterns">Patrones defensivos del rival</label>
+                  <textarea id="manual_defensive_patterns" name="manual_defensive_patterns" style="min-height:96px;">{{ manual_initial.defensive_patterns }}</textarea>
+                </div>
+                <div class="wide">
+                  <label for="manual_transitions">Transiciones (OF/DEF)</label>
+                  <textarea id="manual_transitions" name="manual_transitions" style="min-height:96px;">{{ manual_initial.transitions }}</textarea>
+                </div>
+                <div>
+                  <label for="manual_set_pieces_for">ABP ofensivas rival</label>
+                  <textarea id="manual_set_pieces_for" name="manual_set_pieces_for" style="min-height:90px;">{{ manual_initial.set_pieces_for }}</textarea>
+                </div>
+                <div>
+                  <label for="manual_set_pieces_against">ABP defensivas rival</label>
+                  <textarea id="manual_set_pieces_against" name="manual_set_pieces_against" style="min-height:90px;">{{ manual_initial.set_pieces_against }}</textarea>
+                </div>
+                <div class="wide">
+                  <label for="manual_key_players">Jugadores clave rival</label>
+                  <textarea id="manual_key_players" name="manual_key_players" style="min-height:88px;">{{ manual_initial.key_players }}</textarea>
+                </div>
+                <div>
+                  <label for="manual_weaknesses">Debilidades detectadas</label>
+                  <textarea id="manual_weaknesses" name="manual_weaknesses" style="min-height:92px;">{{ manual_initial.weaknesses }}</textarea>
+                </div>
+                <div>
+                  <label for="manual_opportunities">Oportunidades para atacarles</label>
+                  <textarea id="manual_opportunities" name="manual_opportunities" style="min-height:92px;">{{ manual_initial.opportunities }}</textarea>
+                </div>
+                <div class="wide">
+                  <label for="manual_match_plan">Plan de partido propuesto</label>
+                  <textarea id="manual_match_plan" name="manual_match_plan" style="min-height:110px;">{{ manual_initial.match_plan }}</textarea>
+                </div>
+                <div class="wide">
+                  <label for="manual_individual_tasks">Tareas individuales (líneas/jugadores)</label>
+                  <textarea id="manual_individual_tasks" name="manual_individual_tasks" style="min-height:110px;">{{ manual_initial.individual_tasks }}</textarea>
+                </div>
+                <div class="wide">
+                  <label for="manual_alert_notes">Alertas y riesgos (lesión, sanción, contexto)</label>
+                  <textarea id="manual_alert_notes" name="manual_alert_notes" style="min-height:90px;">{{ manual_initial.alert_notes }}</textarea>
+                </div>
+              </div>
+              <div class="actions">
+                <button class="button" type="submit">Guardar informe manual</button>
+              </div>
+              {% if manual_report_message %}
+              <p class="ok">{{ manual_report_message }}</p>
+              {% endif %}
+              {% if manual_report_error %}
+              <p class="error">{{ manual_report_error }}</p>
+              {% endif %}
+            </form>
+            {% if manual_reports %}
+            <div style="margin-top:0.85rem;">
+              <h3 style="margin:0 0 0.35rem;">Histórico informes (últimos)</h3>
+              <ul class="list">
+                {% for report in manual_reports %}
+                <li>
+                  <strong>{{ report.report_title|default:"Informe sin título" }}</strong>
+                  <span class="meta"> · {{ report.rival_name }} · {{ report.get_status_display }} · {{ report.updated_at|date:"d/m/Y H:i" }}</span>
+                </li>
+                {% endfor %}
+              </ul>
+            </div>
+            {% endif %}
           </div>
           <div class="item item-wide">
             <h3>Repositorio vídeos rival</h3>

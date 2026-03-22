@@ -92,15 +92,34 @@
         margin: 0 6px;
       }
       .body {
-        display: block;
+        display: table;
         width: 100%;
         margin-top: 8px;
       }
       .left {
+        display: table-cell;
+        width: 66%;
+        padding-right: 10px;
+        vertical-align: top;
+      }
+      .right {
+        display: table-cell;
+        width: 34%;
+        vertical-align: top;
+      }
+      .team-photo-wrap {
+        width: 100%;
+        border: 1px solid #c8d9d0;
+        border-radius: 10px;
+        overflow: hidden;
+        background: #eef4f1;
+      }
+      .team-photo-wrap img {
         display: block;
         width: 100%;
-        padding-right: 0;
-        vertical-align: top;
+        height: 260px;
+        object-fit: cover;
+        object-position: center;
       }
       .meta {
         border-bottom: 2px solid #95b9ac;
@@ -266,6 +285,11 @@
 
               <p class="hashtag">{{ club_hashtag }}</p>
             </div>
+            <aside class="right">
+              <div class="team-photo-wrap">
+                <img src="{% if team_photo_data_uri %}{{ team_photo_data_uri }}{% else %}{{ team_photo_url }}{% endif %}" alt="Foto del equipo" />
+              </div>
+            </aside>
           </section>
         </main>
       </div>

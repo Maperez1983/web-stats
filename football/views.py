@@ -13,6 +13,7 @@ import re
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.db import transaction
 from django.db.models import Count, Max, Q
@@ -55,6 +56,8 @@ from football.models import (
     ConvocationRecord,
     HomeCarouselImage,
     RivalVideo,
+    RivalAnalysisReport,
+    AppUserRole,
 )
 from football.event_taxonomy import (
     DRIBBLE_KEYWORDS,
@@ -823,7 +826,8 @@ def dashboard_data(request):
     standings = _serialize_universo_standings(universo_snapshot) or serialize_standings(group)
     next_match = load_preferred_next_match_payload() or get_next_match(primary_team, group)
     convocation_next_match = _build_next_match_from_convocation(primary_team)
-    if convocation_next_match and not _next_match_payload_is_reliable(next_match):
+    # Product rule: Home must prioritize the data configured in Convocatoria.
+    if convocation_next_match:
         next_match = convocation_next_match
     team_metrics = compute_team_metrics(primary_team)
     player_metrics = compute_player_metrics(primary_team)
@@ -909,9 +913,16 @@ def admin_page(request):
     primary_team = Team.objects.filter(is_primary=True).first()
     roster_message = ''
     roster_error = ''
+    carousel_message = ''
+    user_message = ''
+    user_error = ''
+    active_tab = (request.GET.get('tab') or request.POST.get('active_tab') or 'roster').strip().lower()
+    if active_tab not in {'roster', 'carousel', 'users'}:
+        active_tab = 'roster'
     if request.method == 'POST':
         form_action = (request.POST.get('form_action') or '').strip()
         if form_action in {'roster_add_or_update', 'roster_deactivate', 'roster_reactivate'} and primary_team:
+            active_tab = 'roster'
             player_id = _parse_int(request.POST.get('player_id'))
             name = (request.POST.get('name') or '').strip()
             number_raw = (request.POST.get('number') or '').strip()
@@ -959,14 +970,90 @@ def admin_page(request):
                 roster_error = str(exc)
             except Exception:
                 roster_error = 'No se pudo guardar la plantilla.'
-        if _handle_home_carousel_post(request):
-            return redirect(f"{reverse('admin-page')}#carousel-manager")
+        elif form_action in {'carousel_upload', 'carousel_update', 'carousel_delete'}:
+            active_tab = 'carousel'
+            if _handle_home_carousel_post(request):
+                carousel_message = 'Cambios guardados en fotos Home.'
+        elif form_action == 'user_create':
+            active_tab = 'users'
+            username = (request.POST.get('username') or '').strip().lower()
+            email = (request.POST.get('email') or '').strip()
+            password = (request.POST.get('password') or '').strip()
+            role_value = (request.POST.get('role') or AppUserRole.ROLE_PLAYER).strip()
+            role_choices = {choice[0] for choice in AppUserRole.ROLE_CHOICES}
+            if role_value not in role_choices:
+                role_value = AppUserRole.ROLE_PLAYER
+            try:
+                if not username:
+                    raise ValueError('El usuario es obligatorio.')
+                if User.objects.filter(username__iexact=username).exists():
+                    raise ValueError('Ese usuario ya existe.')
+                if len(password) < 6:
+                    raise ValueError('La contraseña debe tener al menos 6 caracteres.')
+                user = User.objects.create_user(
+                    username=username,
+                    email=email,
+                    password=password,
+                )
+                if role_value == AppUserRole.ROLE_ADMIN:
+                    user.is_staff = True
+                    user.save(update_fields=['is_staff'])
+                AppUserRole.objects.update_or_create(user=user, defaults={'role': role_value})
+                user_message = f'Usuario creado: {username}.'
+            except ValueError as exc:
+                user_error = str(exc)
+            except Exception:
+                user_error = 'No se pudo crear el usuario.'
+        elif form_action == 'user_update_role':
+            active_tab = 'users'
+            user_id = _parse_int(request.POST.get('user_id'))
+            role_value = (request.POST.get('role') or '').strip()
+            role_choices = {choice[0] for choice in AppUserRole.ROLE_CHOICES}
+            if role_value not in role_choices:
+                role_value = AppUserRole.ROLE_PLAYER
+            user_obj = User.objects.filter(id=user_id).first() if user_id else None
+            if not user_obj:
+                user_error = 'Usuario no encontrado.'
+            else:
+                AppUserRole.objects.update_or_create(user=user_obj, defaults={'role': role_value})
+                should_staff = role_value == AppUserRole.ROLE_ADMIN
+                if user_obj.is_staff != should_staff:
+                    user_obj.is_staff = should_staff
+                    user_obj.save(update_fields=['is_staff'])
+                user_message = f'Rol actualizado para {user_obj.username}.'
+        elif form_action == 'user_toggle_active':
+            active_tab = 'users'
+            user_id = _parse_int(request.POST.get('user_id'))
+            user_obj = User.objects.filter(id=user_id).first() if user_id else None
+            if not user_obj:
+                user_error = 'Usuario no encontrado.'
+            elif user_obj == request.user:
+                user_error = 'No puedes desactivar tu propio usuario.'
+            else:
+                user_obj.is_active = not bool(user_obj.is_active)
+                user_obj.save(update_fields=['is_active'])
+                user_message = (
+                    f'Usuario {user_obj.username} activado.'
+                    if user_obj.is_active
+                    else f'Usuario {user_obj.username} desactivado.'
+                )
     carousel_images = list(HomeCarouselImage.objects.all())
     roster_players = (
         list(Player.objects.filter(team=primary_team).order_by('-is_active', 'number', 'name'))
         if primary_team
         else []
     )
+    users = list(User.objects.order_by('username'))
+    role_map = {}
+    try:
+        role_map = {item.user_id: item.role for item in AppUserRole.objects.select_related('user')}
+    except Exception:
+        role_map = {}
+    role_labels = dict(AppUserRole.ROLE_CHOICES)
+    for item in users:
+        role_value = role_map.get(item.id, AppUserRole.ROLE_PLAYER)
+        item.role_value = role_value
+        item.role_label = role_labels.get(role_value, 'Jugador')
     return render(
         request,
         'football/admin.html',
@@ -975,6 +1062,12 @@ def admin_page(request):
             'roster_players': roster_players,
             'roster_message': roster_message,
             'roster_error': roster_error,
+            'carousel_message': carousel_message,
+            'users': users,
+            'role_choices': AppUserRole.ROLE_CHOICES,
+            'user_message': user_message,
+            'user_error': user_error,
+            'active_tab': active_tab,
             'team_name': primary_team.name if primary_team else '',
         },
     )
@@ -1740,6 +1833,7 @@ def save_convocation(request):
             opponent_name=opponent_value,
         )
         record.players.set(players.distinct())
+    cache.delete(_dashboard_cache_key(primary_team.id))
     return JsonResponse(
         {
             'saved': True,
@@ -2021,7 +2115,7 @@ def coach_role_trainer_page(request):
     rank = standing.position if standing else 0
     yellows = sum(1 for event in events if is_yellow_card_event(event.event_type, event.result, event.zone))
     reds = sum(1 for event in events if is_red_card_event(event.event_type, event.result, event.zone))
-    duels = [event for event in events if is_duel_event(event.event_type, event.zone, event.result)]
+    duels = [event for event in events if is_duel_event(event.event_type, event.observation)]
     duel_won = [event for event in duels if duel_result_is_success(event.result)]
     duel_rate = round((len(duel_won) / len(duels)) * 100, 1) if duels else 0.0
     success_actions = [event for event in events if result_is_success(event.result)]
@@ -2492,6 +2586,7 @@ def fines_page(request):
 
 
 def analysis_page(request):
+    primary_team = Team.objects.filter(is_primary=True).first()
     team_url = ''
     team_id = ''
     raw_text = ''
@@ -2505,6 +2600,8 @@ def analysis_page(request):
     auto_team_name = ''
     video_error = ''
     video_message = ''
+    manual_report_error = ''
+    manual_report_message = ''
     extracted = {}
     preferred_next = load_preferred_next_match_payload() or {}
     preferred_opponent = preferred_next.get('opponent') if isinstance(preferred_next, dict) else {}
@@ -2544,6 +2641,49 @@ def analysis_page(request):
                     pass
                 entry.delete()
                 video_message = 'Vídeo eliminado.'
+        elif form_action == 'save_manual_report':
+            selected_team_id = _parse_int(request.POST.get('team_id'))
+            selected_team = Team.objects.filter(id=selected_team_id).first() if selected_team_id else None
+            rival_name_input = (
+                (request.POST.get('manual_rival_name') or '').strip()
+                or (selected_team.name if selected_team else '')
+                or (home_rival_name or '').strip()
+            )
+            if not primary_team:
+                manual_report_error = 'No hay equipo principal configurado.'
+            elif not rival_name_input:
+                manual_report_error = 'Indica el rival para guardar el informe.'
+            else:
+                status_value = (request.POST.get('manual_status') or RivalAnalysisReport.STATUS_DRAFT).strip()
+                if status_value not in {choice[0] for choice in RivalAnalysisReport.STATUS_CHOICES}:
+                    status_value = RivalAnalysisReport.STATUS_DRAFT
+                confidence = _parse_int(request.POST.get('manual_confidence')) or 3
+                confidence = max(1, min(confidence, 5))
+                RivalAnalysisReport.objects.create(
+                    team=primary_team,
+                    rival_team=selected_team,
+                    rival_name=rival_name_input,
+                    report_title=(request.POST.get('manual_report_title') or '').strip(),
+                    match_round=(request.POST.get('manual_match_round') or '').strip(),
+                    match_date=(request.POST.get('manual_match_date') or '').strip(),
+                    match_location=(request.POST.get('manual_match_location') or '').strip(),
+                    tactical_system=(request.POST.get('manual_tactical_system') or '').strip(),
+                    attacking_patterns=(request.POST.get('manual_attacking_patterns') or '').strip(),
+                    defensive_patterns=(request.POST.get('manual_defensive_patterns') or '').strip(),
+                    transitions=(request.POST.get('manual_transitions') or '').strip(),
+                    set_pieces_for=(request.POST.get('manual_set_pieces_for') or '').strip(),
+                    set_pieces_against=(request.POST.get('manual_set_pieces_against') or '').strip(),
+                    key_players=(request.POST.get('manual_key_players') or '').strip(),
+                    weaknesses=(request.POST.get('manual_weaknesses') or '').strip(),
+                    opportunities=(request.POST.get('manual_opportunities') or '').strip(),
+                    match_plan=(request.POST.get('manual_match_plan') or '').strip(),
+                    individual_tasks=(request.POST.get('manual_individual_tasks') or '').strip(),
+                    alert_notes=(request.POST.get('manual_alert_notes') or '').strip(),
+                    confidence_level=confidence,
+                    status=status_value,
+                    created_by=(request.user.get_username() if request.user.is_authenticated else ''),
+                )
+                manual_report_message = 'Informe manual guardado correctamente.'
         team_url = (request.POST.get('team_url') or '').strip()
         team_url = (request.POST.get('team_url') or '').strip()
         team_id = (request.POST.get('team_id') or '').strip()
@@ -2577,7 +2717,6 @@ def analysis_page(request):
             team.preferente_url = team_url
             team.save(update_fields=['preferente_url'])
     else:
-        primary_team = Team.objects.filter(is_primary=True).first()
         active_match = get_active_match(primary_team) if primary_team else None
         auto_team = None
         if active_match and primary_team:
@@ -2626,6 +2765,62 @@ def analysis_page(request):
         'next_match_location': preferred_next.get('location') if isinstance(preferred_next, dict) else '',
         'preferente_url': selected_team.preferente_url if selected_team else '',
     }
+    manual_report_latest = None
+    manual_reports = []
+    if primary_team:
+        manual_reports_qs = RivalAnalysisReport.objects.filter(team=primary_team)
+        if selected_team:
+            manual_reports_qs = manual_reports_qs.filter(rival_team=selected_team)
+        elif rival_name:
+            manual_reports_qs = manual_reports_qs.filter(rival_name__icontains=rival_name[:18])
+        manual_reports = list(manual_reports_qs.order_by('-updated_at', '-id')[:12])
+        manual_report_latest = manual_reports[0] if manual_reports else None
+
+    manual_initial = {
+        'rival_name': rival_full_name or (selected_team.name if selected_team else ''),
+        'report_title': '',
+        'match_round': extracted.get('next_match_round') or '',
+        'match_date': extracted.get('next_match_date') or '',
+        'match_location': extracted.get('next_match_location') or '',
+        'tactical_system': '',
+        'attacking_patterns': '',
+        'defensive_patterns': '',
+        'transitions': '',
+        'set_pieces_for': '',
+        'set_pieces_against': '',
+        'key_players': '',
+        'weaknesses': '',
+        'opportunities': '',
+        'match_plan': '',
+        'individual_tasks': '',
+        'alert_notes': '',
+        'confidence': 3,
+        'status': RivalAnalysisReport.STATUS_DRAFT,
+    }
+    if manual_report_latest:
+        manual_initial.update(
+            {
+                'rival_name': manual_report_latest.rival_name,
+                'report_title': manual_report_latest.report_title,
+                'match_round': manual_report_latest.match_round,
+                'match_date': manual_report_latest.match_date,
+                'match_location': manual_report_latest.match_location,
+                'tactical_system': manual_report_latest.tactical_system,
+                'attacking_patterns': manual_report_latest.attacking_patterns,
+                'defensive_patterns': manual_report_latest.defensive_patterns,
+                'transitions': manual_report_latest.transitions,
+                'set_pieces_for': manual_report_latest.set_pieces_for,
+                'set_pieces_against': manual_report_latest.set_pieces_against,
+                'key_players': manual_report_latest.key_players,
+                'weaknesses': manual_report_latest.weaknesses,
+                'opportunities': manual_report_latest.opportunities,
+                'match_plan': manual_report_latest.match_plan,
+                'individual_tasks': manual_report_latest.individual_tasks,
+                'alert_notes': manual_report_latest.alert_notes,
+                'confidence': manual_report_latest.confidence_level,
+                'status': manual_report_latest.status,
+            }
+        )
     rival_videos = list(
         RivalVideo.objects.filter(rival_team=selected_team).order_by('-created_at')
     ) if selected_team else list(RivalVideo.objects.filter(rival_team__isnull=True).order_by('-created_at')[:12])
@@ -2654,6 +2849,11 @@ def analysis_page(request):
             'video_sources': RivalVideo.SOURCE_CHOICES,
             'home_rival_name': home_rival_name,
             'extracted': extracted,
+            'manual_initial': manual_initial,
+            'manual_reports': manual_reports,
+            'manual_report_message': manual_report_message,
+            'manual_report_error': manual_report_error,
+            'manual_report_status_choices': RivalAnalysisReport.STATUS_CHOICES,
         },
     )
 

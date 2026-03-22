@@ -99,6 +99,77 @@
           repeating-linear-gradient(0deg, rgba(255,255,255,0.02) 0 48px, rgba(255,255,255,0.06) 49px 98px),
           linear-gradient(165deg, #0f5132, #14532d 55%, #064e3b);
       }
+      .pitch-markings {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+      .pitch-line {
+        position: absolute;
+        border: 2px solid rgba(255, 255, 255, 0.68);
+      }
+      .pitch-mid-line {
+        position: absolute;
+        top: 0;
+        left: 50%;
+        width: 0;
+        height: 100%;
+        border-left: 2px solid rgba(255, 255, 255, 0.68);
+        transform: translateX(-50%);
+      }
+      .pitch-center-circle {
+        position: absolute;
+        width: 18%;
+        aspect-ratio: 1 / 1;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        border-radius: 999px;
+        border: 2px solid rgba(255, 255, 255, 0.68);
+      }
+      .pitch-penalty {
+        width: 22%;
+        height: 44%;
+        top: 28%;
+      }
+      .pitch-penalty.left {
+        left: 0;
+        border-left: none;
+      }
+      .pitch-penalty.right {
+        right: 0;
+        border-right: none;
+      }
+      .pitch-goal-area {
+        width: 10%;
+        height: 22%;
+        top: 39%;
+      }
+      .pitch-goal-area.left {
+        left: 0;
+        border-left: none;
+      }
+      .pitch-goal-area.right {
+        right: 0;
+        border-right: none;
+      }
+      .pitch-goal {
+        position: absolute;
+        width: 1.5%;
+        height: 14%;
+        top: 43%;
+        border: 2px solid rgba(255, 255, 255, 0.55);
+      }
+      .pitch-goal.left {
+        left: 0;
+        transform: translateX(-100%);
+        border-right: none;
+      }
+      .pitch-goal.right {
+        right: 0;
+        transform: translateX(100%);
+        border-left: none;
+      }
       .slot {
         position: absolute;
         transform: translate(-50%, -50%);
@@ -119,12 +190,13 @@
       .token {
         margin-top: 0.2rem;
         border-radius: 8px;
-        border: 1px solid rgba(125, 211, 252, 0.5);
-        background: rgba(14, 116, 144, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.82);
+        background: linear-gradient(145deg, rgba(22, 163, 74, 0.95), rgba(21, 128, 61, 0.95));
         font-size: 0.69rem;
         font-weight: 700;
         letter-spacing: 0.04em;
         padding: 0.2rem 0.25rem;
+        color: #f0fdf4;
       }
       .toolbar {
         margin-top: 0.75rem;
@@ -244,6 +316,19 @@
 
       const renderField = () => {
         field.innerHTML = '';
+        const markings = document.createElement('div');
+        markings.className = 'pitch-markings';
+        markings.innerHTML = `
+          <span class="pitch-mid-line"></span>
+          <span class="pitch-center-circle"></span>
+          <span class="pitch-line pitch-penalty left"></span>
+          <span class="pitch-line pitch-penalty right"></span>
+          <span class="pitch-line pitch-goal-area left"></span>
+          <span class="pitch-line pitch-goal-area right"></span>
+          <span class="pitch-goal left"></span>
+          <span class="pitch-goal right"></span>
+        `;
+        field.appendChild(markings);
         slots.forEach((slot, index) => {
           const box = document.createElement('div');
           box.className = 'slot';

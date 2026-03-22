@@ -92,9 +92,93 @@
         position: relative;
         height: 680px;
         background:
-          radial-gradient(circle at 50% 50%, rgba(255,255,255,0.08) 0, rgba(255,255,255,0.08) 11%, transparent 12%),
-          linear-gradient(90deg, transparent 49.5%, rgba(255,255,255,0.6) 50%, transparent 50.5%),
           repeating-linear-gradient(0deg, rgba(255,255,255,0.03) 0, rgba(255,255,255,0.03) 52px, rgba(255,255,255,0.07) 53px, rgba(255,255,255,0.07) 106px);
+      }
+      .pitch-markings {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+      .pitch-line {
+        position: absolute;
+        border: 2px solid rgba(255, 255, 255, 0.7);
+      }
+      .pitch-mid-line {
+        position: absolute;
+        top: 0;
+        left: 50%;
+        width: 0;
+        height: 100%;
+        border-left: 2px solid rgba(255, 255, 255, 0.7);
+        transform: translateX(-50%);
+      }
+      .pitch-center-circle {
+        position: absolute;
+        width: 20%;
+        aspect-ratio: 1 / 1;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        border-radius: 999px;
+        border: 2px solid rgba(255, 255, 255, 0.7);
+      }
+      .pitch-penalty {
+        width: 22%;
+        height: 44%;
+        top: 28%;
+      }
+      .pitch-penalty.left {
+        left: 0;
+        border-left: none;
+      }
+      .pitch-penalty.right {
+        right: 0;
+        border-right: none;
+      }
+      .pitch-goal-area {
+        width: 10%;
+        height: 22%;
+        top: 39%;
+      }
+      .pitch-goal-area.left {
+        left: 0;
+        border-left: none;
+      }
+      .pitch-goal-area.right {
+        right: 0;
+        border-right: none;
+      }
+      .pitch-goal {
+        position: absolute;
+        width: 1.6%;
+        height: 14%;
+        top: 43%;
+        border: 2px solid rgba(255, 255, 255, 0.55);
+      }
+      .pitch-goal.left {
+        left: 0;
+        transform: translateX(-100%);
+        border-right: none;
+      }
+      .pitch-goal.right {
+        right: 0;
+        transform: translateX(100%);
+        border-left: none;
+      }
+      .pitch-spot {
+        position: absolute;
+        width: 6px;
+        height: 6px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.9);
+        top: 50%;
+        transform: translate(-50%, -50%);
+      }
+      .pitch-spot.left {
+        left: 12%;
+      }
+      .pitch-spot.right {
+        left: 88%;
       }
       .token {
         position: absolute;
@@ -102,8 +186,8 @@
         height: 44px;
         border-radius: 999px;
         border: 2px solid rgba(255,255,255,0.85);
-        background: #0ea5e9;
-        color: #082f49;
+        background: #ffffff;
+        color: #0f5132;
         font-weight: 800;
         display: flex;
         align-items: center;
@@ -115,6 +199,12 @@
       .token.rival {
         background: #f97316;
         color: #431407;
+        border-color: rgba(127, 29, 29, 0.9);
+      }
+      .token.team {
+        background: #16a34a;
+        color: #f0fdf4;
+        border-color: rgba(255, 255, 255, 0.95);
       }
       .token.selected {
         outline: 3px solid rgba(250, 204, 21, 0.8);
@@ -144,6 +234,7 @@
             <button class="primary" id="record-btn" type="button">Grabar</button>
             <button id="stop-btn" type="button">Parar</button>
             <button id="play-btn" type="button">Reproducir</button>
+            <button id="add-rival-btn" type="button">Añadir rival</button>
             <button id="clear-btn" type="button">Limpiar</button>
             <button id="export-btn" type="button">Exportar JSON</button>
           </div>
@@ -161,7 +252,20 @@
           <div class="moves" id="moves-log"></div>
         </aside>
         <section class="field-wrap">
-          <div class="field" id="abp-field"></div>
+          <div class="field" id="abp-field">
+            <div class="pitch-markings">
+              <span class="pitch-mid-line"></span>
+              <span class="pitch-center-circle"></span>
+              <span class="pitch-line pitch-penalty left"></span>
+              <span class="pitch-line pitch-penalty right"></span>
+              <span class="pitch-line pitch-goal-area left"></span>
+              <span class="pitch-line pitch-goal-area right"></span>
+              <span class="pitch-goal left"></span>
+              <span class="pitch-goal right"></span>
+              <span class="pitch-spot left"></span>
+              <span class="pitch-spot right"></span>
+            </div>
+          </div>
         </section>
       </section>
     </div>
@@ -172,6 +276,7 @@
       const recordBtn = document.getElementById('record-btn');
       const stopBtn = document.getElementById('stop-btn');
       const playBtn = document.getElementById('play-btn');
+      const addRivalBtn = document.getElementById('add-rival-btn');
       const clearBtn = document.getElementById('clear-btn');
       const exportBtn = document.getElementById('export-btn');
       const state = { recording: false, timeline: [], tokens: [], selectedTokenId: null, playing: false };
@@ -206,13 +311,14 @@
         token.dataset.y = String(y);
       };
 
-      const createToken = (label, number = '--') => {
+      const createToken = (label, number = '--', rival = false) => {
         const token = document.createElement('div');
-        token.className = 'token';
+        token.className = `token ${rival ? 'rival' : 'team'}`;
         token.textContent = number;
         token.title = label;
         token.dataset.label = label;
         token.dataset.id = uid();
+        token.dataset.side = rival ? 'rival' : 'team';
         placeToken(token, 50, 50);
         token.addEventListener('pointerdown', (event) => {
           if (state.playing) return;
@@ -244,8 +350,12 @@
       playersList?.addEventListener('click', (event) => {
         const btn = event.target.closest('.player-chip');
         if (!btn) return;
-        createToken(btn.dataset.player || 'JUGADOR', btn.dataset.number || '--');
+        createToken(btn.dataset.player || 'JUGADOR', btn.dataset.number || '--', false);
         log(`Añadido ${btn.dataset.player || 'jugador'} al campo`);
+      });
+      addRivalBtn?.addEventListener('click', () => {
+        createToken('RIVAL', 'R', true);
+        log('Añadida ficha rival al campo');
       });
 
       recordBtn?.addEventListener('click', () => {

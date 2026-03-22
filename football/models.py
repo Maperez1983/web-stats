@@ -1,5 +1,6 @@
 from django.db import models
 from django.utils import timezone
+from django.contrib.auth.models import User
 
 
 class DataSource(models.Model):
@@ -547,3 +548,79 @@ class RivalVideo(models.Model):
     def __str__(self):
         team_label = self.rival_team.name if self.rival_team else 'Rival'
         return f'{team_label} · {self.title}'
+
+
+class RivalAnalysisReport(models.Model):
+    STATUS_DRAFT = 'draft'
+    STATUS_READY = 'ready'
+    STATUS_CHOICES = [
+        (STATUS_DRAFT, 'Borrador'),
+        (STATUS_READY, 'Listo para partido'),
+    ]
+
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='rival_analysis_reports')
+    rival_team = models.ForeignKey(
+        Team,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='analysis_reports_as_rival',
+    )
+    rival_name = models.CharField(max_length=180)
+    report_title = models.CharField(max_length=180, blank=True)
+    match_round = models.CharField(max_length=80, blank=True)
+    match_date = models.CharField(max_length=60, blank=True)
+    match_location = models.CharField(max_length=180, blank=True)
+    tactical_system = models.CharField(max_length=80, blank=True, help_text='Ej: 1-4-2-3-1')
+    attacking_patterns = models.TextField(blank=True, help_text='Cómo progresan, zonas, mecanismos')
+    defensive_patterns = models.TextField(blank=True, help_text='Altura bloque, presión, ajustes')
+    transitions = models.TextField(blank=True, help_text='Comportamiento en transición OF/DEF')
+    set_pieces_for = models.TextField(blank=True, help_text='ABP ofensivas del rival')
+    set_pieces_against = models.TextField(blank=True, help_text='ABP defensivas del rival')
+    key_players = models.TextField(blank=True, help_text='Jugadores determinantes y perfil')
+    weaknesses = models.TextField(blank=True, help_text='Puntos atacables')
+    opportunities = models.TextField(blank=True, help_text='Dónde hacer daño')
+    match_plan = models.TextField(blank=True, help_text='Plan de partido propuesto')
+    individual_tasks = models.TextField(blank=True, help_text='Tareas por línea/jugador')
+    alert_notes = models.TextField(blank=True, help_text='Alertas: sanciones, lesiones, riesgos')
+    confidence_level = models.PositiveSmallIntegerField(default=3, help_text='1-5')
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=STATUS_DRAFT)
+    created_by = models.CharField(max_length=80, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at', '-id']
+
+    def __str__(self):
+        return f'{self.rival_name} · {self.report_title or "Informe"}'
+
+
+class AppUserRole(models.Model):
+    ROLE_PLAYER = 'jugador'
+    ROLE_COACH = 'entrenador'
+    ROLE_FITNESS = 'preparador_fisico'
+    ROLE_GOALKEEPER = 'preparador_portero'
+    ROLE_ANALYST = 'analista'
+    ROLE_ADMIN = 'administrador'
+    ROLE_CHOICES = [
+        (ROLE_PLAYER, 'Jugador'),
+        (ROLE_COACH, 'Entrenador'),
+        (ROLE_FITNESS, 'Preparador físico'),
+        (ROLE_GOALKEEPER, 'Preparador portero'),
+        (ROLE_ANALYST, 'Analista'),
+        (ROLE_ADMIN, 'Administrador'),
+    ]
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='app_role')
+    role = models.CharField(max_length=32, choices=ROLE_CHOICES, default=ROLE_PLAYER)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['user__username']
+        verbose_name = 'Rol de usuario'
+        verbose_name_plural = 'Roles de usuario'
+
+    def __str__(self):
+        return f'{self.user.username} · {self.get_role_display()}'
