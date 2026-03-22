@@ -203,8 +203,7 @@
         border-color: rgba(239, 68, 68, 0.9);
         cursor: not-allowed;
       }
-      .roster-photo,
-      .roster-avatar {
+      .roster-photo {
         width: 58px;
         height: 58px;
         border-radius: 12px;
@@ -212,12 +211,7 @@
         object-position: top center;
         border: 1px solid rgba(148, 163, 184, 0.35);
         background: rgba(7, 16, 34, 0.8);
-      }
-      .roster-avatar {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 800;
+        box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.25), 0 8px 16px rgba(2, 6, 23, 0.35);
       }
       .roster-name {
         text-align: center;
@@ -300,21 +294,13 @@
         gap: 0.55rem;
         min-width: 0;
       }
-      .selected-main img,
-      .selected-main .avatar {
+      .selected-main img {
         width: 34px;
         height: 34px;
         border-radius: 9px;
         object-fit: cover;
         object-position: top center;
-      }
-      .selected-main .avatar {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        background: #164e63;
-        font-size: 0.78rem;
-        font-weight: 700;
+        box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.25), 0 6px 12px rgba(2, 6, 23, 0.35);
       }
       .selected-text {
         min-width: 0;
@@ -446,16 +432,12 @@
               data-player-name="{{ player.name|upper|escape }}"
               data-player-number="{{ player.number|default:'--' }}"
               data-player-position="{{ player.position|default:'Sin definir'|escape }}"
-              data-player-photo="{{ player.photo_url|default:''|escape }}"
+              data-player-photo="{{ player.photo_url|default:avatar_url|escape }}"
               data-player-injured="{% if player.has_active_injury %}1{% else %}0{% endif %}"
               data-player-sanctioned="{% if player.is_sanctioned %}1{% else %}0{% endif %}"
               data-player-warn="{% if player.is_apercibido %}1{% else %}0{% endif %}"
             >
-              {% if player.photo_url %}
-              <img class="roster-photo" src="{{ player.photo_url }}" alt="{{ player.name }}" loading="lazy" />
-              {% else %}
-              <span class="roster-avatar">{{ player.name|initials }}</span>
-              {% endif %}
+              <img class="roster-photo" src="{{ player.photo_url|default:avatar_url }}" alt="{{ player.name }}" loading="lazy" />
               <div class="roster-name">{{ player.name|upper }}</div>
               <div class="roster-meta">#{{ player.number|default:"--" }} · {{ player.position|default:"Sin definir" }}</div>
               <div class="status-badges">
@@ -517,14 +499,7 @@
         return matches ? decodeURIComponent(matches[2]) : '';
       };
 
-      const getInitials = (value) => {
-        const raw = String(value || '').trim();
-        if (!raw) return '?';
-        const words = raw.split(/\s+/).filter(Boolean);
-        if (!words.length) return '?';
-        if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
-        return (words[0][0] + words[1][0]).toUpperCase();
-      };
+      const playerAvatarFallback = '{{ avatar_url|escapejs }}';
 
       const showMessage = (text, mode = 'ok') => {
         messageEl.textContent = text || '';
@@ -584,10 +559,7 @@
           const li = document.createElement('li');
           li.innerHTML = `
             <div class="selected-main">
-              ${player.photo
-                ? `<img src="${player.photo}" alt="${player.name}" loading="lazy">`
-                : `<span class="avatar">${getInitials(player.name)}</span>`
-              }
+              <img src="${player.photo || playerAvatarFallback}" alt="${player.name}" loading="lazy">
               <div class="selected-text">
                 <strong>#${player.number} ${player.name}</strong>
                 <span>${player.position}${player.injured ? ' · Lesión activa' : ''}${player.sanctioned ? ' · Sancionado' : ''}${player.warned ? ' · Apercibido' : ''}</span>

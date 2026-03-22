@@ -289,7 +289,7 @@
                   {% if player.photo_url %}
                   <img class="avatar" src="{{ player.photo_url }}" alt="{{ player.name }}" loading="lazy" />
                   {% else %}
-                  <span class="avatar fallback" aria-label="{{ player.name }}">{{ player.name|initials }}</span>
+                  <img class="avatar fallback" src="{% static 'football/images/player-avatar.svg' %}" alt="{{ player.name }}" loading="lazy" />
                   {% endif %}
                   <h2>{{ player.name }}</h2>
                   <span class="status-icons">

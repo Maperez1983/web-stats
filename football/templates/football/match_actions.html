@@ -1149,14 +1149,10 @@
         background: rgba(255, 255, 255, 0.08);
       }
       .convocation-card-photo.fallback {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.66rem;
-        font-weight: 800;
-        letter-spacing: 0.06em;
-        color: #e2e8f0;
         background: linear-gradient(145deg, #0f766e, #164e63);
+        object-fit: contain;
+        object-position: center;
+        padding: 4px;
       }
       .convocation-card.is-assigned {
         opacity: 0;
@@ -1789,7 +1785,7 @@
             data-player-name="{{ player.name|upper|escape }}"
             data-player-number="{{ player.number|default:'--' }}"
             data-player-position="{{ player.position|default:'Sin definir'|escape }}"
-            data-player-photo="{{ player.photo_url|default:''|escape }}"
+            data-player-photo="{{ player.photo_url|default:avatar_url|escape }}"
           >
             <header>
               <span>#{{ player.number|default:"--" }}</span>
@@ -1797,11 +1793,7 @@
             </header>
             <div class="convocation-card-body">
               <strong>{{ player.name|upper }}</strong>
-              {% if player.photo_url %}
-              <img class="convocation-card-photo" src="{{ player.photo_url }}" alt="{{ player.name }}" loading="lazy" />
-              {% else %}
-              <span class="convocation-card-photo fallback">{{ player.name|initials }}</span>
-              {% endif %}
+              <img class="convocation-card-photo {% if not player.photo_url %}fallback{% endif %}" src="{{ player.photo_url|default:avatar_url }}" alt="{{ player.name }}" loading="lazy" />
             </div>
           </article>
           {% endfor %}
@@ -1851,6 +1843,7 @@
         if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
         return (words[0][0] + words[1][0]).toUpperCase();
       };
+      const playerAvatarFallback = '{{ avatar_url|escapejs }}';
       const fieldZoneDefs = JSON.parse(
         document.getElementById('field-zone-defs')?.textContent || '[]',
       );
@@ -2215,19 +2208,12 @@ updateClockDisplay();
         span.appendChild(title);
 
         const photo = String(player.photo || '').trim();
-        if (photo) {
-          const img = document.createElement('img');
-          img.src = photo;
-          img.alt = displayName;
-          img.loading = 'lazy';
-          img.className = 'lineup-chip-avatar';
-          span.appendChild(img);
-        } else {
-          const avatar = document.createElement('span');
-          avatar.className = 'lineup-chip-avatar fallback';
-          avatar.textContent = getInitials(displayName);
-          span.appendChild(avatar);
-        }
+        const img = document.createElement('img');
+        img.src = photo || playerAvatarFallback;
+        img.alt = displayName;
+        img.loading = 'lazy';
+        img.className = photo ? 'lineup-chip-avatar' : 'lineup-chip-avatar fallback';
+        span.appendChild(img);
         const number = document.createElement('span');
         number.className = 'lineup-chip-number';
         number.textContent = numberLabel;

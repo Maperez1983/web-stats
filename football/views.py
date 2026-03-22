@@ -1561,6 +1561,7 @@ def match_action_page(request):
         {
             'players': convocation_players,
             'convocation_players': convocation_players,
+            'avatar_url': request.build_absolute_uri(static('football/images/player-avatar.svg')),
             'message': message,
             'team_name': primary_team.name,
             'quick_actions': load_match_actions(),
@@ -1912,6 +1913,7 @@ def convocation_page(request):
         {
             'players': players,
             'team_name': primary_team.name,
+            'avatar_url': request.build_absolute_uri(static('football/images/player-avatar.svg')),
             'selected_player_ids_json': json.dumps(selected_player_ids),
             'injured_player_ids_json': json.dumps(
                 [p.id for p in all_players if getattr(p, 'has_active_injury', False)]
