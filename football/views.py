@@ -449,6 +449,12 @@ def resolve_team_photo_for_pdf(request):
         .order_by('order', '-created_at', '-id')
         .first()
     )
+    if not carousel_cover:
+        carousel_cover = (
+            HomeCarouselImage.objects
+            .order_by('order', '-created_at', '-id')
+            .first()
+        )
     if carousel_cover and carousel_cover.image:
         try:
             source_url = request.build_absolute_uri(carousel_cover.image.url)
@@ -976,11 +982,10 @@ def dashboard_data(request):
 @ensure_csrf_cookie
 def dashboard_page(request):
     sources = list(ScrapeSource.objects.filter(is_active=True))
-    hero_image_candidates = [
-        item.image.url
-        for item in HomeCarouselImage.objects.filter(is_active=True).order_by('order', '-created_at', '-id')
-        if item.image
-    ]
+    active_items = list(HomeCarouselImage.objects.filter(is_active=True).order_by('order', '-created_at', '-id'))
+    all_items = list(HomeCarouselImage.objects.order_by('order', '-created_at', '-id'))
+    candidates = active_items if active_items else all_items
+    hero_image_candidates = [item.image.url for item in candidates if item.image]
     return render(
         request,
         'football/dashboard.html',
@@ -2050,6 +2055,7 @@ def convocation_pdf(request):
         'coach_name': os.getenv('TEAM_COACH_NAME', 'Aitor Castillo'),
         'club_hashtag': os.getenv('TEAM_HASHTAG', '#VamosVerdes'),
         'logo_url': request.build_absolute_uri(static('football/images/cdb-logo.png')),
+        'avatar_url': request.build_absolute_uri(static('football/images/player-avatar.svg')),
         'team_photo_url': request.build_absolute_uri(static('football/images/team-01.jpg')),
         'team_photo_data_uri': '',
         'coach_photo_url': request.build_absolute_uri(static(os.getenv('TEAM_COACH_PHOTO', 'football/images/team-01.jpg'))),

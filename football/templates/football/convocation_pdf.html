@@ -13,7 +13,9 @@
         background: #f3f6f4;
       }
       .poster {
-        min-height: auto;
+        width: 198mm;
+        min-height: 285mm;
+        margin: 0 auto;
         border: 2px solid #cfe0d7;
         position: relative;
         overflow: hidden;
@@ -117,9 +119,10 @@
       .team-photo-wrap img {
         display: block;
         width: 100%;
-        height: 260px;
-        object-fit: cover;
+        height: 240px;
+        object-fit: contain;
         object-position: center;
+        background: #eef4f1;
       }
       .meta {
         border-bottom: 2px solid #95b9ac;
@@ -196,13 +199,6 @@
         border: 1px solid rgba(15, 79, 71, 0.32);
         background: #e8efec;
       }
-      .player-thumb-placeholder {
-        width: 30px;
-        height: 30px;
-        border-radius: 50%;
-        background: rgba(15, 79, 71, 0.14);
-        border: 1px solid rgba(15, 79, 71, 0.2);
-      }
       .hashtag {
         margin: 6px 0 0;
         font-size: 26px;
@@ -251,11 +247,7 @@
                     <li>
                       <div class="player-row">
                         <div class="player-photo-cell">
-                          {% if player.photo_url %}
-                          <img class="player-thumb" src="{{ player.photo_url }}" alt="{{ player.name }}" />
-                          {% else %}
-                          <span class="player-thumb-placeholder"></span>
-                          {% endif %}
+                          <img class="player-thumb" src="{{ player.photo_url|default:avatar_url }}" alt="{{ player.name }}" />
                         </div>
                         <div class="player-name-cell">{{ player.number|default:"--" }} {{ player.name|upper }}</div>
                       </div>
@@ -269,11 +261,7 @@
                     <li>
                       <div class="player-row">
                         <div class="player-photo-cell">
-                          {% if player.photo_url %}
-                          <img class="player-thumb" src="{{ player.photo_url }}" alt="{{ player.name }}" />
-                          {% else %}
-                          <span class="player-thumb-placeholder"></span>
-                          {% endif %}
+                          <img class="player-thumb" src="{{ player.photo_url|default:avatar_url }}" alt="{{ player.name }}" />
                         </div>
                         <div class="player-name-cell">{{ player.number|default:"--" }} {{ player.name|upper }}</div>
                       </div>
