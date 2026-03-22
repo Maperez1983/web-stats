@@ -2477,6 +2477,100 @@ def coach_role_trainer_page(request):
     avg_actions = round(total_actions / total_matches, 1) if total_matches else 0.0
     avg_duels = round(len(duels) / total_matches, 1) if total_matches else 0.0
     avg_yellows = round(yellows / total_matches, 2) if total_matches else 0.0
+    season_played_matches = standing.played if standing and standing.played else total_matches
+    goals_per_match = round((goals_for / season_played_matches), 2) if season_played_matches else 0.0
+    goals_conceded_per_match = round((goals_against / season_played_matches), 2) if season_played_matches else 0.0
+    card_total = yellows + reds
+    cards_per_match = round((card_total / season_played_matches), 2) if season_played_matches else 0.0
+
+    # General overview based on player base stats (Universo/cache/manual) + actions dataset.
+    player_cards = compute_player_cards(primary_team) if primary_team else []
+    top_minutes_player = max(player_cards, key=lambda item: item.get('minutes', 0), default={})
+    top_goals_player = max(player_cards, key=lambda item: item.get('goals', 0), default={})
+    top_yellow_player = max(player_cards, key=lambda item: item.get('yellow_cards', 0), default={})
+
+    duels_won_by_player = {}
+    recoveries_by_player = {}
+    for event in events:
+        player = event.player
+        if not player:
+            continue
+        if is_duel_event(event.event_type, event.observation) and duel_result_is_success(event.result):
+            duels_won_by_player[player.id] = duels_won_by_player.get(player.id, 0) + 1
+        event_text = ' '.join(
+            [
+                str(event.event_type or ''),
+                str(event.result or ''),
+                str(event.observation or ''),
+            ]
+        )
+        if contains_keyword(event_text, ['robo', 'recuper', 'intercep']):
+            recoveries_by_player[player.id] = recoveries_by_player.get(player.id, 0) + 1
+
+    def _top_player_from_counter(counter_dict):
+        if not counter_dict:
+            return {}
+        top_id, top_value = max(counter_dict.items(), key=lambda x: x[1])
+        player_obj = Player.objects.filter(id=top_id).first()
+        if not player_obj:
+            return {}
+        return {
+            'name': player_obj.name,
+            'value': top_value,
+        }
+
+    top_duels_player = _top_player_from_counter(duels_won_by_player)
+    top_recovery_player = _top_player_from_counter(recoveries_by_player)
+
+    active_injuries = 0
+    total_injuries = 0
+    if primary_team:
+        injuries_qs = PlayerInjuryRecord.objects.filter(player__team=primary_team)
+        active_injuries = injuries_qs.filter(is_active=True).count()
+        total_injuries = injuries_qs.count()
+
+    coach_general_stats = [
+        {'label': 'Partidos jugados', 'value': season_played_matches},
+        {'label': 'Goles totales', 'value': goals_for},
+        {'label': 'Goles por partido', 'value': goals_per_match},
+        {'label': 'GC por partido', 'value': goals_conceded_per_match},
+        {'label': 'Tarjetas totales', 'value': card_total},
+        {'label': 'Tarjetas por partido', 'value': cards_per_match},
+        {'label': 'Lesiones activas', 'value': active_injuries},
+        {'label': 'Lesiones totales', 'value': total_injuries},
+    ]
+    coach_player_leaders = [
+        {
+            'label': 'Más minutos',
+            'name': top_minutes_player.get('name') or '-',
+            'value': top_minutes_player.get('minutes', 0),
+            'suffix': 'min',
+        },
+        {
+            'label': 'Más goles',
+            'name': top_goals_player.get('name') or '-',
+            'value': top_goals_player.get('goals', 0),
+            'suffix': 'g',
+        },
+        {
+            'label': 'Más robos/recuperaciones',
+            'name': top_recovery_player.get('name') or '-',
+            'value': top_recovery_player.get('value', 0),
+            'suffix': '',
+        },
+        {
+            'label': 'Más duelos ganados',
+            'name': top_duels_player.get('name') or '-',
+            'value': top_duels_player.get('value', 0),
+            'suffix': '',
+        },
+        {
+            'label': 'Más amarillas',
+            'name': top_yellow_player.get('name') or '-',
+            'value': top_yellow_player.get('yellow_cards', 0),
+            'suffix': '',
+        },
+    ]
 
     kpis = [
         {'label': 'Clasificación', 'value': rank or '-', 'pct': min(100, max(0, 100 - (rank * 4 if rank else 0))), 'suffix': ''},
@@ -2510,6 +2604,8 @@ def coach_role_trainer_page(request):
             'modules': modules,
             'kpis': kpis,
             'kpi_note': '* Posesión estimada sobre registros de acciones.',
+            'coach_general_stats': coach_general_stats,
+            'coach_player_leaders': coach_player_leaders,
         },
     )
 

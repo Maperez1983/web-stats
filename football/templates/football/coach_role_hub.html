@@ -78,6 +78,67 @@
         font-size: 0.75rem;
         color: rgba(186, 230, 253, 0.8);
       }
+      .coach-panels {
+        margin-top: 0.9rem;
+        display: grid;
+        gap: 0.9rem;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      }
+      .coach-panel {
+        border-radius: 14px;
+        padding: 0.8rem;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        background: rgba(2, 6, 23, 0.7);
+      }
+      .coach-panel h3 {
+        margin: 0 0 0.55rem;
+        font-size: 0.78rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: rgba(186, 230, 253, 0.9);
+      }
+      .coach-stat-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.45rem;
+      }
+      .coach-stat {
+        border-radius: 10px;
+        padding: 0.5rem;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        background: rgba(15, 23, 42, 0.66);
+      }
+      .coach-stat .label {
+        font-size: 0.66rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.75);
+      }
+      .coach-stat .value {
+        margin-top: 0.2rem;
+        font-size: 1.05rem;
+        font-weight: 800;
+      }
+      .leaders {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        display: grid;
+        gap: 0.35rem;
+      }
+      .leaders li {
+        border-radius: 10px;
+        padding: 0.45rem 0.5rem;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        background: rgba(15, 23, 42, 0.66);
+        font-size: 0.84rem;
+      }
+      .leaders .meta {
+        font-size: 0.72rem;
+        color: rgba(226, 232, 240, 0.72);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
       .card {
         border-radius: 18px;
         padding: 1.2rem;
@@ -131,6 +192,36 @@
       {% if kpi_note %}
       <p class="kpi-note">{{ kpi_note }}</p>
       {% endif %}
+      {% endif %}
+      {% if coach_general_stats or coach_player_leaders %}
+      <section class="coach-panels">
+        {% if coach_general_stats %}
+        <article class="coach-panel">
+          <h3>KPIs generales de temporada</h3>
+          <div class="coach-stat-grid">
+            {% for item in coach_general_stats %}
+            <div class="coach-stat">
+              <div class="label">{{ item.label }}</div>
+              <div class="value">{{ item.value }}</div>
+            </div>
+            {% endfor %}
+          </div>
+        </article>
+        {% endif %}
+        {% if coach_player_leaders %}
+        <article class="coach-panel">
+          <h3>Líderes plantilla</h3>
+          <ul class="leaders">
+            {% for leader in coach_player_leaders %}
+            <li>
+              <div class="meta">{{ leader.label }}</div>
+              <strong>{{ leader.name }}</strong> · {{ leader.value }}{% if leader.suffix %} {{ leader.suffix }}{% endif %}
+            </li>
+            {% endfor %}
+          </ul>
+        </article>
+        {% endif %}
+      </section>
       {% endif %}
       <section class="grid">
         {% for module in modules %}
