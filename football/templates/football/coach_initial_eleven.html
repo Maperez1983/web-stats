@@ -89,13 +89,15 @@
       }
       .field {
         position: relative;
-        min-height: 760px;
+        width: min(100%, 560px);
+        margin: 0 auto;
+        aspect-ratio: 3 / 5;
         border-radius: 18px;
         overflow: hidden;
         border: 1px solid rgba(148, 163, 184, 0.28);
         background:
           radial-gradient(circle at 50% 50%, rgba(255,255,255,0.08), transparent 18%),
-          linear-gradient(90deg, transparent 49.4%, rgba(255,255,255,0.65) 50%, transparent 50.6%),
+          linear-gradient(0deg, transparent 49.4%, rgba(255,255,255,0.65) 50%, transparent 50.6%),
           repeating-linear-gradient(0deg, rgba(255,255,255,0.02) 0 48px, rgba(255,255,255,0.06) 49px 98px),
           linear-gradient(165deg, #0f5132, #14532d 55%, #064e3b);
       }
@@ -110,12 +112,12 @@
       }
       .pitch-mid-line {
         position: absolute;
-        top: 0;
-        left: 50%;
-        width: 0;
-        height: 100%;
-        border-left: 2px solid rgba(255, 255, 255, 0.68);
-        transform: translateX(-50%);
+        left: 0;
+        top: 50%;
+        width: 100%;
+        height: 0;
+        border-top: 2px solid rgba(255, 255, 255, 0.68);
+        transform: translateY(-50%);
       }
       .pitch-center-circle {
         position: absolute;
@@ -128,47 +130,47 @@
         border: 2px solid rgba(255, 255, 255, 0.68);
       }
       .pitch-penalty {
-        width: 22%;
-        height: 44%;
-        top: 28%;
+        width: 44%;
+        height: 18%;
+        left: 28%;
       }
-      .pitch-penalty.left {
-        left: 0;
-        border-left: none;
+      .pitch-penalty.top {
+        top: 0;
+        border-top: none;
       }
-      .pitch-penalty.right {
-        right: 0;
-        border-right: none;
+      .pitch-penalty.bottom {
+        bottom: 0;
+        border-bottom: none;
       }
       .pitch-goal-area {
-        width: 10%;
-        height: 22%;
-        top: 39%;
+        width: 22%;
+        height: 9%;
+        left: 39%;
       }
-      .pitch-goal-area.left {
-        left: 0;
-        border-left: none;
+      .pitch-goal-area.top {
+        top: 0;
+        border-top: none;
       }
-      .pitch-goal-area.right {
-        right: 0;
-        border-right: none;
+      .pitch-goal-area.bottom {
+        bottom: 0;
+        border-bottom: none;
       }
       .pitch-goal {
         position: absolute;
-        width: 1.5%;
-        height: 14%;
-        top: 43%;
+        width: 14%;
+        height: 1.5%;
+        left: 43%;
         border: 2px solid rgba(255, 255, 255, 0.55);
       }
-      .pitch-goal.left {
-        left: 0;
-        transform: translateX(-100%);
-        border-right: none;
+      .pitch-goal.top {
+        top: 0;
+        transform: translateY(-100%);
+        border-bottom: none;
       }
-      .pitch-goal.right {
-        right: 0;
-        transform: translateX(100%);
-        border-left: none;
+      .pitch-goal.bottom {
+        bottom: 0;
+        transform: translateY(100%);
+        border-top: none;
       }
       .slot {
         position: absolute;
@@ -241,7 +243,7 @@
       }
       @media (max-width: 980px) {
         .layout { grid-template-columns: 1fr; }
-        .field { min-height: 620px; }
+        .field { width: min(100%, 480px); }
       }
     </style>
   </head>
@@ -305,17 +307,17 @@
         || '';
 
       const slots = [
-        { key: 'gk', label: 'POR', x: 50, y: 92 },
-        { key: 'lb', label: 'LI', x: 18, y: 75 },
-        { key: 'lcb', label: 'DFC', x: 37, y: 76 },
-        { key: 'rcb', label: 'DFC', x: 63, y: 76 },
-        { key: 'rb', label: 'LD', x: 82, y: 75 },
-        { key: 'lcm', label: 'MC', x: 32, y: 56 },
-        { key: 'cm', label: 'MCD', x: 50, y: 52 },
-        { key: 'rcm', label: 'MC', x: 68, y: 56 },
-        { key: 'lw', label: 'EI', x: 22, y: 32 },
-        { key: 'st', label: 'DC', x: 50, y: 22 },
-        { key: 'rw', label: 'ED', x: 78, y: 32 },
+        { key: 'gk', label: 'POR', x: 50, y: 90, role: 'gk' },
+        { key: 'lb', label: 'LI', x: 18, y: 74, role: 'def' },
+        { key: 'lcb', label: 'DFC', x: 37, y: 76, role: 'def' },
+        { key: 'rcb', label: 'DFC', x: 63, y: 76, role: 'def' },
+        { key: 'rb', label: 'LD', x: 82, y: 74, role: 'def' },
+        { key: 'lcm', label: 'MC', x: 30, y: 56, role: 'mid' },
+        { key: 'cm', label: 'MCD', x: 50, y: 54, role: 'mid' },
+        { key: 'rcm', label: 'MC', x: 70, y: 56, role: 'mid' },
+        { key: 'lw', label: 'EI', x: 24, y: 34, role: 'fwd' },
+        { key: 'st', label: 'DC', x: 50, y: 24, role: 'fwd' },
+        { key: 'rw', label: 'ED', x: 76, y: 34, role: 'fwd' },
       ];
 
       let lineupState = { starters: [], bench: [] };
@@ -337,12 +339,12 @@
         markings.innerHTML = `
           <span class="pitch-mid-line"></span>
           <span class="pitch-center-circle"></span>
-          <span class="pitch-line pitch-penalty left"></span>
-          <span class="pitch-line pitch-penalty right"></span>
-          <span class="pitch-line pitch-goal-area left"></span>
-          <span class="pitch-line pitch-goal-area right"></span>
-          <span class="pitch-goal left"></span>
-          <span class="pitch-goal right"></span>
+          <span class="pitch-line pitch-penalty top"></span>
+          <span class="pitch-line pitch-penalty bottom"></span>
+          <span class="pitch-line pitch-goal-area top"></span>
+          <span class="pitch-line pitch-goal-area bottom"></span>
+          <span class="pitch-goal top"></span>
+          <span class="pitch-goal bottom"></span>
         `;
         field.appendChild(markings);
         slots.forEach((slot, index) => {
@@ -388,12 +390,65 @@
         photo: String(card.dataset.playerPhoto || ''),
       });
 
+      const normalizePosition = (value) => String(value || '').toLowerCase().trim();
+      const roleFromPosition = (position) => {
+        const pos = normalizePosition(position);
+        if (pos.includes('por')) return 'gk';
+        if (
+          pos.includes('dfc') || pos.includes('defen') || pos.includes('ld') || pos.includes('li') ||
+          pos.includes('lateral') || pos.includes('carril')
+        ) return 'def';
+        if (
+          pos.includes('mcd') || pos.includes('mc') || pos.includes('medio') || pos.includes('interior') ||
+          pos.includes('pivote') || pos.includes('mp')
+        ) return 'mid';
+        if (
+          pos.includes('dc') || pos.includes('delant') || pos.includes('ei') || pos.includes('ed') ||
+          pos.includes('extremo') || pos.includes('punta') || pos.includes('sd')
+        ) return 'fwd';
+        return 'mid';
+      };
+      const numberValue = (player) => {
+        const parsed = parseInt(String(player?.number || '').replace(/[^\d]/g, ''), 10);
+        return Number.isFinite(parsed) ? parsed : 999;
+      };
+      const orderPlayersByRole = (players) => {
+        const groups = { gk: [], def: [], mid: [], fwd: [], other: [] };
+        players.forEach((player) => {
+          const role = roleFromPosition(player.position);
+          if (groups[role]) groups[role].push(player);
+          else groups.other.push(player);
+        });
+        Object.keys(groups).forEach((key) => groups[key].sort((a, b) => numberValue(a) - numberValue(b)));
+        const starters = [];
+        if (groups.gk.length) starters.push(groups.gk.shift());
+        const consume = (role, amount) => {
+          while (amount > 0 && groups[role].length) {
+            starters.push(groups[role].shift());
+            amount -= 1;
+          }
+        };
+        consume('def', 4);
+        consume('mid', 3);
+        consume('fwd', 3);
+        const remaining = [...groups.def, ...groups.mid, ...groups.fwd, ...groups.other];
+        remaining.sort((a, b) => numberValue(a) - numberValue(b));
+        while (starters.length < 11 && remaining.length) {
+          starters.push(remaining.shift());
+        }
+        return {
+          starters: starters.slice(0, 11),
+          bench: [...remaining, ...groups.gk].slice(0),
+        };
+      };
+
       const syncFromChecks = () => {
         const selected = playerCards
           .filter((card) => card.querySelector('input[type="checkbox"]')?.checked)
           .map(parseCard);
-        lineupState.starters = selected.slice(0, 11);
-        lineupState.bench = selected.slice(11);
+        const ordered = orderPlayersByRole(selected);
+        lineupState.starters = ordered.starters;
+        lineupState.bench = ordered.bench;
         renderField();
       };
 
@@ -424,8 +479,9 @@
 
       autoFillBtn?.addEventListener('click', () => {
         const all = playerCards.map(parseCard);
-        lineupState.starters = all.slice(0, 11);
-        lineupState.bench = all.slice(11);
+        const ordered = orderPlayersByRole(all);
+        lineupState.starters = ordered.starters;
+        lineupState.bench = ordered.bench;
         hydrateChecks();
         renderField();
       });
