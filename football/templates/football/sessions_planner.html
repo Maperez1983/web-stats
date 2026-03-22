@@ -753,6 +753,15 @@
               </label>
             </div>
             <label>
+              Rating utilidad (biblioteca)
+              <select name="task_usefulness_rating">
+                <option value="">Sin valorar</option>
+                {% for value, label in task_usefulness_choices %}
+                <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>
               Constraints (reglas condicionales)
               <select name="task_constraints" multiple size="4">
                 {% for value, label in task_constraint_choices %}
@@ -858,13 +867,14 @@
                     {% if session.start_time %} · {{ session.start_time|time:"H:i" }}{% endif %}
                     · {{ session.get_intensity_display }}
                     · {{ session.duration_minutes }} min
+                    {% if session.md_label %} · {{ session.md_label }}{% endif %}
                   </strong>
                   <p>{{ session.focus }}</p>
                   {% if session.content %}<p>{{ session.content }}</p>{% endif %}
                   {% if session.tasks.all %}
-                  <ul class="tasks">
+                  <ul class="tasks" data-sortable-session="{{ session.id }}">
                     {% for task in session.tasks.all %}
-                    <li>
+                    <li draggable="true" data-task-id="{{ task.id }}">
                       {{ task.get_block_display }} · {{ task.title }} ({{ task.duration_minutes }}')
                       <a class="task-link" href="{% url 'session-task-pdf' task.id %}" target="_blank" rel="noopener">PDF UEFA B</a>
                       <a class="task-link" href="{% url 'session-task-canva-export' task.id %}">Export Canva ZIP</a>
@@ -873,6 +883,7 @@
                       {% if task.tactical_layout.meta.methodology %}<span class="task-badge">{{ task.tactical_layout.meta.methodology }}</span>{% endif %}
                       {% if task.tactical_layout.meta.complexity %}<span class="task-badge">{{ task.tactical_layout.meta.complexity }}</span>{% endif %}
                       {% if task.tactical_layout.meta.cognitive_load %}<span class="task-badge">Cog {{ task.tactical_layout.meta.cognitive_load }}/10</span>{% endif %}
+                      {% if task.tactical_layout.meta.usefulness_rating %}<span class="task-badge">★ {{ task.tactical_layout.meta.usefulness_rating }}/5</span>{% endif %}
                       <form method="post" style="display:inline;">
                         {% csrf_token %}
                         <input type="hidden" name="planner_action" value="duplicate_task" />
@@ -882,6 +893,13 @@
                     </li>
                     {% endfor %}
                   </ul>
+                  <form method="post" class="task-order-form" data-order-form="{{ session.id }}" style="margin-top:0.45rem;">
+                    {% csrf_token %}
+                    <input type="hidden" name="planner_action" value="save_task_order" />
+                    <input type="hidden" name="session_id" value="{{ session.id }}" />
+                    <input type="hidden" name="task_order" value="" />
+                    <button type="submit" class="secondary">Guardar orden (drag & drop)</button>
+                  </form>
                   {% endif %}
                 </article>
                 {% empty %}
@@ -916,6 +934,73 @@
         </div>
         {% else %}
         <p class="empty">No hay plantillas guardadas todavía. Marca "Guardar esta tarea como plantilla".</p>
+        {% endif %}
+      </section>
+      <section class="panel" style="margin-top:1rem;">
+        <h2>Biblioteca Profesional de Tareas</h2>
+        <form method="get" class="planner-grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); margin-bottom:0.8rem;">
+          <label>
+            Buscar
+            <input type="text" name="task_q" value="{{ task_library_q }}" placeholder="Título, objetivo, principio..." />
+          </label>
+          <label>
+            Fase
+            <select name="task_phase">
+              <option value="">Todas</option>
+              {% for value, label in task_game_phase_choices %}
+              <option value="{{ value }}" {% if task_library_phase == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            Metodología
+            <select name="task_methodology">
+              <option value="">Todas</option>
+              {% for value, label in task_methodology_choices %}
+              <option value="{{ value }}" {% if task_library_methodology == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            Complejidad
+            <select name="task_complexity">
+              <option value="">Todas</option>
+              {% for value, label in task_complexity_choices %}
+              <option value="{{ value }}" {% if task_library_complexity == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            Rating mínimo
+            <select name="task_min_rating">
+              <option value="">Todos</option>
+              {% for value, label in task_usefulness_choices %}
+              <option value="{{ value }}" {% if task_library_min_rating == value %}selected{% endif %}>{{ value }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <div style="display:flex; align-items:flex-end;">
+            <button type="submit" class="primary">Filtrar</button>
+          </div>
+        </form>
+        {% if task_library %}
+        <div class="micro-list">
+          {% for t in task_library %}
+          <article class="micro" style="padding:0.75rem;">
+            <h3 style="margin:0;">{{ t.title }}</h3>
+            <p class="meta">{{ t.session.session_date|date:"d/m/Y" }} · {{ t.get_block_display }} · {{ t.duration_minutes }}'</p>
+            <p class="meta">
+              {% if t.meta.game_phase %}<span class="task-badge">{{ t.meta.game_phase }}</span>{% endif %}
+              {% if t.meta.methodology %}<span class="task-badge">{{ t.meta.methodology }}</span>{% endif %}
+              {% if t.meta.complexity %}<span class="task-badge">{{ t.meta.complexity }}</span>{% endif %}
+              {% if t.usefulness_rating %}<span class="task-badge">★ {{ t.usefulness_rating }}/5</span>{% endif %}
+            </p>
+            {% if t.objective %}<p style="margin:0.3rem 0;">{{ t.objective }}</p>{% endif %}
+          </article>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="empty">No hay tareas con esos filtros.</p>
         {% endif %}
       </section>
 
@@ -1340,6 +1425,42 @@
 
       padState = safeParseLayout(tacticalLayoutInput?.value || '{}');
       updatePadSummary();
+
+      (function initTaskDnD() {
+        const lists = document.querySelectorAll('[data-sortable-session]');
+        lists.forEach((list) => {
+          let dragged = null;
+          list.querySelectorAll('li[draggable="true"]').forEach((item) => {
+            item.addEventListener('dragstart', () => {
+              dragged = item;
+              item.style.opacity = '0.55';
+            });
+            item.addEventListener('dragend', () => {
+              item.style.opacity = '';
+            });
+            item.addEventListener('dragover', (event) => {
+              event.preventDefault();
+              const target = event.currentTarget;
+              if (!dragged || dragged === target) return;
+              const rect = target.getBoundingClientRect();
+              const after = (event.clientY - rect.top) > rect.height / 2;
+              if (after) {
+                target.parentNode.insertBefore(dragged, target.nextSibling);
+              } else {
+                target.parentNode.insertBefore(dragged, target);
+              }
+            });
+          });
+          const sessionId = list.getAttribute('data-sortable-session');
+          const form = document.querySelector(`[data-order-form="${sessionId}"]`);
+          if (!form) return;
+          form.addEventListener('submit', () => {
+            const ids = Array.from(list.querySelectorAll('li[data-task-id]')).map((li) => li.getAttribute('data-task-id'));
+            const targetInput = form.querySelector('input[name="task_order"]');
+            if (targetInput) targetInput.value = ids.join(',');
+          });
+        });
+      })();
     </script>
   </body>
 </html>

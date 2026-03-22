@@ -186,6 +186,13 @@ TASK_COMPLEXITY_CHOICES = [
     ('medium', 'Media'),
     ('high', 'Alta'),
 ]
+TASK_USEFULNESS_CHOICES = [
+    ('1', '1 · Baja'),
+    ('2', '2'),
+    ('3', '3 · Media'),
+    ('4', '4'),
+    ('5', '5 · Top'),
+]
 TASK_CONSTRAINT_CHOICES = [
     ('two_touches', '2 toques'),
     ('one_touch_zone', '1 toque zona final'),
@@ -2757,6 +2764,7 @@ def sessions_page(request):
                 corrective_cues = (request.POST.get('task_corrective_cues') or '').strip()
                 video_reference = (request.POST.get('task_video_reference') or '').strip()
                 staff_notes = (request.POST.get('task_staff_notes') or '').strip()
+                usefulness_rating = (request.POST.get('task_usefulness_rating') or '').strip()
                 constraints = [str(v).strip() for v in request.POST.getlist('task_constraints') if str(v).strip()]
                 tactical_pad_enabled = str(request.POST.get('task_tactical_pad_enabled') or '').strip().lower() in {'1', 'true', 'on', 'yes'}
                 blueprint_id = _parse_int(request.POST.get('task_blueprint_id'))
@@ -2808,6 +2816,7 @@ def sessions_page(request):
                 corrective_cues = corrective_cues or str(blueprint_payload.get('task_corrective_cues') or '').strip()
                 video_reference = video_reference or str(blueprint_payload.get('task_video_reference') or '').strip()
                 staff_notes = staff_notes or str(blueprint_payload.get('task_staff_notes') or '').strip()
+                usefulness_rating = usefulness_rating or str(blueprint_payload.get('task_usefulness_rating') or '').strip()
                 if not constraints:
                     raw_constraints = blueprint_payload.get('task_constraints')
                     if isinstance(raw_constraints, list):
@@ -2868,6 +2877,8 @@ def sessions_page(request):
                     meta['video_reference'] = video_reference
                 if staff_notes:
                     meta['staff_notes'] = staff_notes
+                if usefulness_rating in {'1', '2', '3', '4', '5'}:
+                    meta['usefulness_rating'] = usefulness_rating
                 if constraints:
                     meta['constraints'] = constraints
                 meta['tactical_pad_enabled'] = bool(tactical_pad_enabled)
@@ -2923,6 +2934,7 @@ def sessions_page(request):
                         'task_corrective_cues': corrective_cues,
                         'task_video_reference': video_reference,
                         'task_staff_notes': staff_notes,
+                        'task_usefulness_rating': usefulness_rating,
                         'task_constraints': constraints,
                     }
                     TaskBlueprint.objects.update_or_create(
@@ -2967,6 +2979,32 @@ def sessions_page(request):
                     notes=base_task.notes,
                 )
                 feedback = 'Tarea duplicada correctamente.'
+            elif planner_action == 'save_task_order':
+                session_id = _parse_int(request.POST.get('session_id'))
+                raw_order = (request.POST.get('task_order') or '').strip()
+                session = (
+                    TrainingSession.objects
+                    .select_related('microcycle')
+                    .filter(id=session_id, microcycle__team=primary_team)
+                    .first()
+                )
+                if not session:
+                    raise ValueError('Sesión no encontrada para ordenar tareas.')
+                ids = []
+                for part in raw_order.split(','):
+                    parsed = _parse_int(part)
+                    if parsed:
+                        ids.append(parsed)
+                existing = list(SessionTask.objects.filter(session=session).order_by('order', 'id'))
+                existing_ids = {item.id for item in existing}
+                valid_ids = [item_id for item_id in ids if item_id in existing_ids]
+                if len(valid_ids) != len(existing_ids):
+                    for item in existing:
+                        if item.id not in valid_ids:
+                            valid_ids.append(item.id)
+                for index, task_id in enumerate(valid_ids, start=1):
+                    SessionTask.objects.filter(id=task_id, session=session).update(order=index)
+                feedback = 'Orden de tareas actualizado.'
             else:
                 error = 'Acción no reconocida.'
         except ValueError as exc:
@@ -2985,7 +3023,62 @@ def sessions_page(request):
         )
     all_sessions = []
     for microcycle in microcycles:
-        all_sessions.extend(list(microcycle.sessions.all()))
+        sessions_for_micro = list(microcycle.sessions.all())
+        if active_match and active_match.date:
+            for sess in sessions_for_micro:
+                delta = (sess.session_date - active_match.date).days
+                if delta < 0:
+                    sess.md_label = f'MD{delta}'
+                elif delta > 0:
+                    sess.md_label = f'MD+{delta}'
+                else:
+                    sess.md_label = 'MD'
+        else:
+            for sess in sessions_for_micro:
+                sess.md_label = ''
+        all_sessions.extend(sessions_for_micro)
+
+    task_library_q = (request.GET.get('task_q') or '').strip().lower()
+    task_library_phase = (request.GET.get('task_phase') or '').strip()
+    task_library_methodology = (request.GET.get('task_methodology') or '').strip()
+    task_library_complexity = (request.GET.get('task_complexity') or '').strip()
+    task_library_min_rating = (request.GET.get('task_min_rating') or '').strip()
+    task_library = []
+    if planner_tables_ready:
+        task_library = list(
+            SessionTask.objects
+            .select_related('session__microcycle')
+            .filter(session__microcycle__team=primary_team)
+            .order_by('-id')[:400]
+        )
+        filtered = []
+        for item in task_library:
+            layout = item.tactical_layout if isinstance(item.tactical_layout, dict) else {}
+            meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+            item.meta = meta
+            rating_val = str(meta.get('usefulness_rating') or '')
+            item.usefulness_rating = rating_val
+            if task_library_q:
+                haystack = ' '.join([
+                    str(item.title or ''),
+                    str(item.objective or ''),
+                    str(meta.get('principle') or ''),
+                    str(meta.get('subprinciple') or ''),
+                ]).lower()
+                if task_library_q not in haystack:
+                    continue
+            if task_library_phase and str(meta.get('game_phase') or '') != task_library_phase:
+                continue
+            if task_library_methodology and str(meta.get('methodology') or '') != task_library_methodology:
+                continue
+            if task_library_complexity and str(meta.get('complexity') or '') != task_library_complexity:
+                continue
+            if task_library_min_rating in {'1', '2', '3', '4', '5'}:
+                current = int(rating_val) if rating_val in {'1', '2', '3', '4', '5'} else 0
+                if current < int(task_library_min_rating):
+                    continue
+            filtered.append(item)
+        task_library = filtered[:120]
 
     category_labels = {
         'delimitacion': 'Delimitación',
@@ -3039,10 +3132,17 @@ def sessions_page(request):
             'task_methodology_choices': TASK_METHODOLOGY_CHOICES,
             'task_complexity_choices': TASK_COMPLEXITY_CHOICES,
             'task_constraint_choices': TASK_CONSTRAINT_CHOICES,
+            'task_usefulness_choices': TASK_USEFULNESS_CHOICES,
             'material_categories': material_categories,
             'materials_by_category': materials_by_category,
             'planner_tables_ready': planner_tables_ready,
             'roster_players': Player.objects.filter(team=primary_team).order_by('name')[:28],
+            'task_library': task_library,
+            'task_library_q': task_library_q,
+            'task_library_phase': task_library_phase,
+            'task_library_methodology': task_library_methodology,
+            'task_library_complexity': task_library_complexity,
+            'task_library_min_rating': task_library_min_rating,
         },
     )
 
