@@ -54,6 +54,7 @@ from football.models import (
     TrainingSession,
     ConvocationRecord,
     HomeCarouselImage,
+    RivalVideo,
 )
 from football.event_taxonomy import (
     DRIBBLE_KEYWORDS,
@@ -141,6 +142,24 @@ TASK_MATERIAL_LIBRARY = [
     {'label': 'OBJ', 'title': 'Objetivo diana', 'kind': 'target', 'category': 'finalizacion', 'icon': '◎'},
 ]
 TASK_MATERIAL_PPT_DIR = Path(settings.BASE_DIR) / 'static' / 'football' / 'images' / 'task-materials' / 'ppt'
+TASK_SURFACE_CHOICES = [
+    ('natural_grass', 'Hierba natural'),
+    ('artificial_turf', 'Césped artificial'),
+    ('futsal', 'Pista futsal'),
+    ('sand', 'Arena'),
+    ('indoor', 'Indoor'),
+    ('gym', 'Gimnasio'),
+]
+TASK_PITCH_FORMAT_CHOICES = [
+    ('11v11_full', '11v11 · Campo completo'),
+    ('11v11_half', '11v11 · Medio campo'),
+    ('9v9', '9v9'),
+    ('8v8', '8v8'),
+    ('7v7', '7v7'),
+    ('5v5', '5v5'),
+    ('abp', 'ABP'),
+    ('specific_zone', 'Zona específica'),
+]
 
 
 def build_task_material_library():
@@ -381,6 +400,16 @@ def get_sanctioned_player_ids_from_previous_round(primary_team, reference_match=
         if event.player_id and is_red_card_event(event.event_type, event.result, event.zone):
             sanctioned_ids.add(event.player_id)
     return sanctioned_ids
+
+
+def is_manual_sanction_active(player, today=None):
+    if not player or not getattr(player, 'manual_sanction_active', False):
+        return False
+    reference_day = today or timezone.localdate()
+    until_date = getattr(player, 'manual_sanction_until', None)
+    if until_date and until_date < reference_day:
+        return False
+    return True
 
 
 def _serialize_match_event(event, duplicate=False):
@@ -877,15 +906,76 @@ def _handle_home_carousel_post(request):
 @login_required
 @ensure_csrf_cookie
 def admin_page(request):
+    primary_team = Team.objects.filter(is_primary=True).first()
+    roster_message = ''
+    roster_error = ''
     if request.method == 'POST':
+        form_action = (request.POST.get('form_action') or '').strip()
+        if form_action in {'roster_add_or_update', 'roster_deactivate', 'roster_reactivate'} and primary_team:
+            player_id = _parse_int(request.POST.get('player_id'))
+            name = (request.POST.get('name') or '').strip()
+            number_raw = (request.POST.get('number') or '').strip()
+            position = (request.POST.get('position') or '').strip()
+            is_active = str(request.POST.get('is_active') or '1').strip().lower() in {'1', 'true', 'on', 'yes'}
+            try:
+                if form_action in {'roster_deactivate', 'roster_reactivate'}:
+                    if not player_id:
+                        raise ValueError('Jugador no válido.')
+                    player = Player.objects.filter(id=player_id, team=primary_team).first()
+                    if not player:
+                        raise ValueError('Jugador no encontrado.')
+                    player.is_active = form_action == 'roster_reactivate'
+                    player.save(update_fields=['is_active'])
+                    roster_message = (
+                        f'{player.name} reactivado correctamente.'
+                        if player.is_active
+                        else f'{player.name} marcado como inactivo.'
+                    )
+                else:
+                    if not name:
+                        raise ValueError('El nombre es obligatorio.')
+                    number = _parse_int(number_raw) if number_raw else None
+                    player = (
+                        Player.objects.filter(team=primary_team, name__iexact=name)
+                        .order_by('id')
+                        .first()
+                    )
+                    if player:
+                        player.number = number
+                        player.position = position
+                        player.is_active = is_active
+                        player.save(update_fields=['number', 'position', 'is_active'])
+                        roster_message = f'Jugador actualizado: {player.name}.'
+                    else:
+                        Player.objects.create(
+                            team=primary_team,
+                            name=name,
+                            number=number,
+                            position=position,
+                            is_active=is_active,
+                        )
+                        roster_message = f'Jugador añadido: {name}.'
+            except ValueError as exc:
+                roster_error = str(exc)
+            except Exception:
+                roster_error = 'No se pudo guardar la plantilla.'
         if _handle_home_carousel_post(request):
             return redirect(f"{reverse('admin-page')}#carousel-manager")
     carousel_images = list(HomeCarouselImage.objects.all())
+    roster_players = (
+        list(Player.objects.filter(team=primary_team).order_by('-is_active', 'number', 'name'))
+        if primary_team
+        else []
+    )
     return render(
         request,
         'football/admin.html',
         {
             'carousel_images': carousel_images,
+            'roster_players': roster_players,
+            'roster_message': roster_message,
+            'roster_error': roster_error,
+            'team_name': primary_team.name if primary_team else '',
         },
     )
 
@@ -977,6 +1067,67 @@ def get_current_convocation(team, match=None):
     return Player.objects.filter(team=team, is_active=True).order_by('name')
 
 
+def _normalize_lineup_payload(payload, allowed_players):
+    allowed = {str(player.id): player for player in (allowed_players or [])}
+    base = {'starters': [], 'bench': []}
+    if not isinstance(payload, dict):
+        return base
+    for section in ('starters', 'bench'):
+        rows = payload.get(section)
+        if not isinstance(rows, list):
+            continue
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            pid = str(row.get('id') or '').strip()
+            if not pid or pid not in allowed:
+                continue
+            player = allowed[pid]
+            base[section].append(
+                {
+                    'id': str(player.id),
+                    'name': (player.name or '').upper(),
+                    'number': player.number if player.number is not None else '--',
+                    'position': player.position or '',
+                    'photo': resolve_player_photo_url(None, player),
+                }
+            )
+    # dedupe: a player must appear only once across sections
+    seen = set()
+    for section in ('starters', 'bench'):
+        deduped = []
+        for row in base[section]:
+            pid = str(row.get('id'))
+            if pid in seen:
+                continue
+            seen.add(pid)
+            deduped.append(row)
+        base[section] = deduped
+    if len(base['starters']) > 11:
+        overflow = base['starters'][11:]
+        base['starters'] = base['starters'][:11]
+        base['bench'].extend(overflow)
+    return base
+
+
+def _build_default_lineup_payload(convocation_players):
+    if not convocation_players:
+        return {'starters': [], 'bench': []}
+    sorted_players = sorted(
+        convocation_players,
+        key=lambda p: ((p.number if p.number is not None else 999), (p.name or '').lower()),
+    )
+    starters = sorted_players[:11]
+    bench = sorted_players[11:]
+    return _normalize_lineup_payload(
+        {
+            'starters': [{'id': str(p.id)} for p in starters],
+            'bench': [{'id': str(p.id)} for p in bench],
+        },
+        convocation_players,
+    )
+
+
 def match_action_page(request):
     primary_team = Team.objects.filter(is_primary=True).first()
     if not primary_team:
@@ -991,6 +1142,16 @@ def match_action_page(request):
     convocation_players = list(convocation_players)
     for player in convocation_players:
         player.photo_url = resolve_player_photo_url(request, player)
+    initial_lineup_payload = {'starters': [], 'bench': []}
+    if convocation_record:
+        stored_lineup = convocation_record.lineup_data if isinstance(convocation_record.lineup_data, dict) else {}
+        normalized_stored = _normalize_lineup_payload(stored_lineup, convocation_players)
+        if normalized_stored['starters'] or normalized_stored['bench']:
+            initial_lineup_payload = normalized_stored
+        else:
+            initial_lineup_payload = _build_default_lineup_payload(convocation_players)
+            convocation_record.lineup_data = initial_lineup_payload
+            convocation_record.save(update_fields=['lineup_data'])
     message = None
     if request.method == 'POST':
         action = request.POST.get('action_type', '').strip()
@@ -1124,6 +1285,7 @@ def match_action_page(request):
             'category_rivals': category_rivals,
             'team_fields': team_fields,
             'substitution_history': substitution_history,
+            'initial_lineup_json': json.dumps(initial_lineup_payload, ensure_ascii=False),
         },
     )
 
@@ -1195,6 +1357,32 @@ def register_match_action(request):
         system='touch-field',
     )
     return JsonResponse(_serialize_match_event(event, duplicate=False))
+
+
+@authenticated_write
+@require_POST
+def save_match_lineup(request):
+    primary_team = Team.objects.filter(is_primary=True).first()
+    if not primary_team:
+        return JsonResponse({'error': 'Equipo principal no configurado'}, status=400)
+    convocation_record = get_current_convocation_record(
+        primary_team,
+        match=get_active_match(primary_team),
+        fallback_to_latest=True,
+    )
+    if not convocation_record:
+        return JsonResponse({'error': 'No hay convocatoria activa para guardar el 11'}, status=400)
+    payload = {}
+    try:
+        payload = json.loads(request.body.decode('utf-8')) if request.body else {}
+    except Exception:
+        return JsonResponse({'error': 'Payload inválido'}, status=400)
+    lineup = payload.get('lineup')
+    allowed_players = list(convocation_record.players.all())
+    normalized = _normalize_lineup_payload(lineup, allowed_players)
+    convocation_record.lineup_data = normalized
+    convocation_record.save(update_fields=['lineup_data'])
+    return JsonResponse({'saved': True, 'starters': len(normalized['starters']), 'bench': len(normalized['bench'])})
 
 
 @authenticated_write
@@ -1311,6 +1499,7 @@ def convocation_page(request):
         reference_match=active_match,
     )
     filtered_players = []
+    today = timezone.localdate()
     for player in all_players:
         roster_entry = find_roster_entry(player.name, roster_cache) or {}
         manual_entry = manual_overrides.get(player.id, {})
@@ -1331,7 +1520,7 @@ def convocation_page(request):
         )
         player.yellow_cards = int(yellow_cards or 0)
         player.red_cards = int(red_cards or 0)
-        player.is_sanctioned = player.id in sanctioned_player_ids
+        player.is_sanctioned = (player.id in sanctioned_player_ids) or is_manual_sanction_active(player, today=today)
         player.is_apercibido = player.yellow_cards in {4, 9, 14}
         player.has_active_injury = player.id in active_injury_ids
         filtered_players.append(player)
@@ -1671,6 +1860,19 @@ def session_task_pdf(request, task_id):
     tokens = []
     tactical_layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
     raw_tokens = tactical_layout.get('tokens') if isinstance(tactical_layout, dict) else []
+    meta = tactical_layout.get('meta') if isinstance(tactical_layout, dict) else {}
+    if not isinstance(meta, dict):
+        meta = {}
+    surface_map = {key: label for key, label in TASK_SURFACE_CHOICES}
+    pitch_map = {key: label for key, label in TASK_PITCH_FORMAT_CHOICES}
+    meta = dict(meta)
+    if meta.get('surface'):
+        meta['surface'] = surface_map.get(str(meta.get('surface')), str(meta.get('surface')))
+    if meta.get('pitch_format'):
+        meta['pitch_format'] = pitch_map.get(str(meta.get('pitch_format')), str(meta.get('pitch_format')))
+    animation_frames = tactical_layout.get('timeline') if isinstance(tactical_layout, dict) else []
+    if not isinstance(animation_frames, list):
+        animation_frames = []
     material_icon_by_kind = {
         'cone': '△',
         'marker': '◉',
@@ -1751,6 +1953,8 @@ def session_task_pdf(request, task_id):
         'coaching_lines': _split_lines(task.coaching_points),
         'rules_lines': _split_lines(task.confrontation_rules),
         'tokens': tokens,
+        'task_meta': meta,
+        'animation_frames_count': len(animation_frames),
         'logo_url': request.build_absolute_uri(static('football/images/cdb-logo.png')),
         'generated_at': timezone.localtime(),
     }
@@ -1762,29 +1966,24 @@ def session_task_pdf(request, task_id):
 def coach_cards_page(request):
     cards = [
         {
-            'title': 'Plantilla',
-            'description': 'Alta rápida de jugadores y gestión de dorsal/posición sin entrar al admin.',
-            'link': 'coach-roster',
+            'title': 'Entrenador',
+            'description': 'Convocatoria, 11 inicial, sesiones y multas en un único bloque.',
+            'link': 'coach-role-trainer',
         },
         {
-            'title': 'Convocatoria',
-            'description': 'Lista oficial de jugadores llamados a la siguiente jornada.',
-            'link': 'convocation',
+            'title': 'Preparador porteros',
+            'description': 'Repositorio táctico y tareas específicas de porteros.',
+            'link': 'coach-role-goalkeeper',
         },
         {
-            'title': '11 inicial',
-            'description': 'Selecciona el once titular y arma las instrucciones.',
-            'link': 'initial-eleven',
+            'title': 'Preparación física',
+            'description': 'Espacio preparado para métricas y carga física.',
+            'link': 'coach-role-fitness',
         },
         {
-            'title': 'Sesiones',
-            'description': 'Planifica entrenamientos y prepara las unidades.',
-            'link': 'sessions',
-        },
-        {
-            'title': 'Multas',
-            'description': 'Controla sanciones y comportamientos disciplinarios.',
-            'link': 'fines',
+            'title': 'ABP',
+            'description': 'Repositorio de sesiones ABP y pizarra táctica con simulación.',
+            'link': 'coach-role-abp',
         },
     ]
     return render(
@@ -1792,6 +1991,142 @@ def coach_cards_page(request):
         'football/coach_cards.html',
         {
             'cards': cards,
+        },
+    )
+
+
+def coach_role_trainer_page(request):
+    primary_team = Team.objects.filter(is_primary=True).first()
+    standing = None
+    if primary_team and primary_team.group and primary_team.group.season:
+        standing = TeamStanding.objects.filter(
+            season=primary_team.group.season,
+            group=primary_team.group,
+            team=primary_team,
+        ).first()
+    events = (
+        confirmed_events_queryset().filter(player__team=primary_team)
+        if primary_team
+        else MatchEvent.objects.none()
+    )
+    total_actions = events.count() if primary_team else 0
+    total_matches = (
+        Match.objects.filter(Q(home_team=primary_team) | Q(away_team=primary_team)).count()
+        if primary_team
+        else 0
+    )
+    goals_for = standing.goals_for if standing else 0
+    goals_against = standing.goals_against if standing else 0
+    points = standing.points if standing else 0
+    rank = standing.position if standing else 0
+    yellows = sum(1 for event in events if is_yellow_card_event(event.event_type, event.result, event.zone))
+    reds = sum(1 for event in events if is_red_card_event(event.event_type, event.result, event.zone))
+    duels = [event for event in events if is_duel_event(event.event_type, event.zone, event.result)]
+    duel_won = [event for event in duels if duel_result_is_success(event.result)]
+    duel_rate = round((len(duel_won) / len(duels)) * 100, 1) if duels else 0.0
+    success_actions = [event for event in events if result_is_success(event.result)]
+    success_rate = round((len(success_actions) / total_actions) * 100, 1) if total_actions else 0.0
+    avg_actions = round(total_actions / total_matches, 1) if total_matches else 0.0
+    avg_duels = round(len(duels) / total_matches, 1) if total_matches else 0.0
+    avg_yellows = round(yellows / total_matches, 2) if total_matches else 0.0
+
+    kpis = [
+        {'label': 'Clasificación', 'value': rank or '-', 'pct': min(100, max(0, 100 - (rank * 4 if rank else 0))), 'suffix': ''},
+        {'label': 'Puntos', 'value': points, 'pct': min(100, round((points / 75) * 100, 1) if points else 0), 'suffix': ''},
+        {'label': 'Goles a favor', 'value': goals_for, 'pct': min(100, round((goals_for / 60) * 100, 1) if goals_for else 0), 'suffix': ''},
+        {'label': 'Goles en contra', 'value': goals_against, 'pct': min(100, round((goals_against / 60) * 100, 1) if goals_against else 0), 'suffix': ''},
+        {'label': 'Amarillas', 'value': yellows, 'pct': min(100, round((yellows / 75) * 100, 1) if yellows else 0), 'suffix': ''},
+        {'label': 'Rojas', 'value': reds, 'pct': min(100, round((reds / 20) * 100, 1) if reds else 0), 'suffix': ''},
+        {'label': 'Posesión*', 'value': f'{min(80, max(35, 45 + (success_rate / 4))):.1f}%', 'pct': min(100, max(0, min(80, max(35, 45 + (success_rate / 4))))), 'suffix': ''},
+        {'label': 'Duelos', 'value': len(duels), 'pct': min(100, round((len(duels) / 240) * 100, 1) if duels else 0), 'suffix': ''},
+        {'label': '% Acierto', 'value': f'{success_rate:.1f}%', 'pct': min(100, max(0, success_rate)), 'suffix': ''},
+        {'label': 'Acciones totales', 'value': total_actions, 'pct': min(100, round((total_actions / 1200) * 100, 1) if total_actions else 0), 'suffix': ''},
+        {'label': 'Acciones/partido', 'value': avg_actions, 'pct': min(100, round((avg_actions / 80) * 100, 1) if avg_actions else 0), 'suffix': ''},
+        {'label': 'Duelos/partido', 'value': avg_duels, 'pct': min(100, round((avg_duels / 20) * 100, 1) if avg_duels else 0), 'suffix': ''},
+        {'label': 'Amarillas/partido', 'value': avg_yellows, 'pct': min(100, round((avg_yellows / 4) * 100, 1) if avg_yellows else 0), 'suffix': ''},
+        {'label': '% Duelo ganado', 'value': f'{duel_rate:.1f}%', 'pct': min(100, max(0, duel_rate)), 'suffix': ''},
+    ]
+
+    modules = [
+        {'title': 'Convocatoria', 'description': 'Define lista oficial y PDF del partido.', 'link': 'convocation'},
+        {'title': '11 inicial', 'description': 'Registro de acción con once titular y banquillo.', 'link': 'match-action-page'},
+        {'title': 'Sesiones', 'description': 'Planificador semanal de sesiones y tareas.', 'link': 'sessions'},
+        {'title': 'Multas', 'description': 'Control disciplinario del vestuario.', 'link': 'fines'},
+    ]
+    return render(
+        request,
+        'football/coach_role_hub.html',
+        {
+            'role_title': 'Entrenador',
+            'role_description': 'Área operativa principal del staff técnico.',
+            'modules': modules,
+            'kpis': kpis,
+            'kpi_note': '* Posesión estimada sobre registros de acciones.',
+        },
+    )
+
+
+def coach_role_goalkeeper_page(request):
+    modules = [
+        {'title': 'Repositorio tareas portero', 'description': 'Usa el planner para guardar ejercicios de porteros.', 'link': 'sessions'},
+        {'title': 'Pizarra táctica', 'description': 'Simula secuencias de portero en campo y guarda movimientos.', 'link': 'coach-abp-board'},
+    ]
+    return render(
+        request,
+        'football/coach_role_hub.html',
+        {
+            'role_title': 'Preparador de porteros',
+            'role_description': 'Repositorio técnico especializado para trabajo específico de portería.',
+            'modules': modules,
+        },
+    )
+
+
+def coach_role_fitness_page(request):
+    modules = [
+        {'title': 'Métricas físicas', 'description': 'Sección lista para cargar datos, test y seguimiento.', 'link': 'player-dashboard'},
+        {'title': 'Registro individual', 'description': 'Completa datos físicos por jugador desde su ficha.', 'link': 'player-dashboard'},
+    ]
+    return render(
+        request,
+        'football/coach_role_hub.html',
+        {
+            'role_title': 'Preparación física',
+            'role_description': 'Base preparada para incorporar carga interna/externa y control físico.',
+            'modules': modules,
+        },
+    )
+
+
+def coach_role_abp_page(request):
+    modules = [
+        {'title': 'Repositorio ABP', 'description': 'Guarda tareas y sesiones ABP en el planificador.', 'link': 'sessions'},
+        {'title': 'Pizarra ABP', 'description': 'Campo interactivo con fichas, grabación y reproducción de jugadas.', 'link': 'coach-abp-board'},
+    ]
+    return render(
+        request,
+        'football/coach_role_hub.html',
+        {
+            'role_title': 'ABP',
+            'role_description': 'Acciones a balón parado: diseño, simulación y biblioteca de jugadas.',
+            'modules': modules,
+        },
+    )
+
+
+def coach_abp_board_page(request):
+    primary_team = Team.objects.filter(is_primary=True).first()
+    players = []
+    if primary_team:
+        players = list(
+            Player.objects.filter(team=primary_team, is_active=True).order_by('number', 'name')[:28]
+        )
+    return render(
+        request,
+        'football/coach_abp_board.html',
+        {
+            'players': players,
+            'team_name': primary_team.name if primary_team else 'Equipo principal',
         },
     )
 
@@ -1864,13 +2199,37 @@ def coach_roster_page(request):
 
 
 def initial_eleven_page(request):
+    primary_team = Team.objects.filter(is_primary=True).first()
+    if not primary_team:
+        raise Http404('Equipo principal no configurado')
+    convocation_record = get_current_convocation_record(
+        primary_team,
+        match=get_active_match(primary_team),
+        fallback_to_latest=True,
+    )
+    convocation_players = list(convocation_record.players.order_by('number', 'name')) if convocation_record else []
+    for player in convocation_players:
+        player.photo_url = resolve_player_photo_url(request, player)
+
+    lineup_seed = {'starters': [], 'bench': []}
+    if convocation_record:
+        stored = convocation_record.lineup_data if isinstance(convocation_record.lineup_data, dict) else {}
+        normalized = _normalize_lineup_payload(stored, convocation_players)
+        if normalized['starters'] or normalized['bench']:
+            lineup_seed = normalized
+        else:
+            lineup_seed = _build_default_lineup_payload(convocation_players)
+            convocation_record.lineup_data = lineup_seed
+            convocation_record.save(update_fields=['lineup_data'])
+
     return render(
         request,
-        'football/coach_section.html',
+        'football/coach_initial_eleven.html',
         {
-            'section_title': '11 Inicial',
-            'description': 'Selecciona el once titular y fija roles/zonas priorizadas.',
-            'items': ['Titular 1', 'Titular 2', 'Titular 3'],
+            'team_name': primary_team.name,
+            'convocation_record': convocation_record,
+            'convocation_players': convocation_players,
+            'lineup_seed_json': json.dumps(lineup_seed, ensure_ascii=False),
         },
     )
 
@@ -1999,6 +2358,14 @@ def sessions_page(request):
                 objective = (request.POST.get('task_objective') or '').strip()
                 coaching_points = (request.POST.get('task_coaching_points') or '').strip()
                 confrontation_rules = (request.POST.get('task_confrontation_rules') or '').strip()
+                surface = (request.POST.get('task_surface') or '').strip()
+                pitch_format = (request.POST.get('task_pitch_format') or '').strip()
+                space = (request.POST.get('task_space') or '').strip()
+                organization = (request.POST.get('task_organization') or '').strip()
+                players_distribution = (request.POST.get('task_players_distribution') or '').strip()
+                load_target = (request.POST.get('task_load_target') or '').strip()
+                resources_summary = (request.POST.get('task_resources_summary') or '').strip()
+                progression = (request.POST.get('task_progression') or '').strip()
                 tactical_layout_raw = (request.POST.get('tactical_layout') or '').strip()
                 tactical_layout = {}
                 if tactical_layout_raw:
@@ -2008,6 +2375,26 @@ def sessions_page(request):
                             tactical_layout = parsed_layout
                     except Exception:
                         tactical_layout = {}
+                meta = tactical_layout.get('meta') if isinstance(tactical_layout, dict) else {}
+                if not isinstance(meta, dict):
+                    meta = {}
+                if surface:
+                    meta['surface'] = surface
+                if pitch_format:
+                    meta['pitch_format'] = pitch_format
+                if space:
+                    meta['space'] = space
+                if organization:
+                    meta['organization'] = organization
+                if players_distribution:
+                    meta['players_distribution'] = players_distribution
+                if load_target:
+                    meta['load_target'] = load_target
+                if resources_summary:
+                    meta['resources_summary'] = resources_summary
+                if progression:
+                    meta['progression'] = progression
+                tactical_layout['meta'] = meta
                 SessionTask.objects.create(
                     session=session,
                     title=title,
@@ -2082,6 +2469,8 @@ def sessions_page(request):
             'session_intensities': TrainingSession.INTENSITY_CHOICES,
             'task_blocks': SessionTask.BLOCK_CHOICES,
             'task_materials': task_materials,
+            'task_surface_choices': TASK_SURFACE_CHOICES,
+            'task_pitch_format_choices': TASK_PITCH_FORMAT_CHOICES,
             'material_categories': material_categories,
             'materials_by_category': materials_by_category,
             'planner_tables_ready': planner_tables_ready,
@@ -2114,7 +2503,48 @@ def analysis_page(request):
     error = ''
     auto_loaded = False
     auto_team_name = ''
+    video_error = ''
+    video_message = ''
+    extracted = {}
+    preferred_next = load_preferred_next_match_payload() or {}
+    preferred_opponent = preferred_next.get('opponent') if isinstance(preferred_next, dict) else {}
+    home_rival_name = _payload_opponent_name(preferred_next)
+    if home_rival_name:
+        home_rival_key = normalize_label(home_rival_name)
+        guessed_team = Team.objects.filter(is_primary=False).order_by('name').filter(name__icontains=home_rival_name[:12]).first()
+        if guessed_team and not team_id:
+            team_id = str(guessed_team.id)
     if request.method == 'POST':
+        form_action = (request.POST.get('form_action') or 'analyze').strip()
+        if form_action == 'upload_video':
+            video_title = (request.POST.get('video_title') or '').strip() or 'Vídeo rival'
+            video_source = (request.POST.get('video_source') or RivalVideo.SOURCE_MANUAL).strip()
+            rival_team_id = _parse_int(request.POST.get('video_team_id'))
+            video_file = request.FILES.get('video_file')
+            rival_team = Team.objects.filter(id=rival_team_id).first() if rival_team_id else None
+            if not video_file:
+                video_error = 'Selecciona un vídeo para subir.'
+            else:
+                RivalVideo.objects.create(
+                    rival_team=rival_team,
+                    title=video_title,
+                    video=video_file,
+                    source=video_source if video_source in {c[0] for c in RivalVideo.SOURCE_CHOICES} else RivalVideo.SOURCE_MANUAL,
+                    notes=(request.POST.get('video_notes') or '').strip(),
+                )
+                video_message = 'Vídeo subido correctamente.'
+        elif form_action == 'delete_video':
+            video_id = _parse_int(request.POST.get('video_id'))
+            entry = RivalVideo.objects.filter(id=video_id).first()
+            if entry:
+                try:
+                    if entry.video:
+                        entry.video.delete(save=False)
+                except Exception:
+                    pass
+                entry.delete()
+                video_message = 'Vídeo eliminado.'
+        team_url = (request.POST.get('team_url') or '').strip()
         team_url = (request.POST.get('team_url') or '').strip()
         team_id = (request.POST.get('team_id') or '').strip()
         raw_text = (request.POST.get('raw_text') or '').strip()
@@ -2123,25 +2553,26 @@ def analysis_page(request):
             team = Team.objects.filter(id=team_id).first()
             if team and not team_url:
                 team_url = team.preferente_url or ''
-        try:
-            if raw_text:
-                roster = parse_preferente_roster(raw_text)
-            elif team_url:
-                roster = fetch_preferente_team_roster(team_url)
-
-            probable_eleven = compute_probable_eleven(roster)
-            insights = build_rival_insights(roster)
-            formation = compute_formation(probable_eleven)
+        if form_action == 'analyze':
             try:
-                lineup = assign_lineup_slots(probable_eleven, formation)
-            except Exception:
-                lineup = []
-                error = 'Plantilla cargada, pero no se ha podido dibujar el 11 probable.'
+                if raw_text:
+                    roster = parse_preferente_roster(raw_text)
+                elif team_url:
+                    roster = fetch_preferente_team_roster(team_url)
 
-            if not roster:
-                error = 'No se han encontrado jugadores en la plantilla.'
-        except Exception:
-            error = 'No se ha podido procesar la plantilla del rival. Revisa URL o el contenido pegado.'
+                probable_eleven = compute_probable_eleven(roster)
+                insights = build_rival_insights(roster)
+                formation = compute_formation(probable_eleven)
+                try:
+                    lineup = assign_lineup_slots(probable_eleven, formation)
+                except Exception:
+                    lineup = []
+                    error = 'Plantilla cargada, pero no se ha podido dibujar el 11 probable.'
+
+                if not roster:
+                    error = 'No se han encontrado jugadores en la plantilla.'
+            except Exception:
+                error = 'No se ha podido procesar la plantilla del rival. Revisa URL o el contenido pegado.'
         if team and team_url and team.preferente_url != team_url:
             team.preferente_url = team_url
             team.save(update_fields=['preferente_url'])
@@ -2177,6 +2608,28 @@ def analysis_page(request):
                     f'Rival detectado automáticamente ({auto_team.name}), '
                     'pero no tiene URL de La Preferente guardada.'
                 )
+    selected_team = Team.objects.filter(id=_parse_int(team_id)).first() if team_id else None
+    universe = load_universo_snapshot() or {}
+    standings = universe.get('standings') or []
+    team_lookup = _build_universo_standings_lookup(universe)
+    rival_name = selected_team.name if selected_team else (home_rival_name or auto_team_name)
+    rival_full_name, rival_crest_url = _resolve_rival_identity(rival_name, preferred_opponent=preferred_opponent)
+    rival_meta = team_lookup.get(_normalize_team_lookup_key(rival_name), {})
+    extracted = {
+        'source_priority': 'Universo RFAF > RFAF > La Preferente',
+        'rival_name': rival_full_name,
+        'rival_crest_url': _absolute_universo_url(rival_crest_url or rival_meta.get('crest_url')),
+        'standings_count': len(standings),
+        'next_match_round': preferred_next.get('round') if isinstance(preferred_next, dict) else '',
+        'next_match_date': preferred_next.get('date') if isinstance(preferred_next, dict) else '',
+        'next_match_time': preferred_next.get('time') if isinstance(preferred_next, dict) else '',
+        'next_match_location': preferred_next.get('location') if isinstance(preferred_next, dict) else '',
+        'preferente_url': selected_team.preferente_url if selected_team else '',
+    }
+    rival_videos = list(
+        RivalVideo.objects.filter(rival_team=selected_team).order_by('-created_at')
+    ) if selected_team else list(RivalVideo.objects.filter(rival_team__isnull=True).order_by('-created_at')[:12])
+
     return render(
         request,
         'football/coach_analysis.html',
@@ -2195,6 +2648,12 @@ def analysis_page(request):
             'error': error,
             'auto_loaded': auto_loaded,
             'auto_team_name': auto_team_name,
+            'rival_videos': rival_videos,
+            'video_error': video_error,
+            'video_message': video_message,
+            'video_sources': RivalVideo.SOURCE_CHOICES,
+            'home_rival_name': home_rival_name,
+            'extracted': extracted,
         },
     )
 
@@ -2333,6 +2792,9 @@ def player_detail_page(request, player_id):
                 injury_notes = request.POST.get('injury_notes', '').strip()
                 injury_date = _parse_date_value(request.POST.get('injury_date'))
                 injury_return_date = _parse_date_value(request.POST.get('injury_return_date'))
+                manual_sanction_active = str(request.POST.get('manual_sanction_active') or '').lower() in {'1', 'true', 'on', 'yes'}
+                manual_sanction_reason = request.POST.get('manual_sanction_reason', '').strip()
+                manual_sanction_until = _parse_date_value(request.POST.get('manual_sanction_until'))
                 injury_record_mode = (request.POST.get('injury_record_mode') or '').strip().lower()
                 force_new_injury_record = injury_record_mode in {'new', 'add', 'create'}
                 player.number = int(number) if number else None
@@ -2347,6 +2809,9 @@ def player_detail_page(request, player_id):
                 player.injury_zone = injury_zone
                 player.injury_side = injury_side
                 player.injury_date = injury_date
+                player.manual_sanction_active = manual_sanction_active
+                player.manual_sanction_reason = manual_sanction_reason
+                player.manual_sanction_until = manual_sanction_until
                 player.save()
                 if uploaded_photo:
                     players_dir = Path(settings.BASE_DIR) / 'static' / 'football' / 'images' / 'players'
@@ -2497,6 +2962,7 @@ def player_detail_page(request, player_id):
         has_active_injury = player.id in get_active_injury_player_ids([player.id])
         if not has_active_injury and latest_injury_record:
             has_active_injury = bool(latest_injury_record.is_active)
+        has_manual_sanction = is_manual_sanction_active(player)
         player_photo_url = resolve_player_photo_url(request, player)
 
         def _to_int_value(value):
@@ -2582,6 +3048,7 @@ def player_detail_page(request, player_id):
                 'injury_records': injury_records,
                 'latest_injury_record': latest_injury_record,
                 'has_active_injury': has_active_injury,
+                'has_manual_sanction': has_manual_sanction,
                 'is_called_up': is_called_up,
                 'current_convocation': current_convocation,
                 'active_match': active_match,
@@ -3892,6 +4359,7 @@ def compute_player_dashboard(primary_team):
             }
 
     result = []
+    today = timezone.localdate()
     for stats in player_stats.values():
         matches = sorted(
             stats['matches'].values(),
@@ -3983,7 +4451,13 @@ def compute_player_dashboard(primary_team):
         red_cards_value = int(stats.get('red_cards') or 0)
         yellow_cards_value = int(stats.get('yellow_cards') or 0)
         merged['has_active_injury'] = bool(player_obj and player_obj.id in active_injury_ids)
-        merged['is_sanctioned'] = bool(player_obj and player_obj.id in sanctioned_player_ids)
+        merged['is_sanctioned'] = bool(
+            player_obj
+            and (
+                player_obj.id in sanctioned_player_ids
+                or is_manual_sanction_active(player_obj, today=today)
+            )
+        )
         merged['is_apercibido'] = yellow_cards_value in {4, 9, 14}
         if competition_total_rounds > 0:
             merged['participation_pct'] = round(

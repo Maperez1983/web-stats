@@ -88,6 +88,9 @@ class Player(models.Model):
     injury_zone = models.CharField(max_length=80, blank=True)
     injury_side = models.CharField(max_length=20, blank=True)
     injury_date = models.DateField(null=True, blank=True)
+    manual_sanction_active = models.BooleanField(default=False)
+    manual_sanction_reason = models.CharField(max_length=180, blank=True)
+    manual_sanction_until = models.DateField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
     notes = models.TextField(blank=True)
 
@@ -174,6 +177,7 @@ class ConvocationRecord(models.Model):
     match_time = models.TimeField(null=True, blank=True)
     location = models.CharField(max_length=200, blank=True)
     opponent_name = models.CharField(max_length=150, blank=True)
+    lineup_data = models.JSONField(default=dict, blank=True)
     players = models.ManyToManyField(Player, related_name='convocations')
     created_at = models.DateTimeField(auto_now_add=True)
     is_current = models.BooleanField(default=True)
@@ -516,3 +520,30 @@ class HomeCarouselImage(models.Model):
 
     def __str__(self):
         return self.title or f'Imagen {self.id}'
+
+
+class RivalVideo(models.Model):
+    SOURCE_UNIVERSO = 'universo'
+    SOURCE_RFAF = 'rfaf'
+    SOURCE_PREFERENTE = 'preferente'
+    SOURCE_MANUAL = 'manual'
+    SOURCE_CHOICES = [
+        (SOURCE_UNIVERSO, 'Universo RFAF'),
+        (SOURCE_RFAF, 'RFAF'),
+        (SOURCE_PREFERENTE, 'La Preferente'),
+        (SOURCE_MANUAL, 'Manual'),
+    ]
+
+    rival_team = models.ForeignKey(Team, on_delete=models.SET_NULL, null=True, blank=True, related_name='rival_videos')
+    title = models.CharField(max_length=180)
+    video = models.FileField(upload_to='rival-videos/')
+    source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default=SOURCE_MANUAL)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+
+    def __str__(self):
+        team_label = self.rival_team.name if self.rival_team else 'Rival'
+        return f'{team_label} · {self.title}'

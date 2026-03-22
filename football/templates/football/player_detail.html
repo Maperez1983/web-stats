@@ -271,6 +271,7 @@
   </head>
   <body>
     <div class="container">
+      {% include 'football/includes/dragon_nav.html' %}
       <header>
         <div>
           <p style="margin:0;" class="subtle">Jugador · {{ player.team.name }}</p>
@@ -413,8 +414,23 @@
               <label>Notas lesión
                 <input type="text" name="injury_notes" value="{% if latest_injury_record %}{{ latest_injury_record.notes|default:'' }}{% endif %}" placeholder="Contexto, diagnóstico, limitaciones..." />
               </label>
+              <label>Sanción manual
+                <select name="manual_sanction_active">
+                  <option value="0" {% if not player.manual_sanction_active %}selected{% endif %}>No</option>
+                  <option value="1" {% if player.manual_sanction_active %}selected{% endif %}>Sí</option>
+                </select>
+              </label>
+              <label>Motivo sanción
+                <input type="text" name="manual_sanction_reason" value="{{ player.manual_sanction_reason|default:'' }}" placeholder="Ej. Expulsión comité / decisión técnica" />
+              </label>
+              <label>Hasta (incluido)
+                <input type="date" name="manual_sanction_until" value="{{ player.manual_sanction_until|date:'Y-m-d' }}" />
+              </label>
             </div>
-            <div style="margin-top:0.85rem;"><button type="submit">Guardar ficha</button></div>
+            <div style="margin-top:0.85rem;display:flex;gap:0.55rem;flex-wrap:wrap;">
+              <button type="submit" name="injury_record_mode" value="update">Guardar ficha</button>
+              <button type="submit" name="injury_record_mode" value="new">Añadir lesión al historial</button>
+            </div>
           </form>
           <aside class="player-photo-card">
             {% if player_photo_url %}
@@ -434,6 +450,9 @@
           {% endif %}
           {% if player.injury %}
             <span class="pill warn">Lesión activa</span>
+          {% endif %}
+          {% if has_manual_sanction %}
+            <span class="pill warn">Sanción manual</span>
           {% endif %}
         </div>
 
