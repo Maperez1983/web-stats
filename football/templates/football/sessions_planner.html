@@ -76,6 +76,37 @@
         gap: 0.65rem;
         margin-bottom: 1rem;
       }
+      .workspace-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        margin-bottom: 0.85rem;
+      }
+      .workspace-tab {
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 999px;
+        padding: 0.46rem 0.86rem;
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--ink);
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
+      .workspace-tab.is-active {
+        background: linear-gradient(135deg, #22d3ee, #67e8f9);
+        color: #05243b;
+        border-color: rgba(103, 232, 249, 0.85);
+      }
+      .workspace-hint {
+        margin: 0 0 0.95rem;
+        font-size: 0.82rem;
+        color: rgba(216, 230, 252, 0.82);
+      }
+      [data-panel] { display: none; }
+      [data-panel].is-visible { display: block; }
+      .grid.single-panel { grid-template-columns: 1fr; }
 
       .alert {
         border-radius: 14px;
@@ -495,9 +526,18 @@
         {% if feedback %}<div class="alert ok">{{ feedback }}</div>{% endif %}
         {% if error %}<div class="alert err">{{ error }}</div>{% endif %}
       </section>
+      <nav class="workspace-tabs" aria-label="Secciones del planificador">
+        <button type="button" class="workspace-tab is-active" data-tab-target="plan">Planificación</button>
+        <button type="button" class="workspace-tab" data-tab-target="microcycles">Microciclos</button>
+        <button type="button" class="workspace-tab" data-tab-target="blueprints">Plantillas</button>
+        <button type="button" class="workspace-tab" data-tab-target="library">Biblioteca</button>
+      </nav>
+      <p class="workspace-hint">
+        Trabaja por bloques: primero crea y diseña tareas en <strong>Planificación</strong>, luego revisa en <strong>Microciclos</strong> y finalmente reutiliza desde <strong>Plantillas/Biblioteca</strong>.
+      </p>
 
-      <section class="grid">
-        <article class="panel">
+      <section class="grid" id="planner-grid">
+        <article class="panel is-visible" data-panel="plan">
           <h2>Crear Microciclo</h2>
           <form method="post">
             {% csrf_token %}
@@ -845,7 +885,7 @@
           </form>
         </article>
 
-        <article class="panel">
+        <article class="panel" data-panel="microcycles">
           <h2>Microciclos Recientes</h2>
           {% if microcycles %}
           <div class="micro-list">
@@ -914,7 +954,7 @@
           {% endif %}
         </article>
       </section>
-      <section class="panel" style="margin-top:1rem;">
+      <section class="panel" style="margin-top:1rem;" data-panel="blueprints">
         <h2>Repositorio de Plantillas</h2>
         <p class="meta" style="margin-bottom:0.6rem;">Flujo Canva recomendado: diseña tarea aquí → exporta PDF UEFA B → reutiliza como base visual en Canva para publicación.</p>
         {% if task_blueprints %}
@@ -936,7 +976,7 @@
         <p class="empty">No hay plantillas guardadas todavía. Marca "Guardar esta tarea como plantilla".</p>
         {% endif %}
       </section>
-      <section class="panel" style="margin-top:1rem;">
+      <section class="panel" style="margin-top:1rem;" data-panel="library">
         <h2>Biblioteca Profesional de Tareas</h2>
         <form method="get" class="planner-grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); margin-bottom:0.8rem;">
           <label>
@@ -1460,6 +1500,27 @@
             if (targetInput) targetInput.value = ids.join(',');
           });
         });
+      })();
+
+      (function initWorkspaceTabs() {
+        const tabs = Array.from(document.querySelectorAll('[data-tab-target]'));
+        const panels = Array.from(document.querySelectorAll('[data-panel]'));
+        const grid = document.getElementById('planner-grid');
+        if (!tabs.length || !panels.length) return;
+
+        function activate(key) {
+          tabs.forEach((tab) => tab.classList.toggle('is-active', tab.dataset.tabTarget === key));
+          panels.forEach((panel) => panel.classList.toggle('is-visible', panel.dataset.panel === key));
+          if (grid) {
+            const visibleInGrid = Array.from(grid.querySelectorAll('[data-panel].is-visible')).length;
+            grid.classList.toggle('single-panel', visibleInGrid <= 1);
+          }
+        }
+
+        tabs.forEach((tab) => {
+          tab.addEventListener('click', () => activate(tab.dataset.tabTarget));
+        });
+        activate('plan');
       })();
     </script>
   </body>
