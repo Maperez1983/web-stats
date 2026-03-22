@@ -167,6 +167,34 @@ TASK_PITCH_FORMAT_CHOICES = [
     ('abp', 'ABP'),
     ('specific_zone', 'Zona específica'),
 ]
+TASK_GAME_PHASE_CHOICES = [
+    ('organization_attack', 'Organización ofensiva'),
+    ('organization_defense', 'Organización defensiva'),
+    ('offensive_transition', 'Transición ofensiva'),
+    ('defensive_transition', 'Transición defensiva'),
+    ('set_pieces', 'ABP'),
+]
+TASK_METHODOLOGY_CHOICES = [
+    ('analytical', 'Analítica'),
+    ('integrated', 'Integrada'),
+    ('global', 'Global'),
+    ('competition', 'Competitiva'),
+    ('coadjuvant', 'Coadyuvante'),
+]
+TASK_COMPLEXITY_CHOICES = [
+    ('low', 'Baja'),
+    ('medium', 'Media'),
+    ('high', 'Alta'),
+]
+TASK_CONSTRAINT_CHOICES = [
+    ('two_touches', '2 toques'),
+    ('one_touch_zone', '1 toque zona final'),
+    ('mandatory_switch', 'Cambio de orientación obligatorio'),
+    ('finish_under_10', 'Finalizar < 10 segundos'),
+    ('press_6_seconds', 'Presionar 6 segundos tras pérdida'),
+    ('bonus_recovery_high', 'Bonus por recuperación alta'),
+    ('max_3_passes_before_finish', 'Máx. 3 pases antes de finalizar'),
+]
 TASK_TEMPLATE_LIBRARY = [
     {
         'key': 'none',
@@ -2049,11 +2077,23 @@ def session_task_pdf(request, task_id):
         meta = {}
     surface_map = {key: label for key, label in TASK_SURFACE_CHOICES}
     pitch_map = {key: label for key, label in TASK_PITCH_FORMAT_CHOICES}
+    phase_map = {key: label for key, label in TASK_GAME_PHASE_CHOICES}
+    methodology_map = {key: label for key, label in TASK_METHODOLOGY_CHOICES}
+    complexity_map = {key: label for key, label in TASK_COMPLEXITY_CHOICES}
+    constraint_map = {key: label for key, label in TASK_CONSTRAINT_CHOICES}
     meta = dict(meta)
     if meta.get('surface'):
         meta['surface'] = surface_map.get(str(meta.get('surface')), str(meta.get('surface')))
     if meta.get('pitch_format'):
         meta['pitch_format'] = pitch_map.get(str(meta.get('pitch_format')), str(meta.get('pitch_format')))
+    if meta.get('game_phase'):
+        meta['game_phase'] = phase_map.get(str(meta.get('game_phase')), str(meta.get('game_phase')))
+    if meta.get('methodology'):
+        meta['methodology'] = methodology_map.get(str(meta.get('methodology')), str(meta.get('methodology')))
+    if meta.get('complexity'):
+        meta['complexity'] = complexity_map.get(str(meta.get('complexity')), str(meta.get('complexity')))
+    if isinstance(meta.get('constraints'), list):
+        meta['constraints'] = [constraint_map.get(str(v), str(v)) for v in meta.get('constraints')]
     animation_frames = tactical_layout.get('timeline') if isinstance(tactical_layout, dict) else []
     if not isinstance(animation_frames, list):
         animation_frames = []
@@ -2191,6 +2231,7 @@ def session_task_canva_export(request, task_id):
     if not isinstance(timeline, list):
         timeline = []
 
+    constraints_value = meta.get('constraints') if isinstance(meta.get('constraints'), list) else []
     canva_fields = {
         'equipo': team.name,
         'fecha_sesion': session.session_date.isoformat() if session.session_date else '',
@@ -2217,6 +2258,19 @@ def session_task_canva_export(request, task_id):
         'subprincipio': str(meta.get('subprinciple') or ''),
         'puntuacion': str(meta.get('scoring_model') or ''),
         'criterio_exito': str(meta.get('success_criteria') or ''),
+        'fase_juego': str(meta.get('game_phase') or ''),
+        'subfase': str(meta.get('game_sub_phase') or ''),
+        'metodologia': str(meta.get('methodology') or ''),
+        'complejidad': str(meta.get('complexity') or ''),
+        'carga_cognitiva': str(meta.get('cognitive_load') or ''),
+        'carga_emocional': str(meta.get('emotional_load') or ''),
+        'targets': str(meta.get('targets') or ''),
+        'outcomes': str(meta.get('expected_outcomes') or ''),
+        'errores_frecuentes': str(meta.get('common_errors') or ''),
+        'correcciones': str(meta.get('corrective_cues') or ''),
+        'video_ref': str(meta.get('video_reference') or ''),
+        'notas_staff': str(meta.get('staff_notes') or ''),
+        'constraints': ' | '.join(str(v) for v in constraints_value),
     }
 
     buffer = io.BytesIO()
@@ -2691,6 +2745,19 @@ def sessions_page(request):
                 subprinciple = (request.POST.get('task_subprinciple') or '').strip()
                 scoring_model = (request.POST.get('task_scoring_model') or '').strip()
                 success_criteria = (request.POST.get('task_success_criteria') or '').strip()
+                game_phase = (request.POST.get('task_game_phase') or '').strip()
+                game_sub_phase = (request.POST.get('task_game_sub_phase') or '').strip()
+                methodology = (request.POST.get('task_methodology') or '').strip()
+                complexity = (request.POST.get('task_complexity') or '').strip()
+                cognitive_load = (request.POST.get('task_cognitive_load') or '').strip()
+                emotional_load = (request.POST.get('task_emotional_load') or '').strip()
+                targets = (request.POST.get('task_targets') or '').strip()
+                expected_outcomes = (request.POST.get('task_expected_outcomes') or '').strip()
+                common_errors = (request.POST.get('task_common_errors') or '').strip()
+                corrective_cues = (request.POST.get('task_corrective_cues') or '').strip()
+                video_reference = (request.POST.get('task_video_reference') or '').strip()
+                staff_notes = (request.POST.get('task_staff_notes') or '').strip()
+                constraints = [str(v).strip() for v in request.POST.getlist('task_constraints') if str(v).strip()]
                 tactical_pad_enabled = str(request.POST.get('task_tactical_pad_enabled') or '').strip().lower() in {'1', 'true', 'on', 'yes'}
                 blueprint_id = _parse_int(request.POST.get('task_blueprint_id'))
                 tactical_layout_raw = (request.POST.get('tactical_layout') or '').strip()
@@ -2729,6 +2796,22 @@ def sessions_page(request):
                 objective = objective or str(blueprint_payload.get('task_objective') or '').strip()
                 coaching_points = coaching_points or str(blueprint_payload.get('task_coaching_points') or '').strip()
                 confrontation_rules = confrontation_rules or str(blueprint_payload.get('task_confrontation_rules') or '').strip()
+                game_phase = game_phase or str(blueprint_payload.get('task_game_phase') or '').strip()
+                game_sub_phase = game_sub_phase or str(blueprint_payload.get('task_game_sub_phase') or '').strip()
+                methodology = methodology or str(blueprint_payload.get('task_methodology') or '').strip()
+                complexity = complexity or str(blueprint_payload.get('task_complexity') or '').strip()
+                cognitive_load = cognitive_load or str(blueprint_payload.get('task_cognitive_load') or '').strip()
+                emotional_load = emotional_load or str(blueprint_payload.get('task_emotional_load') or '').strip()
+                targets = targets or str(blueprint_payload.get('task_targets') or '').strip()
+                expected_outcomes = expected_outcomes or str(blueprint_payload.get('task_expected_outcomes') or '').strip()
+                common_errors = common_errors or str(blueprint_payload.get('task_common_errors') or '').strip()
+                corrective_cues = corrective_cues or str(blueprint_payload.get('task_corrective_cues') or '').strip()
+                video_reference = video_reference or str(blueprint_payload.get('task_video_reference') or '').strip()
+                staff_notes = staff_notes or str(blueprint_payload.get('task_staff_notes') or '').strip()
+                if not constraints:
+                    raw_constraints = blueprint_payload.get('task_constraints')
+                    if isinstance(raw_constraints, list):
+                        constraints = [str(v).strip() for v in raw_constraints if str(v).strip()]
                 if surface:
                     meta['surface'] = surface
                 if pitch_format:
@@ -2761,6 +2844,32 @@ def sessions_page(request):
                     meta['scoring_model'] = scoring_model
                 if success_criteria:
                     meta['success_criteria'] = success_criteria
+                if game_phase:
+                    meta['game_phase'] = game_phase
+                if game_sub_phase:
+                    meta['game_sub_phase'] = game_sub_phase
+                if methodology:
+                    meta['methodology'] = methodology
+                if complexity:
+                    meta['complexity'] = complexity
+                if cognitive_load:
+                    meta['cognitive_load'] = cognitive_load
+                if emotional_load:
+                    meta['emotional_load'] = emotional_load
+                if targets:
+                    meta['targets'] = targets
+                if expected_outcomes:
+                    meta['expected_outcomes'] = expected_outcomes
+                if common_errors:
+                    meta['common_errors'] = common_errors
+                if corrective_cues:
+                    meta['corrective_cues'] = corrective_cues
+                if video_reference:
+                    meta['video_reference'] = video_reference
+                if staff_notes:
+                    meta['staff_notes'] = staff_notes
+                if constraints:
+                    meta['constraints'] = constraints
                 meta['tactical_pad_enabled'] = bool(tactical_pad_enabled)
                 tactical_layout['meta'] = meta
                 created_task = SessionTask.objects.create(
@@ -2802,6 +2911,19 @@ def sessions_page(request):
                         'task_subprinciple': subprinciple,
                         'task_scoring_model': scoring_model,
                         'task_success_criteria': success_criteria,
+                        'task_game_phase': game_phase,
+                        'task_game_sub_phase': game_sub_phase,
+                        'task_methodology': methodology,
+                        'task_complexity': complexity,
+                        'task_cognitive_load': cognitive_load,
+                        'task_emotional_load': emotional_load,
+                        'task_targets': targets,
+                        'task_expected_outcomes': expected_outcomes,
+                        'task_common_errors': common_errors,
+                        'task_corrective_cues': corrective_cues,
+                        'task_video_reference': video_reference,
+                        'task_staff_notes': staff_notes,
+                        'task_constraints': constraints,
                     }
                     TaskBlueprint.objects.update_or_create(
                         team=primary_team,
@@ -2913,6 +3035,10 @@ def sessions_page(request):
             'task_template_library': TASK_TEMPLATE_LIBRARY,
             'task_blueprints': blueprints,
             'task_blueprint_categories': TaskBlueprint.CATEGORY_CHOICES,
+            'task_game_phase_choices': TASK_GAME_PHASE_CHOICES,
+            'task_methodology_choices': TASK_METHODOLOGY_CHOICES,
+            'task_complexity_choices': TASK_COMPLEXITY_CHOICES,
+            'task_constraint_choices': TASK_CONSTRAINT_CHOICES,
             'material_categories': material_categories,
             'materials_by_category': materials_by_category,
             'planner_tables_ready': planner_tables_ready,

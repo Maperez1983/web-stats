@@ -247,6 +247,25 @@
       </ul>
     </section>
     {% endif %}
+    {% if task_meta.game_phase or task_meta.game_sub_phase or task_meta.methodology or task_meta.complexity or task_meta.cognitive_load or task_meta.emotional_load or task_meta.constraints or task_meta.targets or task_meta.expected_outcomes or task_meta.common_errors or task_meta.corrective_cues %}
+    <section class="block">
+      <h2>Diseño Profesional</h2>
+      <ul>
+        {% if task_meta.game_phase %}<li><strong>Fase de juego:</strong> {{ task_meta.game_phase }}</li>{% endif %}
+        {% if task_meta.game_sub_phase %}<li><strong>Subfase:</strong> {{ task_meta.game_sub_phase }}</li>{% endif %}
+        {% if task_meta.methodology %}<li><strong>Metodología:</strong> {{ task_meta.methodology }}</li>{% endif %}
+        {% if task_meta.complexity %}<li><strong>Complejidad:</strong> {{ task_meta.complexity }}</li>{% endif %}
+        {% if task_meta.cognitive_load %}<li><strong>Carga cognitiva:</strong> {{ task_meta.cognitive_load }}/10</li>{% endif %}
+        {% if task_meta.emotional_load %}<li><strong>Carga emocional:</strong> {{ task_meta.emotional_load }}/10</li>{% endif %}
+        {% if task_meta.constraints %}<li><strong>Constraints:</strong> {{ task_meta.constraints|join:", " }}</li>{% endif %}
+        {% if task_meta.targets %}<li><strong>Targets:</strong> {{ task_meta.targets }}</li>{% endif %}
+        {% if task_meta.expected_outcomes %}<li><strong>Outcomes:</strong> {{ task_meta.expected_outcomes }}</li>{% endif %}
+        {% if task_meta.common_errors %}<li><strong>Errores frecuentes:</strong> {{ task_meta.common_errors }}</li>{% endif %}
+        {% if task_meta.corrective_cues %}<li><strong>Cues correctivos:</strong> {{ task_meta.corrective_cues }}</li>{% endif %}
+        {% if task_meta.video_reference %}<li><strong>Referencia vídeo:</strong> {{ task_meta.video_reference }}</li>{% endif %}
+      </ul>
+    </section>
+    {% endif %}
 
     <section class="block">
       <h2>Objetivos</h2>

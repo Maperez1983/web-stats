@@ -706,6 +706,86 @@
                 <input type="text" name="task_scoring_model" maxlength="160" placeholder="Ej: 3 pts robo alto, 1 pt 6 pases" />
               </label>
             </div>
+            <h3 style="margin:0.3rem 0 0.2rem; font-size:0.85rem; letter-spacing:0.06em; text-transform:uppercase; color:#93c5fd;">Diseño Pro</h3>
+            <div class="row">
+              <label>
+                Fase de juego
+                <select name="task_game_phase">
+                  <option value="">Selecciona...</option>
+                  {% for value, label in task_game_phase_choices %}
+                  <option value="{{ value }}">{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label>
+                Metodología
+                <select name="task_methodology">
+                  <option value="">Selecciona...</option>
+                  {% for value, label in task_methodology_choices %}
+                  <option value="{{ value }}">{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+            </div>
+            <div class="row">
+              <label>
+                Subfase / comportamiento
+                <input type="text" name="task_game_sub_phase" maxlength="140" placeholder="Ej: salida 3+1, presión alta lado fuerte" />
+              </label>
+              <label>
+                Complejidad
+                <select name="task_complexity">
+                  <option value="">Selecciona...</option>
+                  {% for value, label in task_complexity_choices %}
+                  <option value="{{ value }}">{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+            </div>
+            <div class="row">
+              <label>
+                Carga cognitiva (1-10)
+                <input type="number" name="task_cognitive_load" min="1" max="10" placeholder="7" />
+              </label>
+              <label>
+                Carga emocional (1-10)
+                <input type="number" name="task_emotional_load" min="1" max="10" placeholder="6" />
+              </label>
+            </div>
+            <label>
+              Constraints (reglas condicionales)
+              <select name="task_constraints" multiple size="4">
+                {% for value, label in task_constraint_choices %}
+                <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>
+              Targets medibles
+              <input type="text" name="task_targets" maxlength="220" placeholder="Ej: 12 recuperaciones altas + 8 finalizaciones en zona 14" />
+            </label>
+            <label>
+              Outcomes esperados
+              <textarea name="task_expected_outcomes" placeholder="Qué debe mejorar de forma observable al terminar la tarea"></textarea>
+            </label>
+            <div class="row">
+              <label>
+                Errores frecuentes previstos
+                <textarea name="task_common_errors" placeholder="Errores típicos que esperas ver"></textarea>
+              </label>
+              <label>
+                Cues correctivos
+                <textarea name="task_corrective_cues" placeholder="Frases breves de corrección por error"></textarea>
+              </label>
+            </div>
+            <label>
+              Referencia de vídeo (URL o nota)
+              <input type="text" name="task_video_reference" maxlength="220" placeholder="clip, minuto o enlace de referencia" />
+            </label>
+            <label>
+              Notas de staff
+              <textarea name="task_staff_notes" placeholder="Ajustes para PF, porteros, analista, readaptación"></textarea>
+            </label>
             <label>
               Consignas (una por línea)
               <textarea name="task_coaching_points" placeholder="Ejemplo:&#10;- Perfil corporal orientado&#10;- Comunicación previa al salto"></textarea>
@@ -789,6 +869,10 @@
                       <a class="task-link" href="{% url 'session-task-pdf' task.id %}" target="_blank" rel="noopener">PDF UEFA B</a>
                       <a class="task-link" href="{% url 'session-task-canva-export' task.id %}">Export Canva ZIP</a>
                       {% if task.tactical_layout.meta.tactical_pad_enabled %}<span class="task-badge">Tactical Pad</span>{% endif %}
+                      {% if task.tactical_layout.meta.game_phase %}<span class="task-badge">{{ task.tactical_layout.meta.game_phase }}</span>{% endif %}
+                      {% if task.tactical_layout.meta.methodology %}<span class="task-badge">{{ task.tactical_layout.meta.methodology }}</span>{% endif %}
+                      {% if task.tactical_layout.meta.complexity %}<span class="task-badge">{{ task.tactical_layout.meta.complexity }}</span>{% endif %}
+                      {% if task.tactical_layout.meta.cognitive_load %}<span class="task-badge">Cog {{ task.tactical_layout.meta.cognitive_load }}/10</span>{% endif %}
                       <form method="post" style="display:inline;">
                         {% csrf_token %}
                         <input type="hidden" name="planner_action" value="duplicate_task" />
