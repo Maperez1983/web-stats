@@ -585,6 +585,14 @@
             <input type="hidden" name="planner_action" value="create_task" />
             <input type="hidden" name="tactical_layout" id="tactical-layout-input" value="{}" />
             <label>
+              Plantilla rápida
+              <select id="task-template-select">
+                {% for tpl in task_template_library %}
+                <option value="{{ tpl.key }}">{{ tpl.label }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>
               Sesión
               <select name="session_id" required>
                 <option value="">Selecciona...</option>
@@ -659,6 +667,36 @@
               Recursos / Material resumen
               <input type="text" name="task_resources_summary" maxlength="220" placeholder="Conos (20), petos (12), 2 porterías, 10 balones..." />
             </label>
+            <div class="row">
+              <label>
+                Principio táctico
+                <input type="text" name="task_principle" maxlength="140" placeholder="Ej: Fijar y progresar por fuera" />
+              </label>
+              <label>
+                Subprincipio
+                <input type="text" name="task_subprinciple" maxlength="140" placeholder="Ej: tercer hombre + lado débil" />
+              </label>
+            </div>
+            <div class="row">
+              <label>
+                Trabajo / Pausa
+                <input type="text" name="task_work_rest" maxlength="120" placeholder="Ej: 4x3' + 1' pausa" />
+              </label>
+              <label>
+                Series
+                <input type="number" name="task_series" min="1" max="20" placeholder="4" />
+              </label>
+            </div>
+            <div class="row">
+              <label>
+                Repeticiones
+                <input type="number" name="task_repetitions" min="1" max="60" placeholder="6" />
+              </label>
+              <label>
+                Sistema de puntuación
+                <input type="text" name="task_scoring_model" maxlength="160" placeholder="Ej: 3 pts robo alto, 1 pt 6 pases" />
+              </label>
+            </div>
             <label>
               Consignas (una por línea)
               <textarea name="task_coaching_points" placeholder="Ejemplo:&#10;- Perfil corporal orientado&#10;- Comunicación previa al salto"></textarea>
@@ -671,8 +709,20 @@
               Progresión / Variantes
               <textarea name="task_progression" placeholder="Ejemplo:&#10;- Reducir espacio en 5m&#10;- Pasar de 2 a 1 toque&#10;- Añadir finalización tras robo"></textarea>
             </label>
+            <label>
+              Regresión / Adaptación
+              <textarea name="task_regression" placeholder="Ejemplo:&#10;- Aumentar espacio&#10;- Reducir oposición en zona crítica"></textarea>
+            </label>
+            <label>
+              Criterio de éxito
+              <textarea name="task_success_criteria" placeholder="Ejemplo: 60% secuencias con progresión + finalización en tiempo objetivo"></textarea>
+            </label>
+            <label style="display:flex; flex-direction:row; align-items:center; gap:0.5rem;">
+              <input type="checkbox" name="task_tactical_pad_enabled" value="1" />
+              Usar pizarra táctica para esta tarea (opcional)
+            </label>
             <div class="task-tools">
-              <button class="secondary" type="button" id="open-tactical-pad">Abrir Tactical Pad</button>
+              <button class="secondary" type="button" id="open-tactical-pad">Abrir Tactical Pad (recurso auxiliar)</button>
               <p class="pad-note" id="pad-summary">Sin distribución táctica guardada.</p>
             </div>
             <button class="primary" type="submit">Añadir Tarea</button>
@@ -710,7 +760,7 @@
                     <li>
                       {{ task.get_block_display }} · {{ task.title }} ({{ task.duration_minutes }}')
                       <a class="task-link" href="{% url 'session-task-pdf' task.id %}" target="_blank" rel="noopener">PDF UEFA B</a>
-                      {% if task.tactical_layout.tokens %}<span class="task-badge">Tactical Pad</span>{% endif %}
+                      {% if task.tactical_layout.meta.tactical_pad_enabled %}<span class="task-badge">Tactical Pad</span>{% endif %}
                     </li>
                     {% endfor %}
                   </ul>
@@ -812,6 +862,7 @@
         </div>
       </section>
     </main>
+    {{ task_template_library|json_script:"task-template-library-data" }}
     <script>
       const padModal = document.getElementById('pad-modal');
       const openPadBtn = document.getElementById('open-tactical-pad');
@@ -828,6 +879,8 @@
       const materialCategoryFilter = document.getElementById('material-category-filter');
       const materialSearch = document.getElementById('material-search');
       const materialGroups = Array.from(document.querySelectorAll('#materials-groups .palette-group'));
+      const taskTemplateSelect = document.getElementById('task-template-select');
+      const taskTemplateLibrary = JSON.parse(document.getElementById('task-template-library-data')?.textContent || '[]');
       const MATERIAL_ICON_BY_KIND = {
         cone: '△',
         pole: '┃',
@@ -923,6 +976,16 @@
 
       function clamp(value, min, max) {
         return Math.max(min, Math.min(max, value));
+      }
+
+      function applyTaskTemplate(templateKey) {
+        const template = (taskTemplateLibrary || []).find((item) => item && item.key === templateKey);
+        if (!template || !template.values || typeof template.values !== 'object') return;
+        Object.entries(template.values).forEach(([name, value]) => {
+          const field = document.querySelector(`[name="${name}"]`);
+          if (!field) return;
+          field.value = value;
+        });
       }
 
       function updatePadSummary() {
@@ -1052,6 +1115,11 @@
 
       materialCategoryFilter?.addEventListener('change', applyMaterialFilters);
       materialSearch?.addEventListener('input', applyMaterialFilters);
+      taskTemplateSelect?.addEventListener('change', (event) => {
+        const key = String(event.target.value || '');
+        if (!key || key === 'none') return;
+        applyTaskTemplate(key);
+      });
       applyMaterialFilters();
 
       if (padField) {

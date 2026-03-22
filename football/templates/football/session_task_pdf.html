@@ -234,6 +234,19 @@
       <ul><li>{{ task_meta.resources_summary }}</li></ul>
     </section>
     {% endif %}
+    {% if task_meta.principle or task_meta.subprinciple or task_meta.work_rest or task_meta.series or task_meta.repetitions or task_meta.scoring_model %}
+    <section class="block">
+      <h2>Parámetros de Diseño</h2>
+      <ul>
+        {% if task_meta.principle %}<li><strong>Principio:</strong> {{ task_meta.principle }}</li>{% endif %}
+        {% if task_meta.subprinciple %}<li><strong>Subprincipio:</strong> {{ task_meta.subprinciple }}</li>{% endif %}
+        {% if task_meta.work_rest %}<li><strong>Trabajo/Pausa:</strong> {{ task_meta.work_rest }}</li>{% endif %}
+        {% if task_meta.series %}<li><strong>Series:</strong> {{ task_meta.series }}</li>{% endif %}
+        {% if task_meta.repetitions %}<li><strong>Repeticiones:</strong> {{ task_meta.repetitions }}</li>{% endif %}
+        {% if task_meta.scoring_model %}<li><strong>Sistema puntuación:</strong> {{ task_meta.scoring_model }}</li>{% endif %}
+      </ul>
+    </section>
+    {% endif %}
 
     <section class="block">
       <h2>Objetivos</h2>
@@ -265,6 +278,18 @@
     <section class="block">
       <h2>Progresión / Variantes</h2>
       <div style="padding:8px 10px; white-space:pre-line;">{{ task_meta.progression }}</div>
+    </section>
+    {% endif %}
+    {% if task_meta.regression %}
+    <section class="block">
+      <h2>Regresión / Adaptación</h2>
+      <div style="padding:8px 10px; white-space:pre-line;">{{ task_meta.regression }}</div>
+    </section>
+    {% endif %}
+    {% if task_meta.success_criteria %}
+    <section class="block">
+      <h2>Criterio de Éxito</h2>
+      <div style="padding:8px 10px; white-space:pre-line;">{{ task_meta.success_criteria }}</div>
     </section>
     {% endif %}
 

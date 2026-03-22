@@ -163,6 +163,92 @@ TASK_PITCH_FORMAT_CHOICES = [
     ('abp', 'ABP'),
     ('specific_zone', 'Zona específica'),
 ]
+TASK_TEMPLATE_LIBRARY = [
+    {
+        'key': 'none',
+        'label': 'Sin plantilla (manual)',
+    },
+    {
+        'key': 'rondo_press',
+        'label': 'Rondo + presión tras pérdida',
+        'values': {
+            'task_title': 'Rondo + presión tras pérdida',
+            'task_objective': 'Mejorar orientación corporal, apoyos y reacción tras pérdida.',
+            'task_space': '24x24m',
+            'task_organization': '6v3 + 1 comodín',
+            'task_players_distribution': '2 equipos de 5 + 1 comodín',
+            'task_load_target': 'RPE 7',
+            'task_work_rest': '4x3\' + 1\' pausa',
+            'task_series': '4',
+            'task_repetitions': '1',
+            'task_coaching_points': '- Perfil corporal abierto\n- Pase tenso y línea de pase de seguridad\n- Tras pérdida: 3" de presión máxima',
+            'task_confrontation_rules': '- 1 punto por 8 pases seguidos\n- Si roba defensa y sale del cuadrado: 2 puntos',
+            'task_progression': '- Limitar a 2 toques\n- Reducir espacio a 20x20m',
+            'task_regression': '- Aumentar espacio\n- Añadir segundo comodín',
+            'task_success_criteria': 'Al menos 60% de secuencias > 6 pases y recuperación en <6".',
+        },
+    },
+    {
+        'key': 'positional_game',
+        'label': 'Juego de posición',
+        'values': {
+            'task_title': 'Juego de posición por calles',
+            'task_objective': 'Fijar por dentro y progresar por fuera con tercer hombre.',
+            'task_space': '48x36m · 3 calles',
+            'task_organization': '7v7 + 3 comodines',
+            'task_players_distribution': 'Líneas por altura + comodines interiores',
+            'task_load_target': 'RPE 6-7',
+            'task_work_rest': '3x6\' + 2\' pausa',
+            'task_series': '3',
+            'task_repetitions': '1',
+            'task_coaching_points': '- Atracción interior para liberar lado débil\n- Ocupar 5 carriles en amplitud',
+            'task_confrontation_rules': '- Gol válido tras cambio de orientación\n- Máximo 3 toques en zona interior',
+            'task_progression': '- Reducir toques por línea\n- Limitar comodín a 1 toque',
+            'task_regression': '- Sin límite de toques\n- Añadir un comodín extra',
+            'task_success_criteria': '8+ progresiones con cambio de orientación por bloque.',
+        },
+    },
+    {
+        'key': 'transition_wave',
+        'label': 'Transición ataque-defensa',
+        'values': {
+            'task_title': 'Olas de transición 4v3 + 3v2',
+            'task_objective': 'Acelerar decisión tras robo y proteger carril central en repliegue.',
+            'task_space': 'Medio campo',
+            'task_organization': 'Secuencias por olas',
+            'task_players_distribution': '2 equipos + finalizadores + recuperadores',
+            'task_load_target': 'RPE 8',
+            'task_work_rest': '6x90" + 90" pausa',
+            'task_series': '2',
+            'task_repetitions': '6',
+            'task_coaching_points': '- Primer pase tras robo hacia delante\n- Repliegue en sprint 6"',
+            'task_confrontation_rules': '- Gol en <10" vale doble\n- Si recupera defensor y sale, punto',
+            'task_progression': '- Reducir tiempo de finalización a 8"\n- Iniciar desde estímulo imprevisible',
+            'task_regression': '- Aumentar superioridad ofensiva',
+            'task_success_criteria': '50% finalizaciones en tiempo objetivo y cero goles por carril central.',
+        },
+    },
+    {
+        'key': 'abp_corner',
+        'label': 'ABP córner ofensivo',
+        'values': {
+            'task_title': 'ABP ofensiva · córner corto/largo',
+            'task_objective': 'Automatizar dos rutinas y timing de bloqueos.',
+            'task_space': 'Último tercio',
+            'task_organization': 'Atacantes vs defensores + portero',
+            'task_players_distribution': '8 atacantes + 6 defensores',
+            'task_load_target': 'RPE 5',
+            'task_work_rest': '10 repeticiones por rutina',
+            'task_series': '2',
+            'task_repetitions': '10',
+            'task_coaching_points': '- Timing de bloqueo y desmarque\n- Perfil del centrador según rutina',
+            'task_confrontation_rules': '- Solo vale gol de zona objetivo\n- Si despeja defensa fuera del área: punto defensa',
+            'task_progression': '- Añadir segunda jugada\n- Variar perfil de centro',
+            'task_regression': '- Sin oposición en primeras repeticiones',
+            'task_success_criteria': '70% de ejecuciones con remate en zona prevista.',
+        },
+    },
+]
 
 
 def build_task_material_library():
@@ -2460,6 +2546,15 @@ def sessions_page(request):
                 load_target = (request.POST.get('task_load_target') or '').strip()
                 resources_summary = (request.POST.get('task_resources_summary') or '').strip()
                 progression = (request.POST.get('task_progression') or '').strip()
+                regression = (request.POST.get('task_regression') or '').strip()
+                work_rest = (request.POST.get('task_work_rest') or '').strip()
+                series = (request.POST.get('task_series') or '').strip()
+                repetitions = (request.POST.get('task_repetitions') or '').strip()
+                principle = (request.POST.get('task_principle') or '').strip()
+                subprinciple = (request.POST.get('task_subprinciple') or '').strip()
+                scoring_model = (request.POST.get('task_scoring_model') or '').strip()
+                success_criteria = (request.POST.get('task_success_criteria') or '').strip()
+                tactical_pad_enabled = str(request.POST.get('task_tactical_pad_enabled') or '').strip().lower() in {'1', 'true', 'on', 'yes'}
                 tactical_layout_raw = (request.POST.get('tactical_layout') or '').strip()
                 tactical_layout = {}
                 if tactical_layout_raw:
@@ -2488,6 +2583,23 @@ def sessions_page(request):
                     meta['resources_summary'] = resources_summary
                 if progression:
                     meta['progression'] = progression
+                if regression:
+                    meta['regression'] = regression
+                if work_rest:
+                    meta['work_rest'] = work_rest
+                if series:
+                    meta['series'] = series
+                if repetitions:
+                    meta['repetitions'] = repetitions
+                if principle:
+                    meta['principle'] = principle
+                if subprinciple:
+                    meta['subprinciple'] = subprinciple
+                if scoring_model:
+                    meta['scoring_model'] = scoring_model
+                if success_criteria:
+                    meta['success_criteria'] = success_criteria
+                meta['tactical_pad_enabled'] = bool(tactical_pad_enabled)
                 tactical_layout['meta'] = meta
                 SessionTask.objects.create(
                     session=session,
@@ -2565,6 +2677,7 @@ def sessions_page(request):
             'task_materials': task_materials,
             'task_surface_choices': TASK_SURFACE_CHOICES,
             'task_pitch_format_choices': TASK_PITCH_FORMAT_CHOICES,
+            'task_template_library': TASK_TEMPLATE_LIBRARY,
             'material_categories': material_categories,
             'materials_by_category': materials_by_category,
             'planner_tables_ready': planner_tables_ready,
