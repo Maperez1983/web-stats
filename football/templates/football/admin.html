@@ -320,7 +320,12 @@
           </label>
           <label>
             <span>Zona</span>
-            <input type="text" name="zone" placeholder="Centro del campo, último tercio..." />
+            <select name="zone">
+              <option value="">Sin zona</option>
+              {% for zone in admin_zone_choices %}
+              <option value="{{ zone }}">{{ zone }}</option>
+              {% endfor %}
+            </select>
           </label>
           <label>
             <span>Cantidad</span>
@@ -400,6 +405,17 @@
         {% endif %}
         {% if user_error %}
         <p style="color:#fecaca;">{{ user_error }}</p>
+        {% endif %}
+        {% if invitation_links %}
+        <div style="margin:0.65rem 0 1rem; padding:0.65rem; border:1px solid rgba(56,189,248,0.35); border-radius:0.6rem; background:rgba(15,23,42,0.65);">
+          <strong style="display:block; margin-bottom:0.45rem; color:#bae6fd;">Enlaces de invitación generados</strong>
+          {% for invite in invitation_links %}
+          <p style="margin:0.35rem 0; color:#e2e8f0;">
+            <strong>{{ invite.username }}</strong> · caduca {{ invite.expires_at|date:"d/m/Y H:i" }}<br />
+            <a href="{{ invite.url }}" style="color:#7dd3fc; word-break:break-all;">{{ invite.url }}</a>
+          </p>
+          {% endfor %}
+        </div>
         {% endif %}
         <form method="post" class="users-form">
           {% csrf_token %}
@@ -483,6 +499,15 @@
               {% else %}
               <button class="pill-button" type="submit">Activar</button>
               {% endif %}
+            </form>
+            <form method="post" class="form-inline">
+              {% csrf_token %}
+              <input type="hidden" name="form_action" value="user_invite_create" />
+              <input type="hidden" name="active_tab" value="users" />
+              <input type="hidden" name="users_segment" value="{{ users_segment }}" />
+              <input type="hidden" name="user_id" value="{{ item.id }}" />
+              <input type="hidden" name="valid_days" value="7" />
+              <button class="pill-button" type="submit">Generar invitación</button>
             </form>
           </article>
           {% empty %}

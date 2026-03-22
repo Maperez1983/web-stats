@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils import timezone
 from django.contrib.auth.models import User
+import secrets
 
 
 class DataSource(models.Model):
@@ -620,6 +621,34 @@ class RivalAnalysisReport(models.Model):
 
     def __str__(self):
         return f'{self.rival_name} · {self.report_title or "Informe"}'
+
+
+class UserInvitation(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='invitations')
+    token = models.CharField(max_length=120, unique=True, db_index=True)
+    email = models.EmailField(blank=True)
+    expires_at = models.DateTimeField()
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    created_by = models.CharField(max_length=80, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+
+    @classmethod
+    def generate_token(cls):
+        return secrets.token_urlsafe(32)
+
+    def is_expired(self, now=None):
+        reference = now or timezone.now()
+        return bool(self.expires_at and self.expires_at <= reference)
+
+    def can_be_used(self, now=None):
+        return bool(self.is_active and not self.accepted_at and not self.is_expired(now=now))
+
+    def __str__(self):
+        return f'Invitación {self.user.username} · {self.created_at:%Y-%m-%d %H:%M}'
 
 
 class AppUserRole(models.Model):

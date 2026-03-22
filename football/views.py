@@ -17,7 +17,9 @@ import re
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
+from django.contrib.auth.password_validation import validate_password
 from django.core.cache import cache
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.db.models import Count, Max, Q
 from django.db.utils import OperationalError, ProgrammingError
@@ -62,6 +64,7 @@ from football.models import (
     RivalVideo,
     RivalAnalysisReport,
     AppUserRole,
+    UserInvitation,
     TaskBlueprint,
 )
 from football.event_taxonomy import (
@@ -1088,6 +1091,7 @@ def admin_page(request):
     user_error = ''
     actions_message = ''
     actions_error = ''
+    invitation_links = []
     active_tab = (request.GET.get('tab') or request.POST.get('active_tab') or 'roster').strip().lower()
     if active_tab not in {'roster', 'carousel', 'users', 'actions'}:
         active_tab = 'roster'
@@ -1221,6 +1225,39 @@ def admin_page(request):
                 user_error = str(exc)
             except Exception:
                 user_error = 'No se pudo actualizar el usuario.'
+        elif form_action == 'user_invite_create':
+            active_tab = 'users'
+            user_id = _parse_int(request.POST.get('user_id'))
+            validity_days = _parse_int(request.POST.get('valid_days')) or 7
+            validity_days = max(1, min(validity_days, 30))
+            user_obj = User.objects.filter(id=user_id).first() if user_id else None
+            try:
+                if not user_obj:
+                    raise ValueError('Usuario no encontrado.')
+                UserInvitation.objects.filter(user=user_obj, is_active=True, accepted_at__isnull=True).update(is_active=False)
+                invitation = UserInvitation.objects.create(
+                    user=user_obj,
+                    token=UserInvitation.generate_token(),
+                    email=(user_obj.email or '').strip(),
+                    expires_at=timezone.now() + timedelta(days=validity_days),
+                    created_by=request.user.get_username() if request.user.is_authenticated else '',
+                    is_active=True,
+                )
+                invite_url = request.build_absolute_uri(
+                    reverse('user-invite-accept', args=[invitation.token])
+                )
+                invitation_links.append(
+                    {
+                        'username': user_obj.username,
+                        'url': invite_url,
+                        'expires_at': invitation.expires_at,
+                    }
+                )
+                user_message = f'Invitación generada para {user_obj.username}.'
+            except ValueError as exc:
+                user_error = str(exc)
+            except Exception:
+                user_error = 'No se pudo generar la invitación.'
         elif form_action == 'user_update_role':
             active_tab = 'users'
             user_id = _parse_int(request.POST.get('user_id'))
@@ -1431,6 +1468,14 @@ def admin_page(request):
     )
     admin_action_choices = load_match_actions()
     admin_result_choices = load_match_results()
+    admin_zone_choices = []
+    seen_zone_labels = set()
+    for zone_def in FIELD_ZONES:
+        label = str(zone_def.get('label') or '').strip()
+        if not label or label in seen_zone_labels:
+            continue
+        seen_zone_labels.add(label)
+        admin_zone_choices.append(label)
     return render(
         request,
         'football/admin.html',
@@ -1444,6 +1489,7 @@ def admin_page(request):
             'role_choices': AppUserRole.ROLE_CHOICES,
             'user_message': user_message,
             'user_error': user_error,
+            'invitation_links': invitation_links,
             'active_tab': active_tab,
             'team_name': primary_team.name if primary_team else '',
             'users_segment': users_segment,
@@ -1457,8 +1503,82 @@ def admin_page(request):
             'admin_players': admin_players,
             'admin_action_choices': admin_action_choices,
             'admin_result_choices': admin_result_choices,
+            'admin_zone_choices': admin_zone_choices,
             'actions_message': actions_message,
             'actions_error': actions_error,
+        },
+    )
+
+
+def invitation_accept_page(request, token):
+    invitation = (
+        UserInvitation.objects
+        .select_related('user')
+        .filter(token=token, is_active=True)
+        .order_by('-created_at')
+        .first()
+    )
+    now = timezone.now()
+    if not invitation:
+        return render(
+            request,
+            'football/invitation_accept.html',
+            {'status': 'invalid'},
+            status=404,
+        )
+    if invitation.accepted_at:
+        return render(
+            request,
+            'football/invitation_accept.html',
+            {'status': 'used', 'username': invitation.user.username},
+            status=410,
+        )
+    if invitation.is_expired(now=now):
+        invitation.is_active = False
+        invitation.save(update_fields=['is_active'])
+        return render(
+            request,
+            'football/invitation_accept.html',
+            {'status': 'expired', 'username': invitation.user.username},
+            status=410,
+        )
+    error = ''
+    success = ''
+    if request.method == 'POST':
+        password = (request.POST.get('password') or '').strip()
+        password_confirm = (request.POST.get('password_confirm') or '').strip()
+        if not password:
+            error = 'La contraseña es obligatoria.'
+        elif password != password_confirm:
+            error = 'Las contraseñas no coinciden.'
+        else:
+            try:
+                validate_password(password, user=invitation.user)
+                invitation.user.set_password(password)
+                invitation.user.is_active = True
+                invitation.user.save(update_fields=['password', 'is_active'])
+                invitation.accepted_at = timezone.now()
+                invitation.is_active = False
+                invitation.save(update_fields=['accepted_at', 'is_active'])
+                UserInvitation.objects.filter(
+                    user=invitation.user,
+                    is_active=True,
+                    accepted_at__isnull=True,
+                ).exclude(id=invitation.id).update(is_active=False)
+                success = 'Invitación aceptada. Ya puedes iniciar sesión.'
+            except DjangoValidationError as exc:
+                error = ' '.join(exc.messages) or 'Contraseña inválida.'
+            except Exception:
+                error = 'No se pudo completar la invitación.'
+    return render(
+        request,
+        'football/invitation_accept.html',
+        {
+            'status': 'ok',
+            'username': invitation.user.username,
+            'expires_at': invitation.expires_at,
+            'error': error,
+            'success': success,
         },
     )
 

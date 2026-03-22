@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Invitación de usuario</title>
+    <style>
+      body { margin:0; font-family: Inter, system-ui, sans-serif; background:#020617; color:#e2e8f0; }
+      .wrap { max-width: 520px; margin: 7vh auto; padding: 0 1rem; }
+      .card { background: rgba(15,23,42,0.95); border:1px solid rgba(148,163,184,0.25); border-radius: 14px; padding: 1rem; }
+      h1 { margin: 0 0 0.6rem; font-size: 1.25rem; }
+      p { margin: 0.45rem 0; color:#cbd5e1; }
+      label { display:block; margin:0.55rem 0 0.35rem; font-size:0.82rem; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; }
+      input { width:100%; border-radius:10px; border:1px solid rgba(148,163,184,0.35); background:rgba(2,6,23,0.65); color:#f8fafc; padding:0.65rem; box-sizing:border-box; }
+      button { margin-top:0.8rem; width:100%; border:none; border-radius:999px; padding:0.75rem; background:linear-gradient(135deg,#22d3ee,#2563eb); color:#fff; font-weight:700; cursor:pointer; }
+      .ok { color:#86efac; }
+      .err { color:#fecaca; }
+      a { color:#7dd3fc; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="card">
+        {% if status == 'invalid' %}
+        <h1>Invitación no válida</h1>
+        <p>El enlace no existe o ha sido desactivado.</p>
+        {% elif status == 'used' %}
+        <h1>Invitación ya utilizada</h1>
+        <p>La invitación de <strong>{{ username }}</strong> ya fue aceptada.</p>
+        {% elif status == 'expired' %}
+        <h1>Invitación caducada</h1>
+        <p>La invitación de <strong>{{ username }}</strong> ha expirado. Solicita una nueva.</p>
+        {% else %}
+        <h1>Activar usuario</h1>
+        <p>Usuario: <strong>{{ username }}</strong></p>
+        <p>Caduca: <strong>{{ expires_at|date:"d/m/Y H:i" }}</strong></p>
+        {% if error %}<p class="err">{{ error }}</p>{% endif %}
+        {% if success %}
+        <p class="ok">{{ success }}</p>
+        <p><a href="/admin/login/">Ir al inicio de sesión</a></p>
+        {% else %}
+        <form method="post">
+          {% csrf_token %}
+          <label>Contraseña</label>
+          <input type="password" name="password" required minlength="8" autocomplete="new-password" />
+          <label>Repetir contraseña</label>
+          <input type="password" name="password_confirm" required minlength="8" autocomplete="new-password" />
+          <button type="submit">Aceptar invitación</button>
+        </form>
+        {% endif %}
+        {% endif %}
+      </div>
+    </div>
+  </body>
+</html>

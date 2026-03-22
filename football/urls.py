@@ -8,6 +8,7 @@ urlpatterns = [
     path('api/dashboard/refresh/', views.refresh_scraping, name='dashboard-refresh'),
     path('players/', views.player_dashboard_page, name='player-dashboard'),
     path('admin-tools/', views.admin_page, name='admin-page'),
+    path('invitation/<str:token>/', views.invitation_accept_page, name='user-invite-accept'),
     path('coach/', views.coach_overview_page, name='coach-detail'),
     path('player/<int:player_id>/', views.player_detail_page, name='player-detail'),
     path('player/<int:player_id>/pdf/', views.player_pdf, name='player-pdf'),
