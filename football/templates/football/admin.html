@@ -299,7 +299,7 @@
           <input type="hidden" name="match_id" value="{{ selected_admin_match.id|default:'' }}" />
           <label>
             <span>Rival</span>
-            <input type="text" name="opponent_name" value="{% if selected_admin_match %}{{ selected_admin_match.away_team.name }}{% endif %}" required />
+            <input type="text" name="opponent_name" value="{% if selected_admin_match %}{% if selected_admin_match.home_team_id == primary_team_id %}{{ selected_admin_match.away_team.name }}{% else %}{{ selected_admin_match.home_team.name }}{% endif %}{% endif %}" required />
           </label>
           <label>
             <span>Jornada</span>

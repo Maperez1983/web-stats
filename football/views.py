@@ -757,6 +757,18 @@ def _normalize_team_lookup_key(value):
     return normalized
 
 
+def _team_name_signature(value):
+    text = str(value or '').strip()
+    if not text:
+        return ()
+    normalized = unicodedata.normalize('NFKD', text)
+    normalized = ''.join(ch for ch in normalized if not unicodedata.combining(ch)).lower()
+    tokens = [tok for tok in re.findall(r'[a-z0-9]+', normalized) if tok]
+    if not tokens:
+        return ()
+    return tuple(sorted(tokens))
+
+
 def _build_universo_standings_lookup(snapshot):
     lookup = {}
     if not isinstance(snapshot, dict):
@@ -7103,9 +7115,20 @@ def get_next_match(primary_team, group):
 def _team_match_queryset(primary_team):
     if not primary_team:
         return Match.objects.none()
-    return Match.objects.filter(
-        Q(home_team=primary_team) | Q(away_team=primary_team)
-    ).select_related('home_team', 'away_team')
+    direct_filter = Q(home_team=primary_team) | Q(away_team=primary_team)
+    team_signature = _team_name_signature(primary_team.name)
+    if not team_signature:
+        return Match.objects.filter(direct_filter).select_related('home_team', 'away_team')
+
+    # Some imports may create a duplicated team entry for Benagalbón (name variants),
+    # leaving matches linked to that alias instead of the canonical `is_primary` team.
+    alias_ids = []
+    for candidate in Team.objects.exclude(id=primary_team.id).only('id', 'name'):
+        if _team_name_signature(candidate.name) == team_signature:
+            alias_ids.append(candidate.id)
+    if alias_ids:
+        direct_filter = direct_filter | Q(home_team_id__in=alias_ids) | Q(away_team_id__in=alias_ids)
+    return Match.objects.filter(direct_filter).select_related('home_team', 'away_team').distinct()
 
 
 def get_active_match(primary_team):
