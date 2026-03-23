@@ -3,7 +3,7 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <title>Sesiones · Carga y Analisis PDF</title>
+    <title>{{ scope_title|default:"Sesiones" }} · Carga y Analisis PDF</title>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <style>
       :root {
@@ -67,9 +67,10 @@
     <main class="page">
       {% include 'football/includes/dragon_nav.html' %}
       <div class="top">
-        <h1>Sesiones · Carga de PDFs y Editor de Tareas</h1>
+        <h1>{{ scope_title|default:"Sesiones" }} · Carga de PDFs y Editor de Tareas</h1>
         <a href="{% url 'coach-detail' %}" class="button">Volver</a>
       </div>
+      <p class="meta" style="margin-top:-0.35rem; margin-bottom:0.9rem;">Espacio activo: <strong>{{ scope_title|default:"Sesiones" }}</strong></p>
 
       {% if feedback %}<div class="alert ok">{{ feedback }}</div>{% endif %}
       {% if error %}<div class="alert err">{{ error }}</div>{% endif %}

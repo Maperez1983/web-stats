@@ -3139,7 +3139,11 @@ def coach_role_trainer_page(request):
 
 def coach_role_goalkeeper_page(request):
     modules = [
-        {'title': 'Repositorio tareas portero', 'description': 'Usa el planner para guardar ejercicios de porteros.', 'link': 'sessions'},
+        {
+            'title': 'Tareas portero · Carga PDF',
+            'description': 'Sube, analiza y crea tareas especificas de porteria.',
+            'link': 'sessions-goalkeeper',
+        },
         {'title': 'Pizarra táctica', 'description': 'Simula secuencias de portero en campo y guarda movimientos.', 'link': 'coach-abp-board'},
     ]
     return render(
@@ -3155,6 +3159,11 @@ def coach_role_goalkeeper_page(request):
 
 def coach_role_fitness_page(request):
     modules = [
+        {
+            'title': 'Tareas fisicas · Carga PDF',
+            'description': 'Sube, analiza y crea tareas de preparacion fisica.',
+            'link': 'sessions-fitness',
+        },
         {'title': 'Métricas físicas', 'description': 'Sección lista para cargar datos, test y seguimiento.', 'link': 'player-dashboard'},
         {'title': 'Registro individual', 'description': 'Completa datos físicos por jugador desde su ficha.', 'link': 'player-dashboard'},
     ]
@@ -3375,7 +3384,14 @@ def _suggest_task_from_pdf(pdf_text):
     }
 
 
-def sessions_page(request):
+def _task_scope_for_item(task):
+    layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
+    meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+    scope = str(meta.get('scope') or '').strip()
+    return scope or 'coach'
+
+
+def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones'):
     primary_team = Team.objects.filter(is_primary=True).first()
     if not primary_team:
         raise Http404('Equipo principal no configurado')
@@ -3443,7 +3459,7 @@ def sessions_page(request):
                         objective=objective[:180],
                         coaching_points='',
                         confrontation_rules='',
-                        tactical_layout={},
+                        tactical_layout={'meta': {'scope': scope_key}},
                         task_pdf=pdf_file,
                         status=SessionTask.STATUS_PLANNED,
                         order=base_order + idx,
@@ -3465,6 +3481,8 @@ def sessions_page(request):
                 )
                 if not analysis_task or not analysis_task.task_pdf:
                     raise ValueError('Selecciona una tarea con PDF guardado para analizar.')
+                if _task_scope_for_item(analysis_task) != scope_key:
+                    raise ValueError('La tarea seleccionada no pertenece a este espacio.')
                 pdf_text = _extract_pdf_text(analysis_task.task_pdf)
                 analysis = _suggest_task_from_pdf(pdf_text)
                 analysis['raw_text'] = pdf_text[:2500]
@@ -3498,6 +3516,8 @@ def sessions_page(request):
                 )
                 if not source_task or not source_task.task_pdf:
                     raise ValueError('No se encontró el PDF fuente para crear la tarea.')
+                if _task_scope_for_item(source_task) != scope_key:
+                    raise ValueError('El PDF fuente no pertenece a este espacio.')
                 if not target_session:
                     raise ValueError('Selecciona una sesión destino válida.')
 
@@ -3506,6 +3526,7 @@ def sessions_page(request):
                     'source': 'pdf_analysis',
                     'source_task_id': source_task.id,
                     'extracted_text_excerpt': extracted_text[:1200],
+                    'scope': scope_key,
                 }
                 SessionTask.objects.create(
                     session=target_session,
@@ -3546,12 +3567,13 @@ def sessions_page(request):
             except ValueError as exc:
                 error = str(exc)
 
-    task_library = list(
+    task_library_raw = list(
         SessionTask.objects
         .select_related('session__microcycle')
         .filter(session__microcycle__team=primary_team, task_pdf__isnull=False)
         .order_by('-id')[:150]
     ) if planner_tables_ready else []
+    task_library = [item for item in task_library_raw if _task_scope_for_item(item) == scope_key]
 
     return render(
         request,
@@ -3566,8 +3588,22 @@ def sessions_page(request):
             'task_library': task_library,
             'analysis': analysis,
             'analysis_task': analysis_task,
+            'scope_key': scope_key,
+            'scope_title': scope_title,
         },
     )
+
+
+def sessions_page(request):
+    return _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones · Entrenador')
+
+
+def sessions_goalkeeper_page(request):
+    return _sessions_workspace_page(request, scope_key='goalkeeper', scope_title='Sesiones · Porteros')
+
+
+def sessions_fitness_page(request):
+    return _sessions_workspace_page(request, scope_key='fitness', scope_title='Sesiones · Preparacion fisica')
 
 
 def fines_page(request):
