@@ -3423,14 +3423,15 @@ def _extract_pdf_text(pdf_file, max_chars=12000):
         raise ValueError('No se pudo leer el PDF. Verifica que no esté protegido o corrupto.')
 
 
-def _extract_preview_image_from_pdf(pdf_file):
+def _extract_preview_images_from_pdf(pdf_file, max_images=8):
     if PdfReader is None or pdf_file is None:
-        return None
+        return []
+    payloads = []
     try:
         if hasattr(pdf_file, 'seek'):
             pdf_file.seek(0)
         reader = PdfReader(pdf_file)
-        for page in reader.pages[:2]:
+        for page in reader.pages:
             images = getattr(page, 'images', []) or []
             for image in images:
                 raw = getattr(image, 'data', b'') or b''
@@ -3440,10 +3441,17 @@ def _extract_preview_image_from_pdf(pdf_file):
                 if ext not in {'png', 'jpg', 'jpeg', 'webp'}:
                     ext = 'png'
                 filename = f'task-preview-{uuid.uuid4().hex[:10]}.{ext}'
-                return filename, ContentFile(raw)
+                payloads.append((filename, ContentFile(raw)))
+                if len(payloads) >= max(1, int(max_images or 1)):
+                    return payloads
     except Exception:
-        return None
-    return None
+        return []
+    return payloads
+
+
+def _extract_preview_image_from_pdf(pdf_file):
+    payloads = _extract_preview_images_from_pdf(pdf_file, max_images=1)
+    return payloads[0] if payloads else None
 
 
 TASK_CONTEXT_KEYWORDS = {
@@ -3599,10 +3607,33 @@ def _suggest_task_from_pdf(pdf_text):
 
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     title = ''
-    for line in lines[:12]:
-        if len(line) < 120 and not re.search(r'^\d+$', line):
-            title = line
-            break
+    skip_title_tokens = (
+        'parteprincipal',
+        'materialdeentrenamiento',
+        'tiempototaldesesion',
+        'tiempo total de sesion',
+        'fecha:',
+        'hora:',
+        'micro-ciclo',
+        'meso-ciclo',
+    )
+    for line in lines[:24]:
+        if len(line) > 120 or re.search(r'^\d+$', line):
+            continue
+        folded = _normalize_folded_text(line)
+        if not folded or folded in {',', '.', ';'}:
+            continue
+        if any(token in folded for token in skip_title_tokens):
+            continue
+        if (
+            folded.startswith('2bloques')
+            or folded.startswith('3bloques')
+            or folded.startswith('tiempototal')
+            or re.match(r'^tiempo\s*total', folded)
+        ):
+            continue
+        title = line
+        break
 
     objective = _extract_section_block(text, ['objetivo', 'objective', 'finalidad', 'meta'])
     if not objective:
@@ -3610,13 +3641,36 @@ def _suggest_task_from_pdf(pdf_text):
         if objective_match:
             objective = objective_match.group(2).strip()
         elif len(lines) > 1:
-            objective = lines[1][:180]
+            for candidate in lines[1:10]:
+                folded = _normalize_folded_text(candidate)
+                if len(candidate.strip(' ,.;:-')) < 4:
+                    continue
+                if re.match(r'^(dosificacion|tiempo\s*total|parteprincipal)\b', folded):
+                    continue
+                if re.match(r'^\d+\s*bloques', folded):
+                    continue
+                objective = candidate[:180]
+                break
 
     minutes = 15
-    minute_match = re.search(r'(\d{1,3})\s*(?:min|mins|minutos|minutes|\')', text, re.IGNORECASE)
-    if minute_match:
-        parsed = _parse_int(minute_match.group(1)) or 15
-        minutes = max(5, min(parsed, 90))
+    dosage_line = re.search(r'dosificaci[oó]n\s*[:\-]?\s*([^\n]{0,120})', text, re.IGNORECASE)
+    if dosage_line:
+        nums = [_parse_int(num) for num in re.findall(r'\d{1,3}', dosage_line.group(1))]
+        nums = [n for n in nums if n is not None]
+        plausible = [n for n in nums if 5 <= n <= 90]
+        if plausible:
+            minutes = max(plausible)
+    if minutes == 15:
+        minute_match = re.search(
+            r'tiempo\s*total\s*[:\-]?\s*(\d{1,3})\s*(?:min|mins|minutos|minutes|[\'’`´])?',
+            text,
+            re.IGNORECASE,
+        )
+        if not minute_match:
+            minute_match = re.search(r'(\d{1,3})\s*(?:min|mins|minutos|minutes|[\'’`´])', text, re.IGNORECASE)
+        if minute_match:
+            parsed = _parse_int(minute_match.group(1)) or 15
+            minutes = max(5, min(parsed, 90))
 
     coaching_points = _extract_section_block(
         text,
@@ -3674,6 +3728,7 @@ def _split_pdf_into_task_sections(pdf_text):
         re.compile(r'^(?:tarea|ejercicio|task|drill)\s*(?:n[\.\s]*[oº°])?\s*\d{1,2}\b', re.IGNORECASE),
         re.compile(r'^\d{1,2}\s*[\)\.\-]\s*(?:tarea|ejercicio|task|drill)\b', re.IGNORECASE),
         re.compile(r'^(?:task|drill)\s*\d{1,2}\b', re.IGNORECASE),
+        re.compile(r'^(?:primera|segunda|tercera|cuarta)\s+tarea\b', re.IGNORECASE),
     ]
 
     boundaries = []
@@ -3693,16 +3748,66 @@ def _split_pdf_into_task_sections(pdf_text):
 
     sections = []
     seen = set()
+    stop_keywords = (
+        'estiramientos',
+        'partefinal',
+        'parte final',
+        'tiempototaldesesion',
+        'tiempo total de sesion',
+        'observaciones',
+        'ausentes',
+        'lesionados',
+    )
     for i, start in enumerate(boundaries):
         end = boundaries[i + 1] if i + 1 < len(boundaries) else len(lines)
         if end - start < 3:
             continue
         chunk = '\n'.join(lines[start:end]).strip()
+        folded = _normalize_folded_text(chunk)
+        has_load_or_task_data = (
+            'dosificacion' in folded
+            or 'tiempototaldetrabajo' in folded
+            or 'consignas' in folded
+            or 'tarea' in folded
+        )
+        if any(word in folded for word in stop_keywords) and not has_load_or_task_data:
+            continue
         normalized = _normalize_folded_text(chunk)
         if len(chunk) < 80 or normalized in seen:
             continue
         seen.add(normalized)
         sections.append(chunk)
+
+    # Heuristic for session sheets where "Tarea 1" is implicit and first explicit marker is Tarea 2.
+    if sections:
+        first_folded = _normalize_folded_text(sections[0])
+        looks_like_second = any(token in first_folded for token in ('tarea2', 'tarea 2', 'segunda tarea'))
+        has_first_marker = any(any(token in _normalize_folded_text(sec) for token in ('tarea1', 'tarea 1', 'primera tarea')) for sec in sections)
+        if looks_like_second and not has_first_marker:
+            prefix_lines = lines[:boundaries[0]]
+            prefix_text = '\n'.join(prefix_lines)
+            prefix_folded = _normalize_folded_text(prefix_text)
+            if 'parteprincipal' in prefix_folded:
+                idx = prefix_folded.rfind('parteprincipal')
+                candidate = prefix_text[idx:].strip()
+            else:
+                candidate = '\n'.join(prefix_lines[-28:]).strip()
+            candidate_folded = _normalize_folded_text(candidate)
+            if (
+                len(candidate) >= 140
+                and ('dosificacion' in candidate_folded or 'tiempototaldetrabajo' in candidate_folded)
+                and 'estiramientos' not in candidate_folded
+            ):
+                sections.insert(0, candidate)
+
+    cleaned_sections = []
+    for chunk in sections:
+        folded = _normalize_folded_text(chunk)
+        if any(word in folded for word in stop_keywords):
+            if not ('dosificacion' in folded or 'tiempototaldetrabajo' in folded):
+                continue
+        cleaned_sections.append(chunk)
+    sections = cleaned_sections
 
     if len(sections) < 2:
         return [text]
@@ -3858,6 +3963,10 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
 
                     if hasattr(pdf_file, 'seek'):
                         pdf_file.seek(0)
+                    preview_payloads = _extract_preview_images_from_pdf(
+                        pdf_file,
+                        max_images=max(1, len(parsed_tasks)),
+                    )
 
                     first = parsed_tasks[0]
                     first_analysis = first.get('analysis') or {}
@@ -3884,7 +3993,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                         order=base_order + created_count + 1,
                         notes='Cargada desde Biblioteca PDF',
                     )
-                    preview_payload = _extract_preview_image_from_pdf(first_task.task_pdf)
+                    preview_payload = preview_payloads[0] if preview_payloads else None
                     if preview_payload:
                         preview_name, preview_content = preview_payload
                         first_task.task_preview_image.save(preview_name, preview_content, save=True)
@@ -3923,6 +4032,16 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                             order=base_order + created_count + 1,
                             notes='Extraída automáticamente desde PDF multi-tarea',
                         )
+                        segment_index = max(1, int(extra.get('segment_index') or 1))
+                        extra_preview_payload = None
+                        if preview_payloads:
+                            extra_preview_payload = preview_payloads[min(segment_index - 1, len(preview_payloads) - 1)]
+                        if extra_preview_payload:
+                            extra_preview_name, extra_preview_content = extra_preview_payload
+                            extra_task.task_preview_image.save(extra_preview_name, extra_preview_content, save=True)
+                        elif shared_preview_name:
+                            extra_task.task_preview_image = shared_preview_name
+                            extra_task.save(update_fields=['task_preview_image'])
                         try:
                             _apply_analysis_to_task(extra_task, extra_analysis)
                         except Exception:
