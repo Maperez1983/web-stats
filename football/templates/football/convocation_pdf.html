@@ -26,7 +26,7 @@
       .watermark {
         position: absolute;
         inset: 0;
-        background: url("{{ logo_url }}") no-repeat 30% 52%;
+        background: url("{{ logo_src }}") no-repeat 30% 52%;
         background-size: 46%;
         opacity: 0.055;
       }
@@ -219,11 +219,11 @@
           <header class="top">
             <div class="duel">
               <div class="duel-line">
-                <span class="duel-crest"><img src="{{ logo_url }}" alt="{{ team_full_name }}" /></span>
+                <span class="duel-crest"><img src="{{ logo_src }}" alt="{{ team_full_name }}" /></span>
                 <span class="duel-name">{{ team_full_name }}</span>
                 <span class="duel-vs">vs.</span>
-                {% if rival_crest_url %}
-                <span class="duel-crest"><img src="{{ rival_crest_url }}" alt="{{ rival_full_name }}" /></span>
+                {% if rival_crest_src %}
+                <span class="duel-crest"><img src="{{ rival_crest_src }}" alt="{{ rival_full_name }}" /></span>
                 {% endif %}
                 <span class="duel-name">{{ rival_full_name }}</span>
               </div>
@@ -247,7 +247,7 @@
                     <li>
                       <div class="player-row">
                         <div class="player-photo-cell">
-                          <img class="player-thumb" src="{{ player.photo_url|default:avatar_url }}" alt="{{ player.name }}" />
+                          <img class="player-thumb" src="{{ player.photo_src|default:avatar_src }}" alt="{{ player.name }}" />
                         </div>
                         <div class="player-name-cell">{{ player.number|default:"--" }} {{ player.name|upper }}</div>
                       </div>
@@ -261,7 +261,7 @@
                     <li>
                       <div class="player-row">
                         <div class="player-photo-cell">
-                          <img class="player-thumb" src="{{ player.photo_url|default:avatar_url }}" alt="{{ player.name }}" />
+                          <img class="player-thumb" src="{{ player.photo_src|default:avatar_src }}" alt="{{ player.name }}" />
                         </div>
                         <div class="player-name-cell">{{ player.number|default:"--" }} {{ player.name|upper }}</div>
                       </div>

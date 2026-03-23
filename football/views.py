@@ -1466,65 +1466,89 @@ def admin_page(request):
                         f'Se añadieron {quantity} acciones a {player_obj.name} '
                         f'en partido ID {match_obj.id}.'
                     )
-    carousel_images = list(HomeCarouselImage.objects.all())
-    roster_players = (
-        list(Player.objects.filter(team=primary_team).order_by('-is_active', 'number', 'name'))
-        if primary_team
-        else []
-    )
-    users = list(User.objects.order_by('username'))
-    role_map = {}
-    try:
-        role_map = {item.user_id: item.role for item in AppUserRole.objects.select_related('user')}
-    except Exception:
-        role_map = {}
-    role_labels = dict(AppUserRole.ROLE_CHOICES)
-    for item in users:
-        role_value = role_map.get(item.id, AppUserRole.ROLE_PLAYER)
-        item.role_value = role_value
-        item.role_label = role_labels.get(role_value, 'Jugador')
-        item.full_name_display = _display_full_name(item)
-    technical_roles = {
-        AppUserRole.ROLE_COACH,
-        AppUserRole.ROLE_FITNESS,
-        AppUserRole.ROLE_GOALKEEPER,
-        AppUserRole.ROLE_ANALYST,
-        AppUserRole.ROLE_ADMIN,
-    }
-    technical_users = [u for u in users if u.role_value in technical_roles]
-    players_users = [u for u in users if u.role_value == AppUserRole.ROLE_PLAYER]
-    guests_users = [u for u in users if u.role_value == AppUserRole.ROLE_GUEST]
-    users_filtered = technical_users if users_segment == 'technical' else players_users if users_segment == 'players' else guests_users
-    admin_match_qs = _team_match_queryset(primary_team) if primary_team else Match.objects.none()
-    if primary_team and primary_team.group_id:
-        league_matches_qs = admin_match_qs.filter(group_id=primary_team.group_id)
-        admin_matches = list(
-            (league_matches_qs if league_matches_qs.exists() else admin_match_qs)
-            .order_by('-date', '-id')[:60]
-        )
-    else:
-        admin_matches = list(admin_match_qs.order_by('-date', '-id')[:60])
-    selected_admin_match_id = _parse_int(request.GET.get('match_id') or request.POST.get('match_id'))
-    selected_admin_match = (
-        next((m for m in admin_matches if m.id == selected_admin_match_id), None)
-        if selected_admin_match_id
-        else (admin_matches[0] if admin_matches else None)
-    )
-    admin_players = (
-        list(Player.objects.filter(team=primary_team).order_by('number', 'name'))
-        if primary_team
-        else []
-    )
-    admin_action_choices = load_match_actions()
-    admin_result_choices = load_match_results()
+    carousel_images = []
+    roster_players = []
+    users = []
+    technical_users = []
+    players_users = []
+    guests_users = []
+    users_filtered = []
+    admin_matches = []
+    selected_admin_match = None
+    admin_players = []
+    admin_action_choices = []
+    admin_result_choices = []
     admin_zone_choices = []
-    seen_zone_labels = set()
-    for zone_def in FIELD_ZONES:
-        label = str(zone_def.get('label') or '').strip()
-        if not label or label in seen_zone_labels:
-            continue
-        seen_zone_labels.add(label)
-        admin_zone_choices.append(label)
+
+    if active_tab == 'carousel':
+        carousel_images = list(HomeCarouselImage.objects.all())
+
+    if active_tab == 'roster':
+        roster_players = (
+            list(Player.objects.filter(team=primary_team).order_by('-is_active', 'number', 'name'))
+            if primary_team
+            else []
+        )
+
+    if active_tab == 'users':
+        users = list(User.objects.order_by('username'))
+        role_map = {}
+        try:
+            role_map = {item.user_id: item.role for item in AppUserRole.objects.select_related('user')}
+        except Exception:
+            role_map = {}
+        role_labels = dict(AppUserRole.ROLE_CHOICES)
+        for item in users:
+            role_value = role_map.get(item.id, AppUserRole.ROLE_PLAYER)
+            item.role_value = role_value
+            item.role_label = role_labels.get(role_value, 'Jugador')
+            item.full_name_display = _display_full_name(item)
+        technical_roles = {
+            AppUserRole.ROLE_COACH,
+            AppUserRole.ROLE_FITNESS,
+            AppUserRole.ROLE_GOALKEEPER,
+            AppUserRole.ROLE_ANALYST,
+            AppUserRole.ROLE_ADMIN,
+        }
+        technical_users = [u for u in users if u.role_value in technical_roles]
+        players_users = [u for u in users if u.role_value == AppUserRole.ROLE_PLAYER]
+        guests_users = [u for u in users if u.role_value == AppUserRole.ROLE_GUEST]
+        users_filtered = (
+            technical_users
+            if users_segment == 'technical'
+            else players_users if users_segment == 'players' else guests_users
+        )
+
+    if active_tab == 'actions' and is_admin_user:
+        admin_match_qs = _team_match_queryset(primary_team) if primary_team else Match.objects.none()
+        if primary_team and primary_team.group_id:
+            league_matches_qs = admin_match_qs.filter(group_id=primary_team.group_id)
+            admin_matches = list(
+                (league_matches_qs if league_matches_qs.exists() else admin_match_qs)
+                .order_by('-date', '-id')[:60]
+            )
+        else:
+            admin_matches = list(admin_match_qs.order_by('-date', '-id')[:60])
+        selected_admin_match_id = _parse_int(request.GET.get('match_id') or request.POST.get('match_id'))
+        selected_admin_match = (
+            next((m for m in admin_matches if m.id == selected_admin_match_id), None)
+            if selected_admin_match_id
+            else (admin_matches[0] if admin_matches else None)
+        )
+        admin_players = (
+            list(Player.objects.filter(team=primary_team).order_by('number', 'name'))
+            if primary_team
+            else []
+        )
+        admin_action_choices = load_match_actions()
+        admin_result_choices = load_match_results()
+        seen_zone_labels = set()
+        for zone_def in FIELD_ZONES:
+            label = str(zone_def.get('label') or '').strip()
+            if not label or label in seen_zone_labels:
+                continue
+            seen_zone_labels.add(label)
+            admin_zone_choices.append(label)
     return render(
         request,
         'football/admin.html',
@@ -2559,11 +2583,28 @@ def convocation_pdf(request):
 
     ordered_players = sorted(players, key=_sort_player_key)
 
+    static_base_dir = Path(settings.BASE_DIR) / 'static'
+    logo_static_path = static_base_dir / 'football' / 'images' / 'cdb-logo.png'
+    avatar_static_path = static_base_dir / 'football' / 'images' / 'player-avatar.svg'
+    logo_data_uri = _file_as_data_uri(logo_static_path)
+    avatar_data_uri = _file_as_data_uri(avatar_static_path)
+
+    def _player_photo_src(player_obj):
+        player_static_rel = resolve_player_photo_static_path(player_obj)
+        if player_static_rel:
+            player_data_uri = _file_as_data_uri(static_base_dir / player_static_rel)
+            if player_data_uri:
+                return player_data_uri
+            return request.build_absolute_uri(static(player_static_rel))
+        if avatar_data_uri:
+            return avatar_data_uri
+        return request.build_absolute_uri(static('football/images/player-avatar.svg'))
+
     player_rows = [
         {
             'number': player.number,
             'name': player.name,
-            'photo_url': resolve_player_photo_url(request, player),
+            'photo_src': _player_photo_src(player),
         }
         for player in ordered_players
     ]
@@ -2602,6 +2643,11 @@ def convocation_pdf(request):
         month = month_map[convocation_record.match_date.month - 1]
         date_human = f'{weekday} {convocation_record.match_date.day} {month}'
 
+    rival_crest_src = str(rival_crest_url or '').strip()
+    if rival_crest_src.startswith('http://') or rival_crest_src.startswith('https://'):
+        # Avoid external HTTP fetches during PDF rendering to reduce timeout/502 risk on Render.
+        rival_crest_src = ''
+
     context = {
         'team_name': primary_team.name,
         'team_full_name': primary_team.name,
@@ -2613,14 +2659,14 @@ def convocation_pdf(request):
         'location_label': location_label or 'Campo por confirmar',
         'rival_label': rival_name,
         'rival_full_name': rival_full_name,
-        'rival_crest_url': rival_crest_url,
+        'rival_crest_src': rival_crest_src,
         'players': player_rows,
         'left_column_players': left_column_players,
         'right_column_players': right_column_players,
         'coach_name': os.getenv('TEAM_COACH_NAME', 'Aitor Castillo'),
         'club_hashtag': os.getenv('TEAM_HASHTAG', '#VamosVerdes'),
-        'logo_url': request.build_absolute_uri(static('football/images/cdb-logo.png')),
-        'avatar_url': request.build_absolute_uri(static('football/images/player-avatar.svg')),
+        'logo_src': logo_data_uri or request.build_absolute_uri(static('football/images/cdb-logo.png')),
+        'avatar_src': avatar_data_uri or request.build_absolute_uri(static('football/images/player-avatar.svg')),
         'team_photo_url': request.build_absolute_uri(static('football/images/team-01.jpg')),
         'team_photo_data_uri': '',
         'coach_photo_url': request.build_absolute_uri(static(os.getenv('TEAM_COACH_PHOTO', 'football/images/team-01.jpg'))),
