@@ -1675,12 +1675,33 @@ def coach_overview_page(request):
         AppUserRole.ROLE_ADMIN,
     }
     role_labels = dict(AppUserRole.ROLE_CHOICES)
+    role_rows = list(AppUserRole.objects.select_related('user').filter(role__in=technical_roles))
     technical_members = []
-    for role_row in AppUserRole.objects.select_related('user').filter(role__in=technical_roles):
+    technical_members_lower = set()
+    for role_row in role_rows:
         if not role_row.user.is_active:
             continue
         full_name = role_row.user.get_full_name().strip() or role_row.user.username
-        technical_members.append(f'{role_labels.get(role_row.role, "Técnico")} · {full_name}')
+        label = f'{role_labels.get(role_row.role, "Técnico")} · {full_name}'
+        technical_members.append(label)
+        technical_members_lower.add(label.lower())
+
+    extra_assignments = [
+        ('alonso', 'Preparador de porteros'),
+        ('jeremias', 'Preparador físico'),
+    ]
+    for role_row in role_rows:
+        if not role_row.user.is_active:
+            continue
+        full_name = role_row.user.get_full_name().strip() or role_row.user.username
+        name_folded = full_name.lower()
+        for key, role_label in extra_assignments:
+            if key in name_folded:
+                extra_label = f'{role_label} · {full_name}'
+                if extra_label.lower() not in technical_members_lower:
+                    technical_members.append(extra_label)
+                    technical_members_lower.add(extra_label.lower())
+
     if not technical_members:
         technical_members = ['Sin miembros técnicos configurados en Admin']
     summary = {
@@ -1689,11 +1710,6 @@ def coach_overview_page(request):
             'Último rival: Atlético de Marbella',
             'Consecutivos sin recibir gol: 1',
             'Fortaleza: laterales rápidos',
-        ],
-        'sessions': [
-            'Martes AM · Táctica ofensiva',
-            'Martes PM · Duelo alto',
-            'Domingo · Video y recuperación',
         ],
     }
     return render(
