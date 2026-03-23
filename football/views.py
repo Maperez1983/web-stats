@@ -3746,6 +3746,11 @@ def _analysis_quality_score(analysis):
         score += 5
     if analysis.get('detected_materials'):
         score += 5
+    task_sheet = analysis.get('task_sheet') if isinstance(analysis.get('task_sheet'), dict) else {}
+    if task_sheet.get('description'):
+        score += 5
+    if task_sheet.get('players') or task_sheet.get('dimensions') or task_sheet.get('materials'):
+        score += 5
     return min(100, score)
 
 
@@ -3758,6 +3763,7 @@ def _apply_analysis_to_task(task, analysis):
         'detected_materials': analysis.get('detected_materials') or [],
         'quality_score': analysis.get('quality_score') or 0,
         'summary': (analysis.get('summary') or '')[:900],
+        'task_sheet': analysis.get('task_sheet') if isinstance(analysis.get('task_sheet'), dict) else {},
         'analyzed_at': timezone.now().isoformat(),
     }
     layout['meta'] = meta
@@ -3806,6 +3812,95 @@ def _pick_bullets_or_sentences(raw_text, limit=5):
         if len(items) >= limit:
             break
     return '\n'.join(items)
+
+
+def _extract_inline_field(text, aliases, max_len=240):
+    raw = str(text or '')
+    if not raw:
+        return ''
+    alias_pattern = '|'.join(re.escape(alias) for alias in aliases)
+    patterns = [
+        rf'(?im)^\s*(?:{alias_pattern})\s*[:\-]\s*(.+?)\s*$',
+        rf'(?i)\b(?:{alias_pattern})\s*[:\-]\s*([^\n\r]+)',
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, raw)
+        if match:
+            value = ' '.join(str(match.group(1) or '').split()).strip(' ,.;:-')
+            if value:
+                return value[:max_len]
+    return ''
+
+
+def _extract_first_dimension_text(text):
+    raw = str(text or '')
+    if not raw:
+        return ''
+    match = re.search(
+        r'(?i)\b(\d{1,3}(?:[.,]\d{1,2})?\s*(?:m|metros?)?)\s*[xX×]\s*(\d{1,3}(?:[.,]\d{1,2})?\s*(?:m|metros?)?)\b',
+        raw,
+    )
+    if not match:
+        return ''
+    left = str(match.group(1) or '').strip()
+    right = str(match.group(2) or '').strip()
+    return f'{left} x {right}'
+
+
+def _extract_players_text(text):
+    raw = str(text or '')
+    if not raw:
+        return ''
+    explicit = _extract_inline_field(
+        raw,
+        ['jugadores', 'participantes', 'n jugadores', 'num jugadores', 'nº jugadores', 'numero jugadores'],
+        max_len=120,
+    )
+    if explicit:
+        return explicit
+    pattern = re.search(r'(?i)\b(\d{1,2}\s*v\s*\d{1,2}(?:\s*\+\s*\d{1,2})?)\b', raw)
+    if pattern:
+        return str(pattern.group(1)).replace(' ', '')
+    total = re.search(r'(?i)\b(\d{1,2})\s*(?:jugadores?|participantes?)\b', raw)
+    if total:
+        return f'{total.group(1)} jugadores'
+    return ''
+
+
+def _extract_task_sheet_from_pdf(text, detected_materials=None):
+    description = _extract_section_block(
+        text,
+        ['descripcion', 'descripción', 'desarrollo', 'organizacion', 'organización', 'estructura', 'dinamica', 'dinámica'],
+    )
+    if not description:
+        description = _pick_bullets_or_sentences(text, limit=6)
+
+    players = _extract_players_text(text)
+    space = _extract_inline_field(text, ['espacio', 'superficie', 'zona', 'campo', 'area', 'área'], max_len=120)
+    dimensions = _extract_inline_field(text, ['medidas', 'dimensiones', 'tamano', 'tamaño'], max_len=120)
+    if not dimensions:
+        dimensions = _extract_first_dimension_text(text)
+
+    material_section = _extract_section_block(text, ['material', 'materiales', 'elementos', 'recursos'])
+    material_detected = []
+    for item in detected_materials or []:
+        if not isinstance(item, dict):
+            continue
+        label = str(item.get('title') or item.get('label') or item.get('kind') or '').strip()
+        if label:
+            material_detected.append(label)
+    if material_section:
+        materials = material_section
+    else:
+        materials = ', '.join(sorted(set(material_detected)))[:300]
+
+    return {
+        'description': (description or '')[:1200],
+        'players': players,
+        'space': space,
+        'dimensions': dimensions,
+        'materials': materials,
+    }
 
 
 def _suggest_task_from_pdf(pdf_text):
@@ -3915,6 +4010,7 @@ def _suggest_task_from_pdf(pdf_text):
     work_contexts = _detect_keyword_tags(text, TASK_CONTEXT_KEYWORDS)
     objective_tags = _detect_keyword_tags(' '.join([objective, coaching_points, confrontation_rules]), TASK_OBJECTIVE_KEYWORDS)
     detected_materials = _detect_materials_in_text(text)
+    task_sheet = _extract_task_sheet_from_pdf(text, detected_materials=detected_materials)
 
     analysis = {
         'title': (title or 'Tarea desde PDF')[:160],
@@ -3926,6 +4022,7 @@ def _suggest_task_from_pdf(pdf_text):
         'work_contexts': work_contexts,
         'objective_tags': objective_tags,
         'detected_materials': detected_materials,
+        'task_sheet': task_sheet,
     }
     analysis['quality_score'] = _analysis_quality_score(analysis)
     return analysis
@@ -4890,6 +4987,7 @@ def session_task_detail_page(request, task_id):
     layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
     meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
     analysis_meta = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
+    task_sheet = analysis_meta.get('task_sheet') if isinstance(analysis_meta.get('task_sheet'), dict) else {}
     pdf_excerpt = str(meta.get('pdf_segment_excerpt') or meta.get('extracted_text_excerpt') or '').strip()
     detected_materials = analysis_meta.get('detected_materials') if isinstance(analysis_meta.get('detected_materials'), list) else []
     if task.task_pdf and not task.task_preview_image:
@@ -4903,6 +5001,7 @@ def session_task_detail_page(request, task_id):
             'scope_title': scope_title,
             'scope_route_name': scope_route_name,
             'analysis_meta': analysis_meta,
+            'task_sheet': task_sheet,
             'pdf_excerpt': pdf_excerpt,
             'detected_materials': detected_materials,
         },

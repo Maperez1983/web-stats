@@ -90,6 +90,17 @@
         outline-offset: 2px;
       }
       .task h3 { margin: 0; font-size: 0.92rem; }
+      .task-title {
+        margin: 0 0 0.35rem;
+        font-size: 0.95rem;
+        letter-spacing: 0.01em;
+      }
+      .task-objective {
+        margin: 0 0 0.55rem;
+        font-size: 0.8rem;
+        color: rgba(219, 234, 254, 0.9);
+        line-height: 1.35;
+      }
       .task-media {
         height: 170px;
         background:
@@ -257,8 +268,11 @@
               {% endif %}
             </div>
             <div class="task-content">
-              <h3><a class="button" href="{% url 'session-task-detail' t.id %}" style="padding:0.24rem 0.52rem; font-size:0.68rem;">{{ t.title }}</a></h3>
-              <p class="meta">{{ t.session.session_date|date:"d/m/Y" }} · {{ t.get_block_display }} · {{ t.duration_minutes }}'</p>
+              <h3 class="task-title">{{ t.title }}</h3>
+              <p class="task-objective">
+                {{ t.objective|default:t.analysis_meta.task_sheet.description|default:t.analysis_meta.summary|truncatechars:140|default:"Sin objetivo extraído todavía." }}
+              </p>
+              <p class="meta"><strong>{{ t.session.session_date|date:"d/m/Y" }}</strong> · {{ t.get_block_display }} · {{ t.duration_minutes }}'</p>
               {% if t.analysis_meta %}
               <div style="display:flex; gap:0.35rem; flex-wrap:wrap; margin-bottom:0.55rem;">
                 {% if t.analysis_meta.quality_score %}<span class="badge">Score {{ t.analysis_meta.quality_score }}/100</span>{% endif %}

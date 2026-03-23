@@ -102,6 +102,25 @@
         border-radius: 10px;
         padding: 0.65rem;
       }
+      .sheet-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 0.6rem;
+      }
+      .sheet-item {
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 10px;
+        padding: 0.55rem 0.6rem;
+        background: rgba(2, 10, 22, 0.45);
+      }
+      .sheet-item strong {
+        display: block;
+        font-size: 0.68rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        opacity: 0.9;
+        margin-bottom: 0.25rem;
+      }
     </style>
   </head>
   <body>
@@ -132,10 +151,36 @@
       <section class="panel">
         <h2>Datos extraídos</h2>
         <p><strong>Objetivo:</strong> {{ task.objective|default:"-" }}</p>
+        {% if task_sheet.description %}
+        <p><strong>Descripción:</strong></p>
+        <pre>{{ task_sheet.description }}</pre>
+        {% endif %}
         <p><strong>Consignas:</strong></p>
         <pre>{{ task.coaching_points|default:"-" }}</pre>
         <p style="margin-top:0.55rem;"><strong>Reglas de confrontación:</strong></p>
         <pre>{{ task.confrontation_rules|default:"-" }}</pre>
+      </section>
+
+      <section class="panel">
+        <h2>Ficha de la tarea (extraída del PDF)</h2>
+        <div class="sheet-grid">
+          <div class="sheet-item">
+            <strong>Jugadores</strong>
+            <span>{{ task_sheet.players|default:"-" }}</span>
+          </div>
+          <div class="sheet-item">
+            <strong>Espacio</strong>
+            <span>{{ task_sheet.space|default:"-" }}</span>
+          </div>
+          <div class="sheet-item">
+            <strong>Medidas</strong>
+            <span>{{ task_sheet.dimensions|default:"-" }}</span>
+          </div>
+          <div class="sheet-item">
+            <strong>Elementos</strong>
+            <span>{{ task_sheet.materials|default:"-" }}</span>
+          </div>
+        </div>
       </section>
 
       {% if analysis_meta %}
