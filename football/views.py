@@ -4185,9 +4185,72 @@ def _analysis_quality_score(analysis):
     return min(100, score)
 
 
+def _analysis_confidence_scores(analysis):
+    data = analysis if isinstance(analysis, dict) else {}
+    sheet = data.get('task_sheet') if isinstance(data.get('task_sheet'), dict) else {}
+    title = str(data.get('title') or '').strip()
+    objective = str(data.get('objective') or '').strip()
+    coaching = str(data.get('coaching_points') or '').strip()
+    rules = str(data.get('confrontation_rules') or '').strip()
+    summary = str(data.get('summary') or '').strip()
+    players = str(sheet.get('players') or '').strip()
+    dimensions = str(sheet.get('dimensions') or '').strip()
+    materials = str(sheet.get('materials') or '').strip()
+    exercise_types = data.get('exercise_types') if isinstance(data.get('exercise_types'), list) else []
+    phase_tags = data.get('phase_tags') if isinstance(data.get('phase_tags'), list) else []
+
+    def _value_conf(text_value, max_len=220):
+        text_value = str(text_value or '').strip()
+        if not text_value:
+            return 0
+        score = 38
+        score += min(len(text_value), max_len) / max_len * 42
+        if re.search(r'\b[A-ZÁÉÍÓÚÜÑ]{12,}\b', text_value):
+            score -= 32
+        if re.search(r'[,;:]\S', text_value):
+            score -= 8
+        return max(0, min(100, int(round(score))))
+
+    scores = {
+        'title': _value_conf(title, 120),
+        'objective': _value_conf(objective, 180),
+        'coaching': _value_conf(coaching, 280),
+        'rules': _value_conf(rules, 280),
+        'summary': _value_conf(summary, 320),
+        'players': _value_conf(players, 120),
+        'dimensions': _value_conf(dimensions, 100),
+        'materials': _value_conf(materials, 180),
+    }
+    semantic_bonus = 0
+    if exercise_types:
+        semantic_bonus += 8
+    if phase_tags:
+        semantic_bonus += 8
+    base_values = [scores['title'], scores['objective'], scores['coaching'], scores['summary']]
+    overall = int(round(sum(base_values) / max(1, len(base_values)) + semantic_bonus))
+    scores['overall'] = max(0, min(100, overall))
+    return scores
+
+
+def _analysis_needs_review(analysis):
+    if not isinstance(analysis, dict):
+        return True
+    conf = _analysis_confidence_scores(analysis)
+    if int(conf.get('overall') or 0) < 62:
+        return True
+    if int(conf.get('title') or 0) < 55:
+        return True
+    if int(conf.get('objective') or 0) < 45:
+        return True
+    if re.search(r'\b[A-ZÁÉÍÓÚÜÑ]{12,}\b', str(analysis.get('summary') or '')):
+        return True
+    return False
+
+
 def _apply_analysis_to_task(task, analysis):
     layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
     meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+    confidence = _analysis_confidence_scores(analysis)
     meta['analysis'] = {
         'work_contexts': analysis.get('work_contexts') or [],
         'objective_tags': analysis.get('objective_tags') or [],
@@ -4198,6 +4261,9 @@ def _apply_analysis_to_task(task, analysis):
         'players_band': analysis.get('players_band') or '',
         'duration_band': analysis.get('duration_band') or '',
         'quality_score': analysis.get('quality_score') or 0,
+        'confidence': confidence,
+        'needs_review': _analysis_needs_review(analysis),
+        'pdf_template': analysis.get('pdf_template') or 'generic',
         'summary': (analysis.get('summary') or '')[:900],
         'task_sheet': analysis.get('task_sheet') if isinstance(analysis.get('task_sheet'), dict) else {},
         'analyzed_at': timezone.now().isoformat(),
@@ -4358,10 +4424,42 @@ def _duration_band_label(minutes):
     return 'extendida (36m+)'
 
 
-def _extract_task_sheet_from_pdf(text, detected_materials=None):
+def _detect_pdf_template(text):
+    raw = _normalize_folded_text(text)
+    if not raw:
+        return 'generic'
+    markers = {
+        'sesion_sheet_compact': [
+            'dosificacion',
+            'tiempototaldetrabajo',
+            'parteprincipal',
+            'materialdeentrenamiento',
+        ],
+        'session_es_verbose': [
+            'objetivo',
+            'consignas',
+            'reglas',
+            'material',
+            'jugadores',
+        ],
+    }
+    best_key = 'generic'
+    best_score = 0
+    for key, keys in markers.items():
+        score = sum(1 for token in keys if token in raw)
+        if score > best_score:
+            best_score = score
+            best_key = key
+    return best_key
+
+
+def _extract_task_sheet_from_pdf(text, detected_materials=None, template_key='generic'):
+    description_aliases = ['descripcion', 'descripción', 'desarrollo', 'organizacion', 'organización', 'estructura', 'dinamica', 'dinámica']
+    if template_key == 'sesion_sheet_compact':
+        description_aliases = ['consignas', 'descripcion', 'descripción', 'desarrollo', 'organizacion', 'organización']
     description = _extract_section_block(
         text,
-        ['descripcion', 'descripción', 'desarrollo', 'organizacion', 'organización', 'estructura', 'dinamica', 'dinámica'],
+        description_aliases,
     )
     if not description:
         description = _pick_bullets_or_sentences(text, limit=6)
@@ -4397,6 +4495,7 @@ def _extract_task_sheet_from_pdf(text, detected_materials=None):
 def _suggest_task_from_pdf(pdf_text):
     text = _repair_joined_words_text(pdf_text or '')
     text = str(text or '').strip()
+    template_key = _detect_pdf_template(text)
     if not text:
         return {
             'title': '',
@@ -4405,11 +4504,12 @@ def _suggest_task_from_pdf(pdf_text):
             'coaching_points': '',
             'confrontation_rules': '',
             'summary': '',
+            'pdf_template': template_key,
         }
 
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     title = ''
-    skip_title_tokens = (
+    skip_title_tokens = [
         'parteprincipal',
         'materialdeentrenamiento',
         'tiempototaldesesion',
@@ -4418,7 +4518,9 @@ def _suggest_task_from_pdf(pdf_text):
         'hora:',
         'micro-ciclo',
         'meso-ciclo',
-    )
+    ]
+    if template_key == 'sesion_sheet_compact':
+        skip_title_tokens.extend(['tiempototaldetrabajo', 'dosificacion', 'hidratacion'])
     for line in lines[:24]:
         if len(line) > 120 or re.search(r'^\d+$', line):
             continue
@@ -4437,7 +4539,10 @@ def _suggest_task_from_pdf(pdf_text):
         title = line
         break
 
-    objective = _extract_section_block(text, ['objetivo', 'objective', 'finalidad', 'meta'])
+    objective_aliases = ['objetivo', 'objective', 'finalidad', 'meta']
+    if template_key == 'sesion_sheet_compact':
+        objective_aliases.extend(['consignas', 'descripcion', 'desarrollo'])
+    objective = _extract_section_block(text, objective_aliases)
     if not objective:
         objective_match = re.search(r'(objetivo|objective)\s*[:\-]\s*(.+)', text, re.IGNORECASE)
         if objective_match:
@@ -4504,7 +4609,7 @@ def _suggest_task_from_pdf(pdf_text):
     exercise_types = _detect_keyword_tags(text, TASK_TYPE_KEYWORDS)
     phase_tags = _detect_keyword_tags(' '.join([text, objective, coaching_points]), TASK_PHASE_KEYWORDS)
     detected_materials = _detect_materials_in_text(text)
-    task_sheet = _extract_task_sheet_from_pdf(text, detected_materials=detected_materials)
+    task_sheet = _extract_task_sheet_from_pdf(text, detected_materials=detected_materials, template_key=template_key)
     players_count_estimate = _estimate_players_count(task_sheet.get('players'), text)
     players_band = _players_band_label(players_count_estimate)
     duration_band = _duration_band_label(minutes)
@@ -4525,6 +4630,7 @@ def _suggest_task_from_pdf(pdf_text):
         'duration_band': duration_band,
         'detected_materials': detected_materials,
         'task_sheet': task_sheet,
+        'pdf_template': template_key,
     }
     analysis['quality_score'] = _analysis_quality_score(analysis)
     return analysis
@@ -5196,6 +5302,7 @@ def _sessions_tab_from_action(action):
         'analyze_all_library_pdfs',
         'split_existing_library_pdfs',
         'analyze_library_pdf',
+        'auto_fix_task_text',
         'delete_library_task',
         'update_library_task',
         'create_task_from_analysis',
@@ -5973,6 +6080,28 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 analysis = _suggest_task_from_pdf(pdf_text)
                 analysis['raw_text'] = pdf_text[:2500]
                 _apply_analysis_to_task(analysis_task, analysis)
+                feedback = 'Análisis actualizado para la tarea seleccionada.'
+
+            elif planner_action == 'auto_fix_task_text':
+                task_id = _parse_int(request.POST.get('task_id'))
+                target_task = (
+                    SessionTask.objects
+                    .select_related('session__microcycle')
+                    .filter(id=task_id, session__microcycle__team=primary_team)
+                    .first()
+                )
+                if not target_task:
+                    raise ValueError('Tarea no encontrada.')
+                if _task_scope_for_item(target_task) != scope_key:
+                    raise ValueError('La tarea seleccionada no pertenece a este espacio.')
+                fixed = False
+                if target_task.task_pdf:
+                    fixed = _refresh_task_from_pdf_analysis(target_task) or fixed
+                if _cleanup_task_joined_text_fields(target_task):
+                    fixed = True
+                if _task_preview_needs_refresh(target_task):
+                    _ensure_library_task_preview(target_task, force=True, prefer_render=True)
+                feedback = 'Tarea autocorregida.' if fixed else 'No se detectaron cambios para autocorregir.'
 
             elif planner_action == 'delete_library_task':
                 task_id = _parse_int(request.POST.get('task_id'))
@@ -6160,6 +6289,24 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         task.task_sheet = task_sheet
         task.is_imported = _is_imported_task(task)
         task.analysis_summary = str(analysis_meta.get('summary') or '').strip()
+        confidence = analysis_meta.get('confidence') if isinstance(analysis_meta.get('confidence'), dict) else {}
+        if not confidence:
+            confidence = _analysis_confidence_scores(
+                {
+                    'title': task.title or '',
+                    'objective': task.objective or '',
+                    'coaching_points': task.coaching_points or '',
+                    'confrontation_rules': task.confrontation_rules or '',
+                    'summary': task.analysis_summary or '',
+                    'exercise_types': analysis_meta.get('exercise_types') if isinstance(analysis_meta.get('exercise_types'), list) else [],
+                    'phase_tags': analysis_meta.get('phase_tags') if isinstance(analysis_meta.get('phase_tags'), list) else [],
+                    'task_sheet': task_sheet if isinstance(task_sheet, dict) else {},
+                }
+            )
+        task.analysis_confidence = confidence
+        task.needs_review = bool(analysis_meta.get('needs_review', False))
+        if not analysis_meta.get('needs_review'):
+            task.needs_review = int(confidence.get('overall') or 0) < 62
         task.detected_materials = analysis_meta.get('detected_materials') if isinstance(analysis_meta.get('detected_materials'), list) else []
         task.exercise_types = analysis_meta.get('exercise_types') if isinstance(analysis_meta.get('exercise_types'), list) else []
         task.phase_tags = analysis_meta.get('phase_tags') if isinstance(analysis_meta.get('phase_tags'), list) else []
@@ -6191,6 +6338,8 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         if not objective_summary:
             objective_summary = str(analysis_meta.get('summary') or '').strip()
         task.objective_summary = objective_summary or 'Sin objetivo extraído todavía.'
+        card_summary = str(task.analysis_summary or task_sheet.get('description') or task.objective_summary or '').strip()
+        task.card_summary = _repair_joined_words_text(card_summary)[:280]
         for ctx in analysis_meta.get('work_contexts') or []:
             context_groups[str(ctx)].append(task)
         for obj in analysis_meta.get('objective_tags') or []:

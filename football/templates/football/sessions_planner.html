@@ -1205,6 +1205,8 @@
               {% if t.analysis_meta %}
               <div style="display:flex; gap:0.35rem; flex-wrap:wrap; margin-bottom:0.55rem;">
                 {% if t.analysis_meta.quality_score %}<span class="badge">Score {{ t.analysis_meta.quality_score }}/100</span>{% endif %}
+                {% if t.analysis_confidence.overall %}<span class="badge">Conf {{ t.analysis_confidence.overall }}/100</span>{% endif %}
+                {% if t.needs_review %}<span class="badge" style="border-color:rgba(248,113,113,0.65); color:#fecaca;">Revisión necesaria</span>{% endif %}
                 {% for ctx in t.analysis_meta.work_contexts %}
                 <span class="badge">{{ ctx }}</span>
                 {% endfor %}
@@ -1220,8 +1222,8 @@
                 {% if t.players_band %}<span class="badge">{{ t.players_band }}</span>{% endif %}
                 {% if t.duration_band %}<span class="badge">{{ t.duration_band }}</span>{% endif %}
               </div>
-              {% if t.analysis_summary %}
-              <p class="meta" style="margin-top:-0.15rem;">Resumen detectado: {{ t.analysis_summary|truncatechars:210 }}</p>
+              {% if t.card_summary %}
+              <p class="meta" style="margin-top:-0.15rem;">Resumen detectado: {{ t.card_summary|truncatechars:210 }}</p>
               {% endif %}
               {% if t.detected_materials %}
               <p class="meta" style="margin-top:-0.15rem;">
@@ -1237,6 +1239,15 @@
                 <a class="button" href="{% url 'session-task-file' t.id %}" target="_blank" rel="noopener">Abrir PDF</a>
                 {% endif %}
                 <a class="button" href="{% url 'session-task-detail' t.id %}">Ver detalle</a>
+                {% if t.task_pdf %}
+                <form method="post" style="margin:0;">
+                  {% csrf_token %}
+                  <input type="hidden" name="planner_action" value="auto_fix_task_text" />
+                  <input type="hidden" name="planner_tab" value="library" />
+                  <input type="hidden" name="task_id" value="{{ t.id }}" />
+                  <button type="submit" class="secondary">Autocorregir</button>
+                </form>
+                {% endif %}
                 <form method="post" style="margin:0;" onsubmit="return confirm('¿Eliminar esta tarea de la biblioteca?');">
                   {% csrf_token %}
                   <input type="hidden" name="planner_action" value="delete_library_task" />
