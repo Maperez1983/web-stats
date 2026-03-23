@@ -8365,8 +8365,21 @@ def _team_match_queryset(primary_team):
     # Some imports may create a duplicated team entry for Benagalbón (name variants),
     # leaving matches linked to that alias instead of the canonical `is_primary` team.
     alias_ids = []
+    primary_lookup = _normalize_team_lookup_key(primary_team.name)
     for candidate in Team.objects.exclude(id=primary_team.id).only('id', 'name'):
-        if _team_name_signature(candidate.name) == team_signature:
+        candidate_signature = _team_name_signature(candidate.name)
+        candidate_lookup = _normalize_team_lookup_key(candidate.name)
+        same_signature = candidate_signature == team_signature
+        fuzzy_same_team = bool(
+            primary_lookup
+            and candidate_lookup
+            and (
+                primary_lookup in candidate_lookup
+                or candidate_lookup in primary_lookup
+                or ('benagalbon' in primary_lookup and 'benagalbon' in candidate_lookup)
+            )
+        )
+        if same_signature or fuzzy_same_team:
             alias_ids.append(candidate.id)
     if alias_ids:
         direct_filter = direct_filter | Q(home_team_id__in=alias_ids) | Q(away_team_id__in=alias_ids)
@@ -8380,8 +8393,16 @@ def _team_match_queryset(primary_team):
         .values_list('match_id', flat=True)
         .distinct()
     )
+    convocation_match_ids = list(
+        ConvocationRecord.objects
+        .filter(team=primary_team, match_id__isnull=False)
+        .values_list('match_id', flat=True)
+        .distinct()
+    )
     if event_match_ids:
         direct_filter = direct_filter | Q(id__in=event_match_ids)
+    if convocation_match_ids:
+        direct_filter = direct_filter | Q(id__in=convocation_match_ids)
 
     return Match.objects.filter(direct_filter).select_related('home_team', 'away_team').distinct()
 
