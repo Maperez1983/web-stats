@@ -578,6 +578,35 @@ TEAM_ONLY_ACTION_TYPES = {
     'saque de esquina en contra',
 }
 
+TECHNICAL_ROLES = {
+    AppUserRole.ROLE_COACH,
+    AppUserRole.ROLE_FITNESS,
+    AppUserRole.ROLE_GOALKEEPER,
+    AppUserRole.ROLE_ANALYST,
+    AppUserRole.ROLE_ADMIN,
+}
+
+
+def _get_user_role(user):
+    if not user or not user.is_authenticated:
+        return None
+    role_obj = getattr(user, 'app_role', None)
+    return str(getattr(role_obj, 'role', '') or '').strip() or None
+
+
+def _is_admin_user(user):
+    role = _get_user_role(user)
+    return bool(user and user.is_authenticated and (user.is_superuser or user.is_staff or role == AppUserRole.ROLE_ADMIN))
+
+
+def _can_access_sessions_workspace(user):
+    role = _get_user_role(user)
+    if not user or not user.is_authenticated:
+        return False
+    if _is_admin_user(user):
+        return True
+    return role in TECHNICAL_ROLES
+
 
 def _is_team_only_action(action_type: str) -> bool:
     normalized = (action_type or '').strip().lower()
@@ -1588,6 +1617,7 @@ def invitation_accept_page(request, token):
     )
 
 
+@login_required
 def player_dashboard_page(request):
     primary_team = Team.objects.filter(is_primary=True).first()
     if not primary_team:
@@ -1748,7 +1778,10 @@ def _build_default_lineup_payload(convocation_players):
     )
 
 
+@login_required
 def match_action_page(request):
+    if not _is_admin_user(request.user):
+        return HttpResponse('Solo administradores pueden editar estadísticas de partido.', status=403)
     primary_team = Team.objects.filter(is_primary=True).first()
     if not primary_team:
         raise Http404('Equipo principal no configurado')
@@ -1935,6 +1968,8 @@ def match_action_page(request):
 @authenticated_write
 @require_POST
 def register_match_action(request):
+    if not _is_admin_user(request.user):
+        return JsonResponse({'error': 'Solo administradores pueden editar estadísticas de partido.'}, status=403)
     primary_team = Team.objects.filter(is_primary=True).first()
     if not primary_team:
         return JsonResponse({'error': 'Equipo principal no configurado'}, status=400)
@@ -2011,6 +2046,8 @@ def register_match_action(request):
 @authenticated_write
 @require_POST
 def save_match_lineup(request):
+    if not _is_admin_user(request.user):
+        return JsonResponse({'error': 'Solo administradores pueden editar estadísticas de partido.'}, status=403)
     primary_team = Team.objects.filter(is_primary=True).first()
     if not primary_team:
         return JsonResponse({'error': 'Equipo principal no configurado'}, status=400)
@@ -2039,6 +2076,8 @@ def save_match_lineup(request):
 @authenticated_write
 @require_POST
 def delete_match_action(request):
+    if not _is_admin_user(request.user):
+        return JsonResponse({'error': 'Solo administradores pueden editar estadísticas de partido.'}, status=403)
     primary_team = Team.objects.filter(is_primary=True).first()
     if not primary_team:
         return JsonResponse({'error': 'Equipo principal no configurado'}, status=400)
@@ -2060,6 +2099,8 @@ def delete_match_action(request):
 @authenticated_write
 @require_POST
 def finalize_match_actions(request):
+    if not _is_admin_user(request.user):
+        return JsonResponse({'error': 'Solo administradores pueden editar estadísticas de partido.'}, status=403)
     primary_team = Team.objects.filter(is_primary=True).first()
     if not primary_team:
         return JsonResponse({'error': 'Equipo principal no configurado'}, status=400)
@@ -2131,6 +2172,8 @@ def finalize_match_actions(request):
 @authenticated_write
 @require_POST
 def reset_match_action_register(request):
+    if not _is_admin_user(request.user):
+        return JsonResponse({'error': 'Solo administradores pueden editar estadísticas de partido.'}, status=403)
     primary_team = Team.objects.filter(is_primary=True).first()
     if not primary_team:
         return JsonResponse({'error': 'Equipo principal no configurado'}, status=400)
@@ -2559,6 +2602,8 @@ def convocation_pdf(request):
 
 @login_required
 def session_task_pdf(request, task_id):
+    if not _can_access_sessions_workspace(request.user):
+        return HttpResponse('No tienes permisos para acceder a sesiones.', status=403)
     task = (
         SessionTask.objects
         .select_related('session__microcycle__team')
@@ -2709,6 +2754,8 @@ def _resolve_static_asset_file(asset_value):
 
 @login_required
 def session_task_canva_export(request, task_id):
+    if not _can_access_sessions_workspace(request.user):
+        return HttpResponse('No tienes permisos para acceder a sesiones.', status=403)
     task = (
         SessionTask.objects
         .select_related('session__microcycle__team')
@@ -3426,6 +3473,8 @@ def _get_or_create_library_session(team, scope_key):
 
 
 def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones'):
+    if not _can_access_sessions_workspace(request.user):
+        return HttpResponse('No tienes permisos para acceder a sesiones.', status=403)
     primary_team = Team.objects.filter(is_primary=True).first()
     if not primary_team:
         raise Http404('Equipo principal no configurado')
@@ -3632,44 +3681,49 @@ def sessions_fitness_page(request):
     return _sessions_workspace_page(request, scope_key='fitness', scope_title='Sesiones · Preparacion fisica')
 
 
+@login_required
 def fines_page(request):
     primary_team = Team.objects.filter(is_primary=True).first()
     if not primary_team:
         return JsonResponse({'error': 'No hay equipo principal configurado'}, status=400)
     error = ''
     message = ''
+    can_manage_fines = _is_admin_user(request.user)
     if request.method == 'POST':
-        form_action = (request.POST.get('form_action') or 'add').strip().lower()
-        if form_action == 'delete':
-            fine_id = _parse_int(request.POST.get('fine_id'))
-            fine = PlayerFine.objects.filter(id=fine_id, player__team=primary_team).first() if fine_id else None
-            if not fine:
-                error = 'Multa no encontrada.'
-            else:
-                fine.delete()
-                message = 'Multa eliminada.'
+        if not can_manage_fines:
+            error = 'Solo administradores pueden registrar o eliminar multas.'
         else:
-            player_id = _parse_int(request.POST.get('player_id'))
-            reason = (request.POST.get('reason') or '').strip()
-            amount = _parse_int(request.POST.get('amount')) or 0
-            note = (request.POST.get('note') or '').strip()
-            player = Player.objects.filter(id=player_id, team=primary_team).first() if player_id else None
-            valid_reasons = {item[0] for item in PlayerFine.REASON_CHOICES}
-            if not player:
-                error = 'Selecciona un jugador válido.'
-            elif reason not in valid_reasons:
-                error = 'Selecciona un motivo válido.'
-            elif amount <= 0 or amount % 5 != 0:
-                error = 'La cantidad debe ser un múltiplo de 5.'
+            form_action = (request.POST.get('form_action') or 'add').strip().lower()
+            if form_action == 'delete':
+                fine_id = _parse_int(request.POST.get('fine_id'))
+                fine = PlayerFine.objects.filter(id=fine_id, player__team=primary_team).first() if fine_id else None
+                if not fine:
+                    error = 'Multa no encontrada.'
+                else:
+                    fine.delete()
+                    message = 'Multa eliminada.'
             else:
-                PlayerFine.objects.create(
-                    player=player,
-                    reason=reason,
-                    amount=amount,
-                    note=note,
-                    created_by=(request.user.get_username() if request.user.is_authenticated else ''),
-                )
-                message = 'Multa registrada.'
+                player_id = _parse_int(request.POST.get('player_id'))
+                reason = (request.POST.get('reason') or '').strip()
+                amount = _parse_int(request.POST.get('amount')) or 0
+                note = (request.POST.get('note') or '').strip()
+                player = Player.objects.filter(id=player_id, team=primary_team).first() if player_id else None
+                valid_reasons = {item[0] for item in PlayerFine.REASON_CHOICES}
+                if not player:
+                    error = 'Selecciona un jugador válido.'
+                elif reason not in valid_reasons:
+                    error = 'Selecciona un motivo válido.'
+                elif amount <= 0 or amount % 5 != 0:
+                    error = 'La cantidad debe ser un múltiplo de 5.'
+                else:
+                    PlayerFine.objects.create(
+                        player=player,
+                        reason=reason,
+                        amount=amount,
+                        note=note,
+                        created_by=(request.user.get_username() if request.user.is_authenticated else ''),
+                    )
+                    message = 'Multa registrada.'
     players = list(Player.objects.filter(team=primary_team, is_active=True).order_by('number', 'name'))
     fines = list(PlayerFine.objects.filter(player__team=primary_team).select_related('player')[:120])
     reason_labels = dict(PlayerFine.REASON_CHOICES)
@@ -3687,6 +3741,7 @@ def fines_page(request):
             'summary_total': summary_total,
             'message': message,
             'error': error,
+            'can_manage_fines': can_manage_fines,
         },
     )
 
@@ -3964,7 +4019,10 @@ def analysis_page(request):
     )
 
 
+@login_required
 def manual_player_stats_page(request):
+    if not _is_admin_user(request.user):
+        return HttpResponse('Solo administradores pueden editar estadísticas manuales.', status=403)
     primary_team = Team.objects.filter(is_primary=True).first()
     if not primary_team:
         return JsonResponse({'error': 'No hay equipo principal configurado'}, status=400)

@@ -40,6 +40,7 @@
         </div>
         {% if message %}<p class="msg ok">{{ message }}</p>{% endif %}
         {% if error %}<p class="msg err">{{ error }}</p>{% endif %}
+        {% if can_manage_fines %}
         <form method="post">
           {% csrf_token %}
           <input type="hidden" name="form_action" value="add" />
@@ -71,6 +72,9 @@
             <button type="submit">Registrar multa</button>
           </div>
         </form>
+        {% else %}
+        <p class="msg" style="color:#bfdbfe;">Modo solo lectura: solo administracion puede registrar o eliminar multas.</p>
+        {% endif %}
 
         <table>
           <thead>
@@ -85,12 +89,14 @@
               <td>{{ fine.amount }}€</td>
               <td>{{ fine.note|default:'-' }}</td>
               <td>
+                {% if can_manage_fines %}
                 <form method="post" style="margin:0;">
                   {% csrf_token %}
                   <input type="hidden" name="form_action" value="delete" />
                   <input type="hidden" name="fine_id" value="{{ fine.id }}" />
                   <button type="submit" style="background:#b91c1c;">Eliminar</button>
                 </form>
+                {% endif %}
               </td>
             </tr>
             {% empty %}
