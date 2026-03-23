@@ -3391,6 +3391,40 @@ def _task_scope_for_item(task):
     return scope or 'coach'
 
 
+def _get_or_create_library_session(team, scope_key):
+    today = timezone.localdate()
+    week_start = today - timedelta(days=today.weekday())
+    week_end = week_start + timedelta(days=6)
+    scope_label = {
+        'coach': 'Entrenador',
+        'goalkeeper': 'Porteros',
+        'fitness': 'Preparacion fisica',
+    }.get(scope_key, 'Staff')
+    microcycle, _ = TrainingMicrocycle.objects.get_or_create(
+        team=team,
+        week_start=week_start,
+        defaults={
+            'week_end': week_end,
+            'title': f'Biblioteca {scope_label}',
+            'objective': 'Repositorio de tareas en PDF',
+            'status': TrainingMicrocycle.STATUS_DRAFT,
+            'notes': 'Microciclo tecnico generado automaticamente para biblioteca.',
+        },
+    )
+    session, _ = TrainingSession.objects.get_or_create(
+        microcycle=microcycle,
+        session_date=today,
+        focus=f'Biblioteca PDF · {scope_label}',
+        defaults={
+            'duration_minutes': 90,
+            'intensity': TrainingSession.INTENSITY_LOW,
+            'content': 'Sesion tecnica para almacenar tareas subidas a biblioteca.',
+            'order': 0,
+        },
+    )
+    return session
+
+
 def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones'):
     primary_team = Team.objects.filter(is_primary=True).first()
     if not primary_team:
@@ -3422,7 +3456,6 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         planner_action = (request.POST.get('planner_action') or '').strip()
         try:
             if planner_action == 'library_upload_pdf':
-                target_session_id = _parse_int(request.POST.get('target_session_id'))
                 title = (request.POST.get('pdf_task_title') or '').strip()
                 objective = (request.POST.get('pdf_task_objective') or '').strip()
                 block = (request.POST.get('pdf_task_block') or SessionTask.BLOCK_MAIN_1).strip()
@@ -3430,14 +3463,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 pdf_files = list(request.FILES.getlist('library_task_pdf'))
                 if block not in {choice[0] for choice in SessionTask.BLOCK_CHOICES}:
                     block = SessionTask.BLOCK_MAIN_1
-                target_session = (
-                    TrainingSession.objects
-                    .select_related('microcycle')
-                    .filter(id=target_session_id, microcycle__team=primary_team)
-                    .first()
-                )
-                if not target_session:
-                    raise ValueError('Selecciona una sesión destino para guardar el PDF.')
+                target_session = _get_or_create_library_session(primary_team, scope_key)
                 if not pdf_files:
                     raise ValueError('Selecciona al menos un PDF.')
                 for item in pdf_files:

@@ -85,15 +85,6 @@
           {% csrf_token %}
           <input type="hidden" name="planner_action" value="library_upload_pdf" />
           <label>
-            Sesion destino
-            <select name="target_session_id" required>
-              <option value="">Selecciona...</option>
-              {% for session in all_sessions %}
-              <option value="{{ session.id }}">{{ session.session_date|date:"d/m/Y" }} · {{ session.focus }}</option>
-              {% endfor %}
-            </select>
-          </label>
-          <label>
             Nombre tarea
             <input type="text" name="pdf_task_title" maxlength="160" placeholder="Ej: Activacion coordinativa" required />
           </label>
