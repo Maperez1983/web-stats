@@ -1,0 +1,15 @@
+{
+  "generated_at": "2026-03-23T15:54:42.867342+00:00",
+  "resources_by_scope": {
+    "coach": [
+      {
+        "key": "arc",
+        "label": "ARCO",
+        "title": "Arco precisión",
+        "kind": "arc",
+        "category": "finalizacion",
+        "count": 1
+      }
+    ]
+  }
+}
