@@ -3517,6 +3517,64 @@ def _extract_pdf_text(pdf_file, max_chars=12000):
         except Exception:
             return ''
 
+    def _needs_ocr_boost(parsed_text):
+        compact_hits = re.findall(r'\b[A-ZÁÉÍÓÚÜÑ]{10,}\b', str(parsed_text or ''))
+        joined_hits = 0
+        for token in compact_hits[:120]:
+            repaired = _split_joined_upper_token(token)
+            if repaired == token:
+                joined_hits += 1
+        return len(str(parsed_text or '')) < 500 or joined_hits >= 2
+
+    def _ocr_pdf_pages_with_pdftoppm(local_pdf_file, max_pages=4):
+        if pytesseract is None or Image is None:
+            return ''
+        pdftoppm_bin = shutil.which('pdftoppm')
+        if not pdftoppm_bin:
+            return ''
+        try:
+            if hasattr(local_pdf_file, 'seek'):
+                local_pdf_file.seek(0)
+            pdf_bytes = local_pdf_file.read()
+            if not pdf_bytes:
+                return ''
+            with tempfile.TemporaryDirectory(prefix='task-ocr-') as tmpdir:
+                tmp_path = Path(tmpdir)
+                source_pdf = tmp_path / 'source.pdf'
+                source_pdf.write_bytes(pdf_bytes)
+                ocr_chunks = []
+                page_limit = max(1, int(max_pages or 1))
+                for page_no in range(1, page_limit + 1):
+                    out_base = tmp_path / f'page-{page_no}'
+                    subprocess.run(
+                        [
+                            pdftoppm_bin,
+                            '-jpeg',
+                            '-r',
+                            '170',
+                            '-f',
+                            str(page_no),
+                            '-singlefile',
+                            str(source_pdf),
+                            str(out_base),
+                        ],
+                        check=True,
+                        capture_output=True,
+                        timeout=35,
+                    )
+                    page_img = tmp_path / f'page-{page_no}.jpg'
+                    if not page_img.exists():
+                        continue
+                    raw = page_img.read_bytes()
+                    ocr_text = _ocr_text_from_image_bytes(raw)
+                    if ocr_text:
+                        ocr_chunks.append(ocr_text)
+                    if sum(len(c) for c in ocr_chunks) >= 9000:
+                        break
+                return '\n'.join(ocr_chunks).strip()
+        except Exception:
+            return ''
+
     try:
         if hasattr(pdf_file, 'seek'):
             pdf_file.seek(0)
@@ -3540,6 +3598,11 @@ def _extract_pdf_text(pdf_file, max_chars=12000):
             if ocr_chunks:
                 text = '\n'.join([text, '\n'.join(ocr_chunks)]).strip() if text else '\n'.join(ocr_chunks)
                 text = re.sub(r'\n{3,}', '\n\n', text)
+        if _needs_ocr_boost(text):
+            ocr_rendered = _ocr_pdf_pages_with_pdftoppm(pdf_file, max_pages=5)
+            if ocr_rendered:
+                merged = '\n'.join([text, ocr_rendered]).strip() if text else ocr_rendered
+                text = re.sub(r'\n{3,}', '\n\n', merged)
         text = _repair_joined_words_text(text)
         return text[:max_chars]
     except Exception:
@@ -3877,8 +3940,10 @@ TASK_PHASE_KEYWORDS = {
     'mixta': ['ida y vuelta', 'ataque y defensa', 'mixto'],
 }
 
+TASK_PDF_PARSE_VERSION = 2
+
 TASK_JOINED_WORD_VOCAB = [
-    'TAREA', 'EJERCICIO', 'SESION', 'BLOQUE', 'PARTE', 'PRINCIPAL',
+    'TAREA', 'EJERCICIO', 'SESION', 'BLOQUE', 'BLOQUES', 'PARTE', 'PRINCIPAL',
     'DESCRIPCION', 'OBJETIVO', 'CONSIGNAS', 'REGLAS', 'DOSIFICACION',
     'TIEMPO', 'TOTAL', 'TRABAJO', 'PAUSA', 'SERIE', 'SERIES', 'REPETICIONES',
     'JUGADORES', 'COMODIN', 'COMODINES', 'MATERIAL', 'MATERIALES',
@@ -3892,6 +3957,26 @@ TASK_JOINED_WORD_VOCAB = [
     'VERDE', 'ROJO', 'SALIR', 'SALE', 'SE', 'QUE', 'YA', 'VEZ',
     'MAS', 'CAIDA', 'DESPEJE', 'ORIENTADO', 'INFERIORIDAD', 'SUPERIORIDAD',
     'REACCION', 'PRESION', 'RECUPERACION', 'PASE', 'APOYO',
+    'PAREDES', 'RAPIDO', 'JUEGO', 'DIRECTO', 'CAIDAS', 'DESMARQUE',
+    'RUPTURA', 'DELIMITADA', 'HIDRATACION', 'ENTRENAMIENTO', 'MOVILIDAD',
+    'ACTIVACION', 'ACTIVACION', 'DEFENDER', 'INCIDIMOS', 'PERDIDA',
+    'TRABAJADOS', 'EQUIPOS', 'PREMISAS', 'FOMENTAR', 'COMODINES', 'FUERA',
+]
+
+TASK_JOINED_WORD_VOCAB_ES = [
+    'a', 'al', 'algo', 'algunos', 'ante', 'antes', 'asi', 'aun',
+    'bajo', 'bien', 'cada', 'cambio', 'casi', 'como', 'con', 'contra',
+    'cuando', 'de', 'del', 'desde', 'donde', 'dos', 'durante', 'e', 'el',
+    'ella', 'ellas', 'ellos', 'en', 'entre', 'era', 'es', 'esa', 'ese',
+    'eso', 'esta', 'estaba', 'estado', 'estan', 'estar', 'este', 'esto',
+    'final', 'frente', 'fue', 'ha', 'hacia', 'hasta', 'hay', 'hacer',
+    'hacemos', 'igual', 'la', 'las', 'le', 'les', 'lo', 'los', 'mas',
+    'media', 'medio', 'mientras', 'misma', 'mismo', 'muy', 'nada', 'ni',
+    'no', 'nos', 'nosotros', 'o', 'otra', 'otro', 'para', 'pero', 'poca',
+    'poco', 'por', 'porque', 'primera', 'primero', 'puede', 'que', 'quien',
+    'rapido', 'se', 'segun', 'si', 'sin', 'sobre', 'solo', 'su', 'sus',
+    'te', 'todo', 'trabajo', 'tras', 'tu', 'un', 'una', 'uno', 'unos',
+    'ya', 'y',
 ]
 
 
@@ -3912,11 +3997,26 @@ def _normalize_upper_compact(value):
     return re.sub(r'[^A-Z]+', '', stripped)
 
 
+def _normalize_lower_compact(value):
+    raw = str(value or '').strip().lower()
+    if not raw:
+        return ''
+    normalized = unicodedata.normalize('NFKD', raw)
+    stripped = ''.join(ch for ch in normalized if not unicodedata.combining(ch))
+    return re.sub(r'[^a-z]+', '', stripped)
+
+
 JOINED_WORD_MAP = {
     _normalize_upper_compact(word): str(word).upper()
     for word in TASK_JOINED_WORD_VOCAB
     if _normalize_upper_compact(word)
 }
+
+JOINED_WORD_MAP_LOWER = {}
+for _word in (TASK_JOINED_WORD_VOCAB + TASK_JOINED_WORD_VOCAB_ES):
+    compact = _normalize_lower_compact(_word)
+    if compact:
+        JOINED_WORD_MAP_LOWER[compact] = compact
 
 
 def _split_joined_upper_token(token):
@@ -3955,6 +4055,48 @@ def _split_joined_upper_token(token):
     return joined or token
 
 
+def _split_joined_alpha_token(token):
+    compact = _normalize_lower_compact(token)
+    if len(compact) < 8:
+        return token
+    n = len(compact)
+    best = [None] * (n + 1)
+    best[0] = (0, [])
+    max_len = min(20, n)
+    for i in range(n):
+        if best[i] is None:
+            continue
+        base_score, base_words = best[i]
+        for step in range(1, max_len + 1):
+            j = i + step
+            if j > n:
+                break
+            chunk = compact[i:j]
+            mapped = JOINED_WORD_MAP_LOWER.get(chunk)
+            if not mapped:
+                continue
+            bonus = (step * step) + (6 if step >= 4 else 0) + (4 if step >= 6 else 0)
+            candidate = (base_score + bonus, base_words + [mapped])
+            if best[j] is None or candidate[0] > best[j][0]:
+                best[j] = candidate
+    if best[n] is None:
+        return token
+    words = best[n][1]
+    if len(words) < 2:
+        return token
+    avg_len = len(compact) / max(1, len(words))
+    if len(words) >= 8 and avg_len < 2.1:
+        return token
+    if avg_len < 2.5 and len(words) > 5:
+        return token
+    if token.isupper():
+        return ' '.join(word.upper() for word in words).strip()
+    if token[:1].isupper():
+        joined = ' '.join(words).strip()
+        return joined[:1].upper() + joined[1:]
+    return ' '.join(words).strip()
+
+
 def _repair_joined_words_text(value):
     text = str(value or '')
     if not text:
@@ -3962,15 +4104,22 @@ def _repair_joined_words_text(value):
     cleaned = text.replace('\r\n', '\n').replace('\r', '\n')
     cleaned = re.sub(r'(?<=\d)(?=[A-Za-zÁÉÍÓÚÜÑ])', ' ', cleaned)
     cleaned = re.sub(r'(?<=[A-Za-zÁÉÍÓÚÜÑ])(?=\d)', ' ', cleaned)
+    cleaned = re.sub(r'(?<=\d)\s*[xX×]\s*(?=\d)', ' x ', cleaned)
     cleaned = re.sub(r'([,:;])(?=\S)', r'\1 ', cleaned)
     cleaned = re.sub(r'\s{2,}', ' ', cleaned)
     cleaned = re.sub(r' *\n *', '\n', cleaned)
 
-    def _replace_token(match):
+    def _replace_upper_token(match):
         token = match.group(0)
         return _split_joined_upper_token(token)
 
-    cleaned = re.sub(r'\b[A-ZÁÉÍÓÚÜÑ]{10,}\b', _replace_token, cleaned)
+    def _replace_alpha_token(match):
+        token = match.group(0)
+        return _split_joined_alpha_token(token)
+
+    cleaned = re.sub(r'\b[A-ZÁÉÍÓÚÜÑ]{10,}\b', _replace_upper_token, cleaned)
+    cleaned = re.sub(r'\b[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]{8,}\b', _replace_alpha_token, cleaned)
+    cleaned = re.sub(r'([\.!?])(?=[A-Za-zÁÉÍÓÚÜÑáéíóúüñ])', r'\1 ', cleaned)
     cleaned = re.sub(r'\s{2,}', ' ', cleaned)
     cleaned = re.sub(r' *\n *', '\n', cleaned)
     return cleaned.strip()
@@ -4052,6 +4201,7 @@ def _apply_analysis_to_task(task, analysis):
         'summary': (analysis.get('summary') or '')[:900],
         'task_sheet': analysis.get('task_sheet') if isinstance(analysis.get('task_sheet'), dict) else {},
         'analyzed_at': timezone.now().isoformat(),
+        'parser_version': TASK_PDF_PARSE_VERSION,
     }
     layout['meta'] = meta
     task.tactical_layout = layout
@@ -4752,6 +4902,72 @@ def _cleanup_task_joined_text_fields(task):
             ]
         )
     return changed
+
+
+def _task_analysis_needs_refresh(task):
+    if not task or not getattr(task, 'task_pdf', None):
+        return False
+    layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
+    meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+    analysis_meta = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
+    parser_version = _parse_int(analysis_meta.get('parser_version')) or 0
+    if parser_version < TASK_PDF_PARSE_VERSION:
+        return True
+    summary = str(analysis_meta.get('summary') or '')
+    if re.search(r'\b[A-ZÁÉÍÓÚÜÑ]{12,}\b', summary):
+        return True
+    if re.search(r'\b[A-ZÁÉÍÓÚÜÑ]{12,}\b', str(task.title or '')):
+        return True
+    if re.search(r'\b[A-ZÁÉÍÓÚÜÑ]{12,}\b', str(task.objective or '')):
+        return True
+    return False
+
+
+def _refresh_task_from_pdf_analysis(task):
+    if not task or not getattr(task, 'task_pdf', None):
+        return False
+    try:
+        extracted_text = _extract_pdf_text(task.task_pdf, max_chars=60000)
+        parsed_tasks = _extract_tasks_from_pdf_text(extracted_text, fallback_title=task.title or 'Tarea desde PDF')
+        selected = None
+        if parsed_tasks:
+            meta = task.tactical_layout.get('meta') if isinstance(task.tactical_layout, dict) else {}
+            segment_index = _parse_int(meta.get('pdf_segment_index')) or 1
+            segment_index = max(1, min(segment_index, len(parsed_tasks)))
+            selected = parsed_tasks[segment_index - 1]
+        if not selected:
+            selected = {'analysis': _suggest_task_from_pdf(extracted_text), 'raw_text': extracted_text[:2500]}
+        analysis = selected.get('analysis') or {}
+        task.title = str(analysis.get('title') or task.title or 'Tarea desde PDF')[:160]
+        task.duration_minutes = max(5, min((_parse_int(analysis.get('minutes')) or task.duration_minutes or 15), 90))
+        task.objective = str(analysis.get('objective') or task.objective or '')[:180]
+        task.coaching_points = str(analysis.get('coaching_points') or task.coaching_points or '')
+        task.confrontation_rules = str(analysis.get('confrontation_rules') or task.confrontation_rules or '')
+        layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
+        layout = dict(layout)
+        meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+        meta = dict(meta)
+        raw_excerpt = str(selected.get('raw_text') or extracted_text or '')[:1200]
+        if raw_excerpt:
+            meta['pdf_segment_excerpt'] = raw_excerpt
+        layout['meta'] = meta
+        task.tactical_layout = layout
+        task.save(
+            update_fields=[
+                'title',
+                'duration_minutes',
+                'objective',
+                'coaching_points',
+                'confrontation_rules',
+                'tactical_layout',
+            ]
+        )
+        _apply_analysis_to_task(task, analysis)
+        if not task.task_preview_image:
+            _ensure_library_task_preview(task, force=False, prefer_render=True)
+        return True
+    except Exception:
+        return False
 
 
 def _update_library_task_from_post(task, post_data, scope_key=None):
@@ -5898,7 +6114,11 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         preview_rebuilt = 0
         preview_upgraded = 0
         text_normalized = 0
+        analysis_refreshed = 0
         for task in task_library:
+            if _task_analysis_needs_refresh(task):
+                if _refresh_task_from_pdf_analysis(task):
+                    analysis_refreshed += 1
             if _cleanup_task_joined_text_fields(task):
                 text_normalized += 1
             before_name = str(getattr(task, 'task_preview_image', '') or '').strip()
@@ -5913,11 +6133,12 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                         preview_upgraded += 1
                     else:
                         preview_rebuilt += 1
-        if preview_rebuilt or preview_upgraded or text_normalized:
+        if preview_rebuilt or preview_upgraded or text_normalized or analysis_refreshed:
             rebuilt_msg = f'Previews recuperadas: {preview_rebuilt}.' if preview_rebuilt else ''
             upgraded_msg = f'Previews mejoradas: {preview_upgraded}.' if preview_upgraded else ''
             cleaned_msg = f'Textos corregidos: {text_normalized}.' if text_normalized else ''
-            joined = ' '.join([part for part in [rebuilt_msg, upgraded_msg, cleaned_msg] if part]).strip()
+            refreshed_msg = f'Análisis regenerados: {analysis_refreshed}.' if analysis_refreshed else ''
+            joined = ' '.join([part for part in [rebuilt_msg, upgraded_msg, cleaned_msg, refreshed_msg] if part]).strip()
             feedback = (
                 f'{feedback} '
                 if feedback
