@@ -422,17 +422,7 @@
         transform: translateY(-50%);
       }
       .tpad-watermark {
-        position: absolute;
-        left: 50%;
-        top: 45%;
-        transform: translate(-50%, -50%);
-        font-size: 8rem;
-        font-weight: 800;
-        color: rgba(15, 23, 42, 0.12);
-        letter-spacing: 0.08em;
-        pointer-events: none;
-        user-select: none;
-        z-index: 1;
+        display: none;
       }
       .tpad-team-chip {
         position: absolute;
@@ -519,6 +509,9 @@
       }
       .tpad-dock-btn.is-active {
         background: rgba(37, 99, 235, 0.35);
+      }
+      .tpad-dock-btn.is-flash {
+        background: rgba(14, 165, 233, 0.28);
       }
       .tpad-editbar {
         position: absolute;
@@ -916,7 +909,6 @@
                 </label>
                 <div style="grid-column:1/-1;" class="create-board">
                   <div class="create-board-shell" id="create-board-shell">
-                    <div class="tpad-watermark">02</div>
                     <div class="tpad-team-chip left" data-team="T"><span>Local</span></div>
                     <div class="tpad-team-chip right" data-team="J"><span>Visit.</span></div>
                     <div class="create-board-toolbar" id="create-board-toolbar" style="display:none;">
@@ -1633,6 +1625,16 @@
           fieldCameraChips.forEach((node) => node.classList.toggle('is-active', String(node.dataset.fieldCamera || '') === camera));
           if (dock3dBtn) dock3dBtn.classList.toggle('is-active', camera === 'stadium');
         };
+        const dockButtons = [dockProjectBtn, dockSaveBtn, dockShareBtn, dockBoardBtn, dockFieldBtn, dock3dBtn, dockFullBtn].filter(Boolean);
+        const setDockActive = (button, transient = false) => {
+          dockButtons.forEach((btn) => btn.classList.remove('is-active'));
+          if (!button) return;
+          button.classList.add('is-active');
+          if (transient) {
+            button.classList.add('is-flash');
+            setTimeout(() => button.classList.remove('is-flash'), 380);
+          }
+        };
         const canvas = new fabric.Canvas(canvasEl, {
           isDrawingMode: true,
           selection: false,
@@ -1871,6 +1873,41 @@
               stroke: 'rgba(255,255,255,0.6)',
               strokeWidth: 2.5,
             }));
+            const centerY = fieldTop + (fieldH / 2);
+            const boxWidth = Math.max(74, fieldW * 0.12);
+            const boxHeight = Math.max(124, fieldH * 0.42);
+            const sixWidth = Math.max(34, boxWidth * 0.46);
+            const sixHeight = Math.max(58, boxHeight * 0.42);
+            const leftBoxX = fieldLeft + marginX;
+            canvas.add(new fabric.Rect({
+              ...common,
+              left: leftBoxX,
+              top: centerY - (boxHeight / 2),
+              width: boxWidth,
+              height: boxHeight,
+              fill: 'transparent',
+              stroke: lineColor,
+              strokeWidth: 2.5,
+            }));
+            canvas.add(new fabric.Rect({
+              ...common,
+              left: leftBoxX,
+              top: centerY - (sixHeight / 2),
+              width: sixWidth,
+              height: sixHeight,
+              fill: 'transparent',
+              stroke: lineColor,
+              strokeWidth: 2.5,
+            }));
+            canvas.add(new fabric.Circle({
+              ...common,
+              left: leftBoxX + (boxWidth * 0.72),
+              top: centerY - 2,
+              radius: 2,
+              fill: 'rgba(255,255,255,0.92)',
+              stroke: '',
+              strokeWidth: 0,
+            }));
           } else if (preset === 'futsal') {
             const futsalRect = new fabric.Rect({
               ...common,
@@ -1900,10 +1937,16 @@
             }));
             const boxWidth = Math.max(70, fieldW * 0.13);
             const boxHeight = Math.max(120, fieldH * 0.42);
+            const sixWidth = Math.max(34, boxWidth * 0.46);
+            const sixHeight = Math.max(58, boxHeight * 0.42);
+            const leftBoxX = fieldLeft + marginX;
+            const rightBoxX = fieldLeft + fieldW - marginX - boxWidth;
+            const boxTop = fieldTop + ((fieldH - boxHeight) / 2);
+            const sixTop = fieldTop + ((fieldH - sixHeight) / 2);
             canvas.add(new fabric.Rect({
               ...common,
-              left: fieldLeft + marginX,
-              top: fieldTop + ((fieldH - boxHeight) / 2),
+              left: leftBoxX,
+              top: boxTop,
               width: boxWidth,
               height: boxHeight,
               fill: 'transparent',
@@ -1912,13 +1955,74 @@
             }));
             canvas.add(new fabric.Rect({
               ...common,
-              left: fieldLeft + fieldW - marginX - boxWidth,
-              top: fieldTop + ((fieldH - boxHeight) / 2),
+              left: rightBoxX,
+              top: boxTop,
               width: boxWidth,
               height: boxHeight,
               fill: 'transparent',
               stroke: lineColor,
               strokeWidth: 2.5,
+            }));
+            canvas.add(new fabric.Rect({
+              ...common,
+              left: leftBoxX,
+              top: sixTop,
+              width: sixWidth,
+              height: sixHeight,
+              fill: 'transparent',
+              stroke: lineColor,
+              strokeWidth: 2.5,
+            }));
+            canvas.add(new fabric.Rect({
+              ...common,
+              left: rightBoxX + (boxWidth - sixWidth),
+              top: sixTop,
+              width: sixWidth,
+              height: sixHeight,
+              fill: 'transparent',
+              stroke: lineColor,
+              strokeWidth: 2.5,
+            }));
+            const centerY = fieldTop + (fieldH / 2);
+            canvas.add(new fabric.Circle({
+              ...common,
+              left: leftBoxX + (boxWidth * 0.72),
+              top: centerY - 2,
+              radius: 2,
+              fill: 'rgba(255,255,255,0.92)',
+              stroke: '',
+              strokeWidth: 0,
+            }));
+            canvas.add(new fabric.Circle({
+              ...common,
+              left: rightBoxX + (boxWidth * 0.28),
+              top: centerY - 2,
+              radius: 2,
+              fill: 'rgba(255,255,255,0.92)',
+              stroke: '',
+              strokeWidth: 0,
+            }));
+            const goalDepth = Math.max(8, Math.round(fieldW * 0.008));
+            const goalWidth = Math.max(42, sixHeight * 0.72);
+            canvas.add(new fabric.Rect({
+              ...common,
+              left: leftBoxX - goalDepth,
+              top: centerY - (goalWidth / 2),
+              width: goalDepth,
+              height: goalWidth,
+              fill: 'transparent',
+              stroke: 'rgba(255,255,255,0.56)',
+              strokeWidth: 2,
+            }));
+            canvas.add(new fabric.Rect({
+              ...common,
+              left: rightBoxX + boxWidth,
+              top: centerY - (goalWidth / 2),
+              width: goalDepth,
+              height: goalWidth,
+              fill: 'transparent',
+              stroke: 'rgba(255,255,255,0.56)',
+              strokeWidth: 2,
             }));
           }
           canvas.renderAll();
@@ -2151,24 +2255,31 @@
         menuBtn?.addEventListener('click', () => {
           setToolsOpen(false);
           openFieldModal(false);
+          setDockActive(dockProjectBtn);
           setStatus('Modo presentación.');
         });
         dockBoardBtn?.addEventListener('click', () => {
           setToolsOpen(!(boardShell?.classList.contains('tools-open')));
+          setDockActive(dockBoardBtn);
         });
         dockFieldBtn?.addEventListener('click', () => {
           openFieldModal(true);
+          setDockActive(dockFieldBtn);
         });
         dock3dBtn?.addEventListener('click', () => {
           currentFieldCamera = 'stadium';
           setFieldCameraActive('stadium');
           applyFieldBackground(currentFieldPreset, { theme: currentFieldTheme, camera: 'stadium' });
+          setDockActive(dock3dBtn);
           setStatus('Vista estadio 3D aplicada.');
         });
         dockSaveBtn?.addEventListener('click', () => {
+          setDockActive(dockSaveBtn, true);
+          setStatus('Guardando tarea...');
           createForm.requestSubmit();
         });
         dockShareBtn?.addEventListener('click', async () => {
+          setDockActive(dockShareBtn, true);
           const dataUrl = canvas.toDataURL({ format: 'png', quality: 0.92, multiplier: 1 });
           if (navigator.clipboard && dataUrl) {
             try {
@@ -2182,10 +2293,12 @@
           }
         });
         dockProjectBtn?.addEventListener('click', () => {
+          setDockActive(dockProjectBtn, true);
           setStatus('Proyecto activo: creación de tarea.');
         });
         dockFullBtn?.addEventListener('click', () => {
           const willEnable = !(boardShell?.classList.contains('is-fullscreen'));
+          setDockActive(dockFullBtn);
           setFullscreen(willEnable);
         });
         fieldCloseBtn?.addEventListener('click', () => openFieldModal(false));
@@ -2282,6 +2395,7 @@
           }, 180);
         });
         applyFieldBackground(presetSelect?.value || 'full_pitch');
+        setDockActive(dockProjectBtn);
         setToolsOpen(false);
         setMode(false);
         refreshLayerList();

@@ -1558,10 +1558,35 @@ def admin_page(request):
 
     if active_tab == 'actions' and is_admin_user:
         admin_match_qs = _team_match_queryset(primary_team) if primary_team else Match.objects.none()
-        # Mostrar siempre todos los partidos asociados al equipo principal.
-        # Filtrar por group_id ocultaba cruces válidos (p. ej. partidos cargados manualmente
-        # o en otro grupo temporal) en la edición manual de partidos/acciones.
-        admin_matches = list(admin_match_qs.order_by('-date', '-id'))
+        # En Admin necesitamos ver también partidos importados aunque lleguen con
+        # vínculos incompletos al equipo principal. Por eso unimos:
+        # 1) partidos asociados al primer equipo (query normal)
+        # 2) partidos del grupo/temporada del primer equipo (fallback importador)
+        # y deduplicamos por id.
+        admin_map = {}
+        for match in admin_match_qs.select_related('home_team', 'away_team').order_by('-date', '-id')[:500]:
+            admin_map[int(match.id)] = match
+        if primary_team:
+            fallback_q = Q()
+            if getattr(primary_team, 'group_id', None):
+                fallback_q |= Q(group_id=primary_team.group_id)
+                season_id = getattr(getattr(primary_team, 'group', None), 'season_id', None)
+                if season_id:
+                    fallback_q |= Q(season_id=season_id)
+            if fallback_q:
+                fallback_rows = (
+                    Match.objects
+                    .filter(fallback_q)
+                    .select_related('home_team', 'away_team')
+                    .order_by('-date', '-id')[:700]
+                )
+                for match in fallback_rows:
+                    admin_map[int(match.id)] = match
+        admin_matches = sorted(
+            list(admin_map.values()),
+            key=lambda item: (item.date or date.min, int(item.id or 0)),
+            reverse=True,
+        )
         selected_admin_match_id = _parse_int(request.GET.get('match_id') or request.POST.get('match_id'))
         selected_admin_match = (
             next((m for m in admin_matches if m.id == selected_admin_match_id), None)
