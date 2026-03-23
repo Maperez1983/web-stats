@@ -43,6 +43,11 @@ try:
 except Exception:  # pragma: no cover
     weasyprint = None
 
+try:
+    from pypdf import PdfReader
+except Exception:  # pragma: no cover
+    PdfReader = None
+
 from football.models import (
     Match,
     MatchEvent,
@@ -3300,441 +3305,185 @@ def initial_eleven_page(request):
     )
 
 
+def _extract_pdf_text(pdf_file, max_chars=12000):
+    if PdfReader is None:
+        raise ValueError('Falta dependencia de lectura PDF. Instala `pypdf`.')
+    try:
+        if hasattr(pdf_file, 'seek'):
+            pdf_file.seek(0)
+        reader = PdfReader(pdf_file)
+        chunks = []
+        for page in reader.pages:
+            chunks.append((page.extract_text() or '').strip())
+        text = '\n'.join([item for item in chunks if item]).strip()
+        text = re.sub(r'\n{3,}', '\n\n', text)
+        return text[:max_chars]
+    except Exception:
+        raise ValueError('No se pudo leer el PDF. Verifica que no esté protegido o corrupto.')
+
+
+def _suggest_task_from_pdf(pdf_text):
+    text = (pdf_text or '').strip()
+    if not text:
+        return {
+            'title': '',
+            'objective': '',
+            'minutes': 15,
+            'coaching_points': '',
+            'confrontation_rules': '',
+            'summary': '',
+        }
+
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    title = ''
+    for line in lines[:12]:
+        if len(line) < 120 and not re.search(r'^\d+$', line):
+            title = line
+            break
+
+    objective = ''
+    objective_match = re.search(r'(objetivo|objective)\s*[:\-]\s*(.+)', text, re.IGNORECASE)
+    if objective_match:
+        objective = objective_match.group(2).strip()
+    elif len(lines) > 1:
+        objective = lines[1][:180]
+
+    minutes = 15
+    minute_match = re.search(r'(\d{1,3})\s*(?:min|mins|minutos|minutes|\')', text, re.IGNORECASE)
+    if minute_match:
+        parsed = _parse_int(minute_match.group(1)) or 15
+        minutes = max(5, min(parsed, 90))
+
+    bullet_like = []
+    for line in lines:
+        if line.startswith(('-', '•', '*')) or re.match(r'^\d+[\).\s-]', line):
+            bullet_like.append(re.sub(r'^[\-\•\*\d\)\.\s]+', '', line).strip())
+        if len(bullet_like) >= 8:
+            break
+
+    coaching_points = '\n'.join(bullet_like[:4])
+    confrontation_rules = '\n'.join(bullet_like[4:8])
+
+    summary = '\n'.join(lines[:12])[:900]
+    return {
+        'title': (title or 'Tarea desde PDF')[:160],
+        'objective': objective[:180],
+        'minutes': minutes,
+        'coaching_points': coaching_points,
+        'confrontation_rules': confrontation_rules,
+        'summary': summary,
+    }
+
+
 def sessions_page(request):
     primary_team = Team.objects.filter(is_primary=True).first()
     if not primary_team:
         raise Http404('Equipo principal no configurado')
 
-    def parse_date(raw):
-        value = (raw or '').strip()
-        if not value:
-            return None
-        for fmt in ('%Y-%m-%d', '%d/%m/%Y', '%d-%m-%Y'):
-            try:
-                return datetime.strptime(value, fmt).date()
-            except ValueError:
-                continue
-        return None
-
     feedback = ''
     error = ''
-    active_match = get_active_match(primary_team)
-    today = timezone.localdate()
-    default_week_start = today - timedelta(days=today.weekday())
-    if active_match and active_match.date:
-        default_week_start = active_match.date - timedelta(days=active_match.date.weekday())
+    analysis = None
+    analysis_task = None
 
     planner_tables_ready = True
     try:
-        TrainingMicrocycle.objects.order_by('-id').values_list('id', flat=True).first()
-        SessionTask.objects.order_by('-id').values_list('tactical_layout', flat=True).first()
+        SessionTask.objects.order_by('-id').values_list('id', flat=True).first()
     except (OperationalError, ProgrammingError):
         planner_tables_ready = False
         error = (
-            'El planificador de sesiones requiere migración de base de datos. '
+            'El módulo de sesiones requiere migración de base de datos. '
             'Ejecuta `python manage.py migrate` y recarga la página.'
         )
+
+    all_sessions = list(
+        TrainingSession.objects
+        .select_related('microcycle')
+        .filter(microcycle__team=primary_team)
+        .order_by('-session_date', '-id')[:150]
+    ) if planner_tables_ready else []
 
     if request.method == 'POST' and planner_tables_ready:
         planner_action = (request.POST.get('planner_action') or '').strip()
         try:
-            if planner_action == 'create_microcycle':
-                week_start = parse_date(request.POST.get('week_start')) or default_week_start
-                week_end = week_start + timedelta(days=6)
-                title = (request.POST.get('title') or '').strip() or 'Microciclo semanal'
-                objective = (request.POST.get('objective') or '').strip()
-                notes = (request.POST.get('notes') or '').strip()
-                status = (request.POST.get('status') or TrainingMicrocycle.STATUS_DRAFT).strip()
-                allowed_statuses = {choice[0] for choice in TrainingMicrocycle.STATUS_CHOICES}
-                if status not in allowed_statuses:
-                    status = TrainingMicrocycle.STATUS_DRAFT
-                microcycle, created = TrainingMicrocycle.objects.get_or_create(
-                    team=primary_team,
-                    week_start=week_start,
-                    defaults={
-                        'week_end': week_end,
-                        'title': title,
-                        'objective': objective,
-                        'status': status,
-                        'notes': notes,
-                        'reference_match': active_match,
-                    },
-                )
-                if not created:
-                    microcycle.week_end = week_end
-                    microcycle.title = title
-                    microcycle.objective = objective
-                    microcycle.status = status
-                    microcycle.notes = notes
-                    if active_match:
-                        microcycle.reference_match = active_match
-                    microcycle.save()
-                feedback = 'Microciclo guardado correctamente.'
-            elif planner_action == 'create_session':
-                microcycle_id = _parse_int(request.POST.get('microcycle_id'))
-                session_date = parse_date(request.POST.get('session_date'))
-                focus = (request.POST.get('focus') or '').strip()
-                if not microcycle_id or not session_date or not focus:
-                    raise ValueError('Completa microciclo, fecha y foco de la sesión.')
-                microcycle = TrainingMicrocycle.objects.filter(id=microcycle_id, team=primary_team).first()
-                if not microcycle:
-                    raise ValueError('Microciclo no válido.')
-                start_time = None
-                start_time_raw = (request.POST.get('start_time') or '').strip()
-                if start_time_raw:
-                    try:
-                        start_time = datetime.strptime(start_time_raw, '%H:%M').time()
-                    except ValueError:
-                        raise ValueError('Formato de hora inválido. Usa HH:MM.')
-                duration = _parse_int(request.POST.get('duration_minutes')) or 90
-                intensity = (request.POST.get('intensity') or TrainingSession.INTENSITY_MEDIUM).strip()
-                intensity_choices = {choice[0] for choice in TrainingSession.INTENSITY_CHOICES}
-                if intensity not in intensity_choices:
-                    intensity = TrainingSession.INTENSITY_MEDIUM
-                content = (request.POST.get('content') or '').strip()
-                TrainingSession.objects.create(
-                    microcycle=microcycle,
-                    session_date=session_date,
-                    start_time=start_time,
-                    duration_minutes=max(15, min(duration, 240)),
-                    intensity=intensity,
-                    focus=focus,
-                    content=content,
-                    order=0,
-                )
-                feedback = 'Sesión creada correctamente.'
-            elif planner_action == 'create_task':
-                session_id = _parse_int(request.POST.get('session_id'))
-                title = (request.POST.get('task_title') or '').strip()
-                if not session_id or not title:
-                    raise ValueError('Selecciona sesión y añade el nombre de la tarea.')
-                session = (
+            if planner_action == 'library_upload_pdf':
+                target_session_id = _parse_int(request.POST.get('target_session_id'))
+                title = (request.POST.get('pdf_task_title') or '').strip()
+                objective = (request.POST.get('pdf_task_objective') or '').strip()
+                block = (request.POST.get('pdf_task_block') or SessionTask.BLOCK_MAIN_1).strip()
+                minutes = _parse_int(request.POST.get('pdf_task_minutes')) or 15
+                pdf_files = list(request.FILES.getlist('library_task_pdf'))
+                if block not in {choice[0] for choice in SessionTask.BLOCK_CHOICES}:
+                    block = SessionTask.BLOCK_MAIN_1
+                target_session = (
                     TrainingSession.objects
                     .select_related('microcycle')
-                    .filter(id=session_id, microcycle__team=primary_team)
+                    .filter(id=target_session_id, microcycle__team=primary_team)
                     .first()
                 )
-                if not session:
-                    raise ValueError('Sesión no válida.')
-                block = (request.POST.get('block') or SessionTask.BLOCK_MAIN_1).strip()
-                block_choices = {choice[0] for choice in SessionTask.BLOCK_CHOICES}
-                if block not in block_choices:
-                    block = SessionTask.BLOCK_MAIN_1
-                duration = _parse_int(request.POST.get('task_minutes')) or 15
+                if not target_session:
+                    raise ValueError('Selecciona una sesión destino para guardar el PDF.')
+                if not pdf_files:
+                    raise ValueError('Selecciona al menos un PDF.')
+                for item in pdf_files:
+                    if not str(getattr(item, 'name', '') or '').lower().endswith('.pdf'):
+                        raise ValueError('Todos los archivos deben ser PDF.')
+                base_order = SessionTask.objects.filter(session=target_session).count()
+                created_count = 0
+                for idx, pdf_file in enumerate(pdf_files, start=1):
+                    raw_name = str(getattr(pdf_file, 'name', '') or '').rsplit('/', 1)[-1]
+                    file_stem = raw_name.rsplit('.', 1)[0].strip() or f'Tarea PDF {idx}'
+                    task_title = title or file_stem
+                    if title and len(pdf_files) > 1:
+                        task_title = f'{title} · {file_stem}'
+                    SessionTask.objects.create(
+                        session=target_session,
+                        title=task_title[:160],
+                        block=block,
+                        duration_minutes=max(5, min(minutes, 90)),
+                        objective=objective[:180],
+                        coaching_points='',
+                        confrontation_rules='',
+                        tactical_layout={},
+                        task_pdf=pdf_file,
+                        status=SessionTask.STATUS_PLANNED,
+                        order=base_order + idx,
+                        notes='Cargada desde Biblioteca PDF',
+                    )
+                    created_count += 1
+                feedback = (
+                    'Se guardó 1 PDF en biblioteca.'
+                    if created_count == 1 else f'Se guardaron {created_count} PDFs en biblioteca.'
+                )
+
+            elif planner_action == 'analyze_library_pdf':
+                task_id = _parse_int(request.POST.get('task_id'))
+                analysis_task = (
+                    SessionTask.objects
+                    .select_related('session__microcycle')
+                    .filter(id=task_id, session__microcycle__team=primary_team)
+                    .first()
+                )
+                if not analysis_task or not analysis_task.task_pdf:
+                    raise ValueError('Selecciona una tarea con PDF guardado para analizar.')
+                pdf_text = _extract_pdf_text(analysis_task.task_pdf)
+                analysis = _suggest_task_from_pdf(pdf_text)
+                analysis['raw_text'] = pdf_text[:2500]
+
+            elif planner_action == 'create_task_from_analysis':
+                source_task_id = _parse_int(request.POST.get('source_task_id'))
+                target_session_id = _parse_int(request.POST.get('target_session_id'))
+                title = (request.POST.get('task_title') or '').strip()
                 objective = (request.POST.get('task_objective') or '').strip()
                 coaching_points = (request.POST.get('task_coaching_points') or '').strip()
                 confrontation_rules = (request.POST.get('task_confrontation_rules') or '').strip()
-                surface = (request.POST.get('task_surface') or '').strip()
-                pitch_format = (request.POST.get('task_pitch_format') or '').strip()
-                space = (request.POST.get('task_space') or '').strip()
-                organization = (request.POST.get('task_organization') or '').strip()
-                players_distribution = (request.POST.get('task_players_distribution') or '').strip()
-                load_target = (request.POST.get('task_load_target') or '').strip()
-                resources_summary = (request.POST.get('task_resources_summary') or '').strip()
-                progression = (request.POST.get('task_progression') or '').strip()
-                regression = (request.POST.get('task_regression') or '').strip()
-                work_rest = (request.POST.get('task_work_rest') or '').strip()
-                series = (request.POST.get('task_series') or '').strip()
-                repetitions = (request.POST.get('task_repetitions') or '').strip()
-                principle = (request.POST.get('task_principle') or '').strip()
-                subprinciple = (request.POST.get('task_subprinciple') or '').strip()
-                scoring_model = (request.POST.get('task_scoring_model') or '').strip()
-                success_criteria = (request.POST.get('task_success_criteria') or '').strip()
-                game_phase = (request.POST.get('task_game_phase') or '').strip()
-                game_sub_phase = (request.POST.get('task_game_sub_phase') or '').strip()
-                methodology = (request.POST.get('task_methodology') or '').strip()
-                complexity = (request.POST.get('task_complexity') or '').strip()
-                cognitive_load = (request.POST.get('task_cognitive_load') or '').strip()
-                emotional_load = (request.POST.get('task_emotional_load') or '').strip()
-                targets = (request.POST.get('task_targets') or '').strip()
-                expected_outcomes = (request.POST.get('task_expected_outcomes') or '').strip()
-                common_errors = (request.POST.get('task_common_errors') or '').strip()
-                corrective_cues = (request.POST.get('task_corrective_cues') or '').strip()
-                video_reference = (request.POST.get('task_video_reference') or '').strip()
-                staff_notes = (request.POST.get('task_staff_notes') or '').strip()
-                usefulness_rating = (request.POST.get('task_usefulness_rating') or '').strip()
-                task_collection = (request.POST.get('task_collection') or '').strip()
-                task_context = (request.POST.get('task_context') or '').strip()
-                age_band = (request.POST.get('task_age_band') or '').strip()
-                constraints = [str(v).strip() for v in request.POST.getlist('task_constraints') if str(v).strip()]
-                tactical_pad_enabled = str(request.POST.get('task_tactical_pad_enabled') or '').strip().lower() in {'1', 'true', 'on', 'yes'}
-                task_pdf_file = request.FILES.get('task_pdf')
-                blueprint_id = _parse_int(request.POST.get('task_blueprint_id'))
-                tactical_layout_raw = (request.POST.get('tactical_layout') or '').strip()
-                tactical_layout = {}
-                blueprint_payload = {}
-                if task_pdf_file:
-                    file_name = str(getattr(task_pdf_file, 'name', '') or '').lower()
-                    if not file_name.endswith('.pdf'):
-                        raise ValueError('El archivo de la tarea debe ser un PDF.')
-                if blueprint_id:
-                    blueprint = TaskBlueprint.objects.filter(id=blueprint_id, team=primary_team).first()
-                    if blueprint and isinstance(blueprint.payload, dict):
-                        blueprint_payload = dict(blueprint.payload)
-                if tactical_layout_raw:
-                    try:
-                        parsed_layout = json.loads(tactical_layout_raw)
-                        if isinstance(parsed_layout, dict):
-                            tactical_layout = parsed_layout
-                    except Exception:
-                        tactical_layout = {}
-                meta = tactical_layout.get('meta') if isinstance(tactical_layout, dict) else {}
-                if not isinstance(meta, dict):
-                    meta = {}
-                surface = surface or str(blueprint_payload.get('task_surface') or '').strip()
-                pitch_format = pitch_format or str(blueprint_payload.get('task_pitch_format') or '').strip()
-                space = space or str(blueprint_payload.get('task_space') or '').strip()
-                organization = organization or str(blueprint_payload.get('task_organization') or '').strip()
-                players_distribution = players_distribution or str(blueprint_payload.get('task_players_distribution') or '').strip()
-                load_target = load_target or str(blueprint_payload.get('task_load_target') or '').strip()
-                resources_summary = resources_summary or str(blueprint_payload.get('task_resources_summary') or '').strip()
-                progression = progression or str(blueprint_payload.get('task_progression') or '').strip()
-                regression = regression or str(blueprint_payload.get('task_regression') or '').strip()
-                work_rest = work_rest or str(blueprint_payload.get('task_work_rest') or '').strip()
-                series = series or str(blueprint_payload.get('task_series') or '').strip()
-                repetitions = repetitions or str(blueprint_payload.get('task_repetitions') or '').strip()
-                principle = principle or str(blueprint_payload.get('task_principle') or '').strip()
-                subprinciple = subprinciple or str(blueprint_payload.get('task_subprinciple') or '').strip()
-                scoring_model = scoring_model or str(blueprint_payload.get('task_scoring_model') or '').strip()
-                success_criteria = success_criteria or str(blueprint_payload.get('task_success_criteria') or '').strip()
-                objective = objective or str(blueprint_payload.get('task_objective') or '').strip()
-                coaching_points = coaching_points or str(blueprint_payload.get('task_coaching_points') or '').strip()
-                confrontation_rules = confrontation_rules or str(blueprint_payload.get('task_confrontation_rules') or '').strip()
-                game_phase = game_phase or str(blueprint_payload.get('task_game_phase') or '').strip()
-                game_sub_phase = game_sub_phase or str(blueprint_payload.get('task_game_sub_phase') or '').strip()
-                methodology = methodology or str(blueprint_payload.get('task_methodology') or '').strip()
-                complexity = complexity or str(blueprint_payload.get('task_complexity') or '').strip()
-                cognitive_load = cognitive_load or str(blueprint_payload.get('task_cognitive_load') or '').strip()
-                emotional_load = emotional_load or str(blueprint_payload.get('task_emotional_load') or '').strip()
-                targets = targets or str(blueprint_payload.get('task_targets') or '').strip()
-                expected_outcomes = expected_outcomes or str(blueprint_payload.get('task_expected_outcomes') or '').strip()
-                common_errors = common_errors or str(blueprint_payload.get('task_common_errors') or '').strip()
-                corrective_cues = corrective_cues or str(blueprint_payload.get('task_corrective_cues') or '').strip()
-                video_reference = video_reference or str(blueprint_payload.get('task_video_reference') or '').strip()
-                staff_notes = staff_notes or str(blueprint_payload.get('task_staff_notes') or '').strip()
-                usefulness_rating = usefulness_rating or str(blueprint_payload.get('task_usefulness_rating') or '').strip()
-                task_collection = task_collection or str(blueprint_payload.get('task_collection') or '').strip()
-                task_context = task_context or str(blueprint_payload.get('task_context') or '').strip()
-                age_band = age_band or str(blueprint_payload.get('task_age_band') or '').strip()
-                if not constraints:
-                    raw_constraints = blueprint_payload.get('task_constraints')
-                    if isinstance(raw_constraints, list):
-                        constraints = [str(v).strip() for v in raw_constraints if str(v).strip()]
-                if surface:
-                    meta['surface'] = surface
-                if pitch_format:
-                    meta['pitch_format'] = pitch_format
-                if space:
-                    meta['space'] = space
-                if organization:
-                    meta['organization'] = organization
-                if players_distribution:
-                    meta['players_distribution'] = players_distribution
-                if load_target:
-                    meta['load_target'] = load_target
-                if resources_summary:
-                    meta['resources_summary'] = resources_summary
-                if progression:
-                    meta['progression'] = progression
-                if regression:
-                    meta['regression'] = regression
-                if work_rest:
-                    meta['work_rest'] = work_rest
-                if series:
-                    meta['series'] = series
-                if repetitions:
-                    meta['repetitions'] = repetitions
-                if principle:
-                    meta['principle'] = principle
-                if subprinciple:
-                    meta['subprinciple'] = subprinciple
-                if scoring_model:
-                    meta['scoring_model'] = scoring_model
-                if success_criteria:
-                    meta['success_criteria'] = success_criteria
-                if game_phase:
-                    meta['game_phase'] = game_phase
-                if game_sub_phase:
-                    meta['game_sub_phase'] = game_sub_phase
-                if methodology:
-                    meta['methodology'] = methodology
-                if complexity:
-                    meta['complexity'] = complexity
-                if cognitive_load:
-                    meta['cognitive_load'] = cognitive_load
-                if emotional_load:
-                    meta['emotional_load'] = emotional_load
-                if targets:
-                    meta['targets'] = targets
-                if expected_outcomes:
-                    meta['expected_outcomes'] = expected_outcomes
-                if common_errors:
-                    meta['common_errors'] = common_errors
-                if corrective_cues:
-                    meta['corrective_cues'] = corrective_cues
-                if video_reference:
-                    meta['video_reference'] = video_reference
-                if staff_notes:
-                    meta['staff_notes'] = staff_notes
-                if usefulness_rating in {'1', '2', '3', '4', '5'}:
-                    meta['usefulness_rating'] = usefulness_rating
-                if task_collection:
-                    meta['collection'] = task_collection
-                if task_context:
-                    meta['context'] = task_context
-                if age_band:
-                    meta['age_band'] = age_band
-                if constraints:
-                    meta['constraints'] = constraints
-                meta['tactical_pad_enabled'] = bool(tactical_pad_enabled)
-                tactical_layout['meta'] = meta
-                created_task = SessionTask.objects.create(
-                    session=session,
-                    title=title,
-                    block=block,
-                    duration_minutes=max(5, min(duration, 90)),
-                    objective=objective,
-                    coaching_points=coaching_points,
-                    confrontation_rules=confrontation_rules,
-                    tactical_layout=tactical_layout,
-                    task_pdf=task_pdf_file,
-                    order=session.tasks.count() + 1,
-                )
-                save_as_blueprint = str(request.POST.get('task_save_as_blueprint') or '').strip().lower() in {'1', 'true', 'on', 'yes'}
-                blueprint_name = (request.POST.get('task_blueprint_name') or '').strip()
-                blueprint_category = (request.POST.get('task_blueprint_category') or TaskBlueprint.CATEGORY_OTHER).strip()
-                allowed_categories = {item[0] for item in TaskBlueprint.CATEGORY_CHOICES}
-                if blueprint_category not in allowed_categories:
-                    blueprint_category = TaskBlueprint.CATEGORY_OTHER
-                if save_as_blueprint and blueprint_name:
-                    payload = {
-                        'task_title': title,
-                        'task_objective': objective,
-                        'task_surface': surface,
-                        'task_pitch_format': pitch_format,
-                        'task_space': space,
-                        'task_organization': organization,
-                        'task_players_distribution': players_distribution,
-                        'task_load_target': load_target,
-                        'task_resources_summary': resources_summary,
-                        'task_coaching_points': coaching_points,
-                        'task_confrontation_rules': confrontation_rules,
-                        'task_progression': progression,
-                        'task_regression': regression,
-                        'task_work_rest': work_rest,
-                        'task_series': series,
-                        'task_repetitions': repetitions,
-                        'task_principle': principle,
-                        'task_subprinciple': subprinciple,
-                        'task_scoring_model': scoring_model,
-                        'task_success_criteria': success_criteria,
-                        'task_game_phase': game_phase,
-                        'task_game_sub_phase': game_sub_phase,
-                        'task_methodology': methodology,
-                        'task_complexity': complexity,
-                        'task_cognitive_load': cognitive_load,
-                        'task_emotional_load': emotional_load,
-                        'task_targets': targets,
-                        'task_expected_outcomes': expected_outcomes,
-                        'task_common_errors': common_errors,
-                        'task_corrective_cues': corrective_cues,
-                        'task_video_reference': video_reference,
-                        'task_staff_notes': staff_notes,
-                        'task_usefulness_rating': usefulness_rating,
-                        'task_collection': task_collection,
-                        'task_context': task_context,
-                        'task_age_band': age_band,
-                        'task_constraints': constraints,
-                    }
-                    TaskBlueprint.objects.update_or_create(
-                        team=primary_team,
-                        name=blueprint_name,
-                        defaults={
-                            'category': blueprint_category,
-                            'description': f'Plantilla creada desde {created_task.title}',
-                            'payload': payload,
-                            'created_by': request.user.get_username() if request.user.is_authenticated else '',
-                        },
-                    )
-                feedback = 'Tarea añadida a la sesión.'
-            elif planner_action == 'delete_blueprint':
-                blueprint_id = _parse_int(request.POST.get('blueprint_id'))
-                blueprint = TaskBlueprint.objects.filter(id=blueprint_id, team=primary_team).first() if blueprint_id else None
-                if not blueprint:
-                    raise ValueError('Plantilla no encontrada.')
-                blueprint.delete()
-                feedback = 'Plantilla eliminada.'
-            elif planner_action == 'duplicate_task':
-                task_id = _parse_int(request.POST.get('task_id'))
-                base_task = (
-                    SessionTask.objects
-                    .select_related('session__microcycle')
-                    .filter(id=task_id, session__microcycle__team=primary_team)
-                    .first()
-                )
-                if not base_task:
-                    raise ValueError('Tarea no encontrada para duplicar.')
-                SessionTask.objects.create(
-                    session=base_task.session,
-                    title=f'{base_task.title} (copia)',
-                    block=base_task.block,
-                    duration_minutes=base_task.duration_minutes,
-                    objective=base_task.objective,
-                    coaching_points=base_task.coaching_points,
-                    confrontation_rules=base_task.confrontation_rules,
-                    tactical_layout=base_task.tactical_layout if isinstance(base_task.tactical_layout, dict) else {},
-                    task_pdf=base_task.task_pdf,
-                    status=SessionTask.STATUS_PLANNED,
-                    order=SessionTask.objects.filter(session=base_task.session).count() + 1,
-                    notes=base_task.notes,
-                )
-                feedback = 'Tarea duplicada correctamente.'
-            elif planner_action == 'save_task_order':
-                session_id = _parse_int(request.POST.get('session_id'))
-                raw_order = (request.POST.get('task_order') or '').strip()
-                session = (
-                    TrainingSession.objects
-                    .select_related('microcycle')
-                    .filter(id=session_id, microcycle__team=primary_team)
-                    .first()
-                )
-                if not session:
-                    raise ValueError('Sesión no encontrada para ordenar tareas.')
-                ids = []
-                for part in raw_order.split(','):
-                    parsed = _parse_int(part)
-                    if parsed:
-                        ids.append(parsed)
-                existing = list(SessionTask.objects.filter(session=session).order_by('order', 'id'))
-                existing_ids = {item.id for item in existing}
-                valid_ids = [item_id for item_id in ids if item_id in existing_ids]
-                if len(valid_ids) != len(existing_ids):
-                    for item in existing:
-                        if item.id not in valid_ids:
-                            valid_ids.append(item.id)
-                for index, task_id in enumerate(valid_ids, start=1):
-                    SessionTask.objects.filter(id=task_id, session=session).update(order=index)
-                feedback = 'Orden de tareas actualizado.'
-            elif planner_action == 'set_task_status':
-                task_id = _parse_int(request.POST.get('task_id'))
-                new_status = (request.POST.get('task_status') or '').strip()
-                allowed = {choice[0] for choice in SessionTask.STATUS_CHOICES}
-                task = (
-                    SessionTask.objects
-                    .select_related('session__microcycle')
-                    .filter(id=task_id, session__microcycle__team=primary_team)
-                    .first()
-                )
-                if not task:
-                    raise ValueError('Tarea no encontrada.')
-                if new_status not in allowed:
-                    raise ValueError('Estado de tarea no válido.')
-                task.status = new_status
-                task.save(update_fields=['status'])
-                feedback = 'Estado de la tarea actualizado.'
-            elif planner_action == 'add_library_task_to_session':
-                source_task_id = _parse_int(request.POST.get('source_task_id'))
-                target_session_id = _parse_int(request.POST.get('target_session_id'))
+                minutes = _parse_int(request.POST.get('task_minutes')) or 15
+                block = (request.POST.get('task_block') or SessionTask.BLOCK_MAIN_1).strip()
+
+                if not title:
+                    raise ValueError('El título de la tarea es obligatorio.')
+                if block not in {choice[0] for choice in SessionTask.BLOCK_CHOICES}:
+                    block = SessionTask.BLOCK_MAIN_1
+
                 source_task = (
                     SessionTask.objects
                     .select_related('session__microcycle')
@@ -3747,179 +3496,62 @@ def sessions_page(request):
                     .filter(id=target_session_id, microcycle__team=primary_team)
                     .first()
                 )
-                if not source_task or not target_session:
-                    raise ValueError('Origen o sesión destino no válidos.')
+                if not source_task or not source_task.task_pdf:
+                    raise ValueError('No se encontró el PDF fuente para crear la tarea.')
+                if not target_session:
+                    raise ValueError('Selecciona una sesión destino válida.')
+
+                extracted_text = (request.POST.get('task_raw_text') or '').strip()
+                layout_meta = {
+                    'source': 'pdf_analysis',
+                    'source_task_id': source_task.id,
+                    'extracted_text_excerpt': extracted_text[:1200],
+                }
                 SessionTask.objects.create(
                     session=target_session,
-                    title=source_task.title,
-                    block=source_task.block,
-                    duration_minutes=source_task.duration_minutes,
-                    objective=source_task.objective,
-                    coaching_points=source_task.coaching_points,
-                    confrontation_rules=source_task.confrontation_rules,
-                    tactical_layout=source_task.tactical_layout if isinstance(source_task.tactical_layout, dict) else {},
+                    title=title[:160],
+                    block=block,
+                    duration_minutes=max(5, min(minutes, 90)),
+                    objective=objective[:180],
+                    coaching_points=coaching_points,
+                    confrontation_rules=confrontation_rules,
+                    tactical_layout={'meta': layout_meta},
                     task_pdf=source_task.task_pdf,
                     status=SessionTask.STATUS_PLANNED,
                     order=SessionTask.objects.filter(session=target_session).count() + 1,
-                    notes=source_task.notes,
+                    notes='Creada con editor basado en análisis de PDF',
                 )
-                feedback = 'Tarea enviada a la sesión destino.'
-            elif planner_action == 'library_upload_pdf':
-                target_session_id = _parse_int(request.POST.get('target_session_id'))
-                title = (request.POST.get('pdf_task_title') or '').strip()
-                objective = (request.POST.get('pdf_task_objective') or '').strip()
-                block = (request.POST.get('pdf_task_block') or SessionTask.BLOCK_MAIN_1).strip()
-                minutes = _parse_int(request.POST.get('pdf_task_minutes')) or 15
-                pdf_files = list(request.FILES.getlist('library_task_pdf'))
-                block_choices = {choice[0] for choice in SessionTask.BLOCK_CHOICES}
-                if block not in block_choices:
-                    block = SessionTask.BLOCK_MAIN_1
-                target_session = (
-                    TrainingSession.objects
-                    .select_related('microcycle')
-                    .filter(id=target_session_id, microcycle__team=primary_team)
-                    .first()
-                )
-                if not target_session:
-                    raise ValueError('Selecciona una sesión destino para guardar el PDF.')
-                if not pdf_files:
-                    raise ValueError('Selecciona al menos un archivo PDF.')
-                for item in pdf_files:
-                    file_name = str(getattr(item, 'name', '') or '').lower()
-                    if not file_name.endswith('.pdf'):
-                        raise ValueError('Todos los archivos deben estar en formato PDF.')
-                base_order = SessionTask.objects.filter(session=target_session).count()
-                created_count = 0
-                for idx, pdf_file in enumerate(pdf_files, start=1):
-                    raw_name = str(getattr(pdf_file, 'name', '') or '').rsplit('/', 1)[-1]
-                    file_stem = raw_name.rsplit('.', 1)[0].strip() or f'Tarea PDF {idx}'
-                    task_title = title
-                    if not task_title:
-                        task_title = file_stem
-                    elif len(pdf_files) > 1:
-                        task_title = f'{title} · {file_stem}'
-                    SessionTask.objects.create(
-                        session=target_session,
-                        title=task_title[:160],
-                        block=block,
-                        duration_minutes=max(5, min(minutes, 90)),
-                        objective=objective,
-                        coaching_points='',
-                        confrontation_rules='',
-                        tactical_layout={},
-                        task_pdf=pdf_file,
-                        status=SessionTask.STATUS_PLANNED,
-                        order=base_order + idx,
-                        notes='Tarea subida desde Biblioteca PDF',
-                    )
-                    created_count += 1
-                feedback = (
-                    f'Se guardó 1 PDF en biblioteca.'
-                    if created_count == 1
-                    else f'Se guardaron {created_count} PDFs en biblioteca.'
-                )
+                feedback = 'Tarea creada desde análisis de PDF.'
             else:
                 error = 'Acción no reconocida.'
         except ValueError as exc:
             error = str(exc)
         except Exception:
-            error = 'No se pudo guardar la planificación. Revisa los datos y vuelve a intentar.'
+            error = 'No se pudo completar la operación. Revisa los datos e inténtalo de nuevo.'
 
-    microcycles = []
-    if planner_tables_ready:
-        microcycles = (
-            TrainingMicrocycle.objects
-            .filter(team=primary_team)
-            .select_related('reference_match')
-            .prefetch_related('sessions__tasks')
-            .order_by('-week_start')[:8]
-        )
-    all_sessions = []
-    for microcycle in microcycles:
-        sessions_for_micro = list(microcycle.sessions.all())
-        if active_match and active_match.date:
-            for sess in sessions_for_micro:
-                delta = (sess.session_date - active_match.date).days
-                if delta < 0:
-                    sess.md_label = f'MD{delta}'
-                elif delta > 0:
-                    sess.md_label = f'MD+{delta}'
-                else:
-                    sess.md_label = 'MD'
-        else:
-            for sess in sessions_for_micro:
-                sess.md_label = ''
-        all_sessions.extend(sessions_for_micro)
-
-    task_library_q = (request.GET.get('task_q') or '').strip().lower()
-    task_library_phase = (request.GET.get('task_phase') or '').strip()
-    task_library_methodology = (request.GET.get('task_methodology') or '').strip()
-    task_library_complexity = (request.GET.get('task_complexity') or '').strip()
-    task_library_min_rating = (request.GET.get('task_min_rating') or '').strip()
-    task_library = []
-    if planner_tables_ready:
-        task_library = list(
+    analyze_task_id = _parse_int(request.GET.get('analyze'))
+    if planner_tables_ready and analyze_task_id and not analysis:
+        candidate = (
             SessionTask.objects
             .select_related('session__microcycle')
-            .filter(session__microcycle__team=primary_team)
-            .order_by('-id')[:400]
+            .filter(id=analyze_task_id, session__microcycle__team=primary_team)
+            .first()
         )
-        filtered = []
-        for item in task_library:
-            layout = item.tactical_layout if isinstance(item.tactical_layout, dict) else {}
-            meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
-            item.meta = meta
-            rating_val = str(meta.get('usefulness_rating') or '')
-            item.usefulness_rating = rating_val
-            if task_library_q:
-                haystack = ' '.join([
-                    str(item.title or ''),
-                    str(item.objective or ''),
-                    str(meta.get('principle') or ''),
-                    str(meta.get('subprinciple') or ''),
-                ]).lower()
-                if task_library_q not in haystack:
-                    continue
-            if task_library_phase and str(meta.get('game_phase') or '') != task_library_phase:
-                continue
-            if task_library_methodology and str(meta.get('methodology') or '') != task_library_methodology:
-                continue
-            if task_library_complexity and str(meta.get('complexity') or '') != task_library_complexity:
-                continue
-            if task_library_min_rating in {'1', '2', '3', '4', '5'}:
-                current = int(rating_val) if rating_val in {'1', '2', '3', '4', '5'} else 0
-                if current < int(task_library_min_rating):
-                    continue
-            filtered.append(item)
-        task_library = filtered[:120]
+        if candidate and candidate.task_pdf:
+            try:
+                pdf_text = _extract_pdf_text(candidate.task_pdf)
+                analysis_task = candidate
+                analysis = _suggest_task_from_pdf(pdf_text)
+                analysis['raw_text'] = pdf_text[:2500]
+            except ValueError as exc:
+                error = str(exc)
 
-    category_labels = {
-        'delimitacion': 'Delimitación',
-        'coordinacion': 'Coordinación',
-        'juego': 'Juego',
-        'porterias': 'Porterías',
-        'oposicion': 'Oposición',
-        'organizacion': 'Organización',
-        'control': 'Control',
-        'fisico': 'Físico',
-        'finalizacion': 'Finalización',
-        'ppt': 'Biblioteca PPT',
-    }
-    task_materials = build_task_material_library()
-    material_categories = []
-    materials_by_category = {}
-    for item in task_materials:
-        category = str(item.get('category') or 'otros')
-        if category not in materials_by_category:
-            materials_by_category[category] = []
-            material_categories.append(
-                {
-                    'value': category,
-                    'label': category_labels.get(category, category.title()),
-                }
-            )
-        materials_by_category[category].append(item)
-    blueprints = list(TaskBlueprint.objects.filter(team=primary_team).order_by('category', 'name'))
+    task_library = list(
+        SessionTask.objects
+        .select_related('session__microcycle')
+        .filter(session__microcycle__team=primary_team, task_pdf__isnull=False)
+        .order_by('-id')[:150]
+    ) if planner_tables_ready else []
 
     return render(
         request,
@@ -3928,35 +3560,12 @@ def sessions_page(request):
             'team_name': primary_team.name,
             'feedback': feedback,
             'error': error,
-            'active_match': active_match,
-            'default_week_start': default_week_start,
-            'microcycles': microcycles,
-            'all_sessions': all_sessions,
-            'microcycle_statuses': TrainingMicrocycle.STATUS_CHOICES,
-            'session_intensities': TrainingSession.INTENSITY_CHOICES,
-            'task_blocks': SessionTask.BLOCK_CHOICES,
-            'task_status_choices': SessionTask.STATUS_CHOICES,
-            'task_materials': task_materials,
-            'task_surface_choices': TASK_SURFACE_CHOICES,
-            'task_pitch_format_choices': TASK_PITCH_FORMAT_CHOICES,
-            'task_template_library': TASK_TEMPLATE_LIBRARY,
-            'task_blueprints': blueprints,
-            'task_blueprint_categories': TaskBlueprint.CATEGORY_CHOICES,
-            'task_game_phase_choices': TASK_GAME_PHASE_CHOICES,
-            'task_methodology_choices': TASK_METHODOLOGY_CHOICES,
-            'task_complexity_choices': TASK_COMPLEXITY_CHOICES,
-            'task_constraint_choices': TASK_CONSTRAINT_CHOICES,
-            'task_usefulness_choices': TASK_USEFULNESS_CHOICES,
-            'material_categories': material_categories,
-            'materials_by_category': materials_by_category,
             'planner_tables_ready': planner_tables_ready,
-            'roster_players': Player.objects.filter(team=primary_team).order_by('name')[:28],
+            'task_blocks': SessionTask.BLOCK_CHOICES,
+            'all_sessions': all_sessions,
             'task_library': task_library,
-            'task_library_q': task_library_q,
-            'task_library_phase': task_library_phase,
-            'task_library_methodology': task_library_methodology,
-            'task_library_complexity': task_library_complexity,
-            'task_library_min_rating': task_library_min_rating,
+            'analysis': analysis,
+            'analysis_task': analysis_task,
         },
     )
 
