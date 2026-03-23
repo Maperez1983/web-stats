@@ -323,10 +323,27 @@
         <form method="get" class="users-form" style="margin-bottom:1rem;">
           <input type="hidden" name="tab" value="actions" />
           <label>
+            <span>Filtrar rival</span>
+            <input type="text" id="admin-match-filter-rival" placeholder="Ej. Pizarra, Alhaurín..." />
+          </label>
+          <label>
+            <span>Filtrar condición</span>
+            <select id="admin-match-filter-side">
+              <option value="all">Todos</option>
+              <option value="home">Local</option>
+              <option value="away">Visitante</option>
+            </select>
+          </label>
+          <label>
             <span>Partido a editar</span>
-            <select name="match_id">
+            <select id="admin-match-selector" name="match_id">
               {% for match in admin_matches %}
-              <option value="{{ match.id }}" {% if selected_admin_match and selected_admin_match.id == match.id %}selected{% endif %}>
+              <option
+                value="{{ match.id }}"
+                data-side="{% if match.home_team_id == primary_team_id %}home{% else %}away{% endif %}"
+                data-rival="{% if match.home_team_id == primary_team_id %}{{ match.away_team.name|default:''|escape }}{% else %}{{ match.home_team.name|default:''|escape }}{% endif %}"
+                {% if selected_admin_match and selected_admin_match.id == match.id %}selected{% endif %}
+              >
                 #{{ match.id }} · {{ match.home_team.name }} vs {{ match.away_team.name }} · {{ match.date|date:"d/m/Y"|default:"Sin fecha" }}
               </option>
               {% endfor %}
@@ -334,6 +351,9 @@
           </label>
           <button class="pill-button icon-action" type="submit" title="Visualizar partido" aria-label="Visualizar partido">👁</button>
         </form>
+        <p id="admin-match-filter-empty" style="display:none;margin-top:-0.5rem;margin-bottom:1rem;color:#fecaca;">
+          No hay partidos con ese filtro.
+        </p>
 
         {% if selected_admin_match %}
         <form method="post" class="users-form">
@@ -647,6 +667,46 @@
           input.type = input.type === 'password' ? 'text' : 'password';
         });
       });
+
+      const adminMatchSelector = document.getElementById('admin-match-selector');
+      const adminMatchFilterRival = document.getElementById('admin-match-filter-rival');
+      const adminMatchFilterSide = document.getElementById('admin-match-filter-side');
+      const adminMatchFilterEmpty = document.getElementById('admin-match-filter-empty');
+      if (adminMatchSelector && adminMatchFilterRival && adminMatchFilterSide) {
+        const normalize = (value) => String(value || '').toLowerCase().trim();
+        const applyAdminMatchFilters = () => {
+          const rivalNeedle = normalize(adminMatchFilterRival.value);
+          const sideNeedle = normalize(adminMatchFilterSide.value || 'all');
+          const options = Array.from(adminMatchSelector.options || []);
+          let visibleCount = 0;
+          for (const option of options) {
+            const rival = normalize(option.dataset.rival);
+            const side = normalize(option.dataset.side);
+            const passesRival = !rivalNeedle || rival.includes(rivalNeedle);
+            const passesSide = sideNeedle === 'all' || sideNeedle === side;
+            const isVisible = passesRival && passesSide;
+            option.hidden = !isVisible;
+            if (isVisible) {
+              visibleCount += 1;
+            }
+          }
+          if (visibleCount > 0 && adminMatchSelector.selectedOptions.length) {
+            const selected = adminMatchSelector.selectedOptions[0];
+            if (selected && selected.hidden) {
+              const firstVisible = options.find((option) => !option.hidden);
+              if (firstVisible) {
+                firstVisible.selected = true;
+              }
+            }
+          }
+          if (adminMatchFilterEmpty) {
+            adminMatchFilterEmpty.style.display = visibleCount > 0 ? 'none' : 'block';
+          }
+        };
+        adminMatchFilterRival.addEventListener('input', applyAdminMatchFilters);
+        adminMatchFilterSide.addEventListener('change', applyAdminMatchFilters);
+        applyAdminMatchFilters();
+      }
     </script>
   </body>
 </html>

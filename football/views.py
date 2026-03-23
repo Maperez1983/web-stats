@@ -1545,14 +1545,10 @@ def admin_page(request):
 
     if active_tab == 'actions' and is_admin_user:
         admin_match_qs = _team_match_queryset(primary_team) if primary_team else Match.objects.none()
-        if primary_team and primary_team.group_id:
-            league_matches_qs = admin_match_qs.filter(group_id=primary_team.group_id)
-            admin_matches = list(
-                (league_matches_qs if league_matches_qs.exists() else admin_match_qs)
-                .order_by('-date', '-id')[:60]
-            )
-        else:
-            admin_matches = list(admin_match_qs.order_by('-date', '-id')[:60])
+        # Mostrar siempre todos los partidos asociados al equipo principal.
+        # Filtrar por group_id ocultaba cruces válidos (p. ej. partidos cargados manualmente
+        # o en otro grupo temporal) en la edición manual de partidos/acciones.
+        admin_matches = list(admin_match_qs.order_by('-date', '-id')[:60])
         selected_admin_match_id = _parse_int(request.GET.get('match_id') or request.POST.get('match_id'))
         selected_admin_match = (
             next((m for m in admin_matches if m.id == selected_admin_match_id), None)
@@ -1589,6 +1585,7 @@ def admin_page(request):
             'invitation_links': invitation_links,
             'active_tab': active_tab,
             'team_name': primary_team.name if primary_team else '',
+            'primary_team_id': primary_team.id if primary_team else None,
             'users_segment': users_segment,
             'technical_users_count': len(technical_users),
             'players_users_count': len(players_users),
