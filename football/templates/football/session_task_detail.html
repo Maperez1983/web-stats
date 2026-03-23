@@ -185,6 +185,43 @@
         font-size: 0.8rem;
         color: rgba(225, 236, 255, 0.82);
       }
+      .resource-library {
+        margin: 0.55rem 0 0.8rem;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 12px;
+        padding: 0.55rem;
+        background: rgba(8, 20, 42, 0.75);
+      }
+      .resource-title {
+        margin: 0 0 0.4rem;
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: rgba(225, 236, 255, 0.88);
+      }
+      .resource-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+        gap: 0.4rem;
+      }
+      .resource-btn {
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 10px;
+        padding: 0.44rem 0.52rem;
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--ink);
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 0.45rem;
+        cursor: pointer;
+        font-size: 0.74rem;
+      }
+      .resource-btn .ico {
+        width: 20px;
+        text-align: center;
+        font-size: 0.9rem;
+      }
     </style>
   </head>
   <body>
@@ -279,6 +316,10 @@
           <button type="button" class="button" id="graphic-add-rect-btn">Añadir zona</button>
           <button type="button" class="button" id="graphic-add-arrow-btn">Añadir flecha</button>
           <button type="button" class="button" id="graphic-add-text-btn">Añadir texto</button>
+          <button type="button" class="button" id="graphic-duplicate-btn">Duplicar</button>
+          <button type="button" class="button" id="graphic-delete-btn">Borrar selección</button>
+          <button type="button" class="button" id="graphic-front-btn">Subir capa</button>
+          <button type="button" class="button" id="graphic-back-btn">Bajar capa</button>
           <button type="button" class="button" id="graphic-undo-btn">Deshacer</button>
           <button type="button" class="button" id="graphic-clear-btn">Limpiar</button>
           <label style="min-width:140px;">
@@ -290,6 +331,23 @@
             <input id="graphic-width" type="range" min="1" max="18" step="1" value="4" />
           </label>
           <button type="button" class="button" id="graphic-save-btn">Guardar gráfico</button>
+        </div>
+        <div class="resource-library">
+          <p class="resource-title">Biblioteca de iconos y recursos</p>
+          <div class="resource-grid" id="graphic-resource-grid">
+            <button type="button" class="resource-btn" data-resource="player_red"><span class="ico">🔴</span><span>Jugador rojo</span></button>
+            <button type="button" class="resource-btn" data-resource="player_blue"><span class="ico">🔵</span><span>Jugador azul</span></button>
+            <button type="button" class="resource-btn" data-resource="ball"><span class="ico">⚽</span><span>Balón</span></button>
+            <button type="button" class="resource-btn" data-resource="cone"><span class="ico">△</span><span>Cono</span></button>
+            <button type="button" class="resource-btn" data-resource="marker"><span class="ico">◉</span><span>Seta</span></button>
+            <button type="button" class="resource-btn" data-resource="pica"><span class="ico">┃</span><span>Pica</span></button>
+            <button type="button" class="resource-btn" data-resource="hurdle"><span class="ico">⊓</span><span>Valla</span></button>
+            <button type="button" class="resource-btn" data-resource="mini_goal"><span class="ico">⌸</span><span>Mini portería</span></button>
+            <button type="button" class="resource-btn" data-resource="goal"><span class="ico">⌷</span><span>Portería</span></button>
+            <button type="button" class="resource-btn" data-resource="mannequin"><span class="ico">♞</span><span>Maniquí</span></button>
+            <button type="button" class="resource-btn" data-resource="bib"><span class="ico">▣</span><span>Peto</span></button>
+            <button type="button" class="resource-btn" data-resource="zone"><span class="ico">▭</span><span>Zona</span></button>
+          </div>
         </div>
         <div class="graphic-canvas-wrap">
           <canvas id="task-graphic-canvas" width="1280" height="720"></canvas>
@@ -469,6 +527,132 @@
           canvas.renderAll();
           setStatus(drawMode ? 'Modo dibujo activo.' : 'Modo selección activo.');
         };
+        const addResource = (kind) => {
+          const baseLeft = 180 + Math.floor(Math.random() * 180);
+          const baseTop = 150 + Math.floor(Math.random() * 120);
+          let item = null;
+          if (kind === 'player_red' || kind === 'player_blue') {
+            item = new fabric.Circle({
+              left: baseLeft,
+              top: baseTop,
+              radius: 17,
+              fill: kind === 'player_red' ? '#ef4444' : '#3b82f6',
+              stroke: '#0f172a',
+              strokeWidth: 2,
+            });
+          } else if (kind === 'ball') {
+            item = new fabric.Circle({
+              left: baseLeft,
+              top: baseTop,
+              radius: 9,
+              fill: '#ffffff',
+              stroke: '#111827',
+              strokeWidth: 2,
+            });
+          } else if (kind === 'cone') {
+            item = new fabric.Triangle({
+              left: baseLeft,
+              top: baseTop,
+              width: 28,
+              height: 28,
+              fill: '#f59e0b',
+              stroke: '#92400e',
+              strokeWidth: 1.5,
+            });
+          } else if (kind === 'marker') {
+            item = new fabric.Circle({
+              left: baseLeft,
+              top: baseTop,
+              radius: 10,
+              fill: '#fde68a',
+              stroke: '#92400e',
+              strokeWidth: 2,
+            });
+          } else if (kind === 'pica') {
+            item = new fabric.Rect({
+              left: baseLeft,
+              top: baseTop,
+              width: 6,
+              height: 42,
+              fill: '#f59e0b',
+              stroke: '#92400e',
+              strokeWidth: 1.2,
+              rx: 2,
+              ry: 2,
+            });
+          } else if (kind === 'hurdle') {
+            item = new fabric.Rect({
+              left: baseLeft,
+              top: baseTop,
+              width: 30,
+              height: 16,
+              fill: 'rgba(99,102,241,0.18)',
+              stroke: '#6366f1',
+              strokeWidth: 2,
+            });
+          } else if (kind === 'mini_goal' || kind === 'goal') {
+            item = new fabric.Rect({
+              left: baseLeft,
+              top: baseTop,
+              width: kind === 'mini_goal' ? 38 : 68,
+              height: kind === 'mini_goal' ? 20 : 32,
+              fill: 'rgba(255,255,255,0.08)',
+              stroke: '#e5e7eb',
+              strokeWidth: 2,
+            });
+          } else if (kind === 'mannequin') {
+            const head = new fabric.Circle({
+              left: baseLeft + 10,
+              top: baseTop,
+              radius: 6,
+              fill: '#fbbf24',
+              stroke: '#92400e',
+              strokeWidth: 1,
+            });
+            const body = new fabric.Rect({
+              left: baseLeft,
+              top: baseTop + 11,
+              width: 20,
+              height: 32,
+              fill: 'rgba(251,191,36,0.28)',
+              stroke: '#92400e',
+              strokeWidth: 1.5,
+              rx: 5,
+              ry: 5,
+            });
+            item = new fabric.Group([head, body], { left: baseLeft, top: baseTop });
+          } else if (kind === 'bib') {
+            item = new fabric.Rect({
+              left: baseLeft,
+              top: baseTop,
+              width: 28,
+              height: 24,
+              fill: '#22c55e',
+              stroke: '#166534',
+              strokeWidth: 1.6,
+              rx: 6,
+              ry: 6,
+            });
+          } else if (kind === 'zone') {
+            item = new fabric.Rect({
+              left: baseLeft,
+              top: baseTop,
+              width: 110,
+              height: 68,
+              fill: 'rgba(14,165,233,0.15)',
+              stroke: '#0284c7',
+              strokeWidth: 2,
+              rx: 8,
+              ry: 8,
+            });
+          }
+          if (!item) return;
+          canvas.add(item);
+          setMode(false);
+          canvas.setActiveObject(item);
+          canvas.renderAll();
+          setStatus('Recurso añadido.');
+        };
         document.getElementById('graphic-draw-btn')?.addEventListener('click', () => setMode(true));
         document.getElementById('graphic-select-btn')?.addEventListener('click', () => setMode(false));
         document.getElementById('graphic-add-circle-btn')?.addEventListener('click', () => {
@@ -529,6 +713,53 @@
           canvas.add(text);
           setMode(false);
           setStatus('Texto añadido.');
+        });
+        document.getElementById('graphic-resource-grid')?.addEventListener('click', (event) => {
+          const btn = event.target.closest('[data-resource]');
+          if (!btn) return;
+          addResource(btn.dataset.resource);
+        });
+        document.getElementById('graphic-duplicate-btn')?.addEventListener('click', () => {
+          const active = canvas.getActiveObject();
+          if (!active) {
+            setStatus('Selecciona un elemento para duplicar.');
+            return;
+          }
+          active.clone((cloned) => {
+            cloned.set({
+              left: (active.left || 0) + 22,
+              top: (active.top || 0) + 22,
+            });
+            canvas.add(cloned);
+            canvas.setActiveObject(cloned);
+            canvas.renderAll();
+            setStatus('Elemento duplicado.');
+          });
+        });
+        document.getElementById('graphic-delete-btn')?.addEventListener('click', () => {
+          const active = canvas.getActiveObject();
+          if (!active) {
+            setStatus('Selecciona un elemento para borrar.');
+            return;
+          }
+          canvas.remove(active);
+          canvas.discardActiveObject();
+          canvas.renderAll();
+          setStatus('Elemento eliminado.');
+        });
+        document.getElementById('graphic-front-btn')?.addEventListener('click', () => {
+          const active = canvas.getActiveObject();
+          if (!active) return;
+          canvas.bringForward(active);
+          canvas.renderAll();
+          setStatus('Elemento subido de capa.');
+        });
+        document.getElementById('graphic-back-btn')?.addEventListener('click', () => {
+          const active = canvas.getActiveObject();
+          if (!active) return;
+          canvas.sendBackwards(active);
+          canvas.renderAll();
+          setStatus('Elemento bajado de capa.');
         });
         document.getElementById('graphic-clear-btn')?.addEventListener('click', () => {
           canvas.clear();
