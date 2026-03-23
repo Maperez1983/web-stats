@@ -25,6 +25,7 @@ urlpatterns = [
     path('', include('football.urls')),
 ]
 
-urlpatterns += [
-    re_path(r'^media/(?P<path>.*)$', serve, {'document_root': settings.MEDIA_ROOT}),
-]
+if settings.DEBUG and str(settings.MEDIA_URL).startswith('/'):
+    urlpatterns += [
+        re_path(r'^media/(?P<path>.*)$', serve, {'document_root': settings.MEDIA_ROOT}),
+    ]

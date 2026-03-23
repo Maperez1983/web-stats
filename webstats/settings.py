@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'storages',
     'whitenoise.runserver_nostatic',
     'football',
 ]
@@ -160,6 +161,55 @@ STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+USE_S3_MEDIA = os.getenv('USE_S3_MEDIA', 'false').lower() == 'true'
+if USE_S3_MEDIA:
+    aws_access_key_id = os.getenv('AWS_ACCESS_KEY_ID', '').strip()
+    aws_secret_access_key = os.getenv('AWS_SECRET_ACCESS_KEY', '').strip()
+    aws_storage_bucket_name = os.getenv('AWS_STORAGE_BUCKET_NAME', '').strip()
+    aws_s3_region_name = os.getenv('AWS_S3_REGION_NAME', '').strip()
+    if not aws_access_key_id or not aws_secret_access_key or not aws_storage_bucket_name or not aws_s3_region_name:
+        raise ImproperlyConfigured(
+            'Config S3 incompleta: define AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, '
+            'AWS_STORAGE_BUCKET_NAME y AWS_S3_REGION_NAME cuando USE_S3_MEDIA=true.'
+        )
+
+    AWS_ACCESS_KEY_ID = aws_access_key_id
+    AWS_SECRET_ACCESS_KEY = aws_secret_access_key
+    AWS_STORAGE_BUCKET_NAME = aws_storage_bucket_name
+    AWS_S3_REGION_NAME = aws_s3_region_name
+    AWS_S3_SIGNATURE_VERSION = 's3v4'
+    AWS_S3_FILE_OVERWRITE = False
+    AWS_DEFAULT_ACL = None
+    AWS_QUERYSTRING_AUTH = False
+    AWS_S3_ADDRESSING_STYLE = 'virtual'
+
+    AWS_MEDIA_LOCATION = os.getenv('AWS_MEDIA_LOCATION', 'media').strip().strip('/')
+    AWS_S3_CUSTOM_DOMAIN = os.getenv('AWS_S3_CUSTOM_DOMAIN', '').strip()
+    STORAGES = {
+        'default': {
+            'BACKEND': 'storages.backends.s3.S3Storage',
+            'OPTIONS': {
+                'bucket_name': AWS_STORAGE_BUCKET_NAME,
+                'region_name': AWS_S3_REGION_NAME,
+                'default_acl': AWS_DEFAULT_ACL,
+                'file_overwrite': AWS_S3_FILE_OVERWRITE,
+                'querystring_auth': AWS_QUERYSTRING_AUTH,
+                'location': AWS_MEDIA_LOCATION,
+                'custom_domain': AWS_S3_CUSTOM_DOMAIN or None,
+            },
+        },
+        'staticfiles': {
+            'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+        },
+    }
+    if AWS_S3_CUSTOM_DOMAIN:
+        MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_MEDIA_LOCATION}/'
+    else:
+        MEDIA_URL = (
+            f'https://{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com/'
+            f'{AWS_MEDIA_LOCATION}/'
+        )
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field

@@ -547,6 +547,9 @@
       <p class="workspace-hint">
         Trabaja por bloques: primero crea y diseña tareas en <strong>Planificación</strong>, luego revisa en <strong>Microciclos</strong> y finalmente reutiliza desde <strong>Plantillas/Biblioteca</strong>.
       </p>
+      <div style="display:flex; justify-content:flex-end; margin-bottom:0.8rem;">
+        <button type="button" class="primary" data-open-tab="library">Subir PDF a Biblioteca</button>
+      </div>
 
       <section class="grid" id="planner-grid">
         <article class="panel is-visible" data-panel="plan">
@@ -949,6 +952,9 @@
                       {{ task.get_block_display }} · {{ task.title }} ({{ task.duration_minutes }}')
                       <a class="task-link" href="{% url 'session-task-pdf' task.id %}" target="_blank" rel="noopener">PDF UEFA B</a>
                       <a class="task-link" href="{% url 'session-task-canva-export' task.id %}">Export Canva ZIP</a>
+                      {% if task.task_pdf %}
+                      <a class="task-link" href="{{ task.task_pdf.url }}" target="_blank" rel="noopener">PDF guardado</a>
+                      {% endif %}
                       {% if task.tactical_layout.meta.tactical_pad_enabled %}<span class="task-badge">Tactical Pad</span>{% endif %}
                       {% if task.tactical_layout.meta.game_phase %}<span class="task-badge">{{ task.tactical_layout.meta.game_phase }}</span>{% endif %}
                       {% if task.tactical_layout.meta.methodology %}<span class="task-badge">{{ task.tactical_layout.meta.methodology }}</span>{% endif %}
@@ -1020,6 +1026,46 @@
       </section>
       <section class="panel" style="margin-top:1rem;" data-panel="library">
         <h2>Biblioteca Profesional de Tareas</h2>
+        <form method="post" enctype="multipart/form-data" class="planner-grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); margin-bottom:0.9rem;">
+          {% csrf_token %}
+          <input type="hidden" name="planner_action" value="library_upload_pdf" />
+          <label>
+            Sesión destino
+            <select name="target_session_id" required>
+              <option value="">Selecciona...</option>
+              {% for session in all_sessions %}
+              <option value="{{ session.id }}">{{ session.session_date|date:"d/m" }} · {{ session.focus }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            Nombre tarea
+            <input type="text" name="pdf_task_title" maxlength="160" placeholder="Ej: Activación coordinativa PDF" required />
+          </label>
+          <label>
+            Bloque
+            <select name="pdf_task_block">
+              {% for value, label in task_blocks %}
+              <option value="{{ value }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            Minutos
+            <input type="number" name="pdf_task_minutes" min="5" max="90" value="15" />
+          </label>
+          <label>
+            Objetivo (opcional)
+            <input type="text" name="pdf_task_objective" maxlength="180" placeholder="Objetivo breve de la tarea PDF" />
+          </label>
+          <label>
+            PDF
+            <input type="file" name="library_task_pdf" accept="application/pdf" multiple required />
+          </label>
+          <div style="display:flex; align-items:flex-end;">
+            <button type="submit" class="primary">Subir PDF a biblioteca</button>
+          </div>
+        </form>
         <form method="get" class="planner-grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); margin-bottom:0.8rem;">
           <label>
             Buscar
@@ -1079,6 +1125,11 @@
               {% if t.meta.collection %}<span class="task-badge">{{ t.meta.collection }}</span>{% endif %}
             </p>
             {% if t.objective %}<p style="margin:0.3rem 0;">{{ t.objective }}</p>{% endif %}
+            {% if t.task_pdf %}
+            <p style="margin:0.25rem 0 0;">
+              <a class="task-link" href="{{ t.task_pdf.url }}" target="_blank" rel="noopener">Abrir PDF</a>
+            </p>
+            {% endif %}
             <form method="post" style="margin-top:0.45rem; display:grid; grid-template-columns:1fr auto; gap:0.45rem;">
               {% csrf_token %}
               <input type="hidden" name="planner_action" value="add_library_task_to_session" />
@@ -1569,6 +1620,7 @@
       (function initWorkspaceTabs() {
         const tabs = Array.from(document.querySelectorAll('[data-tab-target]'));
         const panels = Array.from(document.querySelectorAll('[data-panel]'));
+        const openTabButtons = Array.from(document.querySelectorAll('[data-open-tab]'));
         const grid = document.getElementById('planner-grid');
         if (!tabs.length || !panels.length) return;
 
@@ -1584,7 +1636,15 @@
         tabs.forEach((tab) => {
           tab.addEventListener('click', () => activate(tab.dataset.tabTarget));
         });
-        activate('plan');
+        openTabButtons.forEach((btn) => {
+          btn.addEventListener('click', () => activate(btn.dataset.openTab || 'plan'));
+        });
+
+        const allowedKeys = new Set(tabs.map((tab) => tab.dataset.tabTarget));
+        const queryKey = new URLSearchParams(window.location.search).get('tab');
+        const hashKey = String(window.location.hash || '').replace('#', '');
+        const initialKey = allowedKeys.has(queryKey) ? queryKey : (allowedKeys.has(hashKey) ? hashKey : 'plan');
+        activate(initialKey);
       })();
     </script>
   </body>
