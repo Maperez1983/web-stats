@@ -130,7 +130,7 @@
       {% else %}
 
       <section class="panel">
-        <h2>Carga de Sesiones (PDF)</h2>
+        <h2>Carga de Tareas (PDF)</h2>
         <form method="post" enctype="multipart/form-data" class="grid">
           {% csrf_token %}
           <input type="hidden" name="planner_action" value="library_upload_pdf" />
@@ -166,11 +166,18 @@
 
       <section class="panel">
         <h2>Biblioteca de PDFs Cargados</h2>
-        <form method="post" style="margin:0 0 0.9rem;">
-          {% csrf_token %}
-          <input type="hidden" name="planner_action" value="analyze_all_library_pdfs" />
-          <button type="submit" class="primary">Analizar todas las tareas de la biblioteca</button>
-        </form>
+        <div style="display:flex; gap:0.6rem; flex-wrap:wrap; margin:0 0 0.9rem;">
+          <form method="post" style="margin:0;">
+            {% csrf_token %}
+            <input type="hidden" name="planner_action" value="analyze_all_library_pdfs" />
+            <button type="submit" class="primary">Analizar todas las tareas</button>
+          </form>
+          <form method="post" style="margin:0;">
+            {% csrf_token %}
+            <input type="hidden" name="planner_action" value="split_existing_library_pdfs" />
+            <button type="submit" class="secondary">Separar tareas de todos los PDFs</button>
+          </form>
+        </div>
         {% if task_library %}
         <div class="task-list">
           {% for t in task_library %}

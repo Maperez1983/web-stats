@@ -4002,6 +4002,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                                 'pdf_segment_index': first.get('segment_index') or 1,
                                 'pdf_segments_total': first.get('segment_total') or 1,
                                 'pdf_segment_excerpt': (first.get('raw_text') or '')[:1200],
+                                'pdf_split_done': True,
                             }
                         },
                         task_pdf=pdf_file,
@@ -4040,6 +4041,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                                     'pdf_segment_index': extra.get('segment_index') or 1,
                                     'pdf_segments_total': extra.get('segment_total') or 1,
                                     'pdf_segment_excerpt': (extra.get('raw_text') or '')[:1200],
+                                    'pdf_split_done': True,
                                 }
                             },
                             task_pdf=shared_pdf_name or None,
@@ -4088,6 +4090,169 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     except Exception:
                         fail_count += 1
                 feedback = f'Análisis masivo completado. OK: {success_count} · Error: {fail_count}.'
+
+            elif planner_action == 'split_existing_library_pdfs':
+                tasks_for_scope = list(
+                    SessionTask.objects
+                    .select_related('session__microcycle')
+                    .filter(session__microcycle__team=primary_team, task_pdf__isnull=False)
+                    .order_by('id')[:600]
+                )
+                tasks_for_scope = [item for item in tasks_for_scope if _task_scope_for_item(item) == scope_key]
+                split_ok = 0
+                split_created = 0
+                split_skipped = 0
+                split_fail = 0
+                for item in tasks_for_scope:
+                    layout = item.tactical_layout if isinstance(item.tactical_layout, dict) else {}
+                    meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+                    if meta.get('pdf_split_done'):
+                        split_skipped += 1
+                        continue
+                    if int(meta.get('pdf_segments_total') or 1) > 1:
+                        meta['pdf_split_done'] = True
+                        layout['meta'] = meta
+                        item.tactical_layout = layout
+                        item.save(update_fields=['tactical_layout'])
+                        split_skipped += 1
+                        continue
+                    try:
+                        extracted_text = _extract_pdf_text(item.task_pdf, max_chars=30000)
+                        parsed_tasks = _extract_tasks_from_pdf_text(extracted_text, fallback_title=item.title or 'Tarea desde PDF')
+                        if not parsed_tasks:
+                            meta['pdf_split_done'] = True
+                            layout['meta'] = meta
+                            item.tactical_layout = layout
+                            item.save(update_fields=['tactical_layout'])
+                            split_skipped += 1
+                            continue
+                        if len(parsed_tasks) <= 1:
+                            single = parsed_tasks[0]
+                            single_analysis = single.get('analysis') or {}
+                            if single_analysis:
+                                item.title = (single_analysis.get('title') or item.title or 'Tarea desde PDF')[:160]
+                                item.duration_minutes = max(
+                                    5,
+                                    min((_parse_int(single_analysis.get('minutes')) or item.duration_minutes or 15), 90),
+                                )
+                                item.objective = (single_analysis.get('objective') or item.objective or '')[:180]
+                                item.coaching_points = single_analysis.get('coaching_points') or item.coaching_points or ''
+                                item.confrontation_rules = single_analysis.get('confrontation_rules') or item.confrontation_rules or ''
+                            meta['pdf_segment_index'] = 1
+                            meta['pdf_segments_total'] = 1
+                            meta['pdf_segment_excerpt'] = (single.get('raw_text') or '')[:1200]
+                            meta['pdf_split_done'] = True
+                            layout['meta'] = meta
+                            item.tactical_layout = layout
+                            item.save(
+                                update_fields=[
+                                    'title',
+                                    'duration_minutes',
+                                    'objective',
+                                    'coaching_points',
+                                    'confrontation_rules',
+                                    'tactical_layout',
+                                ]
+                            )
+                            try:
+                                _apply_analysis_to_task(item, single_analysis)
+                            except Exception:
+                                pass
+                            split_ok += 1
+                            continue
+
+                        if hasattr(item.task_pdf, 'seek'):
+                            item.task_pdf.seek(0)
+                        preview_payloads = _extract_preview_images_from_pdf(
+                            item.task_pdf,
+                            max_images=max(1, len(parsed_tasks)),
+                        )
+                        original_order = int(item.order or 0)
+                        first = parsed_tasks[0]
+                        first_analysis = first.get('analysis') or {}
+                        item.title = (first_analysis.get('title') or item.title or 'Tarea desde PDF')[:160]
+                        item.duration_minutes = max(
+                            5,
+                            min((_parse_int(first_analysis.get('minutes')) or item.duration_minutes or 15), 90),
+                        )
+                        item.objective = (first_analysis.get('objective') or item.objective or '')[:180]
+                        item.coaching_points = first_analysis.get('coaching_points') or item.coaching_points or ''
+                        item.confrontation_rules = first_analysis.get('confrontation_rules') or item.confrontation_rules or ''
+                        meta['pdf_segment_index'] = 1
+                        meta['pdf_segments_total'] = len(parsed_tasks)
+                        meta['pdf_segment_excerpt'] = (first.get('raw_text') or '')[:1200]
+                        meta['pdf_split_done'] = True
+                        layout['meta'] = meta
+                        item.tactical_layout = layout
+                        if preview_payloads:
+                            first_preview_name, first_preview_content = preview_payloads[0]
+                            item.task_preview_image.save(first_preview_name, first_preview_content, save=False)
+                        item.save(
+                            update_fields=[
+                                'title',
+                                'duration_minutes',
+                                'objective',
+                                'coaching_points',
+                                'confrontation_rules',
+                                'tactical_layout',
+                                'task_preview_image',
+                            ]
+                        )
+                        try:
+                            _apply_analysis_to_task(item, first_analysis)
+                        except Exception:
+                            pass
+
+                        for offset, extra in enumerate(parsed_tasks[1:], start=1):
+                            extra_analysis = extra.get('analysis') or {}
+                            extra_title = (extra_analysis.get('title') or f'{item.title} · Tarea {offset + 1}')[:160]
+                            extra_layout = {
+                                'meta': {
+                                    'scope': scope_key,
+                                    'pdf_source_name': str(meta.get('pdf_source_name') or Path(item.task_pdf.name).name),
+                                    'pdf_segment_index': extra.get('segment_index') or (offset + 1),
+                                    'pdf_segments_total': len(parsed_tasks),
+                                    'pdf_segment_excerpt': (extra.get('raw_text') or '')[:1200],
+                                    'pdf_split_done': True,
+                                }
+                            }
+                            new_task = SessionTask.objects.create(
+                                session=item.session,
+                                title=extra_title,
+                                block=item.block,
+                                duration_minutes=max(
+                                    5,
+                                    min((_parse_int(extra_analysis.get('minutes')) or item.duration_minutes or 15), 90),
+                                ),
+                                objective=((extra_analysis.get('objective') or '')[:180]),
+                                coaching_points=(extra_analysis.get('coaching_points') or ''),
+                                confrontation_rules=(extra_analysis.get('confrontation_rules') or ''),
+                                tactical_layout=extra_layout,
+                                task_pdf=item.task_pdf.name,
+                                status=SessionTask.STATUS_PLANNED,
+                                order=original_order + offset,
+                                notes='Separada automáticamente desde PDF existente',
+                            )
+                            preview_idx = min(offset, len(preview_payloads) - 1) if preview_payloads else -1
+                            if preview_idx >= 0:
+                                extra_preview_name, extra_preview_content = preview_payloads[preview_idx]
+                                new_task.task_preview_image.save(extra_preview_name, extra_preview_content, save=True)
+                            elif item.task_preview_image:
+                                new_task.task_preview_image = item.task_preview_image.name
+                                new_task.save(update_fields=['task_preview_image'])
+                            try:
+                                _apply_analysis_to_task(new_task, extra_analysis)
+                            except Exception:
+                                pass
+                            split_created += 1
+
+                        split_ok += 1
+                    except Exception:
+                        split_fail += 1
+                feedback = (
+                    f'Separación completada. PDFs revisados: {split_ok} · '
+                    f'Tareas nuevas: {split_created} · Omitidos: {split_skipped} · Error: {split_fail}.'
+                )
 
             elif planner_action == 'analyze_library_pdf':
                 task_id = _parse_int(request.POST.get('task_id'))
