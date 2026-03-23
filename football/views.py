@@ -5608,11 +5608,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     task_library = [item for item in task_library_raw if _task_scope_for_item(item) == scope_key]
     if active_tab == 'library' and task_library:
         preview_rebuilt = 0
-        checked = 0
         for task in task_library:
-            checked += 1
-            if checked > 80:
-                break
             before_name = str(getattr(task, 'task_preview_image', '') or '').strip()
             before_ok = False
             if before_name:
@@ -5929,14 +5925,14 @@ def session_task_preview_file(request, task_id):
     if not task:
         raise Http404('Imagen de tarea no disponible')
     if not task.task_preview_image:
-        if not _ensure_task_preview_image(task):
+        if not _ensure_library_task_preview(task):
             raise Http404('Imagen de tarea no disponible')
     file_field = task.task_preview_image
     try:
         file_field.open('rb')
     except Exception:
         # If stored preview is broken/missing, try to regenerate from PDF on the fly.
-        if _ensure_task_preview_image(task):
+        if _ensure_library_task_preview(task):
             file_field = task.task_preview_image
             try:
                 file_field.open('rb')
