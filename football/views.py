@@ -1144,9 +1144,9 @@ def admin_page(request):
     active_tab = (request.GET.get('tab') or request.POST.get('active_tab') or 'roster').strip().lower()
     if active_tab not in {'roster', 'carousel', 'users', 'actions'}:
         active_tab = 'roster'
-    users_segment = (request.GET.get('segment') or request.POST.get('users_segment') or 'technical').strip().lower()
-    if users_segment not in {'technical', 'players', 'guests'}:
-        users_segment = 'technical'
+    users_segment = (request.GET.get('segment') or request.POST.get('users_segment') or 'all').strip().lower()
+    if users_segment not in {'all', 'technical', 'players', 'guests'}:
+        users_segment = 'all'
     if request.method == 'POST':
         form_action = (request.POST.get('form_action') or '').strip()
         if form_action in {'roster_add_or_update', 'roster_deactivate', 'roster_reactivate'} and primary_team:
@@ -1514,7 +1514,9 @@ def admin_page(request):
         players_users = [u for u in users if u.role_value == AppUserRole.ROLE_PLAYER]
         guests_users = [u for u in users if u.role_value == AppUserRole.ROLE_GUEST]
         users_filtered = (
-            technical_users
+            users
+            if users_segment == 'all'
+            else technical_users
             if users_segment == 'technical'
             else players_users if users_segment == 'players' else guests_users
         )

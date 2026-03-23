@@ -502,6 +502,7 @@
           <button class="pill-button" type="submit">Crear usuario</button>
         </form>
         <nav class="users-segments">
+          <a class="users-segment {% if users_segment == 'all' %}is-active{% endif %}" href="{% url 'admin-page' %}?tab=users&segment=all">Todos ({{ users|length }})</a>
           <a class="users-segment {% if users_segment == 'technical' %}is-active{% endif %}" href="{% url 'admin-page' %}?tab=users&segment=technical">Miembros técnicos ({{ technical_users_count }})</a>
           <a class="users-segment {% if users_segment == 'players' %}is-active{% endif %}" href="{% url 'admin-page' %}?tab=users&segment=players">Jugadores ({{ players_users_count }})</a>
           <a class="users-segment {% if users_segment == 'guests' %}is-active{% endif %}" href="{% url 'admin-page' %}?tab=users&segment=guests">Invitados ({{ guests_users_count }})</a>
