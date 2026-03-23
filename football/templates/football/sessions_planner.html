@@ -56,6 +56,17 @@
         padding: 0.45rem 0.82rem; letter-spacing: 0.05em; text-transform: uppercase;
         font-size: 0.7rem; cursor: pointer;
       }
+      button.danger {
+        border: 1px solid rgba(248, 113, 113, 0.55);
+        border-radius: 999px;
+        background: rgba(127, 29, 29, 0.45);
+        color: #fecaca;
+        padding: 0.45rem 0.82rem;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+        cursor: pointer;
+      }
       .task-list { display: grid; gap: 0.6rem; }
       .task-list {
         display: grid;
@@ -251,6 +262,12 @@
                   <input type="hidden" name="task_id" value="{{ t.id }}" />
                   <button type="submit" class="secondary">Analizar y editar tarea</button>
                 </form>
+                <form method="post" style="margin:0;" onsubmit="return confirm('¿Eliminar esta tarea de la biblioteca?');">
+                  {% csrf_token %}
+                  <input type="hidden" name="planner_action" value="delete_library_task" />
+                  <input type="hidden" name="task_id" value="{{ t.id }}" />
+                  <button type="submit" class="danger">Eliminar</button>
+                </form>
               </div>
             </div>
           </article>
@@ -288,30 +305,6 @@
               <p class="empty">Aún sin agrupaciones por objetivo.</p>
             {% endif %}
           </div>
-        </div>
-      </section>
-
-      <section class="panel">
-        <h2>Recursos gráficos para editor de tareas</h2>
-        <p class="meta" style="margin-top:0;">Biblioteca base de iconos/materiales + recursos detectados automáticamente en PDFs.</p>
-        <div class="grid" style="margin-bottom:0.7rem;">
-          <div>
-            <h3 style="margin:0 0 0.35rem; font-size:0.76rem; letter-spacing:0.08em; text-transform:uppercase;">Material detectado en tareas</h3>
-            {% if detected_resources_top %}
-              <div style="display:flex; flex-wrap:wrap; gap:0.35rem;">
-                {% for item in detected_resources_top %}
-                <span class="badge">{{ item.name }} · {{ item.count }}</span>
-                {% endfor %}
-              </div>
-            {% else %}
-              <p class="empty">Todavía no hay recursos detectados por análisis.</p>
-            {% endif %}
-          </div>
-        </div>
-        <div style="display:flex; flex-wrap:wrap; gap:0.35rem;">
-          {% for item in editor_graphic_resources %}
-          <span class="badge">{{ item.icon|default:"•" }} {{ item.title }}</span>
-          {% endfor %}
         </div>
       </section>
 

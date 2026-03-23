@@ -8,6 +8,8 @@ import io
 import csv
 import zipfile
 import uuid
+import tempfile
+import shutil
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, time
 from functools import wraps
@@ -127,6 +129,7 @@ SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "import_from_rfe
 MANAGE_PY_DIR = SCRIPT_PATH.parents[1]
 NEXT_MATCH_CACHE = Path(settings.BASE_DIR) / "data" / "input" / "rfaf-next-match.json"
 UNIVERSO_SNAPSHOT_PATH = Path(settings.BASE_DIR) / "data" / "input" / "universo-rfaf-snapshot.json"
+TASK_RESOURCE_LIBRARY_PATH = Path(settings.BASE_DIR) / "data" / "input" / "task-resource-library.json"
 SCRAPE_LOCK_KEY = "football:refresh_scraping_running"
 SCRAPE_LOCK_TIMEOUT_SECONDS = 900
 DASHBOARD_CACHE_KEY_PREFIX = "football:dashboard_payload"
@@ -3543,13 +3546,116 @@ def _extract_preview_images_from_pdf(pdf_file, max_images=8):
                 if len(payloads) >= max(1, int(max_images or 1)):
                     return payloads
     except Exception:
-        return []
+        payloads = []
+    if payloads:
+        return payloads
+
+    # Fallback: render first page when PDF uses vector drawings (no embedded images).
+    fallback_payload = _render_pdf_preview_with_pdftoppm(pdf_file)
+    if fallback_payload:
+        return [fallback_payload]
+
+    # Last fallback: generic field image so old tasks never stay without thumbnail.
+    default_payload = _default_task_preview_payload()
+    if default_payload:
+        return [default_payload]
     return payloads
 
 
 def _extract_preview_image_from_pdf(pdf_file):
     payloads = _extract_preview_images_from_pdf(pdf_file, max_images=1)
     return payloads[0] if payloads else None
+
+
+def _render_pdf_preview_with_pdftoppm(pdf_file):
+    if pdf_file is None:
+        return None
+    pdftoppm_bin = shutil.which('pdftoppm')
+    if not pdftoppm_bin:
+        return None
+    try:
+        if hasattr(pdf_file, 'seek'):
+            pdf_file.seek(0)
+        pdf_bytes = pdf_file.read()
+        if not pdf_bytes:
+            return None
+        with tempfile.TemporaryDirectory(prefix='task-preview-') as tmpdir:
+            tmp_path = Path(tmpdir)
+            source_pdf = tmp_path / 'source.pdf'
+            output_base = tmp_path / 'preview'
+            source_pdf.write_bytes(pdf_bytes)
+            subprocess.run(
+                [
+                    pdftoppm_bin,
+                    '-jpeg',
+                    '-f',
+                    '1',
+                    '-singlefile',
+                    '-scale-to',
+                    '1400',
+                    str(source_pdf),
+                    str(output_base),
+                ],
+                check=True,
+                capture_output=True,
+                timeout=30,
+            )
+            output_jpg = tmp_path / 'preview.jpg'
+            if not output_jpg.exists():
+                return None
+            raw = output_jpg.read_bytes()
+            if not raw:
+                return None
+            if Image is not None:
+                try:
+                    with Image.open(io.BytesIO(raw)) as img:
+                        optimized = img.convert('RGB')
+                        optimized.thumbnail((1400, 1000))
+                        buffer = io.BytesIO()
+                        optimized.save(buffer, format='JPEG', quality=76, optimize=True)
+                        raw = buffer.getvalue()
+                except Exception:
+                    pass
+            filename = f'task-preview-{uuid.uuid4().hex[:10]}.jpg'
+            return filename, ContentFile(raw)
+    except Exception:
+        return None
+
+
+def _default_task_preview_payload():
+    try:
+        fallback_path = Path(settings.BASE_DIR) / 'static' / 'football' / 'campo-futbol.jpg'
+        if not fallback_path.exists() or not fallback_path.is_file():
+            return None
+        raw = fallback_path.read_bytes()
+        if Image is not None:
+            try:
+                with Image.open(io.BytesIO(raw)) as img:
+                    normalized = img.convert('RGB')
+                    normalized.thumbnail((1200, 850))
+                    buffer = io.BytesIO()
+                    normalized.save(buffer, format='JPEG', quality=74, optimize=True)
+                    raw = buffer.getvalue()
+            except Exception:
+                pass
+        filename = f'task-preview-{uuid.uuid4().hex[:10]}.jpg'
+        return filename, ContentFile(raw)
+    except Exception:
+        return None
+
+
+def _ensure_task_preview_image(task):
+    if not task or not getattr(task, 'task_pdf', None):
+        return False
+    preview_payload = _extract_preview_image_from_pdf(task.task_pdf)
+    if not preview_payload:
+        return False
+    preview_name, preview_content = preview_payload
+    try:
+        task.task_preview_image.save(preview_name, preview_content, save=True)
+        return bool(task.task_preview_image)
+    except Exception:
+        return False
 
 
 TASK_CONTEXT_KEYWORDS = {
@@ -4006,6 +4112,84 @@ def _parse_bulk_tasks_text(raw_text, default_block, default_minutes):
             }
         )
     return parsed, errors
+
+
+def _persist_detected_resources_library(task_items, scope_key='coach'):
+    try:
+        counters = Counter()
+        meta_by_key = {}
+        for task in task_items or []:
+            layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
+            meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+            analysis_meta = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
+            for mat in analysis_meta.get('detected_materials') or []:
+                if not isinstance(mat, dict):
+                    continue
+                label = str(mat.get('label') or '').strip()
+                title = str(mat.get('title') or '').strip()
+                kind = str(mat.get('kind') or '').strip()
+                category = str(mat.get('category') or '').strip()
+                key = (kind or label or title or '').lower()
+                if not key:
+                    continue
+                counters[key] += 1
+                current = meta_by_key.get(key, {})
+                if not current:
+                    meta_by_key[key] = {
+                        'label': label,
+                        'title': title,
+                        'kind': kind,
+                        'category': category,
+                    }
+                else:
+                    if title and len(title) > len(current.get('title') or ''):
+                        current['title'] = title
+                    if label and not current.get('label'):
+                        current['label'] = label
+                    if kind and not current.get('kind'):
+                        current['kind'] = kind
+                    if category and not current.get('category'):
+                        current['category'] = category
+                    meta_by_key[key] = current
+
+        existing = {}
+        if TASK_RESOURCE_LIBRARY_PATH.exists():
+            try:
+                existing = json.loads(TASK_RESOURCE_LIBRARY_PATH.read_text(encoding='utf-8'))
+            except Exception:
+                existing = {}
+        if not isinstance(existing, dict):
+            existing = {}
+        resources_by_scope = existing.get('resources_by_scope')
+        if not isinstance(resources_by_scope, dict):
+            resources_by_scope = {}
+
+        scope_items = []
+        for key, count in counters.most_common():
+            item_meta = meta_by_key.get(key, {})
+            scope_items.append(
+                {
+                    'key': key,
+                    'label': item_meta.get('label') or '',
+                    'title': item_meta.get('title') or item_meta.get('label') or key,
+                    'kind': item_meta.get('kind') or '',
+                    'category': item_meta.get('category') or '',
+                    'count': int(count),
+                }
+            )
+        resources_by_scope[str(scope_key)] = scope_items
+        payload = {
+            'generated_at': timezone.now().isoformat(),
+            'resources_by_scope': resources_by_scope,
+        }
+        TASK_RESOURCE_LIBRARY_PATH.parent.mkdir(parents=True, exist_ok=True)
+        TASK_RESOURCE_LIBRARY_PATH.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2),
+            encoding='utf-8',
+        )
+    except Exception:
+        # Never break the sessions workspace if library persistence fails.
+        return
 
 
 def _task_scope_for_item(task):
@@ -4490,6 +4674,28 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 analysis['raw_text'] = pdf_text[:2500]
                 _apply_analysis_to_task(analysis_task, analysis)
 
+            elif planner_action == 'delete_library_task':
+                task_id = _parse_int(request.POST.get('task_id'))
+                target_task = (
+                    SessionTask.objects
+                    .select_related('session__microcycle')
+                    .filter(id=task_id, session__microcycle__team=primary_team)
+                    .first()
+                )
+                if not target_task:
+                    raise ValueError('Tarea no encontrada.')
+                if _task_scope_for_item(target_task) != scope_key:
+                    raise ValueError('La tarea seleccionada no pertenece a este espacio.')
+                task_title = str(target_task.title or f'Tarea {target_task.id}')
+                if target_task.task_preview_image:
+                    try:
+                        target_task.task_preview_image.delete(save=False)
+                    except Exception:
+                        pass
+                # Intentionally keep PDF files that might be shared across split tasks.
+                target_task.delete()
+                feedback = f'Tarea eliminada: {task_title}.'
+
             elif planner_action == 'create_task_from_analysis':
                 source_task_id = _parse_int(request.POST.get('source_task_id'))
                 target_session_id = _parse_int(request.POST.get('target_session_id'))
@@ -4591,7 +4797,6 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     task_library = [item for item in task_library_raw if _task_scope_for_item(item) == scope_key]
     context_groups = defaultdict(list)
     objective_groups = defaultdict(list)
-    detected_resources_counter = Counter()
     for task in task_library:
         layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
         meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
@@ -4601,10 +4806,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             context_groups[str(ctx)].append(task)
         for obj in analysis_meta.get('objective_tags') or []:
             objective_groups[str(obj)].append(task)
-        for mat in analysis_meta.get('detected_materials') or []:
-            title = str((mat or {}).get('title') or (mat or {}).get('label') or '').strip()
-            if title:
-                detected_resources_counter[title] += 1
+    _persist_detected_resources_library(task_library, scope_key=scope_key)
     context_group_rows = sorted(
         [{'key': key, 'count': len(items)} for key, items in context_groups.items()],
         key=lambda row: row['count'],
@@ -4615,11 +4817,6 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         key=lambda row: row['count'],
         reverse=True,
     )
-    editor_graphic_resources = build_task_material_library()
-    detected_resources_top = [
-        {'name': name, 'count': count}
-        for name, count in detected_resources_counter.most_common(12)
-    ]
 
     return render(
         request,
@@ -4638,8 +4835,6 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             'scope_title': scope_title,
             'context_group_rows': context_group_rows,
             'objective_group_rows': objective_group_rows,
-            'editor_graphic_resources': editor_graphic_resources,
-            'detected_resources_top': detected_resources_top,
         },
     )
 
@@ -4666,13 +4861,24 @@ def session_task_preview_file(request, task_id):
         .filter(id=task_id)
         .first()
     )
-    if not task or not task.task_preview_image:
+    if not task:
         raise Http404('Imagen de tarea no disponible')
+    if not task.task_preview_image:
+        if not _ensure_task_preview_image(task):
+            raise Http404('Imagen de tarea no disponible')
     file_field = task.task_preview_image
     try:
         file_field.open('rb')
     except Exception:
-        return HttpResponse('No se pudo abrir la imagen de la tarea.', status=500)
+        # If stored preview is broken/missing, try to regenerate from PDF on the fly.
+        if _ensure_task_preview_image(task):
+            file_field = task.task_preview_image
+            try:
+                file_field.open('rb')
+            except Exception:
+                return HttpResponse('No se pudo abrir la imagen de la tarea.', status=500)
+        else:
+            return HttpResponse('No se pudo abrir la imagen de la tarea.', status=500)
     extension = Path(file_field.name).suffix.lower()
     content_type = {
         '.png': 'image/png',
