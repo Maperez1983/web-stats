@@ -69,12 +69,6 @@
         text-transform: uppercase;
       }
 
-      .module-tabs {
-        display: flex;
-        gap: 0.55rem;
-        flex-wrap: wrap;
-      }
-
       .module-tab {
         display: inline-flex;
         text-decoration: none;
@@ -409,20 +403,9 @@
           {% include 'football/includes/dragon_nav.html' %}
           <div>
             <h1>CRM · Cuerpo técnico</h1>
-            <p class="product-kicker" style="margin-top:0.2rem;">Modo actual <span class="product-chip role">{{ current_role_label }}</span> <span class="product-chip">Fase 1 · Product Core</span></p>
+            <p class="product-kicker" style="margin-top:0.2rem;">Modo actual <span class="product-chip role">{{ current_role_label }}</span></p>
           </div>
         </div>
-        <nav class="module-tabs">
-          <a class="module-tab is-active" href="{% url 'dashboard-home' %}">Dashboard</a>
-          <a class="module-tab" href="{% url 'coach-detail' %}">Cuerpo técnico</a>
-          <a class="module-tab" href="{% url 'player-dashboard' %}">Jugadores</a>
-          {% if can_access_admin %}
-          <a class="module-tab" href="{% url 'match-action-page' %}">Registro</a>
-          <a class="module-tab" href="{% url 'admin-page' %}">Admin</a>
-          {% elif can_access_sessions %}
-          <a class="module-tab" href="{% url 'sessions' %}">Sesiones</a>
-          {% endif %}
-        </nav>
       </header>
 
       <section class="hero">
@@ -483,10 +466,10 @@
           <span class="product-chip">Comercial Ready</span>
         </div>
         <div style="margin-top:0.7rem; display:grid; gap:0.6rem; grid-template-columns:repeat(auto-fit,minmax(220px,1fr));">
-          <a class="module-tab" href="{% url 'sessions' %}">Fase 2 · Analizar biblioteca de tareas</a>
-          <a class="module-tab" href="{% url 'convocation' %}">Fase 3 · Preparar convocatoria</a>
-          <a class="module-tab" href="{% url 'analysis' %}">Fase 4 · Revisar análisis rival</a>
-          <a class="module-tab" href="{% url 'player-dashboard' %}">Fase 4 · Seguimiento de jugadores</a>
+          <a class="module-tab" href="{% url 'sessions' %}">Biblioteca de tareas</a>
+          <a class="module-tab" href="{% url 'convocation' %}">Convocatoria</a>
+          <a class="module-tab" href="{% url 'analysis' %}">Análisis rival</a>
+          <a class="module-tab" href="{% url 'player-dashboard' %}">Seguimiento de jugadores</a>
         </div>
       </section>
 
