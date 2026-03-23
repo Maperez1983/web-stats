@@ -3540,6 +3540,7 @@ def _extract_pdf_text(pdf_file, max_chars=12000):
             if ocr_chunks:
                 text = '\n'.join([text, '\n'.join(ocr_chunks)]).strip() if text else '\n'.join(ocr_chunks)
                 text = re.sub(r'\n{3,}', '\n\n', text)
+        text = _repair_joined_words_text(text)
         return text[:max_chars]
     except Exception:
         raise ValueError('No se pudo leer el PDF. Verifica que no esté protegido o corrupto.')
@@ -3876,6 +3877,23 @@ TASK_PHASE_KEYWORDS = {
     'mixta': ['ida y vuelta', 'ataque y defensa', 'mixto'],
 }
 
+TASK_JOINED_WORD_VOCAB = [
+    'TAREA', 'EJERCICIO', 'SESION', 'BLOQUE', 'PARTE', 'PRINCIPAL',
+    'DESCRIPCION', 'OBJETIVO', 'CONSIGNAS', 'REGLAS', 'DOSIFICACION',
+    'TIEMPO', 'TOTAL', 'TRABAJO', 'PAUSA', 'SERIE', 'SERIES', 'REPETICIONES',
+    'JUGADORES', 'COMODIN', 'COMODINES', 'MATERIAL', 'MATERIALES',
+    'PORTERIA', 'PORTERIAS', 'PORTERO', 'PORTEROS', 'PORTERIA', 'MOVIL',
+    'BALON', 'CONO', 'ARCO', 'PRECISION', 'FINALIZACION', 'DUEL', 'DUELO', 'DUELOS',
+    'AEREOS', 'AEREO', 'TRANSICION', 'DEFENSA', 'ATAQUE', 'OFENSIVA', 'DEFENSIVA',
+    'CAMPO', 'MEDIO', 'ZONA', 'ESPACIO', 'MEDIDAS', 'FRENTE', 'ORIENTADOS',
+    'TRABAJAMOS', 'TRABAJAR', 'GENERA', 'GENERAMOS', 'HACEMOS', 'HACEMOSUN',
+    'DONDE', 'CUANDO', 'CON', 'SIN', 'PARA', 'POR', 'DEL', 'AL',
+    'LA', 'EL', 'LOS', 'LAS', 'UN', 'UNA', 'UNO', 'Y', 'DE', 'EN',
+    'VERDE', 'ROJO', 'SALIR', 'SALE', 'SE', 'QUE', 'YA', 'VEZ',
+    'MAS', 'CAIDA', 'DESPEJE', 'ORIENTADO', 'INFERIORIDAD', 'SUPERIORIDAD',
+    'REACCION', 'PRESION', 'RECUPERACION', 'PASE', 'APOYO',
+]
+
 
 def _normalize_folded_text(value):
     raw = str(value or '').strip().lower()
@@ -3883,6 +3901,79 @@ def _normalize_folded_text(value):
         return ''
     normalized = unicodedata.normalize('NFKD', raw)
     return ''.join(ch for ch in normalized if not unicodedata.combining(ch))
+
+
+def _normalize_upper_compact(value):
+    raw = str(value or '').strip().upper()
+    if not raw:
+        return ''
+    normalized = unicodedata.normalize('NFKD', raw)
+    stripped = ''.join(ch for ch in normalized if not unicodedata.combining(ch))
+    return re.sub(r'[^A-Z]+', '', stripped)
+
+
+JOINED_WORD_MAP = {
+    _normalize_upper_compact(word): str(word).upper()
+    for word in TASK_JOINED_WORD_VOCAB
+    if _normalize_upper_compact(word)
+}
+
+
+def _split_joined_upper_token(token):
+    compact = _normalize_upper_compact(token)
+    if len(compact) < 10:
+        return token
+    n = len(compact)
+    best = [None] * (n + 1)
+    best[0] = (0, [])
+    max_len = min(18, n)
+    for i in range(n):
+        if best[i] is None:
+            continue
+        base_score, base_words = best[i]
+        for step in range(1, max_len + 1):
+            j = i + step
+            if j > n:
+                break
+            chunk = compact[i:j]
+            mapped = JOINED_WORD_MAP.get(chunk)
+            if not mapped:
+                continue
+            bonus = (step * step) + (4 if step >= 4 else 0)
+            candidate = (base_score + bonus, base_words + [mapped])
+            if best[j] is None or candidate[0] > best[j][0]:
+                best[j] = candidate
+    if best[n] is None:
+        return token
+    words = best[n][1]
+    if len(words) < 2:
+        return token
+    joined = ' '.join(words).strip()
+    # Keep guardrails: avoid over-splitting into too many tiny pieces.
+    if len(words) >= 7 and (len(compact) / max(1, len(words))) < 2.2:
+        return token
+    return joined or token
+
+
+def _repair_joined_words_text(value):
+    text = str(value or '')
+    if not text:
+        return ''
+    cleaned = text.replace('\r\n', '\n').replace('\r', '\n')
+    cleaned = re.sub(r'(?<=\d)(?=[A-Za-zÁÉÍÓÚÜÑ])', ' ', cleaned)
+    cleaned = re.sub(r'(?<=[A-Za-zÁÉÍÓÚÜÑ])(?=\d)', ' ', cleaned)
+    cleaned = re.sub(r'([,:;])(?=\S)', r'\1 ', cleaned)
+    cleaned = re.sub(r'\s{2,}', ' ', cleaned)
+    cleaned = re.sub(r' *\n *', '\n', cleaned)
+
+    def _replace_token(match):
+        token = match.group(0)
+        return _split_joined_upper_token(token)
+
+    cleaned = re.sub(r'\b[A-ZÁÉÍÓÚÜÑ]{10,}\b', _replace_token, cleaned)
+    cleaned = re.sub(r'\s{2,}', ' ', cleaned)
+    cleaned = re.sub(r' *\n *', '\n', cleaned)
+    return cleaned.strip()
 
 
 def _detect_keyword_tags(text, taxonomy):
@@ -4145,16 +4236,17 @@ def _extract_task_sheet_from_pdf(text, detected_materials=None):
         materials = ', '.join(sorted(set(material_detected)))[:300]
 
     return {
-        'description': (description or '')[:1200],
-        'players': players,
-        'space': space,
-        'dimensions': dimensions,
-        'materials': materials,
+        'description': _repair_joined_words_text((description or '')[:1400])[:1200],
+        'players': _repair_joined_words_text(players),
+        'space': _repair_joined_words_text(space),
+        'dimensions': _repair_joined_words_text(dimensions),
+        'materials': _repair_joined_words_text(materials),
     }
 
 
 def _suggest_task_from_pdf(pdf_text):
-    text = (pdf_text or '').strip()
+    text = _repair_joined_words_text(pdf_text or '')
+    text = str(text or '').strip()
     if not text:
         return {
             'title': '',
@@ -4268,12 +4360,12 @@ def _suggest_task_from_pdf(pdf_text):
     duration_band = _duration_band_label(minutes)
 
     analysis = {
-        'title': (title or 'Tarea desde PDF')[:160],
-        'objective': objective[:180],
+        'title': _repair_joined_words_text((title or 'Tarea desde PDF')[:220])[:160],
+        'objective': _repair_joined_words_text(objective[:240])[:180],
         'minutes': minutes,
-        'coaching_points': coaching_points,
-        'confrontation_rules': confrontation_rules,
-        'summary': summary,
+        'coaching_points': _repair_joined_words_text(coaching_points),
+        'confrontation_rules': _repair_joined_words_text(confrontation_rules),
+        'summary': _repair_joined_words_text(summary),
         'work_contexts': work_contexts,
         'objective_tags': objective_tags,
         'exercise_types': exercise_types,
@@ -4601,6 +4693,67 @@ def _get_or_create_library_session(team, scope_key):
     return session
 
 
+def _cleanup_task_joined_text_fields(task):
+    if not task:
+        return False
+    changed = False
+
+    def _clean_attr(attr_name, max_len=None):
+        nonlocal changed
+        current = str(getattr(task, attr_name, '') or '')
+        cleaned = _repair_joined_words_text(current)
+        if max_len:
+            cleaned = cleaned[:max_len]
+        if cleaned != current:
+            setattr(task, attr_name, cleaned)
+            changed = True
+
+    _clean_attr('title', 160)
+    _clean_attr('objective', 180)
+    _clean_attr('coaching_points')
+    _clean_attr('confrontation_rules')
+
+    layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
+    if layout:
+        layout_copy = dict(layout)
+        meta = layout_copy.get('meta') if isinstance(layout_copy.get('meta'), dict) else {}
+        meta = dict(meta)
+        analysis_meta = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
+        analysis_meta = dict(analysis_meta)
+        summary_raw = str(analysis_meta.get('summary') or '')
+        summary_clean = _repair_joined_words_text(summary_raw)[:900]
+        if summary_clean != summary_raw:
+            analysis_meta['summary'] = summary_clean
+            changed = True
+        task_sheet = analysis_meta.get('task_sheet') if isinstance(analysis_meta.get('task_sheet'), dict) else {}
+        if task_sheet:
+            task_sheet_copy = dict(task_sheet)
+            for key in ('description', 'players', 'space', 'dimensions', 'materials'):
+                raw_val = str(task_sheet_copy.get(key) or '')
+                clean_val = _repair_joined_words_text(raw_val)
+                if clean_val != raw_val:
+                    task_sheet_copy[key] = clean_val
+                    changed = True
+            analysis_meta['task_sheet'] = task_sheet_copy
+        meta['analysis'] = analysis_meta
+        layout_copy['meta'] = meta
+        if layout_copy != layout:
+            task.tactical_layout = layout_copy
+            changed = True
+
+    if changed:
+        task.save(
+            update_fields=[
+                'title',
+                'objective',
+                'coaching_points',
+                'confrontation_rules',
+                'tactical_layout',
+            ]
+        )
+    return changed
+
+
 def _update_library_task_from_post(task, post_data, scope_key=None):
     if not task:
         raise ValueError('Tarea no encontrada.')
@@ -4621,12 +4774,12 @@ def _update_library_task_from_post(task, post_data, scope_key=None):
         minutes = int(task.duration_minutes or 15)
     minutes = max(5, min(minutes, 90))
 
-    task.title = title[:160]
+    task.title = _repair_joined_words_text(title[:220])[:160]
     task.block = block
     task.duration_minutes = minutes
-    task.objective = (post_data.get('task_objective') or '').strip()[:180]
-    task.coaching_points = (post_data.get('task_coaching_points') or '').strip()
-    task.confrontation_rules = (post_data.get('task_confrontation_rules') or '').strip()
+    task.objective = _repair_joined_words_text((post_data.get('task_objective') or '').strip()[:260])[:180]
+    task.coaching_points = _repair_joined_words_text((post_data.get('task_coaching_points') or '').strip())
+    task.confrontation_rules = _repair_joined_words_text((post_data.get('task_confrontation_rules') or '').strip())
 
     layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
     layout = dict(layout)
@@ -4647,7 +4800,7 @@ def _update_library_task_from_post(task, post_data, scope_key=None):
     task_sheet_touched = False
     for post_key, sheet_key in sheet_field_map.items():
         if post_key in post_data:
-            task_sheet[sheet_key] = str(post_data.get(post_key) or '').strip()
+            task_sheet[sheet_key] = _repair_joined_words_text(str(post_data.get(post_key) or '').strip())
             task_sheet_touched = True
     if task_sheet_touched:
         analysis_meta['task_sheet'] = task_sheet
@@ -5744,7 +5897,10 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     if active_tab == 'library' and task_library:
         preview_rebuilt = 0
         preview_upgraded = 0
+        text_normalized = 0
         for task in task_library:
+            if _cleanup_task_joined_text_fields(task):
+                text_normalized += 1
             before_name = str(getattr(task, 'task_preview_image', '') or '').strip()
             should_refresh = _task_preview_needs_refresh(task)
             if not should_refresh:
@@ -5757,10 +5913,11 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                         preview_upgraded += 1
                     else:
                         preview_rebuilt += 1
-        if preview_rebuilt or preview_upgraded:
+        if preview_rebuilt or preview_upgraded or text_normalized:
             rebuilt_msg = f'Previews recuperadas: {preview_rebuilt}.' if preview_rebuilt else ''
             upgraded_msg = f'Previews mejoradas: {preview_upgraded}.' if preview_upgraded else ''
-            joined = ' '.join([part for part in [rebuilt_msg, upgraded_msg] if part]).strip()
+            cleaned_msg = f'Textos corregidos: {text_normalized}.' if text_normalized else ''
+            joined = ' '.join([part for part in [rebuilt_msg, upgraded_msg, cleaned_msg] if part]).strip()
             feedback = (
                 f'{feedback} '
                 if feedback
