@@ -176,6 +176,34 @@
       }
       .meta { margin: 0.2rem 0 0.45rem; font-size: 0.78rem; color: rgba(225, 236, 255, 0.78); }
       .empty { margin: 0; color: rgba(225, 236, 255, 0.78); }
+      .folder-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 0.5rem;
+        margin: 0.45rem 0 0.75rem;
+      }
+      .folder-card {
+        display: block;
+        text-decoration: none;
+        border: 1px solid rgba(121, 170, 230, 0.28);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.04);
+        color: #e2e8f0;
+        padding: 0.62rem 0.72rem;
+      }
+      .folder-card:hover {
+        border-color: rgba(34, 211, 238, 0.72);
+      }
+      .folder-card strong {
+        display: block;
+        font-size: 0.86rem;
+      }
+      .folder-card span {
+        display: block;
+        margin-top: 0.2rem;
+        font-size: 0.74rem;
+        color: rgba(225, 236, 255, 0.82);
+      }
       .badge {
         display: inline-flex;
         align-items: center;
@@ -1290,7 +1318,7 @@
         </div>
         {% if library_view == 'phase' and phase_group_rows %}
         <p class="meta" style="margin-top:-0.1rem;">
-          {% for item in phase_group_rows %}<a class="badge" href="?tab=library&library_view=phase&library_key={{ item.key }}">{{ item.key }} · {{ item.count }}</a>{% endfor %}
+          {% for item in phase_group_rows %}<a class="badge" href="?tab=library&library_view=phase&library_key={{ item.key }}">{{ item.label|default:item.key }} · {{ item.count }}</a>{% endfor %}
         </p>
         {% elif library_view == 'type' and type_group_rows %}
         <p class="meta" style="margin-top:-0.1rem;">
@@ -1313,7 +1341,23 @@
           {% for item in quality_group_rows %}<a class="badge" href="?tab=library&library_view=quality&library_key={{ item.key }}">{{ item.label }} · {{ item.count }}</a>{% endfor %}
         </p>
         {% endif %}
-        {% if task_library_filtered %}
+        {% if library_view == 'phase' and not library_key %}
+        <div class="folder-grid">
+          {% for item in phase_group_rows %}
+          <a class="folder-card" href="?tab=library&library_view=phase&library_key={{ item.key }}">
+            <strong>{{ item.label|default:item.key }}</strong>
+            <span>{{ item.count }} tareas</span>
+          </a>
+          {% endfor %}
+        </div>
+        <p class="meta">Selecciona una carpeta para ver sus tareas.</p>
+        {% elif library_view == 'phase' and library_key %}
+        <p class="meta">
+          <a class="badge" href="?tab=library&library_view=phase">← Volver a carpetas</a>
+        </p>
+        {% endif %}
+        {% if library_view == 'phase' and not library_key %}
+        {% elif task_library_filtered %}
         <div class="task-list">
           {% for t in task_library_filtered %}
           <article
@@ -1404,7 +1448,7 @@
             <h3 style="margin:0 0 0.4rem; font-size:0.76rem; letter-spacing:0.08em; text-transform:uppercase;">Fase de juego</h3>
             {% if phase_group_rows %}
             <div style="display:flex; flex-wrap:wrap; gap:0.35rem;">
-              {% for item in phase_group_rows %}<span class="badge">{{ item.key }} · {{ item.count }}</span>{% endfor %}
+              {% for item in phase_group_rows %}<span class="badge">{{ item.label|default:item.key }} · {{ item.count }}</span>{% endfor %}
             </div>
             {% else %}
             <p class="empty">Sin datos todavía.</p>

@@ -3962,11 +3962,38 @@ TASK_TYPE_KEYWORDS = {
 }
 
 TASK_PHASE_KEYWORDS = {
+    'activacion': ['activacion', 'activación', 'calentamiento', 'entrada en calor', 'movilidad inicial'],
+    'abp': ['abp', 'balon parado', 'balón parado', 'corner', 'falta lateral', 'saque de esquina'],
+    'posesion': ['posesion', 'posesión', 'conservacion', 'conservación', 'rondo', 'juego de posicion', 'juego de posición'],
     'ataque': ['ataque', 'ofensiva', 'ofensivo', 'con balon', 'con balón'],
     'defensa': ['defensa', 'defensiva', 'defensivo', 'sin balon', 'sin balón'],
     'transicion': ['transicion', 'transición', 'tras perdida', 'tras pérdida', 'tras robo'],
     'mixta': ['ida y vuelta', 'ataque y defensa', 'mixto'],
 }
+
+PHASE_FOLDER_META = [
+    {'key': 'activacion', 'label': 'Activación'},
+    {'key': 'abp', 'label': 'ABP'},
+    {'key': 'ataque', 'label': 'Ataque'},
+    {'key': 'defensa', 'label': 'Defensa'},
+    {'key': 'posesion', 'label': 'Posesión'},
+    {'key': 'transicion', 'label': 'Transición'},
+    {'key': 'mixta', 'label': 'Mixta'},
+    {'key': 'sin_clasificar', 'label': 'Sin clasificar'},
+]
+
+PHASE_FOLDER_PRIORITY = [item['key'] for item in PHASE_FOLDER_META if item['key'] != 'sin_clasificar']
+
+
+def _phase_folder_key_for_task(task):
+    tags = getattr(task, 'phase_tags', None)
+    if not isinstance(tags, list):
+        tags = []
+    normalized_tags = [str(tag or '').strip().lower() for tag in tags if str(tag or '').strip()]
+    for key in PHASE_FOLDER_PRIORITY:
+        if key in normalized_tags:
+            return key
+    return 'sin_clasificar'
 
 TASK_PDF_PARSE_VERSION = 4
 
@@ -6747,6 +6774,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     objective_groups = defaultdict(list)
     type_groups = defaultdict(list)
     phase_groups = defaultdict(list)
+    phase_folder_groups = defaultdict(list)
     players_band_groups = defaultdict(list)
     duration_band_groups = defaultdict(list)
     date_groups = defaultdict(list)
@@ -6823,6 +6851,8 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             type_groups[str(exercise_type)].append(task)
         for phase_tag in task.phase_tags:
             phase_groups[str(phase_tag)].append(task)
+        task.phase_folder_key = _phase_folder_key_for_task(task)
+        phase_folder_groups[task.phase_folder_key].append(task)
         if task.players_band:
             players_band_groups[task.players_band].append(task)
         if task.duration_band:
@@ -6845,11 +6875,14 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         key=lambda row: row['count'],
         reverse=True,
     )
-    phase_group_rows = sorted(
-        [{'key': key, 'count': len(items)} for key, items in phase_groups.items()],
-        key=lambda row: row['count'],
-        reverse=True,
-    )
+    phase_group_rows = [
+        {
+            'key': item['key'],
+            'label': item['label'],
+            'count': len(phase_folder_groups.get(item['key'], [])),
+        }
+        for item in PHASE_FOLDER_META
+    ]
     players_band_group_rows = sorted(
         [{'key': key, 'count': len(items)} for key, items in players_band_groups.items()],
         key=lambda row: row['count'],
@@ -6886,7 +6919,9 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     ]
     task_library_filtered = list(task_library)
     if library_view == 'phase' and library_key:
-        task_library_filtered = [item for item in task_library_filtered if library_key in (item.phase_tags or [])]
+        task_library_filtered = [item for item in task_library_filtered if str(getattr(item, 'phase_folder_key', '') or '') == library_key]
+    elif library_view == 'phase' and not library_key:
+        task_library_filtered = []
     elif library_view == 'type' and library_key:
         task_library_filtered = [item for item in task_library_filtered if library_key in (item.exercise_types or [])]
     elif library_view == 'players' and library_key:
