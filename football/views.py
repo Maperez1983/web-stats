@@ -4907,6 +4907,13 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
         analysis_meta = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
         task.analysis_meta = analysis_meta
+        task_sheet = analysis_meta.get('task_sheet') if isinstance(analysis_meta.get('task_sheet'), dict) else {}
+        objective_summary = str(task.objective or '').strip()
+        if not objective_summary:
+            objective_summary = str(task_sheet.get('description') or '').strip()
+        if not objective_summary:
+            objective_summary = str(analysis_meta.get('summary') or '').strip()
+        task.objective_summary = objective_summary or 'Sin objetivo extraído todavía.'
         for ctx in analysis_meta.get('work_contexts') or []:
             context_groups[str(ctx)].append(task)
         for obj in analysis_meta.get('objective_tags') or []:

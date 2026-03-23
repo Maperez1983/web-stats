@@ -269,9 +269,7 @@
             </div>
             <div class="task-content">
               <h3 class="task-title">{{ t.title }}</h3>
-              <p class="task-objective">
-                {{ t.objective|default:t.analysis_meta.task_sheet.description|default:t.analysis_meta.summary|truncatechars:140|default:"Sin objetivo extraído todavía." }}
-              </p>
+              <p class="task-objective">{{ t.objective_summary|truncatechars:140 }}</p>
               <p class="meta"><strong>{{ t.session.session_date|date:"d/m/Y" }}</strong> · {{ t.get_block_display }} · {{ t.duration_minutes }}'</p>
               {% if t.analysis_meta %}
               <div style="display:flex; gap:0.35rem; flex-wrap:wrap; margin-bottom:0.55rem;">
