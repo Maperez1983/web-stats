@@ -772,6 +772,14 @@
                 {% for obj in t.analysis_meta.objective_tags %}
                 <span class="badge">{{ obj }}</span>
                 {% endfor %}
+                {% for item in t.exercise_types %}
+                <span class="badge">Tipo: {{ item }}</span>
+                {% endfor %}
+                {% for phase in t.phase_tags %}
+                <span class="badge">Fase: {{ phase }}</span>
+                {% endfor %}
+                {% if t.players_band %}<span class="badge">{{ t.players_band }}</span>{% endif %}
+                {% if t.duration_band %}<span class="badge">{{ t.duration_band }}</span>{% endif %}
               </div>
               {% if t.analysis_summary %}
               <p class="meta" style="margin-top:-0.15rem;">Resumen detectado: {{ t.analysis_summary|truncatechars:210 }}</p>
@@ -808,6 +816,52 @@
         {% else %}
         <p class="empty">No hay tareas en biblioteca.</p>
         {% endif %}
+      </section>
+
+      <section class="panel">
+        <h2>Organización automática</h2>
+        <div class="grid">
+          <div>
+            <h3 style="margin:0 0 0.4rem; font-size:0.76rem; letter-spacing:0.08em; text-transform:uppercase;">Tipo de tarea</h3>
+            {% if type_group_rows %}
+            <div style="display:flex; flex-wrap:wrap; gap:0.35rem;">
+              {% for item in type_group_rows %}<span class="badge">{{ item.key }} · {{ item.count }}</span>{% endfor %}
+            </div>
+            {% else %}
+            <p class="empty">Sin datos todavía.</p>
+            {% endif %}
+          </div>
+          <div>
+            <h3 style="margin:0 0 0.4rem; font-size:0.76rem; letter-spacing:0.08em; text-transform:uppercase;">Fase de juego</h3>
+            {% if phase_group_rows %}
+            <div style="display:flex; flex-wrap:wrap; gap:0.35rem;">
+              {% for item in phase_group_rows %}<span class="badge">{{ item.key }} · {{ item.count }}</span>{% endfor %}
+            </div>
+            {% else %}
+            <p class="empty">Sin datos todavía.</p>
+            {% endif %}
+          </div>
+          <div>
+            <h3 style="margin:0 0 0.4rem; font-size:0.76rem; letter-spacing:0.08em; text-transform:uppercase;">Volumen de jugadores</h3>
+            {% if players_band_group_rows %}
+            <div style="display:flex; flex-wrap:wrap; gap:0.35rem;">
+              {% for item in players_band_group_rows %}<span class="badge">{{ item.key }} · {{ item.count }}</span>{% endfor %}
+            </div>
+            {% else %}
+            <p class="empty">Sin datos todavía.</p>
+            {% endif %}
+          </div>
+          <div>
+            <h3 style="margin:0 0 0.4rem; font-size:0.76rem; letter-spacing:0.08em; text-transform:uppercase;">Duración</h3>
+            {% if duration_band_group_rows %}
+            <div style="display:flex; flex-wrap:wrap; gap:0.35rem;">
+              {% for item in duration_band_group_rows %}<span class="badge">{{ item.key }} · {{ item.count }}</span>{% endfor %}
+            </div>
+            {% else %}
+            <p class="empty">Sin datos todavía.</p>
+            {% endif %}
+          </div>
+        </div>
       </section>
       </div>
 

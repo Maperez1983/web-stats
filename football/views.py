@@ -3687,6 +3687,24 @@ TASK_OBJECTIVE_KEYWORDS = {
     'coordinacion': ['coordinacion', 'coordinación', 'sincronizacion', 'sincronización'],
 }
 
+TASK_TYPE_KEYWORDS = {
+    'rondo': ['rondo'],
+    'posesion': ['posesion', 'posesión', 'conservacion', 'conservación'],
+    'juego_posicional': ['juego de posicion', 'juego de posición', 'posicional'],
+    'transicion': ['transicion', 'transición', 'contraataque', 'ataque rapido', 'ataque rápido'],
+    'finalizacion': ['finalizacion', 'finalización', 'remate', 'tiro', 'gol'],
+    'circuito': ['circuito', 'estacion', 'estación', 'posta'],
+    'abp': ['abp', 'balon parado', 'balón parado', 'corner', 'falta lateral', 'saque de esquina'],
+    'partido_reducido': ['partido reducido', 'ssg', 'small sided', 'juego reducido'],
+}
+
+TASK_PHASE_KEYWORDS = {
+    'ataque': ['ataque', 'ofensiva', 'ofensivo', 'con balon', 'con balón'],
+    'defensa': ['defensa', 'defensiva', 'defensivo', 'sin balon', 'sin balón'],
+    'transicion': ['transicion', 'transición', 'tras perdida', 'tras pérdida', 'tras robo'],
+    'mixta': ['ida y vuelta', 'ataque y defensa', 'mixto'],
+}
+
 
 def _normalize_folded_text(value):
     raw = str(value or '').strip().lower()
@@ -3744,6 +3762,10 @@ def _analysis_quality_score(analysis):
         score += 5
     if analysis.get('detected_materials'):
         score += 5
+    if analysis.get('exercise_types'):
+        score += 5
+    if analysis.get('phase_tags'):
+        score += 5
     task_sheet = analysis.get('task_sheet') if isinstance(analysis.get('task_sheet'), dict) else {}
     if task_sheet.get('description'):
         score += 5
@@ -3759,6 +3781,11 @@ def _apply_analysis_to_task(task, analysis):
         'work_contexts': analysis.get('work_contexts') or [],
         'objective_tags': analysis.get('objective_tags') or [],
         'detected_materials': analysis.get('detected_materials') or [],
+        'exercise_types': analysis.get('exercise_types') or [],
+        'phase_tags': analysis.get('phase_tags') or [],
+        'players_count_estimate': analysis.get('players_count_estimate') or None,
+        'players_band': analysis.get('players_band') or '',
+        'duration_band': analysis.get('duration_band') or '',
         'quality_score': analysis.get('quality_score') or 0,
         'summary': (analysis.get('summary') or '')[:900],
         'task_sheet': analysis.get('task_sheet') if isinstance(analysis.get('task_sheet'), dict) else {},
@@ -3863,6 +3890,60 @@ def _extract_players_text(text):
     if total:
         return f'{total.group(1)} jugadores'
     return ''
+
+
+def _estimate_players_count(players_text, fallback_text=''):
+    source = ' '.join([str(players_text or ''), str(fallback_text or '')]).strip()
+    if not source:
+        return None
+    cleaned = source.replace('vs', 'v').replace('x', 'v')
+    total = 0
+    matched = False
+    for group in re.findall(r'(\d{1,2}\s*v\s*\d{1,2}(?:\s*\+\s*\d{1,2})?)', cleaned, flags=re.IGNORECASE):
+        nums = [_parse_int(n) for n in re.findall(r'\d{1,2}', group)]
+        nums = [n for n in nums if n is not None]
+        if nums:
+            total += sum(nums)
+            matched = True
+    if matched and total > 0:
+        return total
+    explicit_total = re.search(r'(?i)\b(\d{1,2})\s*(?:jugadores?|participantes?)\b', cleaned)
+    if explicit_total:
+        parsed = _parse_int(explicit_total.group(1))
+        if parsed:
+            return parsed
+    nums = [_parse_int(n) for n in re.findall(r'\b\d{1,2}\b', cleaned)]
+    nums = [n for n in nums if n is not None]
+    plausible = [n for n in nums if 4 <= n <= 30]
+    if plausible:
+        return max(plausible)
+    return None
+
+
+def _players_band_label(players_count):
+    value = _parse_int(players_count)
+    if not value:
+        return ''
+    if value <= 6:
+        return 'micro (1-6)'
+    if value <= 12:
+        return 'grupo (7-12)'
+    if value <= 18:
+        return 'equipo (13-18)'
+    return 'ampliado (19+)'
+
+
+def _duration_band_label(minutes):
+    value = _parse_int(minutes)
+    if not value:
+        return ''
+    if value <= 12:
+        return 'corta (5-12m)'
+    if value <= 20:
+        return 'media (13-20m)'
+    if value <= 35:
+        return 'larga (21-35m)'
+    return 'extendida (36m+)'
 
 
 def _extract_task_sheet_from_pdf(text, detected_materials=None):
@@ -4007,8 +4088,13 @@ def _suggest_task_from_pdf(pdf_text):
     summary = '\n'.join(lines[:12])[:900]
     work_contexts = _detect_keyword_tags(text, TASK_CONTEXT_KEYWORDS)
     objective_tags = _detect_keyword_tags(' '.join([objective, coaching_points, confrontation_rules]), TASK_OBJECTIVE_KEYWORDS)
+    exercise_types = _detect_keyword_tags(text, TASK_TYPE_KEYWORDS)
+    phase_tags = _detect_keyword_tags(' '.join([text, objective, coaching_points]), TASK_PHASE_KEYWORDS)
     detected_materials = _detect_materials_in_text(text)
     task_sheet = _extract_task_sheet_from_pdf(text, detected_materials=detected_materials)
+    players_count_estimate = _estimate_players_count(task_sheet.get('players'), text)
+    players_band = _players_band_label(players_count_estimate)
+    duration_band = _duration_band_label(minutes)
 
     analysis = {
         'title': (title or 'Tarea desde PDF')[:160],
@@ -4019,6 +4105,11 @@ def _suggest_task_from_pdf(pdf_text):
         'summary': summary,
         'work_contexts': work_contexts,
         'objective_tags': objective_tags,
+        'exercise_types': exercise_types,
+        'phase_tags': phase_tags,
+        'players_count_estimate': players_count_estimate,
+        'players_band': players_band,
+        'duration_band': duration_band,
         'detected_materials': detected_materials,
         'task_sheet': task_sheet,
     }
@@ -4797,6 +4888,11 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                                     'summary': '',
                                     'work_contexts': [],
                                     'objective_tags': [],
+                                    'exercise_types': [],
+                                    'phase_tags': [],
+                                    'players_count_estimate': None,
+                                    'players_band': '',
+                                    'duration_band': _duration_band_label(max(5, min(minutes, 90))),
                                     'detected_materials': [],
                                     'quality_score': 0,
                                 },
@@ -5476,6 +5572,10 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     task_library = [item for item in task_library_raw if _task_scope_for_item(item) == scope_key]
     context_groups = defaultdict(list)
     objective_groups = defaultdict(list)
+    type_groups = defaultdict(list)
+    phase_groups = defaultdict(list)
+    players_band_groups = defaultdict(list)
+    duration_band_groups = defaultdict(list)
     for task in task_library:
         layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
         meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
@@ -5486,6 +5586,30 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         task.is_imported = _is_imported_task(task)
         task.analysis_summary = str(analysis_meta.get('summary') or '').strip()
         task.detected_materials = analysis_meta.get('detected_materials') if isinstance(analysis_meta.get('detected_materials'), list) else []
+        task.exercise_types = analysis_meta.get('exercise_types') if isinstance(analysis_meta.get('exercise_types'), list) else []
+        task.phase_tags = analysis_meta.get('phase_tags') if isinstance(analysis_meta.get('phase_tags'), list) else []
+        if not task.exercise_types or not task.phase_tags:
+            fallback_haystack = '\n'.join(
+                [
+                    str(task.title or ''),
+                    str(task.objective or ''),
+                    str(task.coaching_points or ''),
+                    str(task.confrontation_rules or ''),
+                    task.analysis_summary,
+                    str(task_sheet.get('description') or ''),
+                ]
+            )
+            if not task.exercise_types:
+                task.exercise_types = _detect_keyword_tags(fallback_haystack, TASK_TYPE_KEYWORDS)
+            if not task.phase_tags:
+                task.phase_tags = _detect_keyword_tags(fallback_haystack, TASK_PHASE_KEYWORDS)
+        task.players_count_estimate = _parse_int(analysis_meta.get('players_count_estimate'))
+        task.players_band = str(analysis_meta.get('players_band') or '').strip()
+        if not task.players_band and task.task_sheet:
+            task.players_band = _players_band_label(_estimate_players_count(task.task_sheet.get('players') or '', task.title))
+        task.duration_band = str(analysis_meta.get('duration_band') or '').strip()
+        if not task.duration_band:
+            task.duration_band = _duration_band_label(task.duration_minutes)
         objective_summary = str(task.objective or '').strip()
         if not objective_summary:
             objective_summary = str(task_sheet.get('description') or '').strip()
@@ -5496,6 +5620,14 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             context_groups[str(ctx)].append(task)
         for obj in analysis_meta.get('objective_tags') or []:
             objective_groups[str(obj)].append(task)
+        for exercise_type in task.exercise_types:
+            type_groups[str(exercise_type)].append(task)
+        for phase_tag in task.phase_tags:
+            phase_groups[str(phase_tag)].append(task)
+        if task.players_band:
+            players_band_groups[task.players_band].append(task)
+        if task.duration_band:
+            duration_band_groups[task.duration_band].append(task)
     _persist_detected_resources_library(task_library, scope_key=scope_key)
     context_group_rows = sorted(
         [{'key': key, 'count': len(items)} for key, items in context_groups.items()],
@@ -5504,6 +5636,26 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     )
     objective_group_rows = sorted(
         [{'key': key, 'count': len(items)} for key, items in objective_groups.items()],
+        key=lambda row: row['count'],
+        reverse=True,
+    )
+    type_group_rows = sorted(
+        [{'key': key, 'count': len(items)} for key, items in type_groups.items()],
+        key=lambda row: row['count'],
+        reverse=True,
+    )
+    phase_group_rows = sorted(
+        [{'key': key, 'count': len(items)} for key, items in phase_groups.items()],
+        key=lambda row: row['count'],
+        reverse=True,
+    )
+    players_band_group_rows = sorted(
+        [{'key': key, 'count': len(items)} for key, items in players_band_groups.items()],
+        key=lambda row: row['count'],
+        reverse=True,
+    )
+    duration_band_group_rows = sorted(
+        [{'key': key, 'count': len(items)} for key, items in duration_band_groups.items()],
         key=lambda row: row['count'],
         reverse=True,
     )
@@ -5525,6 +5677,10 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             'scope_title': scope_title,
             'context_group_rows': context_group_rows,
             'objective_group_rows': objective_group_rows,
+            'type_group_rows': type_group_rows,
+            'phase_group_rows': phase_group_rows,
+            'players_band_group_rows': players_band_group_rows,
+            'duration_band_group_rows': duration_band_group_rows,
             'active_tab': active_tab,
             'task_templates': TASK_TEMPLATE_LIBRARY,
             'task_surface_choices': TASK_SURFACE_CHOICES,
