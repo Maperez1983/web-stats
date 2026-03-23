@@ -3935,6 +3935,79 @@ def _extract_tasks_from_pdf_text(pdf_text, fallback_title='Tarea desde PDF'):
     return analyses
 
 
+def _parse_bulk_tasks_text(raw_text, default_block, default_minutes):
+    """
+    Parse bulk task rows from a plain-text block.
+    Supported row formats (separator: |, ;, or TAB):
+      titulo
+      titulo|minutos
+      titulo|minutos|bloque
+      titulo|minutos|bloque|objetivo|consignas|reglas
+    """
+    lines = [ln.strip() for ln in str(raw_text or '').splitlines()]
+    rows = [ln for ln in lines if ln and not ln.startswith('#')]
+    parsed = []
+    errors = []
+    allowed_blocks = {choice[0] for choice in SessionTask.BLOCK_CHOICES}
+
+    for idx, row in enumerate(rows, start=1):
+        separator = '|'
+        if '|' in row:
+            separator = '|'
+        elif ';' in row:
+            separator = ';'
+        elif '\t' in row:
+            separator = '\t'
+        parts = [part.strip() for part in row.split(separator)]
+        parts = [part for part in parts if part != '']
+        if not parts:
+            continue
+
+        title = (parts[0] or '').strip()
+        if not title:
+            errors.append(f'Línea {idx}: título vacío.')
+            continue
+
+        minutes = default_minutes
+        block = default_block
+        objective = ''
+        coaching_points = ''
+        confrontation_rules = ''
+
+        if len(parts) >= 2:
+            maybe_minutes = _parse_int(parts[1])
+            if maybe_minutes is None:
+                errors.append(f'Línea {idx}: minutos inválidos ({parts[1]}).')
+                continue
+            minutes = max(5, min(maybe_minutes, 90))
+        if len(parts) >= 3:
+            candidate_block = str(parts[2]).strip()
+            if candidate_block in allowed_blocks:
+                block = candidate_block
+            else:
+                errors.append(f'Línea {idx}: bloque inválido ({candidate_block}).')
+                continue
+        if len(parts) >= 4:
+            objective = (parts[3] or '')[:180]
+        if len(parts) >= 5:
+            coaching_points = parts[4] or ''
+        if len(parts) >= 6:
+            confrontation_rules = parts[5] or ''
+
+        parsed.append(
+            {
+                'title': title[:160],
+                'minutes': minutes,
+                'block': block,
+                'objective': objective,
+                'coaching_points': coaching_points,
+                'confrontation_rules': confrontation_rules,
+                'source_line': idx,
+            }
+        )
+    return parsed, errors
+
+
 def _task_scope_for_item(task):
     layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
     meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
@@ -4152,6 +4225,70 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     if created_count == 1 and processed_pdfs == 1
                     else f'Se procesaron {processed_pdfs} PDFs y se crearon {created_count} tareas.'
                 )
+
+            elif planner_action == 'bulk_create_tasks':
+                bulk_text = (request.POST.get('bulk_tasks_text') or '').strip()
+                block_default = (request.POST.get('bulk_default_block') or SessionTask.BLOCK_MAIN_1).strip()
+                minutes_default = _parse_int(request.POST.get('bulk_default_minutes')) or 15
+                target_session_id = _parse_int(request.POST.get('bulk_target_session_id'))
+                if block_default not in {choice[0] for choice in SessionTask.BLOCK_CHOICES}:
+                    block_default = SessionTask.BLOCK_MAIN_1
+                minutes_default = max(5, min(minutes_default, 90))
+                if not bulk_text:
+                    raise ValueError('Pega al menos una línea para crear tareas.')
+
+                target_session = None
+                if target_session_id:
+                    target_session = (
+                        TrainingSession.objects
+                        .select_related('microcycle')
+                        .filter(id=target_session_id, microcycle__team=primary_team)
+                        .first()
+                    )
+                if not target_session:
+                    target_session = _get_or_create_library_session(primary_team, scope_key)
+
+                parsed_rows, parse_errors = _parse_bulk_tasks_text(
+                    bulk_text,
+                    default_block=block_default,
+                    default_minutes=minutes_default,
+                )
+                if not parsed_rows and parse_errors:
+                    raise ValueError(parse_errors[0])
+                if not parsed_rows:
+                    raise ValueError('No se detectaron tareas válidas en el bloque pegado.')
+
+                base_order = SessionTask.objects.filter(session=target_session).count()
+                created_count = 0
+                for row in parsed_rows:
+                    SessionTask.objects.create(
+                        session=target_session,
+                        title=row['title'],
+                        block=row['block'],
+                        duration_minutes=row['minutes'],
+                        objective=row['objective'],
+                        coaching_points=row['coaching_points'],
+                        confrontation_rules=row['confrontation_rules'],
+                        tactical_layout={
+                            'meta': {
+                                'scope': scope_key,
+                                'bulk_source': 'manual_batch',
+                                'bulk_source_line': row.get('source_line'),
+                            }
+                        },
+                        status=SessionTask.STATUS_PLANNED,
+                        order=base_order + created_count + 1,
+                        notes='Creada mediante carga masiva',
+                    )
+                    created_count += 1
+
+                if parse_errors:
+                    feedback = (
+                        f'Carga masiva completada: {created_count} tareas creadas. '
+                        f'Incidencias: {len(parse_errors)} (primer error: {parse_errors[0]}).'
+                    )
+                else:
+                    feedback = f'Carga masiva completada: {created_count} tareas creadas.'
 
             elif planner_action == 'analyze_all_library_pdfs':
                 tasks_for_scope = list(

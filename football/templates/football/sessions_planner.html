@@ -165,6 +165,46 @@
       </section>
 
       <section class="panel">
+        <h2>Carga masiva de tareas (texto)</h2>
+        <p class="meta" style="margin-top:0;">
+          Pega una tarea por línea. Formato: <strong>titulo|minutos|bloque|objetivo|consignas|reglas</strong>.
+          También acepta <code>;</code> o tabulador como separador.
+        </p>
+        <form method="post" class="grid">
+          {% csrf_token %}
+          <input type="hidden" name="planner_action" value="bulk_create_tasks" />
+          <label>
+            Sesión destino (opcional)
+            <select name="bulk_target_session_id">
+              <option value="">Biblioteca automática</option>
+              {% for session in all_sessions %}
+              <option value="{{ session.id }}">{{ session.session_date|date:"d/m/Y" }} · {{ session.focus }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            Bloque por defecto
+            <select name="bulk_default_block">
+              {% for value, label in task_blocks %}
+              <option value="{{ value }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            Minutos por defecto
+            <input type="number" name="bulk_default_minutes" min="5" max="90" value="15" />
+          </label>
+          <label style="grid-column:1/-1;">
+            Tareas (una por línea)
+            <textarea name="bulk_tasks_text" placeholder="Rondo 6v3|15|main_1|Conservar y progresar|Perfil corporal, apoyo y tercer hombre|Máximo 2 toques&#10;Finalización + transición|18|main_2|Finalizar rápido tras robo|Primer pase vertical y ataque de intervalo|Gol en &lt;10s vale doble" required></textarea>
+          </label>
+          <div style="display:flex; align-items:flex-end;">
+            <button type="submit" class="primary">Crear tareas en lote</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel">
         <h2>Biblioteca de PDFs Cargados</h2>
         <div style="display:flex; gap:0.6rem; flex-wrap:wrap; margin:0 0 0.9rem;">
           <form method="post" style="margin:0;">
