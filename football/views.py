@@ -6663,49 +6663,57 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             except ValueError as exc:
                 error = str(exc)
 
-    task_library_raw = list(
-        SessionTask.objects
-        .select_related('session__microcycle')
-        .filter(session__microcycle__team=primary_team)
-        .order_by('-id')[:300]
-    ) if planner_tables_ready else []
-    task_library = [item for item in task_library_raw if _task_scope_for_item(item) == scope_key]
-    if task_library:
+    task_library_raw = []
+    task_library = []
+    if planner_tables_ready and active_tab == 'library':
+        task_library_raw = list(
+            SessionTask.objects
+            .select_related('session__microcycle')
+            .filter(session__microcycle__team=primary_team)
+            .order_by('-id')[:300]
+        )
+        task_library = [item for item in task_library_raw if _task_scope_for_item(item) == scope_key]
+
+    if active_tab == 'library' and task_library:
+        maintenance_cache_key = f'sessions_library_maintenance:{primary_team.id}:{scope_key}'
+        run_maintenance = bool(cache.add(maintenance_cache_key, '1', timeout=60 * 10))
         preview_rebuilt = 0
         preview_upgraded = 0
         text_normalized = 0
         analysis_refreshed = 0
-        for task in task_library:
-            if _task_analysis_needs_refresh(task):
-                if _refresh_task_from_pdf_analysis(task):
-                    analysis_refreshed += 1
-            if _ensure_task_reference_date(task):
-                text_normalized += 1
-            if _cleanup_task_joined_text_fields(task):
-                text_normalized += 1
-            before_name = str(getattr(task, 'task_preview_image', '') or '').strip()
-            should_refresh = _task_preview_needs_refresh(task)
-            if not should_refresh:
-                continue
-            had_preview = bool(before_name)
-            if _ensure_library_task_preview(task, force=had_preview, prefer_render=had_preview):
-                after_name = str(getattr(task, 'task_preview_image', '') or '').strip()
-                if after_name:
-                    if had_preview:
-                        preview_upgraded += 1
-                    else:
-                        preview_rebuilt += 1
-        if preview_rebuilt or preview_upgraded or text_normalized or analysis_refreshed:
-            rebuilt_msg = f'Previews recuperadas: {preview_rebuilt}.' if preview_rebuilt else ''
-            upgraded_msg = f'Previews mejoradas: {preview_upgraded}.' if preview_upgraded else ''
-            cleaned_msg = f'Textos corregidos: {text_normalized}.' if text_normalized else ''
-            refreshed_msg = f'Análisis regenerados: {analysis_refreshed}.' if analysis_refreshed else ''
-            joined = ' '.join([part for part in [rebuilt_msg, upgraded_msg, cleaned_msg, refreshed_msg] if part]).strip()
-            feedback = (
-                f'{feedback} '
-                if feedback
-                else ''
-            ) + joined
+        if run_maintenance:
+            maintenance_slice = task_library[:90]
+            for task in maintenance_slice:
+                if _task_analysis_needs_refresh(task):
+                    if _refresh_task_from_pdf_analysis(task):
+                        analysis_refreshed += 1
+                if _ensure_task_reference_date(task):
+                    text_normalized += 1
+                if _cleanup_task_joined_text_fields(task):
+                    text_normalized += 1
+                before_name = str(getattr(task, 'task_preview_image', '') or '').strip()
+                should_refresh = _task_preview_needs_refresh(task)
+                if not should_refresh:
+                    continue
+                had_preview = bool(before_name)
+                if _ensure_library_task_preview(task, force=had_preview, prefer_render=had_preview):
+                    after_name = str(getattr(task, 'task_preview_image', '') or '').strip()
+                    if after_name:
+                        if had_preview:
+                            preview_upgraded += 1
+                        else:
+                            preview_rebuilt += 1
+            if preview_rebuilt or preview_upgraded or text_normalized or analysis_refreshed:
+                rebuilt_msg = f'Previews recuperadas: {preview_rebuilt}.' if preview_rebuilt else ''
+                upgraded_msg = f'Previews mejoradas: {preview_upgraded}.' if preview_upgraded else ''
+                cleaned_msg = f'Textos corregidos: {text_normalized}.' if text_normalized else ''
+                refreshed_msg = f'Análisis regenerados: {analysis_refreshed}.' if analysis_refreshed else ''
+                joined = ' '.join([part for part in [rebuilt_msg, upgraded_msg, cleaned_msg, refreshed_msg] if part]).strip()
+                feedback = (
+                    f'{feedback} '
+                    if feedback
+                    else ''
+                ) + joined
 
     context_groups = defaultdict(list)
     objective_groups = defaultdict(list)
@@ -6866,18 +6874,21 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         reverse=True,
     )
 
-    planning_microcycles = list(
-        TrainingMicrocycle.objects
-        .filter(team=primary_team)
-        .order_by('-week_start', '-id')[:24]
-    ) if planner_tables_ready else []
-    planning_session_qs = (
-        TrainingSession.objects
-        .select_related('microcycle')
-        .filter(microcycle__team=primary_team)
-        .order_by('-session_date', '-id')
-    ) if planner_tables_ready else TrainingSession.objects.none()
-    planning_sessions = list(planning_session_qs[:200]) if planner_tables_ready else []
+    planning_microcycles = []
+    planning_sessions = []
+    if planner_tables_ready and active_tab == 'planning':
+        planning_microcycles = list(
+            TrainingMicrocycle.objects
+            .filter(team=primary_team)
+            .order_by('-week_start', '-id')[:24]
+        )
+        planning_session_qs = (
+            TrainingSession.objects
+            .select_related('microcycle')
+            .filter(microcycle__team=primary_team)
+            .order_by('-session_date', '-id')
+        )
+        planning_sessions = list(planning_session_qs[:200])
     sessions_count_map = defaultdict(int)
     tasks_count_map = defaultdict(int)
     for session_item in planning_sessions:
