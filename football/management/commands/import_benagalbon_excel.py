@@ -1,5 +1,6 @@
 from datetime import datetime, date
 from pathlib import Path
+import unicodedata
 
 from django.core.management.base import BaseCommand
 from django.utils.text import slugify
@@ -178,7 +179,9 @@ class Command(BaseCommand):
             partido_id = self.safe_text(row.get('partidoid'))
             if not partido_id:
                 continue
-            rival_name = self.safe_text(row.get('rival'), default='Rival desconocido')
+            rival_name = self.normalize_rival_name(
+                self.safe_text(row.get('rival'), default='Rival desconocido')
+            )
             match_key = (partido_id, rival_name)
             match = matches.get(match_key)
             if not match:
@@ -245,6 +248,22 @@ class Command(BaseCommand):
             created_events += 1
 
         return created_events
+
+    @staticmethod
+    def normalize_rival_name(value):
+        name = str(value or '').strip()
+        if not name:
+            return 'Rival desconocido'
+        folded = ''.join(
+            ch for ch in unicodedata.normalize('NFKD', name.lower())
+            if not unicodedata.combining(ch)
+        )
+        aliases = {
+            'marbella': 'Atlético de Marbella',
+            'atletico marbella': 'Atlético de Marbella',
+            'atco marbella': 'Atlético de Marbella',
+        }
+        return aliases.get(folded, name)
 
     @staticmethod
     def normalize_header(value):
