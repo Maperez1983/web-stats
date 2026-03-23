@@ -37,7 +37,52 @@
       .alert.err { border-color: rgba(239, 68, 68, 0.45); background: rgba(239, 68, 68, 0.15); }
       .panel { border-radius: 18px; border: 1px solid var(--line); background: var(--panel); padding: 1rem; margin-bottom: 1rem; }
       .panel h2 { margin: 0 0 0.75rem; font-size: 0.82rem; letter-spacing: 0.12em; text-transform: uppercase; }
+      .tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        margin: 0 0 0.9rem;
+      }
+      .tab-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 999px;
+        padding: 0.48rem 0.82rem;
+        text-decoration: none;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        font-size: 0.71rem;
+        color: rgba(226, 232, 240, 0.92);
+        background: rgba(255, 255, 255, 0.06);
+      }
+      .tab-link.is-active {
+        border-color: rgba(34, 211, 238, 0.62);
+        color: #02263d;
+        background: linear-gradient(135deg, #22d3ee, #67e8f9);
+        font-weight: 800;
+      }
+      .tab-panel { display: none; }
+      .tab-panel.is-active { display: block; }
       .grid { display: grid; gap: 0.8rem; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+      .editor-grid {
+        display: grid;
+        gap: 0.8rem;
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      }
+      .editor-box {
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 12px;
+        padding: 0.68rem;
+        background: rgba(2, 10, 22, 0.45);
+      }
+      .editor-box h3 {
+        margin: 0 0 0.55rem;
+        font-size: 0.72rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
       label { display: grid; gap: 0.35rem; font-size: 0.74rem; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(224, 234, 255, 0.82); }
       input, select, textarea, button { font: inherit; }
       input, select, textarea {
@@ -142,6 +187,23 @@
         text-transform: uppercase;
         background: rgba(255, 255, 255, 0.06);
       }
+      .option-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 0.45rem;
+      }
+      .check-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 0.36rem 0.55rem;
+        background: rgba(255, 255, 255, 0.05);
+        font-size: 0.69rem;
+        text-transform: none;
+        letter-spacing: 0.01em;
+      }
       @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
     </style>
   </head>
@@ -161,133 +223,312 @@
       <div class="panel"><p class="empty">El modulo no esta listo por migraciones pendientes.</p></div>
       {% else %}
 
-      <section class="panel">
-        <h2>Carga de Tareas (PDF)</h2>
-        <form method="post" enctype="multipart/form-data" class="grid">
-          {% csrf_token %}
-          <input type="hidden" name="planner_action" value="library_upload_pdf" />
-          <label>
-            Nombre tarea
-            <input type="text" name="pdf_task_title" maxlength="160" placeholder="Ej: Activacion coordinativa" required />
-          </label>
-          <label>
-            Bloque
-            <select name="pdf_task_block">
-              {% for value, label in task_blocks %}
-              <option value="{{ value }}">{{ label }}</option>
-              {% endfor %}
-            </select>
-          </label>
-          <label>
-            Minutos
-            <input type="number" name="pdf_task_minutes" min="5" max="90" value="15" />
-          </label>
-          <label>
-            Objetivo (opcional)
-            <input type="text" name="pdf_task_objective" maxlength="180" placeholder="Objetivo breve" />
-          </label>
-          <label>
-            Archivos PDF
-            <input type="file" name="library_task_pdf" accept="application/pdf" multiple required />
-          </label>
-          <div style="display:flex; align-items:flex-end;">
-            <button type="submit" class="primary">Subir PDF a biblioteca</button>
-          </div>
-        </form>
-      </section>
+      <div class="tabs">
+        <a class="tab-link {% if active_tab == 'import' %}is-active{% endif %}" href="?tab=import">Importar tarea</a>
+        <a class="tab-link {% if active_tab == 'create' %}is-active{% endif %}" href="?tab=create">Crear tarea</a>
+        <a class="tab-link {% if active_tab == 'library' %}is-active{% endif %}" href="?tab=library">Biblioteca de tareas</a>
+      </div>
 
-      <section class="panel">
-        <h2>Carga masiva de tareas (texto)</h2>
-        <p class="meta" style="margin-top:0;">
-          Pega una tarea por línea. Formato: <strong>titulo|minutos|bloque|objetivo|consignas|reglas</strong>.
-          También acepta <code>;</code> o tabulador como separador.
-        </p>
-        <form method="post" class="grid">
-          {% csrf_token %}
-          <input type="hidden" name="planner_action" value="bulk_create_tasks" />
-          <label>
-            Sesión destino (opcional)
-            <select name="bulk_target_session_id">
-              <option value="">Biblioteca automática</option>
-              {% for session in all_sessions %}
-              <option value="{{ session.id }}">{{ session.session_date|date:"d/m/Y" }} · {{ session.focus }}</option>
-              {% endfor %}
-            </select>
-          </label>
-          <label>
-            Bloque por defecto
-            <select name="bulk_default_block">
-              {% for value, label in task_blocks %}
-              <option value="{{ value }}">{{ label }}</option>
-              {% endfor %}
-            </select>
-          </label>
-          <label>
-            Minutos por defecto
-            <input type="number" name="bulk_default_minutes" min="5" max="90" value="15" />
-          </label>
-          <label style="grid-column:1/-1;">
-            Tareas (una por línea)
-            <textarea name="bulk_tasks_text" placeholder="Rondo 6v3|15|main_1|Conservar y progresar|Perfil corporal, apoyo y tercer hombre|Máximo 2 toques&#10;Finalización + transición|18|main_2|Finalizar rápido tras robo|Primer pase vertical y ataque de intervalo|Gol en &lt;10s vale doble" required></textarea>
-          </label>
-          <div style="display:flex; align-items:flex-end;">
-            <button type="submit" class="primary">Crear tareas en lote</button>
-          </div>
-        </form>
-      </section>
+      <div class="tab-panel {% if active_tab == 'import' %}is-active{% endif %}" data-tab="import">
+        <section class="panel">
+          <h2>Importar tarea desde PDF</h2>
+          <form method="post" enctype="multipart/form-data" class="grid">
+            {% csrf_token %}
+            <input type="hidden" name="planner_action" value="library_upload_pdf" />
+            <input type="hidden" name="planner_tab" value="import" />
+            <label>
+              Nombre tarea
+              <input type="text" name="pdf_task_title" maxlength="160" placeholder="Ej: Activacion coordinativa" required />
+            </label>
+            <label>
+              Bloque
+              <select name="pdf_task_block">
+                {% for value, label in task_blocks %}
+                <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>
+              Minutos
+              <input type="number" name="pdf_task_minutes" min="5" max="90" value="15" />
+            </label>
+            <label>
+              Objetivo (opcional)
+              <input type="text" name="pdf_task_objective" maxlength="180" placeholder="Objetivo breve" />
+            </label>
+            <label>
+              Archivos PDF
+              <input type="file" name="library_task_pdf" accept="application/pdf" multiple required />
+            </label>
+            <div style="display:flex; align-items:flex-end;">
+              <button type="submit" class="primary">Subir PDF a biblioteca</button>
+            </div>
+          </form>
+        </section>
+      </div>
 
-      <section class="panel">
-        <h2>Crear tarea dibujada (desde cero)</h2>
-        <p class="meta" style="margin-top:0;">Crea la tarea y abre directamente el lienzo para dibujar la representación.</p>
-        <form method="post" class="grid">
-          {% csrf_token %}
-          <input type="hidden" name="planner_action" value="create_draw_task" />
-          <label>
-            Sesión destino (opcional)
-            <select name="draw_target_session_id">
-              <option value="">Biblioteca automática</option>
-              {% for session in all_sessions %}
-              <option value="{{ session.id }}">{{ session.session_date|date:"d/m/Y" }} · {{ session.focus }}</option>
-              {% endfor %}
-            </select>
-          </label>
-          <label>
-            Bloque
-            <select name="draw_task_block">
-              {% for value, label in task_blocks %}
-              <option value="{{ value }}">{{ label }}</option>
-              {% endfor %}
-            </select>
-          </label>
-          <label>
-            Minutos
-            <input type="number" name="draw_task_minutes" min="5" max="90" value="15" />
-          </label>
-          <label style="grid-column:1/-1;">
-            Título tarea
-            <input type="text" name="draw_task_title" maxlength="160" placeholder="Ej: Salida de balón + finalización 6v4" required />
-          </label>
-          <label style="grid-column:1/-1;">
-            Objetivo (opcional)
-            <input type="text" name="draw_task_objective" maxlength="180" placeholder="Objetivo táctico de la tarea" />
-          </label>
-          <div style="display:flex; align-items:flex-end;">
-            <button type="submit" class="primary">Crear y dibujar</button>
-          </div>
-        </form>
-      </section>
+      <div class="tab-panel {% if active_tab == 'create' %}is-active{% endif %}" data-tab="create">
+        <section class="panel">
+          <h2>Crear tarea · Editor Pro</h2>
+          <p class="meta" style="margin-top:0;">Inspirado en los flujos más ágiles de TacticalPad/Sportplan: plantilla, metadatos de tarea y arranque visual listo para dibujar.</p>
+          <form method="post" class="editor-grid">
+            {% csrf_token %}
+            <input type="hidden" name="planner_action" value="create_draw_task" />
+            <input type="hidden" name="planner_tab" value="create" />
+            <div class="editor-box" style="grid-column:1/-1;">
+              <h3>Núcleo de tarea</h3>
+              <div class="grid">
+                <label>
+                  Sesión destino (opcional)
+                  <select name="draw_target_session_id">
+                    <option value="">Biblioteca automática</option>
+                    {% for session in all_sessions %}
+                    <option value="{{ session.id }}">{{ session.session_date|date:"d/m/Y" }} · {{ session.focus }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label>
+                  Plantilla táctica
+                  <select name="draw_task_template" id="draw-task-template">
+                    {% for item in task_templates %}
+                    <option value="{{ item.key }}">{{ item.label }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label>
+                  Título tarea
+                  <input type="text" name="draw_task_title" maxlength="160" placeholder="Ej: Salida de balón + finalización 6v4" required />
+                </label>
+                <label>
+                  Bloque
+                  <select name="draw_task_block">
+                    {% for value, label in task_blocks %}
+                    <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label>
+                  Minutos
+                  <input type="number" name="draw_task_minutes" min="5" max="90" value="15" />
+                </label>
+                <label>
+                  Objetivo
+                  <input type="text" name="draw_task_objective" maxlength="180" placeholder="Objetivo táctico de la tarea" />
+                </label>
+              </div>
+            </div>
 
+            <div class="editor-box">
+              <h3>Contexto y carga</h3>
+              <div class="grid">
+                <label>
+                  Superficie
+                  <select name="draw_task_surface">
+                    <option value="">-</option>
+                    {% for value, label in task_surface_choices %}
+                    <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label>
+                  Formato campo
+                  <select name="draw_task_pitch_format">
+                    <option value="">-</option>
+                    {% for value, label in task_pitch_choices %}
+                    <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label>
+                  Fase de juego
+                  <select name="draw_task_game_phase">
+                    <option value="">-</option>
+                    {% for value, label in task_phase_choices %}
+                    <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label>
+                  Metodología
+                  <select name="draw_task_methodology">
+                    <option value="">-</option>
+                    {% for value, label in task_methodology_choices %}
+                    <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label>
+                  Complejidad
+                  <select name="draw_task_complexity">
+                    <option value="">-</option>
+                    {% for value, label in task_complexity_choices %}
+                    <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label>
+                  Carga objetivo
+                  <input type="text" name="draw_task_load_target" placeholder="Ej: RPE 7" />
+                </label>
+              </div>
+            </div>
+
+            <div class="editor-box">
+              <h3>Diseño de tarea</h3>
+              <div class="grid">
+                <label>
+                  Espacio
+                  <input type="text" name="draw_task_space" placeholder="Ej: 40x30m" />
+                </label>
+                <label>
+                  Medidas
+                  <input type="text" name="draw_task_dimensions" placeholder="Ej: 2 zonas de 20x30m" />
+                </label>
+                <label>
+                  Organización
+                  <input type="text" name="draw_task_organization" placeholder="Ej: 6v6 + 3 comodines" />
+                </label>
+                <label>
+                  Distribución jugadores
+                  <input type="text" name="draw_task_players_distribution" placeholder="Ej: 2 líneas + 1 pivote" />
+                </label>
+                <label>
+                  Trabajo / pausa
+                  <input type="text" name="draw_task_work_rest" placeholder="Ej: 4x3' + 1' pausa" />
+                </label>
+                <label>
+                  Serie / repeticiones
+                  <div style="display:flex; gap:0.45rem;">
+                    <input type="text" name="draw_task_series" placeholder="Series" />
+                    <input type="text" name="draw_task_repetitions" placeholder="Reps" />
+                  </div>
+                </label>
+                <label style="grid-column:1/-1;">
+                  Arranque visual
+                  <select name="draw_task_pitch_preset">
+                    <option value="full_pitch">Campo completo</option>
+                    <option value="half_pitch">Medio campo</option>
+                    <option value="futsal">Pista futsal</option>
+                    <option value="blank">Lienzo en blanco</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+
+            <div class="editor-box" style="grid-column:1/-1;">
+              <h3>Constraints de tarea</h3>
+              <div class="option-grid">
+                {% for value, label in task_constraint_choices %}
+                <label class="check-pill"><input type="checkbox" name="draw_constraints" value="{{ value }}" /> {{ label }}</label>
+                {% endfor %}
+              </div>
+            </div>
+
+            <div class="editor-box" style="grid-column:1/-1;">
+              <h3>Ficha interior</h3>
+              <div class="grid">
+                <label style="grid-column:1/-1;">
+                  Descripción
+                  <textarea name="draw_task_description" placeholder="Secuencia de la tarea y objetivos conductuales"></textarea>
+                </label>
+                <label>
+                  Jugadores
+                  <input type="text" name="draw_task_players" placeholder="Ej: 14 + 2 porteros" />
+                </label>
+                <label>
+                  Materiales
+                  <input type="text" name="draw_task_materials" placeholder="Conos, petos, 2 mini porterías..." />
+                </label>
+                <label style="grid-column:1/-1;">
+                  Consignas
+                  <textarea name="draw_task_coaching_points" placeholder="- Perfil corporal&#10;- Pase de seguridad&#10;- Activación tras pérdida"></textarea>
+                </label>
+                <label style="grid-column:1/-1;">
+                  Reglas de confrontación
+                  <textarea name="draw_task_confrontation_rules" placeholder="- Máximo 2 toques&#10;- Gol en menos de 10'' vale doble"></textarea>
+                </label>
+              </div>
+            </div>
+
+            <div class="editor-box" style="grid-column:1/-1;">
+              <h3>Progresión y evaluación</h3>
+              <div class="grid">
+                <label style="grid-column:1/-1;">
+                  Progresión
+                  <textarea name="draw_task_progression" placeholder="- Reducir espacio&#10;- Limitar toques"></textarea>
+                </label>
+                <label style="grid-column:1/-1;">
+                  Regresión
+                  <textarea name="draw_task_regression" placeholder="- Añadir comodín&#10;- Sin límite de toques"></textarea>
+                </label>
+                <label style="grid-column:1/-1;">
+                  Criterio de éxito
+                  <textarea name="draw_task_success_criteria" placeholder="Ej: 60% secuencias con finalización en zona objetivo"></textarea>
+                </label>
+              </div>
+            </div>
+
+            <div style="display:flex; align-items:flex-end; gap:0.6rem;">
+              <button type="submit" class="primary">Crear y abrir editor gráfico</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="panel">
+          <h2>Carga masiva rápida (texto)</h2>
+          <p class="meta" style="margin-top:0;">
+            Formato: <strong>titulo|minutos|bloque|objetivo|consignas|reglas</strong>. También acepta <code>;</code> o tabulador.
+          </p>
+          <form method="post" class="grid">
+            {% csrf_token %}
+            <input type="hidden" name="planner_action" value="bulk_create_tasks" />
+            <input type="hidden" name="planner_tab" value="create" />
+            <label>
+              Sesión destino (opcional)
+              <select name="bulk_target_session_id">
+                <option value="">Biblioteca automática</option>
+                {% for session in all_sessions %}
+                <option value="{{ session.id }}">{{ session.session_date|date:"d/m/Y" }} · {{ session.focus }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>
+              Bloque por defecto
+              <select name="bulk_default_block">
+                {% for value, label in task_blocks %}
+                <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>
+              Minutos por defecto
+              <input type="number" name="bulk_default_minutes" min="5" max="90" value="15" />
+            </label>
+            <label style="grid-column:1/-1;">
+              Tareas (una por línea)
+              <textarea name="bulk_tasks_text" placeholder="Rondo 6v3|15|main_1|Conservar y progresar|Perfil corporal, apoyo y tercer hombre|Máximo 2 toques&#10;Finalización + transición|18|main_2|Finalizar rápido tras robo|Primer pase vertical y ataque de intervalo|Gol en &lt;10s vale doble" required></textarea>
+            </label>
+            <div style="display:flex; align-items:flex-end;">
+              <button type="submit" class="primary">Crear tareas en lote</button>
+            </div>
+          </form>
+        </section>
+      </div>
+
+      <div class="tab-panel {% if active_tab == 'library' %}is-active{% endif %}" data-tab="library">
       <section class="panel">
-        <h2>Biblioteca de PDFs Cargados</h2>
+        <h2>Biblioteca de tareas</h2>
         <div style="display:flex; gap:0.6rem; flex-wrap:wrap; margin:0 0 0.9rem;">
           <form method="post" style="margin:0;">
             {% csrf_token %}
             <input type="hidden" name="planner_action" value="analyze_all_library_pdfs" />
+            <input type="hidden" name="planner_tab" value="library" />
             <button type="submit" class="primary">Analizar todas las tareas</button>
           </form>
           <form method="post" style="margin:0;">
             {% csrf_token %}
             <input type="hidden" name="planner_action" value="split_existing_library_pdfs" />
+            <input type="hidden" name="planner_tab" value="library" />
             <button type="submit" class="secondary">Separar tareas de todos los PDFs</button>
           </form>
         </div>
@@ -324,17 +565,23 @@
               </div>
               {% endif %}
               <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
+                {% if t.task_pdf %}
                 <a class="button" href="{% url 'session-task-file' t.id %}" target="_blank" rel="noopener">Abrir PDF</a>
+                {% endif %}
                 <a class="button" href="{% url 'session-task-detail' t.id %}">Ver detalle</a>
+                {% if t.task_pdf %}
                 <form method="post" style="margin:0;">
                   {% csrf_token %}
                   <input type="hidden" name="planner_action" value="analyze_library_pdf" />
+                  <input type="hidden" name="planner_tab" value="library" />
                   <input type="hidden" name="task_id" value="{{ t.id }}" />
                   <button type="submit" class="secondary">Analizar y editar tarea</button>
                 </form>
+                {% endif %}
                 <form method="post" style="margin:0;" onsubmit="return confirm('¿Eliminar esta tarea de la biblioteca?');">
                   {% csrf_token %}
                   <input type="hidden" name="planner_action" value="delete_library_task" />
+                  <input type="hidden" name="planner_tab" value="library" />
                   <input type="hidden" name="task_id" value="{{ t.id }}" />
                   <button type="submit" class="danger">Eliminar</button>
                 </form>
@@ -346,6 +593,7 @@
                 <form method="post" class="grid" style="margin-top:0.55rem;">
                   {% csrf_token %}
                   <input type="hidden" name="planner_action" value="update_library_task" />
+                  <input type="hidden" name="planner_tab" value="library" />
                   <input type="hidden" name="task_id" value="{{ t.id }}" />
                   <label>
                     Título
@@ -385,7 +633,7 @@
           {% endfor %}
         </div>
         {% else %}
-        <p class="empty">No hay PDFs en biblioteca.</p>
+        <p class="empty">No hay tareas en biblioteca.</p>
         {% endif %}
       </section>
 
@@ -426,6 +674,7 @@
         <form method="post" class="grid" enctype="multipart/form-data">
           {% csrf_token %}
           <input type="hidden" name="planner_action" value="create_task_from_analysis" />
+          <input type="hidden" name="planner_tab" value="library" />
           <input type="hidden" name="source_task_id" value="{{ analysis_task.id }}" />
           <input type="hidden" name="task_raw_text" value="{{ analysis.raw_text }}" />
 
@@ -476,26 +725,74 @@
         </form>
       </section>
       {% endif %}
+      </div>
 
       {% endif %}
     </main>
+    {{ task_templates|json_script:"task-templates-data" }}
     <script>
       (() => {
         const cards = document.querySelectorAll('.task.task-clickable[data-detail-url]');
-        if (!cards.length) return;
         const isInteractiveTarget = (node) =>
           !!node.closest('a, button, input, select, textarea, form');
-        cards.forEach((card) => {
-          const detailUrl = card.getAttribute('data-detail-url');
-          if (!detailUrl) return;
-          card.addEventListener('click', (event) => {
-            if (isInteractiveTarget(event.target)) return;
-            window.location.href = detailUrl;
+        if (cards.length) {
+          cards.forEach((card) => {
+            const detailUrl = card.getAttribute('data-detail-url');
+            if (!detailUrl) return;
+            card.addEventListener('click', (event) => {
+              if (isInteractiveTarget(event.target)) return;
+              window.location.href = detailUrl;
+            });
+            card.addEventListener('keydown', (event) => {
+              if (event.key !== 'Enter' && event.key !== ' ') return;
+              event.preventDefault();
+              window.location.href = detailUrl;
+            });
           });
-          card.addEventListener('keydown', (event) => {
-            if (event.key !== 'Enter' && event.key !== ' ') return;
-            event.preventDefault();
-            window.location.href = detailUrl;
+        }
+
+        const templateSelect = document.getElementById('draw-task-template');
+        const templatesNode = document.getElementById('task-templates-data');
+        if (!templateSelect || !templatesNode) return;
+        let templateList = [];
+        try {
+          templateList = JSON.parse(templatesNode.textContent || '[]');
+        } catch (error) {
+          templateList = [];
+        }
+        const templateMap = {};
+        templateList.forEach((item) => {
+          const key = String(item.key || '').trim();
+          if (!key) return;
+          templateMap[key] = item.values || {};
+        });
+        const fieldMap = {
+          task_title: 'draw_task_title',
+          task_objective: 'draw_task_objective',
+          task_space: 'draw_task_space',
+          task_organization: 'draw_task_organization',
+          task_players_distribution: 'draw_task_players_distribution',
+          task_load_target: 'draw_task_load_target',
+          task_work_rest: 'draw_task_work_rest',
+          task_series: 'draw_task_series',
+          task_repetitions: 'draw_task_repetitions',
+          task_coaching_points: 'draw_task_coaching_points',
+          task_confrontation_rules: 'draw_task_confrontation_rules',
+          task_progression: 'draw_task_progression',
+          task_regression: 'draw_task_regression',
+          task_success_criteria: 'draw_task_success_criteria',
+        };
+        templateSelect.addEventListener('change', () => {
+          const selectedKey = String(templateSelect.value || '').trim();
+          const values = templateMap[selectedKey] || {};
+          Object.entries(fieldMap).forEach(([sourceKey, fieldName]) => {
+            const field = document.querySelector(`[name="${fieldName}"]`);
+            if (!field) return;
+            const current = String(field.value || '').trim();
+            const candidate = String(values[sourceKey] || '').trim();
+            if (!current && candidate) {
+              field.value = candidate;
+            }
           });
         });
       })();

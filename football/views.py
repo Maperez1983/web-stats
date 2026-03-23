@@ -4536,6 +4536,168 @@ def _decode_canvas_data_url(data_url):
     return raw_bytes, extension
 
 
+def _sessions_tab_from_action(action):
+    action_key = str(action or '').strip()
+    if action_key == 'library_upload_pdf':
+        return 'import'
+    if action_key in {'bulk_create_tasks', 'create_draw_task'}:
+        return 'create'
+    if action_key in {
+        'analyze_all_library_pdfs',
+        'split_existing_library_pdfs',
+        'analyze_library_pdf',
+        'delete_library_task',
+        'update_library_task',
+        'create_task_from_analysis',
+    }:
+        return 'library'
+    return 'library'
+
+
+def _starter_canvas_state(preset):
+    preset_key = str(preset or 'full_pitch').strip()
+    if preset_key == 'blank':
+        return {'version': '5.3.0', 'objects': []}
+
+    background = {
+        'type': 'rect',
+        'left': 0,
+        'top': 0,
+        'width': 1280,
+        'height': 720,
+        'fill': '#0f9f36',
+        'stroke': '',
+        'strokeWidth': 0,
+        'selectable': False,
+        'evented': False,
+        'excludeFromExport': False,
+    }
+    field_border = {
+        'type': 'rect',
+        'left': 60,
+        'top': 40,
+        'width': 1160,
+        'height': 640,
+        'fill': '',
+        'stroke': 'rgba(255,255,255,0.8)',
+        'strokeWidth': 4,
+        'selectable': False,
+        'evented': False,
+        'excludeFromExport': False,
+    }
+    objects = [background, field_border]
+
+    if preset_key == 'half_pitch':
+        objects.extend(
+            [
+                {
+                    'type': 'rect',
+                    'left': 60,
+                    'top': 40,
+                    'width': 580,
+                    'height': 640,
+                    'fill': '',
+                    'stroke': 'rgba(255,255,255,0.6)',
+                    'strokeWidth': 3,
+                    'selectable': False,
+                    'evented': False,
+                },
+                {
+                    'type': 'circle',
+                    'left': 640 - 90,
+                    'top': 360 - 90,
+                    'radius': 90,
+                    'fill': '',
+                    'stroke': 'rgba(255,255,255,0.55)',
+                    'strokeWidth': 3,
+                    'selectable': False,
+                    'evented': False,
+                },
+            ]
+        )
+    elif preset_key == 'futsal':
+        objects.extend(
+            [
+                {
+                    'type': 'rect',
+                    'left': 220,
+                    'top': 120,
+                    'width': 840,
+                    'height': 480,
+                    'fill': '',
+                    'stroke': 'rgba(255,255,255,0.78)',
+                    'strokeWidth': 3,
+                    'selectable': False,
+                    'evented': False,
+                },
+                {
+                    'type': 'line',
+                    'x1': 640,
+                    'y1': 120,
+                    'x2': 640,
+                    'y2': 600,
+                    'stroke': 'rgba(255,255,255,0.7)',
+                    'strokeWidth': 3,
+                    'selectable': False,
+                    'evented': False,
+                },
+            ]
+        )
+    else:
+        objects.extend(
+            [
+                {
+                    'type': 'line',
+                    'x1': 640,
+                    'y1': 40,
+                    'x2': 640,
+                    'y2': 680,
+                    'stroke': 'rgba(255,255,255,0.75)',
+                    'strokeWidth': 3,
+                    'selectable': False,
+                    'evented': False,
+                },
+                {
+                    'type': 'circle',
+                    'left': 640 - 90,
+                    'top': 360 - 90,
+                    'radius': 90,
+                    'fill': '',
+                    'stroke': 'rgba(255,255,255,0.55)',
+                    'strokeWidth': 3,
+                    'selectable': False,
+                    'evented': False,
+                },
+                {
+                    'type': 'rect',
+                    'left': 60,
+                    'top': 220,
+                    'width': 170,
+                    'height': 280,
+                    'fill': '',
+                    'stroke': 'rgba(255,255,255,0.7)',
+                    'strokeWidth': 3,
+                    'selectable': False,
+                    'evented': False,
+                },
+                {
+                    'type': 'rect',
+                    'left': 1050,
+                    'top': 220,
+                    'width': 170,
+                    'height': 280,
+                    'fill': '',
+                    'stroke': 'rgba(255,255,255,0.7)',
+                    'strokeWidth': 3,
+                    'selectable': False,
+                    'evented': False,
+                },
+            ]
+        )
+
+    return {'version': '5.3.0', 'objects': objects}
+
+
 def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones'):
     if not _can_access_sessions_workspace(request.user):
         return HttpResponse('No tienes permisos para acceder a sesiones.', status=403)
@@ -4547,6 +4709,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     error = ''
     analysis = None
     analysis_task = None
+    active_tab = 'library'
 
     planner_tables_ready = True
     try:
@@ -4567,6 +4730,11 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
 
     if request.method == 'POST' and planner_tables_ready:
         planner_action = (request.POST.get('planner_action') or '').strip()
+        posted_tab = (request.POST.get('planner_tab') or '').strip()
+        if posted_tab in {'import', 'create', 'library'}:
+            active_tab = posted_tab
+        else:
+            active_tab = _sessions_tab_from_action(planner_action)
         try:
             if planner_action == 'library_upload_pdf':
                 title = (request.POST.get('pdf_task_title') or '').strip()
@@ -4783,11 +4951,89 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 block = (request.POST.get('draw_task_block') or SessionTask.BLOCK_MAIN_1).strip()
                 minutes = _parse_int(request.POST.get('draw_task_minutes')) or 15
                 objective = (request.POST.get('draw_task_objective') or '').strip()
+                coaching_points = (request.POST.get('draw_task_coaching_points') or '').strip()
+                confrontation_rules = (request.POST.get('draw_task_confrontation_rules') or '').strip()
+                description = (request.POST.get('draw_task_description') or '').strip()
+                players = (request.POST.get('draw_task_players') or '').strip()
+                dimensions = (request.POST.get('draw_task_dimensions') or '').strip()
+                space = (request.POST.get('draw_task_space') or '').strip()
+                materials = (request.POST.get('draw_task_materials') or '').strip()
+                organization = (request.POST.get('draw_task_organization') or '').strip()
+                work_rest = (request.POST.get('draw_task_work_rest') or '').strip()
+                load_target = (request.POST.get('draw_task_load_target') or '').strip()
+                players_distribution = (request.POST.get('draw_task_players_distribution') or '').strip()
+                progression = (request.POST.get('draw_task_progression') or '').strip()
+                regression = (request.POST.get('draw_task_regression') or '').strip()
+                success_criteria = (request.POST.get('draw_task_success_criteria') or '').strip()
+                selected_surface = (request.POST.get('draw_task_surface') or '').strip()
+                selected_pitch_format = (request.POST.get('draw_task_pitch_format') or '').strip()
+                selected_phase = (request.POST.get('draw_task_game_phase') or '').strip()
+                selected_methodology = (request.POST.get('draw_task_methodology') or '').strip()
+                selected_complexity = (request.POST.get('draw_task_complexity') or '').strip()
+                template_key = (request.POST.get('draw_task_template') or 'none').strip()
+                pitch_preset = (request.POST.get('draw_task_pitch_preset') or 'full_pitch').strip()
+                constraints = [str(v).strip() for v in request.POST.getlist('draw_constraints') if str(v).strip()]
+                series = (request.POST.get('draw_task_series') or '').strip()
+                repetitions = (request.POST.get('draw_task_repetitions') or '').strip()
+
+                template_map = {
+                    str(item.get('key') or ''): dict(item.get('values') or {})
+                    for item in TASK_TEMPLATE_LIBRARY
+                }
+                template_values = template_map.get(template_key) or {}
+                if not title:
+                    title = str(template_values.get('task_title') or '').strip()
+                if not objective:
+                    objective = str(template_values.get('task_objective') or '').strip()
+                if not coaching_points:
+                    coaching_points = str(template_values.get('task_coaching_points') or '').strip()
+                if not confrontation_rules:
+                    confrontation_rules = str(template_values.get('task_confrontation_rules') or '').strip()
+                if not space:
+                    space = str(template_values.get('task_space') or '').strip()
+                if not organization:
+                    organization = str(template_values.get('task_organization') or '').strip()
+                if not players_distribution:
+                    players_distribution = str(template_values.get('task_players_distribution') or '').strip()
+                if not load_target:
+                    load_target = str(template_values.get('task_load_target') or '').strip()
+                if not work_rest:
+                    work_rest = str(template_values.get('task_work_rest') or '').strip()
+                if not series:
+                    series = str(template_values.get('task_series') or '').strip()
+                if not repetitions:
+                    repetitions = str(template_values.get('task_repetitions') or '').strip()
+                if not progression:
+                    progression = str(template_values.get('task_progression') or '').strip()
+                if not regression:
+                    regression = str(template_values.get('task_regression') or '').strip()
+                if not success_criteria:
+                    success_criteria = str(template_values.get('task_success_criteria') or '').strip()
+
                 if not title:
                     raise ValueError('Indica un título para la tarea dibujada.')
                 if block not in {choice[0] for choice in SessionTask.BLOCK_CHOICES}:
                     block = SessionTask.BLOCK_MAIN_1
                 minutes = max(5, min(minutes, 90))
+                valid_surfaces = {key for key, _ in TASK_SURFACE_CHOICES}
+                valid_pitch_formats = {key for key, _ in TASK_PITCH_FORMAT_CHOICES}
+                valid_phases = {key for key, _ in TASK_GAME_PHASE_CHOICES}
+                valid_methodologies = {key for key, _ in TASK_METHODOLOGY_CHOICES}
+                valid_complexities = {key for key, _ in TASK_COMPLEXITY_CHOICES}
+                valid_constraints = {key for key, _ in TASK_CONSTRAINT_CHOICES}
+                constraints = [item for item in constraints if item in valid_constraints]
+                if selected_surface not in valid_surfaces:
+                    selected_surface = ''
+                if selected_pitch_format not in valid_pitch_formats:
+                    selected_pitch_format = ''
+                if selected_phase not in valid_phases:
+                    selected_phase = ''
+                if selected_methodology not in valid_methodologies:
+                    selected_methodology = ''
+                if selected_complexity not in valid_complexities:
+                    selected_complexity = ''
+                if pitch_preset not in {'full_pitch', 'half_pitch', 'futsal', 'blank'}:
+                    pitch_preset = 'full_pitch'
                 target_session = None
                 if target_session_id:
                     target_session = (
@@ -4804,12 +5050,42 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     block=block,
                     duration_minutes=minutes,
                     objective=objective[:180],
+                    coaching_points=coaching_points,
+                    confrontation_rules=confrontation_rules,
                     tactical_layout={
                         'meta': {
                             'scope': scope_key,
                             'source': 'manual-draw',
+                            'template_key': template_key,
+                            'surface': selected_surface,
+                            'pitch_format': selected_pitch_format,
+                            'game_phase': selected_phase,
+                            'methodology': selected_methodology,
+                            'complexity': selected_complexity,
+                            'space': space,
+                            'organization': organization,
+                            'players_distribution': players_distribution,
+                            'load_target': load_target,
+                            'work_rest': work_rest,
+                            'series': series,
+                            'repetitions': repetitions,
+                            'progression': progression,
+                            'regression': regression,
+                            'success_criteria': success_criteria,
+                            'constraints': constraints,
                             'graphic_editor': {
-                                'canvas_state': {'version': '5.3.0', 'objects': []},
+                                'canvas_state': _starter_canvas_state(pitch_preset),
+                                'canvas_width': 1280,
+                                'canvas_height': 720,
+                            },
+                            'analysis': {
+                                'task_sheet': {
+                                    'description': description,
+                                    'players': players,
+                                    'space': space,
+                                    'dimensions': dimensions,
+                                    'materials': materials,
+                                }
                             },
                         }
                     },
@@ -5125,6 +5401,10 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             error = str(exc)
         except Exception:
             error = 'No se pudo completar la operación. Revisa los datos e inténtalo de nuevo.'
+    elif request.method == 'GET':
+        requested_tab = (request.GET.get('tab') or '').strip()
+        if requested_tab in {'import', 'create', 'library'}:
+            active_tab = requested_tab
 
     analyze_task_id = _parse_int(request.GET.get('analyze'))
     if planner_tables_ready and analyze_task_id and not analysis:
@@ -5147,8 +5427,8 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     task_library_raw = list(
         SessionTask.objects
         .select_related('session__microcycle')
-        .filter(session__microcycle__team=primary_team, task_pdf__isnull=False)
-        .order_by('-id')[:150]
+        .filter(session__microcycle__team=primary_team)
+        .order_by('-id')[:300]
     ) if planner_tables_ready else []
     task_library = [item for item in task_library_raw if _task_scope_for_item(item) == scope_key]
     context_groups = defaultdict(list)
@@ -5198,6 +5478,14 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             'scope_title': scope_title,
             'context_group_rows': context_group_rows,
             'objective_group_rows': objective_group_rows,
+            'active_tab': active_tab,
+            'task_templates': TASK_TEMPLATE_LIBRARY,
+            'task_surface_choices': TASK_SURFACE_CHOICES,
+            'task_pitch_choices': TASK_PITCH_FORMAT_CHOICES,
+            'task_phase_choices': TASK_GAME_PHASE_CHOICES,
+            'task_methodology_choices': TASK_METHODOLOGY_CHOICES,
+            'task_complexity_choices': TASK_COMPLEXITY_CHOICES,
+            'task_constraint_choices': TASK_CONSTRAINT_CHOICES,
         },
     )
 
