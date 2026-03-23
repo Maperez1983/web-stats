@@ -356,7 +356,7 @@
         padding: 0.45rem 0.7rem 4.6rem;
       }
       .create-board-shell.is-fullscreen .tpad-stage {
-        height: calc(100vh - 74px);
+        height: calc(100vh - 146px);
         padding: 0.85rem 1.1rem 0.7rem;
       }
       .create-board-shell.is-fullscreen .create-board-layout {
@@ -395,6 +395,59 @@
         right: 0.8rem;
         top: 50%;
         transform: translateY(-50%);
+      }
+      .tpad-watermark {
+        position: absolute;
+        left: 50%;
+        top: 45%;
+        transform: translate(-50%, -50%);
+        font-size: 8rem;
+        font-weight: 800;
+        color: rgba(15, 23, 42, 0.12);
+        letter-spacing: 0.08em;
+        pointer-events: none;
+        user-select: none;
+        z-index: 1;
+      }
+      .tpad-team-chip {
+        position: absolute;
+        top: 0.9rem;
+        z-index: 6;
+        width: 54px;
+        height: 82px;
+        border-radius: 12px;
+        background: rgba(15, 23, 42, 0.72);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: #f8fafc;
+        display: grid;
+        place-items: center;
+        font-size: 0.62rem;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+      .tpad-team-chip::before {
+        content: attr(data-team);
+        width: 32px;
+        height: 32px;
+        border-radius: 999px;
+        display: grid;
+        place-items: center;
+        font-weight: 900;
+        font-size: 0.82rem;
+        border: 2px solid rgba(255, 255, 255, 0.9);
+        margin-top: 0.2rem;
+      }
+      .tpad-team-chip.left {
+        left: 1rem;
+      }
+      .tpad-team-chip.left::before {
+        background: linear-gradient(135deg, #0284c7, #0369a1);
+      }
+      .tpad-team-chip.right {
+        right: 1rem;
+      }
+      .tpad-team-chip.right::before {
+        background: linear-gradient(135deg, #eab308, #d97706);
       }
       .create-board-shell .create-resource,
       .create-board-shell .create-layers {
@@ -441,6 +494,58 @@
       }
       .tpad-dock-btn.is-active {
         background: rgba(37, 99, 235, 0.35);
+      }
+      .tpad-editbar {
+        position: absolute;
+        left: 50%;
+        bottom: 64px;
+        transform: translateX(-50%);
+        min-width: min(980px, calc(100% - 26px));
+        display: none;
+        align-items: center;
+        justify-content: center;
+        gap: 0.3rem;
+        padding: 0.38rem 0.45rem;
+        border-radius: 12px 12px 0 0;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-bottom: none;
+        background: rgba(2, 6, 23, 0.9);
+        z-index: 8;
+      }
+      .create-board-shell.tools-open .tpad-editbar {
+        display: flex;
+      }
+      .tpad-tool-btn {
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.05);
+        color: #e2e8f0;
+        min-width: 46px;
+        height: 40px;
+        padding: 0.2rem 0.35rem;
+        display: grid;
+        place-items: center;
+        gap: 0.08rem;
+        cursor: pointer;
+      }
+      .tpad-tool-btn .icon {
+        font-size: 1.1rem;
+        line-height: 1;
+      }
+      .tpad-tool-btn .txt {
+        font-size: 0.56rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .tpad-tool-btn.is-active {
+        border-color: rgba(59, 130, 246, 0.92);
+        background: rgba(37, 99, 235, 0.38);
+      }
+      .tpad-tool-divider {
+        width: 1px;
+        height: 28px;
+        background: rgba(255, 255, 255, 0.2);
+        margin: 0 0.12rem;
       }
       .tpad-modal-backdrop {
         position: absolute;
@@ -507,6 +612,19 @@
         background: linear-gradient(90deg, #3f7f34 0 20%, #4b8d3a 20% 40%, #3f7f34 40% 60%, #4b8d3a 60% 80%, #3f7f34 80% 100%);
         border: 1px solid rgba(255, 255, 255, 0.22);
       }
+      .tpad-field-card[data-field-preset="half_pitch"] .preview {
+        background:
+          linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.14)) center / 2px 100% no-repeat,
+          linear-gradient(90deg, #3f7f34 0 20%, #4b8d3a 20% 40%, #3f7f34 40% 60%, #4b8d3a 60% 80%, #3f7f34 80% 100%);
+      }
+      .tpad-field-card[data-field-preset="futsal"] .preview {
+        background:
+          linear-gradient(0deg, rgba(240, 232, 205, 0.62), rgba(240, 232, 205, 0.62)),
+          repeating-linear-gradient(90deg, rgba(255,255,255,0.08) 0 8px, rgba(0,0,0,0.05) 8px 16px);
+      }
+      .tpad-field-card[data-field-preset="blank"] .preview {
+        background: linear-gradient(135deg, #334155, #0f172a);
+      }
       .tpad-field-card.is-active {
         border-color: rgba(59, 130, 246, 0.84);
         background: rgba(37, 99, 235, 0.24);
@@ -516,6 +634,12 @@
         flex-wrap: wrap;
         gap: 0.55rem;
         padding: 0.65rem 0.95rem 1rem;
+      }
+      .tpad-modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.5rem;
+        padding: 0.2rem 0.95rem 0.95rem;
       }
       .tpad-chip {
         border: 1px solid rgba(255, 255, 255, 0.2);
@@ -541,9 +665,19 @@
           width: 48px;
           height: 82px;
         }
+        .tpad-team-chip {
+          top: 0.75rem;
+        }
         .tpad-dock-btn {
           min-width: 82px;
           font-size: 0.62rem;
+        }
+        .tpad-editbar {
+          min-width: calc(100% - 14px);
+          gap: 0.2rem;
+          overflow-x: auto;
+          justify-content: flex-start;
+          padding: 0.3rem;
         }
       }
       @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
@@ -756,6 +890,9 @@
                 </label>
                 <div style="grid-column:1/-1;" class="create-board">
                   <div class="create-board-shell tools-open" id="create-board-shell">
+                    <div class="tpad-watermark">02</div>
+                    <div class="tpad-team-chip left" data-team="T"><span>Local</span></div>
+                    <div class="tpad-team-chip right" data-team="J"><span>Visit.</span></div>
                     <div class="create-board-toolbar" id="create-board-toolbar" style="display:none;">
                       <button type="button" class="secondary" id="create-board-draw-btn">Dibujar</button>
                       <button type="button" class="secondary" id="create-board-select-btn">Seleccionar</button>
@@ -827,12 +964,29 @@
                     </div>
                     <button type="button" class="tpad-side-btn left" id="tpad-menu-btn"><span class="icon">⌂</span><span>Menu</span></button>
                     <button type="button" class="tpad-side-btn right" id="tpad-tools-btn"><span class="icon">✎</span><span>Herr</span></button>
+                    <div class="tpad-editbar" id="tpad-editbar">
+                      <button type="button" class="tpad-tool-btn is-active" id="tpad-tool-select"><span class="icon">✥</span><span class="txt">Sel</span></button>
+                      <button type="button" class="tpad-tool-btn" id="tpad-tool-draw"><span class="icon">〰</span><span class="txt">Draw</span></button>
+                      <button type="button" class="tpad-tool-btn" id="tpad-tool-player"><span class="icon">⚉</span><span class="txt">Player</span></button>
+                      <button type="button" class="tpad-tool-btn" id="tpad-tool-zone"><span class="icon">▭</span><span class="txt">Zona</span></button>
+                      <button type="button" class="tpad-tool-btn" id="tpad-tool-arrow"><span class="icon">➜</span><span class="txt">Arrow</span></button>
+                      <button type="button" class="tpad-tool-btn" id="tpad-tool-line"><span class="icon">━</span><span class="txt">Linea</span></button>
+                      <div class="tpad-tool-divider"></div>
+                      <button type="button" class="tpad-tool-btn" id="tpad-tool-color-red"><span class="icon">●</span><span class="txt">Rojo</span></button>
+                      <button type="button" class="tpad-tool-btn" id="tpad-tool-color-blue"><span class="icon">●</span><span class="txt">Azul</span></button>
+                      <button type="button" class="tpad-tool-btn" id="tpad-tool-color-white"><span class="icon">●</span><span class="txt">Blanco</span></button>
+                      <div class="tpad-tool-divider"></div>
+                      <button type="button" class="tpad-tool-btn" id="tpad-tool-text"><span class="icon">T</span><span class="txt">Texto</span></button>
+                      <button type="button" class="tpad-tool-btn" id="tpad-tool-undo"><span class="icon">↶</span><span class="txt">Undo</span></button>
+                      <button type="button" class="tpad-tool-btn" id="tpad-tool-delete"><span class="icon">⌫</span><span class="txt">Del</span></button>
+                    </div>
                     <div class="tpad-dock">
                       <button type="button" class="tpad-dock-btn" id="tpad-project-btn"><span class="icon">📁</span><span>Proyecto</span></button>
                       <button type="button" class="tpad-dock-btn" id="tpad-save-btn"><span class="icon">💾</span><span>Guardar</span></button>
                       <button type="button" class="tpad-dock-btn" id="tpad-share-btn"><span class="icon">⇪</span><span>Compartir</span></button>
                       <button type="button" class="tpad-dock-btn" id="tpad-board-btn"><span class="icon">✎</span><span>Pizarra</span></button>
                       <button type="button" class="tpad-dock-btn" id="tpad-field-btn"><span class="icon">▦</span><span>Campo</span></button>
+                      <button type="button" class="tpad-dock-btn" id="tpad-3d-btn"><span class="icon">△</span><span>3D</span></button>
                       <button type="button" class="tpad-dock-btn" id="tpad-fullscreen-btn"><span class="icon">⤢</span><span>Pantalla</span></button>
                     </div>
                     <div class="tpad-modal-backdrop" id="tpad-field-modal">
@@ -869,6 +1023,11 @@
                           <button type="button" class="tpad-chip is-active" data-field-camera="full">Cámara completa</button>
                           <button type="button" class="tpad-chip" data-field-camera="left">Media izquierda</button>
                           <button type="button" class="tpad-chip" data-field-camera="right">Media derecha</button>
+                          <button type="button" class="tpad-chip" data-field-camera="stadium">Estadio 3D</button>
+                        </div>
+                        <div class="tpad-modal-actions">
+                          <button type="button" class="secondary" id="tpad-field-cancel">Cancelar</button>
+                          <button type="button" class="secondary" id="tpad-field-apply">Listo</button>
                         </div>
                       </div>
                     </div>
@@ -1216,12 +1375,28 @@
         const dockSaveBtn = document.getElementById('tpad-save-btn');
         const dockShareBtn = document.getElementById('tpad-share-btn');
         const dockProjectBtn = document.getElementById('tpad-project-btn');
+        const dock3dBtn = document.getElementById('tpad-3d-btn');
         const dockFullBtn = document.getElementById('tpad-fullscreen-btn');
         const fieldModal = document.getElementById('tpad-field-modal');
         const fieldCloseBtn = document.getElementById('tpad-field-close');
+        const fieldCancelBtn = document.getElementById('tpad-field-cancel');
+        const fieldApplyBtn = document.getElementById('tpad-field-apply');
         const fieldPresetCards = document.querySelectorAll('[data-field-preset]');
         const fieldThemeChips = document.querySelectorAll('[data-field-theme]');
         const fieldCameraChips = document.querySelectorAll('[data-field-camera]');
+        const toolButtons = document.querySelectorAll('.tpad-tool-btn');
+        const toolSelectBtn = document.getElementById('tpad-tool-select');
+        const toolDrawBtn = document.getElementById('tpad-tool-draw');
+        const toolPlayerBtn = document.getElementById('tpad-tool-player');
+        const toolZoneBtn = document.getElementById('tpad-tool-zone');
+        const toolArrowBtn = document.getElementById('tpad-tool-arrow');
+        const toolLineBtn = document.getElementById('tpad-tool-line');
+        const toolColorRedBtn = document.getElementById('tpad-tool-color-red');
+        const toolColorBlueBtn = document.getElementById('tpad-tool-color-blue');
+        const toolColorWhiteBtn = document.getElementById('tpad-tool-color-white');
+        const toolTextBtn = document.getElementById('tpad-tool-text');
+        const toolUndoBtn = document.getElementById('tpad-tool-undo');
+        const toolDeleteBtn = document.getElementById('tpad-tool-delete');
         const canvasWrap = canvasEl.closest('.create-board-wrap');
         const gridSize = 20;
         let snapEnabled = true;
@@ -1272,6 +1447,22 @@
           if (!fieldModal) return;
           fieldModal.classList.toggle('is-open', !!open);
           if (dockFieldBtn) dockFieldBtn.classList.toggle('is-active', !!open);
+        };
+        const setActiveTool = (targetBtn) => {
+          toolButtons.forEach((btn) => {
+            if (
+              btn === toolColorRedBtn ||
+              btn === toolColorBlueBtn ||
+              btn === toolColorWhiteBtn ||
+              btn === toolUndoBtn ||
+              btn === toolDeleteBtn
+            ) return;
+            btn.classList.toggle('is-active', btn === targetBtn);
+          });
+        };
+        const setFieldCameraActive = (camera) => {
+          fieldCameraChips.forEach((node) => node.classList.toggle('is-active', String(node.dataset.fieldCamera || '') === camera));
+          if (dock3dBtn) dock3dBtn.classList.toggle('is-active', camera === 'stadium');
         };
         const canvas = new fabric.Canvas(canvasEl, {
           isDrawingMode: true,
@@ -1407,6 +1598,10 @@
           let fieldTop = 0;
           let fieldW = w;
           let fieldH = h;
+          if (cameraKey === 'stadium') {
+            fieldTop = Math.round(h * 0.12);
+            fieldH = Math.round(h * 0.82);
+          }
           if (cameraKey === 'left') {
             fieldW = Math.round(w * 0.62);
           } else if (cameraKey === 'right') {
@@ -1458,6 +1653,39 @@
             refreshLayerList();
             setStatus('Lienzo en blanco.');
             return;
+          }
+          if (cameraKey === 'stadium') {
+            const stands = [
+              new fabric.Polygon(
+                [
+                  { x: 0, y: 0 },
+                  { x: w, y: 0 },
+                  { x: w, y: h * 0.12 },
+                  { x: 0, y: h * 0.2 },
+                ],
+                { ...common, fill: '#334155', opacity: 0.85 }
+              ),
+              new fabric.Polygon(
+                [
+                  { x: 0, y: h * 0.22 },
+                  { x: w * 0.14, y: h * 0.16 },
+                  { x: w * 0.2, y: h * 0.58 },
+                  { x: 0, y: h * 0.72 },
+                ],
+                { ...common, fill: '#475569', opacity: 0.64 }
+              ),
+              new fabric.Polygon(
+                [
+                  { x: w, y: h * 0.18 },
+                  { x: w * 0.86, y: h * 0.15 },
+                  { x: w * 0.8, y: h * 0.58 },
+                  { x: w, y: h * 0.72 },
+                ],
+                { ...common, fill: '#475569', opacity: 0.64 }
+              ),
+            ];
+            stands.forEach((shape) => canvas.add(shape));
+            marginY = Math.round(h * 0.12);
           }
           canvas.add(grass);
           stripes.forEach((stripe) => canvas.add(stripe));
@@ -1528,6 +1756,7 @@
           pushHistory();
           refreshLayerList();
           setStatus('Preset aplicado en pizarra táctica.');
+          setFieldCameraActive(currentFieldCamera);
         };
 
         const setMode = (drawMode) => {
@@ -1539,6 +1768,7 @@
           });
           canvas.renderAll();
           setStatus(drawMode ? 'Modo dibujo activo.' : 'Modo selección activo.');
+          setActiveTool(drawMode ? toolDrawBtn : toolSelectBtn);
         };
         const addResource = (kind) => {
           const baseLeft = 180 + Math.floor(Math.random() * 180);
@@ -1624,6 +1854,37 @@
 
         document.getElementById('create-board-draw-btn')?.addEventListener('click', () => setMode(true));
         document.getElementById('create-board-select-btn')?.addEventListener('click', () => setMode(false));
+        toolSelectBtn?.addEventListener('click', () => setMode(false));
+        toolDrawBtn?.addEventListener('click', () => setMode(true));
+        toolPlayerBtn?.addEventListener('click', () => addResource('player'));
+        toolZoneBtn?.addEventListener('click', () => addResource('zone'));
+        toolArrowBtn?.addEventListener('click', () => addResource('arrow'));
+        toolLineBtn?.addEventListener('click', () => addResource('line'));
+        toolTextBtn?.addEventListener('click', () => {
+          const text = new fabric.IText('Texto', { left: 210, top: 170, fontSize: 22, fill: '#ffffff', fontWeight: '600' });
+          canvas.add(text);
+          canvas.setActiveObject(text);
+          canvas.renderAll();
+          pushHistory();
+          refreshLayerList();
+        });
+        toolUndoBtn?.addEventListener('click', () => document.getElementById('create-board-undo-btn')?.click());
+        toolDeleteBtn?.addEventListener('click', () => document.getElementById('create-board-delete-btn')?.click());
+        toolColorRedBtn?.addEventListener('click', () => {
+          if (colorInput) colorInput.value = '#e11d48';
+          canvas.freeDrawingBrush.color = '#e11d48';
+          setStatus('Color rojo aplicado.');
+        });
+        toolColorBlueBtn?.addEventListener('click', () => {
+          if (colorInput) colorInput.value = '#2563eb';
+          canvas.freeDrawingBrush.color = '#2563eb';
+          setStatus('Color azul aplicado.');
+        });
+        toolColorWhiteBtn?.addEventListener('click', () => {
+          if (colorInput) colorInput.value = '#f8fafc';
+          canvas.freeDrawingBrush.color = '#f8fafc';
+          setStatus('Color blanco aplicado.');
+        });
         snapBtn?.addEventListener('click', () => {
           snapEnabled = !snapEnabled;
           snapBtn.textContent = snapEnabled ? 'Snap ON' : 'Snap OFF';
@@ -1729,6 +1990,12 @@
         dockFieldBtn?.addEventListener('click', () => {
           openFieldModal(true);
         });
+        dock3dBtn?.addEventListener('click', () => {
+          currentFieldCamera = 'stadium';
+          setFieldCameraActive('stadium');
+          applyFieldBackground(currentFieldPreset, { theme: currentFieldTheme, camera: 'stadium' });
+          setStatus('Vista estadio 3D aplicada.');
+        });
         dockSaveBtn?.addEventListener('click', () => {
           createForm.requestSubmit();
         });
@@ -1753,6 +2020,8 @@
           setFullscreen(willEnable);
         });
         fieldCloseBtn?.addEventListener('click', () => openFieldModal(false));
+        fieldCancelBtn?.addEventListener('click', () => openFieldModal(false));
+        fieldApplyBtn?.addEventListener('click', () => openFieldModal(false));
         fieldModal?.addEventListener('click', (event) => {
           if (event.target === fieldModal) openFieldModal(false);
         });
@@ -1777,8 +2046,7 @@
         fieldCameraChips.forEach((chip) => {
           chip.addEventListener('click', () => {
             const camera = String(chip.dataset.fieldCamera || 'full');
-            fieldCameraChips.forEach((node) => node.classList.remove('is-active'));
-            chip.classList.add('is-active');
+            setFieldCameraActive(camera);
             applyFieldBackground(currentFieldPreset, { theme: currentFieldTheme, camera });
           });
         });
@@ -1845,6 +2113,7 @@
           }, 180);
         });
         applyFieldBackground(presetSelect?.value || 'full_pitch');
+        setMode(false);
         refreshLayerList();
       })();
     </script>
