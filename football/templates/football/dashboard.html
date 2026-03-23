@@ -404,6 +404,11 @@
           <div>
             <h1>CRM · Cuerpo técnico</h1>
             <p class="product-kicker" style="margin-top:0.2rem;">Modo actual <span class="product-chip role">{{ current_role_label }}</span></p>
+            {% if can_access_admin %}
+            <div style="margin-top:0.45rem;">
+              <a class="module-tab" href="{% url 'admin-page' %}">Admin</a>
+            </div>
+            {% endif %}
           </div>
         </div>
       </header>
