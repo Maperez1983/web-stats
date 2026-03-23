@@ -106,6 +106,15 @@
         font-weight: 700;
         cursor: pointer;
       }
+      .icon-action {
+        min-width: 44px;
+        height: 38px;
+        padding: 0 0.75rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+      }
       .carousel-item {
         margin-top: 0.55rem;
         padding: 0.6rem;
@@ -206,6 +215,23 @@
       .role-select {
         min-width: 170px;
       }
+      .password-wrap {
+        display: flex;
+        gap: 0.4rem;
+        align-items: center;
+      }
+      .password-wrap input {
+        flex: 1;
+      }
+      .icon-btn {
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.05);
+        color: #e2e8f0;
+        border-radius: 0.55rem;
+        width: 38px;
+        height: 38px;
+        cursor: pointer;
+      }
     </style>
   </head>
   <body>
@@ -267,7 +293,7 @@
             <span>Hora</span>
             <input type="time" name="match_time" value="{% if selected_admin_match.date %}{{ selected_admin_match.date|date:'H:i' }}{% endif %}" />
           </label>
-          <button class="pill-button" type="submit">Guardar partido</button>
+          <button class="pill-button icon-action" type="submit" title="Guardar partido" aria-label="Guardar partido">💾</button>
         </form>
 
         <form method="get" class="users-form" style="margin-bottom:1rem;">
@@ -282,7 +308,7 @@
               {% endfor %}
             </select>
           </label>
-          <button class="pill-button" type="submit">Cargar partido</button>
+          <button class="pill-button icon-action" type="submit" title="Visualizar partido" aria-label="Visualizar partido">👁</button>
         </form>
 
         {% if selected_admin_match %}
@@ -383,14 +409,14 @@
                 <span>Activa</span>
                 <input type="checkbox" name="carousel_is_active" {% if item.is_active %}checked{% endif %} />
               </label>
-              <button class="pill-button" type="submit">Guardar</button>
+              <button class="pill-button icon-action" type="submit" title="Guardar" aria-label="Guardar">💾</button>
             </form>
             <form method="post" style="margin-top:0.45rem;">
               {% csrf_token %}
               <input type="hidden" name="form_action" value="carousel_delete" />
               <input type="hidden" name="active_tab" value="carousel" />
               <input type="hidden" name="carousel_id" value="{{ item.id }}" />
-              <button class="button-danger" type="submit">Eliminar</button>
+              <button class="button-danger icon-action" type="submit" title="Borrar" aria-label="Borrar">🗑</button>
             </form>
           </article>
         {% empty %}
@@ -436,7 +462,10 @@
           </label>
           <label>
             <span>Contraseña</span>
-            <input type="text" name="password" minlength="6" required />
+            <div class="password-wrap">
+              <input id="new-user-password" type="password" name="password" minlength="6" required />
+              <button type="button" class="icon-btn" data-toggle-password="#new-user-password" title="Mostrar / ocultar contraseña" aria-label="Mostrar u ocultar contraseña">👁</button>
+            </div>
           </label>
           <label>
             <span>Rol</span>
@@ -476,7 +505,10 @@
               </label>
               <label>
                 <span>Nueva contraseña</span>
-                <input type="text" name="password" placeholder="Dejar vacío para mantener" />
+                <div class="password-wrap">
+                  <input id="update-password-{{ item.id }}" type="password" name="password" placeholder="Dejar vacío para mantener" />
+                  <button type="button" class="icon-btn" data-toggle-password="#update-password-{{ item.id }}" title="Mostrar / ocultar contraseña" aria-label="Mostrar u ocultar contraseña">👁</button>
+                </div>
               </label>
               <label>
                 <span>Rol</span>
@@ -486,7 +518,7 @@
                 {% endfor %}
               </select>
               </label>
-              <button class="pill-button" type="submit">Guardar</button>
+              <button class="pill-button icon-action" type="submit" title="Guardar" aria-label="Guardar">💾</button>
             </form>
             <form method="post" class="form-inline">
               {% csrf_token %}
@@ -544,7 +576,7 @@
             <span>Activo</span>
             <input type="checkbox" name="is_active" checked />
           </label>
-          <button class="pill-button" type="submit">Guardar jugador</button>
+          <button class="pill-button icon-action" type="submit" title="Guardar jugador" aria-label="Guardar jugador">💾</button>
         </form>
         <div class="roster-list">
           {% for player in roster_players %}
@@ -562,7 +594,7 @@
               <input type="hidden" name="form_action" value="roster_deactivate" />
               <input type="hidden" name="active_tab" value="roster" />
               <input type="hidden" name="player_id" value="{{ player.id }}" />
-              <button class="button-danger" type="submit">Desactivar</button>
+              <button class="button-danger icon-action" type="submit" title="Desactivar" aria-label="Desactivar">⛔</button>
             </form>
             {% else %}
             <form method="post" class="form-inline">
@@ -570,7 +602,7 @@
               <input type="hidden" name="form_action" value="roster_reactivate" />
               <input type="hidden" name="active_tab" value="roster" />
               <input type="hidden" name="player_id" value="{{ player.id }}" />
-              <button class="pill-button" type="submit">Reactivar</button>
+              <button class="pill-button icon-action" type="submit" title="Reactivar" aria-label="Reactivar">✅</button>
             </form>
             {% endif %}
           </article>
@@ -581,5 +613,15 @@
       </section>
       {% endif %}
     </div>
+    <script>
+      document.querySelectorAll('[data-toggle-password]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const selector = button.getAttribute('data-toggle-password');
+          const input = selector ? document.querySelector(selector) : null;
+          if (!input) return;
+          input.type = input.type === 'password' ? 'text' : 'password';
+        });
+      });
+    </script>
   </body>
 </html>

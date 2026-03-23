@@ -12,6 +12,17 @@
       p { margin: 0.45rem 0; color:#cbd5e1; }
       label { display:block; margin:0.55rem 0 0.35rem; font-size:0.82rem; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; }
       input { width:100%; border-radius:10px; border:1px solid rgba(148,163,184,0.35); background:rgba(2,6,23,0.65); color:#f8fafc; padding:0.65rem; box-sizing:border-box; }
+      .password-wrap { display:flex; gap:0.45rem; align-items:center; }
+      .password-wrap input { flex:1; }
+      .icon-btn {
+        border:1px solid rgba(148,163,184,0.35);
+        background:rgba(2,6,23,0.65);
+        color:#f8fafc;
+        border-radius:10px;
+        width:42px;
+        height:42px;
+        cursor:pointer;
+      }
       button { margin-top:0.8rem; width:100%; border:none; border-radius:999px; padding:0.75rem; background:linear-gradient(135deg,#22d3ee,#2563eb); color:#fff; font-weight:700; cursor:pointer; }
       .ok { color:#86efac; }
       .err { color:#fecaca; }
@@ -37,19 +48,35 @@
         {% if error %}<p class="err">{{ error }}</p>{% endif %}
         {% if success %}
         <p class="ok">{{ success }}</p>
-        <p><a href="/admin/login/">Ir al inicio de sesión</a></p>
+        <p><a href="{% url 'login' %}">Ir al inicio de sesión</a></p>
         {% else %}
         <form method="post">
           {% csrf_token %}
           <label>Contraseña</label>
-          <input type="password" name="password" required minlength="8" autocomplete="new-password" />
+          <div class="password-wrap">
+            <input id="inv-password" type="password" name="password" required minlength="8" autocomplete="new-password" />
+            <button type="button" class="icon-btn" data-toggle-password="#inv-password" aria-label="Mostrar u ocultar contraseña">👁</button>
+          </div>
           <label>Repetir contraseña</label>
-          <input type="password" name="password_confirm" required minlength="8" autocomplete="new-password" />
+          <div class="password-wrap">
+            <input id="inv-password-confirm" type="password" name="password_confirm" required minlength="8" autocomplete="new-password" />
+            <button type="button" class="icon-btn" data-toggle-password="#inv-password-confirm" aria-label="Mostrar u ocultar contraseña">👁</button>
+          </div>
           <button type="submit">Aceptar invitación</button>
         </form>
         {% endif %}
         {% endif %}
       </div>
     </div>
+    <script>
+      document.querySelectorAll('[data-toggle-password]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const selector = button.getAttribute('data-toggle-password');
+          const input = selector ? document.querySelector(selector) : null;
+          if (!input) return;
+          input.type = input.type === 'password' ? 'text' : 'password';
+        });
+      });
+    </script>
   </body>
 </html>

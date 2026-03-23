@@ -80,7 +80,8 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 X_FRAME_OPTIONS = 'DENY'
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = 'same-origin'
-LOGIN_URL = '/admin/login/'
+LOGIN_URL = '/login/'
+LOGIN_REDIRECT_URL = '/'
 
 if not DEBUG:
     SECURE_SSL_REDIRECT = os.getenv('SECURE_SSL_REDIRECT', 'true').lower() == 'true'
