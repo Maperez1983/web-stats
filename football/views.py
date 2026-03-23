@@ -23,7 +23,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.db.models import Count, Max, Q
 from django.db.utils import OperationalError, ProgrammingError
-from django.http import Http404, HttpResponse, JsonResponse
+from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import render, redirect
 from django.template.loader import render_to_string
 from django.templatetags.static import static
@@ -3378,6 +3378,49 @@ def _extract_pdf_text(pdf_file, max_chars=12000):
         raise ValueError('No se pudo leer el PDF. Verifica que no esté protegido o corrupto.')
 
 
+def _extract_section_block(text, section_aliases):
+    lines = [ln.strip() for ln in str(text or '').splitlines()]
+    if not lines:
+        return ''
+    aliases = [a.lower() for a in section_aliases]
+    start = None
+    for idx, line in enumerate(lines):
+        low = line.lower()
+        if any(re.search(rf'^{re.escape(alias)}\s*[:\-]?\s*$', low) for alias in aliases):
+            start = idx + 1
+            break
+        if any(low.startswith(f'{alias}:') or low.startswith(f'{alias} -') for alias in aliases):
+            inline = re.split(r'[:\-]', line, maxsplit=1)
+            if len(inline) == 2 and inline[1].strip():
+                return inline[1].strip()
+    if start is None:
+        return ''
+
+    end = len(lines)
+    for idx in range(start, len(lines)):
+        low = lines[idx].lower()
+        if re.match(r'^[a-záéíóúüñ ]{3,30}\s*[:\-]?\s*$', low):
+            if idx > start:
+                end = idx
+                break
+    return '\n'.join([ln for ln in lines[start:end] if ln]).strip()
+
+
+def _pick_bullets_or_sentences(raw_text, limit=5):
+    lines = [ln.strip() for ln in str(raw_text or '').splitlines() if ln.strip()]
+    items = []
+    for line in lines:
+        clean = re.sub(r'^[\-\•\*\d\)\.\s]+', '', line).strip()
+        if not clean:
+            continue
+        if len(clean) < 4:
+            continue
+        items.append(clean)
+        if len(items) >= limit:
+            break
+    return '\n'.join(items)
+
+
 def _suggest_task_from_pdf(pdf_text):
     text = (pdf_text or '').strip()
     if not text:
@@ -3397,12 +3440,13 @@ def _suggest_task_from_pdf(pdf_text):
             title = line
             break
 
-    objective = ''
-    objective_match = re.search(r'(objetivo|objective)\s*[:\-]\s*(.+)', text, re.IGNORECASE)
-    if objective_match:
-        objective = objective_match.group(2).strip()
-    elif len(lines) > 1:
-        objective = lines[1][:180]
+    objective = _extract_section_block(text, ['objetivo', 'objective', 'finalidad', 'meta'])
+    if not objective:
+        objective_match = re.search(r'(objetivo|objective)\s*[:\-]\s*(.+)', text, re.IGNORECASE)
+        if objective_match:
+            objective = objective_match.group(2).strip()
+        elif len(lines) > 1:
+            objective = lines[1][:180]
 
     minutes = 15
     minute_match = re.search(r'(\d{1,3})\s*(?:min|mins|minutos|minutes|\')', text, re.IGNORECASE)
@@ -3410,15 +3454,29 @@ def _suggest_task_from_pdf(pdf_text):
         parsed = _parse_int(minute_match.group(1)) or 15
         minutes = max(5, min(parsed, 90))
 
-    bullet_like = []
-    for line in lines:
-        if line.startswith(('-', '•', '*')) or re.match(r'^\d+[\).\s-]', line):
-            bullet_like.append(re.sub(r'^[\-\•\*\d\)\.\s]+', '', line).strip())
-        if len(bullet_like) >= 8:
-            break
-
-    coaching_points = '\n'.join(bullet_like[:4])
-    confrontation_rules = '\n'.join(bullet_like[4:8])
+    coaching_points = _extract_section_block(
+        text,
+        ['consignas', 'coaching points', 'puntos clave', 'indicaciones', 'correcciones'],
+    )
+    confrontation_rules = _extract_section_block(
+        text,
+        ['reglas', 'reglas de confrontacion', 'puntuacion', 'normas', 'restricciones'],
+    )
+    if not coaching_points or not confrontation_rules:
+        bullet_like = []
+        for line in lines:
+            if line.startswith(('-', '•', '*')) or re.match(r'^\d+[\).\s-]', line):
+                bullet_like.append(re.sub(r'^[\-\•\*\d\)\.\s]+', '', line).strip())
+            if len(bullet_like) >= 10:
+                break
+        if not coaching_points:
+            coaching_points = '\n'.join(bullet_like[:5])
+        if not confrontation_rules:
+            confrontation_rules = '\n'.join(bullet_like[5:10])
+    if not coaching_points:
+        coaching_points = _pick_bullets_or_sentences(text, limit=4)
+    if not confrontation_rules:
+        confrontation_rules = ''
 
     summary = '\n'.join(lines[:12])[:900]
     return {
@@ -3679,6 +3737,29 @@ def sessions_goalkeeper_page(request):
 
 def sessions_fitness_page(request):
     return _sessions_workspace_page(request, scope_key='fitness', scope_title='Sesiones · Preparacion fisica')
+
+
+@login_required
+def session_task_file(request, task_id):
+    if not _can_access_sessions_workspace(request.user):
+        return HttpResponse('No tienes permisos para acceder a sesiones.', status=403)
+    task = (
+        SessionTask.objects
+        .select_related('session__microcycle__team')
+        .filter(id=task_id)
+        .first()
+    )
+    if not task or not task.task_pdf:
+        raise Http404('Archivo de tarea no disponible')
+    file_field = task.task_pdf
+    try:
+        file_field.open('rb')
+    except Exception:
+        return HttpResponse('No se pudo abrir el archivo PDF.', status=500)
+    filename = (Path(file_field.name).name or f'tarea-{task.id}.pdf').replace('"', '')
+    response = FileResponse(file_field, content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="{filename}"'
+    return response
 
 
 @login_required
