@@ -452,10 +452,29 @@ def _file_as_data_uri(file_path):
         return ''
 
 
+def _image_file_as_small_data_uri(file_path, max_width=1200, max_height=800, quality=72):
+    """Encode image files as a lightweight JPEG data URI for faster PDF rendering."""
+    if Image is None:
+        return _file_as_data_uri(file_path)
+    try:
+        path = Path(file_path)
+        if not path.exists() or not path.is_file():
+            return ''
+        with Image.open(path) as img:
+            normalized = img.convert('RGB')
+            normalized.thumbnail((int(max_width), int(max_height)))
+            buffer = io.BytesIO()
+            normalized.save(buffer, format='JPEG', optimize=True, quality=int(quality))
+        encoded = base64.b64encode(buffer.getvalue()).decode('ascii')
+        return f'data:image/jpeg;base64,{encoded}'
+    except Exception:
+        return _file_as_data_uri(file_path)
+
+
 def resolve_team_photo_for_pdf(request):
     default_path = Path(settings.BASE_DIR) / 'static' / 'football' / 'images' / 'team-01.jpg'
     fallback_url = request.build_absolute_uri(static('football/images/team-01.jpg'))
-    fallback_data_uri = _file_as_data_uri(default_path)
+    fallback_data_uri = _image_file_as_small_data_uri(default_path)
     source_path = default_path
     source_url = fallback_url
 
@@ -480,7 +499,7 @@ def resolve_team_photo_for_pdf(request):
             source_path = default_path
             source_url = fallback_url
 
-    data_uri = _file_as_data_uri(source_path) or fallback_data_uri
+    data_uri = _image_file_as_small_data_uri(source_path) or fallback_data_uri
     return {
         'url': source_url or fallback_url,
         'data_uri': data_uri or '',
@@ -2591,10 +2610,25 @@ def convocation_pdf(request):
     logo_data_uri = _file_as_data_uri(logo_static_path)
     avatar_data_uri = _file_as_data_uri(avatar_static_path)
 
+    include_player_photos = str(
+        os.getenv('CONVOCATION_PDF_PLAYER_PHOTOS', '0')
+    ).strip().lower() in {'1', 'true', 'yes', 'on'}
+
     def _player_photo_src(player_obj):
+        # Default to lightweight avatar for reliability/performance on Render.
+        if not include_player_photos:
+            if avatar_data_uri:
+                return avatar_data_uri
+            return request.build_absolute_uri(static('football/images/player-avatar.svg'))
+
         player_static_rel = resolve_player_photo_static_path(player_obj)
         if player_static_rel:
-            player_data_uri = _file_as_data_uri(static_base_dir / player_static_rel)
+            player_data_uri = _image_file_as_small_data_uri(
+                static_base_dir / player_static_rel,
+                max_width=220,
+                max_height=220,
+                quality=65,
+            )
             if player_data_uri:
                 return player_data_uri
             return request.build_absolute_uri(static(player_static_rel))
