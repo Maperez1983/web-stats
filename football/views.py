@@ -3458,10 +3458,15 @@ def sessions_page(request):
                 age_band = (request.POST.get('task_age_band') or '').strip()
                 constraints = [str(v).strip() for v in request.POST.getlist('task_constraints') if str(v).strip()]
                 tactical_pad_enabled = str(request.POST.get('task_tactical_pad_enabled') or '').strip().lower() in {'1', 'true', 'on', 'yes'}
+                task_pdf_file = request.FILES.get('task_pdf')
                 blueprint_id = _parse_int(request.POST.get('task_blueprint_id'))
                 tactical_layout_raw = (request.POST.get('tactical_layout') or '').strip()
                 tactical_layout = {}
                 blueprint_payload = {}
+                if task_pdf_file:
+                    file_name = str(getattr(task_pdf_file, 'name', '') or '').lower()
+                    if not file_name.endswith('.pdf'):
+                        raise ValueError('El archivo de la tarea debe ser un PDF.')
                 if blueprint_id:
                     blueprint = TaskBlueprint.objects.filter(id=blueprint_id, team=primary_team).first()
                     if blueprint and isinstance(blueprint.payload, dict):
@@ -3592,6 +3597,7 @@ def sessions_page(request):
                     coaching_points=coaching_points,
                     confrontation_rules=confrontation_rules,
                     tactical_layout=tactical_layout,
+                    task_pdf=task_pdf_file,
                     order=session.tasks.count() + 1,
                 )
                 save_as_blueprint = str(request.POST.get('task_save_as_blueprint') or '').strip().lower() in {'1', 'true', 'on', 'yes'}
@@ -3677,6 +3683,7 @@ def sessions_page(request):
                     coaching_points=base_task.coaching_points,
                     confrontation_rules=base_task.confrontation_rules,
                     tactical_layout=base_task.tactical_layout if isinstance(base_task.tactical_layout, dict) else {},
+                    task_pdf=base_task.task_pdf,
                     status=SessionTask.STATUS_PLANNED,
                     order=SessionTask.objects.filter(session=base_task.session).count() + 1,
                     notes=base_task.notes,
@@ -3751,11 +3758,66 @@ def sessions_page(request):
                     coaching_points=source_task.coaching_points,
                     confrontation_rules=source_task.confrontation_rules,
                     tactical_layout=source_task.tactical_layout if isinstance(source_task.tactical_layout, dict) else {},
+                    task_pdf=source_task.task_pdf,
                     status=SessionTask.STATUS_PLANNED,
                     order=SessionTask.objects.filter(session=target_session).count() + 1,
                     notes=source_task.notes,
                 )
                 feedback = 'Tarea enviada a la sesión destino.'
+            elif planner_action == 'library_upload_pdf':
+                target_session_id = _parse_int(request.POST.get('target_session_id'))
+                title = (request.POST.get('pdf_task_title') or '').strip()
+                objective = (request.POST.get('pdf_task_objective') or '').strip()
+                block = (request.POST.get('pdf_task_block') or SessionTask.BLOCK_MAIN_1).strip()
+                minutes = _parse_int(request.POST.get('pdf_task_minutes')) or 15
+                pdf_files = list(request.FILES.getlist('library_task_pdf'))
+                block_choices = {choice[0] for choice in SessionTask.BLOCK_CHOICES}
+                if block not in block_choices:
+                    block = SessionTask.BLOCK_MAIN_1
+                target_session = (
+                    TrainingSession.objects
+                    .select_related('microcycle')
+                    .filter(id=target_session_id, microcycle__team=primary_team)
+                    .first()
+                )
+                if not target_session:
+                    raise ValueError('Selecciona una sesión destino para guardar el PDF.')
+                if not pdf_files:
+                    raise ValueError('Selecciona al menos un archivo PDF.')
+                for item in pdf_files:
+                    file_name = str(getattr(item, 'name', '') or '').lower()
+                    if not file_name.endswith('.pdf'):
+                        raise ValueError('Todos los archivos deben estar en formato PDF.')
+                base_order = SessionTask.objects.filter(session=target_session).count()
+                created_count = 0
+                for idx, pdf_file in enumerate(pdf_files, start=1):
+                    raw_name = str(getattr(pdf_file, 'name', '') or '').rsplit('/', 1)[-1]
+                    file_stem = raw_name.rsplit('.', 1)[0].strip() or f'Tarea PDF {idx}'
+                    task_title = title
+                    if not task_title:
+                        task_title = file_stem
+                    elif len(pdf_files) > 1:
+                        task_title = f'{title} · {file_stem}'
+                    SessionTask.objects.create(
+                        session=target_session,
+                        title=task_title[:160],
+                        block=block,
+                        duration_minutes=max(5, min(minutes, 90)),
+                        objective=objective,
+                        coaching_points='',
+                        confrontation_rules='',
+                        tactical_layout={},
+                        task_pdf=pdf_file,
+                        status=SessionTask.STATUS_PLANNED,
+                        order=base_order + idx,
+                        notes='Tarea subida desde Biblioteca PDF',
+                    )
+                    created_count += 1
+                feedback = (
+                    f'Se guardó 1 PDF en biblioteca.'
+                    if created_count == 1
+                    else f'Se guardaron {created_count} PDFs en biblioteca.'
+                )
             else:
                 error = 'Acción no reconocida.'
         except ValueError as exc:
