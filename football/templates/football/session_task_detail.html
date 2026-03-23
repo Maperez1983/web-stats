@@ -156,6 +156,35 @@
         border-color: rgba(248, 113, 113, 0.5);
         background: rgba(185, 28, 28, 0.18);
       }
+      .graphic-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        margin-bottom: 0.6rem;
+      }
+      .graphic-toolbar .button {
+        cursor: pointer;
+      }
+      .graphic-canvas-wrap {
+        width: 100%;
+        max-width: 960px;
+        margin: 0 auto;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 12px;
+        padding: 0.5rem;
+        background: rgba(3, 10, 22, 0.65);
+      }
+      #task-graphic-canvas {
+        width: 100%;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 8px;
+        background: #ffffff;
+      }
+      .graphic-status {
+        margin-top: 0.5rem;
+        font-size: 0.8rem;
+        color: rgba(225, 236, 255, 0.82);
+      }
     </style>
   </head>
   <body>
@@ -241,6 +270,29 @@
         </form>
       </section>
 
+      <section class="panel">
+        <h2>Representación gráfica editable</h2>
+        <div class="graphic-toolbar">
+          <button type="button" class="button" id="graphic-draw-btn">Modo dibujo</button>
+          <button type="button" class="button" id="graphic-select-btn">Modo selección</button>
+          <button type="button" class="button" id="graphic-undo-btn">Deshacer</button>
+          <button type="button" class="button" id="graphic-clear-btn">Limpiar</button>
+          <label style="min-width:140px;">
+            Color trazo
+            <input id="graphic-color" type="color" value="#e11d48" style="height:38px; padding:0.2rem;" />
+          </label>
+          <label style="min-width:140px;">
+            Grosor
+            <input id="graphic-width" type="range" min="1" max="18" step="1" value="4" />
+          </label>
+          <button type="button" class="button" id="graphic-save-btn">Guardar gráfico</button>
+        </div>
+        <div class="graphic-canvas-wrap">
+          <canvas id="task-graphic-canvas" width="1280" height="720"></canvas>
+        </div>
+        <p class="graphic-status" id="graphic-status">Editor listo.</p>
+      </section>
+
       {% if task.task_preview_image %}
       <section class="panel">
         <h2>Vista previa</h2>
@@ -313,5 +365,171 @@
       </section>
       {% endif %}
     </main>
+    <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
+    <script>
+      (() => {
+        if (!window.fabric) return;
+        const canvasEl = document.getElementById('task-graphic-canvas');
+        if (!canvasEl) return;
+        const stateRaw = "{{ graphic_editor_state_json|escapejs }}";
+        let savedState = {};
+        try {
+          savedState = stateRaw ? JSON.parse(stateRaw) : {};
+        } catch (e) {
+          savedState = {};
+        }
+        const statusEl = document.getElementById('graphic-status');
+        const setStatus = (text, isError = false) => {
+          if (!statusEl) return;
+          statusEl.textContent = text;
+          statusEl.style.color = isError ? '#fecaca' : 'rgba(225, 236, 255, 0.82)';
+        };
+        const canvas = new fabric.Canvas(canvasEl, {
+          isDrawingMode: true,
+          selection: false,
+          preserveObjectStacking: true,
+        });
+        canvas.backgroundColor = '#ffffff';
+        canvas.freeDrawingBrush.width = 4;
+        canvas.freeDrawingBrush.color = '#e11d48';
+        const history = [];
+        const pushHistory = () => {
+          history.push(JSON.stringify(canvas.toJSON()));
+          if (history.length > 80) history.shift();
+        };
+        pushHistory();
+
+        const previewUrl = "{% if task.task_preview_image %}{% url 'session-task-preview-file' task.id %}{% endif %}";
+        const restoreState = () => {
+          const editorState = savedState.canvas_state && typeof savedState.canvas_state === 'object'
+            ? savedState.canvas_state
+            : null;
+          if (editorState) {
+            canvas.loadFromJSON(editorState, () => {
+              canvas.renderAll();
+              pushHistory();
+              setStatus('Estado gráfico restaurado.');
+            });
+            return;
+          }
+          if (previewUrl) {
+            fabric.Image.fromURL(previewUrl, (img) => {
+              if (!img) return;
+              const cW = canvas.getWidth();
+              const cH = canvas.getHeight();
+              const scale = Math.min(cW / img.width, cH / img.height);
+              img.set({
+                left: (cW - (img.width * scale)) / 2,
+                top: (cH - (img.height * scale)) / 2,
+                selectable: false,
+                evented: false,
+                excludeFromExport: false,
+              });
+              img.scale(scale);
+              canvas.add(img);
+              canvas.sendToBack(img);
+              canvas.renderAll();
+              pushHistory();
+              setStatus('Preview cargada como base editable.');
+            }, { crossOrigin: 'anonymous' });
+          }
+        };
+        restoreState();
+
+        canvas.on('path:created', pushHistory);
+        canvas.on('object:modified', pushHistory);
+        canvas.on('object:added', () => {
+          if (!canvas.__loading) pushHistory();
+        });
+
+        const colorInput = document.getElementById('graphic-color');
+        const widthInput = document.getElementById('graphic-width');
+        if (colorInput) {
+          colorInput.addEventListener('change', () => {
+            canvas.freeDrawingBrush.color = colorInput.value || '#e11d48';
+          });
+        }
+        if (widthInput) {
+          widthInput.addEventListener('input', () => {
+            const width = parseInt(widthInput.value || '4', 10);
+            canvas.freeDrawingBrush.width = Math.max(1, Math.min(width, 18));
+          });
+        }
+
+        const setMode = (drawMode) => {
+          canvas.isDrawingMode = !!drawMode;
+          canvas.selection = !drawMode;
+          canvas.forEachObject((obj) => {
+            obj.selectable = !drawMode;
+          });
+          canvas.renderAll();
+          setStatus(drawMode ? 'Modo dibujo activo.' : 'Modo selección activo.');
+        };
+        document.getElementById('graphic-draw-btn')?.addEventListener('click', () => setMode(true));
+        document.getElementById('graphic-select-btn')?.addEventListener('click', () => setMode(false));
+        document.getElementById('graphic-clear-btn')?.addEventListener('click', () => {
+          canvas.clear();
+          canvas.backgroundColor = '#ffffff';
+          canvas.renderAll();
+          pushHistory();
+          setStatus('Lienzo limpio.');
+        });
+        document.getElementById('graphic-undo-btn')?.addEventListener('click', () => {
+          if (history.length <= 1) {
+            setStatus('No hay más cambios para deshacer.');
+            return;
+          }
+          history.pop();
+          const previous = history[history.length - 1];
+          canvas.__loading = true;
+          canvas.loadFromJSON(JSON.parse(previous), () => {
+            canvas.__loading = false;
+            canvas.renderAll();
+            setStatus('Último cambio deshecho.');
+          });
+        });
+
+        const getCookie = (name) => {
+          const cookie = document.cookie
+            .split(';')
+            .map((v) => v.trim())
+            .find((v) => v.startsWith(`${name}=`));
+          return cookie ? decodeURIComponent(cookie.split('=')[1]) : '';
+        };
+        const saveBtn = document.getElementById('graphic-save-btn');
+        saveBtn?.addEventListener('click', async () => {
+          try {
+            saveBtn.disabled = true;
+            setStatus('Guardando gráfico...');
+            const payload = {
+              canvas_state: canvas.toJSON(),
+              preview_data: canvas.toDataURL({
+                format: 'png',
+                quality: 1,
+                multiplier: 1,
+              }),
+            };
+            const response = await fetch("{% url 'session-task-graphic-save' task.id %}", {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken'),
+              },
+              credentials: 'same-origin',
+              body: JSON.stringify(payload),
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+              throw new Error(data.error || 'No se pudo guardar.');
+            }
+            setStatus('Representación gráfica guardada correctamente.');
+          } catch (err) {
+            setStatus(err.message || 'Error al guardar gráfico.', true);
+          } finally {
+            saveBtn.disabled = false;
+          }
+        });
+      })();
+    </script>
   </body>
 </html>

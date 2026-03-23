@@ -4413,6 +4413,29 @@ def _update_library_task_from_post(task, post_data, scope_key=None):
         )
 
 
+def _decode_canvas_data_url(data_url):
+    value = str(data_url or '').strip()
+    if not value or ';base64,' not in value:
+        return None, None
+    header, encoded = value.split(';base64,', 1)
+    mime = header.replace('data:', '').strip().lower()
+    allowed_mimes = {
+        'image/png': '.png',
+        'image/jpeg': '.jpg',
+        'image/webp': '.webp',
+    }
+    extension = allowed_mimes.get(mime)
+    if not extension:
+        return None, None
+    try:
+        raw_bytes = base64.b64decode(encoded)
+    except Exception:
+        return None, None
+    if not raw_bytes:
+        return None, None
+    return raw_bytes, extension
+
+
 def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones'):
     if not _can_access_sessions_workspace(request.user):
         return HttpResponse('No tienes permisos para acceder a sesiones.', status=403)
@@ -5113,8 +5136,62 @@ def session_task_detail_page(request, task_id):
             'feedback': feedback,
             'error': error,
             'task_blocks': SessionTask.BLOCK_CHOICES,
+            'graphic_editor_state_json': json.dumps(meta.get('graphic_editor', {}), ensure_ascii=False),
         },
     )
+
+
+@authenticated_write
+@require_POST
+def save_session_task_graphic(request, task_id):
+    if not _can_access_sessions_workspace(request.user):
+        return JsonResponse({'error': 'No tienes permisos para acceder a sesiones.'}, status=403)
+    task = (
+        SessionTask.objects
+        .select_related('session__microcycle__team')
+        .filter(id=task_id)
+        .first()
+    )
+    if not task:
+        return JsonResponse({'error': 'Tarea no encontrada.'}, status=404)
+    payload = {}
+    try:
+        payload = json.loads(request.body.decode('utf-8')) if request.body else {}
+    except Exception:
+        return JsonResponse({'error': 'Payload inválido.'}, status=400)
+
+    canvas_state = payload.get('canvas_state')
+    if not isinstance(canvas_state, dict):
+        return JsonResponse({'error': 'Estado gráfico inválido.'}, status=400)
+
+    preview_data = payload.get('preview_data')
+    layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
+    layout = dict(layout)
+    meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+    meta = dict(meta)
+    graphic_editor = meta.get('graphic_editor') if isinstance(meta.get('graphic_editor'), dict) else {}
+    graphic_editor = dict(graphic_editor)
+    graphic_editor.update(
+        {
+            'canvas_state': canvas_state,
+            'updated_at': timezone.now().isoformat(),
+            'updated_by': request.user.get_username() if request.user.is_authenticated else '',
+        }
+    )
+    meta['graphic_editor'] = graphic_editor
+    layout['meta'] = meta
+    task.tactical_layout = layout
+    update_fields = ['tactical_layout']
+
+    if preview_data:
+        raw_bytes, extension = _decode_canvas_data_url(preview_data)
+        if raw_bytes and extension:
+            filename = f'task-{task.id}-graphic-{uuid.uuid4().hex[:10]}{extension}'
+            task.task_preview_image.save(filename, ContentFile(raw_bytes), save=False)
+            update_fields.append('task_preview_image')
+
+    task.save(update_fields=update_fields)
+    return JsonResponse({'saved': True, 'task_id': task.id})
 
 
 @login_required
