@@ -7,6 +7,7 @@ import mimetypes
 import io
 import csv
 import zipfile
+import uuid
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, time
 from functools import wraps
@@ -20,6 +21,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.core.cache import cache
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.files.base import ContentFile
 from django.db import transaction
 from django.db.models import Count, Max, Q
 from django.db.utils import OperationalError, ProgrammingError
@@ -3378,6 +3380,29 @@ def _extract_pdf_text(pdf_file, max_chars=12000):
         raise ValueError('No se pudo leer el PDF. Verifica que no esté protegido o corrupto.')
 
 
+def _extract_preview_image_from_pdf(pdf_file):
+    if PdfReader is None or pdf_file is None:
+        return None
+    try:
+        if hasattr(pdf_file, 'seek'):
+            pdf_file.seek(0)
+        reader = PdfReader(pdf_file)
+        for page in reader.pages[:2]:
+            images = getattr(page, 'images', []) or []
+            for image in images:
+                raw = getattr(image, 'data', b'') or b''
+                if not raw:
+                    continue
+                ext = str(getattr(image, 'name', 'img.bin') or 'img.bin').rsplit('.', 1)[-1].lower()
+                if ext not in {'png', 'jpg', 'jpeg', 'webp'}:
+                    ext = 'png'
+                filename = f'task-preview-{uuid.uuid4().hex[:10]}.{ext}'
+                return filename, ContentFile(raw)
+    except Exception:
+        return None
+    return None
+
+
 def _extract_section_block(text, section_aliases):
     lines = [ln.strip() for ln in str(text or '').splitlines()]
     if not lines:
@@ -3584,7 +3609,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     task_title = title or file_stem
                     if title and len(pdf_files) > 1:
                         task_title = f'{title} · {file_stem}'
-                    SessionTask.objects.create(
+                    created_task = SessionTask.objects.create(
                         session=target_session,
                         title=task_title[:160],
                         block=block,
@@ -3598,6 +3623,10 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                         order=base_order + idx,
                         notes='Cargada desde Biblioteca PDF',
                     )
+                    preview_payload = _extract_preview_image_from_pdf(created_task.task_pdf)
+                    if preview_payload:
+                        preview_name, preview_content = preview_payload
+                        created_task.task_preview_image.save(preview_name, preview_content, save=True)
                     created_count += 1
                 feedback = (
                     'Se guardó 1 PDF en biblioteca.'
@@ -3661,7 +3690,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     'extracted_text_excerpt': extracted_text[:1200],
                     'scope': scope_key,
                 }
-                SessionTask.objects.create(
+                created_task = SessionTask.objects.create(
                     session=target_session,
                     title=title[:160],
                     block=block,
@@ -3671,10 +3700,16 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     confrontation_rules=confrontation_rules,
                     tactical_layout={'meta': layout_meta},
                     task_pdf=source_task.task_pdf,
+                    task_preview_image=source_task.task_preview_image,
                     status=SessionTask.STATUS_PLANNED,
                     order=SessionTask.objects.filter(session=target_session).count() + 1,
                     notes='Creada con editor basado en análisis de PDF',
                 )
+                if not created_task.task_preview_image and created_task.task_pdf:
+                    preview_payload = _extract_preview_image_from_pdf(created_task.task_pdf)
+                    if preview_payload:
+                        preview_name, preview_content = preview_payload
+                        created_task.task_preview_image.save(preview_name, preview_content, save=True)
                 feedback = 'Tarea creada desde análisis de PDF.'
             else:
                 error = 'Acción no reconocida.'
@@ -3737,6 +3772,36 @@ def sessions_goalkeeper_page(request):
 
 def sessions_fitness_page(request):
     return _sessions_workspace_page(request, scope_key='fitness', scope_title='Sesiones · Preparacion fisica')
+
+
+@login_required
+def session_task_preview_file(request, task_id):
+    if not _can_access_sessions_workspace(request.user):
+        return HttpResponse('No tienes permisos para acceder a sesiones.', status=403)
+    task = (
+        SessionTask.objects
+        .select_related('session__microcycle__team')
+        .filter(id=task_id)
+        .first()
+    )
+    if not task or not task.task_preview_image:
+        raise Http404('Imagen de tarea no disponible')
+    file_field = task.task_preview_image
+    try:
+        file_field.open('rb')
+    except Exception:
+        return HttpResponse('No se pudo abrir la imagen de la tarea.', status=500)
+    extension = Path(file_field.name).suffix.lower()
+    content_type = {
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.webp': 'image/webp',
+        '.gif': 'image/gif',
+    }.get(extension, 'application/octet-stream')
+    response = FileResponse(file_field, content_type=content_type)
+    response['Content-Disposition'] = f'inline; filename="{Path(file_field.name).name}"'
+    return response
 
 
 @login_required

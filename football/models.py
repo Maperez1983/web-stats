@@ -464,6 +464,7 @@ class SessionTask(models.Model):
     confrontation_rules = models.TextField(blank=True, help_text='Reglas de confrontación y puntuación')
     tactical_layout = models.JSONField(default=dict, blank=True)
     task_pdf = models.FileField(upload_to='session-tasks-pdf/', null=True, blank=True)
+    task_preview_image = models.ImageField(upload_to='session-tasks-preview/', null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PLANNED)
     order = models.PositiveSmallIntegerField(default=0)
     notes = models.TextField(blank=True)
