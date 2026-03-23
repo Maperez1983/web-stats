@@ -8370,6 +8370,19 @@ def _team_match_queryset(primary_team):
             alias_ids.append(candidate.id)
     if alias_ids:
         direct_filter = direct_filter | Q(home_team_id__in=alias_ids) | Q(away_team_id__in=alias_ids)
+
+    # Some imported matches can be linked to the wrong Team FK but still have
+    # events assigned to players of the primary team. Include them so admin
+    # "Partidos y Acciones" always shows those imported fixtures.
+    event_match_ids = list(
+        MatchEvent.objects
+        .filter(player__team=primary_team)
+        .values_list('match_id', flat=True)
+        .distinct()
+    )
+    if event_match_ids:
+        direct_filter = direct_filter | Q(id__in=event_match_ids)
+
     return Match.objects.filter(direct_filter).select_related('home_team', 'away_team').distinct()
 
 
