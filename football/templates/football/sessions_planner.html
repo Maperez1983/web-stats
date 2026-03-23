@@ -23,7 +23,7 @@
         background: linear-gradient(180deg, #020916 0%, #081b35 65%, #081329 100%);
         font-family: "Montserrat", "Avenir Next", "Segoe UI", sans-serif;
       }
-      .page { max-width: 1100px; margin: 0 auto; padding: 1.25rem; }
+      .page { max-width: 1660px; margin: 0 auto; padding: 1.25rem; }
       .top { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1rem; }
       .top h1 { margin: 0; font-size: 1.1rem; letter-spacing: 0.08em; text-transform: uppercase; }
       .button {
@@ -229,7 +229,7 @@
       .create-board-wrap {
         position: relative;
         width: 100%;
-        height: 380px;
+        height: 520px;
         border-radius: 12px;
         border: 1px solid rgba(255, 255, 255, 0.18);
         overflow: hidden;
@@ -340,6 +340,9 @@
       @media (max-width: 980px) {
         .create-board-layout {
           grid-template-columns: 1fr;
+        }
+        .create-board-wrap {
+          height: 380px;
         }
       }
       @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
@@ -1070,7 +1073,7 @@
         const applyFieldBackground = (presetKey) => {
           const preset = String(presetKey || 'full_pitch').trim();
           canvas.clear();
-          canvas.backgroundColor = '#0f9f36';
+          canvas.backgroundColor = '#ffffff';
           const common = {
             selectable: false,
             evented: false,
@@ -1081,6 +1084,16 @@
           const marginX = Math.round(w * 0.045);
           const marginY = Math.round(h * 0.055);
           const lineColor = 'rgba(255,255,255,0.78)';
+          const grass = new fabric.Rect({
+            ...common,
+            left: 0,
+            top: 0,
+            width: w,
+            height: h,
+            fill: '#0f9f36',
+            stroke: '',
+            strokeWidth: 0,
+          });
           const field = new fabric.Rect({
             ...common,
             left: marginX,
@@ -1099,6 +1112,7 @@
             setStatus('Lienzo en blanco.');
             return;
           }
+          canvas.add(grass);
           canvas.add(field);
           if (preset === 'half_pitch') {
             canvas.add(new fabric.Line([w / 2, marginY, w / 2, h - marginY], { ...common, stroke: lineColor, strokeWidth: 2.5 }));
