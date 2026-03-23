@@ -3679,6 +3679,30 @@ def _ensure_task_preview_image(task):
         return False
 
 
+def _ensure_library_task_preview(task):
+    if not task:
+        return False
+    current_name = str(getattr(task, 'task_preview_image', '') or '').strip()
+    if current_name:
+        try:
+            if default_storage.exists(current_name):
+                return True
+        except Exception:
+            pass
+    if getattr(task, 'task_pdf', None):
+        if _ensure_task_preview_image(task):
+            return True
+    fallback = _default_task_preview_payload()
+    if not fallback:
+        return False
+    fallback_name, fallback_content = fallback
+    try:
+        task.task_preview_image.save(fallback_name, fallback_content, save=True)
+        return bool(task.task_preview_image)
+    except Exception:
+        return False
+
+
 TASK_CONTEXT_KEYWORDS = {
     'presion_alta': ['presion alta', 'presión alta', 'repliegue tras perdida', 'robo alto'],
     'salida_balon': ['salida de balon', 'salida de balón', 'inicio juego', 'construccion'],
@@ -5582,6 +5606,33 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         .order_by('-id')[:300]
     ) if planner_tables_ready else []
     task_library = [item for item in task_library_raw if _task_scope_for_item(item) == scope_key]
+    if active_tab == 'library' and task_library:
+        preview_rebuilt = 0
+        checked = 0
+        for task in task_library:
+            checked += 1
+            if checked > 80:
+                break
+            before_name = str(getattr(task, 'task_preview_image', '') or '').strip()
+            before_ok = False
+            if before_name:
+                try:
+                    before_ok = default_storage.exists(before_name)
+                except Exception:
+                    before_ok = False
+            if before_ok:
+                continue
+            if _ensure_library_task_preview(task):
+                after_name = str(getattr(task, 'task_preview_image', '') or '').strip()
+                if after_name:
+                    preview_rebuilt += 1
+        if preview_rebuilt:
+            feedback = (
+                f'{feedback} '
+                if feedback
+                else ''
+            ) + f'Previews recuperadas: {preview_rebuilt}.'
+
     context_groups = defaultdict(list)
     objective_groups = defaultdict(list)
     type_groups = defaultdict(list)
