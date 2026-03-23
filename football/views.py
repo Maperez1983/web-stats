@@ -1055,12 +1055,20 @@ def dashboard_page(request):
     all_items = list(HomeCarouselImage.objects.order_by('order', '-created_at', '-id'))
     candidates = active_items if active_items else all_items
     hero_image_candidates = [item.image.url for item in candidates if item.image]
+    current_role = _get_user_role(request.user) or AppUserRole.ROLE_PLAYER
+    role_labels = dict(AppUserRole.ROLE_CHOICES)
+    can_access_admin = _is_admin_user(request.user)
+    can_access_sessions = _can_access_sessions_workspace(request.user)
     return render(
         request,
         'football/dashboard.html',
         {
             'scrape_sources': sources,
             'hero_image_candidates': hero_image_candidates,
+            'current_role': current_role,
+            'current_role_label': role_labels.get(current_role, 'Jugador'),
+            'can_access_admin': can_access_admin,
+            'can_access_sessions': can_access_sessions,
         },
     )
 
@@ -1639,6 +1647,8 @@ def player_dashboard_page(request):
     selected_match_id = ''
     selected_match_total_actions = 0
 
+    current_role = _get_user_role(request.user) or AppUserRole.ROLE_PLAYER
+    role_labels = dict(AppUserRole.ROLE_CHOICES)
     return render(
         request,
         'football/player_dashboard.html',
@@ -1649,6 +1659,8 @@ def player_dashboard_page(request):
             'selected_match': selected_match,
             'selected_match_id': selected_match_id,
             'selected_match_total_actions': selected_match_total_actions,
+            'current_role': current_role,
+            'current_role_label': role_labels.get(current_role, 'Jugador'),
         },
     )
 

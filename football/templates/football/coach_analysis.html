@@ -5,6 +5,7 @@
     <meta charset="UTF-8" />
     <title>{{ section_title }} · Cuerpo técnico</title>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
     <style>
       body {
         margin: 0;
@@ -224,11 +225,11 @@
     </style>
   </head>
   <body>
-    <div class="page">
+    <div class="page product-shell">
       {% include 'football/includes/dragon_nav.html' %}
       <header>
         <div>
-          <p>Área técnica · Cuerpo técnico</p>
+          <p>Área técnica · Cuerpo técnico <span class="product-chip role">Fase 4 · Scouting Rival</span></p>
           <h1>{{ section_title }}</h1>
         </div>
         <a class="button ghost" href="{% url 'coach-detail' %}">Volver</a>

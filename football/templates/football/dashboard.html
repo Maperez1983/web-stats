@@ -5,6 +5,7 @@
     <meta charset="UTF-8" />
     <title>CRM Web Stats · Cuerpo técnico</title>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
     <style>
       :root {
         --ink: #eef2ff;
@@ -402,18 +403,25 @@
     </style>
   </head>
   <body>
-    <div class="page">
+    <div class="page product-shell">
       <header class="topbar">
         <div class="topbar-brand">
           {% include 'football/includes/dragon_nav.html' %}
-          <h1>CRM · Cuerpo técnico</h1>
+          <div>
+            <h1>CRM · Cuerpo técnico</h1>
+            <p class="product-kicker" style="margin-top:0.2rem;">Modo actual <span class="product-chip role">{{ current_role_label }}</span> <span class="product-chip">Fase 1 · Product Core</span></p>
+          </div>
         </div>
         <nav class="module-tabs">
           <a class="module-tab is-active" href="{% url 'dashboard-home' %}">Dashboard</a>
           <a class="module-tab" href="{% url 'coach-detail' %}">Cuerpo técnico</a>
           <a class="module-tab" href="{% url 'player-dashboard' %}">Jugadores</a>
+          {% if can_access_admin %}
           <a class="module-tab" href="{% url 'match-action-page' %}">Registro</a>
           <a class="module-tab" href="{% url 'admin-page' %}">Admin</a>
+          {% elif can_access_sessions %}
+          <a class="module-tab" href="{% url 'sessions' %}">Sesiones</a>
+          {% endif %}
         </nav>
       </header>
 
@@ -467,6 +475,19 @@
           <h3>Indicadores de partido</h3>
           <div id="team-metrics">Cargando métricas…</div>
         </article>
+      </section>
+
+      <section class="block product-card" style="margin-top:1rem;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:0.8rem; flex-wrap:wrap;">
+          <h3 style="margin:0;">Centro de Operaciones</h3>
+          <span class="product-chip">Comercial Ready</span>
+        </div>
+        <div style="margin-top:0.7rem; display:grid; gap:0.6rem; grid-template-columns:repeat(auto-fit,minmax(220px,1fr));">
+          <a class="module-tab" href="{% url 'sessions' %}">Fase 2 · Analizar biblioteca de tareas</a>
+          <a class="module-tab" href="{% url 'convocation' %}">Fase 3 · Preparar convocatoria</a>
+          <a class="module-tab" href="{% url 'analysis' %}">Fase 4 · Revisar análisis rival</a>
+          <a class="module-tab" href="{% url 'player-dashboard' %}">Fase 4 · Seguimiento de jugadores</a>
+        </div>
       </section>
 
       <section class="players-header">
@@ -551,7 +572,7 @@
           console.error(error);
           document.getElementById('standings').textContent = 'Error al cargar';
           const playerCards = document.getElementById('player-cards');
-          if (playerCards) playerCards.innerHTML = '<p>No se pudieron cargar los jugadores.</p>';
+          if (playerCards) playerCards.innerHTML = '<div class="product-empty">No se pudieron cargar los jugadores.</div>';
         }
       }
 
@@ -559,7 +580,7 @@
         const container = document.getElementById('standings');
         const toggleBtn = document.getElementById('standings-toggle');
         if (!standings || !standings.length) {
-          container.textContent = 'No hay datos de clasificación todavía.';
+          container.innerHTML = '<div class="product-empty">No hay datos de clasificación todavía.</div>';
           if (toggleBtn) toggleBtn.hidden = true;
           return;
         }
@@ -674,7 +695,7 @@
         if (!container) return;
 
         if (!cards || !cards.length) {
-          container.innerHTML = '<p>No hay jugadores disponibles de momento.</p>';
+          container.innerHTML = '<div class="product-empty">No hay jugadores disponibles de momento.</div>';
           return;
         }
 

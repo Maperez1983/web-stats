@@ -5,6 +5,7 @@
     <meta charset="UTF-8" />
     <title>{{ role_title }} · Cuerpo técnico</title>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
     <style>
       body {
         margin: 0;
@@ -258,10 +259,11 @@
     </style>
   </head>
   <body>
-    <div class="page">
+    <div class="page product-shell">
       {% include 'football/includes/dragon_nav.html' %}
       <header>
         <div class="title">
+          <p class="product-kicker">Workspace por rol</p>
           <h1>{{ role_title }}</h1>
           <p>{{ role_description }}</p>
         </div>

@@ -5,6 +5,7 @@
     <meta charset="UTF-8" />
     <title>{{ scope_title|default:"Sesiones" }} · Carga y Analisis PDF</title>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
     <style>
       :root {
         --ink: #f3f4f6;
@@ -113,13 +114,13 @@
     </style>
   </head>
   <body>
-    <main class="page">
+    <main class="page product-shell">
       {% include 'football/includes/dragon_nav.html' %}
       <div class="top">
         <h1>{{ scope_title|default:"Sesiones" }} · Carga de PDFs y Editor de Tareas</h1>
         <a href="{% url 'coach-detail' %}" class="button">Volver</a>
       </div>
-      <p class="meta" style="margin-top:-0.35rem; margin-bottom:0.9rem;">Espacio activo: <strong>{{ scope_title|default:"Sesiones" }}</strong></p>
+      <p class="meta" style="margin-top:-0.35rem; margin-bottom:0.9rem;">Espacio activo: <strong>{{ scope_title|default:"Sesiones" }}</strong> <span class="product-chip role">Fase 2 · Biblioteca Pro</span></p>
 
       {% if feedback %}<div class="alert ok">{{ feedback }}</div>{% endif %}
       {% if error %}<div class="alert err">{{ error }}</div>{% endif %}

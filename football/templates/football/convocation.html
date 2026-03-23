@@ -5,6 +5,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Convocatoria · {{ team_name }}</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
     <style>
       :root {
         --bg: #071022;
@@ -371,12 +372,12 @@
     </style>
   </head>
   <body>
-    <main class="page">
+    <main class="page product-shell">
       {% include 'football/includes/dragon_nav.html' %}
       <section class="panel header">
         <div>
           <h1>Convocatoria</h1>
-          <p>{{ team_name }} · Lista oficial para partido</p>
+          <p>{{ team_name }} · Lista oficial para partido <span class="product-chip role">Fase 3 · Convocatoria Matchday</span></p>
         </div>
         <div class="count-chip" id="count-chip">0 convocados</div>
       </section>

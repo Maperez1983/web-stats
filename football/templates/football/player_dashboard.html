@@ -6,6 +6,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Dashboard Jugadores · {{ team_name }}</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
     <style>
       :root {
         --bg: #050b16;
@@ -249,12 +250,13 @@
     </style>
   </head>
   <body>
-    <div class="shell">
+    <div class="shell product-shell">
       <div class="topbar">
         <div class="headline">
           {% include 'football/includes/dragon_nav.html' %}
           <p>Dashboard jugadores · {{ team_name }}</p>
           <h1>Vista limpia de rendimiento</h1>
+          <p class="mode-note" style="margin-top:0.3rem;">Perfil activo: <span class="product-chip role">{{ current_role_label }}</span> <span class="product-chip">Fase 4 · Seguimiento Jugadores</span></p>
           <form method="get" class="toolbar">
             <select name="match">
               <option value="">Modo global</option>

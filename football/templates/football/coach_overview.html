@@ -5,6 +5,7 @@
     <meta charset="UTF-8" />
     <title>Cuerpo técnico · CRM Web Stats</title>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
     <style>
       :root {
         --bg: #030610;
@@ -100,11 +101,11 @@
     </style>
   </head>
   <body>
-    <div class="page">
+    <div class="page product-shell">
       <header>
         {% include 'football/includes/dragon_nav.html' %}
         <div>
-          <p style="margin:0;color:rgba(226,232,240,0.7);">Cuerpo técnico · CRM Web Stats</p>
+          <p class="product-kicker" style="color:rgba(226,232,240,0.72);">Cuerpo técnico · CRM Web Stats</p>
           <h1>Entrenadores</h1>
         </div>
         <a class="pill-button" style="border-radius:12px;" href="{% url 'dashboard-home' %}">Volver al inicio</a>
