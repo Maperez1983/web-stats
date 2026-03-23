@@ -2033,12 +2033,28 @@
         return terms.some((term) => txt.includes(term));
       };
       const summarizeLiveEvent = ({ action = '', zone = '', result = '' }) => {
-        const shot = containsText(action, ['tiro', 'remate', 'disparo']) || containsText(result, ['tiro', 'remate', 'disparo']);
+        const shot =
+          containsText(action, ['tiro', 'remate', 'disparo', 'parad', 'ataj', 'blocaj']) ||
+          containsText(result, ['tiro', 'remate', 'disparo', 'parad', 'ataj', 'blocaj']);
         const pass = containsText(action, ['pase']) || containsText(result, ['pase']);
         const card = containsText(action, ['amarilla', 'roja', 'tarjeta']) || containsText(result, ['amarilla', 'roja']);
         const sub = containsText(action, ['sustituci', 'cambio']) || containsText(result, ['entrada', 'salida']) || containsText(zone, ['sustituci']);
-        const duel = containsText(action, ['duelo', 'regate', 'robo', 'intercep', 'entrada']) || containsText(zone, ['duelo']);
-        const duelWon = duel && containsText(result, ['ganad', 'ok', 'recuper', 'favorable', 'superado']);
+        const offensiveDuel =
+          containsText(action, ['regate', 'dribbl', 'conduccion', 'conducción', 'encare', '1v1', '1x1']) ||
+          containsText(result, ['regate', 'dribbl']);
+        const defensiveDuel =
+          containsText(action, ['duelo', 'robo', 'intercep', 'entrada', 'presion', 'disputa']) ||
+          containsText(result, ['robo', 'intercep', 'recuper']) ||
+          containsText(zone, ['duelo']);
+        const duel = offensiveDuel || defensiveDuel;
+        const offensiveSuccess = containsText(result, ['ganad', 'ok', 'superad', 'complet', 'favorable']);
+        const offensiveFail = containsText(result, ['perdid', 'fall', 'error', 'falta', 'intercept', 'robad']);
+        const defensiveSuccess = containsText(result, ['ganad', 'ok', 'robo', 'recuper', 'intercep', 'entrada', 'favorable']);
+        const defensiveFail = containsText(result, ['perdid', 'fall', 'error', 'falta', 'superad', 'regatead', 'driblad']);
+        const duelWon = duel && (
+          (offensiveDuel && offensiveSuccess && !offensiveFail) ||
+          (defensiveDuel && defensiveSuccess && !defensiveFail)
+        );
         return { shot, pass, card, sub, duel, duelWon };
       };
       const refreshLiveStatsHud = () => {
@@ -2891,6 +2907,7 @@
       const computeTercioFromZone = (zoneLabelText) => {
         const normalized = (zoneLabelText || '').toLowerCase();
         if (!normalized) return '';
+        if (normalized.includes('porter')) return 'Defensa';
         if (normalized.includes('defensa')) return 'Defensa';
         if (normalized.includes('medio')) return 'Construcción';
         if (normalized.includes('ataque')) return 'Ataque';

@@ -90,12 +90,12 @@ from football.event_taxonomy import (
     STANDARD_TERCIO_LABELS,
     build_smart_kpis,
     categorize_position,
+    classify_duel_event,
     contains_keyword,
-    duel_result_is_success,
     extract_round_number,
     is_assist_event,
-    is_duel_event,
     is_goal_event,
+    is_goalkeeper_save_event,
     is_red_card_event,
     is_substitution_entry,
     is_substitution_event,
@@ -3069,8 +3069,12 @@ def coach_role_trainer_page(request):
     rank = standing.position if standing else 0
     yellows = sum(1 for event in events if is_yellow_card_event(event.event_type, event.result, event.zone))
     reds = sum(1 for event in events if is_red_card_event(event.event_type, event.result, event.zone))
-    duels = [event for event in events if is_duel_event(event.event_type, event.observation)]
-    duel_won = [event for event in duels if duel_result_is_success(event.result)]
+    duel_classifications = [
+        classify_duel_event(event.event_type, event.result, event.observation, event.zone)
+        for event in events
+    ]
+    duels = [item for item in duel_classifications if item.get('is_duel')]
+    duel_won = [item for item in duels if item.get('won')]
     duel_rate = round((len(duel_won) / len(duels)) * 100, 1) if duels else 0.0
     success_actions = [event for event in events if result_is_success(event.result)]
     success_rate = round((len(success_actions) / total_actions) * 100, 1) if total_actions else 0.0
@@ -3086,8 +3090,12 @@ def coach_role_trainer_page(request):
     def _summarize_events(event_list):
         total = len(event_list)
         successes_local = sum(1 for event in event_list if result_is_success(event.result))
-        duels_local = [event for event in event_list if is_duel_event(event.event_type, event.observation)]
-        duels_won_local = [event for event in duels_local if duel_result_is_success(event.result)]
+        duel_local_classifications = [
+            classify_duel_event(event.event_type, event.result, event.observation, event.zone)
+            for event in event_list
+        ]
+        duels_local = [item for item in duel_local_classifications if item.get('is_duel')]
+        duels_won_local = [item for item in duels_local if item.get('won')]
         shots_attempts = 0
         shots_on_target = 0
         passes_attempts = 0
@@ -3100,9 +3108,11 @@ def coach_role_trainer_page(request):
                 yellow_local += 1
             if is_red_card_event(event.event_type, event.result, event.zone):
                 red_local += 1
-            if contains_keyword(event.event_type, SHOT_KEYWORDS) or contains_keyword(event.observation, SHOT_KEYWORDS):
+            shot_event = contains_keyword(event.event_type, SHOT_KEYWORDS) or contains_keyword(event.observation, SHOT_KEYWORDS)
+            save_event = is_goalkeeper_save_event(event.event_type, event.result, event.observation)
+            if shot_event or save_event:
                 shots_attempts += 1
-                if result_is_success(event.result):
+                if save_event or result_is_success(event.result):
                     shots_on_target += 1
             if contains_keyword(event.event_type, PASS_KEYWORDS) or contains_keyword(event.observation, PASS_KEYWORDS):
                 passes_attempts += 1
@@ -3145,7 +3155,8 @@ def coach_role_trainer_page(request):
         player = event.player
         if not player:
             continue
-        if is_duel_event(event.event_type, event.observation) and duel_result_is_success(event.result):
+        duel_event = classify_duel_event(event.event_type, event.result, event.observation, event.zone)
+        if duel_event.get('is_duel') and duel_event.get('won'):
             duels_won_by_player[player.id] = duels_won_by_player.get(player.id, 0) + 1
         event_text = ' '.join(
             [
@@ -5865,9 +5876,10 @@ def player_match_stats_page(request, player_id, match_id):
             stats['yellow_cards'] += 1
         if is_red_card_event(event.event_type, event.result, event.zone):
             stats['red_cards'] += 1
-        if is_duel_event(event.event_type, event.observation):
+        duel_event = classify_duel_event(event.event_type, event.result, event.observation, event.zone)
+        if duel_event.get('is_duel'):
             stats['duels_total'] += 1
-            if duel_result_is_success(event.result):
+            if duel_event.get('won'):
                 stats['duels_won'] += 1
         zone_label = map_zone_label((event.zone or '').strip())
         if zone_label:
@@ -5878,9 +5890,11 @@ def player_match_stats_page(request, player_id, match_id):
             if mapped:
                 stats['tercio_counts'][mapped] += 1
                 stats['tercio_totals'][mapped] += 1
-        if contains_keyword(event.event_type, SHOT_KEYWORDS) or contains_keyword(event.observation, SHOT_KEYWORDS):
+        shot_event = contains_keyword(event.event_type, SHOT_KEYWORDS) or contains_keyword(event.observation, SHOT_KEYWORDS)
+        save_event = is_goalkeeper_save_event(event.event_type, event.result, event.observation)
+        if shot_event or save_event:
             stats['shot_attempts'] += 1
-            if result_is_success(event.result):
+            if save_event or result_is_success(event.result):
                 stats['shots_on_target'] += 1
         if contains_keyword(event.event_type, PASS_KEYWORDS) or contains_keyword(event.observation, PASS_KEYWORDS):
             stats['pass_attempts'] += 1
@@ -6894,9 +6908,10 @@ def compute_player_dashboard(primary_team):
             stats['yellow_cards'] += 1
         if (not stats['totals_locked']) and is_red_card_event(event.event_type, event.result, event.zone):
             stats['red_cards'] += 1
-        if is_duel_event(event.event_type, event.observation):
+        duel_event = classify_duel_event(event.event_type, event.result, event.observation, event.zone)
+        if duel_event.get('is_duel'):
             stats['duels_total'] += 1
-            if duel_result_is_success(event.result):
+            if duel_event.get('won'):
                 stats['duels_won'] += 1
         zone = (event.zone or '').strip()
         zone_label = map_zone_label(zone)
@@ -6911,9 +6926,11 @@ def compute_player_dashboard(primary_team):
         position_label = categorize_position(player.position, event.zone)
         if position_label:
             stats['position_counts'][position_label] += 1
-        if contains_keyword(event.event_type, SHOT_KEYWORDS) or contains_keyword(event.observation, SHOT_KEYWORDS):
+        shot_event = contains_keyword(event.event_type, SHOT_KEYWORDS) or contains_keyword(event.observation, SHOT_KEYWORDS)
+        save_event = is_goalkeeper_save_event(event.event_type, event.result, event.observation)
+        if shot_event or save_event:
             stats['shot_attempts'] += 1
-            if result_is_success(event.result):
+            if save_event or result_is_success(event.result):
                 stats['shots_on_target'] += 1
         if contains_keyword(event.event_type, PASS_KEYWORDS) or contains_keyword(event.observation, PASS_KEYWORDS):
             stats['pass_attempts'] += 1

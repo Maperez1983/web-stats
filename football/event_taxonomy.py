@@ -24,8 +24,45 @@ DUEL_EVENT_KEYWORDS = {
     "disputa",
 }
 DUEL_SUCCESS_KEYWORD = {"ganado", "recuperado", "ok", "fortaleza", "favorable", "superado"}
+DUEL_OFFENSIVE_KEYWORDS = {
+    "regate",
+    "regates",
+    "dribbling",
+    "dribble",
+    "conduccion",
+    "conducción",
+    "encare",
+    "1v1",
+    "1x1",
+}
+DUEL_DEFENSIVE_KEYWORDS = {
+    "duelo",
+    "robo",
+    "robado",
+    "intercepción",
+    "intervención",
+    "entrada",
+    "entradas",
+    "recuperación",
+    "recuperado",
+    "presión",
+    "presionado",
+    "disputa",
+}
+DUEL_GENERIC_SUCCESS_KEYWORDS = {"ok", "ganado", "favorable", "exitoso", "completado"}
+DUEL_GENERIC_FAIL_KEYWORDS = {"perdido", "fallado", "fallida", "falta", "error"}
+DUEL_OFFENSIVE_SUCCESS_KEYWORDS = {"ok", "ganado", "superado", "exitoso", "completado"}
+DUEL_OFFENSIVE_FAIL_KEYWORDS = {"perdido", "fallado", "fallida", "falta", "error", "interceptado", "robado"}
+DUEL_DEFENSIVE_SUCCESS_KEYWORDS = {"ok", "ganado", "favorable", "robo", "recuper", "intercep", "entrada", "despeje"}
+DUEL_DEFENSIVE_FAIL_KEYWORDS = {"perdido", "fallado", "fallida", "falta", "error", "superado", "regateado", "driblado"}
 
 ZONE_MAP = {
+    "porteria": "Portería",
+    "porteria propia": "Portería",
+    "area pequena": "Portería",
+    "area pequeña": "Portería",
+    "5 metros": "Portería",
+    "meta": "Portería",
     "defensa izquierda": "Defensa Izquierda",
     "lateral izquierdo": "Defensa Izquierda",
     "carril izquierdo": "Defensa Izquierda",
@@ -107,6 +144,7 @@ STANDARD_TERCIO_LABELS = ['Ataque', 'Construcción', 'Defensa']
 SHOT_KEYWORDS = {'tiro', 'remate', 'disparo', 'chuza', 'chute'}
 PASS_KEYWORDS = {'pase', 'pases', 'pase clave', 'pase al hueco'}
 DRIBBLE_KEYWORDS = {'regate', 'regates', 'dribbling', 'dribble', 'conduccion', 'conducción'}
+GOALKEEPER_SAVE_KEYWORDS = {'parada', 'paradas', 'atajada', 'atajadas', 'blocaje', 'blocajes'}
 GOAL_KEYWORDS = {'gol', 'goles', 'anotado', 'marcado', 'goal'}
 ASSIST_KEYWORDS = {'asistencia', 'asist', 'pase gol', 'asiste'}
 YELLOW_CARD_KEYWORDS = {'amarilla', 'tarjeta amarilla'}
@@ -146,6 +184,20 @@ def _build_field_zones():
                     'height_pct': lane['height_pct'],
                 }
             )
+    zones.append(
+        {
+            'key': 'Portería',
+            'label': 'Portería',
+            'left': '0%',
+            'top': '40%',
+            'width': '8%',
+            'height': '20%',
+            'left_pct': 0,
+            'top_pct': 40,
+            'width_pct': 8,
+            'height_pct': 20,
+        }
+    )
     return zones
 
 
@@ -171,6 +223,14 @@ def is_goal_event(event_type, result=None, observation=None):
         contains_keyword(event_type, GOAL_KEYWORDS)
         or contains_keyword(result, GOAL_KEYWORDS)
         or contains_keyword(observation, GOAL_KEYWORDS)
+    )
+
+
+def is_goalkeeper_save_event(event_type, result=None, observation=None):
+    return (
+        contains_keyword(event_type, GOALKEEPER_SAVE_KEYWORDS)
+        or contains_keyword(result, GOALKEEPER_SAVE_KEYWORDS)
+        or contains_keyword(observation, GOALKEEPER_SAVE_KEYWORDS)
     )
 
 
@@ -215,17 +275,8 @@ def is_substitution_exit(event_type, result=None, zone=None):
 
 
 def is_duel_event(event_type, observation=None):
-    normalized = normalize_label(event_type)
-    if not normalized:
-        return False
-    for keyword in DUEL_EVENT_KEYWORDS:
-        if keyword in normalized:
-            return True
-    if observation:
-        for keyword in DUEL_EVENT_KEYWORDS:
-            if keyword in normalize_label(observation):
-                return True
-    return False
+    classification = classify_duel_event(event_type, result=None, observation=observation)
+    return classification["is_duel"]
 
 
 def duel_result_is_success(result):
@@ -233,6 +284,46 @@ def duel_result_is_success(result):
         return False
     normalized = result.strip().lower()
     return any(keyword in normalized for keyword in DUEL_SUCCESS_KEYWORD)
+
+
+def classify_duel_event(event_type, result=None, observation=None, zone=None):
+    event_normalized = normalize_label(event_type)
+    observation_normalized = normalize_label(observation)
+    zone_normalized = normalize_label(zone)
+    context_text = " ".join(part for part in [event_normalized, observation_normalized] if part).strip()
+    result_text = " ".join(part for part in [normalize_label(result), observation_normalized] if part).strip()
+
+    subtype = ""
+    if any(keyword in context_text for keyword in DUEL_OFFENSIVE_KEYWORDS):
+        subtype = "offensive"
+    elif any(keyword in context_text for keyword in DUEL_DEFENSIVE_KEYWORDS):
+        subtype = "defensive"
+    elif "duelo" in zone_normalized:
+        subtype = "generic"
+    elif any(keyword in context_text for keyword in DUEL_EVENT_KEYWORDS):
+        subtype = "generic"
+
+    is_duel = bool(subtype)
+    won = False
+    if is_duel:
+        if subtype == "offensive":
+            success = any(keyword in result_text for keyword in DUEL_OFFENSIVE_SUCCESS_KEYWORDS) or result_is_success(result)
+            failure = any(keyword in result_text for keyword in DUEL_OFFENSIVE_FAIL_KEYWORDS)
+            won = success and not failure
+        elif subtype == "defensive":
+            success = any(keyword in result_text for keyword in DUEL_DEFENSIVE_SUCCESS_KEYWORDS) or result_is_success(result)
+            failure = any(keyword in result_text for keyword in DUEL_DEFENSIVE_FAIL_KEYWORDS)
+            won = success and not failure
+        else:
+            success = any(keyword in result_text for keyword in DUEL_GENERIC_SUCCESS_KEYWORDS) or duel_result_is_success(result)
+            failure = any(keyword in result_text for keyword in DUEL_GENERIC_FAIL_KEYWORDS)
+            won = success and not failure
+
+    return {
+        "is_duel": is_duel,
+        "won": won,
+        "subtype": subtype,
+    }
 
 
 def categorize_position(player_position, zone):
@@ -248,6 +339,8 @@ def zone_to_tercio(zone_label):
     normalized = normalize_label(zone_label)
     if not normalized:
         return ''
+    if 'porteria' in normalized or 'meta' in normalized:
+        return 'Defensa'
     if 'defensa' in normalized:
         return 'Defensa'
     if 'medio' in normalized or 'construcción' in normalized:
