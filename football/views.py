@@ -4338,6 +4338,81 @@ def _get_or_create_library_session(team, scope_key):
     return session
 
 
+def _update_library_task_from_post(task, post_data, scope_key=None):
+    if not task:
+        raise ValueError('Tarea no encontrada.')
+    if scope_key and _task_scope_for_item(task) != scope_key:
+        raise ValueError('La tarea seleccionada no pertenece a este espacio.')
+
+    title = (post_data.get('task_title') or '').strip()
+    if not title:
+        raise ValueError('El título de la tarea es obligatorio.')
+    block = (post_data.get('task_block') or task.block or SessionTask.BLOCK_MAIN_1).strip()
+    valid_blocks = {choice[0] for choice in SessionTask.BLOCK_CHOICES}
+    if block not in valid_blocks:
+        block = SessionTask.BLOCK_MAIN_1
+    minutes = _parse_int(post_data.get('task_minutes'))
+    if minutes is None:
+        minutes = int(task.duration_minutes or 15)
+    minutes = max(5, min(minutes, 90))
+
+    task.title = title[:160]
+    task.block = block
+    task.duration_minutes = minutes
+    task.objective = (post_data.get('task_objective') or '').strip()[:180]
+    task.coaching_points = (post_data.get('task_coaching_points') or '').strip()
+    task.confrontation_rules = (post_data.get('task_confrontation_rules') or '').strip()
+
+    layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
+    layout = dict(layout)
+    meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+    meta = dict(meta)
+    analysis_meta = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
+    analysis_meta = dict(analysis_meta)
+    task_sheet = analysis_meta.get('task_sheet') if isinstance(analysis_meta.get('task_sheet'), dict) else {}
+    task_sheet = dict(task_sheet)
+
+    sheet_field_map = {
+        'task_sheet_description': 'description',
+        'task_sheet_players': 'players',
+        'task_sheet_space': 'space',
+        'task_sheet_dimensions': 'dimensions',
+        'task_sheet_materials': 'materials',
+    }
+    task_sheet_touched = False
+    for post_key, sheet_key in sheet_field_map.items():
+        if post_key in post_data:
+            task_sheet[sheet_key] = str(post_data.get(post_key) or '').strip()
+            task_sheet_touched = True
+    if task_sheet_touched:
+        analysis_meta['task_sheet'] = task_sheet
+        meta['analysis'] = analysis_meta
+        layout['meta'] = meta
+        task.tactical_layout = layout
+        task.save(
+            update_fields=[
+                'title',
+                'block',
+                'duration_minutes',
+                'objective',
+                'coaching_points',
+                'confrontation_rules',
+                'tactical_layout',
+            ]
+        )
+    else:
+        task.save(
+            update_fields=[
+                'title',
+                'block',
+                'duration_minutes',
+                'objective',
+                'coaching_points',
+                'confrontation_rules',
+            ]
+        )
+
+
 def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones'):
     if not _can_access_sessions_workspace(request.user):
         return HttpResponse('No tienes permisos para acceder a sesiones.', status=403)
@@ -4801,6 +4876,17 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 target_task.delete()
                 feedback = f'Tarea eliminada: {task_title}.'
 
+            elif planner_action == 'update_library_task':
+                task_id = _parse_int(request.POST.get('task_id'))
+                target_task = (
+                    SessionTask.objects
+                    .select_related('session__microcycle')
+                    .filter(id=task_id, session__microcycle__team=primary_team)
+                    .first()
+                )
+                _update_library_task_from_post(target_task, request.POST, scope_key=scope_key)
+                feedback = 'Tarea actualizada correctamente.'
+
             elif planner_action == 'create_task_from_analysis':
                 source_task_id = _parse_int(request.POST.get('source_task_id'))
                 target_session_id = _parse_int(request.POST.get('target_session_id'))
@@ -4988,6 +5074,22 @@ def session_task_detail_page(request, task_id):
         'fitness': 'Sesiones · Preparacion fisica',
     }.get(scope_key, 'Sesiones')
 
+    feedback = ''
+    error = ''
+    if request.method == 'POST':
+        detail_action = (request.POST.get('detail_action') or '').strip()
+        try:
+            if detail_action == 'update_task_detail':
+                _update_library_task_from_post(task, request.POST, scope_key=scope_key)
+                feedback = 'Tarea actualizada correctamente.'
+                task.refresh_from_db()
+            else:
+                error = 'Acción no reconocida.'
+        except ValueError as exc:
+            error = str(exc)
+        except Exception:
+            error = 'No se pudo guardar la tarea.'
+
     layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
     meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
     analysis_meta = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
@@ -5008,6 +5110,9 @@ def session_task_detail_page(request, task_id):
             'task_sheet': task_sheet,
             'pdf_excerpt': pdf_excerpt,
             'detected_materials': detected_materials,
+            'feedback': feedback,
+            'error': error,
+            'task_blocks': SessionTask.BLOCK_CHOICES,
         },
     )
 

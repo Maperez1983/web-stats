@@ -298,6 +298,47 @@
                   <button type="submit" class="danger">Eliminar</button>
                 </form>
               </div>
+              <details style="margin-top:0.65rem;">
+                <summary style="cursor:pointer; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; font-size:0.72rem;">
+                  Editar card
+                </summary>
+                <form method="post" class="grid" style="margin-top:0.55rem;">
+                  {% csrf_token %}
+                  <input type="hidden" name="planner_action" value="update_library_task" />
+                  <input type="hidden" name="task_id" value="{{ t.id }}" />
+                  <label>
+                    Título
+                    <input type="text" name="task_title" value="{{ t.title }}" maxlength="160" required />
+                  </label>
+                  <label>
+                    Bloque
+                    <select name="task_block">
+                      {% for value, label in task_blocks %}
+                      <option value="{{ value }}" {% if t.block == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <label>
+                    Minutos
+                    <input type="number" name="task_minutes" min="5" max="90" value="{{ t.duration_minutes }}" />
+                  </label>
+                  <label style="grid-column:1/-1;">
+                    Objetivo
+                    <input type="text" name="task_objective" value="{{ t.objective }}" maxlength="180" />
+                  </label>
+                  <label style="grid-column:1/-1;">
+                    Consignas
+                    <textarea name="task_coaching_points">{{ t.coaching_points }}</textarea>
+                  </label>
+                  <label style="grid-column:1/-1;">
+                    Reglas de confrontación
+                    <textarea name="task_confrontation_rules">{{ t.confrontation_rules }}</textarea>
+                  </label>
+                  <div style="display:flex; align-items:flex-end;">
+                    <button type="submit" class="primary">Guardar cambios</button>
+                  </div>
+                </form>
+              </details>
             </div>
           </article>
           {% endfor %}

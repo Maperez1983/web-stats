@@ -121,6 +121,41 @@
         opacity: 0.9;
         margin-bottom: 0.25rem;
       }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 0.6rem;
+      }
+      label {
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+        font-size: 0.78rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      input, textarea, select {
+        width: 100%;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 10px;
+        padding: 0.5rem 0.6rem;
+        background: rgba(3, 12, 25, 0.8);
+        color: var(--ink);
+        font: inherit;
+        text-transform: none;
+      }
+      textarea { min-height: 92px; }
+      .msg {
+        border-radius: 10px;
+        border: 1px solid rgba(74, 222, 128, 0.45);
+        background: rgba(16, 185, 129, 0.12);
+        padding: 0.55rem 0.7rem;
+        margin-bottom: 0.7rem;
+      }
+      .msg.err {
+        border-color: rgba(248, 113, 113, 0.5);
+        background: rgba(185, 28, 28, 0.18);
+      }
     </style>
   </head>
   <body>
@@ -135,10 +170,75 @@
           {% endif %}
         </div>
       </header>
+      {% if feedback %}
+      <div class="msg">{{ feedback }}</div>
+      {% endif %}
+      {% if error %}
+      <div class="msg err">{{ error }}</div>
+      {% endif %}
 
       <section class="panel">
         <h2>{{ task.title }}</h2>
         <p class="meta">{{ scope_title }} · {{ task.session.session_date|date:"d/m/Y" }} · {{ task.get_block_display }} · {{ task.duration_minutes }}'</p>
+      </section>
+
+      <section class="panel">
+        <h2>Editar tarea y ficha interior</h2>
+        <form method="post" class="grid">
+          {% csrf_token %}
+          <input type="hidden" name="detail_action" value="update_task_detail" />
+          <label>
+            Título
+            <input type="text" name="task_title" value="{{ task.title }}" maxlength="160" required />
+          </label>
+          <label>
+            Bloque
+            <select name="task_block">
+              {% for value, label in task_blocks %}
+              <option value="{{ value }}" {% if task.block == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            Minutos
+            <input type="number" name="task_minutes" min="5" max="90" value="{{ task.duration_minutes }}" />
+          </label>
+          <label style="grid-column:1/-1;">
+            Objetivo
+            <input type="text" name="task_objective" value="{{ task.objective }}" maxlength="180" />
+          </label>
+          <label style="grid-column:1/-1;">
+            Consignas
+            <textarea name="task_coaching_points">{{ task.coaching_points }}</textarea>
+          </label>
+          <label style="grid-column:1/-1;">
+            Reglas de confrontación
+            <textarea name="task_confrontation_rules">{{ task.confrontation_rules }}</textarea>
+          </label>
+          <label style="grid-column:1/-1;">
+            Descripción (ficha interior)
+            <textarea name="task_sheet_description">{{ task_sheet.description }}</textarea>
+          </label>
+          <label>
+            Jugadores (ficha interior)
+            <input type="text" name="task_sheet_players" value="{{ task_sheet.players }}" />
+          </label>
+          <label>
+            Espacio (ficha interior)
+            <input type="text" name="task_sheet_space" value="{{ task_sheet.space }}" />
+          </label>
+          <label>
+            Medidas (ficha interior)
+            <input type="text" name="task_sheet_dimensions" value="{{ task_sheet.dimensions }}" />
+          </label>
+          <label>
+            Materiales (ficha interior)
+            <input type="text" name="task_sheet_materials" value="{{ task_sheet.materials }}" />
+          </label>
+          <div style="display:flex; align-items:flex-end;">
+            <button class="button" type="submit">Guardar cambios</button>
+          </div>
+        </form>
       </section>
 
       {% if task.task_preview_image %}
