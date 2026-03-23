@@ -3662,6 +3662,76 @@ def _suggest_task_from_pdf(pdf_text):
     return analysis
 
 
+def _split_pdf_into_task_sections(pdf_text):
+    text = str(pdf_text or '').strip()
+    if not text:
+        return []
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if len(lines) < 6:
+        return [text]
+
+    start_patterns = [
+        re.compile(r'^(?:tarea|ejercicio|task|drill)\s*(?:n[\.\s]*[oº°])?\s*\d{1,2}\b', re.IGNORECASE),
+        re.compile(r'^\d{1,2}\s*[\)\.\-]\s*(?:tarea|ejercicio|task|drill)\b', re.IGNORECASE),
+        re.compile(r'^(?:task|drill)\s*\d{1,2}\b', re.IGNORECASE),
+    ]
+
+    boundaries = []
+    for idx, line in enumerate(lines):
+        if any(pattern.search(line) for pattern in start_patterns):
+            boundaries.append(idx)
+
+    if len(boundaries) < 2:
+        objective_indices = []
+        for idx, line in enumerate(lines):
+            if re.match(r'^(?:objetivo|objective)\s*[:\-]', line, re.IGNORECASE):
+                objective_indices.append(max(0, idx - 1))
+        boundaries = sorted(set(objective_indices))
+
+    if len(boundaries) < 2:
+        return [text]
+
+    sections = []
+    seen = set()
+    for i, start in enumerate(boundaries):
+        end = boundaries[i + 1] if i + 1 < len(boundaries) else len(lines)
+        if end - start < 3:
+            continue
+        chunk = '\n'.join(lines[start:end]).strip()
+        normalized = _normalize_folded_text(chunk)
+        if len(chunk) < 80 or normalized in seen:
+            continue
+        seen.add(normalized)
+        sections.append(chunk)
+
+    if len(sections) < 2:
+        return [text]
+    return sections[:8]
+
+
+def _extract_tasks_from_pdf_text(pdf_text, fallback_title='Tarea desde PDF'):
+    sections = _split_pdf_into_task_sections(pdf_text)
+    analyses = []
+    for idx, section in enumerate(sections, start=1):
+        analysis = _suggest_task_from_pdf(section)
+        title = (analysis.get('title') or '').strip()
+        if not title or title.lower() == 'tarea desde pdf':
+            if len(sections) > 1:
+                title = f'{fallback_title} · Tarea {idx}'
+            else:
+                title = fallback_title
+            analysis['title'] = title[:160]
+        analyses.append(
+            {
+                'analysis': analysis,
+                'raw_text': section[:2500],
+                'segment_index': idx,
+                'segment_total': len(sections),
+            }
+        )
+    return analyses
+
+
 def _task_scope_for_item(task):
     layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
     meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
@@ -3751,40 +3821,117 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                         raise ValueError('Todos los archivos deben ser PDF.')
                 base_order = SessionTask.objects.filter(session=target_session).count()
                 created_count = 0
+                processed_pdfs = 0
                 for idx, pdf_file in enumerate(pdf_files, start=1):
                     raw_name = str(getattr(pdf_file, 'name', '') or '').rsplit('/', 1)[-1]
                     file_stem = raw_name.rsplit('.', 1)[0].strip() or f'Tarea PDF {idx}'
                     task_title = title or file_stem
                     if title and len(pdf_files) > 1:
                         task_title = f'{title} · {file_stem}'
-                    created_task = SessionTask.objects.create(
+
+                    extracted_text = ''
+                    try:
+                        extracted_text = _extract_pdf_text(pdf_file, max_chars=30000)
+                    except Exception:
+                        pass
+                    parsed_tasks = _extract_tasks_from_pdf_text(extracted_text, fallback_title=task_title)
+                    if not parsed_tasks:
+                        parsed_tasks = [
+                            {
+                                'analysis': {
+                                    'title': task_title[:160],
+                                    'objective': objective[:180],
+                                    'minutes': max(5, min(minutes, 90)),
+                                    'coaching_points': '',
+                                    'confrontation_rules': '',
+                                    'summary': '',
+                                    'work_contexts': [],
+                                    'objective_tags': [],
+                                    'detected_materials': [],
+                                    'quality_score': 0,
+                                },
+                                'raw_text': '',
+                                'segment_index': 1,
+                                'segment_total': 1,
+                            }
+                        ]
+
+                    if hasattr(pdf_file, 'seek'):
+                        pdf_file.seek(0)
+
+                    first = parsed_tasks[0]
+                    first_analysis = first.get('analysis') or {}
+                    first_title = (first_analysis.get('title') or task_title or 'Tarea desde PDF')[:160]
+                    first_task = SessionTask.objects.create(
                         session=target_session,
-                        title=task_title[:160],
+                        title=first_title,
                         block=block,
-                        duration_minutes=max(5, min(minutes, 90)),
-                        objective=objective[:180],
-                        coaching_points='',
-                        confrontation_rules='',
-                        tactical_layout={'meta': {'scope': scope_key}},
+                        duration_minutes=max(5, min((_parse_int(first_analysis.get('minutes')) or minutes), 90)),
+                        objective=((first_analysis.get('objective') or objective or '')[:180]),
+                        coaching_points=(first_analysis.get('coaching_points') or ''),
+                        confrontation_rules=(first_analysis.get('confrontation_rules') or ''),
+                        tactical_layout={
+                            'meta': {
+                                'scope': scope_key,
+                                'pdf_source_name': raw_name,
+                                'pdf_segment_index': first.get('segment_index') or 1,
+                                'pdf_segments_total': first.get('segment_total') or 1,
+                                'pdf_segment_excerpt': (first.get('raw_text') or '')[:1200],
+                            }
+                        },
                         task_pdf=pdf_file,
                         status=SessionTask.STATUS_PLANNED,
-                        order=base_order + idx,
+                        order=base_order + created_count + 1,
                         notes='Cargada desde Biblioteca PDF',
                     )
-                    preview_payload = _extract_preview_image_from_pdf(created_task.task_pdf)
+                    preview_payload = _extract_preview_image_from_pdf(first_task.task_pdf)
                     if preview_payload:
                         preview_name, preview_content = preview_payload
-                        created_task.task_preview_image.save(preview_name, preview_content, save=True)
+                        first_task.task_preview_image.save(preview_name, preview_content, save=True)
                     try:
-                        extracted_text = _extract_pdf_text(created_task.task_pdf)
-                        parsed = _suggest_task_from_pdf(extracted_text)
-                        _apply_analysis_to_task(created_task, parsed)
+                        _apply_analysis_to_task(first_task, first_analysis)
                     except Exception:
                         pass
                     created_count += 1
+                    processed_pdfs += 1
+
+                    shared_pdf_name = first_task.task_pdf.name if first_task.task_pdf else ''
+                    shared_preview_name = first_task.task_preview_image.name if first_task.task_preview_image else ''
+                    for extra in parsed_tasks[1:]:
+                        extra_analysis = extra.get('analysis') or {}
+                        extra_title = (extra_analysis.get('title') or f'{task_title} · Tarea {extra.get("segment_index") or 0}')[:160]
+                        extra_task = SessionTask.objects.create(
+                            session=target_session,
+                            title=extra_title,
+                            block=block,
+                            duration_minutes=max(5, min((_parse_int(extra_analysis.get('minutes')) or minutes), 90)),
+                            objective=((extra_analysis.get('objective') or objective or '')[:180]),
+                            coaching_points=(extra_analysis.get('coaching_points') or ''),
+                            confrontation_rules=(extra_analysis.get('confrontation_rules') or ''),
+                            tactical_layout={
+                                'meta': {
+                                    'scope': scope_key,
+                                    'pdf_source_name': raw_name,
+                                    'pdf_segment_index': extra.get('segment_index') or 1,
+                                    'pdf_segments_total': extra.get('segment_total') or 1,
+                                    'pdf_segment_excerpt': (extra.get('raw_text') or '')[:1200],
+                                }
+                            },
+                            task_pdf=shared_pdf_name or None,
+                            task_preview_image=shared_preview_name or None,
+                            status=SessionTask.STATUS_PLANNED,
+                            order=base_order + created_count + 1,
+                            notes='Extraída automáticamente desde PDF multi-tarea',
+                        )
+                        try:
+                            _apply_analysis_to_task(extra_task, extra_analysis)
+                        except Exception:
+                            pass
+                        created_count += 1
                 feedback = (
-                    'Se guardó 1 PDF en biblioteca.'
-                    if created_count == 1 else f'Se guardaron {created_count} PDFs en biblioteca.'
+                    f'Se procesó 1 PDF y se creó 1 tarea.'
+                    if created_count == 1 and processed_pdfs == 1
+                    else f'Se procesaron {processed_pdfs} PDFs y se crearon {created_count} tareas.'
                 )
 
             elif planner_action == 'analyze_all_library_pdfs':
