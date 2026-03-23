@@ -24,6 +24,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.cache import cache
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 from django.db import transaction
 from django.db.models import Count, Max, Q
 from django.db.utils import OperationalError, ProgrammingError
@@ -4344,6 +4345,8 @@ def _update_library_task_from_post(task, post_data, scope_key=None):
     if scope_key and _task_scope_for_item(task) != scope_key:
         raise ValueError('La tarea seleccionada no pertenece a este espacio.')
 
+    _ensure_original_task_snapshot(task)
+
     title = (post_data.get('task_title') or '').strip()
     if not title:
         raise ValueError('El título de la tarea es obligatorio.')
@@ -4401,6 +4404,8 @@ def _update_library_task_from_post(task, post_data, scope_key=None):
             ]
         )
     else:
+        layout['meta'] = meta
+        task.tactical_layout = layout
         task.save(
             update_fields=[
                 'title',
@@ -4409,8 +4414,103 @@ def _update_library_task_from_post(task, post_data, scope_key=None):
                 'objective',
                 'coaching_points',
                 'confrontation_rules',
+                'tactical_layout',
             ]
         )
+
+
+def _storage_url_or_empty(name):
+    value = str(name or '').strip()
+    if not value:
+        return ''
+    try:
+        return default_storage.url(value)
+    except Exception:
+        return ''
+
+
+def _ensure_original_task_snapshot(task):
+    if not task:
+        return {}
+    layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
+    layout = dict(layout)
+    meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+    meta = dict(meta)
+    if isinstance(meta.get('original_version'), dict):
+        return meta.get('original_version') or {}
+    analysis_meta = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
+    analysis_meta = dict(analysis_meta)
+    task_sheet = analysis_meta.get('task_sheet') if isinstance(analysis_meta.get('task_sheet'), dict) else {}
+    snapshot = {
+        'captured_at': timezone.now().isoformat(),
+        'title': task.title or '',
+        'block': task.block or '',
+        'duration_minutes': int(task.duration_minutes or 0),
+        'objective': task.objective or '',
+        'coaching_points': task.coaching_points or '',
+        'confrontation_rules': task.confrontation_rules or '',
+        'task_sheet': dict(task_sheet),
+        'graphic_editor': meta.get('graphic_editor') if isinstance(meta.get('graphic_editor'), dict) else {},
+        'task_preview_image': task.task_preview_image.name if task.task_preview_image else '',
+        'task_pdf': task.task_pdf.name if task.task_pdf else '',
+    }
+    meta['original_version'] = snapshot
+    layout['meta'] = meta
+    task.tactical_layout = layout
+    task.save(update_fields=['tactical_layout'])
+    return snapshot
+
+
+def _restore_task_from_original_snapshot(task, scope_key=None):
+    if not task:
+        raise ValueError('Tarea no encontrada.')
+    if scope_key and _task_scope_for_item(task) != scope_key:
+        raise ValueError('La tarea seleccionada no pertenece a este espacio.')
+    layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
+    layout = dict(layout)
+    meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+    meta = dict(meta)
+    original = meta.get('original_version') if isinstance(meta.get('original_version'), dict) else {}
+    if not original:
+        raise ValueError('La tarea no tiene versión original guardada.')
+
+    task.title = str(original.get('title') or task.title or '')[:160]
+    block = str(original.get('block') or task.block or SessionTask.BLOCK_MAIN_1).strip()
+    if block not in {choice[0] for choice in SessionTask.BLOCK_CHOICES}:
+        block = SessionTask.BLOCK_MAIN_1
+    task.block = block
+    task.duration_minutes = max(5, min(_parse_int(original.get('duration_minutes')) or int(task.duration_minutes or 15), 90))
+    task.objective = str(original.get('objective') or '')[:180]
+    task.coaching_points = str(original.get('coaching_points') or '')
+    task.confrontation_rules = str(original.get('confrontation_rules') or '')
+
+    analysis_meta = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
+    analysis_meta = dict(analysis_meta)
+    original_sheet = original.get('task_sheet') if isinstance(original.get('task_sheet'), dict) else {}
+    if original_sheet:
+        analysis_meta['task_sheet'] = dict(original_sheet)
+        meta['analysis'] = analysis_meta
+
+    original_graphic = original.get('graphic_editor') if isinstance(original.get('graphic_editor'), dict) else {}
+    if original_graphic:
+        meta['graphic_editor'] = dict(original_graphic)
+
+    layout['meta'] = meta
+    task.tactical_layout = layout
+    preview_name = str(original.get('task_preview_image') or '').strip()
+    update_fields = [
+        'title',
+        'block',
+        'duration_minutes',
+        'objective',
+        'coaching_points',
+        'confrontation_rules',
+        'tactical_layout',
+    ]
+    if preview_name:
+        task.task_preview_image = preview_name
+        update_fields.append('task_preview_image')
+    task.save(update_fields=update_fields)
 
 
 def _decode_canvas_data_url(data_url):
@@ -5148,6 +5248,10 @@ def session_task_detail_page(request, task_id):
                 _update_library_task_from_post(task, request.POST, scope_key=scope_key)
                 feedback = 'Tarea actualizada correctamente.'
                 task.refresh_from_db()
+            elif detail_action == 'restore_original_version':
+                _restore_task_from_original_snapshot(task, scope_key=scope_key)
+                feedback = 'Se restauró la versión original de la tarea.'
+                task.refresh_from_db()
             else:
                 error = 'Acción no reconocida.'
         except ValueError as exc:
@@ -5159,6 +5263,9 @@ def session_task_detail_page(request, task_id):
     meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
     analysis_meta = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
     task_sheet = analysis_meta.get('task_sheet') if isinstance(analysis_meta.get('task_sheet'), dict) else {}
+    original_version = meta.get('original_version') if isinstance(meta.get('original_version'), dict) else {}
+    original_task_sheet = original_version.get('task_sheet') if isinstance(original_version.get('task_sheet'), dict) else {}
+    original_preview_url = _storage_url_or_empty(original_version.get('task_preview_image') if isinstance(original_version, dict) else '')
     pdf_excerpt = str(meta.get('pdf_segment_excerpt') or meta.get('extracted_text_excerpt') or '').strip()
     detected_materials = analysis_meta.get('detected_materials') if isinstance(analysis_meta.get('detected_materials'), list) else []
     if task.task_pdf and not task.task_preview_image:
@@ -5179,6 +5286,9 @@ def session_task_detail_page(request, task_id):
             'error': error,
             'task_blocks': SessionTask.BLOCK_CHOICES,
             'graphic_editor_state_json': json.dumps(meta.get('graphic_editor', {}), ensure_ascii=False),
+            'original_version': original_version,
+            'original_task_sheet': original_task_sheet,
+            'original_preview_url': original_preview_url,
         },
     )
 
@@ -5207,6 +5317,8 @@ def save_session_task_graphic(request, task_id):
         return JsonResponse({'error': 'Estado gráfico inválido.'}, status=400)
     canvas_width = _parse_int(payload.get('canvas_width'))
     canvas_height = _parse_int(payload.get('canvas_height'))
+
+    _ensure_original_task_snapshot(task)
 
     preview_data = payload.get('preview_data')
     layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
