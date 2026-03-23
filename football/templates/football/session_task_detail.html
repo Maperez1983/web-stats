@@ -222,6 +222,38 @@
         text-align: center;
         font-size: 0.9rem;
       }
+      .resource-search {
+        margin: 0 0 0.45rem;
+      }
+      .resource-search input {
+        height: 36px;
+      }
+      .iconify-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 0.36rem;
+      }
+      .iconify-btn {
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 9px;
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--ink);
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 0.52rem;
+        min-height: 38px;
+        padding: 0.3rem 0.45rem;
+        cursor: pointer;
+        font-size: 0.72rem;
+        line-height: 1.2;
+      }
+      .iconify-btn iconify-icon {
+        font-size: 1.05rem;
+      }
+      .iconify-btn.is-hidden {
+        display: none;
+      }
     </style>
   </head>
   <body>
@@ -349,6 +381,26 @@
             <button type="button" class="resource-btn" data-resource="zone"><span class="ico">▭</span><span>Zona</span></button>
           </div>
         </div>
+        <div class="resource-library">
+          <p class="resource-title">Iconify · recursos extra (gratis)</p>
+          <div class="resource-search">
+            <input id="graphic-iconify-search" type="text" placeholder="Buscar icono (jugador, balón, cono, portería, flecha...)" />
+          </div>
+          <div class="iconify-grid" id="graphic-iconify-grid">
+            <button type="button" class="iconify-btn" data-iconify="mdi:account" data-label="Jugador"><iconify-icon icon="mdi:account"></iconify-icon><span>Jugador</span></button>
+            <button type="button" class="iconify-btn" data-iconify="mdi:account-group" data-label="Grupo"><iconify-icon icon="mdi:account-group"></iconify-icon><span>Grupo</span></button>
+            <button type="button" class="iconify-btn" data-iconify="mdi:soccer" data-label="Balón"><iconify-icon icon="mdi:soccer"></iconify-icon><span>Balón</span></button>
+            <button type="button" class="iconify-btn" data-iconify="mdi:cone" data-label="Cono"><iconify-icon icon="mdi:cone"></iconify-icon><span>Cono</span></button>
+            <button type="button" class="iconify-btn" data-iconify="mdi:map-marker" data-label="Marca"><iconify-icon icon="mdi:map-marker"></iconify-icon><span>Marca</span></button>
+            <button type="button" class="iconify-btn" data-iconify="mdi:whistle" data-label="Silbato"><iconify-icon icon="mdi:whistle"></iconify-icon><span>Silbato</span></button>
+            <button type="button" class="iconify-btn" data-iconify="mdi:target" data-label="Diana"><iconify-icon icon="mdi:target"></iconify-icon><span>Diana</span></button>
+            <button type="button" class="iconify-btn" data-iconify="mdi:shield-outline" data-label="Defensa"><iconify-icon icon="mdi:shield-outline"></iconify-icon><span>Defensa</span></button>
+            <button type="button" class="iconify-btn" data-iconify="mdi:tshirt-crew-outline" data-label="Peto"><iconify-icon icon="mdi:tshirt-crew-outline"></iconify-icon><span>Peto</span></button>
+            <button type="button" class="iconify-btn" data-iconify="mdi:arrow-right-bold" data-label="Flecha"><iconify-icon icon="mdi:arrow-right-bold"></iconify-icon><span>Flecha</span></button>
+            <button type="button" class="iconify-btn" data-iconify="mdi:arrow-split-horizontal" data-label="Desmarque"><iconify-icon icon="mdi:arrow-split-horizontal"></iconify-icon><span>Desmarque</span></button>
+            <button type="button" class="iconify-btn" data-iconify="mdi:format-text" data-label="Texto"><iconify-icon icon="mdi:format-text"></iconify-icon><span>Texto</span></button>
+          </div>
+        </div>
         <div class="graphic-canvas-wrap">
           <canvas id="task-graphic-canvas" width="1280" height="720"></canvas>
         </div>
@@ -427,6 +479,7 @@
       </section>
       {% endif %}
     </main>
+    <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
     <script>
       (() => {
@@ -526,6 +579,40 @@
           });
           canvas.renderAll();
           setStatus(drawMode ? 'Modo dibujo activo.' : 'Modo selección activo.');
+        };
+        const addIconifySvg = async (iconName) => {
+          const name = String(iconName || '').trim();
+          if (!name) return;
+          try {
+            setStatus(`Cargando icono ${name}...`);
+            const response = await fetch(`https://api.iconify.design/${encodeURIComponent(name)}.svg?height=80`);
+            if (!response.ok) throw new Error('Icono no disponible');
+            const svgText = await response.text();
+            fabric.loadSVGFromString(svgText, (objects, options) => {
+              if (!objects || !objects.length) {
+                setStatus('No se pudo interpretar el icono.', true);
+                return;
+              }
+              const iconObj = fabric.util.groupSVGElements(objects, options);
+              const targetW = 60;
+              const targetH = 60;
+              const scale = Math.min(targetW / (iconObj.width || targetW), targetH / (iconObj.height || targetH));
+              iconObj.set({
+                left: 210 + Math.floor(Math.random() * 140),
+                top: 170 + Math.floor(Math.random() * 110),
+                originX: 'left',
+                originY: 'top',
+              });
+              iconObj.scale(scale);
+              canvas.add(iconObj);
+              canvas.setActiveObject(iconObj);
+              canvas.renderAll();
+              setMode(false);
+              setStatus(`Icono añadido: ${name}.`);
+            });
+          } catch (err) {
+            setStatus(`No se pudo cargar ${name}.`, true);
+          }
         };
         const addResource = (kind) => {
           const baseLeft = 180 + Math.floor(Math.random() * 180);
@@ -718,6 +805,20 @@
           const btn = event.target.closest('[data-resource]');
           if (!btn) return;
           addResource(btn.dataset.resource);
+        });
+        const iconifyGrid = document.getElementById('graphic-iconify-grid');
+        iconifyGrid?.addEventListener('click', (event) => {
+          const btn = event.target.closest('[data-iconify]');
+          if (!btn) return;
+          addIconifySvg(btn.dataset.iconify);
+        });
+        const iconifySearch = document.getElementById('graphic-iconify-search');
+        iconifySearch?.addEventListener('input', () => {
+          const term = String(iconifySearch.value || '').toLowerCase().trim();
+          iconifyGrid?.querySelectorAll('[data-iconify]').forEach((btn) => {
+            const text = `${btn.dataset.iconify || ''} ${btn.dataset.label || ''}`.toLowerCase();
+            btn.classList.toggle('is-hidden', term && !text.includes(term));
+          });
         });
         document.getElementById('graphic-duplicate-btn')?.addEventListener('click', () => {
           const active = canvas.getActiveObject();
