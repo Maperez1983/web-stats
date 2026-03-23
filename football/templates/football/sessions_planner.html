@@ -1293,6 +1293,7 @@
           <a class="tab-link {% if library_view == 'type' %}is-active{% endif %}" href="?tab=library&library_view=type">Por tipo</a>
           <a class="tab-link {% if library_view == 'players' %}is-active{% endif %}" href="?tab=library&library_view=players">Por jugadores</a>
           <a class="tab-link {% if library_view == 'duration' %}is-active{% endif %}" href="?tab=library&library_view=duration">Por duración</a>
+          <a class="tab-link {% if library_view == 'date' %}is-active{% endif %}" href="?tab=library&library_view=date">Por fecha</a>
           <a class="tab-link {% if library_view == 'quality' %}is-active{% endif %}" href="?tab=library&library_view=quality">Por calidad</a>
         </div>
         {% if library_view == 'phase' and phase_group_rows %}
@@ -1310,6 +1311,10 @@
         {% elif library_view == 'duration' and duration_band_group_rows %}
         <p class="meta" style="margin-top:-0.1rem;">
           {% for item in duration_band_group_rows %}<a class="badge" href="?tab=library&library_view=duration&library_key={{ item.key }}">{{ item.key }} · {{ item.count }}</a>{% endfor %}
+        </p>
+        {% elif library_view == 'date' and date_group_rows %}
+        <p class="meta" style="margin-top:-0.1rem;">
+          {% for item in date_group_rows %}<a class="badge" href="?tab=library&library_view=date&library_key={{ item.key }}">{{ item.label }} · {{ item.count }}</a>{% endfor %}
         </p>
         {% elif library_view == 'quality' and quality_group_rows %}
         <p class="meta" style="margin-top:-0.1rem;">
@@ -1336,29 +1341,12 @@
             <div class="task-content">
               <h3 class="task-title">{{ t.title }}</h3>
               <p class="task-objective">{{ t.objective_summary|truncatechars:140 }}</p>
-              <p class="meta"><strong>{{ t.session.session_date|date:"d/m/Y" }}</strong> · {{ t.get_block_display }} · {{ t.duration_minutes }}'</p>
-              {% if t.task_sheet %}
-              <p class="meta" style="margin-top:-0.2rem;">
-                {% if t.task_sheet.players %}Jugadores: <strong>{{ t.task_sheet.players }}</strong>{% endif %}
-                {% if t.task_sheet.space %} · Espacio: <strong>{{ t.task_sheet.space }}</strong>{% endif %}
-                {% if t.task_sheet.dimensions %} · Medidas: <strong>{{ t.task_sheet.dimensions }}</strong>{% endif %}
-                {% if t.task_sheet.materials %} · Material: <strong>{{ t.task_sheet.materials|truncatechars:70 }}</strong>{% endif %}
-              </p>
-              {% if t.task_sheet.description %}
-              <p class="meta" style="margin-top:-0.1rem;">Descripción: {{ t.task_sheet.description|truncatechars:220 }}</p>
-              {% endif %}
-              {% endif %}
+              <p class="meta"><strong>{{ t.reference_date|date:"d/m/Y" }}</strong>{% if t.reference_date_is_detected %} · Fecha detectada{% endif %} · {{ t.get_block_display }} · {{ t.duration_minutes }}'</p>
               {% if t.analysis_meta %}
               <div style="display:flex; gap:0.35rem; flex-wrap:wrap; margin-bottom:0.55rem;">
                 {% if t.analysis_meta.quality_score %}<span class="badge">Score {{ t.analysis_meta.quality_score }}/100</span>{% endif %}
                 {% if t.analysis_confidence.overall %}<span class="badge">Conf {{ t.analysis_confidence.overall }}/100</span>{% endif %}
                 {% if t.needs_review %}<span class="badge" style="border-color:rgba(248,113,113,0.65); color:#fecaca;">Revisión necesaria</span>{% endif %}
-                {% for ctx in t.analysis_meta.work_contexts %}
-                <span class="badge">{{ ctx }}</span>
-                {% endfor %}
-                {% for obj in t.analysis_meta.objective_tags %}
-                <span class="badge">{{ obj }}</span>
-                {% endfor %}
                 {% for item in t.exercise_types %}
                 <span class="badge">Tipo: {{ item }}</span>
                 {% endfor %}
@@ -1368,17 +1356,6 @@
                 {% if t.players_band %}<span class="badge">{{ t.players_band }}</span>{% endif %}
                 {% if t.duration_band %}<span class="badge">{{ t.duration_band }}</span>{% endif %}
               </div>
-              {% if t.card_summary %}
-              <p class="meta" style="margin-top:-0.15rem;">Resumen detectado: {{ t.card_summary|truncatechars:210 }}</p>
-              {% endif %}
-              {% if t.detected_materials %}
-              <p class="meta" style="margin-top:-0.15rem;">
-                Material detectado:
-                {% for material in t.detected_materials %}
-                <span class="badge">{{ material.title|default:material.label|default:material.kind }}</span>
-                {% endfor %}
-              </p>
-              {% endif %}
               {% endif %}
               <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
                 {% if t.task_pdf %}

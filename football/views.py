@@ -11,7 +11,7 @@ import uuid
 import tempfile
 import shutil
 from collections import Counter, defaultdict
-from datetime import datetime, timedelta, time
+from datetime import datetime, timedelta, time, date
 from functools import wraps
 from pathlib import Path
 import unicodedata
@@ -3603,7 +3603,7 @@ def _extract_pdf_text(pdf_file, max_chars=12000):
             if ocr_rendered:
                 merged = '\n'.join([text, ocr_rendered]).strip() if text else ocr_rendered
                 text = re.sub(r'\n{3,}', '\n\n', merged)
-        text = _repair_joined_words_text(text)
+        text = _polish_spanish_text(_repair_joined_words_text(text), multiline=True)
         return text[:max_chars]
     except Exception:
         raise ValueError('No se pudo leer el PDF. Verifica que no esté protegido o corrupto.')
@@ -3940,7 +3940,7 @@ TASK_PHASE_KEYWORDS = {
     'mixta': ['ida y vuelta', 'ataque y defensa', 'mixto'],
 }
 
-TASK_PDF_PARSE_VERSION = 2
+TASK_PDF_PARSE_VERSION = 4
 
 TASK_JOINED_WORD_VOCAB = [
     'TAREA', 'EJERCICIO', 'SESION', 'BLOQUE', 'BLOQUES', 'PARTE', 'PRINCIPAL',
@@ -4125,6 +4125,260 @@ def _repair_joined_words_text(value):
     return cleaned.strip()
 
 
+def _polish_spanish_text(value, multiline=True, max_len=None):
+    text = str(value or '')
+    if not text:
+        return ''
+    text = text.replace('\r\n', '\n').replace('\r', '\n')
+    text = text.replace('’', "'").replace('`', "'")
+    text = re.sub(r'[ \t]+', ' ', text)
+    text = re.sub(r'\s+([,.;:!?])', r'\1', text)
+    text = re.sub(r'([,.;:!?])(?=[^\s\n])', r'\1 ', text)
+    text = re.sub(r'\(\s+', '(', text)
+    text = re.sub(r'\s+\)', ')', text)
+    text = re.sub(r'\s{2,}', ' ', text)
+    text = re.sub(r' *\n *', '\n', text)
+    if not multiline:
+        text = text.replace('\n', ' ')
+    lines = [ln.strip() for ln in text.split('\n')]
+    acronym_words = {
+        'ABP', 'RPE', 'GPS', 'TRX', 'MD', 'SSG', 'UEFA',
+        '1V1', '2V2', '3V3', '4V4', '5V5', '6V6', '7V7', '8V8', '9V9', '11V11',
+    }
+    polished_lines = []
+    for line in lines:
+        if not line:
+            continue
+        bullet_prefix = ''
+        bullet_match = re.match(r'^([\-•\*]\s+)', line)
+        if bullet_match:
+            bullet_prefix = bullet_match.group(1)
+            line = line[len(bullet_prefix):].strip()
+        if len(line) >= 10 and line.isupper():
+            words = line.lower().split()
+            fixed = []
+            for idx, token in enumerate(words):
+                upper_token = token.upper()
+                if upper_token in acronym_words:
+                    fixed.append(upper_token)
+                    continue
+                if idx == 0:
+                    fixed.append(token.capitalize())
+                else:
+                    fixed.append(token)
+            line = ' '.join(fixed)
+        line = re.sub(r'([.!?])([A-Za-zÁÉÍÓÚÜÑáéíóúüñ])', r'\1 \2', line)
+        line = line[:1].upper() + line[1:] if line else line
+        polished_lines.append(f'{bullet_prefix}{line}'.strip())
+    result = '\n'.join(polished_lines).strip()
+    if max_len:
+        result = result[:int(max_len)]
+    return result
+
+
+def _sanitize_task_text(value, multiline=True, max_len=None):
+    return _polish_spanish_text(
+        _repair_joined_words_text(value),
+        multiline=multiline,
+        max_len=max_len,
+    )
+
+
+def _text_has_quality_issues(value):
+    text = str(value or '').strip()
+    if not text:
+        return False
+    if re.search(r'\b[A-ZÁÉÍÓÚÜÑ]{12,}\b', text):
+        return True
+    if re.search(r'[,;:](\S)', text):
+        return True
+    if re.search(r'\s{2,}', text):
+        return True
+    if len(text) >= 8 and text.isupper():
+        return True
+    return False
+
+
+MONTHS_ES = {
+    'enero': 1,
+    'febrero': 2,
+    'marzo': 3,
+    'abril': 4,
+    'mayo': 5,
+    'junio': 6,
+    'julio': 7,
+    'agosto': 8,
+    'septiembre': 9,
+    'setiembre': 9,
+    'octubre': 10,
+    'noviembre': 11,
+    'diciembre': 12,
+}
+
+
+def _coerce_reference_date(raw_value):
+    value = str(raw_value or '').strip()
+    if not value:
+        return None
+    try:
+        parsed = datetime.strptime(value, '%Y-%m-%d').date()
+    except ValueError:
+        return None
+    if parsed.year < 2000 or parsed.year > 2100:
+        return None
+    return parsed
+
+
+def _parse_2digit_year(year_value):
+    year_int = int(year_value)
+    if year_int >= 100:
+        return year_int
+    return 2000 + year_int if year_int <= 69 else 1900 + year_int
+
+
+def _extract_dates_from_text(raw_text):
+    text = str(raw_text or '')
+    if not text:
+        return []
+    found = []
+
+    for line in text.splitlines():
+        if 'fecha' not in _normalize_folded_text(line):
+            continue
+        line_dates = _extract_dates_line_parser(line)
+        if line_dates:
+            return line_dates
+    return _extract_dates_line_parser(text)
+
+
+def _extract_dates_line_parser(segment):
+    text = str(segment or '')
+    dates_found = []
+    for match in re.finditer(r'\b([0-3]?\d)[\/\-.]([01]?\d)[\/\-.](\d{2,4})\b', text):
+        day_val = _parse_int(match.group(1))
+        month_val = _parse_int(match.group(2))
+        year_val = _parse_int(match.group(3))
+        if not day_val or not month_val or year_val is None:
+            continue
+        year_val = _parse_2digit_year(year_val)
+        try:
+            parsed = date(year_val, month_val, day_val)
+        except ValueError:
+            continue
+        if 2000 <= parsed.year <= 2100:
+            dates_found.append(parsed)
+    for match in re.finditer(r'\b(\d{4})[\/\-.]([01]?\d)[\/\-.]([0-3]?\d)\b', text):
+        year_val = _parse_int(match.group(1))
+        month_val = _parse_int(match.group(2))
+        day_val = _parse_int(match.group(3))
+        if not year_val or not month_val or not day_val:
+            continue
+        try:
+            parsed = date(year_val, month_val, day_val)
+        except ValueError:
+            continue
+        if 2000 <= parsed.year <= 2100:
+            dates_found.append(parsed)
+    month_regex = '|'.join(MONTHS_ES.keys())
+    for match in re.finditer(
+        rf'\b([0-3]?\d)\s*(?:de\s+)?({month_regex})\s*(?:de\s+)?(\d{{2,4}})\b',
+        _normalize_folded_text(text),
+        flags=re.IGNORECASE,
+    ):
+        day_val = _parse_int(match.group(1))
+        month_val = MONTHS_ES.get(str(match.group(2) or '').lower())
+        year_val = _parse_int(match.group(3))
+        if not day_val or not month_val or year_val is None:
+            continue
+        year_val = _parse_2digit_year(year_val)
+        try:
+            parsed = date(year_val, month_val, day_val)
+        except ValueError:
+            continue
+        if 2000 <= parsed.year <= 2100:
+            dates_found.append(parsed)
+    return dates_found
+
+
+def _detect_reference_date_in_text(raw_text):
+    candidates = _extract_dates_from_text(raw_text)
+    if not candidates:
+        return None
+    return candidates[0]
+
+
+def _task_upload_date(task):
+    created = getattr(task, 'created_at', None)
+    if created:
+        try:
+            return timezone.localtime(created).date()
+        except Exception:
+            try:
+                return created.date()
+            except Exception:
+                pass
+    session_obj = getattr(task, 'session', None)
+    if session_obj and getattr(session_obj, 'session_date', None):
+        return session_obj.session_date
+    return timezone.localdate()
+
+
+def _build_task_date_haystack(task, analysis_meta=None):
+    sheet = analysis_meta.get('task_sheet') if isinstance(analysis_meta, dict) and isinstance(analysis_meta.get('task_sheet'), dict) else {}
+    return '\n'.join(
+        [
+            str(getattr(task, 'title', '') or ''),
+            str(getattr(task, 'objective', '') or ''),
+            str(getattr(task, 'coaching_points', '') or ''),
+            str(getattr(task, 'confrontation_rules', '') or ''),
+            str((analysis_meta or {}).get('summary') or ''),
+            str(sheet.get('description') or ''),
+        ]
+    ).strip()
+
+
+def _extract_effective_reference_date(task, analysis_meta=None):
+    upload_date = _task_upload_date(task)
+    meta = analysis_meta if isinstance(analysis_meta, dict) else {}
+    stored_date = _coerce_reference_date(meta.get('reference_date'))
+    if stored_date and stored_date != upload_date:
+        return stored_date
+    detected = _detect_reference_date_in_text(_build_task_date_haystack(task, meta))
+    if detected and detected != upload_date:
+        return detected
+    return None
+
+
+def _ensure_task_reference_date(task):
+    if not task:
+        return False
+    layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
+    layout_copy = dict(layout)
+    meta = layout_copy.get('meta') if isinstance(layout_copy.get('meta'), dict) else {}
+    meta = dict(meta)
+    analysis_meta = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
+    analysis_meta = dict(analysis_meta)
+    upload_date = _task_upload_date(task)
+    detected = _extract_effective_reference_date(task, analysis_meta=analysis_meta)
+    current = _coerce_reference_date(analysis_meta.get('reference_date'))
+    changed = False
+    if detected and detected != upload_date:
+        if current != detected:
+            analysis_meta['reference_date'] = detected.isoformat()
+            analysis_meta['reference_date_source'] = 'content'
+            changed = True
+    elif analysis_meta.get('reference_date'):
+        analysis_meta.pop('reference_date', None)
+        analysis_meta.pop('reference_date_source', None)
+        changed = True
+    if changed:
+        meta['analysis'] = analysis_meta
+        layout_copy['meta'] = meta
+        task.tactical_layout = layout_copy
+        task.save(update_fields=['tactical_layout'])
+    return changed
+
+
 def _detect_keyword_tags(text, taxonomy):
     haystack = _normalize_folded_text(text)
     tags = []
@@ -4251,6 +4505,33 @@ def _apply_analysis_to_task(task, analysis):
     layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
     meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
     confidence = _analysis_confidence_scores(analysis)
+    summary_clean = _sanitize_task_text((analysis.get('summary') or '')[:900], multiline=True, max_len=900)
+    task_sheet_raw = analysis.get('task_sheet') if isinstance(analysis.get('task_sheet'), dict) else {}
+    task_sheet_clean = {
+        'description': _sanitize_task_text(task_sheet_raw.get('description') or '', multiline=True, max_len=1200),
+        'players': _sanitize_task_text(task_sheet_raw.get('players') or '', multiline=False, max_len=120),
+        'space': _sanitize_task_text(task_sheet_raw.get('space') or '', multiline=False, max_len=120),
+        'dimensions': _sanitize_task_text(task_sheet_raw.get('dimensions') or '', multiline=False, max_len=120),
+        'materials': _sanitize_task_text(task_sheet_raw.get('materials') or '', multiline=False, max_len=300),
+    }
+    upload_date = _task_upload_date(task)
+    reference_date = _coerce_reference_date(analysis.get('reference_date'))
+    if not reference_date:
+        text_for_date = '\n'.join(
+            [
+                str(analysis.get('title') or ''),
+                str(analysis.get('objective') or ''),
+                str(analysis.get('coaching_points') or ''),
+                str(analysis.get('confrontation_rules') or ''),
+                str(analysis.get('summary') or ''),
+                str(task_sheet_clean.get('description') or ''),
+            ]
+        )
+        reference_date = _detect_reference_date_in_text(text_for_date)
+    reference_date_iso = ''
+    if reference_date and reference_date != upload_date:
+        reference_date_iso = reference_date.isoformat()
+
     meta['analysis'] = {
         'work_contexts': analysis.get('work_contexts') or [],
         'objective_tags': analysis.get('objective_tags') or [],
@@ -4264,8 +4545,10 @@ def _apply_analysis_to_task(task, analysis):
         'confidence': confidence,
         'needs_review': _analysis_needs_review(analysis),
         'pdf_template': analysis.get('pdf_template') or 'generic',
-        'summary': (analysis.get('summary') or '')[:900],
-        'task_sheet': analysis.get('task_sheet') if isinstance(analysis.get('task_sheet'), dict) else {},
+        'summary': summary_clean,
+        'task_sheet': task_sheet_clean,
+        'reference_date': reference_date_iso,
+        'reference_date_source': 'content' if reference_date_iso else '',
         'analyzed_at': timezone.now().isoformat(),
         'parser_version': TASK_PDF_PARSE_VERSION,
     }
@@ -4484,16 +4767,16 @@ def _extract_task_sheet_from_pdf(text, detected_materials=None, template_key='ge
         materials = ', '.join(sorted(set(material_detected)))[:300]
 
     return {
-        'description': _repair_joined_words_text((description or '')[:1400])[:1200],
-        'players': _repair_joined_words_text(players),
-        'space': _repair_joined_words_text(space),
-        'dimensions': _repair_joined_words_text(dimensions),
-        'materials': _repair_joined_words_text(materials),
+        'description': _polish_spanish_text(_repair_joined_words_text((description or '')[:1400]), multiline=True, max_len=1200),
+        'players': _polish_spanish_text(_repair_joined_words_text(players), multiline=False, max_len=120),
+        'space': _polish_spanish_text(_repair_joined_words_text(space), multiline=False, max_len=120),
+        'dimensions': _polish_spanish_text(_repair_joined_words_text(dimensions), multiline=False, max_len=120),
+        'materials': _polish_spanish_text(_repair_joined_words_text(materials), multiline=False, max_len=300),
     }
 
 
 def _suggest_task_from_pdf(pdf_text):
-    text = _repair_joined_words_text(pdf_text or '')
+    text = _polish_spanish_text(_repair_joined_words_text(pdf_text or ''), multiline=True)
     text = str(text or '').strip()
     template_key = _detect_pdf_template(text)
     if not text:
@@ -4505,6 +4788,7 @@ def _suggest_task_from_pdf(pdf_text):
             'confrontation_rules': '',
             'summary': '',
             'pdf_template': template_key,
+            'reference_date': '',
         }
 
     lines = [line.strip() for line in text.splitlines() if line.strip()]
@@ -4613,14 +4897,15 @@ def _suggest_task_from_pdf(pdf_text):
     players_count_estimate = _estimate_players_count(task_sheet.get('players'), text)
     players_band = _players_band_label(players_count_estimate)
     duration_band = _duration_band_label(minutes)
+    reference_date = _detect_reference_date_in_text(text)
 
     analysis = {
-        'title': _repair_joined_words_text((title or 'Tarea desde PDF')[:220])[:160],
-        'objective': _repair_joined_words_text(objective[:240])[:180],
+        'title': _polish_spanish_text(_repair_joined_words_text((title or 'Tarea desde PDF')[:220]), multiline=False, max_len=160),
+        'objective': _polish_spanish_text(_repair_joined_words_text(objective[:240]), multiline=False, max_len=180),
         'minutes': minutes,
-        'coaching_points': _repair_joined_words_text(coaching_points),
-        'confrontation_rules': _repair_joined_words_text(confrontation_rules),
-        'summary': _repair_joined_words_text(summary),
+        'coaching_points': _polish_spanish_text(_repair_joined_words_text(coaching_points), multiline=True),
+        'confrontation_rules': _polish_spanish_text(_repair_joined_words_text(confrontation_rules), multiline=True),
+        'summary': _polish_spanish_text(_repair_joined_words_text(summary), multiline=True),
         'work_contexts': work_contexts,
         'objective_tags': objective_tags,
         'exercise_types': exercise_types,
@@ -4631,6 +4916,7 @@ def _suggest_task_from_pdf(pdf_text):
         'detected_materials': detected_materials,
         'task_sheet': task_sheet,
         'pdf_template': template_key,
+        'reference_date': reference_date.isoformat() if reference_date else '',
     }
     analysis['quality_score'] = _analysis_quality_score(analysis)
     return analysis
@@ -4785,7 +5071,7 @@ def _parse_bulk_tasks_text(raw_text, default_block, default_minutes):
         if not parts:
             continue
 
-        title = (parts[0] or '').strip()
+        title = _sanitize_task_text((parts[0] or '').strip(), multiline=False, max_len=160)
         if not title:
             errors.append(f'Línea {idx}: título vacío.')
             continue
@@ -4810,11 +5096,11 @@ def _parse_bulk_tasks_text(raw_text, default_block, default_minutes):
                 errors.append(f'Línea {idx}: bloque inválido ({candidate_block}).')
                 continue
         if len(parts) >= 4:
-            objective = (parts[3] or '')[:180]
+            objective = _sanitize_task_text(parts[3] or '', multiline=False, max_len=180)
         if len(parts) >= 5:
-            coaching_points = parts[4] or ''
+            coaching_points = _sanitize_task_text(parts[4] or '', multiline=True)
         if len(parts) >= 6:
-            confrontation_rules = parts[5] or ''
+            confrontation_rules = _sanitize_task_text(parts[5] or '', multiline=True)
 
         parsed.append(
             {
@@ -4957,7 +5243,7 @@ def _cleanup_task_joined_text_fields(task):
     def _clean_attr(attr_name, max_len=None):
         nonlocal changed
         current = str(getattr(task, attr_name, '') or '')
-        cleaned = _repair_joined_words_text(current)
+        cleaned = _polish_spanish_text(_repair_joined_words_text(current), multiline=(attr_name in {'coaching_points', 'confrontation_rules'}))
         if max_len:
             cleaned = cleaned[:max_len]
         if cleaned != current:
@@ -4977,7 +5263,7 @@ def _cleanup_task_joined_text_fields(task):
         analysis_meta = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
         analysis_meta = dict(analysis_meta)
         summary_raw = str(analysis_meta.get('summary') or '')
-        summary_clean = _repair_joined_words_text(summary_raw)[:900]
+        summary_clean = _polish_spanish_text(_repair_joined_words_text(summary_raw), multiline=True, max_len=900)
         if summary_clean != summary_raw:
             analysis_meta['summary'] = summary_clean
             changed = True
@@ -4986,7 +5272,10 @@ def _cleanup_task_joined_text_fields(task):
             task_sheet_copy = dict(task_sheet)
             for key in ('description', 'players', 'space', 'dimensions', 'materials'):
                 raw_val = str(task_sheet_copy.get(key) or '')
-                clean_val = _repair_joined_words_text(raw_val)
+                clean_val = _polish_spanish_text(
+                    _repair_joined_words_text(raw_val),
+                    multiline=(key == 'description'),
+                )
                 if clean_val != raw_val:
                     task_sheet_copy[key] = clean_val
                     changed = True
@@ -5020,11 +5309,11 @@ def _task_analysis_needs_refresh(task):
     if parser_version < TASK_PDF_PARSE_VERSION:
         return True
     summary = str(analysis_meta.get('summary') or '')
-    if re.search(r'\b[A-ZÁÉÍÓÚÜÑ]{12,}\b', summary):
+    if _text_has_quality_issues(summary):
         return True
-    if re.search(r'\b[A-ZÁÉÍÓÚÜÑ]{12,}\b', str(task.title or '')):
+    if _text_has_quality_issues(str(task.title or '')):
         return True
-    if re.search(r'\b[A-ZÁÉÍÓÚÜÑ]{12,}\b', str(task.objective or '')):
+    if _text_has_quality_issues(str(task.objective or '')):
         return True
     return False
 
@@ -5044,11 +5333,25 @@ def _refresh_task_from_pdf_analysis(task):
         if not selected:
             selected = {'analysis': _suggest_task_from_pdf(extracted_text), 'raw_text': extracted_text[:2500]}
         analysis = selected.get('analysis') or {}
-        task.title = str(analysis.get('title') or task.title or 'Tarea desde PDF')[:160]
+        task.title = _sanitize_task_text(
+            str(analysis.get('title') or task.title or 'Tarea desde PDF'),
+            multiline=False,
+            max_len=160,
+        )
         task.duration_minutes = max(5, min((_parse_int(analysis.get('minutes')) or task.duration_minutes or 15), 90))
-        task.objective = str(analysis.get('objective') or task.objective or '')[:180]
-        task.coaching_points = str(analysis.get('coaching_points') or task.coaching_points or '')
-        task.confrontation_rules = str(analysis.get('confrontation_rules') or task.confrontation_rules or '')
+        task.objective = _sanitize_task_text(
+            str(analysis.get('objective') or task.objective or ''),
+            multiline=False,
+            max_len=180,
+        )
+        task.coaching_points = _sanitize_task_text(
+            str(analysis.get('coaching_points') or task.coaching_points or ''),
+            multiline=True,
+        )
+        task.confrontation_rules = _sanitize_task_text(
+            str(analysis.get('confrontation_rules') or task.confrontation_rules or ''),
+            multiline=True,
+        )
         layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
         layout = dict(layout)
         meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
@@ -5099,9 +5402,10 @@ def _update_library_task_from_post(task, post_data, scope_key=None):
     task.title = _repair_joined_words_text(title[:220])[:160]
     task.block = block
     task.duration_minutes = minutes
-    task.objective = _repair_joined_words_text((post_data.get('task_objective') or '').strip()[:260])[:180]
-    task.coaching_points = _repair_joined_words_text((post_data.get('task_coaching_points') or '').strip())
-    task.confrontation_rules = _repair_joined_words_text((post_data.get('task_confrontation_rules') or '').strip())
+    task.title = _polish_spanish_text(task.title, multiline=False, max_len=160)
+    task.objective = _polish_spanish_text(_repair_joined_words_text((post_data.get('task_objective') or '').strip()[:260]), multiline=False, max_len=180)
+    task.coaching_points = _polish_spanish_text(_repair_joined_words_text((post_data.get('task_coaching_points') or '').strip()), multiline=True)
+    task.confrontation_rules = _polish_spanish_text(_repair_joined_words_text((post_data.get('task_confrontation_rules') or '').strip()), multiline=True)
 
     layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
     layout = dict(layout)
@@ -5122,7 +5426,10 @@ def _update_library_task_from_post(task, post_data, scope_key=None):
     task_sheet_touched = False
     for post_key, sheet_key in sheet_field_map.items():
         if post_key in post_data:
-            task_sheet[sheet_key] = _repair_joined_words_text(str(post_data.get(post_key) or '').strip())
+            task_sheet[sheet_key] = _polish_spanish_text(
+                _repair_joined_words_text(str(post_data.get(post_key) or '').strip()),
+                multiline=(sheet_key == 'description'),
+            )
             task_sheet_touched = True
     if task_sheet_touched:
         analysis_meta['task_sheet'] = task_sheet
@@ -5469,7 +5776,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     analysis = None
     analysis_task = None
     active_tab = 'library'
-    allowed_library_views = {'overview', 'phase', 'type', 'players', 'duration', 'quality'}
+    allowed_library_views = {'overview', 'phase', 'type', 'players', 'duration', 'quality', 'date'}
     library_view = str(request.GET.get('library_view') or request.POST.get('library_view') or 'overview').strip().lower()
     if library_view not in allowed_library_views:
         library_view = 'overview'
@@ -5501,8 +5808,8 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             active_tab = _sessions_tab_from_action(planner_action)
         try:
             if planner_action == 'library_upload_pdf':
-                title = (request.POST.get('pdf_task_title') or '').strip()
-                objective = (request.POST.get('pdf_task_objective') or '').strip()
+                title = _sanitize_task_text((request.POST.get('pdf_task_title') or '').strip(), multiline=False, max_len=160)
+                objective = _sanitize_task_text((request.POST.get('pdf_task_objective') or '').strip(), multiline=False, max_len=180)
                 block = (request.POST.get('pdf_task_block') or SessionTask.BLOCK_MAIN_1).strip()
                 minutes = _parse_int(request.POST.get('pdf_task_minutes')) or 15
                 pdf_files = list(request.FILES.getlist('library_task_pdf'))
@@ -5833,24 +6140,24 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
 
             elif planner_action == 'create_draw_task':
                 target_session_id = _parse_int(request.POST.get('draw_target_session_id'))
-                title = (request.POST.get('draw_task_title') or '').strip()
+                title = _sanitize_task_text((request.POST.get('draw_task_title') or '').strip(), multiline=False, max_len=160)
                 block = (request.POST.get('draw_task_block') or SessionTask.BLOCK_MAIN_1).strip()
                 minutes = _parse_int(request.POST.get('draw_task_minutes')) or 15
-                objective = (request.POST.get('draw_task_objective') or '').strip()
-                coaching_points = (request.POST.get('draw_task_coaching_points') or '').strip()
-                confrontation_rules = (request.POST.get('draw_task_confrontation_rules') or '').strip()
-                description = (request.POST.get('draw_task_description') or '').strip()
-                players = (request.POST.get('draw_task_players') or '').strip()
-                dimensions = (request.POST.get('draw_task_dimensions') or '').strip()
-                space = (request.POST.get('draw_task_space') or '').strip()
-                materials = (request.POST.get('draw_task_materials') or '').strip()
-                organization = (request.POST.get('draw_task_organization') or '').strip()
-                work_rest = (request.POST.get('draw_task_work_rest') or '').strip()
-                load_target = (request.POST.get('draw_task_load_target') or '').strip()
-                players_distribution = (request.POST.get('draw_task_players_distribution') or '').strip()
-                progression = (request.POST.get('draw_task_progression') or '').strip()
-                regression = (request.POST.get('draw_task_regression') or '').strip()
-                success_criteria = (request.POST.get('draw_task_success_criteria') or '').strip()
+                objective = _sanitize_task_text((request.POST.get('draw_task_objective') or '').strip(), multiline=False, max_len=180)
+                coaching_points = _sanitize_task_text((request.POST.get('draw_task_coaching_points') or '').strip(), multiline=True)
+                confrontation_rules = _sanitize_task_text((request.POST.get('draw_task_confrontation_rules') or '').strip(), multiline=True)
+                description = _sanitize_task_text((request.POST.get('draw_task_description') or '').strip(), multiline=True, max_len=1200)
+                players = _sanitize_task_text((request.POST.get('draw_task_players') or '').strip(), multiline=False, max_len=120)
+                dimensions = _sanitize_task_text((request.POST.get('draw_task_dimensions') or '').strip(), multiline=False, max_len=120)
+                space = _sanitize_task_text((request.POST.get('draw_task_space') or '').strip(), multiline=False, max_len=120)
+                materials = _sanitize_task_text((request.POST.get('draw_task_materials') or '').strip(), multiline=False, max_len=300)
+                organization = _sanitize_task_text((request.POST.get('draw_task_organization') or '').strip(), multiline=True, max_len=500)
+                work_rest = _sanitize_task_text((request.POST.get('draw_task_work_rest') or '').strip(), multiline=False, max_len=180)
+                load_target = _sanitize_task_text((request.POST.get('draw_task_load_target') or '').strip(), multiline=False, max_len=180)
+                players_distribution = _sanitize_task_text((request.POST.get('draw_task_players_distribution') or '').strip(), multiline=False, max_len=180)
+                progression = _sanitize_task_text((request.POST.get('draw_task_progression') or '').strip(), multiline=True, max_len=500)
+                regression = _sanitize_task_text((request.POST.get('draw_task_regression') or '').strip(), multiline=True, max_len=500)
+                success_criteria = _sanitize_task_text((request.POST.get('draw_task_success_criteria') or '').strip(), multiline=True, max_len=500)
                 selected_surface = (request.POST.get('draw_task_surface') or '').strip()
                 selected_pitch_format = (request.POST.get('draw_task_pitch_format') or '').strip()
                 selected_phase = (request.POST.get('draw_task_game_phase') or '').strip()
@@ -5868,33 +6175,33 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 }
                 template_values = template_map.get(template_key) or {}
                 if not title:
-                    title = str(template_values.get('task_title') or '').strip()
+                    title = _sanitize_task_text(str(template_values.get('task_title') or '').strip(), multiline=False, max_len=160)
                 if not objective:
-                    objective = str(template_values.get('task_objective') or '').strip()
+                    objective = _sanitize_task_text(str(template_values.get('task_objective') or '').strip(), multiline=False, max_len=180)
                 if not coaching_points:
-                    coaching_points = str(template_values.get('task_coaching_points') or '').strip()
+                    coaching_points = _sanitize_task_text(str(template_values.get('task_coaching_points') or '').strip(), multiline=True)
                 if not confrontation_rules:
-                    confrontation_rules = str(template_values.get('task_confrontation_rules') or '').strip()
+                    confrontation_rules = _sanitize_task_text(str(template_values.get('task_confrontation_rules') or '').strip(), multiline=True)
                 if not space:
-                    space = str(template_values.get('task_space') or '').strip()
+                    space = _sanitize_task_text(str(template_values.get('task_space') or '').strip(), multiline=False, max_len=120)
                 if not organization:
-                    organization = str(template_values.get('task_organization') or '').strip()
+                    organization = _sanitize_task_text(str(template_values.get('task_organization') or '').strip(), multiline=True, max_len=500)
                 if not players_distribution:
-                    players_distribution = str(template_values.get('task_players_distribution') or '').strip()
+                    players_distribution = _sanitize_task_text(str(template_values.get('task_players_distribution') or '').strip(), multiline=False, max_len=180)
                 if not load_target:
-                    load_target = str(template_values.get('task_load_target') or '').strip()
+                    load_target = _sanitize_task_text(str(template_values.get('task_load_target') or '').strip(), multiline=False, max_len=180)
                 if not work_rest:
-                    work_rest = str(template_values.get('task_work_rest') or '').strip()
+                    work_rest = _sanitize_task_text(str(template_values.get('task_work_rest') or '').strip(), multiline=False, max_len=180)
                 if not series:
-                    series = str(template_values.get('task_series') or '').strip()
+                    series = _sanitize_task_text(str(template_values.get('task_series') or '').strip(), multiline=False, max_len=100)
                 if not repetitions:
-                    repetitions = str(template_values.get('task_repetitions') or '').strip()
+                    repetitions = _sanitize_task_text(str(template_values.get('task_repetitions') or '').strip(), multiline=False, max_len=100)
                 if not progression:
-                    progression = str(template_values.get('task_progression') or '').strip()
+                    progression = _sanitize_task_text(str(template_values.get('task_progression') or '').strip(), multiline=True, max_len=500)
                 if not regression:
-                    regression = str(template_values.get('task_regression') or '').strip()
+                    regression = _sanitize_task_text(str(template_values.get('task_regression') or '').strip(), multiline=True, max_len=500)
                 if not success_criteria:
-                    success_criteria = str(template_values.get('task_success_criteria') or '').strip()
+                    success_criteria = _sanitize_task_text(str(template_values.get('task_success_criteria') or '').strip(), multiline=True, max_len=500)
 
                 if not title:
                     raise ValueError('Indica un título para la tarea dibujada.')
@@ -6363,7 +6670,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         .order_by('-id')[:300]
     ) if planner_tables_ready else []
     task_library = [item for item in task_library_raw if _task_scope_for_item(item) == scope_key]
-    if active_tab == 'library' and task_library:
+    if task_library:
         preview_rebuilt = 0
         preview_upgraded = 0
         text_normalized = 0
@@ -6372,6 +6679,8 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             if _task_analysis_needs_refresh(task):
                 if _refresh_task_from_pdf_analysis(task):
                     analysis_refreshed += 1
+            if _ensure_task_reference_date(task):
+                text_normalized += 1
             if _cleanup_task_joined_text_fields(task):
                 text_normalized += 1
             before_name = str(getattr(task, 'task_preview_image', '') or '').strip()
@@ -6404,6 +6713,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     phase_groups = defaultdict(list)
     players_band_groups = defaultdict(list)
     duration_band_groups = defaultdict(list)
+    date_groups = defaultdict(list)
     for task in task_library:
         layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
         meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
@@ -6412,7 +6722,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         task_sheet = analysis_meta.get('task_sheet') if isinstance(analysis_meta.get('task_sheet'), dict) else {}
         task.task_sheet = task_sheet
         task.is_imported = _is_imported_task(task)
-        task.analysis_summary = str(analysis_meta.get('summary') or '').strip()
+        task.analysis_summary = _sanitize_task_text(str(analysis_meta.get('summary') or '').strip(), multiline=True, max_len=900)
         confidence = analysis_meta.get('confidence') if isinstance(analysis_meta.get('confidence'), dict) else {}
         if not confidence:
             confidence = _analysis_confidence_scores(
@@ -6434,6 +6744,11 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         task.detected_materials = analysis_meta.get('detected_materials') if isinstance(analysis_meta.get('detected_materials'), list) else []
         task.exercise_types = analysis_meta.get('exercise_types') if isinstance(analysis_meta.get('exercise_types'), list) else []
         task.phase_tags = analysis_meta.get('phase_tags') if isinstance(analysis_meta.get('phase_tags'), list) else []
+        upload_date = _task_upload_date(task)
+        effective_reference_date = _extract_effective_reference_date(task, analysis_meta=analysis_meta)
+        task.reference_date = effective_reference_date or upload_date
+        task.reference_date_iso = task.reference_date.isoformat() if task.reference_date else ''
+        task.reference_date_is_detected = bool(effective_reference_date)
         if not task.exercise_types or not task.phase_tags:
             fallback_haystack = '\n'.join(
                 [
@@ -6456,14 +6771,14 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         task.duration_band = str(analysis_meta.get('duration_band') or '').strip()
         if not task.duration_band:
             task.duration_band = _duration_band_label(task.duration_minutes)
-        objective_summary = str(task.objective or '').strip()
+        objective_summary = _sanitize_task_text(str(task.objective or '').strip(), multiline=False, max_len=180)
         if not objective_summary:
-            objective_summary = str(task_sheet.get('description') or '').strip()
+            objective_summary = _sanitize_task_text(str(task_sheet.get('description') or '').strip(), multiline=True, max_len=240)
         if not objective_summary:
-            objective_summary = str(analysis_meta.get('summary') or '').strip()
+            objective_summary = _sanitize_task_text(str(analysis_meta.get('summary') or '').strip(), multiline=True, max_len=240)
         task.objective_summary = objective_summary or 'Sin objetivo extraído todavía.'
         card_summary = str(task.analysis_summary or task_sheet.get('description') or task.objective_summary or '').strip()
-        task.card_summary = _repair_joined_words_text(card_summary)[:280]
+        task.card_summary = _sanitize_task_text(card_summary, multiline=True, max_len=280)
         for ctx in analysis_meta.get('work_contexts') or []:
             context_groups[str(ctx)].append(task)
         for obj in analysis_meta.get('objective_tags') or []:
@@ -6476,6 +6791,8 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             players_band_groups[task.players_band].append(task)
         if task.duration_band:
             duration_band_groups[task.duration_band].append(task)
+        if task.reference_date:
+            date_groups[task.reference_date.isoformat()].append(task)
     _persist_detected_resources_library(task_library, scope_key=scope_key)
     context_group_rows = sorted(
         [{'key': key, 'count': len(items)} for key, items in context_groups.items()],
@@ -6507,6 +6824,19 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         key=lambda row: row['count'],
         reverse=True,
     )
+    date_group_rows = sorted(
+        [
+            {
+                'key': key,
+                'count': len(items),
+                'label': datetime.strptime(key, '%Y-%m-%d').strftime('%d/%m/%Y'),
+            }
+            for key, items in date_groups.items()
+            if key
+        ],
+        key=lambda row: row['key'],
+        reverse=True,
+    )
     quality_group_rows = [
         {'key': 'review', 'label': 'Revisión necesaria', 'count': len([item for item in task_library if getattr(item, 'needs_review', False)])},
         {'key': 'validated', 'label': 'Validadas', 'count': len([item for item in task_library if not getattr(item, 'needs_review', False)])},
@@ -6525,6 +6855,16 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             task_library_filtered = [item for item in task_library_filtered if bool(getattr(item, 'needs_review', False))]
         elif library_key == 'validated':
             task_library_filtered = [item for item in task_library_filtered if not bool(getattr(item, 'needs_review', False))]
+    elif library_view == 'date' and library_key:
+        task_library_filtered = [item for item in task_library_filtered if str(getattr(item, 'reference_date_iso', '') or '') == library_key]
+
+    task_library_filtered.sort(
+        key=lambda item: (
+            getattr(item, 'reference_date', None) or getattr(getattr(item, 'session', None), 'session_date', None) or date.min,
+            int(getattr(item, 'id', 0) or 0),
+        ),
+        reverse=True,
+    )
 
     planning_microcycles = list(
         TrainingMicrocycle.objects
@@ -6586,6 +6926,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             'players_band_group_rows': players_band_group_rows,
             'duration_band_group_rows': duration_band_group_rows,
             'quality_group_rows': quality_group_rows,
+            'date_group_rows': date_group_rows,
             'active_tab': active_tab,
             'library_view': library_view,
             'library_key': library_key,
