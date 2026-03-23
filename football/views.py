@@ -5298,6 +5298,8 @@ def _sessions_tab_from_action(action):
         return 'import'
     if action_key in {'bulk_create_tasks', 'create_draw_task'}:
         return 'create'
+    if action_key in {'create_microcycle_plan', 'create_session_plan', 'copy_library_task_to_session'}:
+        return 'planning'
     if action_key in {
         'analyze_all_library_pdfs',
         'split_existing_library_pdfs',
@@ -5467,6 +5469,11 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     analysis = None
     analysis_task = None
     active_tab = 'library'
+    allowed_library_views = {'overview', 'phase', 'type', 'players', 'duration', 'quality'}
+    library_view = str(request.GET.get('library_view') or request.POST.get('library_view') or 'overview').strip().lower()
+    if library_view not in allowed_library_views:
+        library_view = 'overview'
+    library_key = str(request.GET.get('library_key') or request.POST.get('library_key') or '').strip()
 
     planner_tables_ready = True
     try:
@@ -5488,7 +5495,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     if request.method == 'POST' and planner_tables_ready:
         planner_action = (request.POST.get('planner_action') or '').strip()
         posted_tab = (request.POST.get('planner_tab') or '').strip()
-        if posted_tab in {'import', 'create', 'library'}:
+        if posted_tab in {'import', 'create', 'library', 'planning'}:
             active_tab = posted_tab
         else:
             active_tab = _sessions_tab_from_action(planner_action)
@@ -5642,6 +5649,123 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     if created_count == 1 and processed_pdfs == 1
                     else f'Se procesaron {processed_pdfs} PDFs y se crearon {created_count} tareas.'
                 )
+
+            elif planner_action == 'create_microcycle_plan':
+                title = str(request.POST.get('plan_microcycle_title') or 'Microciclo semanal').strip()[:140]
+                objective = str(request.POST.get('plan_microcycle_objective') or '').strip()[:200]
+                week_start_raw = str(request.POST.get('plan_week_start') or '').strip()
+                week_end_raw = str(request.POST.get('plan_week_end') or '').strip()
+                notes = str(request.POST.get('plan_microcycle_notes') or '').strip()
+                if not week_start_raw or not week_end_raw:
+                    raise ValueError('Indica semana inicio y fin para crear el microciclo.')
+                try:
+                    week_start = datetime.strptime(week_start_raw, '%Y-%m-%d').date()
+                    week_end = datetime.strptime(week_end_raw, '%Y-%m-%d').date()
+                except ValueError:
+                    raise ValueError('Formato de fechas no válido para microciclo.')
+                if week_end < week_start:
+                    raise ValueError('La fecha de fin del microciclo no puede ser anterior al inicio.')
+                status = str(request.POST.get('plan_microcycle_status') or TrainingMicrocycle.STATUS_DRAFT).strip()
+                if status not in {item[0] for item in TrainingMicrocycle.STATUS_CHOICES}:
+                    status = TrainingMicrocycle.STATUS_DRAFT
+                microcycle, created = TrainingMicrocycle.objects.get_or_create(
+                    team=primary_team,
+                    week_start=week_start,
+                    defaults={
+                        'week_end': week_end,
+                        'title': title or 'Microciclo semanal',
+                        'objective': objective,
+                        'status': status,
+                        'notes': notes,
+                    },
+                )
+                if not created:
+                    microcycle.week_end = week_end
+                    microcycle.title = title or microcycle.title or 'Microciclo semanal'
+                    microcycle.objective = objective
+                    microcycle.status = status
+                    microcycle.notes = notes
+                    microcycle.save(update_fields=['week_end', 'title', 'objective', 'status', 'notes', 'updated_at'])
+                    feedback = f'Microciclo actualizado: {microcycle.title}.'
+                else:
+                    feedback = f'Microciclo creado: {microcycle.title}.'
+
+            elif planner_action == 'create_session_plan':
+                microcycle_id = _parse_int(request.POST.get('plan_microcycle_id'))
+                if not microcycle_id:
+                    raise ValueError('Selecciona microciclo para crear la sesión.')
+                microcycle = (
+                    TrainingMicrocycle.objects
+                    .filter(id=microcycle_id, team=primary_team)
+                    .first()
+                )
+                if not microcycle:
+                    raise ValueError('Microciclo no encontrado para crear la sesión.')
+                session_date_raw = str(request.POST.get('plan_session_date') or '').strip()
+                focus = str(request.POST.get('plan_session_focus') or '').strip()[:140]
+                if not session_date_raw or not focus:
+                    raise ValueError('Completa fecha y foco para crear la sesión.')
+                try:
+                    session_date = datetime.strptime(session_date_raw, '%Y-%m-%d').date()
+                except ValueError:
+                    raise ValueError('Fecha de sesión no válida.')
+                duration_minutes = max(30, min(_parse_int(request.POST.get('plan_session_minutes')) or 90, 180))
+                intensity = str(request.POST.get('plan_session_intensity') or TrainingSession.INTENSITY_MEDIUM).strip()
+                if intensity not in {item[0] for item in TrainingSession.INTENSITY_CHOICES}:
+                    intensity = TrainingSession.INTENSITY_MEDIUM
+                status = str(request.POST.get('plan_session_status') or TrainingSession.STATUS_PLANNED).strip()
+                if status not in {item[0] for item in TrainingSession.STATUS_CHOICES}:
+                    status = TrainingSession.STATUS_PLANNED
+                content = str(request.POST.get('plan_session_content') or '').strip()
+                next_order = (TrainingSession.objects.filter(microcycle=microcycle).aggregate(Max('order')).get('order__max') or 0) + 1
+                TrainingSession.objects.create(
+                    microcycle=microcycle,
+                    session_date=session_date,
+                    duration_minutes=duration_minutes,
+                    intensity=intensity,
+                    focus=focus,
+                    content=content,
+                    status=status,
+                    order=next_order,
+                )
+                feedback = f'Sesión creada en {microcycle.title}: {focus}.'
+
+            elif planner_action == 'copy_library_task_to_session':
+                source_task_id = _parse_int(request.POST.get('source_task_id'))
+                target_session_id = _parse_int(request.POST.get('target_session_id'))
+                source_task = (
+                    SessionTask.objects
+                    .select_related('session__microcycle')
+                    .filter(id=source_task_id, session__microcycle__team=primary_team)
+                    .first()
+                )
+                target_session = (
+                    TrainingSession.objects
+                    .select_related('microcycle')
+                    .filter(id=target_session_id, microcycle__team=primary_team)
+                    .first()
+                )
+                if not source_task or not target_session:
+                    raise ValueError('No se pudo copiar: tarea origen o sesión destino no válidas.')
+                if _task_scope_for_item(source_task) != scope_key:
+                    raise ValueError('La tarea origen no pertenece a este espacio.')
+                order = (SessionTask.objects.filter(session=target_session).aggregate(Max('order')).get('order__max') or 0) + 1
+                copied = SessionTask.objects.create(
+                    session=target_session,
+                    title=source_task.title,
+                    block=source_task.block,
+                    duration_minutes=source_task.duration_minutes,
+                    objective=source_task.objective,
+                    coaching_points=source_task.coaching_points,
+                    confrontation_rules=source_task.confrontation_rules,
+                    tactical_layout=source_task.tactical_layout if isinstance(source_task.tactical_layout, dict) else {},
+                    task_pdf=source_task.task_pdf.name if source_task.task_pdf else None,
+                    task_preview_image=source_task.task_preview_image.name if source_task.task_preview_image else None,
+                    status=SessionTask.STATUS_PLANNED,
+                    order=order,
+                    notes=f'Copiada desde biblioteca (tarea #{source_task.id})',
+                )
+                feedback = f'Tarea copiada a sesión: {copied.title}.'
 
             elif planner_action == 'bulk_create_tasks':
                 bulk_text = (request.POST.get('bulk_tasks_text') or '').strip()
@@ -6211,7 +6335,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             error = 'No se pudo completar la operación. Revisa los datos e inténtalo de nuevo.'
     elif request.method == 'GET':
         requested_tab = (request.GET.get('tab') or '').strip()
-        if requested_tab in {'import', 'create', 'library'}:
+        if requested_tab in {'import', 'create', 'library', 'planning'}:
             active_tab = requested_tab
 
     analyze_task_id = _parse_int(request.GET.get('analyze'))
@@ -6383,6 +6507,61 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         key=lambda row: row['count'],
         reverse=True,
     )
+    quality_group_rows = [
+        {'key': 'review', 'label': 'Revisión necesaria', 'count': len([item for item in task_library if getattr(item, 'needs_review', False)])},
+        {'key': 'validated', 'label': 'Validadas', 'count': len([item for item in task_library if not getattr(item, 'needs_review', False)])},
+    ]
+    task_library_filtered = list(task_library)
+    if library_view == 'phase' and library_key:
+        task_library_filtered = [item for item in task_library_filtered if library_key in (item.phase_tags or [])]
+    elif library_view == 'type' and library_key:
+        task_library_filtered = [item for item in task_library_filtered if library_key in (item.exercise_types or [])]
+    elif library_view == 'players' and library_key:
+        task_library_filtered = [item for item in task_library_filtered if str(item.players_band or '') == library_key]
+    elif library_view == 'duration' and library_key:
+        task_library_filtered = [item for item in task_library_filtered if str(item.duration_band or '') == library_key]
+    elif library_view == 'quality' and library_key:
+        if library_key == 'review':
+            task_library_filtered = [item for item in task_library_filtered if bool(getattr(item, 'needs_review', False))]
+        elif library_key == 'validated':
+            task_library_filtered = [item for item in task_library_filtered if not bool(getattr(item, 'needs_review', False))]
+
+    planning_microcycles = list(
+        TrainingMicrocycle.objects
+        .filter(team=primary_team)
+        .order_by('-week_start', '-id')[:24]
+    ) if planner_tables_ready else []
+    planning_session_qs = (
+        TrainingSession.objects
+        .select_related('microcycle')
+        .filter(microcycle__team=primary_team)
+        .order_by('-session_date', '-id')
+    ) if planner_tables_ready else TrainingSession.objects.none()
+    planning_sessions = list(planning_session_qs[:200]) if planner_tables_ready else []
+    sessions_count_map = defaultdict(int)
+    tasks_count_map = defaultdict(int)
+    for session_item in planning_sessions:
+        sessions_count_map[int(session_item.microcycle_id)] += 1
+    if planner_tables_ready:
+        task_counts = (
+            SessionTask.objects
+            .filter(session__microcycle__team=primary_team)
+            .values('session__microcycle_id')
+            .annotate(total=Count('id'))
+        )
+        for row in task_counts:
+            key = _parse_int(row.get('session__microcycle_id'))
+            if key:
+                tasks_count_map[int(key)] = int(row.get('total') or 0)
+    microcycle_rows = []
+    for micro in planning_microcycles:
+        microcycle_rows.append(
+            {
+                'obj': micro,
+                'sessions_count': sessions_count_map.get(int(micro.id), 0),
+                'tasks_count': tasks_count_map.get(int(micro.id), 0),
+            }
+        )
 
     return render(
         request,
@@ -6395,6 +6574,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             'task_blocks': SessionTask.BLOCK_CHOICES,
             'all_sessions': all_sessions,
             'task_library': task_library,
+            'task_library_filtered': task_library_filtered,
             'analysis': analysis,
             'analysis_task': analysis_task,
             'scope_key': scope_key,
@@ -6405,7 +6585,16 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             'phase_group_rows': phase_group_rows,
             'players_band_group_rows': players_band_group_rows,
             'duration_band_group_rows': duration_band_group_rows,
+            'quality_group_rows': quality_group_rows,
             'active_tab': active_tab,
+            'library_view': library_view,
+            'library_key': library_key,
+            'planning_microcycle_rows': microcycle_rows,
+            'planning_sessions': planning_sessions,
+            'microcycle_status_choices': TrainingMicrocycle.STATUS_CHOICES,
+            'session_intensity_choices': TrainingSession.INTENSITY_CHOICES,
+            'session_status_choices': TrainingSession.STATUS_CHOICES,
+            'planning_microcycles': planning_microcycles,
             'task_templates': TASK_TEMPLATE_LIBRARY,
             'task_surface_choices': TASK_SURFACE_CHOICES,
             'task_pitch_choices': TASK_PITCH_FORMAT_CHOICES,

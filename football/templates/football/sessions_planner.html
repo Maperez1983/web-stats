@@ -727,6 +727,7 @@
       <div class="tabs">
         <a class="tab-link {% if active_tab == 'import' %}is-active{% endif %}" href="?tab=import">Importar tarea</a>
         <a class="tab-link {% if active_tab == 'create' %}is-active{% endif %}" href="?tab=create">Crear tarea</a>
+        <a class="tab-link {% if active_tab == 'planning' %}is-active{% endif %}" href="?tab=planning">Planificación</a>
         <a class="tab-link {% if active_tab == 'library' %}is-active{% endif %}" href="?tab=library">Biblioteca de tareas</a>
       </div>
 
@@ -1166,13 +1167,158 @@
         </section>
       </div>
 
+      <div class="tab-panel {% if active_tab == 'planning' %}is-active{% endif %}" data-tab="planning">
+        <section class="panel">
+          <h2>Planificación · Microciclos y Sesiones</h2>
+          <div class="grid">
+            <div class="editor-box">
+              <h3>Crear / actualizar microciclo</h3>
+              <form method="post" class="grid">
+                {% csrf_token %}
+                <input type="hidden" name="planner_action" value="create_microcycle_plan" />
+                <input type="hidden" name="planner_tab" value="planning" />
+                <label>
+                  Título
+                  <input type="text" name="plan_microcycle_title" maxlength="140" placeholder="Ej: MD-4 a MD+1" required />
+                </label>
+                <label>
+                  Objetivo
+                  <input type="text" name="plan_microcycle_objective" maxlength="200" placeholder="Objetivo semanal" />
+                </label>
+                <label>
+                  Inicio
+                  <input type="date" name="plan_week_start" required />
+                </label>
+                <label>
+                  Fin
+                  <input type="date" name="plan_week_end" required />
+                </label>
+                <label>
+                  Estado
+                  <select name="plan_microcycle_status">
+                    {% for value, label in microcycle_status_choices %}
+                    <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label style="grid-column:1/-1;">
+                  Notas
+                  <textarea name="plan_microcycle_notes" placeholder="Notas del microciclo"></textarea>
+                </label>
+                <div><button type="submit" class="primary">Guardar microciclo</button></div>
+              </form>
+            </div>
+
+            <div class="editor-box">
+              <h3>Crear sesión en microciclo</h3>
+              <form method="post" class="grid">
+                {% csrf_token %}
+                <input type="hidden" name="planner_action" value="create_session_plan" />
+                <input type="hidden" name="planner_tab" value="planning" />
+                <label>
+                  Microciclo
+                  <select name="plan_microcycle_id" required>
+                    <option value="">Seleccionar</option>
+                    {% for item in planning_microcycles %}
+                    <option value="{{ item.id }}">{{ item.week_start|date:"d/m" }}-{{ item.week_end|date:"d/m" }} · {{ item.title }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label>
+                  Fecha sesión
+                  <input type="date" name="plan_session_date" required />
+                </label>
+                <label>
+                  Foco
+                  <input type="text" name="plan_session_focus" maxlength="140" placeholder="Ej: Transición + finalización" required />
+                </label>
+                <label>
+                  Duración (min)
+                  <input type="number" name="plan_session_minutes" min="30" max="180" value="90" />
+                </label>
+                <label>
+                  Intensidad
+                  <select name="plan_session_intensity">
+                    {% for value, label in session_intensity_choices %}
+                    <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label>
+                  Estado
+                  <select name="plan_session_status">
+                    {% for value, label in session_status_choices %}
+                    <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label style="grid-column:1/-1;">
+                  Contenido
+                  <textarea name="plan_session_content" placeholder="Contenido planificado de sesión"></textarea>
+                </label>
+                <div><button type="submit" class="primary">Crear sesión</button></div>
+              </form>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Mapa de planificación</h2>
+          {% if planning_microcycle_rows %}
+          <div class="task-list">
+            {% for row in planning_microcycle_rows %}
+            <article class="task">
+              <div class="task-content">
+                <h3 class="task-title">{{ row.obj.title }}</h3>
+                <p class="meta"><strong>{{ row.obj.week_start|date:"d/m/Y" }}</strong> → <strong>{{ row.obj.week_end|date:"d/m/Y" }}</strong> · Estado: {{ row.obj.get_status_display }}</p>
+                <p class="meta">Sesiones: <strong>{{ row.sessions_count }}</strong> · Tareas: <strong>{{ row.tasks_count }}</strong></p>
+                {% if row.obj.objective %}<p class="meta">Objetivo: {{ row.obj.objective }}</p>{% endif %}
+              </div>
+            </article>
+            {% endfor %}
+          </div>
+          {% else %}
+          <p class="empty">No hay microciclos todavía.</p>
+          {% endif %}
+        </section>
+      </div>
+
       <div class="tab-panel {% if active_tab == 'library' %}is-active{% endif %}" data-tab="library">
       <section class="panel">
         <h2>Biblioteca de tareas</h2>
         <p class="meta" style="margin-top:0;">Vista de resultados del importador PDF con el máximo de información detectada automáticamente.</p>
-        {% if task_library %}
+        <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin-bottom:0.6rem;">
+          <a class="tab-link {% if library_view == 'overview' %}is-active{% endif %}" href="?tab=library&library_view=overview">Todas</a>
+          <a class="tab-link {% if library_view == 'phase' %}is-active{% endif %}" href="?tab=library&library_view=phase">Por fase</a>
+          <a class="tab-link {% if library_view == 'type' %}is-active{% endif %}" href="?tab=library&library_view=type">Por tipo</a>
+          <a class="tab-link {% if library_view == 'players' %}is-active{% endif %}" href="?tab=library&library_view=players">Por jugadores</a>
+          <a class="tab-link {% if library_view == 'duration' %}is-active{% endif %}" href="?tab=library&library_view=duration">Por duración</a>
+          <a class="tab-link {% if library_view == 'quality' %}is-active{% endif %}" href="?tab=library&library_view=quality">Por calidad</a>
+        </div>
+        {% if library_view == 'phase' and phase_group_rows %}
+        <p class="meta" style="margin-top:-0.1rem;">
+          {% for item in phase_group_rows %}<a class="badge" href="?tab=library&library_view=phase&library_key={{ item.key }}">{{ item.key }} · {{ item.count }}</a>{% endfor %}
+        </p>
+        {% elif library_view == 'type' and type_group_rows %}
+        <p class="meta" style="margin-top:-0.1rem;">
+          {% for item in type_group_rows %}<a class="badge" href="?tab=library&library_view=type&library_key={{ item.key }}">{{ item.key }} · {{ item.count }}</a>{% endfor %}
+        </p>
+        {% elif library_view == 'players' and players_band_group_rows %}
+        <p class="meta" style="margin-top:-0.1rem;">
+          {% for item in players_band_group_rows %}<a class="badge" href="?tab=library&library_view=players&library_key={{ item.key }}">{{ item.key }} · {{ item.count }}</a>{% endfor %}
+        </p>
+        {% elif library_view == 'duration' and duration_band_group_rows %}
+        <p class="meta" style="margin-top:-0.1rem;">
+          {% for item in duration_band_group_rows %}<a class="badge" href="?tab=library&library_view=duration&library_key={{ item.key }}">{{ item.key }} · {{ item.count }}</a>{% endfor %}
+        </p>
+        {% elif library_view == 'quality' and quality_group_rows %}
+        <p class="meta" style="margin-top:-0.1rem;">
+          {% for item in quality_group_rows %}<a class="badge" href="?tab=library&library_view=quality&library_key={{ item.key }}">{{ item.label }} · {{ item.count }}</a>{% endfor %}
+        </p>
+        {% endif %}
+        {% if task_library_filtered %}
         <div class="task-list">
-          {% for t in task_library %}
+          {% for t in task_library_filtered %}
           <article
             class="task task-clickable"
             data-detail-url="{% url 'session-task-detail' t.id %}"
@@ -1244,6 +1390,8 @@
                   {% csrf_token %}
                   <input type="hidden" name="planner_action" value="auto_fix_task_text" />
                   <input type="hidden" name="planner_tab" value="library" />
+                  <input type="hidden" name="library_view" value="{{ library_view }}" />
+                  <input type="hidden" name="library_key" value="{{ library_key }}" />
                   <input type="hidden" name="task_id" value="{{ t.id }}" />
                   <button type="submit" class="secondary">Autocorregir</button>
                 </form>
@@ -1252,6 +1400,8 @@
                   {% csrf_token %}
                   <input type="hidden" name="planner_action" value="delete_library_task" />
                   <input type="hidden" name="planner_tab" value="library" />
+                  <input type="hidden" name="library_view" value="{{ library_view }}" />
+                  <input type="hidden" name="library_key" value="{{ library_key }}" />
                   <input type="hidden" name="task_id" value="{{ t.id }}" />
                   <button type="submit" class="danger">Eliminar</button>
                 </form>
@@ -1264,7 +1414,7 @@
           {% endfor %}
         </div>
         {% else %}
-        <p class="empty">No hay tareas en biblioteca.</p>
+        <p class="empty">No hay tareas para el filtro actual en biblioteca.</p>
         {% endif %}
       </section>
 
