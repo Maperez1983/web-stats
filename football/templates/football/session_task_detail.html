@@ -166,18 +166,23 @@
         cursor: pointer;
       }
       .graphic-canvas-wrap {
+        position: relative;
         width: 100%;
-        max-width: 960px;
+        max-width: 1280px;
+        aspect-ratio: 16 / 9;
         margin: 0 auto;
         border: 1px solid rgba(255, 255, 255, 0.18);
         border-radius: 12px;
-        padding: 0.5rem;
+        padding: 0;
         background: rgba(3, 10, 22, 0.65);
+        overflow: hidden;
       }
       #task-graphic-canvas {
         width: 100%;
+        height: 100%;
+        display: block;
         border: 1px solid rgba(255, 255, 255, 0.16);
-        border-radius: 8px;
+        border-radius: 0;
         background: #ffffff;
       }
       .graphic-status {
@@ -402,7 +407,7 @@
           </div>
         </div>
         <div class="graphic-canvas-wrap">
-          <canvas id="task-graphic-canvas" width="1280" height="720"></canvas>
+          <canvas id="task-graphic-canvas"></canvas>
         </div>
         <p class="graphic-status" id="graphic-status">Editor listo.</p>
       </section>
@@ -504,6 +509,28 @@
           selection: false,
           preserveObjectStacking: true,
         });
+        const canvasWrap = canvasEl.closest('.graphic-canvas-wrap');
+        const fitCanvasToContainer = (rescaleObjects = true) => {
+          const prevW = canvas.getWidth() || 1280;
+          const prevH = canvas.getHeight() || 720;
+          const nextW = Math.max(320, Math.round(canvasWrap?.clientWidth || 960));
+          const nextH = Math.max(180, Math.round(canvasWrap?.clientHeight || Math.round(nextW * 9 / 16)));
+          if (prevW === nextW && prevH === nextH) return;
+          canvas.setDimensions({ width: nextW, height: nextH });
+          if (rescaleObjects && canvas.getObjects().length) {
+            const scaleX = nextW / prevW;
+            const scaleY = nextH / prevH;
+            canvas.getObjects().forEach((obj) => {
+              obj.scaleX = (obj.scaleX || 1) * scaleX;
+              obj.scaleY = (obj.scaleY || 1) * scaleY;
+              obj.left = (obj.left || 0) * scaleX;
+              obj.top = (obj.top || 0) * scaleY;
+              obj.setCoords();
+            });
+          }
+          canvas.renderAll();
+        };
+        fitCanvasToContainer(false);
         canvas.backgroundColor = '#ffffff';
         canvas.freeDrawingBrush.width = 4;
         canvas.freeDrawingBrush.color = '#e11d48';
@@ -521,6 +548,21 @@
             : null;
           if (editorState) {
             canvas.loadFromJSON(editorState, () => {
+              const savedW = parseFloat(savedState.canvas_width || 0);
+              const savedH = parseFloat(savedState.canvas_height || 0);
+              const currentW = canvas.getWidth() || 1;
+              const currentH = canvas.getHeight() || 1;
+              if (savedW > 0 && savedH > 0 && (Math.abs(savedW - currentW) > 1 || Math.abs(savedH - currentH) > 1)) {
+                const scaleX = currentW / savedW;
+                const scaleY = currentH / savedH;
+                canvas.getObjects().forEach((obj) => {
+                  obj.scaleX = (obj.scaleX || 1) * scaleX;
+                  obj.scaleY = (obj.scaleY || 1) * scaleY;
+                  obj.left = (obj.left || 0) * scaleX;
+                  obj.top = (obj.top || 0) * scaleY;
+                  obj.setCoords();
+                });
+              }
               canvas.renderAll();
               pushHistory();
               setStatus('Estado gráfico restaurado.');
@@ -898,6 +940,8 @@
             setStatus('Guardando gráfico...');
             const payload = {
               canvas_state: canvas.toJSON(),
+              canvas_width: canvas.getWidth(),
+              canvas_height: canvas.getHeight(),
               preview_data: canvas.toDataURL({
                 format: 'png',
                 quality: 1,
@@ -923,6 +967,14 @@
           } finally {
             saveBtn.disabled = false;
           }
+        });
+        let resizeTimer = null;
+        window.addEventListener('resize', () => {
+          clearTimeout(resizeTimer);
+          resizeTimer = setTimeout(() => {
+            fitCanvasToContainer(true);
+            setStatus('Lienzo reajustado al tamaño de pantalla.');
+          }, 180);
         });
       })();
     </script>

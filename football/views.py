@@ -5205,6 +5205,8 @@ def save_session_task_graphic(request, task_id):
     canvas_state = payload.get('canvas_state')
     if not isinstance(canvas_state, dict):
         return JsonResponse({'error': 'Estado gráfico inválido.'}, status=400)
+    canvas_width = _parse_int(payload.get('canvas_width'))
+    canvas_height = _parse_int(payload.get('canvas_height'))
 
     preview_data = payload.get('preview_data')
     layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
@@ -5216,6 +5218,8 @@ def save_session_task_graphic(request, task_id):
     graphic_editor.update(
         {
             'canvas_state': canvas_state,
+            'canvas_width': canvas_width if canvas_width and canvas_width > 0 else None,
+            'canvas_height': canvas_height if canvas_height and canvas_height > 0 else None,
             'updated_at': timezone.now().isoformat(),
             'updated_by': request.user.get_username() if request.user.is_authenticated else '',
         }
