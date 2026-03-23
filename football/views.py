@@ -6857,19 +6857,26 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         key=lambda row: row['count'],
         reverse=True,
     )
-    date_group_rows = sorted(
-        [
+    date_group_rows = []
+    for key, items in date_groups.items():
+        raw_key = str(key or '').strip()
+        if not raw_key:
+            continue
+        parsed_key = _coerce_reference_date(raw_key)
+        date_group_rows.append(
             {
-                'key': key,
+                'key': parsed_key.isoformat() if parsed_key else raw_key,
                 'count': len(items),
-                'label': datetime.strptime(key, '%Y-%m-%d').strftime('%d/%m/%Y'),
+                'label': parsed_key.strftime('%d/%m/%Y') if parsed_key else raw_key,
+                'sort_date': parsed_key or date.min,
             }
-            for key, items in date_groups.items()
-            if key
-        ],
-        key=lambda row: row['key'],
+        )
+    date_group_rows.sort(
+        key=lambda row: (row.get('sort_date') or date.min, str(row.get('key') or '')),
         reverse=True,
     )
+    for row in date_group_rows:
+        row.pop('sort_date', None)
     quality_group_rows = [
         {'key': 'review', 'label': 'Revisión necesaria', 'count': len([item for item in task_library if getattr(item, 'needs_review', False)])},
         {'key': 'validated', 'label': 'Validadas', 'count': len([item for item in task_library if not getattr(item, 'needs_review', False)])},

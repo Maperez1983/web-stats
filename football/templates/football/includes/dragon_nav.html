@@ -4,6 +4,15 @@
     <img src="{% static 'logos/logo.png' %}" alt="Escudo C.D. Benagalbón" loading="lazy" />
   </a>
 </div>
+{% if not hide_product_shortcuts %}
+<nav class="product-nav-shortcuts" aria-label="Accesos rápidos">
+  <a href="{% url 'dashboard-home' %}">Dashboard</a>
+  <a href="{% url 'coach-detail' %}">Cuerpo técnico</a>
+  <a href="{% url 'player-dashboard' %}">Jugadores</a>
+  <a href="{% url 'match-action-page' %}">Registro</a>
+  <a href="{% url 'admin-page' %}">Admin</a>
+</nav>
+{% endif %}
 <style>
 .dragon-nav {
   width: 94px;
@@ -32,11 +41,33 @@
   height: 100%;
   object-fit: contain;
 }
+.product-nav-shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.42rem;
+}
+.product-nav-shortcuts a {
+  text-decoration: none;
+  color: #cbd5e1;
+  border: 1px solid rgba(121, 170, 230, 0.24);
+  border-radius: 999px;
+  padding: 0.28rem 0.62rem;
+  font-size: 0.72rem;
+  line-height: 1.15;
+}
+.product-nav-shortcuts a:hover {
+  border-color: rgba(34, 211, 238, 0.66);
+  color: #e2f5ff;
+}
 @media (max-width: 768px) {
   .dragon-nav {
     width: 82px;
     height: 82px;
     margin: 0 auto 0.45rem;
+  }
+  .product-nav-shortcuts {
+    justify-content: center;
   }
 }
 </style>

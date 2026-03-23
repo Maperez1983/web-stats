@@ -262,7 +262,7 @@
     <div class="page">
       <header class="topbar">
         <div class="topbar-brand">
-          {% include 'football/includes/dragon_nav.html' %}
+          {% include 'football/includes/dragon_nav.html' with hide_product_shortcuts=True %}
         </div>
         <nav class="module-tabs">
           <a class="module-tab" href="{% url 'dashboard-home' %}">Dashboard</a>
