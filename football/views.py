@@ -135,6 +135,9 @@ SCRAPE_LOCK_KEY = "football:refresh_scraping_running"
 SCRAPE_LOCK_TIMEOUT_SECONDS = 900
 DASHBOARD_CACHE_KEY_PREFIX = "football:dashboard_payload"
 DASHBOARD_CACHE_SECONDS = int(os.getenv('DASHBOARD_CACHE_SECONDS', '90'))
+RFAF_LIVE_FETCH_ON_REQUEST = str(
+    os.getenv('RFAF_LIVE_FETCH_ON_REQUEST', '0')
+).strip().lower() in {'1', 'true', 'yes', 'on'}
 
 TASK_MATERIAL_LIBRARY = [
     {'label': 'CONO', 'title': 'Cono alto', 'kind': 'cone', 'category': 'delimitacion', 'icon': '△'},
@@ -8364,10 +8367,6 @@ def get_next_match(primary_team, group):
     )
     scoped_qs = all_team_matches_qs.filter(group=group) if group else all_team_matches_qs
 
-    rfaf_next = _fetch_next_from_rfaf()
-    if rfaf_next:
-        return rfaf_next
-
     cached_next = load_cached_next_match()
     if cached_next and (cached_next.get('status') or '').lower() == 'next':
         return normalize_next_match_payload(cached_next)
@@ -8383,6 +8382,12 @@ def get_next_match(primary_team, group):
         undated_next = _pick_undated_next(all_team_matches_qs)
     if undated_next:
         return build_match_payload(undated_next, primary_team, status='next')
+
+    # Live scraping on request is expensive; keep it opt-in and only as fallback.
+    if RFAF_LIVE_FETCH_ON_REQUEST:
+        rfaf_next = _fetch_next_from_rfaf()
+        if rfaf_next:
+            return rfaf_next
 
     latest = scoped_qs.exclude(date__isnull=True).order_by('-date').first()
     if not latest:
@@ -8407,41 +8412,56 @@ def _team_match_queryset(primary_team):
 
     # Some imports may create a duplicated team entry for Benagalbón (name variants),
     # leaving matches linked to that alias instead of the canonical `is_primary` team.
-    alias_ids = []
-    primary_lookup = _normalize_team_lookup_key(primary_team.name)
-    for candidate in Team.objects.exclude(id=primary_team.id).only('id', 'name'):
-        candidate_signature = _team_name_signature(candidate.name)
-        candidate_lookup = _normalize_team_lookup_key(candidate.name)
-        same_signature = candidate_signature == team_signature
-        fuzzy_same_team = bool(
-            primary_lookup
-            and candidate_lookup
-            and (
-                primary_lookup in candidate_lookup
-                or candidate_lookup in primary_lookup
-                or ('benagalbon' in primary_lookup and 'benagalbon' in candidate_lookup)
+    alias_cache_key = f'football:team_alias_ids:{int(primary_team.id)}'
+    alias_ids = cache.get(alias_cache_key)
+    if alias_ids is None:
+        alias_ids = []
+        primary_lookup = _normalize_team_lookup_key(primary_team.name)
+        for candidate in Team.objects.exclude(id=primary_team.id).only('id', 'name'):
+            candidate_signature = _team_name_signature(candidate.name)
+            candidate_lookup = _normalize_team_lookup_key(candidate.name)
+            same_signature = candidate_signature == team_signature
+            fuzzy_same_team = bool(
+                primary_lookup
+                and candidate_lookup
+                and (
+                    primary_lookup in candidate_lookup
+                    or candidate_lookup in primary_lookup
+                    or ('benagalbon' in primary_lookup and 'benagalbon' in candidate_lookup)
+                )
             )
-        )
-        if same_signature or fuzzy_same_team:
-            alias_ids.append(candidate.id)
+            if same_signature or fuzzy_same_team:
+                alias_ids.append(candidate.id)
+        cache.set(alias_cache_key, alias_ids, 60 * 15)
     if alias_ids:
         direct_filter = direct_filter | Q(home_team_id__in=alias_ids) | Q(away_team_id__in=alias_ids)
 
     # Some imported matches can be linked to the wrong Team FK but still have
     # events assigned to players of the primary team. Include them so admin
     # "Partidos y Acciones" always shows those imported fixtures.
-    event_match_ids = list(
-        MatchEvent.objects
-        .filter(player__team=primary_team)
-        .values_list('match_id', flat=True)
-        .distinct()
-    )
-    convocation_match_ids = list(
-        ConvocationRecord.objects
-        .filter(team=primary_team, match_id__isnull=False)
-        .values_list('match_id', flat=True)
-        .distinct()
-    )
+    extra_match_cache_key = f'football:team_extra_match_ids:{int(primary_team.id)}'
+    cached_extra_ids = cache.get(extra_match_cache_key)
+    if isinstance(cached_extra_ids, dict):
+        event_match_ids = cached_extra_ids.get('events') or []
+        convocation_match_ids = cached_extra_ids.get('convocations') or []
+    else:
+        event_match_ids = list(
+            MatchEvent.objects
+            .filter(player__team=primary_team)
+            .values_list('match_id', flat=True)
+            .distinct()
+        )
+        convocation_match_ids = list(
+            ConvocationRecord.objects
+            .filter(team=primary_team, match_id__isnull=False)
+            .values_list('match_id', flat=True)
+            .distinct()
+        )
+        cache.set(
+            extra_match_cache_key,
+            {'events': event_match_ids, 'convocations': convocation_match_ids},
+            60 * 5,
+        )
     if event_match_ids:
         direct_filter = direct_filter | Q(id__in=event_match_ids)
     if convocation_match_ids:
