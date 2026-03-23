@@ -4461,6 +4461,25 @@ def _ensure_original_task_snapshot(task):
     return snapshot
 
 
+def _is_imported_task(task):
+    if not task:
+        return False
+    if bool(getattr(task, 'task_pdf', None)):
+        return True
+    layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
+    meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+    source = str(meta.get('source') or '').strip().lower()
+    if source in {'pdf_analysis', 'pdf_import', 'pdf'}:
+        return True
+    if str(meta.get('pdf_source_name') or '').strip():
+        return True
+    return False
+
+
+def _is_task_editable(task):
+    return not _is_imported_task(task)
+
+
 def _restore_task_from_original_snapshot(task, scope_key=None):
     if not task:
         raise ValueError('Tarea no encontrada.')
@@ -4762,7 +4781,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
 
                     extracted_text = ''
                     try:
-                        extracted_text = _extract_pdf_text(pdf_file, max_chars=30000)
+                        extracted_text = _extract_pdf_text(pdf_file, max_chars=60000)
                     except Exception:
                         pass
                     parsed_tasks = _extract_tasks_from_pdf_text(extracted_text, fallback_title=task_title)
@@ -5044,6 +5063,23 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     )
                 if not target_session:
                     target_session = _get_or_create_library_session(primary_team, scope_key)
+                canvas_state = None
+                raw_canvas_state = (request.POST.get('draw_canvas_state') or '').strip()
+                if raw_canvas_state:
+                    try:
+                        parsed_state = json.loads(raw_canvas_state)
+                        if isinstance(parsed_state, dict):
+                            canvas_state = parsed_state
+                    except Exception:
+                        canvas_state = None
+                if not isinstance(canvas_state, dict):
+                    canvas_state = _starter_canvas_state(pitch_preset)
+
+                canvas_width = _parse_int(request.POST.get('draw_canvas_width')) or 1280
+                canvas_height = _parse_int(request.POST.get('draw_canvas_height')) or 720
+                canvas_width = max(320, min(canvas_width, 3840))
+                canvas_height = max(180, min(canvas_height, 2160))
+
                 task = SessionTask.objects.create(
                     session=target_session,
                     title=title[:160],
@@ -5074,9 +5110,9 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                             'success_criteria': success_criteria,
                             'constraints': constraints,
                             'graphic_editor': {
-                                'canvas_state': _starter_canvas_state(pitch_preset),
-                                'canvas_width': 1280,
-                                'canvas_height': 720,
+                                'canvas_state': canvas_state,
+                                'canvas_width': canvas_width,
+                                'canvas_height': canvas_height,
                             },
                             'analysis': {
                                 'task_sheet': {
@@ -5093,7 +5129,14 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     order=SessionTask.objects.filter(session=target_session).count() + 1,
                     notes='Tarea creada para dibujo manual',
                 )
-                return redirect(reverse('session-task-detail', args=[task.id]))
+                preview_data = request.POST.get('draw_canvas_preview_data')
+                if preview_data:
+                    raw_bytes, extension = _decode_canvas_data_url(preview_data)
+                    if raw_bytes and extension:
+                        filename = f'task_preview_{task.id}{extension}'
+                        task.task_preview_image.save(filename, ContentFile(raw_bytes), save=False)
+                        task.save(update_fields=['task_preview_image'])
+                feedback = 'Tarea creada con pizarra táctica.'
 
             elif planner_action == 'analyze_all_library_pdfs':
                 tasks_for_scope = list(
@@ -5439,6 +5482,10 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         analysis_meta = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
         task.analysis_meta = analysis_meta
         task_sheet = analysis_meta.get('task_sheet') if isinstance(analysis_meta.get('task_sheet'), dict) else {}
+        task.task_sheet = task_sheet
+        task.is_imported = _is_imported_task(task)
+        task.analysis_summary = str(analysis_meta.get('summary') or '').strip()
+        task.detected_materials = analysis_meta.get('detected_materials') if isinstance(analysis_meta.get('detected_materials'), list) else []
         objective_summary = str(task.objective or '').strip()
         if not objective_summary:
             objective_summary = str(task_sheet.get('description') or '').strip()
@@ -5529,14 +5576,20 @@ def session_task_detail_page(request, task_id):
 
     feedback = ''
     error = ''
+    is_editable_task = _is_task_editable(task)
+    is_imported_task = _is_imported_task(task)
     if request.method == 'POST':
         detail_action = (request.POST.get('detail_action') or '').strip()
         try:
             if detail_action == 'update_task_detail':
+                if not is_editable_task:
+                    raise ValueError('Las tareas importadas son de solo lectura.')
                 _update_library_task_from_post(task, request.POST, scope_key=scope_key)
                 feedback = 'Tarea actualizada correctamente.'
                 task.refresh_from_db()
             elif detail_action == 'restore_original_version':
+                if not is_editable_task:
+                    raise ValueError('Las tareas importadas son de solo lectura.')
                 _restore_task_from_original_snapshot(task, scope_key=scope_key)
                 feedback = 'Se restauró la versión original de la tarea.'
                 task.refresh_from_db()
@@ -5577,6 +5630,8 @@ def session_task_detail_page(request, task_id):
             'original_version': original_version,
             'original_task_sheet': original_task_sheet,
             'original_preview_url': original_preview_url,
+            'is_editable_task': is_editable_task,
+            'is_imported_task': is_imported_task,
         },
     )
 
@@ -5594,6 +5649,8 @@ def save_session_task_graphic(request, task_id):
     )
     if not task:
         return JsonResponse({'error': 'Tarea no encontrada.'}, status=404)
+    if not _is_task_editable(task):
+        return JsonResponse({'error': 'Las tareas importadas son de solo lectura.'}, status=403)
     payload = {}
     try:
         payload = json.loads(request.body.decode('utf-8')) if request.body else {}

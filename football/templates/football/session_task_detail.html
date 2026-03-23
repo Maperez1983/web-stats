@@ -174,6 +174,12 @@
       .graphic-toolbar .button {
         cursor: pointer;
       }
+      .graphic-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 240px;
+        gap: 0.7rem;
+        align-items: start;
+      }
       .graphic-canvas-wrap {
         position: relative;
         width: 100%;
@@ -193,6 +199,47 @@
         border: 1px solid rgba(255, 255, 255, 0.16);
         border-radius: 0;
         background: #ffffff;
+      }
+      .layers-panel {
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 12px;
+        padding: 0.55rem;
+        background: rgba(8, 20, 42, 0.75);
+      }
+      .layers-panel h3 {
+        margin: 0 0 0.4rem;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.09em;
+      }
+      .layers-list {
+        display: grid;
+        gap: 0.32rem;
+        max-height: 360px;
+        overflow: auto;
+      }
+      .layer-item {
+        display: grid;
+        grid-template-columns: 1fr auto auto;
+        gap: 0.3rem;
+        align-items: center;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 9px;
+        padding: 0.3rem 0.4rem;
+        background: rgba(255, 255, 255, 0.04);
+        font-size: 0.7rem;
+      }
+      .layer-item button {
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 7px;
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--ink);
+        font-size: 0.66rem;
+        padding: 0.14rem 0.34rem;
+        cursor: pointer;
+      }
+      .layer-item.active {
+        border-color: rgba(34, 211, 238, 0.66);
       }
       .graphic-status {
         margin-top: 0.5rem;
@@ -268,6 +315,11 @@
       .iconify-btn.is-hidden {
         display: none;
       }
+      @media (max-width: 980px) {
+        .graphic-layout {
+          grid-template-columns: 1fr;
+        }
+      }
     </style>
   </head>
   <body>
@@ -294,78 +346,85 @@
         <p class="meta">{{ scope_title }} · {{ task.session.session_date|date:"d/m/Y" }} · {{ task.get_block_display }} · {{ task.duration_minutes }}'</p>
       </section>
 
-      <section class="panel">
-        <h2>Versionado de tarea</h2>
-        {% if original_version %}
-        <p class="meta">La versión original está bloqueada y no se sobrescribe. Puedes editar esta tarea y restaurarla cuando quieras.</p>
-        <form method="post" style="margin-top:0.45rem;">
-          {% csrf_token %}
-          <input type="hidden" name="detail_action" value="restore_original_version" />
-          <button class="button" type="submit">Restaurar versión original</button>
-        </form>
-        {% else %}
-        <p class="meta">Todavía no hay snapshot original. Se crea automáticamente al primer cambio manual o al guardar el gráfico.</p>
-        {% endif %}
-      </section>
+      {% if is_editable_task %}
+        <section class="panel">
+          <h2>Versionado de tarea</h2>
+          {% if original_version %}
+          <p class="meta">La versión original está bloqueada y no se sobrescribe. Puedes editar esta tarea y restaurarla cuando quieras.</p>
+          <form method="post" style="margin-top:0.45rem;">
+            {% csrf_token %}
+            <input type="hidden" name="detail_action" value="restore_original_version" />
+            <button class="button" type="submit">Restaurar versión original</button>
+          </form>
+          {% else %}
+          <p class="meta">Todavía no hay snapshot original. Se crea automáticamente al primer cambio manual o al guardar el gráfico.</p>
+          {% endif %}
+        </section>
 
-      <section class="panel">
-        <h2>Editar tarea y ficha interior</h2>
-        <form method="post" class="grid">
-          {% csrf_token %}
-          <input type="hidden" name="detail_action" value="update_task_detail" />
-          <label>
-            Título
-            <input type="text" name="task_title" value="{{ task.title }}" maxlength="160" required />
-          </label>
-          <label>
-            Bloque
-            <select name="task_block">
-              {% for value, label in task_blocks %}
-              <option value="{{ value }}" {% if task.block == value %}selected{% endif %}>{{ label }}</option>
-              {% endfor %}
-            </select>
-          </label>
-          <label>
-            Minutos
-            <input type="number" name="task_minutes" min="5" max="90" value="{{ task.duration_minutes }}" />
-          </label>
-          <label style="grid-column:1/-1;">
-            Objetivo
-            <input type="text" name="task_objective" value="{{ task.objective }}" maxlength="180" />
-          </label>
-          <label style="grid-column:1/-1;">
-            Consignas
-            <textarea name="task_coaching_points">{{ task.coaching_points }}</textarea>
-          </label>
-          <label style="grid-column:1/-1;">
-            Reglas de confrontación
-            <textarea name="task_confrontation_rules">{{ task.confrontation_rules }}</textarea>
-          </label>
-          <label style="grid-column:1/-1;">
-            Descripción (ficha interior)
-            <textarea name="task_sheet_description">{{ task_sheet.description }}</textarea>
-          </label>
-          <label>
-            Jugadores (ficha interior)
-            <input type="text" name="task_sheet_players" value="{{ task_sheet.players }}" />
-          </label>
-          <label>
-            Espacio (ficha interior)
-            <input type="text" name="task_sheet_space" value="{{ task_sheet.space }}" />
-          </label>
-          <label>
-            Medidas (ficha interior)
-            <input type="text" name="task_sheet_dimensions" value="{{ task_sheet.dimensions }}" />
-          </label>
-          <label>
-            Materiales (ficha interior)
-            <input type="text" name="task_sheet_materials" value="{{ task_sheet.materials }}" />
-          </label>
-          <div style="display:flex; align-items:flex-end;">
-            <button class="button" type="submit">Guardar cambios</button>
-          </div>
-        </form>
-      </section>
+        <section class="panel">
+          <h2>Editar tarea y ficha interior</h2>
+          <form method="post" class="grid">
+            {% csrf_token %}
+            <input type="hidden" name="detail_action" value="update_task_detail" />
+            <label>
+              Título
+              <input type="text" name="task_title" value="{{ task.title }}" maxlength="160" required />
+            </label>
+            <label>
+              Bloque
+              <select name="task_block">
+                {% for value, label in task_blocks %}
+                <option value="{{ value }}" {% if task.block == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>
+              Minutos
+              <input type="number" name="task_minutes" min="5" max="90" value="{{ task.duration_minutes }}" />
+            </label>
+            <label style="grid-column:1/-1;">
+              Objetivo
+              <input type="text" name="task_objective" value="{{ task.objective }}" maxlength="180" />
+            </label>
+            <label style="grid-column:1/-1;">
+              Consignas
+              <textarea name="task_coaching_points">{{ task.coaching_points }}</textarea>
+            </label>
+            <label style="grid-column:1/-1;">
+              Reglas de confrontación
+              <textarea name="task_confrontation_rules">{{ task.confrontation_rules }}</textarea>
+            </label>
+            <label style="grid-column:1/-1;">
+              Descripción (ficha interior)
+              <textarea name="task_sheet_description">{{ task_sheet.description }}</textarea>
+            </label>
+            <label>
+              Jugadores (ficha interior)
+              <input type="text" name="task_sheet_players" value="{{ task_sheet.players }}" />
+            </label>
+            <label>
+              Espacio (ficha interior)
+              <input type="text" name="task_sheet_space" value="{{ task_sheet.space }}" />
+            </label>
+            <label>
+              Medidas (ficha interior)
+              <input type="text" name="task_sheet_dimensions" value="{{ task_sheet.dimensions }}" />
+            </label>
+            <label>
+              Materiales (ficha interior)
+              <input type="text" name="task_sheet_materials" value="{{ task_sheet.materials }}" />
+            </label>
+            <div style="display:flex; align-items:flex-end;">
+              <button class="button" type="submit">Guardar cambios</button>
+            </div>
+          </form>
+        </section>
+      {% else %}
+        <section class="panel">
+          <h2>Tarea importada</h2>
+          <p class="meta">Modo solo lectura: card pulsable + ficha de tarea + representación gráfica. Sin edición.</p>
+        </section>
+      {% endif %}
 
       {% if original_version %}
       <section class="panel">
@@ -416,15 +475,25 @@
       {% endif %}
 
       <section class="panel">
-        <h2>Representación gráfica editable</h2>
+        <h2>{% if is_editable_task %}Representación gráfica editable{% else %}Representación gráfica de la tarea{% endif %}</h2>
+        {% if is_editable_task %}
         <div class="graphic-toolbar">
           <button type="button" class="button" id="graphic-draw-btn">Modo dibujo</button>
           <button type="button" class="button" id="graphic-select-btn">Modo selección</button>
+          <button type="button" class="button" id="graphic-snap-btn">Snap ON</button>
           <button type="button" class="button" id="graphic-add-circle-btn">Añadir jugador</button>
           <button type="button" class="button" id="graphic-add-rect-btn">Añadir zona</button>
           <button type="button" class="button" id="graphic-add-arrow-btn">Añadir flecha</button>
           <button type="button" class="button" id="graphic-add-text-btn">Añadir texto</button>
+          <button type="button" class="button" id="graphic-align-left-btn">Alinear izq</button>
+          <button type="button" class="button" id="graphic-align-center-btn">Alinear centro</button>
+          <button type="button" class="button" id="graphic-align-right-btn">Alinear der</button>
+          <button type="button" class="button" id="graphic-align-top-btn">Alinear arriba</button>
+          <button type="button" class="button" id="graphic-align-middle-btn">Alinear medio</button>
+          <button type="button" class="button" id="graphic-align-bottom-btn">Alinear abajo</button>
           <button type="button" class="button" id="graphic-duplicate-btn">Duplicar</button>
+          <button type="button" class="button" id="graphic-lock-btn">Bloquear</button>
+          <button type="button" class="button" id="graphic-unlock-btn">Desbloquear</button>
           <button type="button" class="button" id="graphic-delete-btn">Borrar selección</button>
           <button type="button" class="button" id="graphic-front-btn">Subir capa</button>
           <button type="button" class="button" id="graphic-back-btn">Bajar capa</button>
@@ -440,6 +509,8 @@
           </label>
           <button type="button" class="button" id="graphic-save-btn">Guardar gráfico</button>
         </div>
+        {% endif %}
+        {% if is_editable_task %}
         <div class="resource-library">
           <p class="resource-title">Biblioteca de iconos y recursos</p>
           <div class="resource-grid" id="graphic-resource-grid">
@@ -477,10 +548,19 @@
             <button type="button" class="iconify-btn" data-iconify="mdi:format-text" data-label="Texto"><iconify-icon icon="mdi:format-text"></iconify-icon><span>Texto</span></button>
           </div>
         </div>
-        <div class="graphic-canvas-wrap">
-          <canvas id="task-graphic-canvas"></canvas>
+        {% endif %}
+        <div class="graphic-layout">
+          <div class="graphic-canvas-wrap">
+            <canvas id="task-graphic-canvas"></canvas>
+          </div>
+          {% if is_editable_task %}
+          <aside class="layers-panel">
+            <h3>Capas</h3>
+            <div class="layers-list" id="graphic-layers-list"></div>
+          </aside>
+          {% endif %}
         </div>
-        <p class="graphic-status" id="graphic-status">Editor listo.</p>
+        <p class="graphic-status" id="graphic-status">{% if is_editable_task %}Editor listo.{% else %}Vista de tarea importada.{% endif %}</p>
       </section>
 
       {% if task.task_preview_image %}
@@ -562,6 +642,7 @@
         if (!window.fabric) return;
         const canvasEl = document.getElementById('task-graphic-canvas');
         if (!canvasEl) return;
+        const isEditable = "{{ is_editable_task|yesno:'true,false' }}" === 'true';
         const stateRaw = "{{ graphic_editor_state_json|escapejs }}";
         let savedState = {};
         try {
@@ -576,10 +657,13 @@
           statusEl.style.color = isError ? '#fecaca' : 'rgba(225, 236, 255, 0.82)';
         };
         const canvas = new fabric.Canvas(canvasEl, {
-          isDrawingMode: true,
+          isDrawingMode: isEditable,
           selection: false,
           preserveObjectStacking: true,
         });
+        const layersList = document.getElementById('graphic-layers-list');
+        const gridSize = 20;
+        let snapEnabled = true;
         const canvasWrap = canvasEl.closest('.graphic-canvas-wrap');
         const fitCanvasToContainer = (rescaleObjects = true) => {
           const prevW = canvas.getWidth() || 1280;
@@ -600,6 +684,89 @@
             });
           }
           canvas.renderAll();
+        };
+        const setObjectLocked = (obj, locked) => {
+          if (!obj) return;
+          obj.__locked = !!locked;
+          obj.lockMovementX = !!locked;
+          obj.lockMovementY = !!locked;
+          obj.lockRotation = !!locked;
+          obj.lockScalingX = !!locked;
+          obj.lockScalingY = !!locked;
+          obj.selectable = isEditable && !locked;
+          obj.evented = !locked;
+        };
+        const getSelectedObjects = () => {
+          const active = canvas.getActiveObject();
+          if (!active) return [];
+          if (active.type === 'activeSelection' && Array.isArray(active._objects)) return active._objects;
+          return [active];
+        };
+        const applySnap = (obj) => {
+          if (!obj || !snapEnabled || obj.__locked) return;
+          obj.left = Math.round((obj.left || 0) / gridSize) * gridSize;
+          obj.top = Math.round((obj.top || 0) / gridSize) * gridSize;
+          obj.setCoords();
+        };
+        const alignSelected = (mode) => {
+          const objects = getSelectedObjects().filter((obj) => !obj.__locked);
+          if (!objects.length) {
+            setStatus('Selecciona elementos para alinear.');
+            return;
+          }
+          const bounds = objects.map((obj) => obj.getBoundingRect(true, true));
+          const minLeft = Math.min(...bounds.map((b) => b.left));
+          const maxRight = Math.max(...bounds.map((b) => b.left + b.width));
+          const minTop = Math.min(...bounds.map((b) => b.top));
+          const maxBottom = Math.max(...bounds.map((b) => b.top + b.height));
+          const centerX = (minLeft + maxRight) / 2;
+          const centerY = (minTop + maxBottom) / 2;
+          objects.forEach((obj) => {
+            const rect = obj.getBoundingRect(true, true);
+            if (mode === 'left') obj.left += minLeft - rect.left;
+            if (mode === 'center') obj.left += centerX - (rect.left + (rect.width / 2));
+            if (mode === 'right') obj.left += maxRight - (rect.left + rect.width);
+            if (mode === 'top') obj.top += minTop - rect.top;
+            if (mode === 'middle') obj.top += centerY - (rect.top + (rect.height / 2));
+            if (mode === 'bottom') obj.top += maxBottom - (rect.top + rect.height);
+            if (snapEnabled) applySnap(obj);
+            obj.setCoords();
+          });
+          canvas.renderAll();
+          setStatus('Alineación aplicada.');
+        };
+        const refreshLayerList = () => {
+          if (!layersList || !isEditable) return;
+          const objects = canvas.getObjects().slice().reverse();
+          layersList.innerHTML = '';
+          objects.forEach((obj, index) => {
+            const row = document.createElement('div');
+            row.className = 'layer-item';
+            if (canvas.getActiveObject() === obj) row.classList.add('active');
+            const label = document.createElement('span');
+            label.textContent = `${index + 1}. ${obj.type || 'objeto'}`;
+            const selectBtn = document.createElement('button');
+            selectBtn.type = 'button';
+            selectBtn.textContent = 'Sel';
+            selectBtn.addEventListener('click', () => {
+              canvas.setActiveObject(obj);
+              canvas.renderAll();
+              refreshLayerList();
+            });
+            const lockBtn = document.createElement('button');
+            lockBtn.type = 'button';
+            lockBtn.textContent = obj.__locked ? '🔒' : '🔓';
+            lockBtn.addEventListener('click', () => {
+              setObjectLocked(obj, !obj.__locked);
+              canvas.discardActiveObject();
+              canvas.renderAll();
+              refreshLayerList();
+            });
+            row.appendChild(label);
+            row.appendChild(selectBtn);
+            row.appendChild(lockBtn);
+            layersList.appendChild(row);
+          });
         };
         fitCanvasToContainer(false);
         canvas.backgroundColor = '#ffffff';
@@ -634,8 +801,12 @@
                   obj.setCoords();
                 });
               }
+              if (!isEditable) {
+                canvas.getObjects().forEach((obj) => setObjectLocked(obj, true));
+              }
               canvas.renderAll();
               pushHistory();
+              refreshLayerList();
               setStatus('Estado gráfico restaurado.');
             });
             return;
@@ -656,8 +827,10 @@
               img.scale(scale);
               canvas.add(img);
               canvas.sendToBack(img);
+              if (!isEditable) setObjectLocked(img, true);
               canvas.renderAll();
               pushHistory();
+              refreshLayerList();
               setStatus('Preview cargada como base editable.');
             }, { crossOrigin: 'anonymous' });
           }
@@ -666,9 +839,20 @@
 
         canvas.on('path:created', pushHistory);
         canvas.on('object:modified', pushHistory);
-        canvas.on('object:added', () => {
-          if (!canvas.__loading) pushHistory();
+        canvas.on('object:moving', (event) => {
+          if (!isEditable || !event?.target) return;
+          applySnap(event.target);
         });
+        canvas.on('object:added', () => {
+          if (!canvas.__loading) {
+            pushHistory();
+            refreshLayerList();
+          }
+        });
+        canvas.on('object:removed', refreshLayerList);
+        canvas.on('selection:created', refreshLayerList);
+        canvas.on('selection:updated', refreshLayerList);
+        canvas.on('selection:cleared', refreshLayerList);
 
         const colorInput = document.getElementById('graphic-color');
         const widthInput = document.getElementById('graphic-width');
@@ -685,15 +869,25 @@
         }
 
         const setMode = (drawMode) => {
+          if (!isEditable) return;
           canvas.isDrawingMode = !!drawMode;
           canvas.selection = !drawMode;
           canvas.forEachObject((obj) => {
-            obj.selectable = !drawMode;
+            obj.selectable = !drawMode && !obj.__locked;
           });
           canvas.renderAll();
           setStatus(drawMode ? 'Modo dibujo activo.' : 'Modo selección activo.');
         };
+        if (!isEditable) {
+          setMode(false);
+          canvas.isDrawingMode = false;
+          canvas.selection = false;
+          canvas.forEachObject((obj) => setObjectLocked(obj, true));
+          canvas.renderAll();
+          setStatus('Tarea importada en modo solo lectura.');
+        }
         const addIconifySvg = async (iconName) => {
+          if (!isEditable) return;
           const name = String(iconName || '').trim();
           if (!name) return;
           try {
@@ -728,6 +922,7 @@
           }
         };
         const addResource = (kind) => {
+          if (!isEditable) return;
           const baseLeft = 180 + Math.floor(Math.random() * 180);
           const baseTop = 150 + Math.floor(Math.random() * 120);
           let item = null;
@@ -852,10 +1047,25 @@
           canvas.setActiveObject(item);
           canvas.renderAll();
           setStatus('Recurso añadido.');
+          refreshLayerList();
         };
+        const snapBtn = document.getElementById('graphic-snap-btn');
+        snapBtn?.addEventListener('click', () => {
+          if (!isEditable) return;
+          snapEnabled = !snapEnabled;
+          snapBtn.textContent = snapEnabled ? 'Snap ON' : 'Snap OFF';
+          setStatus(snapEnabled ? 'Snap a rejilla activado.' : 'Snap a rejilla desactivado.');
+        });
         document.getElementById('graphic-draw-btn')?.addEventListener('click', () => setMode(true));
         document.getElementById('graphic-select-btn')?.addEventListener('click', () => setMode(false));
+        document.getElementById('graphic-align-left-btn')?.addEventListener('click', () => alignSelected('left'));
+        document.getElementById('graphic-align-center-btn')?.addEventListener('click', () => alignSelected('center'));
+        document.getElementById('graphic-align-right-btn')?.addEventListener('click', () => alignSelected('right'));
+        document.getElementById('graphic-align-top-btn')?.addEventListener('click', () => alignSelected('top'));
+        document.getElementById('graphic-align-middle-btn')?.addEventListener('click', () => alignSelected('middle'));
+        document.getElementById('graphic-align-bottom-btn')?.addEventListener('click', () => alignSelected('bottom'));
         document.getElementById('graphic-add-circle-btn')?.addEventListener('click', () => {
+          if (!isEditable) return;
           const circle = new fabric.Circle({
             left: 120,
             top: 120,
@@ -869,6 +1079,7 @@
           setStatus('Jugador añadido.');
         });
         document.getElementById('graphic-add-rect-btn')?.addEventListener('click', () => {
+          if (!isEditable) return;
           const rect = new fabric.Rect({
             left: 180,
             top: 180,
@@ -885,6 +1096,7 @@
           setStatus('Zona añadida.');
         });
         document.getElementById('graphic-add-arrow-btn')?.addEventListener('click', () => {
+          if (!isEditable) return;
           const line = new fabric.Line([260, 260, 410, 310], {
             stroke: '#0ea5e9',
             strokeWidth: 4,
@@ -903,6 +1115,7 @@
           setStatus('Flecha añadida.');
         });
         document.getElementById('graphic-add-text-btn')?.addEventListener('click', () => {
+          if (!isEditable) return;
           const text = new fabric.IText('Consigna', {
             left: 220,
             top: 240,
@@ -915,12 +1128,14 @@
           setStatus('Texto añadido.');
         });
         document.getElementById('graphic-resource-grid')?.addEventListener('click', (event) => {
+          if (!isEditable) return;
           const btn = event.target.closest('[data-resource]');
           if (!btn) return;
           addResource(btn.dataset.resource);
         });
         const iconifyGrid = document.getElementById('graphic-iconify-grid');
         iconifyGrid?.addEventListener('click', (event) => {
+          if (!isEditable) return;
           const btn = event.target.closest('[data-iconify]');
           if (!btn) return;
           addIconifySvg(btn.dataset.iconify);
@@ -934,6 +1149,7 @@
           });
         });
         document.getElementById('graphic-duplicate-btn')?.addEventListener('click', () => {
+          if (!isEditable) return;
           const active = canvas.getActiveObject();
           if (!active) {
             setStatus('Selecciona un elemento para duplicar.');
@@ -948,41 +1164,80 @@
             canvas.setActiveObject(cloned);
             canvas.renderAll();
             setStatus('Elemento duplicado.');
+            refreshLayerList();
           });
         });
+        document.getElementById('graphic-lock-btn')?.addEventListener('click', () => {
+          if (!isEditable) return;
+          const objects = getSelectedObjects();
+          if (!objects.length) {
+            setStatus('Selecciona un elemento para bloquear.');
+            return;
+          }
+          objects.forEach((obj) => setObjectLocked(obj, true));
+          canvas.discardActiveObject();
+          canvas.renderAll();
+          refreshLayerList();
+          setStatus('Elemento bloqueado.');
+        });
+        document.getElementById('graphic-unlock-btn')?.addEventListener('click', () => {
+          if (!isEditable) return;
+          const objects = canvas.getObjects().filter((obj) => obj.__locked);
+          if (!objects.length) {
+            setStatus('No hay elementos bloqueados.');
+            return;
+          }
+          objects.forEach((obj) => setObjectLocked(obj, false));
+          canvas.renderAll();
+          refreshLayerList();
+          setStatus('Elementos desbloqueados.');
+        });
         document.getElementById('graphic-delete-btn')?.addEventListener('click', () => {
+          if (!isEditable) return;
           const active = canvas.getActiveObject();
           if (!active) {
             setStatus('Selecciona un elemento para borrar.');
+            return;
+          }
+          if (active.__locked) {
+            setStatus('El elemento está bloqueado.');
             return;
           }
           canvas.remove(active);
           canvas.discardActiveObject();
           canvas.renderAll();
           setStatus('Elemento eliminado.');
+          refreshLayerList();
         });
         document.getElementById('graphic-front-btn')?.addEventListener('click', () => {
+          if (!isEditable) return;
           const active = canvas.getActiveObject();
           if (!active) return;
           canvas.bringForward(active);
           canvas.renderAll();
           setStatus('Elemento subido de capa.');
+          refreshLayerList();
         });
         document.getElementById('graphic-back-btn')?.addEventListener('click', () => {
+          if (!isEditable) return;
           const active = canvas.getActiveObject();
           if (!active) return;
           canvas.sendBackwards(active);
           canvas.renderAll();
           setStatus('Elemento bajado de capa.');
+          refreshLayerList();
         });
         document.getElementById('graphic-clear-btn')?.addEventListener('click', () => {
+          if (!isEditable) return;
           canvas.clear();
           canvas.backgroundColor = '#ffffff';
           canvas.renderAll();
           pushHistory();
           setStatus('Lienzo limpio.');
+          refreshLayerList();
         });
         document.getElementById('graphic-undo-btn')?.addEventListener('click', () => {
+          if (!isEditable) return;
           if (history.length <= 1) {
             setStatus('No hay más cambios para deshacer.');
             return;
@@ -993,6 +1248,7 @@
           canvas.loadFromJSON(JSON.parse(previous), () => {
             canvas.__loading = false;
             canvas.renderAll();
+            refreshLayerList();
             setStatus('Último cambio deshecho.');
           });
         });
@@ -1006,6 +1262,7 @@
         };
         const saveBtn = document.getElementById('graphic-save-btn');
         saveBtn?.addEventListener('click', async () => {
+          if (!isEditable) return;
           try {
             saveBtn.disabled = true;
             setStatus('Guardando gráfico...');
@@ -1044,9 +1301,11 @@
           clearTimeout(resizeTimer);
           resizeTimer = setTimeout(() => {
             fitCanvasToContainer(true);
-            setStatus('Lienzo reajustado al tamaño de pantalla.');
+            refreshLayerList();
+            setStatus(isEditable ? 'Lienzo reajustado al tamaño de pantalla.' : 'Vista reajustada.');
           }, 180);
         });
+        refreshLayerList();
       })();
     </script>
   </body>

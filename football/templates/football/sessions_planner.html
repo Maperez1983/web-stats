@@ -204,6 +204,41 @@
         text-transform: none;
         letter-spacing: 0.01em;
       }
+      .create-board {
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 14px;
+        background: rgba(2, 10, 22, 0.5);
+        padding: 0.7rem;
+      }
+      .create-board-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        margin-bottom: 0.55rem;
+      }
+      .create-board-toolbar .secondary {
+        font-size: 0.68rem;
+        padding: 0.38rem 0.68rem;
+      }
+      .create-board-wrap {
+        position: relative;
+        width: 100%;
+        height: 380px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        overflow: hidden;
+        background: #0c1f16;
+      }
+      #create-task-canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+      .create-board-status {
+        margin: 0.45rem 0 0;
+        font-size: 0.74rem;
+        color: rgba(225, 236, 255, 0.8);
+      }
       @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
     </style>
   </head>
@@ -412,6 +447,34 @@
                     <option value="blank">Lienzo en blanco</option>
                   </select>
                 </label>
+                <div style="grid-column:1/-1;" class="create-board">
+                  <div class="create-board-toolbar">
+                    <button type="button" class="secondary" id="create-board-draw-btn">Dibujar</button>
+                    <button type="button" class="secondary" id="create-board-select-btn">Seleccionar</button>
+                    <button type="button" class="secondary" id="create-board-player-btn">Jugador</button>
+                    <button type="button" class="secondary" id="create-board-zone-btn">Zona</button>
+                    <button type="button" class="secondary" id="create-board-arrow-btn">Flecha</button>
+                    <button type="button" class="secondary" id="create-board-text-btn">Texto</button>
+                    <button type="button" class="secondary" id="create-board-delete-btn">Borrar selección</button>
+                    <button type="button" class="secondary" id="create-board-clear-btn">Limpiar</button>
+                    <label style="display:flex; align-items:center; gap:0.35rem; text-transform:none; letter-spacing:0.02em; font-size:0.7rem;">
+                      Color
+                      <input id="create-board-color" type="color" value="#e11d48" style="height:30px; width:42px; padding:0.15rem;" />
+                    </label>
+                    <label style="display:flex; align-items:center; gap:0.35rem; text-transform:none; letter-spacing:0.02em; font-size:0.7rem;">
+                      Trazo
+                      <input id="create-board-width" type="range" min="1" max="14" value="4" />
+                    </label>
+                  </div>
+                  <div class="create-board-wrap">
+                    <canvas id="create-task-canvas"></canvas>
+                  </div>
+                  <p class="create-board-status" id="create-board-status">Pizarra lista.</p>
+                  <input type="hidden" name="draw_canvas_state" id="draw-canvas-state" />
+                  <input type="hidden" name="draw_canvas_width" id="draw-canvas-width" />
+                  <input type="hidden" name="draw_canvas_height" id="draw-canvas-height" />
+                  <input type="hidden" name="draw_canvas_preview_data" id="draw-canvas-preview-data" />
+                </div>
               </div>
             </div>
 
@@ -469,7 +532,7 @@
             </div>
 
             <div style="display:flex; align-items:flex-end; gap:0.6rem;">
-              <button type="submit" class="primary">Crear y abrir editor gráfico</button>
+              <button type="submit" class="primary">Crear tarea con pizarra</button>
             </div>
           </form>
         </section>
@@ -518,20 +581,7 @@
       <div class="tab-panel {% if active_tab == 'library' %}is-active{% endif %}" data-tab="library">
       <section class="panel">
         <h2>Biblioteca de tareas</h2>
-        <div style="display:flex; gap:0.6rem; flex-wrap:wrap; margin:0 0 0.9rem;">
-          <form method="post" style="margin:0;">
-            {% csrf_token %}
-            <input type="hidden" name="planner_action" value="analyze_all_library_pdfs" />
-            <input type="hidden" name="planner_tab" value="library" />
-            <button type="submit" class="primary">Analizar todas las tareas</button>
-          </form>
-          <form method="post" style="margin:0;">
-            {% csrf_token %}
-            <input type="hidden" name="planner_action" value="split_existing_library_pdfs" />
-            <input type="hidden" name="planner_tab" value="library" />
-            <button type="submit" class="secondary">Separar tareas de todos los PDFs</button>
-          </form>
-        </div>
+        <p class="meta" style="margin-top:0;">Vista de resultados del importador PDF con el máximo de información detectada automáticamente.</p>
         {% if task_library %}
         <div class="task-list">
           {% for t in task_library %}
@@ -553,6 +603,17 @@
               <h3 class="task-title">{{ t.title }}</h3>
               <p class="task-objective">{{ t.objective_summary|truncatechars:140 }}</p>
               <p class="meta"><strong>{{ t.session.session_date|date:"d/m/Y" }}</strong> · {{ t.get_block_display }} · {{ t.duration_minutes }}'</p>
+              {% if t.task_sheet %}
+              <p class="meta" style="margin-top:-0.2rem;">
+                {% if t.task_sheet.players %}Jugadores: <strong>{{ t.task_sheet.players }}</strong>{% endif %}
+                {% if t.task_sheet.space %} · Espacio: <strong>{{ t.task_sheet.space }}</strong>{% endif %}
+                {% if t.task_sheet.dimensions %} · Medidas: <strong>{{ t.task_sheet.dimensions }}</strong>{% endif %}
+                {% if t.task_sheet.materials %} · Material: <strong>{{ t.task_sheet.materials|truncatechars:70 }}</strong>{% endif %}
+              </p>
+              {% if t.task_sheet.description %}
+              <p class="meta" style="margin-top:-0.1rem;">Descripción: {{ t.task_sheet.description|truncatechars:220 }}</p>
+              {% endif %}
+              {% endif %}
               {% if t.analysis_meta %}
               <div style="display:flex; gap:0.35rem; flex-wrap:wrap; margin-bottom:0.55rem;">
                 {% if t.analysis_meta.quality_score %}<span class="badge">Score {{ t.analysis_meta.quality_score }}/100</span>{% endif %}
@@ -563,21 +624,23 @@
                 <span class="badge">{{ obj }}</span>
                 {% endfor %}
               </div>
+              {% if t.analysis_summary %}
+              <p class="meta" style="margin-top:-0.15rem;">Resumen detectado: {{ t.analysis_summary|truncatechars:210 }}</p>
+              {% endif %}
+              {% if t.detected_materials %}
+              <p class="meta" style="margin-top:-0.15rem;">
+                Material detectado:
+                {% for material in t.detected_materials %}
+                <span class="badge">{{ material.title|default:material.label|default:material.kind }}</span>
+                {% endfor %}
+              </p>
+              {% endif %}
               {% endif %}
               <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
                 {% if t.task_pdf %}
                 <a class="button" href="{% url 'session-task-file' t.id %}" target="_blank" rel="noopener">Abrir PDF</a>
                 {% endif %}
                 <a class="button" href="{% url 'session-task-detail' t.id %}">Ver detalle</a>
-                {% if t.task_pdf %}
-                <form method="post" style="margin:0;">
-                  {% csrf_token %}
-                  <input type="hidden" name="planner_action" value="analyze_library_pdf" />
-                  <input type="hidden" name="planner_tab" value="library" />
-                  <input type="hidden" name="task_id" value="{{ t.id }}" />
-                  <button type="submit" class="secondary">Analizar y editar tarea</button>
-                </form>
-                {% endif %}
                 <form method="post" style="margin:0;" onsubmit="return confirm('¿Eliminar esta tarea de la biblioteca?');">
                   {% csrf_token %}
                   <input type="hidden" name="planner_action" value="delete_library_task" />
@@ -585,49 +648,10 @@
                   <input type="hidden" name="task_id" value="{{ t.id }}" />
                   <button type="submit" class="danger">Eliminar</button>
                 </form>
+                {% if t.is_imported %}
+                <span class="badge">Importada · Solo lectura</span>
+                {% endif %}
               </div>
-              <details style="margin-top:0.65rem;">
-                <summary style="cursor:pointer; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; font-size:0.72rem;">
-                  Editar card
-                </summary>
-                <form method="post" class="grid" style="margin-top:0.55rem;">
-                  {% csrf_token %}
-                  <input type="hidden" name="planner_action" value="update_library_task" />
-                  <input type="hidden" name="planner_tab" value="library" />
-                  <input type="hidden" name="task_id" value="{{ t.id }}" />
-                  <label>
-                    Título
-                    <input type="text" name="task_title" value="{{ t.title }}" maxlength="160" required />
-                  </label>
-                  <label>
-                    Bloque
-                    <select name="task_block">
-                      {% for value, label in task_blocks %}
-                      <option value="{{ value }}" {% if t.block == value %}selected{% endif %}>{{ label }}</option>
-                      {% endfor %}
-                    </select>
-                  </label>
-                  <label>
-                    Minutos
-                    <input type="number" name="task_minutes" min="5" max="90" value="{{ t.duration_minutes }}" />
-                  </label>
-                  <label style="grid-column:1/-1;">
-                    Objetivo
-                    <input type="text" name="task_objective" value="{{ t.objective }}" maxlength="180" />
-                  </label>
-                  <label style="grid-column:1/-1;">
-                    Consignas
-                    <textarea name="task_coaching_points">{{ t.coaching_points }}</textarea>
-                  </label>
-                  <label style="grid-column:1/-1;">
-                    Reglas de confrontación
-                    <textarea name="task_confrontation_rules">{{ t.confrontation_rules }}</textarea>
-                  </label>
-                  <div style="display:flex; align-items:flex-end;">
-                    <button type="submit" class="primary">Guardar cambios</button>
-                  </div>
-                </form>
-              </details>
             </div>
           </article>
           {% endfor %}
@@ -636,100 +660,12 @@
         <p class="empty">No hay tareas en biblioteca.</p>
         {% endif %}
       </section>
-
-      <section class="panel">
-        <h2>Agrupación automática de tareas</h2>
-        <div class="grid">
-          <div>
-            <h3 style="margin:0 0 0.4rem; font-size:0.76rem; letter-spacing:0.08em; text-transform:uppercase;">Por contexto de trabajo</h3>
-            {% if context_group_rows %}
-              <div style="display:flex; flex-wrap:wrap; gap:0.35rem;">
-                {% for item in context_group_rows %}
-                <span class="badge">{{ item.key }} · {{ item.count }}</span>
-                {% endfor %}
-              </div>
-            {% else %}
-              <p class="empty">Aún sin agrupaciones por contexto.</p>
-            {% endif %}
-          </div>
-          <div>
-            <h3 style="margin:0 0 0.4rem; font-size:0.76rem; letter-spacing:0.08em; text-transform:uppercase;">Por objetivos tácticos</h3>
-            {% if objective_group_rows %}
-              <div style="display:flex; flex-wrap:wrap; gap:0.35rem;">
-                {% for item in objective_group_rows %}
-                <span class="badge">{{ item.key }} · {{ item.count }}</span>
-                {% endfor %}
-              </div>
-            {% else %}
-              <p class="empty">Aún sin agrupaciones por objetivo.</p>
-            {% endif %}
-          </div>
-        </div>
-      </section>
-
-      {% if analysis and analysis_task %}
-      <section class="panel">
-        <h2>Editor/Creador de Tareas basado en PDF</h2>
-        <p class="meta" style="margin-top:0;">PDF origen: <strong>{{ analysis_task.title }}</strong></p>
-        <form method="post" class="grid" enctype="multipart/form-data">
-          {% csrf_token %}
-          <input type="hidden" name="planner_action" value="create_task_from_analysis" />
-          <input type="hidden" name="planner_tab" value="library" />
-          <input type="hidden" name="source_task_id" value="{{ analysis_task.id }}" />
-          <input type="hidden" name="task_raw_text" value="{{ analysis.raw_text }}" />
-
-          <label>
-            Sesion destino
-            <select name="target_session_id" required>
-              <option value="">Selecciona...</option>
-              {% for session in all_sessions %}
-              <option value="{{ session.id }}">{{ session.session_date|date:"d/m/Y" }} · {{ session.focus }}</option>
-              {% endfor %}
-            </select>
-          </label>
-          <label>
-            Bloque
-            <select name="task_block">
-              {% for value, label in task_blocks %}
-              <option value="{{ value }}">{{ label }}</option>
-              {% endfor %}
-            </select>
-          </label>
-          <label>
-            Titulo sugerido
-            <input type="text" name="task_title" value="{{ analysis.title }}" maxlength="160" required />
-          </label>
-          <label>
-            Minutos sugeridos
-            <input type="number" name="task_minutes" min="5" max="90" value="{{ analysis.minutes }}" />
-          </label>
-          <label style="grid-column:1/-1;">
-            Objetivo
-            <input type="text" name="task_objective" value="{{ analysis.objective }}" maxlength="180" />
-          </label>
-          <label style="grid-column:1/-1;">
-            Consignas
-            <textarea name="task_coaching_points">{{ analysis.coaching_points }}</textarea>
-          </label>
-          <label style="grid-column:1/-1;">
-            Reglas de confrontacion
-            <textarea name="task_confrontation_rules">{{ analysis.confrontation_rules }}</textarea>
-          </label>
-          <label style="grid-column:1/-1;">
-            Extracto analizado (solo lectura)
-            <textarea readonly>{{ analysis.summary }}</textarea>
-          </label>
-          <div style="display:flex; align-items:flex-end;">
-            <button type="submit" class="primary">Crear tarea desde analisis</button>
-          </div>
-        </form>
-      </section>
-      {% endif %}
       </div>
 
       {% endif %}
     </main>
     {{ task_templates|json_script:"task-templates-data" }}
+    <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
     <script>
       (() => {
         const cards = document.querySelectorAll('.task.task-clickable[data-detail-url]');
@@ -753,48 +689,270 @@
 
         const templateSelect = document.getElementById('draw-task-template');
         const templatesNode = document.getElementById('task-templates-data');
-        if (!templateSelect || !templatesNode) return;
-        let templateList = [];
-        try {
-          templateList = JSON.parse(templatesNode.textContent || '[]');
-        } catch (error) {
-          templateList = [];
-        }
-        const templateMap = {};
-        templateList.forEach((item) => {
-          const key = String(item.key || '').trim();
-          if (!key) return;
-          templateMap[key] = item.values || {};
-        });
-        const fieldMap = {
-          task_title: 'draw_task_title',
-          task_objective: 'draw_task_objective',
-          task_space: 'draw_task_space',
-          task_organization: 'draw_task_organization',
-          task_players_distribution: 'draw_task_players_distribution',
-          task_load_target: 'draw_task_load_target',
-          task_work_rest: 'draw_task_work_rest',
-          task_series: 'draw_task_series',
-          task_repetitions: 'draw_task_repetitions',
-          task_coaching_points: 'draw_task_coaching_points',
-          task_confrontation_rules: 'draw_task_confrontation_rules',
-          task_progression: 'draw_task_progression',
-          task_regression: 'draw_task_regression',
-          task_success_criteria: 'draw_task_success_criteria',
-        };
-        templateSelect.addEventListener('change', () => {
-          const selectedKey = String(templateSelect.value || '').trim();
-          const values = templateMap[selectedKey] || {};
-          Object.entries(fieldMap).forEach(([sourceKey, fieldName]) => {
-            const field = document.querySelector(`[name="${fieldName}"]`);
-            if (!field) return;
-            const current = String(field.value || '').trim();
-            const candidate = String(values[sourceKey] || '').trim();
-            if (!current && candidate) {
-              field.value = candidate;
-            }
+        if (templateSelect && templatesNode) {
+          let templateList = [];
+          try {
+            templateList = JSON.parse(templatesNode.textContent || '[]');
+          } catch (error) {
+            templateList = [];
+          }
+          const templateMap = {};
+          templateList.forEach((item) => {
+            const key = String(item.key || '').trim();
+            if (!key) return;
+            templateMap[key] = item.values || {};
           });
+          const fieldMap = {
+            task_title: 'draw_task_title',
+            task_objective: 'draw_task_objective',
+            task_space: 'draw_task_space',
+            task_organization: 'draw_task_organization',
+            task_players_distribution: 'draw_task_players_distribution',
+            task_load_target: 'draw_task_load_target',
+            task_work_rest: 'draw_task_work_rest',
+            task_series: 'draw_task_series',
+            task_repetitions: 'draw_task_repetitions',
+            task_coaching_points: 'draw_task_coaching_points',
+            task_confrontation_rules: 'draw_task_confrontation_rules',
+            task_progression: 'draw_task_progression',
+            task_regression: 'draw_task_regression',
+            task_success_criteria: 'draw_task_success_criteria',
+          };
+          templateSelect.addEventListener('change', () => {
+            const selectedKey = String(templateSelect.value || '').trim();
+            const values = templateMap[selectedKey] || {};
+            Object.entries(fieldMap).forEach(([sourceKey, fieldName]) => {
+              const field = document.querySelector(`[name="${fieldName}"]`);
+              if (!field) return;
+              const current = String(field.value || '').trim();
+              const candidate = String(values[sourceKey] || '').trim();
+              if (!current && candidate) {
+                field.value = candidate;
+              }
+            });
+          });
+        }
+
+        const createForm = document.querySelector('form input[name="planner_action"][value="create_draw_task"]')?.closest('form');
+        const canvasEl = document.getElementById('create-task-canvas');
+        if (!window.fabric || !createForm || !canvasEl) return;
+        const statusEl = document.getElementById('create-board-status');
+        const presetSelect = createForm.querySelector('[name="draw_task_pitch_preset"]');
+        const stateInput = document.getElementById('draw-canvas-state');
+        const widthInput = document.getElementById('draw-canvas-width');
+        const heightInput = document.getElementById('draw-canvas-height');
+        const previewInput = document.getElementById('draw-canvas-preview-data');
+        const colorInput = document.getElementById('create-board-color');
+        const strokeInput = document.getElementById('create-board-width');
+        const canvasWrap = canvasEl.closest('.create-board-wrap');
+        const setStatus = (text) => {
+          if (statusEl) statusEl.textContent = text;
+        };
+        const canvas = new fabric.Canvas(canvasEl, {
+          isDrawingMode: true,
+          selection: false,
+          preserveObjectStacking: true,
         });
+        const fitCanvas = () => {
+          const width = Math.max(320, Math.round(canvasWrap?.clientWidth || 960));
+          const height = Math.max(220, Math.round(canvasWrap?.clientHeight || 380));
+          canvas.setDimensions({ width, height });
+          canvas.renderAll();
+        };
+        fitCanvas();
+        canvas.freeDrawingBrush.color = '#e11d48';
+        canvas.freeDrawingBrush.width = 4;
+
+        const applyFieldBackground = (presetKey) => {
+          const preset = String(presetKey || 'full_pitch').trim();
+          canvas.clear();
+          canvas.backgroundColor = '#0f9f36';
+          const common = {
+            selectable: false,
+            evented: false,
+            excludeFromExport: false,
+          };
+          const w = canvas.getWidth();
+          const h = canvas.getHeight();
+          const marginX = Math.round(w * 0.045);
+          const marginY = Math.round(h * 0.055);
+          const lineColor = 'rgba(255,255,255,0.78)';
+          const field = new fabric.Rect({
+            ...common,
+            left: marginX,
+            top: marginY,
+            width: w - (marginX * 2),
+            height: h - (marginY * 2),
+            fill: 'transparent',
+            stroke: lineColor,
+            strokeWidth: 3,
+          });
+          if (preset === 'blank') {
+            canvas.backgroundColor = '#ffffff';
+            canvas.renderAll();
+            setStatus('Lienzo en blanco.');
+            return;
+          }
+          canvas.add(field);
+          if (preset === 'half_pitch') {
+            canvas.add(new fabric.Line([w / 2, marginY, w / 2, h - marginY], { ...common, stroke: lineColor, strokeWidth: 2.5 }));
+            canvas.add(new fabric.Circle({
+              ...common,
+              left: (w / 2) - (Math.min(w, h) * 0.12),
+              top: (h / 2) - (Math.min(w, h) * 0.12),
+              radius: Math.min(w, h) * 0.12,
+              fill: 'transparent',
+              stroke: 'rgba(255,255,255,0.6)',
+              strokeWidth: 2.5,
+            }));
+          } else if (preset === 'futsal') {
+            const futsalRect = new fabric.Rect({
+              ...common,
+              left: w * 0.18,
+              top: h * 0.18,
+              width: w * 0.64,
+              height: h * 0.64,
+              fill: 'transparent',
+              stroke: 'rgba(255,255,255,0.78)',
+              strokeWidth: 2.5,
+            });
+            canvas.add(futsalRect);
+            canvas.add(new fabric.Line([w / 2, h * 0.18, w / 2, h * 0.82], { ...common, stroke: lineColor, strokeWidth: 2.5 }));
+          } else {
+            canvas.add(new fabric.Line([w / 2, marginY, w / 2, h - marginY], { ...common, stroke: lineColor, strokeWidth: 2.5 }));
+            const centerRadius = Math.min(w, h) * 0.12;
+            canvas.add(new fabric.Circle({
+              ...common,
+              left: (w / 2) - centerRadius,
+              top: (h / 2) - centerRadius,
+              radius: centerRadius,
+              fill: 'transparent',
+              stroke: 'rgba(255,255,255,0.6)',
+              strokeWidth: 2.5,
+            }));
+            const boxWidth = Math.max(70, w * 0.13);
+            const boxHeight = Math.max(120, h * 0.42);
+            canvas.add(new fabric.Rect({
+              ...common,
+              left: marginX,
+              top: (h - boxHeight) / 2,
+              width: boxWidth,
+              height: boxHeight,
+              fill: 'transparent',
+              stroke: lineColor,
+              strokeWidth: 2.5,
+            }));
+            canvas.add(new fabric.Rect({
+              ...common,
+              left: w - marginX - boxWidth,
+              top: (h - boxHeight) / 2,
+              width: boxWidth,
+              height: boxHeight,
+              fill: 'transparent',
+              stroke: lineColor,
+              strokeWidth: 2.5,
+            }));
+          }
+          canvas.renderAll();
+          setStatus('Preset aplicado en pizarra.');
+        };
+
+        const setMode = (drawMode) => {
+          canvas.isDrawingMode = !!drawMode;
+          canvas.selection = !drawMode;
+          canvas.forEachObject((obj) => {
+            if (!obj.evented) return;
+            obj.selectable = !drawMode;
+          });
+          canvas.renderAll();
+          setStatus(drawMode ? 'Modo dibujo activo.' : 'Modo selección activo.');
+        };
+
+        document.getElementById('create-board-draw-btn')?.addEventListener('click', () => setMode(true));
+        document.getElementById('create-board-select-btn')?.addEventListener('click', () => setMode(false));
+        document.getElementById('create-board-player-btn')?.addEventListener('click', () => {
+          const circle = new fabric.Circle({
+            left: 120, top: 120, radius: 18, fill: '#0f172a', stroke: '#ffffff', strokeWidth: 2,
+          });
+          canvas.add(circle);
+          canvas.setActiveObject(circle);
+          canvas.renderAll();
+        });
+        document.getElementById('create-board-zone-btn')?.addEventListener('click', () => {
+          const rect = new fabric.Rect({
+            left: 180, top: 150, width: 140, height: 90, fill: 'rgba(14,165,233,0.2)', stroke: '#0ea5e9', strokeWidth: 2,
+          });
+          canvas.add(rect);
+          canvas.setActiveObject(rect);
+          canvas.renderAll();
+        });
+        document.getElementById('create-board-arrow-btn')?.addEventListener('click', () => {
+          const line = new fabric.Line([260, 230, 380, 290], { stroke: '#0ea5e9', strokeWidth: 4 });
+          const head = new fabric.Triangle({
+            left: 376, top: 282, width: 18, height: 18, angle: 120, fill: '#0ea5e9',
+          });
+          const arrow = new fabric.Group([line, head], { left: 0, top: 0 });
+          canvas.add(arrow);
+          canvas.setActiveObject(arrow);
+          canvas.renderAll();
+        });
+        document.getElementById('create-board-text-btn')?.addEventListener('click', () => {
+          const text = new fabric.IText('Consigna', { left: 210, top: 170, fontSize: 22, fill: '#ffffff', fontWeight: '600' });
+          canvas.add(text);
+          canvas.setActiveObject(text);
+          canvas.renderAll();
+        });
+        document.getElementById('create-board-delete-btn')?.addEventListener('click', () => {
+          const active = canvas.getActiveObject();
+          if (!active) return;
+          canvas.remove(active);
+          canvas.discardActiveObject();
+          canvas.renderAll();
+        });
+        document.getElementById('create-board-clear-btn')?.addEventListener('click', () => {
+          applyFieldBackground(presetSelect?.value || 'full_pitch');
+        });
+        colorInput?.addEventListener('input', () => {
+          const value = colorInput.value || '#e11d48';
+          canvas.freeDrawingBrush.color = value;
+          const active = canvas.getActiveObject();
+          if (active && active.set) {
+            active.set('stroke', value);
+            if (active.type === 'i-text') active.set('fill', value);
+            canvas.renderAll();
+          }
+        });
+        strokeInput?.addEventListener('input', () => {
+          const value = parseInt(strokeInput.value || '4', 10);
+          canvas.freeDrawingBrush.width = Math.max(1, Math.min(value || 4, 14));
+        });
+        presetSelect?.addEventListener('change', () => {
+          applyFieldBackground(presetSelect.value || 'full_pitch');
+        });
+
+        createForm.addEventListener('submit', () => {
+          if (stateInput) stateInput.value = JSON.stringify(canvas.toJSON());
+          if (widthInput) widthInput.value = String(Math.round(canvas.getWidth()));
+          if (heightInput) heightInput.value = String(Math.round(canvas.getHeight()));
+          if (previewInput) {
+            previewInput.value = canvas.toDataURL({
+              format: 'png',
+              quality: 0.92,
+              multiplier: 1,
+            });
+          }
+        });
+
+        let resizeTimer = null;
+        window.addEventListener('resize', () => {
+          clearTimeout(resizeTimer);
+          resizeTimer = setTimeout(() => {
+            fitCanvas();
+            setStatus('Pizarra reajustada.');
+          }, 180);
+        });
+
+        applyFieldBackground(presetSelect?.value || 'full_pitch');
       })();
     </script>
   </body>
