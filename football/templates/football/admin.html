@@ -204,7 +204,7 @@
       }
       .user-item {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-columns: minmax(0, 1fr);
         align-items: center;
         gap: 0.6rem;
         padding: 0.55rem;
@@ -216,12 +216,15 @@
         min-width: 170px;
       }
       .password-wrap {
-        display: flex;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 38px;
         gap: 0.4rem;
         align-items: center;
+        min-width: 0;
       }
       .password-wrap input {
-        flex: 1;
+        min-width: 0;
+        width: 100%;
       }
       .icon-btn {
         border: 1px solid var(--line);
@@ -231,6 +234,27 @@
         width: 38px;
         height: 38px;
         cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .users-form > .icon-action,
+      .roster-form > .icon-action,
+      .carousel-item-form > .icon-action {
+        justify-self: start;
+        align-self: end;
+      }
+      .user-item .form-inline {
+        justify-self: start;
+      }
+      @media (max-width: 900px) {
+        .users-form {
+          grid-template-columns: 1fr;
+        }
+        .roster-item {
+          grid-template-columns: 1fr;
+          align-items: start;
+        }
       }
     </style>
   </head>
