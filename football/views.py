@@ -3545,29 +3545,139 @@ def _extract_pdf_text(pdf_file, max_chars=12000):
         raise ValueError('No se pudo leer el PDF. Verifica que no esté protegido o corrupto.')
 
 
-def _extract_preview_images_from_pdf(pdf_file, max_images=8):
+def _analyze_preview_image_bytes(raw_bytes):
+    if Image is None or not raw_bytes:
+        return None
+    try:
+        with Image.open(io.BytesIO(raw_bytes)) as img:
+            rgb = img.convert('RGB')
+            width, height = rgb.size
+            if width <= 0 or height <= 0:
+                return None
+            sample = rgb.copy()
+            sample.thumbnail((128, 128))
+            pixels = list(sample.getdata())
+            total = max(1, len(pixels))
+            greenish = 0
+            whitish = 0
+            darkish = 0
+            colorful = 0
+            for r, g, b in pixels:
+                if g > 70 and g > (r + 14) and g > (b + 10):
+                    greenish += 1
+                if r > 232 and g > 232 and b > 232:
+                    whitish += 1
+                if r < 30 and g < 30 and b < 30:
+                    darkish += 1
+                if (max(r, g, b) - min(r, g, b)) >= 24:
+                    colorful += 1
+            green_ratio = greenish / total
+            white_ratio = whitish / total
+            dark_ratio = darkish / total
+            color_ratio = colorful / total
+            area = width * height
+            aspect = width / max(1.0, float(height))
+
+            score = 0.0
+            score += min(area / float(1280 * 720), 2.6) * 28.0
+            score += green_ratio * 46.0
+            score += color_ratio * 16.0
+            if 0.95 <= aspect <= 2.35:
+                score += 8.0
+            if 1.15 <= aspect <= 2.05:
+                score += 6.0
+            score -= white_ratio * 44.0
+            if min(width, height) < 210:
+                score -= 26.0
+            if white_ratio > 0.78 and green_ratio < 0.06:
+                score -= 48.0
+            if dark_ratio > 0.88:
+                score -= 20.0
+
+            return {
+                'width': int(width),
+                'height': int(height),
+                'area': int(area),
+                'aspect': float(aspect),
+                'green_ratio': float(green_ratio),
+                'white_ratio': float(white_ratio),
+                'dark_ratio': float(dark_ratio),
+                'score': float(score),
+            }
+    except Exception:
+        return None
+
+
+def _is_preview_quality_low(raw_bytes):
+    metrics = _analyze_preview_image_bytes(raw_bytes)
+    if not metrics:
+        return False
+    score = float(metrics.get('score') or 0.0)
+    area = int(metrics.get('area') or 0)
+    white_ratio = float(metrics.get('white_ratio') or 0.0)
+    green_ratio = float(metrics.get('green_ratio') or 0.0)
+    # Typical bad previews: tiny crops, white text snippets, or non-graphic chunks.
+    if area < 260 * 170:
+        return True
+    if score < 10.0:
+        return True
+    if white_ratio > 0.72 and green_ratio < 0.08:
+        return True
+    return False
+
+
+def _extract_preview_images_from_pdf(pdf_file, max_images=8, prefer_render=False):
     if PdfReader is None or pdf_file is None:
         return []
+    if prefer_render:
+        rendered_payload = _render_pdf_preview_with_pdftoppm(pdf_file)
+        if rendered_payload:
+            return [rendered_payload]
     payloads = []
+    candidates = []
     try:
         if hasattr(pdf_file, 'seek'):
             pdf_file.seek(0)
         reader = PdfReader(pdf_file)
-        for page in reader.pages:
+        seq = 0
+        for page_idx, page in enumerate(reader.pages):
             images = getattr(page, 'images', []) or []
             for image in images:
+                seq += 1
                 raw = getattr(image, 'data', b'') or b''
                 if not raw:
                     continue
                 ext = str(getattr(image, 'name', 'img.bin') or 'img.bin').rsplit('.', 1)[-1].lower()
                 if ext not in {'png', 'jpg', 'jpeg', 'webp'}:
                     ext = 'png'
-                filename = f'task-preview-{uuid.uuid4().hex[:10]}.{ext}'
-                payloads.append((filename, ContentFile(raw)))
-                if len(payloads) >= max(1, int(max_images or 1)):
-                    return payloads
+                metrics = _analyze_preview_image_bytes(raw)
+                score = float(metrics.get('score') or 0.0) if metrics else 0.0
+                candidates.append(
+                    {
+                        'raw': raw,
+                        'ext': ext,
+                        'score': score,
+                        'page_idx': page_idx,
+                        'seq': seq,
+                    }
+                )
     except Exception:
-        payloads = []
+        candidates = []
+    if candidates:
+        max_count = max(1, int(max_images or 1))
+        good_candidates = [item for item in candidates if float(item.get('score') or 0.0) >= 12.0]
+        if good_candidates:
+            # Keep original document order for multi-task PDFs once quality threshold is met.
+            selected = sorted(good_candidates, key=lambda item: (int(item.get('page_idx') or 0), int(item.get('seq') or 0)))
+        else:
+            # If every embedded image is poor, still try top-scored ones before falling back.
+            selected = sorted(candidates, key=lambda item: float(item.get('score') or 0.0), reverse=True)
+        for item in selected[:max_count]:
+            ext = str(item.get('ext') or 'jpg')
+            filename = f'task-preview-{uuid.uuid4().hex[:10]}.{ext}'
+            payloads.append((filename, ContentFile(item.get('raw') or b'')))
+        if payloads:
+            return payloads
     if payloads:
         return payloads
 
@@ -3583,8 +3693,8 @@ def _extract_preview_images_from_pdf(pdf_file, max_images=8):
     return payloads
 
 
-def _extract_preview_image_from_pdf(pdf_file):
-    payloads = _extract_preview_images_from_pdf(pdf_file, max_images=1)
+def _extract_preview_image_from_pdf(pdf_file, prefer_render=False):
+    payloads = _extract_preview_images_from_pdf(pdf_file, max_images=1, prefer_render=prefer_render)
     return payloads[0] if payloads else None
 
 
@@ -3665,10 +3775,10 @@ def _default_task_preview_payload():
         return None
 
 
-def _ensure_task_preview_image(task):
+def _ensure_task_preview_image(task, prefer_render=False):
     if not task or not getattr(task, 'task_pdf', None):
         return False
-    preview_payload = _extract_preview_image_from_pdf(task.task_pdf)
+    preview_payload = _extract_preview_image_from_pdf(task.task_pdf, prefer_render=prefer_render)
     if not preview_payload:
         return False
     preview_name, preview_content = preview_payload
@@ -3679,18 +3789,43 @@ def _ensure_task_preview_image(task):
         return False
 
 
-def _ensure_library_task_preview(task):
+def _task_preview_needs_refresh(task):
+    if not task:
+        return False
+    preview_name = str(getattr(task, 'task_preview_image', '') or '').strip()
+    if not preview_name:
+        return True
+    try:
+        if not default_storage.exists(preview_name):
+            return True
+    except Exception:
+        return True
+    cache_key = f'football:preview-quality:{preview_name}'
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return bool(cached)
+    try:
+        with default_storage.open(preview_name, 'rb') as handle:
+            raw = handle.read()
+        needs_refresh = _is_preview_quality_low(raw)
+    except Exception:
+        needs_refresh = True
+    cache.set(cache_key, bool(needs_refresh), 60 * 60 * 6)
+    return bool(needs_refresh)
+
+
+def _ensure_library_task_preview(task, force=False, prefer_render=False):
     if not task:
         return False
     current_name = str(getattr(task, 'task_preview_image', '') or '').strip()
-    if current_name:
+    if current_name and not force:
         try:
             if default_storage.exists(current_name):
                 return True
         except Exception:
             pass
     if getattr(task, 'task_pdf', None):
-        if _ensure_task_preview_image(task):
+        if _ensure_task_preview_image(task, prefer_render=prefer_render):
             return True
     fallback = _default_task_preview_payload()
     if not fallback:
@@ -5608,26 +5743,29 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     task_library = [item for item in task_library_raw if _task_scope_for_item(item) == scope_key]
     if active_tab == 'library' and task_library:
         preview_rebuilt = 0
+        preview_upgraded = 0
         for task in task_library:
             before_name = str(getattr(task, 'task_preview_image', '') or '').strip()
-            before_ok = False
-            if before_name:
-                try:
-                    before_ok = default_storage.exists(before_name)
-                except Exception:
-                    before_ok = False
-            if before_ok:
+            should_refresh = _task_preview_needs_refresh(task)
+            if not should_refresh:
                 continue
-            if _ensure_library_task_preview(task):
+            had_preview = bool(before_name)
+            if _ensure_library_task_preview(task, force=had_preview, prefer_render=had_preview):
                 after_name = str(getattr(task, 'task_preview_image', '') or '').strip()
                 if after_name:
-                    preview_rebuilt += 1
-        if preview_rebuilt:
+                    if had_preview:
+                        preview_upgraded += 1
+                    else:
+                        preview_rebuilt += 1
+        if preview_rebuilt or preview_upgraded:
+            rebuilt_msg = f'Previews recuperadas: {preview_rebuilt}.' if preview_rebuilt else ''
+            upgraded_msg = f'Previews mejoradas: {preview_upgraded}.' if preview_upgraded else ''
+            joined = ' '.join([part for part in [rebuilt_msg, upgraded_msg] if part]).strip()
             feedback = (
                 f'{feedback} '
                 if feedback
                 else ''
-            ) + f'Previews recuperadas: {preview_rebuilt}.'
+            ) + joined
 
     context_groups = defaultdict(list)
     objective_groups = defaultdict(list)
