@@ -41,6 +41,11 @@ except Exception:  # pragma: no cover
     Image = None
 
 try:
+    import pytesseract
+except Exception:  # pragma: no cover
+    pytesseract = None
+
+try:
     import weasyprint
 except Exception:  # pragma: no cover
     weasyprint = None
@@ -3366,6 +3371,18 @@ def initial_eleven_page(request):
 def _extract_pdf_text(pdf_file, max_chars=12000):
     if PdfReader is None:
         raise ValueError('Falta dependencia de lectura PDF. Instala `pypdf`.')
+
+    def _ocr_text_from_image_bytes(raw_bytes):
+        if not raw_bytes or Image is None or pytesseract is None:
+            return ''
+        try:
+            with Image.open(io.BytesIO(raw_bytes)) as img:
+                rgb = img.convert('RGB')
+                # OCR bilingual by default to improve mixed ES/EN task sheets.
+                return (pytesseract.image_to_string(rgb, lang='spa+eng') or '').strip()
+        except Exception:
+            return ''
+
     try:
         if hasattr(pdf_file, 'seek'):
             pdf_file.seek(0)
@@ -3375,6 +3392,20 @@ def _extract_pdf_text(pdf_file, max_chars=12000):
             chunks.append((page.extract_text() or '').strip())
         text = '\n'.join([item for item in chunks if item]).strip()
         text = re.sub(r'\n{3,}', '\n\n', text)
+        if len(text) < 180:
+            ocr_chunks = []
+            for page in reader.pages[:5]:
+                images = getattr(page, 'images', []) or []
+                for image in images[:3]:
+                    image_bytes = getattr(image, 'data', b'') or b''
+                    ocr_text = _ocr_text_from_image_bytes(image_bytes)
+                    if ocr_text:
+                        ocr_chunks.append(ocr_text)
+                if sum(len(c) for c in ocr_chunks) >= 5000:
+                    break
+            if ocr_chunks:
+                text = '\n'.join([text, '\n'.join(ocr_chunks)]).strip() if text else '\n'.join(ocr_chunks)
+                text = re.sub(r'\n{3,}', '\n\n', text)
         return text[:max_chars]
     except Exception:
         raise ValueError('No se pudo leer el PDF. Verifica que no esté protegido o corrupto.')
@@ -3401,6 +3432,102 @@ def _extract_preview_image_from_pdf(pdf_file):
     except Exception:
         return None
     return None
+
+
+TASK_CONTEXT_KEYWORDS = {
+    'presion_alta': ['presion alta', 'presión alta', 'repliegue tras perdida', 'robo alto'],
+    'salida_balon': ['salida de balon', 'salida de balón', 'inicio juego', 'construccion'],
+    'finalizacion': ['finalizacion', 'finalización', 'remate', 'tiro', 'gol'],
+    'transicion_ofensiva': ['transicion ofensiva', 'transición ofensiva', 'contraataque'],
+    'transicion_defensiva': ['transicion defensiva', 'transición defensiva', 'balance defensivo'],
+    'abp': ['abp', 'balon parado', 'balón parado', 'corner', 'falta lateral'],
+    'porteros': ['portero', 'porteria', 'porteria', 'blocaje', 'despeje'],
+    'fisico': ['fuerza', 'resistencia', 'velocidad', 'aceleracion', 'aceleración', 'potencia'],
+}
+
+TASK_OBJECTIVE_KEYWORDS = {
+    'perfil_corporal': ['perfil corporal', 'orientacion corporal', 'orientación corporal'],
+    'tercer_hombre': ['tercer hombre', 'hombre libre'],
+    'amplitud': ['amplitud', 'carril exterior', 'lado debil', 'lado débil'],
+    'temporizacion': ['temporizacion', 'temporización', 'esperar salto'],
+    'duelo': ['duelo', '1v1', '1x1'],
+    'coordinacion': ['coordinacion', 'coordinación', 'sincronizacion', 'sincronización'],
+}
+
+
+def _normalize_folded_text(value):
+    raw = str(value or '').strip().lower()
+    if not raw:
+        return ''
+    normalized = unicodedata.normalize('NFKD', raw)
+    return ''.join(ch for ch in normalized if not unicodedata.combining(ch))
+
+
+def _detect_keyword_tags(text, taxonomy):
+    haystack = _normalize_folded_text(text)
+    tags = []
+    for tag, keys in (taxonomy or {}).items():
+        for key in keys:
+            if _normalize_folded_text(key) in haystack:
+                tags.append(tag)
+                break
+    return tags
+
+
+def _detect_materials_in_text(text):
+    haystack = _normalize_folded_text(text)
+    detected = []
+    for item in TASK_MATERIAL_LIBRARY:
+        label = _normalize_folded_text(item.get('label'))
+        title = _normalize_folded_text(item.get('title'))
+        kind = _normalize_folded_text(item.get('kind'))
+        if any(token and token in haystack for token in {label, title, kind}):
+            detected.append(
+                {
+                    'label': item.get('label') or '',
+                    'title': item.get('title') or '',
+                    'kind': item.get('kind') or '',
+                    'category': item.get('category') or '',
+                }
+            )
+    return detected
+
+
+def _analysis_quality_score(analysis):
+    if not isinstance(analysis, dict):
+        return 0
+    score = 0
+    if analysis.get('title'):
+        score += 20
+    if analysis.get('objective'):
+        score += 20
+    if analysis.get('coaching_points'):
+        score += 20
+    if analysis.get('confrontation_rules'):
+        score += 20
+    if analysis.get('work_contexts'):
+        score += 10
+    if analysis.get('objective_tags'):
+        score += 5
+    if analysis.get('detected_materials'):
+        score += 5
+    return min(100, score)
+
+
+def _apply_analysis_to_task(task, analysis):
+    layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
+    meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+    meta['analysis'] = {
+        'work_contexts': analysis.get('work_contexts') or [],
+        'objective_tags': analysis.get('objective_tags') or [],
+        'detected_materials': analysis.get('detected_materials') or [],
+        'quality_score': analysis.get('quality_score') or 0,
+        'summary': (analysis.get('summary') or '')[:900],
+        'analyzed_at': timezone.now().isoformat(),
+    }
+    layout['meta'] = meta
+    task.tactical_layout = layout
+    task.save(update_fields=['tactical_layout'])
 
 
 def _extract_section_block(text, section_aliases):
@@ -3504,14 +3631,23 @@ def _suggest_task_from_pdf(pdf_text):
         confrontation_rules = ''
 
     summary = '\n'.join(lines[:12])[:900]
-    return {
+    work_contexts = _detect_keyword_tags(text, TASK_CONTEXT_KEYWORDS)
+    objective_tags = _detect_keyword_tags(' '.join([objective, coaching_points, confrontation_rules]), TASK_OBJECTIVE_KEYWORDS)
+    detected_materials = _detect_materials_in_text(text)
+
+    analysis = {
         'title': (title or 'Tarea desde PDF')[:160],
         'objective': objective[:180],
         'minutes': minutes,
         'coaching_points': coaching_points,
         'confrontation_rules': confrontation_rules,
         'summary': summary,
+        'work_contexts': work_contexts,
+        'objective_tags': objective_tags,
+        'detected_materials': detected_materials,
     }
+    analysis['quality_score'] = _analysis_quality_score(analysis)
+    return analysis
 
 
 def _task_scope_for_item(task):
@@ -3627,11 +3763,37 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     if preview_payload:
                         preview_name, preview_content = preview_payload
                         created_task.task_preview_image.save(preview_name, preview_content, save=True)
+                    try:
+                        extracted_text = _extract_pdf_text(created_task.task_pdf)
+                        parsed = _suggest_task_from_pdf(extracted_text)
+                        _apply_analysis_to_task(created_task, parsed)
+                    except Exception:
+                        pass
                     created_count += 1
                 feedback = (
                     'Se guardó 1 PDF en biblioteca.'
                     if created_count == 1 else f'Se guardaron {created_count} PDFs en biblioteca.'
                 )
+
+            elif planner_action == 'analyze_all_library_pdfs':
+                tasks_for_scope = list(
+                    SessionTask.objects
+                    .select_related('session__microcycle')
+                    .filter(session__microcycle__team=primary_team, task_pdf__isnull=False)
+                    .order_by('-id')[:400]
+                )
+                tasks_for_scope = [item for item in tasks_for_scope if _task_scope_for_item(item) == scope_key]
+                success_count = 0
+                fail_count = 0
+                for item in tasks_for_scope:
+                    try:
+                        extracted_text = _extract_pdf_text(item.task_pdf)
+                        parsed = _suggest_task_from_pdf(extracted_text)
+                        _apply_analysis_to_task(item, parsed)
+                        success_count += 1
+                    except Exception:
+                        fail_count += 1
+                feedback = f'Análisis masivo completado. OK: {success_count} · Error: {fail_count}.'
 
             elif planner_action == 'analyze_library_pdf':
                 task_id = _parse_int(request.POST.get('task_id'))
@@ -3648,6 +3810,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 pdf_text = _extract_pdf_text(analysis_task.task_pdf)
                 analysis = _suggest_task_from_pdf(pdf_text)
                 analysis['raw_text'] = pdf_text[:2500]
+                _apply_analysis_to_task(analysis_task, analysis)
 
             elif planner_action == 'create_task_from_analysis':
                 source_task_id = _parse_int(request.POST.get('source_task_id'))
@@ -3710,6 +3873,11 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     if preview_payload:
                         preview_name, preview_content = preview_payload
                         created_task.task_preview_image.save(preview_name, preview_content, save=True)
+                if source_task and isinstance(source_task.tactical_layout, dict):
+                    source_meta = source_task.tactical_layout.get('meta') if isinstance(source_task.tactical_layout.get('meta'), dict) else {}
+                    source_analysis = source_meta.get('analysis') if isinstance(source_meta.get('analysis'), dict) else {}
+                    if source_analysis:
+                        _apply_analysis_to_task(created_task, source_analysis)
                 feedback = 'Tarea creada desde análisis de PDF.'
             else:
                 error = 'Acción no reconocida.'
@@ -3732,6 +3900,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 analysis_task = candidate
                 analysis = _suggest_task_from_pdf(pdf_text)
                 analysis['raw_text'] = pdf_text[:2500]
+                _apply_analysis_to_task(analysis_task, analysis)
             except ValueError as exc:
                 error = str(exc)
 
@@ -3742,6 +3911,37 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         .order_by('-id')[:150]
     ) if planner_tables_ready else []
     task_library = [item for item in task_library_raw if _task_scope_for_item(item) == scope_key]
+    context_groups = defaultdict(list)
+    objective_groups = defaultdict(list)
+    detected_resources_counter = Counter()
+    for task in task_library:
+        layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
+        meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+        analysis_meta = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
+        task.analysis_meta = analysis_meta
+        for ctx in analysis_meta.get('work_contexts') or []:
+            context_groups[str(ctx)].append(task)
+        for obj in analysis_meta.get('objective_tags') or []:
+            objective_groups[str(obj)].append(task)
+        for mat in analysis_meta.get('detected_materials') or []:
+            title = str((mat or {}).get('title') or (mat or {}).get('label') or '').strip()
+            if title:
+                detected_resources_counter[title] += 1
+    context_group_rows = sorted(
+        [{'key': key, 'count': len(items)} for key, items in context_groups.items()],
+        key=lambda row: row['count'],
+        reverse=True,
+    )
+    objective_group_rows = sorted(
+        [{'key': key, 'count': len(items)} for key, items in objective_groups.items()],
+        key=lambda row: row['count'],
+        reverse=True,
+    )
+    editor_graphic_resources = build_task_material_library()
+    detected_resources_top = [
+        {'name': name, 'count': count}
+        for name, count in detected_resources_counter.most_common(12)
+    ]
 
     return render(
         request,
@@ -3758,6 +3958,10 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             'analysis_task': analysis_task,
             'scope_key': scope_key,
             'scope_title': scope_title,
+            'context_group_rows': context_group_rows,
+            'objective_group_rows': objective_group_rows,
+            'editor_graphic_resources': editor_graphic_resources,
+            'detected_resources_top': detected_resources_top,
         },
     )
 

@@ -98,6 +98,17 @@
       }
       .meta { margin: 0.2rem 0 0.45rem; font-size: 0.78rem; color: rgba(225, 236, 255, 0.78); }
       .empty { margin: 0; color: rgba(225, 236, 255, 0.78); }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 0.16rem 0.5rem;
+        font-size: 0.66rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        background: rgba(255, 255, 255, 0.06);
+      }
       @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
     </style>
   </head>
@@ -154,6 +165,11 @@
 
       <section class="panel">
         <h2>Biblioteca de PDFs Cargados</h2>
+        <form method="post" style="margin:0 0 0.9rem;">
+          {% csrf_token %}
+          <input type="hidden" name="planner_action" value="analyze_all_library_pdfs" />
+          <button type="submit" class="primary">Analizar todas las tareas de la biblioteca</button>
+        </form>
         {% if task_library %}
         <div class="task-list">
           {% for t in task_library %}
@@ -168,6 +184,17 @@
             <div class="task-content">
               <h3>{{ t.title }}</h3>
               <p class="meta">{{ t.session.session_date|date:"d/m/Y" }} · {{ t.get_block_display }} · {{ t.duration_minutes }}'</p>
+              {% if t.analysis_meta %}
+              <div style="display:flex; gap:0.35rem; flex-wrap:wrap; margin-bottom:0.55rem;">
+                {% if t.analysis_meta.quality_score %}<span class="badge">Score {{ t.analysis_meta.quality_score }}/100</span>{% endif %}
+                {% for ctx in t.analysis_meta.work_contexts %}
+                <span class="badge">{{ ctx }}</span>
+                {% endfor %}
+                {% for obj in t.analysis_meta.objective_tags %}
+                <span class="badge">{{ obj }}</span>
+                {% endfor %}
+              </div>
+              {% endif %}
               <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
                 <a class="button" href="{% url 'session-task-file' t.id %}" target="_blank" rel="noopener">Abrir PDF</a>
                 <form method="post" style="margin:0;">
@@ -184,6 +211,60 @@
         {% else %}
         <p class="empty">No hay PDFs en biblioteca.</p>
         {% endif %}
+      </section>
+
+      <section class="panel">
+        <h2>Agrupación automática de tareas</h2>
+        <div class="grid">
+          <div>
+            <h3 style="margin:0 0 0.4rem; font-size:0.76rem; letter-spacing:0.08em; text-transform:uppercase;">Por contexto de trabajo</h3>
+            {% if context_group_rows %}
+              <div style="display:flex; flex-wrap:wrap; gap:0.35rem;">
+                {% for item in context_group_rows %}
+                <span class="badge">{{ item.key }} · {{ item.count }}</span>
+                {% endfor %}
+              </div>
+            {% else %}
+              <p class="empty">Aún sin agrupaciones por contexto.</p>
+            {% endif %}
+          </div>
+          <div>
+            <h3 style="margin:0 0 0.4rem; font-size:0.76rem; letter-spacing:0.08em; text-transform:uppercase;">Por objetivos tácticos</h3>
+            {% if objective_group_rows %}
+              <div style="display:flex; flex-wrap:wrap; gap:0.35rem;">
+                {% for item in objective_group_rows %}
+                <span class="badge">{{ item.key }} · {{ item.count }}</span>
+                {% endfor %}
+              </div>
+            {% else %}
+              <p class="empty">Aún sin agrupaciones por objetivo.</p>
+            {% endif %}
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Recursos gráficos para editor de tareas</h2>
+        <p class="meta" style="margin-top:0;">Biblioteca base de iconos/materiales + recursos detectados automáticamente en PDFs.</p>
+        <div class="grid" style="margin-bottom:0.7rem;">
+          <div>
+            <h3 style="margin:0 0 0.35rem; font-size:0.76rem; letter-spacing:0.08em; text-transform:uppercase;">Material detectado en tareas</h3>
+            {% if detected_resources_top %}
+              <div style="display:flex; flex-wrap:wrap; gap:0.35rem;">
+                {% for item in detected_resources_top %}
+                <span class="badge">{{ item.name }} · {{ item.count }}</span>
+                {% endfor %}
+              </div>
+            {% else %}
+              <p class="empty">Todavía no hay recursos detectados por análisis.</p>
+            {% endif %}
+          </div>
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:0.35rem;">
+          {% for item in editor_graphic_resources %}
+          <span class="badge">{{ item.icon|default:"•" }} {{ item.title }}</span>
+          {% endfor %}
+        </div>
       </section>
 
       {% if analysis and analysis_task %}
