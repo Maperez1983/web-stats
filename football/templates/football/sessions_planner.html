@@ -337,12 +337,213 @@
         padding: 0.1rem 0.3rem;
         cursor: pointer;
       }
+      .create-board-shell {
+        position: relative;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 14px;
+        overflow: hidden;
+        background: linear-gradient(180deg, #274f22, #1c3f18);
+      }
+      .create-board-shell.is-fullscreen {
+        position: fixed;
+        inset: 0;
+        z-index: 60;
+        border-radius: 0;
+        border: none;
+        background: linear-gradient(180deg, #2a5724, #1d3f18);
+      }
+      .tpad-stage {
+        padding: 0.45rem 0.7rem 4.6rem;
+      }
+      .create-board-shell.is-fullscreen .tpad-stage {
+        height: calc(100vh - 74px);
+        padding: 0.85rem 1.1rem 0.7rem;
+      }
+      .create-board-shell.is-fullscreen .create-board-layout {
+        grid-template-columns: 1fr;
+        height: 100%;
+      }
+      .create-board-shell.is-fullscreen .create-board-wrap {
+        height: 100%;
+      }
+      .tpad-side-btn {
+        position: absolute;
+        width: 54px;
+        height: 92px;
+        border: 1px solid rgba(255, 255, 255, 0.24);
+        border-radius: 12px;
+        background: rgba(15, 23, 42, 0.75);
+        color: #f8fafc;
+        display: grid;
+        place-items: center;
+        text-align: center;
+        font-size: 0.6rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
+      .tpad-side-btn .icon {
+        font-size: 1.25rem;
+        line-height: 1;
+      }
+      .tpad-side-btn.left {
+        left: 0.8rem;
+        top: 50%;
+        transform: translateY(-50%);
+      }
+      .tpad-side-btn.right {
+        right: 0.8rem;
+        top: 50%;
+        transform: translateY(-50%);
+      }
+      .create-board-shell .create-resource,
+      .create-board-shell .create-layers {
+        display: none;
+      }
+      .create-board-shell.tools-open .create-resource,
+      .create-board-shell.tools-open .create-layers {
+        display: block;
+      }
+      .create-board-shell.tools-open .create-board-layout {
+        grid-template-columns: minmax(0, 1fr) 240px;
+      }
+      .tpad-dock {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        min-height: 62px;
+        display: flex;
+        align-items: stretch;
+        background: rgba(2, 6, 23, 0.9);
+        border-top: 1px solid rgba(255, 255, 255, 0.14);
+      }
+      .tpad-dock-btn {
+        border: none;
+        background: transparent;
+        color: #dbeafe;
+        min-width: 98px;
+        padding: 0.5rem 0.52rem;
+        display: grid;
+        place-items: center;
+        gap: 0.2rem;
+        font-size: 0.66rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
+      .tpad-dock-btn + .tpad-dock-btn {
+        border-left: 1px solid rgba(255, 255, 255, 0.12);
+      }
+      .tpad-dock-btn .icon {
+        font-size: 1.4rem;
+        line-height: 1;
+      }
+      .tpad-dock-btn.is-active {
+        background: rgba(37, 99, 235, 0.35);
+      }
+      .tpad-modal-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(2, 6, 23, 0.58);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 65;
+      }
+      .tpad-modal-backdrop.is-open {
+        display: flex;
+      }
+      .tpad-modal {
+        width: min(920px, calc(100% - 40px));
+        max-height: calc(100% - 40px);
+        overflow: auto;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 14px;
+        background: rgba(9, 15, 28, 0.96);
+        box-shadow: 0 26px 70px rgba(2, 6, 23, 0.62);
+      }
+      .tpad-modal-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.75rem 0.95rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+      }
+      .tpad-modal-head h4 {
+        margin: 0;
+        font-size: 0.95rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .tpad-modal-close {
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.08);
+        color: #f8fafc;
+        padding: 0.2rem 0.45rem;
+        cursor: pointer;
+      }
+      .tpad-field-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 0.55rem;
+        padding: 0.8rem 0.95rem 0.2rem;
+      }
+      .tpad-field-card {
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.06);
+        color: #e2e8f0;
+        display: grid;
+        gap: 0.35rem;
+        padding: 0.55rem;
+        cursor: pointer;
+        font-size: 0.7rem;
+      }
+      .tpad-field-card .preview {
+        height: 76px;
+        border-radius: 9px;
+        background: linear-gradient(90deg, #3f7f34 0 20%, #4b8d3a 20% 40%, #3f7f34 40% 60%, #4b8d3a 60% 80%, #3f7f34 80% 100%);
+        border: 1px solid rgba(255, 255, 255, 0.22);
+      }
+      .tpad-field-card.is-active {
+        border-color: rgba(59, 130, 246, 0.84);
+        background: rgba(37, 99, 235, 0.24);
+      }
+      .tpad-modal-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem;
+        padding: 0.65rem 0.95rem 1rem;
+      }
+      .tpad-chip {
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.06);
+        color: #e2e8f0;
+        padding: 0.3rem 0.6rem;
+        font-size: 0.68rem;
+        cursor: pointer;
+      }
+      .tpad-chip.is-active {
+        background: rgba(16, 185, 129, 0.26);
+        border-color: rgba(16, 185, 129, 0.75);
+      }
       @media (max-width: 980px) {
         .create-board-layout {
           grid-template-columns: 1fr;
         }
         .create-board-wrap {
           height: 380px;
+        }
+        .tpad-side-btn {
+          width: 48px;
+          height: 82px;
+        }
+        .tpad-dock-btn {
+          min-width: 82px;
+          font-size: 0.62rem;
         }
       }
       @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
@@ -554,72 +755,123 @@
                   </select>
                 </label>
                 <div style="grid-column:1/-1;" class="create-board">
-                  <div class="create-board-toolbar">
-                    <button type="button" class="secondary" id="create-board-draw-btn">Dibujar</button>
-                    <button type="button" class="secondary" id="create-board-select-btn">Seleccionar</button>
-                    <button type="button" class="secondary" id="create-board-snap-btn">Snap ON</button>
-                    <button type="button" class="secondary" id="create-board-player-btn">Jugador</button>
-                    <button type="button" class="secondary" id="create-board-zone-btn">Zona</button>
-                    <button type="button" class="secondary" id="create-board-arrow-btn">Flecha</button>
-                    <button type="button" class="secondary" id="create-board-text-btn">Texto</button>
-                    <button type="button" class="secondary" id="create-board-align-left-btn">Izq</button>
-                    <button type="button" class="secondary" id="create-board-align-center-btn">Centro</button>
-                    <button type="button" class="secondary" id="create-board-align-right-btn">Der</button>
-                    <button type="button" class="secondary" id="create-board-align-top-btn">Arriba</button>
-                    <button type="button" class="secondary" id="create-board-align-middle-btn">Medio</button>
-                    <button type="button" class="secondary" id="create-board-align-bottom-btn">Abajo</button>
-                    <button type="button" class="secondary" id="create-board-duplicate-btn">Duplicar</button>
-                    <button type="button" class="secondary" id="create-board-lock-btn">Bloquear</button>
-                    <button type="button" class="secondary" id="create-board-unlock-btn">Desbloquear</button>
-                    <button type="button" class="secondary" id="create-board-delete-btn">Borrar selección</button>
-                    <button type="button" class="secondary" id="create-board-front-btn">Subir capa</button>
-                    <button type="button" class="secondary" id="create-board-back-btn">Bajar capa</button>
-                    <button type="button" class="secondary" id="create-board-undo-btn">Deshacer</button>
-                    <button type="button" class="secondary" id="create-board-clear-btn">Limpiar</button>
-                    <label style="display:flex; align-items:center; gap:0.35rem; text-transform:none; letter-spacing:0.02em; font-size:0.7rem;">
-                      Color
-                      <input id="create-board-color" type="color" value="#e11d48" style="height:30px; width:42px; padding:0.15rem;" />
-                    </label>
-                    <label style="display:flex; align-items:center; gap:0.35rem; text-transform:none; letter-spacing:0.02em; font-size:0.7rem;">
-                      Trazo
-                      <input id="create-board-width" type="range" min="1" max="14" value="4" />
-                    </label>
-                  </div>
-                  <div class="create-resource">
-                    <p class="create-resource-title">Biblioteca de recursos</p>
-                    <div class="create-resource-grid" id="create-resource-grid">
-                      <button type="button" class="create-resource-btn" data-resource="player">Jugador</button>
-                      <button type="button" class="create-resource-btn" data-resource="goalkeeper">Portero</button>
-                      <button type="button" class="create-resource-btn" data-resource="ball">Balón</button>
-                      <button type="button" class="create-resource-btn" data-resource="cone">Cono</button>
-                      <button type="button" class="create-resource-btn" data-resource="mini_goal">Mini portería</button>
-                      <button type="button" class="create-resource-btn" data-resource="zone">Zona</button>
-                      <button type="button" class="create-resource-btn" data-resource="arrow">Flecha</button>
-                      <button type="button" class="create-resource-btn" data-resource="line">Línea</button>
+                  <div class="create-board-shell tools-open" id="create-board-shell">
+                    <div class="create-board-toolbar" id="create-board-toolbar" style="display:none;">
+                      <button type="button" class="secondary" id="create-board-draw-btn">Dibujar</button>
+                      <button type="button" class="secondary" id="create-board-select-btn">Seleccionar</button>
+                      <button type="button" class="secondary" id="create-board-snap-btn">Snap ON</button>
+                      <button type="button" class="secondary" id="create-board-player-btn">Jugador</button>
+                      <button type="button" class="secondary" id="create-board-zone-btn">Zona</button>
+                      <button type="button" class="secondary" id="create-board-arrow-btn">Flecha</button>
+                      <button type="button" class="secondary" id="create-board-text-btn">Texto</button>
+                      <button type="button" class="secondary" id="create-board-align-left-btn">Izq</button>
+                      <button type="button" class="secondary" id="create-board-align-center-btn">Centro</button>
+                      <button type="button" class="secondary" id="create-board-align-right-btn">Der</button>
+                      <button type="button" class="secondary" id="create-board-align-top-btn">Arriba</button>
+                      <button type="button" class="secondary" id="create-board-align-middle-btn">Medio</button>
+                      <button type="button" class="secondary" id="create-board-align-bottom-btn">Abajo</button>
+                      <button type="button" class="secondary" id="create-board-duplicate-btn">Duplicar</button>
+                      <button type="button" class="secondary" id="create-board-lock-btn">Bloquear</button>
+                      <button type="button" class="secondary" id="create-board-unlock-btn">Desbloquear</button>
+                      <button type="button" class="secondary" id="create-board-delete-btn">Borrar selección</button>
+                      <button type="button" class="secondary" id="create-board-front-btn">Subir capa</button>
+                      <button type="button" class="secondary" id="create-board-back-btn">Bajar capa</button>
+                      <button type="button" class="secondary" id="create-board-undo-btn">Deshacer</button>
+                      <button type="button" class="secondary" id="create-board-clear-btn">Limpiar</button>
+                      <label style="display:flex; align-items:center; gap:0.35rem; text-transform:none; letter-spacing:0.02em; font-size:0.7rem;">
+                        Color
+                        <input id="create-board-color" type="color" value="#e11d48" style="height:30px; width:42px; padding:0.15rem;" />
+                      </label>
+                      <label style="display:flex; align-items:center; gap:0.35rem; text-transform:none; letter-spacing:0.02em; font-size:0.7rem;">
+                        Trazo
+                        <input id="create-board-width" type="range" min="1" max="14" value="4" />
+                      </label>
                     </div>
-                    <p class="create-resource-title" style="margin-top:0.55rem;">Iconos</p>
-                    <input id="create-iconify-search" type="text" placeholder="Buscar icono..." />
-                    <div class="create-iconify-grid" id="create-iconify-grid">
-                      <button type="button" class="create-iconify-btn" data-iconify="mdi:account" data-label="Jugador"><iconify-icon icon="mdi:account"></iconify-icon><span>Jugador</span></button>
-                      <button type="button" class="create-iconify-btn" data-iconify="mdi:account-group" data-label="Grupo"><iconify-icon icon="mdi:account-group"></iconify-icon><span>Grupo</span></button>
-                      <button type="button" class="create-iconify-btn" data-iconify="mdi:soccer" data-label="Balón"><iconify-icon icon="mdi:soccer"></iconify-icon><span>Balón</span></button>
-                      <button type="button" class="create-iconify-btn" data-iconify="mdi:cone" data-label="Cono"><iconify-icon icon="mdi:cone"></iconify-icon><span>Cono</span></button>
-                      <button type="button" class="create-iconify-btn" data-iconify="mdi:target" data-label="Diana"><iconify-icon icon="mdi:target"></iconify-icon><span>Diana</span></button>
-                      <button type="button" class="create-iconify-btn" data-iconify="mdi:shield-outline" data-label="Defensa"><iconify-icon icon="mdi:shield-outline"></iconify-icon><span>Defensa</span></button>
-                      <button type="button" class="create-iconify-btn" data-iconify="mdi:tshirt-crew-outline" data-label="Peto"><iconify-icon icon="mdi:tshirt-crew-outline"></iconify-icon><span>Peto</span></button>
-                      <button type="button" class="create-iconify-btn" data-iconify="mdi:arrow-right-bold" data-label="Flecha"><iconify-icon icon="mdi:arrow-right-bold"></iconify-icon><span>Flecha</span></button>
-                      <button type="button" class="create-iconify-btn" data-iconify="mdi:arrow-split-horizontal" data-label="Desmarque"><iconify-icon icon="mdi:arrow-split-horizontal"></iconify-icon><span>Desmarque</span></button>
-                      <button type="button" class="create-iconify-btn" data-iconify="mdi:format-text" data-label="Texto"><iconify-icon icon="mdi:format-text"></iconify-icon><span>Texto</span></button>
+                    <div class="tpad-stage">
+                      <div class="create-resource">
+                        <p class="create-resource-title">Biblioteca de recursos</p>
+                        <div class="create-resource-grid" id="create-resource-grid">
+                          <button type="button" class="create-resource-btn" data-resource="player">Jugador</button>
+                          <button type="button" class="create-resource-btn" data-resource="goalkeeper">Portero</button>
+                          <button type="button" class="create-resource-btn" data-resource="ball">Balón</button>
+                          <button type="button" class="create-resource-btn" data-resource="cone">Cono</button>
+                          <button type="button" class="create-resource-btn" data-resource="mini_goal">Mini portería</button>
+                          <button type="button" class="create-resource-btn" data-resource="zone">Zona</button>
+                          <button type="button" class="create-resource-btn" data-resource="arrow">Flecha</button>
+                          <button type="button" class="create-resource-btn" data-resource="line">Línea</button>
+                        </div>
+                        <p class="create-resource-title" style="margin-top:0.55rem;">Iconos</p>
+                        <input id="create-iconify-search" type="text" placeholder="Buscar icono..." />
+                        <div class="create-iconify-grid" id="create-iconify-grid">
+                          <button type="button" class="create-iconify-btn" data-iconify="mdi:account" data-label="Jugador"><iconify-icon icon="mdi:account"></iconify-icon><span>Jugador</span></button>
+                          <button type="button" class="create-iconify-btn" data-iconify="mdi:account-group" data-label="Grupo"><iconify-icon icon="mdi:account-group"></iconify-icon><span>Grupo</span></button>
+                          <button type="button" class="create-iconify-btn" data-iconify="mdi:soccer" data-label="Balón"><iconify-icon icon="mdi:soccer"></iconify-icon><span>Balón</span></button>
+                          <button type="button" class="create-iconify-btn" data-iconify="mdi:cone" data-label="Cono"><iconify-icon icon="mdi:cone"></iconify-icon><span>Cono</span></button>
+                          <button type="button" class="create-iconify-btn" data-iconify="mdi:target" data-label="Diana"><iconify-icon icon="mdi:target"></iconify-icon><span>Diana</span></button>
+                          <button type="button" class="create-iconify-btn" data-iconify="mdi:shield-outline" data-label="Defensa"><iconify-icon icon="mdi:shield-outline"></iconify-icon><span>Defensa</span></button>
+                          <button type="button" class="create-iconify-btn" data-iconify="mdi:tshirt-crew-outline" data-label="Peto"><iconify-icon icon="mdi:tshirt-crew-outline"></iconify-icon><span>Peto</span></button>
+                          <button type="button" class="create-iconify-btn" data-iconify="mdi:arrow-right-bold" data-label="Flecha"><iconify-icon icon="mdi:arrow-right-bold"></iconify-icon><span>Flecha</span></button>
+                          <button type="button" class="create-iconify-btn" data-iconify="mdi:arrow-split-horizontal" data-label="Desmarque"><iconify-icon icon="mdi:arrow-split-horizontal"></iconify-icon><span>Desmarque</span></button>
+                          <button type="button" class="create-iconify-btn" data-iconify="mdi:format-text" data-label="Texto"><iconify-icon icon="mdi:format-text"></iconify-icon><span>Texto</span></button>
+                        </div>
+                      </div>
+                      <div class="create-board-layout">
+                        <div class="create-board-wrap">
+                          <canvas id="create-task-canvas"></canvas>
+                        </div>
+                        <aside class="create-layers">
+                          <h4>Capas</h4>
+                          <div class="create-layers-list" id="create-layers-list"></div>
+                        </aside>
+                      </div>
                     </div>
-                  </div>
-                  <div class="create-board-layout">
-                    <div class="create-board-wrap">
-                      <canvas id="create-task-canvas"></canvas>
+                    <button type="button" class="tpad-side-btn left" id="tpad-menu-btn"><span class="icon">⌂</span><span>Menu</span></button>
+                    <button type="button" class="tpad-side-btn right" id="tpad-tools-btn"><span class="icon">✎</span><span>Herr</span></button>
+                    <div class="tpad-dock">
+                      <button type="button" class="tpad-dock-btn" id="tpad-project-btn"><span class="icon">📁</span><span>Proyecto</span></button>
+                      <button type="button" class="tpad-dock-btn" id="tpad-save-btn"><span class="icon">💾</span><span>Guardar</span></button>
+                      <button type="button" class="tpad-dock-btn" id="tpad-share-btn"><span class="icon">⇪</span><span>Compartir</span></button>
+                      <button type="button" class="tpad-dock-btn" id="tpad-board-btn"><span class="icon">✎</span><span>Pizarra</span></button>
+                      <button type="button" class="tpad-dock-btn" id="tpad-field-btn"><span class="icon">▦</span><span>Campo</span></button>
+                      <button type="button" class="tpad-dock-btn" id="tpad-fullscreen-btn"><span class="icon">⤢</span><span>Pantalla</span></button>
                     </div>
-                    <aside class="create-layers">
-                      <h4>Capas</h4>
-                      <div class="create-layers-list" id="create-layers-list"></div>
-                    </aside>
+                    <div class="tpad-modal-backdrop" id="tpad-field-modal">
+                      <div class="tpad-modal">
+                        <div class="tpad-modal-head">
+                          <h4>Campo</h4>
+                          <button type="button" class="tpad-modal-close" id="tpad-field-close">Cerrar</button>
+                        </div>
+                        <div class="tpad-field-grid">
+                          <button type="button" class="tpad-field-card is-active" data-field-preset="full_pitch">
+                            <span class="preview"></span>
+                            <span>11v11 completo</span>
+                          </button>
+                          <button type="button" class="tpad-field-card" data-field-preset="half_pitch">
+                            <span class="preview"></span>
+                            <span>Medio campo</span>
+                          </button>
+                          <button type="button" class="tpad-field-card" data-field-preset="futsal">
+                            <span class="preview"></span>
+                            <span>Futsal</span>
+                          </button>
+                          <button type="button" class="tpad-field-card" data-field-preset="blank">
+                            <span class="preview"></span>
+                            <span>Lienzo en blanco</span>
+                          </button>
+                        </div>
+                        <div class="tpad-modal-row">
+                          <button type="button" class="tpad-chip is-active" data-field-theme="classic">Classic Green</button>
+                          <button type="button" class="tpad-chip" data-field-theme="dark">Dark Green</button>
+                          <button type="button" class="tpad-chip" data-field-theme="mint">Mint</button>
+                          <button type="button" class="tpad-chip" data-field-theme="dry">Dry Grass</button>
+                        </div>
+                        <div class="tpad-modal-row">
+                          <button type="button" class="tpad-chip is-active" data-field-camera="full">Cámara completa</button>
+                          <button type="button" class="tpad-chip" data-field-camera="left">Media izquierda</button>
+                          <button type="button" class="tpad-chip" data-field-camera="right">Media derecha</button>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                   <p class="create-board-status" id="create-board-status">Pizarra lista.</p>
                   <input type="hidden" name="draw_canvas_state" id="draw-canvas-state" />
@@ -956,14 +1208,70 @@
         const resourceGrid = document.getElementById('create-resource-grid');
         const iconifyGrid = document.getElementById('create-iconify-grid');
         const iconifySearch = document.getElementById('create-iconify-search');
+        const boardShell = document.getElementById('create-board-shell');
+        const toolsBtn = document.getElementById('tpad-tools-btn');
+        const menuBtn = document.getElementById('tpad-menu-btn');
+        const dockBoardBtn = document.getElementById('tpad-board-btn');
+        const dockFieldBtn = document.getElementById('tpad-field-btn');
+        const dockSaveBtn = document.getElementById('tpad-save-btn');
+        const dockShareBtn = document.getElementById('tpad-share-btn');
+        const dockProjectBtn = document.getElementById('tpad-project-btn');
+        const dockFullBtn = document.getElementById('tpad-fullscreen-btn');
+        const fieldModal = document.getElementById('tpad-field-modal');
+        const fieldCloseBtn = document.getElementById('tpad-field-close');
+        const fieldPresetCards = document.querySelectorAll('[data-field-preset]');
+        const fieldThemeChips = document.querySelectorAll('[data-field-theme]');
+        const fieldCameraChips = document.querySelectorAll('[data-field-camera]');
         const canvasWrap = canvasEl.closest('.create-board-wrap');
         const gridSize = 20;
         let snapEnabled = true;
         let history = [];
+        let currentFieldTheme = 'classic';
+        let currentFieldCamera = 'full';
+        let currentFieldPreset = 'full_pitch';
         const setStatus = (text, isError = false) => {
           if (!statusEl) return;
           statusEl.textContent = text;
           statusEl.style.color = isError ? '#fecaca' : 'rgba(225, 236, 255, 0.8)';
+        };
+        const setToolsOpen = (open) => {
+          if (!boardShell) return;
+          boardShell.classList.toggle('tools-open', !!open);
+          if (toolsBtn) toolsBtn.style.background = open ? 'rgba(37, 99, 235, 0.75)' : 'rgba(15, 23, 42, 0.75)';
+          if (dockBoardBtn) dockBoardBtn.classList.toggle('is-active', !!open);
+          setTimeout(() => {
+            fitCanvas();
+            canvas.renderAll();
+          }, 120);
+        };
+        const setFullscreen = async (enabled) => {
+          if (!boardShell) return;
+          try {
+            if (enabled) {
+              if (document.fullscreenElement !== boardShell && boardShell.requestFullscreen) {
+                await boardShell.requestFullscreen();
+              }
+              boardShell.classList.add('is-fullscreen');
+              if (dockFullBtn) dockFullBtn.classList.add('is-active');
+              setStatus('Modo pantalla completa activado.');
+            } else {
+              if (document.fullscreenElement && document.exitFullscreen) {
+                await document.exitFullscreen();
+              }
+              boardShell.classList.remove('is-fullscreen');
+              if (dockFullBtn) dockFullBtn.classList.remove('is-active');
+              setStatus('Modo pantalla completa desactivado.');
+            }
+            setTimeout(() => fitCanvas(), 140);
+          } catch (error) {
+            boardShell.classList.toggle('is-fullscreen', !!enabled);
+            setTimeout(() => fitCanvas(), 140);
+          }
+        };
+        const openFieldModal = (open) => {
+          if (!fieldModal) return;
+          fieldModal.classList.toggle('is-open', !!open);
+          if (dockFieldBtn) dockFieldBtn.classList.toggle('is-active', !!open);
         };
         const canvas = new fabric.Canvas(canvasEl, {
           isDrawingMode: true,
@@ -1070,8 +1378,20 @@
           setStatus('Alineación aplicada.');
         };
 
-        const applyFieldBackground = (presetKey) => {
-          const preset = String(presetKey || 'full_pitch').trim();
+        const applyFieldBackground = (presetKey, opts = {}) => {
+          const preset = String(presetKey || currentFieldPreset || 'full_pitch').trim();
+          currentFieldPreset = preset;
+          const themeKey = String(opts.theme || currentFieldTheme || 'classic').trim();
+          const cameraKey = String(opts.camera || currentFieldCamera || 'full').trim();
+          currentFieldTheme = themeKey;
+          currentFieldCamera = cameraKey;
+          const themes = {
+            classic: ['#4f8d39', '#5b9840'],
+            dark: ['#2f6f2a', '#3a7c2f'],
+            mint: ['#4b9d74', '#58aa82'],
+            dry: ['#769e46', '#88aa58'],
+          };
+          const palette = themes[themeKey] || themes.classic;
           canvas.clear();
           canvas.backgroundColor = '#ffffff';
           const common = {
@@ -1081,25 +1401,52 @@
           };
           const w = canvas.getWidth();
           const h = canvas.getHeight();
-          const marginX = Math.round(w * 0.045);
-          const marginY = Math.round(h * 0.055);
+          let marginX = Math.round(w * 0.045);
+          let marginY = Math.round(h * 0.055);
+          let fieldLeft = 0;
+          let fieldTop = 0;
+          let fieldW = w;
+          let fieldH = h;
+          if (cameraKey === 'left') {
+            fieldW = Math.round(w * 0.62);
+          } else if (cameraKey === 'right') {
+            fieldW = Math.round(w * 0.62);
+            fieldLeft = w - fieldW;
+          }
           const lineColor = 'rgba(255,255,255,0.78)';
           const grass = new fabric.Rect({
             ...common,
-            left: 0,
-            top: 0,
-            width: w,
-            height: h,
-            fill: '#0f9f36',
+            left: fieldLeft,
+            top: fieldTop,
+            width: fieldW,
+            height: fieldH,
+            fill: palette[0],
             stroke: '',
             strokeWidth: 0,
           });
+          const stripeCount = 12;
+          const stripes = [];
+          for (let i = 0; i < stripeCount; i += 1) {
+            stripes.push(
+              new fabric.Rect({
+                ...common,
+                left: fieldLeft + ((fieldW / stripeCount) * i),
+                top: fieldTop,
+                width: (fieldW / stripeCount) + 1,
+                height: fieldH,
+                fill: i % 2 === 0 ? palette[0] : palette[1],
+                stroke: '',
+                strokeWidth: 0,
+                opacity: 0.96,
+              })
+            );
+          }
           const field = new fabric.Rect({
             ...common,
-            left: marginX,
-            top: marginY,
-            width: w - (marginX * 2),
-            height: h - (marginY * 2),
+            left: fieldLeft + marginX,
+            top: fieldTop + marginY,
+            width: fieldW - (marginX * 2),
+            height: fieldH - (marginY * 2),
             fill: 'transparent',
             stroke: lineColor,
             strokeWidth: 3,
@@ -1113,14 +1460,16 @@
             return;
           }
           canvas.add(grass);
+          stripes.forEach((stripe) => canvas.add(stripe));
           canvas.add(field);
           if (preset === 'half_pitch') {
-            canvas.add(new fabric.Line([w / 2, marginY, w / 2, h - marginY], { ...common, stroke: lineColor, strokeWidth: 2.5 }));
+            const cx = fieldLeft + (fieldW / 2);
+            canvas.add(new fabric.Line([cx, fieldTop + marginY, cx, fieldTop + fieldH - marginY], { ...common, stroke: lineColor, strokeWidth: 2.5 }));
             canvas.add(new fabric.Circle({
               ...common,
-              left: (w / 2) - (Math.min(w, h) * 0.12),
-              top: (h / 2) - (Math.min(w, h) * 0.12),
-              radius: Math.min(w, h) * 0.12,
+              left: cx - (Math.min(fieldW, fieldH) * 0.12),
+              top: (fieldTop + (fieldH / 2)) - (Math.min(fieldW, fieldH) * 0.12),
+              radius: Math.min(fieldW, fieldH) * 0.12,
               fill: 'transparent',
               stroke: 'rgba(255,255,255,0.6)',
               strokeWidth: 2.5,
@@ -1128,34 +1477,36 @@
           } else if (preset === 'futsal') {
             const futsalRect = new fabric.Rect({
               ...common,
-              left: w * 0.18,
-              top: h * 0.18,
-              width: w * 0.64,
-              height: h * 0.64,
+              left: fieldLeft + (fieldW * 0.18),
+              top: fieldTop + (fieldH * 0.18),
+              width: fieldW * 0.64,
+              height: fieldH * 0.64,
               fill: 'transparent',
               stroke: 'rgba(255,255,255,0.78)',
               strokeWidth: 2.5,
             });
             canvas.add(futsalRect);
-            canvas.add(new fabric.Line([w / 2, h * 0.18, w / 2, h * 0.82], { ...common, stroke: lineColor, strokeWidth: 2.5 }));
+            const cx = fieldLeft + (fieldW / 2);
+            canvas.add(new fabric.Line([cx, fieldTop + (fieldH * 0.18), cx, fieldTop + (fieldH * 0.82)], { ...common, stroke: lineColor, strokeWidth: 2.5 }));
           } else {
-            canvas.add(new fabric.Line([w / 2, marginY, w / 2, h - marginY], { ...common, stroke: lineColor, strokeWidth: 2.5 }));
-            const centerRadius = Math.min(w, h) * 0.12;
+            const cx = fieldLeft + (fieldW / 2);
+            canvas.add(new fabric.Line([cx, fieldTop + marginY, cx, fieldTop + fieldH - marginY], { ...common, stroke: lineColor, strokeWidth: 2.5 }));
+            const centerRadius = Math.min(fieldW, fieldH) * 0.12;
             canvas.add(new fabric.Circle({
               ...common,
-              left: (w / 2) - centerRadius,
-              top: (h / 2) - centerRadius,
+              left: cx - centerRadius,
+              top: (fieldTop + (fieldH / 2)) - centerRadius,
               radius: centerRadius,
               fill: 'transparent',
               stroke: 'rgba(255,255,255,0.6)',
               strokeWidth: 2.5,
             }));
-            const boxWidth = Math.max(70, w * 0.13);
-            const boxHeight = Math.max(120, h * 0.42);
+            const boxWidth = Math.max(70, fieldW * 0.13);
+            const boxHeight = Math.max(120, fieldH * 0.42);
             canvas.add(new fabric.Rect({
               ...common,
-              left: marginX,
-              top: (h - boxHeight) / 2,
+              left: fieldLeft + marginX,
+              top: fieldTop + ((fieldH - boxHeight) / 2),
               width: boxWidth,
               height: boxHeight,
               fill: 'transparent',
@@ -1164,8 +1515,8 @@
             }));
             canvas.add(new fabric.Rect({
               ...common,
-              left: w - marginX - boxWidth,
-              top: (h - boxHeight) / 2,
+              left: fieldLeft + fieldW - marginX - boxWidth,
+              top: fieldTop + ((fieldH - boxHeight) / 2),
               width: boxWidth,
               height: boxHeight,
               fill: 'transparent',
@@ -1176,7 +1527,7 @@
           canvas.renderAll();
           pushHistory();
           refreshLayerList();
-          setStatus('Preset aplicado en pizarra.');
+          setStatus('Preset aplicado en pizarra táctica.');
         };
 
         const setMode = (drawMode) => {
@@ -1363,6 +1714,80 @@
         });
         document.getElementById('create-board-clear-btn')?.addEventListener('click', () => {
           applyFieldBackground(presetSelect?.value || 'full_pitch');
+        });
+        toolsBtn?.addEventListener('click', () => {
+          setToolsOpen(!(boardShell?.classList.contains('tools-open')));
+        });
+        menuBtn?.addEventListener('click', () => {
+          setToolsOpen(false);
+          openFieldModal(false);
+          setStatus('Modo presentación.');
+        });
+        dockBoardBtn?.addEventListener('click', () => {
+          setToolsOpen(!(boardShell?.classList.contains('tools-open')));
+        });
+        dockFieldBtn?.addEventListener('click', () => {
+          openFieldModal(true);
+        });
+        dockSaveBtn?.addEventListener('click', () => {
+          createForm.requestSubmit();
+        });
+        dockShareBtn?.addEventListener('click', async () => {
+          const dataUrl = canvas.toDataURL({ format: 'png', quality: 0.92, multiplier: 1 });
+          if (navigator.clipboard && dataUrl) {
+            try {
+              await navigator.clipboard.writeText(dataUrl);
+              setStatus('Export listo en portapapeles (data URL).');
+            } catch (error) {
+              setStatus('No se pudo copiar el export.', true);
+            }
+          } else {
+            setStatus('Compartir no disponible en este navegador.', true);
+          }
+        });
+        dockProjectBtn?.addEventListener('click', () => {
+          setStatus('Proyecto activo: creación de tarea.');
+        });
+        dockFullBtn?.addEventListener('click', () => {
+          const willEnable = !(boardShell?.classList.contains('is-fullscreen'));
+          setFullscreen(willEnable);
+        });
+        fieldCloseBtn?.addEventListener('click', () => openFieldModal(false));
+        fieldModal?.addEventListener('click', (event) => {
+          if (event.target === fieldModal) openFieldModal(false);
+        });
+        fieldPresetCards.forEach((card) => {
+          card.addEventListener('click', () => {
+            const preset = String(card.dataset.fieldPreset || 'full_pitch');
+            fieldPresetCards.forEach((node) => node.classList.remove('is-active'));
+            card.classList.add('is-active');
+            if (presetSelect) presetSelect.value = preset;
+            applyFieldBackground(preset, { theme: currentFieldTheme, camera: currentFieldCamera });
+            openFieldModal(false);
+          });
+        });
+        fieldThemeChips.forEach((chip) => {
+          chip.addEventListener('click', () => {
+            const theme = String(chip.dataset.fieldTheme || 'classic');
+            fieldThemeChips.forEach((node) => node.classList.remove('is-active'));
+            chip.classList.add('is-active');
+            applyFieldBackground(currentFieldPreset, { theme, camera: currentFieldCamera });
+          });
+        });
+        fieldCameraChips.forEach((chip) => {
+          chip.addEventListener('click', () => {
+            const camera = String(chip.dataset.fieldCamera || 'full');
+            fieldCameraChips.forEach((node) => node.classList.remove('is-active'));
+            chip.classList.add('is-active');
+            applyFieldBackground(currentFieldPreset, { theme: currentFieldTheme, camera });
+          });
+        });
+        document.addEventListener('fullscreenchange', () => {
+          if (!boardShell) return;
+          const active = document.fullscreenElement === boardShell;
+          boardShell.classList.toggle('is-fullscreen', active);
+          if (dockFullBtn) dockFullBtn.classList.toggle('is-active', active);
+          setTimeout(() => fitCanvas(), 120);
         });
         resourceGrid?.addEventListener('click', (event) => {
           const btn = event.target.closest('[data-resource]');
