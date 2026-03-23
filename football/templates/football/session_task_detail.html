@@ -275,6 +275,10 @@
         <div class="graphic-toolbar">
           <button type="button" class="button" id="graphic-draw-btn">Modo dibujo</button>
           <button type="button" class="button" id="graphic-select-btn">Modo selección</button>
+          <button type="button" class="button" id="graphic-add-circle-btn">Añadir jugador</button>
+          <button type="button" class="button" id="graphic-add-rect-btn">Añadir zona</button>
+          <button type="button" class="button" id="graphic-add-arrow-btn">Añadir flecha</button>
+          <button type="button" class="button" id="graphic-add-text-btn">Añadir texto</button>
           <button type="button" class="button" id="graphic-undo-btn">Deshacer</button>
           <button type="button" class="button" id="graphic-clear-btn">Limpiar</button>
           <label style="min-width:140px;">
@@ -467,6 +471,65 @@
         };
         document.getElementById('graphic-draw-btn')?.addEventListener('click', () => setMode(true));
         document.getElementById('graphic-select-btn')?.addEventListener('click', () => setMode(false));
+        document.getElementById('graphic-add-circle-btn')?.addEventListener('click', () => {
+          const circle = new fabric.Circle({
+            left: 120,
+            top: 120,
+            radius: 18,
+            fill: '#fef9c3',
+            stroke: '#111827',
+            strokeWidth: 2,
+          });
+          canvas.add(circle);
+          setMode(false);
+          setStatus('Jugador añadido.');
+        });
+        document.getElementById('graphic-add-rect-btn')?.addEventListener('click', () => {
+          const rect = new fabric.Rect({
+            left: 180,
+            top: 180,
+            width: 120,
+            height: 70,
+            fill: 'rgba(34,197,94,0.22)',
+            stroke: '#16a34a',
+            strokeWidth: 2,
+            rx: 8,
+            ry: 8,
+          });
+          canvas.add(rect);
+          setMode(false);
+          setStatus('Zona añadida.');
+        });
+        document.getElementById('graphic-add-arrow-btn')?.addEventListener('click', () => {
+          const line = new fabric.Line([260, 260, 410, 310], {
+            stroke: '#0ea5e9',
+            strokeWidth: 4,
+          });
+          const head = new fabric.Triangle({
+            left: 402,
+            top: 300,
+            width: 16,
+            height: 18,
+            fill: '#0ea5e9',
+            angle: 115,
+          });
+          const arrow = new fabric.Group([line, head], { left: 0, top: 0 });
+          canvas.add(arrow);
+          setMode(false);
+          setStatus('Flecha añadida.');
+        });
+        document.getElementById('graphic-add-text-btn')?.addEventListener('click', () => {
+          const text = new fabric.IText('Consigna', {
+            left: 220,
+            top: 240,
+            fontSize: 24,
+            fill: '#111827',
+            fontFamily: 'Arial',
+          });
+          canvas.add(text);
+          setMode(false);
+          setStatus('Texto añadido.');
+        });
         document.getElementById('graphic-clear-btn')?.addEventListener('click', () => {
           canvas.clear();
           canvas.backgroundColor = '#ffffff';

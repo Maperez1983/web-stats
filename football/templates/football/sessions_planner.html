@@ -237,6 +237,47 @@
       </section>
 
       <section class="panel">
+        <h2>Crear tarea dibujada (desde cero)</h2>
+        <p class="meta" style="margin-top:0;">Crea la tarea y abre directamente el lienzo para dibujar la representación.</p>
+        <form method="post" class="grid">
+          {% csrf_token %}
+          <input type="hidden" name="planner_action" value="create_draw_task" />
+          <label>
+            Sesión destino (opcional)
+            <select name="draw_target_session_id">
+              <option value="">Biblioteca automática</option>
+              {% for session in all_sessions %}
+              <option value="{{ session.id }}">{{ session.session_date|date:"d/m/Y" }} · {{ session.focus }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            Bloque
+            <select name="draw_task_block">
+              {% for value, label in task_blocks %}
+              <option value="{{ value }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            Minutos
+            <input type="number" name="draw_task_minutes" min="5" max="90" value="15" />
+          </label>
+          <label style="grid-column:1/-1;">
+            Título tarea
+            <input type="text" name="draw_task_title" maxlength="160" placeholder="Ej: Salida de balón + finalización 6v4" required />
+          </label>
+          <label style="grid-column:1/-1;">
+            Objetivo (opcional)
+            <input type="text" name="draw_task_objective" maxlength="180" placeholder="Objetivo táctico de la tarea" />
+          </label>
+          <div style="display:flex; align-items:flex-end;">
+            <button type="submit" class="primary">Crear y dibujar</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel">
         <h2>Biblioteca de PDFs Cargados</h2>
         <div style="display:flex; gap:0.6rem; flex-wrap:wrap; margin:0 0 0.9rem;">
           <form method="post" style="margin:0;">

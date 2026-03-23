@@ -4677,6 +4677,48 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 else:
                     feedback = f'Carga masiva completada: {created_count} tareas creadas.'
 
+            elif planner_action == 'create_draw_task':
+                target_session_id = _parse_int(request.POST.get('draw_target_session_id'))
+                title = (request.POST.get('draw_task_title') or '').strip()
+                block = (request.POST.get('draw_task_block') or SessionTask.BLOCK_MAIN_1).strip()
+                minutes = _parse_int(request.POST.get('draw_task_minutes')) or 15
+                objective = (request.POST.get('draw_task_objective') or '').strip()
+                if not title:
+                    raise ValueError('Indica un título para la tarea dibujada.')
+                if block not in {choice[0] for choice in SessionTask.BLOCK_CHOICES}:
+                    block = SessionTask.BLOCK_MAIN_1
+                minutes = max(5, min(minutes, 90))
+                target_session = None
+                if target_session_id:
+                    target_session = (
+                        TrainingSession.objects
+                        .select_related('microcycle')
+                        .filter(id=target_session_id, microcycle__team=primary_team)
+                        .first()
+                    )
+                if not target_session:
+                    target_session = _get_or_create_library_session(primary_team, scope_key)
+                task = SessionTask.objects.create(
+                    session=target_session,
+                    title=title[:160],
+                    block=block,
+                    duration_minutes=minutes,
+                    objective=objective[:180],
+                    tactical_layout={
+                        'meta': {
+                            'scope': scope_key,
+                            'source': 'manual-draw',
+                            'graphic_editor': {
+                                'canvas_state': {'version': '5.3.0', 'objects': []},
+                            },
+                        }
+                    },
+                    status=SessionTask.STATUS_PLANNED,
+                    order=SessionTask.objects.filter(session=target_session).count() + 1,
+                    notes='Tarea creada para dibujo manual',
+                )
+                return redirect(reverse('session-task-detail', args=[task.id]))
+
             elif planner_action == 'analyze_all_library_pdfs':
                 tasks_for_scope = list(
                     SessionTask.objects
