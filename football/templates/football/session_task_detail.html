@@ -1,0 +1,172 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>{{ task.title }} · Detalle tarea</title>
+    <style>
+      :root {
+        --ink: #f3f4f6;
+        --bg: #061226;
+        --panel: rgba(7, 22, 44, 0.92);
+        --line: rgba(255, 255, 255, 0.14);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background: linear-gradient(180deg, #020916 0%, #081b35 65%, #081329 100%);
+        font-family: "Montserrat", "Avenir Next", "Segoe UI", sans-serif;
+      }
+      .page { max-width: 980px; margin: 0 auto; padding: 1.1rem; }
+      .top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.8rem;
+        margin-bottom: 0.8rem;
+        flex-wrap: wrap;
+      }
+      .button {
+        display: inline-flex;
+        text-decoration: none;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 0.5rem 0.9rem;
+        color: var(--ink);
+        background: rgba(255, 255, 255, 0.06);
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        font-size: 0.74rem;
+      }
+      .panel {
+        border-radius: 16px;
+        border: 1px solid var(--line);
+        background: var(--panel);
+        padding: 0.9rem;
+        margin-bottom: 0.75rem;
+      }
+      h1 {
+        margin: 0;
+        font-size: 1.12rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      h2 {
+        margin: 0 0 0.45rem;
+        font-size: 0.84rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      p { margin: 0.35rem 0; }
+      .meta {
+        color: rgba(225, 236, 255, 0.78);
+        font-size: 0.86rem;
+      }
+      .preview {
+        width: 100%;
+        max-height: 360px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        object-fit: contain;
+        background: rgba(255, 255, 255, 0.03);
+      }
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 0.16rem 0.5rem;
+        font-size: 0.7rem;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        background: rgba(255, 255, 255, 0.06);
+      }
+      pre {
+        margin: 0;
+        white-space: pre-wrap;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.82rem;
+        line-height: 1.35;
+        background: rgba(2, 10, 22, 0.55);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 10px;
+        padding: 0.65rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page product-shell">
+      {% include 'football/includes/dragon_nav.html' %}
+      <header class="top">
+        <h1>Detalle de tarea</h1>
+        <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+          <a class="button" href="{% url scope_route_name %}">Volver</a>
+          {% if task.task_pdf %}
+          <a class="button" href="{% url 'session-task-file' task.id %}" target="_blank" rel="noopener">Abrir PDF</a>
+          {% endif %}
+        </div>
+      </header>
+
+      <section class="panel">
+        <h2>{{ task.title }}</h2>
+        <p class="meta">{{ scope_title }} · {{ task.session.session_date|date:"d/m/Y" }} · {{ task.get_block_display }} · {{ task.duration_minutes }}'</p>
+      </section>
+
+      {% if task.task_preview_image %}
+      <section class="panel">
+        <h2>Vista previa</h2>
+        <img class="preview" src="{% url 'session-task-preview-file' task.id %}" alt="Vista previa de {{ task.title }}" />
+      </section>
+      {% endif %}
+
+      <section class="panel">
+        <h2>Datos extraídos</h2>
+        <p><strong>Objetivo:</strong> {{ task.objective|default:"-" }}</p>
+        <p><strong>Consignas:</strong></p>
+        <pre>{{ task.coaching_points|default:"-" }}</pre>
+        <p style="margin-top:0.55rem;"><strong>Reglas de confrontación:</strong></p>
+        <pre>{{ task.confrontation_rules|default:"-" }}</pre>
+      </section>
+
+      {% if analysis_meta %}
+      <section class="panel">
+        <h2>Análisis automático</h2>
+        <div class="chips" style="margin-bottom:0.5rem;">
+          {% if analysis_meta.quality_score %}<span class="chip">Score {{ analysis_meta.quality_score }}/100</span>{% endif %}
+          {% for ctx in analysis_meta.work_contexts %}<span class="chip">{{ ctx }}</span>{% endfor %}
+          {% for tag in analysis_meta.objective_tags %}<span class="chip">{{ tag }}</span>{% endfor %}
+        </div>
+        {% if detected_materials %}
+        <p><strong>Material detectado:</strong></p>
+        <div class="chips">
+          {% for mat in detected_materials %}
+          <span class="chip">{{ mat.title|default:mat.label|default:mat.kind }}</span>
+          {% endfor %}
+        </div>
+        {% endif %}
+        {% if analysis_meta.summary %}
+        <p style="margin-top:0.55rem;"><strong>Resumen extraído:</strong></p>
+        <pre>{{ analysis_meta.summary }}</pre>
+        {% endif %}
+      </section>
+      {% endif %}
+
+      {% if pdf_excerpt %}
+      <section class="panel">
+        <h2>Extracto del PDF</h2>
+        <pre>{{ pdf_excerpt }}</pre>
+      </section>
+      {% endif %}
+    </main>
+  </body>
+</html>

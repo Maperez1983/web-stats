@@ -241,7 +241,7 @@
               {% endif %}
             </div>
             <div class="task-content">
-              <h3>{{ t.title }}</h3>
+              <h3><a class="button" href="{% url 'session-task-detail' t.id %}" style="padding:0.24rem 0.52rem; font-size:0.68rem;">{{ t.title }}</a></h3>
               <p class="meta">{{ t.session.session_date|date:"d/m/Y" }} · {{ t.get_block_display }} · {{ t.duration_minutes }}'</p>
               {% if t.analysis_meta %}
               <div style="display:flex; gap:0.35rem; flex-wrap:wrap; margin-bottom:0.55rem;">
@@ -256,6 +256,7 @@
               {% endif %}
               <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
                 <a class="button" href="{% url 'session-task-file' t.id %}" target="_blank" rel="noopener">Abrir PDF</a>
+                <a class="button" href="{% url 'session-task-detail' t.id %}">Ver detalle</a>
                 <form method="post" style="margin:0;">
                   {% csrf_token %}
                   <input type="hidden" name="planner_action" value="analyze_library_pdf" />

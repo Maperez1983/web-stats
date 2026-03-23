@@ -4852,6 +4852,53 @@ def sessions_fitness_page(request):
 
 
 @login_required
+def session_task_detail_page(request, task_id):
+    if not _can_access_sessions_workspace(request.user):
+        return HttpResponse('No tienes permisos para acceder a sesiones.', status=403)
+    task = (
+        SessionTask.objects
+        .select_related('session__microcycle__team')
+        .filter(id=task_id)
+        .first()
+    )
+    if not task:
+        raise Http404('Tarea no encontrada')
+
+    scope_key = _task_scope_for_item(task)
+    scope_route_name = {
+        'coach': 'sessions',
+        'goalkeeper': 'sessions-goalkeeper',
+        'fitness': 'sessions-fitness',
+    }.get(scope_key, 'sessions')
+    scope_title = {
+        'coach': 'Sesiones · Entrenador',
+        'goalkeeper': 'Sesiones · Porteros',
+        'fitness': 'Sesiones · Preparacion fisica',
+    }.get(scope_key, 'Sesiones')
+
+    layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
+    meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+    analysis_meta = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
+    pdf_excerpt = str(meta.get('pdf_segment_excerpt') or meta.get('extracted_text_excerpt') or '').strip()
+    detected_materials = analysis_meta.get('detected_materials') if isinstance(analysis_meta.get('detected_materials'), list) else []
+    if task.task_pdf and not task.task_preview_image:
+        _ensure_task_preview_image(task)
+    return render(
+        request,
+        'football/session_task_detail.html',
+        {
+            'task': task,
+            'scope_key': scope_key,
+            'scope_title': scope_title,
+            'scope_route_name': scope_route_name,
+            'analysis_meta': analysis_meta,
+            'pdf_excerpt': pdf_excerpt,
+            'detected_materials': detected_materials,
+        },
+    )
+
+
+@login_required
 def session_task_preview_file(request, task_id):
     if not _can_access_sessions_workspace(request.user):
         return HttpResponse('No tienes permisos para acceder a sesiones.', status=403)
