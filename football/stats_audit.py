@@ -36,6 +36,7 @@ def run_stats_audit(primary_team):
         return {
             'ok': False,
             'issues': ['No hay equipo principal configurado.'],
+            'notes': [],
             'summary': {},
             'details': {},
         }
@@ -80,6 +81,7 @@ def run_stats_audit(primary_team):
     )
     event_yellows = sum(1 for event in events if is_yellow_card_event(event.event_type, event.result, event.zone))
     event_reds = sum(1 for event in events if is_red_card_event(event.event_type, event.result, event.zone))
+    measured_match_ids = {event.match_id for event in events if event.match_id}
 
     zone_counts = defaultdict(int)
     for event in events:
@@ -102,15 +104,18 @@ def run_stats_audit(primary_team):
         )
 
     issues = []
+    notes = []
     if duplicate_matches:
         issues.append(f'Partidos potencialmente duplicados detectados: {len(duplicate_matches)}')
     if abs(pct_sum - 100.0) > 1.0 and mapped_zone_total > 0:
         issues.append(f'El mapa de zonas no suma 100% (actual: {pct_sum:.1f}%).')
     if event_shot_attempts and shots_on_target_sum == 0 and event_goal_count > 0:
         issues.append('Hay goles en eventos pero los tiros a puerta agregados por jugador están a 0.')
-    if standing and standing.goals_for and event_goal_count and abs(int(standing.goals_for) - int(event_goal_count)) > 3:
-        issues.append(
-            f'Descuadre entre goles en clasificación ({standing.goals_for}) y goles detectados en eventos ({event_goal_count}).'
+    if standing and standing.goals_for is not None and measured_match_ids:
+        notes.append(
+            'Cobertura de acciones parcial: '
+            f'goles reales de temporada {int(standing.goals_for)} vs goles medidos en eventos {event_goal_count} '
+            f'en {len(measured_match_ids)} partidos medidos.'
         )
     if yellow_sum == 0 and event_yellows > 0:
         issues.append('Las tarjetas amarillas de plantilla están a 0 pese a existir eventos amarillos.')
@@ -120,9 +125,11 @@ def run_stats_audit(primary_team):
     return {
         'ok': not issues,
         'issues': issues,
+        'notes': notes,
         'summary': {
             'players': len(player_cards),
             'matches': len(matches),
+            'measured_matches': len(measured_match_ids),
             'events': len(events),
             'standing_goals_for': int(standing.goals_for) if standing and standing.goals_for is not None else None,
             'player_goal_sum': player_goal_sum,

@@ -26,3 +26,9 @@ class Command(BaseCommand):
                 self.stdout.write(f'  - {issue}')
         else:
             self.stdout.write(self.style.SUCCESS('Auditoría de estadísticas OK'))
+
+        notes = report.get('notes') or []
+        if notes:
+            self.stdout.write('Notas:')
+            for note in notes:
+                self.stdout.write(f'  - {note}')

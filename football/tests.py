@@ -26,6 +26,7 @@ from football.models import AppUserRole
 from football.services import find_roster_entry
 from football.staff_briefing import build_weekly_staff_brief
 from football.task_library import filter_task_library, prepare_task_library
+from football.stats_audit import run_stats_audit
 from football.views import SCRAPE_LOCK_KEY, compute_player_cards_for_match, compute_player_metrics, compute_team_metrics_for_match
 from django.test import override_settings
 from unittest.mock import patch
@@ -808,3 +809,24 @@ class CoachTrainerMetricsTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Acciones con zona válida')
+
+    def test_trainer_page_distinguishes_real_and_measured_metrics(self):
+        response = self.client.get(reverse('coach-role-trainer'))
+
+        self.assertEqual(response.status_code, 200)
+        general_stats = {item['label']: item['value'] for item in response.context['coach_general_stats']}
+        self.assertEqual(general_stats['Partidos jugados'], 5)
+        self.assertEqual(general_stats['Partidos medidos'], 1)
+        self.assertEqual(general_stats['Goles totales'], 10)
+        self.assertEqual(general_stats['Goles medidos'], 1)
+        self.assertEqual(general_stats['Goles medidos/partido'], 1.0)
+        kpis = {item['label']: item['value'] for item in response.context['kpis']}
+        self.assertEqual(kpis['Acciones/partido'], 2.0)
+
+    def test_stats_audit_treats_goal_gap_as_coverage_note(self):
+        report = run_stats_audit(self.team)
+
+        self.assertTrue(report['ok'])
+        self.assertFalse(any('Descuadre entre goles' in issue for issue in report['issues']))
+        self.assertTrue(any('Cobertura de acciones parcial' in note for note in report['notes']))
+        self.assertEqual(report['summary']['measured_matches'], 1)

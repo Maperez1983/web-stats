@@ -3110,6 +3110,8 @@ def coach_role_trainer_page(request):
         if primary_team
         else []
     )
+    measured_match_ids = {event.match_id for event in events if event.match_id}
+    measured_matches = len(measured_match_ids)
     total_actions = len(events) if primary_team else 0
     total_matches = (
         _team_match_queryset(primary_team).count()
@@ -3129,8 +3131,8 @@ def coach_role_trainer_page(request):
     duel_rate = round((len(duel_won) / len(duels)) * 100, 1) if duels else 0.0
     success_actions = [event for event in events if result_is_success(event.result)]
     success_rate = round((len(success_actions) / total_actions) * 100, 1) if total_actions else 0.0
-    avg_actions = round(total_actions / total_matches, 1) if total_matches else 0.0
-    avg_duels = round(len(duels) / total_matches, 1) if total_matches else 0.0
+    avg_actions = round(total_actions / measured_matches, 1) if measured_matches else 0.0
+    avg_duels = round(len(duels) / measured_matches, 1) if measured_matches else 0.0
     season_played_matches = standing.played if standing and standing.played else total_matches
     goals_per_match = round((goals_for / season_played_matches), 2) if season_played_matches else 0.0
     goals_conceded_per_match = round((goals_against / season_played_matches), 2) if season_played_matches else 0.0
@@ -3140,6 +3142,7 @@ def coach_role_trainer_page(request):
     event_goals_for = sum(
         1 for event in events if is_goal_event(event.event_type, event.result, event.observation)
     )
+    measured_goals_per_match = round((event_goals_for / measured_matches), 2) if measured_matches else 0.0
     team_shots_per_goal = shots_needed_per_goal(team_shots_attempts, event_goals_for)
 
     def _summarize_events(event_list):
@@ -3248,8 +3251,11 @@ def coach_role_trainer_page(request):
 
     coach_general_stats = [
         {'label': 'Partidos jugados', 'value': season_played_matches},
+        {'label': 'Partidos medidos', 'value': measured_matches},
         {'label': 'Goles totales', 'value': goals_for},
+        {'label': 'Goles medidos', 'value': event_goals_for},
         {'label': 'Goles por partido', 'value': goals_per_match},
+        {'label': 'Goles medidos/partido', 'value': measured_goals_per_match},
         {'label': 'GC por partido', 'value': goals_conceded_per_match},
         {'label': 'Tarjetas totales', 'value': card_total},
         {'label': 'Tarjetas por partido', 'value': cards_per_match},
@@ -3371,7 +3377,7 @@ def coach_role_trainer_page(request):
             'role_description': 'Área operativa principal del staff técnico.',
             'modules': modules,
             'kpis': kpis,
-            'kpi_note': '* Posesión estimada sobre registros de acciones.',
+            'kpi_note': '* Goles, puntos y clasificación: temporada real. Métricas de acciones: solo sobre partidos medidos.',
             'coach_general_stats': coach_general_stats,
             'coach_player_leaders': coach_player_leaders,
             'coach_total_field_zones': coach_total_field_zones,
@@ -3380,6 +3386,7 @@ def coach_role_trainer_page(request):
             'coach_selected_match': selected_match_row,
             'coach_selected_match_metrics': selected_match_metrics,
             'weekly_staff_brief': weekly_staff_brief,
+            'coach_measured_matches': measured_matches,
         },
     )
 
