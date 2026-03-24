@@ -10,8 +10,11 @@ from django.utils import timezone
 from football.models import Competition, ConvocationRecord, Group, Match, MatchEvent, Player, PlayerStatistic, Season, Team, UserInvitation
 from football.bootstrap import ensure_bootstrap_admin_from_env
 from football.event_taxonomy import (
+    PASS_KEYWORDS,
     calculate_influence_score,
     calculate_importance_score,
+    classify_duel_event,
+    contains_keyword,
     is_shot_attempt_event,
     is_shot_on_target_event,
     shots_needed_per_goal,
@@ -572,6 +575,16 @@ class EventTaxonomyKpiTests(TestCase):
 
         self.assertEqual(payload['successes_per90'], 8.0)
         self.assertEqual(payload['influence_score'], 100.0)
+
+    def test_robo_and_duelo_aereo_count_as_duels(self):
+        self.assertTrue(classify_duel_event('ROBO', 'GANADO')['is_duel'])
+        self.assertTrue(classify_duel_event('ROBO', 'GANADO')['won'])
+        self.assertTrue(classify_duel_event('Duelo aéreo', 'GANADO')['is_duel'])
+        self.assertTrue(classify_duel_event('Duelo aéreo', 'GANADO')['won'])
+
+    def test_switch_and_depth_passes_count_as_passes(self):
+        self.assertTrue(contains_keyword('PASE A LA ESPALDA', PASS_KEYWORDS))
+        self.assertTrue(contains_keyword('Cambio de orientación', PASS_KEYWORDS))
 
 
 class ManualEventAggregationTests(TestCase):

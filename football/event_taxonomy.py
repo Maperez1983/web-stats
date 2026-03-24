@@ -142,7 +142,16 @@ TERCIO_MAP = {
 }
 STANDARD_TERCIO_LABELS = ['Ataque', 'Construcción', 'Defensa']
 SHOT_KEYWORDS = {'tiro', 'remate', 'disparo', 'chuza', 'chute'}
-PASS_KEYWORDS = {'pase', 'pases', 'pase clave', 'pase al hueco'}
+PASS_KEYWORDS = {
+    'pase',
+    'pases',
+    'pase clave',
+    'pase al hueco',
+    'pase a la espalda',
+    'cambio de orientacion',
+    'cambio orientacion',
+    'switch',
+}
 DRIBBLE_KEYWORDS = {'regate', 'regates', 'dribbling', 'dribble', 'conduccion', 'conducción'}
 GOALKEEPER_SAVE_KEYWORDS = {'parada', 'paradas', 'atajada', 'atajadas', 'blocaje', 'blocajes'}
 GOAL_KEYWORDS = {'gol', 'goles', 'anotado', 'marcado', 'goal'}
