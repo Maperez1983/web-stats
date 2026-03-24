@@ -92,6 +92,7 @@ from football.event_taxonomy import (
     SHOT_KEYWORDS,
     STANDARD_TERCIO_LABELS,
     build_smart_kpis,
+    calculate_importance_score,
     categorize_position,
     classify_duel_event,
     contains_keyword,
@@ -100,6 +101,8 @@ from football.event_taxonomy import (
     is_goal_event,
     is_goalkeeper_save_event,
     is_red_card_event,
+    is_shot_attempt_event,
+    is_shot_on_target_event,
     is_substitution_entry,
     is_substitution_event,
     is_substitution_exit,
@@ -109,6 +112,7 @@ from football.event_taxonomy import (
     min_or_none,
     normalize_label,
     result_is_success,
+    shots_needed_per_goal,
     zone_to_tercio,
 )
 from football.services import (
@@ -3079,10 +3083,15 @@ def coach_role_trainer_page(request):
     goals_conceded_per_match = round((goals_against / season_played_matches), 2) if season_played_matches else 0.0
     card_total = yellows + reds
     cards_per_match = round((card_total / season_played_matches), 2) if season_played_matches else 0.0
+    team_shots_attempts = sum(
+        1 for event in events if is_shot_attempt_event(event.event_type, event.result, event.observation)
+    )
+    team_shots_per_goal = shots_needed_per_goal(team_shots_attempts, goals_for)
 
     def _summarize_events(event_list):
         total = len(event_list)
         successes_local = sum(1 for event in event_list if result_is_success(event.result))
+        goals_local = sum(1 for event in event_list if is_goal_event(event.event_type, event.result, event.observation))
         duel_local_classifications = [
             classify_duel_event(event.event_type, event.result, event.observation, event.zone)
             for event in event_list
@@ -3101,11 +3110,10 @@ def coach_role_trainer_page(request):
                 yellow_local += 1
             if is_red_card_event(event.event_type, event.result, event.zone):
                 red_local += 1
-            shot_event = contains_keyword(event.event_type, SHOT_KEYWORDS) or contains_keyword(event.observation, SHOT_KEYWORDS)
-            save_event = is_goalkeeper_save_event(event.event_type, event.result, event.observation)
-            if shot_event or save_event:
+            shot_event = is_shot_attempt_event(event.event_type, event.result, event.observation)
+            if shot_event:
                 shots_attempts += 1
-                if save_event or result_is_success(event.result):
+                if is_shot_on_target_event(event.event_type, event.result, event.observation):
                     shots_on_target += 1
             if contains_keyword(event.event_type, PASS_KEYWORDS) or contains_keyword(event.observation, PASS_KEYWORDS):
                 passes_attempts += 1
@@ -3121,8 +3129,10 @@ def coach_role_trainer_page(request):
             'duel_rate': round((len(duels_won_local) / len(duels_local)) * 100, 1) if duels_local else 0.0,
             'yellow_cards': yellow_local,
             'red_cards': red_local,
+            'goals': goals_local,
             'shots_attempts': shots_attempts,
             'shots_on_target': shots_on_target,
+            'shots_per_goal': shots_needed_per_goal(shots_attempts, goals_local),
             'passes_attempts': passes_attempts,
             'passes_completed': passes_completed,
             'zone_counts': zone_counts_local,
@@ -3237,6 +3247,7 @@ def coach_role_trainer_page(request):
         {'label': 'Posesión*', 'value': f'{min(80, max(35, 45 + (success_rate / 4))):.1f}%', 'pct': min(100, max(0, min(80, max(35, 45 + (success_rate / 4))))), 'suffix': ''},
         {'label': 'Duelos', 'value': len(duels), 'pct': min(100, round((len(duels) / 240) * 100, 1) if duels else 0), 'suffix': ''},
         {'label': '% Acierto', 'value': f'{success_rate:.1f}%', 'pct': min(100, max(0, success_rate)), 'suffix': ''},
+        {'label': 'Disparos/Gol', 'value': '-' if team_shots_per_goal is None else team_shots_per_goal, 'pct': 0 if team_shots_per_goal is None else max(0, min(100, round(100 - (min(team_shots_per_goal, 12) / 12) * 100, 1))), 'suffix': ''},
         {'label': 'Acciones totales', 'value': total_actions, 'pct': min(100, round((total_actions / 1200) * 100, 1) if total_actions else 0), 'suffix': ''},
         {'label': 'Acciones/partido', 'value': avg_actions, 'pct': min(100, round((avg_actions / 80) * 100, 1) if avg_actions else 0), 'suffix': ''},
         {'label': 'Duelos/partido', 'value': avg_duels, 'pct': min(100, round((avg_duels / 20) * 100, 1) if avg_duels else 0), 'suffix': ''},
@@ -7755,7 +7766,8 @@ def player_detail_page(request, player_id):
             'matches': [],
             'duel_summary': {'won': 0, 'total': 0},
             'passes': {'completed': 0, 'attempts': 0, 'accuracy': 0},
-            'shots': {'on_target': 0, 'attempts': 0, 'accuracy': 0},
+            'shots': {'on_target': 0, 'attempts': 0, 'accuracy': 0, 'per_goal': None},
+            'importance_score': 0,
         }
         active_tab = (request.GET.get('tab') or 'general').strip().lower()
         physical_metrics = player.physical_metrics.all()[:20]
@@ -7830,6 +7842,7 @@ def player_detail_page(request, player_id):
         max_minutes = pj * 90
         minute_ratio = round((minutes / max_minutes) * 100, 1) if max_minutes else 0
         minute_ratio = max(0, min(minute_ratio, 100))
+        importance_score = float(stats_source.get('importance_score') or 0)
 
         standings_rows = _serialize_universo_standings(load_universo_snapshot())
         if not standings_rows and primary_team.group:
@@ -7873,6 +7886,7 @@ def player_detail_page(request, player_id):
             {'label': 'Total goles', 'value': goals, 'pct': round((goals / pj) * 100, 1) if pj else 0},
             {'label': 'Media goles/partido', 'value': goals_per_match, 'pct': round(min(goals_per_match * 100, 100), 1)},
             {'label': '% participación', 'value': participation_pct, 'pct': participation_pct},
+            {'label': 'Importancia', 'value': importance_score, 'pct': importance_score},
             {'label': 'Amarillas', 'value': yellow_cards, 'pct': round(min(yellow_cards * 15, 100), 1)},
             {'label': 'Rojas', 'value': red_cards, 'pct': round(min(red_cards * 30, 100), 1)},
             {'label': 'Doble amarilla', 'value': second_yellow_cards, 'pct': round(min(second_yellow_cards * 30, 100), 1)},
@@ -8038,11 +8052,10 @@ def player_match_stats_page(request, player_id, match_id):
             if mapped:
                 stats['tercio_counts'][mapped] += 1
                 stats['tercio_totals'][mapped] += 1
-        shot_event = contains_keyword(event.event_type, SHOT_KEYWORDS) or contains_keyword(event.observation, SHOT_KEYWORDS)
-        save_event = is_goalkeeper_save_event(event.event_type, event.result, event.observation)
-        if shot_event or save_event:
+        shot_event = is_shot_attempt_event(event.event_type, event.result, event.observation)
+        if shot_event:
             stats['shot_attempts'] += 1
-            if save_event or result_is_success(event.result):
+            if is_shot_on_target_event(event.event_type, event.result, event.observation):
                 stats['shots_on_target'] += 1
         if contains_keyword(event.event_type, PASS_KEYWORDS) or contains_keyword(event.observation, PASS_KEYWORDS):
             stats['pass_attempts'] += 1
@@ -8087,6 +8100,7 @@ def player_match_stats_page(request, player_id, match_id):
         'accuracy': round((stats['shots_on_target'] / stats['shot_attempts']) * 100, 1)
         if stats['shot_attempts']
         else 0,
+        'per_goal': shots_needed_per_goal(stats['shot_attempts'], stats['goals']),
     }
     stats['passes'] = {
         'attempts': stats['pass_attempts'],
@@ -8959,11 +8973,10 @@ def compute_player_dashboard(primary_team):
         position_label = categorize_position(player.position, event.zone)
         if position_label:
             stats['position_counts'][position_label] += 1
-        shot_event = contains_keyword(event.event_type, SHOT_KEYWORDS) or contains_keyword(event.observation, SHOT_KEYWORDS)
-        save_event = is_goalkeeper_save_event(event.event_type, event.result, event.observation)
-        if shot_event or save_event:
+        shot_event = is_shot_attempt_event(event.event_type, event.result, event.observation)
+        if shot_event:
             stats['shot_attempts'] += 1
-            if save_event or result_is_success(event.result):
+            if is_shot_on_target_event(event.event_type, event.result, event.observation):
                 stats['shots_on_target'] += 1
         if contains_keyword(event.event_type, PASS_KEYWORDS) or contains_keyword(event.observation, PASS_KEYWORDS):
             stats['pass_attempts'] += 1
@@ -9238,6 +9251,8 @@ def compute_player_dashboard(primary_team):
 
     result = []
     today = timezone.localdate()
+    total_possible_minutes = max(0, competition_total_rounds) * 90
+    max_successes = max((int(stats.get('successes', 0) or 0) for stats in player_stats.values()), default=0)
     for stats in player_stats.values():
         matches = sorted(
             stats['matches'].values(),
@@ -9323,6 +9338,7 @@ def compute_player_dashboard(primary_team):
                 'accuracy': round((stats['shots_on_target'] / stats['shot_attempts']) * 100, 1)
                 if stats['shot_attempts']
                 else 0,
+                'per_goal': shots_needed_per_goal(stats['shot_attempts'], stats['goals']),
             },
             'passes': {
                 'attempts': stats['pass_attempts'],
@@ -9351,6 +9367,15 @@ def compute_player_dashboard(primary_team):
             )
         else:
             merged['participation_pct'] = 0
+        importance = calculate_importance_score(
+            minutes=merged.get('minutes', 0),
+            total_possible_minutes=total_possible_minutes,
+            successes=merged.get('successes', 0),
+            max_successes=max_successes,
+        )
+        merged['availability_pct'] = importance['availability_pct']
+        merged['success_volume_pct'] = importance['success_volume_pct']
+        merged['importance_score'] = importance['importance_score']
         profile, profile_label, smart_kpis = build_smart_kpis(stats)
         merged['profile'] = profile
         merged['profile_label'] = profile_label

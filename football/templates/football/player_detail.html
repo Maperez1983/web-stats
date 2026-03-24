@@ -578,6 +578,7 @@
               <div class="performance-block"><span class="label">Duelos</span><span class="value">{{ stats.duel_summary.won|default:0 }}/{{ stats.duel_summary.total|default:0 }}</span></div>
               <div class="performance-block"><span class="label">Pases</span><span class="value">{{ stats.passes.completed|default:0 }}/{{ stats.passes.attempts|default:0 }}</span></div>
               <div class="performance-block"><span class="label">Disparos</span><span class="value">{{ stats.shots.on_target|default:0 }}/{{ stats.shots.attempts|default:0 }}</span></div>
+              <div class="performance-block"><span class="label">Disparos/Gol</span><span class="value">{{ stats.shots.per_goal|default:"-" }}</span></div>
               <div class="performance-block"><span class="label">Goles</span><span class="value">{{ stats.goals|default:0 }}</span></div>
               <div class="performance-block"><span class="label">Asistencias</span><span class="value">{{ stats.assists|default:0 }}</span></div>
             </div>

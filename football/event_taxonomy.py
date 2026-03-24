@@ -234,6 +234,23 @@ def is_goalkeeper_save_event(event_type, result=None, observation=None):
     )
 
 
+def is_shot_attempt_event(event_type, result=None, observation=None):
+    return (
+        contains_keyword(event_type, SHOT_KEYWORDS)
+        or contains_keyword(observation, SHOT_KEYWORDS)
+    )
+
+
+def is_shot_on_target_event(event_type, result=None, observation=None):
+    if not is_shot_attempt_event(event_type, result=result, observation=observation):
+        return False
+    return (
+        is_goal_event(event_type, result=result, observation=observation)
+        or is_goalkeeper_save_event(event_type, result=result, observation=observation)
+        or result_is_success(result)
+    )
+
+
 def is_assist_event(event_type, result=None, observation=None):
     return (
         contains_keyword(event_type, ASSIST_KEYWORDS)
@@ -373,6 +390,33 @@ def result_is_success(result):
     return normalized in SUCCESS_RESULTS
 
 
+def shots_needed_per_goal(shots, goals):
+    shots_value = max(0, int(shots or 0))
+    goals_value = max(0, int(goals or 0))
+    if goals_value <= 0:
+        return None
+    return round(shots_value / goals_value, 2)
+
+
+def calculate_importance_score(minutes, total_possible_minutes, successes, max_successes):
+    minute_value = max(0, int(minutes or 0))
+    possible_minutes = max(0, int(total_possible_minutes or 0))
+    successes_value = max(0, int(successes or 0))
+    max_success_value = max(0, int(max_successes or 0))
+
+    availability_pct = round((minute_value / possible_minutes) * 100, 1) if possible_minutes else 0
+    availability_pct = max(0, min(availability_pct, 100))
+    success_volume_pct = round((successes_value / max_success_value) * 100, 1) if max_success_value else 0
+    success_volume_pct = max(0, min(success_volume_pct, 100))
+    importance_score = round((availability_pct * 0.6) + (success_volume_pct * 0.4), 1)
+    importance_score = max(0, min(importance_score, 100))
+    return {
+        'availability_pct': availability_pct,
+        'success_volume_pct': success_volume_pct,
+        'importance_score': importance_score,
+    }
+
+
 def min_or_none(current, candidate):
     if candidate is None:
         return current
@@ -433,13 +477,13 @@ def build_smart_kpis(stats):
     passes_attempts = int(stats.get('pass_attempts', 0) or 0)
     passes_completed = int(stats.get('passes_completed', 0) or 0)
     pass_rate = round((passes_completed / passes_attempts) * 100, 1) if passes_attempts else 0
-    conversion = round((goals / shots) * 100, 1) if shots else 0
     goals_per_match = round(goals / pj, 2)
+    shots_per_goal = shots_needed_per_goal(shots, goals)
 
     if profile == 'striker':
         kpis = [
             {'label': 'Goles/PJ', 'value': f'{goals_per_match}'},
-            {'label': 'Gol/Tiro', 'value': f'{conversion}%'},
+            {'label': 'Disparos/Gol', 'value': '-' if shots_per_goal is None else f'{shots_per_goal}'},
             {'label': 'Efectividad', 'value': f'{success_rate}%'},
         ]
     elif profile == 'winger':

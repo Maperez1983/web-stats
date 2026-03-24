@@ -397,6 +397,7 @@
           · Acciones {{ coach_selected_match_metrics.total_actions }}
           · Pases {{ coach_selected_match_metrics.passes_completed }}/{{ coach_selected_match_metrics.passes_attempts }}
           · Disparos {{ coach_selected_match_metrics.shots_on_target }}/{{ coach_selected_match_metrics.shots_attempts }}
+          · Disparos/Gol {{ coach_selected_match_metrics.shots_per_goal|default:"-" }}
         </p>
         {% endif %}
       </section>

@@ -9,6 +9,12 @@ from django.utils import timezone
 
 from football.models import Competition, ConvocationRecord, Group, Match, Player, PlayerStatistic, Season, Team, UserInvitation
 from football.bootstrap import ensure_bootstrap_admin_from_env
+from football.event_taxonomy import (
+    calculate_importance_score,
+    is_shot_attempt_event,
+    is_shot_on_target_event,
+    shots_needed_per_goal,
+)
 from football.healthchecks import run_system_healthcheck
 from football.manual_stats import get_manual_player_base_overrides, save_manual_player_base_overrides, season_display_name
 from football.query_helpers import get_current_convocation_record, is_manual_sanction_active
@@ -518,3 +524,28 @@ class TeamDisplayNameTests(TestCase):
         )
 
         self.assertEqual(team.display_name, 'LOJA C.D.')
+
+
+class EventTaxonomyKpiTests(TestCase):
+    def test_shot_on_target_requires_shot_attempt(self):
+        self.assertTrue(is_shot_attempt_event('disparo', result='fallado'))
+        self.assertTrue(is_shot_on_target_event('disparo', result='ok'))
+        self.assertTrue(is_shot_on_target_event('disparo', observation='parada del portero'))
+        self.assertFalse(is_shot_attempt_event('parada', result='ok'))
+        self.assertFalse(is_shot_on_target_event('parada', result='ok'))
+
+    def test_shots_needed_per_goal_handles_zero_goals(self):
+        self.assertEqual(shots_needed_per_goal(9, 3), 3.0)
+        self.assertIsNone(shots_needed_per_goal(5, 0))
+
+    def test_importance_score_combines_availability_and_success_volume(self):
+        payload = calculate_importance_score(
+            minutes=900,
+            total_possible_minutes=1800,
+            successes=80,
+            max_successes=100,
+        )
+
+        self.assertEqual(payload['availability_pct'], 50.0)
+        self.assertEqual(payload['success_volume_pct'], 80.0)
+        self.assertEqual(payload['importance_score'], 62.0)
