@@ -7392,7 +7392,6 @@ def analysis_page(request):
                 )
                 manual_report_message = 'Informe manual guardado correctamente.'
         team_url = (request.POST.get('team_url') or '').strip()
-        team_url = (request.POST.get('team_url') or '').strip()
         team_id = (request.POST.get('team_id') or '').strip()
         raw_text = (request.POST.get('raw_text') or '').strip()
         team = None
@@ -7707,7 +7706,7 @@ def player_detail_page(request, player_id):
                 manual_sanction_until = _parse_date_value(request.POST.get('manual_sanction_until'))
                 injury_record_mode = (request.POST.get('injury_record_mode') or '').strip().lower()
                 force_new_injury_record = injury_record_mode in {'new', 'add', 'create'}
-                player.number = int(number) if number else None
+                player.number = _parse_int(number) if number else None
                 player.position = request.POST.get('position', '').strip()
                 player.full_name = request.POST.get('full_name', '').strip()
                 player.nickname = request.POST.get('nickname', '').strip()
@@ -7743,7 +7742,7 @@ def player_detail_page(request, player_id):
                                 for chunk in uploaded_photo.chunks():
                                     destination.write(chunk)
                     except Exception:
-                        pass
+                        logger.exception('No se pudo guardar la foto del jugador %s', player.id)
 
                 active_injury = (
                     PlayerInjuryRecord.objects

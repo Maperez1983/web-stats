@@ -35,6 +35,12 @@ python3 manage.py runserver
 
 Si no exportas `DEBUG=true` o una `SECRET_KEY`, Django no arrancara.
 
+Verificacion rapida del entorno:
+
+```
+python3 manage.py system_healthcheck
+```
+
 ## Dependencias nativas opcionales
 
 Algunos modulos avanzados requieren dependencias del sistema:

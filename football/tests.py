@@ -7,6 +7,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from football.models import Competition, ConvocationRecord, Group, Match, Player, Season, Team, UserInvitation
+from football.healthchecks import run_system_healthcheck
 from football.query_helpers import get_current_convocation_record, is_manual_sanction_active
 from football.staff_briefing import build_weekly_staff_brief
 from football.views import SCRAPE_LOCK_KEY
@@ -132,3 +133,14 @@ class QueryHelperTests(TestCase):
         )
 
         self.assertFalse(is_manual_sanction_active(player, today=timezone.localdate()))
+
+
+class HealthcheckTests(TestCase):
+    def test_system_healthcheck_returns_expected_sections(self):
+        report = run_system_healthcheck()
+
+        self.assertIn('ok', report)
+        self.assertIn('database', report)
+        self.assertIn('paths', report)
+        self.assertIn('dependencies', report)
+        self.assertIn('static_root', report['paths'])
