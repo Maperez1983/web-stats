@@ -8122,13 +8122,13 @@ def player_match_stats_page(request, player_id, match_id):
         if stats['pass_attempts']
         else 0,
     }
-    total_zone_actions = max(1, int(stats.get('total_actions') or 0))
+    total_zone_actions = sum(int(count or 0) for count in stats['zone_counts'].values())
     stats['field_zones'] = [
         {
             **zone,
             'count': stats['zone_counts'].get(zone['key'], 0),
             'pct': round((stats['zone_counts'].get(zone['key'], 0) / total_zone_actions) * 100, 1)
-            if stats.get('total_actions')
+            if total_zone_actions
             else 0,
         }
         for zone in FIELD_ZONES
@@ -8610,6 +8610,9 @@ def _event_signature(event):
         text = unicodedata.normalize('NFKD', text)
         text = ''.join(ch for ch in text if not unicodedata.combining(ch))
         return text.lower().strip()
+
+    if _is_manual_event_source(getattr(event, 'source_file', '')):
+        return ('manual-event', getattr(event, 'id', None))
 
     # "Acción realizada" for dashboard cards:
     # keep one action per player/match/minute/type.
@@ -9335,14 +9338,14 @@ def compute_player_dashboard(primary_team):
             reverse=True,
         )
         field_zones = []
-        total_zone_actions = max(1, int(stats.get('total_actions') or 0))
+        total_zone_actions = sum(int(count or 0) for count in stats['zone_counts'].values())
         for zone in FIELD_ZONES:
             zone_count = stats['zone_counts'].get(zone['key'], 0)
             field_zones.append(
                 {
                     **zone,
                     'count': zone_count,
-                    'pct': round((zone_count / total_zone_actions) * 100, 1) if stats.get('total_actions') else 0,
+                    'pct': round((zone_count / total_zone_actions) * 100, 1) if total_zone_actions else 0,
                 }
             )
         merged = {

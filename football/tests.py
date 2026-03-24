@@ -641,3 +641,22 @@ class ManualEventAggregationTests(TestCase):
 
         self.assertEqual(metrics['total_events'], 2)
         self.assertEqual(metrics['top_event_types'][0]['count'], 1)
+
+    def test_manual_batch_events_with_same_minute_are_not_collapsed(self):
+        MatchEvent.objects.create(
+            match=self.match,
+            player=self.player,
+            event_type='DUELO',
+            result='GANADO',
+            zone='Medio Centro',
+            tercio='Construcción',
+            minute=25,
+            period=1,
+            system='touch-field-final',
+            source_file='admin-manual',
+        )
+
+        cards = compute_player_cards_for_match(self.match, self.team)
+
+        self.assertEqual(cards[0]['actions'], 3)
+        self.assertEqual(cards[0]['successes'], 3)
