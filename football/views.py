@@ -128,6 +128,12 @@ from football.services import (
     _parse_int,
 )
 from football.staff_briefing import build_weekly_staff_brief
+from football.manual_stats import (
+    get_manual_player_base_overrides,
+    resolve_stats_season,
+    save_manual_player_base_overrides,
+    season_display_name,
+)
 from football.query_helpers import (
     _normalize_team_lookup_key,
     _team_match_queryset,
@@ -7433,11 +7439,7 @@ def manual_player_stats_page(request):
     if not primary_team:
         return JsonResponse({'error': 'No hay equipo principal configurado'}, status=400)
 
-    season = None
-    if primary_team.group and primary_team.group.season:
-        season = primary_team.group.season
-    if season is None:
-        season = Season.objects.filter(is_current=True).order_by('-start_date', '-id').first()
+    season = resolve_stats_season(primary_team)
     if season is None:
         return JsonResponse({'error': 'No hay temporada activa para guardar estadísticas'}, status=400)
 
@@ -7455,22 +7457,22 @@ def manual_player_stats_page(request):
                     'manual_yellow_cards': _parse_int(request.POST.get(f'yellow_{player.id}')) or 0,
                     'manual_red_cards': _parse_int(request.POST.get(f'red_{player.id}')) or 0,
                 }
-                for stat_name, stat_value in overrides.items():
-                    PlayerStatistic.objects.update_or_create(
-                        player=player,
-                        season=season,
-                        match=None,
-                        name=stat_name,
-                        context='manual-base',
-                        defaults={'value': stat_value},
-                    )
+                save_manual_player_base_overrides(
+                    player=player,
+                    season=season,
+                    values=overrides,
+                )
         current_overrides = get_manual_player_base_overrides(primary_team, season)
         message = 'Estadísticas manuales guardadas.'
     else:
         message = ''
 
     rows = []
-    roster_cache = get_roster_stats_cache()
+    try:
+        roster_cache = get_roster_stats_cache()
+    except Exception:
+        logger.exception('No se pudo cargar la cache de plantilla para estadísticas manuales')
+        roster_cache = {}
     for player in players:
         roster_entry = find_roster_entry(player.name, roster_cache) or {}
         manual = current_overrides.get(player.id, {})
@@ -7491,7 +7493,7 @@ def manual_player_stats_page(request):
         'football/manual_player_stats.html',
         {
             'team_name': primary_team.name,
-            'season_name': season.name,
+            'season_name': season_display_name(season),
             'rows': rows,
             'message': message,
         },
@@ -8703,52 +8705,6 @@ def compute_player_cards(primary_team):
             }
         )
     return sorted(cards, key=lambda entry: (-entry['goals'], -entry['pj'], entry['name']))
-
-
-def get_manual_player_base_overrides(primary_team, season=None):
-    if not primary_team:
-        return {}
-    if season is None:
-        if primary_team.group and primary_team.group.season:
-            season = primary_team.group.season
-        else:
-            season = Season.objects.filter(is_current=True).order_by('-start_date', '-id').first()
-    if season is None:
-        return {}
-    stats = (
-        PlayerStatistic.objects.filter(
-            player__team=primary_team,
-            season=season,
-            match__isnull=True,
-            context='manual-base',
-            name__in=[
-                'manual_pj',
-                'manual_pt',
-                'manual_minutes',
-                'manual_goals',
-                'manual_yellow_cards',
-                'manual_red_cards',
-            ],
-        )
-        .select_related('player')
-    )
-    overrides = {}
-    for stat in stats:
-        player_data = overrides.setdefault(stat.player_id, {})
-        value = int(stat.value or 0)
-        if stat.name == 'manual_pj':
-            player_data['pj'] = value
-        elif stat.name == 'manual_pt':
-            player_data['pt'] = value
-        elif stat.name == 'manual_minutes':
-            player_data['minutes'] = value
-        elif stat.name == 'manual_goals':
-            player_data['goals'] = value
-        elif stat.name == 'manual_yellow_cards':
-            player_data['yellow_cards'] = value
-        elif stat.name == 'manual_red_cards':
-            player_data['red_cards'] = value
-    return overrides
 
 
 def compute_player_dashboard(primary_team):

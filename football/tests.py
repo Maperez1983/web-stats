@@ -7,9 +7,10 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from football.models import Competition, ConvocationRecord, Group, Match, Player, Season, Team, UserInvitation
+from football.models import Competition, ConvocationRecord, Group, Match, Player, PlayerStatistic, Season, Team, UserInvitation
 from football.bootstrap import ensure_bootstrap_admin_from_env
 from football.healthchecks import run_system_healthcheck
+from football.manual_stats import get_manual_player_base_overrides, season_display_name
 from football.query_helpers import get_current_convocation_record, is_manual_sanction_active
 from football.models import AppUserRole
 from football.staff_briefing import build_weekly_staff_brief
@@ -291,3 +292,67 @@ class TaskLibraryTests(TestCase):
 
         self.assertEqual([item.id for item in reviewed_items], [1])
         self.assertEqual([item.id for item in phase_items], [2])
+
+
+class ManualStatsTests(TestCase):
+    def setUp(self):
+        user_model = get_user_model()
+        self.user = user_model.objects.create_user(
+            username='statsadmin',
+            email='statsadmin@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_ADMIN)
+        competition = Competition.objects.create(name='Liga Manual', slug='liga-manual', region='Andalucia')
+        self.season = Season.objects.create(competition=competition, name='', is_current=True)
+        group = Group.objects.create(season=self.season, name='Grupo Manual', slug='grupo-manual')
+        self.team = Team.objects.create(name='Benagalbon', slug='benagalbon-manual', group=group, is_primary=True)
+        self.player = Player.objects.create(team=self.team, name='Jugador Manual')
+
+    def test_manual_stats_page_saves_overrides(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse('manual-player-stats'),
+            {
+                f'pj_{self.player.id}': '11',
+                f'pt_{self.player.id}': '9',
+                f'minutes_{self.player.id}': '810',
+                f'goals_{self.player.id}': '3',
+                f'yellow_{self.player.id}': '2',
+                f'red_{self.player.id}': '1',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        overrides = get_manual_player_base_overrides(self.team, self.season)
+        self.assertEqual(overrides[self.player.id]['pj'], 11)
+        self.assertEqual(overrides[self.player.id]['minutes'], 810)
+        self.assertContains(response, 'Estadísticas manuales guardadas.')
+
+    @patch('football.views.get_roster_stats_cache', side_effect=RuntimeError('snapshot roto'))
+    def test_manual_stats_page_tolerates_roster_cache_errors(self, mocked_cache):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse('manual-player-stats'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Temporada actual')
+        mocked_cache.assert_called_once()
+
+    @patch('football.manual_stats.PlayerStatistic.objects.filter')
+    def test_manual_overrides_tolerate_non_finite_values(self, mocked_filter):
+        mocked_filter.return_value.select_related.return_value = [
+            SimpleNamespace(
+                player_id=self.player.id,
+                name='manual_minutes',
+                value='nan',
+            )
+        ]
+
+        overrides = get_manual_player_base_overrides(self.team, self.season)
+
+        self.assertEqual(overrides[self.player.id]['minutes'], 0)
+
+    def test_season_display_name_falls_back_when_name_missing(self):
+        self.assertEqual(season_display_name(self.season), 'Temporada actual')
