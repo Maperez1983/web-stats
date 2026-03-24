@@ -13,6 +13,7 @@ from football.healthchecks import run_system_healthcheck
 from football.manual_stats import get_manual_player_base_overrides, save_manual_player_base_overrides, season_display_name
 from football.query_helpers import get_current_convocation_record, is_manual_sanction_active
 from football.models import AppUserRole
+from football.services import find_roster_entry
 from football.staff_briefing import build_weekly_staff_brief
 from football.task_library import filter_task_library, prepare_task_library
 from football.views import SCRAPE_LOCK_KEY
@@ -390,3 +391,13 @@ class ManualStatsTests(TestCase):
         )
         self.assertEqual(rows.count(), 1)
         self.assertEqual(int(rows.first().value), 810)
+
+
+class RosterLookupTests(TestCase):
+    def test_find_roster_entry_tolerates_malformed_cache(self):
+        self.assertIsNone(find_roster_entry('Jugador', None))
+        self.assertIsNone(find_roster_entry('Jugador', {'bad': 'value'}))
+        self.assertEqual(
+            find_roster_entry('Jugador Uno', {'ok': {'name': 'Jugador Uno', 'pj': 5}}),
+            {'name': 'Jugador Uno', 'pj': 5},
+        )

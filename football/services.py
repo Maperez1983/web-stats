@@ -943,16 +943,22 @@ def canonical_roster_key(player_name: str) -> str:
 
 
 def find_roster_entry(player_name: str, roster: dict) -> Optional[dict]:
+    if not isinstance(roster, dict):
+        return None
     key = canonical_roster_key(player_name)
     if key:
         entry = roster.get(key)
-        if entry:
+        if isinstance(entry, dict):
             return entry
     target = player_name.lower().strip()
     if not target:
         return None
     for entry in roster.values():
-        entry_name = entry['name'].lower()
+        if not isinstance(entry, dict):
+            continue
+        entry_name = str(entry.get('name') or '').lower()
+        if not entry_name:
+            continue
         if target in entry_name or entry_name in target:
             return entry
     return None
