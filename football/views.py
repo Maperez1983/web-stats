@@ -7980,7 +7980,7 @@ def match_stats_page(request, match_id):
         'opponent': opponent.name if opponent else 'Rival desconocido',
         'home': match.home_team == primary_team,
     }
-    team_metrics = compute_team_metrics_for_match(match)
+    team_metrics = compute_team_metrics_for_match(match, primary_team=primary_team)
     player_cards = compute_player_cards_for_match(match, primary_team)
     return render(
         request,
@@ -8004,7 +8004,14 @@ def player_match_stats_page(request, player_id, match_id):
     if not match:
         raise Http404('Partido no encontrado')
     opponent = match.away_team if match.home_team == primary_team else match.home_team
-    events = confirmed_events_queryset().filter(match=match, player=player).order_by('minute')
+    preferred_sources = preferred_event_source_by_match(primary_team)
+    events = _filter_stats_events(
+        confirmed_events_queryset()
+        .filter(match=match, player=player)
+        .select_related('match')
+        .order_by('minute', 'id'),
+        preferred_sources=preferred_sources,
+    )
     stats = {
         'player_id': player.id,
         'name': player.name,
@@ -8457,6 +8464,35 @@ def preferred_event_source_by_match(primary_team):
     return preferred
 
 
+def _is_manual_event_source(source_file):
+    normalized = (source_file or '').strip().lower()
+    return normalized == 'admin-manual' or 'manual' in normalized
+
+
+def _event_matches_stats_source(event, preferred_sources=None):
+    if not preferred_sources:
+        return True
+    preferred_source = preferred_sources.get(getattr(event, 'match_id', None))
+    if not preferred_source:
+        return True
+    current_source = (getattr(event, 'source_file', '') or '').strip()
+    return current_source == preferred_source or _is_manual_event_source(current_source)
+
+
+def _filter_stats_events(rows, preferred_sources=None):
+    seen_signatures = set()
+    filtered = []
+    for event in rows:
+        if not _event_matches_stats_source(event, preferred_sources):
+            continue
+        signature = _event_signature(event)
+        if signature in seen_signatures:
+            continue
+        seen_signatures.add(signature)
+        filtered.append(event)
+    return filtered
+
+
 def _normalize_excel_header(value):
     if not value:
         return ''
@@ -8518,12 +8554,17 @@ def append_events_to_bd_eventos(match, primary_team, events):
 
 
 def compute_team_metrics(primary_team):
-    events = confirmed_events_queryset().filter(
-        Q(match__home_team=primary_team) | Q(match__away_team=primary_team)
+    preferred_sources = preferred_event_source_by_match(primary_team)
+    events = _filter_stats_events(
+        confirmed_events_queryset()
+        .filter(player__team=primary_team)
+        .select_related('match')
+        .order_by('match_id', 'minute', 'id'),
+        preferred_sources=preferred_sources,
     )
-    total_events = events.count()
-    event_counter = Counter(events.values_list('event_type', flat=True))
-    result_counter = Counter(events.values_list('result', flat=True))
+    total_events = len(events)
+    event_counter = Counter(event.event_type for event in events)
+    result_counter = Counter(event.result for event in events)
 
     top_events = [{'event': etype, 'count': count} for etype, count in event_counter.most_common(5)]
     top_results = [{'result': result, 'count': count} for result, count in result_counter.most_common(5)]
@@ -8535,11 +8576,19 @@ def compute_team_metrics(primary_team):
     }
 
 
-def compute_team_metrics_for_match(match):
-    events = confirmed_events_queryset().filter(match=match)
-    total_events = events.count()
-    event_counter = Counter(events.values_list('event_type', flat=True))
-    result_counter = Counter(events.values_list('result', flat=True))
+def compute_team_metrics_for_match(match, primary_team=None):
+    events_qs = confirmed_events_queryset().filter(match=match)
+    preferred_sources = None
+    if primary_team:
+        events_qs = events_qs.filter(player__team=primary_team)
+        preferred_sources = preferred_event_source_by_match(primary_team)
+    events = _filter_stats_events(
+        events_qs.select_related('player', 'match').order_by('minute', 'id'),
+        preferred_sources=preferred_sources,
+    )
+    total_events = len(events)
+    event_counter = Counter(event.event_type for event in events)
+    result_counter = Counter(event.result for event in events)
     top_events = [{'event': etype, 'count': count} for etype, count in event_counter.most_common(6)]
     top_results = [{'result': result, 'count': count} for result, count in result_counter.most_common(6)]
     return {
@@ -8584,19 +8633,15 @@ def compute_player_cards_for_match(match, primary_team, source_file=None):
     events = confirmed_events_queryset().filter(match=match, player__team=primary_team)
     if source_file:
         events = events.filter(source_file=source_file)
+        preferred_sources = None
     else:
         preferred_sources = preferred_event_source_by_match(primary_team)
-        preferred_source = preferred_sources.get(match.id)
-        if preferred_source:
-            events = events.filter(source_file=preferred_source)
-    rows = events.select_related('player').order_by('id')
-    seen_signatures = set()
+    rows = _filter_stats_events(
+        events.select_related('player', 'match').order_by('minute', 'id'),
+        preferred_sources=preferred_sources,
+    )
     per_player = {}
     for event in rows:
-        signature = _event_signature(event)
-        if signature in seen_signatures:
-            continue
-        seen_signatures.add(signature)
         player = event.player
         if not player:
             continue
@@ -8613,7 +8658,7 @@ def compute_player_cards_for_match(match, primary_team, source_file=None):
             },
         )
         data['actions'] += 1
-        if (event.result or '').strip().lower() == 'ok':
+        if result_is_success(event.result):
             data['successes'] += 1
     cards = list(per_player.values())
     for item in cards:
@@ -8623,25 +8668,32 @@ def compute_player_cards_for_match(match, primary_team, source_file=None):
     return sorted(cards, key=lambda item: item['actions'], reverse=True)
 
 def compute_player_metrics(primary_team):
-    events = confirmed_events_queryset().filter(player__team=primary_team)
-    aggregated = (
-        events.values('player__id', 'player__name')
-        .annotate(
-            actions=Count('id'),
-            successful=Count('id', filter=Q(result__iexact='OK')),
-        )
-        .order_by('-actions')
+    preferred_sources = preferred_event_source_by_match(primary_team)
+    events = _filter_stats_events(
+        confirmed_events_queryset()
+        .filter(player__team=primary_team)
+        .select_related('player', 'match')
+        .order_by('match_id', 'minute', 'id'),
+        preferred_sources=preferred_sources,
     )
-
-    return [
-        {
-            'player_id': item['player__id'],
-            'player': item['player__name'],
-            'actions': item['actions'],
-            'successes': item['successful'],
-        }
-        for item in aggregated
-    ]
+    per_player = {}
+    for event in events:
+        player = event.player
+        if not player:
+            continue
+        item = per_player.setdefault(
+            player.id,
+            {
+                'player_id': player.id,
+                'player': player.name,
+                'actions': 0,
+                'successes': 0,
+            },
+        )
+        item['actions'] += 1
+        if result_is_success(event.result):
+            item['successes'] += 1
+    return sorted(per_player.values(), key=lambda item: (-item['actions'], item['player']))
 
 
 def compute_player_cards(primary_team):
