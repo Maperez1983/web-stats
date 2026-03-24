@@ -315,7 +315,7 @@
           </label>
           <label>
             <span>Hora</span>
-            <input type="time" name="match_time" value="{% if selected_admin_match.date %}{{ selected_admin_match.date|date:'H:i' }}{% endif %}" />
+            <input type="time" name="match_time" value="{% if selected_admin_match.kickoff_time %}{{ selected_admin_match.kickoff_time|time:'H:i' }}{% endif %}" />
           </label>
           <button class="pill-button icon-action" type="submit" title="Guardar partido" aria-label="Guardar partido">💾</button>
         </form>
@@ -344,7 +344,7 @@
                 data-rival="{% if match.home_team_id == primary_team_id %}{{ match.away_team.name|default:''|escape }}{% else %}{{ match.home_team.name|default:''|escape }}{% endif %}"
                 {% if selected_admin_match and selected_admin_match.id == match.id %}selected{% endif %}
               >
-                #{{ match.id }} · {{ match.home_team.name }} vs {{ match.away_team.name }} · {{ match.date|date:"d/m/Y"|default:"Sin fecha" }}
+                #{{ match.id }} · {{ match.home_team.name }} vs {{ match.away_team.name }} · {{ match.date|date:"d/m/Y"|default:"Sin fecha" }}{% if match.kickoff_time %} · {{ match.kickoff_time|time:"H:i" }}{% endif %}
               </option>
               {% endfor %}
             </select>

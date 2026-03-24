@@ -1405,22 +1405,17 @@ def admin_page(request):
                                 home_team=primary_team,
                                 away_team=rival_team,
                                 date=match_date,
+                                kickoff_time=match_time,
                                 round=round_value,
                                 location=location,
                             )
                         else:
                             match_obj.away_team = rival_team
                             match_obj.date = match_date
+                            match_obj.kickoff_time = match_time
                             match_obj.round = round_value
                             match_obj.location = location
-                            match_obj.save(update_fields=['away_team', 'date', 'round', 'location'])
-                        # compatibilidad: guardar datetime cuando exista
-                        if match_dt:
-                            try:
-                                match_obj.datetime = match_dt
-                                match_obj.save(update_fields=['datetime'])
-                            except Exception:
-                                pass
+                            match_obj.save(update_fields=['away_team', 'date', 'kickoff_time', 'round', 'location'])
                         actions_message = f'Partido guardado (ID {match_obj.id}).'
             elif form_action == 'admin_action_bulk_add':
                 match_id = _parse_int(request.POST.get('match_id'))

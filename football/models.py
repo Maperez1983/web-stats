@@ -224,6 +224,7 @@ class Match(models.Model):
     group = models.ForeignKey(Group, on_delete=models.SET_NULL, null=True, blank=True, related_name='matches')
     round = models.CharField(max_length=50, blank=True, help_text='Jornada / ronda')
     date = models.DateField(null=True, blank=True)
+    kickoff_time = models.TimeField(null=True, blank=True)
     location = models.CharField(max_length=200, blank=True)
     home_team = models.ForeignKey(Team, on_delete=models.SET_NULL, null=True, blank=True, related_name='home_matches')
     away_team = models.ForeignKey(Team, on_delete=models.SET_NULL, null=True, blank=True, related_name='away_matches')

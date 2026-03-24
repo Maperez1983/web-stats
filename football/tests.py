@@ -437,3 +437,56 @@ class PlayerDetailStatsFallbackTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Las estadísticas consolidadas no están disponibles temporalmente.')
         mocked_dashboard.assert_called_once()
+
+
+class AdminActionsTests(TestCase):
+    def setUp(self):
+        user_model = get_user_model()
+        self.user = user_model.objects.create_user(
+            username='adminactions',
+            email='adminactions@example.com',
+            password='pass-1234',
+            is_staff=True,
+        )
+        AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_ADMIN)
+        competition = Competition.objects.create(name='Liga Admin', slug='liga-admin', region='Andalucia')
+        season = Season.objects.create(competition=competition, name='2025/2026', is_current=True)
+        group = Group.objects.create(season=season, name='Grupo Admin', slug='grupo-admin')
+        self.team = Team.objects.create(name='Benagalbon', slug='benagalbon-admin', group=group, is_primary=True)
+        self.rival = Team.objects.create(name='Rival Admin', slug='rival-admin', group=group)
+        self.match = Match.objects.create(
+            season=season,
+            group=group,
+            home_team=self.team,
+            away_team=self.rival,
+            date=date(2026, 3, 24),
+        )
+
+    def test_actions_tab_renders_with_date_only_match(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse('admin-page'), {'tab': 'actions', 'match_id': self.match.id})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Partido a editar')
+
+    def test_actions_tab_saves_match_time_into_kickoff_field(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse('admin-page'),
+            {
+                'form_action': 'admin_match_save',
+                'active_tab': 'actions',
+                'match_id': self.match.id,
+                'opponent_name': self.rival.name,
+                'round': 'Jornada 10',
+                'location': 'Benagalbon',
+                'match_date': '2026-03-24',
+                'match_time': '18:30',
+            },
+        )
+
+        self.match.refresh_from_db()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.match.kickoff_time.isoformat(timespec='minutes'), '18:30')
