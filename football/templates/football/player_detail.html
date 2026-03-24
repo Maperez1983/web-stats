@@ -274,7 +274,7 @@
       {% include 'football/includes/dragon_nav.html' %}
       <header>
         <div>
-          <p style="margin:0;" class="subtle">Jugador · {{ player.team.name }}</p>
+          <p style="margin:0;" class="subtle">Jugador · {{ player.team.display_name }}</p>
           <h1>
             {{ player.name }}
             {% if has_active_injury %}
@@ -465,7 +465,7 @@
             </div>
             <div>
               <p class="general-season">Estadísticas {{ season_label }}</p>
-              <h3 class="general-team">{{ player.team.name }}</h3>
+              <h3 class="general-team">{{ player.team.display_name }}</h3>
               <p class="general-division">{{ division_label|default:'Categoría principal' }}</p>
             </div>
             <div class="general-score">
@@ -475,7 +475,7 @@
           </div>
           <div class="general-head" style="grid-template-columns: 1fr; margin-top:0.6rem;">
             <div class="general-crest">
-              <img src="{% static 'football/images/cdb-logo.png' %}" alt="Escudo {{ player.team.name }}" />
+              <img src="{% static 'football/images/cdb-logo.png' %}" alt="Escudo {{ player.team.display_name }}" />
             </div>
           </div>
           <div class="kpi-rings">

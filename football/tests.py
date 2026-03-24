@@ -490,3 +490,31 @@ class AdminActionsTests(TestCase):
         self.match.refresh_from_db()
         self.assertEqual(response.status_code, 200)
         self.assertEqual(self.match.kickoff_time.isoformat(timespec='minutes'), '18:30')
+
+
+class TeamDisplayNameTests(TestCase):
+    def test_display_name_prefers_short_name(self):
+        competition = Competition.objects.create(name='Liga Display', slug='liga-display', region='Andalucia')
+        season = Season.objects.create(competition=competition, name='2025/2026', is_current=True)
+        group = Group.objects.create(season=season, name='Grupo Display', slug='grupo-display')
+        team = Team.objects.create(
+            name='C.D. PIZARRA ATLÉTICO C.F.',
+            short_name='Pizarra',
+            slug='pizarra-display',
+            group=group,
+        )
+
+        self.assertEqual(team.display_name, 'Pizarra')
+
+    def test_display_name_falls_back_to_official_name(self):
+        competition = Competition.objects.create(name='Liga Display 2', slug='liga-display-2', region='Andalucia')
+        season = Season.objects.create(competition=competition, name='2026/2027', is_current=False)
+        group = Group.objects.create(season=season, name='Grupo Display 2', slug='grupo-display-2')
+        team = Team.objects.create(
+            name='LOJA C.D.',
+            short_name='',
+            slug='loja-display',
+            group=group,
+        )
+
+        self.assertEqual(team.display_name, 'LOJA C.D.')

@@ -71,6 +71,10 @@ class Team(models.Model):
     preferente_url = models.URLField(blank=True, help_text='URL del equipo en LaPreferente')
     is_primary = models.BooleanField(default=False, help_text='Marcar si es el equipo de Benagalbón')
 
+    @property
+    def display_name(self):
+        return (self.short_name or self.name or '').strip()
+
     def __str__(self):
         return self.name
 

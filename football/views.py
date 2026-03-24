@@ -1597,7 +1597,7 @@ def admin_page(request):
             'user_error': user_error,
             'invitation_links': invitation_links,
             'active_tab': active_tab,
-            'team_name': primary_team.name if primary_team else '',
+            'team_name': primary_team.display_name if primary_team else '',
             'primary_team_id': primary_team.id if primary_team else None,
             'users_segment': users_segment,
             'technical_users_count': len(technical_users),
@@ -1712,7 +1712,7 @@ def player_dashboard_page(request):
         'football/player_dashboard.html',
         {
             'player_stats': player_stats,
-            'team_name': primary_team.name,
+            'team_name': primary_team.display_name,
             'match_options': match_options,
             'selected_match': selected_match,
             'selected_match_id': selected_match_id,
@@ -2431,7 +2431,7 @@ def convocation_page(request):
         opponent_options.append(
             {
                 'name': team.name,
-                'short_name': team.short_name or team.name,
+                'short_name': team.display_name,
                 'location': field_map.get(key, ''),
             }
         )
@@ -2452,7 +2452,7 @@ def convocation_page(request):
         'football/convocation.html',
         {
             'players': players,
-            'team_name': primary_team.name,
+            'team_name': primary_team.display_name,
             'avatar_url': request.build_absolute_uri(static('football/images/player-avatar.svg')),
             'selected_player_ids_json': json.dumps(selected_player_ids),
             'injured_player_ids_json': json.dumps(
@@ -2681,7 +2681,7 @@ def convocation_pdf(request):
         rival_crest_src = ''
 
     context = {
-        'team_name': primary_team.name,
+        'team_name': primary_team.display_name,
         'team_full_name': primary_team.name,
         'round_label': convocation_record.round or 'Jornada por confirmar',
         'round_short': round_short,
@@ -3258,9 +3258,9 @@ def coach_role_trainer_page(request):
         match_events = match_events_map.get(match.id, [])
         metrics = _summarize_events(match_events)
         if match.home_team == primary_team:
-            opponent_name = match.away_team.name if match.away_team else 'Rival desconocido'
+            opponent_name = match.away_team.display_name if match.away_team else 'Rival desconocido'
         else:
-            opponent_name = match.home_team.name if match.home_team else 'Rival desconocido'
+            opponent_name = match.home_team.display_name if match.home_team else 'Rival desconocido'
         coach_match_rows.append(
             {
                 'match_id': match.id,
@@ -3379,7 +3379,7 @@ def coach_abp_board_page(request):
         'football/coach_abp_board.html',
         {
             'players': players,
-            'team_name': primary_team.name if primary_team else 'Equipo principal',
+            'team_name': primary_team.display_name if primary_team else 'Equipo principal',
         },
     )
 
@@ -3443,7 +3443,7 @@ def coach_roster_page(request):
         request,
         'football/coach_roster.html',
         {
-            'team_name': primary_team.name,
+            'team_name': primary_team.display_name,
             'players': players,
             'message': message,
             'error': error,
@@ -3479,7 +3479,7 @@ def initial_eleven_page(request):
         request,
         'football/coach_initial_eleven.html',
         {
-            'team_name': primary_team.name,
+            'team_name': primary_team.display_name,
             'convocation_record': convocation_record,
             'convocation_players': convocation_players,
             'lineup_seed_json': json.dumps(lineup_seed, ensure_ascii=False),
@@ -6824,7 +6824,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         request,
         'football/sessions_planner.html',
         {
-            'team_name': primary_team.name,
+            'team_name': primary_team.display_name,
             'feedback': feedback,
             'error': error,
             'planner_tables_ready': planner_tables_ready,
@@ -7140,7 +7140,7 @@ def fines_page(request):
         request,
         'football/fines.html',
         {
-            'team_name': primary_team.name,
+            'team_name': primary_team.display_name,
             'players': players,
             'fines': fines,
             'reason_choices': PlayerFine.REASON_CHOICES,
@@ -7488,7 +7488,7 @@ def manual_player_stats_page(request):
             request,
             'football/manual_player_stats.html',
             {
-                'team_name': primary_team.name,
+                'team_name': primary_team.display_name,
                 'season_name': season_display_name(season),
                 'rows': rows,
                 'message': message,
@@ -8984,9 +8984,9 @@ def compute_player_dashboard(primary_team):
                 'date': match.date.isoformat() if match.date else None,
                 'home': match.home_team == primary_team,
                 'opponent': (
-                    match.away_team.name
+                    match.away_team.display_name
                     if match.home_team == primary_team and match.away_team
-                    else match.home_team.name
+                    else match.home_team.display_name
                     if match.away_team == primary_team and match.home_team
                     else 'Rival desconocido'
                 ),
@@ -9223,9 +9223,9 @@ def compute_player_dashboard(primary_team):
                         'date': match.date.isoformat() if match.date else None,
                         'home': match.home_team == primary_team,
                         'opponent': (
-                            match.away_team.name
+                            match.away_team.display_name
                             if match.home_team == primary_team and match.away_team
-                            else match.home_team.name
+                            else match.home_team.display_name
                             if match.away_team == primary_team and match.home_team
                             else 'Rival desconocido'
                         ),

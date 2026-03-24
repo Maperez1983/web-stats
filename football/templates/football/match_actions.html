@@ -1528,7 +1528,7 @@
                   <select id="match-selector" name="match_id">
                     {% for match_option in match_selector_options %}
                     <option value="{{ match_option.id }}" {% if selected_match_id == match_option.id %}selected{% endif %}>
-                      #{{ match_option.id }} · {{ match_option.home_team.name|default:"-" }} vs {{ match_option.away_team.name|default:"-" }} · {{ match_option.date|date:"d/m/Y"|default:"Sin fecha" }}
+                      #{{ match_option.id }} · {{ match_option.home_team.display_name|default:"-" }} vs {{ match_option.away_team.display_name|default:"-" }} · {{ match_option.date|date:"d/m/Y"|default:"Sin fecha" }}
                     </option>
                     {% endfor %}
                   </select>

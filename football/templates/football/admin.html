@@ -299,7 +299,7 @@
           <input type="hidden" name="match_id" value="{{ selected_admin_match.id|default:'' }}" />
           <label>
             <span>Rival</span>
-            <input type="text" name="opponent_name" value="{% if selected_admin_match %}{% if selected_admin_match.home_team_id == primary_team_id %}{{ selected_admin_match.away_team.name }}{% else %}{{ selected_admin_match.home_team.name }}{% endif %}{% endif %}" required />
+            <input type="text" name="opponent_name" value="{% if selected_admin_match %}{% if selected_admin_match.home_team_id == primary_team_id %}{{ selected_admin_match.away_team.display_name }}{% else %}{{ selected_admin_match.home_team.display_name }}{% endif %}{% endif %}" required />
           </label>
           <label>
             <span>Jornada</span>
@@ -341,10 +341,10 @@
               <option
                 value="{{ match.id }}"
                 data-side="{% if match.home_team_id == primary_team_id %}home{% else %}away{% endif %}"
-                data-rival="{% if match.home_team_id == primary_team_id %}{{ match.away_team.name|default:''|escape }}{% else %}{{ match.home_team.name|default:''|escape }}{% endif %}"
+                data-rival="{% if match.home_team_id == primary_team_id %}{{ match.away_team.display_name|default:''|escape }}{% else %}{{ match.home_team.display_name|default:''|escape }}{% endif %}"
                 {% if selected_admin_match and selected_admin_match.id == match.id %}selected{% endif %}
               >
-                #{{ match.id }} · {{ match.home_team.name }} vs {{ match.away_team.name }} · {{ match.date|date:"d/m/Y"|default:"Sin fecha" }}{% if match.kickoff_time %} · {{ match.kickoff_time|time:"H:i" }}{% endif %}
+                #{{ match.id }} · {{ match.home_team.display_name }} vs {{ match.away_team.display_name }} · {{ match.date|date:"d/m/Y"|default:"Sin fecha" }}{% if match.kickoff_time %} · {{ match.kickoff_time|time:"H:i" }}{% endif %}
               </option>
               {% endfor %}
             </select>
