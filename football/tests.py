@@ -10,7 +10,7 @@ from django.utils import timezone
 from football.models import Competition, ConvocationRecord, Group, Match, Player, PlayerStatistic, Season, Team, UserInvitation
 from football.bootstrap import ensure_bootstrap_admin_from_env
 from football.healthchecks import run_system_healthcheck
-from football.manual_stats import get_manual_player_base_overrides, season_display_name
+from football.manual_stats import get_manual_player_base_overrides, save_manual_player_base_overrides, season_display_name
 from football.query_helpers import get_current_convocation_record, is_manual_sanction_active
 from football.models import AppUserRole
 from football.staff_briefing import build_weekly_staff_brief
@@ -356,3 +356,37 @@ class ManualStatsTests(TestCase):
 
     def test_season_display_name_falls_back_when_name_missing(self):
         self.assertEqual(season_display_name(self.season), 'Temporada actual')
+
+    def test_save_manual_stats_collapses_duplicate_null_match_rows(self):
+        PlayerStatistic.objects.create(
+            player=self.player,
+            season=self.season,
+            match=None,
+            name='manual_minutes',
+            context='manual-base',
+            value=120,
+        )
+        PlayerStatistic.objects.create(
+            player=self.player,
+            season=self.season,
+            match=None,
+            name='manual_minutes',
+            context='manual-base',
+            value=240,
+        )
+
+        save_manual_player_base_overrides(
+            player=self.player,
+            season=self.season,
+            values={'manual_minutes': 810},
+        )
+
+        rows = PlayerStatistic.objects.filter(
+            player=self.player,
+            season=self.season,
+            match=None,
+            name='manual_minutes',
+            context='manual-base',
+        )
+        self.assertEqual(rows.count(), 1)
+        self.assertEqual(int(rows.first().value), 810)

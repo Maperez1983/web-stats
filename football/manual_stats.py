@@ -75,11 +75,28 @@ def save_manual_player_base_overrides(*, player, season, values):
     if not player or not season:
         return
     for stat_name, stat_value in values.items():
-        PlayerStatistic.objects.update_or_create(
+        queryset = PlayerStatistic.objects.filter(
             player=player,
             season=season,
             match=None,
             name=stat_name,
             context='manual-base',
-            defaults={'value': _parse_int(stat_value) or 0},
         )
+        normalized_value = _parse_int(stat_value) or 0
+        stat = queryset.order_by('-id').first()
+        if stat:
+            duplicates = queryset.exclude(id=stat.id)
+            if duplicates.exists():
+                duplicates.delete()
+            if stat.value != normalized_value:
+                stat.value = normalized_value
+                stat.save(update_fields=['value'])
+        else:
+            PlayerStatistic.objects.create(
+                player=player,
+                season=season,
+                match=None,
+                name=stat_name,
+                context='manual-base',
+                value=normalized_value,
+            )

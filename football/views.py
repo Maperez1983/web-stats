@@ -7687,15 +7687,11 @@ def player_detail_page(request, player_id):
                         'manual_red_cards': _parse_int(request.POST.get('manual_red_cards')) or 0,
                     }
                     with transaction.atomic():
-                        for stat_name, stat_value in manual_values.items():
-                            PlayerStatistic.objects.update_or_create(
-                                player=player,
-                                season=season,
-                                match=None,
-                                name=stat_name,
-                                context='manual-base',
-                                defaults={'value': stat_value},
-                            )
+                        save_manual_player_base_overrides(
+                            player=player,
+                            season=season,
+                            values=manual_values,
+                        )
                 return redirect(f"{reverse('player-detail', args=[player.id])}?tab=general")
 
             if form_action == 'physical':
