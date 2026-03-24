@@ -350,7 +350,7 @@
       {% if coach_total_field_zones %}
       <section class="coach-map-wrap">
         <h3>Mapa de acciones del equipo (totales)</h3>
-        <p style="margin:0 0 0.6rem;color:rgba(226,232,240,0.75);">Total acciones acumuladas: <strong>{{ coach_total_actions_count }}</strong></p>
+        <p style="margin:0 0 0.6rem;color:rgba(226,232,240,0.75);">Acciones con zona válida: <strong>{{ coach_total_actions_count }}</strong></p>
         <div class="field-diagram">
           <img src="{% static 'football/campo-futbol.jpg' %}" alt="Campo de fútbol" />
           {% for zone in coach_total_field_zones %}

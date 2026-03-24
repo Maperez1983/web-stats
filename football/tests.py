@@ -7,7 +7,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from football.models import Competition, ConvocationRecord, Group, Match, MatchEvent, Player, PlayerStatistic, Season, Team, UserInvitation
+from football.models import Competition, ConvocationRecord, Group, Match, MatchEvent, Player, PlayerStatistic, Season, Team, TeamStanding, UserInvitation
 from football.bootstrap import ensure_bootstrap_admin_from_env
 from football.event_taxonomy import (
     PASS_KEYWORDS,
@@ -729,3 +729,82 @@ class PlayerDashboardViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'football/player_match_stats.html')
         self.assertContains(response, 'KPI de rendimiento')
+
+
+class CoachTrainerMetricsTests(TestCase):
+    def setUp(self):
+        competition = Competition.objects.create(name='Liga Coach', slug='liga-coach', region='Andalucia')
+        season = Season.objects.create(competition=competition, name='2025/2026', is_current=True)
+        group = Group.objects.create(season=season, name='Grupo Coach', slug='grupo-coach')
+        self.team = Team.objects.create(name='Benagalbon', slug='benagalbon-coach', group=group, is_primary=True)
+        self.rival = Team.objects.create(name='Rival Coach', slug='rival-coach', group=group)
+        self.match = Match.objects.create(
+            season=season,
+            group=group,
+            home_team=self.team,
+            away_team=self.rival,
+            round='24',
+            date=date(2026, 3, 22),
+        )
+        self.player = Player.objects.create(team=self.team, name='Ayala', position='Central')
+        PlayerStatistic.objects.create(
+            player=self.player,
+            season=season,
+            name='manual_yellow_cards',
+            value=3,
+            context='manual-base',
+        )
+        PlayerStatistic.objects.create(
+            player=self.player,
+            season=season,
+            name='manual_red_cards',
+            value=1,
+            context='manual-base',
+        )
+        TeamStanding.objects.create(
+            season=season,
+            group=group,
+            team=self.team,
+            position=5,
+            points=42,
+            goals_for=10,
+            goals_against=5,
+            played=5,
+        )
+        MatchEvent.objects.create(
+            match=self.match,
+            player=self.player,
+            event_type='Gol',
+            result='Gol',
+            zone='Ataque Centro',
+            tercio='Ataque',
+            minute=20,
+            period=1,
+            system='touch-field-final',
+            source_file='registro-acciones',
+        )
+        MatchEvent.objects.create(
+            match=self.match,
+            player=self.player,
+            event_type='Pase',
+            result='OK',
+            zone='Medio Centro',
+            tercio='Construcción',
+            minute=12,
+            period=1,
+            system='touch-field-final',
+            source_file='registro-acciones',
+        )
+
+    def test_trainer_page_uses_player_card_totals_for_cards(self):
+        response = self.client.get(reverse('coach-role-trainer'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Tarjetas totales')
+        self.assertContains(response, '>4<', html=False)
+
+    def test_trainer_page_map_note_uses_mapped_actions(self):
+        response = self.client.get(reverse('coach-role-trainer'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Acciones con zona válida')

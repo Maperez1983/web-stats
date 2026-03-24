@@ -3098,14 +3098,21 @@ def coach_role_trainer_page(request):
             group=primary_team.group,
             team=primary_team,
         ).first()
+    preferred_sources = preferred_event_source_by_match(primary_team) if primary_team else {}
     events = (
-        confirmed_events_queryset().filter(player__team=primary_team)
+        _filter_stats_events(
+            confirmed_events_queryset()
+            .filter(player__team=primary_team)
+            .select_related('player', 'match', 'match__home_team', 'match__away_team')
+            .order_by('match_id', 'minute', 'id'),
+            preferred_sources=preferred_sources,
+        )
         if primary_team
-        else MatchEvent.objects.none()
+        else []
     )
-    total_actions = events.count() if primary_team else 0
+    total_actions = len(events) if primary_team else 0
     total_matches = (
-        Match.objects.filter(Q(home_team=primary_team) | Q(away_team=primary_team)).count()
+        _team_match_queryset(primary_team).count()
         if primary_team
         else 0
     )
@@ -3113,8 +3120,6 @@ def coach_role_trainer_page(request):
     goals_against = standing.goals_against if standing else 0
     points = standing.points if standing else 0
     rank = standing.position if standing else 0
-    yellows = sum(1 for event in events if is_yellow_card_event(event.event_type, event.result, event.zone))
-    reds = sum(1 for event in events if is_red_card_event(event.event_type, event.result, event.zone))
     duel_classifications = [
         classify_duel_event(event.event_type, event.result, event.observation, event.zone)
         for event in events
@@ -3126,16 +3131,16 @@ def coach_role_trainer_page(request):
     success_rate = round((len(success_actions) / total_actions) * 100, 1) if total_actions else 0.0
     avg_actions = round(total_actions / total_matches, 1) if total_matches else 0.0
     avg_duels = round(len(duels) / total_matches, 1) if total_matches else 0.0
-    avg_yellows = round(yellows / total_matches, 2) if total_matches else 0.0
     season_played_matches = standing.played if standing and standing.played else total_matches
     goals_per_match = round((goals_for / season_played_matches), 2) if season_played_matches else 0.0
     goals_conceded_per_match = round((goals_against / season_played_matches), 2) if season_played_matches else 0.0
-    card_total = yellows + reds
-    cards_per_match = round((card_total / season_played_matches), 2) if season_played_matches else 0.0
     team_shots_attempts = sum(
         1 for event in events if is_shot_attempt_event(event.event_type, event.result, event.observation)
     )
-    team_shots_per_goal = shots_needed_per_goal(team_shots_attempts, goals_for)
+    event_goals_for = sum(
+        1 for event in events if is_goal_event(event.event_type, event.result, event.observation)
+    )
+    team_shots_per_goal = shots_needed_per_goal(team_shots_attempts, event_goals_for)
 
     def _summarize_events(event_list):
         total = len(event_list)
@@ -3185,18 +3190,16 @@ def coach_role_trainer_page(request):
             'passes_attempts': passes_attempts,
             'passes_completed': passes_completed,
             'zone_counts': zone_counts_local,
-            'field_zones': [
-                {
-                    **zone,
-                    'count': zone_counts_local.get(zone['key'], 0),
-                    'pct': round((zone_counts_local.get(zone['key'], 0) / total) * 100, 1) if total else 0,
-                }
-                for zone in FIELD_ZONES
-            ],
+            'field_zones': [],
         }
 
     # General overview based on player base stats (Universo/cache/manual) + actions dataset.
     player_cards = compute_player_cards(primary_team) if primary_team else []
+    yellows = sum(int(item.get('yellow_cards', 0) or 0) for item in player_cards)
+    reds = sum(int(item.get('red_cards', 0) or 0) for item in player_cards)
+    avg_yellows = round(yellows / season_played_matches, 2) if season_played_matches else 0.0
+    card_total = yellows + reds
+    cards_per_match = round((card_total / season_played_matches), 2) if season_played_matches else 0.0
     weekly_staff_brief = _build_weekly_staff_brief_context(primary_team, player_cards=player_cards)
     top_minutes_player = max(player_cards, key=lambda item: item.get('minutes', 0), default={})
     top_goals_player = max(player_cards, key=lambda item: item.get('goals', 0), default={})
@@ -3240,7 +3243,7 @@ def coach_role_trainer_page(request):
     total_injuries = 0
     if primary_team:
         injuries_qs = PlayerInjuryRecord.objects.filter(player__team=primary_team)
-        active_injuries = injuries_qs.filter(is_active=True).count()
+        active_injuries = sum(1 for injury in injuries_qs if is_injury_record_active(injury))
         total_injuries = injuries_qs.count()
 
     coach_general_stats = [
@@ -3304,10 +3307,21 @@ def coach_role_trainer_page(request):
         {'label': '% Duelo ganado', 'value': f'{duel_rate:.1f}%', 'pct': min(100, max(0, duel_rate)), 'suffix': ''},
     ]
 
-    team_events = list(events.select_related('match', 'match__home_team', 'match__away_team').order_by('match__date', 'id'))
+    team_events = list(events)
     totals_breakdown = _summarize_events(team_events)
+    total_mapped_actions = sum(int(count or 0) for count in totals_breakdown['zone_counts'].values())
+    totals_breakdown['field_zones'] = [
+        {
+            **zone,
+            'count': totals_breakdown['zone_counts'].get(zone['key'], 0),
+            'pct': round((totals_breakdown['zone_counts'].get(zone['key'], 0) / total_mapped_actions) * 100, 1)
+            if total_mapped_actions
+            else 0,
+        }
+        for zone in FIELD_ZONES
+    ]
     coach_total_field_zones = totals_breakdown['field_zones']
-    coach_total_actions_count = totals_breakdown['total_actions']
+    coach_total_actions_count = total_mapped_actions
     match_events_map = defaultdict(list)
     for event in team_events:
         if event.match_id:
@@ -8769,108 +8783,30 @@ def compute_player_metrics(primary_team):
 def compute_player_cards(primary_team):
     if not primary_team:
         return []
-
-    roster_cache = get_roster_stats_cache() or {}
-    manual_overrides = get_manual_player_base_overrides(primary_team)
-    universo_snapshot = load_universo_snapshot() or {}
-    universo_players = universo_snapshot.get('players') if isinstance(universo_snapshot, dict) else []
-    universo_map = {}
-    universo_by_number = {}
-    if isinstance(universo_players, list):
-        for item in universo_players:
-            if not isinstance(item, dict):
-                continue
-            team_name = str(item.get('team') or '').strip().lower()
-            if team_name and 'benagalbon' not in team_name:
-                continue
-            name = str(item.get('name') or '').strip()
-            if not name:
-                continue
-            key = normalize_player_name(name)
-            universo_map[key] = item
-            dorsal_raw = str(item.get('dorsal') or '').strip()
-            if dorsal_raw.isdigit():
-                universo_by_number[int(dorsal_raw)] = item
-
-    def _to_int(value):
-        try:
-            return int(str(value).strip())
-        except Exception:
-            return 0
-
-    def _find_universo_entry(player_obj):
-        key = normalize_player_name(player_obj.name)
-        direct = universo_map.get(key)
-        if direct:
-            return direct
-        if player_obj.number is not None and player_obj.number in universo_by_number:
-            return universo_by_number[player_obj.number]
-        target = key.replace('-', '')
-        for ukey, entry in universo_map.items():
-            compact = ukey.replace('-', '')
-            if target in compact or compact in target:
-                return entry
-        player_tokens = [token for token in target.split('-') if token]
-        for ukey, entry in universo_map.items():
-            compact_tokens = [token for token in ukey.replace('-', ' ').split() if token]
-            overlap = sum(1 for token in player_tokens if token in compact_tokens)
-            if overlap >= 2:
-                return entry
-        return {}
-
+    dashboard_rows = compute_player_dashboard(primary_team)
     cards = []
-    for player in Player.objects.filter(team=primary_team).order_by('name'):
-        photo_path = resolve_player_photo_static_path(player)
-        roster_entry = find_roster_entry(player.name, roster_cache) or {}
-        manual_entry = manual_overrides.get(player.id, {})
-        universo_entry = _find_universo_entry(player) or {}
-
-        pj = (
-            manual_entry.get('pj')
-            if manual_entry.get('pj') is not None
-            else universo_entry.get('pj')
-            if universo_entry.get('pj') not in (None, '')
-            else roster_entry.get('pj', 0)
-        )
-        minutes = (
-            manual_entry.get('minutes')
-            if manual_entry.get('minutes') is not None
-            else universo_entry.get('minutes')
-            if universo_entry.get('minutes') not in (None, '')
-            else roster_entry.get('minutes', 0)
-        )
-        goals = (
-            manual_entry.get('goals')
-            if manual_entry.get('goals') is not None
-            else universo_entry.get('goals')
-            if universo_entry.get('goals') not in (None, '')
-            else roster_entry.get('goals', 0)
-        )
-        yellow_cards = (
-            manual_entry.get('yellow_cards')
-            if manual_entry.get('yellow_cards') is not None
-            else universo_entry.get('yellow_cards')
-            if universo_entry.get('yellow_cards') not in (None, '')
-            else roster_entry.get('yellow_cards', 0)
-        )
-        red_cards = (
-            manual_entry.get('red_cards')
-            if manual_entry.get('red_cards') is not None
-            else universo_entry.get('red_cards')
-            if universo_entry.get('red_cards') not in (None, '')
-            else roster_entry.get('red_cards', 0)
-        )
-
+    for row in dashboard_rows:
         cards.append(
             {
-                'player_id': player.id,
-                'name': player.name,
-                'photo_url': static(photo_path) if photo_path else '',
-                'pj': _to_int(pj),
-                'minutes': _to_int(minutes),
-                'goals': _to_int(goals),
-                'yellow_cards': _to_int(yellow_cards),
-                'red_cards': _to_int(red_cards),
+                'player_id': row.get('player_id'),
+                'name': row.get('name'),
+                'photo_url': row.get('photo_url', ''),
+                'pj': int(row.get('pj', 0) or 0),
+                'minutes': int(row.get('minutes', 0) or 0),
+                'goals': int(row.get('goals', 0) or 0),
+                'yellow_cards': int(row.get('yellow_cards', 0) or 0),
+                'red_cards': int(row.get('red_cards', 0) or 0),
+                'total_actions': int(row.get('total_actions', 0) or 0),
+                'successes': int(row.get('successes', 0) or 0),
+                'shot_attempts': int(row.get('shot_attempts', 0) or 0),
+                'shots_on_target': int(row.get('shots_on_target', 0) or 0),
+                'duels_total': int(row.get('duels_total', 0) or 0),
+                'duels_won': int(row.get('duels_won', 0) or 0),
+                'success_rate': float(row.get('success_rate', 0) or 0),
+                'has_active_injury': bool(row.get('has_active_injury')),
+                'is_sanctioned': bool(row.get('is_sanctioned')),
+                'is_apercibido': bool(row.get('is_apercibido')),
+                'position': row.get('position') or '',
             }
         )
     return sorted(cards, key=lambda entry: (-entry['goals'], -entry['pj'], entry['name']))
