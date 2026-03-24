@@ -246,6 +246,7 @@ def is_goalkeeper_save_event(event_type, result=None, observation=None):
 def is_shot_attempt_event(event_type, result=None, observation=None):
     return (
         contains_keyword(event_type, SHOT_KEYWORDS)
+        or is_goal_event(event_type, result=result, observation=observation)
         or contains_keyword(observation, SHOT_KEYWORDS)
     )
 

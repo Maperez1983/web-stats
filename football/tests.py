@@ -586,6 +586,10 @@ class EventTaxonomyKpiTests(TestCase):
         self.assertTrue(contains_keyword('PASE A LA ESPALDA', PASS_KEYWORDS))
         self.assertTrue(contains_keyword('Cambio de orientación', PASS_KEYWORDS))
 
+    def test_goal_event_counts_as_shot_attempt_and_on_target(self):
+        self.assertTrue(is_shot_attempt_event('Gol', result='Gol'))
+        self.assertTrue(is_shot_on_target_event('Gol', result='Gol'))
+
 
 class ManualEventAggregationTests(TestCase):
     def setUp(self):
@@ -673,3 +677,55 @@ class ManualEventAggregationTests(TestCase):
 
         self.assertEqual(cards[0]['actions'], 3)
         self.assertEqual(cards[0]['successes'], 3)
+
+
+class PlayerDashboardViewTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username='dashboard-user',
+            email='dashboard@example.com',
+            password='pass-1234',
+        )
+        competition = Competition.objects.create(name='Liga View', slug='liga-view', region='Andalucia')
+        season = Season.objects.create(competition=competition, name='2025/2026', is_current=True)
+        group = Group.objects.create(season=season, name='Grupo View', slug='grupo-view')
+        self.team = Team.objects.create(name='Benagalbon', slug='benagalbon-view', group=group, is_primary=True)
+        self.rival = Team.objects.create(name='Rival View', slug='rival-view', group=group)
+        self.player = Player.objects.create(team=self.team, name='Hiago', number=18, position='Extremo')
+        self.match = Match.objects.create(
+            season=season,
+            group=group,
+            home_team=self.team,
+            away_team=self.rival,
+            round='24',
+            date=date(2026, 3, 22),
+        )
+        MatchEvent.objects.create(
+            match=self.match,
+            player=self.player,
+            event_type='Pase',
+            result='OK',
+            zone='Medio Centro',
+            tercio='Construcción',
+            minute=12,
+            period=1,
+            system='touch-field-final',
+            source_file='registro-acciones',
+        )
+
+    @patch('football.views.refresh_primary_roster_cache')
+    def test_player_dashboard_supports_match_filter(self, mocked_refresh):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('player-dashboard'), {'match': self.match.id})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Rival View')
+        self.assertContains(response, 'Acciones totales:')
+
+    def test_player_match_stats_uses_dedicated_template(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('player-match-stats', args=[self.player.id, self.match.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'football/player_match_stats.html')
+        self.assertContains(response, 'KPI de rendimiento')

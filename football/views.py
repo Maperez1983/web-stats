@@ -1706,10 +1706,57 @@ def player_dashboard_page(request):
     except Exception:
         pass
     player_stats = compute_player_dashboard(primary_team)
+    team_matches = list(
+        _team_match_queryset(primary_team)
+        .select_related('home_team', 'away_team')
+        .order_by('-date', '-id')
+    )
     match_options = []
+    for match in team_matches:
+        opponent = (
+            match.away_team.display_name
+            if match.home_team == primary_team and match.away_team
+            else match.home_team.display_name
+            if match.away_team == primary_team and match.home_team
+            else 'Rival desconocido'
+        )
+        label_parts = [match.round or f'Partido {match.id}', opponent]
+        if match.date:
+            label_parts.append(match.date.strftime('%d/%m/%Y'))
+        match_options.append({'id': match.id, 'label': ' · '.join(label_parts)})
+
+    selected_match_id = _parse_int(request.GET.get('match'))
     selected_match = None
-    selected_match_id = ''
     selected_match_total_actions = 0
+    if selected_match_id:
+        match_lookup = {match.id: match for match in team_matches}
+        selected_match_obj = match_lookup.get(selected_match_id)
+        if selected_match_obj:
+            opponent = (
+                selected_match_obj.away_team.display_name
+                if selected_match_obj.home_team == primary_team and selected_match_obj.away_team
+                else selected_match_obj.home_team.display_name
+                if selected_match_obj.away_team == primary_team and selected_match_obj.home_team
+                else 'Rival desconocido'
+            )
+            selected_match = {
+                'id': selected_match_obj.id,
+                'round': selected_match_obj.round or f'Partido {selected_match_obj.id}',
+                'opponent': opponent,
+                'date': selected_match_obj.date.strftime('%d/%m/%Y') if selected_match_obj.date else '',
+                'home': selected_match_obj.home_team == primary_team,
+            }
+            for player in player_stats:
+                match_entry = next(
+                    (item for item in player.get('matches', []) if int(item.get('match_id') or 0) == selected_match_obj.id),
+                    None,
+                )
+                actions = int(match_entry.get('actions', 0) or 0) if match_entry else 0
+                successes = int(match_entry.get('successes', 0) or 0) if match_entry else 0
+                player['match_actions'] = actions
+                player['match_successes'] = successes
+                player['match_success_rate'] = round((successes / actions) * 100, 1) if actions else 0
+                selected_match_total_actions += actions
 
     current_role = _get_user_role(request.user) or AppUserRole.ROLE_PLAYER
     role_labels = dict(AppUserRole.ROLE_CHOICES)
@@ -8122,6 +8169,20 @@ def player_match_stats_page(request, player_id, match_id):
         if stats['pass_attempts']
         else 0,
     }
+    stats['kpi_summary'] = [
+        {'label': 'Acciones', 'value': stats['total_actions']},
+        {'label': 'Éxitos', 'value': stats['successes']},
+        {'label': 'Tasa de éxito', 'value': f"{stats['success_rate']:.1f}%"},
+        {'label': 'Duelos', 'value': f"{stats['duels_won']}/{stats['duels_total']}"},
+        {'label': 'Duelos %', 'value': f"{stats['duel_rate']:.1f}%"},
+        {'label': 'Pases', 'value': f"{stats['passes_completed']}/{stats['pass_attempts']}"},
+        {'label': 'Pase %', 'value': f"{stats['passes']['accuracy']:.1f}%"},
+        {'label': 'Disparos', 'value': f"{stats['shots_on_target']}/{stats['shot_attempts']}"},
+        {'label': 'Tiro a puerta', 'value': f"{stats['shots']['accuracy']:.1f}%"},
+        {'label': 'Disparos/Gol', 'value': '-' if stats['shots']['per_goal'] is None else stats['shots']['per_goal']},
+        {'label': 'Goles', 'value': stats['goals']},
+        {'label': 'Asistencias', 'value': stats['assists']},
+    ]
     total_zone_actions = sum(int(count or 0) for count in stats['zone_counts'].values())
     stats['field_zones'] = [
         {
@@ -8137,16 +8198,16 @@ def player_match_stats_page(request, player_id, match_id):
         'round': match.round or 'Partido sin jornada',
         'date': match.date.strftime('%d/%m/%Y') if match.date else 'Fecha por definir',
         'location': match.location or 'Campo por confirmar',
-        'opponent': opponent.name if opponent else 'Rival desconocido',
+        'opponent': opponent.display_name if opponent else 'Rival desconocido',
         'home': match.home_team == primary_team,
     }
     return render(
         request,
-        'football/player_detail.html',
+        'football/player_match_stats.html',
         {
             'player': player,
             'stats': stats,
-            'match_context': match_payload,
+            'match': match_payload,
         },
     )
 

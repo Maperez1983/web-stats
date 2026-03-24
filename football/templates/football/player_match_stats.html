@@ -4,65 +4,128 @@
   <head>
     <meta charset="utf-8" />
     <title>{{ player.name }} · {{ match.opponent }}</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
     <style>
+      :root {
+        --bg: #eef4f8;
+        --panel: rgba(255, 255, 255, 0.92);
+        --line: rgba(14, 116, 144, 0.14);
+        --text: #1e293b;
+        --muted: #475569;
+        --accent: #0f7c93;
+      }
       body {
         font-family: 'Inter', sans-serif;
-        background: #030712;
-        color: #e2e8f0;
+        background: linear-gradient(180deg, #eff6fb, #dbe7f0);
+        color: var(--text);
         margin: 0;
         padding: 2rem;
       }
       .container {
-        max-width: 1000px;
+        max-width: 1220px;
         margin: 0 auto;
       }
       header {
         display: flex;
         justify-content: space-between;
         align-items: center;
+        gap: 1rem;
       }
       header h1 {
         margin: 0;
         font-size: 1.9rem;
       }
       header a {
-        color: #93c5fd;
+        color: var(--accent);
         text-decoration: none;
+        font-weight: 700;
+      }
+      .meta {
+        margin: 0;
+        color: var(--muted);
       }
       .card {
-        background: rgba(15, 23, 42, 0.9);
-        padding: 1rem 1.2rem;
-        border-radius: 1rem;
-        border: 1px solid rgba(148, 163, 184, 0.25);
+        background: var(--panel);
+        padding: 1.2rem 1.4rem;
+        border-radius: 1.2rem;
+        border: 1px solid var(--line);
         margin: 1rem 0;
+        box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
       }
-      .kpi-grid {
+      .overview {
+        padding: 1.8rem;
+      }
+      .overview-title {
+        text-align: center;
+        color: var(--accent);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        margin: 0 0 1.2rem;
+      }
+      .rings {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-        gap: 0.8rem;
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        gap: 1.4rem;
+        margin-bottom: 1.4rem;
       }
-      .kpi {
-        background: rgba(2, 6, 23, 0.6);
-        border: 1px solid rgba(148, 163, 184, 0.2);
-        border-radius: 0.9rem;
-        padding: 0.8rem;
+      .ring {
         text-align: center;
       }
-      .kpi .label {
-        font-size: 0.75rem;
-        letter-spacing: 0.08em;
-        color: rgba(148, 163, 184, 0.9);
+      .ring-chart {
+        --pct: 0;
+        width: 150px;
+        height: 150px;
+        margin: 0 auto 0.6rem;
+        border-radius: 999px;
+        display: grid;
+        place-items: center;
+        background:
+          radial-gradient(circle at center, rgba(255,255,255,0.95) 0 56px, transparent 57px),
+          conic-gradient(var(--accent) calc(var(--pct) * 1%), #d8dee9 0);
       }
-      .kpi .value {
-        font-size: 1.4rem;
+      .ring-value {
+        font-size: 1.2rem;
+        font-weight: 800;
+        color: #0f172a;
+      }
+      .ring-label {
+        font-size: 0.95rem;
         font-weight: 700;
-        margin-top: 0.2rem;
+        color: var(--muted);
+      }
+      .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 0.9rem;
+      }
+      .summary-item {
+        background: rgba(255, 255, 255, 0.8);
+        border: 1px solid rgba(15, 124, 147, 0.16);
+        border-radius: 1rem;
+        padding: 1rem;
+        text-align: center;
+      }
+      .summary-item .label {
+        font-size: 0.78rem;
+        color: var(--muted);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .summary-item .value {
+        margin-top: 0.25rem;
+        font-size: 1.15rem;
+        font-weight: 800;
+        color: #0f172a;
+      }
+      .section-title {
+        margin: 0 0 0.8rem;
+        color: #0f172a;
       }
       .heatmap-row.field-surface-row {
         position: relative;
         padding: 0.8rem;
-        border-radius: 0;
-        border: 1px solid rgba(148, 163, 184, 0.25);
+        border-radius: 1rem;
+        border: 1px solid var(--line);
         background: #0b1b12;
         overflow: hidden;
       }
@@ -117,36 +180,54 @@
       {% include 'football/includes/dragon_nav.html' %}
       <header>
         <div>
-          <p style="margin:0;color:#94a3b8;">Resumen individual del partido</p>
+          <p class="meta">Resumen individual del partido</p>
           <h1>{{ player.name }} · {{ match.opponent }}</h1>
-          <p style="margin:0;color:#94a3b8;">{{ match.date }} · {{ match.location }} · Jornada {{ match.round }}</p>
+          <p class="meta">{{ match.date }} · {{ match.location }} · Jornada {{ match.round }}</p>
         </div>
         <a href="{% url 'player-detail' player.id %}">← Volver al jugador</a>
       </header>
 
-      <section class="card">
-        <div class="kpi-grid">
-          <div class="kpi">
-            <span class="label">Acciones</span>
-            <span class="value">{{ stats.total_actions }}</span>
-          </div>
-          <div class="kpi">
-            <span class="label">Éxito</span>
-            <span class="value">{{ stats.success_rate }}%</span>
-          </div>
-          <div class="kpi">
-            <span class="label">Goles</span>
-            <span class="value">{{ stats.goals }}</span>
-          </div>
-          <div class="kpi">
-            <span class="label">Tarjetas</span>
-            <span class="value">{{ stats.yellow_cards }}/{{ stats.red_cards }}</span>
-          </div>
+      <section class="card overview">
+        <h2 class="overview-title">KPI de rendimiento</h2>
+        <div class="rings">
+          <article class="ring">
+            <div class="ring-chart" style="--pct: {{ stats.success_rate|default:0 }};">
+              <span class="ring-value">{{ stats.success_rate|default:0|floatformat:-1 }}%</span>
+            </div>
+            <div class="ring-label">Tasa de éxito</div>
+          </article>
+          <article class="ring">
+            <div class="ring-chart" style="--pct: {{ stats.duel_rate|default:0 }};">
+              <span class="ring-value">{{ stats.duel_rate|default:0|floatformat:-1 }}%</span>
+            </div>
+            <div class="ring-label">Duelos ganados</div>
+          </article>
+          <article class="ring">
+            <div class="ring-chart" style="--pct: {{ stats.passes.accuracy|default:0 }};">
+              <span class="ring-value">{{ stats.passes.accuracy|default:0|floatformat:-1 }}%</span>
+            </div>
+            <div class="ring-label">Precisión de pase</div>
+          </article>
+          <article class="ring">
+            <div class="ring-chart" style="--pct: {{ stats.shots.accuracy|default:0 }};">
+              <span class="ring-value">{{ stats.shots.accuracy|default:0|floatformat:-1 }}%</span>
+            </div>
+            <div class="ring-label">Tiro a puerta</div>
+          </article>
+        </div>
+        <div class="summary-grid">
+          {% for item in stats.kpi_summary %}
+          <article class="summary-item">
+            <div class="label">{{ item.label }}</div>
+            <div class="value">{{ item.value }}</div>
+          </article>
+          {% endfor %}
         </div>
       </section>
 
       <section class="card">
-        <h2 style="margin:0 0 0.6rem;">Zonas con más acciones</h2>
+        <h2 class="section-title">Mapa de calor</h2>
+        <p class="meta">Distribución de acciones con zona válida en el campo.</p>
         <div class="heatmap-row field-surface-row">
           <div class="heatmap-card">
             <div class="field-diagram">
