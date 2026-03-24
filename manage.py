@@ -3,9 +3,12 @@
 import os
 import sys
 
+from webstats.runtime_env import configure_native_runtime
+
 
 def main():
     """Run administrative tasks."""
+    configure_native_runtime()
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'webstats.settings')
     try:
         from django.core.management import execute_from_command_line

@@ -1080,6 +1080,8 @@
                       <button type="button" class="secondary" id="create-board-back-btn">Bajar capa</button>
                       <button type="button" class="secondary" id="create-board-undo-btn">Deshacer</button>
                       <button type="button" class="secondary" id="create-board-clear-btn">Limpiar</button>
+                      <button type="button" class="secondary" id="create-board-recover-btn">Recuperar draft</button>
+                      <button type="button" class="secondary" id="create-board-discard-btn">Borrar draft</button>
                       <label style="display:flex; align-items:center; gap:0.35rem; text-transform:none; letter-spacing:0.02em; font-size:0.7rem;">
                         Color
                         <input id="create-board-color" type="color" value="#e11d48" style="height:30px; width:42px; padding:0.15rem;" />
@@ -1646,6 +1648,8 @@
     {{ tactical_player_catalog|json_script:"tpad-players-catalog" }}
     <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
+    <script src="{% static 'football/js/tactical_pad_shared.js' %}"></script>
+    <script src="{% static 'football/js/sessions_tactical_pad.js' %}"></script>
     <script>
       (() => {
         const cards = document.querySelectorAll('.task.task-clickable[data-detail-url]');
@@ -1711,6 +1715,11 @@
               }
             });
           });
+        }
+
+        if (window.initSessionsTacticalPad) {
+          window.initSessionsTacticalPad();
+          return;
         }
 
         const createForm = document.querySelector('form input[name="planner_action"][value="create_draw_task"]')?.closest('form');
