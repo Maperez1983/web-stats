@@ -417,6 +417,20 @@ def calculate_importance_score(minutes, total_possible_minutes, successes, max_s
     }
 
 
+def calculate_influence_score(minutes, successes, max_successes_per90):
+    minute_value = max(0, int(minutes or 0))
+    successes_value = max(0, int(successes or 0))
+    max_success_per90_value = max(0, float(max_successes_per90 or 0))
+
+    successes_per90 = round((successes_value / minute_value) * 90, 2) if minute_value else 0
+    influence_pct = round((successes_per90 / max_success_per90_value) * 100, 1) if max_success_per90_value else 0
+    influence_pct = max(0, min(influence_pct, 100))
+    return {
+        'successes_per90': successes_per90,
+        'influence_score': influence_pct,
+    }
+
+
 def min_or_none(current, candidate):
     if candidate is None:
         return current

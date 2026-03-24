@@ -92,6 +92,7 @@ from football.event_taxonomy import (
     SHOT_KEYWORDS,
     STANDARD_TERCIO_LABELS,
     build_smart_kpis,
+    calculate_influence_score,
     calculate_importance_score,
     categorize_position,
     classify_duel_event,
@@ -7768,6 +7769,8 @@ def player_detail_page(request, player_id):
             'passes': {'completed': 0, 'attempts': 0, 'accuracy': 0},
             'shots': {'on_target': 0, 'attempts': 0, 'accuracy': 0, 'per_goal': None},
             'importance_score': 0,
+            'influence_score': 0,
+            'successes_per90': 0,
         }
         active_tab = (request.GET.get('tab') or 'general').strip().lower()
         physical_metrics = player.physical_metrics.all()[:20]
@@ -7843,6 +7846,7 @@ def player_detail_page(request, player_id):
         minute_ratio = round((minutes / max_minutes) * 100, 1) if max_minutes else 0
         minute_ratio = max(0, min(minute_ratio, 100))
         importance_score = float(stats_source.get('importance_score') or 0)
+        influence_score = float(stats_source.get('influence_score') or 0)
 
         standings_rows = _serialize_universo_standings(load_universo_snapshot())
         if not standings_rows and primary_team.group:
@@ -7887,6 +7891,7 @@ def player_detail_page(request, player_id):
             {'label': 'Media goles/partido', 'value': goals_per_match, 'pct': round(min(goals_per_match * 100, 100), 1)},
             {'label': '% participación', 'value': participation_pct, 'pct': participation_pct},
             {'label': 'Importancia', 'value': importance_score, 'pct': importance_score},
+            {'label': 'Influencia', 'value': influence_score, 'pct': influence_score},
             {'label': 'Amarillas', 'value': yellow_cards, 'pct': round(min(yellow_cards * 15, 100), 1)},
             {'label': 'Rojas', 'value': red_cards, 'pct': round(min(red_cards * 30, 100), 1)},
             {'label': 'Doble amarilla', 'value': second_yellow_cards, 'pct': round(min(second_yellow_cards * 30, 100), 1)},
@@ -9305,6 +9310,13 @@ def compute_player_dashboard(primary_team):
     today = timezone.localdate()
     total_possible_minutes = max(0, competition_total_rounds) * 90
     max_successes = max((int(stats.get('successes', 0) or 0) for stats in player_stats.values()), default=0)
+    max_successes_per90 = 0.0
+    for stats in player_stats.values():
+        minutes_value = int(stats.get('minutes', 0) or 0)
+        successes_value = int(stats.get('successes', 0) or 0)
+        if minutes_value <= 0:
+            continue
+        max_successes_per90 = max(max_successes_per90, round((successes_value / minutes_value) * 90, 2))
     for stats in player_stats.values():
         matches = sorted(
             stats['matches'].values(),
@@ -9428,6 +9440,13 @@ def compute_player_dashboard(primary_team):
         merged['availability_pct'] = importance['availability_pct']
         merged['success_volume_pct'] = importance['success_volume_pct']
         merged['importance_score'] = importance['importance_score']
+        influence = calculate_influence_score(
+            minutes=merged.get('minutes', 0),
+            successes=merged.get('successes', 0),
+            max_successes_per90=max_successes_per90,
+        )
+        merged['successes_per90'] = influence['successes_per90']
+        merged['influence_score'] = influence['influence_score']
         profile, profile_label, smart_kpis = build_smart_kpis(stats)
         merged['profile'] = profile
         merged['profile_label'] = profile_label

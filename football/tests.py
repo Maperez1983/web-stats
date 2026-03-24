@@ -10,6 +10,7 @@ from django.utils import timezone
 from football.models import Competition, ConvocationRecord, Group, Match, MatchEvent, Player, PlayerStatistic, Season, Team, UserInvitation
 from football.bootstrap import ensure_bootstrap_admin_from_env
 from football.event_taxonomy import (
+    calculate_influence_score,
     calculate_importance_score,
     is_shot_attempt_event,
     is_shot_on_target_event,
@@ -549,6 +550,16 @@ class EventTaxonomyKpiTests(TestCase):
         self.assertEqual(payload['availability_pct'], 50.0)
         self.assertEqual(payload['success_volume_pct'], 80.0)
         self.assertEqual(payload['importance_score'], 62.0)
+
+    def test_influence_score_rewards_successes_in_fewer_minutes(self):
+        payload = calculate_influence_score(
+            minutes=450,
+            successes=40,
+            max_successes_per90=8,
+        )
+
+        self.assertEqual(payload['successes_per90'], 8.0)
+        self.assertEqual(payload['influence_score'], 100.0)
 
 
 class ManualEventAggregationTests(TestCase):
