@@ -41,6 +41,19 @@ Verificacion rapida del entorno:
 python3 manage.py system_healthcheck
 ```
 
+## Bootstrap admin opcional
+
+En entornos como Render, si quieres asegurar un admin tras `migrate`, puedes definir:
+
+```
+BOOTSTRAP_ADMIN_USERNAME=mperez
+BOOTSTRAP_ADMIN_PASSWORD=una-clave-segura
+BOOTSTRAP_ADMIN_EMAIL=tu@email.com
+BOOTSTRAP_ADMIN_RESET_PASSWORD=false
+```
+
+Con eso la app creara el usuario si no existe. Si ya existe y quieres forzar una nueva clave, cambia `BOOTSTRAP_ADMIN_RESET_PASSWORD=true` durante un despliegue.
+
 ## Dependencias nativas opcionales
 
 Algunos modulos avanzados requieren dependencias del sistema:

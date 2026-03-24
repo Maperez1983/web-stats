@@ -7,10 +7,14 @@ from django.urls import reverse
 from django.utils import timezone
 
 from football.models import Competition, ConvocationRecord, Group, Match, Player, Season, Team, UserInvitation
+from football.bootstrap import ensure_bootstrap_admin_from_env
 from football.healthchecks import run_system_healthcheck
 from football.query_helpers import get_current_convocation_record, is_manual_sanction_active
+from football.models import AppUserRole
 from football.staff_briefing import build_weekly_staff_brief
 from football.views import SCRAPE_LOCK_KEY
+from django.test import override_settings
+from unittest.mock import patch
 
 
 class WriteEndpointAuthTests(TestCase):
@@ -144,3 +148,49 @@ class HealthcheckTests(TestCase):
         self.assertIn('paths', report)
         self.assertIn('dependencies', report)
         self.assertIn('static_root', report['paths'])
+
+
+class BootstrapAdminTests(TestCase):
+    @patch.dict(
+        'os.environ',
+        {
+            'BOOTSTRAP_ADMIN_USERNAME': 'mperez',
+            'BOOTSTRAP_ADMIN_PASSWORD': 'TmpPass2026!',
+            'BOOTSTRAP_ADMIN_EMAIL': 'mperez@example.com',
+            'BOOTSTRAP_ADMIN_RESET_PASSWORD': 'false',
+        },
+        clear=False,
+    )
+    def test_bootstrap_admin_creates_admin_user(self):
+        user = ensure_bootstrap_admin_from_env()
+
+        self.assertIsNotNone(user)
+        self.assertEqual(user.username, 'mperez')
+        self.assertTrue(user.is_active)
+        self.assertTrue(user.is_staff)
+        self.assertTrue(user.is_superuser)
+        self.assertTrue(user.check_password('TmpPass2026!'))
+        self.assertEqual(user.app_role.role, AppUserRole.ROLE_ADMIN)
+
+    @patch.dict(
+        'os.environ',
+        {
+            'BOOTSTRAP_ADMIN_USERNAME': 'mperez',
+            'BOOTSTRAP_ADMIN_PASSWORD': 'NuevaTmp2026!',
+            'BOOTSTRAP_ADMIN_EMAIL': 'mperez@example.com',
+            'BOOTSTRAP_ADMIN_RESET_PASSWORD': 'true',
+        },
+        clear=False,
+    )
+    def test_bootstrap_admin_can_reset_existing_password(self):
+        user_model = get_user_model()
+        user = user_model.objects.create_user(
+            username='mperez',
+            password='old-pass',
+            is_active=True,
+        )
+
+        ensure_bootstrap_admin_from_env()
+
+        user.refresh_from_db()
+        self.assertTrue(user.check_password('NuevaTmp2026!'))
