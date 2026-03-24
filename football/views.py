@@ -126,6 +126,7 @@ from football.services import (
     refresh_primary_roster_cache,
     _parse_int,
 )
+from football.staff_briefing import build_weekly_staff_brief
 
 SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "import_from_rfef.py"
 MANAGE_PY_DIR = SCRIPT_PATH.parents[1]
@@ -1754,6 +1755,7 @@ def player_dashboard_page(request):
 
 def coach_overview_page(request):
     sources = list(ScrapeSource.objects.filter(is_active=True))
+    primary_team = Team.objects.filter(is_primary=True).first()
     technical_roles = {
         AppUserRole.ROLE_COACH,
         AppUserRole.ROLE_FITNESS,
@@ -1791,6 +1793,31 @@ def coach_overview_page(request):
 
     if not technical_members:
         technical_members = ['Sin miembros técnicos configurados en Admin']
+    weekly_brief = None
+    if primary_team:
+        active_match = get_active_match(primary_team)
+        current_convocation = get_current_convocation_record(primary_team, match=active_match)
+        player_cards = compute_player_cards(primary_team)
+        all_player_ids = [item.get('player_id') for item in player_cards if item.get('player_id')]
+        active_injury_ids = get_active_injury_player_ids(all_player_ids)
+        sanctioned_player_ids = get_sanctioned_player_ids_from_previous_round(
+            primary_team,
+            reference_match=active_match,
+        )
+        next_match_payload = load_preferred_next_match_payload()
+        if not next_match_payload and primary_team.group:
+            next_match_payload = get_next_match(primary_team, primary_team.group)
+        weekly_brief = build_weekly_staff_brief(
+            player_cards=player_cards,
+            active_injury_ids=active_injury_ids,
+            sanctioned_player_ids=sanctioned_player_ids,
+            convocation_player_ids=(
+                current_convocation.players.values_list('id', flat=True)
+                if current_convocation
+                else []
+            ),
+            next_match=next_match_payload,
+        )
     summary = {
         'entrainers': technical_members,
         'rival': [
@@ -1805,6 +1832,7 @@ def coach_overview_page(request):
         {
             'sources': sources,
             'summary': summary,
+            'weekly_brief': weekly_brief,
         },
     )
 
@@ -3184,6 +3212,31 @@ def coach_role_trainer_page(request):
 
     # General overview based on player base stats (Universo/cache/manual) + actions dataset.
     player_cards = compute_player_cards(primary_team) if primary_team else []
+    weekly_staff_brief = None
+    if primary_team:
+        active_match = get_active_match(primary_team)
+        current_convocation = get_current_convocation_record(primary_team, match=active_match)
+        active_injury_ids = get_active_injury_player_ids(
+            [item.get('player_id') for item in player_cards if item.get('player_id')]
+        )
+        sanctioned_player_ids = get_sanctioned_player_ids_from_previous_round(
+            primary_team,
+            reference_match=active_match,
+        )
+        next_match_payload = load_preferred_next_match_payload()
+        if not next_match_payload and primary_team.group:
+            next_match_payload = get_next_match(primary_team, primary_team.group)
+        weekly_staff_brief = build_weekly_staff_brief(
+            player_cards=player_cards,
+            active_injury_ids=active_injury_ids,
+            sanctioned_player_ids=sanctioned_player_ids,
+            convocation_player_ids=(
+                current_convocation.players.values_list('id', flat=True)
+                if current_convocation
+                else []
+            ),
+            next_match=next_match_payload,
+        )
     top_minutes_player = max(player_cards, key=lambda item: item.get('minutes', 0), default={})
     top_goals_player = max(player_cards, key=lambda item: item.get('goals', 0), default={})
     top_yellow_player = max(player_cards, key=lambda item: item.get('yellow_cards', 0), default={})
@@ -3350,6 +3403,7 @@ def coach_role_trainer_page(request):
             'coach_match_rows': coach_match_rows,
             'coach_selected_match': selected_match_row,
             'coach_selected_match_metrics': selected_match_metrics,
+            'weekly_staff_brief': weekly_staff_brief,
         },
     )
 

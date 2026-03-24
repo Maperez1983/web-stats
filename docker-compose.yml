@@ -14,6 +14,8 @@ services:
   web:
     build: .
     environment:
+      DEBUG: "true"
+      SECRET_KEY: "docker-dev-secret-key"
       DATABASE_URL: postgres://webstats:webstats@db:5432/webstats
       DJANGO_SETTINGS_MODULE: webstats.settings
     ports:

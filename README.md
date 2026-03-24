@@ -12,18 +12,38 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-2) Inicializar proyecto Django:
+2) Configurar entorno local:
+
+```
+cp .env.example .env
+export DEBUG=true
+export SECRET_KEY=dev-insecure-change-me
+```
+
+3) Inicializar proyecto Django:
 
 ```
 ./scripts/init_project.sh
 ```
 
-3) Migraciones y servidor:
+4) Migraciones y servidor:
 
 ```
 python3 manage.py migrate
 python3 manage.py runserver
 ```
+
+Si no exportas `DEBUG=true` o una `SECRET_KEY`, Django no arrancara.
+
+## Dependencias nativas opcionales
+
+Algunos modulos avanzados requieren dependencias del sistema:
+
+- `weasyprint`: generacion de PDFs
+- `pytesseract`: OCR
+- `playwright`: login/captura browser para Universo RFAF
+
+Si esas dependencias no estan disponibles, la app sigue funcionando en partes del flujo, pero algunas exportaciones o capturas pueden degradarse.
 
 ## Arranque con Docker
 

@@ -49,6 +49,36 @@
         gap: 1.25rem;
         grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       }
+      .brief {
+        margin-top: 1rem;
+        display: grid;
+        gap: 0.9rem;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      }
+      .brief-card {
+        background: rgba(15, 23, 42, 0.8);
+        border-radius: 18px;
+        padding: 1.1rem;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .brief-card h3 {
+        margin: 0 0 0.6rem;
+        font-size: 0.82rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: rgba(250, 204, 21, 0.92);
+      }
+      .brief-card p,
+      .brief-card li {
+        color: rgba(226, 232, 240, 0.84);
+      }
+      .brief-card ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 0.45rem;
+      }
       .card-link {
         text-decoration: none;
         color: inherit;
@@ -137,6 +167,37 @@
             </div>
           </a>
         </div>
+        {% if weekly_brief %}
+        <section class="brief">
+          <div class="brief-card">
+            <h3>Parte semanal</h3>
+            <p><strong>{{ weekly_brief.headline }}</strong></p>
+            <p>{{ weekly_brief.match.round }} · {{ weekly_brief.match.date }} · {{ weekly_brief.match.time }}</p>
+            <p>{{ weekly_brief.match.location }}</p>
+          </div>
+          <div class="brief-card">
+            <h3>Disponibilidad</h3>
+            <ul>
+              {% for item in weekly_brief.availability %}
+              <li>{{ item.label }}: <strong>{{ item.value }}</strong></li>
+              {% endfor %}
+            </ul>
+          </div>
+          <div class="brief-card">
+            <h3>Alertas staff</h3>
+            <ul>
+              {% for line in weekly_brief.alerts %}
+              <li>{{ line }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+          <div class="brief-card">
+            <h3>11 probable</h3>
+            <p>{{ weekly_brief.probable_eleven_count }} jugadores identificables.</p>
+            <p>{{ weekly_brief.probable_eleven_preview }}</p>
+          </div>
+        </section>
+        {% endif %}
       </article>
     </div>
   </body>
