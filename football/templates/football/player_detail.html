@@ -449,7 +449,7 @@
           {% else %}
             <span class="pill warn">No convocado</span>
           {% endif %}
-          {% if player.injury %}
+          {% if has_active_injury %}
             <span class="pill warn">Lesión activa</span>
           {% endif %}
           {% if has_manual_sanction %}

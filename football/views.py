@@ -151,6 +151,7 @@ from football.query_helpers import (
     get_previous_match,
     get_requested_match,
     get_sanctioned_player_ids_from_previous_round,
+    is_injury_record_active,
     is_manual_sanction_active,
     parse_match_date_from_ui,
 )
@@ -7666,7 +7667,7 @@ def player_detail_page(request, player_id):
                         if injury_return_date != same_record.return_date:
                             same_record.return_date = injury_return_date
                             updated_fields.append('return_date')
-                        should_be_active = not bool(injury_return_date)
+                        should_be_active = not injury_return_date or injury_return_date > timezone.localdate()
                         if same_record.is_active != should_be_active:
                             same_record.is_active = should_be_active
                             updated_fields.append('is_active')
@@ -7682,7 +7683,7 @@ def player_detail_page(request, player_id):
                             injury_date=injury_date,
                             return_date=injury_return_date,
                             notes=injury_notes,
-                            is_active=not bool(injury_return_date),
+                            is_active=(not injury_return_date or injury_return_date > timezone.localdate()),
                         )
                     if active_injury and active_injury.injury.lower() != injury_name.lower():
                         active_injury.is_active = False
@@ -7780,7 +7781,7 @@ def player_detail_page(request, player_id):
         latest_injury_record = injury_records[0] if injury_records else None
         has_active_injury = player.id in get_active_injury_player_ids([player.id])
         if not has_active_injury and latest_injury_record:
-            has_active_injury = bool(latest_injury_record.is_active)
+            has_active_injury = is_injury_record_active(latest_injury_record)
         has_manual_sanction = is_manual_sanction_active(player)
         player_photo_url = resolve_player_photo_url(request, player)
         fines_summary = {

@@ -18,7 +18,7 @@ from football.event_taxonomy import (
 )
 from football.healthchecks import run_system_healthcheck
 from football.manual_stats import get_manual_player_base_overrides, save_manual_player_base_overrides, season_display_name
-from football.query_helpers import get_current_convocation_record, is_manual_sanction_active
+from football.query_helpers import get_active_injury_player_ids, get_current_convocation_record, is_injury_record_active, is_manual_sanction_active
 from football.models import AppUserRole
 from football.services import find_roster_entry
 from football.staff_briefing import build_weekly_staff_brief
@@ -148,6 +148,18 @@ class QueryHelperTests(TestCase):
         )
 
         self.assertFalse(is_manual_sanction_active(player, today=timezone.localdate()))
+
+    def test_injury_record_helper_ignores_records_with_past_return_date(self):
+        player = Player.objects.create(team=self.team, name='Jugador Dos')
+        record = player.injury_records.create(
+            injury='Sobrecarga',
+            injury_date=timezone.localdate() - timedelta(days=7),
+            return_date=timezone.localdate() - timedelta(days=1),
+            is_active=True,
+        )
+
+        self.assertFalse(is_injury_record_active(record, today=timezone.localdate()))
+        self.assertFalse(get_active_injury_player_ids([player.id]))
 
 
 class HealthcheckTests(TestCase):

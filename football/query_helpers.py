@@ -45,6 +45,16 @@ def _team_name_signature(value):
     return tuple(sorted(tokens))
 
 
+def is_injury_record_active(record, today=None):
+    if not record or not getattr(record, 'is_active', False):
+        return False
+    reference_day = today or timezone.localdate()
+    return_date = getattr(record, 'return_date', None)
+    if return_date and return_date <= reference_day:
+        return False
+    return True
+
+
 def get_active_injury_player_ids(player_ids):
     normalized_ids = [int(pid) for pid in set(player_ids or []) if pid]
     if not normalized_ids:
@@ -53,6 +63,7 @@ def get_active_injury_player_ids(player_ids):
         return set(
             PlayerInjuryRecord.objects
             .filter(player_id__in=normalized_ids, is_active=True)
+            .filter(Q(return_date__isnull=True) | Q(return_date__gt=timezone.localdate()))
             .values_list('player_id', flat=True)
         )
     except (OperationalError, ProgrammingError):
