@@ -61,6 +61,7 @@ except Exception:  # pragma: no cover
 from football.models import (
     Match,
     MatchEvent,
+    MatchReport,
     Player,
     PlayerInjuryRecord,
     PlayerCommunication,
@@ -6983,6 +6984,25 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 'tasks_count': tasks_count_map.get(int(micro.id), 0),
             }
         )
+    tactical_player_catalog = []
+    try:
+        squad_players = (
+            Player.objects
+            .filter(team=primary_team, is_active=True)
+            .order_by('number', 'name')[:60]
+        )
+        for player in squad_players:
+            tactical_player_catalog.append(
+                {
+                    'id': int(player.id),
+                    'name': str(player.name or '').strip(),
+                    'number': _parse_int(player.number) or '',
+                    'position': str(player.position or '').strip(),
+                    'photo_url': str(resolve_player_photo_url(request, player) or '').strip(),
+                }
+            )
+    except Exception:
+        tactical_player_catalog = []
 
     return render(
         request,
@@ -7024,6 +7044,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             'task_methodology_choices': TASK_METHODOLOGY_CHOICES,
             'task_complexity_choices': TASK_COMPLEXITY_CHOICES,
             'task_constraint_choices': TASK_CONSTRAINT_CHOICES,
+            'tactical_player_catalog': tactical_player_catalog,
         },
     )
 
@@ -8479,6 +8500,8 @@ def _team_match_queryset(primary_team):
     if isinstance(cached_extra_ids, dict):
         event_match_ids = cached_extra_ids.get('events') or []
         convocation_match_ids = cached_extra_ids.get('convocations') or []
+        player_stat_match_ids = cached_extra_ids.get('player_stats') or []
+        report_match_ids = cached_extra_ids.get('reports') or []
     else:
         event_match_ids = list(
             MatchEvent.objects
@@ -8492,15 +8515,36 @@ def _team_match_queryset(primary_team):
             .values_list('match_id', flat=True)
             .distinct()
         )
+        player_stat_match_ids = list(
+            PlayerStatistic.objects
+            .filter(player__team=primary_team, match_id__isnull=False)
+            .values_list('match_id', flat=True)
+            .distinct()
+        )
+        report_match_ids = list(
+            MatchReport.objects
+            .filter(match_id__isnull=False)
+            .values_list('match_id', flat=True)
+            .distinct()
+        )
         cache.set(
             extra_match_cache_key,
-            {'events': event_match_ids, 'convocations': convocation_match_ids},
+            {
+                'events': event_match_ids,
+                'convocations': convocation_match_ids,
+                'player_stats': player_stat_match_ids,
+                'reports': report_match_ids,
+            },
             60 * 5,
         )
     if event_match_ids:
         direct_filter = direct_filter | Q(id__in=event_match_ids)
     if convocation_match_ids:
         direct_filter = direct_filter | Q(id__in=convocation_match_ids)
+    if player_stat_match_ids:
+        direct_filter = direct_filter | Q(id__in=player_stat_match_ids)
+    if report_match_ids:
+        direct_filter = direct_filter | Q(id__in=report_match_ids)
 
     return Match.objects.filter(direct_filter).select_related('home_team', 'away_team').distinct()
 
@@ -9444,6 +9488,53 @@ def compute_player_dashboard(primary_team):
                 'age': _parse_int(universo_entry.get('age')) or roster_entry.get('age'),
                 'has_events': base_pj > 0,
             }
+
+    # Ensure imported matches tied to PlayerStatistic are visible in player panels
+    # even when no MatchEvent was captured for those fixtures.
+    player_stat_matches = (
+        PlayerStatistic.objects
+        .filter(player__team=primary_team, match__isnull=False)
+        .select_related('player', 'match', 'match__home_team', 'match__away_team')
+        .values('player_id', 'match_id', 'match__round', 'match__date', 'match__home_team_id', 'match__away_team_id', 'match__home_team__name', 'match__away_team__name')
+        .distinct()
+    )
+    for row in player_stat_matches:
+        player_id = _parse_int(row.get('player_id'))
+        match_id = _parse_int(row.get('match_id'))
+        if not player_id or not match_id:
+            continue
+        stats = player_stats.get(player_id)
+        if not stats:
+            continue
+        home_team_id = _parse_int(row.get('match__home_team_id'))
+        away_team_id = _parse_int(row.get('match__away_team_id'))
+        if home_team_id == int(primary_team.id):
+            opponent = str(row.get('match__away_team__name') or '').strip() or 'Rival desconocido'
+            is_home = True
+        elif away_team_id == int(primary_team.id):
+            opponent = str(row.get('match__home_team__name') or '').strip() or 'Rival desconocido'
+            is_home = False
+        else:
+            # Imported fixtures may be detached from primary team FK.
+            opponent = (
+                str(row.get('match__away_team__name') or '').strip()
+                or str(row.get('match__home_team__name') or '').strip()
+                or 'Rival desconocido'
+            )
+            is_home = False
+        stats['matches'].setdefault(
+            match_id,
+            {
+                'match_id': match_id,
+                'round': str(row.get('match__round') or '').strip() or 'Partido sin jornada',
+                'date': row.get('match__date').isoformat() if row.get('match__date') else None,
+                'home': is_home,
+                'opponent': opponent,
+                'actions': 0,
+                'successes': 0,
+                'success_rate': 0,
+            },
+        )
 
     lineup_matches = {
         match.id: match

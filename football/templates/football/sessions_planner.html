@@ -325,6 +325,125 @@
         font-size: 0.68rem;
         padding: 0.3rem 0.34rem;
       }
+      .create-resource-btn.is-hidden {
+        display: none;
+      }
+      .create-catalog-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.32rem;
+        margin-bottom: 0.5rem;
+      }
+      .create-catalog-tab {
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.06);
+        color: #dbeafe;
+        font-size: 0.64rem;
+        padding: 0.24rem 0.56rem;
+        cursor: pointer;
+      }
+      .create-catalog-tab.is-active {
+        border-color: rgba(34, 211, 238, 0.75);
+        background: rgba(8, 145, 178, 0.32);
+      }
+      .create-team-config {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0.35rem;
+        margin-bottom: 0.5rem;
+      }
+      .create-team-row {
+        display: grid;
+        grid-template-columns: 1fr auto auto;
+        gap: 0.25rem;
+        align-items: center;
+      }
+      .create-team-row input[type="text"] {
+        width: 100%;
+        min-width: 0;
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.06);
+        color: #e2e8f0;
+        padding: 0.28rem 0.42rem;
+        font-size: 0.66rem;
+      }
+      .create-team-row input[type="color"] {
+        width: 30px;
+        height: 30px;
+        border: none;
+        padding: 0;
+        background: transparent;
+        cursor: pointer;
+      }
+      .create-player-pool {
+        margin-top: 0.5rem;
+      }
+      .create-player-pool-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.45rem;
+        margin-bottom: 0.25rem;
+      }
+      .create-player-pool-head strong {
+        font-size: 0.66rem;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+      .create-player-pool-head input {
+        flex: 1;
+        min-width: 110px;
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.06);
+        color: #e2e8f0;
+        padding: 0.24rem 0.38rem;
+        font-size: 0.64rem;
+      }
+      .create-player-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+        gap: 0.28rem;
+        max-height: 180px;
+        overflow: auto;
+        padding-right: 0.08rem;
+      }
+      .create-player-chip {
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 9px;
+        background: rgba(255, 255, 255, 0.05);
+        color: #e2e8f0;
+        padding: 0.2rem;
+        cursor: pointer;
+        display: grid;
+        grid-template-columns: 24px 1fr;
+        gap: 0.24rem;
+        align-items: center;
+        text-align: left;
+      }
+      .create-player-chip img,
+      .create-player-chip .fallback {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        object-fit: cover;
+        display: block;
+        border: 1px solid rgba(255, 255, 255, 0.4);
+      }
+      .create-player-chip .fallback {
+        display: grid;
+        place-items: center;
+        font-size: 0.56rem;
+        background: rgba(15, 23, 42, 0.9);
+      }
+      .create-player-chip .meta {
+        margin: 0;
+        font-size: 0.58rem;
+        line-height: 1.2;
+        color: #e2e8f0;
+      }
       .create-iconify-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
@@ -972,16 +1091,59 @@
                     </div>
                     <div class="tpad-stage">
                       <div class="create-resource">
-                        <p class="create-resource-title">Biblioteca de recursos</p>
+                        <p class="create-resource-title">Catálogo visual</p>
+                        <div class="create-team-config">
+                          <div class="create-team-row">
+                            <input type="text" id="tpad-local-name" value="LOCAL" maxlength="14" />
+                            <input type="color" id="tpad-local-color-primary" value="#0f7ec7" />
+                            <input type="color" id="tpad-local-color-secondary" value="#f8fafc" />
+                          </div>
+                          <div class="create-team-row">
+                            <input type="text" id="tpad-rival-name" value="RIVAL" maxlength="14" />
+                            <input type="color" id="tpad-rival-color-primary" value="#f59e0b" />
+                            <input type="color" id="tpad-rival-color-secondary" value="#f8fafc" />
+                          </div>
+                        </div>
+                        <div class="create-catalog-tabs" id="create-catalog-tabs">
+                          <button type="button" class="create-catalog-tab is-active" data-cat="all">Todo</button>
+                          <button type="button" class="create-catalog-tab" data-cat="players">Jugadores</button>
+                          <button type="button" class="create-catalog-tab" data-cat="material">Material</button>
+                          <button type="button" class="create-catalog-tab" data-cat="zones">Zonas</button>
+                          <button type="button" class="create-catalog-tab" data-cat="draw">Trazos</button>
+                        </div>
                         <div class="create-resource-grid" id="create-resource-grid">
-                          <button type="button" class="create-resource-btn" data-resource="player">Jugador</button>
-                          <button type="button" class="create-resource-btn" data-resource="goalkeeper">Portero</button>
-                          <button type="button" class="create-resource-btn" data-resource="ball">Balón</button>
-                          <button type="button" class="create-resource-btn" data-resource="cone">Cono</button>
-                          <button type="button" class="create-resource-btn" data-resource="mini_goal">Mini portería</button>
-                          <button type="button" class="create-resource-btn" data-resource="zone">Zona</button>
-                          <button type="button" class="create-resource-btn" data-resource="arrow">Flecha</button>
-                          <button type="button" class="create-resource-btn" data-resource="line">Línea</button>
+                          <button type="button" class="create-resource-btn" data-cat="players" data-resource="player" data-team="local">Jugador local</button>
+                          <button type="button" class="create-resource-btn" data-cat="players" data-resource="player" data-team="rival">Jugador rival</button>
+                          <button type="button" class="create-resource-btn" data-cat="players" data-resource="goalkeeper" data-team="local">Portero local</button>
+                          <button type="button" class="create-resource-btn" data-cat="players" data-resource="goalkeeper" data-team="rival">Portero rival</button>
+                          <button type="button" class="create-resource-btn" data-cat="material" data-resource="ball" data-variant="classic">Balón clásico</button>
+                          <button type="button" class="create-resource-btn" data-cat="material" data-resource="ball" data-variant="flat">Balón plano</button>
+                          <button type="button" class="create-resource-btn" data-cat="material" data-resource="cone" data-variant="training">Cono alto</button>
+                          <button type="button" class="create-resource-btn" data-cat="material" data-resource="cone" data-variant="disc">Cono disco</button>
+                          <button type="button" class="create-resource-btn" data-cat="material" data-resource="cone" data-variant="pica">Pica</button>
+                          <button type="button" class="create-resource-btn" data-cat="material" data-resource="mini_goal" data-variant="mini">Mini portería</button>
+                          <button type="button" class="create-resource-btn" data-cat="material" data-resource="mini_goal" data-variant="full">Portería 11</button>
+                          <button type="button" class="create-resource-btn" data-cat="zones" data-resource="zone" data-variant="rect">Zona rectangular</button>
+                          <button type="button" class="create-resource-btn" data-cat="zones" data-resource="zone" data-variant="circle">Zona circular</button>
+                          <button type="button" class="create-resource-btn" data-cat="zones" data-resource="zone" data-variant="diamond">Zona rombo</button>
+                          <button type="button" class="create-resource-btn" data-cat="draw" data-resource="arrow" data-variant="straight">Flecha recta</button>
+                          <button type="button" class="create-resource-btn" data-cat="draw" data-resource="arrow" data-variant="curve">Flecha curva</button>
+                          <button type="button" class="create-resource-btn" data-cat="draw" data-resource="line" data-variant="solid">Línea sólida</button>
+                          <button type="button" class="create-resource-btn" data-cat="draw" data-resource="line" data-variant="dash">Línea discontinua</button>
+                        </div>
+                        <div class="create-player-pool">
+                          <div class="create-player-pool-head">
+                            <strong>Repositorio local</strong>
+                            <input id="tpad-local-search" type="text" placeholder="Buscar jugador..." />
+                          </div>
+                          <div class="create-player-grid" id="tpad-local-players-grid"></div>
+                        </div>
+                        <div class="create-player-pool">
+                          <div class="create-player-pool-head">
+                            <strong>Repositorio rival</strong>
+                            <input id="tpad-rival-search" type="text" placeholder="Buscar rival..." />
+                          </div>
+                          <div class="create-player-grid" id="tpad-rival-players-grid"></div>
                         </div>
                         <p class="create-resource-title" style="margin-top:0.55rem;">Iconos</p>
                         <input id="create-iconify-search" type="text" placeholder="Buscar icono..." />
@@ -1481,6 +1643,7 @@
       {% endif %}
     </main>
     {{ task_templates|json_script:"task-templates-data" }}
+    {{ tactical_player_catalog|json_script:"tpad-players-catalog" }}
     <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
     <script>
@@ -1570,9 +1733,41 @@
         const snapBtn = document.getElementById('create-board-snap-btn');
         const layerList = document.getElementById('create-layers-list');
         const resourceGrid = document.getElementById('create-resource-grid');
+        const resourceButtons = Array.from(document.querySelectorAll('#create-resource-grid .create-resource-btn'));
+        const catalogTabs = Array.from(document.querySelectorAll('#create-catalog-tabs [data-cat]'));
         const iconifyGrid = document.getElementById('create-iconify-grid');
         const iconifySearch = document.getElementById('create-iconify-search');
+        const localPlayersGrid = document.getElementById('tpad-local-players-grid');
+        const rivalPlayersGrid = document.getElementById('tpad-rival-players-grid');
+        const localSearchInput = document.getElementById('tpad-local-search');
+        const rivalSearchInput = document.getElementById('tpad-rival-search');
+        const localNameInput = document.getElementById('tpad-local-name');
+        const rivalNameInput = document.getElementById('tpad-rival-name');
+        const localPrimaryInput = document.getElementById('tpad-local-color-primary');
+        const localSecondaryInput = document.getElementById('tpad-local-color-secondary');
+        const rivalPrimaryInput = document.getElementById('tpad-rival-color-primary');
+        const rivalSecondaryInput = document.getElementById('tpad-rival-color-secondary');
+        const playerCatalogNode = document.getElementById('tpad-players-catalog');
+        let tacticalPlayers = [];
+        try {
+          tacticalPlayers = JSON.parse(playerCatalogNode?.textContent || '[]');
+        } catch (error) {
+          tacticalPlayers = [];
+        }
+        if (!Array.isArray(tacticalPlayers) || !tacticalPlayers.length) {
+          tacticalPlayers = Array.from({ length: 23 }).map((_, index) => ({
+            id: index + 1,
+            name: `Jugador ${index + 1}`,
+            number: index + 1,
+            position: '',
+            photo_url: '',
+          }));
+        }
         const boardShell = document.getElementById('create-board-shell');
+        const teamChips = boardShell ? {
+          local: boardShell.querySelector('.tpad-team-chip.left'),
+          rival: boardShell.querySelector('.tpad-team-chip.right'),
+        } : { local: null, rival: null };
         const toolsBtn = document.getElementById('tpad-tools-btn');
         const menuBtn = document.getElementById('tpad-menu-btn');
         const dockBoardBtn = document.getElementById('tpad-board-btn');
@@ -1609,10 +1804,55 @@
         let currentFieldTheme = 'classic';
         let currentFieldCamera = 'full';
         let currentFieldPreset = 'full_pitch';
+        let currentCatalogCategory = 'all';
+        const teamPalette = {
+          local: { name: 'LOCAL', primary: '#0f7ec7', secondary: '#f8fafc' },
+          rival: { name: 'RIVAL', primary: '#f59e0b', secondary: '#f8fafc' },
+        };
         const setStatus = (text, isError = false) => {
           if (!statusEl) return;
           statusEl.textContent = text;
           statusEl.style.color = isError ? '#fecaca' : 'rgba(225, 236, 255, 0.8)';
+        };
+        const normalizeHex = (value, fallback) => {
+          const raw = String(value || '').trim();
+          return /^#[0-9a-fA-F]{6}$/.test(raw) ? raw : fallback;
+        };
+        const safeText = (value, fallback = '') => String(value || '').trim() || fallback;
+        const teamStyle = (key) => {
+          const data = key === 'rival' ? teamPalette.rival : teamPalette.local;
+          return {
+            name: safeText(data.name, key === 'rival' ? 'RIVAL' : 'LOCAL'),
+            primary: normalizeHex(data.primary, key === 'rival' ? '#f59e0b' : '#0f7ec7'),
+            secondary: normalizeHex(data.secondary, '#f8fafc'),
+          };
+        };
+        const updateTeamChips = () => {
+          const local = teamStyle('local');
+          const rival = teamStyle('rival');
+          if (teamChips.local) {
+            teamChips.local.dataset.team = (local.name || 'L').slice(0, 1).toUpperCase();
+            const span = teamChips.local.querySelector('span');
+            if (span) span.textContent = local.name;
+            teamChips.local.style.background = `linear-gradient(180deg, ${local.primary}, #0f172a)`;
+            teamChips.local.style.borderColor = `${local.secondary}80`;
+          }
+          if (teamChips.rival) {
+            teamChips.rival.dataset.team = (rival.name || 'R').slice(0, 1).toUpperCase();
+            const span = teamChips.rival.querySelector('span');
+            if (span) span.textContent = rival.name;
+            teamChips.rival.style.background = `linear-gradient(180deg, ${rival.primary}, #0f172a)`;
+            teamChips.rival.style.borderColor = `${rival.secondary}80`;
+          }
+        };
+        const applyCatalogFilter = (cat) => {
+          currentCatalogCategory = String(cat || 'all');
+          catalogTabs.forEach((tab) => tab.classList.toggle('is-active', String(tab.dataset.cat || 'all') === currentCatalogCategory));
+          resourceButtons.forEach((btn) => {
+            const btnCat = String(btn.dataset.cat || 'all');
+            const hidden = currentCatalogCategory !== 'all' && btnCat !== currentCatalogCategory;
+            btn.classList.toggle('is-hidden', hidden);
+          });
         };
         const setToolsOpen = (open) => {
           if (!boardShell) return;
@@ -2087,28 +2327,145 @@
           setStatus(drawMode ? 'Modo dibujo activo.' : 'Modo selección activo.');
           setActiveTool(drawMode ? toolDrawBtn : toolSelectBtn);
         };
-        const addResource = (kind) => {
+        const addPlayerToken = (profile = {}, teamKey = 'local', role = 'player') => {
+          const team = teamStyle(teamKey);
           const baseLeft = 180 + Math.floor(Math.random() * 180);
           const baseTop = 130 + Math.floor(Math.random() * 140);
+          const rawNumber = safeText(profile.number, role === 'goalkeeper' ? 'GK' : '');
+          const number = rawNumber ? String(rawNumber).slice(0, 3) : '';
+          const rawName = safeText(profile.name, team.name);
+          const shortName = rawName.split(/\s+/).map((piece) => piece[0] || '').join('').slice(0, 2).toUpperCase() || rawName.slice(0, 2).toUpperCase();
+          const photoUrl = safeText(profile.photo_url || profile.photo, '');
+          const radius = role === 'goalkeeper' ? 24 : 20;
+          const buildToken = (photoImage = null) => {
+            const parts = [];
+            const tokenCircle = new fabric.Circle({
+              radius,
+              fill: team.primary,
+              stroke: team.secondary,
+              strokeWidth: 2.2,
+              shadow: 'rgba(2,6,23,0.36) 0 3px 10px',
+            });
+            parts.push(tokenCircle);
+            if (photoImage) {
+              photoImage.set({
+                originX: 'center',
+                originY: 'center',
+                left: 0,
+                top: 0,
+              });
+              const diameter = radius * 1.65;
+              photoImage.scaleToWidth(diameter);
+              photoImage.clipPath = new fabric.Circle({ radius: radius * 0.78, originX: 'center', originY: 'center', left: 0, top: 0 });
+              parts.push(photoImage);
+            }
+            if (!photoImage) {
+              parts.push(new fabric.Text(shortName, {
+                fontSize: Math.max(10, Math.round(radius * 0.72)),
+                fill: team.secondary,
+                fontWeight: '700',
+                originX: 'center',
+                originY: 'center',
+                left: 0,
+                top: 0,
+              }));
+            }
+            if (number) {
+              parts.push(new fabric.Text(number, {
+                fontSize: 10,
+                fill: '#ffffff',
+                backgroundColor: 'rgba(15,23,42,0.82)',
+                fontWeight: '700',
+                originX: 'center',
+                originY: 'center',
+                left: 0,
+                top: radius + 10,
+              }));
+            }
+            const group = new fabric.Group(parts, { left: baseLeft, top: baseTop });
+            group.set({
+              data: {
+                kind: role,
+                team: teamKey,
+                playerId: profile.id || '',
+                playerName: rawName,
+              },
+            });
+            canvas.add(group);
+            canvas.setActiveObject(group);
+            canvas.renderAll();
+            pushHistory();
+            refreshLayerList();
+            setStatus(`${role === 'goalkeeper' ? 'Portero' : 'Jugador'} ${rawName} añadido.`);
+          };
+          if (photoUrl) {
+            fabric.Image.fromURL(
+              photoUrl,
+              (img) => buildToken(img || null),
+              { crossOrigin: 'anonymous' }
+            );
+            return;
+          }
+          buildToken(null);
+        };
+        const addResource = (kind, options = {}) => {
+          const baseLeft = 180 + Math.floor(Math.random() * 180);
+          const baseTop = 130 + Math.floor(Math.random() * 140);
+          const variant = String(options.variant || '').trim().toLowerCase();
+          const teamKey = String(options.team || 'local').trim().toLowerCase() === 'rival' ? 'rival' : 'local';
           let item = null;
           if (kind === 'player') {
-            item = new fabric.Circle({ left: baseLeft, top: baseTop, radius: 18, fill: '#0f172a', stroke: '#ffffff', strokeWidth: 2 });
+            addPlayerToken(options.player || {}, teamKey, 'player');
+            return;
           } else if (kind === 'goalkeeper') {
-            item = new fabric.Circle({ left: baseLeft, top: baseTop, radius: 18, fill: '#dc2626', stroke: '#ffffff', strokeWidth: 2 });
+            addPlayerToken(options.player || {}, teamKey, 'goalkeeper');
+            return;
           } else if (kind === 'ball') {
-            item = new fabric.Circle({ left: baseLeft, top: baseTop, radius: 10, fill: '#ffffff', stroke: '#0f172a', strokeWidth: 2 });
+            if (variant === 'flat') {
+              item = new fabric.Circle({ left: baseLeft, top: baseTop, radius: 9, fill: '#f8fafc', stroke: '#0f172a', strokeWidth: 1.3 });
+            } else {
+              item = new fabric.Circle({ left: baseLeft, top: baseTop, radius: 10, fill: '#ffffff', stroke: '#0f172a', strokeWidth: 2 });
+            }
           } else if (kind === 'cone') {
-            item = new fabric.Triangle({ left: baseLeft, top: baseTop, width: 26, height: 26, fill: '#f97316' });
+            if (variant === 'disc') {
+              item = new fabric.Circle({ left: baseLeft, top: baseTop, radius: 8, fill: '#fb923c', stroke: '#7c2d12', strokeWidth: 1.8 });
+            } else if (variant === 'pica') {
+              const stick = new fabric.Rect({ left: 0, top: 0, width: 4, height: 38, fill: '#facc15', originX: 'center', originY: 'center' });
+              const base = new fabric.Triangle({ left: 0, top: 17, width: 16, height: 16, fill: '#f97316', originX: 'center', originY: 'center' });
+              item = new fabric.Group([stick, base], { left: baseLeft, top: baseTop });
+            } else {
+              item = new fabric.Triangle({ left: baseLeft, top: baseTop, width: 26, height: 26, fill: '#f97316' });
+            }
           } else if (kind === 'zone') {
-            item = new fabric.Rect({ left: baseLeft, top: baseTop, width: 130, height: 86, fill: 'rgba(14,165,233,0.18)', stroke: '#0ea5e9', strokeWidth: 2 });
+            if (variant === 'circle') {
+              item = new fabric.Circle({ left: baseLeft, top: baseTop, radius: 46, fill: 'rgba(14,165,233,0.18)', stroke: '#0ea5e9', strokeWidth: 2 });
+            } else if (variant === 'diamond') {
+              item = new fabric.Rect({ left: baseLeft, top: baseTop, width: 96, height: 96, fill: 'rgba(14,165,233,0.16)', stroke: '#0ea5e9', strokeWidth: 2, angle: 45 });
+            } else {
+              item = new fabric.Rect({ left: baseLeft, top: baseTop, width: 130, height: 86, fill: 'rgba(14,165,233,0.18)', stroke: '#0ea5e9', strokeWidth: 2 });
+            }
           } else if (kind === 'mini_goal') {
-            item = new fabric.Rect({ left: baseLeft, top: baseTop, width: 52, height: 26, fill: 'transparent', stroke: '#f8fafc', strokeWidth: 2 });
+            if (variant === 'full') {
+              item = new fabric.Rect({ left: baseLeft, top: baseTop, width: 82, height: 42, fill: 'transparent', stroke: '#f8fafc', strokeWidth: 2.4 });
+            } else {
+              item = new fabric.Rect({ left: baseLeft, top: baseTop, width: 52, height: 26, fill: 'transparent', stroke: '#f8fafc', strokeWidth: 2 });
+            }
           } else if (kind === 'line') {
-            item = new fabric.Rect({ left: baseLeft, top: baseTop, width: 100, height: 2, fill: '#f8fafc' });
+            if (variant === 'dash') {
+              item = new fabric.Line([0, 0, 120, 0], { left: baseLeft, top: baseTop, stroke: '#f8fafc', strokeWidth: 3, strokeDashArray: [10, 7] });
+            } else {
+              item = new fabric.Rect({ left: baseLeft, top: baseTop, width: 100, height: 2, fill: '#f8fafc' });
+            }
           } else if (kind === 'arrow') {
-            const line = new fabric.Line([0, 0, 100, 38], { stroke: '#0ea5e9', strokeWidth: 4 });
-            const head = new fabric.Triangle({ left: 92, top: 29, width: 18, height: 18, angle: 120, fill: '#0ea5e9' });
-            item = new fabric.Group([line, head], { left: baseLeft, top: baseTop });
+            if (variant === 'curve') {
+              const path = new fabric.Path('M 0 50 Q 55 0 120 40', { stroke: '#0ea5e9', fill: '', strokeWidth: 4 });
+              const head = new fabric.Triangle({ left: 108, top: 31, width: 16, height: 16, angle: 112, fill: '#0ea5e9' });
+              item = new fabric.Group([path, head], { left: baseLeft, top: baseTop });
+            } else {
+              const line = new fabric.Line([0, 0, 100, 38], { stroke: '#0ea5e9', strokeWidth: 4 });
+              const head = new fabric.Triangle({ left: 92, top: 29, width: 18, height: 18, angle: 120, fill: '#0ea5e9' });
+              item = new fabric.Group([line, head], { left: baseLeft, top: baseTop });
+            }
           }
           if (!item) return;
           canvas.add(item);
@@ -2383,10 +2740,75 @@
           if (dockFullBtn) dockFullBtn.classList.toggle('is-active', active);
           setTimeout(() => fitCanvas(), 120);
         });
+        const buildPlayerChip = (player, teamKey = 'local') => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'create-player-chip';
+          button.dataset.playerName = safeText(player.name, '');
+          button.dataset.playerNumber = safeText(player.number, '');
+          const photo = safeText(player.photo_url, '');
+          const side = document.createElement(photo ? 'img' : 'div');
+          if (photo) {
+            side.src = photo;
+            side.alt = safeText(player.name, 'Jugador');
+            side.loading = 'lazy';
+          } else {
+            side.className = 'fallback';
+            side.textContent = (safeText(player.name, 'J') || 'J').slice(0, 1).toUpperCase();
+          }
+          const meta = document.createElement('p');
+          meta.className = 'meta';
+          meta.textContent = `#${safeText(player.number, '--')} ${safeText(player.name, 'Jugador')}`;
+          button.appendChild(side);
+          button.appendChild(meta);
+          button.addEventListener('click', () => addResource('player', { team: teamKey, player }));
+          return button;
+        };
+        const renderPlayerRepos = () => {
+          if (localPlayersGrid) {
+            localPlayersGrid.innerHTML = '';
+            tacticalPlayers.forEach((player) => localPlayersGrid.appendChild(buildPlayerChip(player, 'local')));
+          }
+          if (rivalPlayersGrid) {
+            rivalPlayersGrid.innerHTML = '';
+            tacticalPlayers.forEach((player) => {
+              const rivalProfile = { ...player, id: `r${player.id || ''}`, photo_url: '' };
+              rivalPlayersGrid.appendChild(buildPlayerChip(rivalProfile, 'rival'));
+            });
+          }
+        };
+        const filterRepo = (grid, term) => {
+          if (!grid) return;
+          const query = String(term || '').toLowerCase().trim();
+          grid.querySelectorAll('.create-player-chip').forEach((node) => {
+            const text = `${node.dataset.playerName || ''} ${node.dataset.playerNumber || ''}`.toLowerCase();
+            node.style.display = !query || text.includes(query) ? '' : 'none';
+          });
+        };
+        catalogTabs.forEach((tab) => {
+          tab.addEventListener('click', () => applyCatalogFilter(tab.dataset.cat || 'all'));
+        });
+        localSearchInput?.addEventListener('input', () => filterRepo(localPlayersGrid, localSearchInput.value));
+        rivalSearchInput?.addEventListener('input', () => filterRepo(rivalPlayersGrid, rivalSearchInput.value));
+        const syncTeamPaletteFromInputs = () => {
+          teamPalette.local.name = safeText(localNameInput?.value, 'LOCAL');
+          teamPalette.local.primary = normalizeHex(localPrimaryInput?.value, '#0f7ec7');
+          teamPalette.local.secondary = normalizeHex(localSecondaryInput?.value, '#f8fafc');
+          teamPalette.rival.name = safeText(rivalNameInput?.value, 'RIVAL');
+          teamPalette.rival.primary = normalizeHex(rivalPrimaryInput?.value, '#f59e0b');
+          teamPalette.rival.secondary = normalizeHex(rivalSecondaryInput?.value, '#f8fafc');
+          updateTeamChips();
+        };
+        [localNameInput, rivalNameInput, localPrimaryInput, localSecondaryInput, rivalPrimaryInput, rivalSecondaryInput]
+          .filter(Boolean)
+          .forEach((node) => node.addEventListener('input', syncTeamPaletteFromInputs));
         resourceGrid?.addEventListener('click', (event) => {
           const btn = event.target.closest('[data-resource]');
           if (!btn) return;
-          addResource(btn.dataset.resource);
+          addResource(btn.dataset.resource, {
+            variant: btn.dataset.variant || '',
+            team: btn.dataset.team || 'local',
+          });
         });
         iconifyGrid?.addEventListener('click', (event) => {
           const btn = event.target.closest('[data-iconify]');
@@ -2439,6 +2861,9 @@
           }, 180);
         });
         applyFieldBackground(presetSelect?.value || 'full_pitch');
+        renderPlayerRepos();
+        applyCatalogFilter('all');
+        syncTeamPaletteFromInputs();
         setDockActive(dockProjectBtn);
         setToolsOpen(false);
         setMode(false);
