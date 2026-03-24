@@ -1,4 +1,5 @@
-from datetime import timedelta
+from datetime import date, timedelta
+from types import SimpleNamespace
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
@@ -12,6 +13,7 @@ from football.healthchecks import run_system_healthcheck
 from football.query_helpers import get_current_convocation_record, is_manual_sanction_active
 from football.models import AppUserRole
 from football.staff_briefing import build_weekly_staff_brief
+from football.task_library import filter_task_library, prepare_task_library
 from football.views import SCRAPE_LOCK_KEY
 from django.test import override_settings
 from unittest.mock import patch
@@ -194,3 +196,98 @@ class BootstrapAdminTests(TestCase):
 
         user.refresh_from_db()
         self.assertTrue(user.check_password('NuevaTmp2026!'))
+
+
+class TaskLibraryTests(TestCase):
+    def _make_task(self, **overrides):
+        defaults = {
+            'id': 1,
+            'title': 'Rondo de activacion',
+            'objective': '',
+            'coaching_points': '',
+            'confrontation_rules': '',
+            'duration_minutes': 18,
+            'tactical_layout': {},
+            'session': SimpleNamespace(session_date=date(2026, 3, 20)),
+        }
+        defaults.update(overrides)
+        return SimpleNamespace(**defaults)
+
+    def test_prepare_task_library_enriches_group_rows_and_flags_review(self):
+        task = self._make_task(
+            tactical_layout={
+                'meta': {
+                    'analysis': {
+                        'summary': 'Conservacion y pressing tras perdida.',
+                        'work_contexts': ['Inicio'],
+                        'objective_tags': ['Conservacion'],
+                        'task_sheet': {'description': 'Rondo corto', 'players': '6'},
+                    }
+                }
+            }
+        )
+
+        context = prepare_task_library(
+            [task],
+            parse_int=lambda value: int(value) if str(value).isdigit() else None,
+            sanitize_text=lambda value, **kwargs: value.strip(),
+            analysis_confidence_scores=lambda payload: {'overall': 40},
+            task_upload_date=lambda current: current.session.session_date,
+            extract_effective_reference_date=lambda current, analysis_meta=None: None,
+            detect_keyword_tags=lambda text, keywords: ['Rondo'] if 'rondo' in text.lower() else [],
+            task_type_keywords={'rondo': ['rondo']},
+            task_phase_keywords={'inicio': ['activacion']},
+            players_band_label=lambda count: 'Hasta 8',
+            estimate_players_count=lambda players, title: 6,
+            duration_band_label=lambda minutes: '15-20 min',
+            phase_folder_key_for_task=lambda current: 'inicio',
+            phase_folder_meta=[{'key': 'inicio', 'label': 'Inicio'}],
+            coerce_reference_date=lambda raw: date.fromisoformat(raw),
+            is_imported_task=lambda current: True,
+        )
+
+        enriched = context['task_library'][0]
+        self.assertTrue(enriched.is_imported)
+        self.assertTrue(enriched.needs_review)
+        self.assertEqual(enriched.players_band, 'Hasta 8')
+        self.assertEqual(enriched.duration_band, '15-20 min')
+        self.assertEqual(enriched.phase_folder_key, 'inicio')
+        self.assertEqual(context['context_group_rows'][0]['key'], 'Inicio')
+        self.assertEqual(context['quality_group_rows'][0]['count'], 1)
+        self.assertEqual(context['date_group_rows'][0]['label'], '20/03/2026')
+
+    def test_filter_task_library_supports_quality_and_phase_views(self):
+        reviewed = self._make_task(
+            id=1,
+            phase_folder_key='inicio',
+            exercise_types=['Rondo'],
+            players_band='Hasta 8',
+            duration_band='15-20 min',
+            needs_review=True,
+            reference_date=date(2026, 3, 20),
+            reference_date_iso='2026-03-20',
+        )
+        validated = self._make_task(
+            id=2,
+            phase_folder_key='principal',
+            exercise_types=['Juego de posicion'],
+            players_band='9-14',
+            duration_band='20-30 min',
+            needs_review=False,
+            reference_date=date(2026, 3, 21),
+            reference_date_iso='2026-03-21',
+        )
+
+        reviewed_items = filter_task_library(
+            [reviewed, validated],
+            library_view='quality',
+            library_key='review',
+        )
+        phase_items = filter_task_library(
+            [reviewed, validated],
+            library_view='phase',
+            library_key='principal',
+        )
+
+        self.assertEqual([item.id for item in reviewed_items], [1])
+        self.assertEqual([item.id for item in phase_items], [2])
