@@ -490,6 +490,9 @@
           </div>
         </div>
         <p class="subtle" style="margin-top:0.8rem;">Base estadística consolidada desde fuentes federativas/caché de plantilla y registro interno.</p>
+        {% if stats_error %}
+        <div class="pill warn" style="display:block; margin-top:0.8rem; width:fit-content;">{{ stats_error }}</div>
+        {% endif %}
 
         <h3 style="margin-top:1rem;">Ajuste manual de datos generales</h3>
         <form method="post">

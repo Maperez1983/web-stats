@@ -7435,69 +7435,85 @@ def analysis_page(request):
 def manual_player_stats_page(request):
     if not _is_admin_user(request.user):
         return HttpResponse('Solo administradores pueden editar estadísticas manuales.', status=403)
-    primary_team = Team.objects.filter(is_primary=True).first()
-    if not primary_team:
-        return JsonResponse({'error': 'No hay equipo principal configurado'}, status=400)
-
-    season = resolve_stats_season(primary_team)
-    if season is None:
-        return JsonResponse({'error': 'No hay temporada activa para guardar estadísticas'}, status=400)
-
-    players = list(Player.objects.filter(team=primary_team).order_by('name'))
-    current_overrides = get_manual_player_base_overrides(primary_team, season)
-
-    if request.method == 'POST':
-        with transaction.atomic():
-            for player in players:
-                overrides = {
-                    'manual_pj': _parse_int(request.POST.get(f'pj_{player.id}')) or 0,
-                    'manual_pt': _parse_int(request.POST.get(f'pt_{player.id}')) or 0,
-                    'manual_minutes': _parse_int(request.POST.get(f'minutes_{player.id}')) or 0,
-                    'manual_goals': _parse_int(request.POST.get(f'goals_{player.id}')) or 0,
-                    'manual_yellow_cards': _parse_int(request.POST.get(f'yellow_{player.id}')) or 0,
-                    'manual_red_cards': _parse_int(request.POST.get(f'red_{player.id}')) or 0,
-                }
-                save_manual_player_base_overrides(
-                    player=player,
-                    season=season,
-                    values=overrides,
-                )
-        current_overrides = get_manual_player_base_overrides(primary_team, season)
-        message = 'Estadísticas manuales guardadas.'
-    else:
-        message = ''
-
-    rows = []
     try:
-        roster_cache = get_roster_stats_cache()
-    except Exception:
-        logger.exception('No se pudo cargar la cache de plantilla para estadísticas manuales')
-        roster_cache = {}
-    for player in players:
-        roster_entry = find_roster_entry(player.name, roster_cache) or {}
-        manual = current_overrides.get(player.id, {})
-        rows.append(
-            {
-                'player': player,
-                'pj': manual.get('pj', roster_entry.get('pj', 0)),
-                'pt': manual.get('pt', roster_entry.get('pt', 0)),
-                'minutes': manual.get('minutes', roster_entry.get('minutes', 0)),
-                'goals': manual.get('goals', roster_entry.get('goals', 0)),
-                'yellow_cards': manual.get('yellow_cards', roster_entry.get('yellow_cards', 0)),
-                'red_cards': manual.get('red_cards', roster_entry.get('red_cards', 0)),
-            }
-        )
+        primary_team = Team.objects.filter(is_primary=True).first()
+        if not primary_team:
+            return JsonResponse({'error': 'No hay equipo principal configurado'}, status=400)
 
-    return render(
-        request,
-        'football/manual_player_stats.html',
-        {
-            'team_name': primary_team.name,
-            'season_name': season_display_name(season),
-            'rows': rows,
-            'message': message,
-        },
-    )
+        season = resolve_stats_season(primary_team)
+        if season is None:
+            return JsonResponse({'error': 'No hay temporada activa para guardar estadísticas'}, status=400)
+
+        players = list(Player.objects.filter(team=primary_team).order_by('name'))
+        current_overrides = get_manual_player_base_overrides(primary_team, season)
+
+        if request.method == 'POST':
+            with transaction.atomic():
+                for player in players:
+                    overrides = {
+                        'manual_pj': _parse_int(request.POST.get(f'pj_{player.id}')) or 0,
+                        'manual_pt': _parse_int(request.POST.get(f'pt_{player.id}')) or 0,
+                        'manual_minutes': _parse_int(request.POST.get(f'minutes_{player.id}')) or 0,
+                        'manual_goals': _parse_int(request.POST.get(f'goals_{player.id}')) or 0,
+                        'manual_yellow_cards': _parse_int(request.POST.get(f'yellow_{player.id}')) or 0,
+                        'manual_red_cards': _parse_int(request.POST.get(f'red_{player.id}')) or 0,
+                    }
+                    save_manual_player_base_overrides(
+                        player=player,
+                        season=season,
+                        values=overrides,
+                    )
+            current_overrides = get_manual_player_base_overrides(primary_team, season)
+            message = 'Estadísticas manuales guardadas.'
+        else:
+            message = ''
+
+        rows = []
+        try:
+            roster_cache = get_roster_stats_cache()
+        except Exception:
+            logger.exception('No se pudo cargar la cache de plantilla para estadísticas manuales')
+            roster_cache = {}
+        for player in players:
+            roster_entry = find_roster_entry(player.name, roster_cache) or {}
+            manual = current_overrides.get(player.id, {})
+            rows.append(
+                {
+                    'player': player,
+                    'pj': manual.get('pj', roster_entry.get('pj', 0)),
+                    'pt': manual.get('pt', roster_entry.get('pt', 0)),
+                    'minutes': manual.get('minutes', roster_entry.get('minutes', 0)),
+                    'goals': manual.get('goals', roster_entry.get('goals', 0)),
+                    'yellow_cards': manual.get('yellow_cards', roster_entry.get('yellow_cards', 0)),
+                    'red_cards': manual.get('red_cards', roster_entry.get('red_cards', 0)),
+                }
+            )
+
+        return render(
+            request,
+            'football/manual_player_stats.html',
+            {
+                'team_name': primary_team.name,
+                'season_name': season_display_name(season),
+                'rows': rows,
+                'message': message,
+                'error': '',
+            },
+        )
+    except Exception:
+        logger.exception('Error en manual_player_stats_page')
+        return render(
+            request,
+            'football/manual_player_stats.html',
+            {
+                'team_name': 'Equipo principal',
+                'season_name': 'Temporada actual',
+                'rows': [],
+                'message': '',
+                'error': 'No se pudieron cargar las estadísticas manuales. Revisa los datos e inténtalo de nuevo.',
+            },
+            status=200,
+        )
 
 
 def player_detail_page(request, player_id):
@@ -7719,8 +7735,33 @@ def player_detail_page(request, player_id):
                     )
                 return redirect(f"{reverse('player-detail', args=[player.id])}?tab=communication")
 
-        matches = compute_player_dashboard(primary_team)
+        try:
+            matches = compute_player_dashboard(primary_team)
+            stats_error = ''
+        except Exception:
+            logger.exception('No se pudo recomponer el dashboard del jugador %s', player_id)
+            matches = []
+            stats_error = 'Las estadísticas consolidadas no están disponibles temporalmente.'
         detail = next((p for p in matches if p.get('player_id') == player_id), None)
+        safe_stats = detail or {
+            'position': player.position or '',
+            'pj': 0,
+            'pt': 0,
+            'minutes': 0,
+            'goals': 0,
+            'yellow_cards': 0,
+            'red_cards': 0,
+            'second_yellow_cards': 0,
+            'success_rate': 0,
+            'duel_rate': 0,
+            'total_actions': 0,
+            'assists': 0,
+            'field_zones': [],
+            'matches': [],
+            'duel_summary': {'won': 0, 'total': 0},
+            'passes': {'completed': 0, 'attempts': 0, 'accuracy': 0},
+            'shots': {'on_target': 0, 'attempts': 0, 'accuracy': 0},
+        }
         active_tab = (request.GET.get('tab') or 'general').strip().lower()
         physical_metrics = player.physical_metrics.all()[:20]
         latest_physical_metric = physical_metrics[0] if physical_metrics else None
@@ -7847,7 +7888,7 @@ def player_detail_page(request, player_id):
             'football/player_detail.html',
             {
                 'player': player,
-                'stats': detail or {},
+                'stats': safe_stats,
                 'active_tab': active_tab,
                 'physical_metrics': physical_metrics,
                 'latest_physical_metric': latest_physical_metric,
@@ -7867,6 +7908,7 @@ def player_detail_page(request, player_id):
                 'division_label': division_label,
                 'fines_summary': fines_summary,
                 'fines_records': fines_records,
+                'stats_error': stats_error,
             },
         )
     except Exception:

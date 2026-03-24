@@ -341,6 +341,16 @@ class ManualStatsTests(TestCase):
         self.assertContains(response, 'Temporada actual')
         mocked_cache.assert_called_once()
 
+    @patch('football.views.get_manual_player_base_overrides', side_effect=RuntimeError('override roto'))
+    def test_manual_stats_page_falls_back_without_500(self, mocked_overrides):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse('manual-player-stats'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'No se pudieron cargar las estadísticas manuales')
+        mocked_overrides.assert_called_once()
+
     @patch('football.manual_stats.PlayerStatistic.objects.filter')
     def test_manual_overrides_tolerate_non_finite_values(self, mocked_filter):
         mocked_filter.return_value.select_related.return_value = [
@@ -401,3 +411,29 @@ class RosterLookupTests(TestCase):
             find_roster_entry('Jugador Uno', {'ok': {'name': 'Jugador Uno', 'pj': 5}}),
             {'name': 'Jugador Uno', 'pj': 5},
         )
+
+
+class PlayerDetailStatsFallbackTests(TestCase):
+    def setUp(self):
+        user_model = get_user_model()
+        self.user = user_model.objects.create_user(
+            username='detailadmin',
+            email='detailadmin@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_ADMIN)
+        competition = Competition.objects.create(name='Liga Detail', slug='liga-detail', region='Andalucia')
+        season = Season.objects.create(competition=competition, name='2025/2026', is_current=True)
+        group = Group.objects.create(season=season, name='Grupo Detail', slug='grupo-detail')
+        team = Team.objects.create(name='Benagalbon', slug='benagalbon-detail', group=group, is_primary=True)
+        self.player = Player.objects.create(team=team, name='Jugador Detail')
+
+    @patch('football.views.compute_player_dashboard', side_effect=RuntimeError('dashboard roto'))
+    def test_player_detail_page_falls_back_when_stats_fail(self, mocked_dashboard):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse('player-detail', args=[self.player.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Las estadísticas consolidadas no están disponibles temporalmente.')
+        mocked_dashboard.assert_called_once()

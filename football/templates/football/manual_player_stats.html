@@ -89,6 +89,9 @@
         {% if message %}
           <div class="msg">{{ message }}</div>
         {% endif %}
+        {% if error %}
+          <div class="msg" style="background:#4c0519; border-color:#fb7185; color:#ffe4e6;">{{ error }}</div>
+        {% endif %}
         <form method="post">
           {% csrf_token %}
           <table>
