@@ -1066,6 +1066,11 @@ def _build_next_match_from_convocation(primary_team):
     record = get_current_convocation_record(primary_team)
     if not record:
         return None
+    today = timezone.localdate()
+    if record.match_date and record.match_date < today:
+        return None
+    if record.match and getattr(record.match, 'date', None) and record.match.date < today:
+        return None
 
     opponent_name = (record.opponent_name or '').strip()
     round_label = (record.round or '').strip()
@@ -1102,6 +1107,69 @@ def _build_next_match_from_convocation(primary_team):
         'source': 'convocation-manual',
     }
     return normalize_next_match_payload(payload)
+
+
+def _build_coach_rival_summary(primary_team):
+    next_match_payload = load_preferred_next_match_payload()
+    if not next_match_payload and primary_team and primary_team.group:
+        next_match_payload = get_next_match(primary_team, primary_team.group)
+    if not _next_match_payload_is_reliable(next_match_payload):
+        convocation_next = _build_next_match_from_convocation(primary_team)
+        if _next_match_payload_is_reliable(convocation_next):
+            next_match_payload = convocation_next
+    opponent_name = _payload_opponent_name(next_match_payload).strip() if isinstance(next_match_payload, dict) else ''
+
+    reports_qs = RivalAnalysisReport.objects.filter(team=primary_team).select_related('rival_team').order_by('-updated_at', '-id')
+    report = None
+    if opponent_name:
+        folded = opponent_name.lower()
+        report = reports_qs.filter(
+            Q(rival_name__icontains=opponent_name)
+            | Q(report_title__icontains=opponent_name)
+            | Q(rival_team__name__icontains=opponent_name)
+        ).first()
+        if not report:
+            for candidate in reports_qs[:8]:
+                name_pool = ' '.join(
+                    [
+                        str(getattr(candidate, 'rival_name', '') or ''),
+                        str(getattr(getattr(candidate, 'rival_team', None), 'name', '') or ''),
+                        str(getattr(candidate, 'report_title', '') or ''),
+                    ]
+                ).lower()
+                if folded and folded in name_pool:
+                    report = candidate
+                    break
+    if not report:
+        report = reports_qs.first()
+
+    lines = []
+    if opponent_name:
+        lines.append({'label': 'Próximo rival', 'value': opponent_name})
+    elif report and report.rival_name:
+        lines.append({'label': 'Rival analizado', 'value': report.rival_name})
+    else:
+        lines.append({'label': 'Rival', 'value': 'Pendiente de confirmar'})
+
+    if report:
+        if report.report_title:
+            lines.append({'label': 'Informe', 'value': report.report_title})
+        if report.weaknesses:
+            lines.append({'label': 'Debilidad detectada', 'value': report.weaknesses[:140]})
+        elif report.opportunities:
+            lines.append({'label': 'Oportunidad', 'value': report.opportunities[:140]})
+        elif report.key_players:
+            lines.append({'label': 'Foco individual', 'value': report.key_players[:140]})
+        lines.append({'label': 'Estado', 'value': report.get_status_display()})
+    else:
+        lines.append({'label': 'Informe', 'value': 'Sin informe manual cargado'})
+        lines.append({'label': 'Acción', 'value': 'Conviene preparar el análisis rival antes de la sesión táctica'})
+
+    return {
+        'opponent': opponent_name,
+        'report': report,
+        'lines': lines[:4],
+    }
 
 
 def _next_match_payload_is_reliable(payload):
@@ -1973,6 +2041,7 @@ def coach_overview_page(request):
         AppUserRole.ROLE_ADMIN,
     }
     role_labels = dict(AppUserRole.ROLE_CHOICES)
+    role_labels[AppUserRole.ROLE_GOALKEEPER] = 'Preparador de porteros'
     role_rows = list(AppUserRole.objects.select_related('user').filter(role__in=technical_roles))
     technical_members = []
     technical_members_lower = set()
@@ -1981,43 +2050,35 @@ def coach_overview_page(request):
             continue
         full_name = role_row.user.get_full_name().strip() or role_row.user.username
         label = f'{role_labels.get(role_row.role, "Técnico")} · {full_name}'
-        technical_members.append(label)
-        technical_members_lower.add(label.lower())
-
-    extra_assignments = [
-        ('alonso', 'Preparador de porteros'),
-        ('jeremias', 'Preparador físico'),
-    ]
-    for role_row in role_rows:
-        if not role_row.user.is_active:
+        normalized = label.lower()
+        if normalized in technical_members_lower:
             continue
-        full_name = role_row.user.get_full_name().strip() or role_row.user.username
-        name_folded = full_name.lower()
-        for key, role_label in extra_assignments:
-            if key in name_folded:
-                extra_label = f'{role_label} · {full_name}'
-                if extra_label.lower() not in technical_members_lower:
-                    technical_members.append(extra_label)
-                    technical_members_lower.add(extra_label.lower())
+        technical_members.append(label)
+        technical_members_lower.add(normalized)
 
     if not technical_members:
         technical_members = ['Sin miembros técnicos configurados en Admin']
     weekly_brief = _build_weekly_staff_brief_context(primary_team)
-    summary = {
-        'entrainers': technical_members,
-        'rival': [
-            'Último rival: Atlético de Marbella',
-            'Consecutivos sin recibir gol: 1',
-            'Fortaleza: laterales rápidos',
-        ],
-    }
+    rival_summary = _build_coach_rival_summary(primary_team)
+    next_match = weekly_brief.get('match') if isinstance(weekly_brief, dict) else {}
+    probable_eleven_names = []
+    if isinstance(weekly_brief, dict):
+        probable_preview = str(weekly_brief.get('probable_eleven_preview') or '').strip()
+        probable_eleven_names = [item.strip() for item in probable_preview.split(',') if item.strip()][:5]
+    staff_preview = technical_members[:4]
+    staff_extra_count = max(0, len(technical_members) - len(staff_preview))
     return render(
         request,
         'football/coach_overview.html',
         {
             'sources': sources,
-            'summary': summary,
             'weekly_brief': weekly_brief,
+            'technical_members': technical_members,
+            'staff_preview': staff_preview,
+            'staff_extra_count': staff_extra_count,
+            'rival_summary': rival_summary,
+            'next_match': next_match,
+            'probable_eleven_names': probable_eleven_names,
         },
     )
 

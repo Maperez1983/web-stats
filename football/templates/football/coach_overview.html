@@ -8,125 +8,186 @@
     <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
     <style>
       :root {
-        --bg: #030610;
-        --panel: rgba(15, 23, 42, 0.95);
+        --bg: #050814;
+        --panel: rgba(10, 17, 33, 0.94);
+        --panel-soft: rgba(14, 23, 42, 0.82);
+        --line: rgba(148, 163, 184, 0.18);
+        --ink: #f8fafc;
+        --muted: rgba(226, 232, 240, 0.74);
         --accent: #facc15;
+        --success: #86efac;
       }
       body {
         margin: 0;
-        font-family: 'Inter', system-ui, sans-serif;
-        background: linear-gradient(180deg, #020617 0%, #050f1f 100%);
-        color: #f8fafc;
         min-height: 100vh;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at top left, rgba(250, 204, 21, 0.08), transparent 24%),
+          linear-gradient(180deg, #020617 0%, #06101f 100%);
+        font-family: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
       }
       .page {
-        max-width: 1100px;
+        max-width: 1320px;
         margin: 0 auto;
-        padding: 2rem 1.25rem 3rem;
+        padding: 1.4rem 1.1rem 3rem;
       }
       header {
         display: flex;
+        align-items: center;
         justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1.2rem;
+        flex-wrap: wrap;
+      }
+      .hero {
+        border-radius: 28px;
+        border: 1px solid var(--line);
+        background: var(--panel);
+        padding: 1.6rem;
+        box-shadow: 0 26px 60px rgba(0, 0, 0, 0.42);
+      }
+      .club-row {
+        display: flex;
         align-items: center;
         gap: 1rem;
-        margin-bottom: 2rem;
+        margin-bottom: 1.3rem;
       }
-      header h1 {
-        margin: 0;
-        font-size: 2rem;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-      }
-      .panel {
-        background: var(--panel);
-        border-radius: 24px;
-        padding: 2rem;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        box-shadow: 0 25px 60px rgba(0, 0, 0, 0.55);
-      }
-      .cards {
-        display: grid;
-        gap: 1.25rem;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      }
-      .brief {
-        margin-top: 1rem;
-        display: grid;
-        gap: 0.9rem;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      }
-      .brief-card {
-        background: rgba(15, 23, 42, 0.8);
+      .club-row img {
+        width: 72px;
+        height: 72px;
         border-radius: 18px;
-        padding: 1.1rem;
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: rgba(255, 255, 255, 0.03);
       }
-      .brief-card h3 {
-        margin: 0 0 0.6rem;
-        font-size: 0.82rem;
-        letter-spacing: 0.1em;
+      .club-row span {
+        letter-spacing: 0.18em;
         text-transform: uppercase;
-        color: rgba(250, 204, 21, 0.92);
+        color: var(--accent);
+        font-size: 0.86rem;
       }
-      .brief-card p,
-      .brief-card li {
-        color: rgba(226, 232, 240, 0.84);
+      .primary-grid,
+      .secondary-grid {
+        display: grid;
+        gap: 1rem;
       }
-      .brief-card ul {
+      .primary-grid {
+        grid-template-columns: 1.3fr repeat(3, minmax(0, 1fr));
+      }
+      .secondary-grid {
+        margin-top: 1rem;
+        grid-template-columns: 1.3fr 0.8fr;
+      }
+      .card {
+        border-radius: 22px;
+        border: 1px solid var(--line);
+        background: var(--panel-soft);
+        padding: 1.2rem;
+        min-height: 210px;
+      }
+      .card.compact {
+        min-height: 0;
+      }
+      .card h2,
+      .card h3 {
+        margin: 0 0 0.8rem;
+        font-size: 0.84rem;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+      }
+      .card h2,
+      .card h3,
+      .eyebrow {
+        color: var(--accent);
+      }
+      .headline {
+        font-size: 1.55rem;
+        line-height: 1.05;
+        margin: 0 0 0.55rem;
+      }
+      .muted,
+      .card p,
+      .card li {
+        color: var(--muted);
+      }
+      .match-meta {
+        display: grid;
+        gap: 0.45rem;
+        margin-top: 0.9rem;
+      }
+      .match-meta strong {
+        display: block;
+        color: var(--ink);
+      }
+      .metric-list,
+      .plain-list {
         list-style: none;
         margin: 0;
         padding: 0;
         display: grid;
-        gap: 0.45rem;
+        gap: 0.65rem;
       }
-      .card-link {
-        text-decoration: none;
-        color: inherit;
-      }
-      .card {
-        background: rgba(15, 23, 42, 0.8);
-        border-radius: 18px;
-        padding: 1.25rem;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        min-height: 220px;
-        position: relative;
-      }
-      .card h3 {
-        margin: 0 0 0.75rem;
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
-      }
-        .card ul {
-          list-style: none;
-          padding: 0;
-          margin: 0;
-          line-height: 1.6;
-          color: rgba(226, 232, 240, 0.8);
-        }
-      .card-link .card {
-        transition: transform 0.2s ease, border 0.2s ease;
-      }
-      .card-link:hover .card {
-        transform: translateY(-4px);
-        border-color: rgba(248, 250, 252, 0.4);
-      }
-      .logo-row {
-        margin-bottom: 1.25rem;
+      .metric-list li {
         display: flex;
-        align-items: center;
-        gap: 1rem;
+        justify-content: space-between;
+        gap: 0.7rem;
+        padding-bottom: 0.45rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
       }
-      .logo-row img {
-        width: 64px;
-        height: 64px;
-        border-radius: 18px;
-        border: 1px solid rgba(255, 255, 255, 0.25);
-        background: rgba(255, 255, 255, 0.05);
+      .metric-list li:last-child,
+      .plain-list li:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
       }
-      .logo-row span {
-        letter-spacing: 0.2em;
-        font-size: 0.8rem;
-        color: var(--accent);
+      .metric-list strong {
+        color: var(--ink);
+      }
+      .plain-list li {
+        padding-bottom: 0.45rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .staff-stack {
+        display: grid;
+        gap: 0.55rem;
+      }
+      .staff-pill {
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.04);
+        padding: 0.55rem 0.8rem;
+        color: var(--muted);
+      }
+      .probable-preview {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        margin-top: 0.75rem;
+      }
+      .chip {
+        border-radius: 999px;
+        padding: 0.35rem 0.7rem;
+        background: rgba(250, 204, 21, 0.12);
+        border: 1px solid rgba(250, 204, 21, 0.24);
+        color: #fef3c7;
+        font-size: 0.75rem;
+      }
+      .status-note {
+        color: var(--success);
+        font-size: 0.82rem;
+      }
+      @media (max-width: 1120px) {
+        .primary-grid,
+        .secondary-grid {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+      @media (max-width: 760px) {
+        .primary-grid,
+        .secondary-grid {
+          grid-template-columns: 1fr;
+        }
+        .headline {
+          font-size: 1.28rem;
+        }
       }
     </style>
   </head>
@@ -134,70 +195,96 @@
     <div class="page product-shell">
       <header>
         {% include 'football/includes/dragon_nav.html' %}
-        <div>
-          <p class="product-kicker" style="color:rgba(226,232,240,0.72);">Cuerpo técnico · CRM Web Stats</p>
-          <h1>Entrenadores</h1>
-        </div>
         <a class="pill-button" style="border-radius:12px;" href="{% url 'dashboard-home' %}">Volver al inicio</a>
       </header>
-      <article class="panel">
-        <div class="logo-row">
+
+      <article class="hero">
+        <div class="club-row">
           <img src="{% static 'logos/logo.png' %}" alt="Escudo C.D. Benagalbón" />
           <span>Club Deportivo Benagalbón</span>
         </div>
-        <div class="cards">
-          <a class="card-link" href="{% url 'coach-cards' %}">
-            <div class="card">
-              <h3>Entrenadores</h3>
-              <ul>
-                {% for line in summary.entrainers %}
-                <li>{{ line }}</li>
-                {% endfor %}
-              </ul>
+
+        <section class="primary-grid">
+          <div class="card">
+            <h2>Próximo Partido</h2>
+            <p class="headline">{{ next_match.opponent|default:"Rival por confirmar" }}</p>
+            <p class="status-note">{{ weekly_brief.headline }}</p>
+            <div class="match-meta">
+              <div>
+                <strong>{{ next_match.round|default:"Jornada por confirmar" }}</strong>
+                <span class="muted">Jornada activa</span>
+              </div>
+              <div>
+                <strong>{{ next_match.date|default:"--" }} · {{ next_match.time|default:"--:--" }}</strong>
+                <span class="muted">Fecha y hora</span>
+              </div>
+              <div>
+                <strong>{{ next_match.location|default:"Campo por confirmar" }}</strong>
+                <span class="muted">Sede</span>
+              </div>
             </div>
-          </a>
-          <a class="card-link" href="{% url 'analysis' %}">
-            <div class="card">
-              <h3>Análisis rival</h3>
-              <ul>
-                {% for line in summary.rival %}
-                <li>{{ line }}</li>
-                {% endfor %}
-              </ul>
-            </div>
-          </a>
-        </div>
-        {% if weekly_brief %}
-        <section class="brief">
-          <div class="brief-card">
-            <h3>Parte semanal</h3>
-            <p><strong>{{ weekly_brief.headline }}</strong></p>
-            <p>{{ weekly_brief.match.round }} · {{ weekly_brief.match.date }} · {{ weekly_brief.match.time }}</p>
-            <p>{{ weekly_brief.match.location }}</p>
           </div>
-          <div class="brief-card">
+
+          <div class="card compact">
             <h3>Disponibilidad</h3>
-            <ul>
+            <ul class="metric-list">
               {% for item in weekly_brief.availability %}
-              <li>{{ item.label }}: <strong>{{ item.value }}</strong></li>
+              <li><span>{{ item.label }}</span><strong>{{ item.value }}</strong></li>
               {% endfor %}
             </ul>
           </div>
-          <div class="brief-card">
-            <h3>Alertas staff</h3>
-            <ul>
+
+          <div class="card compact">
+            <h3>Alertas Staff</h3>
+            <ul class="plain-list">
               {% for line in weekly_brief.alerts %}
               <li>{{ line }}</li>
               {% endfor %}
             </ul>
           </div>
-          <div class="brief-card">
-            <h3>11 probable</h3>
-            <p>{{ weekly_brief.probable_eleven_count }} jugadores identificables.</p>
-            <p>{{ weekly_brief.probable_eleven_preview }}</p>
+
+          <div class="card compact">
+            <h3>11 Probable</h3>
+            <p><strong>{{ weekly_brief.probable_eleven_count }}</strong> jugadores identificables.</p>
+            <div class="probable-preview">
+              {% for preview_name in probable_eleven_names %}
+              <span class="chip">{{ preview_name }}</span>
+              {% empty %}
+              <span class="chip">Pendiente</span>
+              {% endfor %}
+            </div>
+            <p class="muted" style="margin-top:0.8rem;">{{ weekly_brief.probable_eleven_preview }}</p>
           </div>
         </section>
-        {% endif %}
+
+        <section class="secondary-grid">
+          <div class="card">
+            <h2>Análisis Rival</h2>
+            <ul class="plain-list">
+              {% for line in rival_summary.lines %}
+              <li><strong>{{ line.label }}:</strong> {{ line.value }}</li>
+              {% endfor %}
+            </ul>
+            <div style="margin-top:1rem; display:flex; gap:0.55rem; flex-wrap:wrap;">
+              <a class="pill-button" style="border-radius:12px;" href="{% url 'analysis' %}">Abrir análisis</a>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>Staff Técnico</h2>
+            <div class="staff-stack">
+              {% for member in staff_preview %}
+              <div class="staff-pill">{{ member }}</div>
+              {% endfor %}
+              {% if staff_extra_count %}
+              <div class="staff-pill">+ {{ staff_extra_count }} miembro(s) más</div>
+              {% endif %}
+            </div>
+            <div style="margin-top:1rem; display:flex; gap:0.55rem; flex-wrap:wrap;">
+              <a class="pill-button" style="border-radius:12px;" href="{% url 'coach-cards' %}">Ver plantilla técnica</a>
+            </div>
+          </div>
+        </section>
       </article>
     </div>
   </body>

@@ -13,7 +13,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from football.models import AnalystVideoFolder, Competition, ConvocationRecord, Group, Match, MatchEvent, Player, PlayerCommunication, PlayerFine, PlayerStatistic, RivalVideo, Season, SessionTask, Team, TeamStanding, TrainingMicrocycle, TrainingSession, UserInvitation
+from football.models import AnalystVideoFolder, Competition, ConvocationRecord, Group, Match, MatchEvent, Player, PlayerCommunication, PlayerFine, PlayerStatistic, RivalAnalysisReport, RivalVideo, Season, SessionTask, Team, TeamStanding, TrainingMicrocycle, TrainingSession, UserInvitation
 from football.bootstrap import ensure_bootstrap_admin_from_env
 from football.event_taxonomy import (
     PASS_KEYWORDS,
@@ -1764,3 +1764,75 @@ class SessionsPlanningTests(TestCase):
         self.assertEqual(cloned_session.focus, 'Sesión original')
         self.assertEqual(cloned_session.tasks.count(), 1)
         self.assertContains(response, 'Microciclo clonado')
+
+
+class CoachOverviewTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.user = get_user_model().objects.create_user(
+            username='coach-overview',
+            email='coach-overview@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_COACH)
+        competition = Competition.objects.create(name='Liga Coach', slug='liga-coach', region='Andalucia')
+        season = Season.objects.create(competition=competition, name='2025/2026', is_current=True)
+        self.group = Group.objects.create(season=season, name='Grupo Coach', slug='grupo-coach')
+        self.team = Team.objects.create(name='Benagalbon', slug='benagalbon-coach', group=self.group, is_primary=True)
+        self.rival_future = Team.objects.create(name='Rival Futuro', slug='rival-futuro', group=self.group)
+        self.rival_old = Team.objects.create(name='Rival Antiguo', slug='rival-antiguo', group=self.group)
+        self.client.force_login(self.user)
+
+    @patch('football.views.load_preferred_next_match_payload', return_value=None)
+    def test_coach_overview_prefers_real_upcoming_match_over_past_convocation(self, _mock_next):
+        Match.objects.create(
+            season=self.group.season,
+            group=self.group,
+            round='J24',
+            date=date(2026, 3, 29),
+            location='MANANTIALES',
+            home_team=self.team,
+            away_team=self.rival_future,
+        )
+        ConvocationRecord.objects.create(
+            team=self.team,
+            round='J23',
+            match_date=date(2026, 3, 22),
+            location='Pasado',
+            opponent_name='Rival Antiguo',
+            is_current=True,
+        )
+
+        response = self.client.get(reverse('coach-detail'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Rival Futuro')
+        self.assertNotContains(response, 'Rival Antiguo')
+        self.assertContains(response, 'Próximo Partido')
+
+    @patch('football.views.load_preferred_next_match_payload', return_value=None)
+    def test_coach_overview_renders_manual_rival_report_summary(self, _mock_next):
+        Match.objects.create(
+            season=self.group.season,
+            group=self.group,
+            round='J24',
+            date=date(2026, 3, 29),
+            location='MANANTIALES',
+            home_team=self.team,
+            away_team=self.rival_future,
+        )
+        RivalAnalysisReport.objects.create(
+            team=self.team,
+            rival_team=self.rival_future,
+            rival_name='Rival Futuro',
+            report_title='Informe previo J24',
+            weaknesses='Sufren cuando les obligas a defender amplitud.',
+            status=RivalAnalysisReport.STATUS_READY,
+        )
+
+        response = self.client.get(reverse('coach-detail'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Informe previo J24')
+        self.assertContains(response, 'Sufren cuando les obligas a defender amplitud.')
+        self.assertContains(response, 'Staff Técnico')
