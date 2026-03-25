@@ -28,7 +28,7 @@ from football.services import find_roster_entry
 from football.staff_briefing import build_weekly_staff_brief
 from football.task_library import filter_task_library, prepare_task_library
 from football.stats_audit import run_stats_audit
-from football.views import SCRAPE_LOCK_KEY, compute_player_cards_for_match, compute_player_metrics, compute_team_metrics_for_match
+from football.views import SCRAPE_LOCK_KEY, compute_player_cards_for_match, compute_player_dashboard, compute_player_metrics, compute_team_metrics_for_match
 from django.test import override_settings
 from unittest.mock import patch
 
@@ -572,10 +572,28 @@ class EventTaxonomyKpiTests(TestCase):
         payload = calculate_influence_score(
             minutes=450,
             successes=40,
-            max_successes_per90=8,
+            goals=0,
+            assists=0,
+            key_passes_completed=0,
+            max_decisive_actions_per90=8,
         )
 
         self.assertEqual(payload['successes_per90'], 8.0)
+        self.assertEqual(payload['decisive_actions_per90'], 8.0)
+        self.assertEqual(payload['influence_score'], 100.0)
+
+    def test_influence_score_weights_goals_assists_and_key_passes(self):
+        payload = calculate_influence_score(
+            minutes=450,
+            successes=20,
+            goals=4,
+            assists=3,
+            key_passes_completed=6,
+            max_decisive_actions_per90=12,
+        )
+
+        self.assertEqual(payload['successes_per90'], 4.0)
+        self.assertEqual(payload['decisive_actions_per90'], 13.6)
         self.assertEqual(payload['influence_score'], 100.0)
 
     def test_robo_and_duelo_aereo_count_as_duels(self):
@@ -796,6 +814,26 @@ class PlayerDashboardViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context['stats']['passes']['attempts'], 2)
         self.assertEqual(response.context['stats']['passes']['completed'], 2)
+
+    def test_completed_key_pass_is_counted_for_influence_inputs(self):
+        MatchEvent.objects.create(
+            match=self.match,
+            player=self.player,
+            event_type='Pase clave',
+            result='OK',
+            zone='Ataque Centro',
+            tercio='Ataque',
+            minute=32,
+            period=1,
+            system='touch-field-final',
+            source_file='registro-acciones',
+        )
+
+        dashboard = compute_player_dashboard(self.team)
+        detail = next(item for item in dashboard if item['player_id'] == self.player.id)
+
+        self.assertEqual(detail['passes']['key_completed'], 1)
+        self.assertGreater(detail['decisive_actions_per90'], detail['successes_per90'])
 
 
 class CoachTrainerMetricsTests(TestCase):

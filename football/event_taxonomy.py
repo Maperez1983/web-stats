@@ -167,6 +167,7 @@ PASS_KEYWORDS = {
     'cambio orientacion',
     'switch',
 }
+KEY_PASS_KEYWORDS = {'pase clave', 'ultimo pase', 'último pase', 'key pass'}
 DRIBBLE_KEYWORDS = {'regate', 'regates', 'dribbling', 'dribble', 'conduccion', 'conducción'}
 GOALKEEPER_SAVE_KEYWORDS = {'parada', 'paradas', 'atajada', 'atajadas', 'blocaje', 'blocajes'}
 GOAL_KEYWORDS = {'gol', 'goles', 'anotado', 'marcado', 'goal'}
@@ -281,6 +282,14 @@ def is_assist_event(event_type, result=None, observation=None):
         contains_keyword(event_type, ASSIST_KEYWORDS)
         or contains_keyword(result, ASSIST_KEYWORDS)
         or contains_keyword(observation, ASSIST_KEYWORDS)
+    )
+
+
+def is_key_pass_event(event_type, result=None, observation=None):
+    return (
+        contains_keyword(event_type, KEY_PASS_KEYWORDS)
+        or contains_keyword(result, KEY_PASS_KEYWORDS)
+        or contains_keyword(observation, KEY_PASS_KEYWORDS)
     )
 
 
@@ -442,16 +451,33 @@ def calculate_importance_score(minutes, total_possible_minutes, successes, max_s
     }
 
 
-def calculate_influence_score(minutes, successes, max_successes_per90):
+def calculate_influence_score(
+    minutes,
+    successes,
+    goals,
+    assists,
+    key_passes_completed,
+    max_decisive_actions_per90,
+):
     minute_value = max(0, int(minutes or 0))
     successes_value = max(0, int(successes or 0))
-    max_success_per90_value = max(0, float(max_successes_per90 or 0))
+    goals_value = max(0, int(goals or 0))
+    assists_value = max(0, int(assists or 0))
+    key_passes_value = max(0, int(key_passes_completed or 0))
+    max_decisive_actions_per90_value = max(0, float(max_decisive_actions_per90 or 0))
 
     successes_per90 = round((successes_value / minute_value) * 90, 2) if minute_value else 0
-    influence_pct = round((successes_per90 / max_success_per90_value) * 100, 1) if max_success_per90_value else 0
+    decisive_actions = successes_value + (goals_value * 6) + (assists_value * 4) + (key_passes_value * 2)
+    decisive_actions_per90 = round((decisive_actions / minute_value) * 90, 2) if minute_value else 0
+    influence_pct = (
+        round((decisive_actions_per90 / max_decisive_actions_per90_value) * 100, 1)
+        if max_decisive_actions_per90_value
+        else 0
+    )
     influence_pct = max(0, min(influence_pct, 100))
     return {
         'successes_per90': successes_per90,
+        'decisive_actions_per90': decisive_actions_per90,
         'influence_score': influence_pct,
     }
 

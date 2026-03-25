@@ -101,6 +101,7 @@ from football.event_taxonomy import (
     is_assist_event,
     is_goal_event,
     is_goalkeeper_save_event,
+    is_key_pass_event,
     is_red_card_event,
     is_shot_attempt_event,
     is_shot_on_target_event,
@@ -8003,11 +8004,12 @@ def player_detail_page(request, player_id):
             'field_zones': [],
             'matches': [],
             'duel_summary': {'won': 0, 'total': 0},
-            'passes': {'completed': 0, 'attempts': 0, 'accuracy': 0},
+            'passes': {'completed': 0, 'attempts': 0, 'key_completed': 0, 'accuracy': 0},
             'shots': {'on_target': 0, 'attempts': 0, 'accuracy': 0, 'per_goal': None},
             'importance_score': 0,
             'influence_score': 0,
             'successes_per90': 0,
+            'decisive_actions_per90': 0,
         }
         active_tab = (request.GET.get('tab') or 'general').strip().lower()
         physical_metrics = player.physical_metrics.all()[:20]
@@ -8267,6 +8269,7 @@ def _build_player_match_stats_payload(primary_team, player, match):
         'shots_on_target': 0,
         'pass_attempts': 0,
         'passes_completed': 0,
+        'key_passes_completed': 0,
     }
     for event in events:
         stats['total_actions'] += 1
@@ -8306,8 +8309,14 @@ def _build_player_match_stats_payload(primary_team, player, match):
         )
         if is_pass_event:
             stats['pass_attempts'] += 1
-            if result_is_success(event.result) or is_assist_event(event.event_type, event.result, event.observation):
+            is_completed_pass = (
+                result_is_success(event.result)
+                or is_assist_event(event.event_type, event.result, event.observation)
+            )
+            if is_completed_pass:
                 stats['passes_completed'] += 1
+                if is_key_pass_event(event.event_type, event.result, event.observation):
+                    stats['key_passes_completed'] += 1
     total_tercios = sum(stats['tercio_totals'].values())
     stats['success_rate'] = round(
         (stats['successes'] / stats['total_actions']) * 100, 1
@@ -8352,6 +8361,7 @@ def _build_player_match_stats_payload(primary_team, player, match):
     stats['passes'] = {
         'attempts': stats['pass_attempts'],
         'completed': stats['passes_completed'],
+        'key_completed': stats['key_passes_completed'],
         'accuracy': round((stats['passes_completed'] / stats['pass_attempts']) * 100, 1)
         if stats['pass_attempts']
         else 0,
@@ -8363,6 +8373,7 @@ def _build_player_match_stats_payload(primary_team, player, match):
         {'label': 'Duelos', 'value': f"{stats['duels_won']}/{stats['duels_total']}"},
         {'label': 'Duelos %', 'value': f"{stats['duel_rate']:.1f}%"},
         {'label': 'Pases', 'value': f"{stats['passes_completed']}/{stats['pass_attempts']}"},
+        {'label': 'Pases clave', 'value': stats['key_passes_completed']},
         {'label': 'Pase %', 'value': f"{stats['passes']['accuracy']:.1f}%"},
         {'label': 'Disparos', 'value': f"{stats['shots_on_target']}/{stats['shot_attempts']}"},
         {'label': 'Tiro a puerta', 'value': f"{stats['shots']['accuracy']:.1f}%"},
@@ -9221,6 +9232,7 @@ def compute_player_dashboard(primary_team):
                 'shots_on_target': 0,
                 'pass_attempts': 0,
                 'passes_completed': 0,
+                'key_passes_completed': 0,
                 'dribbles_attempted': 0,
                 'dribbles_completed': 0,
                 'age': _parse_int(universo_entry.get('age')) or roster_entry.get('age'),
@@ -9269,8 +9281,14 @@ def compute_player_dashboard(primary_team):
         )
         if is_pass_event:
             stats['pass_attempts'] += 1
-            if result_is_success(event.result) or is_assist_event(event.event_type, event.result, event.observation):
+            is_completed_pass = (
+                result_is_success(event.result)
+                or is_assist_event(event.event_type, event.result, event.observation)
+            )
+            if is_completed_pass:
                 stats['passes_completed'] += 1
+                if is_key_pass_event(event.event_type, event.result, event.observation):
+                    stats['key_passes_completed'] += 1
         if contains_keyword(event.event_type, DRIBBLE_KEYWORDS) or contains_keyword(event.observation, DRIBBLE_KEYWORDS):
             stats['dribbles_attempted'] += 1
             if result_is_success(event.result):
@@ -9542,13 +9560,22 @@ def compute_player_dashboard(primary_team):
     today = timezone.localdate()
     total_possible_minutes = max(0, competition_total_rounds) * 90
     max_successes = max((int(stats.get('successes', 0) or 0) for stats in player_stats.values()), default=0)
-    max_successes_per90 = 0.0
+    max_decisive_actions_per90 = 0.0
     for stats in player_stats.values():
         minutes_value = int(stats.get('minutes', 0) or 0)
         successes_value = int(stats.get('successes', 0) or 0)
         if minutes_value <= 0:
             continue
-        max_successes_per90 = max(max_successes_per90, round((successes_value / minutes_value) * 90, 2))
+        decisive_actions = (
+            successes_value
+            + (int(stats.get('goals', 0) or 0) * 6)
+            + (int(stats.get('assists', 0) or 0) * 4)
+            + (int(stats.get('key_passes_completed', 0) or 0) * 2)
+        )
+        max_decisive_actions_per90 = max(
+            max_decisive_actions_per90,
+            round((decisive_actions / minutes_value) * 90, 2),
+        )
     for stats in player_stats.values():
         matches = sorted(
             stats['matches'].values(),
@@ -9639,6 +9666,7 @@ def compute_player_dashboard(primary_team):
             'passes': {
                 'attempts': stats['pass_attempts'],
                 'completed': stats['passes_completed'],
+                'key_completed': stats['key_passes_completed'],
                 'accuracy': round((stats['passes_completed'] / stats['pass_attempts']) * 100, 1)
                 if stats['pass_attempts']
                 else 0,
@@ -9675,9 +9703,13 @@ def compute_player_dashboard(primary_team):
         influence = calculate_influence_score(
             minutes=merged.get('minutes', 0),
             successes=merged.get('successes', 0),
-            max_successes_per90=max_successes_per90,
+            goals=merged.get('goals', 0),
+            assists=merged.get('assists', 0),
+            key_passes_completed=merged.get('key_passes_completed', 0),
+            max_decisive_actions_per90=max_decisive_actions_per90,
         )
         merged['successes_per90'] = influence['successes_per90']
+        merged['decisive_actions_per90'] = influence['decisive_actions_per90']
         merged['influence_score'] = influence['influence_score']
         profile, profile_label, smart_kpis = build_smart_kpis(stats)
         merged['profile'] = profile
