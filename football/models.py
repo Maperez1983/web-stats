@@ -556,6 +556,28 @@ class HomeCarouselImage(models.Model):
         return self.title or f'Imagen {self.id}'
 
 
+class AnalystVideoFolder(models.Model):
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='analysis_video_folders')
+    rival_team = models.ForeignKey(
+        Team,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='analysis_video_folders_as_rival',
+    )
+    name = models.CharField(max_length=140)
+    created_by = models.CharField(max_length=80, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['name', '-created_at', '-id']
+        unique_together = ('team', 'rival_team', 'name')
+
+    def __str__(self):
+        base = self.rival_team.display_name if self.rival_team else self.team.display_name
+        return f'{base} · {self.name}'
+
+
 class RivalVideo(models.Model):
     SOURCE_UNIVERSO = 'universo'
     SOURCE_RFAF = 'rfaf'
@@ -569,10 +591,18 @@ class RivalVideo(models.Model):
     ]
 
     rival_team = models.ForeignKey(Team, on_delete=models.SET_NULL, null=True, blank=True, related_name='rival_videos')
+    folder = models.ForeignKey(
+        AnalystVideoFolder,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='videos',
+    )
     title = models.CharField(max_length=180)
     video = models.FileField(upload_to='rival-videos/')
     source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default=SOURCE_MANUAL)
     notes = models.TextField(blank=True)
+    assigned_players = models.ManyToManyField(Player, blank=True, related_name='assigned_analysis_videos')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

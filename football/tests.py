@@ -3,11 +3,12 @@ from types import SimpleNamespace
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from football.models import Competition, ConvocationRecord, Group, Match, MatchEvent, Player, PlayerStatistic, Season, Team, TeamStanding, UserInvitation
+from football.models import AnalystVideoFolder, Competition, ConvocationRecord, Group, Match, MatchEvent, Player, PlayerStatistic, RivalVideo, Season, Team, TeamStanding, UserInvitation
 from football.bootstrap import ensure_bootstrap_admin_from_env
 from football.event_taxonomy import (
     PASS_KEYWORDS,
@@ -985,3 +986,67 @@ class CoachTrainerMetricsTests(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context['coach_player_view']['mode'], 'match')
+
+
+class AnalysisVideoWorkspaceTests(TestCase):
+    def setUp(self):
+        competition = Competition.objects.create(name='Liga Analista', slug='liga-analista', region='Andalucia')
+        season = Season.objects.create(competition=competition, name='2025/2026', is_current=True)
+        group = Group.objects.create(season=season, name='Grupo Analista', slug='grupo-analista')
+        self.team = Team.objects.create(name='Benagalbon', slug='benagalbon-analista', group=group, is_primary=True)
+        self.rival = Team.objects.create(name='Rival Analista', slug='rival-analista', group=group)
+        self.player = Player.objects.create(team=self.team, name='Ivan', position='DC')
+
+    def test_analysis_page_can_create_folder_and_assign_video_to_player(self):
+        response = self.client.post(
+            reverse('analysis'),
+            {
+                'form_action': 'create_video_folder',
+                'video_team_id': self.rival.id,
+                'folder_name': 'J24 · Clips DC',
+                'team_id': self.rival.id,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        folder = AnalystVideoFolder.objects.get(name='J24 · Clips DC')
+        self.assertEqual(folder.rival_team, self.rival)
+
+        video_file = SimpleUploadedFile('clip.mp4', b'fake-video-content', content_type='video/mp4')
+        response = self.client.post(
+            reverse('analysis'),
+            {
+                'form_action': 'upload_video',
+                'video_team_id': self.rival.id,
+                'video_title': 'Clip delantero',
+                'video_source': RivalVideo.SOURCE_MANUAL,
+                'video_folder_id': folder.id,
+                'video_notes': 'Atacar intervalo central',
+                'assigned_player_ids': [self.player.id],
+                'team_id': self.rival.id,
+                'video_file': video_file,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        video = RivalVideo.objects.get(title='Clip delantero')
+        self.assertEqual(video.folder, folder)
+        self.assertEqual(list(video.assigned_players.values_list('id', flat=True)), [self.player.id])
+
+    def test_player_detail_shows_assigned_analysis_video(self):
+        folder = AnalystVideoFolder.objects.create(team=self.team, rival_team=self.rival, name='J24 · ABP')
+        video = RivalVideo.objects.create(
+            rival_team=self.rival,
+            folder=folder,
+            title='ABP ofensiva rival',
+            video=SimpleUploadedFile('abp.mp4', b'video', content_type='video/mp4'),
+            source=RivalVideo.SOURCE_MANUAL,
+            notes='Revisar bloqueos del primer palo',
+        )
+        video.assigned_players.add(self.player)
+
+        response = self.client.get(reverse('player-detail', args=[self.player.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Vídeos')
+        self.assertContains(response, 'ABP ofensiva rival')

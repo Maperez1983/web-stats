@@ -78,6 +78,7 @@ from football.models import (
     TrainingSession,
     ConvocationRecord,
     HomeCarouselImage,
+    AnalystVideoFolder,
     RivalVideo,
     RivalAnalysisReport,
     AppUserRole,
@@ -7503,8 +7504,8 @@ def fines_page(request):
 
 def analysis_page(request):
     primary_team = Team.objects.filter(is_primary=True).first()
-    team_url = ''
-    team_id = ''
+    team_url = (request.GET.get('team_url') or '').strip()
+    team_id = (request.GET.get('team_id') or '').strip()
     raw_text = ''
     roster = []
     probable_eleven = []
@@ -7516,6 +7517,8 @@ def analysis_page(request):
     auto_team_name = ''
     video_error = ''
     video_message = ''
+    folder_error = ''
+    folder_message = ''
     manual_report_error = ''
     manual_report_message = ''
     extracted = {}
@@ -7529,22 +7532,48 @@ def analysis_page(request):
             team_id = str(guessed_team.id)
     if request.method == 'POST':
         form_action = (request.POST.get('form_action') or 'analyze').strip()
-        if form_action == 'upload_video':
+        if form_action == 'create_video_folder':
+            rival_team_id = _parse_int(request.POST.get('video_team_id'))
+            rival_team = Team.objects.filter(id=rival_team_id).first() if rival_team_id else None
+            folder_name = (request.POST.get('folder_name') or '').strip()
+            if not primary_team:
+                folder_error = 'No hay equipo principal configurado.'
+            elif not folder_name:
+                folder_error = 'Indica un nombre para la carpeta.'
+            else:
+                folder, created = AnalystVideoFolder.objects.get_or_create(
+                    team=primary_team,
+                    rival_team=rival_team,
+                    name=folder_name[:140],
+                    defaults={'created_by': request.user.get_username() if request.user.is_authenticated else ''},
+                )
+                folder_message = 'Carpeta creada correctamente.' if created else 'La carpeta ya existía y queda disponible.'
+        elif form_action == 'upload_video':
             video_title = (request.POST.get('video_title') or '').strip() or 'Vídeo rival'
             video_source = (request.POST.get('video_source') or RivalVideo.SOURCE_MANUAL).strip()
             rival_team_id = _parse_int(request.POST.get('video_team_id'))
+            folder_id = _parse_int(request.POST.get('video_folder_id'))
             video_file = request.FILES.get('video_file')
             rival_team = Team.objects.filter(id=rival_team_id).first() if rival_team_id else None
+            folder = AnalystVideoFolder.objects.filter(id=folder_id, team=primary_team).first() if folder_id and primary_team else None
             if not video_file:
                 video_error = 'Selecciona un vídeo para subir.'
             else:
-                RivalVideo.objects.create(
+                entry = RivalVideo.objects.create(
                     rival_team=rival_team,
+                    folder=folder,
                     title=video_title,
                     video=video_file,
                     source=video_source if video_source in {c[0] for c in RivalVideo.SOURCE_CHOICES} else RivalVideo.SOURCE_MANUAL,
                     notes=(request.POST.get('video_notes') or '').strip(),
                 )
+                assigned_player_ids = [
+                    player_id
+                    for player_id in (_parse_int(value) for value in request.POST.getlist('assigned_player_ids'))
+                    if player_id
+                ]
+                if assigned_player_ids:
+                    entry.assigned_players.set(Player.objects.filter(team=primary_team, id__in=assigned_player_ids))
                 video_message = 'Vídeo subido correctamente.'
         elif form_action == 'delete_video':
             video_id = _parse_int(request.POST.get('video_id'))
@@ -7557,6 +7586,22 @@ def analysis_page(request):
                     pass
                 entry.delete()
                 video_message = 'Vídeo eliminado.'
+        elif form_action == 'assign_video_players':
+            video_id = _parse_int(request.POST.get('video_id'))
+            folder_id = _parse_int(request.POST.get('video_folder_id'))
+            entry = RivalVideo.objects.filter(id=video_id).first()
+            if entry:
+                folder = AnalystVideoFolder.objects.filter(id=folder_id, team=primary_team).first() if folder_id and primary_team else None
+                entry.folder = folder
+                entry.save(update_fields=['folder'])
+                assigned_player_ids = [
+                    player_id
+                    for player_id in (_parse_int(value) for value in request.POST.getlist('assigned_player_ids'))
+                    if player_id
+                ]
+                if primary_team:
+                    entry.assigned_players.set(Player.objects.filter(team=primary_team, id__in=assigned_player_ids))
+                video_message = 'Asignación de vídeo actualizada.'
         elif form_action == 'save_manual_report':
             selected_team_id = _parse_int(request.POST.get('team_id'))
             selected_team = Team.objects.filter(id=selected_team_id).first() if selected_team_id else None
@@ -7663,6 +7708,7 @@ def analysis_page(request):
                     'pero no tiene URL de La Preferente guardada.'
                 )
     selected_team = Team.objects.filter(id=_parse_int(team_id)).first() if team_id else None
+    selected_folder_id = _parse_int(request.GET.get('folder')) or _parse_int(request.POST.get('selected_folder_id'))
     universe = load_universo_snapshot() or {}
     standings = universe.get('standings') or []
     team_lookup = _build_universo_standings_lookup(universe)
@@ -7736,9 +7782,22 @@ def analysis_page(request):
                 'status': manual_report_latest.status,
             }
         )
-    rival_videos = list(
-        RivalVideo.objects.filter(rival_team=selected_team).order_by('-created_at')
-    ) if selected_team else list(RivalVideo.objects.filter(rival_team__isnull=True).order_by('-created_at')[:12])
+    video_folders = []
+    if primary_team:
+        folders_qs = AnalystVideoFolder.objects.filter(team=primary_team).select_related('rival_team')
+        if selected_team:
+            folders_qs = folders_qs.filter(Q(rival_team=selected_team) | Q(rival_team__isnull=True))
+        video_folders = list(folders_qs.order_by('name', '-created_at'))
+
+    rival_videos_qs = RivalVideo.objects.select_related('rival_team', 'folder').prefetch_related('assigned_players').order_by('-created_at')
+    if selected_team:
+        rival_videos_qs = rival_videos_qs.filter(rival_team=selected_team)
+    else:
+        rival_videos_qs = rival_videos_qs.filter(rival_team__isnull=True)
+    if selected_folder_id:
+        rival_videos_qs = rival_videos_qs.filter(folder_id=selected_folder_id)
+    rival_videos = list(rival_videos_qs[:40])
+    analyst_players = list(Player.objects.filter(team=primary_team, is_active=True).order_by('number', 'name')) if primary_team else []
 
     return render(
         request,
@@ -7762,6 +7821,11 @@ def analysis_page(request):
             'video_error': video_error,
             'video_message': video_message,
             'video_sources': RivalVideo.SOURCE_CHOICES,
+            'video_folders': video_folders,
+            'selected_folder_id': selected_folder_id,
+            'folder_message': folder_message,
+            'folder_error': folder_error,
+            'analyst_players': analyst_players,
             'home_rival_name': home_rival_name,
             'extracted': extracted,
             'manual_initial': manual_initial,
@@ -8114,6 +8178,9 @@ def player_detail_page(request, player_id):
         physical_metrics = player.physical_metrics.all()[:20]
         latest_physical_metric = physical_metrics[0] if physical_metrics else None
         communications = player.communications.select_related('match').all()[:20]
+        assigned_analysis_videos = list(
+            player.assigned_analysis_videos.select_related('rival_team', 'folder').order_by('-created_at')[:20]
+        )
         injury_records = player.injury_records.all()[:20]
         latest_injury_record = injury_records[0] if injury_records else None
         has_active_injury = player.id in get_active_injury_player_ids([player.id])
@@ -8245,6 +8312,7 @@ def player_detail_page(request, player_id):
                 'physical_metrics': physical_metrics,
                 'latest_physical_metric': latest_physical_metric,
                 'communications': communications,
+                'assigned_analysis_videos': assigned_analysis_videos,
                 'injury_records': injury_records,
                 'latest_injury_record': latest_injury_record,
                 'has_active_injury': has_active_injury,
@@ -9550,6 +9618,7 @@ def compute_player_dashboard(primary_team):
                 'shots_on_target': 0,
                 'pass_attempts': 0,
                 'passes_completed': 0,
+                'key_passes_completed': 0,
                 'dribbles_attempted': 0,
                 'dribbles_completed': 0,
                 'age': _parse_int(universo_entry.get('age')) or roster_entry.get('age'),
