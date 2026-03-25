@@ -599,6 +599,11 @@ class EventTaxonomyKpiTests(TestCase):
         self.assertEqual(map_zone_label('Interior derecha'), 'Medio Derecho')
         self.assertEqual(map_zone_label('Costado Izquierdo'), 'Medio Izquierdo')
         self.assertEqual(map_zone_label('Costado Derecho'), 'Medio Derecho')
+        self.assertEqual(map_zone_label('MC'), 'Medio Centro')
+        self.assertEqual(map_zone_label('Último tercio'), 'Ataque Centro')
+        self.assertEqual(map_zone_label('Frontal'), 'Ataque Centro')
+        self.assertEqual(map_zone_label('DEFENSA CENTRO'), 'Defensa Centro')
+        self.assertEqual(map_zone_label('Área propia'), 'Portería')
 
 
 class ManualEventAggregationTests(TestCase):
