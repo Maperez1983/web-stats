@@ -199,7 +199,7 @@
     };
     const fitCanvas = () => {
       const width = Math.max(320, Math.round(canvasWrap?.clientWidth || 960));
-      const height = Math.max(220, Math.round(canvasWrap?.clientHeight || 380));
+      const height = Math.max(220, Math.round(width / 1.65));
       canvas.setDimensions({ width, height });
       canvas.renderAll();
     };
@@ -517,14 +517,18 @@
       const addSpot = (centerX, centerY, radius = 2.8) => {
         canvas.add(new fabric.Circle({ ...common, left: centerX - radius, top: centerY - radius, radius, fill: '#ffffff', strokeWidth: 0 }));
       };
-      const drawGoal = (left, top, goalWidth, goalDepth, inward = false) => {
-        const x1 = left;
-        const x2 = left + goalWidth;
-        const frontY = inward ? top + goalDepth : top;
-        const backY = inward ? top : top + goalDepth;
-        addLine([x1, frontY, x1, backY], 2);
-        addLine([x2, frontY, x2, backY], 2);
-        addLine([x1, backY, x2, backY], 2);
+      const drawGoal = (x, centerY, goalDepth, goalHeight, side = 'left') => {
+        const topY = centerY - (goalHeight / 2);
+        const bottomY = centerY + (goalHeight / 2);
+        if (side === 'right') {
+          addLine([x, topY, x + goalDepth, topY], 2);
+          addLine([x, bottomY, x + goalDepth, bottomY], 2);
+          addLine([x + goalDepth, topY, x + goalDepth, bottomY], 2);
+          return;
+        }
+        addLine([x, topY, x - goalDepth, topY], 2);
+        addLine([x, bottomY, x - goalDepth, bottomY], 2);
+        addLine([x - goalDepth, topY, x - goalDepth, bottomY], 2);
       };
       const drawCornerArcs = (left, top, right, bottom, radius) => {
         addArcPath(`M ${left} ${top + radius} A ${radius} ${radius} 0 0 1 ${left + radius} ${top}`, 2);
@@ -532,9 +536,9 @@
         addArcPath(`M ${left} ${bottom - radius} A ${radius} ${radius} 0 0 0 ${left + radius} ${bottom}`, 2);
         addArcPath(`M ${right - radius} ${bottom} A ${radius} ${radius} 0 0 0 ${right} ${bottom - radius}`, 2);
       };
-      const drawPenaltyArc = (centerX, centerY, radius, facing) => {
-        if (facing === 'down') addArcPath(`M ${centerX - radius} ${centerY} A ${radius} ${radius} 0 0 0 ${centerX + radius} ${centerY}`, 2.1, lineSoft);
-        if (facing === 'up') addArcPath(`M ${centerX - radius} ${centerY} A ${radius} ${radius} 0 0 1 ${centerX + radius} ${centerY}`, 2.1, lineSoft);
+      const drawPenaltyArc = (centerX, centerY, radius, side) => {
+        if (side === 'left') addArcPath(`M ${centerX} ${centerY - radius} A ${radius} ${radius} 0 0 0 ${centerX} ${centerY + radius}`, 2.1, lineSoft);
+        if (side === 'right') addArcPath(`M ${centerX} ${centerY - radius} A ${radius} ${radius} 0 0 1 ${centerX} ${centerY + radius}`, 2.1, lineSoft);
       };
       const drawFullPitchMarkings = (rect) => {
         const left = rect.left;
@@ -545,32 +549,32 @@
         const bottom = top + innerHeight;
         const centerX = left + (innerWidth / 2);
         const centerY = top + (innerHeight / 2);
-        const penaltyBoxWidth = innerWidth * 0.44;
-        const sixBoxWidth = innerWidth * 0.22;
-        const penaltyBoxDepth = innerHeight * 0.19;
-        const sixBoxDepth = innerHeight * 0.08;
-        const goalWidth = innerWidth * 0.13;
-        const goalDepth = innerHeight * 0.03;
-        const penaltySpotOffset = innerHeight * 0.13;
+        const penaltyBoxHeight = innerHeight * 0.52;
+        const sixBoxHeight = innerHeight * 0.24;
+        const penaltyBoxDepth = innerWidth * 0.165;
+        const sixBoxDepth = innerWidth * 0.055;
+        const goalHeight = innerHeight * 0.2;
+        const goalDepth = innerWidth * 0.024;
+        const penaltySpotOffset = innerWidth * 0.11;
         const centerRadius = Math.min(innerWidth, innerHeight) * 0.12;
         const cornerRadius = Math.min(innerWidth, innerHeight) * 0.03;
-        const penaltyArcRadius = innerWidth * 0.09;
-        const topPenaltyCenterY = top + penaltySpotOffset;
-        const bottomPenaltyCenterY = bottom - penaltySpotOffset;
+        const penaltyArcRadius = innerHeight * 0.12;
+        const leftPenaltyCenterX = left + penaltySpotOffset;
+        const rightPenaltyCenterX = right - penaltySpotOffset;
 
         addLine([centerX, top, centerX, bottom], 2.6);
         addCircle(centerX - centerRadius, centerY - centerRadius, centerRadius, 2.3);
         addSpot(centerX, centerY);
-        addRect(centerX - (penaltyBoxWidth / 2), top, penaltyBoxWidth, penaltyBoxDepth, 2.25, lineSoft);
-        addRect(centerX - (penaltyBoxWidth / 2), bottom - penaltyBoxDepth, penaltyBoxWidth, penaltyBoxDepth, 2.25, lineSoft);
-        addRect(centerX - (sixBoxWidth / 2), top, sixBoxWidth, sixBoxDepth, 2.15, lineSoft);
-        addRect(centerX - (sixBoxWidth / 2), bottom - sixBoxDepth, sixBoxWidth, sixBoxDepth, 2.15, lineSoft);
-        addSpot(centerX, topPenaltyCenterY);
-        addSpot(centerX, bottomPenaltyCenterY);
-        drawGoal(centerX - (goalWidth / 2), top, goalWidth, goalDepth, false);
-        drawGoal(centerX - (goalWidth / 2), bottom - goalDepth, goalWidth, goalDepth, true);
-        drawPenaltyArc(centerX, topPenaltyCenterY, penaltyArcRadius, 'down');
-        drawPenaltyArc(centerX, bottomPenaltyCenterY, penaltyArcRadius, 'up');
+        addRect(left, centerY - (penaltyBoxHeight / 2), penaltyBoxDepth, penaltyBoxHeight, 2.25, lineSoft);
+        addRect(right - penaltyBoxDepth, centerY - (penaltyBoxHeight / 2), penaltyBoxDepth, penaltyBoxHeight, 2.25, lineSoft);
+        addRect(left, centerY - (sixBoxHeight / 2), sixBoxDepth, sixBoxHeight, 2.15, lineSoft);
+        addRect(right - sixBoxDepth, centerY - (sixBoxHeight / 2), sixBoxDepth, sixBoxHeight, 2.15, lineSoft);
+        addSpot(leftPenaltyCenterX, centerY);
+        addSpot(rightPenaltyCenterX, centerY);
+        drawGoal(left, centerY, goalDepth, goalHeight, 'left');
+        drawGoal(right, centerY, goalDepth, goalHeight, 'right');
+        drawPenaltyArc(leftPenaltyCenterX, centerY, penaltyArcRadius, 'left');
+        drawPenaltyArc(rightPenaltyCenterX, centerY, penaltyArcRadius, 'right');
         drawCornerArcs(left, top, right, bottom, cornerRadius);
       };
       const drawHalfPitchMarkings = (rect) => {
@@ -580,26 +584,26 @@
         const innerHeight = rect.height;
         const right = left + innerWidth;
         const bottom = top + innerHeight;
-        const centerX = left + (innerWidth / 2);
-        const penaltyBoxWidth = innerWidth * 0.52;
-        const sixBoxWidth = innerWidth * 0.24;
-        const penaltyBoxDepth = innerHeight * 0.28;
-        const sixBoxDepth = innerHeight * 0.11;
-        const goalWidth = innerWidth * 0.16;
-        const goalDepth = innerHeight * 0.035;
+        const centerY = top + (innerHeight / 2);
+        const penaltyBoxHeight = innerHeight * 0.58;
+        const sixBoxHeight = innerHeight * 0.28;
+        const penaltyBoxDepth = innerWidth * 0.31;
+        const sixBoxDepth = innerWidth * 0.11;
+        const goalHeight = innerHeight * 0.22;
+        const goalDepth = innerWidth * 0.026;
         const cornerRadius = Math.min(innerWidth, innerHeight) * 0.03;
         const centerRadius = Math.min(innerWidth, innerHeight) * 0.12;
-        const penaltySpotY = top + (innerHeight * 0.18);
-        const midfieldY = bottom;
-        const penaltyArcRadius = innerWidth * 0.11;
+        const penaltySpotX = left + (innerWidth * 0.14);
+        const midfieldX = right;
+        const penaltyArcRadius = innerHeight * 0.13;
 
-        addRect(centerX - (penaltyBoxWidth / 2), top, penaltyBoxWidth, penaltyBoxDepth, 2.25, lineSoft);
-        addRect(centerX - (sixBoxWidth / 2), top, sixBoxWidth, sixBoxDepth, 2.15, lineSoft);
-        addSpot(centerX, penaltySpotY);
-        drawGoal(centerX - (goalWidth / 2), top, goalWidth, goalDepth, false);
-        drawPenaltyArc(centerX, penaltySpotY, penaltyArcRadius, 'down');
-        addLine([left, midfieldY, right, midfieldY], 2.5);
-        addCircle(centerX - centerRadius, midfieldY - centerRadius, centerRadius, 2.15, lineSoft);
+        addRect(left, centerY - (penaltyBoxHeight / 2), penaltyBoxDepth, penaltyBoxHeight, 2.25, lineSoft);
+        addRect(left, centerY - (sixBoxHeight / 2), sixBoxDepth, sixBoxHeight, 2.15, lineSoft);
+        addSpot(penaltySpotX, centerY);
+        drawGoal(left, centerY, goalDepth, goalHeight, 'left');
+        drawPenaltyArc(penaltySpotX, centerY, penaltyArcRadius, 'left');
+        addLine([midfieldX, top, midfieldX, bottom], 2.5);
+        addCircle(midfieldX - centerRadius, centerY - centerRadius, centerRadius, 2.15, lineSoft);
         drawCornerArcs(left, top, right, bottom, cornerRadius);
       };
       const drawAttackingThirdMarkings = (rect) => {
@@ -609,24 +613,24 @@
         const innerHeight = rect.height;
         const right = left + innerWidth;
         const bottom = top + innerHeight;
-        const centerX = left + (innerWidth / 2);
-        const penaltyBoxWidth = innerWidth * 0.42;
-        const sixBoxWidth = innerWidth * 0.2;
-        const penaltyBoxDepth = innerHeight * 0.24;
-        const sixBoxDepth = innerHeight * 0.09;
-        const goalWidth = innerWidth * 0.13;
-        const goalDepth = innerHeight * 0.03;
+        const centerY = top + (innerHeight / 2);
+        const penaltyBoxHeight = innerHeight * 0.54;
+        const sixBoxHeight = innerHeight * 0.24;
+        const penaltyBoxDepth = innerWidth * 0.26;
+        const sixBoxDepth = innerWidth * 0.09;
+        const goalHeight = innerHeight * 0.2;
+        const goalDepth = innerWidth * 0.024;
         const cornerRadius = Math.min(innerWidth, innerHeight) * 0.03;
-        const penaltySpotY = top + (innerHeight * 0.16);
-        const penaltyArcRadius = innerWidth * 0.085;
-        const buildLineY = top + (innerHeight * 0.34);
+        const penaltySpotX = left + (innerWidth * 0.13);
+        const penaltyArcRadius = innerHeight * 0.115;
+        const buildLineX = left + (innerWidth * 0.34);
 
-        addRect(centerX - (penaltyBoxWidth / 2), top, penaltyBoxWidth, penaltyBoxDepth, 2.25, lineSoft);
-        addRect(centerX - (sixBoxWidth / 2), top, sixBoxWidth, sixBoxDepth, 2.15, lineSoft);
-        addSpot(centerX, penaltySpotY);
-        drawGoal(centerX - (goalWidth / 2), top, goalWidth, goalDepth, false);
-        drawPenaltyArc(centerX, penaltySpotY, penaltyArcRadius, 'down');
-        addLine([left, buildLineY, right, buildLineY], 2.1, lineSoft);
+        addRect(left, centerY - (penaltyBoxHeight / 2), penaltyBoxDepth, penaltyBoxHeight, 2.25, lineSoft);
+        addRect(left, centerY - (sixBoxHeight / 2), sixBoxDepth, sixBoxHeight, 2.15, lineSoft);
+        addSpot(penaltySpotX, centerY);
+        drawGoal(left, centerY, goalDepth, goalHeight, 'left');
+        drawPenaltyArc(penaltySpotX, centerY, penaltyArcRadius, 'left');
+        addLine([buildLineX, top, buildLineX, bottom], 2.1, lineSoft);
         drawCornerArcs(left, top, right, bottom, cornerRadius);
       };
       const drawSevenSideMarkings = (rect) => {
@@ -638,27 +642,27 @@
         const bottom = top + innerHeight;
         const centerX = left + (innerWidth / 2);
         const centerY = top + (innerHeight / 2);
-        const areaWidth = innerWidth * 0.46;
-        const areaDepth = innerHeight * 0.16;
-        const goalAreaWidth = innerWidth * 0.24;
-        const goalAreaDepth = innerHeight * 0.075;
-        const goalWidth = innerWidth * 0.14;
-        const goalDepth = innerHeight * 0.028;
+        const areaHeight = innerHeight * 0.44;
+        const areaDepth = innerWidth * 0.13;
+        const goalAreaHeight = innerHeight * 0.24;
+        const goalAreaDepth = innerWidth * 0.06;
+        const goalHeight = innerHeight * 0.18;
+        const goalDepth = innerWidth * 0.02;
         const cornerRadius = Math.min(innerWidth, innerHeight) * 0.028;
         const centerRadius = Math.min(innerWidth, innerHeight) * 0.1;
-        const spotOffset = innerHeight * 0.12;
+        const spotOffset = innerWidth * 0.1;
 
         addLine([centerX, top, centerX, bottom], 2.45);
         addCircle(centerX - centerRadius, centerY - centerRadius, centerRadius, 2.1);
         addSpot(centerX, centerY);
-        addRect(centerX - (areaWidth / 2), top, areaWidth, areaDepth, 2.15, lineSoft);
-        addRect(centerX - (areaWidth / 2), bottom - areaDepth, areaWidth, areaDepth, 2.15, lineSoft);
-        addRect(centerX - (goalAreaWidth / 2), top, goalAreaWidth, goalAreaDepth, 2.05, lineSoft);
-        addRect(centerX - (goalAreaWidth / 2), bottom - goalAreaDepth, goalAreaWidth, goalAreaDepth, 2.05, lineSoft);
-        addSpot(centerX, top + spotOffset);
-        addSpot(centerX, bottom - spotOffset);
-        drawGoal(centerX - (goalWidth / 2), top, goalWidth, goalDepth, false);
-        drawGoal(centerX - (goalWidth / 2), bottom - goalDepth, goalWidth, goalDepth, true);
+        addRect(left, centerY - (areaHeight / 2), areaDepth, areaHeight, 2.15, lineSoft);
+        addRect(right - areaDepth, centerY - (areaHeight / 2), areaDepth, areaHeight, 2.15, lineSoft);
+        addRect(left, centerY - (goalAreaHeight / 2), goalAreaDepth, goalAreaHeight, 2.05, lineSoft);
+        addRect(right - goalAreaDepth, centerY - (goalAreaHeight / 2), goalAreaDepth, goalAreaHeight, 2.05, lineSoft);
+        addSpot(left + spotOffset, centerY);
+        addSpot(right - spotOffset, centerY);
+        drawGoal(left, centerY, goalDepth, goalHeight, 'left');
+        drawGoal(right, centerY, goalDepth, goalHeight, 'right');
         drawCornerArcs(left, top, right, bottom, cornerRadius);
       };
       const drawFutsalMarkings = (rect) => {
@@ -670,20 +674,20 @@
         const bottom = top + innerHeight;
         const centerX = left + (innerWidth / 2);
         const centerY = top + (innerHeight / 2);
-        const areaWidth = innerWidth * 0.34;
-        const areaDepth = innerHeight * 0.18;
-        const goalWidth = innerWidth * 0.14;
-        const goalDepth = innerHeight * 0.03;
+        const areaHeight = innerHeight * 0.34;
+        const areaDepth = innerWidth * 0.1;
+        const goalHeight = innerHeight * 0.16;
+        const goalDepth = innerWidth * 0.018;
         const cornerRadius = Math.min(innerWidth, innerHeight) * 0.025;
         const centerRadius = Math.min(innerWidth, innerHeight) * 0.09;
 
         addLine([centerX, top, centerX, bottom], 2.35);
         addCircle(centerX - centerRadius, centerY - centerRadius, centerRadius, 2.05);
         addSpot(centerX, centerY);
-        addRect(centerX - (areaWidth / 2), top, areaWidth, areaDepth, 2.1, lineSoft, { rx: 18, ry: 18 });
-        addRect(centerX - (areaWidth / 2), bottom - areaDepth, areaWidth, areaDepth, 2.1, lineSoft, { rx: 18, ry: 18 });
-        drawGoal(centerX - (goalWidth / 2), top, goalWidth, goalDepth, false);
-        drawGoal(centerX - (goalWidth / 2), bottom - goalDepth, goalWidth, goalDepth, true);
+        addRect(left, centerY - (areaHeight / 2), areaDepth, areaHeight, 2.1, lineSoft, { rx: 18, ry: 18 });
+        addRect(right - areaDepth, centerY - (areaHeight / 2), areaDepth, areaHeight, 2.1, lineSoft, { rx: 18, ry: 18 });
+        drawGoal(left, centerY, goalDepth, goalHeight, 'left');
+        drawGoal(right, centerY, goalDepth, goalHeight, 'right');
         drawCornerArcs(left, top, right, bottom, cornerRadius);
       };
       const grass = new fabric.Rect({ ...common, left: fieldLeft, top: fieldTop, width: fieldW, height: fieldH, fill: palette[0], strokeWidth: 0 });
