@@ -3523,6 +3523,104 @@ def coach_role_trainer_page(request):
         selected_match_id = coach_match_rows[0]['match_id'] if coach_match_rows else None
     selected_match_row = next((row for row in coach_match_rows if row['match_id'] == selected_match_id), None)
     selected_match_metrics = _summarize_events(match_events_map.get(selected_match_id, [])) if selected_match_id else None
+    coach_match_view = None
+    if selected_match_id:
+        selected_match = _team_match_queryset(primary_team).filter(id=selected_match_id).first()
+        if selected_match and selected_match_metrics:
+            selected_match_team_metrics = compute_team_metrics_for_match(selected_match, primary_team=primary_team)
+            selected_match_player_cards = compute_player_cards_for_match(selected_match, primary_team)
+            total_selected_zone_actions = sum(
+                int(count or 0) for count in selected_match_metrics['zone_counts'].values()
+            )
+            selected_match_field_zones = [
+                {
+                    **zone,
+                    'count': selected_match_metrics['zone_counts'].get(zone['key'], 0),
+                    'pct': round(
+                        (selected_match_metrics['zone_counts'].get(zone['key'], 0) / total_selected_zone_actions) * 100,
+                        1,
+                    )
+                    if total_selected_zone_actions
+                    else 0,
+                }
+                for zone in FIELD_ZONES
+            ]
+            selected_pass_accuracy = (
+                round(
+                    (selected_match_metrics['passes_completed'] / selected_match_metrics['passes_attempts']) * 100,
+                    1,
+                )
+                if selected_match_metrics['passes_attempts']
+                else 0.0
+            )
+            selected_shot_accuracy = (
+                round(
+                    (selected_match_metrics['shots_on_target'] / selected_match_metrics['shots_attempts']) * 100,
+                    1,
+                )
+                if selected_match_metrics['shots_attempts']
+                else 0.0
+            )
+            opponent = (
+                selected_match.away_team
+                if selected_match.home_team == primary_team
+                else selected_match.home_team
+            )
+            coach_match_view = {
+                'title': f"Equipo · {opponent.display_name if opponent else 'Rival desconocido'}",
+                'meta': (
+                    f"{selected_match.date.strftime('%d/%m/%Y') if selected_match.date else 'Fecha por definir'}"
+                    f" · Jornada {selected_match.round or '--'}"
+                    f" · {selected_match.location or 'Campo por confirmar'}"
+                ),
+                'rings': [
+                    {
+                        'label': 'Tasa de éxito',
+                        'value': f"{selected_match_metrics['success_rate']:.1f}%",
+                        'pct': selected_match_metrics['success_rate'],
+                    },
+                    {
+                        'label': 'Duelos ganados',
+                        'value': f"{selected_match_metrics['duel_rate']:.1f}%",
+                        'pct': selected_match_metrics['duel_rate'],
+                    },
+                    {
+                        'label': 'Precisión de pase',
+                        'value': f"{selected_pass_accuracy:.1f}%",
+                        'pct': selected_pass_accuracy,
+                    },
+                    {
+                        'label': 'Tiro a puerta',
+                        'value': f"{selected_shot_accuracy:.1f}%",
+                        'pct': selected_shot_accuracy,
+                    },
+                ],
+                'summary': [
+                    {'label': 'Acciones', 'value': selected_match_metrics['total_actions']},
+                    {'label': 'Goles', 'value': selected_match_metrics['goals']},
+                    {
+                        'label': 'Pases',
+                        'value': f"{selected_match_metrics['passes_completed']}/{selected_match_metrics['passes_attempts']}",
+                    },
+                    {
+                        'label': 'Disparos',
+                        'value': f"{selected_match_metrics['shots_on_target']}/{selected_match_metrics['shots_attempts']}",
+                    },
+                    {
+                        'label': 'Disparos/Gol',
+                        'value': '-'
+                        if selected_match_metrics['shots_per_goal'] is None
+                        else selected_match_metrics['shots_per_goal'],
+                    },
+                    {
+                        'label': 'Tarjetas',
+                        'value': f"{selected_match_metrics['yellow_cards']}A · {selected_match_metrics['red_cards']}R",
+                    },
+                ],
+                'field_zones': selected_match_field_zones,
+                'player_cards': selected_match_player_cards,
+                'top_event_types': selected_match_team_metrics['top_event_types'],
+            }
 
     modules = [
         {'title': 'Convocatoria', 'description': 'Define lista oficial y PDF del partido.', 'link': 'convocation'},
@@ -3547,6 +3645,7 @@ def coach_role_trainer_page(request):
             'coach_match_rows': coach_match_rows,
             'coach_selected_match': selected_match_row,
             'coach_selected_match_metrics': selected_match_metrics,
+            'coach_match_view': coach_match_view,
             'weekly_staff_brief': weekly_staff_brief,
             'coach_measured_matches': measured_matches,
             'coach_player_options': coach_player_options,

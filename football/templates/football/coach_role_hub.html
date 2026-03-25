@@ -347,6 +347,87 @@
         color: #7dd3fc;
         text-decoration: none;
       }
+      .analysis-section {
+        margin-top: 1.35rem;
+        padding: 1.15rem;
+        border-radius: 18px;
+        background: rgba(15, 23, 42, 0.78);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+      }
+      .analysis-section h3 {
+        margin: 0 0 0.3rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      .analysis-section .section-copy {
+        margin: 0 0 0.9rem;
+        color: rgba(226, 232, 240, 0.72);
+      }
+      .coach-match-toolbar {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 0.8rem;
+        margin-bottom: 1rem;
+      }
+      .coach-match-toolbar label {
+        display: block;
+        margin-bottom: 0.35rem;
+        color: rgba(226, 232, 240, 0.72);
+        font-size: 0.82rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      .coach-match-toolbar select {
+        width: 100%;
+        border-radius: 12px;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        background: rgba(15, 23, 42, 0.9);
+        color: #f8fafc;
+        padding: 0.8rem 0.9rem;
+      }
+      .coach-match-layout {
+        display: grid;
+        grid-template-columns: 1.4fr 0.95fr;
+        gap: 1rem;
+      }
+      .coach-detail-side {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
+      .coach-player-card-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 0.8rem;
+      }
+      .coach-player-card {
+        background: rgba(2, 6, 23, 0.48);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        border-radius: 14px;
+        padding: 0.9rem;
+      }
+      .coach-player-card strong {
+        display: block;
+        margin-bottom: 0.3rem;
+      }
+      .coach-player-card .meta {
+        display: block;
+        color: rgba(226, 232, 240, 0.78);
+        font-size: 0.84rem;
+      }
+      .coach-tag-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem;
+      }
+      .coach-tag {
+        padding: 0.45rem 0.7rem;
+        border-radius: 999px;
+        background: rgba(8, 47, 73, 0.55);
+        border: 1px solid rgba(125, 211, 252, 0.24);
+        color: #dbeafe;
+        font-size: 0.8rem;
+      }
       .weekly-brief {
         margin-top: 0.9rem;
         display: grid;
@@ -414,6 +495,11 @@
         transform: translateY(-2px);
         border-color: rgba(125, 211, 252, 0.5);
         box-shadow: 0 12px 30px rgba(2, 6, 23, 0.4);
+      }
+      @media (max-width: 1100px) {
+        .coach-match-layout {
+          grid-template-columns: 1fr;
+        }
       }
     </style>
   </head>
@@ -512,8 +598,9 @@
       </section>
       {% endif %}
       {% if coach_player_options %}
-      <section class="coach-player-tools">
-        <h3 class="overview-title" style="margin-bottom:0.9rem;">Vista Jugador</h3>
+      <section class="analysis-section coach-player-tools">
+        <h3>Jugador · Temporada y Partido</h3>
+        <p class="section-copy">Selecciona un jugador para ver su temporada completa o bajar al detalle de uno de sus partidos con el mismo formato visual de KPI.</p>
         <form method="get" class="coach-player-toolbar">
           {% if coach_selected_match %}<input type="hidden" name="match" value="{{ coach_selected_match.match_id }}"/>{% endif %}
           <div>
@@ -586,43 +673,116 @@
       </section>
       {% endif %}
       {% if coach_match_rows %}
-      <section class="coach-match-table">
-        <h3>Análisis por partido</h3>
-        <p style="margin:0 0 0.85rem;color:rgba(226,232,240,0.75);">Partidos medidos con acciones: <strong>{{ coach_measured_matches|default:0 }}</strong></p>
-        <table>
-          <thead>
-            <tr>
-              <th>Jornada</th>
-              <th>Fecha</th>
-              <th>Rival</th>
-              <th>Acciones</th>
-              <th>% éxito</th>
-              <th>% duelo</th>
-              <th>Tarjetas</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for row in coach_match_rows %}
-            <tr class="{% if coach_selected_match and coach_selected_match.match_id == row.match_id %}is-selected{% endif %}">
-              <td><a href="?match={{ row.match_id }}">{{ row.round }}</a></td>
-              <td>{{ row.date }}</td>
-              <td>{{ row.opponent }}</td>
-              <td>{{ row.total_actions }}</td>
-              <td>{{ row.success_rate|floatformat:-1 }}%</td>
-              <td>{{ row.duel_rate|floatformat:-1 }}%</td>
-              <td>{{ row.yellow_cards }}A · {{ row.red_cards }}R</td>
-            </tr>
+      <section class="analysis-section">
+        <h3>Equipo · Análisis por Partido</h3>
+        <p class="section-copy">Vista general de todos los partidos medidos y detalle completo del partido seleccionado para analizar el comportamiento colectivo.</p>
+        <form method="get" class="coach-match-toolbar">
+          {% if coach_selected_player_id %}<input type="hidden" name="player" value="{{ coach_selected_player_id }}" />{% endif %}
+          {% if coach_selected_player_match_id %}<input type="hidden" name="player_match" value="{{ coach_selected_player_match_id }}" />{% endif %}
+          <div>
+            <label for="coach-match-select">Partido</label>
+            <select id="coach-match-select" name="match" onchange="this.form.submit()">
+              {% for row in coach_match_rows %}
+              <option value="{{ row.match_id }}" {% if coach_selected_match and coach_selected_match.match_id == row.match_id %}selected{% endif %}>
+                {{ row.round }} · {{ row.opponent }} · {{ row.date }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+        </form>
+        <div class="coach-match-layout">
+          <div class="coach-match-table">
+            <h3>Temporada medida</h3>
+            <p style="margin:0 0 0.85rem;color:rgba(226,232,240,0.75);">Partidos medidos con acciones: <strong>{{ coach_measured_matches|default:0 }}</strong></p>
+            <table>
+              <thead>
+                <tr>
+                  <th>Jornada</th>
+                  <th>Fecha</th>
+                  <th>Rival</th>
+                  <th>Acciones</th>
+                  <th>% éxito</th>
+                  <th>% duelo</th>
+                  <th>Tarjetas</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in coach_match_rows %}
+                <tr class="{% if coach_selected_match and coach_selected_match.match_id == row.match_id %}is-selected{% endif %}">
+                  <td><a href="?match={{ row.match_id }}{% if coach_selected_player_id %}&player={{ coach_selected_player_id }}{% endif %}{% if coach_selected_player_match_id %}&player_match={{ coach_selected_player_match_id }}{% endif %}">{{ row.round }}</a></td>
+                  <td>{{ row.date }}</td>
+                  <td>{{ row.opponent }}</td>
+                  <td>{{ row.total_actions }}</td>
+                  <td>{{ row.success_rate|floatformat:-1 }}%</td>
+                  <td>{{ row.duel_rate|floatformat:-1 }}%</td>
+                  <td>{{ row.yellow_cards }}A · {{ row.red_cards }}R</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% if coach_match_view %}
+          <div class="coach-detail-side">
+            <section class="overview">
+              <h2 class="overview-title">{{ coach_match_view.title }}</h2>
+              <p class="section-copy" style="text-align:center;margin-bottom:1rem;">{{ coach_match_view.meta }}</p>
+              <div class="overview-rings">
+                {% for item in coach_match_view.rings %}
+                <article class="overview-ring">
+                  <div class="overview-ring-chart" style="--pct: {{ item.pct|default:0 }};">
+                    <span class="overview-ring-value">{{ item.value }}</span>
+                  </div>
+                  <div class="overview-ring-label">{{ item.label }}</div>
+                </article>
+                {% endfor %}
+              </div>
+              <div class="overview-summary">
+                {% for item in coach_match_view.summary %}
+                <article class="overview-item">
+                  <div class="label">{{ item.label }}</div>
+                  <div class="value">{{ item.value }}</div>
+                </article>
+                {% endfor %}
+              </div>
+            </section>
+            <section class="coach-match-table">
+              <h3>Acciones más repetidas</h3>
+              <div class="coach-tag-list">
+                {% for item in coach_match_view.top_event_types %}
+                <span class="coach-tag">{{ item.event }} · {{ item.count }}</span>
+                {% empty %}
+                <span class="coach-tag">Sin acciones registradas</span>
+                {% endfor %}
+              </div>
+            </section>
+            <section class="coach-map-wrap" style="margin-top:0;background:#0b1b12;">
+              <h3 style="color:#f8fafc;">Mapa de calor del partido</h3>
+              <div class="field-diagram">
+                <img src="{% static 'football/campo-futbol.jpg' %}" alt="Campo de fútbol" />
+                {% for zone in coach_match_view.field_zones %}
+                <div class="field-zone" style="left: {{ zone.left }}; top: {{ zone.top }}; width: {{ zone.width }}; height: {{ zone.height }};">
+                  <span>{{ zone.label }}</span>
+                  <span class="zone-count" title="{{ zone.count }} acciones">{{ zone.pct|default:0|floatformat:-1 }}%</span>
+                </div>
+                {% endfor %}
+              </div>
+            </section>
+          </div>
+          {% endif %}
+        </div>
+        {% if coach_match_view and coach_match_view.player_cards %}
+        <div class="coach-match-table" style="margin-top:1rem;">
+          <h3>Jugadores del partido</h3>
+          <div class="coach-player-card-grid">
+            {% for player in coach_match_view.player_cards %}
+            <article class="coach-player-card">
+              <strong>{% if player.number %}#{{ player.number }} {% endif %}{{ player.name }}</strong>
+              <span class="meta">Acciones {{ player.actions }} · Éxitos {{ player.successes }}</span>
+              <span class="meta">Tasa de éxito {{ player.success_rate|floatformat:-1 }}%</span>
+            </article>
             {% endfor %}
-          </tbody>
-        </table>
-        {% if coach_selected_match and coach_selected_match_metrics %}
-        <p style="margin:0.7rem 0 0;color:rgba(186,230,253,0.9);">
-          Seleccionado: <strong>{{ coach_selected_match.round }}</strong> vs <strong>{{ coach_selected_match.opponent }}</strong>
-          · Acciones {{ coach_selected_match_metrics.total_actions }}
-          · Pases {{ coach_selected_match_metrics.passes_completed }}/{{ coach_selected_match_metrics.passes_attempts }}
-          · Disparos {{ coach_selected_match_metrics.shots_on_target }}/{{ coach_selected_match_metrics.shots_attempts }}
-          · Disparos/Gol {{ coach_selected_match_metrics.shots_per_goal|default:"-" }}
-        </p>
+          </div>
+        </div>
         {% endif %}
       </section>
       {% endif %}
