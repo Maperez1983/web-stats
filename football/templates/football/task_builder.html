@@ -1,0 +1,723 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>{% if task %}Editar tarea{% else %}Crear tarea{% endif %} · {{ scope_title }}</title>
+    <style>
+      :root {
+        --ink: #f3f4f6;
+        --muted: rgba(226, 232, 240, 0.78);
+        --bg: #061226;
+        --panel: rgba(7, 22, 44, 0.92);
+        --line: rgba(255, 255, 255, 0.14);
+        --brand: #22d3ee;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background: linear-gradient(180deg, #020916 0%, #081b35 65%, #081329 100%);
+        font-family: "Montserrat", "Avenir Next", "Segoe UI", sans-serif;
+      }
+      .page { max-width: 1680px; margin: 0 auto; padding: 1.25rem; }
+      .top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+      }
+      .top h1 { margin: 0; font-size: 1.18rem; letter-spacing: 0.08em; text-transform: uppercase; }
+      .button, button.primary, button.secondary {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        padding: 0.6rem 0.95rem;
+        text-decoration: none;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        font-size: 0.72rem;
+        cursor: pointer;
+      }
+      .button, button.secondary {
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--ink);
+      }
+      button.primary {
+        border: none;
+        background: linear-gradient(135deg, #22d3ee, #67e8f9);
+        color: #02263d;
+      }
+      .meta { margin: 0; color: var(--muted); font-size: 0.84rem; }
+      .alert, .msg {
+        border-radius: 12px;
+        padding: 0.75rem 0.9rem;
+        border: 1px solid var(--line);
+        margin-bottom: 0.9rem;
+      }
+      .alert.ok, .msg.ok { border-color: rgba(34, 197, 94, 0.45); background: rgba(34, 197, 94, 0.14); }
+      .alert.err, .msg.err { border-color: rgba(248, 113, 113, 0.5); background: rgba(127, 29, 29, 0.25); }
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(340px, 420px);
+        gap: 1rem;
+        align-items: start;
+      }
+      .panel {
+        border-radius: 18px;
+        border: 1px solid var(--line);
+        background: var(--panel);
+        padding: 1rem;
+      }
+      .panel h2 {
+        margin: 0 0 0.75rem;
+        font-size: 0.82rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .grid { display: grid; gap: 0.8rem; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+      label {
+        display: grid;
+        gap: 0.35rem;
+        font-size: 0.74rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(224, 234, 255, 0.82);
+      }
+      input, select, textarea {
+        width: 100%;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: rgba(3, 10, 20, 0.75);
+        color: var(--ink);
+        padding: 0.52rem 0.6rem;
+        font: inherit;
+        text-transform: none;
+      }
+      textarea { min-height: 84px; resize: vertical; }
+      .option-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 0.45rem;
+      }
+      .check-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 0.38rem 0.55rem;
+        background: rgba(255, 255, 255, 0.05);
+        font-size: 0.69rem;
+        text-transform: none;
+        letter-spacing: 0.01em;
+      }
+      .player-chip-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 0.4rem;
+        max-height: 240px;
+        overflow: auto;
+      }
+      .player-chip {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 12px;
+        padding: 0.4rem 0.5rem;
+        background: rgba(255, 255, 255, 0.05);
+        font-size: 0.72rem;
+      }
+      .player-chip strong { display: block; font-size: 0.76rem; }
+      .player-chip small { color: var(--muted); }
+      .builder-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem;
+        margin-top: 1rem;
+      }
+      .create-board {
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 14px;
+        background: rgba(2, 10, 22, 0.5);
+        padding: 0.7rem;
+      }
+      .create-board-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 240px;
+        gap: 0.6rem;
+        align-items: start;
+      }
+      .create-board-wrap {
+        position: relative;
+        width: 100%;
+        height: 620px;
+        min-height: 520px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        overflow: hidden;
+        background:
+          linear-gradient(90deg, rgba(255,255,255,0.08), rgba(255,255,255,0.08)) center/2px calc(100% - 10%) no-repeat,
+          linear-gradient(90deg, #4b8d3a 0 12.5%, #3f7f34 12.5% 25%, #4b8d3a 25% 37.5%, #3f7f34 37.5% 50%, #4b8d3a 50% 62.5%, #3f7f34 62.5% 75%, #4b8d3a 75% 87.5%, #3f7f34 87.5% 100%);
+      }
+      .create-board-wrap::before {
+        content: "";
+        position: absolute;
+        inset: 6% 4%;
+        border: 2px solid rgba(255, 255, 255, 0.65);
+        border-radius: 2px;
+        pointer-events: none;
+      }
+      .create-board-wrap::after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 22%;
+        height: 42%;
+        transform: translate(-50%, -50%);
+        border: 2px solid rgba(255, 255, 255, 0.46);
+        border-radius: 999px;
+        pointer-events: none;
+      }
+      #create-task-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+      .create-resource, .create-layers {
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 12px;
+        padding: 0.55rem;
+        background: rgba(8, 20, 42, 0.75);
+      }
+      .create-resource-title, .create-layers h4 {
+        margin: 0 0 0.4rem;
+        font-size: 0.72rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+      .create-team-config { display: grid; gap: 0.35rem; margin-bottom: 0.5rem; }
+      .create-team-row { display: grid; grid-template-columns: 1fr auto auto; gap: 0.25rem; align-items: center; }
+      .create-team-row input[type="text"] { padding: 0.28rem 0.42rem; font-size: 0.66rem; }
+      .create-team-row input[type="color"] { width: 30px; height: 30px; border: none; padding: 0; background: transparent; }
+      .create-catalog-tabs, .create-resource-grid, .create-player-grid, .create-iconify-grid { display: grid; gap: 0.35rem; }
+      .create-catalog-tabs { grid-template-columns: repeat(5, minmax(0, 1fr)); margin-bottom: 0.5rem; }
+      .create-catalog-tab, .create-resource-btn, .create-iconify-btn {
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 9px;
+        background: rgba(255, 255, 255, 0.06);
+        color: #dbeafe;
+        font-size: 0.64rem;
+        padding: 0.3rem 0.46rem;
+        cursor: pointer;
+      }
+      .create-catalog-tab.is-active { border-color: rgba(34, 211, 238, 0.75); background: rgba(8, 145, 178, 0.32); }
+      .create-resource-grid { grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); }
+      .create-player-pool { margin-top: 0.5rem; }
+      .create-player-pool-head { display: flex; justify-content: space-between; align-items: center; gap: 0.45rem; margin-bottom: 0.25rem; }
+      .create-player-pool-head strong { font-size: 0.66rem; letter-spacing: 0.05em; text-transform: uppercase; }
+      .create-player-pool-head input { min-width: 110px; padding: 0.24rem 0.38rem; font-size: 0.64rem; }
+      .create-player-grid { grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); max-height: 180px; overflow: auto; }
+      .create-layers-list { display: grid; gap: 0.32rem; max-height: 540px; overflow: auto; }
+      .create-board-status { margin-top: 0.5rem; font-size: 0.8rem; color: var(--muted); }
+      .tpad-team-chip, .tpad-side-btn, .tpad-dock, .tpad-editbar, .tpad-modal-backdrop { display: none; }
+      @media (max-width: 1180px) {
+        .layout { grid-template-columns: 1fr; }
+        .create-board-layout { grid-template-columns: 1fr; }
+        .create-board-wrap { height: 460px; min-height: 400px; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      {% include 'football/includes/dragon_nav.html' %}
+      <div class="top">
+        <div>
+          <h1>{% if task %}Editar tarea{% else %}Crear tarea{% endif %} · Editor visual</h1>
+          <p class="meta">Pizarra táctica, metadatos de diseño, asignación de jugadores y salida a PDF desde repositorio.</p>
+        </div>
+        <div style="display:flex; gap:0.55rem; flex-wrap:wrap;">
+          <a href="{% url scope_route_name %}" class="button">Volver a sesiones</a>
+          {% if task %}
+          <a href="{% url 'session-task-detail' task.id %}" class="button">Ver detalle</a>
+          <a href="{% url 'session-task-pdf' task.id %}" class="button" target="_blank" rel="noopener">PDF</a>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if feedback %}<div class="alert ok">{{ feedback }}</div>{% endif %}
+      {% if error %}<div class="alert err">{{ error }}</div>{% endif %}
+
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="planner_action" value="create_draw_task" />
+        <div class="layout">
+          <section class="panel">
+            <h2>Diseño de la tarea</h2>
+            <div class="grid">
+              <label>
+                Sesión destino
+                <select name="draw_target_session_id">
+                  <option value="">Repositorio automático</option>
+                  {% for session in all_sessions %}
+                  <option value="{{ session.id }}" {% if initial.target_session_id == session.id|stringformat:"s" %}selected{% endif %}>{{ session.session_date|date:"d/m/Y" }} · {{ session.focus }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label>
+                Plantilla táctica
+                <select name="draw_task_template" id="draw-task-template">
+                  {% for item in task_templates %}
+                  <option value="{{ item.key }}" {% if initial.template_key == item.key %}selected{% endif %}>{{ item.label }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label>
+                Título
+                <input type="text" name="draw_task_title" value="{{ initial.title }}" maxlength="160" required />
+              </label>
+              <label>
+                Bloque
+                <select name="draw_task_block">
+                  {% for value, label in task_blocks %}
+                  <option value="{{ value }}" {% if initial.block == value %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label>
+                Duración
+                <input type="number" name="draw_task_minutes" min="5" max="90" value="{{ initial.minutes|default:15 }}" />
+              </label>
+              <label>
+                Objetivo
+                <input type="text" name="draw_task_objective" value="{{ initial.objective }}" maxlength="180" />
+              </label>
+              <label>
+                Superficie
+                <select name="draw_task_surface">
+                  <option value="">-</option>
+                  {% for value, label in task_surface_choices %}
+                  <option value="{{ value }}" {% if initial.surface == value %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label>
+                Formato de campo
+                <select name="draw_task_pitch_format">
+                  <option value="">-</option>
+                  {% for value, label in task_pitch_choices %}
+                  <option value="{{ value }}" {% if initial.pitch_format == value %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label>
+                Fase del juego
+                <select name="draw_task_game_phase">
+                  <option value="">-</option>
+                  {% for value, label in task_phase_choices %}
+                  <option value="{{ value }}" {% if initial.game_phase == value %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label>
+                Metodología
+                <select name="draw_task_methodology">
+                  <option value="">-</option>
+                  {% for value, label in task_methodology_choices %}
+                  <option value="{{ value }}" {% if initial.methodology == value %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label>
+                Complejidad
+                <select name="draw_task_complexity">
+                  <option value="">-</option>
+                  {% for value, label in task_complexity_choices %}
+                  <option value="{{ value }}" {% if initial.complexity == value %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label>
+                Tipo de entrenamiento
+                <input type="text" name="draw_task_training_type" value="{{ initial.training_type }}" placeholder="Ej: táctica integrada" />
+              </label>
+              <label>
+                Nº jugadores
+                <input type="text" name="draw_task_player_count" value="{{ initial.player_count }}" placeholder="Ej: 12 + 2 porteros" />
+              </label>
+              <label>
+                Edad / categoría
+                <input type="text" name="draw_task_age_group" value="{{ initial.age_group }}" placeholder="Ej: Cadete / Senior" />
+              </label>
+              <label>
+                Tamaño / dimensiones
+                <input type="text" name="draw_task_dimensions" value="{{ initial.dimensions }}" placeholder="Ej: 40x30m" />
+              </label>
+              <label>
+                Espacio
+                <input type="text" name="draw_task_space" value="{{ initial.space }}" placeholder="Ej: zona central + 2 carriles" />
+              </label>
+              <label>
+                Organización
+                <input type="text" name="draw_task_organization" value="{{ initial.organization }}" placeholder="Ej: 6v6 + 2 comodines" />
+              </label>
+              <label>
+                Distribución jugadores
+                <input type="text" name="draw_task_players_distribution" value="{{ initial.players_distribution }}" placeholder="Ej: 3 líneas + pivote" />
+              </label>
+              <label>
+                Trabajo / pausa
+                <input type="text" name="draw_task_work_rest" value="{{ initial.work_rest }}" placeholder="Ej: 4x3' + 1'" />
+              </label>
+              <label>
+                Series
+                <input type="text" name="draw_task_series" value="{{ initial.series }}" />
+              </label>
+              <label>
+                Repeticiones
+                <input type="text" name="draw_task_repetitions" value="{{ initial.repetitions }}" />
+              </label>
+              <label>
+                Carga objetivo
+                <input type="text" name="draw_task_load_target" value="{{ initial.load_target }}" placeholder="Ej: RPE 7" />
+              </label>
+              <label>
+                Categorización extra
+                <input type="text" name="draw_task_category_tags" value="{{ initial.category_tags }}" placeholder="Ej: finalización, presión, amplitud" />
+              </label>
+              <label style="grid-column:1/-1;">
+                Arranque visual
+                <select name="draw_task_pitch_preset">
+                  <option value="full_pitch" {% if initial.pitch_preset == 'full_pitch' %}selected{% endif %}>Campo completo</option>
+                  <option value="half_pitch" {% if initial.pitch_preset == 'half_pitch' %}selected{% endif %}>Medio campo</option>
+                  <option value="futsal" {% if initial.pitch_preset == 'futsal' %}selected{% endif %}>Futsal</option>
+                  <option value="blank" {% if initial.pitch_preset == 'blank' %}selected{% endif %}>Lienzo en blanco</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="create-board" style="margin-top:0.9rem;">
+              <div class="create-board-shell" id="create-board-shell">
+                <div class="tpad-team-chip left" data-team="L"><span>Local</span></div>
+                <div class="tpad-team-chip right" data-team="R"><span>Rival</span></div>
+                <div class="create-board-toolbar" id="create-board-toolbar" style="display:none;">
+                  <button type="button" class="secondary" id="create-board-draw-btn">Dibujar</button>
+                  <button type="button" class="secondary" id="create-board-select-btn">Seleccionar</button>
+                  <button type="button" class="secondary" id="create-board-snap-btn">Snap ON</button>
+                  <button type="button" class="secondary" id="create-board-player-btn">Jugador</button>
+                  <button type="button" class="secondary" id="create-board-zone-btn">Zona</button>
+                  <button type="button" class="secondary" id="create-board-arrow-btn">Flecha</button>
+                  <button type="button" class="secondary" id="create-board-text-btn">Texto</button>
+                  <button type="button" class="secondary" id="create-board-align-left-btn">Izq</button>
+                  <button type="button" class="secondary" id="create-board-align-center-btn">Centro</button>
+                  <button type="button" class="secondary" id="create-board-align-right-btn">Der</button>
+                  <button type="button" class="secondary" id="create-board-align-top-btn">Arriba</button>
+                  <button type="button" class="secondary" id="create-board-align-middle-btn">Medio</button>
+                  <button type="button" class="secondary" id="create-board-align-bottom-btn">Abajo</button>
+                  <button type="button" class="secondary" id="create-board-duplicate-btn">Duplicar</button>
+                  <button type="button" class="secondary" id="create-board-lock-btn">Bloquear</button>
+                  <button type="button" class="secondary" id="create-board-unlock-btn">Desbloquear</button>
+                  <button type="button" class="secondary" id="create-board-delete-btn">Borrar selección</button>
+                  <button type="button" class="secondary" id="create-board-front-btn">Subir capa</button>
+                  <button type="button" class="secondary" id="create-board-back-btn">Bajar capa</button>
+                  <button type="button" class="secondary" id="create-board-undo-btn">Deshacer</button>
+                  <button type="button" class="secondary" id="create-board-clear-btn">Limpiar</button>
+                  <button type="button" class="secondary" id="create-board-recover-btn">Recuperar draft</button>
+                  <button type="button" class="secondary" id="create-board-discard-btn">Borrar draft</button>
+                  <label style="display:flex; align-items:center; gap:0.35rem; text-transform:none; letter-spacing:0.02em; font-size:0.7rem;">
+                    Color
+                    <input id="create-board-color" type="color" value="#e11d48" style="height:30px; width:42px; padding:0.15rem;" />
+                  </label>
+                  <label style="display:flex; align-items:center; gap:0.35rem; text-transform:none; letter-spacing:0.02em; font-size:0.7rem;">
+                    Trazo
+                    <input id="create-board-width" type="range" min="1" max="14" value="4" />
+                  </label>
+                </div>
+                <div class="tpad-stage">
+                  <div class="create-resource">
+                    <p class="create-resource-title">Catálogo gráfico</p>
+                    <div class="create-team-config">
+                      <div class="create-team-row">
+                        <input type="text" id="tpad-local-name" value="LOCAL" maxlength="14" />
+                        <input type="color" id="tpad-local-color-primary" value="#0f7ec7" />
+                        <input type="color" id="tpad-local-color-secondary" value="#f8fafc" />
+                      </div>
+                      <div class="create-team-row">
+                        <input type="text" id="tpad-rival-name" value="RIVAL" maxlength="14" />
+                        <input type="color" id="tpad-rival-color-primary" value="#f59e0b" />
+                        <input type="color" id="tpad-rival-color-secondary" value="#f8fafc" />
+                      </div>
+                    </div>
+                    <div class="create-catalog-tabs" id="create-catalog-tabs">
+                      <button type="button" class="create-catalog-tab is-active" data-cat="all">Todo</button>
+                      <button type="button" class="create-catalog-tab" data-cat="players">Jugadores</button>
+                      <button type="button" class="create-catalog-tab" data-cat="material">Material</button>
+                      <button type="button" class="create-catalog-tab" data-cat="zones">Zonas</button>
+                      <button type="button" class="create-catalog-tab" data-cat="draw">Trazos</button>
+                    </div>
+                    <div class="create-resource-grid" id="create-resource-grid">
+                      <button type="button" class="create-resource-btn" data-cat="players" data-resource="player" data-team="local">Jugador local</button>
+                      <button type="button" class="create-resource-btn" data-cat="players" data-resource="player" data-team="rival">Jugador rival</button>
+                      <button type="button" class="create-resource-btn" data-cat="players" data-resource="goalkeeper" data-team="local">Portero local</button>
+                      <button type="button" class="create-resource-btn" data-cat="players" data-resource="goalkeeper" data-team="rival">Portero rival</button>
+                      <button type="button" class="create-resource-btn" data-cat="material" data-resource="ball" data-variant="classic">Balón</button>
+                      <button type="button" class="create-resource-btn" data-cat="material" data-resource="cone" data-variant="training">Cono</button>
+                      <button type="button" class="create-resource-btn" data-cat="material" data-resource="cone" data-variant="disc">Disco</button>
+                      <button type="button" class="create-resource-btn" data-cat="material" data-resource="cone" data-variant="pica">Pica</button>
+                      <button type="button" class="create-resource-btn" data-cat="material" data-resource="mini_goal" data-variant="mini">Mini portería</button>
+                      <button type="button" class="create-resource-btn" data-cat="material" data-resource="mini_goal" data-variant="full">Portería 11</button>
+                      <button type="button" class="create-resource-btn" data-cat="zones" data-resource="zone" data-variant="rect">Zona rectangular</button>
+                      <button type="button" class="create-resource-btn" data-cat="zones" data-resource="zone" data-variant="circle">Zona circular</button>
+                      <button type="button" class="create-resource-btn" data-cat="zones" data-resource="zone" data-variant="diamond">Zona rombo</button>
+                      <button type="button" class="create-resource-btn" data-cat="draw" data-resource="arrow" data-variant="straight">Flecha</button>
+                      <button type="button" class="create-resource-btn" data-cat="draw" data-resource="arrow" data-variant="curve">Flecha curva</button>
+                      <button type="button" class="create-resource-btn" data-cat="draw" data-resource="line" data-variant="solid">Línea sólida</button>
+                      <button type="button" class="create-resource-btn" data-cat="draw" data-resource="line" data-variant="dash">Línea discontinua</button>
+                    </div>
+                    <div class="create-player-pool">
+                      <div class="create-player-pool-head">
+                        <strong>Plantilla</strong>
+                        <input id="tpad-local-search" type="text" placeholder="Buscar..." />
+                      </div>
+                      <div class="create-player-grid" id="tpad-local-players-grid"></div>
+                    </div>
+                    <div class="create-player-pool">
+                      <div class="create-player-pool-head">
+                        <strong>Rival</strong>
+                        <input id="tpad-rival-search" type="text" placeholder="Buscar..." />
+                      </div>
+                      <div class="create-player-grid" id="tpad-rival-players-grid"></div>
+                    </div>
+                    <p class="create-resource-title" style="margin-top:0.55rem;">Iconos</p>
+                    <input id="create-iconify-search" type="text" placeholder="Buscar icono..." />
+                    <div class="create-iconify-grid" id="create-iconify-grid">
+                      <button type="button" class="create-iconify-btn" data-iconify="mdi:account" data-label="Jugador"><iconify-icon icon="mdi:account"></iconify-icon><span>Jugador</span></button>
+                      <button type="button" class="create-iconify-btn" data-iconify="mdi:account-group" data-label="Grupo"><iconify-icon icon="mdi:account-group"></iconify-icon><span>Grupo</span></button>
+                      <button type="button" class="create-iconify-btn" data-iconify="mdi:soccer" data-label="Balón"><iconify-icon icon="mdi:soccer"></iconify-icon><span>Balón</span></button>
+                      <button type="button" class="create-iconify-btn" data-iconify="mdi:cone" data-label="Cono"><iconify-icon icon="mdi:cone"></iconify-icon><span>Cono</span></button>
+                      <button type="button" class="create-iconify-btn" data-iconify="mdi:target" data-label="Diana"><iconify-icon icon="mdi:target"></iconify-icon><span>Diana</span></button>
+                      <button type="button" class="create-iconify-btn" data-iconify="mdi:shield-outline" data-label="Defensa"><iconify-icon icon="mdi:shield-outline"></iconify-icon><span>Defensa</span></button>
+                      <button type="button" class="create-iconify-btn" data-iconify="mdi:tshirt-crew-outline" data-label="Peto"><iconify-icon icon="mdi:tshirt-crew-outline"></iconify-icon><span>Peto</span></button>
+                      <button type="button" class="create-iconify-btn" data-iconify="mdi:arrow-right-bold" data-label="Flecha"><iconify-icon icon="mdi:arrow-right-bold"></iconify-icon><span>Flecha</span></button>
+                      <button type="button" class="create-iconify-btn" data-iconify="mdi:arrow-split-horizontal" data-label="Desmarque"><iconify-icon icon="mdi:arrow-split-horizontal"></iconify-icon><span>Desmarque</span></button>
+                      <button type="button" class="create-iconify-btn" data-iconify="mdi:format-text" data-label="Texto"><iconify-icon icon="mdi:format-text"></iconify-icon><span>Texto</span></button>
+                    </div>
+                  </div>
+                  <div class="create-board-layout">
+                    <div class="create-board-wrap">
+                      <canvas id="create-task-canvas"></canvas>
+                    </div>
+                    <aside class="create-layers">
+                      <h4>Capas</h4>
+                      <div class="create-layers-list" id="create-layers-list"></div>
+                    </aside>
+                  </div>
+                </div>
+                <button type="button" class="tpad-side-btn left" id="tpad-menu-btn"><span class="icon">⌂</span><span>Menu</span></button>
+                <button type="button" class="tpad-side-btn right" id="tpad-tools-btn"><span class="icon">✎</span><span>Herr</span></button>
+                <div class="tpad-editbar" id="tpad-editbar">
+                  <button type="button" class="tpad-tool-btn is-active" id="tpad-tool-select"><span class="icon">✥</span><span class="txt">Sel</span></button>
+                  <button type="button" class="tpad-tool-btn" id="tpad-tool-draw"><span class="icon">〰</span><span class="txt">Draw</span></button>
+                  <button type="button" class="tpad-tool-btn" id="tpad-tool-player"><span class="icon">⚉</span><span class="txt">Player</span></button>
+                  <button type="button" class="tpad-tool-btn" id="tpad-tool-zone"><span class="icon">▭</span><span class="txt">Zona</span></button>
+                  <button type="button" class="tpad-tool-btn" id="tpad-tool-arrow"><span class="icon">➜</span><span class="txt">Arrow</span></button>
+                  <button type="button" class="tpad-tool-btn" id="tpad-tool-line"><span class="icon">━</span><span class="txt">Linea</span></button>
+                  <div class="tpad-tool-divider"></div>
+                  <button type="button" class="tpad-tool-btn" id="tpad-tool-color-red"><span class="icon">●</span><span class="txt">Rojo</span></button>
+                  <button type="button" class="tpad-tool-btn" id="tpad-tool-color-blue"><span class="icon">●</span><span class="txt">Azul</span></button>
+                  <button type="button" class="tpad-tool-btn" id="tpad-tool-color-white"><span class="icon">●</span><span class="txt">Blanco</span></button>
+                  <div class="tpad-tool-divider"></div>
+                  <button type="button" class="tpad-tool-btn" id="tpad-tool-text"><span class="icon">T</span><span class="txt">Texto</span></button>
+                  <button type="button" class="tpad-tool-btn" id="tpad-tool-undo"><span class="icon">↶</span><span class="txt">Undo</span></button>
+                  <button type="button" class="tpad-tool-btn" id="tpad-tool-delete"><span class="icon">⌫</span><span class="txt">Del</span></button>
+                </div>
+                <div class="tpad-dock">
+                  <button type="button" class="tpad-dock-btn" id="tpad-project-btn"><span class="icon">📁</span><span>Proyecto</span></button>
+                  <button type="button" class="tpad-dock-btn" id="tpad-save-btn"><span class="icon">💾</span><span>Guardar</span></button>
+                  <button type="button" class="tpad-dock-btn" id="tpad-share-btn"><span class="icon">⇪</span><span>Compartir</span></button>
+                  <button type="button" class="tpad-dock-btn" id="tpad-board-btn"><span class="icon">✎</span><span>Pizarra</span></button>
+                  <button type="button" class="tpad-dock-btn" id="tpad-field-btn"><span class="icon">▦</span><span>Campo</span></button>
+                  <button type="button" class="tpad-dock-btn" id="tpad-3d-btn"><span class="icon">△</span><span>3D</span></button>
+                  <button type="button" class="tpad-dock-btn" id="tpad-fullscreen-btn"><span class="icon">⤢</span><span>Pantalla</span></button>
+                </div>
+                <div class="tpad-modal-backdrop" id="tpad-field-modal">
+                  <div class="tpad-modal">
+                    <div class="tpad-modal-head">
+                      <h4>Campo</h4>
+                      <button type="button" class="tpad-modal-close" id="tpad-field-close">Cerrar</button>
+                    </div>
+                    <div class="tpad-field-grid">
+                      <button type="button" class="tpad-field-card is-active" data-field-preset="full_pitch">
+                        <span class="preview"></span>
+                        <span>11v11 completo</span>
+                      </button>
+                      <button type="button" class="tpad-field-card" data-field-preset="half_pitch">
+                        <span class="preview"></span>
+                        <span>Medio campo</span>
+                      </button>
+                      <button type="button" class="tpad-field-card" data-field-preset="futsal">
+                        <span class="preview"></span>
+                        <span>Futsal</span>
+                      </button>
+                      <button type="button" class="tpad-field-card" data-field-preset="blank">
+                        <span class="preview"></span>
+                        <span>Lienzo en blanco</span>
+                      </button>
+                    </div>
+                    <div class="tpad-modal-row">
+                      <button type="button" class="tpad-chip is-active" data-field-theme="classic">Classic Green</button>
+                      <button type="button" class="tpad-chip" data-field-theme="dark">Dark Green</button>
+                      <button type="button" class="tpad-chip" data-field-theme="mint">Mint</button>
+                      <button type="button" class="tpad-chip" data-field-theme="dry">Dry Grass</button>
+                    </div>
+                    <div class="tpad-modal-row">
+                      <button type="button" class="tpad-chip is-active" data-field-camera="full">Cámara completa</button>
+                      <button type="button" class="tpad-chip" data-field-camera="left">Media izquierda</button>
+                      <button type="button" class="tpad-chip" data-field-camera="right">Media derecha</button>
+                      <button type="button" class="tpad-chip" data-field-camera="stadium">Estadio 3D</button>
+                    </div>
+                    <div class="tpad-modal-actions">
+                      <button type="button" class="secondary" id="tpad-field-cancel">Cancelar</button>
+                      <button type="button" class="secondary" id="tpad-field-apply">Listo</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p class="create-board-status" id="create-board-status">Pizarra lista.</p>
+              <input type="hidden" name="draw_canvas_state" id="draw-canvas-state" value="{{ initial.canvas_state|escape }}" />
+              <input type="hidden" name="draw_canvas_width" id="draw-canvas-width" value="{{ initial.canvas_width }}" />
+              <input type="hidden" name="draw_canvas_height" id="draw-canvas-height" value="{{ initial.canvas_height }}" />
+              <input type="hidden" name="draw_canvas_preview_data" id="draw-canvas-preview-data" />
+            </div>
+          </section>
+
+          <aside class="panel">
+            <h2>Ficha técnica</h2>
+            <div class="grid">
+              <label style="grid-column:1/-1;">
+                Descripción
+                <textarea name="draw_task_description">{{ initial.description }}</textarea>
+              </label>
+              <label>
+                Jugadores
+                <input type="text" name="draw_task_players" value="{{ initial.players }}" placeholder="Ej: 14 + 2 porteros" />
+              </label>
+              <label>
+                Materiales
+                <input type="text" name="draw_task_materials" value="{{ initial.materials }}" placeholder="Conos, petos, porterías..." />
+              </label>
+              <label style="grid-column:1/-1;">
+                Consignas
+                <textarea name="draw_task_coaching_points">{{ initial.coaching_points }}</textarea>
+              </label>
+              <label style="grid-column:1/-1;">
+                Normas de confrontación
+                <textarea name="draw_task_confrontation_rules">{{ initial.confrontation_rules }}</textarea>
+              </label>
+              <label style="grid-column:1/-1;">
+                Progresión
+                <textarea name="draw_task_progression">{{ initial.progression }}</textarea>
+              </label>
+              <label style="grid-column:1/-1;">
+                Regresión
+                <textarea name="draw_task_regression">{{ initial.regression }}</textarea>
+              </label>
+              <label style="grid-column:1/-1;">
+                Criterio de éxito
+                <textarea name="draw_task_success_criteria">{{ initial.success_criteria }}</textarea>
+              </label>
+            </div>
+
+            <h2 style="margin-top:1rem;">Asignación de jugadores</h2>
+            <p class="meta" style="margin-bottom:0.55rem;">Las chapas del sistema se pueden usar en pizarra y además quedar asociadas a la tarea.</p>
+            <div class="player-chip-grid">
+              {% for player in available_players %}
+              <label class="player-chip">
+                <input type="checkbox" name="assigned_player_ids" value="{{ player.id }}" {% if player.id in initial.assigned_player_ids %}checked{% endif %} />
+                <span>
+                  <strong>{% if player.number %}#{{ player.number }} · {% endif %}{{ player.name }}</strong>
+                  <small>{{ player.position|default:'Sin posición' }}</small>
+                </span>
+              </label>
+              {% endfor %}
+            </div>
+
+            <h2 style="margin-top:1rem;">Constraints</h2>
+            <div class="option-grid">
+              {% for value, label in task_constraint_choices %}
+              <label class="check-pill"><input type="checkbox" name="draw_constraints" value="{{ value }}" {% if value in initial.constraints %}checked{% endif %} /> {{ label }}</label>
+              {% endfor %}
+            </div>
+
+            <div class="builder-actions">
+              <button type="submit" class="primary">{% if task %}Guardar tarea{% else %}Crear tarea{% endif %}</button>
+              {% if task %}
+              <a href="{% url 'session-task-pdf' task.id %}" class="button" target="_blank" rel="noopener">Exportar PDF</a>
+              {% endif %}
+            </div>
+          </aside>
+        </div>
+      </form>
+    </main>
+
+    {{ task_templates|json_script:"task-templates-data" }}
+    {{ tactical_player_catalog|json_script:"tpad-players-catalog" }}
+    <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
+    <script src="{% static 'football/js/tactical_pad_shared.js' %}"></script>
+    <script src="{% static 'football/js/sessions_tactical_pad.js' %}"></script>
+    <script>
+      (() => {
+        const templateSelect = document.getElementById('draw-task-template');
+        const templatesNode = document.getElementById('task-templates-data');
+        if (templateSelect && templatesNode) {
+          let templateList = [];
+          try {
+            templateList = JSON.parse(templatesNode.textContent || '[]');
+          } catch (error) {
+            templateList = [];
+          }
+          const templateMap = {};
+          templateList.forEach((item) => {
+            const key = String(item.key || '').trim();
+            if (!key) return;
+            templateMap[key] = item.values || {};
+          });
+          const fieldMap = {
+            task_title: 'draw_task_title',
+            task_objective: 'draw_task_objective',
+            task_space: 'draw_task_space',
+            task_organization: 'draw_task_organization',
+            task_players_distribution: 'draw_task_players_distribution',
+            task_load_target: 'draw_task_load_target',
+            task_work_rest: 'draw_task_work_rest',
+            task_series: 'draw_task_series',
+            task_repetitions: 'draw_task_repetitions',
+            task_coaching_points: 'draw_task_coaching_points',
+            task_confrontation_rules: 'draw_task_confrontation_rules',
+            task_progression: 'draw_task_progression',
+            task_regression: 'draw_task_regression',
+            task_success_criteria: 'draw_task_success_criteria',
+          };
+          templateSelect.addEventListener('change', () => {
+            const values = templateMap[String(templateSelect.value || '').trim()] || {};
+            Object.entries(fieldMap).forEach(([sourceKey, fieldName]) => {
+              const field = document.querySelector(`[name="${fieldName}"]`);
+              if (!field) return;
+              const current = String(field.value || '').trim();
+              const candidate = String(values[sourceKey] || '').trim();
+              if (!current && candidate) field.value = candidate;
+            });
+          });
+        }
+        if (window.initSessionsTacticalPad) {
+          window.initSessionsTacticalPad();
+        }
+      })();
+    </script>
+  </body>
+</html>

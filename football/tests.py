@@ -1404,6 +1404,7 @@ class SessionsPlanningTests(TestCase):
             week_start=date(2026, 3, 23),
             week_end=date(2026, 3, 29),
         )
+        self.player = Player.objects.create(team=self.team, name='Hugo', number=8, position='MC')
         self.client.force_login(self.user)
 
     def test_create_session_plan_saves_start_time_and_renders_session_card(self):
@@ -1521,3 +1522,128 @@ class SessionsPlanningTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'No puedes borrar una sesión que ya tiene tareas asociadas.')
         self.assertTrue(TrainingSession.objects.filter(id=session.id).exists())
+
+    def test_create_tab_redirects_to_dedicated_editor_flow(self):
+        response = self.client.get(reverse('sessions'), {'tab': 'create'})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, reverse('sessions-task-create'))
+        self.assertContains(response, 'Editor visual dedicado')
+        self.assertNotContains(response, 'Crear tarea con pizarra')
+
+    def test_task_builder_creates_task_with_extended_metadata_and_assignment(self):
+        session = TrainingSession.objects.create(
+            microcycle=self.microcycle,
+            session_date=date(2026, 3, 25),
+            focus='Sesión base',
+            duration_minutes=90,
+        )
+        preview_payload = 'data:image/png;base64,' + base64.b64encode(b'preview-image').decode('ascii')
+        before_count = SessionTask.objects.count()
+
+        response = self.client.post(
+            reverse('sessions-task-create'),
+            {
+                'planner_action': 'create_draw_task',
+                'draw_target_session_id': session.id,
+                'draw_task_template': 'none',
+                'draw_task_title': 'Juego aplicado 6v6',
+                'draw_task_block': SessionTask.BLOCK_MAIN_1,
+                'draw_task_minutes': '18',
+                'draw_task_objective': 'Fijar por dentro y progresar fuera',
+                'draw_task_surface': 'natural_grass',
+                'draw_task_pitch_format': '11v11_half',
+                'draw_task_game_phase': 'organization_attack',
+                'draw_task_methodology': 'integrated',
+                'draw_task_complexity': 'high',
+                'draw_task_training_type': 'Táctica integrada',
+                'draw_task_player_count': '12 + 2 porteros',
+                'draw_task_age_group': 'Juvenil',
+                'draw_task_dimensions': '40x30m',
+                'draw_task_space': 'Zona interior + carriles',
+                'draw_task_organization': '6v6 + 2 comodines',
+                'draw_task_players_distribution': '2 líneas + pivote',
+                'draw_task_work_rest': "4x3' + 1'",
+                'draw_task_series': '4',
+                'draw_task_repetitions': '3',
+                'draw_task_load_target': 'RPE 7',
+                'draw_task_category_tags': 'finalización, presión',
+                'draw_task_pitch_preset': 'half_pitch',
+                'draw_task_description': 'Secuencia principal de la tarea.',
+                'draw_task_players': '12 + 2 porteros',
+                'draw_task_materials': 'Conos, petos, 2 porterías',
+                'draw_task_coaching_points': 'Perfilar antes de recibir',
+                'draw_task_confrontation_rules': 'Dos toques en inicio',
+                'draw_task_progression': 'Reducir tiempo',
+                'draw_task_regression': 'Añadir comodín',
+                'draw_task_success_criteria': '6 progresiones limpias',
+                'draw_constraints': ['two_touches', 'mandatory_switch'],
+                'assigned_player_ids': [self.player.id],
+                'draw_canvas_state': json.dumps({'version': '5.3.0', 'objects': []}),
+                'draw_canvas_width': '1280',
+                'draw_canvas_height': '720',
+                'draw_canvas_preview_data': preview_payload,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(SessionTask.objects.count(), before_count + 1)
+        task = SessionTask.objects.order_by('-id').first()
+        self.assertIsNotNone(task)
+        self.assertEqual(task.title, 'Juego aplicado 6 v 6')
+        meta = task.tactical_layout.get('meta') or {}
+        self.assertEqual(task.session, session)
+        self.assertEqual(meta.get('training_type'), 'Táctica integrada')
+        self.assertEqual(meta.get('player_count'), '12 + 2 porteros')
+        self.assertEqual(meta.get('age_group'), 'Juvenil')
+        self.assertEqual(meta.get('category_tags'), ['Finalización', 'presión'])
+        self.assertEqual(meta.get('assigned_player_ids'), [self.player.id])
+        self.assertEqual(meta.get('assigned_player_names'), ['Hugo'])
+        self.assertTrue(bool(task.task_preview_image))
+        self.assertContains(response, 'Tarea guardada correctamente.')
+        self.assertContains(response, 'Exportar PDF')
+
+    def test_task_builder_edit_updates_existing_task(self):
+        session = TrainingSession.objects.create(
+            microcycle=self.microcycle,
+            session_date=date(2026, 3, 25),
+            focus='Sesión base',
+            duration_minutes=90,
+        )
+        other_session = TrainingSession.objects.create(
+            microcycle=self.microcycle,
+            session_date=date(2026, 3, 27),
+            focus='Sesión destino',
+            duration_minutes=85,
+        )
+        task = SessionTask.objects.create(
+            session=session,
+            title='Tarea original',
+            block=SessionTask.BLOCK_MAIN_1,
+            duration_minutes=15,
+            tactical_layout={'meta': {'scope': 'coach'}},
+        )
+
+        response = self.client.post(
+            reverse('sessions-task-edit', args=[task.id]),
+            {
+                'planner_action': 'create_draw_task',
+                'draw_target_session_id': other_session.id,
+                'draw_task_template': 'none',
+                'draw_task_title': 'Tarea actualizada',
+                'draw_task_block': SessionTask.BLOCK_MAIN_2,
+                'draw_task_minutes': '22',
+                'draw_task_objective': 'Ajustar alturas',
+                'draw_task_pitch_preset': 'full_pitch',
+                'draw_canvas_state': json.dumps({'version': '5.3.0', 'objects': []}),
+                'draw_canvas_width': '1280',
+                'draw_canvas_height': '720',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        task.refresh_from_db()
+        self.assertEqual(task.title, 'Tarea actualizada')
+        self.assertEqual(task.session, other_session)
+        self.assertEqual(task.duration_minutes, 22)
+        self.assertEqual(task.block, SessionTask.BLOCK_MAIN_2)

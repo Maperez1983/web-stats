@@ -247,6 +247,18 @@
       </ul>
     </section>
     {% endif %}
+    {% if task_meta.player_count or task_meta.age_group or task_meta.training_type or task_meta.category_tags or task_meta.assigned_player_names %}
+    <section class="block">
+      <h2>Perfil de la Tarea</h2>
+      <ul>
+        {% if task_meta.player_count %}<li><strong>Nº jugadores:</strong> {{ task_meta.player_count }}</li>{% endif %}
+        {% if task_meta.age_group %}<li><strong>Edad / categoría:</strong> {{ task_meta.age_group }}</li>{% endif %}
+        {% if task_meta.training_type %}<li><strong>Tipo de entrenamiento:</strong> {{ task_meta.training_type }}</li>{% endif %}
+        {% if task_meta.category_tags %}<li><strong>Categorización extra:</strong> {{ task_meta.category_tags|join:", " }}</li>{% endif %}
+        {% if task_meta.assigned_player_names %}<li><strong>Jugadores asignados:</strong> {{ task_meta.assigned_player_names|join:", " }}</li>{% endif %}
+      </ul>
+    </section>
+    {% endif %}
     {% if task_meta.game_phase or task_meta.game_sub_phase or task_meta.methodology or task_meta.complexity or task_meta.cognitive_load or task_meta.emotional_load or task_meta.constraints or task_meta.targets or task_meta.expected_outcomes or task_meta.common_errors or task_meta.corrective_cues %}
     <section class="block">
       <h2>Diseño Profesional</h2>

@@ -3006,6 +3006,14 @@ def session_task_pdf(request, task_id):
         meta['complexity'] = complexity_map.get(str(meta.get('complexity')), str(meta.get('complexity')))
     if isinstance(meta.get('constraints'), list):
         meta['constraints'] = [constraint_map.get(str(v), str(v)) for v in meta.get('constraints')]
+    if isinstance(meta.get('category_tags'), str):
+        meta['category_tags'] = [item.strip() for item in str(meta.get('category_tags') or '').split(',') if item.strip()]
+    elif not isinstance(meta.get('category_tags'), list):
+        meta['category_tags'] = []
+    if isinstance(meta.get('assigned_player_names'), str):
+        meta['assigned_player_names'] = [item.strip() for item in str(meta.get('assigned_player_names') or '').split(',') if item.strip()]
+    elif not isinstance(meta.get('assigned_player_names'), list):
+        meta['assigned_player_names'] = []
     animation_frames = tactical_layout.get('timeline') if isinstance(tactical_layout, dict) else []
     if not isinstance(animation_frames, list):
         animation_frames = []
@@ -7524,6 +7532,8 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             'feedback': feedback,
             'error': error,
             'planner_tables_ready': planner_tables_ready,
+            'task_builder_route_name': _task_builder_route_name(scope_key),
+            'task_builder_edit_route_name': _task_builder_edit_route_name(scope_key),
             'task_blocks': SessionTask.BLOCK_CHOICES,
             'all_sessions': all_sessions,
             'task_library': task_library,
@@ -7561,9 +7571,391 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     )
 
 
+def _sessions_scope_route_name(scope_key):
+    return {
+        'coach': 'sessions',
+        'goalkeeper': 'sessions-goalkeeper',
+        'fitness': 'sessions-fitness',
+    }.get(scope_key, 'sessions')
+
+
+def _task_builder_route_name(scope_key):
+    return {
+        'coach': 'sessions-task-create',
+        'goalkeeper': 'sessions-goalkeeper-task-create',
+        'fitness': 'sessions-fitness-task-create',
+    }.get(scope_key, 'sessions-task-create')
+
+
+def _task_builder_edit_route_name(scope_key):
+    return {
+        'coach': 'sessions-task-edit',
+        'goalkeeper': 'sessions-goalkeeper-task-edit',
+        'fitness': 'sessions-fitness-task-edit',
+    }.get(scope_key, 'sessions-task-edit')
+
+
+def _build_tactical_player_catalog(request, primary_team):
+    catalog = []
+    if not primary_team:
+        return catalog
+    players = (
+        Player.objects
+        .filter(team=primary_team, is_active=True)
+        .order_by('number', 'name')[:60]
+    )
+    for player in players:
+        catalog.append(
+            {
+                'id': int(player.id),
+                'name': str(player.name or '').strip(),
+                'number': _parse_int(player.number) or '',
+                'position': str(player.position or '').strip(),
+                'photo_url': str(resolve_player_photo_url(request, player) or '').strip(),
+            }
+        )
+    return catalog
+
+
+def _task_builder_initial_values(task):
+    meta = {}
+    if task and isinstance(task.tactical_layout, dict):
+        meta = task.tactical_layout.get('meta') if isinstance(task.tactical_layout.get('meta'), dict) else {}
+    meta = meta if isinstance(meta, dict) else {}
+    analysis = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
+    task_sheet = analysis.get('task_sheet') if isinstance(analysis.get('task_sheet'), dict) else {}
+    graphic_editor = meta.get('graphic_editor') if isinstance(meta.get('graphic_editor'), dict) else {}
+    return {
+        'target_session_id': str(getattr(task, 'session_id', '') or ''),
+        'title': str(getattr(task, 'title', '') or ''),
+        'block': str(getattr(task, 'block', '') or SessionTask.BLOCK_MAIN_1),
+        'minutes': int(getattr(task, 'duration_minutes', 15) or 15),
+        'objective': str(getattr(task, 'objective', '') or ''),
+        'coaching_points': str(getattr(task, 'coaching_points', '') or ''),
+        'confrontation_rules': str(getattr(task, 'confrontation_rules', '') or ''),
+        'description': str(task_sheet.get('description') or ''),
+        'players': str(task_sheet.get('players') or ''),
+        'materials': str(task_sheet.get('materials') or ''),
+        'dimensions': str(task_sheet.get('dimensions') or ''),
+        'space': str(meta.get('space') or task_sheet.get('space') or ''),
+        'organization': str(meta.get('organization') or ''),
+        'work_rest': str(meta.get('work_rest') or ''),
+        'load_target': str(meta.get('load_target') or ''),
+        'players_distribution': str(meta.get('players_distribution') or ''),
+        'progression': str(meta.get('progression') or ''),
+        'regression': str(meta.get('regression') or ''),
+        'success_criteria': str(meta.get('success_criteria') or ''),
+        'surface': str(meta.get('surface') or ''),
+        'pitch_format': str(meta.get('pitch_format') or ''),
+        'game_phase': str(meta.get('game_phase') or ''),
+        'methodology': str(meta.get('methodology') or ''),
+        'complexity': str(meta.get('complexity') or ''),
+        'template_key': str(meta.get('template_key') or 'none'),
+        'pitch_preset': str(meta.get('pitch_preset') or 'full_pitch'),
+        'series': str(meta.get('series') or ''),
+        'repetitions': str(meta.get('repetitions') or ''),
+        'player_count': str(meta.get('player_count') or ''),
+        'age_group': str(meta.get('age_group') or ''),
+        'training_type': str(meta.get('training_type') or ''),
+        'category_tags': ', '.join(meta.get('category_tags') or []) if isinstance(meta.get('category_tags'), list) else str(meta.get('category_tags') or ''),
+        'assigned_player_ids': [int(value) for value in (meta.get('assigned_player_ids') or []) if _parse_int(value)],
+        'constraints': [str(value) for value in (meta.get('constraints') or []) if str(value).strip()],
+        'canvas_state': json.dumps(graphic_editor.get('canvas_state') or _starter_canvas_state(str(meta.get('pitch_preset') or 'full_pitch')), ensure_ascii=False),
+        'canvas_width': int(graphic_editor.get('canvas_width') or 1280),
+        'canvas_height': int(graphic_editor.get('canvas_height') or 720),
+    }
+
+
+def _save_task_builder_entry(request, primary_team, scope_key, existing_task=None):
+    target_session_id = _parse_int(request.POST.get('draw_target_session_id'))
+    title = _sanitize_task_text((request.POST.get('draw_task_title') or '').strip(), multiline=False, max_len=160)
+    block = (request.POST.get('draw_task_block') or SessionTask.BLOCK_MAIN_1).strip()
+    minutes = _parse_int(request.POST.get('draw_task_minutes')) or 15
+    objective = _sanitize_task_text((request.POST.get('draw_task_objective') or '').strip(), multiline=False, max_len=180)
+    coaching_points = _sanitize_task_text((request.POST.get('draw_task_coaching_points') or '').strip(), multiline=True)
+    confrontation_rules = _sanitize_task_text((request.POST.get('draw_task_confrontation_rules') or '').strip(), multiline=True)
+    description = _sanitize_task_text((request.POST.get('draw_task_description') or '').strip(), multiline=True, max_len=1200)
+    players = _sanitize_task_text((request.POST.get('draw_task_players') or '').strip(), multiline=False, max_len=120)
+    dimensions = _sanitize_task_text((request.POST.get('draw_task_dimensions') or '').strip(), multiline=False, max_len=120)
+    space = _sanitize_task_text((request.POST.get('draw_task_space') or '').strip(), multiline=False, max_len=120)
+    materials = _sanitize_task_text((request.POST.get('draw_task_materials') or '').strip(), multiline=False, max_len=300)
+    organization = _sanitize_task_text((request.POST.get('draw_task_organization') or '').strip(), multiline=True, max_len=500)
+    work_rest = _sanitize_task_text((request.POST.get('draw_task_work_rest') or '').strip(), multiline=False, max_len=180)
+    load_target = _sanitize_task_text((request.POST.get('draw_task_load_target') or '').strip(), multiline=False, max_len=180)
+    players_distribution = _sanitize_task_text((request.POST.get('draw_task_players_distribution') or '').strip(), multiline=False, max_len=180)
+    progression = _sanitize_task_text((request.POST.get('draw_task_progression') or '').strip(), multiline=True, max_len=500)
+    regression = _sanitize_task_text((request.POST.get('draw_task_regression') or '').strip(), multiline=True, max_len=500)
+    success_criteria = _sanitize_task_text((request.POST.get('draw_task_success_criteria') or '').strip(), multiline=True, max_len=500)
+    selected_surface = (request.POST.get('draw_task_surface') or '').strip()
+    selected_pitch_format = (request.POST.get('draw_task_pitch_format') or '').strip()
+    selected_phase = (request.POST.get('draw_task_game_phase') or '').strip()
+    selected_methodology = (request.POST.get('draw_task_methodology') or '').strip()
+    selected_complexity = (request.POST.get('draw_task_complexity') or '').strip()
+    template_key = (request.POST.get('draw_task_template') or 'none').strip()
+    pitch_preset = (request.POST.get('draw_task_pitch_preset') or 'full_pitch').strip()
+    constraints = [str(v).strip() for v in request.POST.getlist('draw_constraints') if str(v).strip()]
+    series = _sanitize_task_text((request.POST.get('draw_task_series') or '').strip(), multiline=False, max_len=100)
+    repetitions = _sanitize_task_text((request.POST.get('draw_task_repetitions') or '').strip(), multiline=False, max_len=100)
+    player_count = _sanitize_task_text((request.POST.get('draw_task_player_count') or '').strip(), multiline=False, max_len=100)
+    age_group = _sanitize_task_text((request.POST.get('draw_task_age_group') or '').strip(), multiline=False, max_len=100)
+    training_type = _sanitize_task_text((request.POST.get('draw_task_training_type') or '').strip(), multiline=False, max_len=120)
+    category_tags_raw = _sanitize_task_text((request.POST.get('draw_task_category_tags') or '').strip(), multiline=False, max_len=240)
+    category_tags = [tag.strip() for tag in category_tags_raw.split(',') if tag.strip()]
+    assigned_player_ids = [
+        player_id
+        for player_id in (_parse_int(value) for value in request.POST.getlist('assigned_player_ids'))
+        if player_id
+    ]
+    assigned_players = list(Player.objects.filter(team=primary_team, id__in=assigned_player_ids).order_by('number', 'name'))
+    assigned_player_ids = [int(player.id) for player in assigned_players]
+
+    template_map = {
+        str(item.get('key') or ''): dict(item.get('values') or {})
+        for item in TASK_TEMPLATE_LIBRARY
+    }
+    template_values = template_map.get(template_key) or {}
+    if not title:
+        title = _sanitize_task_text(str(template_values.get('task_title') or '').strip(), multiline=False, max_len=160)
+    if not objective:
+        objective = _sanitize_task_text(str(template_values.get('task_objective') or '').strip(), multiline=False, max_len=180)
+    if not coaching_points:
+        coaching_points = _sanitize_task_text(str(template_values.get('task_coaching_points') or '').strip(), multiline=True)
+    if not confrontation_rules:
+        confrontation_rules = _sanitize_task_text(str(template_values.get('task_confrontation_rules') or '').strip(), multiline=True)
+    if not space:
+        space = _sanitize_task_text(str(template_values.get('task_space') or '').strip(), multiline=False, max_len=120)
+    if not organization:
+        organization = _sanitize_task_text(str(template_values.get('task_organization') or '').strip(), multiline=True, max_len=500)
+    if not players_distribution:
+        players_distribution = _sanitize_task_text(str(template_values.get('task_players_distribution') or '').strip(), multiline=False, max_len=180)
+    if not load_target:
+        load_target = _sanitize_task_text(str(template_values.get('task_load_target') or '').strip(), multiline=False, max_len=180)
+    if not work_rest:
+        work_rest = _sanitize_task_text(str(template_values.get('task_work_rest') or '').strip(), multiline=False, max_len=180)
+    if not progression:
+        progression = _sanitize_task_text(str(template_values.get('task_progression') or '').strip(), multiline=True, max_len=500)
+    if not regression:
+        regression = _sanitize_task_text(str(template_values.get('task_regression') or '').strip(), multiline=True, max_len=500)
+    if not success_criteria:
+        success_criteria = _sanitize_task_text(str(template_values.get('task_success_criteria') or '').strip(), multiline=True, max_len=500)
+
+    if not title:
+        raise ValueError('Indica un título para la tarea.')
+    if block not in {choice[0] for choice in SessionTask.BLOCK_CHOICES}:
+        block = SessionTask.BLOCK_MAIN_1
+    minutes = max(5, min(minutes, 90))
+    valid_surfaces = {key for key, _ in TASK_SURFACE_CHOICES}
+    valid_pitch_formats = {key for key, _ in TASK_PITCH_FORMAT_CHOICES}
+    valid_phases = {key for key, _ in TASK_GAME_PHASE_CHOICES}
+    valid_methodologies = {key for key, _ in TASK_METHODOLOGY_CHOICES}
+    valid_complexities = {key for key, _ in TASK_COMPLEXITY_CHOICES}
+    valid_constraints = {key for key, _ in TASK_CONSTRAINT_CHOICES}
+    constraints = [item for item in constraints if item in valid_constraints]
+    if selected_surface not in valid_surfaces:
+        selected_surface = ''
+    if selected_pitch_format not in valid_pitch_formats:
+        selected_pitch_format = ''
+    if selected_phase not in valid_phases:
+        selected_phase = ''
+    if selected_methodology not in valid_methodologies:
+        selected_methodology = ''
+    if selected_complexity not in valid_complexities:
+        selected_complexity = ''
+    if pitch_preset not in {'full_pitch', 'half_pitch', 'futsal', 'blank'}:
+        pitch_preset = 'full_pitch'
+
+    target_session = existing_task.session if existing_task else None
+    if target_session_id:
+        target_session = (
+            TrainingSession.objects
+            .select_related('microcycle')
+            .filter(id=target_session_id, microcycle__team=primary_team)
+            .first()
+        )
+    if not target_session:
+        target_session = _get_or_create_library_session(primary_team, scope_key)
+
+    canvas_state = None
+    raw_canvas_state = (request.POST.get('draw_canvas_state') or '').strip()
+    if raw_canvas_state:
+        try:
+            parsed_state = json.loads(raw_canvas_state)
+            if isinstance(parsed_state, dict):
+                canvas_state = parsed_state
+        except Exception:
+            canvas_state = None
+    if not isinstance(canvas_state, dict):
+        canvas_state = _starter_canvas_state(pitch_preset)
+
+    canvas_width = max(320, min(_parse_int(request.POST.get('draw_canvas_width')) or 1280, 3840))
+    canvas_height = max(180, min(_parse_int(request.POST.get('draw_canvas_height')) or 720, 2160))
+    tactical_layout = {
+        'meta': {
+            'scope': scope_key,
+            'source': 'manual-studio',
+            'template_key': template_key,
+            'surface': selected_surface,
+            'pitch_format': selected_pitch_format,
+            'pitch_preset': pitch_preset,
+            'game_phase': selected_phase,
+            'methodology': selected_methodology,
+            'complexity': selected_complexity,
+            'space': space,
+            'organization': organization,
+            'players_distribution': players_distribution,
+            'load_target': load_target,
+            'work_rest': work_rest,
+            'series': series,
+            'repetitions': repetitions,
+            'progression': progression,
+            'regression': regression,
+            'success_criteria': success_criteria,
+            'constraints': constraints,
+            'player_count': player_count,
+            'age_group': age_group,
+            'training_type': training_type,
+            'category_tags': category_tags,
+            'assigned_player_ids': assigned_player_ids,
+            'assigned_player_names': [player.name for player in assigned_players],
+            'graphic_editor': {
+                'canvas_state': canvas_state,
+                'canvas_width': canvas_width,
+                'canvas_height': canvas_height,
+            },
+            'analysis': {
+                'task_sheet': {
+                    'description': description,
+                    'players': players,
+                    'space': space,
+                    'dimensions': dimensions,
+                    'materials': materials,
+                }
+            },
+        }
+    }
+    if existing_task:
+        task = existing_task
+        if task.session_id != target_session.id:
+            task.order = (SessionTask.objects.filter(session=target_session).aggregate(Max('order')).get('order__max') or 0) + 1
+        task.session = target_session
+        task.title = title[:160]
+        task.block = block
+        task.duration_minutes = minutes
+        task.objective = objective[:180]
+        task.coaching_points = coaching_points
+        task.confrontation_rules = confrontation_rules
+        task.tactical_layout = tactical_layout
+        task.notes = 'Tarea actualizada en editor visual'
+        task.save()
+    else:
+        task = SessionTask.objects.create(
+            session=target_session,
+            title=title[:160],
+            block=block,
+            duration_minutes=minutes,
+            objective=objective[:180],
+            coaching_points=coaching_points,
+            confrontation_rules=confrontation_rules,
+            tactical_layout=tactical_layout,
+            status=SessionTask.STATUS_PLANNED,
+            order=SessionTask.objects.filter(session=target_session).count() + 1,
+            notes='Tarea creada en editor visual',
+        )
+    preview_data = request.POST.get('draw_canvas_preview_data')
+    if preview_data:
+        raw_bytes, extension = _decode_canvas_data_url(preview_data)
+        if raw_bytes and extension:
+            filename = f'task_preview_{task.id}{extension}'
+            task.task_preview_image.save(filename, ContentFile(raw_bytes), save=False)
+            task.save(update_fields=['task_preview_image'])
+    return task
+
+
+@login_required
+def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones · Entrenador', task_id=None):
+    if not _can_access_sessions_workspace(request.user):
+        return HttpResponse('No tienes permisos para acceder a sesiones.', status=403)
+    primary_team = Team.objects.filter(is_primary=True).first()
+    if not primary_team:
+        raise Http404('Equipo principal no configurado')
+    task = None
+    if task_id:
+        task = (
+            SessionTask.objects
+            .select_related('session__microcycle')
+            .filter(id=task_id, session__microcycle__team=primary_team)
+            .first()
+        )
+        if not task:
+            raise Http404('Tarea no encontrada')
+        if _task_scope_for_item(task) != scope_key:
+            return HttpResponse('La tarea no pertenece a este espacio.', status=403)
+        if not _is_task_editable(task):
+            return HttpResponse('Las tareas importadas son de solo lectura.', status=403)
+
+    feedback = ''
+    error = ''
+    if request.method == 'POST':
+        try:
+            task = _save_task_builder_entry(request, primary_team, scope_key, existing_task=task)
+            feedback = 'Tarea guardada correctamente.'
+        except ValueError as exc:
+            error = str(exc)
+        except Exception:
+            error = 'No se pudo guardar la tarea.'
+
+    initial = _task_builder_initial_values(task)
+    all_sessions = list(
+        TrainingSession.objects
+        .select_related('microcycle')
+        .filter(microcycle__team=primary_team)
+        .order_by('-session_date', '-id')[:150]
+    )
+    player_catalog = _build_tactical_player_catalog(request, primary_team)
+    available_players = list(
+        Player.objects
+        .filter(team=primary_team, is_active=True)
+        .order_by('number', 'name')[:60]
+    )
+    return render(
+        request,
+        'football/task_builder.html',
+        {
+            'scope_key': scope_key,
+            'scope_title': scope_title,
+            'scope_route_name': _sessions_scope_route_name(scope_key),
+            'task': task,
+            'feedback': feedback,
+            'error': error,
+            'task_blocks': SessionTask.BLOCK_CHOICES,
+            'all_sessions': all_sessions,
+            'task_templates': TASK_TEMPLATE_LIBRARY,
+            'task_surface_choices': TASK_SURFACE_CHOICES,
+            'task_pitch_choices': TASK_PITCH_FORMAT_CHOICES,
+            'task_phase_choices': TASK_GAME_PHASE_CHOICES,
+            'task_methodology_choices': TASK_METHODOLOGY_CHOICES,
+            'task_complexity_choices': TASK_COMPLEXITY_CHOICES,
+            'task_constraint_choices': TASK_CONSTRAINT_CHOICES,
+            'tactical_player_catalog': player_catalog,
+            'available_players': available_players,
+            'initial': initial,
+        },
+    )
+
+
 @login_required
 def sessions_page(request):
     return _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones · Entrenador')
+
+
+@login_required
+def sessions_task_create_page(request):
+    return session_task_builder_page(request, scope_key='coach', scope_title='Sesiones · Entrenador')
+
+
+@login_required
+def sessions_task_edit_page(request, task_id):
+    return session_task_builder_page(request, scope_key='coach', scope_title='Sesiones · Entrenador', task_id=task_id)
 
 
 @login_required
@@ -7572,8 +7964,28 @@ def sessions_goalkeeper_page(request):
 
 
 @login_required
+def sessions_goalkeeper_task_create_page(request):
+    return session_task_builder_page(request, scope_key='goalkeeper', scope_title='Sesiones · Porteros')
+
+
+@login_required
+def sessions_goalkeeper_task_edit_page(request, task_id):
+    return session_task_builder_page(request, scope_key='goalkeeper', scope_title='Sesiones · Porteros', task_id=task_id)
+
+
+@login_required
 def sessions_fitness_page(request):
     return _sessions_workspace_page(request, scope_key='fitness', scope_title='Sesiones · Preparacion fisica')
+
+
+@login_required
+def sessions_fitness_task_create_page(request):
+    return session_task_builder_page(request, scope_key='fitness', scope_title='Sesiones · Preparacion fisica')
+
+
+@login_required
+def sessions_fitness_task_edit_page(request, task_id):
+    return session_task_builder_page(request, scope_key='fitness', scope_title='Sesiones · Preparacion fisica', task_id=task_id)
 
 
 @login_required
