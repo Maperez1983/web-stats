@@ -17,6 +17,7 @@ from football.models import AnalystVideoFolder, Competition, ConvocationRecord, 
 from football.bootstrap import ensure_bootstrap_admin_from_env
 from football.event_taxonomy import (
     PASS_KEYWORDS,
+    build_smart_kpis,
     calculate_influence_score,
     calculate_importance_score,
     classify_duel_event,
@@ -773,6 +774,27 @@ class EventTaxonomyKpiTests(TestCase):
         self.assertEqual(payload['successes_per90'], 4.0)
         self.assertEqual(payload['decisive_actions_per90'], 13.6)
         self.assertEqual(payload['influence_score'], 100.0)
+
+    def test_build_smart_kpis_prioritizes_assists_when_present(self):
+        profile, profile_label, kpis = build_smart_kpis(
+            {
+                'position': 'Extremo',
+                'pj': 5,
+                'successes': 12,
+                'total_actions': 20,
+                'assists': 3,
+                'dribbles_attempted': 8,
+                'dribbles_completed': 5,
+                'duels_total': 6,
+                'duels_won': 3,
+                'pass_attempts': 10,
+                'passes_completed': 7,
+            }
+        )
+
+        self.assertEqual(profile, 'winger')
+        self.assertEqual(profile_label, 'Extremo')
+        self.assertEqual(kpis[0], {'label': 'Asistencias', 'value': '3'})
 
     def test_robo_and_duelo_aereo_count_as_duels(self):
         self.assertTrue(classify_duel_event('ROBO', 'GANADO')['is_duel'])

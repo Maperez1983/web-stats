@@ -533,6 +533,7 @@ def build_smart_kpis(stats):
     success_rate = round((stats.get('successes', 0) / stats.get('total_actions', 0)) * 100, 1) if stats.get('total_actions') else 0
     shots = int(stats.get('shot_attempts', 0) or 0)
     goals = int(stats.get('goals', 0) or 0)
+    assists = int(stats.get('assists', 0) or 0)
     duels_total = int(stats.get('duels_total', 0) or 0)
     duels_won = int(stats.get('duels_won', 0) or 0)
     duel_rate = round((duels_won / duels_total) * 100, 1) if duels_total else 0
@@ -575,4 +576,9 @@ def build_smart_kpis(stats):
             {'label': 'Duelos G/T', 'value': f'{duels_won}/{duels_total}'},
             {'label': 'Pase %', 'value': f'{pass_rate}%'},
         ]
+    if assists > 0:
+        kpis = [{'label': 'Asistencias', 'value': f'{assists}'}] + [
+            item for item in kpis if item.get('label') != 'Asistencias'
+        ]
+        kpis = kpis[:3]
     return profile, format_profile_label(profile), kpis
