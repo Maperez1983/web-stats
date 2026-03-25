@@ -3316,7 +3316,7 @@ def coach_role_trainer_page(request):
             )
             if is_pass_event:
                 passes_attempts += 1
-                if result_is_success(event.result):
+                if result_is_success(event.result) or is_assist_event(event.event_type, event.result, event.observation):
                     passes_completed += 1
             zone_label = _resolve_zone_label(event, team_match_zone_profiles, team_player_zone_profiles)
             if zone_label:
@@ -3586,6 +3586,7 @@ def coach_role_trainer_page(request):
             {'label': 'Disparos/Gol', 'value': '-' if selected_player_stats.get('shots', {}).get('per_goal') is None else selected_player_stats.get('shots', {}).get('per_goal')},
             {'label': 'Goles', 'value': selected_player_stats.get('goals', 0)},
             {'label': 'Asistencias', 'value': selected_player_stats.get('assists', 0)},
+            {'label': 'Paradas', 'value': selected_player_stats.get('goalkeeper_saves', 0)},
             {'label': 'Minutos', 'value': selected_player_stats.get('minutes', 0)},
             {'label': 'Partidos', 'value': selected_player_stats.get('pj', 0)},
             {'label': 'Importancia', 'value': round(float(selected_player_stats.get('importance_score') or 0), 1)},
@@ -8282,6 +8283,7 @@ def player_detail_page(request, player_id):
             'duel_rate': 0,
             'total_actions': 0,
             'assists': 0,
+            'goalkeeper_saves': 0,
             'field_zones': [],
             'matches': [],
             'duel_summary': {'won': 0, 'total': 0},
@@ -8557,6 +8559,7 @@ def _build_player_match_stats_payload(primary_team, player, match):
         'pass_attempts': 0,
         'passes_completed': 0,
         'key_passes_completed': 0,
+        'goalkeeper_saves': 0,
     }
     for event in events:
         stats['total_actions'] += 1
@@ -8589,6 +8592,8 @@ def _build_player_match_stats_payload(primary_team, player, match):
             stats['shot_attempts'] += 1
             if is_shot_on_target_event(event.event_type, event.result, event.observation):
                 stats['shots_on_target'] += 1
+        if is_goalkeeper_save_event(event.event_type, event.result, event.observation):
+            stats['goalkeeper_saves'] += 1
         is_pass_event = (
             contains_keyword(event.event_type, PASS_KEYWORDS)
             or contains_keyword(event.observation, PASS_KEYWORDS)
@@ -8667,6 +8672,7 @@ def _build_player_match_stats_payload(primary_team, player, match):
         {'label': 'Disparos/Gol', 'value': '-' if stats['shots']['per_goal'] is None else stats['shots']['per_goal']},
         {'label': 'Goles', 'value': stats['goals']},
         {'label': 'Asistencias', 'value': stats['assists']},
+        {'label': 'Paradas', 'value': stats['goalkeeper_saves']},
     ]
     total_zone_actions = sum(int(count or 0) for count in stats['zone_counts'].values())
     stats['field_zones'] = [
@@ -9520,6 +9526,7 @@ def compute_player_dashboard(primary_team):
                 'pass_attempts': 0,
                 'passes_completed': 0,
                 'key_passes_completed': 0,
+                'goalkeeper_saves': 0,
                 'dribbles_attempted': 0,
                 'dribbles_completed': 0,
                 'age': _parse_int(universo_entry.get('age')) or roster_entry.get('age'),
@@ -9561,6 +9568,8 @@ def compute_player_dashboard(primary_team):
             stats['shot_attempts'] += 1
             if is_shot_on_target_event(event.event_type, event.result, event.observation):
                 stats['shots_on_target'] += 1
+        if is_goalkeeper_save_event(event.event_type, event.result, event.observation):
+            stats['goalkeeper_saves'] += 1
         is_pass_event = (
             contains_keyword(event.event_type, PASS_KEYWORDS)
             or contains_keyword(event.observation, PASS_KEYWORDS)
@@ -9739,6 +9748,7 @@ def compute_player_dashboard(primary_team):
                 'pass_attempts': 0,
                 'passes_completed': 0,
                 'key_passes_completed': 0,
+                'goalkeeper_saves': 0,
                 'dribbles_attempted': 0,
                 'dribbles_completed': 0,
                 'age': _parse_int(universo_entry.get('age')) or roster_entry.get('age'),

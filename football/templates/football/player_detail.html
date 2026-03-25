@@ -698,6 +698,9 @@
               <div class="performance-block"><span class="label">Disparos/Gol</span><span class="value">{{ stats.shots.per_goal|default:"-" }}</span></div>
               <div class="performance-block"><span class="label">Goles</span><span class="value">{{ stats.goals|default:0 }}</span></div>
               <div class="performance-block"><span class="label">Asistencias</span><span class="value">{{ stats.assists|default:0 }}</span></div>
+              {% if stats.profile == 'goalkeeper' or stats.goalkeeper_saves %}
+              <div class="performance-block"><span class="label">Paradas</span><span class="value">{{ stats.goalkeeper_saves|default:0 }}</span></div>
+              {% endif %}
             </div>
           </div>
 

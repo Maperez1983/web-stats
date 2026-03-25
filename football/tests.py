@@ -796,6 +796,21 @@ class EventTaxonomyKpiTests(TestCase):
         self.assertEqual(profile_label, 'Extremo')
         self.assertEqual(kpis[0], {'label': 'Asistencias', 'value': '3'})
 
+    def test_build_smart_kpis_recognizes_por_and_shows_saves(self):
+        profile, profile_label, kpis = build_smart_kpis(
+            {
+                'position': 'POR',
+                'pj': 4,
+                'successes': 9,
+                'total_actions': 12,
+                'goalkeeper_saves': 7,
+            }
+        )
+
+        self.assertEqual(profile, 'goalkeeper')
+        self.assertEqual(profile_label, 'Portero')
+        self.assertEqual(kpis[0], {'label': 'Paradas', 'value': '7'})
+
     def test_robo_and_duelo_aereo_count_as_duels(self):
         self.assertTrue(classify_duel_event('ROBO', 'GANADO')['is_duel'])
         self.assertTrue(classify_duel_event('ROBO', 'GANADO')['won'])
@@ -1035,6 +1050,28 @@ class PlayerDashboardViewTests(TestCase):
         self.assertEqual(detail['passes']['key_completed'], 1)
         self.assertGreater(detail['decisive_actions_per90'], detail['successes_per90'])
 
+    def test_goalkeeper_save_event_counts_and_sets_goalkeeper_profile(self):
+        goalkeeper = Player.objects.create(team=self.team, name='Portero Uno', position='POR')
+        MatchEvent.objects.create(
+            match=self.match,
+            player=goalkeeper,
+            event_type='Parada',
+            result='OK',
+            zone='Portería',
+            tercio='Defensa',
+            minute=28,
+            period=1,
+            system='touch-field-final',
+            source_file='registro-acciones',
+        )
+
+        dashboard = compute_player_dashboard(self.team)
+        detail = next(item for item in dashboard if item['player_id'] == goalkeeper.id)
+
+        self.assertEqual(detail['goalkeeper_saves'], 1)
+        self.assertEqual(detail['profile'], 'goalkeeper')
+        self.assertEqual(detail['smart_kpis'][0], {'label': 'Paradas', 'value': '1'})
+
 
 class CoachTrainerMetricsTests(TestCase):
     def setUp(self):
@@ -1129,6 +1166,26 @@ class CoachTrainerMetricsTests(TestCase):
         overview = response.context['coach_overview_stats']
         self.assertEqual(overview['summary'][1]['value'], 1)
         self.assertEqual(overview['summary'][6]['value'], '1/1')
+
+    def test_trainer_overview_counts_assist_as_completed_pass(self):
+        MatchEvent.objects.create(
+            match=self.match,
+            player=self.player,
+            event_type='Asistencia',
+            result='OK',
+            zone='Ataque Centro',
+            tercio='Ataque',
+            minute=26,
+            period=1,
+            system='touch-field-final',
+            source_file='registro-acciones',
+        )
+
+        response = self.client.get(reverse('coach-role-trainer'))
+
+        self.assertEqual(response.status_code, 200)
+        overview_summary = {item['label']: item['value'] for item in response.context['coach_overview_stats']['summary']}
+        self.assertEqual(overview_summary['Pases'], '2/2')
 
     def test_stats_audit_treats_goal_gap_as_coverage_note(self):
         report = run_stats_audit(self.team)

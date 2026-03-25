@@ -506,14 +506,16 @@ def infer_player_profile(position):
     normalized = normalize_label(position)
     if not normalized:
         return 'midfielder'
-    if 'portero' in normalized:
+    if normalized in {'por', 'gk'} or 'portero' in normalized:
         return 'goalkeeper'
-    if any(token in normalized for token in ('delantero', 'punta', 'nueve', '9')):
+    if normalized in {'dc', 'sd'} or any(token in normalized for token in ('delantero', 'punta', 'nueve', '9')):
         return 'striker'
-    if any(token in normalized for token in ('extremo', 'banda', 'winger')):
+    if normalized in {'ed', 'ei'} or any(token in normalized for token in ('extremo', 'banda', 'winger')):
         return 'winger'
-    if any(token in normalized for token in ('defensa', 'central', 'lateral', 'carrilero')):
+    if normalized in {'dfc', 'ld', 'li'} or any(token in normalized for token in ('defensa', 'central', 'lateral', 'carrilero')):
         return 'defender'
+    if normalized in {'mcd', 'mc', 'mp'} or 'interior' in normalized:
+        return 'midfielder'
     return 'midfielder'
 
 
@@ -534,6 +536,7 @@ def build_smart_kpis(stats):
     shots = int(stats.get('shot_attempts', 0) or 0)
     goals = int(stats.get('goals', 0) or 0)
     assists = int(stats.get('assists', 0) or 0)
+    goalkeeper_saves = int(stats.get('goalkeeper_saves', 0) or 0)
     duels_total = int(stats.get('duels_total', 0) or 0)
     duels_won = int(stats.get('duels_won', 0) or 0)
     duel_rate = round((duels_won / duels_total) * 100, 1) if duels_total else 0
@@ -546,7 +549,13 @@ def build_smart_kpis(stats):
     goals_per_match = round(goals / pj, 2)
     shots_per_goal = shots_needed_per_goal(shots, goals)
 
-    if profile == 'striker':
+    if profile == 'goalkeeper':
+        kpis = [
+            {'label': 'Paradas', 'value': f'{goalkeeper_saves}'},
+            {'label': 'Paradas/PJ', 'value': f'{round(goalkeeper_saves / pj, 2)}'},
+            {'label': 'Efectividad', 'value': f'{success_rate}%'},
+        ]
+    elif profile == 'striker':
         kpis = [
             {'label': 'Goles/PJ', 'value': f'{goals_per_match}'},
             {'label': 'Disparos/Gol', 'value': '-' if shots_per_goal is None else f'{shots_per_goal}'},
