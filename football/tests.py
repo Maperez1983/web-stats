@@ -77,6 +77,16 @@ class WriteEndpointAuthTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn('/login/', response['Location'])
 
+    def test_trainer_workspace_requires_login(self):
+        response = self.client.get(reverse('coach-role-trainer'))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/login/', response['Location'])
+
+    def test_analysis_page_requires_login(self):
+        response = self.client.get(reverse('analysis'))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/login/', response['Location'])
+
 
 class StaffBriefingTests(TestCase):
     def test_build_weekly_staff_brief_summarizes_availability(self):
@@ -571,6 +581,22 @@ class PlayerDetailStatsFallbackTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Multas')
         self.assertContains(response, 'Comunicación')
+
+    def test_player_cannot_access_another_players_detail(self):
+        player_user = get_user_model().objects.create_user(
+            username='detallepropio',
+            email='detallepropio@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=player_user, role=AppUserRole.ROLE_PLAYER)
+        self.player.full_name = 'detallepropio'
+        self.player.save(update_fields=['full_name'])
+        other_player = Player.objects.create(team=self.player.team, name='Otro Jugador')
+
+        self.client.force_login(player_user)
+        response = self.client.get(reverse('player-detail', args=[other_player.id]))
+
+        self.assertEqual(response.status_code, 403)
 
     def test_player_detail_readonly_shows_personal_summary_without_upload_form(self):
         player_user = get_user_model().objects.create_user(
@@ -1075,6 +1101,12 @@ class PlayerDashboardViewTests(TestCase):
 
 class CoachTrainerMetricsTests(TestCase):
     def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username='coach-metrics',
+            email='coach-metrics@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_COACH)
         competition = Competition.objects.create(name='Liga Coach', slug='liga-coach', region='Andalucia')
         season = Season.objects.create(competition=competition, name='2025/2026', is_current=True)
         group = Group.objects.create(season=season, name='Grupo Coach', slug='grupo-coach')
@@ -1125,6 +1157,7 @@ class CoachTrainerMetricsTests(TestCase):
             system='touch-field-final',
             source_file='registro-acciones',
         )
+        self.client.force_login(self.user)
         MatchEvent.objects.create(
             match=self.match,
             player=self.player,
@@ -1267,12 +1300,19 @@ class CoachTrainerMetricsTests(TestCase):
 
 class AnalysisVideoWorkspaceTests(TestCase):
     def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username='analyst-workspace',
+            email='analyst-workspace@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_ANALYST)
         competition = Competition.objects.create(name='Liga Analista', slug='liga-analista', region='Andalucia')
         season = Season.objects.create(competition=competition, name='2025/2026', is_current=True)
         group = Group.objects.create(season=season, name='Grupo Analista', slug='grupo-analista')
         self.team = Team.objects.create(name='Benagalbon', slug='benagalbon-analista', group=group, is_primary=True)
         self.rival = Team.objects.create(name='Rival Analista', slug='rival-analista', group=group)
         self.player = Player.objects.create(team=self.team, name='Ivan', position='DC')
+        self.client.force_login(self.user)
 
     def test_analysis_page_can_create_folder_and_assign_video_to_player(self):
         response = self.client.post(

@@ -227,6 +227,13 @@ else:
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 
+ALLOW_SQLITE_IN_PROD = os.getenv('ALLOW_SQLITE_IN_PROD', 'false').lower() == 'true'
+if not DEBUG and DATABASES['default']['ENGINE'] == 'django.db.backends.sqlite3' and not ALLOW_SQLITE_IN_PROD:
+    raise ImproperlyConfigured(
+        'DATABASE_URL es obligatorio en producción. '
+        'SQLite solo se permite con ALLOW_SQLITE_IN_PROD=true.'
+    )
+
 
 LOGGING = {
     'version': 1,

@@ -687,12 +687,51 @@ def _can_access_sessions_workspace(user):
     return role in TECHNICAL_ROLES
 
 
+def _can_access_coach_workspace(user):
+    if not user or not user.is_authenticated:
+        return False
+    if _is_admin_user(user):
+        return True
+    return _get_user_role(user) in TECHNICAL_ROLES
+
+
+def _can_access_player_resource(user, player, primary_team=None):
+    if not user or not user.is_authenticated or not player:
+        return False
+    if _is_admin_user(user):
+        return True
+    role = _get_user_role(user)
+    if role is None:
+        # Preserve access for legacy internal users that predate AppUserRole.
+        return True
+    if role in TECHNICAL_ROLES:
+        return True
+    if role == AppUserRole.ROLE_PLAYER:
+        resolved_player = _resolve_player_for_user(user, primary_team or getattr(player, 'team', None))
+        return bool(resolved_player and resolved_player.id == player.id)
+    return False
+
+
+def _forbid_if_no_coach_access(user):
+    if _can_access_coach_workspace(user):
+        return None
+    return HttpResponse('No tienes permisos para acceder a este espacio.', status=403)
+
+
+def _forbid_if_no_player_access(user, player, primary_team=None):
+    if _can_access_player_resource(user, player, primary_team=primary_team):
+        return None
+    return HttpResponse('No tienes permisos para acceder a este jugador.', status=403)
+
+
 def _resolve_player_for_user(user, primary_team):
     if not user or not user.is_authenticated or not primary_team:
         return None
     candidates = list(Player.objects.filter(team=primary_team, is_active=True))
     if not candidates:
         return None
+    if len(candidates) == 1:
+        return candidates[0]
     raw_values = [
         user.get_username(),
         getattr(user, 'email', ''),
@@ -1899,7 +1938,11 @@ def player_dashboard_page(request):
     )
 
 
+@login_required
 def coach_overview_page(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
     sources = list(ScrapeSource.objects.filter(is_active=True))
     primary_team = Team.objects.filter(is_primary=True).first()
     technical_roles = {
@@ -1959,6 +2002,7 @@ def coach_overview_page(request):
     )
 
 
+@login_required
 def incident_page(request):
     return render(
         request,
@@ -3183,7 +3227,11 @@ def session_task_canva_export(request, task_id):
     return response
 
 
+@login_required
 def coach_cards_page(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
     cards = [
         {
             'title': 'Entrenador',
@@ -3225,7 +3273,11 @@ def coach_cards_page(request):
     )
 
 
+@login_required
 def coach_role_trainer_page(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
     primary_team = Team.objects.filter(is_primary=True).first()
     standing = None
     if primary_team and primary_team.group and primary_team.group.season:
@@ -3794,7 +3846,11 @@ def coach_role_trainer_page(request):
     )
 
 
+@login_required
 def coach_role_goalkeeper_page(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
     modules = [
         {
             'title': 'Tareas portero · Carga PDF',
@@ -3814,7 +3870,11 @@ def coach_role_goalkeeper_page(request):
     )
 
 
+@login_required
 def coach_role_fitness_page(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
     modules = [
         {
             'title': 'Tareas fisicas · Carga PDF',
@@ -3835,7 +3895,11 @@ def coach_role_fitness_page(request):
     )
 
 
+@login_required
 def coach_role_abp_page(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
     modules = [
         {'title': 'Repositorio ABP', 'description': 'Guarda tareas y sesiones ABP en el planificador.', 'link': 'sessions'},
         {'title': 'Pizarra ABP', 'description': 'Campo interactivo con fichas, grabación y reproducción de jugadas.', 'link': 'coach-abp-board'},
@@ -3851,7 +3915,11 @@ def coach_role_abp_page(request):
     )
 
 
+@login_required
 def coach_abp_board_page(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
     primary_team = Team.objects.filter(is_primary=True).first()
     players = []
     if primary_team:
@@ -7351,14 +7419,17 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     )
 
 
+@login_required
 def sessions_page(request):
     return _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones · Entrenador')
 
 
+@login_required
 def sessions_goalkeeper_page(request):
     return _sessions_workspace_page(request, scope_key='goalkeeper', scope_title='Sesiones · Porteros')
 
 
+@login_required
 def sessions_fitness_page(request):
     return _sessions_workspace_page(request, scope_key='fitness', scope_title='Sesiones · Preparacion fisica')
 
@@ -7640,7 +7711,11 @@ def fines_page(request):
     )
 
 
+@login_required
 def analysis_page(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
     primary_team = Team.objects.filter(is_primary=True).first()
     team_url = (request.GET.get('team_url') or '').strip()
     team_id = (request.GET.get('team_id') or '').strip()
@@ -8059,7 +8134,7 @@ def manual_player_stats_page(request):
             status=200,
         )
 
-
+@login_required
 def player_detail_page(request, player_id):
     try:
         primary_team = Team.objects.filter(is_primary=True).first()
@@ -8068,6 +8143,9 @@ def player_detail_page(request, player_id):
         player = Player.objects.filter(id=player_id, team=primary_team).first()
         if not player:
             return JsonResponse({'error': 'Jugador no encontrado'}, status=404)
+        forbidden = _forbid_if_no_player_access(request.user, player, primary_team=primary_team)
+        if forbidden:
+            return forbidden
         current_role = _get_user_role(request.user)
         is_player_readonly = current_role == AppUserRole.ROLE_PLAYER and not _is_admin_user(request.user)
         active_match = get_active_match(primary_team)
@@ -8461,6 +8539,7 @@ def player_detail_page(request, player_id):
 
 
 
+@login_required
 def player_pdf(request, player_id):
     primary_team = Team.objects.filter(is_primary=True).first()
     if not primary_team:
@@ -8468,6 +8547,9 @@ def player_pdf(request, player_id):
     player = Player.objects.filter(id=player_id, team=primary_team).first()
     if not player:
         raise Http404('Jugador no encontrado')
+    forbidden = _forbid_if_no_player_access(request.user, player, primary_team=primary_team)
+    if forbidden:
+        return forbidden
     matches = compute_player_dashboard(primary_team)
     detail = next((p for p in matches if p.get('player_id') == player_id), None)
     if not detail:
@@ -8481,6 +8563,7 @@ def player_pdf(request, player_id):
     return _build_pdf_response_or_html_fallback(request, html, filename)
 
 
+@login_required
 def player_presentation(request, player_id):
     primary_team = Team.objects.filter(is_primary=True).first()
     if not primary_team:
@@ -8488,6 +8571,9 @@ def player_presentation(request, player_id):
     player = Player.objects.filter(id=player_id, team=primary_team).first()
     if not player:
         raise Http404('Jugador no encontrado')
+    forbidden = _forbid_if_no_player_access(request.user, player, primary_team=primary_team)
+    if forbidden:
+        return forbidden
     matches = compute_player_dashboard(primary_team)
     detail = next((p for p in matches if p.get('player_id') == player_id), None)
     if not detail:
@@ -8498,8 +8584,11 @@ def player_presentation(request, player_id):
         {'player': player, 'stats': detail},
     )
 
-
+@login_required
 def match_stats_page(request, match_id):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
     primary_team = Team.objects.filter(is_primary=True).first()
     if not primary_team:
         return JsonResponse({'error': 'No hay equipo principal configurado'}, status=400)
@@ -8695,6 +8784,7 @@ def _build_player_match_stats_payload(primary_team, player, match):
     return stats, match_payload
 
 
+@login_required
 def player_match_stats_page(request, player_id, match_id):
     primary_team = Team.objects.filter(is_primary=True).first()
     if not primary_team:
@@ -8702,6 +8792,9 @@ def player_match_stats_page(request, player_id, match_id):
     player = Player.objects.filter(id=player_id, team=primary_team).first()
     if not player:
         raise Http404('Jugador no encontrado')
+    forbidden = _forbid_if_no_player_access(request.user, player, primary_team=primary_team)
+    if forbidden:
+        return forbidden
     match = _team_match_queryset(primary_team).filter(id=match_id).first()
     if not match:
         raise Http404('Partido no encontrado')
