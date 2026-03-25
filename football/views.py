@@ -2010,6 +2010,7 @@ def player_dashboard_page(request):
 
     current_role = _get_user_role(request.user) or AppUserRole.ROLE_PLAYER
     role_labels = dict(AppUserRole.ROLE_CHOICES)
+    can_preview_player_view = current_role != AppUserRole.ROLE_PLAYER or _is_admin_user(request.user)
     return render(
         request,
         'football/player_dashboard.html',
@@ -2022,6 +2023,7 @@ def player_dashboard_page(request):
             'selected_match_total_actions': selected_match_total_actions,
             'current_role': current_role,
             'current_role_label': role_labels.get(current_role, 'Jugador'),
+            'can_preview_player_view': can_preview_player_view,
         },
     )
 
@@ -9057,7 +9059,13 @@ def player_detail_page(request, player_id):
         if forbidden:
             return forbidden
         current_role = _get_user_role(request.user)
-        is_player_readonly = current_role == AppUserRole.ROLE_PLAYER and not _is_admin_user(request.user)
+        can_preview_player_view = (
+            request.user.is_authenticated
+            and (current_role != AppUserRole.ROLE_PLAYER or _is_admin_user(request.user))
+        )
+        preview_mode = (request.GET.get('preview') or '').strip().lower()
+        player_view_preview = can_preview_player_view and preview_mode == 'player'
+        is_player_readonly = player_view_preview or (current_role == AppUserRole.ROLE_PLAYER and not _is_admin_user(request.user))
         active_match = get_active_match(primary_team)
         current_convocation = get_current_convocation_record(primary_team, match=active_match)
         is_called_up = bool(
@@ -9441,6 +9449,8 @@ def player_detail_page(request, player_id):
                 'fines_records': fines_records,
                 'stats_error': stats_error,
                 'is_player_readonly': is_player_readonly,
+                'player_view_preview': player_view_preview,
+                'can_preview_player_view': can_preview_player_view,
             },
         )
     except Exception:

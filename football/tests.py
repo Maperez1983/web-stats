@@ -624,6 +624,19 @@ class PlayerDetailStatsFallbackTests(TestCase):
         self.assertNotContains(response, 'type="file"', html=False)
         self.assertNotContains(response, 'Guardar comunicación')
 
+    def test_staff_can_preview_player_readonly_view(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse('player-detail', args=[self.player.id]), {'preview': 'player'})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context['is_player_readonly'])
+        self.assertTrue(response.context['player_view_preview'])
+        self.assertContains(response, 'Vista previa jugador')
+        self.assertContains(response, 'Ficha personal')
+        self.assertNotContains(response, 'type="file"', html=False)
+        self.assertNotContains(response, 'Guardar comunicación')
+
     @override_settings(MEDIA_URL='/media-test/')
     def test_player_detail_profile_upload_stores_photo_in_media(self):
         self.client.force_login(self.user)
@@ -1028,6 +1041,16 @@ class PlayerDashboardViewTests(TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response['Location'], reverse('player-detail', args=[self.player.id]))
+
+    def test_player_dashboard_shows_preview_link_for_staff_roles(self):
+        AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_COACH)
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse('player-dashboard'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Vista jugador')
+        self.assertContains(response, f'{reverse("player-detail", args=[self.player.id])}?preview=player')
 
     def test_player_match_stats_infers_missing_zone_from_player_profile(self):
         MatchEvent.objects.create(
