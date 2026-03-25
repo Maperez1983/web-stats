@@ -258,9 +258,8 @@
       .create-team-row { display: grid; grid-template-columns: 1fr auto auto; gap: 0.25rem; align-items: center; }
       .create-team-row input[type="text"] { padding: 0.28rem 0.42rem; font-size: 0.66rem; }
       .create-team-row input[type="color"] { width: 30px; height: 30px; border: none; padding: 0; background: transparent; }
-      .create-catalog-tabs, .create-resource-grid, .create-player-grid, .create-iconify-grid { display: grid; gap: 0.35rem; }
-      .create-catalog-tabs { grid-template-columns: repeat(5, minmax(0, 1fr)); margin-bottom: 0.5rem; }
-      .create-catalog-tab, .create-resource-btn, .create-iconify-btn {
+      .create-resource-grid, .create-player-grid, .create-iconify-grid { display: grid; gap: 0.35rem; }
+      .create-resource-btn, .create-iconify-btn {
         border: 1px solid rgba(255, 255, 255, 0.18);
         border-radius: 9px;
         background: rgba(255, 255, 255, 0.06);
@@ -269,13 +268,60 @@
         padding: 0.3rem 0.46rem;
         cursor: pointer;
       }
-      .create-catalog-tab.is-active { border-color: rgba(34, 211, 238, 0.75); background: rgba(8, 145, 178, 0.32); }
-      .create-resource-grid { grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); }
+      .create-resource-grid { gap: 0.55rem; }
+      .resource-quick-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+        gap: 0.35rem;
+      }
+      .resource-library {
+        margin-top: 0.65rem;
+        display: grid;
+        gap: 0.55rem;
+      }
+      .resource-group {
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.04);
+        overflow: hidden;
+      }
+      .resource-group summary {
+        cursor: pointer;
+        list-style: none;
+        padding: 0.7rem 0.8rem;
+        font-size: 0.66rem;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: #cbd5e1;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .resource-group summary::-webkit-details-marker { display: none; }
+      .resource-group summary::after {
+        content: "+";
+        color: #67e8f9;
+      }
+      .resource-group[open] summary::after { content: "−"; }
+      .resource-group-body {
+        padding: 0 0.75rem 0.75rem;
+      }
+      .resource-group-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+        gap: 0.35rem;
+      }
       .create-player-pool { margin-top: 0.5rem; }
       .create-player-pool-head { display: flex; justify-content: space-between; align-items: center; gap: 0.45rem; margin-bottom: 0.25rem; }
       .create-player-pool-head strong { font-size: 0.66rem; letter-spacing: 0.05em; text-transform: uppercase; }
       .create-player-pool-head input { min-width: 110px; padding: 0.24rem 0.38rem; font-size: 0.64rem; }
       .create-player-grid { grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); max-height: 180px; overflow: auto; }
+      .resource-note {
+        margin: 0 0 0.55rem;
+        color: var(--muted);
+        font-size: 0.76rem;
+      }
       .create-layers-list { display: grid; gap: 0.32rem; max-height: 540px; overflow: auto; }
       .create-board-status { margin-top: 0.5rem; font-size: 0.8rem; color: var(--muted); }
       .tpad-team-chip, .tpad-side-btn, .tpad-dock, .tpad-editbar, .tpad-modal-backdrop { display: none; }
@@ -406,85 +452,111 @@
                 <div class="tpad-stage">
                   <div class="create-resource">
                     <p class="create-resource-title">Catálogo gráfico</p>
-                    <div class="create-team-config">
-                      <div class="create-team-row">
-                        <input type="text" id="tpad-local-name" value="LOCAL" maxlength="14" />
-                        <input type="color" id="tpad-local-color-primary" value="#0f7ec7" />
-                        <input type="color" id="tpad-local-color-secondary" value="#f8fafc" />
-                      </div>
-                      <div class="create-team-row">
-                        <input type="text" id="tpad-rival-name" value="RIVAL" maxlength="14" />
-                        <input type="color" id="tpad-rival-color-primary" value="#f59e0b" />
-                        <input type="color" id="tpad-rival-color-secondary" value="#f8fafc" />
-                      </div>
-                    </div>
-                    <div class="create-catalog-tabs" id="create-catalog-tabs">
-                      <button type="button" class="create-catalog-tab is-active" data-cat="all">Todo</button>
-                      <button type="button" class="create-catalog-tab" data-cat="players">Jugadores</button>
-                      <button type="button" class="create-catalog-tab" data-cat="material">Material</button>
-                      <button type="button" class="create-catalog-tab" data-cat="zones">Zonas</button>
-                      <button type="button" class="create-catalog-tab" data-cat="draw">Trazos</button>
-                    </div>
+                    <p class="resource-note">Primero lo esencial para dibujar rápido. La biblioteca completa queda debajo, ordenada por categorías.</p>
                     <div class="create-resource-grid" id="create-resource-grid">
-                      <button type="button" class="create-resource-btn" data-cat="players" data-resource="player" data-team="local">Jugador local</button>
-                      <button type="button" class="create-resource-btn" data-cat="players" data-resource="player" data-team="rival">Jugador rival</button>
-                      <button type="button" class="create-resource-btn" data-cat="players" data-resource="goalkeeper" data-team="local">Portero local</button>
-                      <button type="button" class="create-resource-btn" data-cat="players" data-resource="goalkeeper" data-team="rival">Portero rival</button>
-                      <button type="button" class="create-resource-btn" data-cat="material" data-resource="ball" data-variant="classic">Balón</button>
-                      <button type="button" class="create-resource-btn" data-cat="material" data-resource="cone" data-variant="training">Cono</button>
-                      <button type="button" class="create-resource-btn" data-cat="material" data-resource="cone" data-variant="disc">Disco</button>
-                      <button type="button" class="create-resource-btn" data-cat="material" data-resource="cone" data-variant="pica">Pica</button>
-                      <button type="button" class="create-resource-btn" data-cat="material" data-resource="hurdle" data-variant="mini">Valla</button>
-                      <button type="button" class="create-resource-btn" data-cat="material" data-resource="ladder" data-variant="flat">Escalera</button>
-                      <button type="button" class="create-resource-btn" data-cat="material" data-resource="ring" data-variant="flat">Aro</button>
-                      <button type="button" class="create-resource-btn" data-cat="material" data-resource="mannequin" data-variant="wall">Maniquí</button>
-                      <button type="button" class="create-resource-btn" data-cat="material" data-resource="wall" data-variant="three">Barrera</button>
-                      <button type="button" class="create-resource-btn" data-cat="material" data-resource="target" data-variant="goal">Diana</button>
-                      <button type="button" class="create-resource-btn" data-cat="material" data-resource="bib" data-variant="neutral">Peto</button>
-                      <button type="button" class="create-resource-btn" data-cat="material" data-resource="mini_goal" data-variant="mini">Mini portería</button>
-                      <button type="button" class="create-resource-btn" data-cat="material" data-resource="mini_goal" data-variant="full">Portería 11</button>
-                      <button type="button" class="create-resource-btn" data-cat="material" data-resource="mini_goal" data-variant="seven">Portería 7</button>
-                      <button type="button" class="create-resource-btn" data-cat="material" data-resource="gate" data-variant="small">Puerta de pase</button>
-                      <button type="button" class="create-resource-btn" data-cat="material" data-resource="slalom" data-variant="line">Slalom</button>
-                      <button type="button" class="create-resource-btn" data-cat="zones" data-resource="zone" data-variant="rect">Zona rectangular</button>
-                      <button type="button" class="create-resource-btn" data-cat="zones" data-resource="zone" data-variant="circle">Zona circular</button>
-                      <button type="button" class="create-resource-btn" data-cat="zones" data-resource="zone" data-variant="diamond">Zona rombo</button>
-                      <button type="button" class="create-resource-btn" data-cat="zones" data-resource="zone" data-variant="lane">Carril</button>
-                      <button type="button" class="create-resource-btn" data-cat="zones" data-resource="zone" data-variant="halfspace">Medio espacio</button>
-                      <button type="button" class="create-resource-btn" data-cat="draw" data-resource="arrow" data-variant="straight">Flecha</button>
-                      <button type="button" class="create-resource-btn" data-cat="draw" data-resource="arrow" data-variant="curve">Flecha curva</button>
-                      <button type="button" class="create-resource-btn" data-cat="draw" data-resource="arrow" data-variant="press">Presión</button>
-                      <button type="button" class="create-resource-btn" data-cat="draw" data-resource="line" data-variant="solid">Línea sólida</button>
-                      <button type="button" class="create-resource-btn" data-cat="draw" data-resource="line" data-variant="dash">Línea discontinua</button>
-                      <button type="button" class="create-resource-btn" data-cat="draw" data-resource="line" data-variant="channel">Canal</button>
-                    </div>
-                    <div class="create-player-pool">
-                      <div class="create-player-pool-head">
-                        <strong>Plantilla</strong>
-                        <input id="tpad-local-search" type="text" placeholder="Buscar..." />
+                      <div class="resource-quick-grid">
+                        <button type="button" class="create-resource-btn" data-cat="players" data-resource="player" data-team="local">Jugador local</button>
+                        <button type="button" class="create-resource-btn" data-cat="players" data-resource="player" data-team="rival">Jugador rival</button>
+                        <button type="button" class="create-resource-btn" data-cat="players" data-resource="goalkeeper" data-team="local">Portero</button>
+                        <button type="button" class="create-resource-btn" data-cat="material" data-resource="ball" data-variant="classic">Balón</button>
+                        <button type="button" class="create-resource-btn" data-cat="material" data-resource="cone" data-variant="training">Cono</button>
+                        <button type="button" class="create-resource-btn" data-cat="material" data-resource="mini_goal" data-variant="mini">Mini portería</button>
+                        <button type="button" class="create-resource-btn" data-cat="zones" data-resource="zone" data-variant="rect">Zona</button>
+                        <button type="button" class="create-resource-btn" data-cat="draw" data-resource="arrow" data-variant="straight">Flecha</button>
+                        <button type="button" class="create-resource-btn" data-cat="draw" data-resource="line" data-variant="solid">Línea</button>
                       </div>
-                      <div class="create-player-grid" id="tpad-local-players-grid"></div>
-                    </div>
-                    <div class="create-player-pool">
-                      <div class="create-player-pool-head">
-                        <strong>Rival</strong>
-                        <input id="tpad-rival-search" type="text" placeholder="Buscar..." />
+                      <div class="resource-library">
+                        <details class="resource-group">
+                          <summary>Configuración de equipos</summary>
+                          <div class="resource-group-body">
+                            <div class="create-team-config">
+                              <div class="create-team-row">
+                                <input type="text" id="tpad-local-name" value="LOCAL" maxlength="14" />
+                                <input type="color" id="tpad-local-color-primary" value="#0f7ec7" />
+                                <input type="color" id="tpad-local-color-secondary" value="#f8fafc" />
+                              </div>
+                              <div class="create-team-row">
+                                <input type="text" id="tpad-rival-name" value="RIVAL" maxlength="14" />
+                                <input type="color" id="tpad-rival-color-primary" value="#f59e0b" />
+                                <input type="color" id="tpad-rival-color-secondary" value="#f8fafc" />
+                              </div>
+                            </div>
+                          </div>
+                        </details>
+                        <details class="resource-group">
+                          <summary>Biblioteca de material</summary>
+                          <div class="resource-group-body">
+                            <div class="resource-group-grid">
+                              <button type="button" class="create-resource-btn" data-cat="material" data-resource="cone" data-variant="disc">Disco</button>
+                              <button type="button" class="create-resource-btn" data-cat="material" data-resource="cone" data-variant="pica">Pica</button>
+                              <button type="button" class="create-resource-btn" data-cat="material" data-resource="hurdle" data-variant="mini">Valla</button>
+                              <button type="button" class="create-resource-btn" data-cat="material" data-resource="ladder" data-variant="flat">Escalera</button>
+                              <button type="button" class="create-resource-btn" data-cat="material" data-resource="ring" data-variant="flat">Aro</button>
+                              <button type="button" class="create-resource-btn" data-cat="material" data-resource="mannequin" data-variant="wall">Maniquí</button>
+                              <button type="button" class="create-resource-btn" data-cat="material" data-resource="wall" data-variant="three">Barrera</button>
+                              <button type="button" class="create-resource-btn" data-cat="material" data-resource="target" data-variant="goal">Diana</button>
+                              <button type="button" class="create-resource-btn" data-cat="material" data-resource="bib" data-variant="neutral">Peto</button>
+                              <button type="button" class="create-resource-btn" data-cat="material" data-resource="mini_goal" data-variant="full">Portería 11</button>
+                              <button type="button" class="create-resource-btn" data-cat="material" data-resource="mini_goal" data-variant="seven">Portería 7</button>
+                              <button type="button" class="create-resource-btn" data-cat="material" data-resource="gate" data-variant="small">Puerta pase</button>
+                              <button type="button" class="create-resource-btn" data-cat="material" data-resource="slalom" data-variant="line">Slalom</button>
+                            </div>
+                          </div>
+                        </details>
+                        <details class="resource-group">
+                          <summary>Zonas y trazos</summary>
+                          <div class="resource-group-body">
+                            <div class="resource-group-grid">
+                              <button type="button" class="create-resource-btn" data-cat="zones" data-resource="zone" data-variant="circle">Zona circular</button>
+                              <button type="button" class="create-resource-btn" data-cat="zones" data-resource="zone" data-variant="diamond">Zona rombo</button>
+                              <button type="button" class="create-resource-btn" data-cat="zones" data-resource="zone" data-variant="lane">Carril</button>
+                              <button type="button" class="create-resource-btn" data-cat="zones" data-resource="zone" data-variant="halfspace">Medio espacio</button>
+                              <button type="button" class="create-resource-btn" data-cat="draw" data-resource="arrow" data-variant="curve">Flecha curva</button>
+                              <button type="button" class="create-resource-btn" data-cat="draw" data-resource="arrow" data-variant="press">Presión</button>
+                              <button type="button" class="create-resource-btn" data-cat="draw" data-resource="line" data-variant="dash">Línea discontinua</button>
+                              <button type="button" class="create-resource-btn" data-cat="draw" data-resource="line" data-variant="channel">Canal</button>
+                              <button type="button" class="create-resource-btn" data-cat="players" data-resource="goalkeeper" data-team="rival">Portero rival</button>
+                            </div>
+                          </div>
+                        </details>
+                        <details class="resource-group">
+                          <summary>Plantillas</summary>
+                          <div class="resource-group-body">
+                            <div class="create-player-pool">
+                              <div class="create-player-pool-head">
+                                <strong>Plantilla</strong>
+                                <input id="tpad-local-search" type="text" placeholder="Buscar..." />
+                              </div>
+                              <div class="create-player-grid" id="tpad-local-players-grid"></div>
+                            </div>
+                            <div class="create-player-pool">
+                              <div class="create-player-pool-head">
+                                <strong>Rival</strong>
+                                <input id="tpad-rival-search" type="text" placeholder="Buscar..." />
+                              </div>
+                              <div class="create-player-grid" id="tpad-rival-players-grid"></div>
+                            </div>
+                          </div>
+                        </details>
+                        <details class="resource-group">
+                          <summary>Iconos</summary>
+                          <div class="resource-group-body">
+                            <input id="create-iconify-search" type="text" placeholder="Buscar icono..." />
+                            <div class="create-iconify-grid" id="create-iconify-grid" style="margin-top:0.45rem;">
+                              <button type="button" class="create-iconify-btn" data-iconify="mdi:account" data-label="Jugador"><iconify-icon icon="mdi:account"></iconify-icon><span>Jugador</span></button>
+                              <button type="button" class="create-iconify-btn" data-iconify="mdi:account-group" data-label="Grupo"><iconify-icon icon="mdi:account-group"></iconify-icon><span>Grupo</span></button>
+                              <button type="button" class="create-iconify-btn" data-iconify="mdi:soccer" data-label="Balón"><iconify-icon icon="mdi:soccer"></iconify-icon><span>Balón</span></button>
+                              <button type="button" class="create-iconify-btn" data-iconify="mdi:cone" data-label="Cono"><iconify-icon icon="mdi:cone"></iconify-icon><span>Cono</span></button>
+                              <button type="button" class="create-iconify-btn" data-iconify="mdi:target" data-label="Diana"><iconify-icon icon="mdi:target"></iconify-icon><span>Diana</span></button>
+                              <button type="button" class="create-iconify-btn" data-iconify="mdi:shield-outline" data-label="Defensa"><iconify-icon icon="mdi:shield-outline"></iconify-icon><span>Defensa</span></button>
+                              <button type="button" class="create-iconify-btn" data-iconify="mdi:tshirt-crew-outline" data-label="Peto"><iconify-icon icon="mdi:tshirt-crew-outline"></iconify-icon><span>Peto</span></button>
+                              <button type="button" class="create-iconify-btn" data-iconify="mdi:arrow-right-bold" data-label="Flecha"><iconify-icon icon="mdi:arrow-right-bold"></iconify-icon><span>Flecha</span></button>
+                              <button type="button" class="create-iconify-btn" data-iconify="mdi:arrow-split-horizontal" data-label="Desmarque"><iconify-icon icon="mdi:arrow-split-horizontal"></iconify-icon><span>Desmarque</span></button>
+                              <button type="button" class="create-iconify-btn" data-iconify="mdi:format-text" data-label="Texto"><iconify-icon icon="mdi:format-text"></iconify-icon><span>Texto</span></button>
+                            </div>
+                          </div>
+                        </details>
                       </div>
-                      <div class="create-player-grid" id="tpad-rival-players-grid"></div>
-                    </div>
-                    <p class="create-resource-title" style="margin-top:0.55rem;">Iconos</p>
-                    <input id="create-iconify-search" type="text" placeholder="Buscar icono..." />
-                    <div class="create-iconify-grid" id="create-iconify-grid">
-                      <button type="button" class="create-iconify-btn" data-iconify="mdi:account" data-label="Jugador"><iconify-icon icon="mdi:account"></iconify-icon><span>Jugador</span></button>
-                      <button type="button" class="create-iconify-btn" data-iconify="mdi:account-group" data-label="Grupo"><iconify-icon icon="mdi:account-group"></iconify-icon><span>Grupo</span></button>
-                      <button type="button" class="create-iconify-btn" data-iconify="mdi:soccer" data-label="Balón"><iconify-icon icon="mdi:soccer"></iconify-icon><span>Balón</span></button>
-                      <button type="button" class="create-iconify-btn" data-iconify="mdi:cone" data-label="Cono"><iconify-icon icon="mdi:cone"></iconify-icon><span>Cono</span></button>
-                      <button type="button" class="create-iconify-btn" data-iconify="mdi:target" data-label="Diana"><iconify-icon icon="mdi:target"></iconify-icon><span>Diana</span></button>
-                      <button type="button" class="create-iconify-btn" data-iconify="mdi:shield-outline" data-label="Defensa"><iconify-icon icon="mdi:shield-outline"></iconify-icon><span>Defensa</span></button>
-                      <button type="button" class="create-iconify-btn" data-iconify="mdi:tshirt-crew-outline" data-label="Peto"><iconify-icon icon="mdi:tshirt-crew-outline"></iconify-icon><span>Peto</span></button>
-                      <button type="button" class="create-iconify-btn" data-iconify="mdi:arrow-right-bold" data-label="Flecha"><iconify-icon icon="mdi:arrow-right-bold"></iconify-icon><span>Flecha</span></button>
-                      <button type="button" class="create-iconify-btn" data-iconify="mdi:arrow-split-horizontal" data-label="Desmarque"><iconify-icon icon="mdi:arrow-split-horizontal"></iconify-icon><span>Desmarque</span></button>
-                      <button type="button" class="create-iconify-btn" data-iconify="mdi:format-text" data-label="Texto"><iconify-icon icon="mdi:format-text"></iconify-icon><span>Texto</span></button>
                     </div>
                   </div>
                   <div class="create-board-layout">
