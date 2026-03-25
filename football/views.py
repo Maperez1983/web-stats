@@ -170,6 +170,8 @@ SCRAPE_LOCK_KEY = "football:refresh_scraping_running"
 SCRAPE_LOCK_TIMEOUT_SECONDS = 900
 DASHBOARD_CACHE_KEY_PREFIX = "football:dashboard_payload"
 DASHBOARD_CACHE_SECONDS = int(os.getenv('DASHBOARD_CACHE_SECONDS', '90'))
+PLAYER_DASHBOARD_CACHE_KEY_PREFIX = "football:player_dashboard"
+PLAYER_DASHBOARD_CACHE_SECONDS = int(os.getenv('PLAYER_DASHBOARD_CACHE_SECONDS', '120'))
 RFAF_LIVE_FETCH_ON_REQUEST = str(
     os.getenv('RFAF_LIVE_FETCH_ON_REQUEST', '0')
 ).strip().lower() in {'1', 'true', 'yes', 'on'}
@@ -1118,6 +1120,21 @@ def _dashboard_cache_key(team_id):
     return f'{DASHBOARD_CACHE_KEY_PREFIX}:{team_id}'
 
 
+def _player_dashboard_cache_key(team_id):
+    return f'{PLAYER_DASHBOARD_CACHE_KEY_PREFIX}:{team_id}'
+
+
+def _invalidate_team_dashboard_caches(primary_team):
+    if not primary_team or not getattr(primary_team, 'id', None):
+        return
+    cache.delete_many(
+        [
+            _dashboard_cache_key(primary_team.id),
+            _player_dashboard_cache_key(primary_team.id),
+        ]
+    )
+
+
 def load_universo_snapshot():
     if not UNIVERSO_SNAPSHOT_PATH.exists():
         return None
@@ -1864,7 +1881,7 @@ def player_dashboard_page(request):
     if not primary_team:
         return JsonResponse({'error': 'No hay equipo principal configurado'}, status=400)
     try:
-        refresh_primary_roster_cache(primary_team, force=True)
+        refresh_primary_roster_cache(primary_team, force=False)
     except Exception:
         pass
     player_stats = compute_player_dashboard(primary_team)
@@ -2366,6 +2383,7 @@ def save_match_lineup(request):
     normalized = _normalize_lineup_payload(lineup, allowed_players)
     convocation_record.lineup_data = normalized
     convocation_record.save(update_fields=['lineup_data'])
+    _invalidate_team_dashboard_caches(primary_team)
     starters_count = len(normalized['starters'])
     return JsonResponse(
         {
@@ -2397,6 +2415,7 @@ def delete_match_action(request):
     except MatchEvent.DoesNotExist:
         return JsonResponse({'error': 'Evento no encontrado'}, status=404)
     event.delete()
+    _invalidate_team_dashboard_caches(primary_team)
     return JsonResponse({'deleted': event_id})
 
 
@@ -2462,6 +2481,7 @@ def finalize_match_actions(request):
     updated = 0
     if keep_ids:
         updated = MatchEvent.objects.filter(id__in=keep_ids).update(system='touch-field-final')
+    _invalidate_team_dashboard_caches(primary_team)
     return JsonResponse(
         {
             'saved': True,
@@ -2491,6 +2511,7 @@ def reset_match_action_register(request):
     ).filter(
         Q(system='touch-field') | Q(system='touch-field-final'),
     ).delete()
+    _invalidate_team_dashboard_caches(primary_team)
     return JsonResponse(
         {
             'reset': True,
@@ -2800,7 +2821,7 @@ def save_convocation(request):
             opponent_name=opponent_value,
         )
         record.players.set(players.distinct())
-    cache.delete(_dashboard_cache_key(primary_team.id))
+    _invalidate_team_dashboard_caches(primary_team)
     pending = players.count() == 0
     return JsonResponse(
         {
@@ -8083,6 +8104,7 @@ def manual_player_stats_page(request):
                         values=overrides,
                     )
             current_overrides = get_manual_player_base_overrides(primary_team, season)
+            _invalidate_team_dashboard_caches(primary_team)
             message = 'Estadísticas manuales guardadas.'
         else:
             message = ''
@@ -8227,6 +8249,7 @@ def player_detail_page(request, player_id):
                 player.save()
                 if uploaded_photo:
                     save_player_photo(player, uploaded_photo)
+                _invalidate_team_dashboard_caches(primary_team)
 
                 active_injury = (
                     PlayerInjuryRecord.objects
@@ -8843,7 +8866,7 @@ def refresh_scraping(request):
     else:
         roster_status = 'plantilla gestionada por Universo RFAF'
     if primary_team:
-        cache.delete(_dashboard_cache_key(primary_team.id))
+        _invalidate_team_dashboard_caches(primary_team)
     return JsonResponse(
         {'status': 'success', 'message': f'Clasificación actualizada desde RFAF, {roster_status}.'}
     )
@@ -9434,7 +9457,14 @@ def compute_player_cards(primary_team):
     return sorted(cards, key=lambda entry: (-entry['goals'], -entry['pj'], entry['name']))
 
 
-def compute_player_dashboard(primary_team):
+def compute_player_dashboard(primary_team, force_refresh=False):
+    if not primary_team:
+        return []
+    cache_key = _player_dashboard_cache_key(primary_team.id)
+    if not force_refresh:
+        cached_rows = cache.get(cache_key)
+        if isinstance(cached_rows, list):
+            return cached_rows
     player_stats = {}
     competition_total_rounds = get_competition_total_rounds(primary_team)
     roster_players = list(Player.objects.filter(team=primary_team))
@@ -9491,6 +9521,7 @@ def compute_player_dashboard(primary_team):
     convocation_qs = (
         ConvocationRecord.objects.filter(team=primary_team, match__isnull=False)
         .exclude(lineup_data={})
+        .prefetch_related('players')
         .order_by('match_id', '-created_at')
     )
     for record in convocation_qs:
@@ -9504,7 +9535,7 @@ def compute_player_dashboard(primary_team):
     events = (
         confirmed_events_queryset()
         .filter(player__team=primary_team)
-        .select_related('player', 'match')
+        .select_related('player', 'match', 'match__home_team', 'match__away_team')
         .order_by('player__name', 'match__date')
     )
     inferred_zone_events = _filter_stats_events(events, preferred_sources=preferred_sources)
@@ -9516,7 +9547,7 @@ def compute_player_dashboard(primary_team):
             Q(player__team=primary_team) | Q(player__isnull=True),
             Q(match__home_team=primary_team) | Q(match__away_team=primary_team),
         )
-        .select_related('player', 'match')
+        .select_related('player', 'match', 'match__home_team', 'match__away_team')
         .order_by('player__name', 'match__date')
     )
     seen_signatures = set()
@@ -10107,7 +10138,9 @@ def compute_player_dashboard(primary_team):
         merged['profile_label'] = profile_label
         merged['smart_kpis'] = smart_kpis
         result.append(merged)
-    return sorted(
+    result = sorted(
         result,
         key=lambda entry: (-entry.get('total_actions', 0), -entry.get('pj', 0), entry.get('name', '')),
     )
+    cache.set(cache_key, result, PLAYER_DASHBOARD_CACHE_SECONDS)
+    return result

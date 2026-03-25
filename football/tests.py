@@ -545,6 +545,7 @@ class RosterLookupTests(TestCase):
 
 class PlayerDetailStatsFallbackTests(TestCase):
     def setUp(self):
+        cache.clear()
         user_model = get_user_model()
         self.user = user_model.objects.create_user(
             username='detailadmin',
@@ -955,6 +956,7 @@ class ManualEventAggregationTests(TestCase):
 
 class PlayerDashboardViewTests(TestCase):
     def setUp(self):
+        cache.clear()
         self.user = get_user_model().objects.create_user(
             username='dashboard-user',
             email='dashboard@example.com',
@@ -995,6 +997,15 @@ class PlayerDashboardViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Rival View')
         self.assertContains(response, 'Acciones totales:')
+        mocked_refresh.assert_called_once_with(self.team, force=False)
+
+    def test_compute_player_dashboard_reuses_cached_payload(self):
+        first = compute_player_dashboard(self.team)
+
+        with patch('football.views.get_competition_total_rounds', side_effect=RuntimeError('cache miss')):
+            second = compute_player_dashboard(self.team)
+
+        self.assertEqual(first, second)
 
     def test_player_match_stats_uses_dedicated_template(self):
         self.client.force_login(self.user)
@@ -1101,6 +1112,7 @@ class PlayerDashboardViewTests(TestCase):
 
 class CoachTrainerMetricsTests(TestCase):
     def setUp(self):
+        cache.clear()
         self.user = get_user_model().objects.create_user(
             username='coach-metrics',
             email='coach-metrics@example.com',
@@ -1300,6 +1312,7 @@ class CoachTrainerMetricsTests(TestCase):
 
 class AnalysisVideoWorkspaceTests(TestCase):
     def setUp(self):
+        cache.clear()
         self.user = get_user_model().objects.create_user(
             username='analyst-workspace',
             email='analyst-workspace@example.com',
