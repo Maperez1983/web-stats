@@ -822,6 +822,9 @@ class CoachTrainerMetricsTests(TestCase):
         self.assertEqual(general_stats['Goles medidos/partido'], 1.0)
         kpis = {item['label']: item['value'] for item in response.context['kpis']}
         self.assertEqual(kpis['Acciones/partido'], 2.0)
+        overview = response.context['coach_overview_stats']
+        self.assertEqual(overview['summary'][1]['value'], 1)
+        self.assertEqual(overview['summary'][6]['value'], '1/1')
 
     def test_stats_audit_treats_goal_gap_as_coverage_note(self):
         report = run_stats_audit(self.team)

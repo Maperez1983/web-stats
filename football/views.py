@@ -3328,6 +3328,36 @@ def coach_role_trainer_page(request):
     ]
     coach_total_field_zones = totals_breakdown['field_zones']
     coach_total_actions_count = total_mapped_actions
+    pass_accuracy = (
+        round((totals_breakdown['passes_completed'] / totals_breakdown['passes_attempts']) * 100, 1)
+        if totals_breakdown['passes_attempts']
+        else 0.0
+    )
+    shot_accuracy = (
+        round((totals_breakdown['shots_on_target'] / totals_breakdown['shots_attempts']) * 100, 1)
+        if totals_breakdown['shots_attempts']
+        else 0.0
+    )
+    coach_overview_stats = {
+        'rings': [
+            {'label': 'Tasa de éxito', 'value': f'{success_rate:.1f}%', 'pct': success_rate},
+            {'label': 'Duelos ganados', 'value': f'{duel_rate:.1f}%', 'pct': duel_rate},
+            {'label': 'Precisión de pase', 'value': f'{pass_accuracy:.1f}%', 'pct': pass_accuracy},
+            {'label': 'Tiro a puerta', 'value': f'{shot_accuracy:.1f}%', 'pct': shot_accuracy},
+        ],
+        'summary': [
+            {'label': 'Partidos jugados', 'value': season_played_matches},
+            {'label': 'Partidos medidos', 'value': measured_matches},
+            {'label': 'Goles reales', 'value': goals_for},
+            {'label': 'Goles medidos', 'value': event_goals_for},
+            {'label': 'Acciones', 'value': total_actions},
+            {'label': 'Duelos', 'value': len(duels)},
+            {'label': 'Disparos', 'value': f"{totals_breakdown['shots_on_target']}/{totals_breakdown['shots_attempts']}"},
+            {'label': 'Disparos/Gol', 'value': '-' if team_shots_per_goal is None else team_shots_per_goal},
+            {'label': 'Pases', 'value': f"{totals_breakdown['passes_completed']}/{totals_breakdown['passes_attempts']}"},
+            {'label': 'Tarjetas', 'value': card_total},
+        ],
+    }
     match_events_map = defaultdict(list)
     for event in team_events:
         if event.match_id:
@@ -3378,6 +3408,7 @@ def coach_role_trainer_page(request):
             'modules': modules,
             'kpis': kpis,
             'kpi_note': '* Goles, puntos y clasificación: temporada real. Métricas de acciones: solo sobre partidos medidos.',
+            'coach_overview_stats': coach_overview_stats,
             'coach_general_stats': coach_general_stats,
             'coach_player_leaders': coach_player_leaders,
             'coach_total_field_zones': coach_total_field_zones,

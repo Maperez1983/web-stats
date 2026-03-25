@@ -79,6 +79,76 @@
         font-size: 0.75rem;
         color: rgba(186, 230, 253, 0.8);
       }
+      .overview {
+        margin-top: 1rem;
+        padding: 1.4rem;
+        border-radius: 20px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(226,232,240,0.92));
+        box-shadow: 0 18px 44px rgba(15, 23, 42, 0.28);
+        color: #0f172a;
+      }
+      .overview-title {
+        margin: 0 0 1rem;
+        text-align: center;
+        color: #0f7c93;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .overview-rings {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        gap: 1.2rem;
+        margin-bottom: 1.2rem;
+      }
+      .overview-ring {
+        text-align: center;
+      }
+      .overview-ring-chart {
+        width: 150px;
+        height: 150px;
+        margin: 0 auto 0.6rem;
+        border-radius: 999px;
+        display: grid;
+        place-items: center;
+        background:
+          radial-gradient(circle at center, rgba(255,255,255,0.96) 0 56px, transparent 57px),
+          conic-gradient(#0f7c93 calc(var(--pct, 0) * 1%), #d8dee9 0);
+      }
+      .overview-ring-value {
+        font-size: 1.2rem;
+        font-weight: 800;
+        color: #0f172a;
+      }
+      .overview-ring-label {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #475569;
+      }
+      .overview-summary {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 0.85rem;
+      }
+      .overview-item {
+        background: rgba(255, 255, 255, 0.82);
+        border: 1px solid rgba(15, 124, 147, 0.14);
+        border-radius: 1rem;
+        padding: 1rem;
+        text-align: center;
+      }
+      .overview-item .label {
+        font-size: 0.78rem;
+        color: #475569;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .overview-item .value {
+        margin-top: 0.25rem;
+        font-size: 1.15rem;
+        font-weight: 800;
+        color: #0f172a;
+      }
       .coach-panels {
         margin-top: 0.9rem;
         display: grid;
@@ -302,7 +372,30 @@
         </div>
         <a class="pill-button" style="border-radius:12px;" href="{% url 'coach-cards' %}">Volver</a>
       </header>
-      {% if kpis %}
+      {% if coach_overview_stats %}
+      <section class="overview">
+        <h2 class="overview-title">KPI de rendimiento</h2>
+        <div class="overview-rings">
+          {% for item in coach_overview_stats.rings %}
+          <article class="overview-ring">
+            <div class="overview-ring-chart" style="--pct: {{ item.pct|default:0 }};">
+              <span class="overview-ring-value">{{ item.value }}</span>
+            </div>
+            <div class="overview-ring-label">{{ item.label }}</div>
+          </article>
+          {% endfor %}
+        </div>
+        <div class="overview-summary">
+          {% for item in coach_overview_stats.summary %}
+          <article class="overview-item">
+            <div class="label">{{ item.label }}</div>
+            <div class="value">{{ item.value }}</div>
+          </article>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+      {% if kpis and not coach_overview_stats %}
       <section class="kpis">
         {% for kpi in kpis %}
         <article class="kpi">
