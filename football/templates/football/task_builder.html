@@ -203,6 +203,47 @@
         background: rgba(2, 10, 22, 0.5);
         padding: 0.7rem;
       }
+      .simple-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        margin-bottom: 0.7rem;
+      }
+      .simple-toolbar .secondary {
+        border-radius: 12px;
+        padding: 0.55rem 0.8rem;
+      }
+      .simple-toolbar .secondary.primary-tool {
+        background: rgba(34, 211, 238, 0.14);
+        border-color: rgba(34, 211, 238, 0.3);
+        color: #cffafe;
+      }
+      .board-advanced-toggle {
+        margin-top: 0.65rem;
+      }
+      .board-advanced-toggle summary {
+        cursor: pointer;
+        list-style: none;
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: #cbd5e1;
+      }
+      .board-advanced-toggle summary::-webkit-details-marker { display: none; }
+      .board-advanced-toggle summary::after {
+        content: " +";
+        color: #67e8f9;
+      }
+      .board-advanced-toggle[open] summary::after {
+        content: " −";
+      }
+      .board-advanced-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+        gap: 0.45rem;
+        margin-top: 0.7rem;
+      }
       .create-board-layout {
         display: grid;
         grid-template-columns: minmax(0, 1fr) 240px;
@@ -323,6 +364,11 @@
         font-size: 0.76rem;
       }
       .create-layers-list { display: grid; gap: 0.32rem; max-height: 540px; overflow: auto; }
+      .layers-panel details summary {
+        cursor: pointer;
+        list-style: none;
+      }
+      .layers-panel details summary::-webkit-details-marker { display: none; }
       .create-board-status { margin-top: 0.5rem; font-size: 0.8rem; color: var(--muted); }
       .tpad-team-chip, .tpad-side-btn, .tpad-dock, .tpad-editbar, .tpad-modal-backdrop { display: none; }
       @media (max-width: 1180px) {
@@ -416,29 +462,18 @@
               <div class="create-board-shell" id="create-board-shell">
                 <div class="tpad-team-chip left" data-team="L"><span>Local</span></div>
                 <div class="tpad-team-chip right" data-team="R"><span>Rival</span></div>
-                <div class="create-board-toolbar" id="create-board-toolbar" style="display:none;">
-                  <button type="button" class="secondary" id="create-board-draw-btn">Dibujar</button>
-                  <button type="button" class="secondary" id="create-board-select-btn">Seleccionar</button>
+                <div class="create-board-toolbar simple-toolbar" id="create-board-toolbar">
+                  <button type="button" class="secondary primary-tool" id="create-board-select-btn">Seleccionar</button>
+                  <button type="button" class="secondary primary-tool" id="create-board-draw-btn">Dibujar</button>
+                  <button type="button" class="secondary primary-tool" id="create-board-player-btn">Jugador</button>
+                  <button type="button" class="secondary primary-tool" id="create-board-zone-btn">Zona</button>
+                  <button type="button" class="secondary primary-tool" id="create-board-arrow-btn">Flecha</button>
+                  <button type="button" class="secondary primary-tool" id="create-board-text-btn">Texto</button>
                   <button type="button" class="secondary" id="create-board-snap-btn">Snap ON</button>
-                  <button type="button" class="secondary" id="create-board-player-btn">Jugador</button>
-                  <button type="button" class="secondary" id="create-board-zone-btn">Zona</button>
-                  <button type="button" class="secondary" id="create-board-arrow-btn">Flecha</button>
-                  <button type="button" class="secondary" id="create-board-text-btn">Texto</button>
-                  <button type="button" class="secondary" id="create-board-align-left-btn">Izq</button>
-                  <button type="button" class="secondary" id="create-board-align-center-btn">Centro</button>
-                  <button type="button" class="secondary" id="create-board-align-right-btn">Der</button>
-                  <button type="button" class="secondary" id="create-board-align-top-btn">Arriba</button>
-                  <button type="button" class="secondary" id="create-board-align-middle-btn">Medio</button>
-                  <button type="button" class="secondary" id="create-board-align-bottom-btn">Abajo</button>
-                  <button type="button" class="secondary" id="create-board-duplicate-btn">Duplicar</button>
-                  <button type="button" class="secondary" id="create-board-lock-btn">Bloquear</button>
-                  <button type="button" class="secondary" id="create-board-unlock-btn">Desbloquear</button>
-                  <button type="button" class="secondary" id="create-board-delete-btn">Borrar selección</button>
-                  <button type="button" class="secondary" id="create-board-front-btn">Subir capa</button>
-                  <button type="button" class="secondary" id="create-board-back-btn">Bajar capa</button>
                   <button type="button" class="secondary" id="create-board-undo-btn">Deshacer</button>
+                  <button type="button" class="secondary" id="create-board-delete-btn">Borrar</button>
                   <button type="button" class="secondary" id="create-board-clear-btn">Limpiar</button>
-                  <button type="button" class="secondary" id="create-board-recover-btn">Recuperar draft</button>
+                  <button type="button" class="secondary" id="create-board-recover-btn">Recuperar</button>
                   <button type="button" class="secondary" id="create-board-discard-btn">Borrar draft</button>
                   <label style="display:flex; align-items:center; gap:0.35rem; text-transform:none; letter-spacing:0.02em; font-size:0.7rem;">
                     Color
@@ -563,9 +598,11 @@
                     <div class="create-board-wrap">
                       <canvas id="create-task-canvas"></canvas>
                     </div>
-                    <aside class="create-layers">
-                      <h4>Capas</h4>
-                      <div class="create-layers-list" id="create-layers-list"></div>
+                    <aside class="create-layers layers-panel">
+                      <details>
+                        <summary><h4 style="margin:0;">Capas</h4></summary>
+                        <div class="create-layers-list" id="create-layers-list" style="margin-top:0.55rem;"></div>
+                      </details>
                     </aside>
                   </div>
                 </div>
@@ -628,18 +665,23 @@
                         <span>Lienzo en blanco</span>
                       </button>
                     </div>
-                    <div class="tpad-modal-row">
-                      <button type="button" class="tpad-chip is-active" data-field-theme="classic">Classic Green</button>
-                      <button type="button" class="tpad-chip" data-field-theme="dark">Dark Green</button>
-                      <button type="button" class="tpad-chip" data-field-theme="mint">Mint</button>
-                      <button type="button" class="tpad-chip" data-field-theme="dry">Dry Grass</button>
-                    </div>
-                    <div class="tpad-modal-row">
-                      <button type="button" class="tpad-chip is-active" data-field-camera="full">Cámara completa</button>
-                      <button type="button" class="tpad-chip" data-field-camera="left">Media izquierda</button>
-                      <button type="button" class="tpad-chip" data-field-camera="right">Media derecha</button>
-                      <button type="button" class="tpad-chip" data-field-camera="stadium">Estadio 3D</button>
-                    </div>
+                    <details class="builder-section" style="margin-top:0.8rem;">
+                      <summary>Opciones avanzadas de campo</summary>
+                      <div class="builder-section-body">
+                        <div class="tpad-modal-row">
+                          <button type="button" class="tpad-chip is-active" data-field-theme="classic">Classic Green</button>
+                          <button type="button" class="tpad-chip" data-field-theme="dark">Dark Green</button>
+                          <button type="button" class="tpad-chip" data-field-theme="mint">Mint</button>
+                          <button type="button" class="tpad-chip" data-field-theme="dry">Dry Grass</button>
+                        </div>
+                        <div class="tpad-modal-row">
+                          <button type="button" class="tpad-chip is-active" data-field-camera="full">Cámara completa</button>
+                          <button type="button" class="tpad-chip" data-field-camera="left">Media izquierda</button>
+                          <button type="button" class="tpad-chip" data-field-camera="right">Media derecha</button>
+                          <button type="button" class="tpad-chip" data-field-camera="stadium">Estadio 3D</button>
+                        </div>
+                      </div>
+                    </details>
                     <div class="tpad-modal-actions">
                       <button type="button" class="secondary" id="tpad-field-cancel">Cancelar</button>
                       <button type="button" class="secondary" id="tpad-field-apply">Listo</button>
@@ -647,6 +689,22 @@
                   </div>
                 </div>
               </div>
+              <details class="board-advanced-toggle">
+                <summary>Herramientas avanzadas</summary>
+                <div class="board-advanced-grid">
+                  <button type="button" class="secondary" id="create-board-align-left-btn">Alinear izquierda</button>
+                  <button type="button" class="secondary" id="create-board-align-center-btn">Alinear centro</button>
+                  <button type="button" class="secondary" id="create-board-align-right-btn">Alinear derecha</button>
+                  <button type="button" class="secondary" id="create-board-align-top-btn">Alinear arriba</button>
+                  <button type="button" class="secondary" id="create-board-align-middle-btn">Alinear medio</button>
+                  <button type="button" class="secondary" id="create-board-align-bottom-btn">Alinear abajo</button>
+                  <button type="button" class="secondary" id="create-board-duplicate-btn">Duplicar selección</button>
+                  <button type="button" class="secondary" id="create-board-lock-btn">Bloquear</button>
+                  <button type="button" class="secondary" id="create-board-unlock-btn">Desbloquear</button>
+                  <button type="button" class="secondary" id="create-board-front-btn">Subir capa</button>
+                  <button type="button" class="secondary" id="create-board-back-btn">Bajar capa</button>
+                </div>
+              </details>
               <p class="create-board-status" id="create-board-status">Pizarra lista.</p>
               <input type="hidden" name="draw_canvas_state" id="draw-canvas-state" value="{{ initial.canvas_state|escape }}" />
               <input type="hidden" name="draw_canvas_width" id="draw-canvas-width" value="{{ initial.canvas_width }}" />
