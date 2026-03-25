@@ -17,6 +17,7 @@ from football.event_taxonomy import (
     contains_keyword,
     is_shot_attempt_event,
     is_shot_on_target_event,
+    map_zone_label,
     shots_needed_per_goal,
 )
 from football.healthchecks import run_system_healthcheck
@@ -590,6 +591,14 @@ class EventTaxonomyKpiTests(TestCase):
     def test_goal_event_counts_as_shot_attempt_and_on_target(self):
         self.assertTrue(is_shot_attempt_event('Gol', result='Gol'))
         self.assertTrue(is_shot_on_target_event('Gol', result='Gol'))
+
+    def test_field_zone_aliases_map_mid_wide_and_interior_lanes(self):
+        self.assertEqual(map_zone_label('MEDIO IZQUIERDA'), 'Medio Izquierdo')
+        self.assertEqual(map_zone_label('MEDIO DERECHA'), 'Medio Derecho')
+        self.assertEqual(map_zone_label('Interior Izquierdo'), 'Medio Izquierdo')
+        self.assertEqual(map_zone_label('Interior derecha'), 'Medio Derecho')
+        self.assertEqual(map_zone_label('Costado Izquierdo'), 'Medio Izquierdo')
+        self.assertEqual(map_zone_label('Costado Derecho'), 'Medio Derecho')
 
 
 class ManualEventAggregationTests(TestCase):
