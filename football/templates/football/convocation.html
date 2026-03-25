@@ -135,6 +135,16 @@
       .status.error {
         color: var(--danger);
       }
+      .pending-note {
+        margin: 0;
+        color: var(--warn);
+        font-size: 0.94rem;
+        letter-spacing: 0.02em;
+      }
+      .button.is-disabled {
+        pointer-events: none;
+        opacity: 0.45;
+      }
       .control-bar {
         padding: 0.85rem 1.1rem;
         display: grid;
@@ -404,9 +414,12 @@
         </div>
         <div class="actions">
           <button id="save-convocation" class="button primary" type="button">Guardar convocatoria</button>
-          <a href="{% url 'convocation-pdf' %}" class="button" id="pdf-convocation">Generar PDF</a>
+          <a href="{% url 'convocation-pdf' %}" class="button {% if not can_generate_convocation_pdf %}is-disabled{% endif %}" id="pdf-convocation">Generar PDF</a>
           <span id="convocation-message" class="status"></span>
         </div>
+        {% if has_pending_convocation %}
+        <p class="pending-note">Próximo partido guardado. La convocatoria sigue pendiente y el PDF se activará cuando cierres la lista.</p>
+        {% endif %}
       </section>
 
       <section class="panel control-bar">
@@ -777,11 +790,17 @@
         setManualVisibility();
       };
 
-      const saveConvocation = async () => {
-        if (!selectedSet.size) {
-          showMessage('Añade jugadores antes de guardar.', 'error');
-          return;
+      const pdfButton = document.querySelector('#pdf-convocation');
+
+      const updatePdfState = () => {
+        const enabled = selectedSet.size > 0;
+        pdfButton?.classList.toggle('is-disabled', !enabled);
+        if (pdfButton) {
+          pdfButton.title = enabled ? '' : 'El PDF se activa al guardar una lista con jugadores convocados.';
         }
+      };
+
+      const saveConvocation = async () => {
         const requestPayload = {
           players: Array.from(selectedSet),
           match_info: {
@@ -803,6 +822,11 @@
         const payload = await response.json();
         if (!response.ok) {
           showMessage(payload.error || 'No se pudo guardar la convocatoria.', 'error');
+          return;
+        }
+        updatePdfState();
+        if (payload.pending_convocation) {
+          showMessage('Próximo partido guardado. Convocatoria pendiente.', 'warn');
           return;
         }
         if (payload.injury_warning_count) {
@@ -870,6 +894,7 @@
       applyFilters();
       syncCardStates();
       renderSelected();
+      updatePdfState();
     </script>
   </body>
 </html>

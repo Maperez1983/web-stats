@@ -2568,6 +2568,8 @@ def convocation_page(request):
             ),
             'match_info': match_info,
             'has_saved_convocation': bool(convocation_record and selected_player_ids),
+            'has_pending_convocation': bool(convocation_record and not selected_player_ids),
+            'can_generate_convocation_pdf': bool(convocation_record and selected_player_ids),
             'opponent_options_json': json.dumps(opponent_options, ensure_ascii=False),
             'home_location_label': home_location,
         },
@@ -2596,17 +2598,18 @@ def save_convocation(request):
         player_ids = [int(pid) for pid in raw_players if pid]
     except (TypeError, ValueError):
         return JsonResponse({'error': 'Formato de jugadores inválido'}, status=400)
-    players = Player.objects.filter(team=primary_team, is_active=True, id__in=player_ids)
-    blocked_injury_ids = get_active_injury_player_ids(players.values_list('id', flat=True))
-    players = players.exclude(id__in=blocked_injury_ids)
-    if not players.exists():
-        return JsonResponse({'error': 'No se encontraron jugadores para la convocatoria'}, status=400)
-
     round_value = str(match_info.get('round') or '').strip()
     location_value = str(match_info.get('location') or '').strip()
     opponent_value = str(match_info.get('opponent') or '').strip()
     date_value_raw = str(match_info.get('date') or '').strip()
     time_value_raw = str(match_info.get('time') or '').strip()
+
+    players = Player.objects.filter(team=primary_team, is_active=True, id__in=player_ids)
+    blocked_injury_ids = get_active_injury_player_ids(players.values_list('id', flat=True))
+    players = players.exclude(id__in=blocked_injury_ids)
+    has_match_context = any([round_value, location_value, opponent_value, date_value_raw, time_value_raw])
+    if not players.exists() and not has_match_context:
+        return JsonResponse({'error': 'Indica al menos los datos del próximo partido o una lista de jugadores.'}, status=400)
 
     parsed_match_date = None
     if date_value_raw:
@@ -2678,10 +2681,12 @@ def save_convocation(request):
         )
         record.players.set(players.distinct())
     cache.delete(_dashboard_cache_key(primary_team.id))
+    pending = players.count() == 0
     return JsonResponse(
         {
             'saved': True,
             'count': players.count(),
+            'pending_convocation': pending,
             'match_id': target_match.id if target_match else None,
             'injury_warning_count': len(injured_players),
             'injury_warning_players': injured_players[:8],
@@ -8188,6 +8193,7 @@ def player_detail_page(request, player_id):
             has_active_injury = is_injury_record_active(latest_injury_record)
         has_manual_sanction = is_manual_sanction_active(player)
         player_photo_url = resolve_player_photo_url(request, player)
+        convocation_pending = bool(current_convocation and not current_convocation.players.exists())
         fines_summary = {
             'registered_fines': 0,
             'registered_total': 0,
@@ -8319,6 +8325,7 @@ def player_detail_page(request, player_id):
                 'has_manual_sanction': has_manual_sanction,
                 'is_called_up': is_called_up,
                 'current_convocation': current_convocation,
+                'convocation_pending': convocation_pending,
                 'active_match': active_match,
                 'player_photo_url': player_photo_url,
                 'general_kpis': general_kpis,

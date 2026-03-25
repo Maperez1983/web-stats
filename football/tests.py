@@ -1,3 +1,4 @@
+import json
 from datetime import date, timedelta
 from types import SimpleNamespace
 
@@ -166,6 +167,62 @@ class QueryHelperTests(TestCase):
 
         self.assertFalse(is_injury_record_active(record, today=timezone.localdate()))
         self.assertFalse(get_active_injury_player_ids([player.id]))
+
+
+class ConvocationWorkflowTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username='convocation-user',
+            email='convocation@example.com',
+            password='pass-1234',
+        )
+        competition = Competition.objects.create(name='Liga Convocatoria', slug='liga-convocatoria', region='Andalucia')
+        season = Season.objects.create(competition=competition, name='2025/2026', is_current=True)
+        group = Group.objects.create(season=season, name='Grupo Convocatoria', slug='grupo-convocatoria')
+        self.team = Team.objects.create(name='Benagalbon', slug='benagalbon-convocatoria', group=group, is_primary=True)
+        self.player = Player.objects.create(team=self.team, name='Martinez', position='MC')
+
+    def test_save_convocation_allows_pending_match_without_players(self):
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse('convocation-save'),
+            data=json.dumps(
+                {
+                    'players': [],
+                    'match_info': {
+                        'opponent': 'Alhaurín de la Torre',
+                        'round': 'J24',
+                        'date': '2026-03-29',
+                        'time': '18:00',
+                        'location': 'ESTADIO CAÑA CHAQUETA',
+                    },
+                }
+            ),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload['saved'])
+        self.assertTrue(payload['pending_convocation'])
+        record = ConvocationRecord.objects.get(team=self.team, is_current=True)
+        self.assertEqual(record.players.count(), 0)
+        self.assertEqual(record.opponent_name, 'Alhaurín de la Torre')
+
+    def test_player_detail_shows_pending_convocation_alert(self):
+        self.client.force_login(self.user)
+        ConvocationRecord.objects.create(
+            team=self.team,
+            round='J24',
+            opponent_name='Alhaurín de la Torre',
+            match_date=date(2026, 3, 29),
+            is_current=True,
+        )
+
+        response = self.client.get(reverse('player-detail', args=[self.player.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Convocatoria pendiente')
 
 
 class HealthcheckTests(TestCase):
