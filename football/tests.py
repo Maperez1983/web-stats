@@ -745,6 +745,26 @@ class PlayerDashboardViewTests(TestCase):
         self.assertTemplateUsed(response, 'football/player_match_stats.html')
         self.assertContains(response, 'KPI de rendimiento')
 
+    def test_player_match_stats_infers_missing_zone_from_player_profile(self):
+        MatchEvent.objects.create(
+            match=self.match,
+            player=self.player,
+            event_type='DUELO',
+            result='GANADO',
+            zone='',
+            tercio='Construcción',
+            minute=18,
+            period=1,
+            system='touch-field-final',
+            source_file='admin-manual',
+        )
+
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('player-match-stats', args=[self.player.id, self.match.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['stats']['zone_counts']['Medio Centro'], 2)
+
 
 class CoachTrainerMetricsTests(TestCase):
     def setUp(self):
@@ -847,3 +867,38 @@ class CoachTrainerMetricsTests(TestCase):
         self.assertFalse(any('Descuadre entre goles' in issue for issue in report['issues']))
         self.assertTrue(any('Cobertura de acciones parcial' in note for note in report['notes']))
         self.assertEqual(report['summary']['measured_matches'], 1)
+
+    def test_trainer_heatmap_infers_missing_zone_from_match_profile(self):
+        MatchEvent.objects.create(
+            match=self.match,
+            player=self.player,
+            event_type='Pase',
+            result='OK',
+            zone='Medio Centro',
+            tercio='Construcción',
+            minute=15,
+            period=1,
+            system='touch-field-final',
+            source_file='registro-acciones',
+        )
+        MatchEvent.objects.create(
+            match=self.match,
+            player=self.player,
+            event_type='DUELO',
+            result='GANADO',
+            zone='',
+            tercio='Construcción',
+            minute=33,
+            period=1,
+            system='touch-field-final',
+            source_file='admin-manual',
+        )
+
+        response = self.client.get(reverse('coach-role-trainer'))
+
+        self.assertEqual(response.status_code, 200)
+        medio_centro = next(
+            zone for zone in response.context['coach_total_field_zones']
+            if zone['key'] == 'Medio Centro'
+        )
+        self.assertEqual(medio_centro['count'], 3)

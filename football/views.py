@@ -3144,6 +3144,7 @@ def coach_role_trainer_page(request):
     )
     measured_goals_per_match = round((event_goals_for / measured_matches), 2) if measured_matches else 0.0
     team_shots_per_goal = shots_needed_per_goal(team_shots_attempts, event_goals_for)
+    team_match_zone_profiles, team_player_zone_profiles = _build_zone_inference_profiles(events)
 
     def _summarize_events(event_list):
         total = len(event_list)
@@ -3176,7 +3177,7 @@ def coach_role_trainer_page(request):
                 passes_attempts += 1
                 if result_is_success(event.result):
                     passes_completed += 1
-            zone_label = map_zone_label((event.zone or '').strip())
+            zone_label = _resolve_zone_label(event, team_match_zone_profiles, team_player_zone_profiles)
             if zone_label:
                 zone_counts_local[zone_label] += 1
         return {
@@ -8117,6 +8118,7 @@ def player_match_stats_page(request, player_id, match_id):
         .order_by('minute', 'id'),
         preferred_sources=preferred_sources,
     )
+    match_zone_profiles, player_zone_profiles = _build_zone_inference_profiles(events)
     stats = {
         'player_id': player.id,
         'name': player.name,
@@ -8155,7 +8157,7 @@ def player_match_stats_page(request, player_id, match_id):
             stats['duels_total'] += 1
             if duel_event.get('won'):
                 stats['duels_won'] += 1
-        zone_label = map_zone_label((event.zone or '').strip())
+        zone_label = _resolve_zone_label(event, match_zone_profiles, player_zone_profiles)
         if zone_label:
             stats['zone_counts'][zone_label] += 1
         tercio_raw = (event.tercio or '').strip()
@@ -8612,6 +8614,44 @@ def _filter_stats_events(rows, preferred_sources=None):
     return filtered
 
 
+def _build_zone_inference_profiles(events):
+    match_profiles = defaultdict(Counter)
+    player_profiles = defaultdict(Counter)
+    for event in events:
+        player_id = getattr(event, 'player_id', None)
+        zone_label = map_zone_label((getattr(event, 'zone', '') or '').strip())
+        if not player_id or not zone_label:
+            continue
+        player_profiles[player_id][zone_label] += 1
+        match_id = getattr(event, 'match_id', None)
+        if match_id:
+            match_profiles[(player_id, match_id)][zone_label] += 1
+    return match_profiles, player_profiles
+
+
+def _resolve_zone_label(event, match_profiles=None, player_profiles=None):
+    direct_zone = map_zone_label((getattr(event, 'zone', '') or '').strip())
+    if direct_zone:
+        return direct_zone
+    player_id = getattr(event, 'player_id', None)
+    if not player_id:
+        return None
+    match_id = getattr(event, 'match_id', None)
+    if match_profiles and match_id:
+        match_counter = match_profiles.get((player_id, match_id))
+        if match_counter:
+            top_zone, top_count = match_counter.most_common(1)[0]
+            if top_count > 0:
+                return top_zone
+    if player_profiles:
+        player_counter = player_profiles.get(player_id)
+        if player_counter:
+            top_zone, top_count = player_counter.most_common(1)[0]
+            if top_count > 0:
+                return top_zone
+    return None
+
+
 def _normalize_excel_header(value):
     if not value:
         return ''
@@ -8923,6 +8963,8 @@ def compute_player_dashboard(primary_team):
         .select_related('player', 'match')
         .order_by('player__name', 'match__date')
     )
+    inferred_zone_events = _filter_stats_events(events, preferred_sources=preferred_sources)
+    match_zone_profiles, player_zone_profiles = _build_zone_inference_profiles(inferred_zone_events)
     live_events = (
         MatchEvent.objects.filter(
             system='touch-field-final',
@@ -9056,8 +9098,7 @@ def compute_player_dashboard(primary_team):
             stats['duels_total'] += 1
             if duel_event.get('won'):
                 stats['duels_won'] += 1
-        zone = (event.zone or '').strip()
-        zone_label = map_zone_label(zone)
+        zone_label = _resolve_zone_label(event, match_zone_profiles, player_zone_profiles)
         if zone_label:
             stats['zone_counts'][zone_label] += 1
         tercio = (event.tercio or '').strip()
