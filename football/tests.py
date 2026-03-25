@@ -776,6 +776,27 @@ class PlayerDashboardViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context['stats']['zone_counts']['Medio Centro'], 2)
 
+    def test_assist_event_counts_as_completed_pass(self):
+        MatchEvent.objects.create(
+            match=self.match,
+            player=self.player,
+            event_type='Asistencia',
+            result='OK',
+            zone='Ataque Centro',
+            tercio='Ataque',
+            minute=30,
+            period=1,
+            system='touch-field-final',
+            source_file='registro-acciones',
+        )
+
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('player-match-stats', args=[self.player.id, self.match.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['stats']['passes']['attempts'], 2)
+        self.assertEqual(response.context['stats']['passes']['completed'], 2)
+
 
 class CoachTrainerMetricsTests(TestCase):
     def setUp(self):

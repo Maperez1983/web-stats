@@ -3226,7 +3226,12 @@ def coach_role_trainer_page(request):
                 shots_attempts += 1
                 if is_shot_on_target_event(event.event_type, event.result, event.observation):
                     shots_on_target += 1
-            if contains_keyword(event.event_type, PASS_KEYWORDS) or contains_keyword(event.observation, PASS_KEYWORDS):
+            is_pass_event = (
+                contains_keyword(event.event_type, PASS_KEYWORDS)
+                or contains_keyword(event.observation, PASS_KEYWORDS)
+                or is_assist_event(event.event_type, event.result, event.observation)
+            )
+            if is_pass_event:
                 passes_attempts += 1
                 if result_is_success(event.result):
                     passes_completed += 1
@@ -8294,9 +8299,14 @@ def _build_player_match_stats_payload(primary_team, player, match):
             stats['shot_attempts'] += 1
             if is_shot_on_target_event(event.event_type, event.result, event.observation):
                 stats['shots_on_target'] += 1
-        if contains_keyword(event.event_type, PASS_KEYWORDS) or contains_keyword(event.observation, PASS_KEYWORDS):
+        is_pass_event = (
+            contains_keyword(event.event_type, PASS_KEYWORDS)
+            or contains_keyword(event.observation, PASS_KEYWORDS)
+            or is_assist_event(event.event_type, event.result, event.observation)
+        )
+        if is_pass_event:
             stats['pass_attempts'] += 1
-            if result_is_success(event.result):
+            if result_is_success(event.result) or is_assist_event(event.event_type, event.result, event.observation):
                 stats['passes_completed'] += 1
     total_tercios = sum(stats['tercio_totals'].values())
     stats['success_rate'] = round(
@@ -9252,9 +9262,14 @@ def compute_player_dashboard(primary_team):
             stats['shot_attempts'] += 1
             if is_shot_on_target_event(event.event_type, event.result, event.observation):
                 stats['shots_on_target'] += 1
-        if contains_keyword(event.event_type, PASS_KEYWORDS) or contains_keyword(event.observation, PASS_KEYWORDS):
+        is_pass_event = (
+            contains_keyword(event.event_type, PASS_KEYWORDS)
+            or contains_keyword(event.observation, PASS_KEYWORDS)
+            or is_assist_event(event.event_type, event.result, event.observation)
+        )
+        if is_pass_event:
             stats['pass_attempts'] += 1
-            if result_is_success(event.result):
+            if result_is_success(event.result) or is_assist_event(event.event_type, event.result, event.observation):
                 stats['passes_completed'] += 1
         if contains_keyword(event.event_type, DRIBBLE_KEYWORDS) or contains_keyword(event.observation, DRIBBLE_KEYWORDS):
             stats['dribbles_attempted'] += 1
