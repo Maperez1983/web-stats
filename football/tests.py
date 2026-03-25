@@ -745,7 +745,7 @@ class PlayerDashboardViewTests(TestCase):
         self.assertTemplateUsed(response, 'football/player_match_stats.html')
         self.assertContains(response, 'KPI de rendimiento')
 
-    def test_player_role_home_uses_simplified_template(self):
+    def test_player_role_home_redirects_to_player_detail(self):
         AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_PLAYER)
         self.player.full_name = 'dashboard user'
         self.player.save(update_fields=['full_name'])
@@ -753,10 +753,8 @@ class PlayerDashboardViewTests(TestCase):
         self.client.force_login(self.user)
         response = self.client.get(reverse('dashboard-home'))
 
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, 'football/player_home.html')
-        self.assertContains(response, 'Inicio jugador')
-        self.assertContains(response, 'Ir a mi perfil')
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response['Location'], reverse('player-detail', args=[self.player.id]))
 
     def test_player_match_stats_infers_missing_zone_from_player_profile(self):
         MatchEvent.objects.create(
