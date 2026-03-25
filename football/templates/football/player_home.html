@@ -48,7 +48,7 @@
         border: 1px solid var(--line);
         background:
           linear-gradient(180deg, rgba(1, 7, 17, 0.26), rgba(3, 9, 19, 0.88)),
-          var(--hero-image, url('{% static "football/campo-futbol.jpg" %}')) center/cover no-repeat;
+          url('{{ hero_image_url|default_if_none:"" }}') center/cover no-repeat;
         box-shadow: 0 28px 55px rgba(0, 0, 0, 0.34);
         display: flex;
         align-items: end;
@@ -181,8 +181,8 @@
       <section class="hero" id="hero-panel">
         <div class="hero-content">
           <div>
-            <h2 id="hero-team-name">C.D. Benagalbón</h2>
-            <p id="hero-group-name">Clasificación y siguiente partido</p>
+            <h2 id="hero-team-name">{{ team_name }}</h2>
+            <p id="hero-group-name">{{ group_name|default:"Clasificación y siguiente partido" }}</p>
           </div>
           <a class="pill-button" href="{% if current_player %}{% url 'player-detail' current_player.id %}{% else %}{% url 'player-dashboard' %}{% endif %}">
             {% if current_player %}Ir a mi perfil{% else %}Ir a jugadores{% endif %}
@@ -193,27 +193,44 @@
       <section class="grid">
         <article class="panel">
           <h3>Clasificación</h3>
-          <div id="standings">Cargando clasificación…</div>
+          <div id="standings">
+            {% if standings %}
+            <table>
+              <thead>
+                <tr><th>Pos</th><th>Equipo</th><th>Pts</th><th>PJ</th></tr>
+              </thead>
+              <tbody>
+                {% for row in standings|slice:":10" %}
+                <tr>
+                  <td>{{ row.position|default:"-" }}</td>
+                  <td>{{ row.team|default:"-" }}</td>
+                  <td>{{ row.points|default:"-" }}</td>
+                  <td>{{ row.played|default:"-" }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            {% else %}
+            <div class="empty">No hay clasificación disponible.</div>
+            {% endif %}
+          </div>
         </article>
         <article class="panel">
           <h3>Próximo rival</h3>
           <div id="next-match" class="next-match">
-            <p>Cargando próximo partido…</p>
+            {% if next_match %}
+            <p><strong>{{ next_match.opponent|default:"Rival pendiente" }}</strong></p>
+            <p>{{ next_match.round|default:"Jornada pendiente" }}</p>
+            <p>{{ next_match.date|default:"Fecha por definir" }} · {{ next_match.time|default:"Hora por definir" }}</p>
+            <p>{{ next_match.location|default:"Campo por confirmar" }}</p>
+            {% else %}
+            <div class="empty">No hay próximo partido configurado.</div>
+            {% endif %}
           </div>
         </article>
       </section>
     </div>
-
-    {{ hero_image_candidates|json_script:"player-home-hero-images" }}
     <script>
-      const heroElement = document.getElementById('hero-panel');
-      const heroImages = JSON.parse(document.getElementById('player-home-hero-images')?.textContent || '[]');
-      const heroFallback = '{% static "football/campo-futbol.jpg" %}';
-      const heroCandidates = [...new Set([...(heroImages || []), heroFallback].filter(Boolean))];
-      if (heroElement && heroCandidates.length) {
-        heroElement.style.setProperty('--hero-image', `url("${heroCandidates[0]}")`);
-      }
-
       function renderStandings(rows = []) {
         const target = document.getElementById('standings');
         if (!target) return;

@@ -1131,6 +1131,13 @@ def dashboard_page(request):
     if current_role == AppUserRole.ROLE_PLAYER:
         current_player = _resolve_player_for_user(request.user, primary_team)
         current_player_photo = resolve_player_photo_static_path(current_player) if current_player else ''
+        group = primary_team.group if primary_team else None
+        universo_snapshot = load_universo_snapshot()
+        standings = _serialize_universo_standings(universo_snapshot) or serialize_standings(group) if group else []
+        next_match = load_preferred_next_match_payload() or get_next_match(primary_team, group) if primary_team and group else {}
+        convocation_next_match = _build_next_match_from_convocation(primary_team) if primary_team else None
+        if convocation_next_match:
+            next_match = convocation_next_match
         return render(
             request,
             'football/player_home.html',
@@ -1140,6 +1147,11 @@ def dashboard_page(request):
                 'current_role_label': role_labels.get(current_role, 'Jugador'),
                 'current_player': current_player,
                 'current_player_photo_url': static(current_player_photo) if current_player_photo else '',
+                'team_name': primary_team.display_name if primary_team else 'C.D. Benagalbón',
+                'group_name': group.name if group else '',
+                'standings': standings,
+                'next_match': next_match or {},
+                'hero_image_url': hero_image_candidates[0] if hero_image_candidates else static('football/campo-futbol.jpg'),
             },
         )
     return render(
