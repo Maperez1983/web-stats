@@ -2254,7 +2254,15 @@ def save_match_lineup(request):
     normalized = _normalize_lineup_payload(lineup, allowed_players)
     convocation_record.lineup_data = normalized
     convocation_record.save(update_fields=['lineup_data'])
-    return JsonResponse({'saved': True, 'starters': len(normalized['starters']), 'bench': len(normalized['bench'])})
+    starters_count = len(normalized['starters'])
+    return JsonResponse(
+        {
+            'saved': True,
+            'starters': starters_count,
+            'bench': len(normalized['bench']),
+            'pending_lineup': starters_count < 11,
+        }
+    )
 
 
 @authenticated_write
@@ -3818,15 +3826,15 @@ def initial_eleven_page(request):
         player.photo_url = resolve_player_photo_url(request, player)
 
     lineup_seed = {'starters': [], 'bench': []}
+    has_pending_lineup = False
+    has_pending_convocation = bool(convocation_record and not convocation_players)
     if convocation_record:
         stored = convocation_record.lineup_data if isinstance(convocation_record.lineup_data, dict) else {}
         normalized = _normalize_lineup_payload(stored, convocation_players)
         if normalized['starters'] or normalized['bench']:
             lineup_seed = normalized
         else:
-            lineup_seed = _build_default_lineup_payload(convocation_players)
-            convocation_record.lineup_data = lineup_seed
-            convocation_record.save(update_fields=['lineup_data'])
+            has_pending_lineup = bool(convocation_players)
 
     return render(
         request,
@@ -3836,6 +3844,8 @@ def initial_eleven_page(request):
             'convocation_record': convocation_record,
             'convocation_players': convocation_players,
             'lineup_seed_json': json.dumps(lineup_seed, ensure_ascii=False),
+            'has_pending_convocation': has_pending_convocation,
+            'has_pending_lineup': has_pending_lineup,
         },
     )
 

@@ -241,6 +241,21 @@
         color: rgba(186, 230, 253, 0.9);
         font-size: 0.78rem;
       }
+      .status.warn {
+        color: #fbbf24;
+      }
+      .status.ok {
+        color: #86efac;
+      }
+      .helper-note {
+        margin: 0 0 0.75rem;
+        color: rgba(226, 232, 240, 0.78);
+        line-height: 1.5;
+      }
+      .toolbar button.is-disabled {
+        opacity: 0.45;
+        pointer-events: none;
+      }
       @media (max-width: 980px) {
         .layout { grid-template-columns: 1fr; }
         .field { width: min(100%, 480px); }
@@ -262,6 +277,11 @@
             {{ convocation_record.round|default:"Sin jornada" }} · {{ convocation_record.opponent_name|default:"Rival por confirmar" }}
           </p>
           {% endif %}
+          {% if has_pending_convocation %}
+          <p class="helper-note">Próximo partido guardado. Falta cerrar la convocatoria para poder construir el 11 inicial.</p>
+          {% elif has_pending_lineup %}
+          <p class="helper-note">Convocatoria cerrada, pero el 11 sigue pendiente. Puedes construirlo manualmente o usar el autocompletado como base.</p>
+          {% endif %}
           <div class="players" id="player-list">
             {% for player in convocation_players %}
             <label class="player-card" data-player-id="{{ player.id }}" data-player-name="{{ player.name|upper|escape }}" data-player-number="{{ player.number|default:'--' }}" data-player-position="{{ player.position|default:''|escape }}" data-player-photo="{{ player.photo_url|default:''|escape }}">
@@ -281,11 +301,19 @@
             {% endfor %}
           </div>
           <div class="toolbar">
-            <button type="button" id="auto-fill-btn">Auto completar</button>
+            <button type="button" id="auto-fill-btn" {% if has_pending_convocation %}class="is-disabled"{% endif %}>Auto completar</button>
             <button type="button" id="clear-btn">Limpiar</button>
-            <button type="button" class="primary" id="save-btn">Guardar 11</button>
+            <button type="button" class="primary {% if has_pending_convocation %}is-disabled{% endif %}" id="save-btn">Guardar 11</button>
           </div>
-          <p class="status" id="status-msg">Selecciona convocados y se colocan en campo automáticamente.</p>
+          <p class="status {% if has_pending_convocation or has_pending_lineup %}warn{% endif %}" id="status-msg">
+            {% if has_pending_convocation %}
+              Convocatoria pendiente. El 11 inicial se activará cuando haya jugadores convocados.
+            {% elif has_pending_lineup %}
+              11 inicial pendiente. Faltan titulares por definir.
+            {% else %}
+              Selecciona convocados y se colocan en campo automáticamente.
+            {% endif %}
+          </p>
         </aside>
         <article class="panel">
           <h3>Campo</h3>
@@ -302,6 +330,7 @@
       const saveBtn = document.getElementById('save-btn');
       const clearBtn = document.getElementById('clear-btn');
       const autoFillBtn = document.getElementById('auto-fill-btn');
+      const hasPendingConvocation = {{ has_pending_convocation|yesno:"true,false" }};
       const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]')?.value
         || document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('csrftoken='))?.split('=')[1]
         || '';
@@ -379,7 +408,15 @@
           field.appendChild(box);
         });
         const missing = Math.max(0, 11 - lineupState.starters.length);
-        statusMsg.textContent = missing ? `Faltan ${missing} jugadores para completar el 11.` : '11 inicial completo.';
+        if (hasPendingConvocation) {
+          statusMsg.textContent = 'Convocatoria pendiente. El 11 inicial se activará cuando haya jugadores convocados.';
+          statusMsg.classList.add('warn');
+          statusMsg.classList.remove('ok');
+        } else {
+          statusMsg.textContent = missing ? `Faltan ${missing} jugadores para completar el 11.` : '11 inicial completo.';
+          statusMsg.classList.toggle('warn', missing > 0);
+          statusMsg.classList.toggle('ok', missing === 0);
+        }
       };
 
       const parseCard = (card) => ({
@@ -478,6 +515,7 @@
       });
 
       autoFillBtn?.addEventListener('click', () => {
+        if (hasPendingConvocation) return;
         const all = playerCards.map(parseCard);
         const ordered = orderPlayersByRole(all);
         lineupState.starters = ordered.starters;
@@ -487,6 +525,7 @@
       });
 
       saveBtn?.addEventListener('click', async () => {
+        if (hasPendingConvocation) return;
         try {
           const response = await fetch(saveUrl, {
             method: 'POST',
@@ -501,11 +540,23 @@
           const data = await response.json();
           if (!response.ok) {
             statusMsg.textContent = data.error || 'No se pudo guardar el 11.';
+            statusMsg.classList.add('warn');
+            statusMsg.classList.remove('ok');
             return;
           }
-          statusMsg.textContent = `11 guardado (${data.starters}/11) · Suplentes: ${data.bench}.`;
+          if (data.pending_lineup) {
+            statusMsg.textContent = `11 pendiente (${data.starters}/11) · Suplentes: ${data.bench}.`;
+            statusMsg.classList.add('warn');
+            statusMsg.classList.remove('ok');
+          } else {
+            statusMsg.textContent = `11 guardado (${data.starters}/11) · Suplentes: ${data.bench}.`;
+            statusMsg.classList.remove('warn');
+            statusMsg.classList.add('ok');
+          }
         } catch (err) {
           statusMsg.textContent = 'Error guardando el 11 inicial.';
+          statusMsg.classList.add('warn');
+          statusMsg.classList.remove('ok');
         }
       });
 

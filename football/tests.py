@@ -224,6 +224,39 @@ class ConvocationWorkflowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Convocatoria pendiente')
 
+    def test_initial_eleven_page_marks_pending_convocation_without_players(self):
+        self.client.force_login(self.user)
+        ConvocationRecord.objects.create(
+            team=self.team,
+            round='J24',
+            opponent_name='Alhaurín de la Torre',
+            match_date=date(2026, 3, 29),
+            is_current=True,
+        )
+
+        response = self.client.get(reverse('initial-eleven'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context['has_pending_convocation'])
+        self.assertContains(response, 'Convocatoria pendiente')
+
+    def test_initial_eleven_page_marks_pending_lineup_without_auto_fill(self):
+        self.client.force_login(self.user)
+        record = ConvocationRecord.objects.create(
+            team=self.team,
+            round='J24',
+            opponent_name='Alhaurín de la Torre',
+            match_date=date(2026, 3, 29),
+            is_current=True,
+        )
+        record.players.add(self.player)
+
+        response = self.client.get(reverse('initial-eleven'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context['has_pending_lineup'])
+        self.assertJSONEqual(response.context['lineup_seed_json'], {'starters': [], 'bench': []})
+
 
 class HealthcheckTests(TestCase):
     def test_system_healthcheck_returns_expected_sections(self):
