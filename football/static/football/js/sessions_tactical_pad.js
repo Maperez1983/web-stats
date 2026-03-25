@@ -199,8 +199,9 @@
     };
     const fitCanvas = () => {
       const width = Math.max(320, Math.round(canvasWrap?.clientWidth || 960));
-      const height = Math.max(220, Math.round(width / 1.65));
+      const height = Math.max(220, Math.round(canvasWrap?.clientHeight || (width / 1.65)));
       canvas.setDimensions({ width, height });
+      canvas.calcOffset();
       canvas.renderAll();
     };
     const canvas = new fabric.Canvas(canvasEl, {
