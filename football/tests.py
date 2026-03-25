@@ -9,7 +9,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from football.models import AnalystVideoFolder, Competition, ConvocationRecord, Group, Match, MatchEvent, Player, PlayerStatistic, RivalVideo, Season, Team, TeamStanding, UserInvitation
+from football.models import AnalystVideoFolder, Competition, ConvocationRecord, Group, Match, MatchEvent, Player, PlayerCommunication, PlayerFine, PlayerStatistic, RivalVideo, Season, Team, TeamStanding, UserInvitation
 from football.bootstrap import ensure_bootstrap_admin_from_env
 from football.event_taxonomy import (
     PASS_KEYWORDS,
@@ -1065,10 +1065,29 @@ class CoachTrainerMetricsTests(TestCase):
         self.assertEqual(medio_centro['count'], 3)
 
     def test_trainer_page_can_render_player_season_and_match_views(self):
+        PlayerFine.objects.create(
+            player=self.player,
+            reason=PlayerFine.REASON_LATE,
+            amount=10,
+            note='Retraso en la charla',
+        )
+        PlayerCommunication.objects.create(
+            player=self.player,
+            match=self.match,
+            category=PlayerCommunication.CATEGORY_CONVOCATION,
+            message='Llega 60 minutos antes del partido.',
+        )
+
         response = self.client.get(reverse('coach-role-trainer'), {'player': self.player.id})
         self.assertEqual(response.status_code, 200)
         self.assertIn('coach_player_view', response.context)
         self.assertEqual(response.context['coach_player_view']['mode'], 'season')
+        self.assertEqual(response.context['coach_player_view']['fines_summary'][0]['value'], 1)
+        self.assertEqual(response.context['coach_player_view']['communications'][0]['title'], 'Convocatoria')
+        self.assertContains(response, 'Multas')
+        self.assertContains(response, 'Comunicación')
+        self.assertContains(response, 'Retraso en la charla')
+        self.assertContains(response, 'Llega 60 minutos antes del partido.')
 
         response = self.client.get(
             reverse('coach-role-trainer'),
@@ -1076,6 +1095,8 @@ class CoachTrainerMetricsTests(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context['coach_player_view']['mode'], 'match')
+        self.assertContains(response, 'Multas')
+        self.assertContains(response, 'Comunicación')
 
 
 class AnalysisVideoWorkspaceTests(TestCase):

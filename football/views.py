@@ -3447,6 +3447,54 @@ def coach_role_trainer_page(request):
     coach_player_match_options = []
     coach_player_view = None
     if selected_player and selected_player_stats:
+        player_communications = list(
+            selected_player.communications.select_related('match').all()[:5]
+        )
+        player_fines = list(selected_player.fines.all()[:5])
+        player_has_manual_sanction = is_manual_sanction_active(selected_player)
+        fines_total_amount = sum(int(fine.amount or 0) for fine in player_fines)
+        coach_fines_summary = [
+            {'label': 'Multas', 'value': len(player_fines) + (1 if player_has_manual_sanction else 0)},
+            {'label': 'Importe', 'value': f"{fines_total_amount}€"},
+            {'label': 'Comunicaciones', 'value': len(player_communications)},
+        ]
+        coach_fines_records = [
+            {
+                'title': dict(PlayerFine.REASON_CHOICES).get(fine.reason, fine.reason),
+                'meta': f"{fine.created_at:%d/%m/%Y} · {int(fine.amount or 0)}€",
+                'detail': fine.note or 'Sin detalle',
+            }
+            for fine in player_fines
+        ]
+        if player_has_manual_sanction:
+            until_label = (
+                selected_player.manual_sanction_until.strftime('%d/%m/%Y')
+                if selected_player.manual_sanction_until
+                else 'Sin fecha fin'
+            )
+            coach_fines_records.insert(
+                0,
+                {
+                    'title': 'Sanción manual',
+                    'meta': until_label,
+                    'detail': selected_player.manual_sanction_reason or 'Sanción configurada en ficha',
+                },
+            )
+        coach_communications = [
+            {
+                'title': communication.get_category_display(),
+                'meta': (
+                    f"{communication.created_at:%d/%m/%Y}"
+                    + (
+                        f" · {communication.match.away_team.display_name if communication.match and communication.match.home_team_id == primary_team.id else communication.match.home_team.display_name if communication.match and communication.match.home_team_id else 'Partido'}"
+                        if communication.match_id
+                        else ''
+                    )
+                ),
+                'detail': communication.message,
+            }
+            for communication in player_communications
+        ]
         selected_player_match_id = _parse_int(request.GET.get('player_match'))
         coach_player_match_options = [
             {
@@ -3484,6 +3532,9 @@ def coach_role_trainer_page(request):
             'rings': season_rings,
             'summary': season_summary,
             'field_zones': selected_player_stats.get('field_zones', []),
+            'fines_summary': coach_fines_summary,
+            'fines_records': coach_fines_records,
+            'communications': coach_communications,
         }
         if selected_player_match_id:
             selected_match = _team_match_queryset(primary_team).filter(id=selected_player_match_id).first()
@@ -3502,6 +3553,9 @@ def coach_role_trainer_page(request):
                     ],
                     'summary': match_stats.get('kpi_summary', []),
                     'field_zones': match_stats.get('field_zones', []),
+                    'fines_summary': coach_fines_summary,
+                    'fines_records': coach_fines_records,
+                    'communications': coach_communications,
                 }
     match_events_map = defaultdict(list)
     for event in team_events:

@@ -655,6 +655,52 @@
           </article>
           {% endfor %}
         </div>
+        {% if coach_player_view.fines_summary %}
+        <div class="overview-summary" style="margin-top:1rem;">
+          {% for item in coach_player_view.fines_summary %}
+          <article class="overview-item">
+            <div class="label">{{ item.label }}</div>
+            <div class="value">{{ item.value }}</div>
+          </article>
+          {% endfor %}
+        </div>
+        {% endif %}
+        {% if coach_player_view.fines_records or coach_player_view.communications %}
+        <div class="coach-player-detail-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;margin-top:1rem;">
+          <article class="analysis-card">
+            <h3 style="margin-top:0;">Multas</h3>
+            {% if coach_player_view.fines_records %}
+            <div class="stack-list">
+              {% for item in coach_player_view.fines_records %}
+              <article class="stack-item">
+                <strong>{{ item.title }}</strong>
+                <div class="meta">{{ item.meta }}</div>
+                <p>{{ item.detail }}</p>
+              </article>
+              {% endfor %}
+            </div>
+            {% else %}
+            <p class="section-copy" style="margin:0;">Sin multas registradas.</p>
+            {% endif %}
+          </article>
+          <article class="analysis-card">
+            <h3 style="margin-top:0;">Comunicación</h3>
+            {% if coach_player_view.communications %}
+            <div class="stack-list">
+              {% for item in coach_player_view.communications %}
+              <article class="stack-item">
+                <strong>{{ item.title }}</strong>
+                <div class="meta">{{ item.meta }}</div>
+                <p>{{ item.detail }}</p>
+              </article>
+              {% endfor %}
+            </div>
+            {% else %}
+            <p class="section-copy" style="margin:0;">Sin comunicaciones registradas.</p>
+            {% endif %}
+          </article>
+        </div>
+        {% endif %}
         {% if coach_player_view.field_zones %}
         <div class="coach-map-wrap" style="margin-top:1rem;background:#0b1b12;">
           <h3 style="color:#f8fafc;">Mapa de calor</h3>
