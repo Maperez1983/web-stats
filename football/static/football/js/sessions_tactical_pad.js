@@ -453,7 +453,202 @@
         fieldW = Math.round(width * 0.62);
         fieldLeft = width - fieldW;
       }
-      const lineColor = 'rgba(255,255,255,0.78)';
+      const lineColor = 'rgba(255,255,255,0.82)';
+      const lineSoft = 'rgba(255,255,255,0.62)';
+      const addArcPath = (path, strokeWidth = 2.2, stroke = lineColor) => {
+        canvas.add(new fabric.Path(path, { ...common, fill: '', stroke, strokeWidth }));
+      };
+      const addRect = (left, top, rectWidth, rectHeight, strokeWidth = 2.2, stroke = lineColor, options = {}) => {
+        canvas.add(new fabric.Rect({
+          ...common,
+          left,
+          top,
+          width: rectWidth,
+          height: rectHeight,
+          fill: 'transparent',
+          stroke,
+          strokeWidth,
+          ...options,
+        }));
+      };
+      const addLine = (points, strokeWidth = 2.2, stroke = lineColor) => {
+        canvas.add(new fabric.Line(points, { ...common, stroke, strokeWidth }));
+      };
+      const addCircle = (left, top, radius, strokeWidth = 2.2, stroke = lineColor, fill = 'transparent') => {
+        canvas.add(new fabric.Circle({ ...common, left, top, radius, fill, stroke, strokeWidth }));
+      };
+      const addSpot = (centerX, centerY, radius = 2.8) => {
+        canvas.add(new fabric.Circle({ ...common, left: centerX - radius, top: centerY - radius, radius, fill: '#ffffff', strokeWidth: 0 }));
+      };
+      const drawGoal = (left, top, goalWidth, goalDepth, inward = false) => {
+        const x1 = left;
+        const x2 = left + goalWidth;
+        const frontY = inward ? top + goalDepth : top;
+        const backY = inward ? top : top + goalDepth;
+        addLine([x1, frontY, x1, backY], 2);
+        addLine([x2, frontY, x2, backY], 2);
+        addLine([x1, backY, x2, backY], 2);
+      };
+      const drawCornerArcs = (left, top, right, bottom, radius) => {
+        addArcPath(`M ${left} ${top + radius} A ${radius} ${radius} 0 0 1 ${left + radius} ${top}`, 2);
+        addArcPath(`M ${right - radius} ${top} A ${radius} ${radius} 0 0 1 ${right} ${top + radius}`, 2);
+        addArcPath(`M ${left} ${bottom - radius} A ${radius} ${radius} 0 0 0 ${left + radius} ${bottom}`, 2);
+        addArcPath(`M ${right - radius} ${bottom} A ${radius} ${radius} 0 0 0 ${right} ${bottom - radius}`, 2);
+      };
+      const drawPenaltyArc = (centerX, centerY, radius, facing) => {
+        if (facing === 'down') addArcPath(`M ${centerX - radius} ${centerY} A ${radius} ${radius} 0 0 0 ${centerX + radius} ${centerY}`, 2.1, lineSoft);
+        if (facing === 'up') addArcPath(`M ${centerX - radius} ${centerY} A ${radius} ${radius} 0 0 1 ${centerX + radius} ${centerY}`, 2.1, lineSoft);
+      };
+      const drawFullPitchMarkings = (rect) => {
+        const left = rect.left;
+        const top = rect.top;
+        const innerWidth = rect.width;
+        const innerHeight = rect.height;
+        const right = left + innerWidth;
+        const bottom = top + innerHeight;
+        const centerX = left + (innerWidth / 2);
+        const centerY = top + (innerHeight / 2);
+        const penaltyBoxWidth = innerWidth * 0.44;
+        const sixBoxWidth = innerWidth * 0.22;
+        const penaltyBoxDepth = innerHeight * 0.19;
+        const sixBoxDepth = innerHeight * 0.08;
+        const goalWidth = innerWidth * 0.13;
+        const goalDepth = innerHeight * 0.03;
+        const penaltySpotOffset = innerHeight * 0.13;
+        const centerRadius = Math.min(innerWidth, innerHeight) * 0.12;
+        const cornerRadius = Math.min(innerWidth, innerHeight) * 0.03;
+        const penaltyArcRadius = innerWidth * 0.09;
+        const topPenaltyCenterY = top + penaltySpotOffset;
+        const bottomPenaltyCenterY = bottom - penaltySpotOffset;
+
+        addLine([centerX, top, centerX, bottom], 2.6);
+        addCircle(centerX - centerRadius, centerY - centerRadius, centerRadius, 2.3);
+        addSpot(centerX, centerY);
+        addRect(centerX - (penaltyBoxWidth / 2), top, penaltyBoxWidth, penaltyBoxDepth, 2.25, lineSoft);
+        addRect(centerX - (penaltyBoxWidth / 2), bottom - penaltyBoxDepth, penaltyBoxWidth, penaltyBoxDepth, 2.25, lineSoft);
+        addRect(centerX - (sixBoxWidth / 2), top, sixBoxWidth, sixBoxDepth, 2.15, lineSoft);
+        addRect(centerX - (sixBoxWidth / 2), bottom - sixBoxDepth, sixBoxWidth, sixBoxDepth, 2.15, lineSoft);
+        addSpot(centerX, topPenaltyCenterY);
+        addSpot(centerX, bottomPenaltyCenterY);
+        drawGoal(centerX - (goalWidth / 2), top, goalWidth, goalDepth, false);
+        drawGoal(centerX - (goalWidth / 2), bottom - goalDepth, goalWidth, goalDepth, true);
+        drawPenaltyArc(centerX, topPenaltyCenterY, penaltyArcRadius, 'down');
+        drawPenaltyArc(centerX, bottomPenaltyCenterY, penaltyArcRadius, 'up');
+        drawCornerArcs(left, top, right, bottom, cornerRadius);
+      };
+      const drawHalfPitchMarkings = (rect) => {
+        const left = rect.left;
+        const top = rect.top;
+        const innerWidth = rect.width;
+        const innerHeight = rect.height;
+        const right = left + innerWidth;
+        const bottom = top + innerHeight;
+        const centerX = left + (innerWidth / 2);
+        const penaltyBoxWidth = innerWidth * 0.52;
+        const sixBoxWidth = innerWidth * 0.24;
+        const penaltyBoxDepth = innerHeight * 0.28;
+        const sixBoxDepth = innerHeight * 0.11;
+        const goalWidth = innerWidth * 0.16;
+        const goalDepth = innerHeight * 0.035;
+        const cornerRadius = Math.min(innerWidth, innerHeight) * 0.03;
+        const centerRadius = Math.min(innerWidth, innerHeight) * 0.12;
+        const penaltySpotY = top + (innerHeight * 0.18);
+        const midfieldY = bottom;
+        const penaltyArcRadius = innerWidth * 0.11;
+
+        addRect(centerX - (penaltyBoxWidth / 2), top, penaltyBoxWidth, penaltyBoxDepth, 2.25, lineSoft);
+        addRect(centerX - (sixBoxWidth / 2), top, sixBoxWidth, sixBoxDepth, 2.15, lineSoft);
+        addSpot(centerX, penaltySpotY);
+        drawGoal(centerX - (goalWidth / 2), top, goalWidth, goalDepth, false);
+        drawPenaltyArc(centerX, penaltySpotY, penaltyArcRadius, 'down');
+        addLine([left, midfieldY, right, midfieldY], 2.5);
+        addCircle(centerX - centerRadius, midfieldY - centerRadius, centerRadius, 2.15, lineSoft);
+        drawCornerArcs(left, top, right, bottom, cornerRadius);
+      };
+      const drawAttackingThirdMarkings = (rect) => {
+        const left = rect.left;
+        const top = rect.top;
+        const innerWidth = rect.width;
+        const innerHeight = rect.height;
+        const right = left + innerWidth;
+        const bottom = top + innerHeight;
+        const centerX = left + (innerWidth / 2);
+        const penaltyBoxWidth = innerWidth * 0.42;
+        const sixBoxWidth = innerWidth * 0.2;
+        const penaltyBoxDepth = innerHeight * 0.24;
+        const sixBoxDepth = innerHeight * 0.09;
+        const goalWidth = innerWidth * 0.13;
+        const goalDepth = innerHeight * 0.03;
+        const cornerRadius = Math.min(innerWidth, innerHeight) * 0.03;
+        const penaltySpotY = top + (innerHeight * 0.16);
+        const penaltyArcRadius = innerWidth * 0.085;
+        const buildLineY = top + (innerHeight * 0.34);
+
+        addRect(centerX - (penaltyBoxWidth / 2), top, penaltyBoxWidth, penaltyBoxDepth, 2.25, lineSoft);
+        addRect(centerX - (sixBoxWidth / 2), top, sixBoxWidth, sixBoxDepth, 2.15, lineSoft);
+        addSpot(centerX, penaltySpotY);
+        drawGoal(centerX - (goalWidth / 2), top, goalWidth, goalDepth, false);
+        drawPenaltyArc(centerX, penaltySpotY, penaltyArcRadius, 'down');
+        addLine([left, buildLineY, right, buildLineY], 2.1, lineSoft);
+        drawCornerArcs(left, top, right, bottom, cornerRadius);
+      };
+      const drawSevenSideMarkings = (rect) => {
+        const left = rect.left;
+        const top = rect.top;
+        const innerWidth = rect.width;
+        const innerHeight = rect.height;
+        const right = left + innerWidth;
+        const bottom = top + innerHeight;
+        const centerX = left + (innerWidth / 2);
+        const centerY = top + (innerHeight / 2);
+        const areaWidth = innerWidth * 0.46;
+        const areaDepth = innerHeight * 0.16;
+        const goalAreaWidth = innerWidth * 0.24;
+        const goalAreaDepth = innerHeight * 0.075;
+        const goalWidth = innerWidth * 0.14;
+        const goalDepth = innerHeight * 0.028;
+        const cornerRadius = Math.min(innerWidth, innerHeight) * 0.028;
+        const centerRadius = Math.min(innerWidth, innerHeight) * 0.1;
+        const spotOffset = innerHeight * 0.12;
+
+        addLine([centerX, top, centerX, bottom], 2.45);
+        addCircle(centerX - centerRadius, centerY - centerRadius, centerRadius, 2.1);
+        addSpot(centerX, centerY);
+        addRect(centerX - (areaWidth / 2), top, areaWidth, areaDepth, 2.15, lineSoft);
+        addRect(centerX - (areaWidth / 2), bottom - areaDepth, areaWidth, areaDepth, 2.15, lineSoft);
+        addRect(centerX - (goalAreaWidth / 2), top, goalAreaWidth, goalAreaDepth, 2.05, lineSoft);
+        addRect(centerX - (goalAreaWidth / 2), bottom - goalAreaDepth, goalAreaWidth, goalAreaDepth, 2.05, lineSoft);
+        addSpot(centerX, top + spotOffset);
+        addSpot(centerX, bottom - spotOffset);
+        drawGoal(centerX - (goalWidth / 2), top, goalWidth, goalDepth, false);
+        drawGoal(centerX - (goalWidth / 2), bottom - goalDepth, goalWidth, goalDepth, true);
+        drawCornerArcs(left, top, right, bottom, cornerRadius);
+      };
+      const drawFutsalMarkings = (rect) => {
+        const left = rect.left;
+        const top = rect.top;
+        const innerWidth = rect.width;
+        const innerHeight = rect.height;
+        const right = left + innerWidth;
+        const bottom = top + innerHeight;
+        const centerX = left + (innerWidth / 2);
+        const centerY = top + (innerHeight / 2);
+        const areaWidth = innerWidth * 0.34;
+        const areaDepth = innerHeight * 0.18;
+        const goalWidth = innerWidth * 0.14;
+        const goalDepth = innerHeight * 0.03;
+        const cornerRadius = Math.min(innerWidth, innerHeight) * 0.025;
+        const centerRadius = Math.min(innerWidth, innerHeight) * 0.09;
+
+        addLine([centerX, top, centerX, bottom], 2.35);
+        addCircle(centerX - centerRadius, centerY - centerRadius, centerRadius, 2.05);
+        addSpot(centerX, centerY);
+        addRect(centerX - (areaWidth / 2), top, areaWidth, areaDepth, 2.1, lineSoft, { rx: 18, ry: 18 });
+        addRect(centerX - (areaWidth / 2), bottom - areaDepth, areaWidth, areaDepth, 2.1, lineSoft, { rx: 18, ry: 18 });
+        drawGoal(centerX - (goalWidth / 2), top, goalWidth, goalDepth, false);
+        drawGoal(centerX - (goalWidth / 2), bottom - goalDepth, goalWidth, goalDepth, true);
+        drawCornerArcs(left, top, right, bottom, cornerRadius);
+      };
       const grass = new fabric.Rect({ ...common, left: fieldLeft, top: fieldTop, width: fieldW, height: fieldH, fill: palette[0], strokeWidth: 0 });
       const stripeCount = 12;
       const stripes = [];
@@ -500,17 +695,16 @@
       canvas.add(grass);
       stripes.forEach((stripe) => canvas.add(stripe));
       canvas.add(field);
-      const centerX = fieldLeft + (fieldW / 2);
       if (preset === 'half_pitch') {
-        canvas.add(new fabric.Line([centerX, fieldTop + marginY, centerX, fieldTop + fieldH - marginY], { ...common, stroke: lineColor, strokeWidth: 2.5 }));
-        canvas.add(new fabric.Circle({ ...common, left: centerX - (Math.min(fieldW, fieldH) * 0.12), top: (fieldTop + (fieldH / 2)) - (Math.min(fieldW, fieldH) * 0.12), radius: Math.min(fieldW, fieldH) * 0.12, fill: 'transparent', stroke: 'rgba(255,255,255,0.6)', strokeWidth: 2.5 }));
+        drawHalfPitchMarkings(field);
+      } else if (preset === 'attacking_third') {
+        drawAttackingThirdMarkings(field);
+      } else if (preset === 'seven_side') {
+        drawSevenSideMarkings(field);
       } else if (preset === 'futsal') {
-        canvas.add(new fabric.Rect({ ...common, left: fieldLeft + (fieldW * 0.18), top: fieldTop + (fieldH * 0.18), width: fieldW * 0.64, height: fieldH * 0.64, fill: 'transparent', stroke: 'rgba(255,255,255,0.78)', strokeWidth: 2.5 }));
-        canvas.add(new fabric.Line([centerX, fieldTop + (fieldH * 0.18), centerX, fieldTop + (fieldH * 0.82)], { ...common, stroke: lineColor, strokeWidth: 2.5 }));
+        drawFutsalMarkings(field);
       } else {
-        canvas.add(new fabric.Line([centerX, fieldTop + marginY, centerX, fieldTop + fieldH - marginY], { ...common, stroke: lineColor, strokeWidth: 2.5 }));
-        const centerRadius = Math.min(fieldW, fieldH) * 0.12;
-        canvas.add(new fabric.Circle({ ...common, left: centerX - centerRadius, top: (fieldTop + (fieldH / 2)) - centerRadius, radius: centerRadius, fill: 'transparent', stroke: 'rgba(255,255,255,0.6)', strokeWidth: 2.5 }));
+        drawFullPitchMarkings(field);
       }
       canvas.renderAll();
       pushHistory();
@@ -615,17 +809,49 @@
       if (kind === 'zone') {
         if (variant === 'circle') item = new fabric.Circle({ left: baseLeft, top: baseTop, radius: 46, fill: 'rgba(14,165,233,0.18)', stroke: '#0ea5e9', strokeWidth: 2 });
         else if (variant === 'diamond') item = new fabric.Rect({ left: baseLeft, top: baseTop, width: 96, height: 96, fill: 'rgba(14,165,233,0.16)', stroke: '#0ea5e9', strokeWidth: 2, angle: 45 });
+        else if (variant === 'lane') item = new fabric.Rect({ left: baseLeft, top: baseTop, width: 56, height: 162, fill: 'rgba(14,165,233,0.14)', stroke: '#38bdf8', strokeWidth: 2, strokeDashArray: [10, 6] });
+        else if (variant === 'halfspace') item = new fabric.Polygon([
+          { x: 0, y: 0 },
+          { x: 86, y: 0 },
+          { x: 126, y: 124 },
+          { x: 40, y: 124 },
+        ], { left: baseLeft, top: baseTop, fill: 'rgba(251,191,36,0.16)', stroke: '#fbbf24', strokeWidth: 2 });
         else item = new fabric.Rect({ left: baseLeft, top: baseTop, width: 130, height: 86, fill: 'rgba(14,165,233,0.18)', stroke: '#0ea5e9', strokeWidth: 2 });
       }
-      if (kind === 'mini_goal') item = new fabric.Rect({ left: baseLeft, top: baseTop, width: variant === 'full' ? 82 : 52, height: variant === 'full' ? 42 : 26, fill: 'transparent', stroke: '#f8fafc', strokeWidth: variant === 'full' ? 2.4 : 2 });
+      if (kind === 'mini_goal') {
+        const dims = variant === 'full' ? { width: 82, height: 42, strokeWidth: 2.4 } : variant === 'seven' ? { width: 68, height: 34, strokeWidth: 2.2 } : { width: 52, height: 26, strokeWidth: 2 };
+        item = new fabric.Rect({ left: baseLeft, top: baseTop, width: dims.width, height: dims.height, fill: 'transparent', stroke: '#f8fafc', strokeWidth: dims.strokeWidth });
+      }
+      if (kind === 'gate') item = new fabric.Group([
+        new fabric.Rect({ left: -18, top: 0, width: 4, height: 26, fill: '#f8fafc', originX: 'center', originY: 'center' }),
+        new fabric.Rect({ left: 18, top: 0, width: 4, height: 26, fill: '#f8fafc', originX: 'center', originY: 'center' }),
+        new fabric.Rect({ left: 0, top: -11, width: 38, height: 4, fill: '#f8fafc', originX: 'center', originY: 'center' }),
+      ], { left: baseLeft, top: baseTop });
+      if (kind === 'slalom') item = new fabric.Group([
+        new fabric.Circle({ left: -26, top: 0, radius: 5, fill: '#fb7185', originX: 'center', originY: 'center' }),
+        new fabric.Circle({ left: -8, top: 0, radius: 5, fill: '#f59e0b', originX: 'center', originY: 'center' }),
+        new fabric.Circle({ left: 10, top: 0, radius: 5, fill: '#38bdf8', originX: 'center', originY: 'center' }),
+        new fabric.Circle({ left: 28, top: 0, radius: 5, fill: '#a3e635', originX: 'center', originY: 'center' }),
+      ], { left: baseLeft, top: baseTop });
       if (kind === 'line') item = variant === 'dash'
         ? new fabric.Line([0, 0, 120, 0], { left: baseLeft, top: baseTop, stroke: '#f8fafc', strokeWidth: 3, strokeDashArray: [10, 7] })
-        : new fabric.Rect({ left: baseLeft, top: baseTop, width: 100, height: 2, fill: '#f8fafc' });
+        : variant === 'channel'
+          ? new fabric.Group([
+            new fabric.Line([0, 0, 0, 120], { stroke: '#38bdf8', strokeWidth: 3, strokeDashArray: [12, 8] }),
+            new fabric.Line([58, 0, 58, 120], { stroke: '#38bdf8', strokeWidth: 3, strokeDashArray: [12, 8] }),
+          ], { left: baseLeft, top: baseTop })
+          : new fabric.Rect({ left: baseLeft, top: baseTop, width: 100, height: 2, fill: '#f8fafc' });
       if (kind === 'arrow') {
         if (variant === 'curve') {
           item = new fabric.Group([
             new fabric.Path('M 0 50 Q 55 0 120 40', { stroke: '#0ea5e9', fill: '', strokeWidth: 4 }),
             new fabric.Triangle({ left: 108, top: 31, width: 16, height: 16, angle: 112, fill: '#0ea5e9' }),
+          ], { left: baseLeft, top: baseTop });
+        } else if (variant === 'press') {
+          item = new fabric.Group([
+            new fabric.Path('M 0 54 C 30 26 54 18 82 18', { stroke: '#ef4444', fill: '', strokeWidth: 4 }),
+            new fabric.Path('M 82 18 C 92 18 103 22 116 32', { stroke: '#ef4444', fill: '', strokeWidth: 4, strokeDashArray: [7, 5] }),
+            new fabric.Triangle({ left: 108, top: 25, width: 16, height: 16, angle: 124, fill: '#ef4444' }),
           ], { left: baseLeft, top: baseTop });
         } else {
           item = new fabric.Group([
@@ -709,6 +935,29 @@
         const text = `${node.dataset.playerName || ''} ${node.dataset.playerNumber || ''}`.toLowerCase();
         node.style.display = !query || text.includes(query) ? '' : 'none';
       });
+    };
+
+    const restoreInitialCanvas = () => {
+      const raw = String(stateInput?.value || '').trim();
+      if (!raw) return false;
+      let parsed = null;
+      try {
+        parsed = JSON.parse(raw);
+      } catch (error) {
+        parsed = null;
+      }
+      if (!parsed || typeof parsed !== 'object') return false;
+      currentFieldPreset = safeText(presetSelect?.value, 'full_pitch');
+      setActiveByDataset(fieldPresetCards, 'fieldPreset', currentFieldPreset);
+      canvas.__loading = true;
+      canvas.loadFromJSON(parsed, () => {
+        canvas.__loading = false;
+        canvas.renderAll();
+        refreshLayerList();
+      });
+      history = [JSON.stringify(parsed)];
+      setStatus('Diseño táctico cargado.');
+      return true;
     };
 
     const restoreDraft = () => {
@@ -1039,7 +1288,7 @@
     });
 
     const restored = restoreDraft();
-    if (!restored) applyFieldBackground(presetSelect?.value || 'full_pitch');
+    if (!restored && !restoreInitialCanvas()) applyFieldBackground(presetSelect?.value || 'full_pitch');
     renderPlayerRepos();
     applyCatalogFilter('all');
     syncTeamPaletteFromInputs();

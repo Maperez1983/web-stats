@@ -394,6 +394,8 @@
                 <select name="draw_task_pitch_preset">
                   <option value="full_pitch" {% if initial.pitch_preset == 'full_pitch' %}selected{% endif %}>Campo completo</option>
                   <option value="half_pitch" {% if initial.pitch_preset == 'half_pitch' %}selected{% endif %}>Medio campo</option>
+                  <option value="attacking_third" {% if initial.pitch_preset == 'attacking_third' %}selected{% endif %}>Último tercio</option>
+                  <option value="seven_side" {% if initial.pitch_preset == 'seven_side' %}selected{% endif %}>Fútbol 7</option>
                   <option value="futsal" {% if initial.pitch_preset == 'futsal' %}selected{% endif %}>Futsal</option>
                   <option value="blank" {% if initial.pitch_preset == 'blank' %}selected{% endif %}>Lienzo en blanco</option>
                 </select>
@@ -477,13 +479,20 @@
                       <button type="button" class="create-resource-btn" data-cat="material" data-resource="bib" data-variant="neutral">Peto</button>
                       <button type="button" class="create-resource-btn" data-cat="material" data-resource="mini_goal" data-variant="mini">Mini portería</button>
                       <button type="button" class="create-resource-btn" data-cat="material" data-resource="mini_goal" data-variant="full">Portería 11</button>
+                      <button type="button" class="create-resource-btn" data-cat="material" data-resource="mini_goal" data-variant="seven">Portería 7</button>
+                      <button type="button" class="create-resource-btn" data-cat="material" data-resource="gate" data-variant="small">Puerta de pase</button>
+                      <button type="button" class="create-resource-btn" data-cat="material" data-resource="slalom" data-variant="line">Slalom</button>
                       <button type="button" class="create-resource-btn" data-cat="zones" data-resource="zone" data-variant="rect">Zona rectangular</button>
                       <button type="button" class="create-resource-btn" data-cat="zones" data-resource="zone" data-variant="circle">Zona circular</button>
                       <button type="button" class="create-resource-btn" data-cat="zones" data-resource="zone" data-variant="diamond">Zona rombo</button>
+                      <button type="button" class="create-resource-btn" data-cat="zones" data-resource="zone" data-variant="lane">Carril</button>
+                      <button type="button" class="create-resource-btn" data-cat="zones" data-resource="zone" data-variant="halfspace">Medio espacio</button>
                       <button type="button" class="create-resource-btn" data-cat="draw" data-resource="arrow" data-variant="straight">Flecha</button>
                       <button type="button" class="create-resource-btn" data-cat="draw" data-resource="arrow" data-variant="curve">Flecha curva</button>
+                      <button type="button" class="create-resource-btn" data-cat="draw" data-resource="arrow" data-variant="press">Presión</button>
                       <button type="button" class="create-resource-btn" data-cat="draw" data-resource="line" data-variant="solid">Línea sólida</button>
                       <button type="button" class="create-resource-btn" data-cat="draw" data-resource="line" data-variant="dash">Línea discontinua</button>
+                      <button type="button" class="create-resource-btn" data-cat="draw" data-resource="line" data-variant="channel">Canal</button>
                     </div>
                     <div class="create-player-pool">
                       <div class="create-player-pool-head">
@@ -565,6 +574,14 @@
                       <button type="button" class="tpad-field-card" data-field-preset="half_pitch">
                         <span class="preview"></span>
                         <span>Medio campo</span>
+                      </button>
+                      <button type="button" class="tpad-field-card" data-field-preset="attacking_third">
+                        <span class="preview"></span>
+                        <span>Último tercio</span>
+                      </button>
+                      <button type="button" class="tpad-field-card" data-field-preset="seven_side">
+                        <span class="preview"></span>
+                        <span>Fútbol 7</span>
                       </button>
                       <button type="button" class="tpad-field-card" data-field-preset="futsal">
                         <span class="preview"></span>

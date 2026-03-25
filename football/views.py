@@ -6416,6 +6416,8 @@ def _starter_canvas_state(preset):
     if preset_key == 'blank':
         return {'version': '5.3.0', 'objects': []}
 
+    line_color = 'rgba(255,255,255,0.8)'
+    soft_line = 'rgba(255,255,255,0.65)'
     background = {
         'type': 'rect',
         'left': 0,
@@ -6429,126 +6431,113 @@ def _starter_canvas_state(preset):
         'evented': False,
         'excludeFromExport': False,
     }
-    field_border = {
-        'type': 'rect',
-        'left': 60,
-        'top': 40,
-        'width': 1160,
-        'height': 640,
-        'fill': '',
-        'stroke': 'rgba(255,255,255,0.8)',
-        'strokeWidth': 4,
-        'selectable': False,
-        'evented': False,
-        'excludeFromExport': False,
-    }
-    objects = [background, field_border]
+    def rect(left, top, width, height, stroke=line_color, stroke_width=3, fill=''):
+        return {
+            'type': 'rect',
+            'left': left,
+            'top': top,
+            'width': width,
+            'height': height,
+            'fill': fill,
+            'stroke': stroke,
+            'strokeWidth': stroke_width,
+            'selectable': False,
+            'evented': False,
+            'excludeFromExport': False,
+        }
+
+    def line(x1, y1, x2, y2, stroke=line_color, stroke_width=3):
+        return {
+            'type': 'line',
+            'x1': x1,
+            'y1': y1,
+            'x2': x2,
+            'y2': y2,
+            'stroke': stroke,
+            'strokeWidth': stroke_width,
+            'selectable': False,
+            'evented': False,
+            'excludeFromExport': False,
+        }
+
+    def circle(left, top, radius, stroke=line_color, stroke_width=3, fill=''):
+        return {
+            'type': 'circle',
+            'left': left,
+            'top': top,
+            'radius': radius,
+            'fill': fill,
+            'stroke': stroke,
+            'strokeWidth': stroke_width,
+            'selectable': False,
+            'evented': False,
+            'excludeFromExport': False,
+        }
+
+    objects = [background]
 
     if preset_key == 'half_pitch':
         objects.extend(
             [
-                {
-                    'type': 'rect',
-                    'left': 60,
-                    'top': 40,
-                    'width': 580,
-                    'height': 640,
-                    'fill': '',
-                    'stroke': 'rgba(255,255,255,0.6)',
-                    'strokeWidth': 3,
-                    'selectable': False,
-                    'evented': False,
-                },
-                {
-                    'type': 'circle',
-                    'left': 640 - 90,
-                    'top': 360 - 90,
-                    'radius': 90,
-                    'fill': '',
-                    'stroke': 'rgba(255,255,255,0.55)',
-                    'strokeWidth': 3,
-                    'selectable': False,
-                    'evented': False,
-                },
+                rect(80, 50, 1120, 620, stroke_width=4),
+                line(640, 50, 640, 670, stroke_width=3),
+                circle(640 - 74, 360 - 74, 74, stroke=soft_line, stroke_width=3),
+                rect(360, 50, 560, 180, stroke=soft_line),
+                rect(490, 50, 300, 80, stroke=soft_line),
+                circle(640 - 4, 156 - 4, 4, stroke_width=0, fill='#ffffff'),
+            ]
+        )
+    elif preset_key == 'attacking_third':
+        objects.extend(
+            [
+                rect(120, 60, 1040, 600, stroke_width=4),
+                rect(430, 60, 420, 150, stroke=soft_line),
+                rect(535, 60, 210, 70, stroke=soft_line),
+                circle(640 - 4, 150 - 4, 4, stroke_width=0, fill='#ffffff'),
+                rect(572, 32, 136, 28, stroke=soft_line),
+                line(120, 250, 1160, 250, stroke=soft_line, stroke_width=2),
+            ]
+        )
+    elif preset_key == 'seven_side':
+        objects.extend(
+            [
+                rect(140, 70, 1000, 580, stroke_width=4),
+                line(640, 70, 640, 650, stroke_width=3),
+                circle(640 - 62, 360 - 62, 62, stroke=soft_line, stroke_width=3),
+                rect(370, 70, 540, 140, stroke=soft_line),
+                rect(480, 70, 320, 64, stroke=soft_line),
+                rect(370, 510, 540, 140, stroke=soft_line),
+                rect(480, 586, 320, 64, stroke=soft_line),
+                circle(640 - 4, 146 - 4, 4, stroke_width=0, fill='#ffffff'),
+                circle(640 - 4, 574 - 4, 4, stroke_width=0, fill='#ffffff'),
             ]
         )
     elif preset_key == 'futsal':
         objects.extend(
             [
-                {
-                    'type': 'rect',
-                    'left': 220,
-                    'top': 120,
-                    'width': 840,
-                    'height': 480,
-                    'fill': '',
-                    'stroke': 'rgba(255,255,255,0.78)',
-                    'strokeWidth': 3,
-                    'selectable': False,
-                    'evented': False,
-                },
-                {
-                    'type': 'line',
-                    'x1': 640,
-                    'y1': 120,
-                    'x2': 640,
-                    'y2': 600,
-                    'stroke': 'rgba(255,255,255,0.7)',
-                    'strokeWidth': 3,
-                    'selectable': False,
-                    'evented': False,
-                },
+                rect(180, 100, 920, 520, stroke_width=4),
+                line(640, 100, 640, 620, stroke=soft_line, stroke_width=3),
+                circle(640 - 56, 360 - 56, 56, stroke=soft_line, stroke_width=3),
+                rect(430, 100, 420, 100, stroke=soft_line),
+                rect(430, 520, 420, 100, stroke=soft_line),
+                rect(578, 76, 124, 24, stroke=soft_line),
+                rect(578, 620, 124, 24, stroke=soft_line),
             ]
         )
     else:
         objects.extend(
             [
-                {
-                    'type': 'line',
-                    'x1': 640,
-                    'y1': 40,
-                    'x2': 640,
-                    'y2': 680,
-                    'stroke': 'rgba(255,255,255,0.75)',
-                    'strokeWidth': 3,
-                    'selectable': False,
-                    'evented': False,
-                },
-                {
-                    'type': 'circle',
-                    'left': 640 - 90,
-                    'top': 360 - 90,
-                    'radius': 90,
-                    'fill': '',
-                    'stroke': 'rgba(255,255,255,0.55)',
-                    'strokeWidth': 3,
-                    'selectable': False,
-                    'evented': False,
-                },
-                {
-                    'type': 'rect',
-                    'left': 60,
-                    'top': 220,
-                    'width': 170,
-                    'height': 280,
-                    'fill': '',
-                    'stroke': 'rgba(255,255,255,0.7)',
-                    'strokeWidth': 3,
-                    'selectable': False,
-                    'evented': False,
-                },
-                {
-                    'type': 'rect',
-                    'left': 1050,
-                    'top': 220,
-                    'width': 170,
-                    'height': 280,
-                    'fill': '',
-                    'stroke': 'rgba(255,255,255,0.7)',
-                    'strokeWidth': 3,
-                    'selectable': False,
-                    'evented': False,
-                },
+                rect(80, 50, 1120, 620, stroke_width=4),
+                line(640, 50, 640, 670, stroke_width=3),
+                circle(640 - 78, 360 - 78, 78, stroke=soft_line, stroke_width=3),
+                rect(394, 50, 492, 124, stroke=soft_line),
+                rect(500, 50, 280, 60, stroke=soft_line),
+                rect(394, 546, 492, 124, stroke=soft_line),
+                rect(500, 610, 280, 60, stroke=soft_line),
+                circle(640 - 4, 132 - 4, 4, stroke_width=0, fill='#ffffff'),
+                circle(640 - 4, 588 - 4, 4, stroke_width=0, fill='#ffffff'),
+                rect(570, 24, 140, 26, stroke=soft_line),
+                rect(570, 670, 140, 26, stroke=soft_line),
             ]
         )
 
@@ -7236,7 +7225,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     selected_methodology = ''
                 if selected_complexity not in valid_complexities:
                     selected_complexity = ''
-                if pitch_preset not in {'full_pitch', 'half_pitch', 'futsal', 'blank'}:
+                if pitch_preset not in {'full_pitch', 'half_pitch', 'attacking_third', 'seven_side', 'futsal', 'blank'}:
                     pitch_preset = 'full_pitch'
                 target_session = None
                 if target_session_id:
@@ -8127,7 +8116,7 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
         selected_methodology = ''
     if selected_complexity not in valid_complexities:
         selected_complexity = ''
-    if pitch_preset not in {'full_pitch', 'half_pitch', 'futsal', 'blank'}:
+    if pitch_preset not in {'full_pitch', 'half_pitch', 'attacking_third', 'seven_side', 'futsal', 'blank'}:
         pitch_preset = 'full_pitch'
 
     target_session = existing_task.session if existing_task else None
