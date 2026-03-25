@@ -81,7 +81,31 @@
         letter-spacing: 0.12em;
         text-transform: uppercase;
       }
+      .panel-lead {
+        margin: 0 0 0.9rem;
+        color: var(--muted);
+        font-size: 0.84rem;
+      }
       .grid { display: grid; gap: 0.8rem; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+      .focus-grid {
+        display: grid;
+        gap: 0.8rem;
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+        margin-bottom: 0.95rem;
+      }
+      .focus-card {
+        border-radius: 14px;
+        padding: 0.85rem;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.04);
+      }
+      .focus-card h3 {
+        margin: 0 0 0.65rem;
+        font-size: 0.72rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #a5f3fc;
+      }
       label {
         display: grid;
         gap: 0.35rem;
@@ -142,6 +166,36 @@
         flex-wrap: wrap;
         gap: 0.55rem;
         margin-top: 1rem;
+      }
+      .builder-section {
+        margin-top: 0.95rem;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.04);
+        overflow: hidden;
+      }
+      .builder-section summary {
+        cursor: pointer;
+        list-style: none;
+        padding: 0.9rem 1rem;
+        font-size: 0.74rem;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: #dbeafe;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .builder-section summary::-webkit-details-marker { display: none; }
+      .builder-section summary::after {
+        content: "+";
+        font-size: 1rem;
+        color: #67e8f9;
+      }
+      .builder-section[open] summary::after { content: "−"; }
+      .builder-section-body {
+        padding: 0 1rem 1rem;
       }
       .create-board {
         border: 1px solid rgba(255, 255, 255, 0.16);
@@ -258,148 +312,58 @@
         <div class="layout">
           <section class="panel">
             <h2>Diseño de la tarea</h2>
-            <div class="grid">
-              <label>
-                Sesión destino
-                <select name="draw_target_session_id">
-                  <option value="">Repositorio automático</option>
-                  {% for session in all_sessions %}
-                  <option value="{{ session.id }}" {% if initial.target_session_id == session.id|stringformat:"s" %}selected{% endif %}>{{ session.session_date|date:"d/m/Y" }} · {{ session.focus }}</option>
-                  {% endfor %}
-                </select>
-              </label>
-              <label>
-                Plantilla táctica
-                <select name="draw_task_template" id="draw-task-template">
-                  {% for item in task_templates %}
-                  <option value="{{ item.key }}" {% if initial.template_key == item.key %}selected{% endif %}>{{ item.label }}</option>
-                  {% endfor %}
-                </select>
-              </label>
-              <label>
-                Título
-                <input type="text" name="draw_task_title" value="{{ initial.title }}" maxlength="160" required />
-              </label>
-              <label>
-                Bloque
-                <select name="draw_task_block">
-                  {% for value, label in task_blocks %}
-                  <option value="{{ value }}" {% if initial.block == value %}selected{% endif %}>{{ label }}</option>
-                  {% endfor %}
-                </select>
-              </label>
-              <label>
-                Duración
-                <input type="number" name="draw_task_minutes" min="5" max="90" value="{{ initial.minutes|default:15 }}" />
-              </label>
-              <label>
-                Objetivo
-                <input type="text" name="draw_task_objective" value="{{ initial.objective }}" maxlength="180" />
-              </label>
-              <label>
-                Superficie
-                <select name="draw_task_surface">
-                  <option value="">-</option>
-                  {% for value, label in task_surface_choices %}
-                  <option value="{{ value }}" {% if initial.surface == value %}selected{% endif %}>{{ label }}</option>
-                  {% endfor %}
-                </select>
-              </label>
-              <label>
-                Formato de campo
-                <select name="draw_task_pitch_format">
-                  <option value="">-</option>
-                  {% for value, label in task_pitch_choices %}
-                  <option value="{{ value }}" {% if initial.pitch_format == value %}selected{% endif %}>{{ label }}</option>
-                  {% endfor %}
-                </select>
-              </label>
-              <label>
-                Fase del juego
-                <select name="draw_task_game_phase">
-                  <option value="">-</option>
-                  {% for value, label in task_phase_choices %}
-                  <option value="{{ value }}" {% if initial.game_phase == value %}selected{% endif %}>{{ label }}</option>
-                  {% endfor %}
-                </select>
-              </label>
-              <label>
-                Metodología
-                <select name="draw_task_methodology">
-                  <option value="">-</option>
-                  {% for value, label in task_methodology_choices %}
-                  <option value="{{ value }}" {% if initial.methodology == value %}selected{% endif %}>{{ label }}</option>
-                  {% endfor %}
-                </select>
-              </label>
-              <label>
-                Complejidad
-                <select name="draw_task_complexity">
-                  <option value="">-</option>
-                  {% for value, label in task_complexity_choices %}
-                  <option value="{{ value }}" {% if initial.complexity == value %}selected{% endif %}>{{ label }}</option>
-                  {% endfor %}
-                </select>
-              </label>
-              <label>
-                Tipo de entrenamiento
-                <input type="text" name="draw_task_training_type" value="{{ initial.training_type }}" placeholder="Ej: táctica integrada" />
-              </label>
-              <label>
-                Nº jugadores
-                <input type="text" name="draw_task_player_count" value="{{ initial.player_count }}" placeholder="Ej: 12 + 2 porteros" />
-              </label>
-              <label>
-                Edad / categoría
-                <input type="text" name="draw_task_age_group" value="{{ initial.age_group }}" placeholder="Ej: Cadete / Senior" />
-              </label>
-              <label>
-                Tamaño / dimensiones
-                <input type="text" name="draw_task_dimensions" value="{{ initial.dimensions }}" placeholder="Ej: 40x30m" />
-              </label>
-              <label>
-                Espacio
-                <input type="text" name="draw_task_space" value="{{ initial.space }}" placeholder="Ej: zona central + 2 carriles" />
-              </label>
-              <label>
-                Organización
-                <input type="text" name="draw_task_organization" value="{{ initial.organization }}" placeholder="Ej: 6v6 + 2 comodines" />
-              </label>
-              <label>
-                Distribución jugadores
-                <input type="text" name="draw_task_players_distribution" value="{{ initial.players_distribution }}" placeholder="Ej: 3 líneas + pivote" />
-              </label>
-              <label>
-                Trabajo / pausa
-                <input type="text" name="draw_task_work_rest" value="{{ initial.work_rest }}" placeholder="Ej: 4x3' + 1'" />
-              </label>
-              <label>
-                Series
-                <input type="text" name="draw_task_series" value="{{ initial.series }}" />
-              </label>
-              <label>
-                Repeticiones
-                <input type="text" name="draw_task_repetitions" value="{{ initial.repetitions }}" />
-              </label>
-              <label>
-                Carga objetivo
-                <input type="text" name="draw_task_load_target" value="{{ initial.load_target }}" placeholder="Ej: RPE 7" />
-              </label>
-              <label>
-                Categorización extra
-                <input type="text" name="draw_task_category_tags" value="{{ initial.category_tags }}" placeholder="Ej: finalización, presión, amplitud" />
-              </label>
-              <label style="grid-column:1/-1;">
-                Arranque visual
-                <select name="draw_task_pitch_preset">
-                  <option value="full_pitch" {% if initial.pitch_preset == 'full_pitch' %}selected{% endif %}>Campo completo</option>
-                  <option value="half_pitch" {% if initial.pitch_preset == 'half_pitch' %}selected{% endif %}>Medio campo</option>
-                  <option value="attacking_third" {% if initial.pitch_preset == 'attacking_third' %}selected{% endif %}>Último tercio</option>
-                  <option value="seven_side" {% if initial.pitch_preset == 'seven_side' %}selected{% endif %}>Fútbol 7</option>
-                  <option value="futsal" {% if initial.pitch_preset == 'futsal' %}selected{% endif %}>Futsal</option>
-                  <option value="blank" {% if initial.pitch_preset == 'blank' %}selected{% endif %}>Lienzo en blanco</option>
-                </select>
-              </label>
+            <p class="panel-lead">Primero la idea y la pizarra. Los metadatos avanzados siguen disponibles, pero ya no compiten visualmente con el diseño.</p>
+            <div class="focus-grid">
+              <div class="focus-card">
+                <h3>Identidad</h3>
+                <div class="grid">
+                  <label>
+                    Título
+                    <input type="text" name="draw_task_title" value="{{ initial.title }}" maxlength="160" required />
+                  </label>
+                  <label>
+                    Objetivo
+                    <input type="text" name="draw_task_objective" value="{{ initial.objective }}" maxlength="180" />
+                  </label>
+                </div>
+              </div>
+              <div class="focus-card">
+                <h3>Contexto base</h3>
+                <div class="grid">
+                  <label>
+                    Sesión destino
+                    <select name="draw_target_session_id">
+                      <option value="">Repositorio automático</option>
+                      {% for session in all_sessions %}
+                      <option value="{{ session.id }}" {% if initial.target_session_id == session.id|stringformat:"s" %}selected{% endif %}>{{ session.session_date|date:"d/m/Y" }} · {{ session.focus }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <label>
+                    Duración
+                    <input type="number" name="draw_task_minutes" min="5" max="90" value="{{ initial.minutes|default:15 }}" />
+                  </label>
+                  <label>
+                    Bloque
+                    <select name="draw_task_block">
+                      {% for value, label in task_blocks %}
+                      <option value="{{ value }}" {% if initial.block == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <label>
+                    Arranque visual
+                    <select name="draw_task_pitch_preset">
+                      <option value="full_pitch" {% if initial.pitch_preset == 'full_pitch' %}selected{% endif %}>Campo completo</option>
+                      <option value="half_pitch" {% if initial.pitch_preset == 'half_pitch' %}selected{% endif %}>Medio campo</option>
+                      <option value="attacking_third" {% if initial.pitch_preset == 'attacking_third' %}selected{% endif %}>Último tercio</option>
+                      <option value="seven_side" {% if initial.pitch_preset == 'seven_side' %}selected{% endif %}>Fútbol 7</option>
+                      <option value="futsal" {% if initial.pitch_preset == 'futsal' %}selected{% endif %}>Futsal</option>
+                      <option value="blank" {% if initial.pitch_preset == 'blank' %}selected{% endif %}>Lienzo en blanco</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
             </div>
 
             <div class="create-board" style="margin-top:0.9rem;">
@@ -617,65 +581,189 @@
               <input type="hidden" name="draw_canvas_height" id="draw-canvas-height" value="{{ initial.canvas_height }}" />
               <input type="hidden" name="draw_canvas_preview_data" id="draw-canvas-preview-data" />
             </div>
+
+            <details class="builder-section">
+              <summary>Contexto avanzado de la tarea</summary>
+              <div class="builder-section-body">
+                <div class="grid">
+                  <label>
+                    Plantilla táctica
+                    <select name="draw_task_template" id="draw-task-template">
+                      {% for item in task_templates %}
+                      <option value="{{ item.key }}" {% if initial.template_key == item.key %}selected{% endif %}>{{ item.label }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <label>
+                    Superficie
+                    <select name="draw_task_surface">
+                      <option value="">-</option>
+                      {% for value, label in task_surface_choices %}
+                      <option value="{{ value }}" {% if initial.surface == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <label>
+                    Formato de campo
+                    <select name="draw_task_pitch_format">
+                      <option value="">-</option>
+                      {% for value, label in task_pitch_choices %}
+                      <option value="{{ value }}" {% if initial.pitch_format == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <label>
+                    Fase del juego
+                    <select name="draw_task_game_phase">
+                      <option value="">-</option>
+                      {% for value, label in task_phase_choices %}
+                      <option value="{{ value }}" {% if initial.game_phase == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <label>
+                    Metodología
+                    <select name="draw_task_methodology">
+                      <option value="">-</option>
+                      {% for value, label in task_methodology_choices %}
+                      <option value="{{ value }}" {% if initial.methodology == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <label>
+                    Complejidad
+                    <select name="draw_task_complexity">
+                      <option value="">-</option>
+                      {% for value, label in task_complexity_choices %}
+                      <option value="{{ value }}" {% if initial.complexity == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <label>
+                    Tipo de entrenamiento
+                    <input type="text" name="draw_task_training_type" value="{{ initial.training_type }}" placeholder="Ej: táctica integrada" />
+                  </label>
+                  <label>
+                    Nº jugadores
+                    <input type="text" name="draw_task_player_count" value="{{ initial.player_count }}" placeholder="Ej: 12 + 2 porteros" />
+                  </label>
+                  <label>
+                    Edad / categoría
+                    <input type="text" name="draw_task_age_group" value="{{ initial.age_group }}" placeholder="Ej: Cadete / Senior" />
+                  </label>
+                  <label>
+                    Tamaño / dimensiones
+                    <input type="text" name="draw_task_dimensions" value="{{ initial.dimensions }}" placeholder="Ej: 40x30m" />
+                  </label>
+                  <label>
+                    Espacio
+                    <input type="text" name="draw_task_space" value="{{ initial.space }}" placeholder="Ej: zona central + 2 carriles" />
+                  </label>
+                  <label>
+                    Organización
+                    <input type="text" name="draw_task_organization" value="{{ initial.organization }}" placeholder="Ej: 6v6 + 2 comodines" />
+                  </label>
+                  <label>
+                    Distribución jugadores
+                    <input type="text" name="draw_task_players_distribution" value="{{ initial.players_distribution }}" placeholder="Ej: 3 líneas + pivote" />
+                  </label>
+                  <label>
+                    Trabajo / pausa
+                    <input type="text" name="draw_task_work_rest" value="{{ initial.work_rest }}" placeholder="Ej: 4x3' + 1'" />
+                  </label>
+                  <label>
+                    Series
+                    <input type="text" name="draw_task_series" value="{{ initial.series }}" />
+                  </label>
+                  <label>
+                    Repeticiones
+                    <input type="text" name="draw_task_repetitions" value="{{ initial.repetitions }}" />
+                  </label>
+                  <label>
+                    Carga objetivo
+                    <input type="text" name="draw_task_load_target" value="{{ initial.load_target }}" placeholder="Ej: RPE 7" />
+                  </label>
+                  <label>
+                    Categorización extra
+                    <input type="text" name="draw_task_category_tags" value="{{ initial.category_tags }}" placeholder="Ej: finalización, presión, amplitud" />
+                  </label>
+                </div>
+              </div>
+            </details>
           </section>
 
           <aside class="panel">
-            <h2>Ficha técnica</h2>
-            <div class="grid">
-              <label style="grid-column:1/-1;">
-                Descripción
-                <textarea name="draw_task_description">{{ initial.description }}</textarea>
-              </label>
-              <label>
-                Jugadores
-                <input type="text" name="draw_task_players" value="{{ initial.players }}" placeholder="Ej: 14 + 2 porteros" />
-              </label>
-              <label>
-                Materiales
-                <input type="text" name="draw_task_materials" value="{{ initial.materials }}" placeholder="Conos, petos, porterías..." />
-              </label>
-              <label style="grid-column:1/-1;">
-                Consignas
-                <textarea name="draw_task_coaching_points">{{ initial.coaching_points }}</textarea>
-              </label>
-              <label style="grid-column:1/-1;">
-                Normas de confrontación
-                <textarea name="draw_task_confrontation_rules">{{ initial.confrontation_rules }}</textarea>
-              </label>
-              <label style="grid-column:1/-1;">
-                Progresión
-                <textarea name="draw_task_progression">{{ initial.progression }}</textarea>
-              </label>
-              <label style="grid-column:1/-1;">
-                Regresión
-                <textarea name="draw_task_regression">{{ initial.regression }}</textarea>
-              </label>
-              <label style="grid-column:1/-1;">
-                Criterio de éxito
-                <textarea name="draw_task_success_criteria">{{ initial.success_criteria }}</textarea>
-              </label>
-            </div>
+            <h2>Apoyo de la tarea</h2>
+            <p class="panel-lead">Solo lo que acompaña al dibujo: explicación, jugadores y restricciones. Todo plegado para no romper el foco.</p>
 
-            <h2 style="margin-top:1rem;">Asignación de jugadores</h2>
-            <p class="meta" style="margin-bottom:0.55rem;">Las chapas del sistema se pueden usar en pizarra y además quedar asociadas a la tarea.</p>
-            <div class="player-chip-grid">
-              {% for player in available_players %}
-              <label class="player-chip">
-                <input type="checkbox" name="assigned_player_ids" value="{{ player.id }}" {% if player.id in initial.assigned_player_ids %}checked{% endif %} />
-                <span>
-                  <strong>{% if player.number %}#{{ player.number }} · {% endif %}{{ player.name }}</strong>
-                  <small>{{ player.position|default:'Sin posición' }}</small>
-                </span>
-              </label>
-              {% endfor %}
-            </div>
+            <details class="builder-section" open>
+              <summary>Descripción y consignas</summary>
+              <div class="builder-section-body">
+                <div class="grid">
+                  <label style="grid-column:1/-1;">
+                    Descripción
+                    <textarea name="draw_task_description">{{ initial.description }}</textarea>
+                  </label>
+                  <label>
+                    Jugadores
+                    <input type="text" name="draw_task_players" value="{{ initial.players }}" placeholder="Ej: 14 + 2 porteros" />
+                  </label>
+                  <label>
+                    Materiales
+                    <input type="text" name="draw_task_materials" value="{{ initial.materials }}" placeholder="Conos, petos, porterías..." />
+                  </label>
+                  <label style="grid-column:1/-1;">
+                    Consignas
+                    <textarea name="draw_task_coaching_points">{{ initial.coaching_points }}</textarea>
+                  </label>
+                  <label style="grid-column:1/-1;">
+                    Normas de confrontación
+                    <textarea name="draw_task_confrontation_rules">{{ initial.confrontation_rules }}</textarea>
+                  </label>
+                  <label style="grid-column:1/-1;">
+                    Progresión
+                    <textarea name="draw_task_progression">{{ initial.progression }}</textarea>
+                  </label>
+                  <label style="grid-column:1/-1;">
+                    Regresión
+                    <textarea name="draw_task_regression">{{ initial.regression }}</textarea>
+                  </label>
+                  <label style="grid-column:1/-1;">
+                    Criterio de éxito
+                    <textarea name="draw_task_success_criteria">{{ initial.success_criteria }}</textarea>
+                  </label>
+                </div>
+              </div>
+            </details>
 
-            <h2 style="margin-top:1rem;">Constraints</h2>
-            <div class="option-grid">
-              {% for value, label in task_constraint_choices %}
-              <label class="check-pill"><input type="checkbox" name="draw_constraints" value="{{ value }}" {% if value in initial.constraints %}checked{% endif %} /> {{ label }}</label>
-              {% endfor %}
-            </div>
+            <details class="builder-section">
+              <summary>Asignación de jugadores</summary>
+              <div class="builder-section-body">
+                <p class="meta" style="margin-bottom:0.55rem;">Las chapas del sistema se pueden usar en pizarra y además quedar asociadas a la tarea.</p>
+                <div class="player-chip-grid">
+                  {% for player in available_players %}
+                  <label class="player-chip">
+                    <input type="checkbox" name="assigned_player_ids" value="{{ player.id }}" {% if player.id in initial.assigned_player_ids %}checked{% endif %} />
+                    <span>
+                      <strong>{% if player.number %}#{{ player.number }} · {% endif %}{{ player.name }}</strong>
+                      <small>{{ player.position|default:'Sin posición' }}</small>
+                    </span>
+                  </label>
+                  {% endfor %}
+                </div>
+              </div>
+            </details>
+
+            <details class="builder-section">
+              <summary>Constraints</summary>
+              <div class="builder-section-body">
+                <div class="option-grid">
+                  {% for value, label in task_constraint_choices %}
+                  <label class="check-pill"><input type="checkbox" name="draw_constraints" value="{{ value }}" {% if value in initial.constraints %}checked{% endif %} /> {{ label }}</label>
+                  {% endfor %}
+                </div>
+              </div>
+            </details>
 
             <div class="builder-actions">
               <button type="submit" class="primary">{% if task %}Guardar tarea{% else %}Crear tarea{% endif %}</button>
