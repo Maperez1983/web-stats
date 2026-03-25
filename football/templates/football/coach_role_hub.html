@@ -33,6 +33,30 @@
         margin: 0.35rem 0 0;
         color: rgba(226, 232, 240, 0.72);
       }
+      .section-nav {
+        margin-top: 1rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.65rem;
+      }
+      .section-nav a {
+        text-decoration: none;
+        border-radius: 999px;
+        padding: 0.55rem 0.85rem;
+        border: 1px solid rgba(125, 211, 252, 0.24);
+        background: rgba(8, 47, 73, 0.55);
+        color: #dbeafe;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .command-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.95fr);
+        gap: 1rem;
+        align-items: start;
+      }
       .grid {
         margin-top: 1.6rem;
         display: grid;
@@ -129,6 +153,9 @@
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
         gap: 0.85rem;
+      }
+      .overview-summary.is-compact {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
       }
       .overview-item {
         background: rgba(255, 255, 255, 0.82);
@@ -267,12 +294,20 @@
         border: 1px solid rgba(148, 163, 184, 0.22);
         background: rgba(2, 6, 23, 0.7);
       }
+      .coach-map-wrap.is-light {
+        background: rgba(255,255,255,0.94);
+        border-color: rgba(15, 124, 147, 0.14);
+        color: #0f172a;
+      }
       .coach-map-wrap h3 {
         margin: 0 0 0.55rem;
         font-size: 0.78rem;
         letter-spacing: 0.1em;
         text-transform: uppercase;
         color: rgba(186, 230, 253, 0.9);
+      }
+      .coach-map-wrap.is-light h3 {
+        color: #0f7c93;
       }
       .field-diagram {
         position: relative;
@@ -354,6 +389,11 @@
         background: rgba(15, 23, 42, 0.78);
         border: 1px solid rgba(148, 163, 184, 0.2);
       }
+      .analysis-section.is-light {
+        background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(226,232,240,0.92));
+        box-shadow: 0 18px 44px rgba(15, 23, 42, 0.28);
+        color: #0f172a;
+      }
       .analysis-section h3 {
         margin: 0 0 0.3rem;
         text-transform: uppercase;
@@ -362,6 +402,34 @@
       .analysis-section .section-copy {
         margin: 0 0 0.9rem;
         color: rgba(226, 232, 240, 0.72);
+      }
+      .analysis-section.is-light .section-copy {
+        color: #475569;
+      }
+      .analysis-section.is-light .coach-player-toolbar label {
+        color: #475569;
+      }
+      .analysis-section.is-light .coach-match-toolbar label {
+        color: #475569;
+      }
+      .analysis-section.is-light .coach-match-toolbar select {
+        background: rgba(255,255,255,0.92);
+        color: #0f172a;
+        border-color: rgba(15, 124, 147, 0.18);
+      }
+      .analysis-section.is-light .coach-match-table {
+        background: rgba(255,255,255,0.56);
+        border-color: rgba(15, 124, 147, 0.14);
+      }
+      .analysis-section.is-light .coach-match-table th {
+        color: #64748b;
+      }
+      .analysis-section.is-light .coach-player-card {
+        background: rgba(255,255,255,0.62);
+        border-color: rgba(15, 124, 147, 0.12);
+      }
+      .analysis-section.is-light .coach-player-card .meta {
+        color: #475569;
       }
       .coach-match-toolbar {
         display: grid;
@@ -389,6 +457,71 @@
         display: grid;
         grid-template-columns: 1.4fr 0.95fr;
         gap: 1rem;
+      }
+      .fold-card {
+        margin-top: 1rem;
+        border-radius: 16px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(2, 6, 23, 0.64);
+        overflow: hidden;
+      }
+      .fold-card.is-light {
+        background: rgba(255,255,255,0.7);
+        border-color: rgba(15, 124, 147, 0.14);
+      }
+      .fold-card summary {
+        list-style: none;
+        cursor: pointer;
+        padding: 0.95rem 1rem;
+        font-size: 0.8rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .fold-card summary::-webkit-details-marker {
+        display: none;
+      }
+      .fold-card-body {
+        padding: 0 1rem 1rem;
+      }
+      .brief-headline {
+        margin: 0;
+        font-size: 1.1rem;
+        font-weight: 800;
+        color: #0f172a;
+      }
+      .brief-meta {
+        margin: 0.4rem 0 0;
+        color: #475569;
+      }
+      .brief-list {
+        list-style: none;
+        margin: 0.8rem 0 0;
+        padding: 0;
+        display: grid;
+        gap: 0.5rem;
+      }
+      .brief-list li {
+        border-radius: 12px;
+        padding: 0.65rem 0.75rem;
+        background: rgba(255,255,255,0.82);
+        border: 1px solid rgba(15, 124, 147, 0.12);
+        color: #0f172a;
+      }
+      .analysis-stack {
+        display: grid;
+        gap: 1rem;
+      }
+      .player-focus-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+        gap: 1rem;
+        align-items: start;
+      }
+      .soft-note {
+        margin: 0.7rem 0 0;
+        color: #64748b;
+        font-size: 0.82rem;
       }
       .coach-detail-side {
         display: flex;
@@ -497,6 +630,8 @@
         box-shadow: 0 12px 30px rgba(2, 6, 23, 0.4);
       }
       @media (max-width: 1100px) {
+        .command-layout,
+        .player-focus-grid,
         .coach-match-layout {
           grid-template-columns: 1fr;
         }
@@ -514,27 +649,61 @@
         </div>
         <a class="pill-button" style="border-radius:12px;" href="{% url 'coach-cards' %}">Volver</a>
       </header>
-      {% if coach_overview_stats %}
-      <section class="overview">
-        <h2 class="overview-title">KPI de rendimiento</h2>
-        <div class="overview-rings">
-          {% for item in coach_overview_stats.rings %}
-          <article class="overview-ring">
-            <div class="overview-ring-chart" style="--pct: {{ item.pct|default:0 }};">
-              <span class="overview-ring-value">{{ item.value }}</span>
-            </div>
-            <div class="overview-ring-label">{{ item.label }}</div>
-          </article>
-          {% endfor %}
-        </div>
-        <div class="overview-summary">
-          {% for item in coach_overview_stats.summary %}
-          <article class="overview-item">
-            <div class="label">{{ item.label }}</div>
-            <div class="value">{{ item.value }}</div>
-          </article>
-          {% endfor %}
-        </div>
+      <nav class="section-nav">
+        <a href="#coach-summary">Resumen</a>
+        {% if coach_player_options %}<a href="#coach-player">Jugador</a>{% endif %}
+        {% if coach_match_rows %}<a href="#coach-match">Partido</a>{% endif %}
+        <a href="#coach-modules">Módulos</a>
+      </nav>
+      {% if coach_overview_stats or weekly_staff_brief %}
+      <section id="coach-summary" class="command-layout" style="margin-top:1rem;">
+        {% if coach_overview_stats %}
+        <section class="overview">
+          <h2 class="overview-title">Resumen ejecutivo</h2>
+          <div class="overview-rings">
+            {% for item in coach_overview_stats.rings %}
+            <article class="overview-ring">
+              <div class="overview-ring-chart" style="--pct: {{ item.pct|default:0 }};">
+                <span class="overview-ring-value">{{ item.value }}</span>
+              </div>
+              <div class="overview-ring-label">{{ item.label }}</div>
+            </article>
+            {% endfor %}
+          </div>
+          <div class="overview-summary is-compact">
+            {% for item in coach_overview_stats.summary|slice:":6" %}
+            <article class="overview-item">
+              <div class="label">{{ item.label }}</div>
+              <div class="value">{{ item.value }}</div>
+            </article>
+            {% endfor %}
+          </div>
+          <p class="soft-note">Primero se muestran los indicadores clave. El resto de métricas de temporada queda más abajo para evitar mezclar lectura táctica y detalle operativo.</p>
+        </section>
+        {% endif %}
+        {% if weekly_staff_brief %}
+        <aside class="analysis-section is-light">
+          <h3>Parte semanal</h3>
+          <p class="brief-headline">{{ weekly_staff_brief.headline }}</p>
+          <p class="brief-meta">{{ weekly_staff_brief.match.round }} · {{ weekly_staff_brief.match.date }} · {{ weekly_staff_brief.match.time }}</p>
+          <p class="brief-meta">{{ weekly_staff_brief.match.location }}</p>
+          <ul class="brief-list">
+            {% for line in weekly_staff_brief.alerts|slice:":3" %}
+            <li>{{ line }}</li>
+            {% empty %}
+            <li>Sin alertas destacadas para esta semana.</li>
+            {% endfor %}
+          </ul>
+          <div class="overview-summary is-compact" style="margin-top:0.9rem;">
+            {% for item in weekly_staff_brief.availability %}
+            <article class="overview-item">
+              <div class="label">{{ item.label }}</div>
+              <div class="value">{{ item.value }}</div>
+            </article>
+            {% endfor %}
+          </div>
+        </aside>
+        {% endif %}
       </section>
       {% endif %}
       {% if kpis and not coach_overview_stats %}
@@ -556,20 +725,35 @@
       <section class="coach-panels">
         {% if coach_general_stats %}
         <article class="coach-panel">
-          <h3>KPIs generales de temporada</h3>
+          <h3>Temporada</h3>
           <div class="coach-stat-grid">
-            {% for item in coach_general_stats %}
+            {% for item in coach_general_stats|slice:":6" %}
             <div class="coach-stat">
               <div class="label">{{ item.label }}</div>
               <div class="value">{{ item.value }}</div>
             </div>
             {% endfor %}
           </div>
+          {% if coach_general_stats|length > 6 %}
+          <details class="fold-card" style="margin-top:0.8rem;">
+            <summary>Ver métricas de temporada completas</summary>
+            <div class="fold-card-body">
+              <div class="coach-stat-grid">
+                {% for item in coach_general_stats|slice:"6:" %}
+                <div class="coach-stat">
+                  <div class="label">{{ item.label }}</div>
+                  <div class="value">{{ item.value }}</div>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+          </details>
+          {% endif %}
         </article>
         {% endif %}
         {% if coach_player_leaders %}
         <article class="coach-panel">
-          <h3>Líderes plantilla</h3>
+          <h3>Referencias plantilla</h3>
           <ul class="leaders">
             {% for leader in coach_player_leaders %}
             <li>
@@ -583,24 +767,29 @@
       </section>
       {% endif %}
       {% if coach_total_field_zones %}
-      <section class="coach-map-wrap">
-        <h3>Mapa de acciones del equipo (totales)</h3>
-        <p style="margin:0 0 0.6rem;color:rgba(226,232,240,0.75);">Acciones con zona válida: <strong>{{ coach_total_actions_count }}</strong></p>
-        <div class="field-diagram">
-          <img src="{% static 'football/campo-futbol.jpg' %}" alt="Campo de fútbol" />
-          {% for zone in coach_total_field_zones %}
-          <div class="field-zone" style="left: {{ zone.left }}; top: {{ zone.top }}; width: {{ zone.width }}; height: {{ zone.height }};">
-            <span>{{ zone.label }}</span>
-            <span class="zone-count" title="{{ zone.count }} acciones">{{ zone.count }} · {{ zone.pct|default:0|floatformat:-1 }}%</span>
-          </div>
-          {% endfor %}
+      <details class="fold-card">
+        <summary>Mapa de acciones del equipo</summary>
+        <div class="fold-card-body">
+          <section class="coach-map-wrap" style="margin-top:0;">
+            <h3>Mapa de acciones del equipo (totales)</h3>
+            <p style="margin:0 0 0.6rem;color:rgba(226,232,240,0.75);">Acciones con zona válida: <strong>{{ coach_total_actions_count }}</strong></p>
+            <div class="field-diagram">
+              <img src="{% static 'football/campo-futbol.jpg' %}" alt="Campo de fútbol" />
+              {% for zone in coach_total_field_zones %}
+              <div class="field-zone" style="left: {{ zone.left }}; top: {{ zone.top }}; width: {{ zone.width }}; height: {{ zone.height }};">
+                <span>{{ zone.label }}</span>
+                <span class="zone-count" title="{{ zone.count }} acciones">{{ zone.count }} · {{ zone.pct|default:0|floatformat:-1 }}%</span>
+              </div>
+              {% endfor %}
+            </div>
+          </section>
         </div>
-      </section>
+      </details>
       {% endif %}
       {% if coach_player_options %}
-      <section class="analysis-section coach-player-tools">
-        <h3>Jugador · Temporada y Partido</h3>
-        <p class="section-copy">Selecciona un jugador para ver su temporada completa o bajar al detalle de uno de sus partidos con el mismo formato visual de KPI.</p>
+      <section id="coach-player" class="analysis-section is-light coach-player-tools">
+        <h3>Jugador</h3>
+        <p class="section-copy">Bloque específico para revisar rendimiento individual. La vista de temporada queda como lectura principal y el detalle de partido solo cuando se selecciona.</p>
         <form method="get" class="coach-player-toolbar">
           {% if coach_selected_match %}<input type="hidden" name="match" value="{{ coach_selected_match.match_id }}"/>{% endif %}
           <div>
@@ -627,101 +816,127 @@
           {% endif %}
         </form>
         {% if coach_player_view %}
-        <div class="coach-player-header">
-          <div class="coach-player-header-main">
-            <img class="coach-player-avatar" src="{{ coach_player_view.photo_url|default:'' }}" alt="{{ coach_player_view.title }}" />
-            <div>
-              <h2 style="margin:0;">{{ coach_player_view.title }}</h2>
-              <div class="coach-player-meta">{{ coach_player_view.meta }}</div>
+        <div class="player-focus-grid">
+          <div>
+            <div class="coach-player-header">
+              <div class="coach-player-header-main">
+                <img class="coach-player-avatar" src="{{ coach_player_view.photo_url|default:'' }}" alt="{{ coach_player_view.title }}" />
+                <div>
+                  <h2 style="margin:0;">{{ coach_player_view.title }}</h2>
+                  <div class="coach-player-meta">{{ coach_player_view.meta }}</div>
+                </div>
+              </div>
+              <a class="pill-button" style="text-decoration:none;" href="{% url 'player-detail' coach_selected_player_id %}">Ficha completa</a>
             </div>
+            <div class="overview-rings">
+              {% for item in coach_player_view.rings %}
+              <article class="overview-ring">
+                <div class="overview-ring-chart" style="--pct: {{ item.pct|default:0 }};">
+                  <span class="overview-ring-value">{{ item.value }}</span>
+                </div>
+                <div class="overview-ring-label">{{ item.label }}</div>
+              </article>
+              {% endfor %}
+            </div>
+            <div class="overview-summary is-compact">
+              {% for item in coach_player_view.summary|slice:":8" %}
+              <article class="overview-item">
+                <div class="label">{{ item.label }}</div>
+                <div class="value">{{ item.value }}</div>
+              </article>
+              {% endfor %}
+            </div>
+            {% if coach_player_view.summary|length > 8 %}
+            <details class="fold-card is-light">
+              <summary>Ver datos avanzados del jugador</summary>
+              <div class="fold-card-body">
+                <div class="overview-summary is-compact">
+                  {% for item in coach_player_view.summary|slice:"8:" %}
+                  <article class="overview-item">
+                    <div class="label">{{ item.label }}</div>
+                    <div class="value">{{ item.value }}</div>
+                  </article>
+                  {% endfor %}
+                </div>
+              </div>
+            </details>
+            {% endif %}
           </div>
-          <a class="pill-button" style="text-decoration:none;" href="{% url 'player-detail' coach_selected_player_id %}">Ficha completa</a>
-        </div>
-        <div class="overview-rings">
-          {% for item in coach_player_view.rings %}
-          <article class="overview-ring">
-            <div class="overview-ring-chart" style="--pct: {{ item.pct|default:0 }};">
-              <span class="overview-ring-value">{{ item.value }}</span>
+          <div class="analysis-stack">
+            {% if coach_player_view.fines_summary %}
+            <div class="overview-summary is-compact">
+              {% for item in coach_player_view.fines_summary %}
+              <article class="overview-item">
+                <div class="label">{{ item.label }}</div>
+                <div class="value">{{ item.value }}</div>
+              </article>
+              {% endfor %}
             </div>
-            <div class="overview-ring-label">{{ item.label }}</div>
-          </article>
-          {% endfor %}
+            {% endif %}
+            {% if coach_player_view.field_zones %}
+            <div class="coach-map-wrap is-light" style="margin-top:0;">
+              <h3>Mapa de calor</h3>
+              <div class="field-diagram">
+                <img src="{% static 'football/campo-futbol.jpg' %}" alt="Campo de fútbol" />
+                {% for zone in coach_player_view.field_zones %}
+                <div class="field-zone" style="left: {{ zone.left }}; top: {{ zone.top }}; width: {{ zone.width }}; height: {{ zone.height }};">
+                  <span>{{ zone.label }}</span>
+                  <span class="zone-count" title="{{ zone.count }} acciones">{{ zone.pct|default:0|floatformat:-1 }}%</span>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+            {% endif %}
+          </div>
         </div>
-        <div class="overview-summary">
-          {% for item in coach_player_view.summary %}
-          <article class="overview-item">
-            <div class="label">{{ item.label }}</div>
-            <div class="value">{{ item.value }}</div>
-          </article>
-          {% endfor %}
-        </div>
-        {% if coach_player_view.fines_summary %}
-        <div class="overview-summary" style="margin-top:1rem;">
-          {% for item in coach_player_view.fines_summary %}
-          <article class="overview-item">
-            <div class="label">{{ item.label }}</div>
-            <div class="value">{{ item.value }}</div>
-          </article>
-          {% endfor %}
-        </div>
-        {% endif %}
         {% if coach_player_view.fines_records or coach_player_view.communications %}
-        <div class="coach-player-detail-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;margin-top:1rem;">
-          <article class="analysis-card">
-            <h3 style="margin-top:0;">Multas</h3>
-            {% if coach_player_view.fines_records %}
-            <div class="stack-list">
-              {% for item in coach_player_view.fines_records %}
-              <article class="stack-item">
-                <strong>{{ item.title }}</strong>
-                <div class="meta">{{ item.meta }}</div>
-                <p>{{ item.detail }}</p>
+        <details class="fold-card is-light">
+          <summary>Multas y comunicación</summary>
+          <div class="fold-card-body">
+            <div class="coach-player-detail-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;">
+              <article class="analysis-card">
+                <h3 style="margin-top:0;">Multas</h3>
+                {% if coach_player_view.fines_records %}
+                <div class="stack-list">
+                  {% for item in coach_player_view.fines_records %}
+                  <article class="stack-item">
+                    <strong>{{ item.title }}</strong>
+                    <div class="meta">{{ item.meta }}</div>
+                    <p>{{ item.detail }}</p>
+                  </article>
+                  {% endfor %}
+                </div>
+                {% else %}
+                <p class="section-copy" style="margin:0;">Sin multas registradas.</p>
+                {% endif %}
               </article>
-              {% endfor %}
-            </div>
-            {% else %}
-            <p class="section-copy" style="margin:0;">Sin multas registradas.</p>
-            {% endif %}
-          </article>
-          <article class="analysis-card">
-            <h3 style="margin-top:0;">Comunicación</h3>
-            {% if coach_player_view.communications %}
-            <div class="stack-list">
-              {% for item in coach_player_view.communications %}
-              <article class="stack-item">
-                <strong>{{ item.title }}</strong>
-                <div class="meta">{{ item.meta }}</div>
-                <p>{{ item.detail }}</p>
+              <article class="analysis-card">
+                <h3 style="margin-top:0;">Comunicación</h3>
+                {% if coach_player_view.communications %}
+                <div class="stack-list">
+                  {% for item in coach_player_view.communications %}
+                  <article class="stack-item">
+                    <strong>{{ item.title }}</strong>
+                    <div class="meta">{{ item.meta }}</div>
+                    <p>{{ item.detail }}</p>
+                  </article>
+                  {% endfor %}
+                </div>
+                {% else %}
+                <p class="section-copy" style="margin:0;">Sin comunicaciones registradas.</p>
+                {% endif %}
               </article>
-              {% endfor %}
             </div>
-            {% else %}
-            <p class="section-copy" style="margin:0;">Sin comunicaciones registradas.</p>
-            {% endif %}
-          </article>
-        </div>
-        {% endif %}
-        {% if coach_player_view.field_zones %}
-        <div class="coach-map-wrap" style="margin-top:1rem;background:#0b1b12;">
-          <h3 style="color:#f8fafc;">Mapa de calor</h3>
-          <div class="field-diagram">
-            <img src="{% static 'football/campo-futbol.jpg' %}" alt="Campo de fútbol" />
-            {% for zone in coach_player_view.field_zones %}
-            <div class="field-zone" style="left: {{ zone.left }}; top: {{ zone.top }}; width: {{ zone.width }}; height: {{ zone.height }};">
-              <span>{{ zone.label }}</span>
-              <span class="zone-count" title="{{ zone.count }} acciones">{{ zone.pct|default:0|floatformat:-1 }}%</span>
-            </div>
-            {% endfor %}
           </div>
-        </div>
+        </details>
         {% endif %}
         {% endif %}
       </section>
       {% endif %}
       {% if coach_match_rows %}
-      <section class="analysis-section">
-        <h3>Equipo · Análisis por Partido</h3>
-        <p class="section-copy">Vista general de todos los partidos medidos y detalle completo del partido seleccionado para analizar el comportamiento colectivo.</p>
+      <section id="coach-match" class="analysis-section">
+        <h3>Partido</h3>
+        <p class="section-copy">El bloque de partido queda separado del resumen general para que primero elijas el encuentro y luego revises detalle colectivo y jugadores implicados.</p>
         <form method="get" class="coach-match-toolbar">
           {% if coach_selected_player_id %}<input type="hidden" name="player" value="{{ coach_selected_player_id }}" />{% endif %}
           {% if coach_selected_player_match_id %}<input type="hidden" name="player_match" value="{{ coach_selected_player_match_id }}" />{% endif %}
@@ -833,7 +1048,10 @@
       </section>
       {% endif %}
       {% if weekly_staff_brief %}
-      <section class="weekly-brief">
+      <details class="fold-card" style="margin-top:1.35rem;">
+        <summary>Parte semanal completo</summary>
+        <div class="fold-card-body">
+      <section class="weekly-brief" style="margin-top:0;">
         <article class="weekly-card">
           <h3>Parte semanal</h3>
           <p style="margin:0 0 0.45rem;"><strong>{{ weekly_staff_brief.headline }}</strong></p>
@@ -870,8 +1088,10 @@
           <p style="margin:0.2rem 0 0;color:rgba(186,230,253,0.86);">{{ weekly_staff_brief.probable_eleven_preview }}</p>
         </article>
       </section>
+        </div>
+      </details>
       {% endif %}
-      <section class="grid">
+      <section id="coach-modules" class="grid">
         {% for module in modules %}
         <a class="card-link" href="{% url module.link %}">
           <article class="card">
