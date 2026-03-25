@@ -135,6 +135,63 @@
         outline-offset: 2px;
       }
       .task h3 { margin: 0; font-size: 0.92rem; }
+      .session-stack {
+        display: grid;
+        gap: 0.65rem;
+        margin-top: 0.75rem;
+      }
+      .session-card {
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 12px;
+        background: rgba(2, 10, 22, 0.45);
+        padding: 0.7rem;
+      }
+      .session-card-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 0.7rem;
+      }
+      .session-card-head h4 {
+        margin: 0;
+        font-size: 0.86rem;
+        letter-spacing: 0.02em;
+      }
+      .session-chip-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+        margin-top: 0.45rem;
+      }
+      .session-chip {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: rgba(255, 255, 255, 0.06);
+        padding: 0.2rem 0.5rem;
+        font-size: 0.66rem;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+      .session-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        margin-top: 0.65rem;
+      }
+      .session-editor {
+        margin-top: 0.65rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        padding-top: 0.65rem;
+      }
+      .session-editor summary {
+        cursor: pointer;
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.9);
+      }
       .task-title {
         margin: 0 0 0.35rem;
         font-size: 0.95rem;
@@ -1413,6 +1470,10 @@
                   <input type="date" name="plan_session_date" required />
                 </label>
                 <label>
+                  Hora inicio
+                  <input type="time" name="plan_session_start_time" />
+                </label>
+                <label>
                   Foco
                   <input type="text" name="plan_session_focus" maxlength="140" placeholder="Ej: Transición + finalización" required />
                 </label>
@@ -1457,6 +1518,98 @@
                 <p class="meta"><strong>{{ row.obj.week_start|date:"d/m/Y" }}</strong> → <strong>{{ row.obj.week_end|date:"d/m/Y" }}</strong> · Estado: {{ row.obj.get_status_display }}</p>
                 <p class="meta">Sesiones: <strong>{{ row.sessions_count }}</strong> · Tareas: <strong>{{ row.tasks_count }}</strong></p>
                 {% if row.obj.objective %}<p class="meta">Objetivo: {{ row.obj.objective }}</p>{% endif %}
+                {% if row.sessions %}
+                <div class="session-stack">
+                  {% for session in row.sessions %}
+                  <article class="session-card">
+                    <div class="session-card-head">
+                      <div>
+                        <h4>{{ session.obj.focus }}</h4>
+                        <p class="meta" style="margin:0.25rem 0 0;">
+                          {{ session.obj.session_date|date:"d/m/Y" }}
+                          {% if session.obj.start_time %} · {{ session.obj.start_time|time:"H:i" }}{% endif %}
+                          · {{ session.obj.duration_minutes }}'
+                        </p>
+                      </div>
+                      <span class="session-chip">{{ session.obj.get_status_display }}</span>
+                    </div>
+                    <div class="session-chip-row">
+                      <span class="session-chip">Intensidad · {{ session.obj.get_intensity_display }}</span>
+                      <span class="session-chip">Tareas · {{ session.tasks_count }}</span>
+                      <span class="session-chip">Orden · {{ session.obj.order }}</span>
+                    </div>
+                    {% if session.obj.content %}
+                    <p class="meta" style="margin-top:0.55rem;">{{ session.obj.content }}</p>
+                    {% endif %}
+                    <div class="session-actions">
+                      <details class="session-editor">
+                        <summary>Editar sesión</summary>
+                        <form method="post" class="grid" style="margin-top:0.7rem;">
+                          {% csrf_token %}
+                          <input type="hidden" name="planner_action" value="update_session_plan" />
+                          <input type="hidden" name="planner_tab" value="planning" />
+                          <input type="hidden" name="edit_session_id" value="{{ session.obj.id }}" />
+                          <label>
+                            Microciclo
+                            <select name="edit_microcycle_id" required>
+                              {% for item in planning_microcycles %}
+                              <option value="{{ item.id }}" {% if item.id == row.obj.id %}selected{% endif %}>{{ item.week_start|date:"d/m" }}-{{ item.week_end|date:"d/m" }} · {{ item.title }}</option>
+                              {% endfor %}
+                            </select>
+                          </label>
+                          <label>
+                            Fecha
+                            <input type="date" name="edit_session_date" value="{{ session.obj.session_date|date:'Y-m-d' }}" required />
+                          </label>
+                          <label>
+                            Hora inicio
+                            <input type="time" name="edit_session_start_time" value="{{ session.obj.start_time|time:'H:i' }}" />
+                          </label>
+                          <label>
+                            Foco
+                            <input type="text" name="edit_session_focus" value="{{ session.obj.focus }}" maxlength="140" required />
+                          </label>
+                          <label>
+                            Duración
+                            <input type="number" name="edit_session_minutes" min="30" max="180" value="{{ session.obj.duration_minutes }}" />
+                          </label>
+                          <label>
+                            Intensidad
+                            <select name="edit_session_intensity">
+                              {% for value, label in session_intensity_choices %}
+                              <option value="{{ value }}" {% if value == session.obj.intensity %}selected{% endif %}>{{ label }}</option>
+                              {% endfor %}
+                            </select>
+                          </label>
+                          <label>
+                            Estado
+                            <select name="edit_session_status">
+                              {% for value, label in session_status_choices %}
+                              <option value="{{ value }}" {% if value == session.obj.status %}selected{% endif %}>{{ label }}</option>
+                              {% endfor %}
+                            </select>
+                          </label>
+                          <label style="grid-column:1/-1;">
+                            Contenido
+                            <textarea name="edit_session_content">{{ session.obj.content|default:'' }}</textarea>
+                          </label>
+                          <div><button type="submit" class="primary">Guardar cambios</button></div>
+                        </form>
+                      </details>
+                      <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="planner_action" value="delete_session_plan" />
+                        <input type="hidden" name="planner_tab" value="planning" />
+                        <input type="hidden" name="delete_session_id" value="{{ session.obj.id }}" />
+                        <button type="submit" class="danger">Eliminar</button>
+                      </form>
+                    </div>
+                  </article>
+                  {% endfor %}
+                </div>
+                {% else %}
+                <p class="meta" style="margin-top:0.7rem;">Sin sesiones planificadas en este microciclo.</p>
+                {% endif %}
               </div>
             </article>
             {% endfor %}

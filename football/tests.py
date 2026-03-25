@@ -13,7 +13,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from football.models import AnalystVideoFolder, Competition, ConvocationRecord, Group, Match, MatchEvent, Player, PlayerCommunication, PlayerFine, PlayerStatistic, RivalVideo, Season, Team, TeamStanding, UserInvitation
+from football.models import AnalystVideoFolder, Competition, ConvocationRecord, Group, Match, MatchEvent, Player, PlayerCommunication, PlayerFine, PlayerStatistic, RivalVideo, Season, SessionTask, Team, TeamStanding, TrainingMicrocycle, TrainingSession, UserInvitation
 from football.bootstrap import ensure_bootstrap_admin_from_env
 from football.event_taxonomy import (
     PASS_KEYWORDS,
@@ -1383,3 +1383,141 @@ class AnalysisVideoWorkspaceTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Vídeos')
         self.assertContains(response, 'ABP ofensiva rival')
+
+
+class SessionsPlanningTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.user = get_user_model().objects.create_user(
+            username='sessions-coach',
+            email='sessions-coach@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_COACH)
+        competition = Competition.objects.create(name='Liga Sessions', slug='liga-sessions', region='Andalucia')
+        season = Season.objects.create(competition=competition, name='2025/2026', is_current=True)
+        group = Group.objects.create(season=season, name='Grupo Sessions', slug='grupo-sessions')
+        self.team = Team.objects.create(name='Benagalbon', slug='benagalbon-sessions', group=group, is_primary=True)
+        self.microcycle = TrainingMicrocycle.objects.create(
+            team=self.team,
+            title='Microciclo J24',
+            week_start=date(2026, 3, 23),
+            week_end=date(2026, 3, 29),
+        )
+        self.client.force_login(self.user)
+
+    def test_create_session_plan_saves_start_time_and_renders_session_card(self):
+        response = self.client.post(
+            reverse('sessions'),
+            {
+                'planner_action': 'create_session_plan',
+                'planner_tab': 'planning',
+                'plan_microcycle_id': self.microcycle.id,
+                'plan_session_date': '2026-03-25',
+                'plan_session_start_time': '19:30',
+                'plan_session_focus': 'Transición + finalización',
+                'plan_session_minutes': '95',
+                'plan_session_intensity': TrainingSession.INTENSITY_HIGH,
+                'plan_session_status': TrainingSession.STATUS_PLANNED,
+                'plan_session_content': 'Tarea de activación y juego aplicado',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        session = TrainingSession.objects.get(microcycle=self.microcycle)
+        self.assertEqual(session.start_time.strftime('%H:%M'), '19:30')
+        self.assertContains(response, 'Transición + finalización')
+        self.assertContains(response, '19:30')
+
+    def test_create_session_plan_rejects_date_outside_microcycle(self):
+        response = self.client.post(
+            reverse('sessions'),
+            {
+                'planner_action': 'create_session_plan',
+                'planner_tab': 'planning',
+                'plan_microcycle_id': self.microcycle.id,
+                'plan_session_date': '2026-04-01',
+                'plan_session_focus': 'Sesión fuera de rango',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'La fecha de la sesión debe estar dentro del microciclo.')
+        self.assertFalse(TrainingSession.objects.exists())
+
+    def test_create_session_plan_blocks_duplicates(self):
+        TrainingSession.objects.create(
+            microcycle=self.microcycle,
+            session_date=date(2026, 3, 25),
+            focus='Transición + finalización',
+            duration_minutes=90,
+        )
+
+        response = self.client.post(
+            reverse('sessions'),
+            {
+                'planner_action': 'create_session_plan',
+                'planner_tab': 'planning',
+                'plan_microcycle_id': self.microcycle.id,
+                'plan_session_date': '2026-03-25',
+                'plan_session_focus': 'Transición + finalización',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Ya existe una sesión con la misma fecha y foco en este microciclo.')
+        self.assertEqual(TrainingSession.objects.count(), 1)
+
+    def test_update_session_plan_changes_schedule_fields(self):
+        session = TrainingSession.objects.create(
+            microcycle=self.microcycle,
+            session_date=date(2026, 3, 25),
+            focus='Sesión inicial',
+            duration_minutes=90,
+        )
+
+        response = self.client.post(
+            reverse('sessions'),
+            {
+                'planner_action': 'update_session_plan',
+                'planner_tab': 'planning',
+                'edit_session_id': session.id,
+                'edit_microcycle_id': self.microcycle.id,
+                'edit_session_date': '2026-03-26',
+                'edit_session_start_time': '18:00',
+                'edit_session_focus': 'Sesión corregida',
+                'edit_session_minutes': '80',
+                'edit_session_intensity': TrainingSession.INTENSITY_MEDIUM,
+                'edit_session_status': TrainingSession.STATUS_DONE,
+                'edit_session_content': 'Contenido actualizado',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        session.refresh_from_db()
+        self.assertEqual(session.focus, 'Sesión corregida')
+        self.assertEqual(session.session_date, date(2026, 3, 26))
+        self.assertEqual(session.start_time.strftime('%H:%M'), '18:00')
+        self.assertEqual(session.status, TrainingSession.STATUS_DONE)
+
+    def test_delete_session_plan_blocks_sessions_with_tasks(self):
+        session = TrainingSession.objects.create(
+            microcycle=self.microcycle,
+            session_date=date(2026, 3, 25),
+            focus='Sesión con tarea',
+            duration_minutes=90,
+        )
+        SessionTask.objects.create(session=session, title='Juego de posición')
+
+        response = self.client.post(
+            reverse('sessions'),
+            {
+                'planner_action': 'delete_session_plan',
+                'planner_tab': 'planning',
+                'delete_session_id': session.id,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'No puedes borrar una sesión que ya tiene tareas asociadas.')
+        self.assertTrue(TrainingSession.objects.filter(id=session.id).exists())

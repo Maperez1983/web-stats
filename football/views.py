@@ -6379,12 +6379,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             'Ejecuta `python manage.py migrate` y recarga la página.'
         )
 
-    all_sessions = list(
-        TrainingSession.objects
-        .select_related('microcycle')
-        .filter(microcycle__team=primary_team)
-        .order_by('-session_date', '-id')[:150]
-    ) if planner_tables_ready else []
+    all_sessions = []
 
     if request.method == 'POST' and planner_tables_ready:
         planner_action = (request.POST.get('planner_action') or '').strip()
@@ -6603,6 +6598,15 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     session_date = datetime.strptime(session_date_raw, '%Y-%m-%d').date()
                 except ValueError:
                     raise ValueError('Fecha de sesión no válida.')
+                if session_date < microcycle.week_start or session_date > microcycle.week_end:
+                    raise ValueError('La fecha de la sesión debe estar dentro del microciclo.')
+                start_time_raw = str(request.POST.get('plan_session_start_time') or '').strip()
+                start_time = None
+                if start_time_raw:
+                    try:
+                        start_time = datetime.strptime(start_time_raw, '%H:%M').time()
+                    except ValueError:
+                        raise ValueError('Hora de sesión no válida.')
                 duration_minutes = max(30, min(_parse_int(request.POST.get('plan_session_minutes')) or 90, 180))
                 intensity = str(request.POST.get('plan_session_intensity') or TrainingSession.INTENSITY_MEDIUM).strip()
                 if intensity not in {item[0] for item in TrainingSession.INTENSITY_CHOICES}:
@@ -6611,10 +6615,18 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 if status not in {item[0] for item in TrainingSession.STATUS_CHOICES}:
                     status = TrainingSession.STATUS_PLANNED
                 content = str(request.POST.get('plan_session_content') or '').strip()
+                duplicate_exists = TrainingSession.objects.filter(
+                    microcycle=microcycle,
+                    session_date=session_date,
+                    focus__iexact=focus,
+                ).exists()
+                if duplicate_exists:
+                    raise ValueError('Ya existe una sesión con la misma fecha y foco en este microciclo.')
                 next_order = (TrainingSession.objects.filter(microcycle=microcycle).aggregate(Max('order')).get('order__max') or 0) + 1
                 TrainingSession.objects.create(
                     microcycle=microcycle,
                     session_date=session_date,
+                    start_time=start_time,
                     duration_minutes=duration_minutes,
                     intensity=intensity,
                     focus=focus,
@@ -6623,6 +6635,88 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     order=next_order,
                 )
                 feedback = f'Sesión creada en {microcycle.title}: {focus}.'
+
+            elif planner_action == 'update_session_plan':
+                session_id = _parse_int(request.POST.get('edit_session_id'))
+                microcycle_id = _parse_int(request.POST.get('edit_microcycle_id'))
+                if not session_id or not microcycle_id:
+                    raise ValueError('No se pudo identificar la sesión a actualizar.')
+                session_obj = (
+                    TrainingSession.objects
+                    .select_related('microcycle')
+                    .filter(id=session_id, microcycle__team=primary_team)
+                    .first()
+                )
+                microcycle = (
+                    TrainingMicrocycle.objects
+                    .filter(id=microcycle_id, team=primary_team)
+                    .first()
+                )
+                if not session_obj or not microcycle:
+                    raise ValueError('Sesión o microciclo no encontrado.')
+                session_date_raw = str(request.POST.get('edit_session_date') or '').strip()
+                focus = str(request.POST.get('edit_session_focus') or '').strip()[:140]
+                if not session_date_raw or not focus:
+                    raise ValueError('Completa fecha y foco para actualizar la sesión.')
+                try:
+                    session_date = datetime.strptime(session_date_raw, '%Y-%m-%d').date()
+                except ValueError:
+                    raise ValueError('Fecha de sesión no válida.')
+                if session_date < microcycle.week_start or session_date > microcycle.week_end:
+                    raise ValueError('La fecha de la sesión debe estar dentro del microciclo.')
+                start_time_raw = str(request.POST.get('edit_session_start_time') or '').strip()
+                start_time = None
+                if start_time_raw:
+                    try:
+                        start_time = datetime.strptime(start_time_raw, '%H:%M').time()
+                    except ValueError:
+                        raise ValueError('Hora de sesión no válida.')
+                duration_minutes = max(30, min(_parse_int(request.POST.get('edit_session_minutes')) or 90, 180))
+                intensity = str(request.POST.get('edit_session_intensity') or TrainingSession.INTENSITY_MEDIUM).strip()
+                if intensity not in {item[0] for item in TrainingSession.INTENSITY_CHOICES}:
+                    intensity = TrainingSession.INTENSITY_MEDIUM
+                status = str(request.POST.get('edit_session_status') or TrainingSession.STATUS_PLANNED).strip()
+                if status not in {item[0] for item in TrainingSession.STATUS_CHOICES}:
+                    status = TrainingSession.STATUS_PLANNED
+                content = str(request.POST.get('edit_session_content') or '').strip()
+                duplicate_exists = (
+                    TrainingSession.objects
+                    .filter(microcycle=microcycle, session_date=session_date, focus__iexact=focus)
+                    .exclude(id=session_obj.id)
+                    .exists()
+                )
+                if duplicate_exists:
+                    raise ValueError('Ya existe otra sesión con la misma fecha y foco en este microciclo.')
+                if session_obj.microcycle_id != microcycle.id:
+                    session_obj.order = (TrainingSession.objects.filter(microcycle=microcycle).aggregate(Max('order')).get('order__max') or 0) + 1
+                session_obj.microcycle = microcycle
+                session_obj.session_date = session_date
+                session_obj.start_time = start_time
+                session_obj.duration_minutes = duration_minutes
+                session_obj.intensity = intensity
+                session_obj.focus = focus
+                session_obj.content = content
+                session_obj.status = status
+                session_obj.save()
+                feedback = f'Sesión actualizada: {focus}.'
+
+            elif planner_action == 'delete_session_plan':
+                session_id = _parse_int(request.POST.get('delete_session_id'))
+                if not session_id:
+                    raise ValueError('No se pudo identificar la sesión a eliminar.')
+                session_obj = (
+                    TrainingSession.objects
+                    .select_related('microcycle')
+                    .filter(id=session_id, microcycle__team=primary_team)
+                    .first()
+                )
+                if not session_obj:
+                    raise ValueError('Sesión no encontrada.')
+                if session_obj.tasks.exists():
+                    raise ValueError('No puedes borrar una sesión que ya tiene tareas asociadas.')
+                deleted_focus = session_obj.focus
+                session_obj.delete()
+                feedback = f'Sesión eliminada: {deleted_focus}.'
 
             elif planner_action == 'copy_library_task_to_session':
                 source_task_id = _parse_int(request.POST.get('source_task_id'))
@@ -7232,6 +7326,13 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         if requested_tab in {'import', 'create', 'library', 'planning'}:
             active_tab = requested_tab
 
+    all_sessions = list(
+        TrainingSession.objects
+        .select_related('microcycle')
+        .filter(microcycle__team=primary_team)
+        .order_by('-session_date', '-id')[:150]
+    ) if planner_tables_ready else []
+
     analyze_task_id = _parse_int(request.GET.get('analyze'))
     if planner_tables_ready and analyze_task_id and not analysis:
         candidate = (
@@ -7348,14 +7449,27 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             TrainingSession.objects
             .select_related('microcycle')
             .filter(microcycle__team=primary_team)
-            .order_by('-session_date', '-id')
+            .order_by('-microcycle__week_start', 'session_date', 'start_time', 'order', 'id')
         )
         planning_sessions = list(planning_session_qs[:200])
     sessions_count_map = defaultdict(int)
+    tasks_count_by_session = defaultdict(int)
     tasks_count_map = defaultdict(int)
+    sessions_by_microcycle = defaultdict(list)
     for session_item in planning_sessions:
         sessions_count_map[int(session_item.microcycle_id)] += 1
+        sessions_by_microcycle[int(session_item.microcycle_id)].append(session_item)
     if planner_tables_ready:
+        session_task_counts = (
+            SessionTask.objects
+            .filter(session__microcycle__team=primary_team)
+            .values('session_id')
+            .annotate(total=Count('id'))
+        )
+        for row in session_task_counts:
+            key = _parse_int(row.get('session_id'))
+            if key:
+                tasks_count_by_session[int(key)] = int(row.get('total') or 0)
         task_counts = (
             SessionTask.objects
             .filter(session__microcycle__team=primary_team)
@@ -7373,6 +7487,13 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 'obj': micro,
                 'sessions_count': sessions_count_map.get(int(micro.id), 0),
                 'tasks_count': tasks_count_map.get(int(micro.id), 0),
+                'sessions': [
+                    {
+                        'obj': session_item,
+                        'tasks_count': tasks_count_by_session.get(int(session_item.id), 0),
+                    }
+                    for session_item in sessions_by_microcycle.get(int(micro.id), [])
+                ],
             }
         )
     tactical_player_catalog = []
