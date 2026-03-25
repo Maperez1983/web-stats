@@ -7761,6 +7761,8 @@ def player_detail_page(request, player_id):
         player = Player.objects.filter(id=player_id, team=primary_team).first()
         if not player:
             return JsonResponse({'error': 'Jugador no encontrado'}, status=404)
+        current_role = _get_user_role(request.user) or AppUserRole.ROLE_PLAYER
+        is_player_readonly = current_role == AppUserRole.ROLE_PLAYER and not _is_admin_user(request.user)
         active_match = get_active_match(primary_team)
         current_convocation = get_current_convocation_record(primary_team, match=active_match)
         is_called_up = bool(
@@ -7804,7 +7806,7 @@ def player_detail_page(request, player_id):
                 return primary_team.group.season
             return Season.objects.filter(is_current=True).order_by('-start_date', '-id').first()
 
-        if request.method == 'POST':
+        if request.method == 'POST' and not is_player_readonly:
             form_action = (request.POST.get('form_action') or 'profile').strip().lower()
 
             if form_action == 'profile':
@@ -8153,6 +8155,7 @@ def player_detail_page(request, player_id):
                 'fines_summary': fines_summary,
                 'fines_records': fines_records,
                 'stats_error': stats_error,
+                'is_player_readonly': is_player_readonly,
             },
         )
     except Exception:
