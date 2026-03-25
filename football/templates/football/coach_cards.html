@@ -43,6 +43,11 @@
         flex-direction: column;
         justify-content: space-between;
       }
+      .card-top {
+        display: flex;
+        flex-direction: column;
+        gap: 0.8rem;
+      }
       .card-link {
         color: inherit;
         text-decoration: none;
@@ -67,6 +72,32 @@
         letter-spacing: 0.2em;
         color: #facc15;
       }
+      .card-links {
+        display: grid;
+        gap: 0.45rem;
+        margin-top: 0.25rem;
+      }
+      .mini-link {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.7rem;
+        border-radius: 14px;
+        padding: 0.65rem 0.8rem;
+        text-decoration: none;
+        background: rgba(2, 6, 23, 0.42);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        color: #e2e8f0;
+        font-weight: 600;
+      }
+      .mini-link span:last-child {
+        color: #7dd3fc;
+        font-size: 0.88rem;
+      }
+      .mini-link:hover {
+        border-color: rgba(56, 189, 248, 0.38);
+        background: rgba(8, 47, 73, 0.5);
+      }
       .card-link:hover .card {
         transform: translateY(-2px);
         border-color: rgba(56, 189, 248, 0.45);
@@ -80,20 +111,32 @@
       <header>
         <div>
           <p style="margin:0;color:rgba(226,232,240,0.6);">Cuerpo técnico · Panel estratégico</p>
-          <h1>Entrenadores</h1>
+          <h1>Plantilla técnica</h1>
         </div>
         <a class="pill-button" style="border-radius:12px;" href="{% url 'coach-detail' %}">Volver</a>
       </header>
       <div class="grid">
         {% for card in cards %}
-        <a class="card-link" href="{% url card.link %}">
-          <article class="card">
+        <article class="card">
+          <a class="card-link" href="{% url card.link %}">
+            <div class="card-top">
             <h3>{{ card.title }}</h3>
             <p>{{ card.description }}</p>
             <p class="member">Responsable: {{ card.member_name }}</p>
             <strong>{{ card.title }} →</strong>
-          </article>
-        </a>
+            </div>
+          </a>
+          {% if card.items %}
+          <div class="card-links">
+            {% for item in card.items %}
+            <a class="mini-link" href="{% url item.link %}">
+              <span>{{ item.label }}</span>
+              <span>Entrar</span>
+            </a>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </article>
         {% endfor %}
       </div>
     </div>

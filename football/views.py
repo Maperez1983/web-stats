@@ -3329,34 +3329,49 @@ def coach_cards_page(request):
         return forbidden
     cards = [
         {
-            'title': 'Entrenador',
-            'description': 'Convocatoria, 11 inicial, sesiones y multas en un único bloque.',
+            'title': 'Datos temporada',
+            'description': 'Resumen competitivo y operativo del equipo durante la temporada.',
             'link': 'coach-role-trainer',
-            'member_name': 'Aitor · Antonio',
+            'member_name': 'Vista global staff',
+            'items': [
+                {'label': 'Resumen equipo', 'link': 'coach-role-trainer'},
+                {'label': 'Disponibilidad', 'link': 'coach-role-trainer'},
+                {'label': 'KPIs y líderes', 'link': 'coach-role-trainer'},
+                {'label': 'Seguimiento jugadores', 'link': 'player-dashboard'},
+            ],
         },
         {
-            'title': 'Preparador porteros',
-            'description': 'Repositorio táctico y tareas específicas de porteros.',
-            'link': 'coach-role-goalkeeper',
-            'member_name': 'Sin asignar',
+            'title': 'Sesiones',
+            'description': 'Planificación y biblioteca de tareas por área de trabajo.',
+            'link': 'sessions',
+            'member_name': 'Porteros · Físico · ABP',
+            'items': [
+                {'label': 'Plan general', 'link': 'sessions'},
+                {'label': 'Porteros', 'link': 'sessions-goalkeeper'},
+                {'label': 'Preparación física', 'link': 'sessions-fitness'},
+                {'label': 'ABP', 'link': 'coach-role-abp'},
+            ],
         },
         {
-            'title': 'Preparación física',
-            'description': 'Espacio preparado para métricas y carga física.',
-            'link': 'coach-role-fitness',
-            'member_name': 'Sin asignar',
-        },
-        {
-            'title': 'ABP',
-            'description': 'Repositorio de sesiones ABP y pizarra táctica con simulación.',
-            'link': 'coach-role-abp',
-            'member_name': 'Alonso',
+            'title': 'Convocatoria y 11 inicial',
+            'description': 'Trabajo prepartido para cerrar lista, estructura y alineación.',
+            'link': 'convocation',
+            'member_name': 'Operativa matchday',
+            'items': [
+                {'label': 'Convocatoria', 'link': 'convocation'},
+                {'label': '11 inicial', 'link': 'initial-eleven'},
+                {'label': 'Registro acciones', 'link': 'match-action-page'},
+            ],
         },
         {
             'title': 'Análisis',
-            'description': 'Análisis de rival, vídeo y reportes tácticos de partido.',
+            'description': 'Rival, informes, vídeo y lectura táctica para preparar el partido.',
             'link': 'analysis',
-            'member_name': 'Miguel Ángel Pérez · Jose García Menéndez',
+            'member_name': 'Vídeo · rival · reportes',
+            'items': [
+                {'label': 'Análisis rival', 'link': 'analysis'},
+                {'label': 'Portada staff', 'link': 'coach-detail'},
+            ],
         },
     ]
     return render(

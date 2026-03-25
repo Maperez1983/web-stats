@@ -1859,3 +1859,18 @@ class CoachOverviewTests(TestCase):
         self.assertContains(response, 'Informe previo J24')
         self.assertContains(response, 'Sufren cuando les obligas a defender amplitud.')
         self.assertContains(response, 'Staff Técnico')
+
+    def test_coach_cards_page_groups_modules_by_function(self):
+        response = self.client.get(reverse('coach-cards'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Plantilla técnica')
+        self.assertContains(response, 'Datos temporada')
+        self.assertContains(response, 'Sesiones')
+        self.assertContains(response, 'Convocatoria y 11 inicial')
+        self.assertContains(response, 'Análisis')
+        self.assertNotContains(response, '>Entrenador<', html=False)
+        self.assertContains(response, reverse('sessions-goalkeeper'))
+        self.assertContains(response, reverse('sessions-fitness'))
+        self.assertContains(response, reverse('convocation'))
+        self.assertContains(response, reverse('initial-eleven'))
