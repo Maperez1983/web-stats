@@ -7999,7 +7999,7 @@ def player_detail_page(request, player_id):
         player = Player.objects.filter(id=player_id, team=primary_team).first()
         if not player:
             return JsonResponse({'error': 'Jugador no encontrado'}, status=404)
-        current_role = _get_user_role(request.user) or AppUserRole.ROLE_PLAYER
+        current_role = _get_user_role(request.user)
         is_player_readonly = current_role == AppUserRole.ROLE_PLAYER and not _is_admin_user(request.user)
         active_match = get_active_match(primary_team)
         current_convocation = get_current_convocation_record(primary_team, match=active_match)

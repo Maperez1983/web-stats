@@ -553,6 +553,20 @@ class PlayerDetailStatsFallbackTests(TestCase):
         self.assertContains(response, 'Las estadísticas consolidadas no están disponibles temporalmente.')
         mocked_dashboard.assert_called_once()
 
+    def test_player_detail_shows_staff_tabs_even_without_explicit_app_role(self):
+        no_role_user = get_user_model().objects.create_user(
+            username='coachlegacy',
+            email='coachlegacy@example.com',
+            password='pass-1234',
+        )
+        self.client.force_login(no_role_user)
+
+        response = self.client.get(reverse('player-detail', args=[self.player.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Multas')
+        self.assertContains(response, 'Comunicación')
+
 
 class AdminActionsTests(TestCase):
     def setUp(self):
