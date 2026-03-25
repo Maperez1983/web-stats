@@ -278,13 +278,20 @@
         <a class="admin-tab {% if active_tab == 'carousel' %}is-active{% endif %}" href="{% url 'admin-page' %}?tab=carousel">Fotos Home</a>
         <a class="admin-tab {% if active_tab == 'users' %}is-active{% endif %}" href="{% url 'admin-page' %}?tab=users">Usuarios y Roles</a>
         {% if is_admin_user %}
-        <a class="admin-tab {% if active_tab == 'actions' %}is-active{% endif %}" href="{% url 'admin-page' %}?tab=actions">Partidos y Acciones</a>
+        <a class="admin-tab {% if active_tab == 'actions' %}is-active{% endif %}" href="{% url 'admin-page' %}?tab=actions">Registro manual</a>
+        <a class="admin-tab" href="{% url 'manual-player-stats' %}">Estadísticas manuales</a>
         {% endif %}
       </nav>
 
       {% if active_tab == 'actions' and is_admin_user %}
       <section class="block">
-        <h2>Edición manual de partidos y acciones</h2>
+        <div style="display:flex;justify-content:space-between;gap:1rem;align-items:center;flex-wrap:wrap;">
+          <div>
+            <h2 style="margin:0 0 0.35rem;">Edición manual de partidos y acciones</h2>
+            <p style="margin:0;color:rgba(203,213,225,0.78);">Aquí puedes cargar partidos y acciones manuales. Las estadísticas base manuales siguen disponibles en su acceso específico.</p>
+          </div>
+          <a class="pill-button" style="text-decoration:none;" href="{% url 'manual-player-stats' %}">Abrir estadísticas manuales</a>
+        </div>
         {% if actions_message %}
         <p style="color:#86efac;">{{ actions_message }}</p>
         {% endif %}
