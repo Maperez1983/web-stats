@@ -312,7 +312,7 @@
       .video-card video { width: 100%; max-height: 240px; border-radius: 0.8rem; border: 1px solid rgba(148, 163, 184, 0.2); background: #020617; }
       .video-meta { display: flex; flex-wrap: wrap; gap: 0.45rem; margin: 0.4rem 0 0.7rem; }
       .video-chip { display: inline-flex; align-items: center; border-radius: 999px; padding: 0.2rem 0.65rem; background: rgba(14, 116, 144, 0.22); color: #bae6fd; font-size: 0.74rem; font-weight: 700; }
-      @media (max-width: 1120px) {
+      @media (max-width: 820px) {
         .personal-layout { grid-template-columns: 1fr; }
         .player-photo-card { justify-self: start; }
       }
@@ -354,13 +354,14 @@
       <div class="tabs" role="tablist">
         <button class="tab-btn" data-tab="general" role="tab">Datos + Estadísticas</button>
         <button class="tab-btn" data-tab="performance" role="tab">KPI + Mapa</button>
+        <button class="tab-btn" data-tab="injuries" role="tab">Lesiones</button>
+        <button class="tab-btn" data-tab="communication" role="tab">Comunicación</button>
         {% if assigned_analysis_videos %}
         <button class="tab-btn" data-tab="videos" role="tab">Vídeos</button>
         {% endif %}
         {% if not is_player_readonly %}
         <button class="tab-btn" data-tab="fines" role="tab">Multas</button>
         <button class="tab-btn" data-tab="physical" role="tab">Métricas físicas</button>
-        <button class="tab-btn" data-tab="communication" role="tab">Comunicación</button>
         {% endif %}
       </div>
 
@@ -638,25 +639,6 @@
         </form>
         {% endif %}
 
-        <h3 style="margin-top:1rem;">Historial de lesiones</h3>
-        <table>
-          <thead>
-            <tr><th>Lesión</th><th>Tipo · Zona · Lado</th><th>Fecha lesión</th><th>Fecha alta</th><th>Estado</th></tr>
-          </thead>
-          <tbody>
-            {% for item in injury_records %}
-            <tr>
-              <td>{{ item.injury }}</td>
-              <td>{{ item.injury_type|default:"--" }} · {{ item.injury_zone|default:"--" }} · {{ item.injury_side|default:"--" }}</td>
-              <td>{{ item.injury_date|date:"d/m/Y" }}</td>
-              <td>{% if item.return_date %}{{ item.return_date|date:"d/m/Y" }}{% else %}--{% endif %}</td>
-              <td>{% if item.is_active %}<span class="pill warn">Activa</span>{% else %}<span class="pill ok">Alta</span>{% endif %}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="5" class="subtle">Sin lesiones registradas.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
       </section>
 
       <section class="card tab-pane" data-pane="performance">
@@ -747,6 +729,44 @@
         {% endif %}
       </section>
 
+      <section class="card tab-pane" data-pane="injuries">
+        <h2 style="margin-top:0;">Historial de lesiones</h2>
+        <div class="stats-grid" style="margin-top:0.4rem;">
+          <article class="stat">
+            <div class="label">Estado actual</div>
+            <div class="value">
+              {% if has_active_injury %}Activa{% else %}Disponible{% endif %}
+            </div>
+          </article>
+          <article class="stat">
+            <div class="label">Registros</div>
+            <div class="value">{{ injury_records|length }}</div>
+          </article>
+          <article class="stat">
+            <div class="label">Última lesión</div>
+            <div class="value">{% if latest_injury_record %}{{ latest_injury_record.injury|default:'--' }}{% else %}--{% endif %}</div>
+          </article>
+        </div>
+        <table>
+          <thead>
+            <tr><th>Lesión</th><th>Tipo · Zona · Lado</th><th>Fecha lesión</th><th>Fecha alta</th><th>Estado</th></tr>
+          </thead>
+          <tbody>
+            {% for item in injury_records %}
+            <tr>
+              <td>{{ item.injury }}</td>
+              <td>{{ item.injury_type|default:"--" }} · {{ item.injury_zone|default:"--" }} · {{ item.injury_side|default:"--" }}</td>
+              <td>{{ item.injury_date|date:"d/m/Y" }}</td>
+              <td>{% if item.return_date %}{{ item.return_date|date:"d/m/Y" }}{% else %}--{% endif %}</td>
+              <td>{% if item.is_active %}<span class="pill warn">Activa</span>{% else %}<span class="pill ok">Alta</span>{% endif %}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="subtle">Sin lesiones registradas.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </section>
+
       {% if assigned_analysis_videos %}
       <section class="card tab-pane" data-pane="videos">
         <h2 style="margin-top:0;">Vídeos asignados</h2>
@@ -772,8 +792,8 @@
       </section>
       {% endif %}
 
-      {% if not is_player_readonly %}
       <section class="card tab-pane" data-pane="physical">
+        {% if not is_player_readonly %}
         <h2 style="margin-top:0;">Métricas físicas (staff)</h2>
         <div class="stats-grid" style="margin-top:0;">
           <article class="stat">
@@ -834,8 +854,13 @@
             {% endfor %}
           </tbody>
         </table>
+        {% else %}
+        <h2 style="margin-top:0;">Métricas físicas</h2>
+        <p class="subtle" style="margin-top:0;">Estas métricas están disponibles solo para el staff.</p>
+        {% endif %}
       </section>
 
+      {% if not is_player_readonly %}
       <section class="card tab-pane" data-pane="fines">
         <h2 style="margin-top:0;">Multas recibidas</h2>
         <div class="stats-grid" style="margin-top:0.4rem;">
@@ -875,10 +900,18 @@
           </tbody>
         </table>
       </section>
+      {% endif %}
 
       <section class="card tab-pane" data-pane="communication">
         <h2 style="margin-top:0;">Comunicación y convocatorias</h2>
-        <p class="subtle" style="margin-top:0;">Puedes dejar trazabilidad de mensajes de convocatoria, avisos internos o parte médico.</p>
+        <p class="subtle" style="margin-top:0;">
+          {% if is_player_readonly %}
+          Historial de mensajes, convocatorias y comunicaciones del staff.
+          {% else %}
+          Puedes dejar trazabilidad de mensajes de convocatoria, avisos internos o parte médico.
+          {% endif %}
+        </p>
+        {% if not is_player_readonly %}
         <form method="post">
           {% csrf_token %}
           <input type="hidden" name="form_action" value="communication" />
@@ -899,6 +932,7 @@
           </div>
           <div style="margin-top:0.85rem;"><button type="submit">Guardar comunicación</button></div>
         </form>
+        {% endif %}
 
         <table>
           <thead>
@@ -920,7 +954,6 @@
           </tbody>
         </table>
       </section>
-      {% endif %}
     </div>
 
     <script>

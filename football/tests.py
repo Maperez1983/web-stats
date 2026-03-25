@@ -619,7 +619,10 @@ class PlayerDetailStatsFallbackTests(TestCase):
         self.assertContains(response, 'Ficha personal')
         self.assertContains(response, 'Jugador Detail Completo')
         self.assertContains(response, '76.50 kg')
+        self.assertContains(response, 'Lesiones')
+        self.assertContains(response, 'Comunicación')
         self.assertNotContains(response, 'type="file"', html=False)
+        self.assertNotContains(response, 'Guardar comunicación')
 
     @override_settings(MEDIA_URL='/media-test/')
     def test_player_detail_profile_upload_stores_photo_in_media(self):
