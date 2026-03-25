@@ -593,12 +593,12 @@ class EventTaxonomyKpiTests(TestCase):
         self.assertTrue(is_shot_on_target_event('Gol', result='Gol'))
 
     def test_field_zone_aliases_map_mid_wide_and_interior_lanes(self):
-        self.assertEqual(map_zone_label('MEDIO IZQUIERDA'), 'Medio Izquierdo')
-        self.assertEqual(map_zone_label('MEDIO DERECHA'), 'Medio Derecho')
-        self.assertEqual(map_zone_label('Interior Izquierdo'), 'Medio Izquierdo')
-        self.assertEqual(map_zone_label('Interior derecha'), 'Medio Derecho')
-        self.assertEqual(map_zone_label('Costado Izquierdo'), 'Medio Izquierdo')
-        self.assertEqual(map_zone_label('Costado Derecho'), 'Medio Derecho')
+        self.assertEqual(map_zone_label('MEDIO IZQUIERDA'), 'Medio Izquierda')
+        self.assertEqual(map_zone_label('MEDIO DERECHA'), 'Medio Derecha')
+        self.assertEqual(map_zone_label('Interior Izquierdo'), 'Medio Izquierda')
+        self.assertEqual(map_zone_label('Interior derecha'), 'Medio Derecha')
+        self.assertEqual(map_zone_label('Costado Izquierdo'), 'Medio Izquierda')
+        self.assertEqual(map_zone_label('Costado Derecho'), 'Medio Derecha')
         self.assertEqual(map_zone_label('MC'), 'Medio Centro')
         self.assertEqual(map_zone_label('Último tercio'), 'Ataque Centro')
         self.assertEqual(map_zone_label('Frontal'), 'Ataque Centro')
