@@ -271,7 +271,7 @@
   </head>
   <body>
     <div class="container">
-      {% include 'football/includes/dragon_nav.html' %}
+      {% include 'football/includes/dragon_nav.html' with hide_product_shortcuts=True %}
       <header>
         <div>
           <p style="margin:0;" class="subtle">Jugador · {{ player.team.display_name }}</p>

@@ -253,7 +253,7 @@
     <div class="shell product-shell">
       <div class="topbar">
         <div class="headline">
-          {% include 'football/includes/dragon_nav.html' %}
+          {% include 'football/includes/dragon_nav.html' with hide_product_shortcuts=True %}
           <p>Dashboard jugadores · {{ team_name }}</p>
           <h1>Vista limpia de rendimiento</h1>
           <p class="mode-note" style="margin-top:0.3rem;">Perfil activo: <span class="product-chip role">{{ current_role_label }}</span> <span class="product-chip">Fase 4 · Seguimiento Jugadores</span></p>
