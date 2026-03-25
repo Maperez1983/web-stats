@@ -1,0 +1,281 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Inicio jugador</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
+    <style>
+      :root {
+        --bg: #050b16;
+        --panel: rgba(15, 23, 42, 0.92);
+        --line: rgba(148, 163, 184, 0.22);
+        --text: #e2e8f0;
+        --muted: #94a3b8;
+        --accent: #38bdf8;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        padding: 1.25rem;
+        font-family: "Montserrat", "Avenir Next", "Segoe UI", sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(circle at top, rgba(56, 189, 248, 0.12), transparent 30%),
+          linear-gradient(180deg, #030712 0%, #081120 60%, #0a1427 100%);
+      }
+      .page { max-width: 1080px; margin: 0 auto; }
+      .header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1rem;
+      }
+      .headline h1 {
+        margin: 0.2rem 0 0;
+        font-size: 1.8rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .headline p { margin: 0; color: var(--muted); }
+      .hero {
+        border-radius: 24px;
+        overflow: hidden;
+        min-height: 360px;
+        border: 1px solid var(--line);
+        background:
+          linear-gradient(180deg, rgba(1, 7, 17, 0.26), rgba(3, 9, 19, 0.88)),
+          var(--hero-image, url('{% static "football/campo-futbol.jpg" %}')) center/cover no-repeat;
+        box-shadow: 0 28px 55px rgba(0, 0, 0, 0.34);
+        display: flex;
+        align-items: end;
+      }
+      .hero-content {
+        width: 100%;
+        padding: 1.25rem;
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 1rem;
+        background: linear-gradient(180deg, transparent, rgba(2, 6, 23, 0.82));
+      }
+      .hero-content h2 {
+        margin: 0;
+        font-size: 2.1rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .hero-content p {
+        margin: 0.35rem 0 0;
+        color: rgba(226, 232, 240, 0.9);
+      }
+      .profile-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.7rem;
+        padding: 0.7rem 0.95rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.18);
+        background: rgba(15, 23, 42, 0.72);
+      }
+      .profile-chip img {
+        width: 44px;
+        height: 44px;
+        border-radius: 999px;
+        object-fit: cover;
+        object-position: center 22%;
+        border: 1px solid rgba(255,255,255,0.18);
+      }
+      .profile-chip strong { display: block; }
+      .grid {
+        margin-top: 1rem;
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.8fr);
+        gap: 1rem;
+      }
+      .panel {
+        border-radius: 20px;
+        border: 1px solid var(--line);
+        background: var(--panel);
+        padding: 1rem;
+      }
+      .panel h3 {
+        margin: 0 0 0.8rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        font-size: 0.84rem;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.92rem;
+      }
+      th, td {
+        padding: 0.42rem 0.36rem;
+        text-align: left;
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+      }
+      th {
+        color: var(--muted);
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .next-match {
+        border-radius: 16px;
+        border: 1px solid rgba(56, 189, 248, 0.28);
+        background: rgba(56, 189, 248, 0.08);
+        padding: 0.95rem;
+      }
+      .next-match p { margin: 0.3rem 0; }
+      .pill-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        border-radius: 999px;
+        padding: 0.85rem 1.2rem;
+        background: linear-gradient(135deg, #14d8ff, #4f46e5);
+        color: #fff;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+      }
+      .empty {
+        color: var(--muted);
+        border: 1px dashed rgba(148, 163, 184, 0.3);
+        border-radius: 14px;
+        padding: 0.9rem;
+      }
+      @media (max-width: 900px) {
+        .grid { grid-template-columns: 1fr; }
+        .hero-content { flex-direction: column; align-items: start; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page product-shell">
+      <header class="header">
+        <div class="headline">
+          {% include 'football/includes/dragon_nav.html' %}
+          <p>Modo actual <span class="product-chip role">{{ current_role_label }}</span></p>
+          <h1>Inicio jugador</h1>
+        </div>
+        {% if current_player %}
+        <div class="profile-chip">
+          {% if current_player_photo_url %}
+          <img src="{{ current_player_photo_url }}" alt="{{ current_player.name }}" />
+          {% else %}
+          <img src="{% static 'football/images/player-avatar.svg' %}" alt="{{ current_player.name }}" />
+          {% endif %}
+          <div>
+            <strong>{{ current_player.name }}</strong>
+            <span style="color:var(--muted); font-size:0.85rem;">{{ current_player.position|default:"Jugador" }}</span>
+          </div>
+        </div>
+        {% endif %}
+      </header>
+
+      <section class="hero" id="hero-panel">
+        <div class="hero-content">
+          <div>
+            <h2 id="hero-team-name">C.D. Benagalbón</h2>
+            <p id="hero-group-name">Clasificación y siguiente partido</p>
+          </div>
+          <a class="pill-button" href="{% if current_player %}{% url 'player-detail' current_player.id %}{% else %}{% url 'player-dashboard' %}{% endif %}">
+            {% if current_player %}Ir a mi perfil{% else %}Ir a jugadores{% endif %}
+          </a>
+        </div>
+      </section>
+
+      <section class="grid">
+        <article class="panel">
+          <h3>Clasificación</h3>
+          <div id="standings">Cargando clasificación…</div>
+        </article>
+        <article class="panel">
+          <h3>Próximo rival</h3>
+          <div id="next-match" class="next-match">
+            <p>Cargando próximo partido…</p>
+          </div>
+        </article>
+      </section>
+    </div>
+
+    {{ hero_image_candidates|json_script:"player-home-hero-images" }}
+    <script>
+      const heroElement = document.getElementById('hero-panel');
+      const heroImages = JSON.parse(document.getElementById('player-home-hero-images')?.textContent || '[]');
+      const heroFallback = '{% static "football/campo-futbol.jpg" %}';
+      const heroCandidates = [...new Set([...(heroImages || []), heroFallback].filter(Boolean))];
+      if (heroElement && heroCandidates.length) {
+        heroElement.style.setProperty('--hero-image', `url("${heroCandidates[0]}")`);
+      }
+
+      function renderStandings(rows = []) {
+        const target = document.getElementById('standings');
+        if (!target) return;
+        if (!rows.length) {
+          target.innerHTML = '<div class="empty">No hay clasificación disponible.</div>';
+          return;
+        }
+        const tableRows = rows.slice(0, 10).map((row) => `
+          <tr>
+            <td>${row.position ?? '-'}</td>
+            <td>${row.team ?? '-'}</td>
+            <td>${row.points ?? '-'}</td>
+            <td>${row.played ?? '-'}</td>
+          </tr>
+        `).join('');
+        target.innerHTML = `
+          <table>
+            <thead>
+              <tr><th>Pos</th><th>Equipo</th><th>Pts</th><th>PJ</th></tr>
+            </thead>
+            <tbody>${tableRows}</tbody>
+          </table>
+        `;
+      }
+
+      function renderNextMatch(nextMatch = {}) {
+        const target = document.getElementById('next-match');
+        if (!target) return;
+        if (!nextMatch || !Object.keys(nextMatch).length) {
+          target.innerHTML = '<div class="empty">No hay próximo partido configurado.</div>';
+          return;
+        }
+        const opponent = nextMatch.opponent || 'Rival pendiente';
+        const round = nextMatch.round || 'Jornada pendiente';
+        const date = nextMatch.date || 'Fecha por definir';
+        const time = nextMatch.time || 'Hora por definir';
+        const location = nextMatch.location || 'Campo por confirmar';
+        target.innerHTML = `
+          <p><strong>${opponent}</strong></p>
+          <p>${round}</p>
+          <p>${date} · ${time}</p>
+          <p>${location}</p>
+        `;
+      }
+
+      fetch('{% url "dashboard-data" %}', { credentials: 'same-origin' })
+        .then((response) => response.json())
+        .then((payload) => {
+          const team = payload.team || {};
+          const standings = payload.standings || [];
+          const nextMatch = payload.next_match || {};
+          const heroName = document.getElementById('hero-team-name');
+          const heroGroup = document.getElementById('hero-group-name');
+          if (heroName) heroName.textContent = team.name || 'C.D. Benagalbón';
+          if (heroGroup) heroGroup.textContent = team.group || 'Clasificación y siguiente partido';
+          renderStandings(standings);
+          renderNextMatch(nextMatch);
+        })
+        .catch(() => {
+          renderStandings([]);
+          renderNextMatch({});
+        });
+    </script>
+  </body>
+</html>

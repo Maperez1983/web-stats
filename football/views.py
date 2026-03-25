@@ -617,6 +617,53 @@ def _can_access_sessions_workspace(user):
     return role in TECHNICAL_ROLES
 
 
+def _resolve_player_for_user(user, primary_team):
+    if not user or not user.is_authenticated or not primary_team:
+        return None
+    candidates = list(Player.objects.filter(team=primary_team, is_active=True))
+    if not candidates:
+        return None
+    raw_values = [
+        user.get_username(),
+        getattr(user, 'email', ''),
+        getattr(user, 'first_name', ''),
+        getattr(user, 'last_name', ''),
+        user.get_full_name(),
+    ]
+    normalized_tokens = set()
+    for raw in raw_values:
+        value = str(raw or '').strip()
+        if not value:
+            continue
+        normalized_tokens.add(normalize_player_name(value))
+        if '@' in value:
+            normalized_tokens.add(normalize_player_name(value.split('@', 1)[0]))
+    best_player = None
+    best_score = 0
+    for player in candidates:
+        variants = [
+            player.name,
+            getattr(player, 'full_name', ''),
+            getattr(player, 'nickname', ''),
+        ]
+        score = 0
+        for variant in variants:
+            normalized_variant = normalize_player_name(variant)
+            if not normalized_variant:
+                continue
+            if normalized_variant in normalized_tokens:
+                score = max(score, 100)
+            for token in normalized_tokens:
+                if not token:
+                    continue
+                if token in normalized_variant or normalized_variant in token:
+                    score = max(score, min(len(token), len(normalized_variant)))
+        if score > best_score:
+            best_score = score
+            best_player = player
+    return best_player if best_score >= 4 else None
+
+
 def _is_team_only_action(action_type: str) -> bool:
     normalized = (action_type or '').strip().lower()
     if not normalized:
@@ -1080,6 +1127,21 @@ def dashboard_page(request):
     role_labels = dict(AppUserRole.ROLE_CHOICES)
     can_access_admin = _is_admin_user(request.user)
     can_access_sessions = _can_access_sessions_workspace(request.user)
+    primary_team = Team.objects.filter(is_primary=True).first()
+    if current_role == AppUserRole.ROLE_PLAYER:
+        current_player = _resolve_player_for_user(request.user, primary_team)
+        current_player_photo = resolve_player_photo_static_path(current_player) if current_player else ''
+        return render(
+            request,
+            'football/player_home.html',
+            {
+                'hero_image_candidates': hero_image_candidates,
+                'current_role': current_role,
+                'current_role_label': role_labels.get(current_role, 'Jugador'),
+                'current_player': current_player,
+                'current_player_photo_url': static(current_player_photo) if current_player_photo else '',
+            },
+        )
     return render(
         request,
         'football/dashboard.html',
