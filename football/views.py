@@ -468,7 +468,75 @@ def resolve_player_photo_static_path(player):
     return ''
 
 
+def _player_photo_storage_candidates(player):
+    if not player:
+        return []
+    return [
+        f'player-photos/player-{player.id}.png',
+        f'player-photos/player-{player.id}.jpg',
+        f'player-photos/player-{player.id}.jpeg',
+        f'player-photos/player-{player.id}.webp',
+    ]
+
+
+def _build_public_media_url(request, raw_url):
+    url = str(raw_url or '').strip()
+    if not url:
+        return ''
+    if request is not None and url.startswith('/'):
+        try:
+            return request.build_absolute_uri(url)
+        except Exception:
+            return url
+    return url
+
+
+def save_player_photo(player, uploaded_photo):
+    if not player or not uploaded_photo:
+        return ''
+    storage_candidates = _player_photo_storage_candidates(player)
+    target_name = storage_candidates[0]
+    content = uploaded_photo
+    try:
+        if hasattr(uploaded_photo, 'seek'):
+            uploaded_photo.seek(0)
+        if Image is not None:
+            with Image.open(uploaded_photo) as image:
+                if image.mode in ('RGBA', 'LA', 'P'):
+                    converted = image.convert('RGBA')
+                    background = Image.new('RGBA', converted.size, (3, 7, 18, 255))
+                    background.alpha_composite(converted)
+                    final_image = background.convert('RGB')
+                else:
+                    final_image = image.convert('RGB')
+                buffer = io.BytesIO()
+                final_image.save(buffer, format='PNG', optimize=True)
+                content = ContentFile(buffer.getvalue())
+        else:
+            extension = Path(str(getattr(uploaded_photo, 'name', '') or '')).suffix.lower()
+            if extension in {'.jpg', '.jpeg', '.webp'}:
+                target_name = f'player-photos/player-{player.id}{extension}'
+            if hasattr(uploaded_photo, 'seek'):
+                uploaded_photo.seek(0)
+        for candidate in storage_candidates:
+            try:
+                if default_storage.exists(candidate):
+                    default_storage.delete(candidate)
+            except Exception:
+                logger.exception('No se pudo limpiar una foto previa del jugador %s', player.id)
+        return default_storage.save(target_name, content)
+    except Exception:
+        logger.exception('No se pudo guardar la foto del jugador %s', player.id)
+        return ''
+
+
 def resolve_player_photo_url(request, player):
+    for storage_name in _player_photo_storage_candidates(player):
+        try:
+            if default_storage.exists(storage_name):
+                return _build_public_media_url(request, default_storage.url(storage_name))
+        except Exception:
+            logger.exception('No se pudo resolver la foto subida del jugador %s', getattr(player, 'id', ''))
     static_path = resolve_player_photo_static_path(player)
     if not static_path:
         return ''
@@ -8079,26 +8147,7 @@ def player_detail_page(request, player_id):
                 player.manual_sanction_until = manual_sanction_until
                 player.save()
                 if uploaded_photo:
-                    players_dir = Path(settings.BASE_DIR) / 'static' / 'football' / 'images' / 'players'
-                    players_dir.mkdir(parents=True, exist_ok=True)
-                    output_path = players_dir / f'player-{player.id}.png'
-                    try:
-                        if Image is not None:
-                            with Image.open(uploaded_photo) as image:
-                                if image.mode in ('RGBA', 'LA', 'P'):
-                                    converted = image.convert('RGBA')
-                                    background = Image.new('RGBA', converted.size, (3, 7, 18, 255))
-                                    background.alpha_composite(converted)
-                                    final_image = background.convert('RGB')
-                                else:
-                                    final_image = image.convert('RGB')
-                                final_image.save(output_path, format='PNG', optimize=True)
-                        else:
-                            with output_path.open('wb') as destination:
-                                for chunk in uploaded_photo.chunks():
-                                    destination.write(chunk)
-                    except Exception:
-                        logger.exception('No se pudo guardar la foto del jugador %s', player.id)
+                    save_player_photo(player, uploaded_photo)
 
                 active_injury = (
                     PlayerInjuryRecord.objects

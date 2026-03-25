@@ -1,5 +1,9 @@
+import base64
 import json
+import shutil
+import tempfile
 from datetime import date, timedelta
+from pathlib import Path
 from types import SimpleNamespace
 
 from django.contrib.auth import get_user_model
@@ -566,6 +570,75 @@ class PlayerDetailStatsFallbackTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Multas')
         self.assertContains(response, 'Comunicación')
+
+    def test_player_detail_readonly_shows_personal_summary_without_upload_form(self):
+        player_user = get_user_model().objects.create_user(
+            username='detallejugador',
+            email='detallejugador@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=player_user, role=AppUserRole.ROLE_PLAYER)
+        self.player.full_name = 'Jugador Detail Completo'
+        self.player.nickname = 'JD'
+        self.player.height_cm = 181
+        self.player.weight_kg = 76.5
+        self.player.save(update_fields=['full_name', 'nickname', 'height_cm', 'weight_kg'])
+
+        self.client.force_login(player_user)
+        response = self.client.get(reverse('player-detail', args=[self.player.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Ficha personal')
+        self.assertContains(response, 'Jugador Detail Completo')
+        self.assertContains(response, '76.50 kg')
+        self.assertNotContains(response, 'type="file"', html=False)
+
+    @override_settings(MEDIA_URL='/media-test/')
+    def test_player_detail_profile_upload_stores_photo_in_media(self):
+        self.client.force_login(self.user)
+        png_bytes = base64.b64decode(
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO7Zl4QAAAAASUVORK5CYII='
+        )
+        upload = SimpleUploadedFile('jugador.png', png_bytes, content_type='image/png')
+        media_root = tempfile.mkdtemp()
+        try:
+            with override_settings(MEDIA_ROOT=media_root):
+                response = self.client.post(
+                    reverse('player-detail', args=[self.player.id]),
+                    {
+                        'form_action': 'profile',
+                        'full_name': 'Jugador Detail',
+                        'nickname': '',
+                        'birth_date': '',
+                        'height_cm': '',
+                        'weight_kg_base': '',
+                        'number': '',
+                        'position': '',
+                        'injury': '',
+                        'injury_type': '',
+                        'injury_zone': '',
+                        'injury_side': '',
+                        'injury_date': '',
+                        'injury_return_date': '',
+                        'injury_notes': '',
+                        'manual_sanction_active': '0',
+                        'manual_sanction_reason': '',
+                        'manual_sanction_until': '',
+                        'injury_record_mode': 'update',
+                        'player_photo': upload,
+                    },
+                    follow=True,
+                )
+
+                stored_path = Path(media_root) / 'player-photos' / f'player-{self.player.id}.png'
+                self.assertTrue(stored_path.exists())
+                self.assertTrue(
+                    response.context['player_photo_url'].endswith(f'/media-test/player-photos/player-{self.player.id}.png')
+                )
+        finally:
+            shutil.rmtree(media_root, ignore_errors=True)
+
+        self.assertEqual(response.status_code, 200)
 
 
 class AdminActionsTests(TestCase):

@@ -62,9 +62,46 @@
       th { color: #94a3b8; font-size: 0.72rem; letter-spacing: 0.05em; text-transform: uppercase; }
       .subtle { color: #94a3b8; font-size: 0.9rem; }
       .personal-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(180px, 220px); gap: 0.9rem; align-items: start; }
-      .personal-layout > form,
-      .personal-layout > div {
+      .personal-layout > * {
         min-width: 0;
+      }
+      .personal-summary {
+        border-radius: 0.95rem;
+        padding: 1rem;
+        background: rgba(2, 6, 23, 0.4);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+      }
+      .personal-summary h3 {
+        margin: 0 0 0.8rem;
+        font-size: 0.95rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #bae6fd;
+      }
+      .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 0.7rem;
+      }
+      .info-item {
+        border-radius: 0.8rem;
+        padding: 0.8rem 0.85rem;
+        background: rgba(15, 23, 42, 0.72);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+      }
+      .info-label {
+        display: block;
+        font-size: 0.68rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #94a3b8;
+      }
+      .info-value {
+        display: block;
+        margin-top: 0.3rem;
+        font-size: 1rem;
+        font-weight: 700;
+        color: #f8fafc;
       }
       .player-photo-card {
         width: 100%;
@@ -462,6 +499,52 @@
               <button type="submit" name="injury_record_mode" value="new">Añadir lesión al historial</button>
             </div>
           </form>
+          {% else %}
+          <div class="personal-summary">
+            <h3>Ficha personal</h3>
+            <div class="info-grid">
+              <article class="info-item">
+                <span class="info-label">Nombre completo</span>
+                <span class="info-value">{{ player.full_name|default:player.name }}</span>
+              </article>
+              <article class="info-item">
+                <span class="info-label">Apodo</span>
+                <span class="info-value">{{ player.nickname|default:'--' }}</span>
+              </article>
+              <article class="info-item">
+                <span class="info-label">Fecha nacimiento</span>
+                <span class="info-value">{% if player.birth_date %}{{ player.birth_date|date:'d/m/Y' }}{% else %}--{% endif %}</span>
+              </article>
+              <article class="info-item">
+                <span class="info-label">Dorsal</span>
+                <span class="info-value">{{ player.number|default:'--' }}</span>
+              </article>
+              <article class="info-item">
+                <span class="info-label">Posición</span>
+                <span class="info-value">{{ player.position|default:stats.position|default:'--' }}</span>
+              </article>
+              <article class="info-item">
+                <span class="info-label">Altura</span>
+                <span class="info-value">{% if player.height_cm %}{{ player.height_cm }} cm{% else %}--{% endif %}</span>
+              </article>
+              <article class="info-item">
+                <span class="info-label">Peso base</span>
+                <span class="info-value">{% if player.weight_kg %}{{ player.weight_kg }} kg{% else %}--{% endif %}</span>
+              </article>
+              <article class="info-item">
+                <span class="info-label">Estado</span>
+                <span class="info-value">
+                  {% if has_active_injury %}
+                    Lesión activa
+                  {% elif has_manual_sanction %}
+                    Sanción manual
+                  {% else %}
+                    Disponible
+                  {% endif %}
+                </span>
+              </article>
+            </div>
+          </div>
           {% endif %}
           <aside class="player-photo-card">
             {% if player_photo_url %}
