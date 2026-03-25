@@ -168,6 +168,7 @@
     let currentFieldCamera = 'full';
     let currentFieldPreset = 'full_pitch';
     let currentCatalogCategory = 'all';
+    let pendingInsert = null;
     const teamPalette = {
       local: { name: 'LOCAL', primary: '#0f7ec7', secondary: '#f8fafc' },
       rival: { name: 'RIVAL', primary: '#f59e0b', secondary: '#f8fafc' },
@@ -233,6 +234,41 @@
       removeSessionKey(submitMarkerKey);
       setStatus('Borrador táctico eliminado.');
     };
+    const clearPendingInsert = (statusMessage = '') => {
+      pendingInsert = null;
+      if (statusMessage) setStatus(statusMessage);
+    };
+    const startQuickInsert = (kind, options = {}, statusMessage = 'Haz clic en el campo para colocar el recurso.') => {
+      pendingInsert = {
+        kind: String(kind || '').trim(),
+        options: options && typeof options === 'object' ? { ...options } : {},
+      };
+      setMode(false);
+      setStatus(statusMessage);
+    };
+    const clampPlacement = (left, top) => {
+      const width = Math.max(0, Math.round(canvas.getWidth() || 0));
+      const height = Math.max(0, Math.round(canvas.getHeight() || 0));
+      return {
+        left: Math.max(18, Math.min(Math.round(left || (width / 2)), Math.max(18, width - 18))),
+        top: Math.max(18, Math.min(Math.round(top || (height / 2)), Math.max(18, height - 18))),
+      };
+    };
+    const positionItem = (item, left, top) => {
+      if (!item) return item;
+      const rect = item.getBoundingRect ? item.getBoundingRect() : { width: item.width || 0, height: item.height || 0 };
+      const width = Math.max(0, Math.round(rect.width || item.width || 0));
+      const height = Math.max(0, Math.round(rect.height || item.height || 0));
+      item.set({
+        originX: 'left',
+        originY: 'top',
+        left: Math.round(left - (width / 2)),
+        top: Math.round(top - (height / 2)),
+      });
+      item.setCoords?.();
+      return item;
+    };
+    const defaultPlacement = () => clampPlacement((canvas.getWidth() || 0) / 2, (canvas.getHeight() || 0) / 2);
 
     const refreshLayerList = () => {
       if (!layerList) return;
@@ -404,6 +440,7 @@
       setStatus('Alineación aplicada.');
     };
     const setMode = (drawMode) => {
+      if (drawMode) clearPendingInsert();
       canvas.isDrawingMode = !!drawMode;
       canvas.selection = !drawMode;
       canvas.forEachObject((obj) => {
@@ -713,10 +750,11 @@
       setStatus('Preset aplicado en pizarra táctica.');
     };
 
-    const addPlayerToken = (profile = {}, teamKey = 'local', role = 'player') => {
+    const addPlayerToken = (profile = {}, teamKey = 'local', role = 'player', placement = {}) => {
       const team = teamStyle(teamKey);
-      const baseLeft = 180 + Math.floor(Math.random() * 180);
-      const baseTop = 130 + Math.floor(Math.random() * 140);
+      const fallbackPlacement = defaultPlacement();
+      const baseLeft = Number.isFinite(placement.left) ? placement.left : fallbackPlacement.left;
+      const baseTop = Number.isFinite(placement.top) ? placement.top : fallbackPlacement.top;
       const rawNumber = safeText(profile.number, role === 'goalkeeper' ? 'GK' : '');
       const number = rawNumber ? String(rawNumber).slice(0, 3) : '';
       const rawName = safeText(profile.name, team.name);
@@ -737,7 +775,8 @@
         if (number) {
           parts.push(new fabric.Text(number, { fontSize: 10, fill: '#ffffff', backgroundColor: 'rgba(15,23,42,0.82)', fontWeight: '700', originX: 'center', originY: 'center', left: 0, top: radius + 10 }));
         }
-        const group = new fabric.Group(parts, { left: baseLeft, top: baseTop });
+        const group = new fabric.Group(parts, {});
+        positionItem(group, baseLeft, baseTop);
         group.set({ data: { kind: role, team: teamKey, playerId: profile.id || '', playerName: rawName } });
         canvas.add(group);
         canvas.setActiveObject(group);
@@ -755,13 +794,14 @@
     };
 
     const addResource = (kind, options = {}) => {
-      const baseLeft = 180 + Math.floor(Math.random() * 180);
-      const baseTop = 130 + Math.floor(Math.random() * 140);
+      const fallbackPlacement = defaultPlacement();
+      const baseLeft = Number.isFinite(options.left) ? options.left : fallbackPlacement.left;
+      const baseTop = Number.isFinite(options.top) ? options.top : fallbackPlacement.top;
       const variant = String(options.variant || '').trim().toLowerCase();
       const teamKey = String(options.team || 'local').trim().toLowerCase() === 'rival' ? 'rival' : 'local';
       let item = null;
-      if (kind === 'player') return addPlayerToken(options.player || {}, teamKey, 'player');
-      if (kind === 'goalkeeper') return addPlayerToken(options.player || {}, teamKey, 'goalkeeper');
+      if (kind === 'player') return addPlayerToken(options.player || {}, teamKey, 'player', { left: baseLeft, top: baseTop });
+      if (kind === 'goalkeeper') return addPlayerToken(options.player || {}, teamKey, 'goalkeeper', { left: baseLeft, top: baseTop });
       if (kind === 'ball') item = new fabric.Circle({ left: baseLeft, top: baseTop, radius: variant === 'flat' ? 9 : 10, fill: variant === 'flat' ? '#f8fafc' : '#ffffff', stroke: '#0f172a', strokeWidth: variant === 'flat' ? 1.3 : 2 });
       if (kind === 'cone') {
         if (variant === 'disc') item = new fabric.Circle({ left: baseLeft, top: baseTop, radius: 8, fill: '#fb923c', stroke: '#7c2d12', strokeWidth: 1.8 });
@@ -861,15 +901,38 @@
         }
       }
       if (!item) return;
+      positionItem(item, baseLeft, baseTop);
       canvas.add(item);
       canvas.setActiveObject(item);
       canvas.renderAll();
       pushHistory();
       refreshLayerList();
       scheduleDraftSave();
+      setStatus('Recurso colocado en la pizarra.');
     };
 
-    const addIconifySvg = async (iconName) => {
+    const addTextToken = (label = 'Texto', options = {}) => {
+      const fallbackPlacement = defaultPlacement();
+      const text = new fabric.IText(String(label || 'Texto'), {
+        fontSize: 22,
+        fill: '#ffffff',
+        fontWeight: '600',
+      });
+      positionItem(
+        text,
+        Number.isFinite(options.left) ? options.left : fallbackPlacement.left,
+        Number.isFinite(options.top) ? options.top : fallbackPlacement.top,
+      );
+      canvas.add(text);
+      canvas.setActiveObject(text);
+      canvas.renderAll();
+      pushHistory();
+      refreshLayerList();
+      scheduleDraftSave();
+      setStatus('Texto colocado en la pizarra.');
+    };
+
+    const addIconifySvg = async (iconName, placement = {}) => {
       const name = String(iconName || '').trim();
       if (!name) return;
       try {
@@ -879,8 +942,13 @@
         fabric.loadSVGFromString(svgText, (objects, options) => {
           if (!objects?.length) return;
           const iconObj = fabric.util.groupSVGElements(objects, options);
-          iconObj.set({ left: 170 + Math.floor(Math.random() * 220), top: 130 + Math.floor(Math.random() * 170), originX: 'left', originY: 'top' });
           iconObj.scaleToWidth(62);
+          const fallbackPlacement = defaultPlacement();
+          positionItem(
+            iconObj,
+            Number.isFinite(placement.left) ? placement.left : fallbackPlacement.left,
+            Number.isFinite(placement.top) ? placement.top : fallbackPlacement.top,
+          );
           canvas.add(iconObj);
           canvas.setActiveObject(iconObj);
           canvas.renderAll();
@@ -892,6 +960,22 @@
       } catch (error) {
         setStatus('No se pudo cargar el icono.', true);
       }
+    };
+
+    const placePendingInsert = async (pointer) => {
+      if (!pendingInsert) return;
+      const insert = pendingInsert;
+      pendingInsert = null;
+      const placement = clampPlacement(pointer?.x, pointer?.y);
+      if (insert.kind === 'text') {
+        addTextToken(insert.options.label || 'Texto', placement);
+        return;
+      }
+      if (insert.kind === 'iconify') {
+        await addIconifySvg(insert.options.iconName || '', placement);
+        return;
+      }
+      addResource(insert.kind, { ...insert.options, ...placement });
     };
 
     const buildPlayerChip = (player, teamKey = 'local') => {
@@ -915,7 +999,7 @@
       meta.textContent = `#${safeText(player.number, '--')} ${safeText(player.name, 'Jugador')}`;
       button.appendChild(side);
       button.appendChild(meta);
-      button.addEventListener('click', () => addResource('player', { team: teamKey, player }));
+      button.addEventListener('click', () => startQuickInsert('player', { team: teamKey, player }, `Haz clic en el campo para colocar a ${safeText(player.name, 'Jugador')}.`));
       return button;
     };
     const renderPlayerRepos = () => {
@@ -1018,6 +1102,15 @@
     canvas.on('path:created', () => { pushHistory(); refreshLayerList(); scheduleDraftSave(); });
     canvas.on('object:modified', () => { pushHistory(); refreshLayerList(); scheduleDraftSave(); });
     canvas.on('object:moving', (event) => { if (event?.target) applySnap(event.target); });
+    canvas.on('mouse:down', (event) => {
+      if (!pendingInsert) return;
+      if (event?.target && event.target !== canvas.backgroundImage) {
+        setStatus('Haz clic en una zona libre del campo para colocar el recurso.', true);
+        return;
+      }
+      const pointer = canvas.getPointer(event.e);
+      placePendingInsert(pointer);
+    });
     canvas.on('object:added', () => {
       if (!canvas.__loading) {
         pushHistory();
@@ -1032,21 +1125,15 @@
 
     document.getElementById('create-board-draw-btn')?.addEventListener('click', () => setMode(true));
     document.getElementById('create-board-select-btn')?.addEventListener('click', () => setMode(false));
+    document.getElementById('create-board-select-btn')?.addEventListener('click', () => clearPendingInsert('Modo selección activo.'));
     toolSelectBtn?.addEventListener('click', () => setMode(false));
+    toolSelectBtn?.addEventListener('click', () => clearPendingInsert('Modo selección activo.'));
     toolDrawBtn?.addEventListener('click', () => setMode(true));
-    toolPlayerBtn?.addEventListener('click', () => addResource('player'));
-    toolZoneBtn?.addEventListener('click', () => addResource('zone'));
-    toolArrowBtn?.addEventListener('click', () => addResource('arrow'));
-    toolLineBtn?.addEventListener('click', () => addResource('line'));
-    toolTextBtn?.addEventListener('click', () => {
-      const text = new fabric.IText('Texto', { left: 210, top: 170, fontSize: 22, fill: '#ffffff', fontWeight: '600' });
-      canvas.add(text);
-      canvas.setActiveObject(text);
-      canvas.renderAll();
-      pushHistory();
-      refreshLayerList();
-      scheduleDraftSave();
-    });
+    toolPlayerBtn?.addEventListener('click', () => startQuickInsert('player', {}, 'Haz clic en el campo para colocar un jugador.'));
+    toolZoneBtn?.addEventListener('click', () => startQuickInsert('zone', {}, 'Haz clic en el campo para colocar una zona.'));
+    toolArrowBtn?.addEventListener('click', () => startQuickInsert('arrow', {}, 'Haz clic en el campo para colocar una flecha.'));
+    toolLineBtn?.addEventListener('click', () => startQuickInsert('line', {}, 'Haz clic en el campo para colocar una línea.'));
+    toolTextBtn?.addEventListener('click', () => startQuickInsert('text', { label: 'Texto' }, 'Haz clic en el campo para colocar el texto.'));
     toolUndoBtn?.addEventListener('click', () => document.getElementById('create-board-undo-btn')?.click());
     toolDeleteBtn?.addEventListener('click', () => document.getElementById('create-board-delete-btn')?.click());
     toolColorRedBtn?.addEventListener('click', () => { if (colorInput) colorInput.value = '#e11d48'; canvas.freeDrawingBrush.color = '#e11d48'; setStatus('Color rojo aplicado.'); scheduleDraftSave(); });
@@ -1058,18 +1145,10 @@
       setStatus(snapEnabled ? 'Snap activo.' : 'Snap desactivado.');
       scheduleDraftSave();
     });
-    document.getElementById('create-board-player-btn')?.addEventListener('click', () => addResource('player'));
-    document.getElementById('create-board-zone-btn')?.addEventListener('click', () => addResource('zone'));
-    document.getElementById('create-board-arrow-btn')?.addEventListener('click', () => addResource('arrow'));
-    document.getElementById('create-board-text-btn')?.addEventListener('click', () => {
-      const text = new fabric.IText('Consigna', { left: 210, top: 170, fontSize: 22, fill: '#ffffff', fontWeight: '600' });
-      canvas.add(text);
-      canvas.setActiveObject(text);
-      canvas.renderAll();
-      pushHistory();
-      refreshLayerList();
-      scheduleDraftSave();
-    });
+    document.getElementById('create-board-player-btn')?.addEventListener('click', () => startQuickInsert('player', {}, 'Haz clic en el campo para colocar un jugador.'));
+    document.getElementById('create-board-zone-btn')?.addEventListener('click', () => startQuickInsert('zone', {}, 'Haz clic en el campo para colocar una zona.'));
+    document.getElementById('create-board-arrow-btn')?.addEventListener('click', () => startQuickInsert('arrow', {}, 'Haz clic en el campo para colocar una flecha.'));
+    document.getElementById('create-board-text-btn')?.addEventListener('click', () => startQuickInsert('text', { label: 'Consigna' }, 'Haz clic en el campo para colocar el texto.'));
     document.getElementById('create-board-align-left-btn')?.addEventListener('click', () => alignSelected('left'));
     document.getElementById('create-board-align-center-btn')?.addEventListener('click', () => alignSelected('center'));
     document.getElementById('create-board-align-right-btn')?.addEventListener('click', () => alignSelected('right'));
@@ -1233,11 +1312,16 @@
     resourceGrid?.addEventListener('click', (event) => {
       const btn = event.target.closest('[data-resource]');
       if (!btn) return;
-      addResource(btn.dataset.resource, { variant: btn.dataset.variant || '', team: btn.dataset.team || 'local' });
+      const label = safeText(btn.textContent, 'recurso').toLowerCase();
+      startQuickInsert(
+        btn.dataset.resource,
+        { variant: btn.dataset.variant || '', team: btn.dataset.team || 'local' },
+        `Haz clic en el campo para colocar ${label}.`,
+      );
     });
     iconifyGrid?.addEventListener('click', (event) => {
       const btn = event.target.closest('[data-iconify]');
-      if (btn) addIconifySvg(btn.dataset.iconify);
+      if (btn) startQuickInsert('iconify', { iconName: btn.dataset.iconify || '' }, `Haz clic en el campo para colocar ${safeText(btn.dataset.label, 'el icono').toLowerCase()}.`);
     });
     iconifySearch?.addEventListener('input', () => {
       const term = String(iconifySearch.value || '').toLowerCase().trim();
