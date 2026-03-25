@@ -124,6 +124,7 @@
         gap: 0.45rem;
         flex-wrap: wrap;
         margin-bottom: 0.85rem;
+        position: relative;
       }
       .pitch-toolbar button,
       .resource-strip button,
@@ -141,6 +142,74 @@
         background: var(--accent-soft);
         border-color: rgba(34, 211, 238, 0.36);
         color: #cffafe;
+      }
+      .surface-picker {
+        position: relative;
+      }
+      .surface-trigger {
+        min-width: 220px;
+        justify-content: space-between;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.6rem;
+      }
+      .surface-trigger .current {
+        text-transform: none;
+        letter-spacing: 0.02em;
+      }
+      .surface-menu {
+        position: absolute;
+        top: calc(100% + 0.5rem);
+        left: 0;
+        z-index: 20;
+        width: min(780px, 86vw);
+        display: none;
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        gap: 0.7rem;
+        padding: 0.8rem;
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(8, 18, 30, 0.96);
+        box-shadow: 0 26px 56px rgba(2, 6, 23, 0.42);
+      }
+      .surface-picker.is-open .surface-menu {
+        display: grid;
+      }
+      .surface-option {
+        padding: 0.5rem;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.04);
+        display: grid;
+        gap: 0.45rem;
+        text-align: left;
+      }
+      .surface-option-thumb {
+        display: block;
+        width: 100%;
+        aspect-ratio: 1.6 / 1;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.04);
+      }
+      .surface-option-thumb svg {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+      .surface-option strong {
+        display: block;
+        font-size: 0.82rem;
+        letter-spacing: 0.01em;
+        text-transform: none;
+      }
+      .surface-option small {
+        display: block;
+        color: var(--muted);
+        font-size: 0.72rem;
+        line-height: 1.35;
+        text-transform: none;
       }
       .pitch-stage {
         position: relative;
@@ -318,11 +387,49 @@
                   <p>Selecciona superficie, elige recurso y colócalo con un clic sobre el campo.</p>
                 </div>
                 <div class="pitch-toolbar">
-                  <button type="button" class="is-active" data-preset="full_pitch">Campo completo</button>
-                  <button type="button" data-preset="half_pitch">Medio campo</button>
-                  <button type="button" data-preset="attacking_third">Último tercio</button>
-                  <button type="button" data-preset="seven_side">Fútbol 7</button>
-                  <button type="button" data-preset="futsal">Futsal</button>
+                  <div class="surface-picker" id="surface-picker">
+                    <button type="button" class="surface-trigger" id="surface-trigger">
+                      <span>Superficie</span>
+                      <span class="current" id="surface-trigger-label">Campo completo</span>
+                    </button>
+                    <div class="surface-menu" id="surface-menu">
+                      <button type="button" class="surface-option" data-preset="full_pitch">
+                        <span class="surface-option-thumb" data-surface-thumb="full_pitch"></span>
+                        <span>
+                          <strong>Fútbol 11 · Campo completo</strong>
+                          <small>Superficie oficial completa con áreas, áreas pequeñas, puntos de penalti y porterías.</small>
+                        </span>
+                      </button>
+                      <button type="button" class="surface-option" data-preset="half_pitch">
+                        <span class="surface-option-thumb" data-surface-thumb="half_pitch"></span>
+                        <span>
+                          <strong>Fútbol 11 · Medio campo</strong>
+                          <small>Para tareas analíticas, salidas de balón o trabajo por sectores.</small>
+                        </span>
+                      </button>
+                      <button type="button" class="surface-option" data-preset="attacking_third">
+                        <span class="surface-option-thumb" data-surface-thumb="attacking_third"></span>
+                        <span>
+                          <strong>Fútbol 11 · Último tercio</strong>
+                          <small>Orientado a finalización, centros, área y situaciones próximas a portería.</small>
+                        </span>
+                      </button>
+                      <button type="button" class="surface-option" data-preset="seven_side">
+                        <span class="surface-option-thumb" data-surface-thumb="seven_side"></span>
+                        <span>
+                          <strong>Fútbol 7 sobre F11</strong>
+                          <small>Dos campos F7 representados dentro del F11, uno en cada mitad.</small>
+                        </span>
+                      </button>
+                      <button type="button" class="surface-option" data-preset="futsal">
+                        <span class="surface-option-thumb" data-surface-thumb="futsal"></span>
+                        <span>
+                          <strong>Futsal</strong>
+                          <small>Pista reducida para tareas en espacios cerrados y alta repetición.</small>
+                        </span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
 

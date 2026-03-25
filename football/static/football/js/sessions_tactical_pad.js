@@ -15,7 +15,7 @@
     full_pitch: 'campo completo',
     half_pitch: 'medio campo',
     attacking_third: 'último tercio',
-    seven_side: 'fútbol 7',
+    seven_side: 'fútbol 7 doble',
     futsal: 'futsal',
     blank: 'superficie libre',
   };
@@ -106,6 +106,40 @@
       corners.forEach((path) => {
         root.appendChild(createSvgNode(doc, 'path', { d: path, fill: 'none', stroke: line, 'stroke-width': 2 }));
       });
+    };
+
+    const drawSevenSideOverlay = (fieldX, fieldY, fieldWidth, fieldHeight) => {
+      const halfWidth = fieldWidth / 2;
+      const sevenWidth = halfWidth * 0.84;
+      const sevenHeight = sevenWidth * 45 / 65;
+      const insetY = (fieldHeight - sevenHeight) / 2;
+      const leftSevenX = fieldX + (halfWidth - sevenWidth) / 2;
+      const rightSevenX = fieldX + halfWidth + ((halfWidth - sevenWidth) / 2);
+      const sevenY = fieldY + insetY;
+      const metersW = 65;
+      const scaleLocal = sevenWidth / metersW;
+      const areaDepth = 12 * scaleLocal;
+      const areaHeight = 24 * scaleLocal;
+      const goalAreaDepth = 4 * scaleLocal;
+      const goalAreaHeight = 12 * scaleLocal;
+      const goalHeight = 6 * scaleLocal;
+      const goalDepth = 1.8 * scaleLocal;
+      const spotDist = 9 * scaleLocal;
+      const drawOne = (x) => {
+        root.appendChild(createSvgNode(doc, 'rect', { x, y: sevenY, width: sevenWidth, height: sevenHeight, fill: 'rgba(34,211,238,0.08)', stroke: '#67e8f9', 'stroke-width': 2.2, 'stroke-dasharray': '8 6' }));
+        root.appendChild(createSvgNode(doc, 'line', { x1: x + (sevenWidth / 2), y1: sevenY, x2: x + (sevenWidth / 2), y2: sevenY + sevenHeight, stroke: '#67e8f9', 'stroke-width': 2 }));
+        root.appendChild(createSvgNode(doc, 'circle', { cx: x + (sevenWidth / 2), cy: sevenY + (sevenHeight / 2), r: 5.5 * scaleLocal, fill: 'none', stroke: 'rgba(103,232,249,0.66)', 'stroke-width': 2 }));
+        root.appendChild(createSvgNode(doc, 'rect', { x, y: sevenY + (sevenHeight - areaHeight) / 2, width: areaDepth, height: areaHeight, fill: 'none', stroke: 'rgba(103,232,249,0.76)', 'stroke-width': 2 }));
+        root.appendChild(createSvgNode(doc, 'rect', { x: x + sevenWidth - areaDepth, y: sevenY + (sevenHeight - areaHeight) / 2, width: areaDepth, height: areaHeight, fill: 'none', stroke: 'rgba(103,232,249,0.76)', 'stroke-width': 2 }));
+        root.appendChild(createSvgNode(doc, 'rect', { x, y: sevenY + (sevenHeight - goalAreaHeight) / 2, width: goalAreaDepth, height: goalAreaHeight, fill: 'none', stroke: 'rgba(103,232,249,0.76)', 'stroke-width': 2 }));
+        root.appendChild(createSvgNode(doc, 'rect', { x: x + sevenWidth - goalAreaDepth, y: sevenY + (sevenHeight - goalAreaHeight) / 2, width: goalAreaDepth, height: goalAreaHeight, fill: 'none', stroke: 'rgba(103,232,249,0.76)', 'stroke-width': 2 }));
+        root.appendChild(createSvgNode(doc, 'circle', { cx: x + spotDist, cy: sevenY + (sevenHeight / 2), r: 3.5, fill: '#67e8f9' }));
+        root.appendChild(createSvgNode(doc, 'circle', { cx: x + sevenWidth - spotDist, cy: sevenY + (sevenHeight / 2), r: 3.5, fill: '#67e8f9' }));
+        drawGoal(x, sevenY + (sevenHeight / 2), goalDepth, goalHeight, 'left');
+        drawGoal(x + sevenWidth, sevenY + (sevenHeight / 2), goalDepth, goalHeight, 'right');
+      };
+      drawOne(leftSevenX);
+      drawOne(rightSevenX);
     };
 
     const drawFullPitch = () => {
@@ -229,7 +263,10 @@
 
     if (preset === 'half_pitch') drawHalfPitch();
     else if (preset === 'attacking_third') drawAttackingThird();
-    else if (preset === 'seven_side') drawMiniGame(65, 45, 12, 24, 4, 12, 6);
+    else if (preset === 'seven_side') {
+      drawFullPitch();
+      drawSevenSideOverlay(stage.x, stage.y, stage.width, stage.height);
+    }
     else if (preset === 'futsal') drawMiniGame(40, 20, 6, 16, 0, 0, 3);
     else drawFullPitch();
 
@@ -242,6 +279,10 @@
     const stage = document.getElementById('task-pitch-stage');
     const svgSurface = document.getElementById('task-pitch-surface');
     const presetSelect = document.getElementById('draw-task-preset');
+    const surfacePicker = document.getElementById('surface-picker');
+    const surfaceTrigger = document.getElementById('surface-trigger');
+    const surfaceMenu = document.getElementById('surface-menu');
+    const surfaceTriggerLabel = document.getElementById('surface-trigger-label');
     const pitchFormatInput = document.getElementById('draw-task-pitch-format');
     const stateInput = document.getElementById('draw-canvas-state');
     const widthInput = document.getElementById('draw-canvas-width');
@@ -252,7 +293,8 @@
     const statusEl = document.getElementById('task-builder-status');
     const toolStrip = document.getElementById('task-basic-tools');
     const playerBank = document.getElementById('task-player-bank');
-    const presetButtons = Array.from(document.querySelectorAll('[data-preset]'));
+    const presetButtons = Array.from(document.querySelectorAll('.surface-option[data-preset]'));
+    const surfaceThumbs = Array.from(document.querySelectorAll('[data-surface-thumb]'));
     if (!window.fabric || !form || !canvasEl || !stage || !svgSurface || !presetSelect) return;
 
     const setStatus = (message, isError = false) => {
@@ -296,8 +338,21 @@
       presetSelect.value = preset;
       if (pitchFormatInput && PITCH_FORMAT_BY_PRESET[preset]) pitchFormatInput.value = PITCH_FORMAT_BY_PRESET[preset];
       presetButtons.forEach((button) => button.classList.toggle('is-active', safeText(button.dataset.preset) === preset));
+      if (surfaceTriggerLabel) surfaceTriggerLabel.textContent = PRESET_LABEL[preset] || 'Campo completo';
       svgSurface.innerHTML = buildPitchSvg(preset);
       setStatus(`Superficie preparada: ${PRESET_LABEL[preset] || 'campo'}.`);
+    };
+
+    const renderSurfaceThumbs = () => {
+      surfaceThumbs.forEach((node) => {
+        const preset = safeText(node.dataset.surfaceThumb, 'full_pitch');
+        node.innerHTML = buildPitchSvg(preset);
+      });
+    };
+
+    const setSurfaceMenuOpen = (open) => {
+      if (!surfacePicker) return;
+      surfacePicker.classList.toggle('is-open', !!open);
     };
 
     const serializeState = () => {
@@ -484,6 +539,7 @@
     });
 
     fitCanvas();
+    renderSurfaceThumbs();
     setPreset(presetSelect.value || 'full_pitch');
     restoreState();
     renderPlayerBank();
@@ -550,15 +606,25 @@
     });
 
     presetButtons.forEach((button) => {
-      button.addEventListener('click', () => setPreset(button.dataset.preset || 'full_pitch'));
+      button.addEventListener('click', () => {
+        setPreset(button.dataset.preset || 'full_pitch');
+        setSurfaceMenuOpen(false);
+      });
     });
     presetSelect.addEventListener('change', () => setPreset(presetSelect.value || 'full_pitch'));
+    surfaceTrigger?.addEventListener('click', () => setSurfaceMenuOpen(!surfacePicker?.classList.contains('is-open')));
+    document.addEventListener('click', (event) => {
+      if (!surfacePicker) return;
+      if (surfacePicker.contains(event.target)) return;
+      setSurfaceMenuOpen(false);
+    });
 
     let resizeTimer = null;
     window.addEventListener('resize', () => {
       window.clearTimeout(resizeTimer);
       resizeTimer = window.setTimeout(() => {
         fitCanvas();
+        renderSurfaceThumbs();
         setPreset(presetSelect.value || 'full_pitch');
       }, 140);
     });
