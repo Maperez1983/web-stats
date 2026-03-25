@@ -1647,3 +1647,120 @@ class SessionsPlanningTests(TestCase):
         self.assertEqual(task.session, other_session)
         self.assertEqual(task.duration_minutes, 22)
         self.assertEqual(task.block, SessionTask.BLOCK_MAIN_2)
+
+    def test_library_task_can_be_copied_to_session(self):
+        library_session = TrainingSession.objects.create(
+            microcycle=self.microcycle,
+            session_date=date(2026, 3, 23),
+            focus='Biblioteca coach',
+            duration_minutes=90,
+        )
+        session = TrainingSession.objects.create(
+            microcycle=self.microcycle,
+            session_date=date(2026, 3, 25),
+            focus='Sesión base',
+            duration_minutes=90,
+        )
+        task = SessionTask.objects.create(
+            session=library_session,
+            title='Tarea biblioteca',
+            block=SessionTask.BLOCK_MAIN_1,
+            duration_minutes=15,
+            tactical_layout={'meta': {'scope': 'coach'}},
+        )
+
+        response = self.client.post(
+            reverse('sessions'),
+            {
+                'planner_action': 'copy_library_task_to_session',
+                'planner_tab': 'library',
+                'source_task_id': task.id,
+                'target_session_id': session.id,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        copied = SessionTask.objects.exclude(id=task.id).get(session=session)
+        self.assertEqual(copied.title, 'Tarea biblioteca')
+        self.assertContains(response, 'Tarea copiada a sesión')
+
+    def test_session_task_can_move_duplicate_and_delete(self):
+        session = TrainingSession.objects.create(
+            microcycle=self.microcycle,
+            session_date=date(2026, 3, 25),
+            focus='Sesión operativa',
+            duration_minutes=90,
+        )
+        task_a = SessionTask.objects.create(session=session, title='Tarea A', order=1)
+        task_b = SessionTask.objects.create(session=session, title='Tarea B', order=2)
+
+        response = self.client.post(
+            reverse('sessions'),
+            {
+                'planner_action': 'move_session_task',
+                'planner_tab': 'planning',
+                'task_id': task_b.id,
+                'move_direction': 'up',
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        task_a.refresh_from_db()
+        task_b.refresh_from_db()
+        self.assertEqual(task_b.order, 1)
+        self.assertEqual(task_a.order, 2)
+
+        response = self.client.post(
+            reverse('sessions'),
+            {
+                'planner_action': 'duplicate_session_task',
+                'planner_tab': 'planning',
+                'task_id': task_b.id,
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(SessionTask.objects.filter(session=session).count(), 3)
+
+        response = self.client.post(
+            reverse('sessions'),
+            {
+                'planner_action': 'delete_session_task',
+                'planner_tab': 'planning',
+                'task_id': task_a.id,
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(SessionTask.objects.filter(id=task_a.id).exists())
+
+    def test_microcycle_can_be_cloned_with_sessions_and_tasks(self):
+        session = TrainingSession.objects.create(
+            microcycle=self.microcycle,
+            session_date=date(2026, 3, 25),
+            focus='Sesión original',
+            duration_minutes=90,
+        )
+        SessionTask.objects.create(
+            session=session,
+            title='Tarea original',
+            block=SessionTask.BLOCK_MAIN_1,
+            duration_minutes=18,
+            tactical_layout={'meta': {'scope': 'coach'}},
+        )
+
+        response = self.client.post(
+            reverse('sessions'),
+            {
+                'planner_action': 'clone_microcycle_plan',
+                'planner_tab': 'planning',
+                'source_microcycle_id': self.microcycle.id,
+                'clone_week_start': '2026-03-30',
+                'clone_week_end': '2026-04-05',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        cloned = TrainingMicrocycle.objects.get(team=self.team, week_start=date(2026, 3, 30))
+        cloned_session = TrainingSession.objects.get(microcycle=cloned)
+        self.assertEqual(cloned_session.session_date, date(2026, 4, 1))
+        self.assertEqual(cloned_session.focus, 'Sesión original')
+        self.assertEqual(cloned_session.tasks.count(), 1)
+        self.assertContains(response, 'Microciclo clonado')

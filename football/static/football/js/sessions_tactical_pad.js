@@ -577,6 +577,41 @@
         ], { left: baseLeft, top: baseTop });
         else item = new fabric.Triangle({ left: baseLeft, top: baseTop, width: 26, height: 26, fill: '#f97316' });
       }
+      if (kind === 'hurdle') item = new fabric.Group([
+        new fabric.Rect({ left: -18, top: 6, width: 36, height: 6, rx: 3, ry: 3, fill: '#f8fafc', originX: 'center', originY: 'center' }),
+        new fabric.Rect({ left: -13, top: 0, width: 4, height: 18, fill: '#f97316', originX: 'center', originY: 'center' }),
+        new fabric.Rect({ left: 13, top: 0, width: 4, height: 18, fill: '#f97316', originX: 'center', originY: 'center' }),
+      ], { left: baseLeft, top: baseTop });
+      if (kind === 'ladder') item = new fabric.Group([
+        new fabric.Rect({ left: -24, top: 0, width: 4, height: 54, fill: '#facc15', originX: 'center', originY: 'center' }),
+        new fabric.Rect({ left: 24, top: 0, width: 4, height: 54, fill: '#facc15', originX: 'center', originY: 'center' }),
+        new fabric.Rect({ left: 0, top: -18, width: 48, height: 3, fill: '#fb923c', originX: 'center', originY: 'center' }),
+        new fabric.Rect({ left: 0, top: -6, width: 48, height: 3, fill: '#fb923c', originX: 'center', originY: 'center' }),
+        new fabric.Rect({ left: 0, top: 6, width: 48, height: 3, fill: '#fb923c', originX: 'center', originY: 'center' }),
+        new fabric.Rect({ left: 0, top: 18, width: 48, height: 3, fill: '#fb923c', originX: 'center', originY: 'center' }),
+      ], { left: baseLeft, top: baseTop });
+      if (kind === 'ring') item = new fabric.Circle({ left: baseLeft, top: baseTop, radius: 16, fill: 'transparent', stroke: '#38bdf8', strokeWidth: 4 });
+      if (kind === 'mannequin') item = new fabric.Group([
+        new fabric.Circle({ left: 0, top: -22, radius: 7, fill: '#f8fafc', originX: 'center', originY: 'center' }),
+        new fabric.Rect({ left: 0, top: -3, width: 18, height: 28, rx: 8, ry: 8, fill: '#f59e0b', originX: 'center', originY: 'center' }),
+        new fabric.Rect({ left: -8, top: 18, width: 4, height: 20, fill: '#f8fafc', originX: 'center', originY: 'center', angle: 12 }),
+        new fabric.Rect({ left: 8, top: 18, width: 4, height: 20, fill: '#f8fafc', originX: 'center', originY: 'center', angle: -12 }),
+      ], { left: baseLeft, top: baseTop });
+      if (kind === 'wall') item = new fabric.Group([
+        new fabric.Rect({ left: -18, top: 0, width: 12, height: 34, rx: 6, ry: 6, fill: '#cbd5e1', originX: 'center', originY: 'center' }),
+        new fabric.Rect({ left: 0, top: 0, width: 12, height: 34, rx: 6, ry: 6, fill: '#94a3b8', originX: 'center', originY: 'center' }),
+        new fabric.Rect({ left: 18, top: 0, width: 12, height: 34, rx: 6, ry: 6, fill: '#cbd5e1', originX: 'center', originY: 'center' }),
+      ], { left: baseLeft, top: baseTop });
+      if (kind === 'target') item = new fabric.Group([
+        new fabric.Circle({ left: 0, top: 0, radius: 18, fill: '#f8fafc', stroke: '#1d4ed8', strokeWidth: 3, originX: 'center', originY: 'center' }),
+        new fabric.Circle({ left: 0, top: 0, radius: 10, fill: '#60a5fa', originX: 'center', originY: 'center' }),
+        new fabric.Circle({ left: 0, top: 0, radius: 4, fill: '#dc2626', originX: 'center', originY: 'center' }),
+      ], { left: baseLeft, top: baseTop });
+      if (kind === 'bib') item = new fabric.Group([
+        new fabric.Rect({ left: 0, top: 0, width: 28, height: 32, rx: 8, ry: 8, fill: '#a3e635', originX: 'center', originY: 'center' }),
+        new fabric.Rect({ left: -7, top: -14, width: 8, height: 10, fill: '#0f172a', originX: 'center', originY: 'center', angle: 20 }),
+        new fabric.Rect({ left: 7, top: -14, width: 8, height: 10, fill: '#0f172a', originX: 'center', originY: 'center', angle: -20 }),
+      ], { left: baseLeft, top: baseTop });
       if (kind === 'zone') {
         if (variant === 'circle') item = new fabric.Circle({ left: baseLeft, top: baseTop, radius: 46, fill: 'rgba(14,165,233,0.18)', stroke: '#0ea5e9', strokeWidth: 2 });
         else if (variant === 'diamond') item = new fabric.Rect({ left: baseLeft, top: baseTop, width: 96, height: 96, fill: 'rgba(14,165,233,0.16)', stroke: '#0ea5e9', strokeWidth: 2, angle: 45 });

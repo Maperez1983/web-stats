@@ -1117,8 +1117,74 @@
               <div class="task-content">
                 <h3 class="task-title">{{ row.obj.title }}</h3>
                 <p class="meta"><strong>{{ row.obj.week_start|date:"d/m/Y" }}</strong> → <strong>{{ row.obj.week_end|date:"d/m/Y" }}</strong> · Estado: {{ row.obj.get_status_display }}</p>
-                <p class="meta">Sesiones: <strong>{{ row.sessions_count }}</strong> · Tareas: <strong>{{ row.tasks_count }}</strong></p>
+                <div class="session-chip-row" style="margin-top:0.45rem;">
+                  <span class="session-chip">Sesiones · {{ row.sessions_count }}</span>
+                  <span class="session-chip">Tareas · {{ row.tasks_count }}</span>
+                  <span class="session-chip">Carga sesión · {{ row.session_minutes_total }}'</span>
+                  <span class="session-chip">Carga tareas · {{ row.task_minutes_total }}'</span>
+                  {% for intensity in row.intensity_summary %}
+                  <span class="session-chip">{{ intensity.label }} · {{ intensity.count }}</span>
+                  {% endfor %}
+                </div>
                 {% if row.obj.objective %}<p class="meta">Objetivo: {{ row.obj.objective }}</p>{% endif %}
+                <div class="session-actions" style="margin-bottom:0.7rem;">
+                  <details class="session-editor">
+                    <summary>Editar microciclo</summary>
+                    <form method="post" class="grid" style="margin-top:0.7rem;">
+                      {% csrf_token %}
+                      <input type="hidden" name="planner_action" value="update_microcycle_plan" />
+                      <input type="hidden" name="planner_tab" value="planning" />
+                      <input type="hidden" name="edit_microcycle_id" value="{{ row.obj.id }}" />
+                      <label>
+                        Título
+                        <input type="text" name="edit_microcycle_title" value="{{ row.obj.title }}" maxlength="140" required />
+                      </label>
+                      <label>
+                        Objetivo
+                        <input type="text" name="edit_microcycle_objective" value="{{ row.obj.objective|default:'' }}" maxlength="200" />
+                      </label>
+                      <label>
+                        Inicio
+                        <input type="date" name="edit_week_start" value="{{ row.obj.week_start|date:'Y-m-d' }}" required />
+                      </label>
+                      <label>
+                        Fin
+                        <input type="date" name="edit_week_end" value="{{ row.obj.week_end|date:'Y-m-d' }}" required />
+                      </label>
+                      <label>
+                        Estado
+                        <select name="edit_microcycle_status">
+                          {% for value, label in microcycle_status_choices %}
+                          <option value="{{ value }}" {% if value == row.obj.status %}selected{% endif %}>{{ label }}</option>
+                          {% endfor %}
+                        </select>
+                      </label>
+                      <label style="grid-column:1/-1;">
+                        Notas
+                        <textarea name="edit_microcycle_notes">{{ row.obj.notes|default:'' }}</textarea>
+                      </label>
+                      <div><button type="submit" class="primary">Guardar microciclo</button></div>
+                    </form>
+                  </details>
+                  <details class="session-editor">
+                    <summary>Clonar microciclo</summary>
+                    <form method="post" class="grid" style="margin-top:0.7rem;">
+                      {% csrf_token %}
+                      <input type="hidden" name="planner_action" value="clone_microcycle_plan" />
+                      <input type="hidden" name="planner_tab" value="planning" />
+                      <input type="hidden" name="source_microcycle_id" value="{{ row.obj.id }}" />
+                      <label>
+                        Nuevo inicio
+                        <input type="date" name="clone_week_start" value="{{ row.obj.week_start|date:'Y-m-d' }}" required />
+                      </label>
+                      <label>
+                        Nuevo fin
+                        <input type="date" name="clone_week_end" value="{{ row.obj.week_end|date:'Y-m-d' }}" />
+                      </label>
+                      <div><button type="submit" class="secondary">Clonar semana</button></div>
+                    </form>
+                  </details>
+                </div>
                 {% if row.sessions %}
                 <div class="session-stack">
                   {% for session in row.sessions %}
@@ -1137,10 +1203,62 @@
                     <div class="session-chip-row">
                       <span class="session-chip">Intensidad · {{ session.obj.get_intensity_display }}</span>
                       <span class="session-chip">Tareas · {{ session.tasks_count }}</span>
+                      <span class="session-chip">Min tareas · {{ session.task_minutes_total }}'</span>
                       <span class="session-chip">Orden · {{ session.obj.order }}</span>
                     </div>
                     {% if session.obj.content %}
                     <p class="meta" style="margin-top:0.55rem;">{{ session.obj.content }}</p>
+                    {% endif %}
+                    {% if session.tasks %}
+                    <div class="session-stack" style="margin-top:0.75rem;">
+                      {% for task_item in session.tasks %}
+                      <article class="task" style="padding:0.85rem 0.95rem;">
+                        <div class="task-content">
+                          <h4 style="margin:0; font-size:0.88rem;">{{ task_item.title }}</h4>
+                          <p class="meta" style="margin:0.3rem 0 0;">{{ task_item.get_block_display }} · {{ task_item.duration_minutes }}' · Orden {{ task_item.order }}</p>
+                          {% if task_item.objective %}<p class="meta" style="margin:0.4rem 0 0.2rem;">{{ task_item.objective }}</p>{% endif %}
+                          <div style="display:flex; gap:0.45rem; flex-wrap:wrap; margin-top:0.55rem;">
+                            <a class="button" href="{% url 'session-task-detail' task_item.id %}">Detalle</a>
+                            {% if not task_item.task_pdf %}
+                            <a class="button" href="{% url task_builder_edit_route_name task_item.id %}">Editar</a>
+                            {% endif %}
+                            <form method="post" style="margin:0;">
+                              {% csrf_token %}
+                              <input type="hidden" name="planner_action" value="move_session_task" />
+                              <input type="hidden" name="planner_tab" value="planning" />
+                              <input type="hidden" name="task_id" value="{{ task_item.id }}" />
+                              <input type="hidden" name="move_direction" value="up" />
+                              <button type="submit" class="secondary">↑</button>
+                            </form>
+                            <form method="post" style="margin:0;">
+                              {% csrf_token %}
+                              <input type="hidden" name="planner_action" value="move_session_task" />
+                              <input type="hidden" name="planner_tab" value="planning" />
+                              <input type="hidden" name="task_id" value="{{ task_item.id }}" />
+                              <input type="hidden" name="move_direction" value="down" />
+                              <button type="submit" class="secondary">↓</button>
+                            </form>
+                            <form method="post" style="margin:0;">
+                              {% csrf_token %}
+                              <input type="hidden" name="planner_action" value="duplicate_session_task" />
+                              <input type="hidden" name="planner_tab" value="planning" />
+                              <input type="hidden" name="task_id" value="{{ task_item.id }}" />
+                              <button type="submit" class="secondary">Duplicar</button>
+                            </form>
+                            <form method="post" style="margin:0;" onsubmit="return confirm('¿Eliminar esta tarea de la sesión?');">
+                              {% csrf_token %}
+                              <input type="hidden" name="planner_action" value="delete_session_task" />
+                              <input type="hidden" name="planner_tab" value="planning" />
+                              <input type="hidden" name="task_id" value="{{ task_item.id }}" />
+                              <button type="submit" class="danger">Eliminar</button>
+                            </form>
+                          </div>
+                        </div>
+                      </article>
+                      {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="meta" style="margin-top:0.7rem;">Sesión sin tareas todavía.</p>
                     {% endif %}
                     <div class="session-actions">
                       <details class="session-editor">
@@ -1195,6 +1313,32 @@
                             <textarea name="edit_session_content">{{ session.obj.content|default:'' }}</textarea>
                           </label>
                           <div><button type="submit" class="primary">Guardar cambios</button></div>
+                        </form>
+                      </details>
+                      <details class="session-editor">
+                        <summary>Duplicar sesión</summary>
+                        <form method="post" class="grid" style="margin-top:0.7rem;">
+                          {% csrf_token %}
+                          <input type="hidden" name="planner_action" value="duplicate_session_plan" />
+                          <input type="hidden" name="planner_tab" value="planning" />
+                          <input type="hidden" name="source_session_id" value="{{ session.obj.id }}" />
+                          <label>
+                            Microciclo destino
+                            <select name="duplicate_microcycle_id" required>
+                              {% for item in planning_microcycles %}
+                              <option value="{{ item.id }}" {% if item.id == row.obj.id %}selected{% endif %}>{{ item.week_start|date:"d/m" }}-{{ item.week_end|date:"d/m" }} · {{ item.title }}</option>
+                              {% endfor %}
+                            </select>
+                          </label>
+                          <label>
+                            Fecha duplicada
+                            <input type="date" name="duplicate_session_date" value="{{ session.obj.session_date|date:'Y-m-d' }}" required />
+                          </label>
+                          <label style="grid-column:1/-1;">
+                            Foco duplicado
+                            <input type="text" name="duplicate_session_focus" value="{{ session.obj.focus }} · copia" maxlength="140" />
+                          </label>
+                          <div><button type="submit" class="secondary">Duplicar sesión con tareas</button></div>
                         </form>
                       </details>
                       <form method="post">
@@ -1316,6 +1460,25 @@
                 <a class="button" href="{% url 'session-task-file' t.id %}" target="_blank" rel="noopener">Abrir PDF</a>
                 {% endif %}
                 <a class="button" href="{% url 'session-task-detail' t.id %}">Ver detalle</a>
+                {% if not t.is_imported %}
+                <a class="button" href="{% url task_builder_edit_route_name t.id %}">Editar</a>
+                {% endif %}
+                {% if planning_session_items %}
+                <form method="post" style="margin:0; display:flex; gap:0.35rem; flex-wrap:wrap; align-items:center;">
+                  {% csrf_token %}
+                  <input type="hidden" name="planner_action" value="copy_library_task_to_session" />
+                  <input type="hidden" name="planner_tab" value="library" />
+                  <input type="hidden" name="library_view" value="{{ library_view }}" />
+                  <input type="hidden" name="library_key" value="{{ library_key }}" />
+                  <input type="hidden" name="source_task_id" value="{{ t.id }}" />
+                  <select name="target_session_id" style="min-width:230px;">
+                    {% for session_item in planning_session_items %}
+                    <option value="{{ session_item.id }}">{{ session_item.label }}</option>
+                    {% endfor %}
+                  </select>
+                  <button type="submit" class="secondary">Añadir a sesión</button>
+                </form>
+                {% endif %}
                 {% if t.task_pdf %}
                 <form method="post" style="margin:0;">
                   {% csrf_token %}
