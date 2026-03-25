@@ -149,6 +149,62 @@
         font-weight: 800;
         color: #0f172a;
       }
+      .coach-player-tools {
+        margin-top: 1rem;
+        border-radius: 18px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(226,232,240,0.92));
+        box-shadow: 0 18px 44px rgba(15, 23, 42, 0.28);
+        color: #0f172a;
+        padding: 1.2rem;
+      }
+      .coach-player-toolbar {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 0.8rem;
+        margin-bottom: 1rem;
+      }
+      .coach-player-toolbar label {
+        display: block;
+        font-size: 0.74rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #475569;
+        margin-bottom: 0.35rem;
+      }
+      .coach-player-toolbar select {
+        width: 100%;
+        border-radius: 12px;
+        border: 1px solid rgba(15, 124, 147, 0.18);
+        background: rgba(255,255,255,0.92);
+        color: #0f172a;
+        padding: 0.7rem 0.8rem;
+      }
+      .coach-player-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 0.8rem;
+      }
+      .coach-player-header-main {
+        display: flex;
+        align-items: center;
+        gap: 0.9rem;
+      }
+      .coach-player-avatar {
+        width: 72px;
+        height: 72px;
+        border-radius: 18px;
+        object-fit: cover;
+        object-position: center 22%;
+        border: 1px solid rgba(15, 23, 42, 0.12);
+        background: rgba(255,255,255,0.9);
+      }
+      .coach-player-meta {
+        color: #475569;
+      }
       .coach-panels {
         margin-top: 0.9rem;
         display: grid;
@@ -453,6 +509,80 @@
           </div>
           {% endfor %}
         </div>
+      </section>
+      {% endif %}
+      {% if coach_player_options %}
+      <section class="coach-player-tools">
+        <h3 class="overview-title" style="margin-bottom:0.9rem;">Vista Jugador</h3>
+        <form method="get" class="coach-player-toolbar">
+          {% if coach_selected_match %}<input type="hidden" name="match" value="{{ coach_selected_match.match_id }}"/>{% endif %}
+          <div>
+            <label for="coach-player-select">Jugador</label>
+            <select id="coach-player-select" name="player" onchange="this.form.submit()">
+              <option value="">Selecciona jugador</option>
+              {% for option in coach_player_options %}
+              <option value="{{ option.id }}" {% if coach_selected_player_id == option.id %}selected{% endif %}>
+                {% if option.number %}{{ option.number }} · {% endif %}{{ option.name }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          {% if coach_player_match_options %}
+          <div>
+            <label for="coach-player-match-select">Vista</label>
+            <select id="coach-player-match-select" name="player_match" onchange="this.form.submit()">
+              <option value="" {% if not coach_selected_player_match_id %}selected{% endif %}>Temporada completa</option>
+              {% for option in coach_player_match_options %}
+              <option value="{{ option.id }}" {% if coach_selected_player_match_id == option.id %}selected{% endif %}>{{ option.label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          {% endif %}
+        </form>
+        {% if coach_player_view %}
+        <div class="coach-player-header">
+          <div class="coach-player-header-main">
+            <img class="coach-player-avatar" src="{{ coach_player_view.photo_url|default:'' }}" alt="{{ coach_player_view.title }}" />
+            <div>
+              <h2 style="margin:0;">{{ coach_player_view.title }}</h2>
+              <div class="coach-player-meta">{{ coach_player_view.meta }}</div>
+            </div>
+          </div>
+          <a class="pill-button" style="text-decoration:none;" href="{% url 'player-detail' coach_selected_player_id %}">Ficha completa</a>
+        </div>
+        <div class="overview-rings">
+          {% for item in coach_player_view.rings %}
+          <article class="overview-ring">
+            <div class="overview-ring-chart" style="--pct: {{ item.pct|default:0 }};">
+              <span class="overview-ring-value">{{ item.value }}</span>
+            </div>
+            <div class="overview-ring-label">{{ item.label }}</div>
+          </article>
+          {% endfor %}
+        </div>
+        <div class="overview-summary">
+          {% for item in coach_player_view.summary %}
+          <article class="overview-item">
+            <div class="label">{{ item.label }}</div>
+            <div class="value">{{ item.value }}</div>
+          </article>
+          {% endfor %}
+        </div>
+        {% if coach_player_view.field_zones %}
+        <div class="coach-map-wrap" style="margin-top:1rem;background:#0b1b12;">
+          <h3 style="color:#f8fafc;">Mapa de calor</h3>
+          <div class="field-diagram">
+            <img src="{% static 'football/campo-futbol.jpg' %}" alt="Campo de fútbol" />
+            {% for zone in coach_player_view.field_zones %}
+            <div class="field-zone" style="left: {{ zone.left }}; top: {{ zone.top }}; width: {{ zone.width }}; height: {{ zone.height }};">
+              <span>{{ zone.label }}</span>
+              <span class="zone-count" title="{{ zone.count }} acciones">{{ zone.pct|default:0|floatformat:-1 }}%</span>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+        {% endif %}
       </section>
       {% endif %}
       {% if coach_match_rows %}

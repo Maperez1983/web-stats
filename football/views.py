@@ -3433,6 +3433,77 @@ def coach_role_trainer_page(request):
             {'label': 'Tarjetas', 'value': card_total},
         ],
     }
+    player_dashboard_rows = compute_player_dashboard(primary_team) if primary_team else []
+    coach_player_options = [
+        {
+            'id': item.get('player_id'),
+            'name': item.get('name'),
+            'number': item.get('number'),
+        }
+        for item in sorted(player_dashboard_rows, key=lambda row: (str(row.get('name') or '').lower(), row.get('player_id') or 0))
+    ]
+    selected_player_id = _parse_int(request.GET.get('player'))
+    selected_player = Player.objects.filter(id=selected_player_id, team=primary_team).first() if selected_player_id else None
+    selected_player_stats = next((item for item in player_dashboard_rows if item.get('player_id') == selected_player_id), None) if selected_player_id else None
+    coach_player_match_options = []
+    coach_player_view = None
+    if selected_player and selected_player_stats:
+        selected_player_match_id = _parse_int(request.GET.get('player_match'))
+        coach_player_match_options = [
+            {
+                'id': item.get('match_id'),
+                'label': f"{item.get('round') or 'Partido'} · {item.get('opponent') or 'Rival'}",
+            }
+            for item in selected_player_stats.get('matches', [])
+            if item.get('match_id')
+        ]
+        season_rings = [
+            {'label': 'Tasa de éxito', 'value': f"{float(selected_player_stats.get('success_rate') or 0):.1f}%", 'pct': float(selected_player_stats.get('success_rate') or 0)},
+            {'label': 'Duelos ganados', 'value': f"{float(selected_player_stats.get('duel_rate') or 0):.1f}%", 'pct': float(selected_player_stats.get('duel_rate') or 0)},
+            {'label': 'Precisión de pase', 'value': f"{float(selected_player_stats.get('passes', {}).get('accuracy') or 0):.1f}%", 'pct': float(selected_player_stats.get('passes', {}).get('accuracy') or 0)},
+            {'label': 'Tiro a puerta', 'value': f"{float(selected_player_stats.get('shots', {}).get('accuracy') or 0):.1f}%", 'pct': float(selected_player_stats.get('shots', {}).get('accuracy') or 0)},
+        ]
+        season_summary = [
+            {'label': 'Acciones', 'value': selected_player_stats.get('total_actions', 0)},
+            {'label': 'Éxitos', 'value': selected_player_stats.get('successes', 0)},
+            {'label': 'Pases', 'value': f"{selected_player_stats.get('passes', {}).get('completed', 0)}/{selected_player_stats.get('passes', {}).get('attempts', 0)}"},
+            {'label': 'Disparos', 'value': f"{selected_player_stats.get('shots', {}).get('on_target', 0)}/{selected_player_stats.get('shots', {}).get('attempts', 0)}"},
+            {'label': 'Disparos/Gol', 'value': '-' if selected_player_stats.get('shots', {}).get('per_goal') is None else selected_player_stats.get('shots', {}).get('per_goal')},
+            {'label': 'Goles', 'value': selected_player_stats.get('goals', 0)},
+            {'label': 'Asistencias', 'value': selected_player_stats.get('assists', 0)},
+            {'label': 'Minutos', 'value': selected_player_stats.get('minutes', 0)},
+            {'label': 'Partidos', 'value': selected_player_stats.get('pj', 0)},
+            {'label': 'Importancia', 'value': round(float(selected_player_stats.get('importance_score') or 0), 1)},
+            {'label': 'Influencia', 'value': round(float(selected_player_stats.get('influence_score') or 0), 1)},
+            {'label': 'Posición', 'value': selected_player_stats.get('position') or '-'},
+        ]
+        coach_player_view = {
+            'mode': 'season',
+            'title': f"{selected_player.name} · Temporada",
+            'meta': selected_player.position or 'Jugador',
+            'photo_url': resolve_player_photo_url(request, selected_player),
+            'rings': season_rings,
+            'summary': season_summary,
+            'field_zones': selected_player_stats.get('field_zones', []),
+        }
+        if selected_player_match_id:
+            selected_match = _team_match_queryset(primary_team).filter(id=selected_player_match_id).first()
+            if selected_match:
+                match_stats, match_payload = _build_player_match_stats_payload(primary_team, selected_player, selected_match)
+                coach_player_view = {
+                    'mode': 'match',
+                    'title': f"{selected_player.name} · {match_payload['opponent']}",
+                    'meta': f"{match_payload['date']} · Jornada {match_payload['round']}",
+                    'photo_url': resolve_player_photo_url(request, selected_player),
+                    'rings': [
+                        {'label': 'Tasa de éxito', 'value': f"{float(match_stats.get('success_rate') or 0):.1f}%", 'pct': float(match_stats.get('success_rate') or 0)},
+                        {'label': 'Duelos ganados', 'value': f"{float(match_stats.get('duel_rate') or 0):.1f}%", 'pct': float(match_stats.get('duel_rate') or 0)},
+                        {'label': 'Precisión de pase', 'value': f"{float(match_stats.get('passes', {}).get('accuracy') or 0):.1f}%", 'pct': float(match_stats.get('passes', {}).get('accuracy') or 0)},
+                        {'label': 'Tiro a puerta', 'value': f"{float(match_stats.get('shots', {}).get('accuracy') or 0):.1f}%", 'pct': float(match_stats.get('shots', {}).get('accuracy') or 0)},
+                    ],
+                    'summary': match_stats.get('kpi_summary', []),
+                    'field_zones': match_stats.get('field_zones', []),
+                }
     match_events_map = defaultdict(list)
     for event in team_events:
         if event.match_id:
@@ -3493,6 +3564,11 @@ def coach_role_trainer_page(request):
             'coach_selected_match_metrics': selected_match_metrics,
             'weekly_staff_brief': weekly_staff_brief,
             'coach_measured_matches': measured_matches,
+            'coach_player_options': coach_player_options,
+            'coach_selected_player_id': selected_player_id,
+            'coach_player_match_options': coach_player_match_options,
+            'coach_selected_player_match_id': _parse_int(request.GET.get('player_match')),
+            'coach_player_view': coach_player_view,
         },
     )
 
@@ -8173,16 +8249,7 @@ def match_stats_page(request, match_id):
     )
 
 
-def player_match_stats_page(request, player_id, match_id):
-    primary_team = Team.objects.filter(is_primary=True).first()
-    if not primary_team:
-        return JsonResponse({'error': 'No hay equipo principal configurado'}, status=400)
-    player = Player.objects.filter(id=player_id, team=primary_team).first()
-    if not player:
-        raise Http404('Jugador no encontrado')
-    match = _team_match_queryset(primary_team).filter(id=match_id).first()
-    if not match:
-        raise Http404('Partido no encontrado')
+def _build_player_match_stats_payload(primary_team, player, match):
     opponent = match.away_team if match.home_team == primary_team else match.home_team
     preferred_sources = preferred_event_source_by_match(primary_team)
     events = _filter_stats_events(
@@ -8329,6 +8396,20 @@ def player_match_stats_page(request, player_id, match_id):
         'opponent': opponent.display_name if opponent else 'Rival desconocido',
         'home': match.home_team == primary_team,
     }
+    return stats, match_payload
+
+
+def player_match_stats_page(request, player_id, match_id):
+    primary_team = Team.objects.filter(is_primary=True).first()
+    if not primary_team:
+        return JsonResponse({'error': 'No hay equipo principal configurado'}, status=400)
+    player = Player.objects.filter(id=player_id, team=primary_team).first()
+    if not player:
+        raise Http404('Jugador no encontrado')
+    match = _team_match_queryset(primary_team).filter(id=match_id).first()
+    if not match:
+        raise Http404('Partido no encontrado')
+    stats, match_payload = _build_player_match_stats_payload(primary_team, player, match)
     return render(
         request,
         'football/player_match_stats.html',

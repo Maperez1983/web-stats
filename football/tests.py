@@ -915,3 +915,16 @@ class CoachTrainerMetricsTests(TestCase):
             if zone['key'] == 'Medio Centro'
         )
         self.assertEqual(medio_centro['count'], 3)
+
+    def test_trainer_page_can_render_player_season_and_match_views(self):
+        response = self.client.get(reverse('coach-role-trainer'), {'player': self.player.id})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('coach_player_view', response.context)
+        self.assertEqual(response.context['coach_player_view']['mode'], 'season')
+
+        response = self.client.get(
+            reverse('coach-role-trainer'),
+            {'player': self.player.id, 'player_match': self.match.id},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['coach_player_view']['mode'], 'match')
