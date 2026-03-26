@@ -11,17 +11,18 @@
       body {
         font-family: "Segoe UI", Arial, sans-serif;
         font-size: 10.5px;
-        color: #111827;
-        background: #ffffff;
+        color: {{ pdf_palette.ink }};
+        background: {{ pdf_palette.sheet }};
       }
       .sheet {
         border: 1px solid #d5dde7;
+        background: {{ pdf_palette.sheet }};
       }
       .brand {
         display: table;
         width: 100%;
         border-bottom: 1px solid #d5dde7;
-        background: #f8fafc;
+        background: {% if pdf_style == 'club' %}linear-gradient(135deg, {{ pdf_palette.primary }}, {{ pdf_palette.accent }}){% else %}{{ pdf_palette.panel }}{% endif %};
       }
       .brand-logo,
       .brand-copy {
@@ -41,18 +42,20 @@
         margin: 0;
         font-size: 18px;
         letter-spacing: 0.03em;
+        color: {% if pdf_style == 'club' %}#ffffff{% else %}{{ pdf_palette.accent }}{% endif %};
       }
       .brand-copy p {
         margin: 4px 0 0;
-        color: #475569;
+        color: {% if pdf_style == 'club' %}rgba(255,255,255,0.84){% else %}#475569{% endif %};
       }
       .section-title {
         padding: 7px 12px;
         border-bottom: 1px solid #d5dde7;
-        background: #eef2f7;
+        background: {% if pdf_style == 'club' %}{{ pdf_palette.primary }}{% else %}#eef2f7{% endif %};
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.07em;
+        color: {% if pdf_style == 'club' %}#ffffff{% else %}{{ pdf_palette.ink }}{% endif %};
       }
       .details {
         width: 100%;
@@ -97,7 +100,7 @@
       .box-head {
         padding: 7px 10px;
         border-bottom: 1px solid #d5dde7;
-        background: #f8fafc;
+        background: {% if pdf_style == 'club' %}rgba(15,122,53,0.08){% else %}#f8fafc{% endif %};
         font-weight: 700;
       }
       .box-body {
@@ -195,7 +198,7 @@
         padding: 8px 12px;
         border-top: 1px solid #d5dde7;
         font-size: 9px;
-        color: #64748b;
+        color: {{ pdf_palette.muted }};
         text-align: right;
       }
     </style>
@@ -207,8 +210,8 @@
           <img src="{{ logo_url }}" alt="Escudo {{ team_name }}" />
         </div>
         <div class="brand-copy">
-          <h1>Entrega Ejercicio</h1>
-          <p>{{ team_name }} · {{ session.session_date|date:"d/m/Y" }}{% if session.start_time %} · {{ session.start_time|time:"H:i" }}{% endif %}</p>
+          <h1>{% if pdf_style == 'club' %}Plan de Tarea · {{ team_name }}{% else %}Entrega Ejercicio{% endif %}</h1>
+          <p>{{ team_name }} · {{ session.session_date|date:"d/m/Y" }}{% if session.start_time %} · {{ session.start_time|time:"H:i" }}{% endif %}{% if pdf_style == 'club' %} · {{ coach_name }}{% endif %}</p>
         </div>
       </div>
 
@@ -272,6 +275,22 @@
             <div class="value">{{ task_meta.work_rest|default:"-" }}</div>
           </td>
         </tr>
+        {% if pdf_style == 'club' %}
+        <tr>
+          <td>
+            <span class="label">Entrenador</span>
+            <div class="value">{{ coach_name }}</div>
+          </td>
+          <td>
+            <span class="label">Equipo</span>
+            <div class="value">{{ team_name }}</div>
+          </td>
+          <td>
+            <span class="label">Formato</span>
+            <div class="value">Club</div>
+          </td>
+        </tr>
+        {% endif %}
       </table>
 
       <div class="split">
@@ -344,7 +363,7 @@
       </div>
 
       <div class="footer">
-        Formato UEFA · {{ microcycle.title }} · Generado {{ generated_at|date:"d/m/Y H:i" }}
+        {% if pdf_style == 'club' %}Formato Club{% else %}Formato UEFA{% endif %} · {{ microcycle.title }} · Generado {{ generated_at|date:"d/m/Y H:i" }}
       </div>
     </section>
   </body>

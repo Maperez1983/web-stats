@@ -1624,7 +1624,8 @@ class SessionsPlanningTests(TestCase):
         self.assertEqual(meta.get('assigned_player_names'), ['Hugo'])
         self.assertTrue(bool(task.task_preview_image))
         self.assertContains(response, 'Tarea guardada correctamente.')
-        self.assertContains(response, 'Imprimir PDF UEFA')
+        self.assertContains(response, 'Imprimir UEFA')
+        self.assertContains(response, 'Imprimir Club')
 
     def test_task_builder_edit_updates_existing_task(self):
         session = TrainingSession.objects.create(
@@ -1722,6 +1723,31 @@ class SessionsPlanningTests(TestCase):
         self.assertContains(response, 'Consigna / Explicación')
         self.assertContains(response, 'Situaciones reducidas')
         self.assertContains(response, 'portería grande')
+        self.assertContains(response, 'Formato UEFA')
+
+    @patch('football.views.weasyprint', None)
+    def test_session_task_pdf_renders_club_style_layout(self):
+        session = TrainingSession.objects.create(
+            microcycle=self.microcycle,
+            session_date=date(2026, 3, 25),
+            focus='Sesión base',
+            duration_minutes=90,
+        )
+        task = SessionTask.objects.create(
+            session=session,
+            title='Tarea club',
+            block=SessionTask.BLOCK_MAIN_1,
+            duration_minutes=16,
+            objective='Atacar espacio libre',
+            tactical_layout={'meta': {'scope': 'coach', 'training_type': 'Juego aplicado'}},
+        )
+
+        response = self.client.get(reverse('session-task-pdf', args=[task.id]) + '?style=club')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Plan de Tarea')
+        self.assertContains(response, self.user.username)
+        self.assertContains(response, 'Formato Club')
 
     def test_library_task_can_be_copied_to_session(self):
         library_session = TrainingSession.objects.create(

@@ -3047,6 +3047,9 @@ def session_task_pdf(request, task_id):
         raise Http404('Tarea no encontrada')
 
     team = task.session.microcycle.team
+    pdf_style = (request.GET.get('style') or 'uefa').strip().lower()
+    if pdf_style not in {'uefa', 'club'}:
+        pdf_style = 'uefa'
     tokens = []
     tactical_layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
     raw_tokens = tactical_layout.get('tokens') if isinstance(tactical_layout, dict) else []
@@ -3172,6 +3175,36 @@ def session_task_pdf(request, task_id):
         lines = [line.strip() for line in text.split('\n') if line.strip()]
         return lines or ['-']
 
+    def _team_pdf_palette(team_obj, style_key='uefa'):
+        primary = str(getattr(team_obj, 'primary_color', '') or '').strip() or '#0f7a35'
+        secondary = str(getattr(team_obj, 'secondary_color', '') or '').strip() or '#facc15'
+        accent = str(getattr(team_obj, 'accent_color', '') or '').strip() or '#102734'
+        if style_key == 'club':
+            return {
+                'primary': primary,
+                'secondary': secondary,
+                'accent': accent,
+                'panel': '#f5fbf6',
+                'sheet': '#ffffff',
+                'ink': '#102734',
+                'muted': '#51606f',
+            }
+        return {
+            'primary': '#0e7490',
+            'secondary': '#dbeafe',
+            'accent': '#102734',
+            'panel': '#f8fafc',
+            'sheet': '#ffffff',
+            'ink': '#111827',
+            'muted': '#64748b',
+        }
+
+    coach_name = (
+        request.user.get_full_name().strip()
+        if hasattr(request.user, 'get_full_name') and request.user.get_full_name().strip()
+        else getattr(request.user, 'username', '') or 'Entrenador'
+    )
+
     context = {
         'team_name': team.name,
         'task': task,
@@ -3191,6 +3224,9 @@ def session_task_pdf(request, task_id):
         'coordination_label': coordination_label or '-',
         'coordination_skills_label': coordination_skills_label or '-',
         'tactical_intent_label': tactical_intent_label or '-',
+        'pdf_style': pdf_style,
+        'pdf_palette': _team_pdf_palette(team, pdf_style),
+        'coach_name': coach_name,
         'animation_frames_count': len(animation_frames),
         'logo_url': request.build_absolute_uri(static('football/images/cdb-logo.png')),
         'task_preview_url': request.build_absolute_uri(task.task_preview_image.url) if task.task_preview_image else '',

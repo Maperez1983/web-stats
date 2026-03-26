@@ -462,7 +462,8 @@
         <div class="actions">
           <a href="{% url scope_route_name %}" class="button">Volver a sesiones</a>
           {% if task %}
-          <a href="{% url 'session-task-pdf' task.id %}" class="button" target="_blank" rel="noopener">PDF UEFA</a>
+          <a href="{% url 'session-task-pdf' task.id %}" class="button" target="_blank" rel="noopener">Imprimir UEFA</a>
+          <a href="{% url 'session-task-pdf' task.id %}?style=club" class="button" target="_blank" rel="noopener">Imprimir Club</a>
           {% endif %}
         </div>
       </div>
@@ -786,7 +787,8 @@
               <div class="submit-row">
                 <button type="submit" class="primary">{% if task %}Guardar tarea{% else %}Crear tarea{% endif %}</button>
                 {% if task %}
-                <a href="{% url 'session-task-pdf' task.id %}" class="button" target="_blank" rel="noopener">Imprimir PDF UEFA</a>
+                <a href="{% url 'session-task-pdf' task.id %}" class="button" target="_blank" rel="noopener">Imprimir UEFA</a>
+                <a href="{% url 'session-task-pdf' task.id %}?style=club" class="button" target="_blank" rel="noopener">Imprimir Club</a>
                 {% endif %}
               </div>
             </div>
