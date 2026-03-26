@@ -12,6 +12,17 @@
   --prod-radius-lg: 18px;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+}
+
 .product-shell {
   max-width: 1180px;
   margin: 0 auto;
@@ -80,4 +91,28 @@
 .product-nav-shortcuts a:hover {
   border-color: rgba(56, 189, 248, 0.6);
   background: rgba(56, 189, 248, 0.16);
+}
+
+.product-scroll-x {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 820px) {
+  .product-shell {
+    width: min(1180px, calc(100vw - 1rem));
+  }
+
+  .product-nav-shortcuts {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .product-nav-shortcuts a {
+    white-space: nowrap;
+    flex: 0 0 auto;
+  }
 }

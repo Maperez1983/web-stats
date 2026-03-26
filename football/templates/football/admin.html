@@ -252,6 +252,24 @@
         justify-self: start;
       }
       @media (max-width: 900px) {
+        body {
+          padding: 0.75rem;
+        }
+        .topbar {
+          align-items: stretch;
+        }
+        .module-tabs,
+        .admin-tabs {
+          flex-wrap: nowrap;
+          overflow-x: auto;
+          padding-bottom: 0.25rem;
+          -webkit-overflow-scrolling: touch;
+        }
+        .module-tab,
+        .admin-tab {
+          white-space: nowrap;
+          flex: 0 0 auto;
+        }
         .users-form {
           grid-template-columns: 1fr;
         }

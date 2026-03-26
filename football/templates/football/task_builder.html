@@ -273,6 +273,11 @@
         border: 1px solid rgba(255, 255, 255, 0.14);
         background: linear-gradient(180deg, #0b1725, #08111d);
       }
+      .pitch-viewport {
+        width: 100%;
+        overflow: hidden;
+        border-radius: 18px;
+      }
       .pitch-stage.is-drop-target {
         box-shadow: inset 0 0 0 2px rgba(34, 211, 238, 0.7);
       }
@@ -457,11 +462,50 @@
         }
       }
       @media (max-width: 760px) {
+        .page {
+          padding: 0.75rem;
+        }
+        .topbar {
+          gap: 0.75rem;
+        }
+        .actions {
+          width: 100%;
+        }
+        .actions .button,
+        .actions button {
+          flex: 1 1 calc(50% - 0.55rem);
+          text-align: center;
+          justify-content: center;
+        }
+        .surface-trigger {
+          width: 100%;
+          min-width: 0;
+        }
+        .surface-menu {
+          width: min(100vw - 1.5rem, 100%);
+          grid-template-columns: 1fr;
+        }
+        .resource-strip,
+        .player-bank {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
         .compact-grid {
           grid-template-columns: 1fr;
         }
+        .pitch-viewport {
+          overflow-x: auto;
+          overflow-y: hidden;
+          -webkit-overflow-scrolling: touch;
+          padding-bottom: 0.35rem;
+        }
         .pitch-stage {
-          min-height: 280px;
+          width: 920px;
+          min-width: 920px;
+          max-width: none;
+          min-height: 520px;
+        }
+        .selection-grid {
+          grid-template-columns: 1fr;
         }
       }
     </style>
@@ -637,9 +681,11 @@
                 </div>
               </div>
 
-              <div class="pitch-stage" id="task-pitch-stage">
-                <svg id="task-pitch-surface" viewBox="0 0 1100 748" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
-                <canvas id="create-task-canvas"></canvas>
+              <div class="pitch-viewport">
+                <div class="pitch-stage" id="task-pitch-stage">
+                  <svg id="task-pitch-surface" viewBox="0 0 1100 748" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
+                  <canvas id="create-task-canvas"></canvas>
+                </div>
               </div>
               <p class="pitch-status" id="task-builder-status">Pizarra lista.</p>
               <div class="selection-toolbar" id="task-selection-toolbar">
