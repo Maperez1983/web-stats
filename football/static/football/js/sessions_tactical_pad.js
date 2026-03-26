@@ -147,13 +147,13 @@
       const sevenY = fieldY + insetY;
       const metersH = 65;
       const scaleLocal = sevenHeight / metersH;
-      const areaDepth = 24 * scaleLocal;
-      const areaWidth = 12 * scaleLocal;
-      const goalAreaDepth = 12 * scaleLocal;
-      const goalAreaWidth = 4 * scaleLocal;
+      const areaDepth = 13 * scaleLocal;
+      const areaWidth = 26 * scaleLocal;
+      const goalAreaDepth = 4.5 * scaleLocal;
+      const goalAreaWidth = 12 * scaleLocal;
       const goalHeight = 6 * scaleLocal;
       const goalDepth = 1.8 * scaleLocal;
-      const spotDist = 9 * scaleLocal;
+      const spotDist = 8 * scaleLocal;
       const drawOne = (x) => {
         root.appendChild(createSvgNode(doc, 'rect', { x, y: sevenY, width: sevenWidth, height: sevenHeight, fill: 'rgba(34,211,238,0.08)', stroke: '#67e8f9', 'stroke-width': 2.2, 'stroke-dasharray': '8 6' }));
         root.appendChild(createSvgNode(doc, 'line', { x1: x, y1: sevenY + (sevenHeight / 2), x2: x + sevenWidth, y2: sevenY + (sevenHeight / 2), stroke: '#67e8f9', 'stroke-width': 2 }));
