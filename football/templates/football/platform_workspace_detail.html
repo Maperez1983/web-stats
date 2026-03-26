@@ -473,7 +473,10 @@
                 <div class="toggle-row">
                   <label>
                     <input type="checkbox" name="module_{{ module.key }}" {% if module.enabled %}checked{% endif %} />
-                    <span>{{ module.label }}</span>
+                    <span>
+                      <strong style="display:block;">{{ module.label }}</strong>
+                      <small style="display:block; color:#9fb0c9; margin-top:0.18rem;">{{ module.description }}</small>
+                    </span>
                   </label>
                 </div>
                 {% endfor %}

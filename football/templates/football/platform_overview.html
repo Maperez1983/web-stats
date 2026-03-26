@@ -840,7 +840,7 @@
                     <input type="checkbox" name="module_{{ module.key }}" {% if module.key in workspace_form.module_keys %}checked{% endif %} />
                     <span>
                       <strong>{{ module.label }}</strong>
-                      <small>{{ module.key }}</small>
+                      <small>{{ module.description }}</small>
                     </span>
                   </label>
                   {% endfor %}
@@ -854,7 +854,7 @@
                     <input type="checkbox" name="module_{{ module.key }}" {% if module.key in workspace_form.module_keys %}checked{% endif %} />
                     <span>
                       <strong>{{ module.label }}</strong>
-                      <small>{{ module.key }}</small>
+                      <small>{{ module.description }}</small>
                     </span>
                   </label>
                   {% endfor %}

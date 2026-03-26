@@ -853,6 +853,35 @@ def _workspace_default_modules(kind):
     }
 
 
+def _workspace_club_module_catalog():
+    return [
+        {
+            'key': 'season_data',
+            'label': 'Datos temporada',
+            'description': 'Dashboard, portada staff, jugadores, fichas y seguimiento global del cliente.',
+            'route_keys': ['dashboard', 'coach_overview', 'players', 'manual_stats'],
+        },
+        {
+            'key': 'sessions',
+            'label': 'Sesiones',
+            'description': 'Planificación, biblioteca de tareas y pizarra ABP dentro del CRM del club.',
+            'route_keys': ['sessions', 'abp_board'],
+        },
+        {
+            'key': 'matchday',
+            'label': 'Convocatoria y 11 inicial',
+            'description': 'Trabajo prepartido: convocatoria, 11 inicial y registro de acciones.',
+            'route_keys': ['convocation', 'match_actions'],
+        },
+        {
+            'key': 'analysis',
+            'label': 'Análisis',
+            'description': 'Análisis rival, preparación táctica e informes del cliente.',
+            'route_keys': ['analysis'],
+        },
+    ]
+
+
 def _parse_workspace_usernames(raw_value):
     raw_chunks = re.split(r'[\n,;]+', str(raw_value or ''))
     usernames = []
@@ -875,23 +904,42 @@ def _parse_workspace_usernames(raw_value):
 def _workspace_module_catalog(kind):
     if kind == Workspace.KIND_TASK_STUDIO:
         return [
-            {'key': 'task_studio_home', 'label': 'Inicio Task Studio'},
-            {'key': 'task_studio_profile', 'label': 'Perfil e identidad'},
-            {'key': 'task_studio_roster', 'label': 'Plantilla privada'},
-            {'key': 'task_studio_tasks', 'label': 'Repositorio y editor de tareas'},
-            {'key': 'task_studio_pdfs', 'label': 'PDFs y exportaciones'},
+            {'key': 'task_studio_home', 'label': 'Inicio Task Studio', 'description': 'Portada privada del módulo de tareas.'},
+            {'key': 'task_studio_profile', 'label': 'Perfil e identidad', 'description': 'Escudo, colores, entrenador y datos documentales.'},
+            {'key': 'task_studio_roster', 'label': 'Plantilla privada', 'description': 'Jugadores propios para pizarras y documentos.'},
+            {'key': 'task_studio_tasks', 'label': 'Repositorio y editor de tareas', 'description': 'Crear, editar, duplicar y gestionar tareas.'},
+            {'key': 'task_studio_pdfs', 'label': 'PDFs y exportaciones', 'description': 'Impresión UEFA y Club del módulo privado.'},
         ]
-    return [
-        {'key': 'dashboard', 'label': 'Dashboard general'},
-        {'key': 'coach_overview', 'label': 'Portada staff'},
-        {'key': 'players', 'label': 'Jugadores y fichas'},
-        {'key': 'convocation', 'label': 'Convocatoria y 11 inicial'},
-        {'key': 'match_actions', 'label': 'Registro de acciones'},
-        {'key': 'sessions', 'label': 'Sesiones y tareas'},
-        {'key': 'analysis', 'label': 'Análisis rival'},
-        {'key': 'abp_board', 'label': 'Pizarra ABP'},
-        {'key': 'manual_stats', 'label': 'Estadísticas manuales'},
-    ]
+    return _workspace_club_module_catalog()
+
+
+def _expand_workspace_module_selection(kind, selected_modules):
+    if kind == Workspace.KIND_TASK_STUDIO:
+        defaults = _workspace_default_modules(Workspace.KIND_TASK_STUDIO)
+        return {
+            key: bool(selected_modules.get(key, defaults.get(key, False)))
+            for key in defaults.keys()
+        }
+    defaults = _workspace_default_modules(Workspace.KIND_CLUB)
+    expanded = {key: False for key in defaults.keys()}
+    for item in _workspace_club_module_catalog():
+        if not bool(selected_modules.get(item['key'])):
+            continue
+        for route_key in item.get('route_keys', []):
+            if route_key in expanded:
+                expanded[route_key] = True
+    return expanded
+
+
+def _workspace_selected_module_keys(kind, enabled_modules):
+    if kind == Workspace.KIND_TASK_STUDIO:
+        return [item['key'] for item in _workspace_module_catalog(kind) if bool(enabled_modules.get(item['key']))]
+    selected = []
+    for item in _workspace_club_module_catalog():
+        route_keys = item.get('route_keys', [])
+        if any(bool(enabled_modules.get(route_key)) for route_key in route_keys):
+            selected.append(item['key'])
+    return selected
 
 
 def _workspace_enabled_modules(workspace):
@@ -1767,7 +1815,7 @@ def platform_overview_page(request):
         'initial_admin_usernames': '',
         'initial_member_usernames': '',
         'modules': _workspace_default_modules(Workspace.KIND_CLUB),
-        'module_keys': [key for key, enabled in _workspace_default_modules(Workspace.KIND_CLUB).items() if enabled],
+        'module_keys': [item['key'] for item in _workspace_module_catalog(Workspace.KIND_CLUB)],
     }
     if primary_team:
         _ensure_club_workspace(primary_team)
@@ -1796,7 +1844,8 @@ def platform_overview_page(request):
                 for item in _workspace_module_catalog(workspace_kind)
             }
             if not any(selected_modules.values()):
-                selected_modules = _workspace_default_modules(workspace_kind)
+                selected_modules = {item['key']: True for item in _workspace_module_catalog(workspace_kind)}
+            expanded_modules = _expand_workspace_module_selection(workspace_kind, selected_modules)
             workspace_form = {
                 'workspace_name': workspace_name,
                 'workspace_kind': workspace_kind,
@@ -1805,7 +1854,7 @@ def platform_overview_page(request):
                 'workspace_notes': workspace_notes,
                 'initial_admin_usernames': initial_admin_usernames,
                 'initial_member_usernames': initial_member_usernames,
-                'modules': selected_modules,
+                'modules': expanded_modules,
                 'module_keys': [key for key, enabled in selected_modules.items() if enabled],
             }
             try:
@@ -1829,7 +1878,7 @@ def platform_overview_page(request):
                     kind=workspace_kind,
                     owner_user=owner_user,
                     primary_team=primary_workspace_team if workspace_kind == Workspace.KIND_CLUB else None,
-                    enabled_modules=selected_modules,
+                    enabled_modules=expanded_modules,
                     notes=workspace_notes,
                 )
                 if owner_user:
@@ -1866,7 +1915,7 @@ def platform_overview_page(request):
                     'initial_admin_usernames': '',
                     'initial_member_usernames': '',
                     'modules': _workspace_default_modules(Workspace.KIND_CLUB),
-                    'module_keys': [key for key, enabled in _workspace_default_modules(Workspace.KIND_CLUB).items() if enabled],
+                    'module_keys': [item['key'] for item in _workspace_module_catalog(Workspace.KIND_CLUB)],
                 }
             except ValueError as exc:
                 error = str(exc)
@@ -1935,10 +1984,11 @@ def platform_workspace_detail_page(request, workspace_id):
         if not can_manage_workspace:
             error = 'No tienes permisos para modificar este workspace.'
         elif form_action == 'update_modules':
-            enabled_modules = {
+            selected_modules = {
                 item['key']: str(request.POST.get(f"module_{item['key']}") or '').lower() in {'1', 'true', 'on', 'yes'}
                 for item in _workspace_module_catalog(workspace.kind)
             }
+            enabled_modules = _expand_workspace_module_selection(workspace.kind, selected_modules)
             workspace.enabled_modules = enabled_modules
             workspace.save(update_fields=['enabled_modules', 'updated_at'])
             feedback = 'Módulos del workspace actualizados.'
@@ -1992,15 +2042,15 @@ def platform_workspace_detail_page(request, workspace_id):
     module_catalog = []
     for item in _workspace_module_catalog(workspace.kind):
         row = dict(item)
-        row['enabled'] = bool(enabled_modules.get(item['key']))
+        row['enabled'] = item['key'] in _workspace_selected_module_keys(workspace.kind, enabled_modules)
         module_catalog.append(row)
     module_cards = []
     if workspace.kind == Workspace.KIND_CLUB:
         module_cards = [
-            {'title': 'Dashboard', 'description': 'Vista general del cliente y KPIs principales.', 'url': reverse('dashboard-home')},
-            {'title': 'Portada entrenador', 'description': 'Resumen operativo del staff técnico.', 'url': reverse('coach-detail')},
-            {'title': 'Jugadores', 'description': 'KPIs y fichas vinculadas al workspace activo.', 'url': reverse('player-dashboard')},
-            {'title': 'Análisis', 'description': 'Scouting e informes del cliente seleccionado.', 'url': reverse('analysis')},
+            {'title': 'Datos temporada', 'description': 'Dashboard, portada staff y seguimiento de jugadores del CRM del club.', 'url': reverse('coach-role-trainer')},
+            {'title': 'Sesiones', 'description': 'Plan general, biblioteca de tareas, áreas y ABP del cliente.', 'url': reverse('sessions')},
+            {'title': 'Convocatoria y 11 inicial', 'description': 'Operativa prepartido y registro de acciones del CRM.', 'url': reverse('convocation')},
+            {'title': 'Análisis', 'description': 'Rival, informes y lectura táctica del cliente seleccionado.', 'url': reverse('analysis')},
         ]
     else:
         task_studio_url = reverse('task-studio-home')

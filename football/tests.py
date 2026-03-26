@@ -429,8 +429,7 @@ class PlatformWorkspaceTests(TestCase):
                 'workspace_notes': 'Cliente creado desde Plataforma con configuración completa.',
                 'initial_admin_usernames': self.workspace_manager.username,
                 'initial_member_usernames': f'{self.workspace_member.username}, {self.basic_user.username}',
-                'module_dashboard': 'on',
-                'module_players': 'on',
+                'module_season_data': 'on',
                 'module_sessions': 'on',
             },
         )
@@ -444,14 +443,14 @@ class PlatformWorkspaceTests(TestCase):
             workspace.enabled_modules,
             {
                 'dashboard': True,
-                'coach_overview': False,
+                'coach_overview': True,
                 'players': True,
                 'convocation': False,
                 'match_actions': False,
                 'sessions': True,
                 'analysis': False,
-                'abp_board': False,
-                'manual_stats': False,
+                'abp_board': True,
+                'manual_stats': True,
             },
         )
         self.assertTrue(
@@ -598,17 +597,18 @@ class PlatformWorkspaceTests(TestCase):
             reverse('platform-workspace-detail', args=[workspace.id]),
             {
                 'form_action': 'update_modules',
-                'module_dashboard': 'on',
-                'module_players': 'on',
-                'module_convocation': 'on',
+                'module_season_data': 'on',
+                'module_matchday': 'on',
             },
         )
 
         self.assertEqual(response.status_code, 200)
         workspace.refresh_from_db()
         self.assertTrue(workspace.enabled_modules.get('dashboard'))
+        self.assertTrue(workspace.enabled_modules.get('coach_overview'))
         self.assertTrue(workspace.enabled_modules.get('players'))
         self.assertTrue(workspace.enabled_modules.get('convocation'))
+        self.assertTrue(workspace.enabled_modules.get('match_actions'))
         self.assertFalse(workspace.enabled_modules.get('analysis'))
 
     def test_enter_workspace_redirects_to_first_enabled_module(self):
