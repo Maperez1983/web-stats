@@ -170,6 +170,34 @@
         font-weight: 700;
         cursor: pointer;
       }
+      .inline-form {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .inline-form input,
+      .inline-form select {
+        border-radius: 12px;
+        border: 1px solid rgba(160, 180, 215, 0.22);
+        background: rgba(7, 13, 25, 0.95);
+        color: #eff4ff;
+        padding: 0.65rem 0.8rem;
+        font: inherit;
+      }
+      .inline-btn {
+        border-radius: 999px;
+        border: 1px solid rgba(160, 180, 215, 0.22);
+        background: rgba(255, 255, 255, 0.04);
+        color: #f3f7ff;
+        padding: 0.6rem 0.85rem;
+        cursor: pointer;
+        font-weight: 700;
+      }
+      .inline-btn.danger {
+        border-color: rgba(212, 73, 73, 0.36);
+        color: #ffb7b7;
+      }
       @media (max-width: 900px) {
         .grid {
           grid-template-columns: 1fr;
@@ -243,6 +271,19 @@
             <p><strong>Slug:</strong> {{ workspace.slug }}</p>
           </div>
           <h2 style="margin-top:1.1rem;">Usuarios del workspace</h2>
+          {% if can_manage_workspace %}
+          <form method="post" class="inline-form" style="margin-top:0.9rem;">
+            {% csrf_token %}
+            <input type="hidden" name="form_action" value="add_member" />
+            <input type="text" name="member_username" placeholder="username" />
+            <select name="member_role">
+              {% for role_value, role_label in workspace_role_choices %}
+              <option value="{{ role_value }}">{{ role_label }}</option>
+              {% endfor %}
+            </select>
+            <button class="inline-btn" type="submit">Añadir miembro</button>
+          </form>
+          {% endif %}
           <div class="member-list">
             {% for membership in memberships %}
             <div class="member-row">
@@ -250,7 +291,29 @@
                 <strong>{{ membership.user.username }}</strong>
                 <div>{{ membership.user.get_full_name|default:membership.user.username }}</div>
               </div>
+              {% if can_manage_workspace %}
+              <div class="inline-form">
+                <form method="post" class="inline-form">
+                  {% csrf_token %}
+                  <input type="hidden" name="form_action" value="update_member_role" />
+                  <input type="hidden" name="membership_id" value="{{ membership.id }}" />
+                  <select name="member_role">
+                    {% for role_value, role_label in workspace_role_choices %}
+                    <option value="{{ role_value }}" {% if membership.role == role_value %}selected{% endif %}>{{ role_label }}</option>
+                    {% endfor %}
+                  </select>
+                  <button class="inline-btn" type="submit">Guardar rol</button>
+                </form>
+                <form method="post" class="inline-form">
+                  {% csrf_token %}
+                  <input type="hidden" name="form_action" value="remove_member" />
+                  <input type="hidden" name="membership_id" value="{{ membership.id }}" />
+                  <button class="inline-btn danger" type="submit">Quitar</button>
+                </form>
+              </div>
+              {% else %}
               <div>{{ membership.get_role_display }}</div>
+              {% endif %}
             </div>
             {% empty %}
             <div class="member-row">
@@ -264,6 +327,7 @@
           <article class="module-card">
             <h3>Módulos activos</h3>
             <p>Activa o desactiva bloques funcionales por cliente. Esto prepara la plataforma para workspaces con capacidades diferentes.</p>
+            {% if can_manage_workspace %}
             <form method="post">
               {% csrf_token %}
               <input type="hidden" name="form_action" value="update_modules" />
@@ -279,6 +343,11 @@
               </div>
               <button class="submit-btn" type="submit">Guardar módulos</button>
             </form>
+            {% else %}
+            <div class="message" style="background:rgba(255,255,255,0.04); border:1px solid rgba(160,180,215,0.12); color:#c7d3e8;">
+              Solo owner o admin del workspace pueden modificar módulos.
+            </div>
+            {% endif %}
           </article>
           {% for module in module_cards %}
           <article class="module-card">

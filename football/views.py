@@ -935,6 +935,26 @@ def _workspace_entry_url(workspace):
     return reverse('platform-workspace-detail', args=[workspace.id])
 
 
+def _workspace_membership_for_user(workspace, user):
+    if not workspace or not user or not user.is_authenticated:
+        return None
+    return WorkspaceMembership.objects.filter(workspace=workspace, user=user).first()
+
+
+def _can_view_workspace(user, workspace):
+    if _can_access_platform(user):
+        return True
+    membership = _workspace_membership_for_user(workspace, user)
+    return bool(membership)
+
+
+def _can_manage_workspace(user, workspace):
+    if _can_access_platform(user):
+        return True
+    membership = _workspace_membership_for_user(workspace, user)
+    return bool(membership and membership.role in {WorkspaceMembership.ROLE_OWNER, WorkspaceMembership.ROLE_ADMIN})
+
+
 def _ensure_club_workspace(primary_team):
     if not primary_team:
         return None
@@ -1738,8 +1758,6 @@ def platform_overview_page(request):
 
 @login_required
 def platform_workspace_detail_page(request, workspace_id):
-    if not _can_access_platform(request.user):
-        return HttpResponse('No tienes permisos para acceder a la plataforma.', status=403)
     workspace = (
         Workspace.objects
         .select_related('owner_user', 'primary_team')
@@ -1749,11 +1767,16 @@ def platform_workspace_detail_page(request, workspace_id):
     )
     if not workspace:
         raise Http404('Workspace no encontrado')
+    if not _can_view_workspace(request.user, workspace):
+        return HttpResponse('No tienes permisos para acceder a este workspace.', status=403)
     feedback = ''
     error = ''
+    can_manage_workspace = _can_manage_workspace(request.user, workspace)
     if request.method == 'POST':
         form_action = (request.POST.get('form_action') or '').strip().lower()
-        if form_action == 'update_modules':
+        if not can_manage_workspace:
+            error = 'No tienes permisos para modificar este workspace.'
+        elif form_action == 'update_modules':
             enabled_modules = {
                 item['key']: str(request.POST.get(f"module_{item['key']}") or '').lower() in {'1', 'true', 'on', 'yes'}
                 for item in _workspace_module_catalog(workspace.kind)
@@ -1761,6 +1784,42 @@ def platform_workspace_detail_page(request, workspace_id):
             workspace.enabled_modules = enabled_modules
             workspace.save(update_fields=['enabled_modules', 'updated_at'])
             feedback = 'Módulos del workspace actualizados.'
+        elif form_action == 'add_member':
+            username = _sanitize_task_text((request.POST.get('member_username') or '').strip(), multiline=False, max_len=150)
+            member_role = str(request.POST.get('member_role') or WorkspaceMembership.ROLE_MEMBER).strip()
+            target_user = User.objects.filter(username__iexact=username).first() if username else None
+            if not target_user:
+                error = 'Usuario no encontrado para añadir al workspace.'
+            elif member_role not in {choice[0] for choice in WorkspaceMembership.ROLE_CHOICES}:
+                error = 'Rol de workspace no válido.'
+            else:
+                WorkspaceMembership.objects.update_or_create(
+                    workspace=workspace,
+                    user=target_user,
+                    defaults={'role': member_role},
+                )
+                feedback = f'Usuario {target_user.username} vinculado al workspace.'
+        elif form_action == 'update_member_role':
+            membership_id = _parse_int(request.POST.get('membership_id'))
+            member_role = str(request.POST.get('member_role') or WorkspaceMembership.ROLE_MEMBER).strip()
+            membership = WorkspaceMembership.objects.filter(id=membership_id, workspace=workspace).select_related('user').first()
+            if not membership:
+                error = 'Miembro no encontrado.'
+            elif member_role not in {choice[0] for choice in WorkspaceMembership.ROLE_CHOICES}:
+                error = 'Rol de workspace no válido.'
+            else:
+                membership.role = member_role
+                membership.save(update_fields=['role'])
+                feedback = f'Rol actualizado para {membership.user.username}.'
+        elif form_action == 'remove_member':
+            membership_id = _parse_int(request.POST.get('membership_id'))
+            membership = WorkspaceMembership.objects.filter(id=membership_id, workspace=workspace).select_related('user').first()
+            if not membership:
+                error = 'Miembro no encontrado.'
+            else:
+                removed_username = membership.user.username
+                membership.delete()
+                feedback = f'Usuario {removed_username} eliminado del workspace.'
     workspace.task_count = TaskStudioTask.objects.filter(workspace=workspace).count()
     workspace.profile_count = TaskStudioProfile.objects.filter(workspace=workspace).count()
     roster_count = TaskStudioRosterPlayer.objects.filter(workspace=workspace).count()
@@ -1803,23 +1862,25 @@ def platform_workspace_detail_page(request, workspace_id):
             'active_workspace': _build_active_workspace_badge(request),
             'feedback': feedback,
             'error': error,
+            'can_manage_workspace': can_manage_workspace,
             'roster_count': roster_count,
             'club_player_count': club_player_count,
             'module_cards': module_cards,
             'memberships': memberships,
             'module_catalog': module_catalog,
             'enabled_modules': enabled_modules,
+            'workspace_role_choices': WorkspaceMembership.ROLE_CHOICES,
         },
     )
 
 
 @login_required
 def platform_workspace_enter_page(request, workspace_id):
-    if not _can_access_platform(request.user):
-        return HttpResponse('No tienes permisos para acceder a la plataforma.', status=403)
     workspace = Workspace.objects.select_related('owner_user', 'primary_team').filter(id=workspace_id, is_active=True).first()
     if not workspace:
         raise Http404('Workspace no encontrado')
+    if not _can_view_workspace(request.user, workspace):
+        return HttpResponse('No tienes permisos para acceder a este workspace.', status=403)
     request.session['active_workspace_id'] = workspace.id
     return redirect(_workspace_entry_url(workspace))
 

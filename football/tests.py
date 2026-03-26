@@ -310,6 +310,11 @@ class PlatformWorkspaceTests(TestCase):
         AppUserRole.objects.create(user=self.admin_user, role=AppUserRole.ROLE_ADMIN)
         AppUserRole.objects.create(user=self.studio_user, role=AppUserRole.ROLE_TASK_STUDIO)
         AppUserRole.objects.create(user=self.basic_user, role=AppUserRole.ROLE_PLAYER)
+        self.workspace_manager = get_user_model().objects.create_user(
+            username='workspace-manager',
+            email='workspace-manager@example.com',
+            password='pass-1234',
+        )
         competition = Competition.objects.create(name='Liga Plataforma', slug='liga-plataforma', region='Andalucia')
         season = Season.objects.create(competition=competition, name='2025/2026', is_current=True)
         group = Group.objects.create(season=season, name='Grupo Plataforma', slug='grupo-plataforma')
@@ -513,6 +518,57 @@ class PlatformWorkspaceTests(TestCase):
         response = self.client.get(reverse('convocation'))
 
         self.assertEqual(response.status_code, 403)
+
+    def test_workspace_admin_can_open_detail_without_superadmin_role(self):
+        workspace = Workspace.objects.create(
+            name='Cliente gestionado',
+            slug='cliente-gestionado',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.alt_team,
+        )
+        WorkspaceMembership.objects.create(
+            workspace=workspace,
+            user=self.workspace_manager,
+            role=WorkspaceMembership.ROLE_ADMIN,
+        )
+        self.client.force_login(self.workspace_manager)
+
+        response = self.client.get(reverse('platform-workspace-detail', args=[workspace.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Cliente gestionado')
+
+    def test_workspace_admin_can_add_member(self):
+        workspace = Workspace.objects.create(
+            name='Cliente miembros',
+            slug='cliente-miembros',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.alt_team,
+        )
+        WorkspaceMembership.objects.create(
+            workspace=workspace,
+            user=self.workspace_manager,
+            role=WorkspaceMembership.ROLE_ADMIN,
+        )
+        self.client.force_login(self.workspace_manager)
+
+        response = self.client.post(
+            reverse('platform-workspace-detail', args=[workspace.id]),
+            {
+                'form_action': 'add_member',
+                'member_username': self.basic_user.username,
+                'member_role': WorkspaceMembership.ROLE_MEMBER,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(
+            WorkspaceMembership.objects.filter(
+                workspace=workspace,
+                user=self.basic_user,
+                role=WorkspaceMembership.ROLE_MEMBER,
+            ).exists()
+        )
 
 
 class QueryHelperTests(TestCase):
