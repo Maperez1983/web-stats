@@ -33,24 +33,8 @@
       }
 
       .hero {
-        padding: 1.35rem 1.45rem;
-        display: grid;
-        grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
-        gap: 1rem;
-        align-items: stretch;
-        overflow: hidden;
-        position: relative;
-      }
-
-      .hero::after {
-        content: "";
-        position: absolute;
-        inset: auto -8% -38% auto;
-        width: 320px;
-        height: 320px;
-        border-radius: 50%;
-        background: radial-gradient(circle, rgba(71, 122, 255, 0.24), transparent 62%);
-        pointer-events: none;
+        padding: 1.2rem 1.3rem 1.15rem;
+        display: block;
       }
 
       .hero h1 {
@@ -65,8 +49,8 @@
       }
 
       .hero-copy {
-        position: relative;
-        z-index: 1;
+        display: grid;
+        gap: 0.9rem;
       }
 
       .hero-links {
@@ -74,8 +58,6 @@
         gap: 0.65rem;
         flex-wrap: wrap;
         justify-content: flex-end;
-        position: relative;
-        z-index: 1;
       }
 
       .hero-links a,
@@ -84,7 +66,7 @@
         border: 1px solid rgba(121, 168, 255, 0.36);
         background: rgba(52, 104, 205, 0.18);
         color: #f3f7ff;
-        padding: 0.72rem 1.05rem;
+        padding: 0.62rem 0.92rem;
         text-decoration: none;
         font-weight: 700;
         cursor: pointer;
@@ -131,18 +113,16 @@
       }
 
       .hero-stats {
-        margin-top: 1rem;
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 0.75rem;
+        gap: 0.65rem;
       }
 
       .hero-stat {
-        border-radius: 18px;
-        border: 1px solid rgba(160, 180, 215, 0.16);
-        background: rgba(255, 255, 255, 0.035);
-        padding: 0.85rem 0.95rem;
-        backdrop-filter: blur(8px);
+        border-radius: 16px;
+        border: 1px solid rgba(160, 180, 215, 0.12);
+        background: rgba(255, 255, 255, 0.028);
+        padding: 0.78rem 0.85rem;
       }
 
       .hero-stat span {
@@ -156,7 +136,22 @@
       .hero-stat strong {
         display: block;
         margin-top: 0.2rem;
-        font-size: 1.45rem;
+        font-size: 1.25rem;
+      }
+
+      .hero-topline {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: flex-start;
+      }
+
+      .hero-title-block {
+        min-width: 0;
+      }
+
+      .hero-title-block p {
+        max-width: 50ch;
       }
 
       .section-shell {
@@ -495,10 +490,6 @@
           grid-template-columns: 1fr;
         }
 
-        .hero {
-          grid-template-columns: 1fr;
-        }
-
         .workspace-meta {
           grid-template-columns: repeat(2, minmax(0, 1fr));
         }
@@ -510,6 +501,10 @@
         }
 
         .hero {
+          flex-direction: column;
+        }
+
+        .hero-topline {
           flex-direction: column;
         }
 
@@ -535,9 +530,21 @@
     <main class="shell">
       <section class="hero">
         <div class="hero-copy">
-          <div class="product-kicker">Gobierno de plataforma</div>
-          <h1>Clientes, usuarios y módulos</h1>
-          <p>Plataforma es el centro de gobierno del sistema: aquí defines clientes, usuarios, membresías y módulos activos. La edición operativa diaria se hace dentro de cada workspace.</p>
+          <div class="hero-topline">
+            <div class="hero-title-block">
+              <div class="product-kicker">Gobierno de plataforma</div>
+              <h1>Clientes, usuarios y módulos</h1>
+              <p>Plataforma es el centro de gobierno del sistema: aquí defines clientes, usuarios, membresías y módulos activos. La edición operativa diaria se hace dentro de cada workspace.</p>
+            </div>
+            <div class="hero-links">
+              <a class="primary-link" href="#create-workspace">Nuevo workspace</a>
+              <a href="{% url 'dashboard-home' %}">Volver al dashboard</a>
+              <a href="{% url 'admin-page' %}">Admin tools</a>
+              {% if active_workspace %}
+              <a href="{% url 'platform-workspace-clear' %}">Salir del contexto</a>
+              {% endif %}
+            </div>
+          </div>
           {% if active_workspace %}
           <div class="message ok" style="margin-top:0.9rem; display:inline-block;">
             Contexto activo: <strong>{{ active_workspace.name }}</strong> · {{ active_workspace.kind_label }}
@@ -561,14 +568,6 @@
               <strong>{% if active_workspace %}Activo{% else %}Global{% endif %}</strong>
             </div>
           </div>
-        </div>
-        <div class="hero-links">
-          <a class="primary-link" href="#create-workspace">Nuevo workspace</a>
-          <a href="{% url 'dashboard-home' %}">Volver al dashboard</a>
-          <a href="{% url 'admin-page' %}">Admin tools</a>
-          {% if active_workspace %}
-          <a href="{% url 'platform-workspace-clear' %}">Salir del contexto</a>
-          {% endif %}
         </div>
       </section>
 
