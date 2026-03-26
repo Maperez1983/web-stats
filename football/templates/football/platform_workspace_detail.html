@@ -4,7 +4,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{{ workspace.name }} · Plataforma</title>
+    <title>{{ workspace.name }} · Gobierno workspace</title>
     <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
     <style>
       body {
@@ -218,7 +218,7 @@
       <section class="hero">
         <div class="chip">{{ workspace.get_kind_display }}</div>
         <h1 style="margin-top:0.55rem;">{{ workspace.name }}</h1>
-        <p>Ficha de cliente/workspace dentro del sistema matriz. Desde aquí puedes entrar al contexto activo y supervisar los módulos que le corresponden.</p>
+        <p>Ficha de gobierno del workspace. Aquí defines quién entra y qué módulos tiene activos este cliente; la operativa diaria se realiza dentro del propio workspace.</p>
         {% if active_workspace and active_workspace.id == workspace.id %}
         <div class="active-banner">Este workspace ya es el contexto activo del sistema.</div>
         {% endif %}
@@ -244,7 +244,7 @@
       <section class="grid">
         <article class="panel">
           <h2>Resumen</h2>
-          <p>Estado actual del workspace y volumen básico de información asociado.</p>
+          <p>Estado del cliente y volumen básico de información asociado al workspace.</p>
           <div class="metrics">
             <div class="metric">
               <span>Miembros</span>
@@ -332,7 +332,7 @@
         <section class="module-list">
           <article class="module-card">
             <h3>Módulos activos</h3>
-            <p>Activa o desactiva bloques funcionales por cliente. Esto prepara la plataforma para workspaces con capacidades diferentes.</p>
+            <p>Este es el punto donde se gobiernan los módulos del cliente. Si un módulo se apaga aquí, deja de estar disponible dentro del workspace.</p>
             {% if can_manage_workspace %}
             <form method="post">
               {% csrf_token %}
