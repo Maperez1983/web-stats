@@ -85,6 +85,9 @@ from football.models import (
     AppUserRole,
     UserInvitation,
     TaskBlueprint,
+    TaskStudioProfile,
+    TaskStudioRosterPlayer,
+    TaskStudioTask,
 )
 from football.event_taxonomy import (
     DRIBBLE_KEYWORDS,
@@ -699,6 +702,47 @@ def _can_access_coach_workspace(user):
     if _is_admin_user(user):
         return True
     return _get_user_role(user) in TECHNICAL_ROLES
+
+
+def _can_access_task_studio(user):
+    if not user or not user.is_authenticated:
+        return False
+    if _is_admin_user(user):
+        return True
+    return _get_user_role(user) == AppUserRole.ROLE_TASK_STUDIO
+
+
+def _task_studio_target_user(request):
+    if not request.user.is_authenticated:
+        return None
+    selected_user = request.user
+    selected_user_id = _parse_int(request.GET.get('user'))
+    if _is_admin_user(request.user) and selected_user_id:
+        candidate = User.objects.filter(id=selected_user_id).first()
+        if candidate:
+            selected_user = candidate
+    return selected_user
+
+
+def _task_studio_query_suffix(target_user, current_user):
+    if not target_user or not current_user or int(getattr(target_user, 'id', 0) or 0) == int(getattr(current_user, 'id', 0) or 0):
+        return ''
+    if _is_admin_user(current_user):
+        return f'?user={target_user.id}'
+    return ''
+
+
+def _task_studio_profile_for_user(user):
+    if not user:
+        return None
+    profile, _ = TaskStudioProfile.objects.get_or_create(user=user)
+    return profile
+
+
+def _forbid_if_no_task_studio_access(user):
+    if _can_access_task_studio(user):
+        return None
+    return HttpResponse('No tienes permisos para acceder a Task Studio.', status=403)
 
 
 def _can_access_player_resource(user, player, primary_team=None):
@@ -1331,6 +1375,8 @@ def dashboard_page(request):
         if current_player:
             return redirect('player-detail', player_id=current_player.id)
         return redirect('player-dashboard')
+    if current_role == AppUserRole.ROLE_TASK_STUDIO:
+        return redirect('task-studio-home')
     return render(
         request,
         'football/dashboard.html',
@@ -8104,6 +8150,40 @@ def _build_tactical_player_catalog(request, primary_team):
     return catalog
 
 
+def _task_studio_roster_photo_url(request, roster_player):
+    if not roster_player or not getattr(roster_player, 'photo', None):
+        return ''
+    try:
+        url = roster_player.photo.url
+    except Exception:
+        return ''
+    if not url:
+        return ''
+    return request.build_absolute_uri(url) if request else url
+
+
+def _build_task_studio_player_catalog(request, owner):
+    if not owner:
+        return []
+    catalog = []
+    players = (
+        TaskStudioRosterPlayer.objects
+        .filter(owner=owner, is_active=True)
+        .order_by('number', 'name')[:60]
+    )
+    for player in players:
+        catalog.append(
+            {
+                'id': int(player.id),
+                'name': str(player.name or '').strip(),
+                'number': _parse_int(player.number) or '',
+                'position': str(player.position or '').strip(),
+                'photo_url': str(_task_studio_roster_photo_url(request, player) or '').strip(),
+            }
+        )
+    return catalog
+
+
 def _task_builder_initial_values(task):
     meta = {}
     if task and isinstance(task.tactical_layout, dict):
@@ -8358,6 +8438,169 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
     return task
 
 
+def _save_task_studio_entry(request, owner, existing_task=None):
+    title = _sanitize_task_text((request.POST.get('draw_task_title') or '').strip(), multiline=False, max_len=160)
+    block = (request.POST.get('draw_task_block') or SessionTask.BLOCK_MAIN_1).strip()
+    minutes = _parse_int(request.POST.get('draw_task_minutes')) or 15
+    objective = _sanitize_task_text((request.POST.get('draw_task_objective') or '').strip(), multiline=False, max_len=180)
+    coaching_points = _sanitize_task_text((request.POST.get('draw_task_coaching_points') or '').strip(), multiline=True)
+    confrontation_rules = _sanitize_task_text((request.POST.get('draw_task_confrontation_rules') or '').strip(), multiline=True)
+    description = _sanitize_task_text((request.POST.get('draw_task_description') or '').strip(), multiline=True, max_len=1200)
+    players = _sanitize_task_text((request.POST.get('draw_task_players') or '').strip(), multiline=False, max_len=120)
+    dimensions = _sanitize_task_text((request.POST.get('draw_task_dimensions') or '').strip(), multiline=False, max_len=120)
+    space = _sanitize_task_text((request.POST.get('draw_task_space') or '').strip(), multiline=False, max_len=120)
+    materials = _sanitize_task_text((request.POST.get('draw_task_materials') or '').strip(), multiline=False, max_len=300)
+    organization = _sanitize_task_text((request.POST.get('draw_task_organization') or '').strip(), multiline=True, max_len=500)
+    work_rest = _sanitize_task_text((request.POST.get('draw_task_work_rest') or '').strip(), multiline=False, max_len=180)
+    load_target = _sanitize_task_text((request.POST.get('draw_task_load_target') or '').strip(), multiline=False, max_len=180)
+    players_distribution = _sanitize_task_text((request.POST.get('draw_task_players_distribution') or '').strip(), multiline=False, max_len=180)
+    progression = _sanitize_task_text((request.POST.get('draw_task_progression') or '').strip(), multiline=True, max_len=500)
+    regression = _sanitize_task_text((request.POST.get('draw_task_regression') or '').strip(), multiline=True, max_len=500)
+    success_criteria = _sanitize_task_text((request.POST.get('draw_task_success_criteria') or '').strip(), multiline=True, max_len=500)
+    selected_surface = (request.POST.get('draw_task_surface') or '').strip()
+    selected_pitch_format = (request.POST.get('draw_task_pitch_format') or '').strip()
+    selected_phase = (request.POST.get('draw_task_game_phase') or '').strip()
+    selected_methodology = (request.POST.get('draw_task_methodology') or '').strip()
+    selected_complexity = (request.POST.get('draw_task_complexity') or '').strip()
+    template_key = (request.POST.get('draw_task_template') or 'none').strip()
+    pitch_preset = (request.POST.get('draw_task_pitch_preset') or 'full_pitch').strip()
+    constraints = [str(v).strip() for v in request.POST.getlist('draw_constraints') if str(v).strip()]
+    series = _sanitize_task_text((request.POST.get('draw_task_series') or '').strip(), multiline=False, max_len=100)
+    repetitions = _sanitize_task_text((request.POST.get('draw_task_repetitions') or '').strip(), multiline=False, max_len=100)
+    player_count = _sanitize_task_text((request.POST.get('draw_task_player_count') or '').strip(), multiline=False, max_len=100)
+    age_group = _sanitize_task_text((request.POST.get('draw_task_age_group') or '').strip(), multiline=False, max_len=100)
+    training_type = _sanitize_task_text((request.POST.get('draw_task_training_type') or '').strip(), multiline=False, max_len=120)
+    category_tags_raw = _sanitize_task_text((request.POST.get('draw_task_category_tags') or '').strip(), multiline=False, max_len=240)
+    category_tags = [tag.strip() for tag in category_tags_raw.split(',') if tag.strip()]
+    assigned_player_ids = [
+        player_id
+        for player_id in (_parse_int(value) for value in request.POST.getlist('assigned_player_ids'))
+        if player_id
+    ]
+    assigned_players = list(
+        TaskStudioRosterPlayer.objects
+        .filter(owner=owner, id__in=assigned_player_ids, is_active=True)
+        .order_by('number', 'name')
+    )
+    assigned_player_ids = [int(player.id) for player in assigned_players]
+
+    if not title:
+        raise ValueError('Indica un título para la tarea.')
+    if block not in {choice[0] for choice in SessionTask.BLOCK_CHOICES}:
+        block = SessionTask.BLOCK_MAIN_1
+    minutes = max(5, min(minutes, 90))
+    if pitch_preset not in {'full_pitch', 'half_pitch', 'attacking_third', 'seven_side', 'seven_side_single', 'futsal', 'blank'}:
+        pitch_preset = 'full_pitch'
+
+    valid_surfaces = {key for key, _ in TASK_SURFACE_CHOICES}
+    valid_pitch_formats = {key for key, _ in TASK_PITCH_FORMAT_CHOICES}
+    valid_phases = {key for key, _ in TASK_GAME_PHASE_CHOICES}
+    valid_methodologies = {key for key, _ in TASK_METHODOLOGY_CHOICES}
+    valid_complexities = {key for key, _ in TASK_COMPLEXITY_CHOICES}
+    valid_constraints = {key for key, _ in TASK_CONSTRAINT_CHOICES}
+    constraints = [item for item in constraints if item in valid_constraints]
+    if selected_surface not in valid_surfaces:
+        selected_surface = ''
+    if selected_pitch_format not in valid_pitch_formats:
+        selected_pitch_format = ''
+    if selected_phase not in valid_phases:
+        selected_phase = ''
+    if selected_methodology not in valid_methodologies:
+        selected_methodology = ''
+    if selected_complexity not in valid_complexities:
+        selected_complexity = ''
+
+    canvas_state = None
+    raw_canvas_state = (request.POST.get('draw_canvas_state') or '').strip()
+    if raw_canvas_state:
+        try:
+            parsed_state = json.loads(raw_canvas_state)
+            if isinstance(parsed_state, dict):
+                canvas_state = parsed_state
+        except Exception:
+            canvas_state = None
+    if not isinstance(canvas_state, dict):
+        canvas_state = _starter_canvas_state(pitch_preset)
+
+    canvas_width = max(320, min(_parse_int(request.POST.get('draw_canvas_width')) or 1280, 3840))
+    canvas_height = max(180, min(_parse_int(request.POST.get('draw_canvas_height')) or 720, 2160))
+    tactical_layout = {
+        'meta': {
+            'scope': 'task_studio',
+            'source': 'task-studio',
+            'template_key': template_key,
+            'surface': selected_surface,
+            'pitch_format': selected_pitch_format,
+            'pitch_preset': pitch_preset,
+            'game_phase': selected_phase,
+            'methodology': selected_methodology,
+            'complexity': selected_complexity,
+            'space': space,
+            'organization': organization,
+            'players_distribution': players_distribution,
+            'load_target': load_target,
+            'work_rest': work_rest,
+            'series': series,
+            'repetitions': repetitions,
+            'progression': progression,
+            'regression': regression,
+            'success_criteria': success_criteria,
+            'constraints': constraints,
+            'player_count': player_count,
+            'age_group': age_group,
+            'training_type': training_type,
+            'category_tags': category_tags,
+            'assigned_player_ids': assigned_player_ids,
+            'assigned_player_names': [player.name for player in assigned_players],
+            'graphic_editor': {
+                'canvas_state': canvas_state,
+                'canvas_width': canvas_width,
+                'canvas_height': canvas_height,
+            },
+            'analysis': {
+                'task_sheet': {
+                    'description': description,
+                    'players': players,
+                    'space': space,
+                    'dimensions': dimensions,
+                    'materials': materials,
+                }
+            },
+        }
+    }
+    if existing_task:
+        task = existing_task
+        task.title = title[:160]
+        task.block = block
+        task.duration_minutes = minutes
+        task.objective = objective[:180]
+        task.coaching_points = coaching_points
+        task.confrontation_rules = confrontation_rules
+        task.tactical_layout = tactical_layout
+        task.notes = 'Tarea actualizada en Task Studio'
+        task.save()
+    else:
+        task = TaskStudioTask.objects.create(
+            owner=owner,
+            title=title[:160],
+            block=block,
+            duration_minutes=minutes,
+            objective=objective[:180],
+            coaching_points=coaching_points,
+            confrontation_rules=confrontation_rules,
+            tactical_layout=tactical_layout,
+            notes='Tarea creada en Task Studio',
+        )
+    preview_data = request.POST.get('draw_canvas_preview_data')
+    if preview_data:
+        raw_bytes, extension = _decode_canvas_data_url(preview_data)
+        if raw_bytes and extension:
+            filename = f'task_studio_preview_{task.id}{extension}'
+            task.task_preview_image.save(filename, ContentFile(raw_bytes), save=False)
+            task.save(update_fields=['task_preview_image'])
+    return task
+
+
 @login_required
 def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones · Entrenador', task_id=None):
     if not _can_access_sessions_workspace(request.user):
@@ -8426,6 +8669,12 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             'tactical_player_catalog': player_catalog,
             'available_players': available_players,
             'initial': initial,
+            'back_url': reverse(_sessions_scope_route_name(scope_key)),
+            'back_label': 'Volver a sesiones',
+            'pdf_preview_url': reverse('sessions-task-pdf-preview'),
+            'task_preview_url': (reverse('session-task-preview-file', args=[task.id]) if task and task.task_preview_image else ''),
+            'show_session_selector': True,
+            'show_dragon_nav': True,
         },
     )
 
@@ -8444,6 +8693,439 @@ def session_task_pdf_preview(request):
     context = _build_task_draft_pdf_context(request, primary_team, pdf_style=pdf_style)
     html = render_to_string('football/session_task_pdf.html', context)
     filename = slugify(f"borrador-{context['task'].title}") or 'borrador-tarea'
+    return _build_pdf_response_or_html_fallback(request, html, filename)
+
+
+def _task_studio_identity(request, owner):
+    profile = _task_studio_profile_for_user(owner)
+    team_name = str(profile.club_name or profile.document_name or profile.display_name or owner.get_full_name() or owner.get_username()).strip() or owner.get_username()
+    coach_name = str(profile.document_name or profile.display_name or owner.get_full_name() or owner.get_username()).strip() or 'Entrenador'
+    crest_url = ''
+    if getattr(profile, 'crest_image', None):
+        try:
+            crest_url = request.build_absolute_uri(profile.crest_image.url)
+        except Exception:
+            crest_url = ''
+    if not crest_url:
+        crest_url = request.build_absolute_uri(static('football/images/cdb-logo.png'))
+    team_stub = SimpleNamespace(
+        name=team_name,
+        primary_color=str(profile.primary_color or '#0f7a35').strip() or '#0f7a35',
+        secondary_color=str(profile.secondary_color or '#f8fafc').strip() or '#f8fafc',
+        accent_color=str(profile.accent_color or '#102734').strip() or '#102734',
+    )
+    return profile, team_stub, coach_name, crest_url
+
+
+def _build_task_studio_pdf_context(request, owner, task, tactical_layout, pdf_style='uefa', preview_url=''):
+    profile, team_stub, coach_name, crest_url = _task_studio_identity(request, owner)
+    today = timezone.localdate()
+    session = SimpleNamespace(session_date=today, start_time=None, focus='Task Studio')
+    microcycle = SimpleNamespace(title='Repositorio privado', week_start=today, week_end=today)
+    context = _build_task_pdf_context(
+        request,
+        team=team_stub,
+        session=session,
+        microcycle=microcycle,
+        task=task,
+        tactical_layout=tactical_layout,
+        pdf_style=pdf_style,
+        preview_url=preview_url,
+    )
+    context.update(
+        {
+            'team_name': team_stub.name,
+            'coach_name': coach_name,
+            'logo_url': crest_url,
+            'pdf_palette': _team_pdf_palette(team_stub, pdf_style),
+            'task_studio_profile': profile,
+        }
+    )
+    return context
+
+
+def _build_task_studio_draft_pdf_context(request, owner, pdf_style='uefa'):
+    title = _sanitize_task_text((request.POST.get('draw_task_title') or '').strip(), multiline=False, max_len=160) or 'Tarea sin título'
+    objective = _sanitize_task_text((request.POST.get('draw_task_objective') or '').strip(), multiline=False, max_len=180)
+    coaching_points = _sanitize_task_text((request.POST.get('draw_task_coaching_points') or '').strip(), multiline=True)
+    confrontation_rules = _sanitize_task_text((request.POST.get('draw_task_confrontation_rules') or '').strip(), multiline=True)
+    block = (request.POST.get('draw_task_block') or SessionTask.BLOCK_MAIN_1).strip()
+    minutes = max(5, min(_parse_int(request.POST.get('draw_task_minutes')) or 15, 90))
+    selected_surface = _sanitize_task_text((request.POST.get('draw_task_surface') or '').strip(), multiline=False, max_len=80)
+    selected_pitch_format = _sanitize_task_text((request.POST.get('draw_task_pitch_format') or '').strip(), multiline=False, max_len=80)
+    selected_phase = _sanitize_task_text((request.POST.get('draw_task_game_phase') or '').strip(), multiline=False, max_len=80)
+    selected_methodology = _sanitize_task_text((request.POST.get('draw_task_methodology') or '').strip(), multiline=False, max_len=80)
+    selected_complexity = _sanitize_task_text((request.POST.get('draw_task_complexity') or '').strip(), multiline=False, max_len=80)
+    space = _sanitize_task_text((request.POST.get('draw_task_space') or '').strip(), multiline=False, max_len=120)
+    organization = _sanitize_task_text((request.POST.get('draw_task_organization') or '').strip(), multiline=True, max_len=500)
+    players_distribution = _sanitize_task_text((request.POST.get('draw_task_players_distribution') or '').strip(), multiline=False, max_len=180)
+    load_target = _sanitize_task_text((request.POST.get('draw_task_load_target') or '').strip(), multiline=False, max_len=180)
+    work_rest = _sanitize_task_text((request.POST.get('draw_task_work_rest') or '').strip(), multiline=False, max_len=180)
+    series = _sanitize_task_text((request.POST.get('draw_task_series') or '').strip(), multiline=False, max_len=100)
+    repetitions = _sanitize_task_text((request.POST.get('draw_task_repetitions') or '').strip(), multiline=False, max_len=100)
+    player_count = _sanitize_task_text((request.POST.get('draw_task_player_count') or '').strip(), multiline=False, max_len=100)
+    age_group = _sanitize_task_text((request.POST.get('draw_task_age_group') or '').strip(), multiline=False, max_len=100)
+    training_type = _sanitize_task_text((request.POST.get('draw_task_training_type') or '').strip(), multiline=False, max_len=120)
+    dimensions = _sanitize_task_text((request.POST.get('draw_task_dimensions') or '').strip(), multiline=False, max_len=120)
+    materials = _sanitize_task_text((request.POST.get('draw_task_materials') or '').strip(), multiline=False, max_len=180)
+    progression = _sanitize_task_text((request.POST.get('draw_task_progression') or '').strip(), multiline=True, max_len=500)
+    success_criteria = _sanitize_task_text((request.POST.get('draw_task_success_criteria') or '').strip(), multiline=True, max_len=500)
+    category_tags_raw = _sanitize_task_text((request.POST.get('draw_task_category_tags') or '').strip(), multiline=False, max_len=240)
+    category_tags = [tag.strip() for tag in category_tags_raw.split(',') if tag.strip()]
+    assigned_player_ids = [
+        player_id
+        for player_id in (_parse_int(value) for value in request.POST.getlist('assigned_player_ids'))
+        if player_id
+    ]
+    assigned_player_names = list(
+        TaskStudioRosterPlayer.objects
+        .filter(owner=owner, id__in=assigned_player_ids, is_active=True)
+        .order_by('number', 'name')
+        .values_list('name', flat=True)
+    )
+    today = timezone.localdate()
+    session = SimpleNamespace(session_date=today, start_time=None, focus='Borrador')
+    microcycle = SimpleNamespace(title='Task Studio', week_start=today, week_end=today)
+    canvas_state = {}
+    raw_canvas_state = (request.POST.get('draw_canvas_state') or '').strip()
+    if raw_canvas_state:
+        try:
+            parsed = json.loads(raw_canvas_state)
+            if isinstance(parsed, dict):
+                canvas_state = parsed
+        except Exception:
+            canvas_state = {}
+    tactical_layout = {
+        'tokens': canvas_state.get('objects') if isinstance(canvas_state.get('objects'), list) else [],
+        'timeline': canvas_state.get('timeline') if isinstance(canvas_state.get('timeline'), list) else [],
+        'meta': {
+            'surface': selected_surface,
+            'pitch_format': selected_pitch_format,
+            'game_phase': selected_phase,
+            'methodology': selected_methodology,
+            'complexity': selected_complexity,
+            'space': space,
+            'organization': organization,
+            'players_distribution': players_distribution,
+            'load_target': load_target,
+            'work_rest': work_rest,
+            'series': series,
+            'repetitions': repetitions,
+            'player_count': player_count,
+            'age_group': age_group,
+            'training_type': training_type,
+            'category_tags': category_tags,
+            'assigned_player_names': assigned_player_names,
+            'progression': progression,
+            'success_criteria': success_criteria,
+            'analysis': {
+                'task_sheet': {
+                    'description': _sanitize_task_text((request.POST.get('draw_task_description') or '').strip(), multiline=True),
+                    'dimensions': dimensions,
+                    'materials': materials,
+                }
+            },
+        },
+    }
+    draft_task = SimpleNamespace(
+        id=0,
+        title=title,
+        duration_minutes=minutes,
+        objective=objective,
+        coaching_points=coaching_points,
+        confrontation_rules=confrontation_rules,
+        block=block,
+        get_block_display=lambda: dict(SessionTask.BLOCK_CHOICES).get(block, block),
+    )
+    preview_data = str(request.POST.get('draw_canvas_preview_data') or '').strip()
+    return _build_task_studio_pdf_context(
+        request,
+        owner=owner,
+        task=draft_task,
+        tactical_layout=tactical_layout,
+        pdf_style=pdf_style,
+        preview_url=preview_data,
+    )
+
+
+def _task_studio_task_for_request(request, task_id):
+    task = TaskStudioTask.objects.select_related('owner').filter(id=task_id).first()
+    if not task:
+        return None
+    if _is_admin_user(request.user):
+        return task
+    if int(task.owner_id) != int(request.user.id):
+        return None
+    return task
+
+
+@login_required
+def task_studio_home_page(request):
+    forbidden = _forbid_if_no_task_studio_access(request.user)
+    if forbidden:
+        return forbidden
+    target_user = _task_studio_target_user(request)
+    browse_all = bool(_is_admin_user(request.user) and not request.GET.get('user'))
+    profile = _task_studio_profile_for_user(target_user)
+    task_qs = TaskStudioTask.objects.select_related('owner')
+    if not browse_all:
+        task_qs = task_qs.filter(owner=target_user)
+    tasks = list(task_qs.order_by('-updated_at', '-id')[:80])
+    roster_count = TaskStudioRosterPlayer.objects.filter(owner=target_user, is_active=True).count()
+    query_suffix = _task_studio_query_suffix(target_user, request.user)
+    return render(
+        request,
+        'football/task_studio_home.html',
+        {
+            'target_user': target_user,
+            'profile': profile,
+            'tasks': tasks,
+            'task_count': task_qs.count(),
+            'roster_count': roster_count,
+            'browse_all': browse_all,
+            'query_suffix': query_suffix,
+        },
+    )
+
+
+@login_required
+def task_studio_profile_page(request):
+    forbidden = _forbid_if_no_task_studio_access(request.user)
+    if forbidden:
+        return forbidden
+    target_user = _task_studio_target_user(request)
+    profile = _task_studio_profile_for_user(target_user)
+    feedback = ''
+    error = ''
+
+    def _clean_color(raw, fallback):
+        value = str(raw or '').strip()
+        return value if re.fullmatch(r'#[0-9a-fA-F]{6}', value) else fallback
+
+    if request.method == 'POST':
+        try:
+            profile.display_name = _sanitize_task_text((request.POST.get('display_name') or '').strip(), multiline=False, max_len=140)
+            profile.phone = _sanitize_task_text((request.POST.get('phone') or '').strip(), multiline=False, max_len=40)
+            profile.license_name = _sanitize_task_text((request.POST.get('license_name') or '').strip(), multiline=False, max_len=120)
+            profile.club_name = _sanitize_task_text((request.POST.get('club_name') or '').strip(), multiline=False, max_len=140)
+            profile.category_label = _sanitize_task_text((request.POST.get('category_label') or '').strip(), multiline=False, max_len=120)
+            profile.city = _sanitize_task_text((request.POST.get('city') or '').strip(), multiline=False, max_len=120)
+            profile.document_name = _sanitize_task_text((request.POST.get('document_name') or '').strip(), multiline=False, max_len=140)
+            profile.document_footer = _sanitize_task_text((request.POST.get('document_footer') or '').strip(), multiline=False, max_len=180)
+            profile.signature = _sanitize_task_text((request.POST.get('signature') or '').strip(), multiline=False, max_len=140)
+            profile.primary_color = _clean_color(request.POST.get('primary_color'), profile.primary_color or '#0f7a35')
+            profile.secondary_color = _clean_color(request.POST.get('secondary_color'), profile.secondary_color or '#f8fafc')
+            profile.accent_color = _clean_color(request.POST.get('accent_color'), profile.accent_color or '#102734')
+            uploaded_crest = request.FILES.get('crest_image')
+            if uploaded_crest:
+                profile.crest_image = uploaded_crest
+            profile.save()
+            feedback = 'Perfil e identidad guardados.'
+        except Exception:
+            error = 'No se pudo guardar la configuración.'
+
+    return render(
+        request,
+        'football/task_studio_profile.html',
+        {
+            'target_user': target_user,
+            'profile': profile,
+            'feedback': feedback,
+            'error': error,
+            'query_suffix': _task_studio_query_suffix(target_user, request.user),
+        },
+    )
+
+
+@login_required
+def task_studio_roster_page(request):
+    forbidden = _forbid_if_no_task_studio_access(request.user)
+    if forbidden:
+        return forbidden
+    target_user = _task_studio_target_user(request)
+    feedback = ''
+    error = ''
+    if request.method == 'POST':
+        form_action = (request.POST.get('studio_action') or 'add').strip().lower()
+        player_id = _parse_int(request.POST.get('player_id'))
+        roster_player = TaskStudioRosterPlayer.objects.filter(owner=target_user, id=player_id).first() if player_id else None
+        try:
+            if form_action == 'delete':
+                if not roster_player:
+                    raise ValueError('Jugador no encontrado.')
+                roster_player.delete()
+                feedback = 'Jugador eliminado de la plantilla.'
+            else:
+                name = _sanitize_task_text((request.POST.get('name') or '').strip(), multiline=False, max_len=120)
+                if not name:
+                    raise ValueError('Indica un nombre para el jugador.')
+                defaults = {
+                    'name': name,
+                    'number': _parse_int(request.POST.get('number')) or None,
+                    'position': _sanitize_task_text((request.POST.get('position') or '').strip(), multiline=False, max_len=60),
+                    'dominant_foot': _sanitize_task_text((request.POST.get('dominant_foot') or '').strip(), multiline=False, max_len=24),
+                    'birth_year': _parse_int(request.POST.get('birth_year')) or None,
+                    'notes': _sanitize_task_text((request.POST.get('notes') or '').strip(), multiline=True, max_len=500),
+                    'is_active': True,
+                }
+                if roster_player:
+                    for field_name, field_value in defaults.items():
+                        setattr(roster_player, field_name, field_value)
+                    uploaded_photo = request.FILES.get('photo')
+                    if uploaded_photo:
+                        roster_player.photo = uploaded_photo
+                    roster_player.save()
+                    feedback = 'Jugador actualizado.'
+                else:
+                    roster_player = TaskStudioRosterPlayer(owner=target_user, **defaults)
+                    uploaded_photo = request.FILES.get('photo')
+                    if uploaded_photo:
+                        roster_player.photo = uploaded_photo
+                    roster_player.save()
+                    feedback = 'Jugador añadido a la plantilla.'
+        except ValueError as exc:
+            error = str(exc)
+        except Exception:
+            error = 'No se pudo guardar la plantilla.'
+    players = list(TaskStudioRosterPlayer.objects.filter(owner=target_user).order_by('number', 'name', 'id'))
+    return render(
+        request,
+        'football/task_studio_roster.html',
+        {
+            'target_user': target_user,
+            'players': players,
+            'feedback': feedback,
+            'error': error,
+            'query_suffix': _task_studio_query_suffix(target_user, request.user),
+        },
+    )
+
+
+@login_required
+def task_studio_task_builder_page(request, task_id=None):
+    forbidden = _forbid_if_no_task_studio_access(request.user)
+    if forbidden:
+        return forbidden
+    target_user = _task_studio_target_user(request)
+    task = None
+    if task_id:
+        task = _task_studio_task_for_request(request, task_id)
+        if not task:
+            raise Http404('Tarea no encontrada')
+        target_user = task.owner
+    feedback = ''
+    error = ''
+    if request.method == 'POST':
+        try:
+            task = _save_task_studio_entry(request, target_user, existing_task=task)
+            feedback = 'Tarea guardada correctamente.'
+        except ValueError as exc:
+            error = str(exc)
+        except Exception:
+            error = 'No se pudo guardar la tarea.'
+    initial = _task_builder_initial_values(task)
+    player_catalog = _build_task_studio_player_catalog(request, target_user)
+    available_players = list(
+        TaskStudioRosterPlayer.objects
+        .filter(owner=target_user, is_active=True)
+        .order_by('number', 'name')[:60]
+    )
+    query_suffix = _task_studio_query_suffix(target_user, request.user)
+    return render(
+        request,
+        'football/task_builder.html',
+        {
+            'scope_key': 'task_studio',
+            'scope_title': 'Task Studio',
+            'scope_route_name': 'task-studio-home',
+            'task': task,
+            'feedback': feedback,
+            'error': error,
+            'task_blocks': SessionTask.BLOCK_CHOICES,
+            'all_sessions': [],
+            'task_templates': TASK_TEMPLATE_LIBRARY,
+            'task_surface_choices': TASK_SURFACE_CHOICES,
+            'task_pitch_choices': TASK_PITCH_FORMAT_CHOICES,
+            'task_phase_choices': TASK_GAME_PHASE_CHOICES,
+            'task_methodology_choices': TASK_METHODOLOGY_CHOICES,
+            'task_complexity_choices': TASK_COMPLEXITY_CHOICES,
+            'task_constraint_choices': TASK_CONSTRAINT_CHOICES,
+            'tactical_player_catalog': player_catalog,
+            'available_players': available_players,
+            'initial': initial,
+            'back_url': reverse('task-studio-home') + query_suffix,
+            'back_label': 'Volver al estudio',
+            'pdf_preview_url': reverse('task-studio-task-pdf-preview') + query_suffix,
+            'task_preview_url': (reverse('task-studio-task-preview-file', args=[task.id]) if task and task.task_preview_image else ''),
+            'show_session_selector': False,
+            'show_dragon_nav': False,
+        },
+    )
+
+
+@login_required
+@require_POST
+def task_studio_task_pdf_preview(request):
+    forbidden = _forbid_if_no_task_studio_access(request.user)
+    if forbidden:
+        return forbidden
+    owner = _task_studio_target_user(request)
+    pdf_style = (request.GET.get('style') or 'uefa').strip().lower()
+    if pdf_style not in {'uefa', 'club'}:
+        pdf_style = 'uefa'
+    context = _build_task_studio_draft_pdf_context(request, owner, pdf_style=pdf_style)
+    html = render_to_string('football/session_task_pdf.html', context)
+    filename = slugify(f"task-studio-{context['task'].title}") or 'task-studio-tarea'
+    return _build_pdf_response_or_html_fallback(request, html, filename)
+
+
+@login_required
+def task_studio_task_preview_file(request, task_id):
+    forbidden = _forbid_if_no_task_studio_access(request.user)
+    if forbidden:
+        return forbidden
+    task = _task_studio_task_for_request(request, task_id)
+    if not task or not task.task_preview_image:
+        raise Http404('Imagen de tarea no disponible')
+    file_field = task.task_preview_image
+    try:
+        file_field.open('rb')
+    except Exception:
+        return HttpResponse('No se pudo abrir la imagen de la tarea.', status=500)
+    extension = Path(file_field.name).suffix.lower()
+    content_type = {
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.webp': 'image/webp',
+        '.gif': 'image/gif',
+    }.get(extension, 'application/octet-stream')
+    response = FileResponse(file_field, content_type=content_type)
+    response['Content-Disposition'] = f'inline; filename="{Path(file_field.name).name}"'
+    return response
+
+
+@login_required
+def task_studio_task_pdf(request, task_id):
+    forbidden = _forbid_if_no_task_studio_access(request.user)
+    if forbidden:
+        return forbidden
+    task = _task_studio_task_for_request(request, task_id)
+    if not task:
+        raise Http404('Tarea no encontrada')
+    pdf_style = (request.GET.get('style') or 'uefa').strip().lower()
+    if pdf_style not in {'uefa', 'club'}:
+        pdf_style = 'uefa'
+    context = _build_task_studio_pdf_context(
+        request,
+        owner=task.owner,
+        task=task,
+        tactical_layout=task.tactical_layout if isinstance(task.tactical_layout, dict) else {},
+        pdf_style=pdf_style,
+        preview_url=request.build_absolute_uri(reverse('task-studio-task-preview-file', args=[task.id])) if task.task_preview_image else '',
+    )
+    html = render_to_string('football/session_task_pdf.html', context)
+    filename = slugify(f'task-studio-{task.title}') or f'task-studio-{task.id}'
     return _build_pdf_response_or_html_fallback(request, html, filename)
 
 

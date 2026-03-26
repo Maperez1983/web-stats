@@ -690,6 +690,7 @@ class UserInvitation(models.Model):
 class AppUserRole(models.Model):
     ROLE_PLAYER = 'jugador'
     ROLE_GUEST = 'invitado'
+    ROLE_TASK_STUDIO = 'task_studio'
     ROLE_COACH = 'entrenador'
     ROLE_FITNESS = 'preparador_fisico'
     ROLE_GOALKEEPER = 'preparador_portero'
@@ -698,6 +699,7 @@ class AppUserRole(models.Model):
     ROLE_CHOICES = [
         (ROLE_PLAYER, 'Jugador'),
         (ROLE_GUEST, 'Invitado'),
+        (ROLE_TASK_STUDIO, 'Task Studio'),
         (ROLE_COACH, 'Entrenador'),
         (ROLE_FITNESS, 'Preparador físico'),
         (ROLE_GOALKEEPER, 'Preparador portero'),
@@ -717,6 +719,81 @@ class AppUserRole(models.Model):
 
     def __str__(self):
         return f'{self.user.username} · {self.get_role_display()}'
+
+
+class TaskStudioProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='task_studio_profile')
+    display_name = models.CharField(max_length=140, blank=True)
+    phone = models.CharField(max_length=40, blank=True)
+    license_name = models.CharField(max_length=120, blank=True)
+    club_name = models.CharField(max_length=140, blank=True)
+    category_label = models.CharField(max_length=120, blank=True)
+    city = models.CharField(max_length=120, blank=True)
+    document_name = models.CharField(max_length=140, blank=True)
+    document_footer = models.CharField(max_length=180, blank=True)
+    signature = models.CharField(max_length=140, blank=True)
+    crest_image = models.ImageField(upload_to='task-studio/crests/', null=True, blank=True)
+    primary_color = models.CharField(max_length=7, default='#0f7a35')
+    secondary_color = models.CharField(max_length=7, default='#f8fafc')
+    accent_color = models.CharField(max_length=7, default='#102734')
+    is_enabled = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['user__username']
+        verbose_name = 'Perfil Task Studio'
+        verbose_name_plural = 'Perfiles Task Studio'
+
+    def __str__(self):
+        return self.document_name or self.display_name or self.user.get_username()
+
+
+class TaskStudioRosterPlayer(models.Model):
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='task_studio_roster')
+    name = models.CharField(max_length=120)
+    number = models.PositiveSmallIntegerField(null=True, blank=True)
+    position = models.CharField(max_length=60, blank=True)
+    dominant_foot = models.CharField(max_length=24, blank=True)
+    birth_year = models.PositiveSmallIntegerField(null=True, blank=True)
+    photo = models.ImageField(upload_to='task-studio/roster/', null=True, blank=True)
+    notes = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['number', 'name', 'id']
+        unique_together = ('owner', 'name')
+        verbose_name = 'Jugador plantilla Task Studio'
+        verbose_name_plural = 'Jugadores plantilla Task Studio'
+
+    def __str__(self):
+        return f'{self.owner.username} · {self.name}'
+
+
+class TaskStudioTask(models.Model):
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='task_studio_tasks')
+    title = models.CharField(max_length=160)
+    block = models.CharField(max_length=30, choices=SessionTask.BLOCK_CHOICES, default=SessionTask.BLOCK_MAIN_1)
+    duration_minutes = models.PositiveSmallIntegerField(default=15)
+    objective = models.CharField(max_length=180, blank=True)
+    coaching_points = models.TextField(blank=True)
+    confrontation_rules = models.TextField(blank=True)
+    tactical_layout = models.JSONField(default=dict, blank=True)
+    task_pdf = models.FileField(upload_to='task-studio/task-pdfs/', null=True, blank=True)
+    task_preview_image = models.ImageField(upload_to='task-studio/task-previews/', null=True, blank=True)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at', '-id']
+        verbose_name = 'Tarea Task Studio'
+        verbose_name_plural = 'Tareas Task Studio'
+
+    def __str__(self):
+        return f'{self.owner.username} · {self.title}'
 
 
 class TaskBlueprint(models.Model):

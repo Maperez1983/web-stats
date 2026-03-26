@@ -512,14 +512,16 @@
   </head>
   <body>
     <main class="page">
+      {% if show_dragon_nav|default:True %}
       {% include 'football/includes/dragon_nav.html' %}
+      {% endif %}
       <div class="topbar">
         <div>
           <h1>{% if task %}Editar tarea{% else %}Crear tarea{% endif %} · Editor visual dedicado</h1>
           <p class="meta">Superficie real de juego, recursos básicos y ficha corta para que la pizarra sea lo principal.</p>
         </div>
         <div class="actions">
-          <a href="{% url scope_route_name %}" class="button">Volver a sesiones</a>
+          <a href="{{ back_url|default:'#' }}" class="button">{{ back_label|default:'Volver a sesiones' }}</a>
           <button type="button" class="button" data-print-style="uefa">Imprimir UEFA</button>
           <button type="button" class="button" data-print-style="club">Imprimir Club</button>
         </div>
@@ -528,7 +530,7 @@
       {% if feedback %}<div class="alert ok">{{ feedback }}</div>{% endif %}
       {% if error %}<div class="alert err">{{ error }}</div>{% endif %}
 
-      <form method="post" id="task-builder-form" data-pdf-preview-url="{% url 'sessions-task-pdf-preview' %}">
+      <form method="post" id="task-builder-form" data-pdf-preview-url="{{ pdf_preview_url|default:'' }}">
         {% csrf_token %}
         <input type="hidden" name="planner_action" value="create_draw_task" />
         <input type="hidden" name="draw_task_template" value="{{ initial.template_key|default:'none' }}" />
@@ -732,6 +734,7 @@
               <div class="section">
                 <h3>Base de la tarea</h3>
                 <div class="compact-grid">
+                  {% if show_session_selector|default:True %}
                   <label>
                     Sesión
                     <select name="draw_target_session_id">
@@ -743,6 +746,12 @@
                       {% endfor %}
                     </select>
                   </label>
+                  {% else %}
+                  <label>
+                    Repositorio
+                    <input type="text" value="Biblioteca privada" readonly />
+                  </label>
+                  {% endif %}
                   <label>
                     Superficie
                     <select name="draw_task_surface" id="draw-task-surface">
@@ -839,8 +848,8 @@
               <div class="section preview-card">
                 <h3>Vista previa</h3>
                 <div class="live-preview-frame">
-                  <img id="task-live-preview" src="{% if task and task.task_preview_image %}{% url 'session-task-preview-file' task.id %}{% endif %}" alt="Preview de tarea" {% if not task or not task.task_preview_image %}hidden{% endif %} />
-                  <div id="task-live-preview-placeholder" class="live-preview-placeholder" {% if task and task.task_preview_image %}hidden{% endif %}>
+                  <img id="task-live-preview" src="{{ task_preview_url }}" alt="Preview de tarea" {% if not task_preview_url %}hidden{% endif %} />
+                  <div id="task-live-preview-placeholder" class="live-preview-placeholder" {% if task_preview_url %}hidden{% endif %}>
                     La preview se genera mientras diseñas la tarea.
                   </div>
                 </div>

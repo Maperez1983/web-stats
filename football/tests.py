@@ -13,7 +13,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from football.models import AnalystVideoFolder, Competition, ConvocationRecord, Group, Match, MatchEvent, Player, PlayerCommunication, PlayerFine, PlayerStatistic, RivalAnalysisReport, RivalVideo, Season, SessionTask, Team, TeamStanding, TrainingMicrocycle, TrainingSession, UserInvitation
+from football.models import AnalystVideoFolder, Competition, ConvocationRecord, Group, Match, MatchEvent, Player, PlayerCommunication, PlayerFine, PlayerStatistic, RivalAnalysisReport, RivalVideo, Season, SessionTask, TaskStudioProfile, TaskStudioRosterPlayer, TaskStudioTask, Team, TeamStanding, TrainingMicrocycle, TrainingSession, UserInvitation
 from football.bootstrap import ensure_bootstrap_admin_from_env
 from football.event_taxonomy import (
     PASS_KEYWORDS,
@@ -141,6 +141,101 @@ class InvitationAcceptanceTests(TestCase):
         self.assertIsNotNone(self.invitation.accepted_at)
         self.assertTrue(self.user.is_active)
         self.assertTrue(self.user.check_password('NuevaPassSegura2026!'))
+
+
+class TaskStudioAccessTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username='studio-user',
+            email='studio@example.com',
+            password='pass-1234',
+        )
+        self.other_user = get_user_model().objects.create_user(
+            username='studio-other',
+            email='studio-other@example.com',
+            password='pass-1234',
+        )
+        self.admin_user = get_user_model().objects.create_user(
+            username='studio-admin',
+            email='studio-admin@example.com',
+            password='pass-1234',
+            is_staff=True,
+        )
+        AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_TASK_STUDIO)
+        AppUserRole.objects.create(user=self.other_user, role=AppUserRole.ROLE_TASK_STUDIO)
+        AppUserRole.objects.create(user=self.admin_user, role=AppUserRole.ROLE_ADMIN)
+        self.own_task = TaskStudioTask.objects.create(owner=self.user, title='Tarea propia', block=SessionTask.BLOCK_MAIN_1, duration_minutes=15)
+        self.other_task = TaskStudioTask.objects.create(owner=self.other_user, title='Tarea ajena', block=SessionTask.BLOCK_MAIN_1, duration_minutes=15)
+
+    def test_dashboard_redirects_task_studio_role_to_private_module(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse('dashboard-home'))
+
+        self.assertRedirects(response, reverse('task-studio-home'))
+
+    def test_task_studio_home_only_lists_owned_tasks_for_regular_user(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse('task-studio-home'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Tarea propia')
+        self.assertNotContains(response, 'Tarea ajena')
+
+    def test_task_studio_profile_can_be_saved(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse('task-studio-profile'),
+            {
+                'document_name': 'Miguel Perez',
+                'display_name': 'Migue',
+                'club_name': 'Academia Privada',
+                'primary_color': '#0f7a35',
+                'secondary_color': '#f8fafc',
+                'accent_color': '#102734',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        profile = TaskStudioProfile.objects.get(user=self.user)
+        self.assertEqual(profile.document_name, 'Miguel Perez')
+        self.assertEqual(profile.club_name, 'Academia Privada')
+
+    def test_task_studio_roster_and_task_creation_are_private_to_owner(self):
+        self.client.force_login(self.user)
+        roster_response = self.client.post(
+            reverse('task-studio-roster'),
+            {
+                'studio_action': 'add',
+                'name': 'Tadeo',
+                'number': '7',
+                'position': 'Extremo',
+            },
+        )
+        self.assertEqual(roster_response.status_code, 200)
+        roster_player = TaskStudioRosterPlayer.objects.get(owner=self.user, name='Tadeo')
+
+        create_response = self.client.post(
+            reverse('task-studio-task-create'),
+            {
+                'draw_task_title': 'Rondo privado',
+                'draw_task_block': SessionTask.BLOCK_MAIN_1,
+                'draw_task_minutes': '18',
+                'assigned_player_ids': [str(roster_player.id)],
+                'draw_canvas_state': json.dumps({'version': '5.3.0', 'objects': []}),
+                'draw_canvas_width': '1280',
+                'draw_canvas_height': '720',
+            },
+        )
+
+        self.assertEqual(create_response.status_code, 200)
+        created = TaskStudioTask.objects.get(owner=self.user, title='Rondo privado')
+        self.assertEqual(created.owner_id, self.user.id)
+        response = self.client.get(reverse('task-studio-home'))
+        self.assertContains(response, 'Rondo privado')
+        self.assertNotContains(response, 'Tarea ajena')
 
 
 class QueryHelperTests(TestCase):

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Plantilla · Task Studio</title>
+    <style>
+      :root { --bg:#081320; --panel:#102235; --line:rgba(255,255,255,.12); --ink:#eef2f7; --muted:rgba(226,232,240,.7); }
+      * { box-sizing:border-box; }
+      body { margin:0; background:linear-gradient(180deg,#07111c,#0c1f33); color:var(--ink); font-family:"Montserrat","Segoe UI",sans-serif; }
+      .page { max-width:1120px; margin:0 auto; padding:1.1rem; }
+      .nav, .list, .row, .actions { display:flex; gap:.7rem; flex-wrap:wrap; align-items:center; }
+      .nav { margin-bottom:1rem; }
+      .panel { background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:1rem; margin-bottom:.9rem; }
+      .fields { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:.8rem; }
+      label { display:grid; gap:.3rem; font-size:.74rem; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+      input, textarea { width:100%; padding:.72rem .82rem; border-radius:12px; border:1px solid var(--line); background:rgba(255,255,255,.05); color:var(--ink); font:inherit; }
+      textarea { min-height:88px; }
+      .button, button { display:inline-flex; align-items:center; justify-content:center; padding:.62rem .9rem; border-radius:999px; border:1px solid var(--line); background:rgba(255,255,255,.04); color:var(--ink); text-decoration:none; font:inherit; font-size:.76rem; font-weight:700; letter-spacing:.05em; text-transform:uppercase; }
+      button.primary { background:#f8fafc; color:#081320; border:none; }
+      .msg { padding:.75rem .9rem; border-radius:14px; margin-bottom:.8rem; border:1px solid var(--line); }
+      .ok { background:rgba(22,163,74,.16); border-color:rgba(74,222,128,.35); }
+      .err { background:rgba(127,29,29,.24); border-color:rgba(248,113,113,.35); }
+      .player { display:flex; justify-content:space-between; gap:1rem; align-items:flex-start; padding:.85rem .95rem; border-radius:16px; border:1px solid var(--line); background:rgba(255,255,255,.03); }
+      .player strong { display:block; font-size:.95rem; }
+      .meta { color:var(--muted); font-size:.84rem; }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <h1 style="margin:0 0 .35rem; font-size:1.15rem; letter-spacing:.08em; text-transform:uppercase;">Plantilla privada</h1>
+      <p style="margin:0 0 1rem; color:rgba(226,232,240,.7);">{{ target_user.get_username }}</p>
+      <div class="nav">
+        <a class="button" href="{% url 'task-studio-home' %}{{ query_suffix }}">Inicio</a>
+        <a class="button" href="{% url 'task-studio-profile' %}{{ query_suffix }}">Perfil e identidad</a>
+        <a class="button" href="{% url 'task-studio-roster' %}{{ query_suffix }}">Plantilla</a>
+      </div>
+      {% if feedback %}<div class="msg ok">{{ feedback }}</div>{% endif %}
+      {% if error %}<div class="msg err">{{ error }}</div>{% endif %}
+
+      <section class="panel">
+        <h2 style="margin:0 0 .8rem; font-size:.84rem; letter-spacing:.1em; text-transform:uppercase;">Añadir jugador</h2>
+        <form method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+          <input type="hidden" name="studio_action" value="add" />
+          <div class="fields">
+            <label>Nombre<input type="text" name="name" required /></label>
+            <label>Dorsal<input type="number" name="number" min="1" max="99" /></label>
+            <label>Posición<input type="text" name="position" /></label>
+            <label>Pie dominante<input type="text" name="dominant_foot" /></label>
+            <label>Año nacimiento<input type="number" name="birth_year" min="1980" max="2100" /></label>
+            <label>Foto<input type="file" name="photo" accept="image/*" /></label>
+            <label style="grid-column:1 / -1;">Notas<textarea name="notes"></textarea></label>
+          </div>
+          <div class="actions" style="margin-top:.85rem;">
+            <button class="primary" type="submit">Guardar jugador</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel">
+        <h2 style="margin:0 0 .8rem; font-size:.84rem; letter-spacing:.1em; text-transform:uppercase;">Listado</h2>
+        <div class="list" style="display:grid;">
+          {% for player in players %}
+          <article class="player">
+            <div>
+              <strong>{% if player.number %}#{{ player.number }} · {% endif %}{{ player.name }}</strong>
+              <div class="meta">{{ player.position|default:"Sin posición" }}{% if player.dominant_foot %} · {{ player.dominant_foot }}{% endif %}{% if player.birth_year %} · {{ player.birth_year }}{% endif %}</div>
+            </div>
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="studio_action" value="delete" />
+              <input type="hidden" name="player_id" value="{{ player.id }}" />
+              <button type="submit">Eliminar</button>
+            </form>
+          </article>
+          {% empty %}
+          <div class="meta">Todavía no hay jugadores en la plantilla.</div>
+          {% endfor %}
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

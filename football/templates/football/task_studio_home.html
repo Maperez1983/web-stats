@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Task Studio</title>
+    <style>
+      :root { --bg:#081320; --panel:#102235; --line:rgba(255,255,255,.12); --ink:#eef2f7; --muted:rgba(226,232,240,.7); --accent:#22c55e; }
+      * { box-sizing:border-box; }
+      body { margin:0; background:linear-gradient(180deg,#07111c,#0c1f33); color:var(--ink); font-family:"Montserrat","Segoe UI",sans-serif; }
+      .page { max-width:1180px; margin:0 auto; padding:1.1rem; }
+      .top, .nav, .stats, .task-head, .task-actions { display:flex; gap:.7rem; flex-wrap:wrap; align-items:center; }
+      .top { justify-content:space-between; margin-bottom:1rem; }
+      .nav { margin-bottom:1rem; }
+      .button, button { display:inline-flex; align-items:center; justify-content:center; padding:.62rem .9rem; border-radius:999px; border:1px solid var(--line); background:rgba(255,255,255,.04); color:var(--ink); text-decoration:none; font:inherit; font-size:.76rem; font-weight:700; letter-spacing:.05em; text-transform:uppercase; }
+      .button.primary { background:linear-gradient(135deg,#22c55e,#4ade80); color:#052a16; border:none; }
+      .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:.8rem; margin-bottom:1rem; }
+      .card, .task-card { background:var(--panel); border:1px solid var(--line); border-radius:18px; }
+      .card { padding:1rem; }
+      .card h2, .task-card h3 { margin:0 0 .35rem; font-size:.82rem; letter-spacing:.1em; text-transform:uppercase; }
+      .metric { font-size:2rem; font-weight:800; }
+      .muted { color:var(--muted); }
+      .tasks { display:grid; gap:.75rem; }
+      .task-card { padding:.95rem 1rem; }
+      .task-head { justify-content:space-between; }
+      .task-title { font-size:1rem; font-weight:800; }
+      .pill { display:inline-flex; padding:.22rem .55rem; border-radius:999px; background:rgba(34,197,94,.16); color:#bbf7d0; font-size:.7rem; letter-spacing:.06em; text-transform:uppercase; }
+      .empty { padding:1.2rem; border:1px dashed var(--line); border-radius:18px; text-align:center; color:var(--muted); }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <div class="top">
+        <div>
+          <h1 style="margin:0; font-size:1.2rem; letter-spacing:.08em; text-transform:uppercase;">Task Studio</h1>
+          <p class="muted" style="margin:.35rem 0 0;">
+            {% if browse_all %}Vista global de administrador.{% else %}Espacio privado de creación de tareas{% endif %}
+            · {{ target_user.get_username }}
+          </p>
+        </div>
+        <a class="button primary" href="{% url 'task-studio-task-create' %}{{ query_suffix }}">Nueva tarea</a>
+      </div>
+
+      <div class="nav">
+        <a class="button" href="{% url 'task-studio-home' %}{{ query_suffix }}">Inicio</a>
+        <a class="button" href="{% url 'task-studio-profile' %}{{ query_suffix }}">Perfil e identidad</a>
+        <a class="button" href="{% url 'task-studio-roster' %}{{ query_suffix }}">Plantilla</a>
+      </div>
+
+      <section class="cards">
+        <article class="card">
+          <h2>Tareas</h2>
+          <div class="metric">{{ task_count }}</div>
+          <div class="muted">Repositorio privado disponible.</div>
+        </article>
+        <article class="card">
+          <h2>Plantilla</h2>
+          <div class="metric">{{ roster_count }}</div>
+          <div class="muted">Jugadores activos cargados.</div>
+        </article>
+        <article class="card">
+          <h2>Identidad</h2>
+          <div style="font-size:1rem; font-weight:700;">{{ profile.club_name|default:"Sin configurar" }}</div>
+          <div class="muted">{{ profile.document_name|default:target_user.get_full_name|default:target_user.get_username }}</div>
+        </article>
+      </section>
+
+      <section class="tasks">
+        {% for task in tasks %}
+        <article class="task-card">
+          <div class="task-head">
+            <div>
+              <div class="task-title">{{ task.title }}</div>
+              <div class="muted">{{ task.get_block_display }} · {{ task.duration_minutes }} min · Actualizada {{ task.updated_at|date:"d/m/Y H:i" }}</div>
+            </div>
+            {% if browse_all %}
+            <span class="pill">{{ task.owner.username }}</span>
+            {% endif %}
+          </div>
+          <p class="muted" style="margin:.6rem 0 0;">{{ task.objective|default:"Sin objetivo definido." }}</p>
+          <div class="task-actions" style="margin-top:.75rem;">
+            <a class="button" href="{% url 'task-studio-task-edit' task.id %}{% if browse_all %}?user={{ task.owner.id }}{% endif %}">Abrir</a>
+            <a class="button" href="{% url 'task-studio-task-pdf' task.id %}" target="_blank" rel="noopener">Imprimir UEFA</a>
+            <a class="button" href="{% url 'task-studio-task-pdf' task.id %}?style=club" target="_blank" rel="noopener">Imprimir Club</a>
+          </div>
+        </article>
+        {% empty %}
+        <div class="empty">Todavía no hay tareas en este espacio.</div>
+        {% endfor %}
+      </section>
+    </main>
+  </body>
+</html>
