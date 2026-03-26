@@ -1945,6 +1945,26 @@ class PlayerDashboardViewTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response['Location'], reverse('player-detail', args=[self.player.id]))
 
+    def test_player_dashboard_allows_player_without_workspace(self):
+        AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_PLAYER)
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse('player-dashboard'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Rival View')
+
+    def test_player_detail_allows_player_without_workspace(self):
+        AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_PLAYER)
+        self.player.full_name = 'dashboard user'
+        self.player.save(update_fields=['full_name'])
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse('player-detail', args=[self.player.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Hiago')
+
     def test_player_dashboard_shows_preview_link_for_staff_roles(self):
         AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_COACH)
         self.client.force_login(self.user)

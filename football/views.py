@@ -796,7 +796,16 @@ def _get_primary_team_for_request(request):
     if workspace and workspace.kind == Workspace.KIND_CLUB and workspace.primary_team_id:
         return workspace.primary_team
     if request and getattr(request, 'user', None) and request.user.is_authenticated and not _can_access_platform(request.user):
+        if _get_user_role(request.user) == AppUserRole.ROLE_PLAYER:
+            return Team.objects.filter(is_primary=True).first()
         return None
+    return Team.objects.filter(is_primary=True).first()
+
+
+def _get_player_team_for_request(request):
+    workspace = _get_active_workspace(request)
+    if workspace and workspace.kind == Workspace.KIND_CLUB and workspace.primary_team_id:
+        return workspace.primary_team
     return Team.objects.filter(is_primary=True).first()
 
 
@@ -1285,6 +1294,8 @@ def _forbid_if_workspace_module_disabled(request, module_key, label='módulo'):
     workspace = _get_active_workspace(request)
     if not workspace:
         if request and getattr(request, 'user', None) and request.user.is_authenticated and not _can_access_platform(request.user):
+            if module_key == 'players':
+                return None
             return HttpResponse('No tienes un workspace de club asignado.', status=403)
         return None
     if workspace.kind != Workspace.KIND_CLUB:
@@ -3018,7 +3029,7 @@ def player_dashboard_page(request):
     forbidden = _forbid_if_workspace_module_disabled(request, 'players', label='módulo de jugadores')
     if forbidden:
         return forbidden
-    primary_team = _get_primary_team_for_request(request)
+    primary_team = _get_player_team_for_request(request)
     if not primary_team:
         return JsonResponse({'error': 'No hay equipo principal configurado'}, status=400)
     try:
@@ -10972,7 +10983,7 @@ def player_detail_page(request, player_id):
         forbidden = _forbid_if_workspace_module_disabled(request, 'players', label='módulo de jugadores')
         if forbidden:
             return forbidden
-        primary_team = _get_primary_team_for_request(request)
+        primary_team = _get_player_team_for_request(request)
         if not primary_team:
             return JsonResponse({'error': 'No hay equipo principal configurado'}, status=400)
         player = Player.objects.filter(id=player_id, team=primary_team).first()
@@ -11388,7 +11399,7 @@ def player_pdf(request, player_id):
     forbidden = _forbid_if_workspace_module_disabled(request, 'players', label='módulo de jugadores')
     if forbidden:
         return forbidden
-    primary_team = _get_primary_team_for_request(request)
+    primary_team = _get_player_team_for_request(request)
     if not primary_team:
         raise Http404('Equipo principal no configurado')
     player = Player.objects.filter(id=player_id, team=primary_team).first()
@@ -11415,7 +11426,7 @@ def player_presentation(request, player_id):
     forbidden = _forbid_if_workspace_module_disabled(request, 'players', label='módulo de jugadores')
     if forbidden:
         return forbidden
-    primary_team = _get_primary_team_for_request(request)
+    primary_team = _get_player_team_for_request(request)
     if not primary_team:
         raise Http404('Equipo principal no configurado')
     player = Player.objects.filter(id=player_id, team=primary_team).first()
@@ -11642,7 +11653,7 @@ def player_match_stats_page(request, player_id, match_id):
     forbidden = _forbid_if_workspace_module_disabled(request, 'players', label='estadísticas de jugador')
     if forbidden:
         return forbidden
-    primary_team = _get_primary_team_for_request(request)
+    primary_team = _get_player_team_for_request(request)
     if not primary_team:
         return JsonResponse({'error': 'No hay equipo principal configurado'}, status=400)
     player = Player.objects.filter(id=player_id, team=primary_team).first()
