@@ -856,27 +856,39 @@ def _workspace_default_modules(kind):
 def _workspace_club_module_catalog():
     return [
         {
-            'key': 'season_data',
-            'label': 'Datos temporada',
-            'description': 'Dashboard, portada staff, jugadores, fichas y seguimiento global del cliente.',
-            'route_keys': ['dashboard', 'coach_overview', 'players', 'manual_stats'],
+            'key': 'configuration',
+            'label': 'Configuración',
+            'description': 'Datos del equipo, datos personales y registro de jugadores del cliente.',
+            'route_keys': ['players'],
         },
         {
-            'key': 'sessions',
-            'label': 'Sesiones',
-            'description': 'Planificación, biblioteca de tareas y pizarra ABP dentro del CRM del club.',
-            'route_keys': ['sessions', 'abp_board'],
+            'key': 'advanced_configuration',
+            'label': 'Configuración avanzada',
+            'description': 'Clasificación, contexto competitivo y parámetros avanzados del cliente.',
+            'route_keys': ['dashboard'],
         },
         {
-            'key': 'matchday',
-            'label': 'Convocatoria y 11 inicial',
-            'description': 'Trabajo prepartido: convocatoria, 11 inicial y registro de acciones.',
+            'key': 'statistics',
+            'label': 'Estadísticas',
+            'description': 'KPIs, seguimiento, portada técnica y métricas manuales del cliente.',
+            'route_keys': ['coach_overview', 'manual_stats'],
+        },
+        {
+            'key': 'match',
+            'label': 'Partido',
+            'description': 'Convocatoria, 11 inicial y operativa de partido del CRM.',
             'route_keys': ['convocation', 'match_actions'],
+        },
+        {
+            'key': 'training',
+            'label': 'Entrenamiento',
+            'description': 'Sesiones, biblioteca de tareas y trabajo ABP del cliente.',
+            'route_keys': ['sessions', 'abp_board'],
         },
         {
             'key': 'analysis',
             'label': 'Análisis',
-            'description': 'Análisis rival, preparación táctica e informes del cliente.',
+            'description': 'Análisis rival, informes y lectura táctica del cliente.',
             'route_keys': ['analysis'],
         },
     ]
@@ -2047,9 +2059,11 @@ def platform_workspace_detail_page(request, workspace_id):
     module_cards = []
     if workspace.kind == Workspace.KIND_CLUB:
         module_cards = [
-            {'title': 'Datos temporada', 'description': 'Dashboard, portada staff y seguimiento de jugadores del CRM del club.', 'url': reverse('coach-role-trainer')},
-            {'title': 'Sesiones', 'description': 'Plan general, biblioteca de tareas, áreas y ABP del cliente.', 'url': reverse('sessions')},
-            {'title': 'Convocatoria y 11 inicial', 'description': 'Operativa prepartido y registro de acciones del CRM.', 'url': reverse('convocation')},
+            {'title': 'Configuración', 'description': 'Datos de equipo, datos personales y registro de jugadores del cliente.', 'url': reverse('player-dashboard')},
+            {'title': 'Configuración avanzada', 'description': 'Clasificación y contexto competitivo del cliente dentro del CRM.', 'url': reverse('dashboard-home')},
+            {'title': 'Estadísticas', 'description': 'KPIs, portada técnica y métricas manuales del cliente.', 'url': reverse('coach-role-trainer')},
+            {'title': 'Partido', 'description': 'Convocatoria, 11 inicial y operativa de partido del CRM.', 'url': reverse('convocation')},
+            {'title': 'Entrenamiento', 'description': 'Sesiones, tareas y ABP del cliente.', 'url': reverse('sessions')},
             {'title': 'Análisis', 'description': 'Rival, informes y lectura táctica del cliente seleccionado.', 'url': reverse('analysis')},
         ]
     else:
