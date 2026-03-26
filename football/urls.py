@@ -35,6 +35,7 @@ urlpatterns = [
     path('coach/11-inicial/', views.initial_eleven_page, name='initial-eleven'),
     path('coach/sesiones/', views.sessions_page, name='sessions'),
     path('coach/sesiones/tareas/nueva/', views.sessions_task_create_page, name='sessions-task-create'),
+    path('coach/sesiones/tareas/pdf-preview/', views.session_task_pdf_preview, name='sessions-task-pdf-preview'),
     path('coach/sesiones/tareas/<int:task_id>/editar/', views.sessions_task_edit_page, name='sessions-task-edit'),
     path('coach/sesiones/porteros/', views.sessions_goalkeeper_page, name='sessions-goalkeeper'),
     path('coach/sesiones/porteros/tareas/nueva/', views.sessions_goalkeeper_task_create_page, name='sessions-goalkeeper-task-create'),

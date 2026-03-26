@@ -352,6 +352,8 @@
     const widthInput = document.getElementById('draw-canvas-width');
     const heightInput = document.getElementById('draw-canvas-height');
     const previewInput = document.getElementById('draw-canvas-preview-data');
+    const livePreviewImg = document.getElementById('task-live-preview');
+    const livePreviewPlaceholder = document.getElementById('task-live-preview-placeholder');
     const playerCountInput = form.querySelector('[name="draw_task_player_count"]');
     const legacyPlayersInput = form.querySelector('[name="draw_task_players"]');
     const statusEl = document.getElementById('task-builder-status');
@@ -388,6 +390,7 @@
     let history = [];
     let pendingFactory = null;
     const DRAG_MIME = 'application/x-webstats-tactical-resource';
+    let previewRefreshTimer = null;
 
     const clampScale = (value) => clamp(Number(value) || 1, 0.4, 2.6);
     const normalizeEditableObject = (object) => {
@@ -440,6 +443,7 @@
       canvas.requestRenderAll();
       pushHistory();
       syncInspector();
+      refreshLivePreview();
       if (message) setStatus(message);
     };
     const applyToActiveFlexibleObject = (callback, message) => {
@@ -471,6 +475,7 @@
       presetButtons.forEach((button) => button.classList.toggle('is-active', safeText(button.dataset.preset) === preset));
       if (surfaceTriggerLabel) surfaceTriggerLabel.textContent = PRESET_LABEL[preset] || 'Campo completo';
       svgSurface.innerHTML = buildPitchSvg(preset);
+      refreshLivePreview();
       setStatus(`Superficie preparada: ${PRESET_LABEL[preset] || 'campo'}.`);
     };
 
@@ -829,6 +834,7 @@
         canvas.requestRenderAll();
         pushHistory();
         syncInspector();
+        refreshLivePreview();
       });
     };
 
@@ -885,17 +891,70 @@
       };
       image.src = blobUrl;
     });
+    const applyLivePreview = (dataUrl) => {
+      if (!livePreviewImg || !livePreviewPlaceholder) return;
+      if (!dataUrl) {
+        livePreviewImg.hidden = true;
+        livePreviewPlaceholder.hidden = false;
+        return;
+      }
+      livePreviewImg.src = dataUrl;
+      livePreviewImg.hidden = false;
+      livePreviewPlaceholder.hidden = true;
+    };
+    const refreshLivePreview = () => {
+      window.clearTimeout(previewRefreshTimer);
+      previewRefreshTimer = window.setTimeout(async () => {
+        const dataUrl = await buildPreviewData();
+        if (previewInput) previewInput.value = dataUrl;
+        applyLivePreview(dataUrl);
+      }, 180);
+    };
+    const syncHiddenBuilderFields = async () => {
+      if (legacyPlayersInput && playerCountInput) legacyPlayersInput.value = playerCountInput.value || '';
+      if (stateInput) stateInput.value = JSON.stringify(serializeState());
+      if (widthInput) widthInput.value = String(Math.round(canvas.getWidth()));
+      if (heightInput) heightInput.value = String(Math.round(canvas.getHeight()));
+      const dataUrl = await buildPreviewData();
+      if (previewInput) previewInput.value = dataUrl;
+      applyLivePreview(dataUrl);
+      return dataUrl;
+    };
+    const submitPrintPreview = async (style) => {
+      await syncHiddenBuilderFields();
+      const actionUrl = form.dataset.pdfPreviewUrl;
+      if (!actionUrl) return;
+      const tempForm = document.createElement('form');
+      tempForm.method = 'post';
+      tempForm.action = `${actionUrl}?style=${encodeURIComponent(style || 'uefa')}`;
+      tempForm.target = '_blank';
+      const payload = new FormData(form);
+      payload.forEach((value, key) => {
+        if (value instanceof File) return;
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = key;
+        input.value = String(value);
+        tempForm.appendChild(input);
+      });
+      document.body.appendChild(tempForm);
+      tempForm.submit();
+      tempForm.remove();
+    };
 
     fitCanvas();
     renderSurfaceThumbs();
     setPreset(presetSelect.value || 'full_pitch');
     restoreState();
     renderPlayerBank();
+    refreshLivePreview();
 
     canvas.on('object:modified', pushHistory);
     canvas.on('object:added', () => {
       if (!canvas.__loading) pushHistory();
+      refreshLivePreview();
     });
+    canvas.on('object:removed', refreshLivePreview);
     canvas.on('selection:created', syncInspector);
     canvas.on('selection:updated', syncInspector);
     canvas.on('selection:cleared', syncInspector);
@@ -1021,6 +1080,9 @@
       else activateFactory(simpleFactory(add), RESOURCE_LABELS[add] || add);
     });
     syncInspector();
+    Array.from(form.querySelectorAll('[data-print-style]')).forEach((button) => {
+      button.addEventListener('click', () => submitPrintPreview(button.dataset.printStyle || 'uefa'));
+    });
 
     Array.from(document.querySelectorAll('.resource-strip button[data-add]')).forEach((button) => {
       registerDraggableButton(button, () => ({ kind: safeText(button.dataset.add) }));
@@ -1056,11 +1118,7 @@
         return;
       }
       event.preventDefault();
-      if (legacyPlayersInput && playerCountInput) legacyPlayersInput.value = playerCountInput.value || '';
-      if (stateInput) stateInput.value = JSON.stringify(serializeState());
-      if (widthInput) widthInput.value = String(Math.round(canvas.getWidth()));
-      if (heightInput) heightInput.value = String(Math.round(canvas.getHeight()));
-      if (previewInput) previewInput.value = await buildPreviewData();
+      await syncHiddenBuilderFields();
       form.dataset.previewReady = '1';
       form.requestSubmit();
     });

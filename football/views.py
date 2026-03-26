@@ -17,6 +17,7 @@ from functools import wraps
 from pathlib import Path
 import unicodedata
 import re
+from types import SimpleNamespace
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
@@ -3033,77 +3034,38 @@ def convocation_pdf(request):
     return _build_pdf_response_or_html_fallback(request, html, filename)
 
 
-@login_required
-def session_task_pdf(request, task_id):
-    if not _can_access_sessions_workspace(request.user):
-        return HttpResponse('No tienes permisos para acceder a sesiones.', status=403)
-    task = (
-        SessionTask.objects
-        .select_related('session__microcycle__team')
-        .filter(id=task_id)
-        .first()
-    )
-    if not task:
-        raise Http404('Tarea no encontrada')
+def _task_pdf_lines(value):
+    text = str(value or '').replace('\r', '\n')
+    lines = [line.strip() for line in text.split('\n') if line.strip()]
+    return lines or ['-']
 
-    team = task.session.microcycle.team
-    pdf_style = (request.GET.get('style') or 'uefa').strip().lower()
-    if pdf_style not in {'uefa', 'club'}:
-        pdf_style = 'uefa'
-    tokens = []
-    tactical_layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
-    raw_tokens = tactical_layout.get('tokens') if isinstance(tactical_layout, dict) else []
-    meta = tactical_layout.get('meta') if isinstance(tactical_layout, dict) else {}
-    if not isinstance(meta, dict):
-        meta = {}
-    surface_map = {key: label for key, label in TASK_SURFACE_CHOICES}
-    pitch_map = {key: label for key, label in TASK_PITCH_FORMAT_CHOICES}
-    phase_map = {key: label for key, label in TASK_GAME_PHASE_CHOICES}
-    methodology_map = {key: label for key, label in TASK_METHODOLOGY_CHOICES}
-    complexity_map = {key: label for key, label in TASK_COMPLEXITY_CHOICES}
-    constraint_map = {key: label for key, label in TASK_CONSTRAINT_CHOICES}
-    meta = dict(meta)
-    if meta.get('surface'):
-        meta['surface'] = surface_map.get(str(meta.get('surface')), str(meta.get('surface')))
-    if meta.get('pitch_format'):
-        meta['pitch_format'] = pitch_map.get(str(meta.get('pitch_format')), str(meta.get('pitch_format')))
-    if meta.get('game_phase'):
-        meta['game_phase'] = phase_map.get(str(meta.get('game_phase')), str(meta.get('game_phase')))
-    if meta.get('methodology'):
-        meta['methodology'] = methodology_map.get(str(meta.get('methodology')), str(meta.get('methodology')))
-    if meta.get('complexity'):
-        meta['complexity'] = complexity_map.get(str(meta.get('complexity')), str(meta.get('complexity')))
-    if isinstance(meta.get('constraints'), list):
-        meta['constraints'] = [constraint_map.get(str(v), str(v)) for v in meta.get('constraints')]
-    if isinstance(meta.get('category_tags'), str):
-        meta['category_tags'] = [item.strip() for item in str(meta.get('category_tags') or '').split(',') if item.strip()]
-    elif not isinstance(meta.get('category_tags'), list):
-        meta['category_tags'] = []
-    if isinstance(meta.get('assigned_player_names'), str):
-        meta['assigned_player_names'] = [item.strip() for item in str(meta.get('assigned_player_names') or '').split(',') if item.strip()]
-    elif not isinstance(meta.get('assigned_player_names'), list):
-        meta['assigned_player_names'] = []
-    analysis_meta = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
-    task_sheet = analysis_meta.get('task_sheet') if isinstance(analysis_meta.get('task_sheet'), dict) else {}
-    description_text = str(task_sheet.get('description') or '').strip()
-    dimensions_text = str(task_sheet.get('dimensions') or '').strip()
-    materials_text = str(task_sheet.get('materials') or meta.get('resources_summary') or '').strip()
-    strategy_label = str(meta.get('training_type') or meta.get('methodology') or task.get_block_display() or '').strip()
-    space_label = ' · '.join(part for part in [dimensions_text, str(meta.get('space') or '').strip()] if part)
-    game_situation_label = ' · '.join(part for part in [str(meta.get('pitch_format') or '').strip(), str(meta.get('surface') or '').strip()] if part)
-    coordination_label = ' · '.join(part for part in [str(meta.get('organization') or '').strip(), str(meta.get('players_distribution') or '').strip()] if part)
-    coordination_skills_label = ' · '.join(part for part in [str(meta.get('load_target') or '').strip(), str(meta.get('complexity') or '').strip()] if part)
-    tactical_intent_label = ' · '.join(
-        part for part in [
-            str(meta.get('principle') or '').strip(),
-            str(meta.get('subprinciple') or '').strip(),
-            str(meta.get('targets') or '').strip(),
-            str(task.objective or '').strip(),
-        ] if part
-    )
-    animation_frames = tactical_layout.get('timeline') if isinstance(tactical_layout, dict) else []
-    if not isinstance(animation_frames, list):
-        animation_frames = []
+
+def _team_pdf_palette(team_obj, style_key='uefa'):
+    primary = str(getattr(team_obj, 'primary_color', '') or '').strip() or '#0f7a35'
+    secondary = str(getattr(team_obj, 'secondary_color', '') or '').strip() or '#facc15'
+    accent = str(getattr(team_obj, 'accent_color', '') or '').strip() or '#102734'
+    if style_key == 'club':
+        return {
+            'primary': primary,
+            'secondary': secondary,
+            'accent': accent,
+            'panel': '#f5fbf6',
+            'sheet': '#ffffff',
+            'ink': '#102734',
+            'muted': '#51606f',
+        }
+    return {
+        'primary': '#0e7490',
+        'secondary': '#dbeafe',
+        'accent': '#102734',
+        'panel': '#f8fafc',
+        'sheet': '#ffffff',
+        'ink': '#111827',
+        'muted': '#64748b',
+    }
+
+
+def _build_task_pdf_tokens(request, tactical_layout):
     material_icon_by_kind = {
         'cone': '△',
         'marker': '◉',
@@ -3136,85 +3098,110 @@ def session_task_pdf(request, task_id):
         'medicine-ball': '◒',
         'tape': '═',
     }
-
-    if isinstance(raw_tokens, list):
-        for token in raw_tokens:
-            if not isinstance(token, dict):
-                continue
-            x = _parse_int(token.get('x'))
-            y = _parse_int(token.get('y'))
-            x = max(2, min(x if x is not None else 50, 98))
-            y = max(2, min(y if y is not None else 50, 98))
-            token_type = str(token.get('type') or '').strip()
-            token_kind = str(token.get('kind') or '').strip()
-            token_icon = ''
-            token_asset = str(token.get('asset') or '').strip()
-            if token_type == 'material':
-                token_icon = str(token.get('icon') or '').strip() or material_icon_by_kind.get(token_kind, '•')
-            token_asset_url = ''
-            if token_asset:
-                if token_asset.startswith('/'):
-                    token_asset_url = request.build_absolute_uri(token_asset)
-                else:
-                    token_asset_url = request.build_absolute_uri(static(token_asset))
-            tokens.append(
-                {
-                    'label': str(token.get('label') or '?')[:16],
-                    'title': str(token.get('title') or token.get('label') or '').strip(),
-                    'type': token_type,
-                    'kind': token_kind,
-                    'icon': token_icon,
-                    'asset_url': token_asset_url,
-                    'x': x,
-                    'y': y,
-                }
-            )
-
-    def _split_lines(value):
-        text = str(value or '').replace('\r', '\n')
-        lines = [line.strip() for line in text.split('\n') if line.strip()]
-        return lines or ['-']
-
-    def _team_pdf_palette(team_obj, style_key='uefa'):
-        primary = str(getattr(team_obj, 'primary_color', '') or '').strip() or '#0f7a35'
-        secondary = str(getattr(team_obj, 'secondary_color', '') or '').strip() or '#facc15'
-        accent = str(getattr(team_obj, 'accent_color', '') or '').strip() or '#102734'
-        if style_key == 'club':
-            return {
-                'primary': primary,
-                'secondary': secondary,
-                'accent': accent,
-                'panel': '#f5fbf6',
-                'sheet': '#ffffff',
-                'ink': '#102734',
-                'muted': '#51606f',
+    tokens = []
+    raw_tokens = tactical_layout.get('tokens') if isinstance(tactical_layout, dict) else []
+    if not isinstance(raw_tokens, list):
+        return tokens
+    for token in raw_tokens:
+        if not isinstance(token, dict):
+            continue
+        x = _parse_int(token.get('x'))
+        y = _parse_int(token.get('y'))
+        x = max(2, min(x if x is not None else 50, 98))
+        y = max(2, min(y if y is not None else 50, 98))
+        token_type = str(token.get('type') or '').strip()
+        token_kind = str(token.get('kind') or '').strip()
+        token_icon = ''
+        token_asset = str(token.get('asset') or '').strip()
+        if token_type == 'material':
+            token_icon = str(token.get('icon') or '').strip() or material_icon_by_kind.get(token_kind, '•')
+        token_asset_url = ''
+        if token_asset:
+            token_asset_url = request.build_absolute_uri(token_asset) if token_asset.startswith('/') else request.build_absolute_uri(static(token_asset))
+        tokens.append(
+            {
+                'label': str(token.get('label') or '?')[:16],
+                'title': str(token.get('title') or token.get('label') or '').strip(),
+                'type': token_type,
+                'kind': token_kind,
+                'icon': token_icon,
+                'asset_url': token_asset_url,
+                'x': x,
+                'y': y,
             }
-        return {
-            'primary': '#0e7490',
-            'secondary': '#dbeafe',
-            'accent': '#102734',
-            'panel': '#f8fafc',
-            'sheet': '#ffffff',
-            'ink': '#111827',
-            'muted': '#64748b',
-        }
+        )
+    return tokens
 
+
+def _normalize_task_pdf_meta(meta):
+    surface_map = {key: label for key, label in TASK_SURFACE_CHOICES}
+    pitch_map = {key: label for key, label in TASK_PITCH_FORMAT_CHOICES}
+    phase_map = {key: label for key, label in TASK_GAME_PHASE_CHOICES}
+    methodology_map = {key: label for key, label in TASK_METHODOLOGY_CHOICES}
+    complexity_map = {key: label for key, label in TASK_COMPLEXITY_CHOICES}
+    constraint_map = {key: label for key, label in TASK_CONSTRAINT_CHOICES}
+    meta = dict(meta or {})
+    if meta.get('surface'):
+        meta['surface'] = surface_map.get(str(meta.get('surface')), str(meta.get('surface')))
+    if meta.get('pitch_format'):
+        meta['pitch_format'] = pitch_map.get(str(meta.get('pitch_format')), str(meta.get('pitch_format')))
+    if meta.get('game_phase'):
+        meta['game_phase'] = phase_map.get(str(meta.get('game_phase')), str(meta.get('game_phase')))
+    if meta.get('methodology'):
+        meta['methodology'] = methodology_map.get(str(meta.get('methodology')), str(meta.get('methodology')))
+    if meta.get('complexity'):
+        meta['complexity'] = complexity_map.get(str(meta.get('complexity')), str(meta.get('complexity')))
+    if isinstance(meta.get('constraints'), list):
+        meta['constraints'] = [constraint_map.get(str(v), str(v)) for v in meta.get('constraints')]
+    if isinstance(meta.get('category_tags'), str):
+        meta['category_tags'] = [item.strip() for item in str(meta.get('category_tags') or '').split(',') if item.strip()]
+    elif not isinstance(meta.get('category_tags'), list):
+        meta['category_tags'] = []
+    if isinstance(meta.get('assigned_player_names'), str):
+        meta['assigned_player_names'] = [item.strip() for item in str(meta.get('assigned_player_names') or '').split(',') if item.strip()]
+    elif not isinstance(meta.get('assigned_player_names'), list):
+        meta['assigned_player_names'] = []
+    return meta
+
+
+def _build_task_pdf_context(request, team, session, microcycle, task, tactical_layout, pdf_style='uefa', preview_url=''):
+    meta = _normalize_task_pdf_meta(tactical_layout.get('meta') if isinstance(tactical_layout, dict) else {})
+    analysis_meta = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
+    task_sheet = analysis_meta.get('task_sheet') if isinstance(analysis_meta.get('task_sheet'), dict) else {}
+    description_text = str(task_sheet.get('description') or '').strip()
+    dimensions_text = str(task_sheet.get('dimensions') or '').strip()
+    materials_text = str(task_sheet.get('materials') or meta.get('resources_summary') or '').strip()
+    strategy_label = str(meta.get('training_type') or meta.get('methodology') or task.get_block_display() or '').strip()
+    space_label = ' · '.join(part for part in [dimensions_text, str(meta.get('space') or '').strip()] if part)
+    game_situation_label = ' · '.join(part for part in [str(meta.get('pitch_format') or '').strip(), str(meta.get('surface') or '').strip()] if part)
+    coordination_label = ' · '.join(part for part in [str(meta.get('organization') or '').strip(), str(meta.get('players_distribution') or '').strip()] if part)
+    coordination_skills_label = ' · '.join(part for part in [str(meta.get('load_target') or '').strip(), str(meta.get('complexity') or '').strip()] if part)
+    tactical_intent_label = ' · '.join(
+        part for part in [
+            str(meta.get('principle') or '').strip(),
+            str(meta.get('subprinciple') or '').strip(),
+            str(meta.get('targets') or '').strip(),
+            str(getattr(task, 'objective', '') or '').strip(),
+        ] if part
+    )
+    animation_frames = tactical_layout.get('timeline') if isinstance(tactical_layout, dict) else []
+    if not isinstance(animation_frames, list):
+        animation_frames = []
     coach_name = (
         request.user.get_full_name().strip()
         if hasattr(request.user, 'get_full_name') and request.user.get_full_name().strip()
         else getattr(request.user, 'username', '') or 'Entrenador'
     )
-
-    context = {
+    return {
         'team_name': team.name,
         'task': task,
-        'session': task.session,
-        'microcycle': task.session.microcycle,
-        'objective_lines': _split_lines(task.objective),
-        'coaching_lines': _split_lines(task.coaching_points),
-        'rules_lines': _split_lines(task.confrontation_rules),
-        'description_lines': _split_lines(description_text),
-        'tokens': tokens,
+        'session': session,
+        'microcycle': microcycle,
+        'objective_lines': _task_pdf_lines(getattr(task, 'objective', '')),
+        'coaching_lines': _task_pdf_lines(getattr(task, 'coaching_points', '')),
+        'rules_lines': _task_pdf_lines(getattr(task, 'confrontation_rules', '')),
+        'description_lines': _task_pdf_lines(description_text),
+        'tokens': _build_task_pdf_tokens(request, tactical_layout),
         'task_meta': meta,
         'strategy_label': strategy_label or '-',
         'space_label': space_label or '-',
@@ -3229,9 +3216,151 @@ def session_task_pdf(request, task_id):
         'coach_name': coach_name,
         'animation_frames_count': len(animation_frames),
         'logo_url': request.build_absolute_uri(static('football/images/cdb-logo.png')),
-        'task_preview_url': request.build_absolute_uri(reverse('session-task-preview-file', args=[task.id])) if task.task_preview_image else '',
+        'task_preview_url': preview_url,
         'generated_at': timezone.localtime(),
     }
+
+
+def _build_task_draft_pdf_context(request, primary_team, pdf_style='uefa'):
+    title = _sanitize_task_text((request.POST.get('draw_task_title') or '').strip(), multiline=False, max_len=160) or 'Tarea sin título'
+    objective = _sanitize_task_text((request.POST.get('draw_task_objective') or '').strip(), multiline=False, max_len=180)
+    coaching_points = _sanitize_task_text((request.POST.get('draw_task_coaching_points') or '').strip(), multiline=True)
+    confrontation_rules = _sanitize_task_text((request.POST.get('draw_task_confrontation_rules') or '').strip(), multiline=True)
+    block = (request.POST.get('draw_task_block') or SessionTask.BLOCK_MAIN_1).strip()
+    minutes = max(5, min(_parse_int(request.POST.get('draw_task_minutes')) or 15, 90))
+    target_session_id = _parse_int(request.POST.get('draw_target_session_id'))
+    selected_surface = _sanitize_task_text((request.POST.get('draw_task_surface') or '').strip(), multiline=False, max_len=80)
+    selected_pitch_format = _sanitize_task_text((request.POST.get('draw_task_pitch_format') or '').strip(), multiline=False, max_len=80)
+    selected_phase = _sanitize_task_text((request.POST.get('draw_task_game_phase') or '').strip(), multiline=False, max_len=80)
+    selected_methodology = _sanitize_task_text((request.POST.get('draw_task_methodology') or '').strip(), multiline=False, max_len=80)
+    selected_complexity = _sanitize_task_text((request.POST.get('draw_task_complexity') or '').strip(), multiline=False, max_len=80)
+    space = _sanitize_task_text((request.POST.get('draw_task_space') or '').strip(), multiline=False, max_len=120)
+    organization = _sanitize_task_text((request.POST.get('draw_task_organization') or '').strip(), multiline=True, max_len=500)
+    players_distribution = _sanitize_task_text((request.POST.get('draw_task_players_distribution') or '').strip(), multiline=False, max_len=180)
+    load_target = _sanitize_task_text((request.POST.get('draw_task_load_target') or '').strip(), multiline=False, max_len=180)
+    work_rest = _sanitize_task_text((request.POST.get('draw_task_work_rest') or '').strip(), multiline=False, max_len=180)
+    series = _sanitize_task_text((request.POST.get('draw_task_series') or '').strip(), multiline=False, max_len=100)
+    repetitions = _sanitize_task_text((request.POST.get('draw_task_repetitions') or '').strip(), multiline=False, max_len=100)
+    player_count = _sanitize_task_text((request.POST.get('draw_task_player_count') or '').strip(), multiline=False, max_len=100)
+    age_group = _sanitize_task_text((request.POST.get('draw_task_age_group') or '').strip(), multiline=False, max_len=100)
+    training_type = _sanitize_task_text((request.POST.get('draw_task_training_type') or '').strip(), multiline=False, max_len=120)
+    dimensions = _sanitize_task_text((request.POST.get('draw_task_dimensions') or '').strip(), multiline=False, max_len=120)
+    materials = _sanitize_task_text((request.POST.get('draw_task_materials') or '').strip(), multiline=False, max_len=180)
+    progression = _sanitize_task_text((request.POST.get('draw_task_progression') or '').strip(), multiline=True, max_len=500)
+    success_criteria = _sanitize_task_text((request.POST.get('draw_task_success_criteria') or '').strip(), multiline=True, max_len=500)
+    category_tags_raw = _sanitize_task_text((request.POST.get('draw_task_category_tags') or '').strip(), multiline=False, max_len=240)
+    category_tags = [tag.strip() for tag in category_tags_raw.split(',') if tag.strip()]
+    assigned_player_ids = [
+        player_id
+        for player_id in (_parse_int(value) for value in request.POST.getlist('assigned_player_ids'))
+        if player_id
+    ]
+    assigned_player_names = list(
+        Player.objects.filter(team=primary_team, id__in=assigned_player_ids).order_by('number', 'name').values_list('name', flat=True)
+    )
+    selected_session = (
+        TrainingSession.objects.select_related('microcycle')
+        .filter(id=target_session_id, microcycle__team=primary_team)
+        .first()
+    )
+    if selected_session:
+        session = selected_session
+        microcycle = selected_session.microcycle
+    else:
+        today = timezone.localdate()
+        session = SimpleNamespace(session_date=today, start_time=None, focus='Borrador')
+        microcycle = SimpleNamespace(title='Borrador', week_start=today, week_end=today)
+    canvas_state = {}
+    raw_canvas_state = (request.POST.get('draw_canvas_state') or '').strip()
+    if raw_canvas_state:
+        try:
+            parsed = json.loads(raw_canvas_state)
+            if isinstance(parsed, dict):
+                canvas_state = parsed
+        except Exception:
+            canvas_state = {}
+    tactical_layout = {
+        'tokens': canvas_state.get('objects') if isinstance(canvas_state.get('objects'), list) else [],
+        'timeline': canvas_state.get('timeline') if isinstance(canvas_state.get('timeline'), list) else [],
+        'meta': {
+            'surface': selected_surface,
+            'pitch_format': selected_pitch_format,
+            'game_phase': selected_phase,
+            'methodology': selected_methodology,
+            'complexity': selected_complexity,
+            'space': space,
+            'organization': organization,
+            'players_distribution': players_distribution,
+            'load_target': load_target,
+            'work_rest': work_rest,
+            'series': series,
+            'repetitions': repetitions,
+            'player_count': player_count,
+            'age_group': age_group,
+            'training_type': training_type,
+            'category_tags': category_tags,
+            'assigned_player_names': assigned_player_names,
+            'progression': progression,
+            'success_criteria': success_criteria,
+            'analysis': {
+                'task_sheet': {
+                    'description': _sanitize_task_text((request.POST.get('draw_task_description') or '').strip(), multiline=True),
+                    'dimensions': dimensions,
+                    'materials': materials,
+                }
+            },
+        },
+    }
+    draft_task = SimpleNamespace(
+        id=0,
+        title=title,
+        duration_minutes=minutes,
+        objective=objective,
+        coaching_points=coaching_points,
+        confrontation_rules=confrontation_rules,
+        block=block,
+        get_block_display=lambda: dict(SessionTask.BLOCK_CHOICES).get(block, block),
+    )
+    preview_data = str(request.POST.get('draw_canvas_preview_data') or '').strip()
+    return _build_task_pdf_context(
+        request,
+        team=primary_team,
+        session=session,
+        microcycle=microcycle,
+        task=draft_task,
+        tactical_layout=tactical_layout,
+        pdf_style=pdf_style,
+        preview_url=preview_data,
+    )
+
+
+@login_required
+def session_task_pdf(request, task_id):
+    if not _can_access_sessions_workspace(request.user):
+        return HttpResponse('No tienes permisos para acceder a sesiones.', status=403)
+    task = (
+        SessionTask.objects
+        .select_related('session__microcycle__team')
+        .filter(id=task_id)
+        .first()
+    )
+    if not task:
+        raise Http404('Tarea no encontrada')
+
+    team = task.session.microcycle.team
+    pdf_style = (request.GET.get('style') or 'uefa').strip().lower()
+    if pdf_style not in {'uefa', 'club'}:
+        pdf_style = 'uefa'
+    context = _build_task_pdf_context(
+        request,
+        team=team,
+        session=task.session,
+        microcycle=task.session.microcycle,
+        task=task,
+        tactical_layout=task.tactical_layout if isinstance(task.tactical_layout, dict) else {},
+        pdf_style=pdf_style,
+        preview_url=request.build_absolute_uri(reverse('session-task-preview-file', args=[task.id])) if task.task_preview_image else '',
+    )
     html = render_to_string('football/session_task_pdf.html', context)
     filename = slugify(f'tarea-{task.session.session_date}-{task.title}') or f'tarea-{task.id}'
     return _build_pdf_response_or_html_fallback(request, html, filename)
@@ -8248,6 +8377,23 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             'initial': initial,
         },
     )
+
+
+@login_required
+@require_POST
+def session_task_pdf_preview(request):
+    if not _can_access_sessions_workspace(request.user):
+        return HttpResponse('No tienes permisos para acceder a sesiones.', status=403)
+    primary_team = Team.objects.filter(is_primary=True).first()
+    if not primary_team:
+        raise Http404('Equipo principal no configurado')
+    pdf_style = (request.GET.get('style') or 'uefa').strip().lower()
+    if pdf_style not in {'uefa', 'club'}:
+        pdf_style = 'uefa'
+    context = _build_task_draft_pdf_context(request, primary_team, pdf_style=pdf_style)
+    html = render_to_string('football/session_task_pdf.html', context)
+    filename = slugify(f"borrador-{context['task'].title}") or 'borrador-tarea'
+    return _build_pdf_response_or_html_fallback(request, html, filename)
 
 
 @login_required

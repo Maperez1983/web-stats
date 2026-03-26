@@ -375,6 +375,21 @@
         border: 1px solid rgba(255, 255, 255, 0.1);
         background: rgba(255, 255, 255, 0.04);
       }
+      .live-preview-frame {
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 14px;
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.03);
+        min-height: 180px;
+        display: grid;
+        place-items: center;
+      }
+      .live-preview-placeholder {
+        padding: 1rem;
+        text-align: center;
+        color: var(--muted);
+        font-size: 0.84rem;
+      }
       .submit-row {
         display: flex;
         gap: 0.55rem;
@@ -461,17 +476,15 @@
         </div>
         <div class="actions">
           <a href="{% url scope_route_name %}" class="button">Volver a sesiones</a>
-          {% if task %}
-          <a href="{% url 'session-task-pdf' task.id %}" class="button" target="_blank" rel="noopener">Imprimir UEFA</a>
-          <a href="{% url 'session-task-pdf' task.id %}?style=club" class="button" target="_blank" rel="noopener">Imprimir Club</a>
-          {% endif %}
+          <button type="button" class="button" data-print-style="uefa">Imprimir UEFA</button>
+          <button type="button" class="button" data-print-style="club">Imprimir Club</button>
         </div>
       </div>
 
       {% if feedback %}<div class="alert ok">{{ feedback }}</div>{% endif %}
       {% if error %}<div class="alert err">{{ error }}</div>{% endif %}
 
-      <form method="post" id="task-builder-form">
+      <form method="post" id="task-builder-form" data-pdf-preview-url="{% url 'sessions-task-pdf-preview' %}">
         {% csrf_token %}
         <input type="hidden" name="planner_action" value="create_draw_task" />
         <input type="hidden" name="draw_task_template" value="{{ initial.template_key|default:'none' }}" />
@@ -777,19 +790,20 @@
                 </div>
               </div>
 
-              {% if task and task.task_preview_image %}
               <div class="section preview-card">
-                <h3>Última preview guardada</h3>
-                <img src="{% url 'session-task-preview-file' task.id %}" alt="Preview de tarea" />
+                <h3>Vista previa</h3>
+                <div class="live-preview-frame">
+                  <img id="task-live-preview" src="{% if task and task.task_preview_image %}{% url 'session-task-preview-file' task.id %}{% endif %}" alt="Preview de tarea" {% if not task or not task.task_preview_image %}hidden{% endif %} />
+                  <div id="task-live-preview-placeholder" class="live-preview-placeholder" {% if task and task.task_preview_image %}hidden{% endif %}>
+                    La preview se genera mientras diseñas la tarea.
+                  </div>
+                </div>
               </div>
-              {% endif %}
 
               <div class="submit-row">
                 <button type="submit" class="primary">{% if task %}Guardar tarea{% else %}Crear tarea{% endif %}</button>
-                {% if task %}
-                <a href="{% url 'session-task-pdf' task.id %}" class="button" target="_blank" rel="noopener">Imprimir UEFA</a>
-                <a href="{% url 'session-task-pdf' task.id %}?style=club" class="button" target="_blank" rel="noopener">Imprimir Club</a>
-                {% endif %}
+                <button type="button" class="button" data-print-style="uefa">Imprimir UEFA</button>
+                <button type="button" class="button" data-print-style="club">Imprimir Club</button>
               </div>
             </div>
           </aside>

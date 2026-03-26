@@ -1554,6 +1554,14 @@ class SessionsPlanningTests(TestCase):
         self.assertContains(response, 'Editor visual dedicado')
         self.assertNotContains(response, 'Crear tarea con pizarra')
 
+    def test_task_builder_create_page_shows_live_preview_and_print_buttons(self):
+        response = self.client.get(reverse('sessions-task-create'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Vista previa')
+        self.assertContains(response, 'Imprimir UEFA')
+        self.assertContains(response, 'Imprimir Club')
+
     def test_task_builder_creates_task_with_extended_metadata_and_assignment(self):
         session = TrainingSession.objects.create(
             microcycle=self.microcycle,
@@ -1748,6 +1756,30 @@ class SessionsPlanningTests(TestCase):
         self.assertContains(response, 'Plan de Tarea')
         self.assertContains(response, self.user.username)
         self.assertContains(response, 'Formato Club')
+
+    @patch('football.views.weasyprint', None)
+    def test_session_task_pdf_preview_renders_without_saving_task(self):
+        response = self.client.post(
+            reverse('sessions-task-pdf-preview') + '?style=uefa',
+            {
+                'draw_task_title': 'Borrador sin guardar',
+                'draw_task_minutes': '17',
+                'draw_task_objective': 'Atacar fijando dentro',
+                'draw_task_coaching_points': 'Cambiar ritmo tras control',
+                'draw_task_confrontation_rules': 'Dos toques en recepción',
+                'draw_task_training_type': 'Situaciones reducidas',
+                'draw_task_dimensions': '36x28m',
+                'draw_task_space': 'Zona media',
+                'draw_task_materials': 'Conos y petos',
+                'draw_canvas_state': json.dumps({'version': '5.3.0', 'objects': []}),
+                'draw_canvas_preview_data': 'data:image/png;base64,' + base64.b64encode(b'preview-image').decode('ascii'),
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Borrador sin guardar')
+        self.assertContains(response, 'Entrega Ejercicio')
+        self.assertFalse(SessionTask.objects.filter(title='Borrador sin guardar').exists())
 
     def test_library_task_can_be_copied_to_session(self):
         library_session = TrainingSession.objects.create(
