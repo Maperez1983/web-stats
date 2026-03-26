@@ -365,6 +365,43 @@ class PlatformWorkspaceTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['team']['name'], self.alt_team.name)
 
+    def test_convocation_page_uses_active_club_workspace_team(self):
+        workspace = Workspace.objects.create(
+            name='Cliente alternativo',
+            slug='cliente-alternativo-workspace-convocation',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.alt_team,
+        )
+        Player.objects.create(team=self.alt_team, name='Jugador cliente', is_active=True)
+        self.client.force_login(self.admin_user)
+        session = self.client.session
+        session['active_workspace_id'] = workspace.id
+        session.save()
+
+        response = self.client.get(reverse('convocation'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.alt_team.display_name)
+        self.assertContains(response, 'Jugador cliente')
+
+    def test_player_detail_uses_active_club_workspace_team_scope(self):
+        workspace = Workspace.objects.create(
+            name='Cliente alternativo',
+            slug='cliente-alternativo-workspace-player',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.alt_team,
+        )
+        alt_player = Player.objects.create(team=self.alt_team, name='Defensa cliente', is_active=True)
+        self.client.force_login(self.admin_user)
+        session = self.client.session
+        session['active_workspace_id'] = workspace.id
+        session.save()
+
+        response = self.client.get(reverse('player-detail', args=[alt_player.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Defensa cliente')
+
 
 class QueryHelperTests(TestCase):
     def setUp(self):

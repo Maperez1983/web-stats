@@ -1730,7 +1730,7 @@ def admin_page(request):
         full = user_obj.get_full_name().strip()
         return full or user_obj.username
 
-    primary_team = Team.objects.filter(is_primary=True).first()
+    primary_team = _get_primary_team_for_request(request)
     current_role = AppUserRole.objects.filter(user=request.user).values_list('role', flat=True).first()
     is_admin_user = bool(request.user.is_staff or current_role == AppUserRole.ROLE_ADMIN)
     roster_message = ''
@@ -2535,7 +2535,7 @@ def _build_default_lineup_payload(convocation_players):
 def match_action_page(request):
     if not _is_admin_user(request.user):
         return HttpResponse('Solo administradores pueden editar estadísticas de partido.', status=403)
-    primary_team = Team.objects.filter(is_primary=True).first()
+    primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         raise Http404('Equipo principal no configurado')
     requested_match = get_requested_match(request, primary_team)
@@ -2723,7 +2723,7 @@ def match_action_page(request):
 def register_match_action(request):
     if not _is_admin_user(request.user):
         return JsonResponse({'error': 'Solo administradores pueden editar estadísticas de partido.'}, status=403)
-    primary_team = Team.objects.filter(is_primary=True).first()
+    primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         return JsonResponse({'error': 'Equipo principal no configurado'}, status=400)
     player_id = request.POST.get('player')
@@ -2802,7 +2802,7 @@ def register_match_action(request):
 def save_match_lineup(request):
     if not _is_admin_user(request.user):
         return JsonResponse({'error': 'Solo administradores pueden editar estadísticas de partido.'}, status=403)
-    primary_team = Team.objects.filter(is_primary=True).first()
+    primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         return JsonResponse({'error': 'Equipo principal no configurado'}, status=400)
     requested_match = get_requested_match(request, primary_team)
@@ -2841,7 +2841,7 @@ def save_match_lineup(request):
 def delete_match_action(request):
     if not _is_admin_user(request.user):
         return JsonResponse({'error': 'Solo administradores pueden editar estadísticas de partido.'}, status=403)
-    primary_team = Team.objects.filter(is_primary=True).first()
+    primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         return JsonResponse({'error': 'Equipo principal no configurado'}, status=400)
     event_id = request.POST.get('event_id')
@@ -2865,7 +2865,7 @@ def delete_match_action(request):
 def finalize_match_actions(request):
     if not _is_admin_user(request.user):
         return JsonResponse({'error': 'Solo administradores pueden editar estadísticas de partido.'}, status=403)
-    primary_team = Team.objects.filter(is_primary=True).first()
+    primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         return JsonResponse({'error': 'Equipo principal no configurado'}, status=400)
     requested_match = get_requested_match(request, primary_team)
@@ -2939,7 +2939,7 @@ def finalize_match_actions(request):
 def reset_match_action_register(request):
     if not _is_admin_user(request.user):
         return JsonResponse({'error': 'Solo administradores pueden editar estadísticas de partido.'}, status=403)
-    primary_team = Team.objects.filter(is_primary=True).first()
+    primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         return JsonResponse({'error': 'Equipo principal no configurado'}, status=400)
     requested_match = get_requested_match(request, primary_team)
@@ -2963,7 +2963,7 @@ def reset_match_action_register(request):
 
 
 def convocation_page(request):
-    primary_team = Team.objects.filter(is_primary=True).first()
+    primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         raise Http404('Equipo principal no configurado')
     all_players = list(Player.objects.filter(team=primary_team, is_active=True).order_by('name'))
@@ -3161,7 +3161,7 @@ def convocation_page(request):
 @authenticated_write
 @require_POST
 def save_convocation(request):
-    primary_team = Team.objects.filter(is_primary=True).first()
+    primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         return JsonResponse({'error': 'Equipo principal no configurado'}, status=400)
     try:
@@ -3278,7 +3278,7 @@ def save_convocation(request):
 
 @login_required
 def convocation_pdf(request):
-    primary_team = Team.objects.filter(is_primary=True).first()
+    primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         raise Http404('Equipo principal no configurado')
     convocation_record = get_current_convocation_record(primary_team)
@@ -3965,7 +3965,7 @@ def coach_role_trainer_page(request):
     forbidden = _forbid_if_no_coach_access(request.user)
     if forbidden:
         return forbidden
-    primary_team = Team.objects.filter(is_primary=True).first()
+    primary_team = _get_primary_team_for_request(request)
     standing = None
     if primary_team and primary_team.group and primary_team.group.season:
         standing = TeamStanding.objects.filter(
@@ -4607,7 +4607,7 @@ def coach_abp_board_page(request):
     forbidden = _forbid_if_no_coach_access(request.user)
     if forbidden:
         return forbidden
-    primary_team = Team.objects.filter(is_primary=True).first()
+    primary_team = _get_primary_team_for_request(request)
     players = []
     if primary_team:
         players = list(
@@ -4624,7 +4624,7 @@ def coach_abp_board_page(request):
 
 
 def coach_roster_page(request):
-    primary_team = Team.objects.filter(is_primary=True).first()
+    primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         raise Http404('Equipo principal no configurado')
 
@@ -4691,7 +4691,7 @@ def coach_roster_page(request):
 
 
 def initial_eleven_page(request):
-    primary_team = Team.objects.filter(is_primary=True).first()
+    primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         raise Http404('Equipo principal no configurado')
     convocation_record = get_current_convocation_record(
@@ -7012,7 +7012,7 @@ def _starter_canvas_state(preset):
 def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones'):
     if not _can_access_sessions_workspace(request.user):
         return HttpResponse('No tienes permisos para acceder a sesiones.', status=403)
-    primary_team = Team.objects.filter(is_primary=True).first()
+    primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         raise Http404('Equipo principal no configurado')
 
@@ -8898,7 +8898,7 @@ def _save_task_studio_entry(request, owner, existing_task=None):
 def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones · Entrenador', task_id=None):
     if not _can_access_sessions_workspace(request.user):
         return HttpResponse('No tienes permisos para acceder a sesiones.', status=403)
-    primary_team = Team.objects.filter(is_primary=True).first()
+    primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         raise Http404('Equipo principal no configurado')
     task = None
@@ -8977,7 +8977,7 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
 def session_task_pdf_preview(request):
     if not _can_access_sessions_workspace(request.user):
         return HttpResponse('No tienes permisos para acceder a sesiones.', status=403)
-    primary_team = Team.objects.filter(is_primary=True).first()
+    primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         raise Http404('Equipo principal no configurado')
     pdf_style = (request.GET.get('style') or 'uefa').strip().lower()
@@ -10088,7 +10088,7 @@ def manual_player_stats_page(request):
     if not _is_admin_user(request.user):
         return HttpResponse('Solo administradores pueden editar estadísticas manuales.', status=403)
     try:
-        primary_team = Team.objects.filter(is_primary=True).first()
+        primary_team = _get_primary_team_for_request(request)
         if not primary_team:
             return JsonResponse({'error': 'No hay equipo principal configurado'}, status=400)
 
@@ -10171,7 +10171,7 @@ def manual_player_stats_page(request):
 @login_required
 def player_detail_page(request, player_id):
     try:
-        primary_team = Team.objects.filter(is_primary=True).first()
+        primary_team = _get_primary_team_for_request(request)
         if not primary_team:
             return JsonResponse({'error': 'No hay equipo principal configurado'}, status=400)
         player = Player.objects.filter(id=player_id, team=primary_team).first()
@@ -10584,7 +10584,7 @@ def player_detail_page(request, player_id):
 
 @login_required
 def player_pdf(request, player_id):
-    primary_team = Team.objects.filter(is_primary=True).first()
+    primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         raise Http404('Equipo principal no configurado')
     player = Player.objects.filter(id=player_id, team=primary_team).first()
@@ -10608,7 +10608,7 @@ def player_pdf(request, player_id):
 
 @login_required
 def player_presentation(request, player_id):
-    primary_team = Team.objects.filter(is_primary=True).first()
+    primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         raise Http404('Equipo principal no configurado')
     player = Player.objects.filter(id=player_id, team=primary_team).first()
@@ -10632,7 +10632,7 @@ def match_stats_page(request, match_id):
     forbidden = _forbid_if_no_coach_access(request.user)
     if forbidden:
         return forbidden
-    primary_team = Team.objects.filter(is_primary=True).first()
+    primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         return JsonResponse({'error': 'No hay equipo principal configurado'}, status=400)
     match = _team_match_queryset(primary_team).filter(id=match_id).first()
@@ -10829,7 +10829,7 @@ def _build_player_match_stats_payload(primary_team, player, match):
 
 @login_required
 def player_match_stats_page(request, player_id, match_id):
-    primary_team = Team.objects.filter(is_primary=True).first()
+    primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         return JsonResponse({'error': 'No hay equipo principal configurado'}, status=400)
     player = Player.objects.filter(id=player_id, team=primary_team).first()
@@ -10861,7 +10861,7 @@ def refresh_scraping(request):
             {'status': 'error', 'message': 'Ya hay una actualización en curso. Inténtalo en unos minutos.'},
             status=429,
         )
-    primary_team = Team.objects.filter(is_primary=True).first()
+    primary_team = _get_primary_team_for_request(request)
     try:
         result = subprocess.run(
             [sys.executable, str(SCRIPT_PATH)],
