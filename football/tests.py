@@ -974,7 +974,7 @@ class PlatformWorkspaceTests(TestCase):
         )
         self.client.force_login(self.admin_user)
 
-        response = self.client.get(reverse('platform-overview'))
+        response = self.client.get(reverse('platform-overview'), {'tab': 'users', 'subtab': 'list'})
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, self.workspace_manager.username)

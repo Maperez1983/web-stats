@@ -97,6 +97,33 @@
         font-weight: 700;
       }
 
+      .subnav a.is-active,
+      .subtab-nav a.is-active {
+        background: linear-gradient(135deg, rgba(73, 127, 244, 0.34), rgba(45, 187, 149, 0.26));
+        border-color: rgba(153, 198, 255, 0.36);
+        color: #f8fbff;
+      }
+
+      .subtab-nav {
+        margin-top: 1rem;
+        display: flex;
+        gap: 0.55rem;
+        flex-wrap: wrap;
+      }
+
+      .subtab-nav a {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.62rem 0.9rem;
+        border-radius: 999px;
+        border: 1px solid rgba(160, 180, 215, 0.14);
+        background: rgba(255, 255, 255, 0.03);
+        color: #d9e5f7;
+        text-decoration: none;
+        font-weight: 700;
+      }
+
       .grid {
         margin-top: 1rem;
         display: grid;
@@ -624,7 +651,8 @@
               <p>Plataforma es el centro de gobierno del sistema: aquí defines clientes, usuarios, membresías y módulos activos. La edición operativa diaria se hace dentro de cada workspace.</p>
             </div>
             <div class="hero-links">
-              <a class="primary-link" href="#create-workspace">Nuevo workspace</a>
+              <a class="primary-link" href="{% url 'platform-overview' %}?tab=workspace-create">Nuevo workspace</a>
+              <a href="{% url 'platform-overview' %}?tab=home-global">Home global</a>
               <a href="{% url 'dashboard-home' %}">Volver al dashboard</a>
               <a href="{% url 'admin-page' %}">Admin tools</a>
               {% if active_workspace %}
@@ -648,7 +676,7 @@
             </div>
             <div class="hero-stat">
               <span>Usuarios vinculados</span>
-              <strong>{{ workspace_users|length }}</strong>
+              <strong>{{ linked_club_user_count }}</strong>
             </div>
             <div class="hero-stat">
               <span>Contexto</span>
@@ -659,190 +687,188 @@
       </section>
 
       <nav class="subnav" aria-label="Secciones plataforma">
-        <a href="#clientes-club">Clientes</a>
-        <a href="#usuarios-club">Usuarios</a>
-        <a href="#task-studio">Task Studio</a>
-        <a href="#create-workspace">Crear workspace</a>
+        <a class="{% if active_tab == 'clients' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=clients">Clientes</a>
+        <a class="{% if active_tab == 'users' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=users&subtab=list">Usuarios</a>
+        <a class="{% if active_tab == 'task-studio' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=task-studio">Task Studio</a>
+        <a class="{% if active_tab == 'workspace-create' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=workspace-create">Crear workspace</a>
       </nav>
+      <section class="panel" style="margin-top:1rem;">
+        <div class="governance-note">
+          Plataforma gobierna clientes, accesos y módulos. El trabajo diario no se hace aquí: se hace dentro de cada workspace.
+        </div>
+        {% if feedback %}
+        <div class="message ok">{{ feedback }}</div>
+        {% endif %}
+        {% if error %}
+        <div class="message error">{{ error }}</div>
+        {% endif %}
 
-      <section class="quick-grid">
-        <article class="panel">
-          <h2>Clientes</h2>
-          <p>{{ club_workspaces|length }} workspace(s) de club dados de alta en la matriz.</p>
-          <div class="actions-row">
-            {% if primary_workspace %}
+        {% if active_tab == 'clients' %}
+        <div class="section-shell stack-section" id="clientes-club">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Clientes club</div>
+              <h2>Clientes</h2>
+              <p>Vista consolidada de workspaces de club, propietarios y estado operativo.</p>
+            </div>
+            <div class="count-pill">{{ club_workspaces|length }}</div>
+          </div>
+          {% if primary_workspace %}
+          <div class="actions-row" style="margin-top:1rem;">
             <a class="link-btn" href="{% url 'platform-workspace-detail' primary_workspace.id %}">Abrir Benagalbón</a>
             <a class="link-btn" href="{% url 'platform-workspace-enter' primary_workspace.id %}">Entrar en Benagalbón</a>
-            {% endif %}
           </div>
-        </article>
-        <article class="panel">
-          <h2>Usuarios</h2>
-          <p>{{ workspace_users|length }} vínculo(s) de usuario activos en clientes club.</p>
-          <div class="actions-row">
-            <a class="link-btn" href="#usuarios-club">Ir a usuarios</a>
-          </div>
-        </article>
-        <article class="panel">
-          <h2>Task Studio</h2>
-          <p>{{ studio_workspaces|length }} workspace(s) de entrenador/Task Studio activos.</p>
-          <div class="actions-row">
-            {% if studio_workspaces %}
-            <a class="link-btn" href="{% url 'platform-workspace-detail' studio_workspaces.0.id %}">Abrir primer Task Studio</a>
-            {% endif %}
-          </div>
-        </article>
-      </section>
-
-      <section class="grid">
-        <article class="panel">
-          <div class="governance-note">
-            Plataforma gobierna clientes, accesos y módulos. El trabajo diario no se hace aquí: se hace dentro de cada workspace.
-          </div>
-          {% if feedback %}
-          <div class="message ok">{{ feedback }}</div>
           {% endif %}
-          {% if error %}
-          <div class="message error">{{ error }}</div>
-          {% endif %}
-          <div class="section-shell stack-section" id="clientes-club">
-            <div class="section-head">
-              <div>
-                <div class="section-kicker">Clientes club</div>
-                <h2>Clientes</h2>
-                <p>Vista consolidada de workspaces de club, propietarios y estado operativo.</p>
+          <div class="workspace-grid-two workspace-list">
+            {% for workspace in club_workspaces %}
+            <article class="workspace-card">
+              <header>
+                <div>
+                  <div class="chip {{ workspace.kind }}">{{ workspace.get_kind_display }}</div>
+                  <h3>{{ workspace.name }}</h3>
+                  <small>slug: {{ workspace.slug }}</small>
+                </div>
+                <div style="text-align:right;">
+                  {% if workspace.primary_team %}
+                  <div><strong>{{ workspace.primary_team.display_name }}</strong></div>
+                  <small>Equipo principal</small>
+                  {% else %}
+                  <small>Sin equipo asociado</small>
+                  {% endif %}
+                </div>
+              </header>
+              <div class="workspace-meta">
+                <div class="metric">
+                  <span>Miembros</span>
+                  <strong>{{ workspace.member_count }}</strong>
+                </div>
+                <div class="metric">
+                  <span>Módulos activos</span>
+                  <strong>{{ workspace.active_module_count }}</strong>
+                </div>
+                <div class="metric">
+                  <span>Jugadores</span>
+                  <strong>{{ workspace.primary_team.players.count|default:0 }}</strong>
+                </div>
+                <div class="metric">
+                  <span>Estado</span>
+                  <strong>{% if workspace.is_active %}Activo{% else %}Inactivo{% endif %}</strong>
+                </div>
               </div>
-              <div class="count-pill">{{ club_workspaces|length }}</div>
-            </div>
-            <div class="workspace-grid-two workspace-list">
-              {% for workspace in club_workspaces %}
-              <article class="workspace-card">
-                <header>
-                  <div>
-                    <div class="chip {{ workspace.kind }}">{{ workspace.get_kind_display }}</div>
-                    <h3>{{ workspace.name }}</h3>
-                    <small>slug: {{ workspace.slug }}</small>
-                  </div>
-                  <div style="text-align:right;">
-                    {% if workspace.primary_team %}
-                    <div><strong>{{ workspace.primary_team.display_name }}</strong></div>
-                    <small>Equipo principal</small>
-                    {% else %}
-                    <small>Sin equipo asociado</small>
-                    {% endif %}
-                  </div>
-                </header>
-                <div class="workspace-meta">
-                  <div class="metric">
-                    <span>Miembros</span>
-                    <strong>{{ workspace.member_count }}</strong>
-                  </div>
-                  <div class="metric">
-                    <span>Módulos activos</span>
-                    <strong>{{ workspace.active_module_count }}</strong>
-                  </div>
-                  <div class="metric">
-                    <span>Jugadores</span>
-                    <strong>{{ workspace.primary_team.players.count|default:0 }}</strong>
-                  </div>
-                  <div class="metric">
-                    <span>Estado</span>
-                    <strong>{% if workspace.is_active %}Activo{% else %}Inactivo{% endif %}</strong>
-                  </div>
-                </div>
-                {% if workspace.notes %}
-                <div class="workspace-note">{{ workspace.notes|truncatechars:180 }}</div>
-                {% endif %}
-                <div class="actions-row">
-                  <a class="link-btn" href="{% url 'platform-workspace-enter' workspace.id %}">Entrar como supervisor</a>
-                  <a class="link-btn" href="{% url 'platform-workspace-detail' workspace.id %}">Abrir ficha</a>
-                </div>
-              </article>
-              {% empty %}
-              <article class="workspace-card">
-                <h3>Sin clientes todavía</h3>
-                <p>Crea el primer workspace de club desde el panel lateral.</p>
-              </article>
-              {% endfor %}
-            </div>
+              {% if workspace.notes %}
+              <div class="workspace-note">{{ workspace.notes|truncatechars:180 }}</div>
+              {% endif %}
+              <div class="actions-row">
+                <a class="link-btn" href="{% url 'platform-workspace-enter' workspace.id %}">Entrar como supervisor</a>
+                <a class="link-btn" href="{% url 'platform-workspace-detail' workspace.id %}">Abrir ficha</a>
+              </div>
+            </article>
+            {% empty %}
+            <article class="workspace-card">
+              <h3>Sin clientes todavía</h3>
+              <p>Crea el primer workspace de club desde `Crear workspace`.</p>
+            </article>
+            {% endfor %}
           </div>
+        </div>
 
-          <div class="section-shell stack-section" id="usuarios-club">
-            <div class="section-head">
-              <div>
-                <div class="section-kicker">Usuarios club</div>
-                <h2>Usuarios</h2>
-                <p>Gobierno global de usuarios y relación rápida de usuarios asignados a clientes club.</p>
-              </div>
-              <div class="count-pill">{{ workspace_users|length }}</div>
+        {% elif active_tab == 'users' %}
+        <div class="section-shell stack-section" id="usuarios-club">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Usuarios club</div>
+              <h2>Usuarios</h2>
+              <p>Gobierno global de usuarios y relación de usuarios asignados a clientes club.</p>
             </div>
-            {% if user_message %}
-            <div class="message ok">{{ user_message }}</div>
-            {% endif %}
-            {% if user_error %}
-            <div class="message error">{{ user_error }}</div>
-            {% endif %}
+            <div class="count-pill">{{ linked_club_user_count }}</div>
+          </div>
+          {% if user_message %}
+          <div class="message ok">{{ user_message }}</div>
+          {% endif %}
+          {% if user_error %}
+          <div class="message error">{{ user_error }}</div>
+          {% endif %}
+          {% if invitation_links %}
+          <div class="message ok">
+            {% for invite in invitation_links %}
+            Invitación lista para {{ invite.username }} · caduca {{ invite.expires_at|date:"d/m/Y H:i" }} · {{ invite.url }}{% if not forloop.last %}<br />{% endif %}
+            {% endfor %}
+          </div>
+          {% endif %}
+
+          <nav class="subtab-nav" aria-label="Usuarios plataforma">
+            <a class="{% if users_subtab == 'list' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=users&subtab=list">Listado</a>
+            <a class="{% if users_subtab == 'create' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=users&subtab=create">Crear usuario</a>
+          </nav>
+
+          {% if users_subtab == 'create' %}
+          <form class="fieldset" method="post" style="margin-top:1rem;">
+            {% csrf_token %}
+            <input type="hidden" name="form_action" value="platform_user_create" />
+            <h3>Alta global de usuario</h3>
+            <p>Los usuarios del sistema se crean aquí y luego se asignan al cliente o workspace que corresponda.</p>
             <div class="inline-grid">
-              <form class="fieldset" method="post">
-                {% csrf_token %}
-                <input type="hidden" name="form_action" value="platform_user_create" />
-                <h3>Alta global de usuario</h3>
-                <p>Los usuarios del sistema se crean aquí, en la matriz, y luego se asignan al cliente o workspace que corresponda.</p>
-                <div class="field">
-                  <label for="platform_user_full_name">Nombre completo</label>
-                  <input id="platform_user_full_name" type="text" name="full_name" value="{{ user_form.full_name }}" placeholder="Nombre y apellidos" />
-                </div>
-                <div class="field">
-                  <label for="platform_user_username">Usuario</label>
-                  <input id="platform_user_username" type="text" name="username" value="{{ user_form.username }}" required />
-                </div>
-                <div class="field">
-                  <label for="platform_user_email">Email</label>
-                  <input id="platform_user_email" type="text" name="email" value="{{ user_form.email }}" />
-                </div>
-                <div class="field">
-                  <label for="platform_user_password">Contraseña</label>
-                  <input id="platform_user_password" type="password" name="password" minlength="6" required />
-                </div>
-                <div class="field">
-                  <label for="platform_user_role">Rol global</label>
-                  <select id="platform_user_role" name="role">
-                    {% for value, label in role_choices %}
-                    <option value="{{ value }}" {% if user_form.role == value %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                  </select>
-                </div>
-                <button class="submit-btn" type="submit">Crear usuario global</button>
-              </form>
-              <div class="fieldset">
-                <h3>Usuarios del sistema</h3>
-                <p>Vista global rápida. La asignación a clientes se hace desde la ficha de cada workspace.</p>
-                <div class="simple-list">
-                  {% for item in platform_users %}
-                  <div class="user-row">
-                    <div>
-                      <strong>{{ item.username }}</strong>
-                      <div style="color:#9aa8bf;">{{ item.full_name_display }} · {{ item.role_label }}</div>
-                    </div>
-                    <div style="text-align:right; color:#9aa8bf;">
-                      <div>{{ item.workspace_count }} workspaces</div>
-                      <div>{% if item.is_active %}Activo{% else %}Inactivo{% endif %}</div>
-                      <form method="post" class="compact-form" style="margin-top:0.45rem; justify-content:flex-end;">
-                        {% csrf_token %}
-                        <input type="hidden" name="form_action" value="platform_user_invite_create" />
-                        <input type="hidden" name="user_id" value="{{ item.id }}" />
-                        <input type="hidden" name="valid_days" value="7" />
-                        <button class="link-btn" type="submit">Invitar</button>
-                      </form>
-                    </div>
-                  </div>
-                  {% empty %}
-                  <div class="user-row">
-                    <div>Sin usuarios globales todavía.</div>
-                  </div>
-                  {% endfor %}
-                </div>
+              <div class="field">
+                <label for="platform_user_full_name">Nombre completo</label>
+                <input id="platform_user_full_name" type="text" name="full_name" value="{{ user_form.full_name }}" placeholder="Nombre y apellidos" />
               </div>
+              <div class="field">
+                <label for="platform_user_username">Usuario</label>
+                <input id="platform_user_username" type="text" name="username" value="{{ user_form.username }}" required />
+              </div>
+              <div class="field">
+                <label for="platform_user_email">Email</label>
+                <input id="platform_user_email" type="text" name="email" value="{{ user_form.email }}" />
+              </div>
+              <div class="field">
+                <label for="platform_user_password">Contraseña</label>
+                <input id="platform_user_password" type="password" name="password" minlength="6" required />
+              </div>
+              <div class="field">
+                <label for="platform_user_role">Rol global</label>
+                <select id="platform_user_role" name="role">
+                  {% for value, label in role_choices %}
+                  <option value="{{ value }}" {% if user_form.role == value %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+            <button class="submit-btn" type="submit">Crear usuario global</button>
+          </form>
+          {% else %}
+          <div class="simple-list" style="margin-top:1rem;">
+            {% for item in platform_users %}
+            <div class="user-row">
+              <div>
+                <strong>{{ item.username }}</strong>
+                <div style="color:#9aa8bf;">{{ item.full_name_display }} · {{ item.role_label }}</div>
+              </div>
+              <div style="text-align:right; color:#9aa8bf;">
+                <div>{{ item.workspace_count }} workspaces</div>
+                <div>{% if item.is_active %}Activo{% else %}Inactivo{% endif %}</div>
+                <form method="post" class="compact-form" style="margin-top:0.45rem; justify-content:flex-end;">
+                  {% csrf_token %}
+                  <input type="hidden" name="form_action" value="platform_user_invite_create" />
+                  <input type="hidden" name="user_id" value="{{ item.id }}" />
+                  <input type="hidden" name="valid_days" value="7" />
+                  <button class="link-btn" type="submit">Invitar</button>
+                </form>
+              </div>
+            </div>
+            {% empty %}
+            <div class="user-row">
+              <div>Sin usuarios globales todavía.</div>
+            </div>
+            {% endfor %}
+          </div>
+          <div class="section-shell stack-section" style="margin-top:1rem;">
+            <div class="section-head">
+              <div>
+                <div class="section-kicker">Vínculos activos</div>
+                <h2>Usuarios vinculados</h2>
+                <p>Relación rápida de usuarios asignados a clientes club para revisar ownership y reparto de roles.</p>
+              </div>
+              <div class="count-pill">{{ linked_club_user_count }}</div>
             </div>
             <div class="simple-list">
               {% for membership in workspace_users %}
@@ -860,183 +886,184 @@
               {% endfor %}
             </div>
           </div>
+          {% endif %}
+        </div>
 
-          <div class="section-shell stack-section" id="home-global">
-            <div class="section-head">
-              <div>
-                <div class="section-kicker">Home global</div>
-                <h2>Carrusel y portada</h2>
-                <p>Si la home es compartida por toda la plataforma, su gobierno debe hacerse aquí y no desde un cliente concreto.</p>
-              </div>
-              <div class="count-pill">{{ carousel_images|length }}</div>
+        {% elif active_tab == 'task-studio' %}
+        <div class="section-shell stack-section" id="task-studio">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Task Studio</div>
+              <h2>Task Studio</h2>
+              <p>Workspaces privados de entrenadores y usuarios del creador de tareas, gestionados desde la matriz.</p>
             </div>
-            {% if carousel_message %}
-            <div class="message ok">{{ carousel_message }}</div>
-            {% endif %}
-            {% if invitation_links %}
-            <div class="message ok">
-              {% for invite in invitation_links %}
-              Invitación lista para {{ invite.username }} · caduca {{ invite.expires_at|date:"d/m/Y H:i" }} · {{ invite.url }}{% if not forloop.last %}<br />{% endif %}
-              {% endfor %}
-            </div>
-            {% endif %}
-            <form class="fieldset" method="post" enctype="multipart/form-data" style="margin-top:1rem;">
-              {% csrf_token %}
-              <input type="hidden" name="form_action" value="carousel_upload" />
-              <h3>Nueva imagen Home</h3>
-              <p>Alta global del carrusel principal de la plataforma.</p>
-              <div class="field">
-                <label for="platform_carousel_title">Título</label>
-                <input id="platform_carousel_title" type="text" name="carousel_title" placeholder="Entrenamiento, partido, campus..." />
+            <div class="count-pill">{{ studio_workspaces|length }}</div>
+          </div>
+          <div class="workspace-grid-two workspace-list">
+            {% for workspace in studio_workspaces %}
+            <article class="workspace-card">
+              <header>
+                <div>
+                  <div class="chip {{ workspace.kind }}">{{ workspace.get_kind_display }}</div>
+                  <h3>{{ workspace.name }}</h3>
+                  <small>slug: {{ workspace.slug }}</small>
+                </div>
+                <div style="text-align:right;">
+                  {% if workspace.owner_user %}
+                  <div><strong>{{ workspace.owner_user.username }}</strong></div>
+                  <small>Propietario</small>
+                  {% else %}
+                  <small>Sin asignación directa</small>
+                  {% endif %}
+                </div>
+              </header>
+              <div class="workspace-meta">
+                <div class="metric">
+                  <span>Miembros</span>
+                  <strong>{{ workspace.member_count }}</strong>
+                </div>
+                <div class="metric">
+                  <span>Perfiles</span>
+                  <strong>{{ workspace.profile_count }}</strong>
+                </div>
+                <div class="metric">
+                  <span>Tareas</span>
+                  <strong>{{ workspace.task_count }}</strong>
+                </div>
+                <div class="metric">
+                  <span>Estado</span>
+                  <strong>{% if workspace.is_active %}Activo{% else %}Inactivo{% endif %}</strong>
+                </div>
               </div>
-              <div class="field">
-                <label for="platform_carousel_order">Orden</label>
-                <input id="platform_carousel_order" type="number" name="carousel_order" min="0" value="0" />
-              </div>
-              <div class="field">
-                <label for="platform_carousel_image">Imagen</label>
-                <input id="platform_carousel_image" type="file" name="carousel_image" accept="image/*" required />
-              </div>
-              <div class="field">
-                <label><input type="checkbox" name="carousel_is_active" checked /> Activa</label>
-              </div>
-              <button class="submit-btn" type="submit">Subir imagen global</button>
-            </form>
-            <div class="simple-list">
-              {% for item in carousel_images %}
-              <div class="carousel-row">
-                <img class="carousel-thumb" src="{{ item.image.url }}" alt="{{ item.title|default:'Imagen home' }}" loading="lazy" />
-                <form method="post" class="workspace-form" style="margin:0;">
+              {% if workspace.notes %}
+              <div class="workspace-note">{{ workspace.notes|truncatechars:180 }}</div>
+              {% endif %}
+              <div class="actions-row">
+                <a class="link-btn" href="{% url 'platform-workspace-enter' workspace.id %}">Entrar como supervisor</a>
+                <a class="link-btn" href="{% url 'platform-workspace-detail' workspace.id %}">Abrir ficha</a>
+                <form method="post" action="{% url 'platform-workspace-delete' workspace.id %}" onsubmit="return confirm('Se eliminará este Task Studio y sus datos privados.');">
                   {% csrf_token %}
-                  <input type="hidden" name="form_action" value="carousel_update" />
-                  <input type="hidden" name="carousel_id" value="{{ item.id }}" />
-                  <div class="field">
-                    <label>Título</label>
-                    <input type="text" name="carousel_title" value="{{ item.title }}" />
-                  </div>
-                  <div class="field">
-                    <label>Orden</label>
-                    <input type="number" name="carousel_order" min="0" value="{{ item.order }}" />
-                  </div>
-                  <div class="field">
-                    <label><input type="checkbox" name="carousel_is_active" {% if item.is_active %}checked{% endif %} /> Activa</label>
-                  </div>
-                  <button class="link-btn" type="submit">Guardar</button>
-                </form>
-                <form method="post" onsubmit="return confirm('Se eliminará esta imagen global de Home.');">
-                  {% csrf_token %}
-                  <input type="hidden" name="form_action" value="carousel_delete" />
-                  <input type="hidden" name="carousel_id" value="{{ item.id }}" />
-                  <button class="danger-btn" type="submit">Borrar</button>
+                  <button class="danger-btn" type="submit">Eliminar Task Studio</button>
                 </form>
               </div>
-              {% empty %}
-              <div class="user-row">
-                <div>No hay imágenes cargadas para la home global.</div>
-              </div>
-              {% endfor %}
+            </article>
+            {% empty %}
+            <article class="workspace-card">
+              <h3>Sin Task Studio todavía</h3>
+              <p>Los workspaces privados aparecerán al crear usuarios de Task Studio o invitado.</p>
+            </article>
+            {% endfor %}
+          </div>
+        </div>
+
+        {% elif active_tab == 'home-global' %}
+        <div class="section-shell stack-section" id="home-global">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Home global</div>
+              <h2>Carrusel y portada</h2>
+              <p>Si la home es compartida por toda la plataforma, su gobierno debe hacerse aquí y no desde un cliente concreto.</p>
+            </div>
+            <div class="count-pill">{{ carousel_images|length }}</div>
+          </div>
+          {% if carousel_message %}
+          <div class="message ok">{{ carousel_message }}</div>
+          {% endif %}
+          <form class="fieldset" method="post" enctype="multipart/form-data" style="margin-top:1rem;">
+            {% csrf_token %}
+            <input type="hidden" name="form_action" value="carousel_upload" />
+            <h3>Nueva imagen Home</h3>
+            <p>Alta global del carrusel principal de la plataforma.</p>
+            <div class="field">
+              <label for="platform_carousel_title">Título</label>
+              <input id="platform_carousel_title" type="text" name="carousel_title" placeholder="Entrenamiento, partido, campus..." />
+            </div>
+            <div class="field">
+              <label for="platform_carousel_order">Orden</label>
+              <input id="platform_carousel_order" type="number" name="carousel_order" min="0" value="0" />
+            </div>
+            <div class="field">
+              <label for="platform_carousel_image">Imagen</label>
+              <input id="platform_carousel_image" type="file" name="carousel_image" accept="image/*" required />
+            </div>
+            <div class="field">
+              <label><input type="checkbox" name="carousel_is_active" checked /> Activa</label>
+            </div>
+            <button class="submit-btn" type="submit">Subir imagen global</button>
+          </form>
+          <div class="simple-list">
+            {% for item in carousel_images %}
+            <div class="carousel-row">
+              <img class="carousel-thumb" src="{{ item.image.url }}" alt="{{ item.title|default:'Imagen home' }}" loading="lazy" />
+              <form method="post" class="workspace-form" style="margin:0;">
+                {% csrf_token %}
+                <input type="hidden" name="form_action" value="carousel_update" />
+                <input type="hidden" name="carousel_id" value="{{ item.id }}" />
+                <div class="field">
+                  <label>Título</label>
+                  <input type="text" name="carousel_title" value="{{ item.title }}" />
+                </div>
+                <div class="field">
+                  <label>Orden</label>
+                  <input type="number" name="carousel_order" min="0" value="{{ item.order }}" />
+                </div>
+                <div class="field">
+                  <label><input type="checkbox" name="carousel_is_active" {% if item.is_active %}checked{% endif %} /> Activa</label>
+                </div>
+                <button class="link-btn" type="submit">Guardar</button>
+              </form>
+              <form method="post" onsubmit="return confirm('Se eliminará esta imagen global de Home.');">
+                {% csrf_token %}
+                <input type="hidden" name="form_action" value="carousel_delete" />
+                <input type="hidden" name="carousel_id" value="{{ item.id }}" />
+                <button class="danger-btn" type="submit">Borrar</button>
+              </form>
+            </div>
+            {% empty %}
+            <div class="user-row">
+              <div>No hay imágenes cargadas para la home global.</div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        {% else %}
+        <div class="section-shell stack-section" id="create-workspace">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Alta guiada</div>
+              <h2>Crear workspace</h2>
+              <p>Identidad, acceso inicial y módulos activos en una sola ficha de alta.</p>
             </div>
           </div>
-
-          <div class="section-shell stack-section" id="task-studio">
-            <div class="section-head">
-              <div>
-                <div class="section-kicker">Task Studio</div>
-                <h2>Task Studio</h2>
-                <p>Workspaces privados de entrenadores y usuarios del creador de tareas, gestionados desde la matriz.</p>
-              </div>
-              <div class="count-pill">{{ studio_workspaces|length }}</div>
-            </div>
-            <div class="workspace-grid-two workspace-list">
-              {% for workspace in studio_workspaces %}
-              <article class="workspace-card">
-                <header>
-                  <div>
-                    <div class="chip {{ workspace.kind }}">{{ workspace.get_kind_display }}</div>
-                    <h3>{{ workspace.name }}</h3>
-                    <small>slug: {{ workspace.slug }}</small>
-                  </div>
-                  <div style="text-align:right;">
-                    {% if workspace.owner_user %}
-                    <div><strong>{{ workspace.owner_user.username }}</strong></div>
-                    <small>Propietario</small>
-                    {% elif workspace.primary_team %}
-                    <div><strong>{{ workspace.primary_team.display_name }}</strong></div>
-                    <small>Equipo principal</small>
-                    {% else %}
-                    <small>Sin asignación directa</small>
-                    {% endif %}
-                  </div>
-                </header>
-                <div class="workspace-meta">
-                  <div class="metric">
-                    <span>Miembros</span>
-                    <strong>{{ workspace.member_count }}</strong>
-                  </div>
-                  <div class="metric">
-                    <span>Perfiles</span>
-                    <strong>{{ workspace.profile_count }}</strong>
-                  </div>
-                  <div class="metric">
-                    <span>Tareas</span>
-                    <strong>{{ workspace.task_count }}</strong>
-                  </div>
-                  <div class="metric">
-                    <span>Estado</span>
-                    <strong>{% if workspace.is_active %}Activo{% else %}Inactivo{% endif %}</strong>
-                  </div>
-                </div>
-                {% if workspace.notes %}
-                <div class="workspace-note">{{ workspace.notes|truncatechars:180 }}</div>
-                {% endif %}
-                <div class="actions-row">
-                  <a class="link-btn" href="{% url 'platform-workspace-enter' workspace.id %}">Entrar como supervisor</a>
-                  <a class="link-btn" href="{% url 'platform-workspace-detail' workspace.id %}">Abrir ficha</a>
-                  <form method="post" action="{% url 'platform-workspace-delete' workspace.id %}" onsubmit="return confirm('Se eliminará este Task Studio y sus datos privados.');">
-                    {% csrf_token %}
-                    <button class="danger-btn" type="submit">Eliminar Task Studio</button>
-                  </form>
-                </div>
-              </article>
-              {% empty %}
-              <article class="workspace-card">
-                <h3>Sin Task Studio todavía</h3>
-                <p>Los workspaces privados aparecerán al crear usuarios de Task Studio o invitado.</p>
-              </article>
-              {% endfor %}
-            </div>
-          </div>
-        </article>
-
-        <aside class="panel create-panel" id="create-workspace">
-          <h2>Crear workspace</h2>
-          <p>Alta guiada para dejar listo un cliente desde el primer paso: identidad, acceso inicial y módulos activos.</p>
           <form class="workspace-form" method="post">
             {% csrf_token %}
             <input type="hidden" name="form_action" value="workspace_create" />
             <div class="fieldset">
               <h3>Identidad</h3>
               <p>Define el tipo de cliente y su referencia principal dentro de la plataforma.</p>
-              <div class="field">
-                <label for="workspace_name">Nombre</label>
-                <input id="workspace_name" name="workspace_name" type="text" placeholder="Ej. Club Deportivo Benagalbón" value="{{ workspace_form.workspace_name }}" required />
-              </div>
-              <div class="field">
-                <label for="workspace_kind">Tipo</label>
-                <select id="workspace_kind" name="workspace_kind">
-                  {% for workspace_kind, workspace_label in workspace_kind_choices %}
-                  <option value="{{ workspace_kind }}" {% if workspace_form.workspace_kind == workspace_kind %}selected{% endif %}>{{ workspace_label }}</option>
-                  {% endfor %}
-                </select>
-              </div>
-              <div class="field">
-                <label for="team_id">Equipo vinculado</label>
-                <select id="team_id" name="team_id">
-                  <option value="">Sin equipo asociado</option>
-                  {% for team in teams %}
-                  <option value="{{ team.id }}" {% if workspace_form.team_id == team.id|stringformat:'s' %}selected{% endif %}>{{ team.name }}</option>
-                  {% endfor %}
-                </select>
+              <div class="inline-grid">
+                <div class="field">
+                  <label for="workspace_name">Nombre</label>
+                  <input id="workspace_name" name="workspace_name" type="text" placeholder="Ej. Club Deportivo Benagalbón" value="{{ workspace_form.workspace_name }}" required />
+                </div>
+                <div class="field">
+                  <label for="workspace_kind">Tipo</label>
+                  <select id="workspace_kind" name="workspace_kind">
+                    {% for workspace_kind, workspace_label in workspace_kind_choices %}
+                    <option value="{{ workspace_kind }}" {% if workspace_form.workspace_kind == workspace_kind %}selected{% endif %}>{{ workspace_label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="team_id">Equipo vinculado</label>
+                  <select id="team_id" name="team_id">
+                    <option value="">Sin equipo asociado</option>
+                    {% for team in teams %}
+                    <option value="{{ team.id }}" {% if workspace_form.team_id == team.id|stringformat:'s' %}selected{% endif %}>{{ team.name }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
               </div>
               <div class="field">
                 <label for="workspace_notes">Notas de arranque</label>
@@ -1047,24 +1074,25 @@
             <div class="fieldset">
               <h3>Acceso inicial</h3>
               <p>Deja el workspace listo con propietario y primeros miembros desde el alta.</p>
-              <div class="field">
-                <label for="owner_username">Usuario propietario</label>
-                <input id="owner_username" name="owner_username" type="text" value="{{ workspace_form.owner_username }}" placeholder="username del owner/admin principal" />
-              </div>
-              <div class="field">
-                <label for="initial_admin_usernames">Admins iniciales</label>
-                <textarea id="initial_admin_usernames" name="initial_admin_usernames" rows="3" placeholder="uno por línea o separados por comas">{{ workspace_form.initial_admin_usernames }}</textarea>
-              </div>
-              <div class="field">
-                <label for="initial_member_usernames">Miembros iniciales</label>
-                <textarea id="initial_member_usernames" name="initial_member_usernames" rows="3" placeholder="uno por línea o separados por comas">{{ workspace_form.initial_member_usernames }}</textarea>
+              <div class="inline-grid">
+                <div class="field">
+                  <label for="owner_username">Usuario propietario</label>
+                  <input id="owner_username" name="owner_username" type="text" value="{{ workspace_form.owner_username }}" placeholder="username del owner/admin principal" />
+                </div>
+                <div class="field">
+                  <label for="initial_admin_usernames">Admins iniciales</label>
+                  <textarea id="initial_admin_usernames" name="initial_admin_usernames" rows="3" placeholder="uno por línea o separados por comas">{{ workspace_form.initial_admin_usernames }}</textarea>
+                </div>
+                <div class="field">
+                  <label for="initial_member_usernames">Miembros iniciales</label>
+                  <textarea id="initial_member_usernames" name="initial_member_usernames" rows="3" placeholder="uno por línea o separados por comas">{{ workspace_form.initial_member_usernames }}</textarea>
+                </div>
               </div>
             </div>
 
             <div class="fieldset">
               <h3>Módulos</h3>
               <p>Plataforma gobierna qué entra en cada cliente. Activa aquí lo que deba quedar operativo desde el primer minuto.</p>
-
               <div class="kind-modules" data-kind="club">
                 <div class="checkbox-grid">
                   {% for module in workspace_module_catalog_club %}
@@ -1127,7 +1155,8 @@
             </div>
             <button class="submit-btn" type="submit">Crear workspace</button>
           </form>
-        </aside>
+        </div>
+        {% endif %}
       </section>
     </main>
     <script>

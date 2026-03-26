@@ -2144,6 +2144,13 @@ def dashboard_page(request):
 def platform_overview_page(request):
     if not _can_access_platform(request.user):
         return HttpResponse('No tienes permisos para acceder a la plataforma.', status=403)
+    valid_tabs = {'clients', 'users', 'task-studio', 'workspace-create', 'home-global'}
+    active_tab = str(request.GET.get('tab') or 'clients').strip().lower()
+    if active_tab not in valid_tabs:
+        active_tab = 'clients'
+    users_subtab = str(request.GET.get('subtab') or 'list').strip().lower()
+    if users_subtab not in {'list', 'create'}:
+        users_subtab = 'list'
 
     def _split_full_name(value):
         text = str(value or '').strip()
@@ -2199,6 +2206,7 @@ def platform_overview_page(request):
     if request.method == 'POST':
         form_action = (request.POST.get('form_action') or 'workspace_create').strip().lower()
         if form_action == 'workspace_create':
+            active_tab = 'workspace-create'
             workspace_name = _sanitize_task_text((request.POST.get('workspace_name') or '').strip(), multiline=False, max_len=160)
             workspace_kind = str(request.POST.get('workspace_kind') or Workspace.KIND_CLUB).strip()
             owner_username = _sanitize_task_text((request.POST.get('owner_username') or '').strip(), multiline=False, max_len=150).lower()
@@ -2307,6 +2315,8 @@ def platform_overview_page(request):
             except Exception:
                 error = 'No se pudo crear el workspace.'
         elif form_action == 'platform_user_create':
+            active_tab = 'users'
+            users_subtab = 'create'
             full_name = _sanitize_task_text((request.POST.get('full_name') or '').strip(), multiline=False, max_len=150)
             username = re.sub(r'\s+', '', str(request.POST.get('username') or '').strip()).lower()[:150]
             email = re.sub(r'\s+', '', str(request.POST.get('email') or '').strip()).lower()[:190]
@@ -2354,6 +2364,8 @@ def platform_overview_page(request):
             except Exception:
                 user_error = 'No se pudo crear el usuario global.'
         elif form_action == 'platform_user_invite_create':
+            active_tab = 'users'
+            users_subtab = 'list'
             user_id = _parse_int(request.POST.get('user_id'))
             validity_days = _parse_int(request.POST.get('valid_days')) or 7
             validity_days = max(1, min(validity_days, 30))
@@ -2386,6 +2398,7 @@ def platform_overview_page(request):
             except Exception:
                 user_error = 'No se pudo generar la invitación global.'
         elif form_action in {'carousel_upload', 'carousel_update', 'carousel_delete'}:
+            active_tab = 'home-global'
             if _handle_home_carousel_post(request):
                 carousel_message = 'Cambios guardados en Home global.'
 
@@ -2406,9 +2419,9 @@ def platform_overview_page(request):
         WorkspaceMembership.objects
         .select_related('workspace', 'user')
         .filter(workspace__kind=Workspace.KIND_CLUB)
-        .order_by('workspace__name', 'role', 'user__username')[:120]
+        .order_by('workspace__name', 'role', 'user__username')[:200]
     )
-    platform_users = list(User.objects.order_by('username')[:160])
+    platform_users = list(User.objects.order_by('username')[:220])
     carousel_images = list(HomeCarouselImage.objects.order_by('order', '-created_at', '-id')[:24])
     role_map = {item.user_id: item.role for item in AppUserRole.objects.select_related('user')}
     role_labels = dict(AppUserRole.ROLE_CHOICES)
@@ -2416,6 +2429,13 @@ def platform_overview_page(request):
         row['user_id']: row['count']
         for row in WorkspaceMembership.objects.values('user_id').annotate(count=Count('id'))
     }
+    linked_club_user_count = (
+        WorkspaceMembership.objects
+        .filter(workspace__kind=Workspace.KIND_CLUB)
+        .values('user_id')
+        .distinct()
+        .count()
+    )
     for item in platform_users:
         role_value = role_map.get(item.id, AppUserRole.ROLE_PLAYER)
         item.role_value = role_value
@@ -2448,6 +2468,10 @@ def platform_overview_page(request):
             'user_form': user_form,
             'role_choices': AppUserRole.ROLE_CHOICES,
             'active_workspace': active_workspace,
+            'active_tab': active_tab,
+            'users_subtab': users_subtab,
+            'linked_club_user_count': linked_club_user_count,
+            'platform_user_count': len(platform_users),
         },
     )
 
