@@ -709,7 +709,7 @@ def _can_access_task_studio(user):
         return False
     if _is_admin_user(user):
         return True
-    return _get_user_role(user) == AppUserRole.ROLE_TASK_STUDIO
+    return _get_user_role(user) in {AppUserRole.ROLE_TASK_STUDIO, AppUserRole.ROLE_GUEST}
 
 
 def _task_studio_target_user(request):
@@ -1375,7 +1375,7 @@ def dashboard_page(request):
         if current_player:
             return redirect('player-detail', player_id=current_player.id)
         return redirect('player-dashboard')
-    if current_role == AppUserRole.ROLE_TASK_STUDIO:
+    if current_role in {AppUserRole.ROLE_TASK_STUDIO, AppUserRole.ROLE_GUEST}:
         return redirect('task-studio-home')
     return render(
         request,

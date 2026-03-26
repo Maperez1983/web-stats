@@ -237,6 +237,28 @@ class TaskStudioAccessTests(TestCase):
         self.assertContains(response, 'Rondo privado')
         self.assertNotContains(response, 'Tarea ajena')
 
+    @patch('football.views.weasyprint', None)
+    def test_guest_role_can_access_task_studio_pdf_preview(self):
+        guest_user = get_user_model().objects.create_user(
+            username='studio-guest',
+            email='studio-guest@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=guest_user, role=AppUserRole.ROLE_GUEST)
+        self.client.force_login(guest_user)
+
+        response = self.client.post(
+            reverse('task-studio-task-pdf-preview') + '?style=uefa',
+            {
+                'draw_task_title': 'Borrador invitado',
+                'draw_task_minutes': '15',
+                'draw_canvas_state': json.dumps({'version': '5.3.0', 'objects': []}),
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Entrega Ejercicio')
+
 
 class QueryHelperTests(TestCase):
     def setUp(self):
