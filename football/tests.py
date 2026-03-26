@@ -709,6 +709,61 @@ class PlatformWorkspaceTests(TestCase):
         self.assertContains(response, 'Cliente visible')
         self.assertContains(response, 'Selecciona un workspace')
 
+    def test_workspace_member_auto_uses_assigned_club_context(self):
+        workspace = Workspace.objects.create(
+            name='Cliente alternativo miembro',
+            slug='cliente-alternativo-miembro',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.alt_team,
+        )
+        WorkspaceMembership.objects.create(
+            workspace=workspace,
+            user=self.workspace_manager,
+            role=WorkspaceMembership.ROLE_MEMBER,
+        )
+        Player.objects.create(team=self.alt_team, name='Jugador del cliente', is_active=True)
+        self.client.force_login(self.workspace_manager)
+
+        response = self.client.get(reverse('convocation'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.alt_team.display_name)
+        self.assertContains(response, 'Jugador del cliente')
+        self.assertEqual(self.client.session.get('active_workspace_id'), workspace.id)
+
+    def test_technical_user_without_workspace_cannot_access_club_modules(self):
+        self.client.force_login(self.workspace_manager)
+
+        response = self.client.get(reverse('convocation'))
+
+        self.assertEqual(response.status_code, 403)
+        self.assertIn('workspace de club asignado', response.content.decode('utf-8'))
+
+    def test_workspace_member_cannot_enter_other_client_workspace(self):
+        own_workspace = Workspace.objects.create(
+            name='Cliente propio',
+            slug='cliente-propio',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.alt_team,
+        )
+        other_workspace = Workspace.objects.create(
+            name='Cliente ajeno',
+            slug='cliente-ajeno',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.team,
+        )
+        WorkspaceMembership.objects.create(
+            workspace=own_workspace,
+            user=self.workspace_manager,
+            role=WorkspaceMembership.ROLE_MEMBER,
+        )
+        self.client.force_login(self.workspace_manager)
+
+        response = self.client.get(reverse('platform-workspace-enter', args=[other_workspace.id]))
+
+        self.assertEqual(response.status_code, 403)
+        self.assertNotEqual(self.client.session.get('active_workspace_id'), other_workspace.id)
+
     def test_platform_can_delete_task_studio_workspace_and_private_data(self):
         workspace = Workspace.objects.create(
             name='Task Studio borrable',

@@ -755,33 +755,43 @@ def _can_access_platform(user):
     return _is_admin_user(user)
 
 
+def _available_workspaces_for_user(user):
+    if not user or not user.is_authenticated:
+        return Workspace.objects.none()
+    qs = Workspace.objects.select_related('primary_team', 'owner_user').filter(is_active=True)
+    if _can_access_platform(user):
+        return qs
+    return qs.filter(Q(memberships__user=user) | Q(owner_user=user)).distinct()
+
+
 def _get_active_workspace(request):
     if not request or not getattr(request, 'user', None) or not request.user.is_authenticated:
         return None
-    if not _can_access_platform(request.user):
-        return None
+    available_qs = _available_workspaces_for_user(request.user)
     workspace_id = _parse_int(request.GET.get('workspace'))
     if not workspace_id:
         workspace_id = _parse_int(request.session.get('active_workspace_id'))
-    if not workspace_id:
-        return None
-    workspace = (
-        Workspace.objects
-        .select_related('primary_team', 'owner_user')
-        .filter(id=workspace_id, is_active=True)
-        .first()
-    )
-    if not workspace:
+    if workspace_id:
+        workspace = available_qs.filter(id=workspace_id).first()
+        if workspace:
+            request.session['active_workspace_id'] = workspace.id
+            return workspace
         request.session.pop('active_workspace_id', None)
+    if _can_access_platform(request.user):
         return None
-    request.session['active_workspace_id'] = workspace.id
-    return workspace
+    fallback_workspace = available_qs.order_by('kind', 'name', 'id').first()
+    if fallback_workspace:
+        request.session['active_workspace_id'] = fallback_workspace.id
+        return fallback_workspace
+    return None
 
 
 def _get_primary_team_for_request(request):
     workspace = _get_active_workspace(request)
     if workspace and workspace.kind == Workspace.KIND_CLUB and workspace.primary_team_id:
         return workspace.primary_team
+    if request and getattr(request, 'user', None) and request.user.is_authenticated and not _can_access_platform(request.user):
+        return None
     return Team.objects.filter(is_primary=True).first()
 
 
@@ -900,7 +910,13 @@ def _workspace_has_module(workspace, module_key):
 
 def _forbid_if_workspace_module_disabled(request, module_key, label='módulo'):
     workspace = _get_active_workspace(request)
-    if not workspace or workspace.kind != Workspace.KIND_CLUB:
+    if not workspace:
+        if request and getattr(request, 'user', None) and request.user.is_authenticated and not _can_access_platform(request.user):
+            return HttpResponse('No tienes un workspace de club asignado.', status=403)
+        return None
+    if workspace.kind != Workspace.KIND_CLUB:
+        if request and getattr(request, 'user', None) and request.user.is_authenticated and not _can_access_platform(request.user):
+            return HttpResponse('El workspace activo no es de tipo club.', status=403)
         return None
     if _workspace_has_module(workspace, module_key):
         return None
@@ -1696,18 +1712,18 @@ def dashboard_page(request):
     can_access_sessions = _can_access_sessions_workspace(request.user)
     can_access_platform = _can_access_platform(request.user)
     workspace_links = _workspace_links_for_user(request.user)
-    forbidden = _forbid_if_workspace_module_disabled(request, 'dashboard', label='dashboard')
-    if forbidden:
-        return forbidden
-    primary_team = _get_primary_team_for_request(request)
     active_workspace = _build_active_workspace_badge(request)
     if current_role == AppUserRole.ROLE_PLAYER:
+        primary_team = _get_primary_team_for_request(request)
         current_player = _resolve_player_for_user(request.user, primary_team)
         if current_player:
             return redirect('player-detail', player_id=current_player.id)
         return redirect('player-dashboard')
     if current_role in {AppUserRole.ROLE_TASK_STUDIO, AppUserRole.ROLE_GUEST}:
         return redirect('task-studio-home')
+    forbidden = _forbid_if_workspace_module_disabled(request, 'dashboard', label='dashboard')
+    if forbidden:
+        return forbidden
     return render(
         request,
         'football/dashboard.html',
