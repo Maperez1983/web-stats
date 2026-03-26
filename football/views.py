@@ -3207,22 +3207,31 @@ def _normalize_task_pdf_meta(meta):
 
 
 def _build_task_pdf_context(request, team, session, microcycle, task, tactical_layout, pdf_style='uefa', preview_url=''):
+    def _display_pdf_value(value):
+        text = str(value or '').strip()
+        if not text:
+            return ''
+        normalized = text.replace('_', ' ').replace('-', ' ').strip()
+        return ' '.join(normalized.split()).title()
+
     meta = _normalize_task_pdf_meta(tactical_layout.get('meta') if isinstance(tactical_layout, dict) else {})
     analysis_meta = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
     task_sheet = analysis_meta.get('task_sheet') if isinstance(analysis_meta.get('task_sheet'), dict) else {}
     description_text = str(task_sheet.get('description') or '').strip()
     dimensions_text = str(task_sheet.get('dimensions') or '').strip()
     materials_text = str(task_sheet.get('materials') or meta.get('resources_summary') or '').strip()
-    strategy_label = str(meta.get('training_type') or meta.get('methodology') or task.get_block_display() or '').strip()
-    space_label = ' · '.join(part for part in [dimensions_text, str(meta.get('space') or '').strip()] if part)
-    game_situation_label = ' · '.join(part for part in [str(meta.get('pitch_format') or '').strip(), str(meta.get('surface') or '').strip()] if part)
-    coordination_label = ' · '.join(part for part in [str(meta.get('organization') or '').strip(), str(meta.get('players_distribution') or '').strip()] if part)
-    coordination_skills_label = ' · '.join(part for part in [str(meta.get('load_target') or '').strip(), str(meta.get('complexity') or '').strip()] if part)
+    strategy_label = str(meta.get('training_type') or meta.get('methodology') or '').strip()
+    if not strategy_label:
+        strategy_label = ''
+    space_label = ' · '.join(part for part in [dimensions_text, _display_pdf_value(meta.get('space'))] if part)
+    game_situation_label = ' · '.join(part for part in [_display_pdf_value(meta.get('pitch_format')), _display_pdf_value(meta.get('surface'))] if part)
+    coordination_label = ' · '.join(part for part in [_display_pdf_value(meta.get('organization')), _display_pdf_value(meta.get('players_distribution'))] if part)
+    coordination_skills_label = ' · '.join(part for part in [_display_pdf_value(meta.get('load_target')), _display_pdf_value(meta.get('complexity'))] if part)
     tactical_intent_label = ' · '.join(
         part for part in [
-            str(meta.get('principle') or '').strip(),
-            str(meta.get('subprinciple') or '').strip(),
-            str(meta.get('targets') or '').strip(),
+            _display_pdf_value(meta.get('principle')),
+            _display_pdf_value(meta.get('subprinciple')),
+            _display_pdf_value(meta.get('targets')),
             str(getattr(task, 'objective', '') or '').strip(),
         ] if part
     )

@@ -367,168 +367,130 @@
       </div>
     </section>
     {% else %}
-    <section class="sheet">
-      <div class="brand" style="background:#f8fafc;">
-        <div class="brand-logo">
-          <img src="{{ logo_url }}" alt="Escudo {{ team_name }}" />
-        </div>
-        <div class="brand-copy">
-          <h1 style="color:#0f172a;">Tarea Entrenamiento</h1>
-          <p style="color:#475569;">Formato UEFA · {{ session.session_date|date:"d/m/Y" }}{% if session.start_time %} · {{ session.start_time|time:"H:i" }}{% endif %}</p>
-        </div>
+    <section class="sheet" style="border:1.5px solid #b8c0cc; background:#ffffff;">
+      <div style="padding:10px 14px; background:#d92b30; color:#ffffff; border-bottom:1px solid #b8c0cc;">
+        <table style="width:100%; border-collapse:collapse;">
+          <tr>
+            <td style="width:52px; vertical-align:middle;">
+              <div style="width:34px; height:34px; border-radius:50%; background:#ffffff; overflow:hidden; text-align:center; line-height:34px;">
+                <img src="{{ logo_url }}" alt="Escudo {{ team_name }}" style="width:28px; height:28px; object-fit:contain; vertical-align:middle; margin-top:3px;" />
+              </div>
+            </td>
+            <td style="vertical-align:middle;">
+              <div style="font-size:24px; font-weight:800; letter-spacing:0.04em; text-transform:uppercase;">Entrega Ejercicio</div>
+            </td>
+          </tr>
+        </table>
       </div>
 
-      <div class="section-title">Ficha Técnica</div>
-      <table class="details">
-        <tr>
-          <td colspan="3">
-            <span class="label">Título</span>
-            <div class="value">{{ task.title }}</div>
-          </td>
-        </tr>
-        <tr>
-          <td>
-            <span class="label">Estrategia</span>
-            <div class="value">{{ strategy_label }}</div>
-          </td>
-          <td colspan="2">
-            <span class="label">Objetivo</span>
-            <div class="value">{{ task.objective|default:"-" }}</div>
-          </td>
-        </tr>
-        <tr>
-          <td>
-            <span class="label">Espacio</span>
-            <div class="value">{{ space_label }}</div>
-          </td>
-          <td>
-            <span class="label">Tiempo</span>
-            <div class="value">{{ task.duration_minutes }} min</div>
-          </td>
-          <td>
-            <span class="label">Situación de juego</span>
-            <div class="value">{{ game_situation_label }}</div>
-          </td>
-        </tr>
-        <tr>
-          <td>
-            <span class="label">Coordinación</span>
-            <div class="value">{{ coordination_label }}</div>
-          </td>
-          <td>
-            <span class="label">Calificación entrenamiento</span>
-            <div class="value">{{ coordination_skills_label }}</div>
-          </td>
-          <td>
-            <span class="label">Intención / acción táctica</span>
-            <div class="value">{{ tactical_intent_label }}</div>
-          </td>
-        </tr>
-        <tr>
-          <td>
-            <span class="label">Material</span>
-            <div class="value">{{ materials_label }}</div>
-          </td>
-          <td>
-            <span class="label">Series / repeticiones</span>
-            <div class="value">{% if task_meta.series or task_meta.repetitions %}{{ task_meta.series|default:"-" }} · {{ task_meta.repetitions|default:"-" }}{% else %}-{% endif %}</div>
-          </td>
-          <td>
-            <span class="label">Trabajo / pausa</span>
-            <div class="value">{{ task_meta.work_rest|default:"-" }}</div>
-          </td>
-        </tr>
-        <tr>
-          <td>
-            <span class="label">Entrenador</span>
-            <div class="value">{{ coach_name }}</div>
-          </td>
-          <td>
-            <span class="label">Equipo</span>
-            <div class="value">{{ team_name }}</div>
-          </td>
-          <td>
-            <span class="label">Formato</span>
-            <div class="value">UEFA</div>
-          </td>
-        </tr>
-      </table>
+      <div style="padding:12px 14px 0;">
+        <div style="background:#d92b30; color:#ffffff; font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; padding:7px 12px; border:1px solid #d92b30; border-bottom:none; border-radius:4px 4px 0 0;">
+          Detalles del Ejercicio
+        </div>
+        <table style="width:100%; border-collapse:collapse; table-layout:fixed; border:1px solid #6b7280; margin-bottom:12px;">
+          <tr>
+            <td style="width:18%; border:1px solid #6b7280; padding:6px 10px; font-size:10px;">Título</td>
+            <td colspan="3" style="border:1px solid #6b7280; padding:6px 10px; font-size:11px; font-weight:600;">{{ task.title }}</td>
+          </tr>
+          <tr>
+            <td style="width:18%; border:1px solid #6b7280; padding:6px 10px; font-size:10px;">Estrategia</td>
+            <td style="width:32%; border:1px solid #6b7280; padding:6px 10px; font-size:11px; font-weight:600;">{{ strategy_label }}</td>
+            <td style="width:18%; border:1px solid #6b7280; padding:6px 10px; font-size:10px;">Objetivos</td>
+            <td style="width:32%; border:1px solid #6b7280; padding:6px 10px; font-size:11px; font-weight:600;">{{ task.objective|default:"-" }}</td>
+          </tr>
+          <tr>
+            <td style="border:1px solid #6b7280; padding:6px 10px; font-size:10px;">Espacio</td>
+            <td style="border:1px solid #6b7280; padding:6px 10px; font-size:11px; font-weight:600;">{{ space_label }}</td>
+            <td style="border:1px solid #6b7280; padding:6px 10px; font-size:10px;">Tiempo</td>
+            <td style="border:1px solid #6b7280; padding:6px 10px; font-size:11px; font-weight:600;">{{ task.duration_minutes }} min</td>
+          </tr>
+          <tr>
+            <td style="border:1px solid #6b7280; padding:6px 10px; font-size:10px;">Situación de Juego</td>
+            <td style="border:1px solid #6b7280; padding:6px 10px; font-size:11px; font-weight:600;">{{ game_situation_label }}</td>
+            <td style="border:1px solid #6b7280; padding:6px 10px; font-size:10px;">Coordinación</td>
+            <td style="border:1px solid #6b7280; padding:6px 10px; font-size:11px; font-weight:600;">{{ coordination_label }}</td>
+          </tr>
+          <tr>
+            <td style="border:1px solid #6b7280; padding:6px 10px; font-size:10px;">Habilidades Coordinativas</td>
+            <td style="border:1px solid #6b7280; padding:6px 10px; font-size:11px; font-weight:600;">{{ coordination_skills_label }}</td>
+            <td style="border:1px solid #6b7280; padding:6px 10px; font-size:10px;">Intención / Acción Táctica</td>
+            <td style="border:1px solid #6b7280; padding:6px 10px; font-size:11px; font-weight:600;">{{ tactical_intent_label }}</td>
+          </tr>
+        </table>
 
-      <div class="split">
-        <div class="split-col">
-          <div class="box-head">Descripción Gráfica</div>
-          <div class="box-body">
-            {% if task_preview_url %}
-            <div class="preview-frame">
-              <img src="{{ task_preview_url }}" alt="Vista gráfica de la tarea" />
-            </div>
-            {% else %}
-            <div class="field">
-              <span class="mid-line"></span>
-              <span class="mid-circle"></span>
-              {% for token in tokens %}
-              <span class="token {% if token.type == 'material' %}material {% if token.asset_url %}has-asset{% endif %}{% else %}player{% endif %}" style="left:{{ token.x }}%; top:{{ token.y }}%;" title="{{ token.title }}">
-                {% if token.type == 'material' %}
-                  {% if token.asset_url %}
-                  <img src="{{ token.asset_url }}" alt="{{ token.title|default:token.label }}" />
-                  {% else %}
-                  {{ token.icon|default:token.label }}
-                  {% endif %}
+        <div style="background:#d92b30; color:#ffffff; font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; padding:7px 12px; border:1px solid #d92b30; border-bottom:none; border-radius:4px 4px 0 0;">
+          Descripción Gráfica
+        </div>
+        <div style="border:1px solid #6b7280; padding:12px; background:#ffffff; min-height:280px;">
+          {% if task_preview_url %}
+          <div class="preview-frame" style="border:1px solid #d5dde7;">
+            <img src="{{ task_preview_url }}" alt="Vista gráfica de la tarea" />
+          </div>
+          {% else %}
+          <div class="field">
+            <span class="mid-line"></span>
+            <span class="mid-circle"></span>
+            {% for token in tokens %}
+            <span class="token {% if token.type == 'material' %}material {% if token.asset_url %}has-asset{% endif %}{% else %}player{% endif %}" style="left:{{ token.x }}%; top:{{ token.y }}%;" title="{{ token.title }}">
+              {% if token.type == 'material' %}
+                {% if token.asset_url %}
+                <img src="{{ token.asset_url }}" alt="{{ token.title|default:token.label }}" />
                 {% else %}
-                  {{ token.label }}
+                {{ token.icon|default:token.label }}
                 {% endif %}
-              </span>
-              {% endfor %}
-            </div>
-            {% endif %}
+              {% else %}
+                {{ token.label }}
+              {% endif %}
+            </span>
+            {% endfor %}
           </div>
+          {% endif %}
         </div>
-        <div class="split-col">
-          <div class="box-head">Consigna / Explicación</div>
-          <div class="box-body">
-            {% if description_lines and description_lines.0 != '-' %}
-            <div class="text-block">{{ description_lines|join:"\n" }}</div>
-            {% else %}
-            <div class="text-block">-</div>
-            {% endif %}
-            {% if coaching_lines and coaching_lines.0 != '-' %}
-            <div style="margin-top:10px;">
-              <span class="label">Consignas</span>
-              <ul class="bullet-list">
-                {% for line in coaching_lines %}
-                <li>{{ line }}</li>
-                {% endfor %}
-              </ul>
-            </div>
-            {% endif %}
-            {% if rules_lines and rules_lines.0 != '-' %}
-            <div style="margin-top:10px;">
-              <span class="label">Normas de confrontación</span>
-              <ul class="bullet-list">
-                {% for line in rules_lines %}
-                <li>{{ line }}</li>
-                {% endfor %}
-              </ul>
-            </div>
-            {% endif %}
-            {% if task_meta.progression %}
-            <div style="margin-top:10px;">
-              <span class="label">Progresión</span>
-              <div class="text-block">{{ task_meta.progression }}</div>
-            </div>
-            {% endif %}
-            {% if task_meta.success_criteria %}
-            <div style="margin-top:10px;">
-              <span class="label">Criterio de éxito</span>
-              <div class="text-block">{{ task_meta.success_criteria }}</div>
-            </div>
-            {% endif %}
+
+        <div style="margin-top:12px; background:#d92b30; color:#ffffff; font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; padding:7px 12px; border:1px solid #d92b30; border-bottom:none; border-radius:4px 4px 0 0;">
+          Consigna / Explicación
+        </div>
+        <div style="border:1px solid #6b7280; padding:12px 12px 14px; background:#ffffff; min-height:150px; line-height:1.5;">
+          {% if description_lines and description_lines.0 != '-' %}
+          <div class="text-block">{{ description_lines|join:"\n" }}</div>
+          {% else %}
+          <div class="text-block">-</div>
+          {% endif %}
+          {% if coaching_lines and coaching_lines.0 != '-' %}
+          <div style="margin-top:10px;">
+            <strong>Consignas:</strong>
+            <span>{{ coaching_lines|join:" · " }}</span>
           </div>
+          {% endif %}
+          {% if rules_lines and rules_lines.0 != '-' %}
+          <div style="margin-top:8px;">
+            <strong>Normas de confrontación:</strong>
+            <span>{{ rules_lines|join:" · " }}</span>
+          </div>
+          {% endif %}
+          {% if task_meta.progression %}
+          <div style="margin-top:8px;">
+            <strong>Progresión:</strong>
+            <span>{{ task_meta.progression }}</span>
+          </div>
+          {% endif %}
+          {% if task_meta.success_criteria %}
+          <div style="margin-top:8px;">
+            <strong>Criterio de éxito:</strong>
+            <span>{{ task_meta.success_criteria }}</span>
+          </div>
+          {% endif %}
+          {% if materials_label and materials_label != '-' %}
+          <div style="margin-top:8px;">
+            <strong>Material:</strong>
+            <span>{{ materials_label }}</span>
+          </div>
+          {% endif %}
         </div>
       </div>
 
-      <div class="footer">
-        Formato UEFA · {{ microcycle.title }} · Generado {{ generated_at|date:"d/m/Y H:i" }}
+      <div class="footer" style="background:#ffffff;">
+        Formato UEFA · {{ team_name }} · {{ coach_name }} · Generado {{ generated_at|date:"d/m/Y H:i" }}
       </div>
     </section>
     {% endif %}
