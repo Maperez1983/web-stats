@@ -136,6 +136,19 @@
         font-weight: 700;
         padding: 0.62rem 0.82rem;
       }
+      .resource-strip button[data-add],
+      .player-bank button.player-token-bank {
+        cursor: grab;
+      }
+      .resource-strip button[data-add]:active,
+      .player-bank button.player-token-bank:active {
+        cursor: grabbing;
+      }
+      .resource-strip button.is-dragging,
+      .player-bank button.player-token-bank.is-dragging {
+        opacity: 0.58;
+        transform: scale(0.98);
+      }
       .pitch-toolbar button.is-active,
       .resource-strip button.is-active,
       .player-bank button.is-active {
@@ -259,6 +272,9 @@
         overflow: hidden;
         border: 1px solid rgba(255, 255, 255, 0.14);
         background: linear-gradient(180deg, #0b1725, #08111d);
+      }
+      .pitch-stage.is-drop-target {
+        box-shadow: inset 0 0 0 2px rgba(34, 211, 238, 0.7);
       }
       .pitch-stage svg,
       .pitch-stage canvas {

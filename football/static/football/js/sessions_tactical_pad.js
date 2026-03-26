@@ -387,6 +387,7 @@
 
     let history = [];
     let pendingFactory = null;
+    const DRAG_MIME = 'application/x-webstats-tactical-resource';
 
     const clampScale = (value) => clamp(Number(value) || 1, 0.4, 2.6);
     const normalizeEditableObject = (object) => {
@@ -511,6 +512,63 @@
       canvas.requestRenderAll();
       pushHistory();
       syncInspector();
+    };
+    const clearPendingPlacement = () => {
+      pendingFactory = null;
+      Array.from(toolStrip?.querySelectorAll('[data-add]') || []).forEach((button) => button.classList.remove('is-active'));
+      Array.from(playerBank?.querySelectorAll('button') || []).forEach((button) => button.classList.remove('is-active'));
+    };
+    const pointerFromStageEvent = (event) => {
+      const rect = stage.getBoundingClientRect();
+      const x = ((event.clientX - rect.left) / rect.width) * canvas.getWidth();
+      const y = ((event.clientY - rect.top) / rect.height) * canvas.getHeight();
+      return {
+        x: clamp(x, 24, canvas.getWidth() - 24),
+        y: clamp(y, 24, canvas.getHeight() - 24),
+      };
+    };
+    const createFactoryFromPayload = (payload) => {
+      if (!payload || typeof payload !== 'object') return null;
+      if (payload.playerId) {
+        const player = players.find((item) => String(item.id) === String(payload.playerId));
+        if (!player) return null;
+        return {
+          factory: playerTokenFactory(payload.kind || 'player_local', player),
+          label: safeText(player.name, 'el jugador'),
+        };
+      }
+      if (payload.kind === 'player_local') return { factory: playerTokenFactory('player_local', null), label: 'un jugador local' };
+      if (payload.kind === 'player_rival') return { factory: playerTokenFactory('player_rival', null), label: 'un jugador rival' };
+      if (payload.kind === 'goalkeeper_local') return { factory: playerTokenFactory('goalkeeper_local', null), label: 'un portero' };
+      return { factory: simpleFactory(payload.kind), label: RESOURCE_LABELS[payload.kind] || payload.kind };
+    };
+    const addPayloadAtPointer = (payload, pointer) => {
+      const resolved = createFactoryFromPayload(payload);
+      if (!resolved?.factory) return false;
+      addObject(objectAtPointer(resolved.factory, pointer));
+      clearPendingPlacement();
+      setStatus(`${resolved.label} colocado.`);
+      return true;
+    };
+    const registerDraggableButton = (button, payloadBuilder) => {
+      if (!button) return;
+      button.draggable = true;
+      button.addEventListener('dragstart', (event) => {
+        const payload = payloadBuilder();
+        if (!payload) {
+          event.preventDefault();
+          return;
+        }
+        event.dataTransfer?.setData(DRAG_MIME, JSON.stringify(payload));
+        event.dataTransfer?.setData('text/plain', JSON.stringify(payload));
+        if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
+        button.classList.add('is-dragging');
+        setStatus('Suelta el recurso sobre el campo.');
+      });
+      button.addEventListener('dragend', () => {
+        button.classList.remove('is-dragging');
+        stage.classList.remove('is-drop-target');
+      });
     };
 
     const playerTokenFactory = (kind, player) => (left, top) => {
@@ -774,6 +832,7 @@
         disk.appendChild(number);
         button.appendChild(name);
         button.appendChild(disk);
+        registerDraggableButton(button, () => ({ kind: 'player_local', playerId: String(player.id) }));
         button.addEventListener('click', () => {
           Array.from(playerBank.querySelectorAll('button')).forEach((item) => item.classList.remove('is-active'));
           button.classList.add('is-active');
@@ -827,10 +886,33 @@
       if (!pendingFactory || event.target) return;
       const pointer = canvas.getPointer(event.e);
       addObject(objectAtPointer(pendingFactory, pointer));
-      pendingFactory = null;
-      Array.from(toolStrip?.querySelectorAll('[data-add]') || []).forEach((button) => button.classList.remove('is-active'));
-      Array.from(playerBank?.querySelectorAll('button') || []).forEach((button) => button.classList.remove('is-active'));
+      clearPendingPlacement();
       setStatus('Elemento colocado.');
+    });
+
+    stage.addEventListener('dragover', (event) => {
+      if (!event.dataTransfer?.types?.includes(DRAG_MIME) && !event.dataTransfer?.types?.includes('text/plain')) return;
+      event.preventDefault();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+      stage.classList.add('is-drop-target');
+    });
+    stage.addEventListener('dragleave', (event) => {
+      if (event.currentTarget !== stage) return;
+      stage.classList.remove('is-drop-target');
+    });
+    stage.addEventListener('drop', (event) => {
+      const raw = event.dataTransfer?.getData(DRAG_MIME) || event.dataTransfer?.getData('text/plain');
+      if (!raw) return;
+      event.preventDefault();
+      stage.classList.remove('is-drop-target');
+      let payload = null;
+      try {
+        payload = JSON.parse(raw);
+      } catch (error) {
+        payload = null;
+      }
+      if (!payload) return;
+      addPayloadAtPointer(payload, pointerFromStageEvent(event));
     });
 
     scaleXInput?.addEventListener('input', () => {
@@ -921,6 +1003,10 @@
       else activateFactory(simpleFactory(add), RESOURCE_LABELS[add] || add);
     });
     syncInspector();
+
+    Array.from(document.querySelectorAll('.resource-strip button[data-add]')).forEach((button) => {
+      registerDraggableButton(button, () => ({ kind: safeText(button.dataset.add) }));
+    });
 
     presetButtons.forEach((button) => {
       button.addEventListener('click', () => {
