@@ -535,11 +535,19 @@
         top: 1rem;
       }
 
+      .inline-grid {
+        margin-top: 1rem;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.75rem;
+      }
+
       @media (max-width: 960px) {
         .hero-stats,
         .quick-grid,
         .workspace-grid-two,
-        .grid {
+        .grid,
+        .inline-grid {
           grid-template-columns: 1fr;
         }
 
@@ -738,9 +746,70 @@
               <div>
                 <div class="section-kicker">Usuarios club</div>
                 <h2>Usuarios</h2>
-                <p>Relación rápida de usuarios asignados a clientes club para revisar ownership y reparto de roles.</p>
+                <p>Gobierno global de usuarios y relación rápida de usuarios asignados a clientes club.</p>
               </div>
               <div class="count-pill">{{ workspace_users|length }}</div>
+            </div>
+            {% if user_message %}
+            <div class="message ok">{{ user_message }}</div>
+            {% endif %}
+            {% if user_error %}
+            <div class="message error">{{ user_error }}</div>
+            {% endif %}
+            <div class="inline-grid">
+              <form class="fieldset" method="post">
+                {% csrf_token %}
+                <input type="hidden" name="form_action" value="platform_user_create" />
+                <h3>Alta global de usuario</h3>
+                <p>Los usuarios del sistema se crean aquí, en la matriz, y luego se asignan al cliente o workspace que corresponda.</p>
+                <div class="field">
+                  <label for="platform_user_full_name">Nombre completo</label>
+                  <input id="platform_user_full_name" type="text" name="full_name" value="{{ user_form.full_name }}" placeholder="Nombre y apellidos" />
+                </div>
+                <div class="field">
+                  <label for="platform_user_username">Usuario</label>
+                  <input id="platform_user_username" type="text" name="username" value="{{ user_form.username }}" required />
+                </div>
+                <div class="field">
+                  <label for="platform_user_email">Email</label>
+                  <input id="platform_user_email" type="text" name="email" value="{{ user_form.email }}" />
+                </div>
+                <div class="field">
+                  <label for="platform_user_password">Contraseña</label>
+                  <input id="platform_user_password" type="password" name="password" minlength="6" required />
+                </div>
+                <div class="field">
+                  <label for="platform_user_role">Rol global</label>
+                  <select id="platform_user_role" name="role">
+                    {% for value, label in role_choices %}
+                    <option value="{{ value }}" {% if user_form.role == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <button class="submit-btn" type="submit">Crear usuario global</button>
+              </form>
+              <div class="fieldset">
+                <h3>Usuarios del sistema</h3>
+                <p>Vista global rápida. La asignación a clientes se hace desde la ficha de cada workspace.</p>
+                <div class="simple-list">
+                  {% for item in platform_users %}
+                  <div class="user-row">
+                    <div>
+                      <strong>{{ item.username }}</strong>
+                      <div style="color:#9aa8bf;">{{ item.full_name_display }} · {{ item.role_label }}</div>
+                    </div>
+                    <div style="text-align:right; color:#9aa8bf;">
+                      <div>{{ item.workspace_count }} workspaces</div>
+                      <div>{% if item.is_active %}Activo{% else %}Inactivo{% endif %}</div>
+                    </div>
+                  </div>
+                  {% empty %}
+                  <div class="user-row">
+                    <div>Sin usuarios globales todavía.</div>
+                  </div>
+                  {% endfor %}
+                </div>
+              </div>
             </div>
             <div class="simple-list">
               {% for membership in workspace_users %}

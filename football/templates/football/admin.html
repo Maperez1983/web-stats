@@ -298,7 +298,7 @@
       <nav class="admin-tabs">
         <a class="admin-tab {% if active_tab == 'roster' %}is-active{% endif %}" href="{% url 'admin-page' %}?tab=roster">Plantilla</a>
         <a class="admin-tab {% if active_tab == 'carousel' %}is-active{% endif %}" href="{% url 'admin-page' %}?tab=carousel">Fotos Home</a>
-        <a class="admin-tab {% if active_tab == 'users' %}is-active{% endif %}" href="{% url 'admin-page' %}?tab=users">Usuarios y Roles</a>
+        <a class="admin-tab" href="{% url 'platform-overview' %}#usuarios-club">Usuarios y Roles</a>
         {% if is_admin_user %}
         <a class="admin-tab {% if active_tab == 'actions' %}is-active{% endif %}" href="{% url 'admin-page' %}?tab=actions">Registro manual</a>
         <a class="admin-tab" href="{% url 'manual-player-stats' %}">Estadísticas manuales</a>

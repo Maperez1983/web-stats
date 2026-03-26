@@ -857,6 +857,10 @@ def _workspace_deliverable_flag(module_key, deliverable_key):
     return f'deliverable__{module_key}__{deliverable_key}'
 
 
+def _workspace_module_flag(module_key):
+    return f'module__{module_key}'
+
+
 def _workspace_collect_route_keys(entries):
     route_keys = []
     seen = set()
@@ -1015,20 +1019,26 @@ def _workspace_club_module_catalog():
 def _workspace_task_studio_module_catalog():
     return [
         {
-            'key': 'task_studio_access',
-            'label': 'Acceso base',
-            'description': 'Portada privada del módulo y entrada principal del usuario.',
+            'key': 'task_studio_access_account',
+            'label': 'Acceso y cuenta',
+            'description': 'Entrada al espacio, estado de acceso y base de cuenta del usuario.',
             'deliverables': [
                 {
                     'key': 'home',
-                    'label': 'Inicio Task Studio',
+                    'label': 'Inicio',
                     'description': 'Home privada y punto de entrada del espacio.',
+                    'route_keys': ['task_studio_home'],
+                },
+                {
+                    'key': 'access_state',
+                    'label': 'Estado de acceso',
+                    'description': 'Gestión de acceso base y activación del espacio del usuario.',
                     'route_keys': ['task_studio_home'],
                 },
             ],
         },
         {
-            'key': 'task_studio_profile_area',
+            'key': 'task_studio_profile_identity',
             'label': 'Perfil e identidad',
             'description': 'Perfil profesional e identidad visual del usuario.',
             'deliverables': [
@@ -1042,6 +1052,12 @@ def _workspace_task_studio_module_catalog():
                     'key': 'branding',
                     'label': 'Identidad visual',
                     'description': 'Escudo, colores y marca documental para PDF e informes.',
+                    'route_keys': ['task_studio_profile'],
+                },
+                {
+                    'key': 'document_setup',
+                    'label': 'Configuración documental',
+                    'description': 'Firma, nombre documental y pie de documento del usuario.',
                     'route_keys': ['task_studio_profile'],
                 },
             ],
@@ -1063,12 +1079,43 @@ def _workspace_task_studio_module_catalog():
                     'description': 'Uso de plantilla en chapas, petos y recursos tácticos.',
                     'route_keys': ['task_studio_roster'],
                 },
+                {
+                    'key': 'groups_and_bibs',
+                    'label': 'Grupos y petos',
+                    'description': 'Preparación de grupos y distribución visual para tareas.',
+                    'route_keys': ['task_studio_roster'],
+                },
             ],
         },
         {
-            'key': 'task_studio_tasks_area',
-            'label': 'Tareas',
-            'description': 'Repositorio privado y editor táctico del usuario.',
+            'key': 'task_studio_tactical_resources',
+            'label': 'Recursos tácticos',
+            'description': 'Superficies, recursos gráficos y presets del editor táctico.',
+            'deliverables': [
+                {
+                    'key': 'surfaces',
+                    'label': 'Superficies',
+                    'description': 'Campos, variantes F7/F11 y superficies del editor.',
+                    'route_keys': ['task_studio_tasks'],
+                },
+                {
+                    'key': 'graphic_resources',
+                    'label': 'Recursos gráficos',
+                    'description': 'Líneas, flechas, figuras, emojis y recursos de diseño.',
+                    'route_keys': ['task_studio_tasks'],
+                },
+                {
+                    'key': 'board_presets',
+                    'label': 'Presets de tablero',
+                    'description': 'Presets y ayudas para construir tareas con rapidez.',
+                    'route_keys': ['task_studio_tasks'],
+                },
+            ],
+        },
+        {
+            'key': 'task_studio_tasks_library',
+            'label': 'Tareas y biblioteca',
+            'description': 'Repositorio privado, edición y reutilización de tareas.',
             'deliverables': [
                 {
                     'key': 'repository',
@@ -1082,17 +1129,29 @@ def _workspace_task_studio_module_catalog():
                     'description': 'Crear, editar y duplicar tareas dentro del workspace.',
                     'route_keys': ['task_studio_tasks'],
                 },
+                {
+                    'key': 'library',
+                    'label': 'Biblioteca',
+                    'description': 'Reutilización, duplicado y trabajo sobre base de tareas.',
+                    'route_keys': ['task_studio_tasks'],
+                },
             ],
         },
         {
-            'key': 'task_studio_documents',
+            'key': 'task_studio_documents_exports',
             'label': 'Documentos',
-            'description': 'PDF UEFA, PDF Club y exportaciones del módulo.',
+            'description': 'PDF UEFA, PDF Club y salidas documentales del módulo.',
             'deliverables': [
                 {
                     'key': 'pdfs',
-                    'label': 'PDFs y exportaciones',
+                    'label': 'PDFs',
                     'description': 'Impresión UEFA y Club desde Task Studio.',
+                    'route_keys': ['task_studio_pdfs'],
+                },
+                {
+                    'key': 'exports',
+                    'label': 'Exportaciones',
+                    'description': 'Salidas documentales y exportación de materiales del usuario.',
                     'route_keys': ['task_studio_pdfs'],
                 },
             ],
@@ -1130,6 +1189,7 @@ def _expand_workspace_module_selection(kind, selected_modules, selected_delivera
     expanded = {key: False for key in defaults.keys()}
     selected_deliverables = selected_deliverables or {}
     for item in _workspace_module_catalog(kind):
+        expanded[_workspace_module_flag(item['key'])] = bool(selected_modules.get(item['key']))
         if not bool(selected_modules.get(item['key'])):
             continue
         deliverables = item.get('deliverables', []) or []
@@ -1156,8 +1216,13 @@ def _expand_workspace_module_selection(kind, selected_modules, selected_delivera
 def _workspace_selected_module_keys(kind, enabled_modules):
     selected = []
     for item in _workspace_module_catalog(kind):
-        route_keys = _workspace_collect_route_keys(item.get('deliverables', []) or [item])
-        if any(bool(enabled_modules.get(route_key)) for route_key in route_keys):
+        module_flag = _workspace_module_flag(item['key'])
+        if module_flag in enabled_modules:
+            is_enabled = bool(enabled_modules.get(module_flag))
+        else:
+            route_keys = _workspace_collect_route_keys(item.get('deliverables', []) or [item])
+            is_enabled = any(bool(enabled_modules.get(route_key)) for route_key in route_keys)
+        if is_enabled:
             selected.append(item['key'])
     return selected
 
@@ -1204,7 +1269,7 @@ def _workspace_enabled_modules(workspace):
         return defaults
     normalized = dict(defaults)
     for key, value in raw.items():
-        if key in defaults or str(key).startswith('deliverable__'):
+        if key in defaults or str(key).startswith('deliverable__') or str(key).startswith('module__'):
             normalized[key] = bool(value)
     return normalized
 
@@ -2057,8 +2122,19 @@ def platform_overview_page(request):
     if not _can_access_platform(request.user):
         return HttpResponse('No tienes permisos para acceder a la plataforma.', status=403)
 
+    def _split_full_name(value):
+        text = str(value or '').strip()
+        if not text:
+            return '', ''
+        parts = [part for part in text.split() if part]
+        if len(parts) == 1:
+            return parts[0], ''
+        return parts[0], ' '.join(parts[1:])
+
     feedback = str(request.session.pop('platform_feedback', '') or '')
     error = ''
+    user_message = ''
+    user_error = ''
     active_workspace = _build_active_workspace_badge(request)
     primary_team = Team.objects.filter(is_primary=True).first()
     workspace_form = {
@@ -2078,6 +2154,12 @@ def platform_overview_page(request):
                 {item['key']: True for item in _workspace_module_catalog(Workspace.KIND_CLUB)},
             ),
         ),
+    }
+    user_form = {
+        'full_name': '',
+        'username': '',
+        'email': '',
+        'role': AppUserRole.ROLE_PLAYER,
     }
     if primary_team:
         _ensure_club_workspace(primary_team)
@@ -2199,6 +2281,53 @@ def platform_overview_page(request):
                 error = str(exc)
             except Exception:
                 error = 'No se pudo crear el workspace.'
+        elif form_action == 'platform_user_create':
+            full_name = _sanitize_task_text((request.POST.get('full_name') or '').strip(), multiline=False, max_len=150)
+            username = re.sub(r'\s+', '', str(request.POST.get('username') or '').strip()).lower()[:150]
+            email = re.sub(r'\s+', '', str(request.POST.get('email') or '').strip()).lower()[:190]
+            password = (request.POST.get('password') or '').strip()
+            role_value = str(request.POST.get('role') or AppUserRole.ROLE_PLAYER).strip()
+            role_choices = {choice[0] for choice in AppUserRole.ROLE_CHOICES}
+            if role_value not in role_choices:
+                role_value = AppUserRole.ROLE_PLAYER
+            user_form = {
+                'full_name': full_name,
+                'username': username,
+                'email': email,
+                'role': role_value,
+            }
+            try:
+                if not username:
+                    raise ValueError('El usuario es obligatorio.')
+                if User.objects.filter(username__iexact=username).exists():
+                    raise ValueError('Ese usuario ya existe.')
+                if len(password) < 6:
+                    raise ValueError('La contraseña debe tener al menos 6 caracteres.')
+                first_name, last_name = _split_full_name(full_name)
+                user = User.objects.create_user(
+                    username=username,
+                    email=email,
+                    password=password,
+                    first_name=first_name,
+                    last_name=last_name,
+                )
+                if role_value == AppUserRole.ROLE_ADMIN:
+                    user.is_staff = True
+                    user.save(update_fields=['is_staff'])
+                AppUserRole.objects.update_or_create(user=user, defaults={'role': role_value})
+                if role_value in {AppUserRole.ROLE_TASK_STUDIO, AppUserRole.ROLE_GUEST}:
+                    _ensure_task_studio_workspace(user)
+                user_message = f'Usuario creado en Plataforma: {username}.'
+                user_form = {
+                    'full_name': '',
+                    'username': '',
+                    'email': '',
+                    'role': AppUserRole.ROLE_PLAYER,
+                }
+            except ValueError as exc:
+                user_error = str(exc)
+            except Exception:
+                user_error = 'No se pudo crear el usuario global.'
 
     workspaces = list(
         Workspace.objects
@@ -2219,6 +2348,19 @@ def platform_overview_page(request):
         .filter(workspace__kind=Workspace.KIND_CLUB)
         .order_by('workspace__name', 'role', 'user__username')[:120]
     )
+    platform_users = list(User.objects.order_by('username')[:160])
+    role_map = {item.user_id: item.role for item in AppUserRole.objects.select_related('user')}
+    role_labels = dict(AppUserRole.ROLE_CHOICES)
+    membership_counts = {
+        row['user_id']: row['count']
+        for row in WorkspaceMembership.objects.values('user_id').annotate(count=Count('id'))
+    }
+    for item in platform_users:
+        role_value = role_map.get(item.id, AppUserRole.ROLE_PLAYER)
+        item.role_value = role_value
+        item.role_label = role_labels.get(role_value, 'Jugador')
+        item.full_name_display = item.get_full_name().strip() or item.username
+        item.workspace_count = int(membership_counts.get(item.id, 0) or 0)
 
     return render(
         request,
@@ -2226,16 +2368,21 @@ def platform_overview_page(request):
         {
             'feedback': feedback,
             'error': error,
+            'user_message': user_message,
+            'user_error': user_error,
             'workspaces': workspaces,
             'primary_workspace': primary_workspace,
             'club_workspaces': club_workspaces,
             'studio_workspaces': studio_workspaces,
             'workspace_users': workspace_users,
+            'platform_users': platform_users,
             'teams': list(Team.objects.order_by('name')[:200]),
             'workspace_kind_choices': Workspace.KIND_CHOICES,
             'workspace_module_catalog_club': _workspace_module_catalog_for_template(Workspace.KIND_CLUB),
             'workspace_module_catalog_task_studio': _workspace_module_catalog_for_template(Workspace.KIND_TASK_STUDIO),
             'workspace_form': workspace_form,
+            'user_form': user_form,
+            'role_choices': AppUserRole.ROLE_CHOICES,
             'active_workspace': active_workspace,
         },
     )
