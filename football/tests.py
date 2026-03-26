@@ -367,6 +367,19 @@ class PlatformWorkspaceTests(TestCase):
 
         self.assertEqual(response.status_code, 403)
 
+    def test_legacy_admin_role_alias_can_access_platform(self):
+        legacy_admin = get_user_model().objects.create_user(
+            username='legacy-admin',
+            email='legacy-admin@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=legacy_admin, role='admin')
+        self.client.force_login(legacy_admin)
+
+        response = self.client.get(reverse('platform-overview'))
+
+        self.assertEqual(response.status_code, 200)
+
     def test_platform_overview_bootstraps_primary_and_task_studio_workspaces(self):
         self.client.force_login(self.admin_user)
 

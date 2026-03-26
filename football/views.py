@@ -681,7 +681,12 @@ def _get_user_role(user):
     if not user or not user.is_authenticated:
         return None
     role_obj = getattr(user, 'app_role', None)
-    return str(getattr(role_obj, 'role', '') or '').strip() or None
+    role = str(getattr(role_obj, 'role', '') or '').strip() or None
+    legacy_map = {
+        'admin': AppUserRole.ROLE_ADMIN,
+        'player': AppUserRole.ROLE_PLAYER,
+    }
+    return legacy_map.get(role, role)
 
 
 def _is_admin_user(user):
