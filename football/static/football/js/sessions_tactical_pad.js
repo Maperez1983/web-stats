@@ -357,6 +357,11 @@
     const statusEl = document.getElementById('task-builder-status');
     const toolStrip = document.getElementById('task-basic-tools');
     const playerBank = document.getElementById('task-player-bank');
+    const selectionToolbar = document.getElementById('task-selection-toolbar');
+    const selectionSummary = document.getElementById('task-selection-summary');
+    const scaleXInput = document.getElementById('task-scale-x');
+    const scaleYInput = document.getElementById('task-scale-y');
+    const rotationInput = document.getElementById('task-rotation');
     const presetButtons = Array.from(document.querySelectorAll('.surface-option[data-preset]'));
     const surfaceThumbs = Array.from(document.querySelectorAll('[data-surface-thumb]'));
     if (!window.fabric || !form || !canvasEl || !stage || !svgSurface || !presetSelect) return;
@@ -382,6 +387,67 @@
 
     let history = [];
     let pendingFactory = null;
+
+    const clampScale = (value) => clamp(Number(value) || 1, 0.4, 2.6);
+    const normalizeEditableObject = (object) => {
+      if (!object) return object;
+      object.set({
+        hasControls: true,
+        hasBorders: true,
+        transparentCorners: false,
+        cornerStyle: 'circle',
+        cornerColor: '#22d3ee',
+        borderColor: '#67e8f9',
+        cornerStrokeColor: '#071320',
+        padding: 8,
+        lockScalingFlip: true,
+      });
+      return object;
+    };
+    const isFlexibleKind = (object) => {
+      const kind = safeText(object?.data?.kind);
+      return kind.startsWith('line') || kind.startsWith('arrow') || kind.startsWith('shape') || kind === 'zone';
+    };
+    const activeFlexibleObject = () => {
+      const active = canvas.getActiveObject();
+      return active && isFlexibleKind(active) ? active : null;
+    };
+    const objectLabel = (object) => {
+      const kind = safeText(object?.data?.kind).replace(/-/g, '_');
+      return RESOURCE_LABELS[kind] || 'el elemento';
+    };
+    const syncInspector = () => {
+      if (!selectionToolbar || !selectionSummary || !scaleXInput || !scaleYInput || !rotationInput) return;
+      const active = activeFlexibleObject();
+      const enabled = !!active;
+      selectionToolbar.querySelectorAll('input,button').forEach((node) => {
+        node.disabled = !enabled;
+      });
+      if (!enabled) {
+        selectionSummary.textContent = 'Selecciona una línea, flecha o figura para ajustarla.';
+        scaleXInput.value = '100';
+        scaleYInput.value = '100';
+        rotationInput.value = '0';
+        return;
+      }
+      selectionSummary.textContent = `Ajustando ${objectLabel(active)} seleccionado.`;
+      scaleXInput.value = String(Math.round((Number(active.scaleX) || 1) * 100));
+      scaleYInput.value = String(Math.round((Number(active.scaleY) || 1) * 100));
+      rotationInput.value = String(Math.round(Number(active.angle) || 0));
+    };
+    const commitObjectChange = (message) => {
+      canvas.requestRenderAll();
+      pushHistory();
+      syncInspector();
+      if (message) setStatus(message);
+    };
+    const applyToActiveFlexibleObject = (callback, message) => {
+      const active = activeFlexibleObject();
+      if (!active) return;
+      callback(active);
+      active.setCoords();
+      commitObjectChange(message);
+    };
 
     const fitCanvas = () => {
       const width = Math.max(320, Math.round(stage.clientWidth || 960));
@@ -439,10 +505,12 @@
 
     const addObject = (object) => {
       if (!object) return;
+      normalizeEditableObject(object);
       canvas.add(object);
       canvas.setActiveObject(object);
       canvas.requestRenderAll();
       pushHistory();
+      syncInspector();
     };
 
     const playerTokenFactory = (kind, player) => (left, top) => {
@@ -681,8 +749,10 @@
         parsed = { version: '5.3.0', objects: [] };
       }
       canvas.loadFromJSON(parsed, () => {
+        canvas.getObjects().forEach((item) => normalizeEditableObject(item));
         canvas.requestRenderAll();
         pushHistory();
+        syncInspector();
       });
     };
 
@@ -749,6 +819,10 @@
     canvas.on('object:added', () => {
       if (!canvas.__loading) pushHistory();
     });
+    canvas.on('selection:created', syncInspector);
+    canvas.on('selection:updated', syncInspector);
+    canvas.on('selection:cleared', syncInspector);
+    canvas.on('object:modified', syncInspector);
     canvas.on('mouse:down', (event) => {
       if (!pendingFactory || event.target) return;
       const pointer = canvas.getPointer(event.e);
@@ -757,6 +831,41 @@
       Array.from(toolStrip?.querySelectorAll('[data-add]') || []).forEach((button) => button.classList.remove('is-active'));
       Array.from(playerBank?.querySelectorAll('button') || []).forEach((button) => button.classList.remove('is-active'));
       setStatus('Elemento colocado.');
+    });
+
+    scaleXInput?.addEventListener('input', () => {
+      applyToActiveFlexibleObject((active) => {
+        active.scaleX = clampScale(Number(scaleXInput.value) / 100);
+      }, 'Longitud actualizada.');
+    });
+    scaleYInput?.addEventListener('input', () => {
+      applyToActiveFlexibleObject((active) => {
+        active.scaleY = clampScale(Number(scaleYInput.value) / 100);
+      }, 'Altura actualizada.');
+    });
+    rotationInput?.addEventListener('input', () => {
+      applyToActiveFlexibleObject((active) => {
+        active.rotate(Number(rotationInput.value) || 0);
+      }, 'Orientación actualizada.');
+    });
+    selectionToolbar?.addEventListener('click', (event) => {
+      const button = event.target.closest('button');
+      if (!button) return;
+      const rotateStep = Number(button.dataset.rotateStep);
+      if (!Number.isNaN(rotateStep) && button.dataset.rotateStep !== undefined) {
+        applyToActiveFlexibleObject((active) => {
+          active.rotate((Number(active.angle) || 0) + rotateStep);
+        }, 'Orientación actualizada.');
+        return;
+      }
+      const nudgeX = Number(button.dataset.nudgeX);
+      const nudgeY = Number(button.dataset.nudgeY);
+      if ((!Number.isNaN(nudgeX) || !Number.isNaN(nudgeY)) && (button.dataset.nudgeX !== undefined || button.dataset.nudgeY !== undefined)) {
+        applyToActiveFlexibleObject((active) => {
+          active.left = clamp((Number(active.left) || 0) + (Number.isNaN(nudgeX) ? 0 : nudgeX), 12, canvas.getWidth() - 12);
+          active.top = clamp((Number(active.top) || 0) + (Number.isNaN(nudgeY) ? 0 : nudgeY), 12, canvas.getHeight() - 12);
+        }, 'Posición actualizada.');
+      }
     });
 
     toolStrip?.addEventListener('click', (event) => {
@@ -775,7 +884,11 @@
         if (history.length <= 1) return;
         history.pop();
         const previous = history[history.length - 1];
-        canvas.loadFromJSON(JSON.parse(previous), () => canvas.requestRenderAll());
+        canvas.loadFromJSON(JSON.parse(previous), () => {
+          canvas.getObjects().forEach((item) => normalizeEditableObject(item));
+          canvas.requestRenderAll();
+          syncInspector();
+        });
         setStatus('Último cambio deshecho.');
         return;
       }
@@ -786,6 +899,7 @@
         canvas.discardActiveObject();
         canvas.requestRenderAll();
         pushHistory();
+        syncInspector();
         setStatus('Elemento eliminado.');
         return;
       }
@@ -794,6 +908,7 @@
         canvas.discardActiveObject();
         canvas.requestRenderAll();
         pushHistory();
+        syncInspector();
         setStatus('Pizarra limpiada.');
         return;
       }
@@ -805,6 +920,7 @@
       else if (add === 'goalkeeper_local') activateFactory(playerTokenFactory('goalkeeper_local', null), 'un portero');
       else activateFactory(simpleFactory(add), RESOURCE_LABELS[add] || add);
     });
+    syncInspector();
 
     presetButtons.forEach((button) => {
       button.addEventListener('click', () => {
