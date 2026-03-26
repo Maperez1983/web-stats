@@ -368,17 +368,17 @@
     </section>
     {% else %}
     <section class="sheet">
-      <div class="brand">
+      <div class="brand" style="background:#f8fafc;">
         <div class="brand-logo">
           <img src="{{ logo_url }}" alt="Escudo {{ team_name }}" />
         </div>
         <div class="brand-copy">
-          <h1>{% if pdf_style == 'club' %}Plan de Tarea · {{ team_name }}{% else %}Entrega Ejercicio{% endif %}</h1>
-          <p>{{ team_name }} · {{ session.session_date|date:"d/m/Y" }}{% if session.start_time %} · {{ session.start_time|time:"H:i" }}{% endif %}{% if pdf_style == 'club' %} · {{ coach_name }}{% endif %}</p>
+          <h1 style="color:#0f172a;">Tarea Entrenamiento</h1>
+          <p style="color:#475569;">Formato UEFA · {{ session.session_date|date:"d/m/Y" }}{% if session.start_time %} · {{ session.start_time|time:"H:i" }}{% endif %}</p>
         </div>
       </div>
 
-      <div class="section-title">Detalles del Ejercicio</div>
+      <div class="section-title">Ficha Técnica</div>
       <table class="details">
         <tr>
           <td colspan="3">
@@ -392,7 +392,7 @@
             <div class="value">{{ strategy_label }}</div>
           </td>
           <td colspan="2">
-            <span class="label">Objetivos</span>
+            <span class="label">Objetivo</span>
             <div class="value">{{ task.objective|default:"-" }}</div>
           </td>
         </tr>
@@ -406,7 +406,7 @@
             <div class="value">{{ task.duration_minutes }} min</div>
           </td>
           <td>
-            <span class="label">Situación de Juego</span>
+            <span class="label">Situación de juego</span>
             <div class="value">{{ game_situation_label }}</div>
           </td>
         </tr>
@@ -416,11 +416,11 @@
             <div class="value">{{ coordination_label }}</div>
           </td>
           <td>
-            <span class="label">Calificación / Carga</span>
+            <span class="label">Calificación entrenamiento</span>
             <div class="value">{{ coordination_skills_label }}</div>
           </td>
           <td>
-            <span class="label">Intención / Acción Táctica</span>
+            <span class="label">Intención / acción táctica</span>
             <div class="value">{{ tactical_intent_label }}</div>
           </td>
         </tr>
@@ -430,15 +430,14 @@
             <div class="value">{{ materials_label }}</div>
           </td>
           <td>
-            <span class="label">Serie / Repeticiones</span>
+            <span class="label">Series / repeticiones</span>
             <div class="value">{% if task_meta.series or task_meta.repetitions %}{{ task_meta.series|default:"-" }} · {{ task_meta.repetitions|default:"-" }}{% else %}-{% endif %}</div>
           </td>
           <td>
-            <span class="label">Trabajo / Pausa</span>
+            <span class="label">Trabajo / pausa</span>
             <div class="value">{{ task_meta.work_rest|default:"-" }}</div>
           </td>
         </tr>
-        {% if pdf_style == 'club' %}
         <tr>
           <td>
             <span class="label">Entrenador</span>
@@ -450,10 +449,9 @@
           </td>
           <td>
             <span class="label">Formato</span>
-            <div class="value">Club</div>
+            <div class="value">UEFA</div>
           </td>
         </tr>
-        {% endif %}
       </table>
 
       <div class="split">
@@ -490,18 +488,22 @@
           <div class="box-body">
             {% if description_lines and description_lines.0 != '-' %}
             <div class="text-block">{{ description_lines|join:"\n" }}</div>
-            {% elif coaching_lines and coaching_lines.0 != '-' %}
-            <ul class="bullet-list">
-              {% for line in coaching_lines %}
-              <li>{{ line }}</li>
-              {% endfor %}
-            </ul>
             {% else %}
             <div class="text-block">-</div>
             {% endif %}
+            {% if coaching_lines and coaching_lines.0 != '-' %}
+            <div style="margin-top:10px;">
+              <span class="label">Consignas</span>
+              <ul class="bullet-list">
+                {% for line in coaching_lines %}
+                <li>{{ line }}</li>
+                {% endfor %}
+              </ul>
+            </div>
+            {% endif %}
             {% if rules_lines and rules_lines.0 != '-' %}
             <div style="margin-top:10px;">
-              <span class="label">Normas de Confrontación</span>
+              <span class="label">Normas de confrontación</span>
               <ul class="bullet-list">
                 {% for line in rules_lines %}
                 <li>{{ line }}</li>
@@ -517,7 +519,7 @@
             {% endif %}
             {% if task_meta.success_criteria %}
             <div style="margin-top:10px;">
-              <span class="label">Criterio de Éxito</span>
+              <span class="label">Criterio de éxito</span>
               <div class="text-block">{{ task_meta.success_criteria }}</div>
             </div>
             {% endif %}
@@ -526,7 +528,7 @@
       </div>
 
       <div class="footer">
-        {% if pdf_style == 'club' %}Formato Club{% else %}Formato UEFA{% endif %} · {{ microcycle.title }} · Generado {{ generated_at|date:"d/m/Y H:i" }}
+        Formato UEFA · {{ microcycle.title }} · Generado {{ generated_at|date:"d/m/Y H:i" }}
       </div>
     </section>
     {% endif %}

@@ -1890,8 +1890,8 @@ class SessionsPlanningTests(TestCase):
         response = self.client.get(reverse('session-task-pdf', args=[task.id]))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Entrega Ejercicio')
-        self.assertContains(response, 'Detalles del Ejercicio')
+        self.assertContains(response, 'Tarea Entrenamiento')
+        self.assertContains(response, 'Ficha Técnica')
         self.assertContains(response, 'Descripción Gráfica')
         self.assertContains(response, 'Consigna / Explicación')
         self.assertContains(response, 'Situaciones reducidas')
@@ -1943,7 +1943,7 @@ class SessionsPlanningTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Borrador sin guardar')
-        self.assertContains(response, 'Entrega Ejercicio')
+        self.assertContains(response, 'Tarea Entrenamiento')
         self.assertFalse(SessionTask.objects.filter(title='Borrador sin guardar').exists())
 
     def test_library_task_can_be_copied_to_session(self):
