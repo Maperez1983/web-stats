@@ -10161,7 +10161,14 @@ def preferred_event_source_by_match(primary_team):
     """
     if not primary_team:
         return {}
-    team_events = confirmed_events_queryset().filter(player__team=primary_team)
+    team_events = (
+        MatchEvent.objects
+        .filter(player__team=primary_team)
+        .filter(
+            Q(source_file='registro-acciones')
+            | ~Q(system='touch-field')
+        )
+    )
     preferred = {}
     registro_match_ids = set(
         team_events.filter(source_file='registro-acciones')

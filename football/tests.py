@@ -1235,6 +1235,39 @@ class PlayerDashboardViewTests(TestCase):
         self.assertEqual(detail['assists'], 1)
         self.assertEqual(detail['smart_kpis'][0], {'label': 'Asistencias', 'value': '1'})
 
+    def test_live_assist_overrides_imported_source_for_dashboard_kpis(self):
+        MatchEvent.objects.filter(match=self.match).delete()
+        MatchEvent.objects.create(
+            match=self.match,
+            player=self.player,
+            event_type='Pase',
+            result='OK',
+            zone='Medio Centro',
+            tercio='Construcción',
+            minute=12,
+            period=1,
+            system='touch-field-final',
+            source_file='BDT PARTIDOS BENABALBON.xlsm',
+        )
+        MatchEvent.objects.create(
+            match=self.match,
+            player=self.player,
+            event_type='Asistencia',
+            result='OK',
+            zone='Ataque Centro',
+            tercio='Ataque',
+            minute=41,
+            period=1,
+            system='touch-field',
+            source_file='registro-acciones',
+        )
+
+        dashboard = compute_player_dashboard(self.team, force_refresh=True)
+        detail = next(item for item in dashboard if item['player_id'] == self.player.id)
+
+        self.assertEqual(detail['assists'], 1)
+        self.assertEqual(detail['smart_kpis'][0], {'label': 'Asistencias', 'value': '1'})
+
     def test_register_match_action_invalidates_player_dashboard_cache(self):
         compute_player_dashboard(self.team)
         AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_ADMIN)
