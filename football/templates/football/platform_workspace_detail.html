@@ -81,6 +81,28 @@
         text-decoration: none;
         font-weight: 700;
       }
+      .hero-links a.primary-link {
+        background: linear-gradient(135deg, rgba(73, 127, 244, 0.34), rgba(45, 187, 149, 0.26));
+        border-color: rgba(153, 198, 255, 0.36);
+      }
+      .subnav {
+        margin-top: 1rem;
+        display: flex;
+        gap: 0.7rem;
+        flex-wrap: wrap;
+      }
+      .subnav a {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.72rem 1rem;
+        border-radius: 999px;
+        border: 1px solid rgba(160, 180, 215, 0.16);
+        background: rgba(255, 255, 255, 0.035);
+        color: #d9e5f7;
+        text-decoration: none;
+        font-weight: 700;
+      }
       .grid {
         margin-top: 1rem;
         display: grid;
@@ -120,6 +142,15 @@
       }
       .module-card {
         padding: 1rem;
+        position: relative;
+        overflow: hidden;
+      }
+      .module-card::before {
+        content: "";
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 4px;
+        background: linear-gradient(180deg, rgba(91, 145, 255, 0.92), rgba(43, 199, 156, 0.84));
       }
       .chip {
         display: inline-flex;
@@ -245,6 +276,24 @@
         background: linear-gradient(135deg, rgba(52, 104, 205, 0.12), rgba(24, 179, 132, 0.08));
         color: #d8e4f8;
       }
+      .section-kicker {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 0.32rem 0.65rem;
+        background: rgba(52, 104, 205, 0.15);
+        color: #a9c4ff;
+        font-size: 0.74rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .section-shell {
+        border-radius: 24px;
+        border: 1px solid rgba(160, 180, 215, 0.12);
+        background: rgba(7, 13, 25, 0.28);
+        padding: 1rem;
+      }
       .panel-block + .panel-block {
         margin-top: 1.15rem;
       }
@@ -288,6 +337,7 @@
         <div class="active-banner">Este workspace ya es el contexto activo del sistema.</div>
         {% endif %}
         <div class="hero-links">
+          <a class="primary-link" href="{% url 'platform-workspace-enter' workspace.id %}">Abrir cliente</a>
           <a href="{% url 'platform-workspace-enter' workspace.id %}">Entrar como supervisor</a>
           <a href="{% url 'platform-overview' %}">Volver a plataforma</a>
           <a href="{% url 'dashboard-home' %}">Dashboard general</a>
@@ -306,47 +356,55 @@
         {% endif %}
       </section>
 
+      <nav class="subnav" aria-label="Secciones del workspace">
+        <a href="#workspace-resumen">Resumen</a>
+        <a href="#workspace-miembros">Miembros</a>
+        <a href="#workspace-modulos">Módulos</a>
+      </nav>
+
       <section class="grid">
         <article class="panel">
           <div class="summary-note">
             Este panel gobierna el cliente. La operación diaria de jugadores, tareas o sesiones se ejecuta dentro del workspace, no desde aquí.
           </div>
-          <div class="panel-block">
+          <div class="section-shell panel-block" id="workspace-resumen">
+            <div class="section-kicker">Resumen</div>
             <h2>Resumen</h2>
             <p>Estado del cliente y volumen básico de información asociado al workspace.</p>
+            <div class="metrics">
+              <div class="metric">
+                <span>Miembros</span>
+                <strong>{{ workspace.member_count }}</strong>
+              </div>
+              <div class="metric">
+                <span>Perfiles Task Studio</span>
+                <strong>{{ workspace.profile_count }}</strong>
+              </div>
+              <div class="metric">
+                <span>Tareas</span>
+                <strong>{{ workspace.task_count }}</strong>
+              </div>
+              <div class="metric">
+                <span>Plantilla privada</span>
+                <strong>{{ roster_count }}</strong>
+              </div>
+              <div class="metric">
+                <span>Jugadores club</span>
+                <strong>{{ club_player_count }}</strong>
+              </div>
+              <div class="metric">
+                <span>Estado</span>
+                <strong>{% if workspace.is_active %}Activo{% else %}Inactivo{% endif %}</strong>
+              </div>
+            </div>
+            <div class="panel-block" style="margin-top:1rem;">
+              <p><strong>Propietario:</strong> {% if workspace.owner_user %}{{ workspace.owner_user.username }}{% else %}Sin propietario{% endif %}</p>
+              <p><strong>Equipo vinculado:</strong> {% if workspace.primary_team %}{{ workspace.primary_team.name }}{% else %}Sin equipo{% endif %}</p>
+              <p><strong>Slug:</strong> {{ workspace.slug }}</p>
+            </div>
           </div>
-          <div class="metrics">
-            <div class="metric">
-              <span>Miembros</span>
-              <strong>{{ workspace.member_count }}</strong>
-            </div>
-            <div class="metric">
-              <span>Perfiles Task Studio</span>
-              <strong>{{ workspace.profile_count }}</strong>
-            </div>
-            <div class="metric">
-              <span>Tareas</span>
-              <strong>{{ workspace.task_count }}</strong>
-            </div>
-            <div class="metric">
-              <span>Plantilla privada</span>
-              <strong>{{ roster_count }}</strong>
-            </div>
-            <div class="metric">
-              <span>Jugadores club</span>
-              <strong>{{ club_player_count }}</strong>
-            </div>
-            <div class="metric">
-              <span>Estado</span>
-              <strong>{% if workspace.is_active %}Activo{% else %}Inactivo{% endif %}</strong>
-            </div>
-          </div>
-          <div class="panel-block" style="margin-top:1rem;">
-            <p><strong>Propietario:</strong> {% if workspace.owner_user %}{{ workspace.owner_user.username }}{% else %}Sin propietario{% endif %}</p>
-            <p><strong>Equipo vinculado:</strong> {% if workspace.primary_team %}{{ workspace.primary_team.name }}{% else %}Sin equipo{% endif %}</p>
-            <p><strong>Slug:</strong> {{ workspace.slug }}</p>
-          </div>
-          <div class="panel-block">
+          <div class="section-shell panel-block" id="workspace-miembros">
+          <div class="section-kicker">Acceso</div>
           <h2 style="margin-top:1.1rem;">Usuarios del workspace</h2>
           {% if can_manage_workspace %}
           <form method="post" class="inline-form" style="margin-top:0.9rem;">
@@ -401,8 +459,9 @@
           </div>
         </article>
 
-        <section class="module-list">
+        <section class="module-list" id="workspace-modulos">
           <article class="module-card">
+            <div class="section-kicker">Módulos</div>
             <h3>Módulos activos</h3>
             <p>Este es el punto donde se gobiernan los módulos del cliente. Si un módulo se apaga aquí, deja de estar disponible dentro del workspace.</p>
             {% if can_manage_workspace %}
