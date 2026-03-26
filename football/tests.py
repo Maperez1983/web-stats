@@ -300,8 +300,12 @@ class PlatformWorkspaceTests(TestCase):
         response = self.client.get(reverse('platform-overview'))
 
         self.assertEqual(response.status_code, 200)
-        self.assertTrue(Workspace.objects.filter(primary_team=self.team, kind=Workspace.KIND_CLUB).exists())
-        self.assertTrue(Workspace.objects.filter(owner_user=self.studio_user, kind=Workspace.KIND_TASK_STUDIO).exists())
+        club_workspace = Workspace.objects.filter(primary_team=self.team, kind=Workspace.KIND_CLUB).first()
+        studio_workspace = Workspace.objects.filter(owner_user=self.studio_user, kind=Workspace.KIND_TASK_STUDIO).first()
+        self.assertIsNotNone(club_workspace)
+        self.assertIsNotNone(studio_workspace)
+        self.assertTrue(club_workspace.enabled_modules.get('dashboard'))
+        self.assertTrue(studio_workspace.enabled_modules.get('task_studio_home'))
         self.assertTrue(
             WorkspaceMembership.objects.filter(
                 workspace__owner_user=self.studio_user,
@@ -326,6 +330,7 @@ class PlatformWorkspaceTests(TestCase):
         self.assertEqual(response.status_code, 200)
         workspace = Workspace.objects.get(name='Cliente demo')
         self.assertEqual(workspace.owner_user_id, self.studio_user.id)
+        self.assertTrue(workspace.enabled_modules.get('task_studio_tasks'))
         self.assertTrue(
             WorkspaceMembership.objects.filter(
                 workspace=workspace,
@@ -401,6 +406,33 @@ class PlatformWorkspaceTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Defensa cliente')
+
+    def test_workspace_detail_updates_enabled_modules(self):
+        workspace = Workspace.objects.create(
+            name='Cliente módulos',
+            slug='cliente-modulos',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.alt_team,
+            enabled_modules={'dashboard': True, 'analysis': True},
+        )
+        self.client.force_login(self.admin_user)
+
+        response = self.client.post(
+            reverse('platform-workspace-detail', args=[workspace.id]),
+            {
+                'form_action': 'update_modules',
+                'module_dashboard': 'on',
+                'module_players': 'on',
+                'module_convocation': 'on',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        workspace.refresh_from_db()
+        self.assertTrue(workspace.enabled_modules.get('dashboard'))
+        self.assertTrue(workspace.enabled_modules.get('players'))
+        self.assertTrue(workspace.enabled_modules.get('convocation'))
+        self.assertFalse(workspace.enabled_modules.get('analysis'))
 
 
 class QueryHelperTests(TestCase):

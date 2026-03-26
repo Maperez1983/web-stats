@@ -116,6 +116,60 @@
         color: #ffecc4;
         padding: 0.75rem 0.85rem;
       }
+      .message {
+        margin-top: 0.9rem;
+        border-radius: 14px;
+        padding: 0.75rem 0.85rem;
+        font-weight: 700;
+      }
+      .message.ok {
+        background: rgba(55, 168, 97, 0.14);
+        border: 1px solid rgba(55, 168, 97, 0.36);
+        color: #97edb2;
+      }
+      .message.error {
+        background: rgba(212, 73, 73, 0.14);
+        border: 1px solid rgba(212, 73, 73, 0.36);
+        color: #ffaeae;
+      }
+      .module-toggle-list,
+      .member-list {
+        margin-top: 1rem;
+        display: grid;
+        gap: 0.7rem;
+      }
+      .toggle-row,
+      .member-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: center;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(160, 180, 215, 0.12);
+        padding: 0.8rem;
+      }
+      .toggle-row label {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        width: 100%;
+        cursor: pointer;
+      }
+      .toggle-row input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+      }
+      .submit-btn {
+        margin-top: 1rem;
+        border-radius: 999px;
+        border: 1px solid rgba(121, 168, 255, 0.36);
+        background: rgba(52, 104, 205, 0.18);
+        color: #f3f7ff;
+        padding: 0.72rem 1.05rem;
+        font-weight: 700;
+        cursor: pointer;
+      }
       @media (max-width: 900px) {
         .grid {
           grid-template-columns: 1fr;
@@ -145,6 +199,12 @@
           <a href="{% url 'platform-overview' %}">Volver a plataforma</a>
           <a href="{% url 'dashboard-home' %}">Dashboard general</a>
         </div>
+        {% if feedback %}
+        <div class="message ok">{{ feedback }}</div>
+        {% endif %}
+        {% if error %}
+        <div class="message error">{{ error }}</div>
+        {% endif %}
       </section>
 
       <section class="grid">
@@ -182,9 +242,44 @@
             <p><strong>Equipo vinculado:</strong> {% if workspace.primary_team %}{{ workspace.primary_team.name }}{% else %}Sin equipo{% endif %}</p>
             <p><strong>Slug:</strong> {{ workspace.slug }}</p>
           </div>
+          <h2 style="margin-top:1.1rem;">Usuarios del workspace</h2>
+          <div class="member-list">
+            {% for membership in memberships %}
+            <div class="member-row">
+              <div>
+                <strong>{{ membership.user.username }}</strong>
+                <div>{{ membership.user.get_full_name|default:membership.user.username }}</div>
+              </div>
+              <div>{{ membership.get_role_display }}</div>
+            </div>
+            {% empty %}
+            <div class="member-row">
+              <div>Sin miembros asignados todavía.</div>
+            </div>
+            {% endfor %}
+          </div>
         </article>
 
         <section class="module-list">
+          <article class="module-card">
+            <h3>Módulos activos</h3>
+            <p>Activa o desactiva bloques funcionales por cliente. Esto prepara la plataforma para workspaces con capacidades diferentes.</p>
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="form_action" value="update_modules" />
+              <div class="module-toggle-list">
+                {% for module in module_catalog %}
+                <div class="toggle-row">
+                  <label>
+                    <input type="checkbox" name="module_{{ module.key }}" {% if module.enabled %}checked{% endif %} />
+                    <span>{{ module.label }}</span>
+                  </label>
+                </div>
+                {% endfor %}
+              </div>
+              <button class="submit-btn" type="submit">Guardar módulos</button>
+            </form>
+          </article>
           {% for module in module_cards %}
           <article class="module-card">
             <h3>{{ module.title }}</h3>

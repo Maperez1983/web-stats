@@ -816,6 +816,62 @@ def _unique_workspace_slug(base_text, *, exclude_id=None):
     return candidate
 
 
+def _workspace_default_modules(kind):
+    if kind == Workspace.KIND_TASK_STUDIO:
+        return {
+            'task_studio_home': True,
+            'task_studio_profile': True,
+            'task_studio_roster': True,
+            'task_studio_tasks': True,
+            'task_studio_pdfs': True,
+        }
+    return {
+        'dashboard': True,
+        'coach_overview': True,
+        'players': True,
+        'convocation': True,
+        'match_actions': True,
+        'sessions': True,
+        'analysis': True,
+        'abp_board': True,
+        'manual_stats': True,
+    }
+
+
+def _workspace_module_catalog(kind):
+    if kind == Workspace.KIND_TASK_STUDIO:
+        return [
+            {'key': 'task_studio_home', 'label': 'Inicio Task Studio'},
+            {'key': 'task_studio_profile', 'label': 'Perfil e identidad'},
+            {'key': 'task_studio_roster', 'label': 'Plantilla privada'},
+            {'key': 'task_studio_tasks', 'label': 'Repositorio y editor de tareas'},
+            {'key': 'task_studio_pdfs', 'label': 'PDFs y exportaciones'},
+        ]
+    return [
+        {'key': 'dashboard', 'label': 'Dashboard general'},
+        {'key': 'coach_overview', 'label': 'Portada staff'},
+        {'key': 'players', 'label': 'Jugadores y fichas'},
+        {'key': 'convocation', 'label': 'Convocatoria y 11 inicial'},
+        {'key': 'match_actions', 'label': 'Registro de acciones'},
+        {'key': 'sessions', 'label': 'Sesiones y tareas'},
+        {'key': 'analysis', 'label': 'Análisis rival'},
+        {'key': 'abp_board', 'label': 'Pizarra ABP'},
+        {'key': 'manual_stats', 'label': 'Estadísticas manuales'},
+    ]
+
+
+def _workspace_enabled_modules(workspace):
+    defaults = _workspace_default_modules(workspace.kind if workspace else Workspace.KIND_CLUB)
+    raw = getattr(workspace, 'enabled_modules', None)
+    if not isinstance(raw, dict):
+        return defaults
+    normalized = dict(defaults)
+    for key in defaults.keys():
+        if key in raw:
+            normalized[key] = bool(raw.get(key))
+    return normalized
+
+
 def _ensure_club_workspace(primary_team):
     if not primary_team:
         return None
@@ -829,14 +885,18 @@ def _ensure_club_workspace(primary_team):
         if workspace.kind != Workspace.KIND_CLUB:
             workspace.kind = Workspace.KIND_CLUB
             changed = True
+        if not isinstance(workspace.enabled_modules, dict) or not workspace.enabled_modules:
+            workspace.enabled_modules = _workspace_default_modules(Workspace.KIND_CLUB)
+            changed = True
         if changed:
-            workspace.save(update_fields=['name', 'kind', 'updated_at'])
+            workspace.save(update_fields=['name', 'kind', 'enabled_modules', 'updated_at'])
         return workspace
     return Workspace.objects.create(
         name=str(primary_team.display_name or primary_team.name or 'Club').strip() or 'Club',
         slug=_unique_workspace_slug(primary_team.display_name or primary_team.name or 'club'),
         kind=Workspace.KIND_CLUB,
         primary_team=primary_team,
+        enabled_modules=_workspace_default_modules(Workspace.KIND_CLUB),
     )
 
 
@@ -858,14 +918,18 @@ def _ensure_task_studio_workspace(user):
         if workspace.kind != Workspace.KIND_TASK_STUDIO:
             workspace.kind = Workspace.KIND_TASK_STUDIO
             changed = True
+        if not isinstance(workspace.enabled_modules, dict) or not workspace.enabled_modules:
+            workspace.enabled_modules = _workspace_default_modules(Workspace.KIND_TASK_STUDIO)
+            changed = True
         if changed:
-            workspace.save(update_fields=['name', 'kind', 'updated_at'])
+            workspace.save(update_fields=['name', 'kind', 'enabled_modules', 'updated_at'])
     else:
         workspace = Workspace.objects.create(
             name=default_name,
             slug=_unique_workspace_slug(f'task-studio-{user.get_username()}'),
             kind=Workspace.KIND_TASK_STUDIO,
             owner_user=user,
+            enabled_modules=_workspace_default_modules(Workspace.KIND_TASK_STUDIO),
         )
     WorkspaceMembership.objects.get_or_create(
         workspace=workspace,
@@ -1564,6 +1628,7 @@ def platform_overview_page(request):
                     kind=workspace_kind,
                     owner_user=owner_user if workspace_kind == Workspace.KIND_TASK_STUDIO else None,
                     primary_team=primary_workspace_team if workspace_kind == Workspace.KIND_CLUB else None,
+                    enabled_modules=_workspace_default_modules(workspace_kind),
                 )
                 if owner_user:
                     WorkspaceMembership.objects.get_or_create(
@@ -1586,6 +1651,7 @@ def platform_overview_page(request):
     for workspace in workspaces:
         workspace.task_count = TaskStudioTask.objects.filter(workspace=workspace).count()
         workspace.profile_count = TaskStudioProfile.objects.filter(workspace=workspace).count()
+        workspace.active_module_count = sum(1 for enabled in _workspace_enabled_modules(workspace).values() if enabled)
 
     return render(
         request,
@@ -1614,10 +1680,34 @@ def platform_workspace_detail_page(request, workspace_id):
     )
     if not workspace:
         raise Http404('Workspace no encontrado')
+    feedback = ''
+    error = ''
+    if request.method == 'POST':
+        form_action = (request.POST.get('form_action') or '').strip().lower()
+        if form_action == 'update_modules':
+            enabled_modules = {
+                item['key']: str(request.POST.get(f"module_{item['key']}") or '').lower() in {'1', 'true', 'on', 'yes'}
+                for item in _workspace_module_catalog(workspace.kind)
+            }
+            workspace.enabled_modules = enabled_modules
+            workspace.save(update_fields=['enabled_modules', 'updated_at'])
+            feedback = 'Módulos del workspace actualizados.'
     workspace.task_count = TaskStudioTask.objects.filter(workspace=workspace).count()
     workspace.profile_count = TaskStudioProfile.objects.filter(workspace=workspace).count()
     roster_count = TaskStudioRosterPlayer.objects.filter(workspace=workspace).count()
     club_player_count = Player.objects.filter(team=workspace.primary_team).count() if workspace.primary_team_id else 0
+    memberships = list(
+        WorkspaceMembership.objects
+        .select_related('user')
+        .filter(workspace=workspace)
+        .order_by('role', 'user__username')
+    )
+    enabled_modules = _workspace_enabled_modules(workspace)
+    module_catalog = []
+    for item in _workspace_module_catalog(workspace.kind):
+        row = dict(item)
+        row['enabled'] = bool(enabled_modules.get(item['key']))
+        module_catalog.append(row)
     module_cards = []
     if workspace.kind == Workspace.KIND_CLUB:
         module_cards = [
@@ -1642,9 +1732,14 @@ def platform_workspace_detail_page(request, workspace_id):
         {
             'workspace': workspace,
             'active_workspace': _build_active_workspace_badge(request),
+            'feedback': feedback,
+            'error': error,
             'roster_count': roster_count,
             'club_player_count': club_player_count,
             'module_cards': module_cards,
+            'memberships': memberships,
+            'module_catalog': module_catalog,
+            'enabled_modules': enabled_modules,
         },
     )
 

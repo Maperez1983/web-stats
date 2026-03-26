@@ -104,6 +104,7 @@ class Workspace(models.Model):
         blank=True,
         related_name='owned_workspaces',
     )
+    enabled_modules = models.JSONField(default=dict, blank=True)
     is_active = models.BooleanField(default=True)
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

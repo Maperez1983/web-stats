@@ -331,6 +331,10 @@
                   <span>Estado</span>
                   <strong>{% if workspace.is_active %}Activo{% else %}Inactivo{% endif %}</strong>
                 </div>
+                <div class="metric">
+                  <span>Módulos activos</span>
+                  <strong>{{ workspace.active_module_count }}</strong>
+                </div>
               </div>
               <div class="actions-row">
                 <a class="link-btn" href="{% url 'platform-workspace-enter' workspace.id %}">Entrar como supervisor</a>
