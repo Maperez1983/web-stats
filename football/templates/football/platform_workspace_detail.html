@@ -270,6 +270,25 @@
         color: #9fb0c9;
         margin-top: 0.14rem;
       }
+
+      .module-kpis {
+        margin-top: 0.45rem;
+        display: flex;
+        gap: 0.45rem;
+        flex-wrap: wrap;
+      }
+
+      .mini-pill {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 0.24rem 0.55rem;
+        background: rgba(255, 255, 255, 0.055);
+        border: 1px solid rgba(160, 180, 215, 0.12);
+        color: #d8e6fb;
+        font-size: 0.74rem;
+        font-weight: 700;
+      }
       .submit-btn {
         margin-top: 1rem;
         border-radius: 999px;
@@ -516,6 +535,9 @@
                     <span class="toggle-copy">
                       <strong style="display:block;">{{ module.label }}</strong>
                       <small style="display:block; color:#9fb0c9; margin-top:0.18rem;">{{ module.description }}</small>
+                      <span class="module-kpis">
+                        <span class="mini-pill">{{ module.enabled_deliverable_count }}/{{ module.deliverable_count }} entregables activos</span>
+                      </span>
                       {% if module.deliverables %}
                       <span class="deliverable-list">
                         {% for deliverable in module.deliverables %}

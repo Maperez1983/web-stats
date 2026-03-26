@@ -411,6 +411,25 @@
         opacity: 0.46;
       }
 
+      .module-meta-line {
+        margin-top: 0.45rem;
+        display: flex;
+        gap: 0.45rem;
+        flex-wrap: wrap;
+      }
+
+      .mini-pill {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 0.22rem 0.55rem;
+        background: rgba(255, 255, 255, 0.055);
+        border: 1px solid rgba(160, 180, 215, 0.12);
+        color: #cfe0ff;
+        font-size: 0.74rem;
+        font-weight: 700;
+      }
+
       .kind-modules[hidden] {
         display: none;
       }
@@ -875,6 +894,9 @@
                     <span class="checkbox-content">
                       <strong>{{ module.label }}</strong>
                       <small>{{ module.description }}</small>
+                      <span class="module-meta-line">
+                        <span class="mini-pill">{{ module.deliverable_count }} entregables</span>
+                      </span>
                       {% if module.deliverables %}
                       <span class="deliverable-list">
                         {% for deliverable in module.deliverables %}
@@ -902,6 +924,9 @@
                     <span class="checkbox-content">
                       <strong>{{ module.label }}</strong>
                       <small>{{ module.description }}</small>
+                      <span class="module-meta-line">
+                        <span class="mini-pill">{{ module.deliverable_count }} entregables</span>
+                      </span>
                       {% if module.deliverables %}
                       <span class="deliverable-list">
                         {% for deliverable in module.deliverables %}

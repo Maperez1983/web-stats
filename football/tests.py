@@ -467,6 +467,7 @@ class PlatformWorkspaceTests(TestCase):
                 'deliverable__configuration__personal_data': False,
                 'deliverable__configuration__player_registry': True,
                 'deliverable__training__sessions': True,
+                'deliverable__training__task_library': False,
                 'deliverable__training__abp': False,
             },
         )
@@ -629,6 +630,8 @@ class PlatformWorkspaceTests(TestCase):
         self.assertFalse(workspace.enabled_modules.get('dashboard'))
         self.assertFalse(workspace.enabled_modules.get('analysis'))
         self.assertTrue(workspace.enabled_modules.get('deliverable__configuration__player_registry'))
+        self.assertTrue(workspace.enabled_modules.get('deliverable__match__convocation'))
+        self.assertFalse(workspace.enabled_modules.get('deliverable__match__starting_xi'))
         self.assertFalse(workspace.enabled_modules.get('deliverable__match__live_match'))
 
     def test_workspace_detail_updates_task_studio_deliverables(self):

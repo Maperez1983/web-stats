@@ -874,24 +874,24 @@ def _workspace_club_module_catalog():
         {
             'key': 'configuration',
             'label': 'Configuración',
-            'description': 'Datos del equipo, datos personales y registro de jugadores del cliente.',
+            'description': 'Base de arranque del cliente: equipo, staff y plantilla operativa.',
             'deliverables': [
                 {
                     'key': 'team_data',
                     'label': 'Datos de equipo',
-                    'description': 'Identidad del equipo y bloque base del cliente dentro del CRM.',
+                    'description': 'Nombre, identidad y bloque base del equipo dentro del CRM.',
                     'route_keys': ['players'],
                 },
                 {
                     'key': 'personal_data',
-                    'label': 'Datos personales',
-                    'description': 'Datos base de ficha y detalle operativo del entorno deportivo.',
+                    'label': 'Datos de staff',
+                    'description': 'Datos personales y estructura técnica asociada al cliente.',
                     'route_keys': ['players'],
                 },
                 {
                     'key': 'player_registry',
                     'label': 'Registro de jugadores',
-                    'description': 'Alta, edición y consulta de la plantilla del cliente.',
+                    'description': 'Alta, edición y consulta completa de la plantilla.',
                     'route_keys': ['players'],
                 },
             ],
@@ -899,12 +899,18 @@ def _workspace_club_module_catalog():
         {
             'key': 'advanced_configuration',
             'label': 'Configuración avanzada',
-            'description': 'Clasificación, contexto competitivo y parámetros avanzados del cliente.',
+            'description': 'Contexto competitivo y capas avanzadas de configuración del cliente.',
             'deliverables': [
                 {
                     'key': 'standings',
                     'label': 'Clasificación',
-                    'description': 'Contexto competitivo y clasificación visible en la portada.',
+                    'description': 'Clasificación, contexto competitivo y portada general.',
+                    'route_keys': ['dashboard'],
+                },
+                {
+                    'key': 'advanced_params',
+                    'label': 'Parámetros avanzados',
+                    'description': 'Ajustes internos del cliente y preparación de integraciones.',
                     'route_keys': ['dashboard'],
                 },
             ],
@@ -912,18 +918,24 @@ def _workspace_club_module_catalog():
         {
             'key': 'statistics',
             'label': 'Estadísticas',
-            'description': 'KPIs, seguimiento, portada técnica y métricas manuales del cliente.',
+            'description': 'KPIs de temporada, control individual y métricas manuales.',
             'deliverables': [
                 {
                     'key': 'season_kpis',
                     'label': 'Datos temporada',
-                    'description': 'KPIs, disponibilidad y portada técnica del cliente.',
+                    'description': 'KPIs, disponibilidad y lectura general de temporada.',
+                    'route_keys': ['coach_overview'],
+                },
+                {
+                    'key': 'player_kpis',
+                    'label': 'KPIs jugador',
+                    'description': 'Seguimiento individual y foco técnico por jugador.',
                     'route_keys': ['coach_overview'],
                 },
                 {
                     'key': 'manual_metrics',
                     'label': 'Estadísticas manuales',
-                    'description': 'Ajustes manuales y métricas de staff del cliente.',
+                    'description': 'Carga manual de métricas y ajustes de staff.',
                     'route_keys': ['manual_stats'],
                 },
             ],
@@ -931,12 +943,18 @@ def _workspace_club_module_catalog():
         {
             'key': 'match',
             'label': 'Partido',
-            'description': 'Convocatoria, 11 inicial y operativa de partido del CRM.',
+            'description': 'Operativa prepartido y live del CRM del cliente.',
             'deliverables': [
                 {
                     'key': 'convocation',
-                    'label': 'Convocatoria y 11 inicial',
-                    'description': 'Gestión prepartido del cliente.',
+                    'label': 'Convocatoria',
+                    'description': 'Convocatoria y preparación inicial del partido.',
+                    'route_keys': ['convocation'],
+                },
+                {
+                    'key': 'starting_xi',
+                    'label': '11 inicial',
+                    'description': 'Configuración del once y estructura de arranque.',
                     'route_keys': ['convocation'],
                 },
                 {
@@ -950,12 +968,18 @@ def _workspace_club_module_catalog():
         {
             'key': 'training',
             'label': 'Entrenamiento',
-            'description': 'Sesiones, biblioteca de tareas y trabajo ABP del cliente.',
+            'description': 'Planificación, tareas y recursos de entrenamiento del cliente.',
             'deliverables': [
                 {
                     'key': 'sessions',
-                    'label': 'Sesiones y tareas',
-                    'description': 'Planificación, biblioteca y editor táctico del cliente.',
+                    'label': 'Sesiones',
+                    'description': 'Planificación de sesiones y estructura semanal.',
+                    'route_keys': ['sessions'],
+                },
+                {
+                    'key': 'task_library',
+                    'label': 'Biblioteca de tareas',
+                    'description': 'Repositorio y edición táctica aplicada al entrenamiento.',
                     'route_keys': ['sessions'],
                 },
                 {
@@ -969,12 +993,18 @@ def _workspace_club_module_catalog():
         {
             'key': 'analysis',
             'label': 'Análisis',
-            'description': 'Análisis rival, informes y lectura táctica del cliente.',
+            'description': 'Scouting, informes y lectura táctica del cliente.',
             'deliverables': [
                 {
+                    'key': 'rival_analysis',
+                    'label': 'Análisis rival',
+                    'description': 'Scouting rival y lectura táctica del oponente.',
+                    'route_keys': ['analysis'],
+                },
+                {
                     'key': 'reports',
-                    'label': 'Análisis e informes',
-                    'description': 'Rival, informes y lectura táctica del cliente.',
+                    'label': 'Informes',
+                    'description': 'Informes tácticos y soporte documental de análisis.',
                     'route_keys': ['analysis'],
                 },
             ],
@@ -1000,12 +1030,12 @@ def _workspace_task_studio_module_catalog():
         {
             'key': 'task_studio_profile_area',
             'label': 'Perfil e identidad',
-            'description': 'Datos del entrenador, escudo, colores y configuración documental.',
+            'description': 'Perfil profesional e identidad visual del usuario.',
             'deliverables': [
                 {
                     'key': 'profile',
-                    'label': 'Datos personales',
-                    'description': 'Perfil del entrenador y datos base del usuario.',
+                    'label': 'Perfil entrenador',
+                    'description': 'Datos personales y profesionales del entrenador.',
                     'route_keys': ['task_studio_profile'],
                 },
                 {
@@ -1025,6 +1055,12 @@ def _workspace_task_studio_module_catalog():
                     'key': 'roster',
                     'label': 'Registro de plantilla',
                     'description': 'Alta, edición y consulta de jugadores privados.',
+                    'route_keys': ['task_studio_roster'],
+                },
+                {
+                    'key': 'visual_assignment',
+                    'label': 'Asignación visual',
+                    'description': 'Uso de plantilla en chapas, petos y recursos tácticos.',
                     'route_keys': ['task_studio_roster'],
                 },
             ],
@@ -1155,6 +1191,8 @@ def _workspace_module_catalog_for_template(kind, enabled_modules=None):
             deliverable_row['enabled'] = deliverable_row['flag_key'] in selected_deliverables if enabled_modules else False
             deliverables.append(deliverable_row)
         row['deliverables'] = deliverables
+        row['deliverable_count'] = len(deliverables)
+        row['enabled_deliverable_count'] = sum(1 for deliverable in deliverables if deliverable.get('enabled'))
         rows.append(row)
     return rows
 
