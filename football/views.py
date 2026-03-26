@@ -1410,6 +1410,7 @@ def admin_page(request):
     carousel_message = ''
     user_message = ''
     user_error = ''
+    focus_user_id = None
     actions_message = ''
     actions_error = ''
     invitation_links = []
@@ -1542,6 +1543,7 @@ def admin_page(request):
                 user_obj.save()
                 AppUserRole.objects.update_or_create(user=user_obj, defaults={'role': role_value})
                 user_message = f'Usuario actualizado: {user_obj.username}.'
+                focus_user_id = user_obj.id
             except ValueError as exc:
                 user_error = str(exc)
             except Exception:
@@ -1780,6 +1782,16 @@ def admin_page(request):
         technical_users = [u for u in users if u.role_value in technical_roles]
         players_users = [u for u in users if u.role_value == AppUserRole.ROLE_PLAYER]
         guests_users = [u for u in users if u.role_value == AppUserRole.ROLE_GUEST]
+
+        def _user_matches_segment(user_obj, segment):
+            if segment == 'technical':
+                return user_obj.role_value in technical_roles
+            if segment == 'players':
+                return user_obj.role_value == AppUserRole.ROLE_PLAYER
+            if segment == 'guests':
+                return user_obj.role_value == AppUserRole.ROLE_GUEST
+            return True
+
         users_filtered = (
             users
             if users_segment == 'all'
@@ -1787,6 +1799,13 @@ def admin_page(request):
             if users_segment == 'technical'
             else players_users if users_segment == 'players' else guests_users
         )
+        if focus_user_id:
+            focused_user = next((item for item in users if item.id == focus_user_id), None)
+            if focused_user and users_segment != 'all' and not _user_matches_segment(focused_user, users_segment):
+                users_segment = 'all'
+                users_filtered = users
+            if focused_user:
+                users_filtered = [focused_user] + [item for item in users_filtered if item.id != focus_user_id]
 
     if active_tab == 'actions' and is_admin_user:
         admin_match_qs = _team_match_queryset(primary_team) if primary_team else Match.objects.none()
@@ -1861,6 +1880,7 @@ def admin_page(request):
             'players_users_count': len(players_users),
             'guests_users_count': len(guests_users),
             'users_filtered': users_filtered,
+            'focus_user_id': focus_user_id,
             'is_admin_user': is_admin_user,
             'admin_matches': admin_matches,
             'selected_admin_match': selected_admin_match,

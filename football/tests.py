@@ -738,6 +738,84 @@ class AdminActionsTests(TestCase):
         self.assertEqual(self.match.kickoff_time.isoformat(timespec='minutes'), '18:30')
 
 
+class AdminUsersTests(TestCase):
+    def setUp(self):
+        user_model = get_user_model()
+        self.admin_user = user_model.objects.create_user(
+            username='adminusers',
+            email='adminusers@example.com',
+            password='pass-1234',
+            is_staff=True,
+        )
+        AppUserRole.objects.create(user=self.admin_user, role=AppUserRole.ROLE_ADMIN)
+        self.alpha = user_model.objects.create_user(
+            username='alpha-user',
+            email='alpha@example.com',
+            password='pass-1234',
+            first_name='Alpha',
+        )
+        self.beta = user_model.objects.create_user(
+            username='beta-user',
+            email='beta@example.com',
+            password='pass-1234',
+            first_name='Beta',
+        )
+        AppUserRole.objects.create(user=self.alpha, role=AppUserRole.ROLE_PLAYER)
+        AppUserRole.objects.create(user=self.beta, role=AppUserRole.ROLE_PLAYER)
+
+    def test_user_update_keeps_edited_user_visible_and_focused(self):
+        self.client.force_login(self.admin_user)
+
+        response = self.client.post(
+            reverse('admin-page'),
+            {
+                'form_action': 'user_update',
+                'active_tab': 'users',
+                'users_segment': 'all',
+                'user_id': self.beta.id,
+                'full_name': 'Beta Nuevo',
+                'username': 'omega-user',
+                'email': 'omega@example.com',
+                'password': '',
+                'role': AppUserRole.ROLE_PLAYER,
+            },
+        )
+
+        self.beta.refresh_from_db()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.beta.username, 'omega-user')
+        self.assertEqual(self.beta.get_full_name(), 'Beta Nuevo')
+        self.assertEqual(response.context['focus_user_id'], self.beta.id)
+        self.assertEqual(response.context['users_filtered'][0].id, self.beta.id)
+        self.assertContains(response, f'id="user-{self.beta.id}"')
+        self.assertContains(response, 'value="omega-user"')
+
+    def test_user_update_switches_to_all_segment_when_role_changes_out_of_filter(self):
+        self.client.force_login(self.admin_user)
+
+        response = self.client.post(
+            reverse('admin-page'),
+            {
+                'form_action': 'user_update',
+                'active_tab': 'users',
+                'users_segment': 'players',
+                'user_id': self.beta.id,
+                'full_name': 'Beta Analista',
+                'username': 'beta-analista',
+                'email': 'beta-analista@example.com',
+                'password': '',
+                'role': AppUserRole.ROLE_ANALYST,
+            },
+        )
+
+        self.beta.refresh_from_db()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.beta.username, 'beta-analista')
+        self.assertEqual(self.beta.app_role.role, AppUserRole.ROLE_ANALYST)
+        self.assertEqual(response.context['users_segment'], 'all')
+        self.assertEqual(response.context['users_filtered'][0].id, self.beta.id)
+
+
 class TeamDisplayNameTests(TestCase):
     def test_display_name_prefers_short_name(self):
         competition = Competition.objects.create(name='Liga Display', slug='liga-display', region='Andalucia')

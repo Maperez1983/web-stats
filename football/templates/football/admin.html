@@ -212,6 +212,10 @@
         border: 1px solid rgba(121, 170, 230, 0.22);
         background: rgba(7, 16, 30, 0.78);
       }
+      .user-item.is-focused {
+        border-color: rgba(20, 216, 255, 0.85);
+        box-shadow: 0 0 0 1px rgba(20, 216, 255, 0.28), 0 18px 34px rgba(15, 118, 255, 0.18);
+      }
       .role-select {
         min-width: 170px;
       }
@@ -536,7 +540,7 @@
         </nav>
         <div class="users-list">
           {% for item in users_filtered %}
-          <article class="user-item">
+          <article id="user-{{ item.id }}" class="user-item {% if focus_user_id == item.id %}is-focused{% endif %}">
             <form method="post" class="users-form" style="grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); margin:0;">
               {% csrf_token %}
               <input type="hidden" name="form_action" value="user_update" />
@@ -674,6 +678,10 @@
           input.type = input.type === 'password' ? 'text' : 'password';
         });
       });
+      const focusedUser = document.querySelector('.user-item.is-focused');
+      if (focusedUser) {
+        focusedUser.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }
 
       const adminMatchSelector = document.getElementById('admin-match-selector');
       const adminMatchFilterRival = document.getElementById('admin-match-filter-rival');
