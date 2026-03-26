@@ -9,14 +9,17 @@
     <style>
       body {
         margin: 0;
-        background: #09101d;
+        background:
+          radial-gradient(circle at top left, rgba(52, 104, 205, 0.18), transparent 24%),
+          radial-gradient(circle at top right, rgba(24, 179, 132, 0.14), transparent 22%),
+          #09101d;
         color: #e7ebf3;
         font-family: Inter, system-ui, sans-serif;
       }
       .shell {
-        max-width: 1220px;
+        max-width: 1320px;
         margin: 0 auto;
-        padding: 1.1rem;
+        padding: 1.15rem;
       }
       .hero,
       .panel,
@@ -27,7 +30,19 @@
         box-shadow: 0 18px 44px rgba(0, 0, 0, 0.22);
       }
       .hero {
-        padding: 1.2rem 1.3rem;
+        padding: 1.25rem 1.35rem;
+        position: relative;
+        overflow: hidden;
+      }
+      .hero::after {
+        content: "";
+        position: absolute;
+        inset: auto -8% -42% auto;
+        width: 300px;
+        height: 300px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(71, 122, 255, 0.22), transparent 62%);
+        pointer-events: none;
       }
       .hero h1,
       .panel h2,
@@ -44,6 +59,13 @@
         margin-top: 0.9rem;
         display: flex;
         gap: 0.6rem;
+        flex-wrap: wrap;
+      }
+      .hero-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: flex-start;
         flex-wrap: wrap;
       }
       .hero-links a,
@@ -70,7 +92,7 @@
       }
       .metrics {
         display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 0.7rem;
         margin-top: 1rem;
       }
@@ -107,6 +129,23 @@
         color: #b3cbff;
         font-weight: 700;
         font-size: 0.8rem;
+      }
+      .hero-subline {
+        margin-top: 0.65rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem;
+      }
+      .sub-chip {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 0.38rem 0.7rem;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(160, 180, 215, 0.14);
+        color: #dbe6f6;
+        font-weight: 700;
+        font-size: 0.78rem;
       }
       .active-banner {
         margin-top: 0.8rem;
@@ -198,9 +237,23 @@
         border-color: rgba(212, 73, 73, 0.36);
         color: #ffb7b7;
       }
+      .summary-note {
+        margin-top: 1rem;
+        border-radius: 16px;
+        padding: 0.9rem 1rem;
+        border: 1px solid rgba(160, 180, 215, 0.12);
+        background: linear-gradient(135deg, rgba(52, 104, 205, 0.12), rgba(24, 179, 132, 0.08));
+        color: #d8e4f8;
+      }
+      .panel-block + .panel-block {
+        margin-top: 1.15rem;
+      }
       @media (max-width: 900px) {
         .grid {
           grid-template-columns: 1fr;
+        }
+        .metrics {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
         }
       }
       @media (max-width: 640px) {
@@ -210,15 +263,27 @@
         .metrics {
           grid-template-columns: 1fr;
         }
+        .hero-top {
+          flex-direction: column;
+        }
       }
     </style>
   </head>
   <body>
     <main class="shell">
       <section class="hero">
-        <div class="chip">{{ workspace.get_kind_display }}</div>
-        <h1 style="margin-top:0.55rem;">{{ workspace.name }}</h1>
-        <p>Ficha de gobierno del workspace. Aquí defines quién entra y qué módulos tiene activos este cliente; la operativa diaria se realiza dentro del propio workspace.</p>
+        <div class="hero-top">
+          <div>
+            <div class="chip">{{ workspace.get_kind_display }}</div>
+            <h1 style="margin-top:0.55rem;">{{ workspace.name }}</h1>
+            <p>Ficha de gobierno del workspace. Aquí defines quién entra y qué módulos tiene activos este cliente; la operativa diaria se realiza dentro del propio workspace.</p>
+            <div class="hero-subline">
+              <span class="sub-chip">Slug · {{ workspace.slug }}</span>
+              <span class="sub-chip">{% if workspace.owner_user %}Owner · {{ workspace.owner_user.username }}{% else %}Sin owner{% endif %}</span>
+              <span class="sub-chip">{% if workspace.primary_team %}Equipo · {{ workspace.primary_team.name }}{% else %}Sin equipo vinculado{% endif %}</span>
+            </div>
+          </div>
+        </div>
         {% if active_workspace and active_workspace.id == workspace.id %}
         <div class="active-banner">Este workspace ya es el contexto activo del sistema.</div>
         {% endif %}
@@ -243,8 +308,13 @@
 
       <section class="grid">
         <article class="panel">
-          <h2>Resumen</h2>
-          <p>Estado del cliente y volumen básico de información asociado al workspace.</p>
+          <div class="summary-note">
+            Este panel gobierna el cliente. La operación diaria de jugadores, tareas o sesiones se ejecuta dentro del workspace, no desde aquí.
+          </div>
+          <div class="panel-block">
+            <h2>Resumen</h2>
+            <p>Estado del cliente y volumen básico de información asociado al workspace.</p>
+          </div>
           <div class="metrics">
             <div class="metric">
               <span>Miembros</span>
@@ -271,11 +341,12 @@
               <strong>{% if workspace.is_active %}Activo{% else %}Inactivo{% endif %}</strong>
             </div>
           </div>
-          <div style="margin-top:1rem;">
+          <div class="panel-block" style="margin-top:1rem;">
             <p><strong>Propietario:</strong> {% if workspace.owner_user %}{{ workspace.owner_user.username }}{% else %}Sin propietario{% endif %}</p>
             <p><strong>Equipo vinculado:</strong> {% if workspace.primary_team %}{{ workspace.primary_team.name }}{% else %}Sin equipo{% endif %}</p>
             <p><strong>Slug:</strong> {{ workspace.slug }}</p>
           </div>
+          <div class="panel-block">
           <h2 style="margin-top:1.1rem;">Usuarios del workspace</h2>
           {% if can_manage_workspace %}
           <form method="post" class="inline-form" style="margin-top:0.9rem;">
@@ -326,6 +397,7 @@
               <div>Sin miembros asignados todavía.</div>
             </div>
             {% endfor %}
+          </div>
           </div>
         </article>
 
