@@ -872,6 +872,69 @@ def _workspace_enabled_modules(workspace):
     return normalized
 
 
+def _workspace_has_module(workspace, module_key):
+    if not workspace or not module_key:
+        return True
+    enabled_modules = _workspace_enabled_modules(workspace)
+    return bool(enabled_modules.get(module_key, False))
+
+
+def _forbid_if_workspace_module_disabled(request, module_key, label='módulo'):
+    workspace = _get_active_workspace(request)
+    if not workspace or workspace.kind != Workspace.KIND_CLUB:
+        return None
+    if _workspace_has_module(workspace, module_key):
+        return None
+    return HttpResponse(f'El {label} no está activo en el workspace actual.', status=403)
+
+
+def _task_studio_workspace_for_target(owner):
+    if not owner:
+        return None
+    return _ensure_task_studio_workspace(owner)
+
+
+def _forbid_if_task_studio_module_disabled(request, owner, module_key, label='módulo'):
+    workspace = _task_studio_workspace_for_target(owner)
+    if not workspace:
+        return None
+    if _workspace_has_module(workspace, module_key):
+        return None
+    return HttpResponse(f'El {label} no está activo en este Task Studio.', status=403)
+
+
+def _workspace_entry_url(workspace):
+    if not workspace:
+        return reverse('platform-overview')
+    if workspace.kind == Workspace.KIND_TASK_STUDIO:
+        owner_id = workspace.owner_user_id
+        candidates = [
+            ('task_studio_home', reverse('task-studio-home')),
+            ('task_studio_profile', reverse('task-studio-profile')),
+            ('task_studio_roster', reverse('task-studio-roster')),
+            ('task_studio_tasks', reverse('task-studio-task-create')),
+        ]
+        for module_key, url in candidates:
+            if _workspace_has_module(workspace, module_key):
+                return f'{url}?user={owner_id}' if owner_id else url
+        return reverse('platform-workspace-detail', args=[workspace.id])
+    candidates = [
+        ('dashboard', reverse('dashboard-home')),
+        ('coach_overview', reverse('coach-detail')),
+        ('players', reverse('player-dashboard')),
+        ('convocation', reverse('convocation')),
+        ('match_actions', reverse('match-action-page')),
+        ('sessions', reverse('sessions')),
+        ('analysis', reverse('analysis')),
+        ('abp_board', reverse('coach-abp-board')),
+        ('manual_stats', reverse('manual-player-stats')),
+    ]
+    for module_key, url in candidates:
+        if _workspace_has_module(workspace, module_key):
+            return url
+    return reverse('platform-workspace-detail', args=[workspace.id])
+
+
 def _ensure_club_workspace(primary_team):
     if not primary_team:
         return None
@@ -1504,6 +1567,9 @@ def _serialize_universo_standings(snapshot):
 @login_required
 def dashboard_data(request):
     """Devuelve los datos principales que alimentarán la home cuerpo técnico/jugador."""
+    forbidden = _forbid_if_workspace_module_disabled(request, 'dashboard', label='dashboard')
+    if forbidden:
+        return forbidden
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         return JsonResponse({'error': 'No hay equipo principal configurado'}, status=400)
@@ -1564,6 +1630,9 @@ def dashboard_page(request):
     can_access_admin = _is_admin_user(request.user)
     can_access_sessions = _can_access_sessions_workspace(request.user)
     can_access_platform = _can_access_platform(request.user)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'dashboard', label='dashboard')
+    if forbidden:
+        return forbidden
     primary_team = _get_primary_team_for_request(request)
     active_workspace = _build_active_workspace_badge(request)
     if current_role == AppUserRole.ROLE_PLAYER:
@@ -1752,12 +1821,7 @@ def platform_workspace_enter_page(request, workspace_id):
     if not workspace:
         raise Http404('Workspace no encontrado')
     request.session['active_workspace_id'] = workspace.id
-    if workspace.kind == Workspace.KIND_TASK_STUDIO:
-        redirect_url = reverse('task-studio-home')
-        if workspace.owner_user_id:
-            redirect_url = f'{redirect_url}?user={workspace.owner_user_id}'
-        return redirect(redirect_url)
-    return redirect('dashboard-home')
+    return redirect(_workspace_entry_url(workspace))
 
 
 @login_required
@@ -2417,6 +2481,9 @@ def invitation_accept_page(request, token):
 
 @login_required
 def player_dashboard_page(request):
+    forbidden = _forbid_if_workspace_module_disabled(request, 'players', label='módulo de jugadores')
+    if forbidden:
+        return forbidden
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         return JsonResponse({'error': 'No hay equipo principal configurado'}, status=400)
@@ -2500,6 +2567,9 @@ def player_dashboard_page(request):
 @login_required
 def coach_overview_page(request):
     forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'coach_overview', label='portada staff')
     if forbidden:
         return forbidden
     sources = list(ScrapeSource.objects.filter(is_active=True))
@@ -2630,6 +2700,9 @@ def _build_default_lineup_payload(convocation_players):
 def match_action_page(request):
     if not _is_admin_user(request.user):
         return HttpResponse('Solo administradores pueden editar estadísticas de partido.', status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'match_actions', label='registro de acciones')
+    if forbidden:
+        return forbidden
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         raise Http404('Equipo principal no configurado')
@@ -2818,6 +2891,9 @@ def match_action_page(request):
 def register_match_action(request):
     if not _is_admin_user(request.user):
         return JsonResponse({'error': 'Solo administradores pueden editar estadísticas de partido.'}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'match_actions', label='registro de acciones')
+    if forbidden:
+        return JsonResponse({'error': 'El registro de acciones no está activo en el workspace actual.'}, status=403)
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         return JsonResponse({'error': 'Equipo principal no configurado'}, status=400)
@@ -2897,6 +2973,9 @@ def register_match_action(request):
 def save_match_lineup(request):
     if not _is_admin_user(request.user):
         return JsonResponse({'error': 'Solo administradores pueden editar estadísticas de partido.'}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'convocation', label='convocatoria')
+    if forbidden:
+        return JsonResponse({'error': 'La convocatoria no está activa en el workspace actual.'}, status=403)
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         return JsonResponse({'error': 'Equipo principal no configurado'}, status=400)
@@ -2936,6 +3015,9 @@ def save_match_lineup(request):
 def delete_match_action(request):
     if not _is_admin_user(request.user):
         return JsonResponse({'error': 'Solo administradores pueden editar estadísticas de partido.'}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'match_actions', label='registro de acciones')
+    if forbidden:
+        return JsonResponse({'error': 'El registro de acciones no está activo en el workspace actual.'}, status=403)
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         return JsonResponse({'error': 'Equipo principal no configurado'}, status=400)
@@ -2960,6 +3042,9 @@ def delete_match_action(request):
 def finalize_match_actions(request):
     if not _is_admin_user(request.user):
         return JsonResponse({'error': 'Solo administradores pueden editar estadísticas de partido.'}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'match_actions', label='registro de acciones')
+    if forbidden:
+        return JsonResponse({'error': 'El registro de acciones no está activo en el workspace actual.'}, status=403)
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         return JsonResponse({'error': 'Equipo principal no configurado'}, status=400)
@@ -3034,6 +3119,9 @@ def finalize_match_actions(request):
 def reset_match_action_register(request):
     if not _is_admin_user(request.user):
         return JsonResponse({'error': 'Solo administradores pueden editar estadísticas de partido.'}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'match_actions', label='registro de acciones')
+    if forbidden:
+        return JsonResponse({'error': 'El registro de acciones no está activo en el workspace actual.'}, status=403)
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         return JsonResponse({'error': 'Equipo principal no configurado'}, status=400)
@@ -3058,6 +3146,9 @@ def reset_match_action_register(request):
 
 
 def convocation_page(request):
+    forbidden = _forbid_if_workspace_module_disabled(request, 'convocation', label='convocatoria')
+    if forbidden:
+        return forbidden
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         raise Http404('Equipo principal no configurado')
@@ -3256,6 +3347,9 @@ def convocation_page(request):
 @authenticated_write
 @require_POST
 def save_convocation(request):
+    forbidden = _forbid_if_workspace_module_disabled(request, 'convocation', label='convocatoria')
+    if forbidden:
+        return JsonResponse({'error': 'La convocatoria no está activa en el workspace actual.'}, status=403)
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         return JsonResponse({'error': 'Equipo principal no configurado'}, status=400)
@@ -3373,6 +3467,9 @@ def save_convocation(request):
 
 @login_required
 def convocation_pdf(request):
+    forbidden = _forbid_if_workspace_module_disabled(request, 'convocation', label='convocatoria')
+    if forbidden:
+        return forbidden
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         raise Http404('Equipo principal no configurado')
@@ -3999,6 +4096,9 @@ def coach_cards_page(request):
     forbidden = _forbid_if_no_coach_access(request.user)
     if forbidden:
         return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'coach_overview', label='módulos de staff')
+    if forbidden:
+        return forbidden
     cards = [
         {
             'title': 'Datos temporada',
@@ -4058,6 +4158,9 @@ def coach_cards_page(request):
 @login_required
 def coach_role_trainer_page(request):
     forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'coach_overview', label='módulo entrenador')
     if forbidden:
         return forbidden
     primary_team = _get_primary_team_for_request(request)
@@ -4702,6 +4805,9 @@ def coach_abp_board_page(request):
     forbidden = _forbid_if_no_coach_access(request.user)
     if forbidden:
         return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'abp_board', label='pizarra ABP')
+    if forbidden:
+        return forbidden
     primary_team = _get_primary_team_for_request(request)
     players = []
     if primary_team:
@@ -4719,6 +4825,9 @@ def coach_abp_board_page(request):
 
 
 def coach_roster_page(request):
+    forbidden = _forbid_if_workspace_module_disabled(request, 'players', label='plantilla técnica')
+    if forbidden:
+        return forbidden
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         raise Http404('Equipo principal no configurado')
@@ -4786,6 +4895,9 @@ def coach_roster_page(request):
 
 
 def initial_eleven_page(request):
+    forbidden = _forbid_if_workspace_module_disabled(request, 'convocation', label='11 inicial')
+    if forbidden:
+        return forbidden
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         raise Http404('Equipo principal no configurado')
@@ -7107,6 +7219,9 @@ def _starter_canvas_state(preset):
 def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones'):
     if not _can_access_sessions_workspace(request.user):
         return HttpResponse('No tienes permisos para acceder a sesiones.', status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+    if forbidden:
+        return forbidden
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         raise Http404('Equipo principal no configurado')
@@ -8993,6 +9108,9 @@ def _save_task_studio_entry(request, owner, existing_task=None):
 def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones · Entrenador', task_id=None):
     if not _can_access_sessions_workspace(request.user):
         return HttpResponse('No tienes permisos para acceder a sesiones.', status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+    if forbidden:
+        return forbidden
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         raise Http404('Equipo principal no configurado')
@@ -9072,6 +9190,9 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
 def session_task_pdf_preview(request):
     if not _can_access_sessions_workspace(request.user):
         return HttpResponse('No tienes permisos para acceder a sesiones.', status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+    if forbidden:
+        return forbidden
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         raise Http404('Equipo principal no configurado')
@@ -9253,6 +9374,9 @@ def task_studio_home_page(request):
     if forbidden:
         return forbidden
     target_user = _task_studio_target_user(request)
+    forbidden = _forbid_if_task_studio_module_disabled(request, target_user, 'task_studio_home', label='inicio Task Studio')
+    if forbidden:
+        return forbidden
     browse_all = bool(_is_admin_user(request.user) and not request.GET.get('user'))
     profile = _task_studio_profile_for_user(target_user)
     task_qs = TaskStudioTask.objects.select_related('owner')
@@ -9282,6 +9406,9 @@ def task_studio_profile_page(request):
     if forbidden:
         return forbidden
     target_user = _task_studio_target_user(request)
+    forbidden = _forbid_if_task_studio_module_disabled(request, target_user, 'task_studio_profile', label='perfil Task Studio')
+    if forbidden:
+        return forbidden
     profile = _task_studio_profile_for_user(target_user)
     feedback = ''
     error = ''
@@ -9331,6 +9458,9 @@ def task_studio_roster_page(request):
     if forbidden:
         return forbidden
     target_user = _task_studio_target_user(request)
+    forbidden = _forbid_if_task_studio_module_disabled(request, target_user, 'task_studio_roster', label='plantilla Task Studio')
+    if forbidden:
+        return forbidden
     feedback = ''
     error = ''
     if request.method == 'POST':
@@ -9395,6 +9525,9 @@ def task_studio_task_builder_page(request, task_id=None):
     if forbidden:
         return forbidden
     target_user = _task_studio_target_user(request)
+    forbidden = _forbid_if_task_studio_module_disabled(request, target_user, 'task_studio_tasks', label='tareas Task Studio')
+    if forbidden:
+        return forbidden
     task = None
     if task_id:
         task = _task_studio_task_for_request(request, task_id)
@@ -9458,6 +9591,9 @@ def task_studio_task_pdf_preview(request):
     if forbidden:
         return forbidden
     owner = _task_studio_target_user(request)
+    forbidden = _forbid_if_task_studio_module_disabled(request, owner, 'task_studio_pdfs', label='PDF Task Studio')
+    if forbidden:
+        return forbidden
     pdf_style = (request.GET.get('style') or 'uefa').strip().lower()
     if pdf_style not in {'uefa', 'club'}:
         pdf_style = 'uefa'
@@ -9475,6 +9611,9 @@ def task_studio_task_preview_file(request, task_id):
     task = _task_studio_task_for_request(request, task_id)
     if not task or not task.task_preview_image:
         raise Http404('Imagen de tarea no disponible')
+    forbidden = _forbid_if_task_studio_module_disabled(request, task.owner, 'task_studio_tasks', label='tareas Task Studio')
+    if forbidden:
+        return forbidden
     file_field = task.task_preview_image
     try:
         file_field.open('rb')
@@ -9501,6 +9640,9 @@ def task_studio_task_pdf(request, task_id):
     task = _task_studio_task_for_request(request, task_id)
     if not task:
         raise Http404('Tarea no encontrada')
+    forbidden = _forbid_if_task_studio_module_disabled(request, task.owner, 'task_studio_pdfs', label='PDF Task Studio')
+    if forbidden:
+        return forbidden
     pdf_style = (request.GET.get('style') or 'uefa').strip().lower()
     if pdf_style not in {'uefa', 'club'}:
         pdf_style = 'uefa'
@@ -9844,6 +9986,9 @@ def analysis_page(request):
     forbidden = _forbid_if_no_coach_access(request.user)
     if forbidden:
         return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
     primary_team = _get_primary_team_for_request(request)
     team_url = (request.GET.get('team_url') or '').strip()
     team_id = (request.GET.get('team_id') or '').strip()
@@ -10182,6 +10327,9 @@ def analysis_page(request):
 def manual_player_stats_page(request):
     if not _is_admin_user(request.user):
         return HttpResponse('Solo administradores pueden editar estadísticas manuales.', status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'manual_stats', label='estadísticas manuales')
+    if forbidden:
+        return forbidden
     try:
         primary_team = _get_primary_team_for_request(request)
         if not primary_team:
@@ -10266,6 +10414,9 @@ def manual_player_stats_page(request):
 @login_required
 def player_detail_page(request, player_id):
     try:
+        forbidden = _forbid_if_workspace_module_disabled(request, 'players', label='módulo de jugadores')
+        if forbidden:
+            return forbidden
         primary_team = _get_primary_team_for_request(request)
         if not primary_team:
             return JsonResponse({'error': 'No hay equipo principal configurado'}, status=400)
@@ -10679,6 +10830,9 @@ def player_detail_page(request, player_id):
 
 @login_required
 def player_pdf(request, player_id):
+    forbidden = _forbid_if_workspace_module_disabled(request, 'players', label='módulo de jugadores')
+    if forbidden:
+        return forbidden
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         raise Http404('Equipo principal no configurado')
@@ -10703,6 +10857,9 @@ def player_pdf(request, player_id):
 
 @login_required
 def player_presentation(request, player_id):
+    forbidden = _forbid_if_workspace_module_disabled(request, 'players', label='módulo de jugadores')
+    if forbidden:
+        return forbidden
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         raise Http404('Equipo principal no configurado')
@@ -10725,6 +10882,9 @@ def player_presentation(request, player_id):
 @login_required
 def match_stats_page(request, match_id):
     forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'players', label='estadísticas de partido')
     if forbidden:
         return forbidden
     primary_team = _get_primary_team_for_request(request)
@@ -10924,6 +11084,9 @@ def _build_player_match_stats_payload(primary_team, player, match):
 
 @login_required
 def player_match_stats_page(request, player_id, match_id):
+    forbidden = _forbid_if_workspace_module_disabled(request, 'players', label='estadísticas de jugador')
+    if forbidden:
+        return forbidden
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         return JsonResponse({'error': 'No hay equipo principal configurado'}, status=400)
@@ -10956,6 +11119,9 @@ def refresh_scraping(request):
             {'status': 'error', 'message': 'Ya hay una actualización en curso. Inténtalo en unos minutos.'},
             status=429,
         )
+    forbidden = _forbid_if_workspace_module_disabled(request, 'dashboard', label='dashboard')
+    if forbidden:
+        return JsonResponse({'status': 'error', 'message': 'El dashboard no está activo en el workspace actual.'}, status=403)
     primary_team = _get_primary_team_for_request(request)
     try:
         result = subprocess.run(

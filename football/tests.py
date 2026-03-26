@@ -259,6 +259,35 @@ class TaskStudioAccessTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Entrega Ejercicio')
 
+    @patch('football.views.weasyprint', None)
+    def test_disabled_task_studio_pdf_module_returns_403(self):
+        workspace = Workspace.objects.create(
+            name='Task Studio restringido',
+            slug='task-studio-restringido',
+            kind=Workspace.KIND_TASK_STUDIO,
+            owner_user=self.user,
+            enabled_modules={
+                'task_studio_home': True,
+                'task_studio_profile': True,
+                'task_studio_roster': True,
+                'task_studio_tasks': True,
+                'task_studio_pdfs': False,
+            },
+        )
+        TaskStudioProfile.objects.update_or_create(user=self.user, defaults={'workspace': workspace})
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse('task-studio-task-pdf-preview') + '?style=uefa',
+            {
+                'draw_task_title': 'Borrador bloqueado',
+                'draw_task_minutes': '15',
+                'draw_canvas_state': json.dumps({'version': '5.3.0', 'objects': []}),
+            },
+        )
+
+        self.assertEqual(response.status_code, 403)
+
 
 class PlatformWorkspaceTests(TestCase):
     def setUp(self):
@@ -433,6 +462,57 @@ class PlatformWorkspaceTests(TestCase):
         self.assertTrue(workspace.enabled_modules.get('players'))
         self.assertTrue(workspace.enabled_modules.get('convocation'))
         self.assertFalse(workspace.enabled_modules.get('analysis'))
+
+    def test_enter_workspace_redirects_to_first_enabled_module(self):
+        workspace = Workspace.objects.create(
+            name='Cliente sin dashboard',
+            slug='cliente-sin-dashboard',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.alt_team,
+            enabled_modules={
+                'dashboard': False,
+                'coach_overview': False,
+                'players': True,
+                'convocation': False,
+                'match_actions': False,
+                'sessions': False,
+                'analysis': False,
+                'abp_board': False,
+                'manual_stats': False,
+            },
+        )
+        self.client.force_login(self.admin_user)
+
+        response = self.client.get(reverse('platform-workspace-enter', args=[workspace.id]))
+
+        self.assertRedirects(response, reverse('player-dashboard'))
+
+    def test_disabled_convocation_module_returns_403(self):
+        workspace = Workspace.objects.create(
+            name='Cliente sin convocatoria',
+            slug='cliente-sin-convocatoria',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.alt_team,
+            enabled_modules={
+                'dashboard': True,
+                'coach_overview': True,
+                'players': True,
+                'convocation': False,
+                'match_actions': True,
+                'sessions': True,
+                'analysis': True,
+                'abp_board': True,
+                'manual_stats': True,
+            },
+        )
+        self.client.force_login(self.admin_user)
+        session = self.client.session
+        session['active_workspace_id'] = workspace.id
+        session.save()
+
+        response = self.client.get(reverse('convocation'))
+
+        self.assertEqual(response.status_code, 403)
 
 
 class QueryHelperTests(TestCase):
