@@ -4,6 +4,7 @@ from . import views
 
 urlpatterns = [
     path('', views.dashboard_page, name='dashboard-home'),
+    path('platform/', views.platform_overview_page, name='platform-overview'),
     path('api/dashboard/', views.dashboard_data, name='dashboard-data'),
     path('api/dashboard/refresh/', views.refresh_scraping, name='dashboard-refresh'),
     path('players/', views.player_dashboard_page, name='player-dashboard'),

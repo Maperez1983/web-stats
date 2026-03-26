@@ -75,6 +75,8 @@ from football.models import (
     Season,
     Team,
     TeamStanding,
+    Workspace,
+    WorkspaceMembership,
     TrainingMicrocycle,
     TrainingSession,
     ConvocationRecord,
@@ -735,7 +737,11 @@ def _task_studio_query_suffix(target_user, current_user):
 def _task_studio_profile_for_user(user):
     if not user:
         return None
-    profile, _ = TaskStudioProfile.objects.get_or_create(user=user)
+    workspace = _ensure_task_studio_workspace(user)
+    profile, _ = TaskStudioProfile.objects.get_or_create(user=user, defaults={'workspace': workspace})
+    if workspace and profile.workspace_id != workspace.id:
+        profile.workspace = workspace
+        profile.save(update_fields=['workspace'])
     return profile
 
 
@@ -743,6 +749,82 @@ def _forbid_if_no_task_studio_access(user):
     if _can_access_task_studio(user):
         return None
     return HttpResponse('No tienes permisos para acceder a Task Studio.', status=403)
+
+
+def _can_access_platform(user):
+    return _is_admin_user(user)
+
+
+def _unique_workspace_slug(base_text, *, exclude_id=None):
+    base_slug = slugify(base_text or 'workspace') or 'workspace'
+    candidate = base_slug
+    suffix = 2
+    qs = Workspace.objects.all()
+    if exclude_id:
+        qs = qs.exclude(id=exclude_id)
+    while qs.filter(slug=candidate).exists():
+        candidate = f'{base_slug}-{suffix}'
+        suffix += 1
+    return candidate
+
+
+def _ensure_club_workspace(primary_team):
+    if not primary_team:
+        return None
+    workspace = Workspace.objects.filter(primary_team=primary_team).first()
+    if workspace:
+        changed = False
+        desired_name = str(primary_team.display_name or primary_team.name or 'Club').strip() or 'Club'
+        if workspace.name != desired_name:
+            workspace.name = desired_name
+            changed = True
+        if workspace.kind != Workspace.KIND_CLUB:
+            workspace.kind = Workspace.KIND_CLUB
+            changed = True
+        if changed:
+            workspace.save(update_fields=['name', 'kind', 'updated_at'])
+        return workspace
+    return Workspace.objects.create(
+        name=str(primary_team.display_name or primary_team.name or 'Club').strip() or 'Club',
+        slug=_unique_workspace_slug(primary_team.display_name or primary_team.name or 'club'),
+        kind=Workspace.KIND_CLUB,
+        primary_team=primary_team,
+    )
+
+
+def _ensure_task_studio_workspace(user):
+    if not user:
+        return None
+    workspace = Workspace.objects.filter(kind=Workspace.KIND_TASK_STUDIO, owner_user=user).first()
+    default_name = (
+        str(user.get_full_name() or '').strip()
+        or str(getattr(user, 'first_name', '') or '').strip()
+        or user.get_username()
+    )
+    default_name = f'Task Studio · {default_name}'
+    if workspace:
+        changed = False
+        if workspace.name != default_name:
+            workspace.name = default_name
+            changed = True
+        if workspace.kind != Workspace.KIND_TASK_STUDIO:
+            workspace.kind = Workspace.KIND_TASK_STUDIO
+            changed = True
+        if changed:
+            workspace.save(update_fields=['name', 'kind', 'updated_at'])
+    else:
+        workspace = Workspace.objects.create(
+            name=default_name,
+            slug=_unique_workspace_slug(f'task-studio-{user.get_username()}'),
+            kind=Workspace.KIND_TASK_STUDIO,
+            owner_user=user,
+        )
+    WorkspaceMembership.objects.get_or_create(
+        workspace=workspace,
+        user=user,
+        defaults={'role': WorkspaceMembership.ROLE_OWNER},
+    )
+    return workspace
 
 
 def _can_access_player_resource(user, player, primary_team=None):
@@ -1369,6 +1451,7 @@ def dashboard_page(request):
     role_labels = dict(AppUserRole.ROLE_CHOICES)
     can_access_admin = _is_admin_user(request.user)
     can_access_sessions = _can_access_sessions_workspace(request.user)
+    can_access_platform = _can_access_platform(request.user)
     primary_team = Team.objects.filter(is_primary=True).first()
     if current_role == AppUserRole.ROLE_PLAYER:
         current_player = _resolve_player_for_user(request.user, primary_team)
@@ -1387,6 +1470,81 @@ def dashboard_page(request):
             'current_role_label': role_labels.get(current_role, 'Jugador'),
             'can_access_admin': can_access_admin,
             'can_access_sessions': can_access_sessions,
+            'can_access_platform': can_access_platform,
+        },
+    )
+
+
+@login_required
+def platform_overview_page(request):
+    if not _can_access_platform(request.user):
+        return HttpResponse('No tienes permisos para acceder a la plataforma.', status=403)
+
+    feedback = ''
+    error = ''
+    primary_team = Team.objects.filter(is_primary=True).first()
+    if primary_team:
+        _ensure_club_workspace(primary_team)
+    studio_users = (
+        User.objects
+        .filter(app_role__role__in=[AppUserRole.ROLE_TASK_STUDIO, AppUserRole.ROLE_GUEST])
+        .distinct()
+    )
+    for studio_user in studio_users:
+        _ensure_task_studio_workspace(studio_user)
+
+    if request.method == 'POST':
+        form_action = (request.POST.get('form_action') or 'workspace_create').strip().lower()
+        if form_action == 'workspace_create':
+            workspace_name = _sanitize_task_text((request.POST.get('workspace_name') or '').strip(), multiline=False, max_len=160)
+            workspace_kind = str(request.POST.get('workspace_kind') or Workspace.KIND_CLUB).strip()
+            owner_username = _sanitize_task_text((request.POST.get('owner_username') or '').strip(), multiline=False, max_len=150).lower()
+            team_id = _parse_int(request.POST.get('team_id'))
+            try:
+                if not workspace_name:
+                    raise ValueError('Indica un nombre para el workspace.')
+                if workspace_kind not in {Workspace.KIND_CLUB, Workspace.KIND_TASK_STUDIO}:
+                    workspace_kind = Workspace.KIND_CLUB
+                owner_user = User.objects.filter(username__iexact=owner_username).first() if owner_username else None
+                primary_workspace_team = Team.objects.filter(id=team_id).first() if team_id else None
+                workspace = Workspace.objects.create(
+                    name=workspace_name,
+                    slug=_unique_workspace_slug(workspace_name),
+                    kind=workspace_kind,
+                    owner_user=owner_user if workspace_kind == Workspace.KIND_TASK_STUDIO else None,
+                    primary_team=primary_workspace_team if workspace_kind == Workspace.KIND_CLUB else None,
+                )
+                if owner_user:
+                    WorkspaceMembership.objects.get_or_create(
+                        workspace=workspace,
+                        user=owner_user,
+                        defaults={'role': WorkspaceMembership.ROLE_OWNER},
+                    )
+                feedback = f'Workspace creado: {workspace.name}.'
+            except ValueError as exc:
+                error = str(exc)
+            except Exception:
+                error = 'No se pudo crear el workspace.'
+
+    workspaces = list(
+        Workspace.objects
+        .select_related('owner_user', 'primary_team')
+        .annotate(member_count=Count('memberships', distinct=True))
+        .order_by('kind', 'name', 'id')
+    )
+    for workspace in workspaces:
+        workspace.task_count = TaskStudioTask.objects.filter(workspace=workspace).count()
+        workspace.profile_count = TaskStudioProfile.objects.filter(workspace=workspace).count()
+
+    return render(
+        request,
+        'football/platform_overview.html',
+        {
+            'feedback': feedback,
+            'error': error,
+            'workspaces': workspaces,
+            'teams': list(Team.objects.order_by('name')[:200]),
+            'workspace_kind_choices': Workspace.KIND_CHOICES,
         },
     )
 
@@ -1566,6 +1724,8 @@ def admin_page(request):
                     user.is_staff = True
                     user.save(update_fields=['is_staff'])
                 AppUserRole.objects.update_or_create(user=user, defaults={'role': role_value})
+                if role_value in {AppUserRole.ROLE_TASK_STUDIO, AppUserRole.ROLE_GUEST}:
+                    _ensure_task_studio_workspace(user)
                 user_message = f'Usuario creado: {username}.'
             except ValueError as exc:
                 user_error = str(exc)
@@ -1604,6 +1764,8 @@ def admin_page(request):
                 user_obj.is_staff = should_staff
                 user_obj.save()
                 AppUserRole.objects.update_or_create(user=user_obj, defaults={'role': role_value})
+                if role_value in {AppUserRole.ROLE_TASK_STUDIO, AppUserRole.ROLE_GUEST}:
+                    _ensure_task_studio_workspace(user_obj)
                 return _redirect_admin_users(
                     message=f'Usuario actualizado: {user_obj.username}.',
                     focus_user_id=user_obj.id,
@@ -8166,10 +8328,12 @@ def _task_studio_roster_photo_url(request, roster_player):
 def _build_task_studio_player_catalog(request, owner):
     if not owner:
         return []
+    workspace = _ensure_task_studio_workspace(owner)
     catalog = []
     players = (
         TaskStudioRosterPlayer.objects
         .filter(owner=owner, is_active=True)
+        .filter(Q(workspace=workspace) | Q(workspace__isnull=True))
         .order_by('number', 'name')[:60]
     )
     for player in players:
@@ -8440,6 +8604,7 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
 
 
 def _save_task_studio_entry(request, owner, existing_task=None):
+    workspace = _ensure_task_studio_workspace(owner)
     title = _sanitize_task_text((request.POST.get('draw_task_title') or '').strip(), multiline=False, max_len=160)
     block = (request.POST.get('draw_task_block') or SessionTask.BLOCK_MAIN_1).strip()
     minutes = _parse_int(request.POST.get('draw_task_minutes')) or 15
@@ -8481,6 +8646,7 @@ def _save_task_studio_entry(request, owner, existing_task=None):
     assigned_players = list(
         TaskStudioRosterPlayer.objects
         .filter(owner=owner, id__in=assigned_player_ids, is_active=True)
+        .filter(Q(workspace=workspace) | Q(workspace__isnull=True))
         .order_by('number', 'name')
     )
     assigned_player_ids = [int(player.id) for player in assigned_players]
@@ -8579,9 +8745,11 @@ def _save_task_studio_entry(request, owner, existing_task=None):
         task.confrontation_rules = confrontation_rules
         task.tactical_layout = tactical_layout
         task.notes = 'Tarea actualizada en Task Studio'
+        task.workspace = workspace
         task.save()
     else:
         task = TaskStudioTask.objects.create(
+            workspace=workspace,
             owner=owner,
             title=title[:160],
             block=block,

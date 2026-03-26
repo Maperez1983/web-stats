@@ -1,0 +1,354 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Plataforma matriz</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
+    <style>
+      body {
+        margin: 0;
+        background: #09101d;
+        color: #e7ebf3;
+        font-family: Inter, system-ui, sans-serif;
+      }
+
+      .shell {
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 1.2rem;
+      }
+
+      .hero,
+      .panel,
+      .workspace-card {
+        background: rgba(12, 20, 34, 0.92);
+        border: 1px solid rgba(160, 180, 215, 0.18);
+        border-radius: 22px;
+        box-shadow: 0 18px 44px rgba(0, 0, 0, 0.22);
+      }
+
+      .hero {
+        padding: 1.25rem 1.35rem;
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: start;
+      }
+
+      .hero h1 {
+        margin: 0;
+        font-size: clamp(1.6rem, 3vw, 2.35rem);
+      }
+
+      .hero p {
+        margin: 0.35rem 0 0;
+        color: #aeb9cc;
+        max-width: 60ch;
+      }
+
+      .hero-links {
+        display: flex;
+        gap: 0.65rem;
+        flex-wrap: wrap;
+      }
+
+      .hero-links a,
+      .submit-btn {
+        border-radius: 999px;
+        border: 1px solid rgba(121, 168, 255, 0.36);
+        background: rgba(52, 104, 205, 0.18);
+        color: #f3f7ff;
+        padding: 0.72rem 1.05rem;
+        text-decoration: none;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .grid {
+        margin-top: 1rem;
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+        gap: 1rem;
+      }
+
+      .panel {
+        padding: 1.1rem;
+      }
+
+      .panel h2 {
+        margin: 0 0 0.25rem;
+        font-size: 1.12rem;
+      }
+
+      .panel p {
+        margin: 0;
+        color: #9aa8bf;
+      }
+
+      .workspace-list {
+        display: grid;
+        gap: 0.85rem;
+        margin-top: 1rem;
+      }
+
+      .workspace-card {
+        padding: 1rem;
+      }
+
+      .workspace-card header {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.8rem;
+        align-items: start;
+      }
+
+      .workspace-card h3 {
+        margin: 0;
+        font-size: 1.05rem;
+      }
+
+      .workspace-card small,
+      .workspace-card p {
+        color: #9aa8bf;
+      }
+
+      .workspace-meta {
+        margin-top: 0.9rem;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.65rem;
+      }
+
+      .metric {
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(160, 180, 215, 0.12);
+        padding: 0.7rem 0.8rem;
+      }
+
+      .metric span {
+        display: block;
+        color: #89a0c7;
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .metric strong {
+        display: block;
+        margin-top: 0.2rem;
+        font-size: 1.1rem;
+      }
+
+      form.workspace-form {
+        margin-top: 1rem;
+        display: grid;
+        gap: 0.8rem;
+      }
+
+      .field {
+        display: grid;
+        gap: 0.35rem;
+      }
+
+      .field label {
+        color: #8fa3c6;
+        font-size: 0.83rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .field input,
+      .field select,
+      .field textarea {
+        border-radius: 14px;
+        border: 1px solid rgba(160, 180, 215, 0.22);
+        background: rgba(7, 13, 25, 0.95);
+        color: #eff4ff;
+        padding: 0.85rem 0.95rem;
+        font: inherit;
+      }
+
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 0.35rem 0.7rem;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .chip.club {
+        background: rgba(53, 121, 255, 0.18);
+        color: #9ec0ff;
+      }
+
+      .chip.task_studio {
+        background: rgba(63, 174, 124, 0.18);
+        color: #8af0b6;
+      }
+
+      .message {
+        margin-top: 0.85rem;
+        border-radius: 14px;
+        padding: 0.75rem 0.9rem;
+        font-weight: 700;
+      }
+
+      .message.ok {
+        background: rgba(55, 168, 97, 0.14);
+        border: 1px solid rgba(55, 168, 97, 0.36);
+        color: #97edb2;
+      }
+
+      .message.error {
+        background: rgba(212, 73, 73, 0.14);
+        border: 1px solid rgba(212, 73, 73, 0.36);
+        color: #ffaeae;
+      }
+
+      @media (max-width: 960px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+
+        .workspace-meta {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 640px) {
+        .shell {
+          padding: 0.85rem;
+        }
+
+        .hero {
+          flex-direction: column;
+        }
+
+        .workspace-card header {
+          flex-direction: column;
+        }
+
+        .workspace-meta {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <div>
+          <div class="product-kicker">Sistema matriz</div>
+          <h1>Workspaces y clientes</h1>
+          <p>Desde aquí se controla la plataforma global. Benagalbón deja de ser el centro técnico único y pasa a convivir con otros workspaces, como Task Studio o futuros clientes.</p>
+        </div>
+        <div class="hero-links">
+          <a href="{% url 'dashboard-home' %}">Volver al dashboard</a>
+          <a href="{% url 'admin-page' %}">Admin tools</a>
+        </div>
+      </section>
+
+      <section class="grid">
+        <article class="panel">
+          <h2>Mapa actual de workspaces</h2>
+          <p>Vista consolidada de clientes, usuarios propietarios y actividad básica del sistema.</p>
+          {% if feedback %}
+          <div class="message ok">{{ feedback }}</div>
+          {% endif %}
+          {% if error %}
+          <div class="message error">{{ error }}</div>
+          {% endif %}
+          <div class="workspace-list">
+            {% for workspace in workspaces %}
+            <article class="workspace-card">
+              <header>
+                <div>
+                  <div class="chip {{ workspace.kind }}">{{ workspace.get_kind_display }}</div>
+                  <h3>{{ workspace.name }}</h3>
+                  <small>slug: {{ workspace.slug }}</small>
+                </div>
+                <div style="text-align:right;">
+                  {% if workspace.owner_user %}
+                  <div><strong>{{ workspace.owner_user.username }}</strong></div>
+                  <small>Propietario</small>
+                  {% elif workspace.primary_team %}
+                  <div><strong>{{ workspace.primary_team.display_name }}</strong></div>
+                  <small>Equipo principal</small>
+                  {% else %}
+                  <small>Sin asignación directa</small>
+                  {% endif %}
+                </div>
+              </header>
+              <div class="workspace-meta">
+                <div class="metric">
+                  <span>Miembros</span>
+                  <strong>{{ workspace.member_count }}</strong>
+                </div>
+                <div class="metric">
+                  <span>Perfiles</span>
+                  <strong>{{ workspace.profile_count }}</strong>
+                </div>
+                <div class="metric">
+                  <span>Tareas</span>
+                  <strong>{{ workspace.task_count }}</strong>
+                </div>
+                <div class="metric">
+                  <span>Estado</span>
+                  <strong>{% if workspace.is_active %}Activo{% else %}Inactivo{% endif %}</strong>
+                </div>
+              </div>
+            </article>
+            {% empty %}
+            <article class="workspace-card">
+              <h3>Sin workspaces todavía</h3>
+              <p>Crea el primer workspace manual o deja que el sistema autogenere Benagalbón y Task Studio al entrar usuarios.</p>
+            </article>
+            {% endfor %}
+          </div>
+        </article>
+
+        <aside class="panel">
+          <h2>Crear workspace</h2>
+          <p>Alta manual para preparar clientes nuevos antes de activar sus módulos.</p>
+          <form class="workspace-form" method="post">
+            {% csrf_token %}
+            <input type="hidden" name="form_action" value="workspace_create" />
+            <div class="field">
+              <label for="workspace_name">Nombre</label>
+              <input id="workspace_name" name="workspace_name" type="text" placeholder="Ej. Club Deportivo Benagalbón" required />
+            </div>
+            <div class="field">
+              <label for="workspace_kind">Tipo</label>
+              <select id="workspace_kind" name="workspace_kind">
+                {% for workspace_kind, workspace_label in workspace_kind_choices %}
+                <option value="{{ workspace_kind }}">{{ workspace_label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="field">
+              <label for="owner_username">Usuario propietario</label>
+              <input id="owner_username" name="owner_username" type="text" placeholder="Solo para Task Studio" />
+            </div>
+            <div class="field">
+              <label for="team_id">Equipo vinculado</label>
+              <select id="team_id" name="team_id">
+                <option value="">Sin equipo asociado</option>
+                {% for team in teams %}
+                <option value="{{ team.id }}">{{ team.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <button class="submit-btn" type="submit">Crear workspace</button>
+          </form>
+        </aside>
+      </section>
+    </main>
+  </body>
+</html>

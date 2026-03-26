@@ -79,6 +79,45 @@ class Team(models.Model):
         return self.name
 
 
+class Workspace(models.Model):
+    KIND_CLUB = 'club'
+    KIND_TASK_STUDIO = 'task_studio'
+    KIND_CHOICES = [
+        (KIND_CLUB, 'Club'),
+        (KIND_TASK_STUDIO, 'Task Studio'),
+    ]
+
+    name = models.CharField(max_length=160)
+    slug = models.SlugField(max_length=160, unique=True)
+    kind = models.CharField(max_length=32, choices=KIND_CHOICES, default=KIND_CLUB)
+    primary_team = models.OneToOneField(
+        Team,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='workspace',
+    )
+    owner_user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='owned_workspaces',
+    )
+    is_active = models.BooleanField(default=True)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['kind', 'name', 'id']
+        verbose_name = 'Workspace'
+        verbose_name_plural = 'Workspaces'
+
+    def __str__(self):
+        return self.name
+
+
 class Player(models.Model):
     team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='players')
     name = models.CharField(max_length=120)
@@ -721,8 +760,36 @@ class AppUserRole(models.Model):
         return f'{self.user.username} · {self.get_role_display()}'
 
 
+class WorkspaceMembership(models.Model):
+    ROLE_OWNER = 'owner'
+    ROLE_ADMIN = 'admin'
+    ROLE_MEMBER = 'member'
+    ROLE_VIEWER = 'viewer'
+    ROLE_CHOICES = [
+        (ROLE_OWNER, 'Owner'),
+        (ROLE_ADMIN, 'Administrador'),
+        (ROLE_MEMBER, 'Miembro'),
+        (ROLE_VIEWER, 'Lector'),
+    ]
+
+    workspace = models.ForeignKey(Workspace, on_delete=models.CASCADE, related_name='memberships')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='workspace_memberships')
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default=ROLE_MEMBER)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['workspace__name', 'user__username']
+        unique_together = ('workspace', 'user')
+        verbose_name = 'Miembro workspace'
+        verbose_name_plural = 'Miembros workspace'
+
+    def __str__(self):
+        return f'{self.workspace.name} · {self.user.username}'
+
+
 class TaskStudioProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='task_studio_profile')
+    workspace = models.ForeignKey(Workspace, on_delete=models.SET_NULL, null=True, blank=True, related_name='task_studio_profiles')
     display_name = models.CharField(max_length=140, blank=True)
     phone = models.CharField(max_length=40, blank=True)
     license_name = models.CharField(max_length=120, blank=True)
@@ -750,6 +817,7 @@ class TaskStudioProfile(models.Model):
 
 
 class TaskStudioRosterPlayer(models.Model):
+    workspace = models.ForeignKey(Workspace, on_delete=models.SET_NULL, null=True, blank=True, related_name='task_studio_roster_players')
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='task_studio_roster')
     name = models.CharField(max_length=120)
     number = models.PositiveSmallIntegerField(null=True, blank=True)
@@ -773,6 +841,7 @@ class TaskStudioRosterPlayer(models.Model):
 
 
 class TaskStudioTask(models.Model):
+    workspace = models.ForeignKey(Workspace, on_delete=models.SET_NULL, null=True, blank=True, related_name='task_studio_tasks')
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='task_studio_tasks')
     title = models.CharField(max_length=160)
     block = models.CharField(max_length=30, choices=SessionTask.BLOCK_CHOICES, default=SessionTask.BLOCK_MAIN_1)

@@ -13,7 +13,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from football.models import AnalystVideoFolder, Competition, ConvocationRecord, Group, Match, MatchEvent, Player, PlayerCommunication, PlayerFine, PlayerStatistic, RivalAnalysisReport, RivalVideo, Season, SessionTask, TaskStudioProfile, TaskStudioRosterPlayer, TaskStudioTask, Team, TeamStanding, TrainingMicrocycle, TrainingSession, UserInvitation
+from football.models import AnalystVideoFolder, Competition, ConvocationRecord, Group, Match, MatchEvent, Player, PlayerCommunication, PlayerFine, PlayerStatistic, RivalAnalysisReport, RivalVideo, Season, SessionTask, TaskStudioProfile, TaskStudioRosterPlayer, TaskStudioTask, Team, TeamStanding, TrainingMicrocycle, TrainingSession, UserInvitation, Workspace, WorkspaceMembership
 from football.bootstrap import ensure_bootstrap_admin_from_env
 from football.event_taxonomy import (
     PASS_KEYWORDS,
@@ -258,6 +258,80 @@ class TaskStudioAccessTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Entrega Ejercicio')
+
+
+class PlatformWorkspaceTests(TestCase):
+    def setUp(self):
+        self.admin_user = get_user_model().objects.create_user(
+            username='platform-admin',
+            email='platform-admin@example.com',
+            password='pass-1234',
+            is_staff=True,
+        )
+        self.studio_user = get_user_model().objects.create_user(
+            username='platform-studio',
+            email='platform-studio@example.com',
+            password='pass-1234',
+        )
+        self.basic_user = get_user_model().objects.create_user(
+            username='platform-basic',
+            email='platform-basic@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=self.admin_user, role=AppUserRole.ROLE_ADMIN)
+        AppUserRole.objects.create(user=self.studio_user, role=AppUserRole.ROLE_TASK_STUDIO)
+        AppUserRole.objects.create(user=self.basic_user, role=AppUserRole.ROLE_PLAYER)
+        competition = Competition.objects.create(name='Liga Plataforma', slug='liga-plataforma', region='Andalucia')
+        season = Season.objects.create(competition=competition, name='2025/2026', is_current=True)
+        group = Group.objects.create(season=season, name='Grupo Plataforma', slug='grupo-plataforma')
+        self.team = Team.objects.create(name='Benagalbón matriz', slug='benagalbon-matriz', group=group, is_primary=True)
+
+    def test_platform_overview_requires_admin_access(self):
+        self.client.force_login(self.basic_user)
+
+        response = self.client.get(reverse('platform-overview'))
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_platform_overview_bootstraps_primary_and_task_studio_workspaces(self):
+        self.client.force_login(self.admin_user)
+
+        response = self.client.get(reverse('platform-overview'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(Workspace.objects.filter(primary_team=self.team, kind=Workspace.KIND_CLUB).exists())
+        self.assertTrue(Workspace.objects.filter(owner_user=self.studio_user, kind=Workspace.KIND_TASK_STUDIO).exists())
+        self.assertTrue(
+            WorkspaceMembership.objects.filter(
+                workspace__owner_user=self.studio_user,
+                user=self.studio_user,
+                role=WorkspaceMembership.ROLE_OWNER,
+            ).exists()
+        )
+
+    def test_platform_overview_can_create_workspace_manually(self):
+        self.client.force_login(self.admin_user)
+
+        response = self.client.post(
+            reverse('platform-overview'),
+            {
+                'form_action': 'workspace_create',
+                'workspace_name': 'Cliente demo',
+                'workspace_kind': Workspace.KIND_TASK_STUDIO,
+                'owner_username': self.studio_user.username,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        workspace = Workspace.objects.get(name='Cliente demo')
+        self.assertEqual(workspace.owner_user_id, self.studio_user.id)
+        self.assertTrue(
+            WorkspaceMembership.objects.filter(
+                workspace=workspace,
+                user=self.studio_user,
+                role=WorkspaceMembership.ROLE_OWNER,
+            ).exists()
+        )
 
 
 class QueryHelperTests(TestCase):
