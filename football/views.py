@@ -1420,6 +1420,22 @@ def admin_page(request):
     users_segment = (request.GET.get('segment') or request.POST.get('users_segment') or 'all').strip().lower()
     if users_segment not in {'all', 'technical', 'players', 'guests'}:
         users_segment = 'all'
+    focus_user_id = _parse_int(request.GET.get('focus_user_id')) or None
+    users_feedback = request.session.pop('admin_users_feedback', None)
+    if isinstance(users_feedback, dict) and active_tab == 'users':
+        user_message = str(users_feedback.get('message') or '').strip()
+        user_error = str(users_feedback.get('error') or '').strip()
+        focus_user_id = _parse_int(users_feedback.get('focus_user_id')) or focus_user_id
+
+    def _redirect_admin_users(*, message='', error='', focus_user_id=None):
+        request.session['admin_users_feedback'] = {
+            'message': str(message or '').strip(),
+            'error': str(error or '').strip(),
+            'focus_user_id': int(focus_user_id) if focus_user_id else None,
+        }
+        base_url = reverse('admin-page')
+        return redirect(f'{base_url}?tab=users&segment={users_segment}&focus_user_id={focus_user_id or ""}')
+
     if request.method == 'POST':
         form_action = (request.POST.get('form_action') or '').strip()
         if form_action in {'roster_add_or_update', 'roster_deactivate', 'roster_reactivate'} and primary_team:
@@ -1542,12 +1558,17 @@ def admin_page(request):
                 user_obj.is_staff = should_staff
                 user_obj.save()
                 AppUserRole.objects.update_or_create(user=user_obj, defaults={'role': role_value})
-                user_message = f'Usuario actualizado: {user_obj.username}.'
-                focus_user_id = user_obj.id
+                return _redirect_admin_users(
+                    message=f'Usuario actualizado: {user_obj.username}.',
+                    focus_user_id=user_obj.id,
+                )
             except ValueError as exc:
-                user_error = str(exc)
+                return _redirect_admin_users(error=str(exc), focus_user_id=user_obj.id if user_obj else user_id)
             except Exception:
-                user_error = 'No se pudo actualizar el usuario.'
+                return _redirect_admin_users(
+                    error='No se pudo actualizar el usuario.',
+                    focus_user_id=user_obj.id if user_obj else user_id,
+                )
         elif form_action == 'user_invite_create':
             active_tab = 'users'
             user_id = _parse_int(request.POST.get('user_id'))

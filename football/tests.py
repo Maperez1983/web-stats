@@ -779,6 +779,7 @@ class AdminUsersTests(TestCase):
                 'password': '',
                 'role': AppUserRole.ROLE_PLAYER,
             },
+            follow=True,
         )
 
         self.beta.refresh_from_db()
@@ -806,6 +807,7 @@ class AdminUsersTests(TestCase):
                 'password': '',
                 'role': AppUserRole.ROLE_ANALYST,
             },
+            follow=True,
         )
 
         self.beta.refresh_from_db()
