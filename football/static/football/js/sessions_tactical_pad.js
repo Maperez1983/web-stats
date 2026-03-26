@@ -43,6 +43,20 @@
     shape_rect: 'un rectángulo',
     shape_triangle: 'un triángulo',
     shape_diamond: 'un rombo',
+    emoji_ball: 'un balón emoji',
+    emoji_cone: 'un cono emoji',
+    emoji_hurdle: 'una valla emoji',
+    emoji_goal: 'una portería emoji',
+    emoji_whistle: 'un silbato emoji',
+    emoji_stopwatch: 'un cronómetro emoji',
+  };
+  const EMOJI_LIBRARY = {
+    emoji_ball: '⚽',
+    emoji_cone: '🔺',
+    emoji_hurdle: '🚧',
+    emoji_goal: '🥅',
+    emoji_whistle: '📣',
+    emoji_stopwatch: '⏱️',
   };
 
   const createSvgNode = (doc, tag, attrs) => {
@@ -624,6 +638,12 @@
         return (left, top) => new fabric.IText('Texto', {
           left, top, originX: 'center', originY: 'center',
           fontSize: 22, fill: '#ffffff', fontWeight: '700', data: { kind: 'text' },
+        });
+      }
+      if (EMOJI_LIBRARY[kind]) {
+        return (left, top) => new fabric.Text(EMOJI_LIBRARY[kind], {
+          left, top, originX: 'center', originY: 'center',
+          fontSize: 28, data: { kind },
         });
       }
       return null;
