@@ -400,13 +400,23 @@ class PlatformWorkspaceTests(TestCase):
                 'workspace_name': 'Cliente demo',
                 'workspace_kind': Workspace.KIND_TASK_STUDIO,
                 'owner_username': self.studio_user.username,
+                'module_task_studio_profile_area': 'on',
+                'deliverable_task_studio_profile_area__branding': 'on',
+                'module_task_studio_documents': 'on',
+                'deliverable_task_studio_documents__pdfs': 'on',
             },
         )
 
         self.assertEqual(response.status_code, 200)
         workspace = Workspace.objects.get(name='Cliente demo')
         self.assertEqual(workspace.owner_user_id, self.studio_user.id)
-        self.assertTrue(workspace.enabled_modules.get('task_studio_tasks'))
+        self.assertFalse(workspace.enabled_modules.get('task_studio_home'))
+        self.assertTrue(workspace.enabled_modules.get('task_studio_profile'))
+        self.assertFalse(workspace.enabled_modules.get('task_studio_roster'))
+        self.assertFalse(workspace.enabled_modules.get('task_studio_tasks'))
+        self.assertTrue(workspace.enabled_modules.get('task_studio_pdfs'))
+        self.assertTrue(workspace.enabled_modules.get('deliverable__task_studio_profile_area__branding'))
+        self.assertFalse(workspace.enabled_modules.get('deliverable__task_studio_profile_area__profile'))
         self.assertTrue(
             WorkspaceMembership.objects.filter(
                 workspace=workspace,
@@ -430,7 +440,9 @@ class PlatformWorkspaceTests(TestCase):
                 'initial_admin_usernames': self.workspace_manager.username,
                 'initial_member_usernames': f'{self.workspace_member.username}, {self.basic_user.username}',
                 'module_configuration': 'on',
+                'deliverable_configuration__player_registry': 'on',
                 'module_training': 'on',
+                'deliverable_training__sessions': 'on',
             },
         )
 
@@ -449,8 +461,13 @@ class PlatformWorkspaceTests(TestCase):
                 'match_actions': False,
                 'sessions': True,
                 'analysis': False,
-                'abp_board': True,
+                'abp_board': False,
                 'manual_stats': False,
+                'deliverable__configuration__team_data': False,
+                'deliverable__configuration__personal_data': False,
+                'deliverable__configuration__player_registry': True,
+                'deliverable__training__sessions': True,
+                'deliverable__training__abp': False,
             },
         )
         self.assertTrue(
@@ -598,7 +615,9 @@ class PlatformWorkspaceTests(TestCase):
             {
                 'form_action': 'update_modules',
                 'module_configuration': 'on',
+                'deliverable_configuration__player_registry': 'on',
                 'module_match': 'on',
+                'deliverable_match__convocation': 'on',
             },
         )
 
@@ -606,9 +625,42 @@ class PlatformWorkspaceTests(TestCase):
         workspace.refresh_from_db()
         self.assertTrue(workspace.enabled_modules.get('players'))
         self.assertTrue(workspace.enabled_modules.get('convocation'))
-        self.assertTrue(workspace.enabled_modules.get('match_actions'))
+        self.assertFalse(workspace.enabled_modules.get('match_actions'))
         self.assertFalse(workspace.enabled_modules.get('dashboard'))
         self.assertFalse(workspace.enabled_modules.get('analysis'))
+        self.assertTrue(workspace.enabled_modules.get('deliverable__configuration__player_registry'))
+        self.assertFalse(workspace.enabled_modules.get('deliverable__match__live_match'))
+
+    def test_workspace_detail_updates_task_studio_deliverables(self):
+        workspace = Workspace.objects.create(
+            name='Task Studio módulos',
+            slug='task-studio-modulos',
+            kind=Workspace.KIND_TASK_STUDIO,
+            owner_user=self.studio_user,
+            enabled_modules={'task_studio_home': True, 'task_studio_profile': True, 'task_studio_roster': True, 'task_studio_tasks': True, 'task_studio_pdfs': True},
+        )
+        self.client.force_login(self.admin_user)
+
+        response = self.client.post(
+            reverse('platform-workspace-detail', args=[workspace.id]),
+            {
+                'form_action': 'update_modules',
+                'module_task_studio_tasks_area': 'on',
+                'deliverable_task_studio_tasks_area__repository': 'on',
+                'module_task_studio_documents': 'on',
+                'deliverable_task_studio_documents__pdfs': 'on',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        workspace.refresh_from_db()
+        self.assertFalse(workspace.enabled_modules.get('task_studio_home'))
+        self.assertFalse(workspace.enabled_modules.get('task_studio_profile'))
+        self.assertFalse(workspace.enabled_modules.get('task_studio_roster'))
+        self.assertTrue(workspace.enabled_modules.get('task_studio_tasks'))
+        self.assertTrue(workspace.enabled_modules.get('task_studio_pdfs'))
+        self.assertTrue(workspace.enabled_modules.get('deliverable__task_studio_tasks_area__repository'))
+        self.assertFalse(workspace.enabled_modules.get('deliverable__task_studio_tasks_area__editor'))
 
     def test_enter_workspace_redirects_to_first_enabled_module(self):
         workspace = Workspace.objects.create(

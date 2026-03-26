@@ -853,43 +853,213 @@ def _workspace_default_modules(kind):
     }
 
 
+def _workspace_deliverable_flag(module_key, deliverable_key):
+    return f'deliverable__{module_key}__{deliverable_key}'
+
+
+def _workspace_collect_route_keys(entries):
+    route_keys = []
+    seen = set()
+    for entry in entries:
+        for route_key in entry.get('route_keys', []) or []:
+            if not route_key or route_key in seen:
+                continue
+            seen.add(route_key)
+            route_keys.append(route_key)
+    return route_keys
+
+
 def _workspace_club_module_catalog():
     return [
         {
             'key': 'configuration',
             'label': 'Configuración',
             'description': 'Datos del equipo, datos personales y registro de jugadores del cliente.',
-            'route_keys': ['players'],
+            'deliverables': [
+                {
+                    'key': 'team_data',
+                    'label': 'Datos de equipo',
+                    'description': 'Identidad del equipo y bloque base del cliente dentro del CRM.',
+                    'route_keys': ['players'],
+                },
+                {
+                    'key': 'personal_data',
+                    'label': 'Datos personales',
+                    'description': 'Datos base de ficha y detalle operativo del entorno deportivo.',
+                    'route_keys': ['players'],
+                },
+                {
+                    'key': 'player_registry',
+                    'label': 'Registro de jugadores',
+                    'description': 'Alta, edición y consulta de la plantilla del cliente.',
+                    'route_keys': ['players'],
+                },
+            ],
         },
         {
             'key': 'advanced_configuration',
             'label': 'Configuración avanzada',
             'description': 'Clasificación, contexto competitivo y parámetros avanzados del cliente.',
-            'route_keys': ['dashboard'],
+            'deliverables': [
+                {
+                    'key': 'standings',
+                    'label': 'Clasificación',
+                    'description': 'Contexto competitivo y clasificación visible en la portada.',
+                    'route_keys': ['dashboard'],
+                },
+            ],
         },
         {
             'key': 'statistics',
             'label': 'Estadísticas',
             'description': 'KPIs, seguimiento, portada técnica y métricas manuales del cliente.',
-            'route_keys': ['coach_overview', 'manual_stats'],
+            'deliverables': [
+                {
+                    'key': 'season_kpis',
+                    'label': 'Datos temporada',
+                    'description': 'KPIs, disponibilidad y portada técnica del cliente.',
+                    'route_keys': ['coach_overview'],
+                },
+                {
+                    'key': 'manual_metrics',
+                    'label': 'Estadísticas manuales',
+                    'description': 'Ajustes manuales y métricas de staff del cliente.',
+                    'route_keys': ['manual_stats'],
+                },
+            ],
         },
         {
             'key': 'match',
             'label': 'Partido',
             'description': 'Convocatoria, 11 inicial y operativa de partido del CRM.',
-            'route_keys': ['convocation', 'match_actions'],
+            'deliverables': [
+                {
+                    'key': 'convocation',
+                    'label': 'Convocatoria y 11 inicial',
+                    'description': 'Gestión prepartido del cliente.',
+                    'route_keys': ['convocation'],
+                },
+                {
+                    'key': 'live_match',
+                    'label': 'Registro de acciones',
+                    'description': 'Operativa live del partido y seguimiento de eventos.',
+                    'route_keys': ['match_actions'],
+                },
+            ],
         },
         {
             'key': 'training',
             'label': 'Entrenamiento',
             'description': 'Sesiones, biblioteca de tareas y trabajo ABP del cliente.',
-            'route_keys': ['sessions', 'abp_board'],
+            'deliverables': [
+                {
+                    'key': 'sessions',
+                    'label': 'Sesiones y tareas',
+                    'description': 'Planificación, biblioteca y editor táctico del cliente.',
+                    'route_keys': ['sessions'],
+                },
+                {
+                    'key': 'abp',
+                    'label': 'ABP',
+                    'description': 'Pizarra y trabajo específico de acciones a balón parado.',
+                    'route_keys': ['abp_board'],
+                },
+            ],
         },
         {
             'key': 'analysis',
             'label': 'Análisis',
             'description': 'Análisis rival, informes y lectura táctica del cliente.',
-            'route_keys': ['analysis'],
+            'deliverables': [
+                {
+                    'key': 'reports',
+                    'label': 'Análisis e informes',
+                    'description': 'Rival, informes y lectura táctica del cliente.',
+                    'route_keys': ['analysis'],
+                },
+            ],
+        },
+    ]
+
+
+def _workspace_task_studio_module_catalog():
+    return [
+        {
+            'key': 'task_studio_access',
+            'label': 'Acceso base',
+            'description': 'Portada privada del módulo y entrada principal del usuario.',
+            'deliverables': [
+                {
+                    'key': 'home',
+                    'label': 'Inicio Task Studio',
+                    'description': 'Home privada y punto de entrada del espacio.',
+                    'route_keys': ['task_studio_home'],
+                },
+            ],
+        },
+        {
+            'key': 'task_studio_profile_area',
+            'label': 'Perfil e identidad',
+            'description': 'Datos del entrenador, escudo, colores y configuración documental.',
+            'deliverables': [
+                {
+                    'key': 'profile',
+                    'label': 'Datos personales',
+                    'description': 'Perfil del entrenador y datos base del usuario.',
+                    'route_keys': ['task_studio_profile'],
+                },
+                {
+                    'key': 'branding',
+                    'label': 'Identidad visual',
+                    'description': 'Escudo, colores y marca documental para PDF e informes.',
+                    'route_keys': ['task_studio_profile'],
+                },
+            ],
+        },
+        {
+            'key': 'task_studio_roster_area',
+            'label': 'Plantilla privada',
+            'description': 'Gestión de jugadores propios para pizarras, petos y documentos.',
+            'deliverables': [
+                {
+                    'key': 'roster',
+                    'label': 'Registro de plantilla',
+                    'description': 'Alta, edición y consulta de jugadores privados.',
+                    'route_keys': ['task_studio_roster'],
+                },
+            ],
+        },
+        {
+            'key': 'task_studio_tasks_area',
+            'label': 'Tareas',
+            'description': 'Repositorio privado y editor táctico del usuario.',
+            'deliverables': [
+                {
+                    'key': 'repository',
+                    'label': 'Repositorio',
+                    'description': 'Listado, filtrado y gestión de tareas guardadas.',
+                    'route_keys': ['task_studio_tasks'],
+                },
+                {
+                    'key': 'editor',
+                    'label': 'Editor táctico',
+                    'description': 'Crear, editar y duplicar tareas dentro del workspace.',
+                    'route_keys': ['task_studio_tasks'],
+                },
+            ],
+        },
+        {
+            'key': 'task_studio_documents',
+            'label': 'Documentos',
+            'description': 'PDF UEFA, PDF Club y exportaciones del módulo.',
+            'deliverables': [
+                {
+                    'key': 'pdfs',
+                    'label': 'PDFs y exportaciones',
+                    'description': 'Impresión UEFA y Club desde Task Studio.',
+                    'route_keys': ['task_studio_pdfs'],
+                },
+            ],
         },
     ]
 
@@ -915,43 +1085,78 @@ def _parse_workspace_usernames(raw_value):
 
 def _workspace_module_catalog(kind):
     if kind == Workspace.KIND_TASK_STUDIO:
-        return [
-            {'key': 'task_studio_home', 'label': 'Inicio Task Studio', 'description': 'Portada privada del módulo de tareas.'},
-            {'key': 'task_studio_profile', 'label': 'Perfil e identidad', 'description': 'Escudo, colores, entrenador y datos documentales.'},
-            {'key': 'task_studio_roster', 'label': 'Plantilla privada', 'description': 'Jugadores propios para pizarras y documentos.'},
-            {'key': 'task_studio_tasks', 'label': 'Repositorio y editor de tareas', 'description': 'Crear, editar, duplicar y gestionar tareas.'},
-            {'key': 'task_studio_pdfs', 'label': 'PDFs y exportaciones', 'description': 'Impresión UEFA y Club del módulo privado.'},
-        ]
+        return _workspace_task_studio_module_catalog()
     return _workspace_club_module_catalog()
 
 
-def _expand_workspace_module_selection(kind, selected_modules):
-    if kind == Workspace.KIND_TASK_STUDIO:
-        defaults = _workspace_default_modules(Workspace.KIND_TASK_STUDIO)
-        return {
-            key: bool(selected_modules.get(key, defaults.get(key, False)))
-            for key in defaults.keys()
-        }
-    defaults = _workspace_default_modules(Workspace.KIND_CLUB)
+def _expand_workspace_module_selection(kind, selected_modules, selected_deliverables=None):
+    defaults = _workspace_default_modules(kind if kind in {Workspace.KIND_TASK_STUDIO, Workspace.KIND_CLUB} else Workspace.KIND_CLUB)
     expanded = {key: False for key in defaults.keys()}
-    for item in _workspace_club_module_catalog():
+    selected_deliverables = selected_deliverables or {}
+    for item in _workspace_module_catalog(kind):
         if not bool(selected_modules.get(item['key'])):
             continue
-        for route_key in item.get('route_keys', []):
+        deliverables = item.get('deliverables', []) or []
+        active_deliverables = []
+        if deliverables:
+            deliverable_states = {
+                deliverable['key']: bool(selected_deliverables.get(_workspace_deliverable_flag(item['key'], deliverable['key'])))
+                for deliverable in deliverables
+            }
+            if any(deliverable_states.values()):
+                active_deliverables = [deliverable for deliverable in deliverables if deliverable_states.get(deliverable['key'])]
+            else:
+                active_deliverables = deliverables
+            for deliverable in deliverables:
+                expanded[_workspace_deliverable_flag(item['key'], deliverable['key'])] = deliverable in active_deliverables
+        else:
+            active_deliverables = [item]
+        for route_key in _workspace_collect_route_keys(active_deliverables):
             if route_key in expanded:
                 expanded[route_key] = True
     return expanded
 
 
 def _workspace_selected_module_keys(kind, enabled_modules):
-    if kind == Workspace.KIND_TASK_STUDIO:
-        return [item['key'] for item in _workspace_module_catalog(kind) if bool(enabled_modules.get(item['key']))]
     selected = []
-    for item in _workspace_club_module_catalog():
-        route_keys = item.get('route_keys', [])
+    for item in _workspace_module_catalog(kind):
+        route_keys = _workspace_collect_route_keys(item.get('deliverables', []) or [item])
         if any(bool(enabled_modules.get(route_key)) for route_key in route_keys):
             selected.append(item['key'])
     return selected
+
+
+def _workspace_selected_deliverable_keys(kind, enabled_modules):
+    selected = []
+    for item in _workspace_module_catalog(kind):
+        for deliverable in item.get('deliverables', []) or []:
+            flag = _workspace_deliverable_flag(item['key'], deliverable['key'])
+            if flag in enabled_modules:
+                is_enabled = bool(enabled_modules.get(flag))
+            else:
+                is_enabled = any(bool(enabled_modules.get(route_key)) for route_key in deliverable.get('route_keys', []) or [])
+            if is_enabled:
+                selected.append(flag)
+    return selected
+
+
+def _workspace_module_catalog_for_template(kind, enabled_modules=None):
+    enabled_modules = enabled_modules or {}
+    selected_modules = set(_workspace_selected_module_keys(kind, enabled_modules)) if enabled_modules else set()
+    selected_deliverables = set(_workspace_selected_deliverable_keys(kind, enabled_modules)) if enabled_modules else set()
+    rows = []
+    for item in _workspace_module_catalog(kind):
+        row = dict(item)
+        row['enabled'] = item['key'] in selected_modules if enabled_modules else False
+        deliverables = []
+        for deliverable in item.get('deliverables', []) or []:
+            deliverable_row = dict(deliverable)
+            deliverable_row['flag_key'] = _workspace_deliverable_flag(item['key'], deliverable['key'])
+            deliverable_row['enabled'] = deliverable_row['flag_key'] in selected_deliverables if enabled_modules else False
+            deliverables.append(deliverable_row)
+        row['deliverables'] = deliverables
+        rows.append(row)
+    return rows
 
 
 def _workspace_enabled_modules(workspace):
@@ -960,9 +1165,9 @@ def _workspace_enabled_modules(workspace):
     if not isinstance(raw, dict):
         return defaults
     normalized = dict(defaults)
-    for key in defaults.keys():
-        if key in raw:
-            normalized[key] = bool(raw.get(key))
+    for key, value in raw.items():
+        if key in defaults or str(key).startswith('deliverable__'):
+            normalized[key] = bool(value)
     return normalized
 
 
@@ -1828,6 +2033,13 @@ def platform_overview_page(request):
         'initial_member_usernames': '',
         'modules': _workspace_default_modules(Workspace.KIND_CLUB),
         'module_keys': [item['key'] for item in _workspace_module_catalog(Workspace.KIND_CLUB)],
+        'deliverable_keys': _workspace_selected_deliverable_keys(
+            Workspace.KIND_CLUB,
+            _expand_workspace_module_selection(
+                Workspace.KIND_CLUB,
+                {item['key']: True for item in _workspace_module_catalog(Workspace.KIND_CLUB)},
+            ),
+        ),
     }
     if primary_team:
         _ensure_club_workspace(primary_team)
@@ -1851,13 +2063,21 @@ def platform_overview_page(request):
             initial_member_usernames = str(request.POST.get('initial_member_usernames') or '')
             if workspace_kind not in {Workspace.KIND_CLUB, Workspace.KIND_TASK_STUDIO}:
                 workspace_kind = Workspace.KIND_CLUB
+            module_catalog = _workspace_module_catalog(workspace_kind)
             selected_modules = {
                 item['key']: str(request.POST.get(f"module_{item['key']}") or '').lower() in {'1', 'true', 'on', 'yes'}
-                for item in _workspace_module_catalog(workspace_kind)
+                for item in module_catalog
+            }
+            selected_deliverables = {
+                _workspace_deliverable_flag(item['key'], deliverable['key']): (
+                    str(request.POST.get(f"deliverable_{item['key']}__{deliverable['key']}") or '').lower() in {'1', 'true', 'on', 'yes'}
+                )
+                for item in module_catalog
+                for deliverable in item.get('deliverables', []) or []
             }
             if not any(selected_modules.values()):
-                selected_modules = {item['key']: True for item in _workspace_module_catalog(workspace_kind)}
-            expanded_modules = _expand_workspace_module_selection(workspace_kind, selected_modules)
+                selected_modules = {item['key']: True for item in module_catalog}
+            expanded_modules = _expand_workspace_module_selection(workspace_kind, selected_modules, selected_deliverables)
             workspace_form = {
                 'workspace_name': workspace_name,
                 'workspace_kind': workspace_kind,
@@ -1868,6 +2088,7 @@ def platform_overview_page(request):
                 'initial_member_usernames': initial_member_usernames,
                 'modules': expanded_modules,
                 'module_keys': [key for key, enabled in selected_modules.items() if enabled],
+                'deliverable_keys': [key for key, enabled in selected_deliverables.items() if enabled],
             }
             try:
                 if not workspace_name:
@@ -1928,6 +2149,13 @@ def platform_overview_page(request):
                     'initial_member_usernames': '',
                     'modules': _workspace_default_modules(Workspace.KIND_CLUB),
                     'module_keys': [item['key'] for item in _workspace_module_catalog(Workspace.KIND_CLUB)],
+                    'deliverable_keys': _workspace_selected_deliverable_keys(
+                        Workspace.KIND_CLUB,
+                        _expand_workspace_module_selection(
+                            Workspace.KIND_CLUB,
+                            {item['key']: True for item in _workspace_module_catalog(Workspace.KIND_CLUB)},
+                        ),
+                    ),
                 }
             except ValueError as exc:
                 error = str(exc)
@@ -1943,7 +2171,7 @@ def platform_overview_page(request):
     for workspace in workspaces:
         workspace.task_count = TaskStudioTask.objects.filter(workspace=workspace).count()
         workspace.profile_count = TaskStudioProfile.objects.filter(workspace=workspace).count()
-        workspace.active_module_count = sum(1 for enabled in _workspace_enabled_modules(workspace).values() if enabled)
+        workspace.active_module_count = len(_workspace_selected_module_keys(workspace.kind, _workspace_enabled_modules(workspace)))
     primary_workspace = next((workspace for workspace in workspaces if workspace.kind == Workspace.KIND_CLUB and workspace.primary_team_id), None)
     club_workspaces = [workspace for workspace in workspaces if workspace.kind == Workspace.KIND_CLUB]
     studio_workspaces = [workspace for workspace in workspaces if workspace.kind == Workspace.KIND_TASK_STUDIO and workspace.owner_user_id]
@@ -1967,8 +2195,8 @@ def platform_overview_page(request):
             'workspace_users': workspace_users,
             'teams': list(Team.objects.order_by('name')[:200]),
             'workspace_kind_choices': Workspace.KIND_CHOICES,
-            'workspace_module_catalog_club': _workspace_module_catalog(Workspace.KIND_CLUB),
-            'workspace_module_catalog_task_studio': _workspace_module_catalog(Workspace.KIND_TASK_STUDIO),
+            'workspace_module_catalog_club': _workspace_module_catalog_for_template(Workspace.KIND_CLUB),
+            'workspace_module_catalog_task_studio': _workspace_module_catalog_for_template(Workspace.KIND_TASK_STUDIO),
             'workspace_form': workspace_form,
             'active_workspace': active_workspace,
         },
@@ -1996,11 +2224,19 @@ def platform_workspace_detail_page(request, workspace_id):
         if not can_manage_workspace:
             error = 'No tienes permisos para modificar este workspace.'
         elif form_action == 'update_modules':
+            module_catalog = _workspace_module_catalog(workspace.kind)
             selected_modules = {
                 item['key']: str(request.POST.get(f"module_{item['key']}") or '').lower() in {'1', 'true', 'on', 'yes'}
-                for item in _workspace_module_catalog(workspace.kind)
+                for item in module_catalog
             }
-            enabled_modules = _expand_workspace_module_selection(workspace.kind, selected_modules)
+            selected_deliverables = {
+                _workspace_deliverable_flag(item['key'], deliverable['key']): (
+                    str(request.POST.get(f"deliverable_{item['key']}__{deliverable['key']}") or '').lower() in {'1', 'true', 'on', 'yes'}
+                )
+                for item in module_catalog
+                for deliverable in item.get('deliverables', []) or []
+            }
+            enabled_modules = _expand_workspace_module_selection(workspace.kind, selected_modules, selected_deliverables)
             workspace.enabled_modules = enabled_modules
             workspace.save(update_fields=['enabled_modules', 'updated_at'])
             feedback = 'Módulos del workspace actualizados.'
@@ -2051,11 +2287,7 @@ def platform_workspace_detail_page(request, workspace_id):
         .order_by('role', 'user__username')
     )
     enabled_modules = _workspace_enabled_modules(workspace)
-    module_catalog = []
-    for item in _workspace_module_catalog(workspace.kind):
-        row = dict(item)
-        row['enabled'] = item['key'] in _workspace_selected_module_keys(workspace.kind, enabled_modules)
-        module_catalog.append(row)
+    module_catalog = _workspace_module_catalog_for_template(workspace.kind, enabled_modules)
     module_cards = []
     if workspace.kind == Workspace.KIND_CLUB:
         module_cards = [

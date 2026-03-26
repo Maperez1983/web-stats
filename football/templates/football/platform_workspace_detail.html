@@ -226,9 +226,49 @@
         width: 100%;
         cursor: pointer;
       }
+
+      .toggle-copy {
+        width: 100%;
+      }
+
       .toggle-row input[type="checkbox"] {
         width: 18px;
         height: 18px;
+      }
+
+      .deliverable-list {
+        margin-top: 0.7rem;
+        display: grid;
+        gap: 0.45rem;
+      }
+
+      .deliverable-row {
+        display: flex;
+        gap: 0.55rem;
+        align-items: start;
+        border-radius: 12px;
+        border: 1px solid rgba(160, 180, 215, 0.1);
+        background: rgba(255, 255, 255, 0.025);
+        padding: 0.62rem 0.7rem;
+      }
+
+      .deliverable-row.is-disabled {
+        opacity: 0.46;
+      }
+
+      .deliverable-row input[type="checkbox"] {
+        margin-top: 0.15rem;
+      }
+
+      .deliverable-row strong {
+        display: block;
+        font-size: 0.92rem;
+      }
+
+      .deliverable-row small {
+        display: block;
+        color: #9fb0c9;
+        margin-top: 0.14rem;
       }
       .submit-btn {
         margin-top: 1rem;
@@ -472,10 +512,23 @@
                 {% for module in module_catalog %}
                 <div class="toggle-row">
                   <label>
-                    <input type="checkbox" name="module_{{ module.key }}" {% if module.enabled %}checked{% endif %} />
-                    <span>
+                    <input type="checkbox" name="module_{{ module.key }}" data-module-toggle {% if module.enabled %}checked{% endif %} />
+                    <span class="toggle-copy">
                       <strong style="display:block;">{{ module.label }}</strong>
                       <small style="display:block; color:#9fb0c9; margin-top:0.18rem;">{{ module.description }}</small>
+                      {% if module.deliverables %}
+                      <span class="deliverable-list">
+                        {% for deliverable in module.deliverables %}
+                        <span class="deliverable-row">
+                          <input type="checkbox" name="deliverable_{{ module.key }}__{{ deliverable.key }}" data-deliverable-toggle {% if deliverable.enabled %}checked{% endif %} />
+                          <span>
+                            <strong>{{ deliverable.label }}</strong>
+                            <small>{{ deliverable.description }}</small>
+                          </span>
+                        </span>
+                        {% endfor %}
+                      </span>
+                      {% endif %}
                     </span>
                   </label>
                 </div>
@@ -501,5 +554,26 @@
         </section>
       </section>
     </main>
+    <script>
+      (function () {
+        function syncDeliverables() {
+          document.querySelectorAll('[data-module-toggle]').forEach((toggle) => {
+            const row = toggle.closest('.toggle-row');
+            if (!row) return;
+            const checked = !!toggle.checked;
+            row.querySelectorAll('[data-deliverable-toggle]').forEach((deliverableInput) => {
+              deliverableInput.disabled = !checked;
+              const deliverableRow = deliverableInput.closest('.deliverable-row');
+              if (deliverableRow) deliverableRow.classList.toggle('is-disabled', !checked);
+            });
+          });
+        }
+
+        document.querySelectorAll('[data-module-toggle]').forEach((toggle) => {
+          toggle.addEventListener('change', syncDeliverables);
+        });
+        syncDeliverables();
+      })();
+    </script>
   </body>
 </html>
