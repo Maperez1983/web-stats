@@ -3289,6 +3289,7 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
         if hasattr(request.user, 'get_full_name') and request.user.get_full_name().strip()
         else getattr(request.user, 'username', '') or 'Entrenador'
     )
+    logo_path = 'football/images/uefa-badge.svg' if pdf_style == 'uefa' else 'football/images/cdb-logo.png'
     return {
         'team_name': team.name,
         'task': task,
@@ -3312,7 +3313,7 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
         'pdf_palette': _team_pdf_palette(team, pdf_style),
         'coach_name': coach_name,
         'animation_frames_count': len(animation_frames),
-        'logo_url': request.build_absolute_uri(static('football/images/cdb-logo.png')),
+        'logo_url': request.build_absolute_uri(static(logo_path)),
         'task_preview_url': preview_url,
         'generated_at': timezone.localtime(),
     }
@@ -8736,7 +8737,7 @@ def _build_task_studio_pdf_context(request, owner, task, tactical_layout, pdf_st
         {
             'team_name': team_stub.name,
             'coach_name': coach_name,
-            'logo_url': crest_url,
+            'logo_url': request.build_absolute_uri(static('football/images/uefa-badge.svg')) if pdf_style == 'uefa' else crest_url,
             'pdf_palette': _team_pdf_palette(team_stub, pdf_style),
             'task_studio_profile': profile,
         }

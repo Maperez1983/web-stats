@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-labelledby="title desc">
+  <title id="title">UEFA Badge</title>
+  <desc id="desc">Circular UEFA badge for task PDF header.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f43f5e" />
+      <stop offset="100%" stop-color="#b91c1c" />
+    </linearGradient>
+  </defs>
+  <circle cx="60" cy="60" r="56" fill="url(#bg)" />
+  <circle cx="60" cy="60" r="50" fill="none" stroke="#ffffff" stroke-width="3" opacity="0.9" />
+  <circle cx="60" cy="60" r="37" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.35" />
+  <text x="60" y="69" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#ffffff" letter-spacing="2">UEFA</text>
+</svg>
