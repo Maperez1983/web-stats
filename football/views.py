@@ -2461,6 +2461,7 @@ def register_match_action(request):
         source_file='registro-acciones',
         system='touch-field',
     )
+    _invalidate_team_dashboard_caches(primary_team)
     return JsonResponse(_serialize_match_event(event, duplicate=False))
 
 
@@ -10567,9 +10568,16 @@ def compute_player_dashboard(primary_team, force_refresh=False):
         lineup_by_match[record.match_id] = normalized
     match_end_minutes = {}
     player_match_timeline = {}
-    events = (
-        confirmed_events_queryset()
+    stats_events = (
+        MatchEvent.objects
         .filter(player__team=primary_team)
+        .filter(
+            Q(system='touch-field', source_file='registro-acciones')
+            | ~Q(system='touch-field')
+        )
+    )
+    events = (
+        stats_events
         .select_related('player', 'match', 'match__home_team', 'match__away_team')
         .order_by('player__name', 'match__date')
     )
@@ -10577,10 +10585,11 @@ def compute_player_dashboard(primary_team, force_refresh=False):
     match_zone_profiles, player_zone_profiles = _build_zone_inference_profiles(inferred_zone_events)
     live_events = (
         MatchEvent.objects.filter(
-            system='touch-field-final',
-        ).filter(
             Q(player__team=primary_team) | Q(player__isnull=True),
             Q(match__home_team=primary_team) | Q(match__away_team=primary_team),
+        ).filter(
+            Q(system='touch-field-final')
+            | Q(system='touch-field', source_file='registro-acciones')
         )
         .select_related('player', 'match', 'match__home_team', 'match__away_team')
         .order_by('player__name', 'match__date')
