@@ -1806,6 +1806,8 @@ def platform_overview_page(request):
                 owner_user = User.objects.filter(username__iexact=owner_username).first() if owner_username else None
                 if owner_username and not owner_user:
                     raise ValueError(f'No existe el usuario propietario "{owner_username}".')
+                if workspace_kind == Workspace.KIND_TASK_STUDIO and not owner_user:
+                    raise ValueError('Task Studio requiere un usuario propietario.')
                 admin_users, missing_admin_users = _parse_workspace_usernames(initial_admin_usernames)
                 member_users, missing_member_users = _parse_workspace_usernames(initial_member_usernames)
                 if missing_admin_users:
@@ -1875,7 +1877,7 @@ def platform_overview_page(request):
         workspace.active_module_count = sum(1 for enabled in _workspace_enabled_modules(workspace).values() if enabled)
     primary_workspace = next((workspace for workspace in workspaces if workspace.kind == Workspace.KIND_CLUB and workspace.primary_team_id), None)
     club_workspaces = [workspace for workspace in workspaces if workspace.kind == Workspace.KIND_CLUB]
-    studio_workspaces = [workspace for workspace in workspaces if workspace.kind == Workspace.KIND_TASK_STUDIO]
+    studio_workspaces = [workspace for workspace in workspaces if workspace.kind == Workspace.KIND_TASK_STUDIO and workspace.owner_user_id]
     workspace_users = list(
         WorkspaceMembership.objects
         .select_related('workspace', 'user')

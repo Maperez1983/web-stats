@@ -492,6 +492,22 @@ class PlatformWorkspaceTests(TestCase):
         self.assertContains(response, 'No existe el usuario propietario')
         self.assertFalse(Workspace.objects.filter(name='Cliente inválido').exists())
 
+    def test_platform_overview_requires_owner_for_task_studio_workspace(self):
+        self.client.force_login(self.admin_user)
+
+        response = self.client.post(
+            reverse('platform-overview'),
+            {
+                'form_action': 'workspace_create',
+                'workspace_name': 'Task Studio sin owner',
+                'workspace_kind': Workspace.KIND_TASK_STUDIO,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Task Studio requiere un usuario propietario')
+        self.assertFalse(Workspace.objects.filter(name='Task Studio sin owner').exists())
+
     def test_enter_task_studio_workspace_redirects_to_supervisor_view(self):
         workspace = Workspace.objects.create(
             name='Task Studio Demo',
@@ -823,6 +839,21 @@ class PlatformWorkspaceTests(TestCase):
         listed_usernames = [membership.user.username for membership in response.context['workspace_users']]
         self.assertIn(self.workspace_manager.username, listed_usernames)
         self.assertNotIn(self.studio_user.username, listed_usernames)
+
+    def test_platform_overview_hides_orphan_task_studio_workspace_cards(self):
+        Workspace.objects.create(
+            name='Task Studio huerfano',
+            slug='task-studio-huerfano',
+            kind=Workspace.KIND_TASK_STUDIO,
+        )
+        self.client.force_login(self.admin_user)
+
+        response = self.client.get(reverse('platform-overview'))
+
+        self.assertEqual(response.status_code, 200)
+        listed_ids = [workspace.id for workspace in response.context['studio_workspaces']]
+        self.assertEqual(len(listed_ids), len(set(listed_ids)))
+        self.assertNotContains(response, 'Task Studio huerfano')
 
 
 class QueryHelperTests(TestCase):
