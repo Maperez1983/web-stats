@@ -428,6 +428,9 @@
               {% if can_access_platform %}
               <a class="module-tab" href="{% url 'platform-overview' %}">Plataforma</a>
               {% endif %}
+              {% for workspace_link in workspace_links %}
+              <a class="module-tab" href="{{ workspace_link.url }}">{{ workspace_link.label }}</a>
+              {% endfor %}
               {% if can_access_admin %}
               <a class="module-tab" href="{% url 'admin-page' %}">Admin</a>
               {% endif %}

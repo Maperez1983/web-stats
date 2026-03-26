@@ -315,6 +315,7 @@ class PlatformWorkspaceTests(TestCase):
             email='workspace-manager@example.com',
             password='pass-1234',
         )
+        AppUserRole.objects.create(user=self.workspace_manager, role=AppUserRole.ROLE_COACH)
         competition = Competition.objects.create(name='Liga Plataforma', slug='liga-plataforma', region='Andalucia')
         season = Season.objects.create(competition=competition, name='2025/2026', is_current=True)
         group = Group.objects.create(season=season, name='Grupo Plataforma', slug='grupo-plataforma')
@@ -569,6 +570,25 @@ class PlatformWorkspaceTests(TestCase):
                 role=WorkspaceMembership.ROLE_MEMBER,
             ).exists()
         )
+
+    def test_dashboard_shows_workspace_link_for_workspace_admin(self):
+        workspace = Workspace.objects.create(
+            name='Cliente visible',
+            slug='cliente-visible',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.alt_team,
+        )
+        WorkspaceMembership.objects.create(
+            workspace=workspace,
+            user=self.workspace_manager,
+            role=WorkspaceMembership.ROLE_ADMIN,
+        )
+        self.client.force_login(self.workspace_manager)
+
+        response = self.client.get(reverse('dashboard-home'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Cliente visible')
 
 
 class QueryHelperTests(TestCase):

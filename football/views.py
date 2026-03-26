@@ -955,6 +955,31 @@ def _can_manage_workspace(user, workspace):
     return bool(membership and membership.role in {WorkspaceMembership.ROLE_OWNER, WorkspaceMembership.ROLE_ADMIN})
 
 
+def _workspace_links_for_user(user):
+    if not user or not user.is_authenticated:
+        return []
+    workspaces = list(
+        Workspace.objects
+        .filter(Q(memberships__user=user) | Q(owner_user=user))
+        .select_related('owner_user', 'primary_team')
+        .distinct()
+        .order_by('kind', 'name', 'id')[:8]
+    )
+    links = []
+    for workspace in workspaces:
+        label = workspace.name
+        if len(label) > 24:
+            label = label[:21].rstrip() + '...'
+        links.append(
+            {
+                'id': workspace.id,
+                'label': label,
+                'url': reverse('platform-workspace-detail', args=[workspace.id]),
+            }
+        )
+    return links
+
+
 def _ensure_club_workspace(primary_team):
     if not primary_team:
         return None
@@ -1650,6 +1675,7 @@ def dashboard_page(request):
     can_access_admin = _is_admin_user(request.user)
     can_access_sessions = _can_access_sessions_workspace(request.user)
     can_access_platform = _can_access_platform(request.user)
+    workspace_links = _workspace_links_for_user(request.user)
     forbidden = _forbid_if_workspace_module_disabled(request, 'dashboard', label='dashboard')
     if forbidden:
         return forbidden
@@ -1673,6 +1699,7 @@ def dashboard_page(request):
             'can_access_admin': can_access_admin,
             'can_access_sessions': can_access_sessions,
             'can_access_platform': can_access_platform,
+            'workspace_links': workspace_links,
             'active_workspace': active_workspace,
         },
     )
