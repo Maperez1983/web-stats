@@ -592,6 +592,7 @@ class PlatformWorkspaceTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Cliente visible')
+        self.assertContains(response, 'Selecciona un workspace')
 
     def test_platform_can_delete_task_studio_workspace_and_private_data(self):
         workspace = Workspace.objects.create(

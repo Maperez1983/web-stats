@@ -974,7 +974,8 @@ def _workspace_links_for_user(user):
             {
                 'id': workspace.id,
                 'label': label,
-                'url': reverse('platform-workspace-detail', args=[workspace.id]),
+                'detail_url': reverse('platform-workspace-detail', args=[workspace.id]),
+                'enter_url': reverse('platform-workspace-enter', args=[workspace.id]),
             }
         )
     return links
