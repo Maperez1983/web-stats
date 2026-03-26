@@ -207,6 +207,14 @@ class TaskStudioAccessTests(TestCase):
         self.assertRedirects(response, reverse('task-studio-home') + f'?user={self.other_user.id}')
         self.assertFalse(TaskStudioTask.objects.filter(id=self.other_task.id).exists())
 
+    def test_disabled_task_studio_profile_blocks_module_access(self):
+        TaskStudioProfile.objects.create(user=self.user, is_enabled=False)
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse('task-studio-home'))
+
+        self.assertEqual(response.status_code, 403)
+
     def test_task_studio_profile_can_be_saved(self):
         self.client.force_login(self.user)
 
@@ -803,7 +811,10 @@ class PlatformWorkspaceTests(TestCase):
         self.assertFalse(Workspace.objects.filter(id=workspace.id).exists())
         self.assertFalse(TaskStudioTask.objects.filter(owner=self.studio_user).exists())
         self.assertFalse(TaskStudioRosterPlayer.objects.filter(owner=self.studio_user).exists())
-        self.assertFalse(TaskStudioProfile.objects.filter(user=self.studio_user).exists())
+        disabled_profile = TaskStudioProfile.objects.filter(user=self.studio_user).first()
+        self.assertIsNotNone(disabled_profile)
+        self.assertFalse(disabled_profile.is_enabled)
+        self.assertIsNone(disabled_profile.workspace_id)
         self.assertContains(response, 'Task Studio eliminado')
 
     def test_platform_overview_excludes_task_studio_owners_from_users_summary(self):
@@ -854,6 +865,26 @@ class PlatformWorkspaceTests(TestCase):
         listed_ids = [workspace.id for workspace in response.context['studio_workspaces']]
         self.assertEqual(len(listed_ids), len(set(listed_ids)))
         self.assertNotContains(response, 'Task Studio huerfano')
+
+    def test_platform_overview_does_not_recreate_deleted_task_studio_workspace(self):
+        workspace = Workspace.objects.create(
+            name='Task Studio eliminable',
+            slug='task-studio-eliminable',
+            kind=Workspace.KIND_TASK_STUDIO,
+            owner_user=self.studio_user,
+        )
+        WorkspaceMembership.objects.create(
+            workspace=workspace,
+            user=self.studio_user,
+            role=WorkspaceMembership.ROLE_OWNER,
+        )
+        self.client.force_login(self.admin_user)
+        self.client.post(reverse('platform-workspace-delete', args=[workspace.id]))
+
+        response = self.client.get(reverse('platform-overview'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Workspace.objects.filter(kind=Workspace.KIND_TASK_STUDIO, owner_user=self.studio_user).exists())
 
 
 class QueryHelperTests(TestCase):

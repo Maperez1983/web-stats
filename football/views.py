@@ -711,7 +711,12 @@ def _can_access_task_studio(user):
         return False
     if _is_admin_user(user):
         return True
-    return _get_user_role(user) in {AppUserRole.ROLE_TASK_STUDIO, AppUserRole.ROLE_GUEST}
+    if _get_user_role(user) not in {AppUserRole.ROLE_TASK_STUDIO, AppUserRole.ROLE_GUEST}:
+        return False
+    profile = TaskStudioProfile.objects.filter(user=user).first()
+    if profile and not profile.is_enabled:
+        return False
+    return True
 
 
 def _task_studio_target_user(request):
@@ -1046,6 +1051,9 @@ def _ensure_club_workspace(primary_team):
 
 def _ensure_task_studio_workspace(user):
     if not user:
+        return None
+    disabled_profile = TaskStudioProfile.objects.filter(user=user, is_enabled=False).first()
+    if disabled_profile:
         return None
     workspace = Workspace.objects.filter(kind=Workspace.KIND_TASK_STUDIO, owner_user=user).first()
     default_name = (
@@ -1719,7 +1727,7 @@ def dashboard_page(request):
         if current_player:
             return redirect('player-detail', player_id=current_player.id)
         return redirect('player-dashboard')
-    if current_role in {AppUserRole.ROLE_TASK_STUDIO, AppUserRole.ROLE_GUEST}:
+    if current_role in {AppUserRole.ROLE_TASK_STUDIO, AppUserRole.ROLE_GUEST} and _can_access_task_studio(request.user):
         return redirect('task-studio-home')
     forbidden = _forbid_if_workspace_module_disabled(request, 'dashboard', label='dashboard')
     if forbidden:
@@ -2034,9 +2042,15 @@ def platform_workspace_delete_page(request, workspace_id):
         return HttpResponse('No tienes permisos para eliminar este workspace.', status=403)
     if workspace.kind != Workspace.KIND_TASK_STUDIO:
         return HttpResponse('Solo se puede eliminar Task Studio desde esta acción.', status=403)
+    owner_user = workspace.owner_user
+    if owner_user:
+        TaskStudioProfile.objects.update_or_create(
+            user=owner_user,
+            defaults={'workspace': None, 'is_enabled': False},
+        )
     TaskStudioTask.objects.filter(workspace=workspace).delete()
     TaskStudioRosterPlayer.objects.filter(workspace=workspace).delete()
-    TaskStudioProfile.objects.filter(workspace=workspace).delete()
+    TaskStudioProfile.objects.filter(workspace=workspace).exclude(user=owner_user).delete()
     WorkspaceMembership.objects.filter(workspace=workspace).delete()
     workspace_name = workspace.name
     workspace_id_value = workspace.id
