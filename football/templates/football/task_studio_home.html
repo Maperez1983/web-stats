@@ -14,7 +14,7 @@
       .nav { margin-bottom:1rem; }
       .button, button { display:inline-flex; align-items:center; justify-content:center; padding:.62rem .9rem; border-radius:999px; border:1px solid var(--line); background:rgba(255,255,255,.04); color:var(--ink); text-decoration:none; font:inherit; font-size:.76rem; font-weight:700; letter-spacing:.05em; text-transform:uppercase; }
       .button.primary { background:linear-gradient(135deg,#22c55e,#4ade80); color:#052a16; border:none; }
-      .button.danger, button.danger { background:rgba(220,38,38,.12); color:#fecaca; border-color:rgba(248,113,113,.35); }
+      .button.danger, button.danger { background:rgba(220,38,38,.16); color:#fee2e2; border-color:rgba(248,113,113,.52); box-shadow:0 0 0 1px rgba(127,29,29,.12) inset; }
       .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:.8rem; margin-bottom:1rem; }
       .card, .task-card { background:var(--panel); border:1px solid var(--line); border-radius:18px; }
       .card { padding:1rem; }
@@ -23,11 +23,15 @@
       .muted { color:var(--muted); }
       .tasks { display:grid; gap:.75rem; }
       .task-card { padding:.95rem 1rem; }
-      .task-head { justify-content:space-between; }
+      .task-head { justify-content:space-between; align-items:flex-start; }
       .task-title { font-size:1rem; font-weight:800; }
       .pill { display:inline-flex; padding:.22rem .55rem; border-radius:999px; background:rgba(34,197,94,.16); color:#bbf7d0; font-size:.7rem; letter-spacing:.06em; text-transform:uppercase; }
       .empty { padding:1.2rem; border:1px dashed var(--line); border-radius:18px; text-align:center; color:var(--muted); }
       .alert { margin:0 0 1rem; padding:.9rem 1rem; border-radius:16px; border:1px solid rgba(74,222,128,.28); background:rgba(34,197,94,.12); color:#dcfce7; font-weight:700; }
+      .task-head-side { display:flex; gap:.55rem; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
+      .icon-trash { display:inline-flex; width:0.95rem; height:0.95rem; }
+      .icon-trash svg { width:100%; height:100%; fill:currentColor; }
+      .button.icon-only, button.icon-only { padding:.62rem .72rem; min-width:2.6rem; }
     </style>
   </head>
   <body>
@@ -79,9 +83,19 @@
               <div class="task-title">{{ task.title }}</div>
               <div class="muted">{{ task.get_block_display }} · {{ task.duration_minutes }} min · Actualizada {{ task.updated_at|date:"d/m/Y H:i" }}</div>
             </div>
-            {% if browse_all %}
-            <span class="pill">{{ task.owner.username }}</span>
-            {% endif %}
+            <div class="task-head-side">
+              {% if browse_all %}
+              <span class="pill">{{ task.owner.username }}</span>
+              {% endif %}
+              <form method="post" action="{% url 'task-studio-task-delete' task.id %}{% if browse_all %}?user={{ task.owner.id }}{% endif %}" onsubmit="return confirm('Se eliminará esta tarea creada.');" style="display:inline-flex;">
+                {% csrf_token %}
+                <button class="button danger icon-only" type="submit" title="Eliminar tarea" aria-label="Eliminar tarea">
+                  <span class="icon-trash" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm1 6h2v8h-2V9Zm4 0h2v8h-2V9ZM7 9h2v8H7V9Zm-1 12a2 2 0 0 1-2-2V8h16v11a2 2 0 0 1-2 2H6Z"/></svg>
+                  </span>
+                </button>
+              </form>
+            </div>
           </div>
           <p class="muted" style="margin:.6rem 0 0;">{{ task.objective|default:"Sin objetivo definido." }}</p>
           <div class="task-actions" style="margin-top:.75rem;">
@@ -90,7 +104,12 @@
             <a class="button" href="{% url 'task-studio-task-pdf' task.id %}?style=club" target="_blank" rel="noopener">Imprimir Club</a>
             <form method="post" action="{% url 'task-studio-task-delete' task.id %}{% if browse_all %}?user={{ task.owner.id }}{% endif %}" onsubmit="return confirm('Se eliminará esta tarea creada.');" style="display:inline-flex;">
               {% csrf_token %}
-              <button class="button danger" type="submit">Borrar</button>
+              <button class="button danger" type="submit">
+                <span class="icon-trash" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm1 6h2v8h-2V9Zm4 0h2v8h-2V9ZM7 9h2v8H7V9Zm-1 12a2 2 0 0 1-2-2V8h16v11a2 2 0 0 1-2 2H6Z"/></svg>
+                </span>
+                Eliminar
+              </button>
             </form>
           </div>
         </article>
