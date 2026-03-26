@@ -7,6 +7,7 @@ urlpatterns = [
     path('platform/', views.platform_overview_page, name='platform-overview'),
     path('platform/clear/', views.platform_workspace_clear_page, name='platform-workspace-clear'),
     path('platform/workspaces/<int:workspace_id>/', views.platform_workspace_detail_page, name='platform-workspace-detail'),
+    path('platform/workspaces/<int:workspace_id>/delete/', views.platform_workspace_delete_page, name='platform-workspace-delete'),
     path('platform/workspaces/<int:workspace_id>/enter/', views.platform_workspace_enter_page, name='platform-workspace-enter'),
     path('api/dashboard/', views.dashboard_data, name='dashboard-data'),
     path('api/dashboard/refresh/', views.refresh_scraping, name='dashboard-refresh'),

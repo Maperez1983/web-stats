@@ -245,6 +245,16 @@
         font-weight: 700;
       }
 
+      .danger-btn {
+        border-radius: 999px;
+        border: 1px solid rgba(212, 73, 73, 0.36);
+        background: rgba(212, 73, 73, 0.12);
+        color: #ffb7b7;
+        padding: 0.6rem 0.85rem;
+        cursor: pointer;
+        font-weight: 700;
+      }
+
       .user-row {
         display: flex;
         justify-content: space-between;
@@ -386,6 +396,10 @@
               <div class="actions-row">
                 <a class="link-btn" href="{% url 'platform-workspace-enter' workspace.id %}">Entrar como supervisor</a>
                 <a class="link-btn" href="{% url 'platform-workspace-detail' workspace.id %}">Abrir ficha</a>
+                <form method="post" action="{% url 'platform-workspace-delete' workspace.id %}" onsubmit="return confirm('Se eliminará este Task Studio y sus datos privados.');">
+                  {% csrf_token %}
+                  <button class="danger-btn" type="submit">Eliminar Task Studio</button>
+                </form>
               </div>
             </article>
             {% empty %}

@@ -226,6 +226,12 @@
           <a href="{% url 'platform-workspace-enter' workspace.id %}">Entrar como supervisor</a>
           <a href="{% url 'platform-overview' %}">Volver a plataforma</a>
           <a href="{% url 'dashboard-home' %}">Dashboard general</a>
+          {% if can_manage_workspace and workspace.kind == 'task_studio' %}
+          <form method="post" action="{% url 'platform-workspace-delete' workspace.id %}" onsubmit="return confirm('Se eliminará este Task Studio y sus datos privados.');">
+            {% csrf_token %}
+            <button class="inline-btn danger" type="submit">Eliminar Task Studio</button>
+          </form>
+          {% endif %}
         </div>
         {% if feedback %}
         <div class="message ok">{{ feedback }}</div>

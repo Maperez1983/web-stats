@@ -593,6 +593,32 @@ class PlatformWorkspaceTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Cliente visible')
 
+    def test_platform_can_delete_task_studio_workspace_and_private_data(self):
+        workspace = Workspace.objects.create(
+            name='Task Studio borrable',
+            slug='task-studio-borrable',
+            kind=Workspace.KIND_TASK_STUDIO,
+            owner_user=self.studio_user,
+        )
+        WorkspaceMembership.objects.create(
+            workspace=workspace,
+            user=self.studio_user,
+            role=WorkspaceMembership.ROLE_OWNER,
+        )
+        TaskStudioProfile.objects.create(user=self.studio_user, workspace=workspace, display_name='Studio')
+        TaskStudioRosterPlayer.objects.create(owner=self.studio_user, workspace=workspace, name='Jugador')
+        TaskStudioTask.objects.create(owner=self.studio_user, workspace=workspace, title='Tarea', block=SessionTask.BLOCK_MAIN_1, duration_minutes=12)
+        self.client.force_login(self.admin_user)
+
+        response = self.client.post(reverse('platform-workspace-delete', args=[workspace.id]), follow=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Workspace.objects.filter(id=workspace.id).exists())
+        self.assertFalse(TaskStudioTask.objects.filter(owner=self.studio_user).exists())
+        self.assertFalse(TaskStudioRosterPlayer.objects.filter(owner=self.studio_user).exists())
+        self.assertFalse(TaskStudioProfile.objects.filter(user=self.studio_user).exists())
+        self.assertContains(response, 'Task Studio eliminado')
+
 
 class QueryHelperTests(TestCase):
     def setUp(self):

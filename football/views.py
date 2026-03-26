@@ -1710,7 +1710,7 @@ def platform_overview_page(request):
     if not _can_access_platform(request.user):
         return HttpResponse('No tienes permisos para acceder a la plataforma.', status=403)
 
-    feedback = ''
+    feedback = str(request.session.pop('platform_feedback', '') or '')
     error = ''
     active_workspace = _build_active_workspace_badge(request)
     primary_team = Team.objects.filter(is_primary=True).first()
@@ -1911,6 +1911,29 @@ def platform_workspace_detail_page(request, workspace_id):
             'workspace_role_choices': WorkspaceMembership.ROLE_CHOICES,
         },
     )
+
+
+@login_required
+@require_POST
+def platform_workspace_delete_page(request, workspace_id):
+    workspace = Workspace.objects.select_related('owner_user', 'primary_team').filter(id=workspace_id).first()
+    if not workspace:
+        raise Http404('Workspace no encontrado')
+    if not _can_manage_workspace(request.user, workspace):
+        return HttpResponse('No tienes permisos para eliminar este workspace.', status=403)
+    if workspace.kind != Workspace.KIND_TASK_STUDIO:
+        return HttpResponse('Solo se puede eliminar Task Studio desde esta acción.', status=403)
+    TaskStudioTask.objects.filter(workspace=workspace).delete()
+    TaskStudioRosterPlayer.objects.filter(workspace=workspace).delete()
+    TaskStudioProfile.objects.filter(workspace=workspace).delete()
+    WorkspaceMembership.objects.filter(workspace=workspace).delete()
+    workspace_name = workspace.name
+    workspace_id_value = workspace.id
+    workspace.delete()
+    if int(request.session.get('active_workspace_id') or 0) == int(workspace_id_value):
+        request.session.pop('active_workspace_id', None)
+    request.session['platform_feedback'] = f'Task Studio eliminado: {workspace_name}.'
+    return redirect('platform-overview')
 
 
 @login_required
