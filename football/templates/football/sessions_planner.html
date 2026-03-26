@@ -877,6 +877,26 @@
         border-color: rgba(16, 185, 129, 0.75);
       }
       @media (max-width: 980px) {
+        .page {
+          padding: 0.95rem;
+        }
+        .top {
+          align-items: stretch;
+          flex-direction: column;
+        }
+        .top .button {
+          width: 100%;
+        }
+        .tabs {
+          flex-wrap: nowrap;
+          overflow-x: auto;
+          padding-bottom: 0.25rem;
+          -webkit-overflow-scrolling: touch;
+        }
+        .tab-link {
+          white-space: nowrap;
+          flex: 0 0 auto;
+        }
         .create-board-layout {
           grid-template-columns: 1fr;
         }
@@ -918,7 +938,7 @@
       {% if error %}<div class="alert err">{{ error }}</div>{% endif %}
 
       {% if not planner_tables_ready %}
-      <div class="panel"><p class="empty">El modulo no esta listo por migraciones pendientes.</p></div>
+      <div class="panel"><p class="empty">El módulo no está listo por migraciones pendientes.</p></div>
       {% else %}
 
       <div class="tabs">

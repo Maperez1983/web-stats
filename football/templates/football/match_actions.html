@@ -1395,6 +1395,10 @@
         .action-screen {
           grid-template-columns: 1fr;
         }
+        .field-column {
+          padding: 1.25rem;
+          border-radius: 0;
+        }
         .actions-sidebar {
           border-left: none;
           padding: 1.5rem;
@@ -1403,6 +1407,47 @@
           right: 10px;
           left: 10px;
           min-width: 0;
+        }
+      }
+      @media (max-width: 760px) {
+        .field-column,
+        .actions-sidebar {
+          padding: 0.9rem;
+        }
+        .match-header-panels,
+        .match-status-panels,
+        .quick-action-columns {
+          gap: 0.75rem;
+        }
+        .quick-action-column,
+        .status-card {
+          min-width: 0;
+        }
+        .quick-drop-row {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+        }
+        .lineup-toolbar {
+          flex-wrap: nowrap;
+          overflow-x: auto;
+          padding-bottom: 0.2rem;
+          -webkit-overflow-scrolling: touch;
+        }
+        .lineup-toolbar button {
+          white-space: nowrap;
+          flex: 0 0 auto;
+        }
+        .persistent-hud {
+          bottom: 8px;
+          right: 8px;
+          left: 8px;
+          padding: 0.45rem 0.55rem;
+        }
+        .persistent-hud .label {
+          font-size: 0.56rem;
+        }
+        .persistent-hud .value {
+          font-size: 0.78rem;
         }
       }
     </style>
