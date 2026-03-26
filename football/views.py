@@ -3229,7 +3229,7 @@ def session_task_pdf(request, task_id):
         'coach_name': coach_name,
         'animation_frames_count': len(animation_frames),
         'logo_url': request.build_absolute_uri(static('football/images/cdb-logo.png')),
-        'task_preview_url': request.build_absolute_uri(task.task_preview_image.url) if task.task_preview_image else '',
+        'task_preview_url': request.build_absolute_uri(reverse('session-task-preview-file', args=[task.id])) if task.task_preview_image else '',
         'generated_at': timezone.localtime(),
     }
     html = render_to_string('football/session_task_pdf.html', context)

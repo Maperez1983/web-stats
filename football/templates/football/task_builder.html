@@ -780,7 +780,7 @@
               {% if task and task.task_preview_image %}
               <div class="section preview-card">
                 <h3>Última preview guardada</h3>
-                <img src="{{ task.task_preview_image.url }}" alt="Preview de tarea" />
+                <img src="{% url 'session-task-preview-file' task.id %}" alt="Preview de tarea" />
               </div>
               {% endif %}
 
