@@ -1624,7 +1624,7 @@ class SessionsPlanningTests(TestCase):
         self.assertEqual(meta.get('assigned_player_names'), ['Hugo'])
         self.assertTrue(bool(task.task_preview_image))
         self.assertContains(response, 'Tarea guardada correctamente.')
-        self.assertContains(response, 'Exportar PDF')
+        self.assertContains(response, 'Imprimir PDF UEFA')
 
     def test_task_builder_edit_updates_existing_task(self):
         session = TrainingSession.objects.create(
@@ -1670,6 +1670,58 @@ class SessionsPlanningTests(TestCase):
         self.assertEqual(task.session, other_session)
         self.assertEqual(task.duration_minutes, 22)
         self.assertEqual(task.block, SessionTask.BLOCK_MAIN_2)
+
+    @patch('football.views.weasyprint', None)
+    def test_session_task_pdf_renders_uefa_style_layout(self):
+        session = TrainingSession.objects.create(
+            microcycle=self.microcycle,
+            session_date=date(2026, 3, 25),
+            focus='Sesión base',
+            duration_minutes=90,
+        )
+        task = SessionTask.objects.create(
+            session=session,
+            title='2 contra 1 en progresión',
+            block=SessionTask.BLOCK_MAIN_1,
+            duration_minutes=18,
+            objective='Progresar y finalizar con ventaja',
+            coaching_points='Fijar al defensor antes del pase',
+            confrontation_rules='Si roba defensa, finaliza en miniportería',
+            tactical_layout={
+                'meta': {
+                    'scope': 'coach',
+                    'surface': 'césped natural',
+                    'pitch_format': 'fútbol 7',
+                    'space': 'Zona central + carriles',
+                    'organization': '2x1 en olas',
+                    'players_distribution': '3 atacantes / 2 defensores',
+                    'load_target': 'RPE 7',
+                    'complexity': 'Alta',
+                    'training_type': 'Situaciones reducidas',
+                    'series': '4',
+                    'repetitions': '3',
+                    'work_rest': "4x3' + 1'",
+                    'success_criteria': '6 finalizaciones limpias',
+                    'analysis': {
+                        'task_sheet': {
+                            'description': 'En un espacio reducido se propone una progresión 2x1 hasta finalizar.',
+                            'dimensions': '40x30m',
+                            'materials': 'Conos, petos y portería grande',
+                        }
+                    },
+                }
+            },
+        )
+
+        response = self.client.get(reverse('session-task-pdf', args=[task.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Entrega Ejercicio')
+        self.assertContains(response, 'Detalles del Ejercicio')
+        self.assertContains(response, 'Descripción Gráfica')
+        self.assertContains(response, 'Consigna / Explicación')
+        self.assertContains(response, 'Situaciones reducidas')
+        self.assertContains(response, 'portería grande')
 
     def test_library_task_can_be_copied_to_session(self):
         library_session = TrainingSession.objects.create(

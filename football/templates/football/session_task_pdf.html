@@ -2,97 +2,129 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <title>Tarea UEFA B · {{ task.title }}</title>
+    <title>Tarea UEFA · {{ task.title }}</title>
     <style>
       @page {
         size: A4;
-        margin: 14mm;
+        margin: 12mm;
       }
       body {
         font-family: "Segoe UI", Arial, sans-serif;
-        font-size: 11px;
-        color: #0f172a;
-        background: #f8fbff;
-      }
-      .header {
-        display: table;
-        width: 100%;
-        border-bottom: 2px solid #0e7490;
-        padding: 8px 10px;
-        border-radius: 10px;
-        background: linear-gradient(120deg, #f0f9ff, #ecfeff);
-        margin-bottom: 10px;
-      }
-      .logo,
-      .title {
-        display: table-cell;
-        vertical-align: middle;
-      }
-      .logo {
-        width: 76px;
-      }
-      .logo img {
-        width: 64px;
-        height: 64px;
-        object-fit: contain;
-      }
-      h1 {
-        margin: 0;
-        font-size: 20px;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        color: #0c4a6e;
-      }
-      .subtitle {
-        margin-top: 3px;
-        color: #334155;
-      }
-      .meta-grid {
-        width: 100%;
-        border-collapse: collapse;
-        margin-bottom: 10px;
-      }
-      .meta-grid td {
-        border: 1px solid #cbd5e1;
-        padding: 6px 8px;
-      }
-      .meta-grid strong {
-        display: block;
-        font-size: 10px;
-        text-transform: uppercase;
-        color: #475569;
-        margin-bottom: 2px;
-      }
-      .block {
-        border: 1px solid #cbd5e1;
-        border-radius: 6px;
-        margin-bottom: 8px;
-        overflow: hidden;
+        font-size: 10.5px;
+        color: #111827;
         background: #ffffff;
       }
-      .block h2 {
-        margin: 0;
-        padding: 6px 8px;
-        background: #e2e8f0;
-        font-size: 11px;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
+      .sheet {
+        border: 1px solid #d5dde7;
       }
-      .block ul {
+      .brand {
+        display: table;
+        width: 100%;
+        border-bottom: 1px solid #d5dde7;
+        background: #f8fafc;
+      }
+      .brand-logo,
+      .brand-copy {
+        display: table-cell;
+        vertical-align: middle;
+        padding: 10px 12px;
+      }
+      .brand-logo {
+        width: 78px;
+      }
+      .brand-logo img {
+        width: 56px;
+        height: 56px;
+        object-fit: contain;
+      }
+      .brand-copy h1 {
         margin: 0;
-        padding: 8px 20px 10px;
+        font-size: 18px;
+        letter-spacing: 0.03em;
+      }
+      .brand-copy p {
+        margin: 4px 0 0;
+        color: #475569;
+      }
+      .section-title {
+        padding: 7px 12px;
+        border-bottom: 1px solid #d5dde7;
+        background: #eef2f7;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+      }
+      .details {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .details td {
+        width: 33.333%;
+        padding: 8px 10px;
+        border-right: 1px solid #d5dde7;
+        border-bottom: 1px solid #d5dde7;
+        vertical-align: top;
+      }
+      .details tr td:last-child {
+        border-right: none;
+      }
+      .label {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 9px;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+      }
+      .value {
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1.3;
+      }
+      .split {
+        display: table;
+        width: 100%;
+      }
+      .split-col {
+        display: table-cell;
+        width: 50%;
+        vertical-align: top;
+        border-right: 1px solid #d5dde7;
+      }
+      .split-col:last-child {
+        border-right: none;
+      }
+      .box-head {
+        padding: 7px 10px;
+        border-bottom: 1px solid #d5dde7;
+        background: #f8fafc;
+        font-weight: 700;
+      }
+      .box-body {
+        padding: 10px;
+      }
+      .preview-frame {
+        min-height: 280px;
+        border: 1px solid #d5dde7;
+        background: #ffffff;
+        text-align: center;
+      }
+      .preview-frame img {
+        display: block;
+        max-width: 100%;
+        max-height: 360px;
+        margin: 0 auto;
       }
       .field {
         position: relative;
         height: 290px;
         border: 2px solid #0f172a;
-        margin-top: 6px;
         background:
           linear-gradient(180deg, rgba(34, 197, 94, 0.28), rgba(22, 163, 74, 0.35)),
           repeating-linear-gradient(
-            0deg,
-            rgba(255, 255, 255, 0.14) 0 1px,
-            transparent 1px 24px
+            90deg,
+            rgba(255, 255, 255, 0.08) 0 42px,
+            rgba(0, 0, 0, 0.06) 42px 84px
           );
       }
       .mid-line {
@@ -100,7 +132,7 @@
         left: 50%;
         top: 0;
         bottom: 0;
-        width: 1px;
+        width: 2px;
         background: #ffffff;
         transform: translateX(-50%);
       }
@@ -110,7 +142,7 @@
         top: 50%;
         width: 78px;
         height: 78px;
-        border: 1px solid #ffffff;
+        border: 2px solid #ffffff;
         border-radius: 50%;
         transform: translate(-50%, -50%);
       }
@@ -133,24 +165,8 @@
         color: #ffffff;
       }
       .token.material {
-        background: linear-gradient(145deg, #facc15, #f59e0b);
+        background: #fde68a;
         color: #111827;
-      }
-
-      .token.material.material-pole,
-      .token.material.material-slalom,
-      .token.material.material-stake {
-        min-width: 16px;
-        border-radius: 6px;
-      }
-      .token.material.material-goal,
-      .token.material.material-mini-goal,
-      .token.material.material-gk-goal {
-        border-radius: 6px;
-      }
-      .token.material.material-ball,
-      .token.material.material-medicine-ball {
-        border-radius: 50%;
       }
       .token.material.has-asset {
         background: #ffffff;
@@ -164,192 +180,172 @@
         height: 24px;
         object-fit: contain;
       }
+      .text-block {
+        white-space: pre-line;
+        line-height: 1.45;
+      }
+      .bullet-list {
+        margin: 0;
+        padding-left: 18px;
+      }
+      .bullet-list li {
+        margin-bottom: 5px;
+      }
       .footer {
-        margin-top: 10px;
+        padding: 8px 12px;
+        border-top: 1px solid #d5dde7;
         font-size: 9px;
-        color: #475569;
+        color: #64748b;
         text-align: right;
       }
     </style>
   </head>
   <body>
-    <header class="header">
-      <div class="logo">
-        <img src="{{ logo_url }}" alt="Escudo {{ team_name }}" />
+    <section class="sheet">
+      <div class="brand">
+        <div class="brand-logo">
+          <img src="{{ logo_url }}" alt="Escudo {{ team_name }}" />
+        </div>
+        <div class="brand-copy">
+          <h1>Entrega Ejercicio</h1>
+          <p>{{ team_name }} · {{ session.session_date|date:"d/m/Y" }}{% if session.start_time %} · {{ session.start_time|time:"H:i" }}{% endif %}</p>
+        </div>
       </div>
-      <div class="title">
-        <h1>Ficha Tarea UEFA B</h1>
-        <div class="subtitle">{{ team_name }} · {{ task.title }}</div>
-      </div>
-    </header>
 
-    <table class="meta-grid">
-      <tr>
-        <td>
-          <strong>Microciclo</strong>
-          {{ microcycle.title }} ({{ microcycle.week_start|date:"d/m" }} - {{ microcycle.week_end|date:"d/m" }})
-        </td>
-        <td>
-          <strong>Sesión</strong>
-          {{ session.session_date|date:"d/m/Y" }}{% if session.start_time %} · {{ session.start_time|time:"H:i" }}{% endif %}
-        </td>
-        <td>
-          <strong>Duración</strong>
-          {{ task.duration_minutes }} min
-        </td>
-      </tr>
-      <tr>
-        <td>
-          <strong>Bloque</strong>
-          {{ task.get_block_display }}
-        </td>
-        <td>
-          <strong>Intensidad</strong>
-          {{ session.get_intensity_display }}
-        </td>
-        <td>
-          <strong>Generado</strong>
-          {{ generated_at|date:"d/m/Y H:i" }}
-        </td>
-      </tr>
-      <tr>
-        <td>
-          <strong>Superficie / Formato</strong>
-          {{ task_meta.surface|default:"-" }} · {{ task_meta.pitch_format|default:"-" }}
-        </td>
-        <td>
-          <strong>Espacio / Organización</strong>
-          {{ task_meta.space|default:"-" }} · {{ task_meta.organization|default:"-" }}
-        </td>
-        <td>
-          <strong>Distribución / Carga</strong>
-          {{ task_meta.players_distribution|default:"-" }} · {{ task_meta.load_target|default:"-" }}
-        </td>
-      </tr>
-    </table>
+      <div class="section-title">Detalles del Ejercicio</div>
+      <table class="details">
+        <tr>
+          <td colspan="3">
+            <span class="label">Título</span>
+            <div class="value">{{ task.title }}</div>
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <span class="label">Estrategia</span>
+            <div class="value">{{ strategy_label }}</div>
+          </td>
+          <td colspan="2">
+            <span class="label">Objetivos</span>
+            <div class="value">{{ task.objective|default:"-" }}</div>
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <span class="label">Espacio</span>
+            <div class="value">{{ space_label }}</div>
+          </td>
+          <td>
+            <span class="label">Tiempo</span>
+            <div class="value">{{ task.duration_minutes }} min</div>
+          </td>
+          <td>
+            <span class="label">Situación de Juego</span>
+            <div class="value">{{ game_situation_label }}</div>
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <span class="label">Coordinación</span>
+            <div class="value">{{ coordination_label }}</div>
+          </td>
+          <td>
+            <span class="label">Calificación / Carga</span>
+            <div class="value">{{ coordination_skills_label }}</div>
+          </td>
+          <td>
+            <span class="label">Intención / Acción Táctica</span>
+            <div class="value">{{ tactical_intent_label }}</div>
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <span class="label">Material</span>
+            <div class="value">{{ materials_label }}</div>
+          </td>
+          <td>
+            <span class="label">Serie / Repeticiones</span>
+            <div class="value">{% if task_meta.series or task_meta.repetitions %}{{ task_meta.series|default:"-" }} · {{ task_meta.repetitions|default:"-" }}{% else %}-{% endif %}</div>
+          </td>
+          <td>
+            <span class="label">Trabajo / Pausa</span>
+            <div class="value">{{ task_meta.work_rest|default:"-" }}</div>
+          </td>
+        </tr>
+      </table>
 
-    {% if task_meta.resources_summary %}
-    <section class="block">
-      <h2>Recursos</h2>
-      <ul><li>{{ task_meta.resources_summary }}</li></ul>
-    </section>
-    {% endif %}
-    {% if task_meta.principle or task_meta.subprinciple or task_meta.work_rest or task_meta.series or task_meta.repetitions or task_meta.scoring_model %}
-    <section class="block">
-      <h2>Parámetros de Diseño</h2>
-      <ul>
-        {% if task_meta.principle %}<li><strong>Principio:</strong> {{ task_meta.principle }}</li>{% endif %}
-        {% if task_meta.subprinciple %}<li><strong>Subprincipio:</strong> {{ task_meta.subprinciple }}</li>{% endif %}
-        {% if task_meta.work_rest %}<li><strong>Trabajo/Pausa:</strong> {{ task_meta.work_rest }}</li>{% endif %}
-        {% if task_meta.series %}<li><strong>Series:</strong> {{ task_meta.series }}</li>{% endif %}
-        {% if task_meta.repetitions %}<li><strong>Repeticiones:</strong> {{ task_meta.repetitions }}</li>{% endif %}
-        {% if task_meta.scoring_model %}<li><strong>Sistema puntuación:</strong> {{ task_meta.scoring_model }}</li>{% endif %}
-      </ul>
-    </section>
-    {% endif %}
-    {% if task_meta.player_count or task_meta.age_group or task_meta.training_type or task_meta.category_tags or task_meta.assigned_player_names %}
-    <section class="block">
-      <h2>Perfil de la Tarea</h2>
-      <ul>
-        {% if task_meta.player_count %}<li><strong>Nº jugadores:</strong> {{ task_meta.player_count }}</li>{% endif %}
-        {% if task_meta.age_group %}<li><strong>Edad / categoría:</strong> {{ task_meta.age_group }}</li>{% endif %}
-        {% if task_meta.training_type %}<li><strong>Tipo de entrenamiento:</strong> {{ task_meta.training_type }}</li>{% endif %}
-        {% if task_meta.category_tags %}<li><strong>Categorización extra:</strong> {{ task_meta.category_tags|join:", " }}</li>{% endif %}
-        {% if task_meta.assigned_player_names %}<li><strong>Jugadores asignados:</strong> {{ task_meta.assigned_player_names|join:", " }}</li>{% endif %}
-      </ul>
-    </section>
-    {% endif %}
-    {% if task_meta.game_phase or task_meta.game_sub_phase or task_meta.methodology or task_meta.complexity or task_meta.cognitive_load or task_meta.emotional_load or task_meta.constraints or task_meta.targets or task_meta.expected_outcomes or task_meta.common_errors or task_meta.corrective_cues %}
-    <section class="block">
-      <h2>Diseño Profesional</h2>
-      <ul>
-        {% if task_meta.game_phase %}<li><strong>Fase de juego:</strong> {{ task_meta.game_phase }}</li>{% endif %}
-        {% if task_meta.game_sub_phase %}<li><strong>Subfase:</strong> {{ task_meta.game_sub_phase }}</li>{% endif %}
-        {% if task_meta.methodology %}<li><strong>Metodología:</strong> {{ task_meta.methodology }}</li>{% endif %}
-        {% if task_meta.complexity %}<li><strong>Complejidad:</strong> {{ task_meta.complexity }}</li>{% endif %}
-        {% if task_meta.cognitive_load %}<li><strong>Carga cognitiva:</strong> {{ task_meta.cognitive_load }}/10</li>{% endif %}
-        {% if task_meta.emotional_load %}<li><strong>Carga emocional:</strong> {{ task_meta.emotional_load }}/10</li>{% endif %}
-        {% if task_meta.constraints %}<li><strong>Constraints:</strong> {{ task_meta.constraints|join:", " }}</li>{% endif %}
-        {% if task_meta.targets %}<li><strong>Targets:</strong> {{ task_meta.targets }}</li>{% endif %}
-        {% if task_meta.expected_outcomes %}<li><strong>Outcomes:</strong> {{ task_meta.expected_outcomes }}</li>{% endif %}
-        {% if task_meta.common_errors %}<li><strong>Errores frecuentes:</strong> {{ task_meta.common_errors }}</li>{% endif %}
-        {% if task_meta.corrective_cues %}<li><strong>Cues correctivos:</strong> {{ task_meta.corrective_cues }}</li>{% endif %}
-        {% if task_meta.video_reference %}<li><strong>Referencia vídeo:</strong> {{ task_meta.video_reference }}</li>{% endif %}
-      </ul>
-    </section>
-    {% endif %}
-
-    <section class="block">
-      <h2>Objetivos</h2>
-      <ul>
-        {% for line in objective_lines %}
-        <li>{{ line }}</li>
-        {% endfor %}
-      </ul>
-    </section>
-
-    <section class="block">
-      <h2>Consignas</h2>
-      <ul>
-        {% for line in coaching_lines %}
-        <li>{{ line }}</li>
-        {% endfor %}
-      </ul>
-    </section>
-
-    <section class="block">
-      <h2>Reglas de Confrontación</h2>
-      <ul>
-        {% for line in rules_lines %}
-        <li>{{ line }}</li>
-        {% endfor %}
-      </ul>
-    </section>
-    {% if task_meta.progression %}
-    <section class="block">
-      <h2>Progresión / Variantes</h2>
-      <div style="padding:8px 10px; white-space:pre-line;">{{ task_meta.progression }}</div>
-    </section>
-    {% endif %}
-    {% if task_meta.regression %}
-    <section class="block">
-      <h2>Regresión / Adaptación</h2>
-      <div style="padding:8px 10px; white-space:pre-line;">{{ task_meta.regression }}</div>
-    </section>
-    {% endif %}
-    {% if task_meta.success_criteria %}
-    <section class="block">
-      <h2>Criterio de Éxito</h2>
-      <div style="padding:8px 10px; white-space:pre-line;">{{ task_meta.success_criteria }}</div>
-    </section>
-    {% endif %}
-
-    <section class="block">
-      <h2>Representación Gráfica</h2>
-      <div class="field">
-        <span class="mid-line"></span>
-        <span class="mid-circle"></span>
-        {% for token in tokens %}
-        <span class="token {% if token.type == 'material' %}material material-{{ token.kind }} {% if token.asset_url %}has-asset{% endif %}{% else %}player{% endif %}" style="left:{{ token.x }}%; top:{{ token.y }}%;" title="{{ token.title }}">
-          {% if token.type == 'material' %}
-            {% if token.asset_url %}
-            <img src="{{ token.asset_url }}" alt="{{ token.title|default:token.label }}" />
+      <div class="split">
+        <div class="split-col">
+          <div class="box-head">Descripción Gráfica</div>
+          <div class="box-body">
+            {% if task_preview_url %}
+            <div class="preview-frame">
+              <img src="{{ task_preview_url }}" alt="Vista gráfica de la tarea" />
+            </div>
             {% else %}
-            {{ token.icon|default:token.label }}
+            <div class="field">
+              <span class="mid-line"></span>
+              <span class="mid-circle"></span>
+              {% for token in tokens %}
+              <span class="token {% if token.type == 'material' %}material {% if token.asset_url %}has-asset{% endif %}{% else %}player{% endif %}" style="left:{{ token.x }}%; top:{{ token.y }}%;" title="{{ token.title }}">
+                {% if token.type == 'material' %}
+                  {% if token.asset_url %}
+                  <img src="{{ token.asset_url }}" alt="{{ token.title|default:token.label }}" />
+                  {% else %}
+                  {{ token.icon|default:token.label }}
+                  {% endif %}
+                {% else %}
+                  {{ token.label }}
+                {% endif %}
+              </span>
+              {% endfor %}
+            </div>
             {% endif %}
-          {% else %}
-            {{ token.label }}
-          {% endif %}
-        </span>
-        {% endfor %}
+          </div>
+        </div>
+        <div class="split-col">
+          <div class="box-head">Consigna / Explicación</div>
+          <div class="box-body">
+            {% if description_lines and description_lines.0 != '-' %}
+            <div class="text-block">{{ description_lines|join:"\n" }}</div>
+            {% elif coaching_lines and coaching_lines.0 != '-' %}
+            <ul class="bullet-list">
+              {% for line in coaching_lines %}
+              <li>{{ line }}</li>
+              {% endfor %}
+            </ul>
+            {% else %}
+            <div class="text-block">-</div>
+            {% endif %}
+            {% if rules_lines and rules_lines.0 != '-' %}
+            <div style="margin-top:10px;">
+              <span class="label">Normas de Confrontación</span>
+              <ul class="bullet-list">
+                {% for line in rules_lines %}
+                <li>{{ line }}</li>
+                {% endfor %}
+              </ul>
+            </div>
+            {% endif %}
+            {% if task_meta.progression %}
+            <div style="margin-top:10px;">
+              <span class="label">Progresión</span>
+              <div class="text-block">{{ task_meta.progression }}</div>
+            </div>
+            {% endif %}
+            {% if task_meta.success_criteria %}
+            <div style="margin-top:10px;">
+              <span class="label">Criterio de Éxito</span>
+              <div class="text-block">{{ task_meta.success_criteria }}</div>
+            </div>
+            {% endif %}
+          </div>
+        </div>
       </div>
-      {% if animation_frames_count %}
-      <p style="margin:6px 8px 8px;font-size:10px;color:#334155;">
-        Timeline táctico grabado: {{ animation_frames_count }} eventos.
-      </p>
-      {% endif %}
-    </section>
 
-    <p class="footer">Formato referencia UEFA B · Plan de tarea individual</p>
+      <div class="footer">
+        Formato UEFA · {{ microcycle.title }} · Generado {{ generated_at|date:"d/m/Y H:i" }}
+      </div>
+    </section>
   </body>
 </html>

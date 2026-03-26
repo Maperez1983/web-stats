@@ -3080,6 +3080,24 @@ def session_task_pdf(request, task_id):
         meta['assigned_player_names'] = [item.strip() for item in str(meta.get('assigned_player_names') or '').split(',') if item.strip()]
     elif not isinstance(meta.get('assigned_player_names'), list):
         meta['assigned_player_names'] = []
+    analysis_meta = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
+    task_sheet = analysis_meta.get('task_sheet') if isinstance(analysis_meta.get('task_sheet'), dict) else {}
+    description_text = str(task_sheet.get('description') or '').strip()
+    dimensions_text = str(task_sheet.get('dimensions') or '').strip()
+    materials_text = str(task_sheet.get('materials') or meta.get('resources_summary') or '').strip()
+    strategy_label = str(meta.get('training_type') or meta.get('methodology') or task.get_block_display() or '').strip()
+    space_label = ' · '.join(part for part in [dimensions_text, str(meta.get('space') or '').strip()] if part)
+    game_situation_label = ' · '.join(part for part in [str(meta.get('pitch_format') or '').strip(), str(meta.get('surface') or '').strip()] if part)
+    coordination_label = ' · '.join(part for part in [str(meta.get('organization') or '').strip(), str(meta.get('players_distribution') or '').strip()] if part)
+    coordination_skills_label = ' · '.join(part for part in [str(meta.get('load_target') or '').strip(), str(meta.get('complexity') or '').strip()] if part)
+    tactical_intent_label = ' · '.join(
+        part for part in [
+            str(meta.get('principle') or '').strip(),
+            str(meta.get('subprinciple') or '').strip(),
+            str(meta.get('targets') or '').strip(),
+            str(task.objective or '').strip(),
+        ] if part
+    )
     animation_frames = tactical_layout.get('timeline') if isinstance(tactical_layout, dict) else []
     if not isinstance(animation_frames, list):
         animation_frames = []
@@ -3162,10 +3180,20 @@ def session_task_pdf(request, task_id):
         'objective_lines': _split_lines(task.objective),
         'coaching_lines': _split_lines(task.coaching_points),
         'rules_lines': _split_lines(task.confrontation_rules),
+        'description_lines': _split_lines(description_text),
         'tokens': tokens,
         'task_meta': meta,
+        'strategy_label': strategy_label or '-',
+        'space_label': space_label or '-',
+        'dimensions_label': dimensions_text or '-',
+        'materials_label': materials_text or '-',
+        'game_situation_label': game_situation_label or '-',
+        'coordination_label': coordination_label or '-',
+        'coordination_skills_label': coordination_skills_label or '-',
+        'tactical_intent_label': tactical_intent_label or '-',
         'animation_frames_count': len(animation_frames),
         'logo_url': request.build_absolute_uri(static('football/images/cdb-logo.png')),
+        'task_preview_url': request.build_absolute_uri(task.task_preview_image.url) if task.task_preview_image else '',
         'generated_at': timezone.localtime(),
     }
     html = render_to_string('football/session_task_pdf.html', context)
