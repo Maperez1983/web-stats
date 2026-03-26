@@ -183,6 +183,30 @@ class TaskStudioAccessTests(TestCase):
         self.assertContains(response, 'Tarea propia')
         self.assertNotContains(response, 'Tarea ajena')
 
+    def test_task_studio_owner_can_delete_own_task(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(reverse('task-studio-task-delete', args=[self.own_task.id]))
+
+        self.assertRedirects(response, reverse('task-studio-home'))
+        self.assertFalse(TaskStudioTask.objects.filter(id=self.own_task.id).exists())
+
+    def test_task_studio_user_cannot_delete_foreign_task(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(reverse('task-studio-task-delete', args=[self.other_task.id]))
+
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(TaskStudioTask.objects.filter(id=self.other_task.id).exists())
+
+    def test_task_studio_admin_can_delete_foreign_task(self):
+        self.client.force_login(self.admin_user)
+
+        response = self.client.post(reverse('task-studio-task-delete', args=[self.other_task.id]) + f'?user={self.other_user.id}')
+
+        self.assertRedirects(response, reverse('task-studio-home') + f'?user={self.other_user.id}')
+        self.assertFalse(TaskStudioTask.objects.filter(id=self.other_task.id).exists())
+
     def test_task_studio_profile_can_be_saved(self):
         self.client.force_login(self.user)
 

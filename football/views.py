@@ -9592,6 +9592,7 @@ def task_studio_home_page(request):
     forbidden = _forbid_if_task_studio_module_disabled(request, target_user, 'task_studio_home', label='inicio Task Studio')
     if forbidden:
         return forbidden
+    feedback = str(request.session.pop('task_studio_feedback', '') or '')
     browse_all = bool(_is_admin_user(request.user) and not request.GET.get('user'))
     profile = _task_studio_profile_for_user(target_user)
     task_qs = TaskStudioTask.objects.select_related('owner')
@@ -9611,6 +9612,7 @@ def task_studio_home_page(request):
             'roster_count': roster_count,
             'browse_all': browse_all,
             'query_suffix': query_suffix,
+            'feedback': feedback,
         },
     )
 
@@ -9797,6 +9799,25 @@ def task_studio_task_builder_page(request, task_id=None):
             'show_dragon_nav': False,
         },
     )
+
+
+@login_required
+@require_POST
+def task_studio_task_delete_page(request, task_id):
+    forbidden = _forbid_if_no_task_studio_access(request.user)
+    if forbidden:
+        return forbidden
+    task = _task_studio_task_for_request(request, task_id)
+    if not task:
+        raise Http404('Tarea no encontrada')
+    forbidden = _forbid_if_task_studio_module_disabled(request, task.owner, 'task_studio_tasks', label='tareas Task Studio')
+    if forbidden:
+        return forbidden
+    owner = task.owner
+    task_title = task.title
+    task.delete()
+    request.session['task_studio_feedback'] = f'Tarea eliminada: {task_title}.'
+    return redirect(reverse('task-studio-home') + _task_studio_query_suffix(owner, request.user))
 
 
 @login_required

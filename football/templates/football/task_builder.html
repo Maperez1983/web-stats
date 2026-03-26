@@ -66,6 +66,12 @@
         text-decoration: none;
         cursor: pointer;
       }
+      .button.danger,
+      button.danger {
+        background: rgba(127, 29, 29, 0.22);
+        border-color: rgba(248, 113, 113, 0.4);
+        color: #fecaca;
+      }
       button.primary {
         background: linear-gradient(135deg, #22d3ee, #67e8f9);
         border: none;
@@ -524,6 +530,12 @@
           <a href="{{ back_url|default:'#' }}" class="button">{{ back_label|default:'Volver a sesiones' }}</a>
           <button type="button" class="button" data-print-style="uefa">Imprimir UEFA</button>
           <button type="button" class="button" data-print-style="club">Imprimir Club</button>
+          {% if task and scope_key == 'task_studio' %}
+          <form method="post" action="{% url 'task-studio-task-delete' task.id %}{% if query_suffix %}{{ query_suffix }}{% endif %}" onsubmit="return confirm('Se eliminará esta tarea creada.');">
+            {% csrf_token %}
+            <button type="submit" class="button danger">Borrar tarea</button>
+          </form>
+          {% endif %}
         </div>
       </div>
 
