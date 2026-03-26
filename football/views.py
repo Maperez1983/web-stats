@@ -7113,7 +7113,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     selected_methodology = ''
                 if selected_complexity not in valid_complexities:
                     selected_complexity = ''
-                if pitch_preset not in {'full_pitch', 'half_pitch', 'attacking_third', 'seven_side', 'futsal', 'blank'}:
+                if pitch_preset not in {'full_pitch', 'half_pitch', 'attacking_third', 'seven_side', 'seven_side_single', 'futsal', 'blank'}:
                     pitch_preset = 'full_pitch'
                 target_session = None
                 if target_session_id:
@@ -8004,7 +8004,7 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
         selected_methodology = ''
     if selected_complexity not in valid_complexities:
         selected_complexity = ''
-    if pitch_preset not in {'full_pitch', 'half_pitch', 'attacking_third', 'seven_side', 'futsal', 'blank'}:
+    if pitch_preset not in {'full_pitch', 'half_pitch', 'attacking_third', 'seven_side', 'seven_side_single', 'futsal', 'blank'}:
         pitch_preset = 'full_pitch'
 
     target_session = existing_task.session if existing_task else None

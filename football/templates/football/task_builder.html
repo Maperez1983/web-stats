@@ -467,6 +467,13 @@
                           <small>Dos campos F7 representados dentro del F11, uno en cada mitad.</small>
                         </span>
                       </button>
+                      <button type="button" class="surface-option" data-preset="seven_side_single">
+                        <span class="surface-option-thumb" data-surface-thumb="seven_side_single"></span>
+                        <span>
+                          <strong>Fútbol 7 individual</strong>
+                          <small>Campo F7 único, limpio y centrado para tareas específicas de fútbol 7.</small>
+                        </span>
+                      </button>
                       <button type="button" class="surface-option" data-preset="futsal">
                         <span class="surface-option-thumb" data-surface-thumb="futsal"></span>
                         <span>
@@ -485,7 +492,8 @@
                   <option value="full_pitch" {% if initial.pitch_preset == 'full_pitch' %}selected{% endif %}>Campo completo</option>
                   <option value="half_pitch" {% if initial.pitch_preset == 'half_pitch' %}selected{% endif %}>Medio campo</option>
                   <option value="attacking_third" {% if initial.pitch_preset == 'attacking_third' %}selected{% endif %}>Último tercio</option>
-                  <option value="seven_side" {% if initial.pitch_preset == 'seven_side' %}selected{% endif %}>Fútbol 7</option>
+                  <option value="seven_side" {% if initial.pitch_preset == 'seven_side' %}selected{% endif %}>Fútbol 7 sobre F11</option>
+                  <option value="seven_side_single" {% if initial.pitch_preset == 'seven_side_single' %}selected{% endif %}>Fútbol 7 individual</option>
                   <option value="futsal" {% if initial.pitch_preset == 'futsal' %}selected{% endif %}>Futsal</option>
                   <option value="blank" {% if initial.pitch_preset == 'blank' %}selected{% endif %}>Limpio</option>
                 </select>
@@ -529,8 +537,15 @@
                 <div class="resource-strip" id="task-emoji-tools">
                   <button type="button" data-add="emoji_ball">⚽ Balón</button>
                   <button type="button" data-add="emoji_cone">🔺 Cono</button>
+                  <button type="button" data-add="emoji_pole">📍 Pica</button>
+                  <button type="button" data-add="emoji_ladder">🪜 Escalera</button>
+                  <button type="button" data-add="emoji_ring">⭕ Aro</button>
                   <button type="button" data-add="emoji_hurdle">🚧 Valla</button>
+                  <button type="button" data-add="emoji_bib">🦺 Peto</button>
+                  <button type="button" data-add="emoji_mannequin">🧍 Maniquí</button>
+                  <button type="button" data-add="emoji_wall">🧱 Muro</button>
                   <button type="button" data-add="emoji_goal">🥅 Portería</button>
+                  <button type="button" data-add="emoji_mini_goal">🥅 Mini portería</button>
                   <button type="button" data-add="emoji_whistle">📣 Silbato</button>
                   <button type="button" data-add="emoji_stopwatch">⏱️ Crono</button>
                 </div>

@@ -7,6 +7,7 @@
     half_pitch: '11v11_half',
     attacking_third: 'specific_zone',
     seven_side: '7v7',
+    seven_side_single: '7v7',
     futsal: '5v5',
     blank: 'specific_zone',
   };
@@ -16,6 +17,7 @@
     half_pitch: 'medio campo',
     attacking_third: 'último tercio',
     seven_side: 'fútbol 7 doble',
+    seven_side_single: 'fútbol 7 individual',
     futsal: 'futsal',
     blank: 'superficie libre',
   };
@@ -45,16 +47,30 @@
     shape_diamond: 'un rombo',
     emoji_ball: 'un balón emoji',
     emoji_cone: 'un cono emoji',
+    emoji_pole: 'una pica emoji',
+    emoji_ladder: 'una escalera emoji',
+    emoji_ring: 'un aro emoji',
     emoji_hurdle: 'una valla emoji',
+    emoji_bib: 'un peto emoji',
+    emoji_mannequin: 'un maniquí emoji',
+    emoji_wall: 'un muro emoji',
     emoji_goal: 'una portería emoji',
+    emoji_mini_goal: 'una mini portería emoji',
     emoji_whistle: 'un silbato emoji',
     emoji_stopwatch: 'un cronómetro emoji',
   };
   const EMOJI_LIBRARY = {
     emoji_ball: '⚽',
     emoji_cone: '🔺',
+    emoji_pole: '📍',
+    emoji_ladder: '🪜',
+    emoji_ring: '⭕',
     emoji_hurdle: '🚧',
+    emoji_bib: '🦺',
+    emoji_mannequin: '🧍',
+    emoji_wall: '🧱',
     emoji_goal: '🥅',
+    emoji_mini_goal: '🥅',
     emoji_whistle: '📣',
     emoji_stopwatch: '⏱️',
   };
@@ -314,6 +330,7 @@
       drawFullPitch();
       drawSevenSideOverlay(stage.x, stage.y, stage.width, stage.height);
     }
+    else if (preset === 'seven_side_single') drawMiniGame(65, 45, 13, 26, 4.5, 12, 6);
     else if (preset === 'futsal') drawMiniGame(40, 20, 6, 16, 0, 0, 3);
     else drawFullPitch();
 
