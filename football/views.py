@@ -755,6 +755,54 @@ def _can_access_platform(user):
     return _is_admin_user(user)
 
 
+def _get_active_workspace(request):
+    if not request or not getattr(request, 'user', None) or not request.user.is_authenticated:
+        return None
+    if not _can_access_platform(request.user):
+        return None
+    workspace_id = _parse_int(request.GET.get('workspace'))
+    if not workspace_id:
+        workspace_id = _parse_int(request.session.get('active_workspace_id'))
+    if not workspace_id:
+        return None
+    workspace = (
+        Workspace.objects
+        .select_related('primary_team', 'owner_user')
+        .filter(id=workspace_id, is_active=True)
+        .first()
+    )
+    if not workspace:
+        request.session.pop('active_workspace_id', None)
+        return None
+    request.session['active_workspace_id'] = workspace.id
+    return workspace
+
+
+def _get_primary_team_for_request(request):
+    workspace = _get_active_workspace(request)
+    if workspace and workspace.kind == Workspace.KIND_CLUB and workspace.primary_team_id:
+        return workspace.primary_team
+    return Team.objects.filter(is_primary=True).first()
+
+
+def _build_active_workspace_badge(request):
+    workspace = _get_active_workspace(request)
+    if not workspace:
+        return None
+    subtitle = ''
+    if workspace.kind == Workspace.KIND_CLUB and workspace.primary_team_id:
+        subtitle = workspace.primary_team.display_name or workspace.primary_team.name
+    elif workspace.kind == Workspace.KIND_TASK_STUDIO and workspace.owner_user_id:
+        subtitle = workspace.owner_user.get_username()
+    return {
+        'id': workspace.id,
+        'name': workspace.name,
+        'kind': workspace.kind,
+        'kind_label': workspace.get_kind_display(),
+        'subtitle': subtitle,
+    }
+
+
 def _unique_workspace_slug(base_text, *, exclude_id=None):
     base_slug = slugify(base_text or 'workspace') or 'workspace'
     candidate = base_slug
@@ -1392,7 +1440,7 @@ def _serialize_universo_standings(snapshot):
 @login_required
 def dashboard_data(request):
     """Devuelve los datos principales que alimentarán la home cuerpo técnico/jugador."""
-    primary_team = Team.objects.filter(is_primary=True).first()
+    primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         return JsonResponse({'error': 'No hay equipo principal configurado'}, status=400)
 
@@ -1452,7 +1500,8 @@ def dashboard_page(request):
     can_access_admin = _is_admin_user(request.user)
     can_access_sessions = _can_access_sessions_workspace(request.user)
     can_access_platform = _can_access_platform(request.user)
-    primary_team = Team.objects.filter(is_primary=True).first()
+    primary_team = _get_primary_team_for_request(request)
+    active_workspace = _build_active_workspace_badge(request)
     if current_role == AppUserRole.ROLE_PLAYER:
         current_player = _resolve_player_for_user(request.user, primary_team)
         if current_player:
@@ -1471,6 +1520,7 @@ def dashboard_page(request):
             'can_access_admin': can_access_admin,
             'can_access_sessions': can_access_sessions,
             'can_access_platform': can_access_platform,
+            'active_workspace': active_workspace,
         },
     )
 
@@ -1482,6 +1532,7 @@ def platform_overview_page(request):
 
     feedback = ''
     error = ''
+    active_workspace = _build_active_workspace_badge(request)
     primary_team = Team.objects.filter(is_primary=True).first()
     if primary_team:
         _ensure_club_workspace(primary_team)
@@ -1545,8 +1596,81 @@ def platform_overview_page(request):
             'workspaces': workspaces,
             'teams': list(Team.objects.order_by('name')[:200]),
             'workspace_kind_choices': Workspace.KIND_CHOICES,
+            'active_workspace': active_workspace,
         },
     )
+
+
+@login_required
+def platform_workspace_detail_page(request, workspace_id):
+    if not _can_access_platform(request.user):
+        return HttpResponse('No tienes permisos para acceder a la plataforma.', status=403)
+    workspace = (
+        Workspace.objects
+        .select_related('owner_user', 'primary_team')
+        .annotate(member_count=Count('memberships', distinct=True))
+        .filter(id=workspace_id)
+        .first()
+    )
+    if not workspace:
+        raise Http404('Workspace no encontrado')
+    workspace.task_count = TaskStudioTask.objects.filter(workspace=workspace).count()
+    workspace.profile_count = TaskStudioProfile.objects.filter(workspace=workspace).count()
+    roster_count = TaskStudioRosterPlayer.objects.filter(workspace=workspace).count()
+    club_player_count = Player.objects.filter(team=workspace.primary_team).count() if workspace.primary_team_id else 0
+    module_cards = []
+    if workspace.kind == Workspace.KIND_CLUB:
+        module_cards = [
+            {'title': 'Dashboard', 'description': 'Vista general del cliente y KPIs principales.', 'url': reverse('dashboard-home')},
+            {'title': 'Portada entrenador', 'description': 'Resumen operativo del staff técnico.', 'url': reverse('coach-detail')},
+            {'title': 'Jugadores', 'description': 'KPIs y fichas vinculadas al workspace activo.', 'url': reverse('player-dashboard')},
+            {'title': 'Análisis', 'description': 'Scouting e informes del cliente seleccionado.', 'url': reverse('analysis')},
+        ]
+    else:
+        task_studio_url = reverse('task-studio-home')
+        if workspace.owner_user_id:
+            task_studio_url = f'{task_studio_url}?user={workspace.owner_user_id}'
+        module_cards = [
+            {'title': 'Task Studio', 'description': 'Repositorio y editor privado del usuario.', 'url': task_studio_url},
+            {'title': 'Perfil e identidad', 'description': 'Datos documentales, escudo y colores.', 'url': f"{reverse('task-studio-profile')}?user={workspace.owner_user_id}" if workspace.owner_user_id else reverse('task-studio-profile')},
+            {'title': 'Plantilla privada', 'description': 'Jugadores propios para la pizarra y documentos.', 'url': f"{reverse('task-studio-roster')}?user={workspace.owner_user_id}" if workspace.owner_user_id else reverse('task-studio-roster')},
+            {'title': 'Nueva tarea', 'description': 'Entrada directa al creador táctico del workspace.', 'url': f"{reverse('task-studio-task-create')}?user={workspace.owner_user_id}" if workspace.owner_user_id else reverse('task-studio-task-create')},
+        ]
+    return render(
+        request,
+        'football/platform_workspace_detail.html',
+        {
+            'workspace': workspace,
+            'active_workspace': _build_active_workspace_badge(request),
+            'roster_count': roster_count,
+            'club_player_count': club_player_count,
+            'module_cards': module_cards,
+        },
+    )
+
+
+@login_required
+def platform_workspace_enter_page(request, workspace_id):
+    if not _can_access_platform(request.user):
+        return HttpResponse('No tienes permisos para acceder a la plataforma.', status=403)
+    workspace = Workspace.objects.select_related('owner_user', 'primary_team').filter(id=workspace_id, is_active=True).first()
+    if not workspace:
+        raise Http404('Workspace no encontrado')
+    request.session['active_workspace_id'] = workspace.id
+    if workspace.kind == Workspace.KIND_TASK_STUDIO:
+        redirect_url = reverse('task-studio-home')
+        if workspace.owner_user_id:
+            redirect_url = f'{redirect_url}?user={workspace.owner_user_id}'
+        return redirect(redirect_url)
+    return redirect('dashboard-home')
+
+
+@login_required
+def platform_workspace_clear_page(request):
+    if not _can_access_platform(request.user):
+        return HttpResponse('No tienes permisos para acceder a la plataforma.', status=403)
+    request.session.pop('active_workspace_id', None)
+    return redirect('platform-overview')
 
 
 def _handle_home_carousel_post(request):
@@ -2198,7 +2322,7 @@ def invitation_accept_page(request, token):
 
 @login_required
 def player_dashboard_page(request):
-    primary_team = Team.objects.filter(is_primary=True).first()
+    primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         return JsonResponse({'error': 'No hay equipo principal configurado'}, status=400)
     try:
@@ -2284,7 +2408,7 @@ def coach_overview_page(request):
     if forbidden:
         return forbidden
     sources = list(ScrapeSource.objects.filter(is_active=True))
-    primary_team = Team.objects.filter(is_primary=True).first()
+    primary_team = _get_primary_team_for_request(request)
     technical_roles = {
         AppUserRole.ROLE_COACH,
         AppUserRole.ROLE_FITNESS,
@@ -9557,7 +9681,7 @@ def session_task_file(request, task_id):
 
 @login_required
 def fines_page(request):
-    primary_team = Team.objects.filter(is_primary=True).first()
+    primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         return JsonResponse({'error': 'No hay equipo principal configurado'}, status=400)
     error = ''
@@ -9625,7 +9749,7 @@ def analysis_page(request):
     forbidden = _forbid_if_no_coach_access(request.user)
     if forbidden:
         return forbidden
-    primary_team = Team.objects.filter(is_primary=True).first()
+    primary_team = _get_primary_team_for_request(request)
     team_url = (request.GET.get('team_url') or '').strip()
     team_id = (request.GET.get('team_id') or '').strip()
     raw_text = ''

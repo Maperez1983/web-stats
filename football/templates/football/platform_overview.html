@@ -212,6 +212,26 @@
         color: #ffaeae;
       }
 
+      .actions-row {
+        margin-top: 0.9rem;
+        display: flex;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+      }
+
+      .link-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        border: 1px solid rgba(160, 180, 215, 0.22);
+        background: rgba(255, 255, 255, 0.04);
+        color: #f3f7ff;
+        padding: 0.6rem 0.85rem;
+        text-decoration: none;
+        font-weight: 700;
+      }
+
       @media (max-width: 960px) {
         .grid {
           grid-template-columns: 1fr;
@@ -248,10 +268,18 @@
           <div class="product-kicker">Sistema matriz</div>
           <h1>Workspaces y clientes</h1>
           <p>Desde aquí se controla la plataforma global. Benagalbón deja de ser el centro técnico único y pasa a convivir con otros workspaces, como Task Studio o futuros clientes.</p>
+          {% if active_workspace %}
+          <div class="message ok" style="margin-top:0.9rem; display:inline-block;">
+            Contexto activo: <strong>{{ active_workspace.name }}</strong> · {{ active_workspace.kind_label }}
+          </div>
+          {% endif %}
         </div>
         <div class="hero-links">
           <a href="{% url 'dashboard-home' %}">Volver al dashboard</a>
           <a href="{% url 'admin-page' %}">Admin tools</a>
+          {% if active_workspace %}
+          <a href="{% url 'platform-workspace-clear' %}">Salir del contexto</a>
+          {% endif %}
         </div>
       </section>
 
@@ -303,6 +331,10 @@
                   <span>Estado</span>
                   <strong>{% if workspace.is_active %}Activo{% else %}Inactivo{% endif %}</strong>
                 </div>
+              </div>
+              <div class="actions-row">
+                <a class="link-btn" href="{% url 'platform-workspace-enter' workspace.id %}">Entrar como supervisor</a>
+                <a class="link-btn" href="{% url 'platform-workspace-detail' workspace.id %}">Abrir ficha</a>
               </div>
             </article>
             {% empty %}

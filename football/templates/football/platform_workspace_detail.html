@@ -1,0 +1,201 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ workspace.name }} · Plataforma</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
+    <style>
+      body {
+        margin: 0;
+        background: #09101d;
+        color: #e7ebf3;
+        font-family: Inter, system-ui, sans-serif;
+      }
+      .shell {
+        max-width: 1220px;
+        margin: 0 auto;
+        padding: 1.1rem;
+      }
+      .hero,
+      .panel,
+      .module-card {
+        background: rgba(12, 20, 34, 0.92);
+        border: 1px solid rgba(160, 180, 215, 0.18);
+        border-radius: 22px;
+        box-shadow: 0 18px 44px rgba(0, 0, 0, 0.22);
+      }
+      .hero {
+        padding: 1.2rem 1.3rem;
+      }
+      .hero h1,
+      .panel h2,
+      .module-card h3 {
+        margin: 0;
+      }
+      .hero p,
+      .panel p,
+      .module-card p {
+        color: #aab6c8;
+      }
+      .hero-links,
+      .module-links {
+        margin-top: 0.9rem;
+        display: flex;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+      }
+      .hero-links a,
+      .module-links a {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        border: 1px solid rgba(160, 180, 215, 0.22);
+        background: rgba(255, 255, 255, 0.04);
+        color: #f3f7ff;
+        padding: 0.65rem 0.9rem;
+        text-decoration: none;
+        font-weight: 700;
+      }
+      .grid {
+        margin-top: 1rem;
+        display: grid;
+        grid-template-columns: minmax(320px, 0.8fr) minmax(0, 1.2fr);
+        gap: 1rem;
+      }
+      .panel {
+        padding: 1rem;
+      }
+      .metrics {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.7rem;
+        margin-top: 1rem;
+      }
+      .metric {
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(160, 180, 215, 0.12);
+        padding: 0.8rem;
+      }
+      .metric span {
+        display: block;
+        color: #89a0c7;
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      .metric strong {
+        display: block;
+        margin-top: 0.22rem;
+        font-size: 1.15rem;
+      }
+      .module-list {
+        display: grid;
+        gap: 0.85rem;
+      }
+      .module-card {
+        padding: 1rem;
+      }
+      .chip {
+        display: inline-flex;
+        border-radius: 999px;
+        padding: 0.35rem 0.65rem;
+        background: rgba(52, 104, 205, 0.18);
+        color: #b3cbff;
+        font-weight: 700;
+        font-size: 0.8rem;
+      }
+      .active-banner {
+        margin-top: 0.8rem;
+        border-radius: 14px;
+        background: rgba(255, 191, 69, 0.12);
+        border: 1px solid rgba(255, 191, 69, 0.28);
+        color: #ffecc4;
+        padding: 0.75rem 0.85rem;
+      }
+      @media (max-width: 900px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      @media (max-width: 640px) {
+        .shell {
+          padding: 0.85rem;
+        }
+        .metrics {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <div class="chip">{{ workspace.get_kind_display }}</div>
+        <h1 style="margin-top:0.55rem;">{{ workspace.name }}</h1>
+        <p>Ficha de cliente/workspace dentro del sistema matriz. Desde aquí puedes entrar al contexto activo y supervisar los módulos que le corresponden.</p>
+        {% if active_workspace and active_workspace.id == workspace.id %}
+        <div class="active-banner">Este workspace ya es el contexto activo del sistema.</div>
+        {% endif %}
+        <div class="hero-links">
+          <a href="{% url 'platform-workspace-enter' workspace.id %}">Entrar como supervisor</a>
+          <a href="{% url 'platform-overview' %}">Volver a plataforma</a>
+          <a href="{% url 'dashboard-home' %}">Dashboard general</a>
+        </div>
+      </section>
+
+      <section class="grid">
+        <article class="panel">
+          <h2>Resumen</h2>
+          <p>Estado actual del workspace y volumen básico de información asociado.</p>
+          <div class="metrics">
+            <div class="metric">
+              <span>Miembros</span>
+              <strong>{{ workspace.member_count }}</strong>
+            </div>
+            <div class="metric">
+              <span>Perfiles Task Studio</span>
+              <strong>{{ workspace.profile_count }}</strong>
+            </div>
+            <div class="metric">
+              <span>Tareas</span>
+              <strong>{{ workspace.task_count }}</strong>
+            </div>
+            <div class="metric">
+              <span>Plantilla privada</span>
+              <strong>{{ roster_count }}</strong>
+            </div>
+            <div class="metric">
+              <span>Jugadores club</span>
+              <strong>{{ club_player_count }}</strong>
+            </div>
+            <div class="metric">
+              <span>Estado</span>
+              <strong>{% if workspace.is_active %}Activo{% else %}Inactivo{% endif %}</strong>
+            </div>
+          </div>
+          <div style="margin-top:1rem;">
+            <p><strong>Propietario:</strong> {% if workspace.owner_user %}{{ workspace.owner_user.username }}{% else %}Sin propietario{% endif %}</p>
+            <p><strong>Equipo vinculado:</strong> {% if workspace.primary_team %}{{ workspace.primary_team.name }}{% else %}Sin equipo{% endif %}</p>
+            <p><strong>Slug:</strong> {{ workspace.slug }}</p>
+          </div>
+        </article>
+
+        <section class="module-list">
+          {% for module in module_cards %}
+          <article class="module-card">
+            <h3>{{ module.title }}</h3>
+            <p>{{ module.description }}</p>
+            <div class="module-links">
+              <a href="{{ module.url }}">Abrir módulo</a>
+            </div>
+          </article>
+          {% endfor %}
+        </section>
+      </section>
+    </main>
+  </body>
+</html>

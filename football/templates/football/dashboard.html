@@ -87,6 +87,26 @@
         background: rgba(70, 211, 255, 0.18);
       }
 
+      .workspace-banner {
+        margin-top: 0.65rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.55rem;
+        flex-wrap: wrap;
+        border-radius: 14px;
+        border: 1px solid rgba(255, 191, 69, 0.28);
+        background: rgba(255, 191, 69, 0.12);
+        padding: 0.55rem 0.8rem;
+        color: rgba(255, 239, 209, 0.96);
+        font-size: 0.78rem;
+      }
+
+      .workspace-banner a {
+        color: #fff;
+        text-decoration: none;
+        font-weight: 700;
+      }
+
       .hero {
         margin-top: 1rem;
         display: grid;
@@ -412,6 +432,15 @@
               <a class="module-tab" href="{% url 'admin-page' %}">Admin</a>
               {% endif %}
             </div>
+            {% if active_workspace %}
+            <div class="workspace-banner">
+              <span>Workspace activo: <strong>{{ active_workspace.name }}</strong> · {{ active_workspace.kind_label }}</span>
+              {% if active_workspace.subtitle %}
+              <span>{{ active_workspace.subtitle }}</span>
+              {% endif %}
+              <a href="{% url 'platform-workspace-clear' %}">Salir del contexto</a>
+            </div>
+            {% endif %}
           </div>
         </div>
       </header>

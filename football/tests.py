@@ -285,6 +285,7 @@ class PlatformWorkspaceTests(TestCase):
         season = Season.objects.create(competition=competition, name='2025/2026', is_current=True)
         group = Group.objects.create(season=season, name='Grupo Plataforma', slug='grupo-plataforma')
         self.team = Team.objects.create(name='Benagalbón matriz', slug='benagalbon-matriz', group=group, is_primary=True)
+        self.alt_team = Team.objects.create(name='Cliente alternativo', slug='cliente-alternativo', group=group, is_primary=False)
 
     def test_platform_overview_requires_admin_access(self):
         self.client.force_login(self.basic_user)
@@ -332,6 +333,37 @@ class PlatformWorkspaceTests(TestCase):
                 role=WorkspaceMembership.ROLE_OWNER,
             ).exists()
         )
+
+    def test_enter_task_studio_workspace_redirects_to_supervisor_view(self):
+        workspace = Workspace.objects.create(
+            name='Task Studio Demo',
+            slug='task-studio-demo',
+            kind=Workspace.KIND_TASK_STUDIO,
+            owner_user=self.studio_user,
+        )
+        self.client.force_login(self.admin_user)
+
+        response = self.client.get(reverse('platform-workspace-enter', args=[workspace.id]))
+
+        self.assertEqual(self.client.session.get('active_workspace_id'), workspace.id)
+        self.assertRedirects(response, f"{reverse('task-studio-home')}?user={self.studio_user.id}")
+
+    def test_dashboard_data_uses_active_club_workspace_team(self):
+        workspace = Workspace.objects.create(
+            name='Cliente alternativo',
+            slug='cliente-alternativo-workspace',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.alt_team,
+        )
+        self.client.force_login(self.admin_user)
+        session = self.client.session
+        session['active_workspace_id'] = workspace.id
+        session.save()
+
+        response = self.client.get(reverse('dashboard-data'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['team']['name'], self.alt_team.name)
 
 
 class QueryHelperTests(TestCase):
