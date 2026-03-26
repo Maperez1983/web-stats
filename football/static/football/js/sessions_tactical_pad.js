@@ -587,30 +587,37 @@
         .toUpperCase() || label;
       const tokenParts = [];
       if (kind === 'player_local') {
-        const radius = 21;
+        const radius = 23;
+        const chipClip = new fabric.Circle({
+          radius: radius - 1.6,
+          originX: 'center',
+          originY: 'center',
+          left: 0,
+          top: 0,
+        });
         const baseCircle = new fabric.Circle({
           radius,
           fill: '#ffffff',
-          stroke: '#f8fafc',
+          stroke: '#e2e8f0',
           strokeWidth: 3,
           originX: 'center',
           originY: 'center',
           left: 0,
           top: 0,
-          shadow: 'rgba(15,23,42,0.35) 0 4px 14px',
+          shadow: 'rgba(15,23,42,0.28) 0 5px 14px',
         });
         tokenParts.push(baseCircle);
-        [-14, -4, 6].forEach((offset) => {
+        [-13, 0, 13].forEach((offset) => {
           const stripe = new fabric.Rect({
             left: offset,
             top: 0,
-            width: 8,
-            height: 44,
-            fill: '#0f7a35',
+            width: 10,
+            height: 48,
+            fill: '#1f7a38',
             originX: 'center',
             originY: 'center',
           });
-          stripe.clipPath = new fabric.Circle({ radius: radius - 1.5, originX: 'center', originY: 'center', left: 0, top: 0 });
+          stripe.clipPath = chipClip;
           tokenParts.push(stripe);
         });
         tokenParts.push(new fabric.Text(label, {
@@ -618,22 +625,33 @@
           originY: 'center',
           left: 0,
           top: 0,
-          fontSize: 14,
-          fontWeight: '800',
+          fontSize: 17,
+          fontWeight: '900',
           fill: '#ffffff',
-          stroke: '#0f172a',
-          strokeWidth: 0.35,
+          stroke: '#102734',
+          strokeWidth: 0.45,
+        }));
+        tokenParts.push(new fabric.Rect({
+          originX: 'center',
+          originY: 'center',
+          left: 0,
+          top: -35,
+          width: Math.max(42, Math.min(90, (displayName.length * 6.4) + 14)),
+          height: 18,
+          rx: 7,
+          ry: 7,
+          fill: 'rgba(15,23,42,0.94)',
+          stroke: 'rgba(255,255,255,0.14)',
+          strokeWidth: 1,
         }));
         tokenParts.push(new fabric.Text(displayName, {
           originX: 'center',
           originY: 'center',
           left: 0,
-          top: -31,
+          top: -35,
           fontSize: 10,
           fontWeight: '700',
           fill: '#f8fafc',
-          backgroundColor: 'rgba(15,23,42,0.92)',
-          padding: 3,
         }));
       } else {
         const circle = new fabric.Circle({
