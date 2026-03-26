@@ -1753,7 +1753,7 @@ class SessionsPlanningTests(TestCase):
         response = self.client.get(reverse('session-task-pdf', args=[task.id]) + '?style=club')
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Plan de Tarea')
+        self.assertContains(response, 'Planificación de tarea')
         self.assertContains(response, self.user.username)
         self.assertContains(response, 'Formato Club')
 

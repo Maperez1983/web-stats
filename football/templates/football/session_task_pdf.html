@@ -204,6 +204,169 @@
     </style>
   </head>
   <body>
+    {% if pdf_style == 'club' %}
+    <section class="sheet" style="border-color:{{ pdf_palette.primary }};">
+      <div style="padding:14px 16px; background:linear-gradient(135deg, {{ pdf_palette.primary }}, {{ pdf_palette.accent }}); color:#fff;">
+        <table style="width:100%; border-collapse:collapse;">
+          <tr>
+            <td style="width:74px; vertical-align:top;">
+              <img src="{{ logo_url }}" alt="Escudo {{ team_name }}" style="width:62px; height:62px; object-fit:contain;" />
+            </td>
+            <td style="vertical-align:top;">
+              <div style="font-size:9px; letter-spacing:0.18em; text-transform:uppercase; opacity:0.78;">Planificación de tarea</div>
+              <div style="font-size:24px; font-weight:800; line-height:1.1; margin-top:4px;">{{ task.title }}</div>
+              <div style="font-size:11px; margin-top:6px; opacity:0.88;">{{ team_name }} · {{ coach_name }} · {{ session.session_date|date:"d/m/Y" }}{% if session.start_time %} · {{ session.start_time|time:"H:i" }}{% endif %}</div>
+            </td>
+            <td style="width:135px; vertical-align:top; text-align:right;">
+              <div style="display:inline-block; padding:8px 10px; border-radius:14px; background:rgba(255,255,255,0.14); text-align:left;">
+                <div style="font-size:9px; text-transform:uppercase; letter-spacing:0.14em; opacity:0.75;">Formato</div>
+                <div style="font-size:16px; font-weight:800;">Club</div>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      <div style="padding:12px 14px 10px; background:{{ pdf_palette.panel }}; border-bottom:1px solid #d5dde7;">
+        <table style="width:100%; border-collapse:separate; border-spacing:8px 0;">
+          <tr>
+            <td style="width:25%; padding:10px 12px; border-radius:12px; background:#fff; border:1px solid #d5dde7;">
+              <div class="label">Duración</div>
+              <div style="font-size:18px; font-weight:800; color:{{ pdf_palette.accent }};">{{ task.duration_minutes }} min</div>
+            </td>
+            <td style="width:25%; padding:10px 12px; border-radius:12px; background:#fff; border:1px solid #d5dde7;">
+              <div class="label">Bloque</div>
+              <div style="font-size:15px; font-weight:800;">{{ task.get_block_display }}</div>
+            </td>
+            <td style="width:25%; padding:10px 12px; border-radius:12px; background:#fff; border:1px solid #d5dde7;">
+              <div class="label">Tipo</div>
+              <div style="font-size:15px; font-weight:800;">{{ strategy_label }}</div>
+            </td>
+            <td style="width:25%; padding:10px 12px; border-radius:12px; background:#fff; border:1px solid #d5dde7;">
+              <div class="label">Microciclo</div>
+              <div style="font-size:15px; font-weight:800;">{{ microcycle.title }}</div>
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      <div style="padding:12px 14px;">
+        <table style="width:100%; border-collapse:separate; border-spacing:0 10px;">
+          <tr>
+            <td style="width:62%; vertical-align:top; padding-right:10px;">
+              <div style="border:1px solid #d5dde7; border-radius:14px; overflow:hidden;">
+                <div style="padding:8px 12px; background:{{ pdf_palette.primary }}; color:#fff; font-weight:800; letter-spacing:0.08em; text-transform:uppercase;">Diseño gráfico</div>
+                <div style="padding:10px; background:#fff;">
+                  {% if task_preview_url %}
+                  <div class="preview-frame" style="border:none; min-height:320px;">
+                    <img src="{{ task_preview_url }}" alt="Vista gráfica de la tarea" style="max-height:420px;" />
+                  </div>
+                  {% else %}
+                  <div class="field">
+                    <span class="mid-line"></span>
+                    <span class="mid-circle"></span>
+                    {% for token in tokens %}
+                    <span class="token {% if token.type == 'material' %}material {% if token.asset_url %}has-asset{% endif %}{% else %}player{% endif %}" style="left:{{ token.x }}%; top:{{ token.y }}%;" title="{{ token.title }}">
+                      {% if token.type == 'material' %}
+                        {% if token.asset_url %}
+                        <img src="{{ token.asset_url }}" alt="{{ token.title|default:token.label }}" />
+                        {% else %}
+                        {{ token.icon|default:token.label }}
+                        {% endif %}
+                      {% else %}
+                        {{ token.label }}
+                      {% endif %}
+                    </span>
+                    {% endfor %}
+                  </div>
+                  {% endif %}
+                </div>
+              </div>
+            </td>
+            <td style="width:38%; vertical-align:top;">
+              <div style="border:1px solid #d5dde7; border-radius:14px; overflow:hidden; margin-bottom:10px;">
+                <div style="padding:8px 12px; background:#eef6ef; color:{{ pdf_palette.accent }}; font-weight:800; letter-spacing:0.08em; text-transform:uppercase;">Objetivo principal</div>
+                <div style="padding:10px 12px; background:#fff; font-size:13px; font-weight:700; line-height:1.35;">{{ task.objective|default:"-" }}</div>
+              </div>
+              <div style="border:1px solid #d5dde7; border-radius:14px; overflow:hidden; margin-bottom:10px;">
+                <div style="padding:8px 12px; background:#eef6ef; color:{{ pdf_palette.accent }}; font-weight:800; letter-spacing:0.08em; text-transform:uppercase;">Contexto</div>
+                <div style="padding:10px 12px; background:#fff;">
+                  <div style="margin-bottom:8px;"><span class="label">Espacio</span><div class="value">{{ space_label }}</div></div>
+                  <div style="margin-bottom:8px;"><span class="label">Situación de juego</span><div class="value">{{ game_situation_label }}</div></div>
+                  <div style="margin-bottom:8px;"><span class="label">Coordinación</span><div class="value">{{ coordination_label }}</div></div>
+                  <div><span class="label">Carga</span><div class="value">{{ coordination_skills_label }}</div></div>
+                </div>
+              </div>
+              <div style="border:1px solid #d5dde7; border-radius:14px; overflow:hidden;">
+                <div style="padding:8px 12px; background:#eef6ef; color:{{ pdf_palette.accent }}; font-weight:800; letter-spacing:0.08em; text-transform:uppercase;">Diseño</div>
+                <div style="padding:10px 12px; background:#fff;">
+                  <div style="margin-bottom:8px;"><span class="label">Material</span><div class="value">{{ materials_label }}</div></div>
+                  <div style="margin-bottom:8px;"><span class="label">Series / reps</span><div class="value">{% if task_meta.series or task_meta.repetitions %}{{ task_meta.series|default:"-" }} · {{ task_meta.repetitions|default:"-" }}{% else %}-{% endif %}</div></div>
+                  <div style="margin-bottom:8px;"><span class="label">Trabajo / pausa</span><div class="value">{{ task_meta.work_rest|default:"-" }}</div></div>
+                  <div><span class="label">Intención táctica</span><div class="value">{{ tactical_intent_label }}</div></div>
+                </div>
+              </div>
+            </td>
+          </tr>
+        </table>
+
+        <table style="width:100%; border-collapse:separate; border-spacing:10px 0; margin-top:2px;">
+          <tr>
+            <td style="width:50%; vertical-align:top;">
+              <div style="border:1px solid #d5dde7; border-radius:14px; overflow:hidden;">
+                <div style="padding:8px 12px; background:{{ pdf_palette.accent }}; color:#fff; font-weight:800; letter-spacing:0.08em; text-transform:uppercase;">Consignas</div>
+                <div style="padding:10px 14px; background:#fff;">
+                  {% if description_lines and description_lines.0 != '-' %}
+                  <div class="text-block">{{ description_lines|join:"\n" }}</div>
+                  {% elif coaching_lines and coaching_lines.0 != '-' %}
+                  <ul class="bullet-list">
+                    {% for line in coaching_lines %}
+                    <li>{{ line }}</li>
+                    {% endfor %}
+                  </ul>
+                  {% else %}
+                  <div class="text-block">-</div>
+                  {% endif %}
+                </div>
+              </div>
+            </td>
+            <td style="width:50%; vertical-align:top;">
+              <div style="border:1px solid #d5dde7; border-radius:14px; overflow:hidden;">
+                <div style="padding:8px 12px; background:{{ pdf_palette.accent }}; color:#fff; font-weight:800; letter-spacing:0.08em; text-transform:uppercase;">Normas y criterio</div>
+                <div style="padding:10px 14px; background:#fff;">
+                  {% if rules_lines and rules_lines.0 != '-' %}
+                  <ul class="bullet-list">
+                    {% for line in rules_lines %}
+                    <li>{{ line }}</li>
+                    {% endfor %}
+                  </ul>
+                  {% else %}
+                  <div class="text-block">-</div>
+                  {% endif %}
+                  {% if task_meta.success_criteria %}
+                  <div style="margin-top:10px;">
+                    <span class="label">Criterio de éxito</span>
+                    <div class="text-block">{{ task_meta.success_criteria }}</div>
+                  </div>
+                  {% endif %}
+                  {% if task_meta.progression %}
+                  <div style="margin-top:10px;">
+                    <span class="label">Progresión</span>
+                    <div class="text-block">{{ task_meta.progression }}</div>
+                  </div>
+                  {% endif %}
+                </div>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="footer" style="background:#f8fafc;">
+        Formato Club · {{ team_name }} · {{ coach_name }} · Generado {{ generated_at|date:"d/m/Y H:i" }}
+      </div>
+    </section>
+    {% else %}
     <section class="sheet">
       <div class="brand">
         <div class="brand-logo">
@@ -366,5 +529,6 @@
         {% if pdf_style == 'club' %}Formato Club{% else %}Formato UEFA{% endif %} · {{ microcycle.title }} · Generado {{ generated_at|date:"d/m/Y H:i" }}
       </div>
     </section>
+    {% endif %}
   </body>
 </html>
