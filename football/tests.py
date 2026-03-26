@@ -335,6 +335,9 @@ class PlatformWorkspaceTests(TestCase):
         response = self.client.get(reverse('platform-overview'))
 
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Clientes')
+        self.assertContains(response, 'Usuarios')
+        self.assertContains(response, 'Entrar en Benagalbón')
         club_workspace = Workspace.objects.filter(primary_team=self.team, kind=Workspace.KIND_CLUB).first()
         studio_workspace = Workspace.objects.filter(owner_user=self.studio_user, kind=Workspace.KIND_TASK_STUDIO).first()
         self.assertIsNotNone(club_workspace)

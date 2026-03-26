@@ -1768,6 +1768,14 @@ def platform_overview_page(request):
         workspace.task_count = TaskStudioTask.objects.filter(workspace=workspace).count()
         workspace.profile_count = TaskStudioProfile.objects.filter(workspace=workspace).count()
         workspace.active_module_count = sum(1 for enabled in _workspace_enabled_modules(workspace).values() if enabled)
+    primary_workspace = next((workspace for workspace in workspaces if workspace.kind == Workspace.KIND_CLUB and workspace.primary_team_id), None)
+    club_workspaces = [workspace for workspace in workspaces if workspace.kind == Workspace.KIND_CLUB]
+    studio_workspaces = [workspace for workspace in workspaces if workspace.kind == Workspace.KIND_TASK_STUDIO]
+    workspace_users = list(
+        WorkspaceMembership.objects
+        .select_related('workspace', 'user')
+        .order_by('workspace__name', 'role', 'user__username')[:120]
+    )
 
     return render(
         request,
@@ -1776,6 +1784,10 @@ def platform_overview_page(request):
             'feedback': feedback,
             'error': error,
             'workspaces': workspaces,
+            'primary_workspace': primary_workspace,
+            'club_workspaces': club_workspaces,
+            'studio_workspaces': studio_workspaces,
+            'workspace_users': workspace_users,
             'teams': list(Team.objects.order_by('name')[:200]),
             'workspace_kind_choices': Workspace.KIND_CHOICES,
             'active_workspace': active_workspace,

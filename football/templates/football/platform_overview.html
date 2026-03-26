@@ -73,6 +73,13 @@
         gap: 1rem;
       }
 
+      .quick-grid {
+        margin-top: 1rem;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 1rem;
+      }
+
       .panel {
         padding: 1.1rem;
       }
@@ -91,6 +98,12 @@
         display: grid;
         gap: 0.85rem;
         margin-top: 1rem;
+      }
+
+      .simple-list {
+        margin-top: 1rem;
+        display: grid;
+        gap: 0.75rem;
       }
 
       .workspace-card {
@@ -232,7 +245,19 @@
         font-weight: 700;
       }
 
+      .user-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: center;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(160, 180, 215, 0.12);
+        padding: 0.8rem;
+      }
+
       @media (max-width: 960px) {
+        .quick-grid,
         .grid {
           grid-template-columns: 1fr;
         }
@@ -283,10 +308,39 @@
         </div>
       </section>
 
+      <section class="quick-grid">
+        <article class="panel">
+          <h2>Clientes</h2>
+          <p>{{ club_workspaces|length }} workspace(s) de club dados de alta en la matriz.</p>
+          <div class="actions-row">
+            {% if primary_workspace %}
+            <a class="link-btn" href="{% url 'platform-workspace-detail' primary_workspace.id %}">Abrir Benagalbón</a>
+            <a class="link-btn" href="{% url 'platform-workspace-enter' primary_workspace.id %}">Entrar en Benagalbón</a>
+            {% endif %}
+          </div>
+        </article>
+        <article class="panel">
+          <h2>Usuarios</h2>
+          <p>{{ workspace_users|length }} vínculo(s) de usuario cargados en workspaces.</p>
+          <div class="actions-row">
+            <a class="link-btn" href="{% url 'admin-page' %}?tab=users">Ir a usuarios</a>
+          </div>
+        </article>
+        <article class="panel">
+          <h2>Task Studio</h2>
+          <p>{{ studio_workspaces|length }} workspace(s) de entrenador/Task Studio activos.</p>
+          <div class="actions-row">
+            {% if studio_workspaces %}
+            <a class="link-btn" href="{% url 'platform-workspace-detail' studio_workspaces.0.id %}">Abrir primer Task Studio</a>
+            {% endif %}
+          </div>
+        </article>
+      </section>
+
       <section class="grid">
         <article class="panel">
-          <h2>Mapa actual de workspaces</h2>
-          <p>Vista consolidada de clientes, usuarios propietarios y actividad básica del sistema.</p>
+          <h2>Clientes</h2>
+          <p>Vista consolidada de workspaces, propietarios y actividad básica del sistema.</p>
           {% if feedback %}
           <div class="message ok">{{ feedback }}</div>
           {% endif %}
@@ -294,7 +348,76 @@
           <div class="message error">{{ error }}</div>
           {% endif %}
           <div class="workspace-list">
-            {% for workspace in workspaces %}
+            {% for workspace in club_workspaces %}
+            <article class="workspace-card">
+              <header>
+                <div>
+                  <div class="chip {{ workspace.kind }}">{{ workspace.get_kind_display }}</div>
+                  <h3>{{ workspace.name }}</h3>
+                  <small>slug: {{ workspace.slug }}</small>
+                </div>
+                <div style="text-align:right;">
+                  {% if workspace.primary_team %}
+                  <div><strong>{{ workspace.primary_team.display_name }}</strong></div>
+                  <small>Equipo principal</small>
+                  {% else %}
+                  <small>Sin equipo asociado</small>
+                  {% endif %}
+                </div>
+              </header>
+              <div class="workspace-meta">
+                <div class="metric">
+                  <span>Miembros</span>
+                  <strong>{{ workspace.member_count }}</strong>
+                </div>
+                <div class="metric">
+                  <span>Módulos activos</span>
+                  <strong>{{ workspace.active_module_count }}</strong>
+                </div>
+                <div class="metric">
+                  <span>Jugadores</span>
+                  <strong>{{ workspace.primary_team.players.count|default:0 }}</strong>
+                </div>
+                <div class="metric">
+                  <span>Estado</span>
+                  <strong>{% if workspace.is_active %}Activo{% else %}Inactivo{% endif %}</strong>
+                </div>
+              </div>
+              <div class="actions-row">
+                <a class="link-btn" href="{% url 'platform-workspace-enter' workspace.id %}">Entrar como supervisor</a>
+                <a class="link-btn" href="{% url 'platform-workspace-detail' workspace.id %}">Abrir ficha</a>
+              </div>
+            </article>
+            {% empty %}
+            <article class="workspace-card">
+              <h3>Sin clientes todavía</h3>
+              <p>Crea el primer workspace de club desde el panel lateral.</p>
+            </article>
+            {% endfor %}
+          </div>
+
+          <h2 style="margin-top:1.2rem;">Usuarios</h2>
+          <p>Relación rápida de usuarios asignados a workspaces.</p>
+          <div class="simple-list">
+            {% for membership in workspace_users %}
+            <div class="user-row">
+              <div>
+                <strong>{{ membership.user.username }}</strong>
+                <div style="color:#9aa8bf;">{{ membership.workspace.name }}</div>
+              </div>
+              <div>{{ membership.get_role_display }}</div>
+            </div>
+            {% empty %}
+            <div class="user-row">
+              <div>Sin usuarios vinculados a workspaces todavía.</div>
+            </div>
+            {% endfor %}
+          </div>
+
+          <h2 style="margin-top:1.2rem;">Task Studio</h2>
+          <p>Workspaces privados de entrenadores y usuarios del creador de tareas.</p>
+          <div class="workspace-list">
+            {% for workspace in studio_workspaces %}
             <article class="workspace-card">
               <header>
                 <div>
@@ -331,10 +454,6 @@
                   <span>Estado</span>
                   <strong>{% if workspace.is_active %}Activo{% else %}Inactivo{% endif %}</strong>
                 </div>
-                <div class="metric">
-                  <span>Módulos activos</span>
-                  <strong>{{ workspace.active_module_count }}</strong>
-                </div>
               </div>
               <div class="actions-row">
                 <a class="link-btn" href="{% url 'platform-workspace-enter' workspace.id %}">Entrar como supervisor</a>
@@ -343,8 +462,8 @@
             </article>
             {% empty %}
             <article class="workspace-card">
-              <h3>Sin workspaces todavía</h3>
-              <p>Crea el primer workspace manual o deja que el sistema autogenere Benagalbón y Task Studio al entrar usuarios.</p>
+              <h3>Sin Task Studio todavía</h3>
+              <p>Los workspaces privados aparecerán al crear usuarios de Task Studio o invitado.</p>
             </article>
             {% endfor %}
           </div>
