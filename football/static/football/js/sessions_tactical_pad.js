@@ -50,6 +50,16 @@
     Object.entries(attrs || {}).forEach(([key, value]) => node.setAttribute(key, String(value)));
     return node;
   };
+  const shortPlayerName = (name) => {
+    const raw = safeText(name, 'Jugador');
+    if (raw.length <= 16) return raw;
+    const parts = raw.split(/\s+/).filter(Boolean);
+    if (parts.length > 1) {
+      const compact = `${parts[0]} ${parts[parts.length - 1]}`;
+      if (compact.length <= 16) return compact;
+    }
+    return `${raw.slice(0, 15).trim()}…`;
+  };
 
   const buildPitchSvg = (presetKey) => {
     const preset = String(presetKey || 'full_pitch').trim();
@@ -411,43 +421,97 @@
           ? COLORS.rival
           : COLORS.local;
       const label = player?.number ? String(player.number).slice(0, 2) : (kind === 'goalkeeper_local' ? 'GK' : 'J');
+      const displayName = shortPlayerName(player?.name || (kind === 'player_rival' ? 'Rival' : 'Jugador'));
       const initials = safeText(player?.name, kind === 'player_rival' ? 'Rival' : 'Jugador')
         .split(/\s+/)
         .map((piece) => piece[0] || '')
         .join('')
         .slice(0, 2)
         .toUpperCase() || label;
-      const circle = new fabric.Circle({
-        radius: kind === 'goalkeeper_local' ? 24 : 21,
-        fill: palette.fill,
-        stroke: palette.stroke,
-        strokeWidth: 3,
-        shadow: 'rgba(15,23,42,0.35) 0 4px 14px',
-        originX: 'center',
-        originY: 'center',
-        left: 0,
-        top: 0,
-      });
-      const text = new fabric.Text(initials, {
-        originX: 'center',
-        originY: 'center',
-        left: 0,
-        top: 0,
-        fontSize: 12,
-        fontWeight: '700',
-        fill: palette.text,
-      });
-      const badge = new fabric.Text(label, {
-        originX: 'center',
-        originY: 'center',
-        left: 0,
-        top: 26,
-        fontSize: 10,
-        fontWeight: '700',
-        fill: '#ffffff',
-        backgroundColor: 'rgba(15,23,42,0.92)',
-      });
-      return new fabric.Group([circle, text, badge], {
+      const tokenParts = [];
+      if (kind === 'player_local') {
+        const radius = 21;
+        const baseCircle = new fabric.Circle({
+          radius,
+          fill: '#ffffff',
+          stroke: '#f8fafc',
+          strokeWidth: 3,
+          originX: 'center',
+          originY: 'center',
+          left: 0,
+          top: 0,
+          shadow: 'rgba(15,23,42,0.35) 0 4px 14px',
+        });
+        tokenParts.push(baseCircle);
+        [-14, -4, 6].forEach((offset) => {
+          const stripe = new fabric.Rect({
+            left: offset,
+            top: 0,
+            width: 8,
+            height: 44,
+            fill: '#0f7a35',
+            originX: 'center',
+            originY: 'center',
+          });
+          stripe.clipPath = new fabric.Circle({ radius: radius - 1.5, originX: 'center', originY: 'center', left: 0, top: 0 });
+          tokenParts.push(stripe);
+        });
+        tokenParts.push(new fabric.Text(label, {
+          originX: 'center',
+          originY: 'center',
+          left: 0,
+          top: 0,
+          fontSize: 14,
+          fontWeight: '800',
+          fill: '#ffffff',
+          stroke: '#0f172a',
+          strokeWidth: 0.35,
+        }));
+        tokenParts.push(new fabric.Text(displayName, {
+          originX: 'center',
+          originY: 'center',
+          left: 0,
+          top: -31,
+          fontSize: 10,
+          fontWeight: '700',
+          fill: '#f8fafc',
+          backgroundColor: 'rgba(15,23,42,0.92)',
+          padding: 3,
+        }));
+      } else {
+        const circle = new fabric.Circle({
+          radius: kind === 'goalkeeper_local' ? 24 : 21,
+          fill: palette.fill,
+          stroke: palette.stroke,
+          strokeWidth: 3,
+          shadow: 'rgba(15,23,42,0.35) 0 4px 14px',
+          originX: 'center',
+          originY: 'center',
+          left: 0,
+          top: 0,
+        });
+        tokenParts.push(circle);
+        tokenParts.push(new fabric.Text(initials, {
+          originX: 'center',
+          originY: 'center',
+          left: 0,
+          top: 0,
+          fontSize: 12,
+          fontWeight: '700',
+          fill: palette.text,
+        }));
+        tokenParts.push(new fabric.Text(label, {
+          originX: 'center',
+          originY: 'center',
+          left: 0,
+          top: 26,
+          fontSize: 10,
+          fontWeight: '700',
+          fill: '#ffffff',
+          backgroundColor: 'rgba(15,23,42,0.92)',
+        }));
+      }
+      return new fabric.Group(tokenParts, {
         left,
         top,
         originX: 'center',
@@ -588,10 +652,21 @@
     const renderPlayerBank = () => {
       if (!playerBank) return;
       playerBank.innerHTML = '';
-      players.slice(0, 36).forEach((player) => {
+      players.slice(0, 25).forEach((player) => {
         const button = document.createElement('button');
         button.type = 'button';
-        button.textContent = `${player.number ? `#${player.number} · ` : ''}${safeText(player.name, 'Jugador')}`;
+        button.className = 'player-token-bank';
+        const name = document.createElement('span');
+        name.className = 'token-name';
+        name.textContent = shortPlayerName(player.name);
+        const disk = document.createElement('span');
+        disk.className = 'token-disk';
+        const number = document.createElement('span');
+        number.className = 'token-number';
+        number.textContent = player.number ? String(player.number).slice(0, 2) : 'J';
+        disk.appendChild(number);
+        button.appendChild(name);
+        button.appendChild(disk);
         button.addEventListener('click', () => {
           Array.from(playerBank.querySelectorAll('button')).forEach((item) => item.classList.remove('is-active'));
           button.classList.add('is-active');
