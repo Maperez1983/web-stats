@@ -2135,6 +2135,8 @@ def platform_overview_page(request):
     error = ''
     user_message = ''
     user_error = ''
+    invitation_links = []
+    carousel_message = ''
     active_workspace = _build_active_workspace_badge(request)
     primary_team = Team.objects.filter(is_primary=True).first()
     workspace_form = {
@@ -2328,6 +2330,41 @@ def platform_overview_page(request):
                 user_error = str(exc)
             except Exception:
                 user_error = 'No se pudo crear el usuario global.'
+        elif form_action == 'platform_user_invite_create':
+            user_id = _parse_int(request.POST.get('user_id'))
+            validity_days = _parse_int(request.POST.get('valid_days')) or 7
+            validity_days = max(1, min(validity_days, 30))
+            user_obj = User.objects.filter(id=user_id).first() if user_id else None
+            try:
+                if not user_obj:
+                    raise ValueError('Usuario no encontrado.')
+                UserInvitation.objects.filter(user=user_obj, is_active=True, accepted_at__isnull=True).update(is_active=False)
+                invitation = UserInvitation.objects.create(
+                    user=user_obj,
+                    token=UserInvitation.generate_token(),
+                    email=(user_obj.email or '').strip(),
+                    expires_at=timezone.now() + timedelta(days=validity_days),
+                    created_by=request.user.get_username() if request.user.is_authenticated else '',
+                    is_active=True,
+                )
+                invite_url = request.build_absolute_uri(
+                    reverse('user-invite-accept', args=[invitation.token])
+                )
+                invitation_links.append(
+                    {
+                        'username': user_obj.username,
+                        'url': invite_url,
+                        'expires_at': invitation.expires_at,
+                    }
+                )
+                user_message = f'Invitación generada en Plataforma para {user_obj.username}.'
+            except ValueError as exc:
+                user_error = str(exc)
+            except Exception:
+                user_error = 'No se pudo generar la invitación global.'
+        elif form_action in {'carousel_upload', 'carousel_update', 'carousel_delete'}:
+            if _handle_home_carousel_post(request):
+                carousel_message = 'Cambios guardados en Home global.'
 
     workspaces = list(
         Workspace.objects
@@ -2349,6 +2386,7 @@ def platform_overview_page(request):
         .order_by('workspace__name', 'role', 'user__username')[:120]
     )
     platform_users = list(User.objects.order_by('username')[:160])
+    carousel_images = list(HomeCarouselImage.objects.order_by('order', '-created_at', '-id')[:24])
     role_map = {item.user_id: item.role for item in AppUserRole.objects.select_related('user')}
     role_labels = dict(AppUserRole.ROLE_CHOICES)
     membership_counts = {
@@ -2370,12 +2408,15 @@ def platform_overview_page(request):
             'error': error,
             'user_message': user_message,
             'user_error': user_error,
+            'invitation_links': invitation_links,
+            'carousel_message': carousel_message,
             'workspaces': workspaces,
             'primary_workspace': primary_workspace,
             'club_workspaces': club_workspaces,
             'studio_workspaces': studio_workspaces,
             'workspace_users': workspace_users,
             'platform_users': platform_users,
+            'carousel_images': carousel_images,
             'teams': list(Team.objects.order_by('name')[:200]),
             'workspace_kind_choices': Workspace.KIND_CHOICES,
             'workspace_module_catalog_club': _workspace_module_catalog_for_template(Workspace.KIND_CLUB),

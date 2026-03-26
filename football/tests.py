@@ -450,6 +450,23 @@ class PlatformWorkspaceTests(TestCase):
         self.assertTrue(Workspace.objects.filter(owner_user=created_user, kind=Workspace.KIND_TASK_STUDIO).exists())
         self.assertContains(response, 'Usuario creado en Plataforma')
 
+    def test_platform_overview_can_generate_global_invitation(self):
+        self.client.force_login(self.admin_user)
+
+        response = self.client.post(
+            reverse('platform-overview'),
+            {
+                'form_action': 'platform_user_invite_create',
+                'user_id': self.studio_user.id,
+                'valid_days': '7',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        invitation = UserInvitation.objects.filter(user=self.studio_user, is_active=True).order_by('-created_at').first()
+        self.assertIsNotNone(invitation)
+        self.assertContains(response, 'Invitación generada en Plataforma')
+
     def test_platform_overview_can_create_workspace_with_modules_members_and_notes(self):
         self.client.force_login(self.admin_user)
 

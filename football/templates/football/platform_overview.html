@@ -542,6 +542,32 @@
         gap: 0.75rem;
       }
 
+      .compact-form {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .carousel-row {
+        display: grid;
+        grid-template-columns: 92px minmax(0, 1fr) auto;
+        gap: 0.75rem;
+        align-items: center;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(160, 180, 215, 0.12);
+        padding: 0.8rem;
+      }
+
+      .carousel-thumb {
+        width: 92px;
+        height: 64px;
+        object-fit: cover;
+        border-radius: 12px;
+        border: 1px solid rgba(160, 180, 215, 0.12);
+      }
+
       @media (max-width: 960px) {
         .hero-stats,
         .quick-grid,
@@ -654,7 +680,7 @@
           <h2>Usuarios</h2>
           <p>{{ workspace_users|length }} vínculo(s) de usuario activos en clientes club.</p>
           <div class="actions-row">
-            <a class="link-btn" href="{% url 'admin-page' %}?tab=users">Ir a usuarios</a>
+            <a class="link-btn" href="#usuarios-club">Ir a usuarios</a>
           </div>
         </article>
         <article class="panel">
@@ -801,6 +827,13 @@
                     <div style="text-align:right; color:#9aa8bf;">
                       <div>{{ item.workspace_count }} workspaces</div>
                       <div>{% if item.is_active %}Activo{% else %}Inactivo{% endif %}</div>
+                      <form method="post" class="compact-form" style="margin-top:0.45rem; justify-content:flex-end;">
+                        {% csrf_token %}
+                        <input type="hidden" name="form_action" value="platform_user_invite_create" />
+                        <input type="hidden" name="user_id" value="{{ item.id }}" />
+                        <input type="hidden" name="valid_days" value="7" />
+                        <button class="link-btn" type="submit">Invitar</button>
+                      </form>
                     </div>
                   </div>
                   {% empty %}
@@ -823,6 +856,83 @@
               {% empty %}
               <div class="user-row">
                 <div>Sin usuarios vinculados a workspaces todavía.</div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="section-shell stack-section" id="home-global">
+            <div class="section-head">
+              <div>
+                <div class="section-kicker">Home global</div>
+                <h2>Carrusel y portada</h2>
+                <p>Si la home es compartida por toda la plataforma, su gobierno debe hacerse aquí y no desde un cliente concreto.</p>
+              </div>
+              <div class="count-pill">{{ carousel_images|length }}</div>
+            </div>
+            {% if carousel_message %}
+            <div class="message ok">{{ carousel_message }}</div>
+            {% endif %}
+            {% if invitation_links %}
+            <div class="message ok">
+              {% for invite in invitation_links %}
+              Invitación lista para {{ invite.username }} · caduca {{ invite.expires_at|date:"d/m/Y H:i" }} · {{ invite.url }}{% if not forloop.last %}<br />{% endif %}
+              {% endfor %}
+            </div>
+            {% endif %}
+            <form class="fieldset" method="post" enctype="multipart/form-data" style="margin-top:1rem;">
+              {% csrf_token %}
+              <input type="hidden" name="form_action" value="carousel_upload" />
+              <h3>Nueva imagen Home</h3>
+              <p>Alta global del carrusel principal de la plataforma.</p>
+              <div class="field">
+                <label for="platform_carousel_title">Título</label>
+                <input id="platform_carousel_title" type="text" name="carousel_title" placeholder="Entrenamiento, partido, campus..." />
+              </div>
+              <div class="field">
+                <label for="platform_carousel_order">Orden</label>
+                <input id="platform_carousel_order" type="number" name="carousel_order" min="0" value="0" />
+              </div>
+              <div class="field">
+                <label for="platform_carousel_image">Imagen</label>
+                <input id="platform_carousel_image" type="file" name="carousel_image" accept="image/*" required />
+              </div>
+              <div class="field">
+                <label><input type="checkbox" name="carousel_is_active" checked /> Activa</label>
+              </div>
+              <button class="submit-btn" type="submit">Subir imagen global</button>
+            </form>
+            <div class="simple-list">
+              {% for item in carousel_images %}
+              <div class="carousel-row">
+                <img class="carousel-thumb" src="{{ item.image.url }}" alt="{{ item.title|default:'Imagen home' }}" loading="lazy" />
+                <form method="post" class="workspace-form" style="margin:0;">
+                  {% csrf_token %}
+                  <input type="hidden" name="form_action" value="carousel_update" />
+                  <input type="hidden" name="carousel_id" value="{{ item.id }}" />
+                  <div class="field">
+                    <label>Título</label>
+                    <input type="text" name="carousel_title" value="{{ item.title }}" />
+                  </div>
+                  <div class="field">
+                    <label>Orden</label>
+                    <input type="number" name="carousel_order" min="0" value="{{ item.order }}" />
+                  </div>
+                  <div class="field">
+                    <label><input type="checkbox" name="carousel_is_active" {% if item.is_active %}checked{% endif %} /> Activa</label>
+                  </div>
+                  <button class="link-btn" type="submit">Guardar</button>
+                </form>
+                <form method="post" onsubmit="return confirm('Se eliminará esta imagen global de Home.');">
+                  {% csrf_token %}
+                  <input type="hidden" name="form_action" value="carousel_delete" />
+                  <input type="hidden" name="carousel_id" value="{{ item.id }}" />
+                  <button class="danger-btn" type="submit">Borrar</button>
+                </form>
+              </div>
+              {% empty %}
+              <div class="user-row">
+                <div>No hay imágenes cargadas para la home global.</div>
               </div>
               {% endfor %}
             </div>
