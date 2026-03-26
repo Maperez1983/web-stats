@@ -25,6 +25,25 @@
     rival: { fill: '#dc2626', stroke: '#fff7ed', text: '#ffffff' },
     goalkeeper: { fill: '#111827', stroke: '#facc15', text: '#facc15' },
   };
+  const RESOURCE_LABELS = {
+    ball: 'el balón',
+    cone: 'un cono',
+    zone: 'una zona',
+    text: 'un texto',
+    line_solid: 'una línea continua',
+    line_dash: 'una línea discontinua',
+    line_dot: 'una línea de puntos',
+    line_double: 'una línea doble',
+    arrow_solid: 'una flecha continua',
+    arrow_dash: 'una flecha discontinua',
+    arrow_dot: 'una flecha de puntos',
+    arrow_curve: 'una flecha curva',
+    shape_circle: 'un círculo',
+    shape_square: 'un cuadrado',
+    shape_rect: 'un rectángulo',
+    shape_triangle: 'un triángulo',
+    shape_diamond: 'un rombo',
+  };
 
   const createSvgNode = (doc, tag, attrs) => {
     const node = doc.createElementNS('http://www.w3.org/2000/svg', tag);
@@ -459,17 +478,83 @@
           rx: 12, ry: 12, data: { kind: 'zone' },
         });
       }
-      if (kind === 'line') {
+      if (kind === 'line' || kind === 'line_solid') {
         return (left, top) => new fabric.Line([-55, 0, 55, 0], {
           left, top, originX: 'center', originY: 'center',
           stroke: '#f8fafc', strokeWidth: 3, data: { kind: 'line' },
         });
       }
-      if (kind === 'arrow') {
+      if (kind === 'line_dash') {
+        return (left, top) => new fabric.Line([-55, 0, 55, 0], {
+          left, top, originX: 'center', originY: 'center',
+          stroke: '#f8fafc', strokeWidth: 3, strokeDashArray: [12, 8], data: { kind: 'line-dash' },
+        });
+      }
+      if (kind === 'line_dot') {
+        return (left, top) => new fabric.Line([-55, 0, 55, 0], {
+          left, top, originX: 'center', originY: 'center',
+          stroke: '#f8fafc', strokeWidth: 3, strokeDashArray: [2, 9], strokeLineCap: 'round', data: { kind: 'line-dot' },
+        });
+      }
+      if (kind === 'line_double') {
+        return (left, top) => new fabric.Group([
+          new fabric.Line([-55, -8, 55, -8], { stroke: '#f8fafc', strokeWidth: 3 }),
+          new fabric.Line([-55, 8, 55, 8], { stroke: '#f8fafc', strokeWidth: 3 }),
+        ], { left, top, originX: 'center', originY: 'center', data: { kind: 'line-double' } });
+      }
+      if (kind === 'arrow' || kind === 'arrow_solid') {
         return (left, top) => new fabric.Group([
           new fabric.Line([-50, 0, 40, 0], { stroke: '#22d3ee', strokeWidth: 4, originX: 'center', originY: 'center' }),
           new fabric.Triangle({ left: 52, top: 0, width: 18, height: 18, angle: 90, fill: '#22d3ee', originX: 'center', originY: 'center' }),
         ], { left, top, originX: 'center', originY: 'center', data: { kind: 'arrow' } });
+      }
+      if (kind === 'arrow_dash') {
+        return (left, top) => new fabric.Group([
+          new fabric.Line([-50, 0, 40, 0], { stroke: '#22d3ee', strokeWidth: 4, strokeDashArray: [12, 8], originX: 'center', originY: 'center' }),
+          new fabric.Triangle({ left: 52, top: 0, width: 18, height: 18, angle: 90, fill: '#22d3ee', originX: 'center', originY: 'center' }),
+        ], { left, top, originX: 'center', originY: 'center', data: { kind: 'arrow-dash' } });
+      }
+      if (kind === 'arrow_dot') {
+        return (left, top) => new fabric.Group([
+          new fabric.Line([-50, 0, 40, 0], { stroke: '#22d3ee', strokeWidth: 4, strokeDashArray: [2, 10], strokeLineCap: 'round', originX: 'center', originY: 'center' }),
+          new fabric.Triangle({ left: 52, top: 0, width: 18, height: 18, angle: 90, fill: '#22d3ee', originX: 'center', originY: 'center' }),
+        ], { left, top, originX: 'center', originY: 'center', data: { kind: 'arrow-dot' } });
+      }
+      if (kind === 'arrow_curve') {
+        return (left, top) => new fabric.Group([
+          new fabric.Path('M -50 22 Q -8 -30 46 10', { stroke: '#22d3ee', fill: '', strokeWidth: 4 }),
+          new fabric.Triangle({ left: 58, top: 10, width: 18, height: 18, angle: 122, fill: '#22d3ee', originX: 'center', originY: 'center' }),
+        ], { left, top, originX: 'center', originY: 'center', data: { kind: 'arrow-curve' } });
+      }
+      if (kind === 'shape_circle') {
+        return (left, top) => new fabric.Circle({
+          left, top, originX: 'center', originY: 'center',
+          radius: 46, fill: 'rgba(34,211,238,0.12)', stroke: '#22d3ee', strokeWidth: 3, data: { kind: 'shape-circle' },
+        });
+      }
+      if (kind === 'shape_square') {
+        return (left, top) => new fabric.Rect({
+          left, top, originX: 'center', originY: 'center',
+          width: 96, height: 96, fill: 'rgba(34,211,238,0.12)', stroke: '#22d3ee', strokeWidth: 3, data: { kind: 'shape-square' },
+        });
+      }
+      if (kind === 'shape_rect') {
+        return (left, top) => new fabric.Rect({
+          left, top, originX: 'center', originY: 'center',
+          width: 126, height: 78, rx: 10, ry: 10, fill: 'rgba(34,211,238,0.12)', stroke: '#22d3ee', strokeWidth: 3, data: { kind: 'shape-rect' },
+        });
+      }
+      if (kind === 'shape_triangle') {
+        return (left, top) => new fabric.Triangle({
+          left, top, originX: 'center', originY: 'center',
+          width: 106, height: 92, fill: 'rgba(34,211,238,0.12)', stroke: '#22d3ee', strokeWidth: 3, data: { kind: 'shape-triangle' },
+        });
+      }
+      if (kind === 'shape_diamond') {
+        return (left, top) => new fabric.Rect({
+          left, top, originX: 'center', originY: 'center',
+          width: 94, height: 94, angle: 45, fill: 'rgba(34,211,238,0.12)', stroke: '#22d3ee', strokeWidth: 3, data: { kind: 'shape-diamond' },
+        });
       }
       if (kind === 'text') {
         return (left, top) => new fabric.IText('Texto', {
@@ -606,7 +691,7 @@
       if (add === 'player_local') activateFactory(playerTokenFactory('player_local', null), 'un jugador local');
       else if (add === 'player_rival') activateFactory(playerTokenFactory('player_rival', null), 'un jugador rival');
       else if (add === 'goalkeeper_local') activateFactory(playerTokenFactory('goalkeeper_local', null), 'un portero');
-      else activateFactory(simpleFactory(add), PRESET_LABEL[add] || add);
+      else activateFactory(simpleFactory(add), RESOURCE_LABELS[add] || add);
     });
 
     presetButtons.forEach((button) => {
