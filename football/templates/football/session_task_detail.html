@@ -329,6 +329,8 @@
         <h1>Detalle de tarea</h1>
         <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
           <a class="button" href="{% url scope_route_name %}">Volver</a>
+          <a class="button" href="{% url 'session-task-pdf' task.id %}" target="_blank" rel="noopener">Imprimir UEFA</a>
+          <a class="button" href="{% url 'session-task-pdf' task.id %}?style=club" target="_blank" rel="noopener">Imprimir Club</a>
           {% if task.task_pdf %}
           <a class="button" href="{% url 'session-task-file' task.id %}" target="_blank" rel="noopener">Abrir PDF</a>
           {% endif %}
