@@ -185,6 +185,54 @@
         font: inherit;
       }
 
+      .fieldset {
+        display: grid;
+        gap: 0.8rem;
+        border-radius: 18px;
+        border: 1px solid rgba(160, 180, 215, 0.14);
+        background: rgba(255, 255, 255, 0.025);
+        padding: 0.95rem;
+      }
+
+      .fieldset h3 {
+        margin: 0;
+        font-size: 0.98rem;
+      }
+
+      .fieldset p {
+        margin: 0;
+        color: #9aa8bf;
+        font-size: 0.92rem;
+      }
+
+      .checkbox-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.65rem;
+      }
+
+      .checkbox-card {
+        display: flex;
+        gap: 0.65rem;
+        align-items: start;
+        border-radius: 14px;
+        border: 1px solid rgba(160, 180, 215, 0.14);
+        background: rgba(7, 13, 25, 0.72);
+        padding: 0.75rem 0.8rem;
+      }
+
+      .checkbox-card input {
+        margin-top: 0.15rem;
+      }
+
+      .checkbox-card strong {
+        display: block;
+      }
+
+      .kind-modules[hidden] {
+        display: none;
+      }
+
       .chip {
         display: inline-flex;
         align-items: center;
@@ -291,6 +339,10 @@
         }
 
         .workspace-meta {
+          grid-template-columns: 1fr;
+        }
+
+        .checkbox-grid {
           grid-template-columns: 1fr;
         }
       }
@@ -485,39 +537,114 @@
 
         <aside class="panel">
           <h2>Crear workspace</h2>
-          <p>Alta manual para preparar clientes nuevos antes de activar sus módulos.</p>
+          <p>Alta guiada para dejar listo un cliente desde el primer paso: identidad, acceso inicial y módulos activos.</p>
           <form class="workspace-form" method="post">
             {% csrf_token %}
             <input type="hidden" name="form_action" value="workspace_create" />
-            <div class="field">
-              <label for="workspace_name">Nombre</label>
-              <input id="workspace_name" name="workspace_name" type="text" placeholder="Ej. Club Deportivo Benagalbón" required />
+            <div class="fieldset">
+              <h3>Identidad</h3>
+              <p>Define el tipo de cliente y su referencia principal dentro de la plataforma.</p>
+              <div class="field">
+                <label for="workspace_name">Nombre</label>
+                <input id="workspace_name" name="workspace_name" type="text" placeholder="Ej. Club Deportivo Benagalbón" value="{{ workspace_form.workspace_name }}" required />
+              </div>
+              <div class="field">
+                <label for="workspace_kind">Tipo</label>
+                <select id="workspace_kind" name="workspace_kind">
+                  {% for workspace_kind, workspace_label in workspace_kind_choices %}
+                  <option value="{{ workspace_kind }}" {% if workspace_form.workspace_kind == workspace_kind %}selected{% endif %}>{{ workspace_label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="field">
+                <label for="team_id">Equipo vinculado</label>
+                <select id="team_id" name="team_id">
+                  <option value="">Sin equipo asociado</option>
+                  {% for team in teams %}
+                  <option value="{{ team.id }}" {% if workspace_form.team_id == team.id|stringformat:'s' %}selected{% endif %}>{{ team.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="field">
+                <label for="workspace_notes">Notas de arranque</label>
+                <textarea id="workspace_notes" name="workspace_notes" rows="4" placeholder="Objetivo del cliente, observaciones de acceso, alcance del workspace...">{{ workspace_form.workspace_notes }}</textarea>
+              </div>
             </div>
-            <div class="field">
-              <label for="workspace_kind">Tipo</label>
-              <select id="workspace_kind" name="workspace_kind">
-                {% for workspace_kind, workspace_label in workspace_kind_choices %}
-                <option value="{{ workspace_kind }}">{{ workspace_label }}</option>
-                {% endfor %}
-              </select>
+
+            <div class="fieldset">
+              <h3>Acceso inicial</h3>
+              <p>Deja el workspace listo con propietario y primeros miembros desde el alta.</p>
+              <div class="field">
+                <label for="owner_username">Usuario propietario</label>
+                <input id="owner_username" name="owner_username" type="text" value="{{ workspace_form.owner_username }}" placeholder="username del owner/admin principal" />
+              </div>
+              <div class="field">
+                <label for="initial_admin_usernames">Admins iniciales</label>
+                <textarea id="initial_admin_usernames" name="initial_admin_usernames" rows="3" placeholder="uno por línea o separados por comas">{{ workspace_form.initial_admin_usernames }}</textarea>
+              </div>
+              <div class="field">
+                <label for="initial_member_usernames">Miembros iniciales</label>
+                <textarea id="initial_member_usernames" name="initial_member_usernames" rows="3" placeholder="uno por línea o separados por comas">{{ workspace_form.initial_member_usernames }}</textarea>
+              </div>
             </div>
-            <div class="field">
-              <label for="owner_username">Usuario propietario</label>
-              <input id="owner_username" name="owner_username" type="text" placeholder="Solo para Task Studio" />
-            </div>
-            <div class="field">
-              <label for="team_id">Equipo vinculado</label>
-              <select id="team_id" name="team_id">
-                <option value="">Sin equipo asociado</option>
-                {% for team in teams %}
-                <option value="{{ team.id }}">{{ team.name }}</option>
-                {% endfor %}
-              </select>
+
+            <div class="fieldset">
+              <h3>Módulos</h3>
+              <p>Plataforma gobierna qué entra en cada cliente. Activa aquí lo que deba quedar operativo desde el primer minuto.</p>
+
+              <div class="kind-modules" data-kind="club">
+                <div class="checkbox-grid">
+                  {% for module in workspace_module_catalog_club %}
+                  <label class="checkbox-card">
+                    <input type="checkbox" name="module_{{ module.key }}" {% if module.key in workspace_form.module_keys %}checked{% endif %} />
+                    <span>
+                      <strong>{{ module.label }}</strong>
+                      <small>{{ module.key }}</small>
+                    </span>
+                  </label>
+                  {% endfor %}
+                </div>
+              </div>
+
+              <div class="kind-modules" data-kind="task_studio">
+                <div class="checkbox-grid">
+                  {% for module in workspace_module_catalog_task_studio %}
+                  <label class="checkbox-card">
+                    <input type="checkbox" name="module_{{ module.key }}" {% if module.key in workspace_form.module_keys %}checked{% endif %} />
+                    <span>
+                      <strong>{{ module.label }}</strong>
+                      <small>{{ module.key }}</small>
+                    </span>
+                  </label>
+                  {% endfor %}
+                </div>
+              </div>
             </div>
             <button class="submit-btn" type="submit">Crear workspace</button>
           </form>
         </aside>
       </section>
     </main>
+    <script>
+      (function () {
+        const kindSelect = document.getElementById('workspace_kind');
+        const moduleBlocks = Array.from(document.querySelectorAll('.kind-modules'));
+        if (!kindSelect || !moduleBlocks.length) return;
+
+        function syncModuleBlocks() {
+          const activeKind = kindSelect.value || 'club';
+          moduleBlocks.forEach((block) => {
+            const isActive = block.dataset.kind === activeKind;
+            block.hidden = !isActive;
+            block.querySelectorAll('input[type="checkbox"]').forEach((input) => {
+              input.disabled = !isActive;
+            });
+          });
+        }
+
+        kindSelect.addEventListener('change', syncModuleBlocks);
+        syncModuleBlocks();
+      })();
+    </script>
   </body>
 </html>

@@ -316,6 +316,12 @@ class PlatformWorkspaceTests(TestCase):
             password='pass-1234',
         )
         AppUserRole.objects.create(user=self.workspace_manager, role=AppUserRole.ROLE_COACH)
+        self.workspace_member = get_user_model().objects.create_user(
+            username='workspace-member',
+            email='workspace-member@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=self.workspace_member, role=AppUserRole.ROLE_ANALYST)
         competition = Competition.objects.create(name='Liga Plataforma', slug='liga-plataforma', region='Andalucia')
         season = Season.objects.create(competition=competition, name='2025/2026', is_current=True)
         group = Group.objects.create(season=season, name='Grupo Plataforma', slug='grupo-plataforma')
@@ -376,6 +382,91 @@ class PlatformWorkspaceTests(TestCase):
                 role=WorkspaceMembership.ROLE_OWNER,
             ).exists()
         )
+
+    def test_platform_overview_can_create_workspace_with_modules_members_and_notes(self):
+        self.client.force_login(self.admin_user)
+
+        response = self.client.post(
+            reverse('platform-overview'),
+            {
+                'form_action': 'workspace_create',
+                'workspace_name': 'Cliente gobernado',
+                'workspace_kind': Workspace.KIND_CLUB,
+                'owner_username': self.admin_user.username,
+                'team_id': self.alt_team.id,
+                'workspace_notes': 'Cliente creado desde Plataforma con configuración completa.',
+                'initial_admin_usernames': self.workspace_manager.username,
+                'initial_member_usernames': f'{self.workspace_member.username}, {self.basic_user.username}',
+                'module_dashboard': 'on',
+                'module_players': 'on',
+                'module_sessions': 'on',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        workspace = Workspace.objects.get(name='Cliente gobernado')
+        self.assertEqual(workspace.owner_user_id, self.admin_user.id)
+        self.assertEqual(workspace.primary_team_id, self.alt_team.id)
+        self.assertEqual(workspace.notes, 'Cliente creado desde Plataforma con configuración completa.')
+        self.assertEqual(
+            workspace.enabled_modules,
+            {
+                'dashboard': True,
+                'coach_overview': False,
+                'players': True,
+                'convocation': False,
+                'match_actions': False,
+                'sessions': True,
+                'analysis': False,
+                'abp_board': False,
+                'manual_stats': False,
+            },
+        )
+        self.assertTrue(
+            WorkspaceMembership.objects.filter(
+                workspace=workspace,
+                user=self.admin_user,
+                role=WorkspaceMembership.ROLE_OWNER,
+            ).exists()
+        )
+        self.assertTrue(
+            WorkspaceMembership.objects.filter(
+                workspace=workspace,
+                user=self.workspace_manager,
+                role=WorkspaceMembership.ROLE_ADMIN,
+            ).exists()
+        )
+        self.assertTrue(
+            WorkspaceMembership.objects.filter(
+                workspace=workspace,
+                user=self.workspace_member,
+                role=WorkspaceMembership.ROLE_MEMBER,
+            ).exists()
+        )
+        self.assertTrue(
+            WorkspaceMembership.objects.filter(
+                workspace=workspace,
+                user=self.basic_user,
+                role=WorkspaceMembership.ROLE_MEMBER,
+            ).exists()
+        )
+
+    def test_platform_overview_rejects_unknown_initial_usernames(self):
+        self.client.force_login(self.admin_user)
+
+        response = self.client.post(
+            reverse('platform-overview'),
+            {
+                'form_action': 'workspace_create',
+                'workspace_name': 'Cliente inválido',
+                'workspace_kind': Workspace.KIND_TASK_STUDIO,
+                'owner_username': 'no-existe',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'No existe el usuario propietario')
+        self.assertFalse(Workspace.objects.filter(name='Cliente inválido').exists())
 
     def test_enter_task_studio_workspace_redirects_to_supervisor_view(self):
         workspace = Workspace.objects.create(

@@ -838,6 +838,25 @@ def _workspace_default_modules(kind):
     }
 
 
+def _parse_workspace_usernames(raw_value):
+    raw_chunks = re.split(r'[\n,;]+', str(raw_value or ''))
+    usernames = []
+    seen = set()
+    for chunk in raw_chunks:
+        normalized = _sanitize_task_text(chunk.strip(), multiline=False, max_len=150).lower()
+        if not normalized or normalized in seen:
+            continue
+        usernames.append(normalized)
+        seen.add(normalized)
+    if not usernames:
+        return [], []
+    found_users = list(User.objects.filter(username__in=usernames))
+    found_map = {user.username.lower(): user for user in found_users}
+    missing = [username for username in usernames if username not in found_map]
+    ordered_users = [found_map[username] for username in usernames if username in found_map]
+    return ordered_users, missing
+
+
 def _workspace_module_catalog(kind):
     if kind == Workspace.KIND_TASK_STUDIO:
         return [
@@ -1715,6 +1734,17 @@ def platform_overview_page(request):
     error = ''
     active_workspace = _build_active_workspace_badge(request)
     primary_team = Team.objects.filter(is_primary=True).first()
+    workspace_form = {
+        'workspace_name': '',
+        'workspace_kind': Workspace.KIND_CLUB,
+        'owner_username': '',
+        'team_id': '',
+        'workspace_notes': '',
+        'initial_admin_usernames': '',
+        'initial_member_usernames': '',
+        'modules': _workspace_default_modules(Workspace.KIND_CLUB),
+        'module_keys': [key for key, enabled in _workspace_default_modules(Workspace.KIND_CLUB).items() if enabled],
+    }
     if primary_team:
         _ensure_club_workspace(primary_team)
     studio_users = (
@@ -1732,20 +1762,49 @@ def platform_overview_page(request):
             workspace_kind = str(request.POST.get('workspace_kind') or Workspace.KIND_CLUB).strip()
             owner_username = _sanitize_task_text((request.POST.get('owner_username') or '').strip(), multiline=False, max_len=150).lower()
             team_id = _parse_int(request.POST.get('team_id'))
+            workspace_notes = _sanitize_task_text((request.POST.get('workspace_notes') or '').strip(), multiline=True, max_len=1200)
+            initial_admin_usernames = str(request.POST.get('initial_admin_usernames') or '')
+            initial_member_usernames = str(request.POST.get('initial_member_usernames') or '')
+            if workspace_kind not in {Workspace.KIND_CLUB, Workspace.KIND_TASK_STUDIO}:
+                workspace_kind = Workspace.KIND_CLUB
+            selected_modules = {
+                item['key']: str(request.POST.get(f"module_{item['key']}") or '').lower() in {'1', 'true', 'on', 'yes'}
+                for item in _workspace_module_catalog(workspace_kind)
+            }
+            if not any(selected_modules.values()):
+                selected_modules = _workspace_default_modules(workspace_kind)
+            workspace_form = {
+                'workspace_name': workspace_name,
+                'workspace_kind': workspace_kind,
+                'owner_username': owner_username,
+                'team_id': str(team_id or ''),
+                'workspace_notes': workspace_notes,
+                'initial_admin_usernames': initial_admin_usernames,
+                'initial_member_usernames': initial_member_usernames,
+                'modules': selected_modules,
+                'module_keys': [key for key, enabled in selected_modules.items() if enabled],
+            }
             try:
                 if not workspace_name:
                     raise ValueError('Indica un nombre para el workspace.')
-                if workspace_kind not in {Workspace.KIND_CLUB, Workspace.KIND_TASK_STUDIO}:
-                    workspace_kind = Workspace.KIND_CLUB
                 owner_user = User.objects.filter(username__iexact=owner_username).first() if owner_username else None
+                if owner_username and not owner_user:
+                    raise ValueError(f'No existe el usuario propietario "{owner_username}".')
+                admin_users, missing_admin_users = _parse_workspace_usernames(initial_admin_usernames)
+                member_users, missing_member_users = _parse_workspace_usernames(initial_member_usernames)
+                if missing_admin_users:
+                    raise ValueError(f'No existen estos administradores iniciales: {", ".join(missing_admin_users)}.')
+                if missing_member_users:
+                    raise ValueError(f'No existen estos miembros iniciales: {", ".join(missing_member_users)}.')
                 primary_workspace_team = Team.objects.filter(id=team_id).first() if team_id else None
                 workspace = Workspace.objects.create(
                     name=workspace_name,
                     slug=_unique_workspace_slug(workspace_name),
                     kind=workspace_kind,
-                    owner_user=owner_user if workspace_kind == Workspace.KIND_TASK_STUDIO else None,
+                    owner_user=owner_user,
                     primary_team=primary_workspace_team if workspace_kind == Workspace.KIND_CLUB else None,
-                    enabled_modules=_workspace_default_modules(workspace_kind),
+                    enabled_modules=selected_modules,
+                    notes=workspace_notes,
                 )
                 if owner_user:
                     WorkspaceMembership.objects.get_or_create(
@@ -1753,7 +1812,36 @@ def platform_overview_page(request):
                         user=owner_user,
                         defaults={'role': WorkspaceMembership.ROLE_OWNER},
                     )
+                for admin_user in admin_users:
+                    if owner_user and admin_user.id == owner_user.id:
+                        continue
+                    WorkspaceMembership.objects.update_or_create(
+                        workspace=workspace,
+                        user=admin_user,
+                        defaults={'role': WorkspaceMembership.ROLE_ADMIN},
+                    )
+                for member_user in member_users:
+                    if owner_user and member_user.id == owner_user.id:
+                        continue
+                    if any(admin_user.id == member_user.id for admin_user in admin_users):
+                        continue
+                    WorkspaceMembership.objects.update_or_create(
+                        workspace=workspace,
+                        user=member_user,
+                        defaults={'role': WorkspaceMembership.ROLE_MEMBER},
+                    )
                 feedback = f'Workspace creado: {workspace.name}.'
+                workspace_form = {
+                    'workspace_name': '',
+                    'workspace_kind': Workspace.KIND_CLUB,
+                    'owner_username': '',
+                    'team_id': '',
+                    'workspace_notes': '',
+                    'initial_admin_usernames': '',
+                    'initial_member_usernames': '',
+                    'modules': _workspace_default_modules(Workspace.KIND_CLUB),
+                    'module_keys': [key for key, enabled in _workspace_default_modules(Workspace.KIND_CLUB).items() if enabled],
+                }
             except ValueError as exc:
                 error = str(exc)
             except Exception:
@@ -1791,6 +1879,9 @@ def platform_overview_page(request):
             'workspace_users': workspace_users,
             'teams': list(Team.objects.order_by('name')[:200]),
             'workspace_kind_choices': Workspace.KIND_CHOICES,
+            'workspace_module_catalog_club': _workspace_module_catalog(Workspace.KIND_CLUB),
+            'workspace_module_catalog_task_studio': _workspace_module_catalog(Workspace.KIND_TASK_STUDIO),
+            'workspace_form': workspace_form,
             'active_workspace': active_workspace,
         },
     )
