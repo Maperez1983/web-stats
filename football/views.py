@@ -2077,18 +2077,7 @@ def dashboard_data(request):
 @login_required
 @ensure_csrf_cookie
 def dashboard_page(request):
-    sources = list(ScrapeSource.objects.filter(is_active=True))
-    active_items = list(HomeCarouselImage.objects.filter(is_active=True).order_by('order', '-created_at', '-id'))
-    all_items = list(HomeCarouselImage.objects.order_by('order', '-created_at', '-id'))
-    candidates = active_items if active_items else all_items
-    hero_image_candidates = [item.image.url for item in candidates if item.image]
     current_role = _get_user_role(request.user) or AppUserRole.ROLE_PLAYER
-    role_labels = dict(AppUserRole.ROLE_CHOICES)
-    can_access_admin = _is_admin_user(request.user)
-    can_access_sessions = _can_access_sessions_workspace(request.user)
-    can_access_platform = _can_access_platform(request.user)
-    workspace_links = _workspace_links_for_user(request.user)
-    active_workspace = _build_active_workspace_badge(request)
     if current_role == AppUserRole.ROLE_PLAYER:
         primary_team = _get_primary_team_for_request(request)
         current_player = _resolve_player_for_user(request.user, primary_team)
@@ -2097,6 +2086,24 @@ def dashboard_page(request):
         return redirect('player-dashboard')
     if current_role in {AppUserRole.ROLE_TASK_STUDIO, AppUserRole.ROLE_GUEST} and _can_access_task_studio(request.user):
         return redirect('task-studio-home')
+    active_workspace_obj = _get_active_workspace(request)
+    if active_workspace_obj and not _can_access_platform(request.user):
+        target_url = _workspace_entry_url(active_workspace_obj)
+        target_path = str(target_url or '').split('?', 1)[0]
+        if target_path != request.path:
+            return redirect(target_url)
+
+    sources = list(ScrapeSource.objects.filter(is_active=True))
+    active_items = list(HomeCarouselImage.objects.filter(is_active=True).order_by('order', '-created_at', '-id'))
+    all_items = list(HomeCarouselImage.objects.order_by('order', '-created_at', '-id'))
+    candidates = active_items if active_items else all_items
+    hero_image_candidates = [item.image.url for item in candidates if item.image]
+    role_labels = dict(AppUserRole.ROLE_CHOICES)
+    can_access_admin = _is_admin_user(request.user)
+    can_access_sessions = _can_access_sessions_workspace(request.user)
+    can_access_platform = _can_access_platform(request.user)
+    workspace_links = _workspace_links_for_user(request.user)
+    active_workspace = _build_active_workspace_badge(request)
     forbidden = _forbid_if_workspace_module_disabled(request, 'dashboard', label='dashboard')
     if forbidden:
         return forbidden
@@ -2646,55 +2653,34 @@ def _handle_home_carousel_post(request):
 @login_required
 @ensure_csrf_cookie
 def admin_page(request):
-    def _split_full_name(value):
-        text = str(value or '').strip()
-        if not text:
-            return '', ''
-        parts = [part for part in text.split() if part]
-        if len(parts) == 1:
-            return parts[0], ''
-        return parts[0], ' '.join(parts[1:])
-
-    def _display_full_name(user_obj):
-        full = user_obj.get_full_name().strip()
-        return full or user_obj.username
-
     primary_team = _get_primary_team_for_request(request)
     current_role = AppUserRole.objects.filter(user=request.user).values_list('role', flat=True).first()
     is_admin_user = bool(request.user.is_staff or current_role == AppUserRole.ROLE_ADMIN)
     roster_message = ''
     roster_error = ''
-    carousel_message = ''
-    user_message = ''
-    user_error = ''
-    focus_user_id = None
     actions_message = ''
     actions_error = ''
-    invitation_links = []
     active_tab = (request.GET.get('tab') or request.POST.get('active_tab') or 'roster').strip().lower()
-    if active_tab not in {'roster', 'carousel', 'users', 'actions'}:
+    if active_tab in {'carousel', 'users'}:
+        target_anchor = '#home-global' if active_tab == 'carousel' else '#usuarios-club'
+        return redirect(f"{reverse('platform-overview')}{target_anchor}")
+    if active_tab not in {'roster', 'actions'}:
         active_tab = 'roster'
-    users_segment = (request.GET.get('segment') or request.POST.get('users_segment') or 'all').strip().lower()
-    if users_segment not in {'all', 'technical', 'players', 'guests'}:
-        users_segment = 'all'
-    focus_user_id = _parse_int(request.GET.get('focus_user_id')) or None
-    users_feedback = request.session.pop('admin_users_feedback', None)
-    if isinstance(users_feedback, dict) and active_tab == 'users':
-        user_message = str(users_feedback.get('message') or '').strip()
-        user_error = str(users_feedback.get('error') or '').strip()
-        focus_user_id = _parse_int(users_feedback.get('focus_user_id')) or focus_user_id
-
-    def _redirect_admin_users(*, message='', error='', focus_user_id=None):
-        request.session['admin_users_feedback'] = {
-            'message': str(message or '').strip(),
-            'error': str(error or '').strip(),
-            'focus_user_id': int(focus_user_id) if focus_user_id else None,
-        }
-        base_url = reverse('admin-page')
-        return redirect(f'{base_url}?tab=users&segment={users_segment}&focus_user_id={focus_user_id or ""}')
 
     if request.method == 'POST':
         form_action = (request.POST.get('form_action') or '').strip()
+        if form_action in {
+            'carousel_upload',
+            'carousel_update',
+            'carousel_delete',
+            'user_create',
+            'user_update',
+            'user_invite_create',
+            'user_update_role',
+            'user_toggle_active',
+        }:
+            target_anchor = '#home-global' if form_action.startswith('carousel_') else '#usuarios-club'
+            return redirect(f"{reverse('platform-overview')}{target_anchor}")
         if form_action in {'roster_add_or_update', 'roster_deactivate', 'roster_reactivate'} and primary_team:
             active_tab = 'roster'
             player_id = _parse_int(request.POST.get('player_id'))
@@ -2744,158 +2730,6 @@ def admin_page(request):
                 roster_error = str(exc)
             except Exception:
                 roster_error = 'No se pudo guardar la plantilla.'
-        elif form_action in {'carousel_upload', 'carousel_update', 'carousel_delete'}:
-            active_tab = 'carousel'
-            if _handle_home_carousel_post(request):
-                carousel_message = 'Cambios guardados en fotos Home.'
-        elif form_action == 'user_create':
-            active_tab = 'users'
-            username = (request.POST.get('username') or '').strip().lower()
-            full_name = (request.POST.get('full_name') or '').strip()
-            email = (request.POST.get('email') or '').strip()
-            password = (request.POST.get('password') or '').strip()
-            role_value = (request.POST.get('role') or AppUserRole.ROLE_PLAYER).strip()
-            role_choices = {choice[0] for choice in AppUserRole.ROLE_CHOICES}
-            if role_value not in role_choices:
-                role_value = AppUserRole.ROLE_PLAYER
-            try:
-                if not username:
-                    raise ValueError('El usuario es obligatorio.')
-                if User.objects.filter(username__iexact=username).exists():
-                    raise ValueError('Ese usuario ya existe.')
-                if len(password) < 6:
-                    raise ValueError('La contraseña debe tener al menos 6 caracteres.')
-                first_name, last_name = _split_full_name(full_name)
-                user = User.objects.create_user(
-                    username=username,
-                    email=email,
-                    password=password,
-                    first_name=first_name,
-                    last_name=last_name,
-                )
-                if role_value == AppUserRole.ROLE_ADMIN:
-                    user.is_staff = True
-                    user.save(update_fields=['is_staff'])
-                AppUserRole.objects.update_or_create(user=user, defaults={'role': role_value})
-                if role_value in {AppUserRole.ROLE_TASK_STUDIO, AppUserRole.ROLE_GUEST}:
-                    _ensure_task_studio_workspace(user)
-                user_message = f'Usuario creado: {username}.'
-            except ValueError as exc:
-                user_error = str(exc)
-            except Exception:
-                user_error = 'No se pudo crear el usuario.'
-        elif form_action == 'user_update':
-            active_tab = 'users'
-            user_id = _parse_int(request.POST.get('user_id'))
-            username = (request.POST.get('username') or '').strip().lower()
-            full_name = (request.POST.get('full_name') or '').strip()
-            email = (request.POST.get('email') or '').strip()
-            password = (request.POST.get('password') or '').strip()
-            role_value = (request.POST.get('role') or AppUserRole.ROLE_PLAYER).strip()
-            role_choices = {choice[0] for choice in AppUserRole.ROLE_CHOICES}
-            if role_value not in role_choices:
-                role_value = AppUserRole.ROLE_PLAYER
-            user_obj = User.objects.filter(id=user_id).first() if user_id else None
-            try:
-                if not user_obj:
-                    raise ValueError('Usuario no encontrado.')
-                if not username:
-                    raise ValueError('El usuario es obligatorio.')
-                username_taken = User.objects.filter(username__iexact=username).exclude(id=user_obj.id).exists()
-                if username_taken:
-                    raise ValueError('Ese nombre de usuario ya está en uso.')
-                first_name, last_name = _split_full_name(full_name)
-                user_obj.username = username
-                user_obj.first_name = first_name
-                user_obj.last_name = last_name
-                user_obj.email = email
-                if password:
-                    if len(password) < 6:
-                        raise ValueError('La contraseña debe tener al menos 6 caracteres.')
-                    user_obj.set_password(password)
-                should_staff = role_value == AppUserRole.ROLE_ADMIN
-                user_obj.is_staff = should_staff
-                user_obj.save()
-                AppUserRole.objects.update_or_create(user=user_obj, defaults={'role': role_value})
-                if role_value in {AppUserRole.ROLE_TASK_STUDIO, AppUserRole.ROLE_GUEST}:
-                    _ensure_task_studio_workspace(user_obj)
-                return _redirect_admin_users(
-                    message=f'Usuario actualizado: {user_obj.username}.',
-                    focus_user_id=user_obj.id,
-                )
-            except ValueError as exc:
-                return _redirect_admin_users(error=str(exc), focus_user_id=user_obj.id if user_obj else user_id)
-            except Exception:
-                return _redirect_admin_users(
-                    error='No se pudo actualizar el usuario.',
-                    focus_user_id=user_obj.id if user_obj else user_id,
-                )
-        elif form_action == 'user_invite_create':
-            active_tab = 'users'
-            user_id = _parse_int(request.POST.get('user_id'))
-            validity_days = _parse_int(request.POST.get('valid_days')) or 7
-            validity_days = max(1, min(validity_days, 30))
-            user_obj = User.objects.filter(id=user_id).first() if user_id else None
-            try:
-                if not user_obj:
-                    raise ValueError('Usuario no encontrado.')
-                UserInvitation.objects.filter(user=user_obj, is_active=True, accepted_at__isnull=True).update(is_active=False)
-                invitation = UserInvitation.objects.create(
-                    user=user_obj,
-                    token=UserInvitation.generate_token(),
-                    email=(user_obj.email or '').strip(),
-                    expires_at=timezone.now() + timedelta(days=validity_days),
-                    created_by=request.user.get_username() if request.user.is_authenticated else '',
-                    is_active=True,
-                )
-                invite_url = request.build_absolute_uri(
-                    reverse('user-invite-accept', args=[invitation.token])
-                )
-                invitation_links.append(
-                    {
-                        'username': user_obj.username,
-                        'url': invite_url,
-                        'expires_at': invitation.expires_at,
-                    }
-                )
-                user_message = f'Invitación generada para {user_obj.username}.'
-            except ValueError as exc:
-                user_error = str(exc)
-            except Exception:
-                user_error = 'No se pudo generar la invitación.'
-        elif form_action == 'user_update_role':
-            active_tab = 'users'
-            user_id = _parse_int(request.POST.get('user_id'))
-            role_value = (request.POST.get('role') or '').strip()
-            role_choices = {choice[0] for choice in AppUserRole.ROLE_CHOICES}
-            if role_value not in role_choices:
-                role_value = AppUserRole.ROLE_PLAYER
-            user_obj = User.objects.filter(id=user_id).first() if user_id else None
-            if not user_obj:
-                user_error = 'Usuario no encontrado.'
-            else:
-                AppUserRole.objects.update_or_create(user=user_obj, defaults={'role': role_value})
-                should_staff = role_value == AppUserRole.ROLE_ADMIN
-                if user_obj.is_staff != should_staff:
-                    user_obj.is_staff = should_staff
-                    user_obj.save(update_fields=['is_staff'])
-                user_message = f'Rol actualizado para {user_obj.username}.'
-        elif form_action == 'user_toggle_active':
-            active_tab = 'users'
-            user_id = _parse_int(request.POST.get('user_id'))
-            user_obj = User.objects.filter(id=user_id).first() if user_id else None
-            if not user_obj:
-                user_error = 'Usuario no encontrado.'
-            elif user_obj == request.user:
-                user_error = 'No puedes desactivar tu propio usuario.'
-            else:
-                user_obj.is_active = not bool(user_obj.is_active)
-                user_obj.save(update_fields=['is_active'])
-                user_message = (
-                    f'Usuario {user_obj.username} activado.'
-                    if user_obj.is_active
-                    else f'Usuario {user_obj.username} desactivado.'
-                )
         elif form_action in {'admin_match_save', 'admin_action_bulk_add'}:
             active_tab = 'actions'
             if not is_admin_user:
@@ -3017,13 +2851,7 @@ def admin_page(request):
                         f'Se añadieron {quantity} acciones a {player_obj.name} '
                         f'en partido ID {match_obj.id}.'
                     )
-    carousel_images = []
     roster_players = []
-    users = []
-    technical_users = []
-    players_users = []
-    guests_users = []
-    users_filtered = []
     admin_matches = []
     selected_admin_match = None
     admin_players = []
@@ -3031,63 +2859,12 @@ def admin_page(request):
     admin_result_choices = []
     admin_zone_choices = []
 
-    if active_tab == 'carousel':
-        carousel_images = list(HomeCarouselImage.objects.all())
-
     if active_tab == 'roster':
         roster_players = (
             list(Player.objects.filter(team=primary_team).order_by('-is_active', 'number', 'name'))
             if primary_team
             else []
         )
-
-    if active_tab == 'users':
-        users = list(User.objects.order_by('username'))
-        role_map = {}
-        try:
-            role_map = {item.user_id: item.role for item in AppUserRole.objects.select_related('user')}
-        except Exception:
-            role_map = {}
-        role_labels = dict(AppUserRole.ROLE_CHOICES)
-        for item in users:
-            role_value = role_map.get(item.id, AppUserRole.ROLE_PLAYER)
-            item.role_value = role_value
-            item.role_label = role_labels.get(role_value, 'Jugador')
-            item.full_name_display = _display_full_name(item)
-        technical_roles = {
-            AppUserRole.ROLE_COACH,
-            AppUserRole.ROLE_FITNESS,
-            AppUserRole.ROLE_GOALKEEPER,
-            AppUserRole.ROLE_ANALYST,
-            AppUserRole.ROLE_ADMIN,
-        }
-        technical_users = [u for u in users if u.role_value in technical_roles]
-        players_users = [u for u in users if u.role_value == AppUserRole.ROLE_PLAYER]
-        guests_users = [u for u in users if u.role_value == AppUserRole.ROLE_GUEST]
-
-        def _user_matches_segment(user_obj, segment):
-            if segment == 'technical':
-                return user_obj.role_value in technical_roles
-            if segment == 'players':
-                return user_obj.role_value == AppUserRole.ROLE_PLAYER
-            if segment == 'guests':
-                return user_obj.role_value == AppUserRole.ROLE_GUEST
-            return True
-
-        users_filtered = (
-            users
-            if users_segment == 'all'
-            else technical_users
-            if users_segment == 'technical'
-            else players_users if users_segment == 'players' else guests_users
-        )
-        if focus_user_id:
-            focused_user = next((item for item in users if item.id == focus_user_id), None)
-            if focused_user and users_segment != 'all' and not _user_matches_segment(focused_user, users_segment):
-                users_segment = 'all'
-                users_filtered = users
-            if focused_user:
-                users_filtered = [focused_user] + [item for item in users_filtered if item.id != focus_user_id]
 
     if active_tab == 'actions' and is_admin_user:
         admin_match_qs = _team_match_queryset(primary_team) if primary_team else Match.objects.none()
@@ -3144,25 +2921,12 @@ def admin_page(request):
         request,
         'football/admin.html',
         {
-            'carousel_images': carousel_images,
             'roster_players': roster_players,
             'roster_message': roster_message,
             'roster_error': roster_error,
-            'carousel_message': carousel_message,
-            'users': users,
-            'role_choices': AppUserRole.ROLE_CHOICES,
-            'user_message': user_message,
-            'user_error': user_error,
-            'invitation_links': invitation_links,
             'active_tab': active_tab,
             'team_name': primary_team.display_name if primary_team else '',
             'primary_team_id': primary_team.id if primary_team else None,
-            'users_segment': users_segment,
-            'technical_users_count': len(technical_users),
-            'players_users_count': len(players_users),
-            'guests_users_count': len(guests_users),
-            'users_filtered': users_filtered,
-            'focus_user_id': focus_user_id,
             'is_admin_user': is_admin_user,
             'admin_matches': admin_matches,
             'selected_admin_match': selected_admin_match,

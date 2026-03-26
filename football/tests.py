@@ -750,6 +750,37 @@ class PlatformWorkspaceTests(TestCase):
 
         self.assertEqual(response.status_code, 403)
 
+    def test_club_member_dashboard_redirects_to_first_enabled_workspace_module(self):
+        workspace = Workspace.objects.create(
+            name='Cliente técnico',
+            slug='cliente-tecnico',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.alt_team,
+            enabled_modules={
+                'dashboard': False,
+                'coach_overview': False,
+                'players': True,
+                'convocation': False,
+                'match_actions': False,
+                'sessions': False,
+                'analysis': False,
+                'abp_board': False,
+                'manual_stats': False,
+                'module__configuration': True,
+                'deliverable__configuration__player_registry': True,
+            },
+        )
+        WorkspaceMembership.objects.create(
+            workspace=workspace,
+            user=self.workspace_manager,
+            role=WorkspaceMembership.ROLE_ADMIN,
+        )
+        self.client.force_login(self.workspace_manager)
+
+        response = self.client.get(reverse('dashboard-home'))
+
+        self.assertRedirects(response, reverse('player-dashboard'), fetch_redirect_response=False)
+
     def test_workspace_admin_can_open_detail_without_superadmin_role(self):
         workspace = Workspace.objects.create(
             name='Cliente gestionado',
@@ -1570,7 +1601,7 @@ class AdminActionsTests(TestCase):
         self.assertEqual(self.match.kickoff_time.isoformat(timespec='minutes'), '18:30')
 
 
-class AdminUsersTests(TestCase):
+class AdminPlatformRedirectTests(TestCase):
     def setUp(self):
         user_model = get_user_model()
         self.admin_user = user_model.objects.create_user(
@@ -1595,59 +1626,19 @@ class AdminUsersTests(TestCase):
         AppUserRole.objects.create(user=self.alpha, role=AppUserRole.ROLE_PLAYER)
         AppUserRole.objects.create(user=self.beta, role=AppUserRole.ROLE_PLAYER)
 
-    def test_user_update_keeps_edited_user_visible_and_focused(self):
+    def test_admin_users_tab_redirects_to_platform(self):
         self.client.force_login(self.admin_user)
 
-        response = self.client.post(
-            reverse('admin-page'),
-            {
-                'form_action': 'user_update',
-                'active_tab': 'users',
-                'users_segment': 'all',
-                'user_id': self.beta.id,
-                'full_name': 'Beta Nuevo',
-                'username': 'omega-user',
-                'email': 'omega@example.com',
-                'password': '',
-                'role': AppUserRole.ROLE_PLAYER,
-            },
-            follow=True,
-        )
+        response = self.client.get(reverse('admin-page'), {'tab': 'users'})
 
-        self.beta.refresh_from_db()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(self.beta.username, 'omega-user')
-        self.assertEqual(self.beta.get_full_name(), 'Beta Nuevo')
-        self.assertEqual(response.context['focus_user_id'], self.beta.id)
-        self.assertEqual(response.context['users_filtered'][0].id, self.beta.id)
-        self.assertContains(response, f'id="user-{self.beta.id}"')
-        self.assertContains(response, 'value="omega-user"')
+        self.assertRedirects(response, f"{reverse('platform-overview')}#usuarios-club")
 
-    def test_user_update_switches_to_all_segment_when_role_changes_out_of_filter(self):
+    def test_admin_carousel_tab_redirects_to_platform(self):
         self.client.force_login(self.admin_user)
 
-        response = self.client.post(
-            reverse('admin-page'),
-            {
-                'form_action': 'user_update',
-                'active_tab': 'users',
-                'users_segment': 'players',
-                'user_id': self.beta.id,
-                'full_name': 'Beta Analista',
-                'username': 'beta-analista',
-                'email': 'beta-analista@example.com',
-                'password': '',
-                'role': AppUserRole.ROLE_ANALYST,
-            },
-            follow=True,
-        )
+        response = self.client.get(reverse('admin-page'), {'tab': 'carousel'})
 
-        self.beta.refresh_from_db()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(self.beta.username, 'beta-analista')
-        self.assertEqual(self.beta.app_role.role, AppUserRole.ROLE_ANALYST)
-        self.assertEqual(response.context['users_segment'], 'all')
-        self.assertEqual(response.context['users_filtered'][0].id, self.beta.id)
+        self.assertRedirects(response, f"{reverse('platform-overview')}#home-global")
 
 
 class TeamDisplayNameTests(TestCase):
