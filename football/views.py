@@ -1879,6 +1879,7 @@ def platform_overview_page(request):
     workspace_users = list(
         WorkspaceMembership.objects
         .select_related('workspace', 'user')
+        .filter(workspace__kind=Workspace.KIND_CLUB)
         .order_by('workspace__name', 'role', 'user__username')[:120]
     )
 

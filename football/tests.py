@@ -790,6 +790,40 @@ class PlatformWorkspaceTests(TestCase):
         self.assertFalse(TaskStudioProfile.objects.filter(user=self.studio_user).exists())
         self.assertContains(response, 'Task Studio eliminado')
 
+    def test_platform_overview_excludes_task_studio_owners_from_users_summary(self):
+        club_workspace = Workspace.objects.create(
+            name='Cliente usuarios',
+            slug='cliente-usuarios',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.alt_team,
+        )
+        WorkspaceMembership.objects.create(
+            workspace=club_workspace,
+            user=self.workspace_manager,
+            role=WorkspaceMembership.ROLE_ADMIN,
+        )
+        studio_workspace = Workspace.objects.create(
+            name='Task Studio privado',
+            slug='task-studio-privado',
+            kind=Workspace.KIND_TASK_STUDIO,
+            owner_user=self.studio_user,
+        )
+        WorkspaceMembership.objects.create(
+            workspace=studio_workspace,
+            user=self.studio_user,
+            role=WorkspaceMembership.ROLE_OWNER,
+        )
+        self.client.force_login(self.admin_user)
+
+        response = self.client.get(reverse('platform-overview'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.workspace_manager.username)
+        self.assertContains(response, 'clientes club')
+        listed_usernames = [membership.user.username for membership in response.context['workspace_users']]
+        self.assertIn(self.workspace_manager.username, listed_usernames)
+        self.assertNotIn(self.studio_user.username, listed_usernames)
+
 
 class QueryHelperTests(TestCase):
     def setUp(self):
