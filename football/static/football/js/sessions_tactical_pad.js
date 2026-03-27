@@ -430,6 +430,8 @@
     let pendingFactory = null;
     const DRAG_MIME = 'application/x-webstats-tactical-resource';
     let previewRefreshTimer = null;
+    let previewBuildInFlight = false;
+    let surfacesRendered = false;
     let timeline = [];
     let activeStepIndex = -1;
     let playbackTimer = null;
@@ -666,10 +668,12 @@
     };
 
     const renderSurfaceThumbs = () => {
+      if (surfacesRendered) return;
       surfaceThumbs.forEach((node) => {
         const preset = safeText(node.dataset.surfaceThumb, 'full_pitch');
         node.innerHTML = buildPitchSvg(preset);
       });
+      surfacesRendered = true;
     };
 
     const setSurfaceMenuOpen = (open) => {
@@ -1146,9 +1150,13 @@
     };
 
     const buildPreviewData = () => new Promise((resolve) => {
+      const sourceWidth = Math.round(canvas.getWidth());
+      const sourceHeight = Math.round(canvas.getHeight());
+      const maxPreviewWidth = 960;
+      const ratio = sourceWidth > maxPreviewWidth ? (maxPreviewWidth / sourceWidth) : 1;
       const output = document.createElement('canvas');
-      output.width = Math.round(canvas.getWidth());
-      output.height = Math.round(canvas.getHeight());
+      output.width = Math.max(320, Math.round(sourceWidth * ratio));
+      output.height = Math.max(180, Math.round(sourceHeight * ratio));
       const context = output.getContext('2d');
       if (!context) {
         resolve('');
@@ -1184,10 +1192,16 @@
     const refreshLivePreview = () => {
       window.clearTimeout(previewRefreshTimer);
       previewRefreshTimer = window.setTimeout(async () => {
-        const dataUrl = await buildPreviewData();
-        if (previewInput) previewInput.value = dataUrl;
-        applyLivePreview(dataUrl);
-      }, 180);
+        if (previewBuildInFlight) return;
+        previewBuildInFlight = true;
+        try {
+          const dataUrl = await buildPreviewData();
+          if (previewInput) previewInput.value = dataUrl;
+          applyLivePreview(dataUrl);
+        } finally {
+          previewBuildInFlight = false;
+        }
+      }, 420);
     };
     const syncHiddenBuilderFields = async () => {
       if (legacyPlayersInput && playerCountInput) legacyPlayersInput.value = playerCountInput.value || '';
@@ -1222,7 +1236,6 @@
     };
 
     fitCanvas();
-    renderSurfaceThumbs();
     setPreset(presetSelect.value || 'full_pitch');
     restoreState();
     renderPlayerBank();
@@ -1427,7 +1440,10 @@
       });
     });
     presetSelect.addEventListener('change', () => setPreset(presetSelect.value || 'full_pitch'));
-    surfaceTrigger?.addEventListener('click', () => setSurfaceMenuOpen(!surfacePicker?.classList.contains('is-open')));
+    surfaceTrigger?.addEventListener('click', () => {
+      renderSurfaceThumbs();
+      setSurfaceMenuOpen(!surfacePicker?.classList.contains('is-open'));
+    });
     document.addEventListener('click', (event) => {
       if (!surfacePicker) return;
       if (surfacePicker.contains(event.target)) return;

@@ -627,17 +627,10 @@
         <input type="hidden" name="draw_task_game_phase" value="{{ initial.game_phase }}" />
         <input type="hidden" name="draw_task_methodology" value="{{ initial.methodology }}" />
         <input type="hidden" name="draw_task_complexity" value="{{ initial.complexity }}" />
-        <input type="hidden" name="draw_task_organization" value="{{ initial.organization }}" />
-        <input type="hidden" name="draw_task_players_distribution" value="{{ initial.players_distribution }}" />
-        <input type="hidden" name="draw_task_work_rest" value="{{ initial.work_rest }}" />
         <input type="hidden" name="draw_task_series" value="{{ initial.series }}" />
         <input type="hidden" name="draw_task_repetitions" value="{{ initial.repetitions }}" />
         <input type="hidden" name="draw_task_load_target" value="{{ initial.load_target }}" />
         <input type="hidden" name="draw_task_category_tags" value="{{ initial.category_tags }}" />
-        <input type="hidden" name="draw_task_players" value="{{ initial.players }}" />
-        <input type="hidden" name="draw_task_progression" value="{{ initial.progression }}" />
-        <input type="hidden" name="draw_task_regression" value="{{ initial.regression }}" />
-        <input type="hidden" name="draw_task_success_criteria" value="{{ initial.success_criteria }}" />
         {% for value in initial.constraints %}
         <input type="hidden" name="draw_constraints" value="{{ value }}" />
         {% endfor %}
@@ -995,7 +988,7 @@
     </main>
 
     {{ tactical_player_catalog|json_script:"tpad-players-catalog" }}
-    <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
+    <script src="{% static 'vendor/fabric.min.js' %}"></script>
     <script src="{% static 'football/js/sessions_tactical_pad.js' %}"></script>
     <script>
       if (window.initSessionsTacticalPad) window.initSessionsTacticalPad();

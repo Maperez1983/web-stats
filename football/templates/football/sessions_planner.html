@@ -1718,7 +1718,7 @@
     {{ task_templates|json_script:"task-templates-data" }}
     {{ tactical_player_catalog|json_script:"tpad-players-catalog" }}
     <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
+    <script src="{% static 'vendor/fabric.min.js' %}"></script>
     <script src="{% static 'football/js/tactical_pad_shared.js' %}"></script>
     <script src="{% static 'football/js/sessions_tactical_pad.js' %}"></script>
     <script>
