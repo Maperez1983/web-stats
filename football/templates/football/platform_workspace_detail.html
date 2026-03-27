@@ -424,6 +424,46 @@
           <div class="summary-note">
             Este panel gobierna el cliente. La operación diaria de jugadores, tareas o sesiones se ejecuta dentro del propio espacio, no desde aquí.
           </div>
+          {% if can_manage_workspace %}
+          <div class="section-shell panel-block">
+            <div class="section-kicker">Configuración</div>
+            <h2>Ajustes del cliente</h2>
+            <p>Edita la identidad, el responsable principal y el estado operativo de este espacio.</p>
+            <form method="post" class="workspace-form" style="margin-top:1rem;">
+              {% csrf_token %}
+              <input type="hidden" name="form_action" value="update_workspace_identity" />
+              <div class="inline-grid">
+                <div class="field">
+                  <label for="workspace_name">Nombre</label>
+                  <input id="workspace_name" name="workspace_name" type="text" value="{{ workspace.name }}" required />
+                </div>
+                <div class="field">
+                  <label for="owner_username">Usuario propietario</label>
+                  <input id="owner_username" name="owner_username" type="text" value="{% if workspace.owner_user %}{{ workspace.owner_user.username }}{% endif %}" />
+                </div>
+                {% if workspace.kind == 'club' %}
+                <div class="field">
+                  <label for="team_id">Equipo vinculado</label>
+                  <select id="team_id" name="team_id">
+                    <option value="">Sin equipo asociado</option>
+                    {% for team in teams %}
+                    <option value="{{ team.id }}" {% if workspace.primary_team_id == team.id %}selected{% endif %}>{{ team.name }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                {% endif %}
+                <div class="field">
+                  <label><input type="checkbox" name="workspace_is_active" {% if workspace.is_active %}checked{% endif %} /> Cliente activo</label>
+                </div>
+              </div>
+              <div class="field" style="margin-top:0.8rem;">
+                <label for="workspace_notes">Notas</label>
+                <textarea id="workspace_notes" name="workspace_notes" rows="4">{{ workspace.notes }}</textarea>
+              </div>
+              <button class="submit-btn" type="submit">Guardar configuración</button>
+            </form>
+          </div>
+          {% endif %}
           <div class="section-shell panel-block" id="workspace-resumen">
             <div class="section-kicker">Resumen</div>
             <h2>Resumen</h2>
@@ -565,7 +605,7 @@
                 </div>
                 {% endfor %}
               </div>
-              <button class="submit-btn" type="submit">Guardar módulos</button>
+              <button class="submit-btn" type="submit">Guardar módulos y entregables</button>
             </form>
             {% else %}
             <div class="message" style="background:rgba(255,255,255,0.04); border:1px solid rgba(160,180,215,0.12); color:#c7d3e8;">

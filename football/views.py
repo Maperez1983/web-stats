@@ -2568,6 +2568,44 @@ def platform_overview_page(request):
                 user_error = str(exc)
             except Exception:
                 user_error = 'No se pudo generar la invitación global.'
+        elif form_action == 'platform_user_update':
+            active_tab = 'users'
+            users_subtab = 'list'
+            user_id = _parse_int(request.POST.get('user_id'))
+            full_name = _sanitize_task_text((request.POST.get('full_name') or '').strip(), multiline=False, max_len=150)
+            email = re.sub(r'\s+', '', str(request.POST.get('email') or '').strip()).lower()[:190]
+            password = (request.POST.get('password') or '').strip()
+            role_value = str(request.POST.get('role') or AppUserRole.ROLE_PLAYER).strip()
+            is_active = str(request.POST.get('is_active') or '').lower() in {'1', 'true', 'on', 'yes'}
+            role_choices = {choice[0] for choice in AppUserRole.ROLE_CHOICES}
+            if role_value not in role_choices:
+                role_value = AppUserRole.ROLE_PLAYER
+            user_obj = User.objects.filter(id=user_id).first() if user_id else None
+            try:
+                if not user_obj:
+                    raise ValueError('Usuario no encontrado.')
+                if password and len(password) < 6:
+                    raise ValueError('La nueva contraseña debe tener al menos 6 caracteres.')
+                first_name, last_name = _split_full_name(full_name)
+                user_obj.first_name = first_name
+                user_obj.last_name = last_name
+                user_obj.email = email
+                user_obj.is_active = is_active
+                user_obj.is_staff = bool(is_active and role_value == AppUserRole.ROLE_ADMIN)
+                if password:
+                    user_obj.set_password(password)
+                update_fields = ['first_name', 'last_name', 'email', 'is_active', 'is_staff']
+                if password:
+                    update_fields.append('password')
+                user_obj.save(update_fields=update_fields)
+                AppUserRole.objects.update_or_create(user=user_obj, defaults={'role': role_value})
+                if role_value == AppUserRole.ROLE_TASK_STUDIO:
+                    _ensure_task_studio_workspace(user_obj)
+                user_message = f'Usuario actualizado: {user_obj.username}.'
+            except ValueError as exc:
+                user_error = str(exc)
+            except Exception:
+                user_error = 'No se pudo actualizar el usuario.'
         elif form_action in {'carousel_upload', 'carousel_update', 'carousel_delete'}:
             active_tab = 'home-global'
             if _handle_home_carousel_post(request):
@@ -2683,6 +2721,64 @@ def platform_workspace_detail_page(request, workspace_id):
         form_action = (request.POST.get('form_action') or '').strip().lower()
         if not can_manage_workspace:
             error = 'No tienes permisos para modificar este workspace.'
+        elif form_action == 'update_workspace_identity':
+            workspace_name = _sanitize_task_text((request.POST.get('workspace_name') or '').strip(), multiline=False, max_len=160)
+            owner_username = _sanitize_task_text((request.POST.get('owner_username') or '').strip(), multiline=False, max_len=150).lower()
+            workspace_notes = _sanitize_task_text((request.POST.get('workspace_notes') or '').strip(), multiline=True, max_len=1200)
+            team_id = _parse_int(request.POST.get('team_id'))
+            is_active = str(request.POST.get('workspace_is_active') or '').lower() in {'1', 'true', 'on', 'yes'}
+            try:
+                if not workspace_name:
+                    raise ValueError('Indica un nombre para el cliente.')
+                owner_user = User.objects.filter(username__iexact=owner_username).first() if owner_username else None
+                if owner_username and not owner_user:
+                    raise ValueError(f'No existe el usuario propietario "{owner_username}".')
+                if workspace.kind == Workspace.KIND_TASK_STUDIO and not owner_user:
+                    raise ValueError('Task Studio requiere un usuario propietario.')
+                if workspace.kind == Workspace.KIND_TASK_STUDIO and owner_user:
+                    conflict = Workspace.objects.filter(kind=Workspace.KIND_TASK_STUDIO, owner_user=owner_user).exclude(id=workspace.id).first()
+                    if conflict:
+                        raise ValueError(f'El usuario {owner_user.username} ya tiene otro Task Studio.')
+                old_owner = workspace.owner_user
+                workspace.name = workspace_name
+                workspace.owner_user = owner_user
+                workspace.notes = workspace_notes
+                workspace.is_active = is_active
+                if workspace.kind == Workspace.KIND_CLUB:
+                    workspace.primary_team = Team.objects.filter(id=team_id).first() if team_id else None
+                workspace.save(update_fields=['name', 'owner_user', 'notes', 'is_active', 'primary_team', 'updated_at'])
+                if owner_user:
+                    WorkspaceMembership.objects.update_or_create(
+                        workspace=workspace,
+                        user=owner_user,
+                        defaults={'role': WorkspaceMembership.ROLE_OWNER},
+                    )
+                if old_owner and (not owner_user or old_owner.id != owner_user.id):
+                    old_membership = WorkspaceMembership.objects.filter(
+                        workspace=workspace,
+                        user=old_owner,
+                        role=WorkspaceMembership.ROLE_OWNER,
+                    ).first()
+                    if old_membership:
+                        old_membership.role = WorkspaceMembership.ROLE_ADMIN
+                        old_membership.save(update_fields=['role'])
+                if workspace.kind == Workspace.KIND_TASK_STUDIO:
+                    if owner_user:
+                        TaskStudioProfile.objects.update_or_create(
+                            user=owner_user,
+                            defaults={'workspace': workspace, 'is_enabled': True},
+                        )
+                    if old_owner and (not owner_user or old_owner.id != owner_user.id):
+                        old_profile = TaskStudioProfile.objects.filter(user=old_owner, workspace=workspace).first()
+                        if old_profile:
+                            old_profile.workspace = None
+                            old_profile.is_enabled = False
+                            old_profile.save(update_fields=['workspace', 'is_enabled'])
+                feedback = f'Cliente actualizado: {workspace.name}.'
+            except ValueError as exc:
+                error = str(exc)
+            except Exception:
+                error = 'No se pudo actualizar la configuración del cliente.'
         elif form_action == 'update_modules':
             module_catalog = _workspace_module_catalog(workspace.kind)
             selected_modules = {
@@ -2784,6 +2880,7 @@ def platform_workspace_detail_page(request, workspace_id):
             'module_catalog': module_catalog,
             'enabled_modules': enabled_modules,
             'workspace_role_choices': WorkspaceMembership.ROLE_CHOICES,
+            'teams': list(Team.objects.order_by('name')[:200]),
         },
     )
 

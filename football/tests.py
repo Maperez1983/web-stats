@@ -507,6 +507,29 @@ class PlatformWorkspaceTests(TestCase):
         self.assertTrue(Workspace.objects.filter(owner_user=created_user, kind=Workspace.KIND_TASK_STUDIO).exists())
         self.assertContains(response, 'Usuario creado en Plataforma')
 
+    def test_platform_overview_can_update_global_user(self):
+        self.client.force_login(self.admin_user)
+
+        response = self.client.post(
+            reverse('platform-overview'),
+            {
+                'form_action': 'platform_user_update',
+                'user_id': self.studio_user.id,
+                'full_name': 'Studio Actualizado',
+                'email': 'studio-updated@example.com',
+                'role': AppUserRole.ROLE_TASK_STUDIO,
+                'is_active': 'on',
+                'password': '',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.studio_user.refresh_from_db()
+        self.assertEqual(self.studio_user.get_full_name(), 'Studio Actualizado')
+        self.assertEqual(self.studio_user.email, 'studio-updated@example.com')
+        self.assertTrue(self.studio_user.is_active)
+        self.assertContains(response, 'Usuario actualizado')
+
     def test_platform_overview_does_not_bootstrap_guest_task_studio_workspace(self):
         guest_user = get_user_model().objects.create_user(
             username='club-guest',
@@ -737,6 +760,45 @@ class PlatformWorkspaceTests(TestCase):
         self.assertTrue(workspace.enabled_modules.get('deliverable__match__convocation'))
         self.assertFalse(workspace.enabled_modules.get('deliverable__match__starting_xi'))
         self.assertFalse(workspace.enabled_modules.get('deliverable__match__live_match'))
+
+    def test_workspace_detail_can_update_identity(self):
+        workspace = Workspace.objects.create(
+            name='Cliente editable',
+            slug='cliente-editable',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.team,
+            owner_user=self.admin_user,
+            notes='Antes',
+            is_active=True,
+        )
+        self.client.force_login(self.admin_user)
+
+        response = self.client.post(
+            reverse('platform-workspace-detail', args=[workspace.id]),
+            {
+                'form_action': 'update_workspace_identity',
+                'workspace_name': 'Cliente editado',
+                'owner_username': self.workspace_manager.username,
+                'team_id': self.alt_team.id,
+                'workspace_notes': 'Después',
+                'workspace_is_active': '',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        workspace.refresh_from_db()
+        self.assertEqual(workspace.name, 'Cliente editado')
+        self.assertEqual(workspace.owner_user_id, self.workspace_manager.id)
+        self.assertEqual(workspace.primary_team_id, self.alt_team.id)
+        self.assertEqual(workspace.notes, 'Después')
+        self.assertFalse(workspace.is_active)
+        self.assertTrue(
+            WorkspaceMembership.objects.filter(
+                workspace=workspace,
+                user=self.workspace_manager,
+                role=WorkspaceMembership.ROLE_OWNER,
+            ).exists()
+        )
 
     def test_workspace_detail_updates_task_studio_deliverables(self):
         workspace = Workspace.objects.create(
