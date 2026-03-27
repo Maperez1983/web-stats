@@ -1,3 +1,4 @@
+import copy
 import json
 import logging
 import os
@@ -2335,7 +2336,7 @@ def dashboard_page(request):
 def platform_overview_page(request):
     if not _can_access_platform(request.user):
         return HttpResponse('No tienes permisos para acceder a la plataforma.', status=403)
-    valid_tabs = {'clients', 'users', 'task-studio', 'workspace-create', 'home-global'}
+    valid_tabs = {'clients', 'users', 'task-studio', 'documents', 'workspace-create', 'home-global'}
     active_tab = str(request.GET.get('tab') or 'clients').strip().lower()
     if active_tab not in valid_tabs:
         active_tab = 'clients'
@@ -2723,6 +2724,64 @@ def platform_overview_page(request):
     if not platform_attention_items:
         platform_attention_items.append('La matriz no tiene alertas críticas de configuración.')
 
+    recent_documents = []
+    recent_session_tasks = list(
+        SessionTask.objects
+        .select_related('session__microcycle__team')
+        .order_by('-created_at', '-id')[:6]
+    )
+    recent_sessions = list(
+        TrainingSession.objects
+        .select_related('microcycle__team')
+        .order_by('-created_at', '-id')[:5]
+    )
+    recent_studio_tasks = list(
+        TaskStudioTask.objects
+        .select_related('owner', 'workspace')
+        .order_by('-updated_at', '-id')[:6]
+    )
+    for item in recent_session_tasks:
+        recent_documents.append(
+            {
+                'type': 'Tarea club',
+                'title': str(item.title or 'Tarea').strip() or 'Tarea',
+                'source': str(getattr(item.session.microcycle.team, 'display_name', '') or getattr(item.session.microcycle.team, 'name', '')).strip() or 'Club',
+                'meta': f"{item.session.session_date:%d/%m/%Y} · {item.get_block_display()} · {item.duration_minutes or 0} min",
+                'uefa_url': reverse('session-task-pdf', args=[item.id]),
+                'club_url': f"{reverse('session-task-pdf', args=[item.id])}?style=club",
+                'created_at': item.created_at,
+            }
+        )
+    for item in recent_sessions:
+        recent_documents.append(
+            {
+                'type': 'Sesión',
+                'title': str(item.focus or 'Sesión').strip() or 'Sesión',
+                'source': str(getattr(item.microcycle.team, 'display_name', '') or getattr(item.microcycle.team, 'name', '')).strip() or 'Club',
+                'meta': f"{item.session_date:%d/%m/%Y} · {item.duration_minutes or 0} min",
+                'uefa_url': reverse('session-plan-pdf', args=[item.id]),
+                'club_url': f"{reverse('session-plan-pdf', args=[item.id])}?style=club",
+                'created_at': item.created_at,
+            }
+        )
+    for item in recent_studio_tasks:
+        recent_documents.append(
+            {
+                'type': 'Task Studio',
+                'title': str(item.title or 'Tarea').strip() or 'Tarea',
+                'source': str(item.owner.get_full_name() or item.owner.get_username()).strip() or item.owner.get_username(),
+                'meta': f"{item.updated_at:%d/%m/%Y} · {item.get_block_display()} · {item.duration_minutes or 0} min",
+                'uefa_url': reverse('task-studio-task-pdf', args=[item.id]),
+                'club_url': f"{reverse('task-studio-task-pdf', args=[item.id])}?style=club",
+                'created_at': item.updated_at,
+            }
+        )
+    recent_documents = sorted(
+        recent_documents,
+        key=lambda item: item.get('created_at') or timezone.now(),
+        reverse=True,
+    )[:14]
+
     return render(
         request,
         'football/platform_overview.html',
@@ -2756,6 +2815,7 @@ def platform_overview_page(request):
             'club_workspaces_without_members': club_workspaces_without_members,
             'studio_workspaces_without_tasks': studio_workspaces_without_tasks,
             'platform_attention_items': platform_attention_items,
+            'recent_documents': recent_documents,
         },
     )
 
@@ -10602,6 +10662,28 @@ def _task_studio_task_for_request(request, task_id):
     return task
 
 
+def _clone_task_studio_task(source_task):
+    clone_title = str(source_task.title or 'Tarea').strip() or 'Tarea'
+    suffix = ' (copia)'
+    if len(clone_title) + len(suffix) > 160:
+        clone_title = clone_title[: 160 - len(suffix)].rstrip()
+    clone = TaskStudioTask.objects.create(
+        workspace=source_task.workspace,
+        owner=source_task.owner,
+        title=f'{clone_title}{suffix}',
+        block=source_task.block,
+        duration_minutes=source_task.duration_minutes,
+        objective=source_task.objective,
+        coaching_points=source_task.coaching_points,
+        confrontation_rules=source_task.confrontation_rules,
+        tactical_layout=copy.deepcopy(source_task.tactical_layout) if isinstance(source_task.tactical_layout, dict) else {},
+        task_pdf=(source_task.task_pdf.name if source_task.task_pdf else None),
+        task_preview_image=(source_task.task_preview_image.name if source_task.task_preview_image else None),
+        notes=source_task.notes,
+    )
+    return clone
+
+
 @login_required
 def task_studio_home_page(request):
     forbidden = _forbid_if_no_task_studio_access(request.user)
@@ -10625,6 +10707,7 @@ def task_studio_home_page(request):
             | Q(notes__icontains=search_query)
         )
     tasks = list(task_qs.order_by('-updated_at', '-id')[:80])
+    recent_document_tasks = tasks[:6]
     roster_count = TaskStudioRosterPlayer.objects.filter(owner=target_user, is_active=True).count()
     query_suffix = _task_studio_query_suffix(target_user, request.user)
     task_count = task_qs.count()
@@ -10681,6 +10764,7 @@ def task_studio_home_page(request):
             'next_actions': next_actions,
             'has_identity': has_identity,
             'search_query': search_query,
+            'recent_document_tasks': recent_document_tasks,
         },
     )
 
@@ -10881,6 +10965,24 @@ def task_studio_task_delete_page(request, task_id):
     task.delete()
     request.session['task_studio_feedback'] = f'Tarea eliminada: {task_title}.'
     return redirect(reverse('task-studio-home') + _task_studio_query_suffix(owner, request.user))
+
+
+@login_required
+@require_POST
+def task_studio_task_duplicate_page(request, task_id):
+    forbidden = _forbid_if_no_task_studio_access(request.user)
+    if forbidden:
+        return forbidden
+    task = _task_studio_task_for_request(request, task_id)
+    if not task:
+        raise Http404('Tarea no encontrada')
+    forbidden = _forbid_if_task_studio_module_disabled(request, task.owner, 'task_studio_tasks', label='tareas Task Studio')
+    if forbidden:
+        return forbidden
+    owner = task.owner
+    clone = _clone_task_studio_task(task)
+    request.session['task_studio_feedback'] = f'Tarea duplicada: {clone.title}.'
+    return redirect(reverse('task-studio-task-edit', args=[clone.id]) + _task_studio_query_suffix(owner, request.user))
 
 
 @login_required

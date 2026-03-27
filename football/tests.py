@@ -194,6 +194,16 @@ class TaskStudioAccessTests(TestCase):
         self.assertRedirects(response, reverse('task-studio-home'))
         self.assertFalse(TaskStudioTask.objects.filter(id=self.own_task.id).exists())
 
+    def test_task_studio_owner_can_duplicate_own_task(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(reverse('task-studio-task-duplicate', args=[self.own_task.id]))
+
+        self.assertEqual(response.status_code, 302)
+        clones = TaskStudioTask.objects.filter(owner=self.user, title__icontains='Tarea propia')
+        self.assertEqual(clones.count(), 2)
+        self.assertTrue(clones.exclude(id=self.own_task.id).filter(title='Tarea propia (copia)').exists())
+
     def test_task_studio_user_cannot_delete_foreign_task(self):
         self.client.force_login(self.user)
 
@@ -446,6 +456,44 @@ class PlatformWorkspaceTests(TestCase):
                 role=WorkspaceMembership.ROLE_OWNER,
             ).exists()
         )
+
+    def test_platform_overview_documents_tab_shows_recent_documents(self):
+        self.client.force_login(self.admin_user)
+        response = self.client.get(reverse('platform-overview'))
+        studio_workspace = Workspace.objects.filter(kind=Workspace.KIND_TASK_STUDIO, owner_user=self.studio_user).first()
+        microcycle = TrainingMicrocycle.objects.create(
+            team=self.team,
+            title='MD-1',
+            objective='Activar',
+            week_start=date(2026, 3, 23),
+            week_end=date(2026, 3, 29),
+        )
+        session = TrainingSession.objects.create(
+            microcycle=microcycle,
+            session_date=date(2026, 3, 25),
+            focus='Previa rival',
+            duration_minutes=70,
+        )
+        SessionTask.objects.create(
+            session=session,
+            title='Rueda de pases',
+            block=SessionTask.BLOCK_MAIN_1,
+            duration_minutes=15,
+        )
+        TaskStudioTask.objects.create(
+            workspace=studio_workspace,
+            owner=self.studio_user,
+            title='Tarea studio',
+            block=SessionTask.BLOCK_MAIN_1,
+            duration_minutes=20,
+        )
+
+        response = self.client.get(reverse('platform-overview') + '?tab=documents')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Documentos recientes')
+        self.assertContains(response, 'Rueda de pases')
+        self.assertContains(response, 'Tarea studio')
 
     def test_platform_overview_can_create_workspace_manually(self):
         self.client.force_login(self.admin_user)

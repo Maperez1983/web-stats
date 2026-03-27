@@ -92,6 +92,28 @@
         padding: .72rem .8rem;
         color: rgba(225,236,255,.86);
       }
+      .workflow-grid {
+        display:grid;
+        grid-template-columns: repeat(2, minmax(0,1fr));
+        gap:.8rem;
+        margin-bottom: 1rem;
+      }
+      .workflow-card {
+        border-radius: 18px;
+        border: 1px solid rgba(255,255,255,.14);
+        background: rgba(255,255,255,.04);
+        padding: .95rem 1rem;
+      }
+      .workflow-card strong {
+        display:block;
+        margin-bottom:.28rem;
+        font-size:.98rem;
+      }
+      .workflow-card p {
+        margin:.25rem 0 .8rem;
+        color: rgba(225,236,255,.76);
+        line-height:1.45;
+      }
       .tabs {
         display: flex;
         flex-wrap: wrap;
@@ -1013,8 +1035,9 @@
         }
       }
       @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
-      @media (max-width: 720px) { .summary-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+      @media (max-width: 720px) { .summary-grid, .workflow-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
       @media (max-width: 520px) { .summary-grid { grid-template-columns: 1fr; } }
+      @media (max-width: 520px) { .workflow-grid { grid-template-columns: 1fr; } }
     </style>
   </head>
   <body>
@@ -1024,7 +1047,7 @@
         <h1>{{ scope_title|default:"Sesiones" }} · Carga de PDFs y Editor de Tareas</h1>
         <a href="{% url 'coach-detail' %}" class="button">Volver</a>
       </div>
-      <p class="meta" style="margin-top:-0.35rem; margin-bottom:0.9rem;">Espacio activo: <strong>{{ scope_title|default:"Sesiones" }}</strong> <span class="product-chip role">Fase 2 · Biblioteca Pro</span></p>
+      <p class="meta" style="margin-top:-0.35rem; margin-bottom:0.9rem;">Espacio activo: <strong>{{ scope_title|default:"Sesiones" }}</strong> <span class="product-chip role">Biblioteca + Planificación</span></p>
 
       {% if feedback %}<div class="alert ok">{{ feedback }}</div>{% endif %}
       {% if error %}<div class="alert err">{{ error }}</div>{% endif %}
@@ -1053,6 +1076,27 @@
             {% for item in planner_focus_items %}
             <div class="focus-item">{{ item }}</div>
             {% endfor %}
+          </div>
+        </article>
+      </section>
+
+      <section class="workflow-grid">
+        <article class="workflow-card">
+          <div class="product-kicker">Biblioteca</div>
+          <strong>Repositorio reutilizable</strong>
+          <p>Consulta tareas, filtra por fase o tipo, duplica ideas y envíalas a sesión cuando ya estén listas.</p>
+          <div style="display:flex; gap:.55rem; flex-wrap:wrap;">
+            <a class="button" href="?tab=library">Abrir biblioteca</a>
+            <a class="button" href="?tab=create">Crear tarea</a>
+          </div>
+        </article>
+        <article class="workflow-card">
+          <div class="product-kicker">Planificación</div>
+          <strong>Semana, microciclo y sesión</strong>
+          <p>Organiza microciclos, crea sesiones y monta la semana arrastrando tareas del repositorio al trabajo real.</p>
+          <div style="display:flex; gap:.55rem; flex-wrap:wrap;">
+            <a class="button" href="?tab=planning">Ir a planificación</a>
+            <a class="button" href="?tab=import">Importar tarea</a>
           </div>
         </article>
       </section>
@@ -1123,24 +1167,16 @@
         </section>
 
         <section class="panel">
-          <h2>Recorrido de trabajo</h2>
+          <h2>Qué puedes hacer desde aquí</h2>
           <div class="folder-grid">
-            <div class="folder-card">
-              <strong>1. Diseñar tarea</strong>
-              <span>Define superficie, formato, recursos gráficos y jugadores asignados.</span>
-            </div>
-            <div class="folder-card">
-              <strong>2. Documentar</strong>
-              <span>Completa objetivos, consignas, normas, tamaño, edad y categorización.</span>
-            </div>
-            <div class="folder-card">
-              <strong>3. Guardar y exportar</strong>
-              <span>La tarea queda en repositorio y se puede abrir o exportar en PDF.</span>
-            </div>
-            <div class="folder-card">
-              <strong>4. Construir sesión</strong>
-              <span>Usa la biblioteca para unir tareas dentro de sesiones y microciclos.</span>
-            </div>
+            <a class="folder-card" href="?tab=library">
+              <strong>Revisar repositorio</strong>
+              <span>Abre la biblioteca, filtra por criterio y localiza las tareas que ya te sirven.</span>
+            </a>
+            <a class="folder-card" href="?tab=planning">
+              <strong>Montar la semana</strong>
+              <span>Lleva tareas ya guardadas al microciclo, crea sesiones y prepara el PDF final.</span>
+            </a>
           </div>
         </section>
       </div>

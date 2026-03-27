@@ -135,7 +135,7 @@
       .quick-grid {
         margin-top: 1rem;
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 1rem;
       }
       .quick-card {
@@ -632,6 +632,36 @@
         border: 1px solid rgba(160, 180, 215, 0.12);
       }
 
+      .document-list {
+        margin-top: 1rem;
+        display: grid;
+        gap: 0.8rem;
+      }
+
+      .document-card {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 0.9rem;
+        align-items: center;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(160, 180, 215, 0.12);
+        padding: 0.85rem 0.9rem;
+      }
+
+      .document-card small {
+        display: block;
+        margin-top: 0.18rem;
+        color: #9aa8bf;
+      }
+
+      .document-actions {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
       @media (max-width: 960px) {
         .hero-stats,
         .quick-grid,
@@ -731,6 +761,10 @@
               <strong>Task Studio</strong>
               <span>Controla espacios privados, propietarios y actividad del creador de tareas.</span>
             </a>
+            <a class="quick-card" href="{% url 'platform-overview' %}?tab=documents">
+              <strong>Documentos</strong>
+              <span>Revisa salidas PDF recientes de club, sesiones y Task Studio.</span>
+            </a>
           </div>
           <div class="attention-list">
             {% for item in platform_attention_items %}
@@ -747,6 +781,7 @@
         <a class="{% if active_tab == 'clients' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=clients">Clientes</a>
         <a class="{% if active_tab == 'users' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=users&subtab=list">Usuarios</a>
         <a class="{% if active_tab == 'task-studio' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=task-studio">Task Studio</a>
+        <a class="{% if active_tab == 'documents' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=documents">Documentos</a>
         <a class="{% if active_tab == 'home-global' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=home-global">Home global</a>
         <a class="{% if active_tab == 'workspace-create' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=workspace-create">Crear cliente</a>
       </nav>
@@ -1057,6 +1092,40 @@
               <h3>Sin Task Studio todavía</h3>
               <p>Los espacios privados aparecerán al crear usuarios de Task Studio o invitado.</p>
             </article>
+            {% endfor %}
+          </div>
+        </div>
+
+        {% elif active_tab == 'documents' %}
+        <div class="section-shell stack-section">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Centro documental</div>
+              <h2>Documentos recientes</h2>
+              <p>Acceso rápido a PDFs recientes de tareas, sesiones y Task Studio sin entrar en cada cliente.</p>
+            </div>
+            <div class="count-pill">{{ recent_documents|length }}</div>
+          </div>
+          <div class="document-list">
+            {% for item in recent_documents %}
+            <article class="document-card">
+              <div>
+                <strong>{{ item.title }}</strong>
+                <small>{{ item.type }} · {{ item.source }}</small>
+                <small>{{ item.meta }}</small>
+              </div>
+              <div class="document-actions">
+                <a class="link-btn" target="_blank" rel="noopener" href="{{ item.uefa_url }}">Imprimir UEFA</a>
+                <a class="link-btn" target="_blank" rel="noopener" href="{{ item.club_url }}">Imprimir Club</a>
+              </div>
+            </article>
+            {% empty %}
+            <div class="document-card">
+              <div>
+                <strong>Sin documentos recientes</strong>
+                <small>Todavía no hay PDFs recientes que mostrar desde la matriz.</small>
+              </div>
+            </div>
             {% endfor %}
           </div>
         </div>

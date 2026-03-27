@@ -36,6 +36,9 @@
       .quick-actions { display:grid; gap:.65rem; }
       .quick-actions a { display:flex; align-items:center; justify-content:space-between; gap:.8rem; padding:.85rem .95rem; border-radius:16px; text-decoration:none; color:var(--ink); border:1px solid var(--line); background:rgba(255,255,255,.03); }
       .quick-actions small { display:block; color:var(--muted); margin-top:.15rem; }
+      .docs-grid { display:grid; gap:.65rem; margin-bottom:1rem; }
+      .doc-item { display:flex; justify-content:space-between; gap:.75rem; align-items:center; padding:.8rem .9rem; border-radius:16px; border:1px solid var(--line); background:rgba(255,255,255,.03); }
+      .doc-actions { display:flex; gap:.45rem; flex-wrap:wrap; justify-content:flex-end; }
       .tasks { display:grid; gap:.75rem; }
       .task-card { padding:.95rem 1rem; }
       .task-head { justify-content:space-between; align-items:flex-start; }
@@ -160,6 +163,26 @@
         </article>
       </section>
 
+      <section class="card" style="margin-bottom:1rem;">
+        <h2 style="margin:0 0 .75rem; font-size:.82rem; letter-spacing:.1em; text-transform:uppercase;">Centro documental</h2>
+        <div class="docs-grid">
+          {% for task in recent_document_tasks %}
+          <div class="doc-item">
+            <div>
+              <strong>{{ task.title }}</strong>
+              <div class="muted">{{ task.get_block_display }} · {{ task.duration_minutes }} min · {{ task.updated_at|date:"d/m/Y H:i" }}</div>
+            </div>
+            <div class="doc-actions">
+              <a class="button" href="{% url 'task-studio-task-pdf' task.id %}" target="_blank" rel="noopener">UEFA</a>
+              <a class="button" href="{% url 'task-studio-task-pdf' task.id %}?style=club" target="_blank" rel="noopener">Club</a>
+            </div>
+          </div>
+          {% empty %}
+          <div class="empty">Todavía no hay documentos recientes porque aún no hay tareas guardadas.</div>
+          {% endfor %}
+        </div>
+      </section>
+
       <section class="tasks">
         {% for task in tasks %}
         <article class="task-card">
@@ -185,6 +208,10 @@
           <p class="muted" style="margin:.6rem 0 0;">{{ task.objective|default:"Sin objetivo definido." }}</p>
           <div class="task-actions" style="margin-top:.75rem;">
             <a class="button" href="{% url 'task-studio-task-edit' task.id %}{% if browse_all %}?user={{ task.owner.id }}{% endif %}">Abrir</a>
+            <form method="post" action="{% url 'task-studio-task-duplicate' task.id %}{% if browse_all %}?user={{ task.owner.id }}{% endif %}" style="display:inline-flex;">
+              {% csrf_token %}
+              <button class="button" type="submit">Duplicar</button>
+            </form>
             <a class="button" href="{% url 'task-studio-task-pdf' task.id %}" target="_blank" rel="noopener">Imprimir UEFA</a>
             <a class="button" href="{% url 'task-studio-task-pdf' task.id %}?style=club" target="_blank" rel="noopener">Imprimir Club</a>
             <form method="post" action="{% url 'task-studio-task-delete' task.id %}{% if browse_all %}?user={{ task.owner.id }}{% endif %}" onsubmit="return confirm('Se eliminará esta tarea creada.');" style="display:inline-flex;">
