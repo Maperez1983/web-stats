@@ -1,17 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-labelledby="title desc">
-  <title id="title">RFEF UEFA sheet badge</title>
-  <desc id="desc">Round federation-style badge used on UEFA-format training sheets.</desc>
-  <defs>
-    <linearGradient id="ring" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#d92b30" />
-      <stop offset="100%" stop-color="#a91922" />
-    </linearGradient>
-  </defs>
-  <circle cx="60" cy="60" r="56" fill="url(#ring)" />
-  <circle cx="60" cy="60" r="46" fill="#ffffff" />
-  <circle cx="60" cy="60" r="41" fill="none" stroke="#d92b30" stroke-width="2.5" />
-  <text x="60" y="42" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="700" fill="#d92b30" letter-spacing="1">R</text>
-  <text x="60" y="60" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="700" fill="#d92b30" letter-spacing="1">F</text>
-  <text x="60" y="78" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="700" fill="#d92b30" letter-spacing="1">E</text>
-  <text x="60" y="96" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="700" fill="#d92b30" letter-spacing="1">F</text>
+  <title id="title">RFEF badge</title>
+  <desc id="desc">Black and white federation-style badge used on UEFA-format training sheets.</desc>
+  <circle cx="60" cy="60" r="58" fill="#ffffff" />
+  <circle cx="60" cy="60" r="50" fill="#000000" />
+  <circle cx="60" cy="60" r="50" fill="none" stroke="#ffffff" stroke-width="6" />
+  <text x="42" y="47" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="700" fill="#ffffff">R</text>
+  <text x="78" y="47" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="700" fill="#ffffff">F</text>
+  <text x="42" y="80" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="700" fill="#ffffff">E</text>
+  <text x="78" y="80" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="700" fill="#ffffff">F</text>
 </svg>
