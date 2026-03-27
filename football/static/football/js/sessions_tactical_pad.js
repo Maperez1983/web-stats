@@ -396,6 +396,13 @@
     const scaleYInput = document.getElementById('task-scale-y');
     const rotationInput = document.getElementById('task-rotation');
     const colorInput = document.getElementById('task-style-color');
+    const timelineList = document.getElementById('task-timeline-list');
+    const stepTitleInput = document.getElementById('task-step-title');
+    const stepDurationInput = document.getElementById('task-step-duration');
+    const addStepButton = document.getElementById('task-step-add');
+    const duplicateStepButton = document.getElementById('task-step-duplicate');
+    const removeStepButton = document.getElementById('task-step-remove');
+    const playStepButton = document.getElementById('task-step-play');
     const presetButtons = Array.from(document.querySelectorAll('.surface-option[data-preset]'));
     const surfaceThumbs = Array.from(document.querySelectorAll('[data-surface-thumb]'));
     if (!window.fabric || !form || !canvasEl || !stage || !svgSurface || !presetSelect) return;
@@ -423,6 +430,10 @@
     let pendingFactory = null;
     const DRAG_MIME = 'application/x-webstats-tactical-resource';
     let previewRefreshTimer = null;
+    let timeline = [];
+    let activeStepIndex = -1;
+    let playbackTimer = null;
+    let playbackRestoreState = null;
 
     const clampScale = (value) => clamp(Number(value) || 1, 0.4, 2.6);
     const normalizeEditableObject = (object) => {
@@ -544,6 +555,99 @@
       canvas.requestRenderAll();
     };
 
+    const serializeCanvasOnly = () => {
+      const json = canvas.toJSON(['data']);
+      json.objects = (json.objects || []).filter((item) => !(item?.data?.base));
+      return json;
+    };
+    const normalizeTimeline = (raw) => {
+      if (!Array.isArray(raw)) return [];
+      return raw
+        .map((item, index) => {
+          if (!item || typeof item !== 'object' || !item.canvas_state || typeof item.canvas_state !== 'object') return null;
+          return {
+            title: safeText(item.title, `Paso ${index + 1}`),
+            duration: clamp(Number(item.duration) || 3, 1, 20),
+            canvas_state: sanitizeLoadedState(item.canvas_state),
+          };
+        })
+        .filter(Boolean)
+        .slice(0, 24);
+    };
+    const persistActiveStepMeta = () => {
+      if (activeStepIndex < 0 || !timeline[activeStepIndex]) return;
+      timeline[activeStepIndex].title = safeText(stepTitleInput?.value, `Paso ${activeStepIndex + 1}`);
+      timeline[activeStepIndex].duration = clamp(Number(stepDurationInput?.value) || 3, 1, 20);
+    };
+    const persistActiveStepSnapshot = () => {
+      if (activeStepIndex < 0 || !timeline[activeStepIndex]) return;
+      persistActiveStepMeta();
+      timeline[activeStepIndex].canvas_state = serializeCanvasOnly();
+    };
+    const syncStepInputs = () => {
+      const active = activeStepIndex >= 0 ? timeline[activeStepIndex] : null;
+      [stepTitleInput, stepDurationInput, duplicateStepButton, removeStepButton, playStepButton].forEach((node) => {
+        if (!node) return;
+        node.disabled = !active && node !== playStepButton;
+      });
+      if (playStepButton) playStepButton.disabled = timeline.length <= 0;
+      if (!active) {
+        if (stepTitleInput) stepTitleInput.value = '';
+        if (stepDurationInput) stepDurationInput.value = '3';
+        return;
+      }
+      if (stepTitleInput) stepTitleInput.value = active.title || `Paso ${activeStepIndex + 1}`;
+      if (stepDurationInput) stepDurationInput.value = String(active.duration || 3);
+    };
+    const renderTimeline = () => {
+      if (!timelineList) return;
+      if (!timeline.length) {
+        timelineList.innerHTML = '<div class="timeline-empty">Todavía no hay pasos. Diseña la salida inicial y pulsa "Añadir paso".</div>';
+        syncStepInputs();
+        return;
+      }
+      timelineList.innerHTML = '';
+      timeline.forEach((step, index) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `timeline-step${index === activeStepIndex ? ' is-active' : ''}`;
+        button.dataset.stepIndex = String(index);
+        button.innerHTML = `
+          <div>
+            <strong>${step.title || `Paso ${index + 1}`}</strong>
+            <span>${step.duration || 3} s · escena ${index + 1}</span>
+          </div>
+          <span>${index === activeStepIndex ? 'Editando' : 'Abrir'}</span>
+        `;
+        timelineList.appendChild(button);
+      });
+      syncStepInputs();
+    };
+    const loadCanvasSnapshot = (rawState, callback) => {
+      const parsed = sanitizeLoadedState(rawState);
+      canvas.__loading = true;
+      canvas.loadFromJSON(parsed, () => {
+        canvas.getObjects().forEach((item) => normalizeEditableObject(item));
+        canvas.__loading = false;
+        canvas.requestRenderAll();
+        syncInspector();
+        refreshLivePreview();
+        if (typeof callback === 'function') callback();
+      });
+    };
+    const applySerializedState = (rawState, options = {}) => {
+      const parsed = rawState && typeof rawState === 'object' ? rawState : { version: '5.3.0', objects: [] };
+      timeline = normalizeTimeline(parsed.timeline);
+      const nextIndex = timeline.length
+        ? clamp(Number(parsed.active_step_index) || 0, 0, timeline.length - 1)
+        : -1;
+      activeStepIndex = nextIndex;
+      const sourceState = activeStepIndex >= 0 ? timeline[activeStepIndex].canvas_state : parsed;
+      loadCanvasSnapshot(sourceState, () => {
+        renderTimeline();
+        if (options.pushHistory) pushHistory();
+      });
+    };
     const pushHistory = () => {
       const snapshot = JSON.stringify(serializeState());
       if (!history.length || history[history.length - 1] !== snapshot) history.push(snapshot);
@@ -574,8 +678,14 @@
     };
 
     const serializeState = () => {
-      const json = canvas.toJSON(['data']);
-      json.objects = (json.objects || []).filter((item) => !(item?.data?.base));
+      persistActiveStepSnapshot();
+      const json = serializeCanvasOnly();
+      json.timeline = timeline.map((step, index) => ({
+        title: safeText(step.title, `Paso ${index + 1}`),
+        duration: clamp(Number(step.duration) || 3, 1, 20),
+        canvas_state: sanitizeLoadedState(step.canvas_state),
+      }));
+      json.active_step_index = activeStepIndex;
       return json;
     };
 
@@ -907,17 +1017,11 @@
     const restoreState = () => {
       let parsed = { version: '5.3.0', objects: [] };
       try {
-        parsed = sanitizeLoadedState(JSON.parse(stateInput?.value || '{"version":"5.3.0","objects":[]}'));
+        parsed = JSON.parse(stateInput?.value || '{"version":"5.3.0","objects":[]}');
       } catch (error) {
         parsed = { version: '5.3.0', objects: [] };
       }
-      canvas.loadFromJSON(parsed, () => {
-        canvas.getObjects().forEach((item) => normalizeEditableObject(item));
-        canvas.requestRenderAll();
-        pushHistory();
-        syncInspector();
-        refreshLivePreview();
-      });
+      applySerializedState(parsed, { pushHistory: true });
     };
 
     const renderPlayerBank = () => {
@@ -946,6 +1050,99 @@
         });
         playerBank.appendChild(button);
       });
+    };
+    const selectTimelineStep = (index) => {
+      if (index < 0 || index >= timeline.length) return;
+      if (playbackTimer) return;
+      persistActiveStepSnapshot();
+      activeStepIndex = index;
+      loadCanvasSnapshot(timeline[index].canvas_state, () => {
+        renderTimeline();
+        setStatus(`Editando ${timeline[index].title}.`);
+      });
+    };
+    const addTimelineStep = (duplicateCurrent = false) => {
+      persistActiveStepSnapshot();
+      const baseState = duplicateCurrent && activeStepIndex >= 0 && timeline[activeStepIndex]
+        ? sanitizeLoadedState(timeline[activeStepIndex].canvas_state)
+        : serializeCanvasOnly();
+      const insertionIndex = activeStepIndex >= 0 ? activeStepIndex + 1 : timeline.length;
+      const sourceTitle = duplicateCurrent && activeStepIndex >= 0 && timeline[activeStepIndex]
+        ? safeText(timeline[activeStepIndex].title, `Paso ${activeStepIndex + 1}`)
+        : '';
+      timeline.splice(insertionIndex, 0, {
+        title: duplicateCurrent ? `${sourceTitle} copia` : `Paso ${timeline.length + 1}`,
+        duration: duplicateCurrent && activeStepIndex >= 0 && timeline[activeStepIndex] ? clamp(Number(timeline[activeStepIndex].duration) || 3, 1, 20) : 3,
+        canvas_state: baseState,
+      });
+      activeStepIndex = insertionIndex;
+      renderTimeline();
+      pushHistory();
+      setStatus(duplicateCurrent ? 'Paso duplicado.' : 'Paso añadido.');
+    };
+    const removeTimelineStep = () => {
+      if (activeStepIndex < 0 || !timeline[activeStepIndex]) return;
+      timeline.splice(activeStepIndex, 1);
+      if (!timeline.length) {
+        activeStepIndex = -1;
+        renderTimeline();
+        pushHistory();
+        setStatus('Paso eliminado.');
+        return;
+      }
+      activeStepIndex = clamp(activeStepIndex, 0, timeline.length - 1);
+      loadCanvasSnapshot(timeline[activeStepIndex].canvas_state, () => {
+        renderTimeline();
+        pushHistory();
+        setStatus('Paso eliminado.');
+      });
+    };
+    const stopPlayback = (restore = true) => {
+      if (playbackTimer) {
+        window.clearTimeout(playbackTimer);
+        playbackTimer = null;
+      }
+      if (playStepButton) playStepButton.textContent = 'Reproducir';
+      if (restore && playbackRestoreState) {
+        const savedState = playbackRestoreState;
+        playbackRestoreState = null;
+        applySerializedState(savedState);
+        return;
+      }
+      playbackRestoreState = null;
+      renderTimeline();
+    };
+    const playTimeline = () => {
+      if (playbackTimer) {
+        stopPlayback(true);
+        setStatus('Reproducción detenida.');
+        return;
+      }
+      if (!timeline.length) {
+        setStatus('Añade al menos un paso para reproducir la tarea.', true);
+        return;
+      }
+      persistActiveStepSnapshot();
+      playbackRestoreState = serializeState();
+      let playIndex = 0;
+      if (playStepButton) playStepButton.textContent = 'Detener';
+      const runNext = () => {
+        if (playIndex >= timeline.length) {
+          stopPlayback(true);
+          setStatus('Animación finalizada.');
+          return;
+        }
+        activeStepIndex = playIndex;
+        loadCanvasSnapshot(timeline[playIndex].canvas_state, () => {
+          renderTimeline();
+          setStatus(`Reproduciendo ${timeline[playIndex].title}.`);
+          playbackTimer = window.setTimeout(() => {
+            playIndex += 1;
+            runNext();
+          }, clamp(Number(timeline[playIndex].duration) || 3, 1, 20) * 1000);
+        });
+      };
+      runNext();
     };
 
     const buildPreviewData = () => new Promise((resolve) => {
@@ -1031,16 +1228,30 @@
     renderPlayerBank();
     refreshLivePreview();
 
-    canvas.on('object:modified', pushHistory);
-    canvas.on('object:added', () => {
-      if (!canvas.__loading) pushHistory();
+    canvas.on('object:modified', () => {
+      if (canvas.__loading) return;
+      persistActiveStepSnapshot();
+      pushHistory();
+      syncInspector();
       refreshLivePreview();
     });
-    canvas.on('object:removed', refreshLivePreview);
+    canvas.on('object:added', () => {
+      if (!canvas.__loading) {
+        persistActiveStepSnapshot();
+        pushHistory();
+      }
+      refreshLivePreview();
+    });
+    canvas.on('object:removed', () => {
+      if (!canvas.__loading) {
+        persistActiveStepSnapshot();
+        pushHistory();
+      }
+      refreshLivePreview();
+    });
     canvas.on('selection:created', syncInspector);
     canvas.on('selection:updated', syncInspector);
     canvas.on('selection:cleared', syncInspector);
-    canvas.on('object:modified', syncInspector);
     canvas.on('mouse:down', (event) => {
       if (!pendingFactory || event.target) return;
       const pointer = canvas.getPointer(event.e);
@@ -1072,6 +1283,36 @@
       }
       if (!payload) return;
       addPayloadAtPointer(payload, pointerFromStageEvent(event));
+    });
+
+    timelineList?.addEventListener('click', (event) => {
+      const button = event.target.closest('button[data-step-index]');
+      if (!button) return;
+      selectTimelineStep(Number(button.dataset.stepIndex));
+    });
+    addStepButton?.addEventListener('click', () => addTimelineStep(false));
+    duplicateStepButton?.addEventListener('click', () => addTimelineStep(true));
+    removeStepButton?.addEventListener('click', removeTimelineStep);
+    playStepButton?.addEventListener('click', playTimeline);
+    stepTitleInput?.addEventListener('input', () => {
+      if (activeStepIndex < 0 || !timeline[activeStepIndex]) return;
+      timeline[activeStepIndex].title = safeText(stepTitleInput.value, `Paso ${activeStepIndex + 1}`);
+      renderTimeline();
+    });
+    stepTitleInput?.addEventListener('change', () => {
+      if (activeStepIndex < 0 || !timeline[activeStepIndex]) return;
+      timeline[activeStepIndex].title = safeText(stepTitleInput.value, `Paso ${activeStepIndex + 1}`);
+      pushHistory();
+    });
+    stepDurationInput?.addEventListener('input', () => {
+      if (activeStepIndex < 0 || !timeline[activeStepIndex]) return;
+      timeline[activeStepIndex].duration = clamp(Number(stepDurationInput.value) || 3, 1, 20);
+      renderTimeline();
+    });
+    stepDurationInput?.addEventListener('change', () => {
+      if (activeStepIndex < 0 || !timeline[activeStepIndex]) return;
+      timeline[activeStepIndex].duration = clamp(Number(stepDurationInput.value) || 3, 1, 20);
+      pushHistory();
     });
 
     scaleXInput?.addEventListener('input', () => {
@@ -1138,11 +1379,7 @@
         if (history.length <= 1) return;
         history.pop();
         const previous = history[history.length - 1];
-        canvas.loadFromJSON(JSON.parse(previous), () => {
-          canvas.getObjects().forEach((item) => normalizeEditableObject(item));
-          canvas.requestRenderAll();
-          syncInspector();
-        });
+        applySerializedState(JSON.parse(previous));
         setStatus('Último cambio deshecho.');
         return;
       }

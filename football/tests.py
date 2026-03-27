@@ -881,6 +881,26 @@ class PlatformWorkspaceTests(TestCase):
         self.assertContains(response, 'Cliente visible')
         self.assertContains(response, 'Selecciona un workspace')
 
+    def test_dashboard_shows_focus_and_pending_blocks_for_workspace_admin(self):
+        workspace = Workspace.objects.create(
+            name='Cliente foco',
+            slug='cliente-foco',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.alt_team,
+        )
+        WorkspaceMembership.objects.create(
+            workspace=workspace,
+            user=self.workspace_manager,
+            role=WorkspaceMembership.ROLE_ADMIN,
+        )
+        self.client.force_login(self.workspace_manager)
+
+        response = self.client.get(reverse('dashboard-home'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Tu foco hoy')
+        self.assertContains(response, 'Pendientes y actividad')
+
     def test_workspace_member_auto_uses_assigned_club_context(self):
         workspace = Workspace.objects.create(
             name='Cliente alternativo miembro',
@@ -2651,6 +2671,7 @@ class SessionsPlanningTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Vista previa')
+        self.assertContains(response, 'Animación por pasos')
         self.assertContains(response, 'Imprimir UEFA')
         self.assertContains(response, 'Imprimir Club')
 
@@ -2726,6 +2747,43 @@ class SessionsPlanningTests(TestCase):
         self.assertContains(response, 'Tarea guardada correctamente.')
         self.assertContains(response, 'Imprimir UEFA')
         self.assertContains(response, 'Imprimir Club')
+
+    def test_task_builder_persists_animation_steps(self):
+        session = TrainingSession.objects.create(
+            microcycle=self.microcycle,
+            session_date=date(2026, 3, 25),
+            focus='Sesión animada',
+            duration_minutes=90,
+        )
+
+        response = self.client.post(
+            reverse('sessions-task-create'),
+            {
+                'planner_action': 'create_draw_task',
+                'draw_target_session_id': session.id,
+                'draw_task_title': 'Tarea con pasos',
+                'draw_task_block': SessionTask.BLOCK_MAIN_1,
+                'draw_task_minutes': '20',
+                'draw_task_pitch_preset': 'full_pitch',
+                'draw_canvas_state': json.dumps(
+                    {
+                        'version': '5.3.0',
+                        'objects': [],
+                        'active_step_index': 0,
+                        'timeline': [
+                            {'title': 'Salida', 'duration': 2, 'canvas_state': {'version': '5.3.0', 'objects': []}},
+                            {'title': 'Finalización', 'duration': 4, 'canvas_state': {'version': '5.3.0', 'objects': []}},
+                        ],
+                    }
+                ),
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        task = SessionTask.objects.get(title='Tarea con pasos')
+        self.assertEqual(len(task.tactical_layout.get('timeline') or []), 2)
+        self.assertEqual(task.tactical_layout['timeline'][0]['title'], 'Salida')
+        self.assertEqual(task.tactical_layout['timeline'][1]['duration'], 4)
 
     def test_task_builder_edit_updates_existing_task(self):
         session = TrainingSession.objects.create(

@@ -2131,6 +2131,147 @@ def dashboard_page(request):
     can_access_platform = _can_access_platform(request.user)
     workspace_links = _workspace_links_for_user(request.user)
     active_workspace = _build_active_workspace_badge(request)
+    dashboard_focus_items = []
+    dashboard_pending_items = []
+    dashboard_recent_activity = []
+    primary_team = _get_primary_team_for_request(request)
+    if primary_team and current_role not in {AppUserRole.ROLE_TASK_STUDIO, AppUserRole.ROLE_GUEST}:
+        focus_by_role = {
+            AppUserRole.ROLE_COACH: [
+                {
+                    'title': 'Partido',
+                    'description': 'Cierra convocatoria, 11 inicial y lectura prepartido del rival.',
+                    'url': reverse('convocation'),
+                },
+                {
+                    'title': 'Entrenamiento',
+                    'description': 'Revisa sesiones, tareas y el microciclo activo de la semana.',
+                    'url': reverse('sessions'),
+                },
+                {
+                    'title': 'Estadísticas',
+                    'description': 'Controla KPIs de plantilla y seguimiento individual.',
+                    'url': reverse('coach-role-trainer'),
+                },
+            ],
+            AppUserRole.ROLE_GOALKEEPER: [
+                {
+                    'title': 'Porteros',
+                    'description': 'Planifica tareas y sesiones específicas de portería.',
+                    'url': reverse('sessions-goalkeeper'),
+                },
+                {
+                    'title': 'Partido',
+                    'description': 'Revisa 11, disponibilidad y situaciones de gol encajado.',
+                    'url': reverse('convocation'),
+                },
+                {
+                    'title': 'Análisis',
+                    'description': 'Cruza rival y rendimiento de los porteros en contexto competitivo.',
+                    'url': reverse('analysis'),
+                },
+            ],
+            AppUserRole.ROLE_FITNESS: [
+                {
+                    'title': 'Preparación física',
+                    'description': 'Organiza la carga semanal y las tareas específicas del área.',
+                    'url': reverse('sessions-fitness'),
+                },
+                {
+                    'title': 'Estadísticas',
+                    'description': 'Supervisa minutos, disponibilidad y carga competitiva.',
+                    'url': reverse('coach-role-trainer'),
+                },
+                {
+                    'title': 'Partido',
+                    'description': 'Confirma disponibilidad y estado de convocatoria.',
+                    'url': reverse('convocation'),
+                },
+            ],
+            AppUserRole.ROLE_ANALYST: [
+                {
+                    'title': 'Análisis',
+                    'description': 'Mantén rival, informes y support documental al día.',
+                    'url': reverse('analysis'),
+                },
+                {
+                    'title': 'Partido',
+                    'description': 'Cruza scouting con convocatoria y 11 inicial.',
+                    'url': reverse('convocation'),
+                },
+                {
+                    'title': 'Estadísticas',
+                    'description': 'Valida KPIs y soporte de lectura táctica.',
+                    'url': reverse('coach-role-trainer'),
+                },
+            ],
+        }
+        dashboard_focus_items = focus_by_role.get(
+            current_role,
+            [
+                {
+                    'title': 'Portada',
+                    'description': 'Mantén el cliente con contexto competitivo y estado semanal.',
+                    'url': reverse('dashboard-home'),
+                },
+                {
+                    'title': 'Entrenamiento',
+                    'description': 'Revisa sesiones, tareas y bibliotecas activas.',
+                    'url': reverse('sessions'),
+                },
+                {
+                    'title': 'Análisis',
+                    'description': 'Comprueba rival, informes y soporte táctico.',
+                    'url': reverse('analysis'),
+                },
+            ],
+        )
+        weekly_brief = _build_weekly_staff_brief_context(primary_team)
+        if int(weekly_brief.get('convocated_count') or 0) <= 0:
+            dashboard_pending_items.append('Falta cerrar la convocatoria actual.')
+        if int(weekly_brief.get('probable_eleven_count') or 0) <= 0:
+            dashboard_pending_items.append('No hay 11 inicial o 11 probable definido.')
+        if int(weekly_brief.get('available_count') or 0) <= 0:
+            dashboard_pending_items.append('No hay disponibilidad consolidada del equipo.')
+        if not TrainingSession.objects.filter(microcycle__team=primary_team, session_date__gte=timezone.localdate()).exists():
+            dashboard_pending_items.append('No hay sesiones futuras planificadas.')
+        recent_sessions = list(
+            TrainingSession.objects
+            .filter(microcycle__team=primary_team)
+            .select_related('microcycle')
+            .order_by('-created_at', '-id')[:3]
+        )
+        recent_tasks = list(
+            SessionTask.objects
+            .filter(session__microcycle__team=primary_team)
+            .select_related('session')
+            .order_by('-created_at', '-id')[:4]
+        )
+        for session in recent_sessions:
+            dashboard_recent_activity.append(
+                {
+                    'type': 'Sesión',
+                    'title': str(session.focus or 'Sesión').strip() or 'Sesión',
+                    'meta': f"{session.session_date:%d/%m/%Y} · {session.duration_minutes or 0} min",
+                    'url': reverse('sessions'),
+                    'created_at': session.created_at,
+                }
+            )
+        for task in recent_tasks:
+            dashboard_recent_activity.append(
+                {
+                    'type': 'Tarea',
+                    'title': str(task.title or 'Tarea').strip() or 'Tarea',
+                    'meta': f"{task.duration_minutes or 0} min · {task.session.focus or 'Sesión'}",
+                    'url': reverse('session-task-detail', args=[task.id]),
+                    'created_at': task.created_at,
+                }
+            )
+        dashboard_recent_activity = sorted(
+            dashboard_recent_activity,
+            key=lambda item: item.get('created_at') or timezone.now(),
+            reverse=True,
+        )[:5]
     forbidden = _forbid_if_workspace_module_disabled(request, 'dashboard', label='dashboard')
     if forbidden:
         return forbidden
@@ -2147,6 +2288,9 @@ def dashboard_page(request):
             'can_access_platform': can_access_platform,
             'workspace_links': workspace_links,
             'active_workspace': active_workspace,
+            'dashboard_focus_items': dashboard_focus_items,
+            'dashboard_pending_items': dashboard_pending_items,
+            'dashboard_recent_activity': dashboard_recent_activity,
         },
     )
 
@@ -9458,12 +9602,21 @@ def _build_task_studio_player_catalog(request, owner):
 
 def _task_builder_initial_values(task):
     meta = {}
+    timeline = []
     if task and isinstance(task.tactical_layout, dict):
         meta = task.tactical_layout.get('meta') if isinstance(task.tactical_layout.get('meta'), dict) else {}
+        timeline = task.tactical_layout.get('timeline') if isinstance(task.tactical_layout.get('timeline'), list) else []
     meta = meta if isinstance(meta, dict) else {}
     analysis = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
     task_sheet = analysis.get('task_sheet') if isinstance(analysis.get('task_sheet'), dict) else {}
     graphic_editor = meta.get('graphic_editor') if isinstance(meta.get('graphic_editor'), dict) else {}
+    canvas_state = graphic_editor.get('canvas_state') or _starter_canvas_state(str(meta.get('pitch_preset') or 'full_pitch'))
+    if not isinstance(canvas_state, dict):
+        canvas_state = _starter_canvas_state(str(meta.get('pitch_preset') or 'full_pitch'))
+    canvas_state = dict(canvas_state)
+    if isinstance(timeline, list) and timeline:
+        canvas_state['timeline'] = timeline
+        canvas_state['active_step_index'] = 0
     return {
         'target_session_id': str(getattr(task, 'session_id', '') or ''),
         'title': str(getattr(task, 'title', '') or ''),
@@ -9499,10 +9652,32 @@ def _task_builder_initial_values(task):
         'category_tags': ', '.join(meta.get('category_tags') or []) if isinstance(meta.get('category_tags'), list) else str(meta.get('category_tags') or ''),
         'assigned_player_ids': [int(value) for value in (meta.get('assigned_player_ids') or []) if _parse_int(value)],
         'constraints': [str(value) for value in (meta.get('constraints') or []) if str(value).strip()],
-        'canvas_state': json.dumps(graphic_editor.get('canvas_state') or _starter_canvas_state(str(meta.get('pitch_preset') or 'full_pitch')), ensure_ascii=False),
+        'canvas_state': json.dumps(canvas_state, ensure_ascii=False),
         'canvas_width': int(graphic_editor.get('canvas_width') or 1280),
         'canvas_height': int(graphic_editor.get('canvas_height') or 720),
     }
+
+
+def _normalize_animation_timeline(raw_timeline):
+    if not isinstance(raw_timeline, list):
+        return []
+    normalized = []
+    for index, item in enumerate(raw_timeline[:24]):
+        if not isinstance(item, dict):
+            continue
+        canvas_state = item.get('canvas_state')
+        if not isinstance(canvas_state, dict):
+            continue
+        title = _sanitize_task_text(str(item.get('title') or '').strip(), multiline=False, max_len=80)
+        duration = max(1, min(_parse_int(item.get('duration')) or 3, 20))
+        normalized.append(
+            {
+                'title': title or f'Paso {index + 1}',
+                'duration': duration,
+                'canvas_state': canvas_state,
+            }
+        )
+    return normalized
 
 
 def _save_task_builder_entry(request, primary_team, scope_key, existing_task=None):
@@ -9625,10 +9800,13 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
             canvas_state = None
     if not isinstance(canvas_state, dict):
         canvas_state = _starter_canvas_state(pitch_preset)
+    timeline = _normalize_animation_timeline(canvas_state.get('timeline'))
 
     canvas_width = max(320, min(_parse_int(request.POST.get('draw_canvas_width')) or 1280, 3840))
     canvas_height = max(180, min(_parse_int(request.POST.get('draw_canvas_height')) or 720, 2160))
     tactical_layout = {
+        'tokens': canvas_state.get('objects') if isinstance(canvas_state.get('objects'), list) else [],
+        'timeline': timeline,
         'meta': {
             'scope': scope_key,
             'source': 'manual-studio',
@@ -9795,10 +9973,13 @@ def _save_task_studio_entry(request, owner, existing_task=None):
             canvas_state = None
     if not isinstance(canvas_state, dict):
         canvas_state = _starter_canvas_state(pitch_preset)
+    timeline = _normalize_animation_timeline(canvas_state.get('timeline'))
 
     canvas_width = max(320, min(_parse_int(request.POST.get('draw_canvas_width')) or 1280, 3840))
     canvas_height = max(180, min(_parse_int(request.POST.get('draw_canvas_height')) or 720, 2160))
     tactical_layout = {
+        'tokens': canvas_state.get('objects') if isinstance(canvas_state.get('objects'), list) else [],
+        'timeline': timeline,
         'meta': {
             'scope': 'task_studio',
             'source': 'task-studio',

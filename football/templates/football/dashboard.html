@@ -340,6 +340,62 @@
         border-bottom: none;
       }
 
+      .focus-grid {
+        display: grid;
+        gap: 0.7rem;
+      }
+
+      .focus-card,
+      .activity-item {
+        display: block;
+        text-decoration: none;
+        color: inherit;
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.03);
+        padding: 0.8rem;
+      }
+
+      .focus-card strong,
+      .activity-item strong {
+        display: block;
+        font-size: 0.98rem;
+      }
+
+      .focus-card span,
+      .activity-item span {
+        display: block;
+        margin-top: 0.25rem;
+        color: rgba(224, 232, 255, 0.84);
+        font-size: 0.86rem;
+      }
+
+      .pending-list {
+        margin: 0;
+        padding-left: 1rem;
+        color: rgba(224, 232, 255, 0.88);
+      }
+
+      .pending-list li + li {
+        margin-top: 0.4rem;
+      }
+
+      .activity-list {
+        display: grid;
+        gap: 0.6rem;
+        margin-top: 0.8rem;
+      }
+
+      .activity-item em {
+        display: inline-flex;
+        margin-top: 0.1rem;
+        font-style: normal;
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(70, 211, 255, 0.9);
+      }
+
       .players-header {
         margin-top: 1rem;
         display: flex;
@@ -540,6 +596,45 @@
           <a class="module-tab" href="{% url 'sessions' %}">Entrenamiento</a>
           <a class="module-tab" href="{% url 'analysis' %}">Análisis</a>
         </div>
+      </section>
+
+      <section class="main-grid" style="margin-top:1rem;">
+        <article class="block">
+          <h3>Tu foco hoy</h3>
+          <div class="focus-grid">
+            {% for item in dashboard_focus_items %}
+            <a class="focus-card" href="{{ item.url }}">
+              <strong>{{ item.title }}</strong>
+              <span>{{ item.description }}</span>
+            </a>
+            {% empty %}
+            <div class="product-empty">No hay un foco definido para este rol todavía.</div>
+            {% endfor %}
+          </div>
+        </article>
+        <article class="block">
+          <h3>Pendientes y actividad</h3>
+          {% if dashboard_pending_items %}
+          <ul class="pending-list">
+            {% for item in dashboard_pending_items %}
+            <li>{{ item }}</li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <div class="product-empty">No hay pendientes críticos en este momento.</div>
+          {% endif %}
+          <div class="activity-list">
+            {% for item in dashboard_recent_activity %}
+            <a class="activity-item" href="{{ item.url }}">
+              <em>{{ item.type }}</em>
+              <strong>{{ item.title }}</strong>
+              <span>{{ item.meta }}</span>
+            </a>
+            {% empty %}
+            <div class="product-empty">Todavía no hay actividad reciente que mostrar.</div>
+            {% endfor %}
+          </div>
+        </article>
       </section>
 
       <section class="players-header">

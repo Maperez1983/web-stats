@@ -411,6 +411,69 @@
         color: var(--muted);
         font-size: 0.84rem;
       }
+      .timeline-head {
+        display: flex;
+        align-items: start;
+        justify-content: space-between;
+        gap: 0.8rem;
+        flex-wrap: wrap;
+      }
+      .timeline-head p {
+        margin: 0.3rem 0 0;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+      .timeline-toolbar {
+        display: flex;
+        gap: 0.55rem;
+        flex-wrap: wrap;
+      }
+      .timeline-toolbar button,
+      .timeline-list button {
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.04);
+        color: #eef2ff;
+        font: inherit;
+        cursor: pointer;
+      }
+      .timeline-toolbar button {
+        padding: 0.55rem 0.85rem;
+      }
+      .timeline-list {
+        display: grid;
+        gap: 0.55rem;
+        margin-top: 0.8rem;
+      }
+      .timeline-step {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.8rem;
+        width: 100%;
+        padding: 0.7rem 0.85rem;
+        text-align: left;
+      }
+      .timeline-step.is-active {
+        border-color: rgba(34, 211, 238, 0.54);
+        background: rgba(34, 211, 238, 0.12);
+      }
+      .timeline-step strong,
+      .timeline-step span {
+        display: block;
+      }
+      .timeline-step span {
+        margin-top: 0.18rem;
+        font-size: 0.8rem;
+        color: rgba(226, 232, 240, 0.72);
+      }
+      .timeline-empty {
+        border: 1px dashed rgba(255, 255, 255, 0.16);
+        border-radius: 14px;
+        padding: 0.9rem;
+        text-align: center;
+        color: rgba(226, 232, 240, 0.68);
+      }
       .submit-row {
         display: flex;
         gap: 0.55rem;
@@ -881,6 +944,32 @@
                     <span>{% if player.number %}#{{ player.number }} · {% endif %}{{ player.name }}</span>
                   </label>
                   {% endfor %}
+                </div>
+              </div>
+
+              <div class="section">
+                <div class="timeline-head">
+                  <div>
+                    <h3>Animación por pasos</h3>
+                    <p>Guarda escenas consecutivas para explicar la tarea de forma progresiva.</p>
+                  </div>
+                  <div class="timeline-toolbar">
+                    <button type="button" id="task-step-add">Añadir paso</button>
+                    <button type="button" id="task-step-duplicate">Duplicar paso</button>
+                    <button type="button" id="task-step-remove">Eliminar paso</button>
+                    <button type="button" id="task-step-play">Reproducir</button>
+                  </div>
+                </div>
+                <div class="timeline-list" id="task-timeline-list"></div>
+                <div class="compact-grid" style="margin-top:0.8rem;">
+                  <label>
+                    Nombre del paso
+                    <input type="text" id="task-step-title" maxlength="80" placeholder="Ej: Inicio de la acción" />
+                  </label>
+                  <label>
+                    Duración (seg)
+                    <input type="number" id="task-step-duration" min="1" max="20" value="3" />
+                  </label>
                 </div>
               </div>
 
