@@ -436,7 +436,6 @@
                 <div style="padding:10px 12px; background:#fff;">
                   <div style="margin-bottom:8px;"><span class="label">Material</span><div class="value">{{ materials_label }}</div></div>
                   <div style="margin-bottom:8px;"><span class="label">Series / reps</span><div class="value">{% if task_meta.series or task_meta.repetitions %}{{ task_meta.series|default:"-" }} · {{ task_meta.repetitions|default:"-" }}{% else %}-{% endif %}</div></div>
-                  <div style="margin-bottom:8px;"><span class="label">Trabajo / pausa</span><div class="value">{{ task_meta.work_rest|default:"-" }}</div></div>
                   <div><span class="label">Intención táctica</span><div class="value">{{ tactical_intent_label }}</div></div>
                 </div>
               </div>

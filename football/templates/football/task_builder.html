@@ -623,14 +623,6 @@
       <form method="post" id="task-builder-form" data-pdf-preview-url="{{ pdf_preview_url|default:'' }}">
         {% csrf_token %}
         <input type="hidden" name="planner_action" value="create_draw_task" />
-        <input type="hidden" name="draw_task_template" value="{{ initial.template_key|default:'none' }}" />
-        <input type="hidden" name="draw_task_game_phase" value="{{ initial.game_phase }}" />
-        <input type="hidden" name="draw_task_methodology" value="{{ initial.methodology }}" />
-        <input type="hidden" name="draw_task_complexity" value="{{ initial.complexity }}" />
-        <input type="hidden" name="draw_task_category_tags" value="{{ initial.category_tags }}" />
-        {% for value in initial.constraints %}
-        <input type="hidden" name="draw_constraints" value="{{ value }}" />
-        {% endfor %}
         <input type="hidden" name="draw_canvas_state" id="draw-canvas-state" value="{{ initial.canvas_state|escape }}" />
         <input type="hidden" name="draw_canvas_width" id="draw-canvas-width" value="{{ initial.canvas_width }}" />
         <input type="hidden" name="draw_canvas_height" id="draw-canvas-height" value="{{ initial.canvas_height }}" />
@@ -1013,8 +1005,6 @@
 
               <div class="submit-row">
                 <button type="submit" class="primary">{% if task %}Guardar tarea{% else %}Crear tarea{% endif %}</button>
-                <button type="button" class="button" data-print-style="uefa">Imprimir UEFA</button>
-                <button type="button" class="button" data-print-style="club">Imprimir Club</button>
               </div>
             </div>
           </aside>

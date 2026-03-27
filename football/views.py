@@ -9583,13 +9583,8 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             'planning_microcycles': planning_microcycles,
             'planner_summary': planner_summary,
             'planner_focus_items': planner_focus_items,
-            'task_templates': TASK_TEMPLATE_LIBRARY,
             'task_surface_choices': TASK_SURFACE_CHOICES,
             'task_pitch_choices': TASK_PITCH_FORMAT_CHOICES,
-            'task_phase_choices': TASK_GAME_PHASE_CHOICES,
-            'task_methodology_choices': TASK_METHODOLOGY_CHOICES,
-            'task_complexity_choices': TASK_COMPLEXITY_CHOICES,
-            'task_constraint_choices': TASK_CONSTRAINT_CHOICES,
             'tactical_player_catalog': tactical_player_catalog,
         },
     )
@@ -9735,6 +9730,13 @@ def _task_builder_initial_values(task):
     }
 
 
+def _task_existing_meta(task):
+    if not task or not isinstance(getattr(task, 'tactical_layout', None), dict):
+        return {}
+    meta = task.tactical_layout.get('meta')
+    return meta if isinstance(meta, dict) else {}
+
+
 def _normalize_animation_timeline(raw_timeline):
     if not isinstance(raw_timeline, list):
         return []
@@ -9758,6 +9760,7 @@ def _normalize_animation_timeline(raw_timeline):
 
 
 def _save_task_builder_entry(request, primary_team, scope_key, existing_task=None):
+    existing_meta = _task_existing_meta(existing_task)
     target_session_id = _parse_int(request.POST.get('draw_target_session_id'))
     title = _sanitize_task_text((request.POST.get('draw_task_title') or '').strip(), multiline=False, max_len=160)
     block = (request.POST.get('draw_task_block') or SessionTask.BLOCK_MAIN_1).strip()
@@ -9771,7 +9774,8 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
     space = _sanitize_task_text((request.POST.get('draw_task_space') or '').strip(), multiline=False, max_len=120)
     materials = _sanitize_task_text((request.POST.get('draw_task_materials') or '').strip(), multiline=False, max_len=300)
     organization = _sanitize_task_text((request.POST.get('draw_task_organization') or '').strip(), multiline=True, max_len=500)
-    work_rest = _sanitize_task_text((request.POST.get('draw_task_work_rest') or '').strip(), multiline=False, max_len=180)
+    raw_work_rest = request.POST.get('draw_task_work_rest')
+    work_rest = _sanitize_task_text((raw_work_rest or '').strip(), multiline=False, max_len=180) if raw_work_rest is not None else str(existing_meta.get('work_rest') or '')
     load_target = _sanitize_task_text((request.POST.get('draw_task_load_target') or '').strip(), multiline=False, max_len=180)
     players_distribution = _sanitize_task_text((request.POST.get('draw_task_players_distribution') or '').strip(), multiline=False, max_len=180)
     progression = _sanitize_task_text((request.POST.get('draw_task_progression') or '').strip(), multiline=True, max_len=500)
@@ -9779,19 +9783,34 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
     success_criteria = _sanitize_task_text((request.POST.get('draw_task_success_criteria') or '').strip(), multiline=True, max_len=500)
     selected_surface = (request.POST.get('draw_task_surface') or '').strip()
     selected_pitch_format = (request.POST.get('draw_task_pitch_format') or '').strip()
-    selected_phase = (request.POST.get('draw_task_game_phase') or '').strip()
-    selected_methodology = (request.POST.get('draw_task_methodology') or '').strip()
-    selected_complexity = (request.POST.get('draw_task_complexity') or '').strip()
-    template_key = (request.POST.get('draw_task_template') or 'none').strip()
+    raw_selected_phase = request.POST.get('draw_task_game_phase')
+    selected_phase = (raw_selected_phase or '').strip() if raw_selected_phase is not None else str(existing_meta.get('game_phase') or '')
+    raw_selected_methodology = request.POST.get('draw_task_methodology')
+    selected_methodology = (raw_selected_methodology or '').strip() if raw_selected_methodology is not None else str(existing_meta.get('methodology') or '')
+    raw_selected_complexity = request.POST.get('draw_task_complexity')
+    selected_complexity = (raw_selected_complexity or '').strip() if raw_selected_complexity is not None else str(existing_meta.get('complexity') or '')
+    raw_template_key = request.POST.get('draw_task_template')
+    template_key = (raw_template_key or 'none').strip() if raw_template_key is not None else str(existing_meta.get('template_key') or 'none')
     pitch_preset = (request.POST.get('draw_task_pitch_preset') or 'full_pitch').strip()
-    constraints = [str(v).strip() for v in request.POST.getlist('draw_constraints') if str(v).strip()]
+    if 'draw_constraints' in request.POST:
+        constraints = [str(v).strip() for v in request.POST.getlist('draw_constraints') if str(v).strip()]
+    else:
+        constraints = [str(v).strip() for v in (existing_meta.get('constraints') or []) if str(v).strip()]
     series = _sanitize_task_text((request.POST.get('draw_task_series') or '').strip(), multiline=False, max_len=100)
     repetitions = _sanitize_task_text((request.POST.get('draw_task_repetitions') or '').strip(), multiline=False, max_len=100)
     player_count = _sanitize_task_text((request.POST.get('draw_task_player_count') or '').strip(), multiline=False, max_len=100)
     age_group = _sanitize_task_text((request.POST.get('draw_task_age_group') or '').strip(), multiline=False, max_len=100)
     training_type = _sanitize_task_text((request.POST.get('draw_task_training_type') or '').strip(), multiline=False, max_len=120)
-    category_tags_raw = _sanitize_task_text((request.POST.get('draw_task_category_tags') or '').strip(), multiline=False, max_len=240)
-    category_tags = [tag.strip() for tag in category_tags_raw.split(',') if tag.strip()]
+    raw_category_tags = request.POST.get('draw_task_category_tags')
+    if raw_category_tags is None:
+        existing_tags = existing_meta.get('category_tags') or []
+        if isinstance(existing_tags, list):
+            category_tags = [str(tag).strip() for tag in existing_tags if str(tag).strip()]
+        else:
+            category_tags = [tag.strip() for tag in str(existing_tags).split(',') if tag.strip()]
+    else:
+        category_tags_raw = _sanitize_task_text((raw_category_tags or '').strip(), multiline=False, max_len=240)
+        category_tags = [tag.strip() for tag in category_tags_raw.split(',') if tag.strip()]
     assigned_player_ids = [
         player_id
         for player_id in (_parse_int(value) for value in request.POST.getlist('assigned_player_ids'))
@@ -9967,6 +9986,7 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
 
 def _save_task_studio_entry(request, owner, existing_task=None):
     workspace = _ensure_task_studio_workspace(owner)
+    existing_meta = _task_existing_meta(existing_task)
     title = _sanitize_task_text((request.POST.get('draw_task_title') or '').strip(), multiline=False, max_len=160)
     block = (request.POST.get('draw_task_block') or SessionTask.BLOCK_MAIN_1).strip()
     minutes = _parse_int(request.POST.get('draw_task_minutes')) or 15
@@ -9979,7 +9999,8 @@ def _save_task_studio_entry(request, owner, existing_task=None):
     space = _sanitize_task_text((request.POST.get('draw_task_space') or '').strip(), multiline=False, max_len=120)
     materials = _sanitize_task_text((request.POST.get('draw_task_materials') or '').strip(), multiline=False, max_len=300)
     organization = _sanitize_task_text((request.POST.get('draw_task_organization') or '').strip(), multiline=True, max_len=500)
-    work_rest = _sanitize_task_text((request.POST.get('draw_task_work_rest') or '').strip(), multiline=False, max_len=180)
+    raw_work_rest = request.POST.get('draw_task_work_rest')
+    work_rest = _sanitize_task_text((raw_work_rest or '').strip(), multiline=False, max_len=180) if raw_work_rest is not None else str(existing_meta.get('work_rest') or '')
     load_target = _sanitize_task_text((request.POST.get('draw_task_load_target') or '').strip(), multiline=False, max_len=180)
     players_distribution = _sanitize_task_text((request.POST.get('draw_task_players_distribution') or '').strip(), multiline=False, max_len=180)
     progression = _sanitize_task_text((request.POST.get('draw_task_progression') or '').strip(), multiline=True, max_len=500)
@@ -9987,19 +10008,34 @@ def _save_task_studio_entry(request, owner, existing_task=None):
     success_criteria = _sanitize_task_text((request.POST.get('draw_task_success_criteria') or '').strip(), multiline=True, max_len=500)
     selected_surface = (request.POST.get('draw_task_surface') or '').strip()
     selected_pitch_format = (request.POST.get('draw_task_pitch_format') or '').strip()
-    selected_phase = (request.POST.get('draw_task_game_phase') or '').strip()
-    selected_methodology = (request.POST.get('draw_task_methodology') or '').strip()
-    selected_complexity = (request.POST.get('draw_task_complexity') or '').strip()
-    template_key = (request.POST.get('draw_task_template') or 'none').strip()
+    raw_selected_phase = request.POST.get('draw_task_game_phase')
+    selected_phase = (raw_selected_phase or '').strip() if raw_selected_phase is not None else str(existing_meta.get('game_phase') or '')
+    raw_selected_methodology = request.POST.get('draw_task_methodology')
+    selected_methodology = (raw_selected_methodology or '').strip() if raw_selected_methodology is not None else str(existing_meta.get('methodology') or '')
+    raw_selected_complexity = request.POST.get('draw_task_complexity')
+    selected_complexity = (raw_selected_complexity or '').strip() if raw_selected_complexity is not None else str(existing_meta.get('complexity') or '')
+    raw_template_key = request.POST.get('draw_task_template')
+    template_key = (raw_template_key or 'none').strip() if raw_template_key is not None else str(existing_meta.get('template_key') or 'none')
     pitch_preset = (request.POST.get('draw_task_pitch_preset') or 'full_pitch').strip()
-    constraints = [str(v).strip() for v in request.POST.getlist('draw_constraints') if str(v).strip()]
+    if 'draw_constraints' in request.POST:
+        constraints = [str(v).strip() for v in request.POST.getlist('draw_constraints') if str(v).strip()]
+    else:
+        constraints = [str(v).strip() for v in (existing_meta.get('constraints') or []) if str(v).strip()]
     series = _sanitize_task_text((request.POST.get('draw_task_series') or '').strip(), multiline=False, max_len=100)
     repetitions = _sanitize_task_text((request.POST.get('draw_task_repetitions') or '').strip(), multiline=False, max_len=100)
     player_count = _sanitize_task_text((request.POST.get('draw_task_player_count') or '').strip(), multiline=False, max_len=100)
     age_group = _sanitize_task_text((request.POST.get('draw_task_age_group') or '').strip(), multiline=False, max_len=100)
     training_type = _sanitize_task_text((request.POST.get('draw_task_training_type') or '').strip(), multiline=False, max_len=120)
-    category_tags_raw = _sanitize_task_text((request.POST.get('draw_task_category_tags') or '').strip(), multiline=False, max_len=240)
-    category_tags = [tag.strip() for tag in category_tags_raw.split(',') if tag.strip()]
+    raw_category_tags = request.POST.get('draw_task_category_tags')
+    if raw_category_tags is None:
+        existing_tags = existing_meta.get('category_tags') or []
+        if isinstance(existing_tags, list):
+            category_tags = [str(tag).strip() for tag in existing_tags if str(tag).strip()]
+        else:
+            category_tags = [tag.strip() for tag in str(existing_tags).split(',') if tag.strip()]
+    else:
+        category_tags_raw = _sanitize_task_text((raw_category_tags or '').strip(), multiline=False, max_len=240)
+        category_tags = [tag.strip() for tag in category_tags_raw.split(',') if tag.strip()]
     assigned_player_ids = [
         player_id
         for player_id in (_parse_int(value) for value in request.POST.getlist('assigned_player_ids'))
@@ -10196,13 +10232,8 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             'error': error,
             'task_blocks': SessionTask.BLOCK_CHOICES,
             'all_sessions': all_sessions,
-            'task_templates': TASK_TEMPLATE_LIBRARY,
             'task_surface_choices': TASK_SURFACE_CHOICES,
             'task_pitch_choices': TASK_PITCH_FORMAT_CHOICES,
-            'task_phase_choices': TASK_GAME_PHASE_CHOICES,
-            'task_methodology_choices': TASK_METHODOLOGY_CHOICES,
-            'task_complexity_choices': TASK_COMPLEXITY_CHOICES,
-            'task_constraint_choices': TASK_CONSTRAINT_CHOICES,
             'tactical_player_catalog': player_catalog,
             'available_players': available_players,
             'initial': initial,
@@ -10646,13 +10677,8 @@ def task_studio_task_builder_page(request, task_id=None):
             'error': error,
             'task_blocks': SessionTask.BLOCK_CHOICES,
             'all_sessions': [],
-            'task_templates': TASK_TEMPLATE_LIBRARY,
             'task_surface_choices': TASK_SURFACE_CHOICES,
             'task_pitch_choices': TASK_PITCH_FORMAT_CHOICES,
-            'task_phase_choices': TASK_GAME_PHASE_CHOICES,
-            'task_methodology_choices': TASK_METHODOLOGY_CHOICES,
-            'task_complexity_choices': TASK_COMPLEXITY_CHOICES,
-            'task_constraint_choices': TASK_CONSTRAINT_CHOICES,
             'tactical_player_catalog': player_catalog,
             'available_players': available_players,
             'initial': initial,
