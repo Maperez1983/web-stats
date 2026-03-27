@@ -37,6 +37,61 @@
       .alert.err { border-color: rgba(239, 68, 68, 0.45); background: rgba(239, 68, 68, 0.15); }
       .panel { border-radius: 18px; border: 1px solid var(--line); background: var(--panel); padding: 1rem; margin-bottom: 1rem; }
       .panel h2 { margin: 0 0 0.75rem; font-size: 0.82rem; letter-spacing: 0.12em; text-transform: uppercase; }
+      .hero-grid {
+        display:grid;
+        grid-template-columns: 1.2fr .8fr;
+        gap: .85rem;
+        margin-bottom: 1rem;
+      }
+      .hero-panel {
+        border-radius: 20px;
+        border: 1px solid rgba(255,255,255,.14);
+        background: linear-gradient(135deg, rgba(7,22,44,.96), rgba(4,17,35,.92));
+        padding: 1rem;
+      }
+      .hero-panel h2 {
+        margin: 0;
+        font-size: 1.15rem;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+      }
+      .hero-panel p { color: rgba(225,236,255,.78); }
+      .summary-grid {
+        display:grid;
+        grid-template-columns: repeat(5, minmax(0,1fr));
+        gap: .6rem;
+        margin-top: .85rem;
+      }
+      .summary-card {
+        border-radius: 14px;
+        border: 1px solid rgba(255,255,255,.12);
+        background: rgba(255,255,255,.04);
+        padding: .75rem .8rem;
+      }
+      .summary-card span {
+        display:block;
+        font-size: .68rem;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        color: rgba(225,236,255,.62);
+      }
+      .summary-card strong {
+        display:block;
+        margin-top:.2rem;
+        font-size:1.2rem;
+      }
+      .focus-list {
+        display:grid;
+        gap:.55rem;
+        margin-top:.8rem;
+      }
+      .focus-item {
+        border-radius: 14px;
+        border: 1px solid rgba(255,255,255,.12);
+        background: rgba(255,255,255,.04);
+        padding: .72rem .8rem;
+        color: rgba(225,236,255,.86);
+      }
       .tabs {
         display: flex;
         flex-wrap: wrap;
@@ -911,6 +966,10 @@
         .page {
           padding: 0.95rem;
         }
+        .hero-grid,
+        .summary-grid {
+          grid-template-columns: 1fr;
+        }
         .top {
           align-items: stretch;
           flex-direction: column;
@@ -954,6 +1013,8 @@
         }
       }
       @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+      @media (max-width: 720px) { .summary-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+      @media (max-width: 520px) { .summary-grid { grid-template-columns: 1fr; } }
     </style>
   </head>
   <body>
@@ -971,6 +1032,30 @@
       {% if not planner_tables_ready %}
       <div class="panel"><p class="empty">El módulo no está listo por migraciones pendientes.</p></div>
       {% else %}
+
+      <section class="hero-grid">
+        <article class="hero-panel">
+          <div class="product-kicker">Entrenamiento</div>
+          <h2>{{ scope_title|default:"Sesiones" }}</h2>
+          <p>La experiencia queda dividida entre biblioteca de tareas reutilizable y planificación semanal por microciclos y sesiones.</p>
+          <div class="summary-grid">
+            <div class="summary-card"><span>Biblioteca</span><strong>{{ planner_summary.library_tasks }}</strong></div>
+            <div class="summary-card"><span>Filtradas</span><strong>{{ planner_summary.filtered_tasks }}</strong></div>
+            <div class="summary-card"><span>Microciclos</span><strong>{{ planner_summary.microcycles }}</strong></div>
+            <div class="summary-card"><span>Sesiones</span><strong>{{ planner_summary.sessions }}</strong></div>
+            <div class="summary-card"><span>Tareas fuente</span><strong>{{ planner_summary.task_sources }}</strong></div>
+          </div>
+        </article>
+        <article class="hero-panel">
+          <div class="product-kicker">Foco actual</div>
+          <h2>Qué revisar ahora</h2>
+          <div class="focus-list">
+            {% for item in planner_focus_items %}
+            <div class="focus-item">{{ item }}</div>
+            {% endfor %}
+          </div>
+        </article>
+      </section>
 
       <div class="tabs">
         <a class="tab-link {% if active_tab == 'import' %}is-active{% endif %}" href="?tab=import">Importar tarea</a>

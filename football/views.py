@@ -2448,6 +2448,18 @@ def platform_overview_page(request):
         item.role_label = role_labels.get(role_value, 'Jugador')
         item.full_name_display = item.get_full_name().strip() or item.username
         item.workspace_count = int(membership_counts.get(item.id, 0) or 0)
+    club_workspaces_without_team = sum(1 for workspace in club_workspaces if not workspace.primary_team_id)
+    club_workspaces_without_members = sum(1 for workspace in club_workspaces if int(workspace.member_count or 0) <= 0)
+    studio_workspaces_without_tasks = sum(1 for workspace in studio_workspaces if int(workspace.task_count or 0) <= 0)
+    platform_attention_items = []
+    if club_workspaces_without_team:
+        platform_attention_items.append(f'{club_workspaces_without_team} cliente(s) club sin equipo principal vinculado.')
+    if club_workspaces_without_members:
+        platform_attention_items.append(f'{club_workspaces_without_members} cliente(s) club sin miembros asignados.')
+    if studio_workspaces_without_tasks:
+        platform_attention_items.append(f'{studio_workspaces_without_tasks} Task Studio sin tareas creadas todavía.')
+    if not platform_attention_items:
+        platform_attention_items.append('La matriz no tiene alertas críticas de configuración.')
 
     return render(
         request,
@@ -2478,6 +2490,10 @@ def platform_overview_page(request):
             'users_subtab': users_subtab,
             'linked_club_user_count': linked_club_user_count,
             'platform_user_count': len(platform_users),
+            'club_workspaces_without_team': club_workspaces_without_team,
+            'club_workspaces_without_members': club_workspaces_without_members,
+            'studio_workspaces_without_tasks': studio_workspaces_without_tasks,
+            'platform_attention_items': platform_attention_items,
         },
     )
 
@@ -9297,6 +9313,22 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             )
     except Exception:
         tactical_player_catalog = []
+    planner_summary = {
+        'library_tasks': len(task_library),
+        'filtered_tasks': len(task_library_filtered),
+        'microcycles': len(planning_microcycles),
+        'sessions': len(planning_sessions),
+        'task_sources': len(planning_task_source_options),
+    }
+    planner_focus_items = []
+    if not planner_summary['microcycles']:
+        planner_focus_items.append('No hay microciclos creados para planificar la semana.')
+    if planner_summary['microcycles'] and not planner_summary['sessions']:
+        planner_focus_items.append('Hay microciclos activos, pero aún no se han cargado sesiones.')
+    if planner_summary['sessions'] and not planner_summary['task_sources']:
+        planner_focus_items.append('No hay tareas reutilizables para insertar en nuevas sesiones.')
+    if not planner_focus_items:
+        planner_focus_items.append('La planificación tiene base suficiente para seguir construyendo sesiones y microciclos.')
 
     return render(
         request,
@@ -9335,6 +9367,8 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             'session_intensity_choices': TrainingSession.INTENSITY_CHOICES,
             'session_status_choices': TrainingSession.STATUS_CHOICES,
             'planning_microcycles': planning_microcycles,
+            'planner_summary': planner_summary,
+            'planner_focus_items': planner_focus_items,
             'task_templates': TASK_TEMPLATE_LIBRARY,
             'task_surface_choices': TASK_SURFACE_CHOICES,
             'task_pitch_choices': TASK_PITCH_FORMAT_CHOICES,
@@ -10129,6 +10163,13 @@ def task_studio_home_page(request):
     task_qs = TaskStudioTask.objects.select_related('owner')
     if not browse_all:
         task_qs = task_qs.filter(owner=target_user)
+    search_query = _sanitize_task_text((request.GET.get('q') or '').strip(), multiline=False, max_len=120)
+    if search_query:
+        task_qs = task_qs.filter(
+            Q(title__icontains=search_query)
+            | Q(objective__icontains=search_query)
+            | Q(notes__icontains=search_query)
+        )
     tasks = list(task_qs.order_by('-updated_at', '-id')[:80])
     roster_count = TaskStudioRosterPlayer.objects.filter(owner=target_user, is_active=True).count()
     query_suffix = _task_studio_query_suffix(target_user, request.user)
@@ -10185,6 +10226,7 @@ def task_studio_home_page(request):
             'onboarding_steps': onboarding_steps,
             'next_actions': next_actions,
             'has_identity': has_identity,
+            'search_query': search_query,
         },
     )
 

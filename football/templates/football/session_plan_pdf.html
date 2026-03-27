@@ -79,6 +79,35 @@
         padding: 12px;
         background: #ffffff;
       }
+      .uefa-sheet {
+        border: 1.5px solid #b8c0cc;
+      }
+      .uefa-table td {
+        font-size: 10px;
+      }
+      .uefa-copy {
+        line-height: 1.55;
+        white-space: pre-line;
+      }
+      .session-task-table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+      }
+      .session-task-table td,
+      .session-task-table th {
+        border: 1px solid #6b7280;
+        padding: 7px 9px;
+        vertical-align: top;
+      }
+      .session-task-table th {
+        text-align: left;
+        font-size: 9px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #475569;
+        background: #f8fafc;
+      }
       .task-row {
         border-bottom: 1px solid #d5dde7;
         padding: 10px 0;
@@ -108,7 +137,7 @@
     </style>
   </head>
   <body>
-    <section class="sheet">
+    <section class="sheet {% if pdf_style != 'club' %}uefa-sheet{% endif %}">
       {% if pdf_style == 'club' %}
       <div class="club-head">
         <table style="width:100%; border-collapse:collapse;">
@@ -151,7 +180,7 @@
         <div class="section-title {% if pdf_style == 'club' %}club{% else %}uefa{% endif %}">
           Detalles de la sesión
         </div>
-        <table class="table" style="margin-bottom:12px;">
+        <table class="table {% if pdf_style != 'club' %}uefa-table{% endif %}" style="margin-bottom:12px;">
           <tr>
             <td style="width:18%;">Título</td>
             <td colspan="3"><div class="v">{{ session.focus }}</div></td>
@@ -185,7 +214,7 @@
         <div class="section-title {% if pdf_style == 'club' %}club{% else %}uefa{% endif %}">
           Contenido / explicación
         </div>
-        <div class="box" style="margin-bottom:12px; line-height:1.5;">
+        <div class="box {% if pdf_style != 'club' %}uefa-copy{% endif %}" style="margin-bottom:12px; line-height:1.5;">
           {% if session.content %}
           {{ session.content|linebreaksbr }}
           {% else %}
@@ -198,18 +227,30 @@
         </div>
         <div class="box">
           {% if tasks %}
+          <table class="session-task-table">
+            <tr>
+              <th style="width:7%;">#</th>
+              <th style="width:29%;">Tarea</th>
+              <th style="width:14%;">Bloque</th>
+              <th style="width:10%;">Min</th>
+              <th style="width:20%;">Objetivo</th>
+              <th style="width:20%;">Consigna / norma</th>
+            </tr>
             {% for task in tasks %}
-            <div class="task-row">
-              <div class="task-title">{{ forloop.counter }}. {{ task.title }}</div>
-              <div class="task-meta">{{ task.get_block_display }} · {{ task.duration_minutes }} min{% if task.objective %} · {{ task.objective }}{% endif %}</div>
-              {% if task.coaching_points %}
-              <div style="margin-top:6px;"><strong>Consignas:</strong> {{ task.coaching_points }}</div>
-              {% endif %}
-              {% if task.confrontation_rules %}
-              <div style="margin-top:5px;"><strong>Normas:</strong> {{ task.confrontation_rules }}</div>
-              {% endif %}
-            </div>
+            <tr>
+              <td>{{ forloop.counter }}</td>
+              <td><strong>{{ task.title }}</strong></td>
+              <td>{{ task.get_block_display }}</td>
+              <td>{{ task.duration_minutes }}</td>
+              <td>{{ task.objective|default:"-" }}</td>
+              <td>
+                {% if task.coaching_points %}<div><strong>Consigna:</strong> {{ task.coaching_points }}</div>{% endif %}
+                {% if task.confrontation_rules %}<div style="margin-top:4px;"><strong>Norma:</strong> {{ task.confrontation_rules }}</div>{% endif %}
+                {% if not task.coaching_points and not task.confrontation_rules %}-{% endif %}
+              </td>
+            </tr>
             {% endfor %}
+          </table>
           {% else %}
           <div>-</div>
           {% endif %}

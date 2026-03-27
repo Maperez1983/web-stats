@@ -138,6 +138,37 @@
         grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 1rem;
       }
+      .quick-card {
+        display: block;
+        text-decoration: none;
+        color: inherit;
+        border-radius: 18px;
+        border: 1px solid rgba(160, 180, 215, 0.16);
+        background: rgba(255, 255, 255, 0.03);
+        padding: 1rem;
+      }
+      .quick-card strong {
+        display: block;
+        margin-bottom: 0.3rem;
+        font-size: 1rem;
+      }
+      .quick-card span {
+        display: block;
+        color: #9aa8bf;
+        line-height: 1.45;
+      }
+      .attention-list {
+        margin-top: 1rem;
+        display: grid;
+        gap: 0.55rem;
+      }
+      .attention-item {
+        border-radius: 14px;
+        border: 1px solid rgba(160, 180, 215, 0.12);
+        background: rgba(255, 255, 255, 0.03);
+        padding: 0.75rem 0.85rem;
+        color: #d7e2f4;
+      }
 
       .hero-stats {
         display: grid;
@@ -682,6 +713,25 @@
               <span>Contexto</span>
               <strong>{% if active_workspace %}Activo{% else %}Global{% endif %}</strong>
             </div>
+          </div>
+          <div class="quick-grid">
+            <a class="quick-card" href="{% url 'platform-overview' %}?tab=clients">
+              <strong>Clientes</strong>
+              <span>Gobierna clubs, estado operativo y acceso supervisor por cliente.</span>
+            </a>
+            <a class="quick-card" href="{% url 'platform-overview' %}?tab=users&subtab=list">
+              <strong>Usuarios</strong>
+              <span>Alta global, invitaciones y vínculos reales con cada workspace.</span>
+            </a>
+            <a class="quick-card" href="{% url 'platform-overview' %}?tab=task-studio">
+              <strong>Task Studio</strong>
+              <span>Controla workspaces privados, ownership y actividad del creador de tareas.</span>
+            </a>
+          </div>
+          <div class="attention-list">
+            {% for item in platform_attention_items %}
+            <div class="attention-item">{{ item }}</div>
+            {% endfor %}
           </div>
         </div>
       </section>

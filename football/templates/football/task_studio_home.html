@@ -12,6 +12,8 @@
       .top, .nav, .stats, .task-head, .task-actions { display:flex; gap:.7rem; flex-wrap:wrap; align-items:center; }
       .top { justify-content:space-between; margin-bottom:1rem; }
       .nav { margin-bottom:1rem; }
+      .search-bar { display:flex; gap:.6rem; flex-wrap:wrap; margin-bottom:1rem; }
+      .search-bar input { flex:1 1 260px; min-width:220px; border-radius:999px; border:1px solid var(--line); background:rgba(255,255,255,.04); color:var(--ink); padding:.72rem .95rem; }
       .button, button { display:inline-flex; align-items:center; justify-content:center; padding:.62rem .9rem; border-radius:999px; border:1px solid var(--line); background:rgba(255,255,255,.04); color:var(--ink); text-decoration:none; font:inherit; font-size:.76rem; font-weight:700; letter-spacing:.05em; text-transform:uppercase; }
       .button.primary { background:linear-gradient(135deg,#22c55e,#4ade80); color:#052a16; border:none; }
       .button.danger, button.danger { background:rgba(220,38,38,.16); color:#fee2e2; border-color:rgba(248,113,113,.52); box-shadow:0 0 0 1px rgba(127,29,29,.12) inset; }
@@ -68,6 +70,17 @@
         <a class="button" href="{% url 'task-studio-profile' %}{{ query_suffix }}">Perfil e identidad</a>
         <a class="button" href="{% url 'task-studio-roster' %}{{ query_suffix }}">Plantilla</a>
       </div>
+
+      <form class="search-bar" method="get">
+        {% if browse_all and target_user %}
+        <input type="hidden" name="user" value="{{ target_user.id }}" />
+        {% endif %}
+        <input type="text" name="q" value="{{ search_query }}" placeholder="Buscar tarea por título, objetivo o notas" />
+        <button class="button" type="submit">Buscar</button>
+        {% if search_query %}
+        <a class="button" href="{% url 'task-studio-home' %}{{ query_suffix }}">Limpiar</a>
+        {% endif %}
+      </form>
 
       {% if feedback %}
       <div class="alert">{{ feedback }}</div>
