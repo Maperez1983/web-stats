@@ -1,6 +1,37 @@
 (function () {
   const safeText = (value, fallback = '') => String(value || '').trim() || fallback;
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+  const hexToRgb = (hex) => {
+    const cleaned = String(hex || '').trim().replace('#', '');
+    if (cleaned.length !== 3 && cleaned.length !== 6) return null;
+    const normalized = cleaned.length === 3 ? cleaned.split('').map((char) => char + char).join('') : cleaned;
+    const value = Number.parseInt(normalized, 16);
+    if (Number.isNaN(value)) return null;
+    return {
+      r: (value >> 16) & 255,
+      g: (value >> 8) & 255,
+      b: value & 255,
+    };
+  };
+  const rgbToHex = (r, g, b) => `#${[r, g, b].map((channel) => clamp(Number(channel) || 0, 0, 255).toString(16).padStart(2, '0')).join('')}`;
+  const rgbaFromHex = (hex, alpha = 1) => {
+    const rgb = hexToRgb(hex);
+    if (!rgb) return hex;
+    return `rgba(${rgb.r},${rgb.g},${rgb.b},${alpha})`;
+  };
+  const parseColorToHex = (value, fallback = '#22d3ee') => {
+    const color = String(value || '').trim();
+    if (!color) return fallback;
+    if (color.startsWith('#')) {
+      const rgb = hexToRgb(color);
+      return rgb ? rgbToHex(rgb.r, rgb.g, rgb.b) : fallback;
+    }
+    const rgbaMatch = color.match(/rgba?\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+    if (rgbaMatch) {
+      return rgbToHex(rgbaMatch[1], rgbaMatch[2], rgbaMatch[3]);
+    }
+    return fallback;
+  };
 
   const PITCH_FORMAT_BY_PRESET = {
     full_pitch: '11v11_full',
@@ -364,6 +395,7 @@
     const scaleXInput = document.getElementById('task-scale-x');
     const scaleYInput = document.getElementById('task-scale-y');
     const rotationInput = document.getElementById('task-rotation');
+    const colorInput = document.getElementById('task-style-color');
     const presetButtons = Array.from(document.querySelectorAll('.surface-option[data-preset]'));
     const surfaceThumbs = Array.from(document.querySelectorAll('[data-surface-thumb]'));
     if (!window.fabric || !form || !canvasEl || !stage || !svgSurface || !presetSelect) return;
@@ -416,12 +448,60 @@
       const active = canvas.getActiveObject();
       return active && isFlexibleKind(active) ? active : null;
     };
+    const flexibleObjectColor = (object) => {
+      if (!object) return '#22d3ee';
+      if (Array.isArray(object._objects) && object._objects.length) {
+        for (const child of object._objects) {
+          const nested = flexibleObjectColor(child);
+          if (nested) return nested;
+        }
+      }
+      const stroke = parseColorToHex(object.stroke, '');
+      if (stroke) return stroke;
+      const fill = parseColorToHex(object.fill, '');
+      if (fill) return fill;
+      return '#22d3ee';
+    };
+    const applyFlexibleObjectColor = (object, colorHex) => {
+      if (!object) return;
+      const kind = safeText(object?.data?.kind);
+      if (Array.isArray(object._objects) && object._objects.length) {
+        object._objects.forEach((child) => applyFlexibleObjectColor(child, colorHex));
+        object.dirty = true;
+        return;
+      }
+      if (kind === 'zone') {
+        object.set({
+          stroke: colorHex,
+          fill: rgbaFromHex(colorHex, 0.16),
+        });
+        return;
+      }
+      if (kind.startsWith('shape')) {
+        object.set({
+          stroke: colorHex,
+          fill: rgbaFromHex(colorHex, 0.12),
+        });
+        return;
+      }
+      if (kind.startsWith('line')) {
+        object.set({ stroke: colorHex });
+        return;
+      }
+      if (kind.startsWith('arrow')) {
+        if ('stroke' in object && object.stroke) object.set({ stroke: colorHex });
+        if ('fill' in object && object.fill !== undefined && object.fill !== '') object.set({ fill: colorHex });
+        return;
+      }
+      if ('stroke' in object && object.stroke) object.set({ stroke: colorHex });
+      if ('fill' in object && object.fill !== undefined && object.fill !== '') object.set({ fill: colorHex });
+    };
     const objectLabel = (object) => {
       const kind = safeText(object?.data?.kind).replace(/-/g, '_');
       return RESOURCE_LABELS[kind] || 'el elemento';
     };
     const syncInspector = () => {
-      if (!selectionToolbar || !selectionSummary || !scaleXInput || !scaleYInput || !rotationInput) return;
+      if (!selectionToolbar || !selectionSummary || !scaleXInput || !scaleYInput || !rotationInput || !colorInput) return;
       const active = activeFlexibleObject();
       const enabled = !!active;
       selectionToolbar.querySelectorAll('input,button').forEach((node) => {
@@ -432,12 +512,14 @@
         scaleXInput.value = '100';
         scaleYInput.value = '100';
         rotationInput.value = '0';
+        colorInput.value = '#22d3ee';
         return;
       }
       selectionSummary.textContent = `Ajustando ${objectLabel(active)} seleccionado.`;
       scaleXInput.value = String(Math.round((Number(active.scaleX) || 1) * 100));
       scaleYInput.value = String(Math.round((Number(active.scaleY) || 1) * 100));
       rotationInput.value = String(Math.round(Number(active.angle) || 0));
+      colorInput.value = flexibleObjectColor(active);
     };
     const commitObjectChange = (message) => {
       canvas.requestRenderAll();
@@ -1007,9 +1089,22 @@
         active.rotate(Number(rotationInput.value) || 0);
       }, 'Orientación actualizada.');
     });
+    colorInput?.addEventListener('input', () => {
+      applyToActiveFlexibleObject((active) => {
+        applyFlexibleObjectColor(active, colorInput.value || '#22d3ee');
+      }, 'Color actualizado.');
+    });
     selectionToolbar?.addEventListener('click', (event) => {
       const button = event.target.closest('button');
       if (!button) return;
+      const colorValue = safeText(button.dataset.color);
+      if (colorValue) {
+        if (colorInput) colorInput.value = colorValue;
+        applyToActiveFlexibleObject((active) => {
+          applyFlexibleObjectColor(active, colorValue);
+        }, 'Color actualizado.');
+        return;
+      }
       const rotateStep = Number(button.dataset.rotateStep);
       if (!Number.isNaN(rotateStep) && button.dataset.rotateStep !== undefined) {
         applyToActiveFlexibleObject((active) => {
