@@ -627,9 +627,6 @@
         <input type="hidden" name="draw_task_game_phase" value="{{ initial.game_phase }}" />
         <input type="hidden" name="draw_task_methodology" value="{{ initial.methodology }}" />
         <input type="hidden" name="draw_task_complexity" value="{{ initial.complexity }}" />
-        <input type="hidden" name="draw_task_series" value="{{ initial.series }}" />
-        <input type="hidden" name="draw_task_repetitions" value="{{ initial.repetitions }}" />
-        <input type="hidden" name="draw_task_load_target" value="{{ initial.load_target }}" />
         <input type="hidden" name="draw_task_category_tags" value="{{ initial.category_tags }}" />
         {% for value in initial.constraints %}
         <input type="hidden" name="draw_constraints" value="{{ value }}" />
@@ -924,6 +921,48 @@
                   <label>
                     Espacio
                     <input type="text" name="draw_task_space" value="{{ initial.space }}" placeholder="Ej: zona central + 2 carriles" />
+                  </label>
+                </div>
+              </div>
+
+              <div class="section">
+                <h3>Ajustes avanzados</h3>
+                <div class="compact-grid">
+                  <label>
+                    Organización
+                    <input type="text" name="draw_task_organization" value="{{ initial.organization }}" placeholder="Ej: 6v6 + 2 comodines" />
+                  </label>
+                  <label>
+                    Reparto jugadores
+                    <input type="text" name="draw_task_players_distribution" value="{{ initial.players_distribution }}" placeholder="Ej: 2 líneas + pivote" />
+                  </label>
+                  <label>
+                    Trabajo / pausa
+                    <input type="text" name="draw_task_work_rest" value="{{ initial.work_rest }}" placeholder="Ej: 4x3' + 1'" />
+                  </label>
+                  <label>
+                    Series
+                    <input type="text" name="draw_task_series" value="{{ initial.series }}" placeholder="Ej: 4" />
+                  </label>
+                  <label>
+                    Repeticiones
+                    <input type="text" name="draw_task_repetitions" value="{{ initial.repetitions }}" placeholder="Ej: 3" />
+                  </label>
+                  <label>
+                    Carga objetivo
+                    <input type="text" name="draw_task_load_target" value="{{ initial.load_target }}" placeholder="Ej: RPE 7" />
+                  </label>
+                  <label style="grid-column:1 / -1;">
+                    Progresión
+                    <textarea name="draw_task_progression">{{ initial.progression }}</textarea>
+                  </label>
+                  <label style="grid-column:1 / -1;">
+                    Regresión
+                    <textarea name="draw_task_regression">{{ initial.regression }}</textarea>
+                  </label>
+                  <label style="grid-column:1 / -1;">
+                    Criterio de éxito
+                    <textarea name="draw_task_success_criteria">{{ initial.success_criteria }}</textarea>
                   </label>
                 </div>
               </div>

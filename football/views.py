@@ -4486,6 +4486,65 @@ def _build_task_pdf_tokens(request, tactical_layout):
     return tokens
 
 
+def _build_task_pdf_tokens_from_canvas_state(request, canvas_state, canvas_width=1280, canvas_height=720):
+    raw_state = canvas_state if isinstance(canvas_state, dict) else {}
+    objects = raw_state.get('objects') if isinstance(raw_state.get('objects'), list) else []
+    width = max(320, _parse_int(canvas_width) or 1280)
+    height = max(180, _parse_int(canvas_height) or 720)
+    tokens = []
+    for item in objects:
+        if not isinstance(item, dict):
+            continue
+        item_type = str(item.get('type') or '').strip()
+        data = item.get('data') if isinstance(item.get('data'), dict) else {}
+        kind = str(data.get('kind') or item.get('kind') or item_type).strip()
+        left = float(item.get('left') or 0)
+        top = float(item.get('top') or 0)
+        x = max(2, min(int(round((left / width) * 100)), 98))
+        y = max(2, min(int(round((top / height) * 100)), 98))
+        label = ''
+        token_type = 'player'
+        icon = ''
+        if item_type in {'group', 'circle'} and (
+            kind in {'token', 'player_local', 'player_rival', 'goalkeeper_local'}
+            or 'player' in kind
+            or 'goalkeeper' in kind
+        ):
+            label = str(data.get('playerName') or data.get('label') or '?').strip()[:16] or '?'
+        elif item_type in {'i-text', 'textbox', 'text'} or kind == 'text':
+            label = str(item.get('text') or 'Txt').strip()[:16] or 'Txt'
+        else:
+            token_type = 'material'
+            label = str(data.get('label') or kind or item_type or '•').replace('_', ' ').strip()[:16] or '•'
+            if 'arrow' in kind:
+                icon = '➜'
+            elif 'line' in kind:
+                icon = '━'
+            elif 'shape' in kind or kind == 'zone':
+                icon = '▭'
+            elif 'emoji_' in kind:
+                icon = str(item.get('text') or '•').strip()[:2] or '•'
+            elif kind == 'ball':
+                icon = '⚽'
+            elif kind == 'cone':
+                icon = '△'
+            else:
+                icon = '•'
+        tokens.append(
+            {
+                'label': label,
+                'title': label or kind or item_type,
+                'type': token_type,
+                'kind': kind,
+                'icon': icon,
+                'asset_url': '',
+                'x': x,
+                'y': y,
+            }
+        )
+    return tokens
+
+
 def _normalize_task_pdf_meta(meta):
     surface_map = {key: label for key, label in TASK_SURFACE_CHOICES}
     pitch_map = {key: label for key, label in TASK_PITCH_FORMAT_CHOICES}
@@ -4549,6 +4608,22 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
     animation_frames = _normalize_animation_timeline(
         tactical_layout.get('timeline') if isinstance(tactical_layout, dict) else []
     )
+    graphic_editor = meta.get('graphic_editor') if isinstance(meta.get('graphic_editor'), dict) else {}
+    frame_canvas_width = _parse_int(graphic_editor.get('canvas_width')) or 1280
+    frame_canvas_height = _parse_int(graphic_editor.get('canvas_height')) or 720
+    animation_frame_cards = [
+        {
+            'title': str(frame.get('title') or f'Paso {index + 1}').strip() or f'Paso {index + 1}',
+            'duration': max(1, min(_parse_int(frame.get('duration')) or 3, 20)),
+            'tokens': _build_task_pdf_tokens_from_canvas_state(
+                request,
+                frame.get('canvas_state'),
+                canvas_width=frame_canvas_width,
+                canvas_height=frame_canvas_height,
+            ),
+        }
+        for index, frame in enumerate(animation_frames)
+    ]
     coach_name = (
         request.user.get_full_name().strip()
         if hasattr(request.user, 'get_full_name') and request.user.get_full_name().strip()
@@ -4575,6 +4650,7 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
         'coordination_skills_label': coordination_skills_label or '-',
         'tactical_intent_label': tactical_intent_label or '-',
         'animation_frames': animation_frames,
+        'animation_frame_cards': animation_frame_cards,
         'pdf_style': pdf_style,
         'pdf_palette': _team_pdf_palette(team, pdf_style),
         'coach_name': coach_name,
