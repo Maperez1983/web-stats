@@ -683,9 +683,7 @@
             </div>
             <div class="hero-links">
               <a class="primary-link" href="{% url 'platform-overview' %}?tab=workspace-create">Nuevo workspace</a>
-              <a href="{% url 'platform-overview' %}?tab=home-global">Home global</a>
               <a href="{% url 'dashboard-home' %}">Volver al dashboard</a>
-              <a href="{% url 'admin-page' %}">Admin tools</a>
               {% if active_workspace %}
               <a href="{% url 'platform-workspace-clear' %}">Salir del contexto</a>
               {% endif %}
@@ -740,6 +738,7 @@
         <a class="{% if active_tab == 'clients' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=clients">Clientes</a>
         <a class="{% if active_tab == 'users' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=users&subtab=list">Usuarios</a>
         <a class="{% if active_tab == 'task-studio' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=task-studio">Task Studio</a>
+        <a class="{% if active_tab == 'home-global' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=home-global">Home global</a>
         <a class="{% if active_tab == 'workspace-create' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=workspace-create">Crear workspace</a>
       </nav>
       <section class="panel" style="margin-top:1rem;">

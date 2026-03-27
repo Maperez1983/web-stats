@@ -387,7 +387,7 @@
             <p>Ficha de gobierno del workspace. Aquí defines quién entra y qué módulos tiene activos este cliente; la operativa diaria se realiza dentro del propio workspace.</p>
             <div class="hero-subline">
               <span class="sub-chip">Slug · {{ workspace.slug }}</span>
-              <span class="sub-chip">{% if workspace.owner_user %}Owner · {{ workspace.owner_user.username }}{% else %}Sin owner{% endif %}</span>
+              <span class="sub-chip">{% if workspace.owner_user %}Propietario · {{ workspace.owner_user.username }}{% else %}Sin propietario{% endif %}</span>
               <span class="sub-chip">{% if workspace.primary_team %}Equipo · {{ workspace.primary_team.name }}{% else %}Sin equipo vinculado{% endif %}</span>
             </div>
           </div>
@@ -396,10 +396,8 @@
         <div class="active-banner">Este workspace ya es el contexto activo del sistema.</div>
         {% endif %}
         <div class="hero-links">
-          <a class="primary-link" href="{% url 'platform-workspace-enter' workspace.id %}">Abrir cliente</a>
-          <a href="{% url 'platform-workspace-enter' workspace.id %}">Entrar como supervisor</a>
+          <a class="primary-link" href="{% url 'platform-workspace-enter' workspace.id %}">Entrar en cliente</a>
           <a href="{% url 'platform-overview' %}">Volver a plataforma</a>
-          <a href="{% url 'dashboard-home' %}">Dashboard general</a>
           {% if can_manage_workspace and workspace.kind == 'task_studio' %}
           <form method="post" action="{% url 'platform-workspace-delete' workspace.id %}" onsubmit="return confirm('Se eliminará este Task Studio y sus datos privados.');">
             {% csrf_token %}
@@ -435,6 +433,7 @@
                 <span>Miembros</span>
                 <strong>{{ workspace.member_count }}</strong>
               </div>
+              {% if workspace.kind == 'task_studio' %}
               <div class="metric">
                 <span>Perfiles Task Studio</span>
                 <strong>{{ workspace.profile_count }}</strong>
@@ -447,10 +446,20 @@
                 <span>Plantilla privada</span>
                 <strong>{{ roster_count }}</strong>
               </div>
+              {% else %}
               <div class="metric">
                 <span>Jugadores club</span>
                 <strong>{{ club_player_count }}</strong>
               </div>
+              <div class="metric">
+                <span>Módulos activos</span>
+                <strong>{{ workspace.active_module_count }}</strong>
+              </div>
+              <div class="metric">
+                <span>Equipo vinculado</span>
+                <strong>{% if workspace.primary_team %}Sí{% else %}No{% endif %}</strong>
+              </div>
+              {% endif %}
               <div class="metric">
                 <span>Estado</span>
                 <strong>{% if workspace.is_active %}Activo{% else %}Inactivo{% endif %}</strong>
