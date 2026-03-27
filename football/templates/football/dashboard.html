@@ -396,6 +396,34 @@
         color: rgba(70, 211, 255, 0.9);
       }
 
+      .pending-card-grid {
+        display: grid;
+        gap: 0.65rem;
+        margin-bottom: 0.8rem;
+      }
+
+      .pending-card {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.8rem;
+        align-items: center;
+        border-radius: 14px;
+        border: 1px solid rgba(255, 191, 69, 0.18);
+        background: rgba(255, 191, 69, 0.08);
+        padding: 0.85rem;
+      }
+
+      .pending-card strong {
+        display: block;
+        margin-bottom: 0.2rem;
+      }
+
+      .pending-card span {
+        display: block;
+        color: rgba(224, 232, 255, 0.84);
+        font-size: 0.84rem;
+      }
+
       .players-header {
         margin-top: 1rem;
         display: flex;
@@ -614,6 +642,19 @@
         </article>
         <article class="block">
           <h3>Pendientes y actividad</h3>
+          {% if dashboard_pending_cards %}
+          <div class="pending-card-grid">
+            {% for item in dashboard_pending_cards %}
+            <div class="pending-card">
+              <div>
+                <strong>{{ item.title }}</strong>
+                <span>{{ item.description }}</span>
+              </div>
+              <a class="module-tab" href="{{ item.url }}">{{ item.action }}</a>
+            </div>
+            {% endfor %}
+          </div>
+          {% endif %}
           {% if dashboard_pending_items %}
           <ul class="pending-list">
             {% for item in dashboard_pending_items %}

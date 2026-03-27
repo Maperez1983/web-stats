@@ -218,6 +218,61 @@
         background: rgba(255, 255, 255, 0.03);
         color: var(--muted);
       }
+      .action-card-list {
+        display: grid;
+        gap: 0.7rem;
+      }
+      .action-card {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.8rem;
+        align-items: center;
+        padding: 0.85rem 0.9rem;
+        border-radius: 16px;
+        border: 1px solid rgba(250, 204, 21, 0.14);
+        background: rgba(255, 255, 255, 0.03);
+      }
+      .action-card strong {
+        display: block;
+        color: var(--ink);
+        margin-bottom: 0.18rem;
+      }
+      .action-card span {
+        display: block;
+        color: var(--muted);
+        font-size: 0.84rem;
+      }
+      .activity-list {
+        display: grid;
+        gap: 0.6rem;
+        margin-top: 1rem;
+      }
+      .activity-item {
+        display: block;
+        text-decoration: none;
+        color: inherit;
+        padding: 0.8rem 0.9rem;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.025);
+      }
+      .activity-item em {
+        display: inline-flex;
+        font-style: normal;
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #fde68a;
+        margin-bottom: 0.15rem;
+      }
+      .activity-item strong {
+        display: block;
+      }
+      .activity-item span {
+        display: block;
+        margin-top: 0.2rem;
+        color: var(--muted);
+      }
       @media (max-width: 1120px) {
         .primary-grid,
         .secondary-grid,
@@ -339,6 +394,19 @@
 
           <div class="card">
             <h2>Siguiente foco</h2>
+            {% if pending_cards %}
+            <div class="action-card-list">
+              {% for item in pending_cards %}
+              <div class="action-card">
+                <div>
+                  <strong>{{ item.title }}</strong>
+                  <span>{{ item.description }}</span>
+                </div>
+                <a class="pill-button" style="border-radius:12px;" href="{{ item.url }}">{{ item.action }}</a>
+              </div>
+              {% endfor %}
+            </div>
+            {% endif %}
             <ul class="focus-list">
               {% for item in pending_items %}
               <li>{{ item }}</li>
@@ -346,6 +414,20 @@
               <li>Sin bloqueos críticos. La operativa de staff está lista para seguir por módulos.</li>
               {% endfor %}
             </ul>
+            <div class="activity-list">
+              {% for item in recent_activity %}
+              <a class="activity-item" href="{{ item.url }}">
+                <em>{{ item.type }}</em>
+                <strong>{{ item.title }}</strong>
+                <span>{{ item.meta }}</span>
+              </a>
+              {% empty %}
+              <div class="activity-item">
+                <strong>Sin actividad reciente</strong>
+                <span>Cuando el staff cree sesiones o tareas, aparecerán aquí.</span>
+              </div>
+              {% endfor %}
+            </div>
             <div style="margin-top:1rem; display:flex; gap:0.55rem; flex-wrap:wrap;">
               <a class="pill-button" style="border-radius:12px;" href="{% url 'convocation' %}">Abrir partido</a>
               <a class="pill-button" style="border-radius:12px;" href="{% url 'sessions' %}">Abrir entrenamiento</a>

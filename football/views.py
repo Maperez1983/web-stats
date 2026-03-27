@@ -1739,6 +1739,130 @@ def _payload_opponent_name(payload):
     return str(payload.get('rival') or '').strip()
 
 
+def _build_team_recent_activity(primary_team):
+    if not primary_team:
+        return []
+    recent_activity = []
+    recent_sessions = list(
+        TrainingSession.objects
+        .filter(microcycle__team=primary_team)
+        .select_related('microcycle')
+        .order_by('-created_at', '-id')[:3]
+    )
+    recent_tasks = list(
+        SessionTask.objects
+        .filter(session__microcycle__team=primary_team)
+        .select_related('session')
+        .order_by('-created_at', '-id')[:4]
+    )
+    for session in recent_sessions:
+        recent_activity.append(
+            {
+                'type': 'Sesión',
+                'title': str(session.focus or 'Sesión').strip() or 'Sesión',
+                'meta': f"{session.session_date:%d/%m/%Y} · {session.duration_minutes or 0} min",
+                'url': reverse('sessions'),
+                'created_at': session.created_at,
+            }
+        )
+    for task in recent_tasks:
+        recent_activity.append(
+            {
+                'type': 'Tarea',
+                'title': str(task.title or 'Tarea').strip() or 'Tarea',
+                'meta': f"{task.duration_minutes or 0} min · {task.session.focus or 'Sesión'}",
+                'url': reverse('session-task-detail', args=[task.id]),
+                'created_at': task.created_at,
+            }
+        )
+    return sorted(
+        recent_activity,
+        key=lambda item: item.get('created_at') or timezone.now(),
+        reverse=True,
+    )[:5]
+
+
+def _build_team_pending_cards(primary_team, weekly_brief=None):
+    if not primary_team:
+        return []
+    today = timezone.localdate()
+    weekly_brief = weekly_brief if isinstance(weekly_brief, dict) else _build_weekly_staff_brief_context(primary_team)
+    pending_cards = []
+
+    def add_card(title, description, url, action):
+        pending_cards.append(
+            {
+                'title': title,
+                'description': description,
+                'url': url,
+                'action': action,
+            }
+        )
+
+    if int(weekly_brief.get('convocated_count') or 0) <= 0:
+        add_card(
+            'Convocatoria pendiente',
+            'Todavía no hay una convocatoria cerrada para el siguiente partido.',
+            reverse('convocation'),
+            'Abrir partido',
+        )
+    if int(weekly_brief.get('probable_eleven_count') or 0) <= 0:
+        add_card(
+            '11 inicial sin definir',
+            'El partido no tiene todavía un 11 inicial o probable consolidado.',
+            reverse('initial-eleven'),
+            'Definir 11',
+        )
+    if int(weekly_brief.get('available_count') or 0) <= 0:
+        add_card(
+            'Disponibilidad sin consolidar',
+            'La portada no tiene disponibilidad útil para leer la semana del equipo.',
+            reverse('coach-role-trainer'),
+            'Revisar estadísticas',
+        )
+
+    future_sessions = list(
+        TrainingSession.objects
+        .filter(microcycle__team=primary_team, session_date__gte=today)
+        .prefetch_related('tasks')
+        .order_by('session_date', 'id')[:6]
+    )
+    if not future_sessions:
+        add_card(
+            'Semana sin sesiones',
+            'No hay sesiones futuras planificadas para sostener el microciclo actual.',
+            reverse('sessions'),
+            'Planificar semana',
+        )
+    elif not any(session.tasks.exists() for session in future_sessions):
+        add_card(
+            'Sesiones sin tareas',
+            'Hay sesiones creadas, pero todavía no tienen tareas asociadas.',
+            reverse('sessions') + '?tab=planning',
+            'Completar sesiones',
+        )
+
+    next_match = weekly_brief.get('match') if isinstance(weekly_brief, dict) else {}
+    rival_name = str(next_match.get('opponent') or '').strip() if isinstance(next_match, dict) else ''
+    has_ready_rival_report = False
+    if rival_name:
+        has_ready_rival_report = RivalAnalysisReport.objects.filter(
+            team=primary_team,
+            status=RivalAnalysisReport.STATUS_READY,
+        ).filter(
+            Q(rival_name__icontains=rival_name) | Q(rival_team__name__icontains=rival_name)
+        ).exists()
+    if rival_name and not has_ready_rival_report:
+        add_card(
+            'Informe rival pendiente',
+            f'No hay un informe rival listo para {rival_name}.',
+            reverse('analysis'),
+            'Abrir análisis',
+        )
+
+    return pending_cards
+
+
 def _build_universo_standings_lookup(snapshot):
     lookup = {}
     if not isinstance(snapshot, dict):
@@ -2170,6 +2294,7 @@ def dashboard_page(request):
     active_workspace = _build_active_workspace_badge(request)
     dashboard_focus_items = []
     dashboard_pending_items = []
+    dashboard_pending_cards = []
     dashboard_recent_activity = []
     primary_team = _get_primary_team_for_request(request)
     if primary_team and current_role not in {AppUserRole.ROLE_TASK_STUDIO, AppUserRole.ROLE_GUEST}:
@@ -2264,6 +2389,7 @@ def dashboard_page(request):
             ],
         )
         weekly_brief = _build_weekly_staff_brief_context(primary_team)
+        dashboard_pending_cards = _build_team_pending_cards(primary_team, weekly_brief)
         if int(weekly_brief.get('convocated_count') or 0) <= 0:
             dashboard_pending_items.append('Falta cerrar la convocatoria actual.')
         if int(weekly_brief.get('probable_eleven_count') or 0) <= 0:
@@ -2272,43 +2398,7 @@ def dashboard_page(request):
             dashboard_pending_items.append('No hay disponibilidad consolidada del equipo.')
         if not TrainingSession.objects.filter(microcycle__team=primary_team, session_date__gte=timezone.localdate()).exists():
             dashboard_pending_items.append('No hay sesiones futuras planificadas.')
-        recent_sessions = list(
-            TrainingSession.objects
-            .filter(microcycle__team=primary_team)
-            .select_related('microcycle')
-            .order_by('-created_at', '-id')[:3]
-        )
-        recent_tasks = list(
-            SessionTask.objects
-            .filter(session__microcycle__team=primary_team)
-            .select_related('session')
-            .order_by('-created_at', '-id')[:4]
-        )
-        for session in recent_sessions:
-            dashboard_recent_activity.append(
-                {
-                    'type': 'Sesión',
-                    'title': str(session.focus or 'Sesión').strip() or 'Sesión',
-                    'meta': f"{session.session_date:%d/%m/%Y} · {session.duration_minutes or 0} min",
-                    'url': reverse('sessions'),
-                    'created_at': session.created_at,
-                }
-            )
-        for task in recent_tasks:
-            dashboard_recent_activity.append(
-                {
-                    'type': 'Tarea',
-                    'title': str(task.title or 'Tarea').strip() or 'Tarea',
-                    'meta': f"{task.duration_minutes or 0} min · {task.session.focus or 'Sesión'}",
-                    'url': reverse('session-task-detail', args=[task.id]),
-                    'created_at': task.created_at,
-                }
-            )
-        dashboard_recent_activity = sorted(
-            dashboard_recent_activity,
-            key=lambda item: item.get('created_at') or timezone.now(),
-            reverse=True,
-        )[:5]
+        dashboard_recent_activity = _build_team_recent_activity(primary_team)
     forbidden = _forbid_if_workspace_module_disabled(request, 'dashboard', label='dashboard')
     if forbidden:
         return forbidden
@@ -2327,6 +2417,7 @@ def dashboard_page(request):
             'active_workspace': active_workspace,
             'dashboard_focus_items': dashboard_focus_items,
             'dashboard_pending_items': dashboard_pending_items,
+            'dashboard_pending_cards': dashboard_pending_cards,
             'dashboard_recent_activity': dashboard_recent_activity,
         },
     )
@@ -3625,6 +3716,8 @@ def coach_overview_page(request):
         probable_eleven_names = [item.strip() for item in probable_preview.split(',') if item.strip()][:5]
     staff_preview = technical_members[:4]
     staff_extra_count = max(0, len(technical_members) - len(staff_preview))
+    pending_cards = _build_team_pending_cards(primary_team, weekly_brief)
+    recent_activity = _build_team_recent_activity(primary_team)
     return render(
         request,
         'football/coach_overview.html',
@@ -3639,6 +3732,8 @@ def coach_overview_page(request):
             'probable_eleven_names': probable_eleven_names,
             'module_hub': module_hub,
             'pending_items': pending_items,
+            'pending_cards': pending_cards,
+            'recent_activity': recent_activity,
         },
     )
 
