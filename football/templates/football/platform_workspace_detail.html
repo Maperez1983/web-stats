@@ -4,7 +4,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{{ workspace.name }} · Gobierno workspace</title>
+    <title>{{ workspace.name }} · Gobierno del cliente</title>
     <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
     <style>
       body {
@@ -384,7 +384,7 @@
           <div>
             <div class="chip">{{ workspace.get_kind_display }}</div>
             <h1 style="margin-top:0.55rem;">{{ workspace.name }}</h1>
-            <p>Ficha de gobierno del workspace. Aquí defines quién entra y qué módulos tiene activos este cliente; la operativa diaria se realiza dentro del propio workspace.</p>
+            <p>Ficha de gobierno del cliente. Aquí defines quién entra y qué módulos y entregables tiene activos este espacio; la operativa diaria se realiza dentro del propio cliente.</p>
             <div class="hero-subline">
               <span class="sub-chip">Slug · {{ workspace.slug }}</span>
               <span class="sub-chip">{% if workspace.owner_user %}Propietario · {{ workspace.owner_user.username }}{% else %}Sin propietario{% endif %}</span>
@@ -393,7 +393,7 @@
           </div>
         </div>
         {% if active_workspace and active_workspace.id == workspace.id %}
-        <div class="active-banner">Este workspace ya es el contexto activo del sistema.</div>
+        <div class="active-banner">Este cliente ya es el contexto activo del sistema.</div>
         {% endif %}
         <div class="hero-links">
           <a class="primary-link" href="{% url 'platform-workspace-enter' workspace.id %}">Entrar en cliente</a>
@@ -413,7 +413,7 @@
         {% endif %}
       </section>
 
-      <nav class="subnav" aria-label="Secciones del workspace">
+      <nav class="subnav" aria-label="Secciones del cliente">
         <a href="#workspace-resumen">Resumen</a>
         <a href="#workspace-miembros">Miembros</a>
         <a href="#workspace-modulos">Módulos</a>
@@ -422,12 +422,12 @@
       <section class="grid">
         <article class="panel">
           <div class="summary-note">
-            Este panel gobierna el cliente. La operación diaria de jugadores, tareas o sesiones se ejecuta dentro del workspace, no desde aquí.
+            Este panel gobierna el cliente. La operación diaria de jugadores, tareas o sesiones se ejecuta dentro del propio espacio, no desde aquí.
           </div>
           <div class="section-shell panel-block" id="workspace-resumen">
             <div class="section-kicker">Resumen</div>
             <h2>Resumen</h2>
-            <p>Estado del cliente y volumen básico de información asociado al workspace.</p>
+            <p>Estado del cliente y volumen básico de información asociado a este espacio.</p>
             <div class="metrics">
               <div class="metric">
                 <span>Miembros</span>
@@ -473,7 +473,7 @@
           </div>
           <div class="section-shell panel-block" id="workspace-miembros">
           <div class="section-kicker">Acceso</div>
-          <h2 style="margin-top:1.1rem;">Usuarios del workspace</h2>
+          <h2 style="margin-top:1.1rem;">Usuarios con acceso</h2>
           {% if can_manage_workspace %}
           <form method="post" class="inline-form" style="margin-top:0.9rem;">
             {% csrf_token %}
@@ -520,7 +520,7 @@
             </div>
             {% empty %}
             <div class="member-row">
-              <div>Sin miembros asignados todavía.</div>
+              <div>Sin usuarios asignados todavía.</div>
             </div>
             {% endfor %}
           </div>
@@ -531,7 +531,7 @@
           <article class="module-card">
             <div class="section-kicker">Módulos</div>
             <h3>Módulos activos</h3>
-            <p>Este es el punto donde se gobiernan los módulos del cliente. Si un módulo se apaga aquí, deja de estar disponible dentro del workspace.</p>
+            <p>Este es el punto donde se gobiernan los módulos del cliente. Si un módulo se apaga aquí, deja de estar disponible dentro del cliente.</p>
             {% if can_manage_workspace %}
             <form method="post">
               {% csrf_token %}
@@ -569,7 +569,7 @@
             </form>
             {% else %}
             <div class="message" style="background:rgba(255,255,255,0.04); border:1px solid rgba(160,180,215,0.12); color:#c7d3e8;">
-              Solo owner o admin del workspace pueden modificar módulos.
+              Solo el propietario o un administrador del cliente pueden modificar módulos.
             </div>
             {% endif %}
           </article>
