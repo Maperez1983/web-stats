@@ -246,6 +246,48 @@
         font-size: 0.8rem;
         color: rgba(225, 236, 255, 0.82);
       }
+      .animation-strip {
+        display: flex;
+        gap: 0.45rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.75rem;
+      }
+      .animation-step-btn {
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--ink);
+        padding: 0.55rem 0.8rem;
+        cursor: pointer;
+        text-align: left;
+      }
+      .animation-step-btn.is-active {
+        border-color: rgba(34, 211, 238, 0.66);
+        background: rgba(34, 211, 238, 0.12);
+      }
+      .animation-canvas-wrap {
+        position: relative;
+        width: 100%;
+        max-width: 960px;
+        aspect-ratio: 16 / 9;
+        margin: 0 auto;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 12px;
+        overflow: hidden;
+        background: rgba(3, 10, 22, 0.65);
+      }
+      #task-animation-canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+        background: #ffffff;
+      }
+      .animation-controls {
+        display: flex;
+        gap: 0.45rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.7rem;
+      }
       .resource-library {
         margin: 0.55rem 0 0.8rem;
         border: 1px solid rgba(255, 255, 255, 0.16);
@@ -476,6 +518,28 @@
       </section>
       {% endif %}
 
+      {% if animation_frames %}
+      <section class="panel">
+        <h2>Secuencia animada</h2>
+        <div class="animation-controls">
+          <button type="button" class="button" id="animation-prev-btn">Paso anterior</button>
+          <button type="button" class="button" id="animation-play-btn">Reproducir</button>
+          <button type="button" class="button" id="animation-next-btn">Siguiente paso</button>
+        </div>
+        <div class="animation-strip" id="animation-step-strip">
+          {% for frame in animation_frames %}
+          <button type="button" class="animation-step-btn{% if forloop.first %} is-active{% endif %}" data-animation-step="{{ forloop.counter0 }}">
+            Paso {{ forloop.counter }} · {{ frame.title }} · {{ frame.duration }} s
+          </button>
+          {% endfor %}
+        </div>
+        <div class="animation-canvas-wrap">
+          <canvas id="task-animation-canvas"></canvas>
+        </div>
+        <p class="graphic-status" id="animation-status">Secuencia lista.</p>
+      </section>
+      {% endif %}
+
       <section class="panel">
         <h2>{% if is_editable_task %}Representación gráfica editable{% else %}Representación gráfica de la tarea{% endif %}</h2>
         {% if is_editable_task %}
@@ -642,6 +706,13 @@
     <script>
       (() => {
         if (!window.fabric) return;
+        const animationFramesRaw = "{{ animation_frames_json|escapejs }}";
+        let animationFrames = [];
+        try {
+          animationFrames = animationFramesRaw ? JSON.parse(animationFramesRaw) : [];
+        } catch (e) {
+          animationFrames = [];
+        }
         const canvasEl = document.getElementById('task-graphic-canvas');
         if (!canvasEl) return;
         const isEditable = "{{ is_editable_task|yesno:'true,false' }}" === 'true';
@@ -1307,6 +1378,100 @@
             setStatus(isEditable ? 'Lienzo reajustado al tamaño de pantalla.' : 'Vista reajustada.');
           }, 180);
         });
+
+        const animationCanvasEl = document.getElementById('task-animation-canvas');
+        const animationStatusEl = document.getElementById('animation-status');
+        const animationButtons = Array.from(document.querySelectorAll('[data-animation-step]'));
+        const animationPlayBtn = document.getElementById('animation-play-btn');
+        const animationPrevBtn = document.getElementById('animation-prev-btn');
+        const animationNextBtn = document.getElementById('animation-next-btn');
+        const setAnimationStatus = (text) => {
+          if (animationStatusEl) animationStatusEl.textContent = text;
+        };
+        if (animationCanvasEl && animationFrames.length) {
+          const animationCanvas = new fabric.Canvas(animationCanvasEl, {
+            selection: false,
+            preserveObjectStacking: true,
+          });
+          let animationIndex = 0;
+          let animationTimer = null;
+          const animationWrap = animationCanvasEl.closest('.animation-canvas-wrap');
+          const fitAnimationCanvas = () => {
+            const nextW = Math.max(320, Math.round(animationWrap?.clientWidth || 960));
+            const nextH = Math.max(180, Math.round(animationWrap?.clientHeight || Math.round(nextW * 9 / 16)));
+            animationCanvas.setDimensions({ width: nextW, height: nextH });
+          };
+          const renderAnimationButtons = () => {
+            animationButtons.forEach((button, idx) => {
+              button.classList.toggle('is-active', idx === animationIndex);
+            });
+          };
+          const loadAnimationStep = (index) => {
+            if (index < 0 || index >= animationFrames.length) return;
+            animationIndex = index;
+            renderAnimationButtons();
+            const frame = animationFrames[index];
+            const frameState = frame && typeof frame.canvas_state === 'object' ? frame.canvas_state : { version: '5.3.0', objects: [] };
+            animationCanvas.loadFromJSON(frameState, () => {
+              animationCanvas.getObjects().forEach((obj) => {
+                obj.selectable = false;
+                obj.evented = false;
+              });
+              animationCanvas.renderAll();
+              setAnimationStatus(`Paso ${index + 1} · ${frame.title} · ${frame.duration} s`);
+            });
+          };
+          const stopAnimationPlayback = () => {
+            if (animationTimer) {
+              window.clearTimeout(animationTimer);
+              animationTimer = null;
+            }
+            if (animationPlayBtn) animationPlayBtn.textContent = 'Reproducir';
+          };
+          const playAnimation = () => {
+            if (animationTimer) {
+              stopAnimationPlayback();
+              setAnimationStatus('Secuencia detenida.');
+              loadAnimationStep(animationIndex);
+              return;
+            }
+            if (animationPlayBtn) animationPlayBtn.textContent = 'Detener';
+            const runStep = () => {
+              loadAnimationStep(animationIndex);
+              const frame = animationFrames[animationIndex] || {};
+              animationTimer = window.setTimeout(() => {
+                animationIndex += 1;
+                if (animationIndex >= animationFrames.length) {
+                  stopAnimationPlayback();
+                  animationIndex = 0;
+                  setAnimationStatus('Secuencia completada.');
+                  loadAnimationStep(0);
+                  return;
+                }
+                runStep();
+              }, Math.max(1, Number(frame.duration) || 3) * 1000);
+            };
+            runStep();
+          };
+          fitAnimationCanvas();
+          loadAnimationStep(0);
+          animationButtons.forEach((button) => {
+            button.addEventListener('click', () => {
+              stopAnimationPlayback();
+              loadAnimationStep(Number(button.dataset.animationStep));
+            });
+          });
+          animationPrevBtn?.addEventListener('click', () => {
+            stopAnimationPlayback();
+            loadAnimationStep((animationIndex - 1 + animationFrames.length) % animationFrames.length);
+          });
+          animationNextBtn?.addEventListener('click', () => {
+            stopAnimationPlayback();
+            loadAnimationStep((animationIndex + 1) % animationFrames.length);
+          });
+          animationPlayBtn?.addEventListener('click', playAnimation);
+          window.addEventListener('resize', fitAnimationCanvas);
+        }
         refreshLayerList();
       })();
     </script>

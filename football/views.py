@@ -4546,9 +4546,9 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
             str(getattr(task, 'objective', '') or '').strip(),
         ] if part
     )
-    animation_frames = tactical_layout.get('timeline') if isinstance(tactical_layout, dict) else []
-    if not isinstance(animation_frames, list):
-        animation_frames = []
+    animation_frames = _normalize_animation_timeline(
+        tactical_layout.get('timeline') if isinstance(tactical_layout, dict) else []
+    )
     coach_name = (
         request.user.get_full_name().strip()
         if hasattr(request.user, 'get_full_name') and request.user.get_full_name().strip()
@@ -4574,6 +4574,7 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
         'coordination_label': coordination_label or '-',
         'coordination_skills_label': coordination_skills_label or '-',
         'tactical_intent_label': tactical_intent_label or '-',
+        'animation_frames': animation_frames,
         'pdf_style': pdf_style,
         'pdf_palette': _team_pdf_palette(team, pdf_style),
         'coach_name': coach_name,
@@ -10788,6 +10789,11 @@ def session_task_detail_page(request, task_id):
     original_preview_url = _storage_url_or_empty(original_version.get('task_preview_image') if isinstance(original_version, dict) else '')
     pdf_excerpt = str(meta.get('pdf_segment_excerpt') or meta.get('extracted_text_excerpt') or '').strip()
     detected_materials = analysis_meta.get('detected_materials') if isinstance(analysis_meta.get('detected_materials'), list) else []
+    animation_frames = _normalize_animation_timeline(layout.get('timeline') if isinstance(layout, dict) else [])
+    graphic_editor_state = meta.get('graphic_editor', {}) if isinstance(meta.get('graphic_editor'), dict) else {}
+    if isinstance(graphic_editor_state, dict) and animation_frames:
+        graphic_editor_state = dict(graphic_editor_state)
+        graphic_editor_state['timeline'] = animation_frames
     if task.task_pdf and not task.task_preview_image:
         _ensure_task_preview_image(task)
     return render(
@@ -10805,7 +10811,9 @@ def session_task_detail_page(request, task_id):
             'feedback': feedback,
             'error': error,
             'task_blocks': SessionTask.BLOCK_CHOICES,
-            'graphic_editor_state_json': json.dumps(meta.get('graphic_editor', {}), ensure_ascii=False),
+            'graphic_editor_state_json': json.dumps(graphic_editor_state, ensure_ascii=False),
+            'animation_frames': animation_frames,
+            'animation_frames_json': json.dumps(animation_frames, ensure_ascii=False),
             'original_version': original_version,
             'original_task_sheet': original_task_sheet,
             'original_preview_url': original_preview_url,

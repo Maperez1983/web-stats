@@ -201,6 +201,75 @@
         color: {{ pdf_palette.muted }};
         text-align: right;
       }
+      .uefa-sheet {
+        border: 1.5px solid #b8c0cc;
+        background: #ffffff;
+      }
+      .uefa-head {
+        padding: 10px 14px;
+        background: #d92b30;
+        color: #ffffff;
+        border-bottom: 1px solid #b8c0cc;
+      }
+      .uefa-section {
+        background: #d92b30;
+        color: #ffffff;
+        font-size: 13px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        padding: 7px 12px;
+        border: 1px solid #d92b30;
+        border-bottom: none;
+        border-radius: 4px 4px 0 0;
+      }
+      .uefa-table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+        border: 1px solid #6b7280;
+        margin-bottom: 12px;
+      }
+      .uefa-table td {
+        border: 1px solid #6b7280;
+        padding: 6px 10px;
+        font-size: 10px;
+        vertical-align: top;
+      }
+      .uefa-value {
+        font-size: 11px;
+        font-weight: 600;
+        line-height: 1.45;
+      }
+      .uefa-box {
+        border: 1px solid #6b7280;
+        padding: 12px;
+        background: #ffffff;
+      }
+      .uefa-long-copy {
+        line-height: 1.55;
+        white-space: pre-line;
+      }
+      .sequence-list {
+        display: grid;
+        gap: 8px;
+      }
+      .sequence-step {
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        padding: 8px 10px;
+        background: #f8fafc;
+      }
+      .sequence-step strong {
+        display: block;
+        font-size: 11px;
+        margin-bottom: 3px;
+      }
+      .sequence-step span {
+        display: block;
+        font-size: 10px;
+        color: #475569;
+      }
     </style>
   </head>
   <body>
@@ -367,13 +436,13 @@
       </div>
     </section>
     {% else %}
-    <section class="sheet" style="border:1.5px solid #b8c0cc; background:#ffffff;">
-      <div style="padding:10px 14px; background:#d92b30; color:#ffffff; border-bottom:1px solid #b8c0cc;">
+    <section class="sheet uefa-sheet">
+      <div class="uefa-head">
         <table style="width:100%; border-collapse:collapse;">
           <tr>
             <td style="width:52px; vertical-align:middle;">
               <div style="width:34px; height:34px; border-radius:50%; background:#ffffff; overflow:hidden; text-align:center; line-height:34px;">
-                <img src="{{ logo_url }}" alt="Escudo {{ team_name }}" style="width:28px; height:28px; object-fit:contain; vertical-align:middle; margin-top:3px;" />
+                <img src="{{ logo_url }}" alt="Insignia federativa" style="width:28px; height:28px; object-fit:contain; vertical-align:middle; margin-top:3px;" />
               </div>
             </td>
             <td style="vertical-align:middle;">
@@ -384,44 +453,40 @@
       </div>
 
       <div style="padding:12px 14px 0;">
-        <div style="background:#d92b30; color:#ffffff; font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; padding:7px 12px; border:1px solid #d92b30; border-bottom:none; border-radius:4px 4px 0 0;">
-          Detalles del Ejercicio
-        </div>
-        <table style="width:100%; border-collapse:collapse; table-layout:fixed; border:1px solid #6b7280; margin-bottom:12px;">
+        <div class="uefa-section">Detalles del Ejercicio</div>
+        <table class="uefa-table">
           <tr>
-            <td style="width:18%; border:1px solid #6b7280; padding:6px 10px; font-size:10px;">Título</td>
-            <td colspan="3" style="border:1px solid #6b7280; padding:6px 10px; font-size:11px; font-weight:600;">{{ task.title }}</td>
+            <td style="width:18%;">Título</td>
+            <td colspan="3"><div class="uefa-value">{{ task.title }}</div></td>
           </tr>
           <tr>
-            <td style="width:18%; border:1px solid #6b7280; padding:6px 10px; font-size:10px;">Estrategia</td>
-            <td style="width:32%; border:1px solid #6b7280; padding:6px 10px; font-size:11px; font-weight:600;">{{ strategy_label }}</td>
-            <td style="width:18%; border:1px solid #6b7280; padding:6px 10px; font-size:10px;">Objetivos</td>
-            <td style="width:32%; border:1px solid #6b7280; padding:6px 10px; font-size:11px; font-weight:600;">{{ task.objective|default:"-" }}</td>
+            <td style="width:18%;">Estrategia</td>
+            <td style="width:32%;"><div class="uefa-value">{{ strategy_label }}</div></td>
+            <td style="width:18%;">Objetivos</td>
+            <td style="width:32%;"><div class="uefa-value">{{ task.objective|default:"-" }}</div></td>
           </tr>
           <tr>
-            <td style="border:1px solid #6b7280; padding:6px 10px; font-size:10px;">Espacio</td>
-            <td style="border:1px solid #6b7280; padding:6px 10px; font-size:11px; font-weight:600;">{{ space_label }}</td>
-            <td style="border:1px solid #6b7280; padding:6px 10px; font-size:10px;">Tiempo</td>
-            <td style="border:1px solid #6b7280; padding:6px 10px; font-size:11px; font-weight:600;">{{ task.duration_minutes }} min</td>
+            <td>Espacio</td>
+            <td><div class="uefa-value">{{ dimensions_label|default:space_label|default:"-" }}</div></td>
+            <td>Tiempo</td>
+            <td><div class="uefa-value">{{ task.duration_minutes }} min</div></td>
           </tr>
           <tr>
-            <td style="border:1px solid #6b7280; padding:6px 10px; font-size:10px;">Situación de Juego</td>
-            <td style="border:1px solid #6b7280; padding:6px 10px; font-size:11px; font-weight:600;">{{ game_situation_label }}</td>
-            <td style="border:1px solid #6b7280; padding:6px 10px; font-size:10px;">Coordinación</td>
-            <td style="border:1px solid #6b7280; padding:6px 10px; font-size:11px; font-weight:600;">{{ coordination_label }}</td>
+            <td>Situación de Juego</td>
+            <td><div class="uefa-value">{{ game_situation_label }}</div></td>
+            <td>Coordinación</td>
+            <td><div class="uefa-value">{{ coordination_label }}</div></td>
           </tr>
           <tr>
-            <td style="border:1px solid #6b7280; padding:6px 10px; font-size:10px;">Habilidades Coordinativas</td>
-            <td style="border:1px solid #6b7280; padding:6px 10px; font-size:11px; font-weight:600;">{{ coordination_skills_label }}</td>
-            <td style="border:1px solid #6b7280; padding:6px 10px; font-size:10px;">Intención / Acción Táctica</td>
-            <td style="border:1px solid #6b7280; padding:6px 10px; font-size:11px; font-weight:600;">{{ tactical_intent_label }}</td>
+            <td>Habilidades Coordinativas</td>
+            <td><div class="uefa-value">{{ coordination_skills_label }}</div></td>
+            <td>Intención / Acción Táctica</td>
+            <td><div class="uefa-value">{{ tactical_intent_label }}</div></td>
           </tr>
         </table>
 
-        <div style="background:#d92b30; color:#ffffff; font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; padding:7px 12px; border:1px solid #d92b30; border-bottom:none; border-radius:4px 4px 0 0;">
-          Descripción Gráfica
-        </div>
-        <div style="border:1px solid #6b7280; padding:12px; background:#ffffff; min-height:280px;">
+        <div class="uefa-section">Descripción Gráfica</div>
+        <div class="uefa-box" style="min-height:280px;">
           {% if task_preview_url %}
           <div class="preview-frame" style="border:1px solid #d5dde7;">
             <img src="{{ task_preview_url }}" alt="Vista gráfica de la tarea" />
@@ -447,10 +512,22 @@
           {% endif %}
         </div>
 
-        <div style="margin-top:12px; background:#d92b30; color:#ffffff; font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; padding:7px 12px; border:1px solid #d92b30; border-bottom:none; border-radius:4px 4px 0 0;">
-          Consigna / Explicación
+        {% if animation_frames %}
+        <div style="margin-top:12px;" class="uefa-section">Secuencia animada</div>
+        <div class="uefa-box">
+          <div class="sequence-list">
+            {% for frame in animation_frames %}
+            <div class="sequence-step">
+              <strong>Paso {{ forloop.counter }} · {{ frame.title }}</strong>
+              <span>Duración estimada: {{ frame.duration }} s</span>
+            </div>
+            {% endfor %}
+          </div>
         </div>
-        <div style="border:1px solid #6b7280; padding:12px 12px 14px; background:#ffffff; min-height:150px; line-height:1.5;">
+        {% endif %}
+
+        <div style="margin-top:12px;" class="uefa-section">Consigna / Explicación</div>
+        <div class="uefa-box uefa-long-copy" style="min-height:150px;">
           {% if description_lines and description_lines.0 != '-' %}
           <div class="text-block">{{ description_lines|join:"\n" }}</div>
           {% else %}

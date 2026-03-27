@@ -2868,7 +2868,11 @@ class SessionsPlanningTests(TestCase):
                             'materials': 'Conos, petos y portería grande',
                         }
                     },
-                }
+                },
+                'timeline': [
+                    {'title': 'Salida', 'duration': 2, 'canvas_state': {'version': '5.3.0', 'objects': []}},
+                    {'title': 'Finalización', 'duration': 4, 'canvas_state': {'version': '5.3.0', 'objects': []}},
+                ],
             },
         )
 
@@ -2879,6 +2883,8 @@ class SessionsPlanningTests(TestCase):
         self.assertContains(response, 'Detalles del Ejercicio')
         self.assertContains(response, 'Descripción Gráfica')
         self.assertContains(response, 'Consigna / Explicación')
+        self.assertContains(response, 'Secuencia animada')
+        self.assertContains(response, 'Paso 1')
         self.assertContains(response, 'Situaciones reducidas')
         self.assertContains(response, 'portería grande')
         self.assertContains(response, 'Formato UEFA')
@@ -2962,6 +2968,34 @@ class SessionsPlanningTests(TestCase):
         self.assertContains(response, 'Borrador sin guardar')
         self.assertContains(response, 'Entrega Ejercicio')
         self.assertFalse(SessionTask.objects.filter(title='Borrador sin guardar').exists())
+
+    def test_session_task_detail_shows_animation_strip_when_task_has_steps(self):
+        session = TrainingSession.objects.create(
+            microcycle=self.microcycle,
+            session_date=date(2026, 3, 25),
+            focus='Sesión con animación',
+            duration_minutes=90,
+        )
+        task = SessionTask.objects.create(
+            session=session,
+            title='Tarea animada',
+            block=SessionTask.BLOCK_MAIN_1,
+            duration_minutes=18,
+            tactical_layout={
+                'timeline': [
+                    {'title': 'Salida', 'duration': 2, 'canvas_state': {'version': '5.3.0', 'objects': []}},
+                    {'title': 'Llegada', 'duration': 3, 'canvas_state': {'version': '5.3.0', 'objects': []}},
+                ],
+                'meta': {'scope': 'coach', 'graphic_editor': {'canvas_state': {'version': '5.3.0', 'objects': []}}},
+            },
+        )
+
+        response = self.client.get(reverse('session-task-detail', args=[task.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Secuencia animada')
+        self.assertContains(response, 'Paso 1')
+        self.assertContains(response, 'Reproducir')
 
     def test_library_task_can_be_copied_to_session(self):
         library_session = TrainingSession.objects.create(
