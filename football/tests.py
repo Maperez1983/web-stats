@@ -3119,19 +3119,16 @@ class CoachOverviewTests(TestCase):
         self.assertContains(response, 'Sufren cuando les obligas a defender amplitud.')
         self.assertContains(response, 'Staff Técnico')
 
-    def test_coach_cards_page_groups_modules_by_function(self):
+    def test_coach_cards_page_shows_staff_areas_without_duplicating_client_modules(self):
         response = self.client.get(reverse('coach-cards'))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Módulos del cliente')
-        self.assertContains(response, 'Portada')
-        self.assertContains(response, 'Estadísticas')
         self.assertContains(response, 'Cuerpo técnico')
-        self.assertContains(response, 'Partido')
-        self.assertContains(response, 'Entrenamiento')
-        self.assertContains(response, 'Análisis')
-        self.assertNotContains(response, '>Datos temporada<', html=False)
+        self.assertContains(response, 'Entrenadores')
+        self.assertContains(response, 'Porteros')
+        self.assertContains(response, 'Preparación física')
+        self.assertContains(response, 'Análisis y apoyo')
+        self.assertNotContains(response, 'Módulos del cliente')
         self.assertContains(response, reverse('sessions-goalkeeper'))
         self.assertContains(response, reverse('sessions-fitness'))
-        self.assertContains(response, reverse('convocation'))
-        self.assertContains(response, reverse('initial-eleven'))
+        self.assertContains(response, reverse('analysis'))

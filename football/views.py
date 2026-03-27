@@ -4794,74 +4794,61 @@ def coach_cards_page(request):
     forbidden = _forbid_if_workspace_module_disabled(request, 'coach_overview', label='módulos de staff')
     if forbidden:
         return forbidden
+    role_labels = dict(AppUserRole.ROLE_CHOICES)
+    technical_roles = {
+        AppUserRole.ROLE_COACH,
+        AppUserRole.ROLE_GOALKEEPER,
+        AppUserRole.ROLE_FITNESS,
+        AppUserRole.ROLE_ANALYST,
+    }
+    role_rows = list(AppUserRole.objects.select_related('user').filter(role__in=technical_roles))
+    members_by_role = {key: [] for key in technical_roles}
+    for role_row in role_rows:
+        if not role_row.user.is_active:
+            continue
+        full_name = role_row.user.get_full_name().strip() or role_row.user.username
+        members_by_role.setdefault(role_row.role, []).append(full_name)
     cards = [
         {
-            'title': 'Portada',
-            'description': 'Entrada principal del cliente con clasificación, rival, foto home y lectura ejecutiva.',
-            'link': 'dashboard-home',
-            'member_name': 'Resumen ejecutivo del cliente',
-            'items': [
-                {'label': 'Home del cliente', 'link': 'dashboard-home'},
-                {'label': 'Clasificación', 'link': 'dashboard-home'},
-                {'label': 'Próximo partido', 'link': 'dashboard-home'},
-                {'label': 'Zona jugadores', 'link': 'player-dashboard'},
-            ],
-        },
-        {
-            'title': 'Estadísticas',
-            'description': 'KPIs de temporada, seguimiento individual y soporte manual para el staff.',
-            'link': 'coach-role-trainer',
-            'member_name': 'KPIs · jugadores · temporada',
-            'items': [
-                {'label': 'Portada estadística', 'link': 'coach-role-trainer'},
-                {'label': 'Seguimiento jugadores', 'link': 'player-dashboard'},
-                {'label': 'Estadísticas manuales', 'link': 'manual-player-stats'},
-                {'label': 'Ficha jugador', 'link': 'player-dashboard'},
-            ],
-        },
-        {
-            'title': 'Cuerpo técnico',
-            'description': 'Hub del staff, plantilla operativa y acceso a las áreas de trabajo del cuerpo técnico.',
+            'title': 'Entrenadores',
+            'description': 'Estructura principal del staff para coordinar la lectura del partido, la semana y la operativa del cliente.',
             'link': 'coach-detail',
-            'member_name': 'Entrenador · analista · staff',
+            'member_name': ' · '.join(members_by_role.get(AppUserRole.ROLE_COACH) or ['Sin asignar']),
             'items': [
                 {'label': 'Portada staff', 'link': 'coach-detail'},
-                {'label': 'Módulos staff', 'link': 'coach-cards'},
+                {'label': 'KPIs y temporada', 'link': 'coach-role-trainer'},
                 {'label': 'Registro de jugadores', 'link': 'coach-roster'},
-                {'label': 'Porteros y físico', 'link': 'coach-role-goalkeeper'},
             ],
         },
         {
-            'title': 'Partido',
-            'description': 'Trabajo prepartido y live para convocatoria, once inicial y registro del partido.',
-            'link': 'convocation',
-            'member_name': 'Operativa matchday',
+            'title': 'Porteros',
+            'description': 'Trabajo específico del preparador de porteros dentro del plan semanal y del diseño de tareas.',
+            'link': 'sessions-goalkeeper',
+            'member_name': ' · '.join(members_by_role.get(AppUserRole.ROLE_GOALKEEPER) or ['Sin asignar']),
             'items': [
-                {'label': 'Convocatoria', 'link': 'convocation'},
-                {'label': '11 inicial', 'link': 'initial-eleven'},
-                {'label': 'Registro acciones', 'link': 'match-action-page'},
+                {'label': 'Sesiones de porteros', 'link': 'sessions-goalkeeper'},
+                {'label': 'Crear tarea de porteros', 'link': 'sessions-goalkeeper-task-create'},
             ],
         },
         {
-            'title': 'Entrenamiento',
-            'description': 'Planificador semanal, tareas, trabajo por áreas y ABP dentro del cliente.',
-            'link': 'sessions',
-            'member_name': 'Entrenador · porteros · físico · ABP',
+            'title': 'Preparación física',
+            'description': 'Controla el trabajo condicional y las sesiones del área física sin mezclarlo con otros módulos del cliente.',
+            'link': 'sessions-fitness',
+            'member_name': ' · '.join(members_by_role.get(AppUserRole.ROLE_FITNESS) or ['Sin asignar']),
             'items': [
-                {'label': 'Plan general', 'link': 'sessions'},
-                {'label': 'Porteros', 'link': 'sessions-goalkeeper'},
-                {'label': 'Preparación física', 'link': 'sessions-fitness'},
-                {'label': 'ABP', 'link': 'coach-role-abp'},
+                {'label': 'Sesiones físicas', 'link': 'sessions-fitness'},
+                {'label': 'Crear tarea física', 'link': 'sessions-fitness-task-create'},
             ],
         },
         {
-            'title': 'Análisis',
-            'description': 'Rival, informes, vídeo y lectura táctica para preparar el partido.',
+            'title': 'Análisis y apoyo',
+            'description': 'Zona de apoyo del staff para scouting, vídeo y lectura táctica sin duplicar el módulo principal de análisis.',
             'link': 'analysis',
-            'member_name': 'Analista · vídeo · rival',
+            'member_name': ' · '.join(members_by_role.get(AppUserRole.ROLE_ANALYST) or ['Sin asignar']),
             'items': [
                 {'label': 'Análisis rival', 'link': 'analysis'},
                 {'label': 'Informes y scouting', 'link': 'analysis'},
+                {'label': 'ABP', 'link': 'coach-role-abp'},
             ],
         },
     ]
@@ -4870,6 +4857,7 @@ def coach_cards_page(request):
         'football/coach_cards.html',
         {
             'cards': cards,
+            'staff_count': sum(1 for value in members_by_role.values() for _ in value),
         },
     )
 
