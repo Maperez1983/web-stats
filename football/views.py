@@ -686,7 +686,12 @@ def _get_user_role(user):
         'admin': AppUserRole.ROLE_ADMIN,
         'player': AppUserRole.ROLE_PLAYER,
     }
-    return legacy_map.get(role, role)
+    normalized_role = legacy_map.get(role, role)
+    if normalized_role:
+        return normalized_role
+    if getattr(user, 'is_superuser', False) or getattr(user, 'is_staff', False):
+        return AppUserRole.ROLE_ADMIN
+    return None
 
 
 def _is_admin_user(user):

@@ -383,6 +383,19 @@ class PlatformWorkspaceTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
 
+    def test_staff_user_without_explicit_role_is_treated_as_admin(self):
+        staff_user = get_user_model().objects.create_user(
+            username='staff-no-role',
+            email='staff-no-role@example.com',
+            password='pass-1234',
+            is_staff=True,
+        )
+        self.client.force_login(staff_user)
+
+        response = self.client.get(reverse('dashboard-home'))
+
+        self.assertEqual(response.status_code, 200)
+
     def test_platform_overview_bootstraps_primary_and_task_studio_workspaces(self):
         self.client.force_login(self.admin_user)
 
