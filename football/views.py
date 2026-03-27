@@ -4713,10 +4713,10 @@ def coach_cards_page(request):
             'title': 'Análisis',
             'description': 'Rival, informes, vídeo y lectura táctica para preparar el partido.',
             'link': 'analysis',
-            'member_name': 'Vídeo · rival · reportes',
+            'member_name': 'Analista · vídeo · rival',
             'items': [
                 {'label': 'Análisis rival', 'link': 'analysis'},
-                {'label': 'Portada staff', 'link': 'coach-detail'},
+                {'label': 'Informes y scouting', 'link': 'analysis'},
             ],
         },
     ]
