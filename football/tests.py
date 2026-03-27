@@ -280,6 +280,20 @@ class TaskStudioAccessTests(TestCase):
             password='pass-1234',
         )
         AppUserRole.objects.create(user=guest_user, role=AppUserRole.ROLE_GUEST)
+        workspace = Workspace.objects.create(
+            name='Task Studio invitado',
+            slug='task-studio-invitado',
+            kind=Workspace.KIND_TASK_STUDIO,
+            owner_user=guest_user,
+            enabled_modules={
+                'task_studio_home': True,
+                'task_studio_profile': True,
+                'task_studio_roster': True,
+                'task_studio_tasks': True,
+                'task_studio_pdfs': True,
+            },
+        )
+        TaskStudioProfile.objects.create(user=guest_user, workspace=workspace)
         self.client.force_login(guest_user)
 
         response = self.client.post(
@@ -293,6 +307,20 @@ class TaskStudioAccessTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Entrega Ejercicio')
+
+    def test_guest_role_without_assignment_cannot_access_task_studio(self):
+        guest_user = get_user_model().objects.create_user(
+            username='guest-no-studio',
+            email='guest-no-studio@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=guest_user, role=AppUserRole.ROLE_GUEST)
+        self.client.force_login(guest_user)
+
+        response = self.client.get(reverse('task-studio-home'))
+
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(Workspace.objects.filter(owner_user=guest_user, kind=Workspace.KIND_TASK_STUDIO).exists())
 
     @patch('football.views.weasyprint', None)
     def test_disabled_task_studio_pdf_module_returns_403(self):
@@ -478,6 +506,20 @@ class PlatformWorkspaceTests(TestCase):
         self.assertEqual(created_user.app_role.role, AppUserRole.ROLE_TASK_STUDIO)
         self.assertTrue(Workspace.objects.filter(owner_user=created_user, kind=Workspace.KIND_TASK_STUDIO).exists())
         self.assertContains(response, 'Usuario creado en Plataforma')
+
+    def test_platform_overview_does_not_bootstrap_guest_task_studio_workspace(self):
+        guest_user = get_user_model().objects.create_user(
+            username='club-guest',
+            email='club-guest@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=guest_user, role=AppUserRole.ROLE_GUEST)
+        self.client.force_login(self.admin_user)
+
+        response = self.client.get(reverse('platform-overview'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Workspace.objects.filter(owner_user=guest_user, kind=Workspace.KIND_TASK_STUDIO).exists())
 
     def test_platform_overview_can_generate_global_invitation(self):
         self.client.force_login(self.admin_user)

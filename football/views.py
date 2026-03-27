@@ -721,8 +721,14 @@ def _can_access_task_studio(user):
         return False
     if _is_admin_user(user):
         return True
-    if _get_user_role(user) not in {AppUserRole.ROLE_TASK_STUDIO, AppUserRole.ROLE_GUEST}:
+    role = _get_user_role(user)
+    if role not in {AppUserRole.ROLE_TASK_STUDIO, AppUserRole.ROLE_GUEST}:
         return False
+    if role == AppUserRole.ROLE_GUEST:
+        has_workspace = Workspace.objects.filter(kind=Workspace.KIND_TASK_STUDIO, owner_user=user, is_active=True).exists()
+        has_profile = TaskStudioProfile.objects.filter(user=user).exists()
+        if not has_workspace and not has_profile:
+            return False
     profile = TaskStudioProfile.objects.filter(user=user).first()
     if profile and not profile.is_enabled:
         return False
@@ -752,6 +758,20 @@ def _task_studio_query_suffix(target_user, current_user):
 def _task_studio_profile_for_user(user):
     if not user:
         return None
+    role = _get_user_role(user)
+    if role == AppUserRole.ROLE_GUEST:
+        profile = TaskStudioProfile.objects.filter(user=user).first()
+        workspace = Workspace.objects.filter(kind=Workspace.KIND_TASK_STUDIO, owner_user=user).first()
+        if not workspace and profile and profile.workspace_id and getattr(profile.workspace, 'kind', None) == Workspace.KIND_TASK_STUDIO:
+            workspace = profile.workspace
+        if not profile and not workspace:
+            return None
+        if not profile:
+            profile = TaskStudioProfile.objects.create(user=user, workspace=workspace)
+        elif workspace and profile.workspace_id != workspace.id:
+            profile.workspace = workspace
+            profile.save(update_fields=['workspace'])
+        return profile
     workspace = _ensure_task_studio_workspace(user)
     profile, _ = TaskStudioProfile.objects.get_or_create(user=user, defaults={'workspace': workspace})
     if workspace and profile.workspace_id != workspace.id:
@@ -2350,11 +2370,7 @@ def platform_overview_page(request):
     }
     if primary_team:
         _ensure_club_workspace(primary_team)
-    studio_users = (
-        User.objects
-        .filter(app_role__role__in=[AppUserRole.ROLE_TASK_STUDIO, AppUserRole.ROLE_GUEST])
-        .distinct()
-    )
+    studio_users = User.objects.filter(app_role__role=AppUserRole.ROLE_TASK_STUDIO).distinct()
     for studio_user in studio_users:
         _ensure_task_studio_workspace(studio_user)
 
@@ -2505,7 +2521,7 @@ def platform_overview_page(request):
                     user.is_staff = True
                     user.save(update_fields=['is_staff'])
                 AppUserRole.objects.update_or_create(user=user, defaults={'role': role_value})
-                if role_value in {AppUserRole.ROLE_TASK_STUDIO, AppUserRole.ROLE_GUEST}:
+                if role_value == AppUserRole.ROLE_TASK_STUDIO:
                     _ensure_task_studio_workspace(user)
                 user_message = f'Usuario creado en Plataforma: {username}.'
                 user_form = {
