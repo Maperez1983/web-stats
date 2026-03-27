@@ -530,6 +530,93 @@ class PlatformWorkspaceTests(TestCase):
         self.assertTrue(self.studio_user.is_active)
         self.assertContains(response, 'Usuario actualizado')
 
+    def test_platform_overview_can_toggle_user_active_state(self):
+        self.client.force_login(self.admin_user)
+
+        response = self.client.post(
+            reverse('platform-overview'),
+            {
+                'form_action': 'platform_user_toggle_active',
+                'user_id': self.studio_user.id,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.studio_user.refresh_from_db()
+        self.assertFalse(self.studio_user.is_active)
+        self.assertContains(response, 'Usuario desactivado')
+
+    def test_platform_overview_can_delete_regular_user(self):
+        removable = get_user_model().objects.create_user(
+            username='removable-user',
+            email='removable@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=removable, role=AppUserRole.ROLE_PLAYER)
+        self.client.force_login(self.admin_user)
+
+        response = self.client.post(
+            reverse('platform-overview'),
+            {
+                'form_action': 'platform_user_delete',
+                'user_id': removable.id,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(get_user_model().objects.filter(id=removable.id).exists())
+        self.assertContains(response, 'Usuario eliminado')
+
+    def test_platform_overview_delete_user_removes_task_studio_workspace(self):
+        removable = get_user_model().objects.create_user(
+            username='studio-removable',
+            email='studio-removable@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=removable, role=AppUserRole.ROLE_TASK_STUDIO)
+        workspace = Workspace.objects.create(
+            name='Studio removable',
+            slug='studio-removable',
+            kind=Workspace.KIND_TASK_STUDIO,
+            owner_user=removable,
+        )
+        TaskStudioProfile.objects.create(user=removable, workspace=workspace)
+        self.client.force_login(self.admin_user)
+
+        response = self.client.post(
+            reverse('platform-overview'),
+            {
+                'form_action': 'platform_user_delete',
+                'user_id': removable.id,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(get_user_model().objects.filter(id=removable.id).exists())
+        self.assertFalse(Workspace.objects.filter(id=workspace.id).exists())
+
+    def test_platform_overview_prevents_deleting_club_owner(self):
+        workspace = Workspace.objects.create(
+            name='Cliente con owner',
+            slug='cliente-con-owner',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.team,
+            owner_user=self.workspace_manager,
+        )
+        self.client.force_login(self.admin_user)
+
+        response = self.client.post(
+            reverse('platform-overview'),
+            {
+                'form_action': 'platform_user_delete',
+                'user_id': self.workspace_manager.id,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(get_user_model().objects.filter(id=self.workspace_manager.id).exists())
+        self.assertContains(response, 'No puedes borrar')
+
     def test_platform_overview_does_not_bootstrap_guest_task_studio_workspace(self):
         guest_user = get_user_model().objects.create_user(
             username='club-guest',

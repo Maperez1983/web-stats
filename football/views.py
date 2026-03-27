@@ -1506,6 +1506,22 @@ def _ensure_task_studio_workspace(user):
     return workspace
 
 
+def _delete_task_studio_workspace(workspace, *, disable_owner_profile=True):
+    if not workspace or workspace.kind != Workspace.KIND_TASK_STUDIO:
+        return
+    owner_user = workspace.owner_user
+    if owner_user and disable_owner_profile:
+        TaskStudioProfile.objects.update_or_create(
+            user=owner_user,
+            defaults={'workspace': None, 'is_enabled': False},
+        )
+    TaskStudioTask.objects.filter(workspace=workspace).delete()
+    TaskStudioRosterPlayer.objects.filter(workspace=workspace).delete()
+    TaskStudioProfile.objects.filter(workspace=workspace).exclude(user=owner_user).delete()
+    WorkspaceMembership.objects.filter(workspace=workspace).delete()
+    workspace.delete()
+
+
 def _can_access_player_resource(user, player, primary_team=None):
     if not user or not user.is_authenticated or not player:
         return False
@@ -2606,6 +2622,49 @@ def platform_overview_page(request):
                 user_error = str(exc)
             except Exception:
                 user_error = 'No se pudo actualizar el usuario.'
+        elif form_action == 'platform_user_toggle_active':
+            active_tab = 'users'
+            users_subtab = 'list'
+            user_id = _parse_int(request.POST.get('user_id'))
+            user_obj = User.objects.filter(id=user_id).first() if user_id else None
+            try:
+                if not user_obj:
+                    raise ValueError('Usuario no encontrado.')
+                user_obj.is_active = not bool(user_obj.is_active)
+                role_value = _get_user_role(user_obj)
+                if not user_obj.is_active and role_value == AppUserRole.ROLE_ADMIN:
+                    user_obj.is_staff = False
+                elif user_obj.is_active and role_value == AppUserRole.ROLE_ADMIN:
+                    user_obj.is_staff = True
+                user_obj.save(update_fields=['is_active', 'is_staff'])
+                user_message = f'Usuario {"activado" if user_obj.is_active else "desactivado"}: {user_obj.username}.'
+            except ValueError as exc:
+                user_error = str(exc)
+            except Exception:
+                user_error = 'No se pudo cambiar el estado del usuario.'
+        elif form_action == 'platform_user_delete':
+            active_tab = 'users'
+            users_subtab = 'list'
+            user_id = _parse_int(request.POST.get('user_id'))
+            user_obj = User.objects.filter(id=user_id).first() if user_id else None
+            try:
+                if not user_obj:
+                    raise ValueError('Usuario no encontrado.')
+                owned_club_workspace = Workspace.objects.filter(kind=Workspace.KIND_CLUB, owner_user=user_obj).first()
+                if owned_club_workspace:
+                    raise ValueError(f'No puedes borrar {user_obj.username} mientras sea propietario de {owned_club_workspace.name}.')
+                task_studio_workspace = Workspace.objects.filter(kind=Workspace.KIND_TASK_STUDIO, owner_user=user_obj).first()
+                if task_studio_workspace:
+                    _delete_task_studio_workspace(task_studio_workspace, disable_owner_profile=False)
+                WorkspaceMembership.objects.filter(user=user_obj).delete()
+                UserInvitation.objects.filter(user=user_obj).update(is_active=False)
+                username = user_obj.username
+                user_obj.delete()
+                user_message = f'Usuario eliminado: {username}.'
+            except ValueError as exc:
+                user_error = str(exc)
+            except Exception:
+                user_error = 'No se pudo eliminar el usuario.'
         elif form_action in {'carousel_upload', 'carousel_update', 'carousel_delete'}:
             active_tab = 'home-global'
             if _handle_home_carousel_post(request):

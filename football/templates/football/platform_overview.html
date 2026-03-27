@@ -945,6 +945,20 @@
                   <button class="link-btn" type="submit">Guardar usuario</button>
                 </div>
               </form>
+              <div class="actions-row" style="margin-top:0.6rem;">
+                <form method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="form_action" value="platform_user_toggle_active" />
+                  <input type="hidden" name="user_id" value="{{ item.id }}" />
+                  <button class="link-btn" type="submit">{% if item.is_active %}Desactivar usuario{% else %}Activar usuario{% endif %}</button>
+                </form>
+                <form method="post" onsubmit="return confirm('Se eliminará este usuario del sistema.');">
+                  {% csrf_token %}
+                  <input type="hidden" name="form_action" value="platform_user_delete" />
+                  <input type="hidden" name="user_id" value="{{ item.id }}" />
+                  <button class="danger-btn" type="submit">Eliminar usuario</button>
+                </form>
+              </div>
             </div>
             {% empty %}
             <div class="user-row">
