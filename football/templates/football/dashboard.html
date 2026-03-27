@@ -529,14 +529,16 @@
 
       <section class="block product-card" style="margin-top:1rem;">
         <div style="display:flex; align-items:center; justify-content:space-between; gap:0.8rem; flex-wrap:wrap;">
-          <h3 style="margin:0;">Centro de Operaciones</h3>
+          <h3 style="margin:0;">Módulos del cliente</h3>
           <span class="product-chip">Comercial Ready</span>
         </div>
         <div style="margin-top:0.7rem; display:grid; gap:0.6rem; grid-template-columns:repeat(auto-fit,minmax(220px,1fr));">
-          <a class="module-tab" href="{% url 'sessions' %}">Biblioteca de tareas</a>
-          <a class="module-tab" href="{% url 'convocation' %}">Convocatoria</a>
-          <a class="module-tab" href="{% url 'analysis' %}">Análisis rival</a>
-          <a class="module-tab" href="{% url 'player-dashboard' %}">Seguimiento de jugadores</a>
+          <a class="module-tab" href="{% url 'dashboard-home' %}">Portada</a>
+          <a class="module-tab" href="{% url 'coach-role-trainer' %}">Estadísticas</a>
+          <a class="module-tab" href="{% url 'coach-cards' %}">Cuerpo técnico</a>
+          <a class="module-tab" href="{% url 'convocation' %}">Partido</a>
+          <a class="module-tab" href="{% url 'sessions' %}">Entrenamiento</a>
+          <a class="module-tab" href="{% url 'analysis' %}">Análisis</a>
         </div>
       </section>
 

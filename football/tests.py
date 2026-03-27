@@ -494,8 +494,8 @@ class PlatformWorkspaceTests(TestCase):
                 'workspace_notes': 'Cliente creado desde Plataforma con configuración completa.',
                 'initial_admin_usernames': self.workspace_manager.username,
                 'initial_member_usernames': f'{self.workspace_member.username}, {self.basic_user.username}',
-                'module_configuration': 'on',
-                'deliverable_configuration__player_registry': 'on',
+                'module_technical_staff': 'on',
+                'deliverable_technical_staff__staff_roster': 'on',
                 'module_training': 'on',
                 'deliverable_training__sessions': 'on',
             },
@@ -511,12 +511,12 @@ class PlatformWorkspaceTests(TestCase):
         self.assertFalse(workspace.enabled_modules.get('dashboard'))
         self.assertFalse(workspace.enabled_modules.get('convocation'))
         self.assertFalse(workspace.enabled_modules.get('abp_board'))
-        self.assertTrue(workspace.enabled_modules.get('module__configuration'))
+        self.assertTrue(workspace.enabled_modules.get('module__technical_staff'))
         self.assertTrue(workspace.enabled_modules.get('module__training'))
         self.assertFalse(workspace.enabled_modules.get('module__match'))
-        self.assertTrue(workspace.enabled_modules.get('deliverable__configuration__player_registry'))
+        self.assertTrue(workspace.enabled_modules.get('deliverable__technical_staff__staff_roster'))
         self.assertTrue(workspace.enabled_modules.get('deliverable__training__sessions'))
-        self.assertFalse(workspace.enabled_modules.get('deliverable__training__task_library'))
+        self.assertFalse(workspace.enabled_modules.get('deliverable__training__training_areas'))
         self.assertTrue(
             WorkspaceMembership.objects.filter(
                 workspace=workspace,
@@ -661,8 +661,8 @@ class PlatformWorkspaceTests(TestCase):
             reverse('platform-workspace-detail', args=[workspace.id]),
             {
                 'form_action': 'update_modules',
-                'module_configuration': 'on',
-                'deliverable_configuration__player_registry': 'on',
+                'module_technical_staff': 'on',
+                'deliverable_technical_staff__staff_roster': 'on',
                 'module_match': 'on',
                 'deliverable_match__convocation': 'on',
             },
@@ -675,7 +675,7 @@ class PlatformWorkspaceTests(TestCase):
         self.assertFalse(workspace.enabled_modules.get('match_actions'))
         self.assertFalse(workspace.enabled_modules.get('dashboard'))
         self.assertFalse(workspace.enabled_modules.get('analysis'))
-        self.assertTrue(workspace.enabled_modules.get('deliverable__configuration__player_registry'))
+        self.assertTrue(workspace.enabled_modules.get('deliverable__technical_staff__staff_roster'))
         self.assertTrue(workspace.enabled_modules.get('deliverable__match__convocation'))
         self.assertFalse(workspace.enabled_modules.get('deliverable__match__starting_xi'))
         self.assertFalse(workspace.enabled_modules.get('deliverable__match__live_match'))
@@ -779,8 +779,8 @@ class PlatformWorkspaceTests(TestCase):
                 'analysis': False,
                 'abp_board': False,
                 'manual_stats': False,
-                'module__configuration': True,
-                'deliverable__configuration__player_registry': True,
+                'module__technical_staff': True,
+                'deliverable__technical_staff__staff_roster': True,
             },
         )
         WorkspaceMembership.objects.create(
@@ -2442,6 +2442,28 @@ class SessionsPlanningTests(TestCase):
         season = Season.objects.create(competition=competition, name='2025/2026', is_current=True)
         group = Group.objects.create(season=season, name='Grupo Sessions', slug='grupo-sessions')
         self.team = Team.objects.create(name='Benagalbon', slug='benagalbon-sessions', group=group, is_primary=True)
+        self.workspace = Workspace.objects.create(
+            name='Benagalbon Sessions',
+            slug='benagalbon-sessions-workspace',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.team,
+            enabled_modules={
+                'dashboard': True,
+                'coach_overview': True,
+                'players': True,
+                'convocation': True,
+                'match_actions': True,
+                'sessions': True,
+                'analysis': True,
+                'abp_board': True,
+                'manual_stats': True,
+            },
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.user,
+            role=WorkspaceMembership.ROLE_ADMIN,
+        )
         self.microcycle = TrainingMicrocycle.objects.create(
             team=self.team,
             title='Microciclo J24',
@@ -2473,6 +2495,39 @@ class SessionsPlanningTests(TestCase):
         self.assertEqual(session.start_time.strftime('%H:%M'), '19:30')
         self.assertContains(response, 'Transición + finalización')
         self.assertContains(response, '19:30')
+
+    def test_create_session_plan_can_attach_selected_library_tasks(self):
+        library_session = TrainingSession.objects.create(
+            microcycle=self.microcycle,
+            session_date=date(2026, 3, 23),
+            focus='Biblioteca coach',
+            duration_minutes=90,
+        )
+        library_task = SessionTask.objects.create(
+            session=library_session,
+            title='Rondo de activación',
+            block=SessionTask.BLOCK_ACTIVATION,
+            duration_minutes=12,
+            tactical_layout={'meta': {'scope': 'coach'}},
+        )
+
+        response = self.client.post(
+            reverse('sessions'),
+            {
+                'planner_action': 'create_session_plan',
+                'planner_tab': 'planning',
+                'plan_microcycle_id': self.microcycle.id,
+                'plan_session_date': '2026-03-25',
+                'plan_session_focus': 'Sesión con tareas',
+                'plan_session_task_ids': [library_task.id],
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        session = TrainingSession.objects.get(microcycle=self.microcycle, focus='Sesión con tareas')
+        self.assertEqual(session.tasks.count(), 1)
+        self.assertEqual(session.tasks.first().title, 'Rondo de activación')
+        self.assertContains(response, 'Tareas añadidas: 1')
 
     def test_create_session_plan_rejects_date_outside_microcycle(self):
         response = self.client.post(
@@ -2779,6 +2834,38 @@ class SessionsPlanningTests(TestCase):
         self.assertContains(response, 'Formato Club')
 
     @patch('football.views.weasyprint', None)
+    def test_session_plan_pdf_renders_uefa_and_club_styles(self):
+        session = TrainingSession.objects.create(
+            microcycle=self.microcycle,
+            session_date=date(2026, 3, 25),
+            focus='Sesión semanal',
+            duration_minutes=90,
+            content='Activación, juego aplicado y vuelta a la calma',
+            intensity=TrainingSession.INTENSITY_HIGH,
+        )
+        SessionTask.objects.create(
+            session=session,
+            title='Juego aplicado 7v7',
+            block=SessionTask.BLOCK_MAIN_1,
+            duration_minutes=18,
+            objective='Ajustar alturas y finalizar',
+            coaching_points='Fijar antes de soltar',
+            confrontation_rules='Si roba, finaliza en miniportería',
+            tactical_layout={'meta': {'scope': 'coach'}},
+        )
+
+        response_uefa = self.client.get(reverse('session-plan-pdf', args=[session.id]))
+        response_club = self.client.get(reverse('session-plan-pdf', args=[session.id]) + '?style=club')
+
+        self.assertEqual(response_uefa.status_code, 200)
+        self.assertContains(response_uefa, 'Entrega Sesión')
+        self.assertContains(response_uefa, 'Detalles de la sesión')
+        self.assertContains(response_uefa, 'Juego aplicado 7v7')
+        self.assertEqual(response_club.status_code, 200)
+        self.assertContains(response_club, 'Planificación de sesión')
+        self.assertContains(response_club, 'Formato Club')
+
+    @patch('football.views.weasyprint', None)
     def test_session_task_pdf_preview_renders_without_saving_task(self):
         response = self.client.post(
             reverse('sessions-task-pdf-preview') + '?style=uefa',
@@ -2933,6 +3020,28 @@ class CoachOverviewTests(TestCase):
         season = Season.objects.create(competition=competition, name='2025/2026', is_current=True)
         self.group = Group.objects.create(season=season, name='Grupo Coach', slug='grupo-coach')
         self.team = Team.objects.create(name='Benagalbon', slug='benagalbon-coach', group=self.group, is_primary=True)
+        self.workspace = Workspace.objects.create(
+            name='Benagalbon Coach',
+            slug='benagalbon-coach-workspace',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.team,
+            enabled_modules={
+                'dashboard': True,
+                'coach_overview': True,
+                'players': True,
+                'convocation': True,
+                'match_actions': True,
+                'sessions': True,
+                'analysis': True,
+                'abp_board': True,
+                'manual_stats': True,
+            },
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.user,
+            role=WorkspaceMembership.ROLE_ADMIN,
+        )
         self.rival_future = Team.objects.create(name='Rival Futuro', slug='rival-futuro', group=self.group)
         self.rival_old = Team.objects.create(name='Rival Antiguo', slug='rival-antiguo', group=self.group)
         self.client.force_login(self.user)
@@ -2995,12 +3104,14 @@ class CoachOverviewTests(TestCase):
         response = self.client.get(reverse('coach-cards'))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Plantilla técnica')
-        self.assertContains(response, 'Datos temporada')
-        self.assertContains(response, 'Sesiones')
-        self.assertContains(response, 'Convocatoria y 11 inicial')
+        self.assertContains(response, 'Módulos del cliente')
+        self.assertContains(response, 'Portada')
+        self.assertContains(response, 'Estadísticas')
+        self.assertContains(response, 'Cuerpo técnico')
+        self.assertContains(response, 'Partido')
+        self.assertContains(response, 'Entrenamiento')
         self.assertContains(response, 'Análisis')
-        self.assertNotContains(response, '>Entrenador<', html=False)
+        self.assertNotContains(response, '>Datos temporada<', html=False)
         self.assertContains(response, reverse('sessions-goalkeeper'))
         self.assertContains(response, reverse('sessions-fitness'))
         self.assertContains(response, reverse('convocation'))

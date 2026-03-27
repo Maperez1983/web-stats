@@ -890,45 +890,26 @@ def _workspace_collect_route_keys(entries):
 def _workspace_club_module_catalog():
     return [
         {
-            'key': 'configuration',
-            'label': 'Configuración',
-            'description': 'Base de arranque del cliente: equipo, staff y plantilla operativa.',
+            'key': 'cover',
+            'label': 'Portada',
+            'description': 'Resumen ejecutivo del cliente: home, clasificación, contexto visual y próximo partido.',
             'deliverables': [
                 {
-                    'key': 'team_data',
-                    'label': 'Datos de equipo',
-                    'description': 'Nombre, identidad y bloque base del equipo dentro del CRM.',
-                    'route_keys': ['players'],
-                },
-                {
-                    'key': 'personal_data',
-                    'label': 'Datos de staff',
-                    'description': 'Datos personales y estructura técnica asociada al cliente.',
-                    'route_keys': ['players'],
-                },
-                {
-                    'key': 'player_registry',
-                    'label': 'Registro de jugadores',
-                    'description': 'Alta, edición y consulta completa de la plantilla.',
-                    'route_keys': ['players'],
-                },
-            ],
-        },
-        {
-            'key': 'advanced_configuration',
-            'label': 'Configuración avanzada',
-            'description': 'Contexto competitivo y capas avanzadas de configuración del cliente.',
-            'deliverables': [
-                {
-                    'key': 'standings',
-                    'label': 'Clasificación',
-                    'description': 'Clasificación, contexto competitivo y portada general.',
+                    'key': 'executive_home',
+                    'label': 'Resumen ejecutivo',
+                    'description': 'Home principal con foto, estado del equipo, alertas y contexto general.',
                     'route_keys': ['dashboard'],
                 },
                 {
-                    'key': 'advanced_params',
-                    'label': 'Parámetros avanzados',
-                    'description': 'Ajustes internos del cliente y preparación de integraciones.',
+                    'key': 'competition_context',
+                    'label': 'Clasificación y próximo partido',
+                    'description': 'Lectura competitiva, rival siguiente y visión rápida de la semana.',
+                    'route_keys': ['dashboard'],
+                },
+                {
+                    'key': 'visual_identity',
+                    'label': 'Foto home e identidad visual',
+                    'description': 'Carrusel, presencia visual y narrativa de portada del cliente.',
                     'route_keys': ['dashboard'],
                 },
             ],
@@ -936,49 +917,74 @@ def _workspace_club_module_catalog():
         {
             'key': 'statistics',
             'label': 'Estadísticas',
-            'description': 'KPIs de temporada, control individual y métricas manuales.',
+            'description': 'KPIs de temporada, seguimiento individual y métricas manuales del cliente.',
             'deliverables': [
                 {
                     'key': 'season_kpis',
-                    'label': 'Datos temporada',
-                    'description': 'KPIs, disponibilidad y lectura general de temporada.',
+                    'label': 'KPIs de temporada',
+                    'description': 'Rendimiento global, disponibilidad, líderes y lectura competitiva.',
                     'route_keys': ['coach_overview'],
                 },
                 {
-                    'key': 'player_kpis',
-                    'label': 'KPIs jugador',
-                    'description': 'Seguimiento individual y foco técnico por jugador.',
-                    'route_keys': ['coach_overview'],
+                    'key': 'player_follow_up',
+                    'label': 'Seguimiento de jugadores',
+                    'description': 'Panel individual, fichas y lectura técnica de la plantilla.',
+                    'route_keys': ['coach_overview', 'players'],
                 },
                 {
                     'key': 'manual_metrics',
                     'label': 'Estadísticas manuales',
-                    'description': 'Carga manual de métricas y ajustes de staff.',
+                    'description': 'Carga manual y correcciones de staff sobre métricas y estados.',
                     'route_keys': ['manual_stats'],
+                },
+            ],
+        },
+        {
+            'key': 'technical_staff',
+            'label': 'Cuerpo técnico',
+            'description': 'Estructura de staff, plantilla operativa y accesos por área técnica.',
+            'deliverables': [
+                {
+                    'key': 'staff_hub',
+                    'label': 'Hub del staff',
+                    'description': 'Portada operativa del cuerpo técnico y reparto de áreas.',
+                    'route_keys': ['coach_overview'],
+                },
+                {
+                    'key': 'staff_roster',
+                    'label': 'Registro de jugadores',
+                    'description': 'Alta, edición y consulta de plantilla dentro del cliente.',
+                    'route_keys': ['players'],
+                },
+                {
+                    'key': 'staff_areas',
+                    'label': 'Áreas del staff',
+                    'description': 'Acceso a entrenador, porteros, físico y coordinación técnica.',
+                    'route_keys': ['coach_overview'],
                 },
             ],
         },
         {
             'key': 'match',
             'label': 'Partido',
-            'description': 'Operativa prepartido y live del CRM del cliente.',
+            'description': 'Operativa prepartido, live y postpartido del cliente.',
             'deliverables': [
                 {
                     'key': 'convocation',
                     'label': 'Convocatoria',
-                    'description': 'Convocatoria y preparación inicial del partido.',
+                    'description': 'Lista oficial, disponibilidad y preparación inicial del partido.',
                     'route_keys': ['convocation'],
                 },
                 {
                     'key': 'starting_xi',
                     'label': '11 inicial',
-                    'description': 'Configuración del once y estructura de arranque.',
+                    'description': 'Once inicial, estructura táctica y banquillo del partido.',
                     'route_keys': ['convocation'],
                 },
                 {
                     'key': 'live_match',
                     'label': 'Registro de acciones',
-                    'description': 'Operativa live del partido y seguimiento de eventos.',
+                    'description': 'Operativa live, eventos de partido y lectura inmediata.',
                     'route_keys': ['match_actions'],
                 },
             ],
@@ -986,32 +992,32 @@ def _workspace_club_module_catalog():
         {
             'key': 'training',
             'label': 'Entrenamiento',
-            'description': 'Planificación, tareas y recursos de entrenamiento del cliente.',
+            'description': 'Planificación, sesiones, tareas y áreas específicas de entrenamiento.',
             'deliverables': [
                 {
                     'key': 'sessions',
                     'label': 'Sesiones',
-                    'description': 'Planificación de sesiones y estructura semanal.',
+                    'description': 'Microciclos, sesiones semanales y estructura de planificación.',
                     'route_keys': ['sessions'],
                 },
                 {
-                    'key': 'task_library',
-                    'label': 'Biblioteca de tareas',
-                    'description': 'Repositorio y edición táctica aplicada al entrenamiento.',
+                    'key': 'training_areas',
+                    'label': 'Áreas del entrenamiento',
+                    'description': 'Entrenador, porteros y preparación física dentro del plan semanal.',
                     'route_keys': ['sessions'],
                 },
                 {
                     'key': 'abp',
                     'label': 'ABP',
-                    'description': 'Pizarra y trabajo específico de acciones a balón parado.',
-                    'route_keys': ['abp_board'],
+                    'description': 'Pizarra y biblioteca específica de acciones a balón parado.',
+                    'route_keys': ['sessions', 'abp_board'],
                 },
             ],
         },
         {
             'key': 'analysis',
             'label': 'Análisis',
-            'description': 'Scouting, informes y lectura táctica del cliente.',
+            'description': 'Scouting, informes, vídeo y lectura táctica del cliente.',
             'deliverables': [
                 {
                     'key': 'rival_analysis',
@@ -2564,12 +2570,12 @@ def platform_workspace_detail_page(request, workspace_id):
     module_cards = []
     if workspace.kind == Workspace.KIND_CLUB:
         module_cards = [
-            {'title': 'Configuración', 'description': 'Datos de equipo, datos personales y registro de jugadores del cliente.', 'url': reverse('player-dashboard')},
-            {'title': 'Configuración avanzada', 'description': 'Clasificación y contexto competitivo del cliente dentro del CRM.', 'url': reverse('dashboard-home')},
-            {'title': 'Estadísticas', 'description': 'KPIs, portada técnica y métricas manuales del cliente.', 'url': reverse('coach-role-trainer')},
-            {'title': 'Partido', 'description': 'Convocatoria, 11 inicial y operativa de partido del CRM.', 'url': reverse('convocation')},
-            {'title': 'Entrenamiento', 'description': 'Sesiones, tareas y ABP del cliente.', 'url': reverse('sessions')},
-            {'title': 'Análisis', 'description': 'Rival, informes y lectura táctica del cliente seleccionado.', 'url': reverse('analysis')},
+            {'title': 'Portada', 'description': 'Home, clasificación, próximo partido y contexto visual del cliente.', 'url': reverse('dashboard-home')},
+            {'title': 'Estadísticas', 'description': 'KPIs de temporada, seguimiento individual y métricas manuales.', 'url': reverse('coach-role-trainer')},
+            {'title': 'Cuerpo técnico', 'description': 'Hub del staff, plantilla técnica y áreas operativas del cliente.', 'url': reverse('coach-cards')},
+            {'title': 'Partido', 'description': 'Convocatoria, 11 inicial y registro de acciones de matchday.', 'url': reverse('convocation')},
+            {'title': 'Entrenamiento', 'description': 'Microciclos, sesiones, tareas, porteros, físico y ABP.', 'url': reverse('sessions')},
+            {'title': 'Análisis', 'description': 'Rival, informes, scouting y lectura táctica del cliente seleccionado.', 'url': reverse('analysis')},
         ]
     else:
         task_studio_url = reverse('task-studio-home')
@@ -4484,6 +4490,58 @@ def _build_task_draft_pdf_context(request, primary_team, pdf_style='uefa'):
     )
 
 
+def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
+    tasks = list(session.tasks.order_by('order', 'id'))
+    total_task_minutes = sum(int(getattr(task, 'duration_minutes', 0) or 0) for task in tasks)
+    coach_name = (
+        request.user.get_full_name().strip()
+        if hasattr(request.user, 'get_full_name') and request.user.get_full_name().strip()
+        else getattr(request.user, 'username', '') or 'Entrenador'
+    )
+    logo_path = 'football/images/uefa-badge.svg' if pdf_style == 'uefa' else 'football/images/cdb-logo.png'
+    return {
+        'team_name': team.name,
+        'session': session,
+        'microcycle': session.microcycle,
+        'tasks': tasks,
+        'tasks_count': len(tasks),
+        'task_minutes_total': total_task_minutes,
+        'pdf_style': pdf_style,
+        'pdf_palette': _team_pdf_palette(team, pdf_style),
+        'coach_name': coach_name,
+        'logo_url': request.build_absolute_uri(static(logo_path)),
+        'generated_at': timezone.localtime(),
+        'intensity_label': dict(TrainingSession.INTENSITY_CHOICES).get(session.intensity, session.intensity or '-'),
+        'status_label': dict(TrainingSession.STATUS_CHOICES).get(session.status, session.status or '-'),
+    }
+
+
+@login_required
+def session_plan_pdf(request, session_id):
+    if not _can_access_sessions_workspace(request.user):
+        return HttpResponse('No tienes permisos para acceder a sesiones.', status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+    if forbidden:
+        return forbidden
+    session = (
+        TrainingSession.objects
+        .select_related('microcycle__team')
+        .prefetch_related('tasks')
+        .filter(id=session_id)
+        .first()
+    )
+    if not session:
+        raise Http404('Sesión no encontrada')
+
+    pdf_style = (request.GET.get('style') or 'uefa').strip().lower()
+    if pdf_style not in {'uefa', 'club'}:
+        pdf_style = 'uefa'
+    context = _build_session_pdf_context(request, session.microcycle.team, session, pdf_style=pdf_style)
+    html = render_to_string('football/session_plan_pdf.html', context)
+    filename = slugify(f'sesion-{session.session_date}-{session.focus}') or f'sesion-{session.id}'
+    return _build_pdf_response_or_html_fallback(request, html, filename)
+
+
 @login_required
 def session_task_pdf(request, task_id):
     if not _can_access_sessions_workspace(request.user):
@@ -4675,38 +4733,62 @@ def coach_cards_page(request):
         return forbidden
     cards = [
         {
-            'title': 'Datos temporada',
-            'description': 'Resumen competitivo y operativo del equipo durante la temporada.',
+            'title': 'Portada',
+            'description': 'Entrada principal del cliente con clasificación, rival, foto home y lectura ejecutiva.',
+            'link': 'dashboard-home',
+            'member_name': 'Resumen ejecutivo del cliente',
+            'items': [
+                {'label': 'Home del cliente', 'link': 'dashboard-home'},
+                {'label': 'Clasificación', 'link': 'dashboard-home'},
+                {'label': 'Próximo partido', 'link': 'dashboard-home'},
+                {'label': 'Zona jugadores', 'link': 'player-dashboard'},
+            ],
+        },
+        {
+            'title': 'Estadísticas',
+            'description': 'KPIs de temporada, seguimiento individual y soporte manual para el staff.',
             'link': 'coach-role-trainer',
-            'member_name': 'Vista global staff',
+            'member_name': 'KPIs · jugadores · temporada',
             'items': [
-                {'label': 'Resumen equipo', 'link': 'coach-role-trainer'},
-                {'label': 'Disponibilidad', 'link': 'coach-role-trainer'},
-                {'label': 'KPIs y líderes', 'link': 'coach-role-trainer'},
+                {'label': 'Portada estadística', 'link': 'coach-role-trainer'},
                 {'label': 'Seguimiento jugadores', 'link': 'player-dashboard'},
+                {'label': 'Estadísticas manuales', 'link': 'manual-player-stats'},
+                {'label': 'Ficha jugador', 'link': 'player-dashboard'},
             ],
         },
         {
-            'title': 'Sesiones',
-            'description': 'Planificación y biblioteca de tareas por área de trabajo.',
-            'link': 'sessions',
-            'member_name': 'Porteros · Físico · ABP',
+            'title': 'Cuerpo técnico',
+            'description': 'Hub del staff, plantilla operativa y acceso a las áreas de trabajo del cuerpo técnico.',
+            'link': 'coach-detail',
+            'member_name': 'Entrenador · analista · staff',
             'items': [
-                {'label': 'Plan general', 'link': 'sessions'},
-                {'label': 'Porteros', 'link': 'sessions-goalkeeper'},
-                {'label': 'Preparación física', 'link': 'sessions-fitness'},
-                {'label': 'ABP', 'link': 'coach-role-abp'},
+                {'label': 'Portada staff', 'link': 'coach-detail'},
+                {'label': 'Módulos staff', 'link': 'coach-cards'},
+                {'label': 'Registro de jugadores', 'link': 'coach-roster'},
+                {'label': 'Porteros y físico', 'link': 'coach-role-goalkeeper'},
             ],
         },
         {
-            'title': 'Convocatoria y 11 inicial',
-            'description': 'Trabajo prepartido para cerrar lista, estructura y alineación.',
+            'title': 'Partido',
+            'description': 'Trabajo prepartido y live para convocatoria, once inicial y registro del partido.',
             'link': 'convocation',
             'member_name': 'Operativa matchday',
             'items': [
                 {'label': 'Convocatoria', 'link': 'convocation'},
                 {'label': '11 inicial', 'link': 'initial-eleven'},
                 {'label': 'Registro acciones', 'link': 'match-action-page'},
+            ],
+        },
+        {
+            'title': 'Entrenamiento',
+            'description': 'Planificador semanal, tareas, trabajo por áreas y ABP dentro del cliente.',
+            'link': 'sessions',
+            'member_name': 'Entrenador · porteros · físico · ABP',
+            'items': [
+                {'label': 'Plan general', 'link': 'sessions'},
+                {'label': 'Porteros', 'link': 'sessions-goalkeeper'},
+                {'label': 'Preparación física', 'link': 'sessions-fitness'},
+                {'label': 'ABP', 'link': 'coach-role-abp'},
             ],
         },
         {
@@ -8120,7 +8202,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 if duplicate_exists:
                     raise ValueError('Ya existe una sesión con la misma fecha y foco en este microciclo.')
                 next_order = (TrainingSession.objects.filter(microcycle=microcycle).aggregate(Max('order')).get('order__max') or 0) + 1
-                TrainingSession.objects.create(
+                session_obj = TrainingSession.objects.create(
                     microcycle=microcycle,
                     session_date=session_date,
                     start_time=start_time,
@@ -8131,7 +8213,33 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     status=status,
                     order=next_order,
                 )
-                feedback = f'Sesión creada en {microcycle.title}: {focus}.'
+                source_task_ids = [
+                    task_id
+                    for task_id in (_parse_int(value) for value in request.POST.getlist('plan_session_task_ids'))
+                    if task_id
+                ]
+                attached_count = 0
+                if source_task_ids:
+                    source_tasks = list(
+                        SessionTask.objects
+                        .select_related('session__microcycle')
+                        .filter(id__in=source_task_ids, session__microcycle__team=primary_team)
+                        .order_by('order', 'id')
+                    )
+                    for source_task in source_tasks:
+                        if _task_scope_for_item(source_task) != scope_key:
+                            continue
+                        _clone_session_task_to_session(
+                            source_task,
+                            session_obj,
+                            note=f'Añadida al crear sesión desde tarea #{source_task.id}',
+                        )
+                        attached_count += 1
+                feedback = (
+                    f'Sesión creada en {microcycle.title}: {focus}.'
+                    if not attached_count
+                    else f'Sesión creada en {microcycle.title}: {focus}. Tareas añadidas: {attached_count}.'
+                )
 
             elif planner_action == 'update_session_plan':
                 session_id = _parse_int(request.POST.get('edit_session_id'))
@@ -9107,6 +9215,27 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         }
         for session in (planning_sessions or all_sessions)
     ]
+    planning_task_source_options = []
+    if planner_tables_ready and active_tab == 'planning':
+        source_task_candidates = list(
+            SessionTask.objects
+            .select_related('session__microcycle')
+            .filter(session__microcycle__team=primary_team)
+            .order_by('-id')[:120]
+        )
+        for task_item in source_task_candidates:
+            if _task_scope_for_item(task_item) != scope_key:
+                continue
+            session_focus = str(getattr(getattr(task_item, 'session', None), 'focus', '') or '').strip()
+            planning_task_source_options.append(
+                {
+                    'id': int(task_item.id),
+                    'title': str(task_item.title or '').strip() or f'Tarea {task_item.id}',
+                    'block_label': task_item.get_block_display(),
+                    'minutes': int(task_item.duration_minutes or 0),
+                    'session_label': session_focus or 'Repositorio',
+                }
+            )
     tactical_player_catalog = []
     try:
         squad_players = (
@@ -9159,6 +9288,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             'planning_microcycle_rows': microcycle_rows,
             'planning_sessions': planning_sessions,
             'planning_session_items': planning_session_items,
+            'planning_task_source_options': planning_task_source_options,
             'microcycle_status_choices': TrainingMicrocycle.STATUS_CHOICES,
             'session_intensity_choices': TrainingSession.INTENSITY_CHOICES,
             'session_status_choices': TrainingSession.STATUS_CHOICES,

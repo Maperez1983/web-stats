@@ -1,14 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-labelledby="title desc">
-  <title id="title">UEFA Badge</title>
-  <desc id="desc">Circular UEFA badge for task PDF header.</desc>
+  <title id="title">RFEF UEFA sheet badge</title>
+  <desc id="desc">Round federation-style badge used on UEFA-format training sheets.</desc>
   <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#f43f5e" />
-      <stop offset="100%" stop-color="#b91c1c" />
+    <linearGradient id="ring" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#d92b30" />
+      <stop offset="100%" stop-color="#a91922" />
     </linearGradient>
   </defs>
-  <circle cx="60" cy="60" r="56" fill="url(#bg)" />
-  <circle cx="60" cy="60" r="50" fill="none" stroke="#ffffff" stroke-width="3" opacity="0.9" />
-  <circle cx="60" cy="60" r="37" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.35" />
-  <text x="60" y="69" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#ffffff" letter-spacing="2">UEFA</text>
+  <circle cx="60" cy="60" r="56" fill="url(#ring)" />
+  <circle cx="60" cy="60" r="46" fill="#ffffff" />
+  <circle cx="60" cy="60" r="41" fill="none" stroke="#d92b30" stroke-width="2.5" />
+  <text x="60" y="42" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="700" fill="#d92b30" letter-spacing="1">R</text>
+  <text x="60" y="60" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="700" fill="#d92b30" letter-spacing="1">F</text>
+  <text x="60" y="78" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="700" fill="#d92b30" letter-spacing="1">E</text>
+  <text x="60" y="96" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="700" fill="#d92b30" letter-spacing="1">F</text>
 </svg>

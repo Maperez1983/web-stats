@@ -62,6 +62,7 @@ urlpatterns = [
     path('coach/sesiones/tarea/<int:task_id>/archivo/', views.session_task_file, name='session-task-file'),
     path('coach/sesiones/tarea/<int:task_id>/preview/', views.session_task_preview_file, name='session-task-preview-file'),
     path('coach/sesiones/tarea/<int:task_id>/pdf/', views.session_task_pdf, name='session-task-pdf'),
+    path('coach/sesiones/sesion/<int:session_id>/pdf/', views.session_plan_pdf, name='session-plan-pdf'),
     path('coach/sesiones/tarea/<int:task_id>/canva/', views.session_task_canva_export, name='session-task-canva-export'),
     path('coach/multas/', views.fines_page, name='fines'),
     path('coach/analisis/', views.analysis_page, name='analysis'),

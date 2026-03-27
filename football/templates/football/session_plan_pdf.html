@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Sesión · {{ session.focus }}</title>
+    <style>
+      @page {
+        size: A4;
+        margin: 12mm;
+      }
+      body {
+        font-family: "Segoe UI", Arial, sans-serif;
+        font-size: 10.5px;
+        color: {{ pdf_palette.ink }};
+        background: {{ pdf_palette.sheet }};
+      }
+      .sheet {
+        border: 1px solid #d5dde7;
+        background: #ffffff;
+      }
+      .table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+      }
+      .table td,
+      .table th {
+        border: 1px solid #6b7280;
+        padding: 7px 9px;
+        vertical-align: top;
+      }
+      .k {
+        font-size: 9px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #64748b;
+      }
+      .v {
+        margin-top: 3px;
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1.35;
+      }
+      .uefa-head,
+      .club-head {
+        color: #ffffff;
+      }
+      .uefa-head {
+        background: #d92b30;
+        border-bottom: 1px solid #b8c0cc;
+        padding: 10px 14px;
+      }
+      .club-head {
+        background: linear-gradient(135deg, {{ pdf_palette.primary }}, {{ pdf_palette.accent }});
+        border-bottom: 1px solid #b8c0cc;
+        padding: 14px 16px;
+      }
+      .section-title {
+        padding: 7px 12px;
+        font-size: 13px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .section-title.uefa {
+        background: #d92b30;
+        color: #ffffff;
+        border: 1px solid #d92b30;
+        border-bottom: none;
+      }
+      .section-title.club {
+        background: {{ pdf_palette.primary }};
+        color: #ffffff;
+        border: 1px solid {{ pdf_palette.primary }};
+        border-bottom: none;
+      }
+      .box {
+        border: 1px solid #6b7280;
+        padding: 12px;
+        background: #ffffff;
+      }
+      .task-row {
+        border-bottom: 1px solid #d5dde7;
+        padding: 10px 0;
+      }
+      .task-row:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+      }
+      .task-row:first-child {
+        padding-top: 0;
+      }
+      .task-title {
+        font-size: 13px;
+        font-weight: 700;
+      }
+      .task-meta {
+        margin-top: 4px;
+        color: #475569;
+      }
+      .footer {
+        padding: 8px 12px;
+        border-top: 1px solid #d5dde7;
+        font-size: 9px;
+        text-align: right;
+        color: {{ pdf_palette.muted }};
+      }
+    </style>
+  </head>
+  <body>
+    <section class="sheet">
+      {% if pdf_style == 'club' %}
+      <div class="club-head">
+        <table style="width:100%; border-collapse:collapse;">
+          <tr>
+            <td style="width:74px; vertical-align:top;">
+              <img src="{{ logo_url }}" alt="Escudo {{ team_name }}" style="width:62px; height:62px; object-fit:contain;" />
+            </td>
+            <td style="vertical-align:top;">
+              <div style="font-size:9px; letter-spacing:0.18em; text-transform:uppercase; opacity:0.8;">Planificación de sesión</div>
+              <div style="font-size:25px; font-weight:800; line-height:1.1; margin-top:4px;">{{ session.focus }}</div>
+              <div style="font-size:11px; margin-top:6px; opacity:0.88;">{{ team_name }} · {{ coach_name }} · {{ session.session_date|date:"d/m/Y" }}{% if session.start_time %} · {{ session.start_time|time:"H:i" }}{% endif %}</div>
+            </td>
+            <td style="width:150px; text-align:right; vertical-align:top;">
+              <div style="display:inline-block; padding:8px 10px; border-radius:14px; background:rgba(255,255,255,0.14); text-align:left;">
+                <div style="font-size:9px; text-transform:uppercase; letter-spacing:0.14em; opacity:0.75;">Formato</div>
+                <div style="font-size:16px; font-weight:800;">Club</div>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </div>
+      {% else %}
+      <div class="uefa-head">
+        <table style="width:100%; border-collapse:collapse;">
+          <tr>
+            <td style="width:52px; vertical-align:middle;">
+              <div style="width:34px; height:34px; border-radius:50%; background:#ffffff; overflow:hidden; text-align:center; line-height:34px;">
+                <img src="{{ logo_url }}" alt="RFEF / UEFA" style="width:28px; height:28px; object-fit:contain; vertical-align:middle; margin-top:3px;" />
+              </div>
+            </td>
+            <td style="vertical-align:middle;">
+              <div style="font-size:24px; font-weight:800; letter-spacing:0.04em; text-transform:uppercase;">Entrega Sesión</div>
+            </td>
+          </tr>
+        </table>
+      </div>
+      {% endif %}
+
+      <div style="padding:12px 14px 0;">
+        <div class="section-title {% if pdf_style == 'club' %}club{% else %}uefa{% endif %}">
+          Detalles de la sesión
+        </div>
+        <table class="table" style="margin-bottom:12px;">
+          <tr>
+            <td style="width:18%;">Título</td>
+            <td colspan="3"><div class="v">{{ session.focus }}</div></td>
+          </tr>
+          <tr>
+            <td>Microciclo</td>
+            <td><div class="v">{{ microcycle.title }}</div></td>
+            <td>Fecha</td>
+            <td><div class="v">{{ session.session_date|date:"d/m/Y" }}{% if session.start_time %} · {{ session.start_time|time:"H:i" }}{% endif %}</div></td>
+          </tr>
+          <tr>
+            <td>Duración</td>
+            <td><div class="v">{{ session.duration_minutes }} min</div></td>
+            <td>Intensidad</td>
+            <td><div class="v">{{ intensity_label }}</div></td>
+          </tr>
+          <tr>
+            <td>Estado</td>
+            <td><div class="v">{{ status_label }}</div></td>
+            <td>Tareas</td>
+            <td><div class="v">{{ tasks_count }} · {{ task_minutes_total }} min totales</div></td>
+          </tr>
+          <tr>
+            <td>Entrenador</td>
+            <td><div class="v">{{ coach_name }}</div></td>
+            <td>Equipo</td>
+            <td><div class="v">{{ team_name }}</div></td>
+          </tr>
+        </table>
+
+        <div class="section-title {% if pdf_style == 'club' %}club{% else %}uefa{% endif %}">
+          Contenido / explicación
+        </div>
+        <div class="box" style="margin-bottom:12px; line-height:1.5;">
+          {% if session.content %}
+          {{ session.content|linebreaksbr }}
+          {% else %}
+          -
+          {% endif %}
+        </div>
+
+        <div class="section-title {% if pdf_style == 'club' %}club{% else %}uefa{% endif %}">
+          Tareas de la sesión
+        </div>
+        <div class="box">
+          {% if tasks %}
+            {% for task in tasks %}
+            <div class="task-row">
+              <div class="task-title">{{ forloop.counter }}. {{ task.title }}</div>
+              <div class="task-meta">{{ task.get_block_display }} · {{ task.duration_minutes }} min{% if task.objective %} · {{ task.objective }}{% endif %}</div>
+              {% if task.coaching_points %}
+              <div style="margin-top:6px;"><strong>Consignas:</strong> {{ task.coaching_points }}</div>
+              {% endif %}
+              {% if task.confrontation_rules %}
+              <div style="margin-top:5px;"><strong>Normas:</strong> {{ task.confrontation_rules }}</div>
+              {% endif %}
+            </div>
+            {% endfor %}
+          {% else %}
+          <div>-</div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="footer">
+        {% if pdf_style == 'club' %}Formato Club{% else %}Formato UEFA{% endif %} · {{ team_name }} · {{ coach_name }} · Generado {{ generated_at|date:"d/m/Y H:i" }}
+      </div>
+    </section>
+  </body>
+</html>

@@ -180,6 +180,37 @@
         gap: 0.45rem;
         margin-top: 0.65rem;
       }
+      .task-pick-grid {
+        display: grid;
+        gap: 0.45rem;
+        max-height: 220px;
+        overflow: auto;
+        padding-right: 0.2rem;
+      }
+      .task-pick-item {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 0.55rem;
+        align-items: start;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.04);
+        padding: 0.6rem 0.7rem;
+      }
+      .task-pick-item input[type="checkbox"] {
+        width: auto;
+        margin-top: 0.1rem;
+      }
+      .task-pick-item strong {
+        display: block;
+        font-size: 0.82rem;
+      }
+      .task-pick-item small {
+        display: block;
+        margin-top: 0.18rem;
+        color: rgba(225, 236, 255, 0.72);
+        line-height: 1.35;
+      }
       .session-editor {
         margin-top: 0.65rem;
         border-top: 1px solid rgba(255, 255, 255, 0.1);
@@ -1122,6 +1153,22 @@
                   Contenido
                   <textarea name="plan_session_content" placeholder="Contenido planificado de sesión"></textarea>
                 </label>
+                <label style="grid-column:1/-1;">
+                  Tareas iniciales
+                  <div class="task-pick-grid">
+                    {% for item in planning_task_source_options %}
+                    <label class="task-pick-item">
+                      <input type="checkbox" name="plan_session_task_ids" value="{{ item.id }}" />
+                      <span>
+                        <strong>{{ item.title }}</strong>
+                        <small>{{ item.block_label }} · {{ item.minutes }}' · {{ item.session_label }}</small>
+                      </span>
+                    </label>
+                    {% empty %}
+                    <span class="meta" style="margin:0;">Todavía no hay tareas disponibles en el repositorio para este espacio.</span>
+                    {% endfor %}
+                  </div>
+                </label>
                 <div><button type="submit" class="primary">Crear sesión</button></div>
               </form>
             </div>
@@ -1281,6 +1328,8 @@
                     <p class="meta" style="margin-top:0.7rem;">Sesión sin tareas todavía.</p>
                     {% endif %}
                     <div class="session-actions">
+                      <a class="button" href="{% url 'session-plan-pdf' session.obj.id %}" target="_blank" rel="noopener">Imprimir UEFA</a>
+                      <a class="button" href="{% url 'session-plan-pdf' session.obj.id %}?style=club" target="_blank" rel="noopener">Imprimir Club</a>
                       <details class="session-editor">
                         <summary>Editar sesión</summary>
                         <form method="post" class="grid" style="margin-top:0.7rem;">
