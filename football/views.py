@@ -3182,6 +3182,46 @@ def coach_overview_page(request):
     weekly_brief = _build_weekly_staff_brief_context(primary_team)
     rival_summary = _build_coach_rival_summary(primary_team)
     next_match = weekly_brief.get('match') if isinstance(weekly_brief, dict) else {}
+    pending_items = []
+    if isinstance(weekly_brief, dict):
+        if int(weekly_brief.get('convocated_count') or 0) <= 0:
+            pending_items.append('Falta cerrar la convocatoria actual.')
+        if int(weekly_brief.get('probable_eleven_count') or 0) <= 0:
+            pending_items.append('No hay 11 probable definido.')
+        if int(weekly_brief.get('available_count') or 0) <= 0:
+            pending_items.append('No hay disponibilidad consolidada del equipo.')
+    module_hub = [
+        {
+            'title': 'Portada',
+            'description': 'Contexto competitivo, home visual y alertas rápidas del cliente.',
+            'url': reverse('dashboard-home'),
+        },
+        {
+            'title': 'Estadísticas',
+            'description': 'KPIs, seguimiento individual y soporte manual de temporada.',
+            'url': reverse('coach-role-trainer'),
+        },
+        {
+            'title': 'Cuerpo técnico',
+            'description': 'Hub del staff, plantilla técnica y accesos por área.',
+            'url': reverse('coach-cards'),
+        },
+        {
+            'title': 'Partido',
+            'description': 'Convocatoria, 11 inicial y registro live de matchday.',
+            'url': reverse('convocation'),
+        },
+        {
+            'title': 'Entrenamiento',
+            'description': 'Sesiones, tareas, porteros, físico y ABP.',
+            'url': reverse('sessions'),
+        },
+        {
+            'title': 'Análisis',
+            'description': 'Rival, scouting, vídeo e informes tácticos.',
+            'url': reverse('analysis'),
+        },
+    ]
     probable_eleven_names = []
     if isinstance(weekly_brief, dict):
         probable_preview = str(weekly_brief.get('probable_eleven_preview') or '').strip()
@@ -3200,6 +3240,8 @@ def coach_overview_page(request):
             'rival_summary': rival_summary,
             'next_match': next_match,
             'probable_eleven_names': probable_eleven_names,
+            'module_hub': module_hub,
+            'pending_items': pending_items,
         },
     )
 
@@ -10090,6 +10132,44 @@ def task_studio_home_page(request):
     tasks = list(task_qs.order_by('-updated_at', '-id')[:80])
     roster_count = TaskStudioRosterPlayer.objects.filter(owner=target_user, is_active=True).count()
     query_suffix = _task_studio_query_suffix(target_user, request.user)
+    task_count = task_qs.count()
+    has_identity = bool(
+        (profile.club_name or '').strip()
+        or (profile.document_name or '').strip()
+        or profile.crest_image
+    )
+    has_profile_basics = bool(
+        (profile.display_name or '').strip()
+        or (profile.license_name or '').strip()
+        or (profile.phone or '').strip()
+        or (profile.category_label or '').strip()
+    )
+    has_roster = roster_count > 0
+    has_tasks = task_count > 0
+    onboarding_steps = [
+        {
+            'title': 'Perfil e identidad',
+            'description': 'Define nombre documental, escudo, colores y firma.',
+            'done': has_identity or has_profile_basics,
+            'url': f"{reverse('task-studio-profile')}{query_suffix}",
+            'action': 'Configurar',
+        },
+        {
+            'title': 'Plantilla privada',
+            'description': 'Carga jugadores para usarlos como chapas reales en la pizarra.',
+            'done': has_roster,
+            'url': f"{reverse('task-studio-roster')}{query_suffix}",
+            'action': 'Cargar plantilla',
+        },
+        {
+            'title': 'Primera tarea',
+            'description': 'Diseña, guarda e imprime tu primera tarea de entrenamiento.',
+            'done': has_tasks,
+            'url': f"{reverse('task-studio-task-create')}{query_suffix}",
+            'action': 'Crear tarea',
+        },
+    ]
+    next_actions = [step for step in onboarding_steps if not step['done']]
     return render(
         request,
         'football/task_studio_home.html',
@@ -10097,11 +10177,14 @@ def task_studio_home_page(request):
             'target_user': target_user,
             'profile': profile,
             'tasks': tasks,
-            'task_count': task_qs.count(),
+            'task_count': task_count,
             'roster_count': roster_count,
             'browse_all': browse_all,
             'query_suffix': query_suffix,
             'feedback': feedback,
+            'onboarding_steps': onboarding_steps,
+            'next_actions': next_actions,
+            'has_identity': has_identity,
         },
     )
 

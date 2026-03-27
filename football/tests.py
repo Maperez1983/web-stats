@@ -182,6 +182,9 @@ class TaskStudioAccessTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Tarea propia')
         self.assertNotContains(response, 'Tarea ajena')
+        self.assertContains(response, 'Primeros pasos')
+        self.assertContains(response, 'Perfil e identidad')
+        self.assertContains(response, 'Plantilla privada')
 
     def test_task_studio_owner_can_delete_own_task(self):
         self.client.force_login(self.user)
@@ -3072,6 +3075,9 @@ class CoachOverviewTests(TestCase):
         self.assertContains(response, 'Rival Futuro')
         self.assertNotContains(response, 'Rival Antiguo')
         self.assertContains(response, 'Próximo Partido')
+        self.assertContains(response, 'Módulos del cliente')
+        self.assertContains(response, 'Siguiente foco')
+        self.assertContains(response, 'Entrenamiento')
 
     @patch('football.views.load_preferred_next_match_payload', return_value=None)
     def test_coach_overview_renders_manual_rival_report_summary(self, _mock_next):
