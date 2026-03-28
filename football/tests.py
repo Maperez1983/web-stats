@@ -1040,6 +1040,42 @@ class PlatformWorkspaceTests(TestCase):
         self.assertEqual(payload['standings'][0]['team'], alt_team.name.upper())
         self.assertEqual(payload['next_match']['opponent']['name'], alt_rival.name)
 
+    def test_dashboard_data_ignores_undated_current_convocation_for_next_match(self):
+        future_rival = Team.objects.create(name='Rival Futuro Dashboard', slug='rival-futuro-dashboard', group=self.alt_team.group)
+        Match.objects.create(
+            season=self.alt_team.group.season,
+            group=self.alt_team.group,
+            round='J27',
+            date=date(2026, 4, 6),
+            location='Campo Dashboard',
+            home_team=self.alt_team,
+            away_team=future_rival,
+        )
+        ConvocationRecord.objects.create(
+            team=self.alt_team,
+            round='Partido 1',
+            location='CASABERMEJA',
+            opponent_name='Casabermeja',
+            is_current=True,
+        )
+        workspace = Workspace.objects.create(
+            name='Cliente dashboard convocation',
+            slug='cliente-dashboard-convocation',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.alt_team,
+        )
+        self.client.force_login(self.admin_user)
+        session = self.client.session
+        session['active_workspace_id'] = workspace.id
+        session.save()
+
+        response = self.client.get(reverse('dashboard-data'))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload['next_match']['opponent']['name'], future_rival.name)
+        self.assertEqual(payload['next_match']['round'], 'J27')
+
     def test_convocation_page_uses_active_club_workspace_team(self):
         workspace = Workspace.objects.create(
             name='Cliente alternativo',
@@ -4241,6 +4277,31 @@ class CoachOverviewTests(TestCase):
         self.assertContains(response, 'Rival Manual')
         self.assertContains(response, 'J25')
         self.assertContains(response, 'NUEVO CAMPO')
+
+    @patch('football.views.load_preferred_next_match_payload', return_value=None)
+    def test_coach_overview_ignores_current_convocation_without_match_date(self, _mock_next):
+        Match.objects.create(
+            season=self.group.season,
+            group=self.group,
+            round='J24',
+            date=date(2026, 3, 29),
+            location='MANANTIALES',
+            home_team=self.team,
+            away_team=self.rival_future,
+        )
+        ConvocationRecord.objects.create(
+            team=self.team,
+            round='Partido 1',
+            location='CASABERMEJA',
+            opponent_name='Casabermeja',
+            is_current=True,
+        )
+
+        response = self.client.get(reverse('coach-detail'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Rival Futuro')
+        self.assertNotContains(response, 'Casabermeja')
 
     @patch('football.views.load_universo_snapshot')
     @patch('football.views.load_preferred_next_match_payload', return_value=None)

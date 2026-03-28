@@ -3225,15 +3225,18 @@ def _build_next_match_from_convocation(primary_team):
     if not record:
         return None
     today = timezone.localdate()
-    if record.match_date and record.match_date < today:
+    match_date = record.match_date
+    if not match_date and record.match and getattr(record.match, 'date', None):
+        match_date = record.match.date
+    if not match_date:
         return None
-    if record.match and getattr(record.match, 'date', None) and record.match.date < today:
+    if match_date < today:
         return None
 
     opponent_name = (record.opponent_name or '').strip()
     round_label = (record.round or '').strip()
     location_label = (record.location or '').strip()
-    date_iso = record.match_date.isoformat() if record.match_date else None
+    date_iso = match_date.isoformat() if match_date else None
     time_label = record.match_time.strftime('%H:%M') if record.match_time else ''
 
     if not any([opponent_name, round_label, date_iso, time_label, location_label]):
@@ -3458,8 +3461,8 @@ def dashboard_data(request):
     if not next_match:
         next_match = load_preferred_next_match_payload(primary_team=primary_team) or get_next_match(primary_team, group)
     convocation_next_match = _build_next_match_from_convocation(primary_team)
-    # Product rule: Home must prioritize the data configured in Convocatoria.
-    if convocation_next_match:
+    # Product rule: Home prioritizes Convocatoria only when it provides a reliable scheduled match.
+    if _next_match_payload_is_reliable(convocation_next_match):
         next_match = convocation_next_match
     team_metrics = compute_team_metrics(primary_team)
     player_metrics = compute_player_metrics(primary_team)
@@ -5090,7 +5093,7 @@ def coach_overview_page(request):
     standings = competition_payload.get('standings') or []
     convocation_next = _build_next_match_from_convocation(primary_team)
     next_match = competition_payload.get('next_match') or load_preferred_next_match_payload(primary_team=primary_team) or (get_next_match(primary_team, primary_team.group) if primary_team and primary_team.group else {}) or {}
-    if convocation_next:
+    if _next_match_payload_is_reliable(convocation_next):
         next_match = convocation_next
     if isinstance(weekly_brief, dict):
         weekly_brief['match'] = next_match
