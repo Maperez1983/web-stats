@@ -2420,8 +2420,14 @@ def _build_weekly_staff_brief_context(primary_team, player_cards=None):
         reference_match=active_match,
     )
     next_match_payload = load_preferred_next_match_payload(primary_team=primary_team)
-    if not next_match_payload and primary_team.group:
-        next_match_payload = get_next_match(primary_team, primary_team.group)
+    if not _next_match_payload_is_reliable(next_match_payload) and primary_team.group:
+        local_next_match = get_next_match(primary_team, primary_team.group)
+        if _next_match_payload_is_reliable(local_next_match):
+            next_match_payload = local_next_match
+    if not _next_match_payload_is_reliable(next_match_payload):
+        convocation_next_match = _build_next_match_from_convocation(primary_team)
+        if _next_match_payload_is_reliable(convocation_next_match):
+            next_match_payload = convocation_next_match
     return build_weekly_staff_brief(
         player_cards=player_cards,
         active_injury_ids=active_injury_ids,
