@@ -5,11 +5,12 @@
     <meta charset="UTF-8" />
     <title>2J Live · {{ team_name }}</title>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
     <style>
       :root {
-        --bg: #010517;
-        --panel: rgba(4, 8, 25, 0.96);
-        --panel-soft: rgba(13, 23, 52, 0.8);
+        --bg: #08111d;
+        --panel: rgba(7, 12, 28, 0.96);
+        --panel-soft: rgba(15, 24, 44, 0.82);
         --accent: #f4b400;
         --pitch: #2f7d32;
         --border: rgba(255, 255, 255, 0.12);
@@ -19,8 +20,11 @@
       }
       body {
         margin: 0;
-        font-family: 'Inter', system-ui, sans-serif;
-        background: radial-gradient(circle at top, rgba(255, 255, 255, 0.05), transparent 45%), var(--bg);
+        font-family: 'Avenir Next', 'Inter', system-ui, sans-serif;
+        background:
+          radial-gradient(circle at top, rgba(244, 180, 0, 0.12), transparent 24%),
+          radial-gradient(circle at top right, rgba(47, 125, 50, 0.1), transparent 18%),
+          var(--bg);
         color: #f8fafc;
         min-height: 100vh;
       }
@@ -34,7 +38,7 @@
         grid-template-columns: minmax(0, 1fr) minmax(280px, 320px);
       }
       .field-column {
-        background: linear-gradient(180deg, rgba(1, 4, 12, 0.95), rgba(2, 11, 27, 0.98));
+        background: linear-gradient(180deg, rgba(4, 8, 20, 0.95), rgba(8, 17, 29, 0.98));
         padding: 2rem;
         display: flex;
         flex-direction: column;
@@ -63,7 +67,7 @@
         font-size: 0.78rem;
         letter-spacing: 0.22em;
         text-transform: uppercase;
-        color: #d7f5d9;
+        color: #fff1c2;
       }
       .brand-live-copy span {
         display: block;
@@ -116,7 +120,7 @@
         min-width: 220px;
       }
       .quick-action-card {
-        background: linear-gradient(135deg, rgba(3, 6, 20, 0.95), rgba(11, 17, 32, 0.8));
+        background: linear-gradient(135deg, rgba(6, 10, 24, 0.95), rgba(12, 18, 34, 0.84));
         border-radius: 28px;
         padding: 0.9rem 1.2rem;
         display: flex;
@@ -134,7 +138,7 @@
         position: absolute;
         inset: 0;
         border-radius: inherit;
-        border: 1px solid rgba(250, 204, 21, 0.15);
+        border: 1px solid rgba(244, 180, 0, 0.16);
         pointer-events: none;
         mix-blend-mode: screen;
       }

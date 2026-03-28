@@ -9,21 +9,24 @@
     <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
     <style>
       :root {
-        --bg: #050b16;
-        --panel: #0f172acc;
+        --bg: #08111d;
+        --panel: #0f172add;
         --line: #33415566;
-        --text: #e2e8f0;
-        --muted: #94a3b8;
-        --accent: #38bdf8;
-        --accent-2: #0ea5e9;
+        --text: #f5f7fa;
+        --muted: #91a1b9;
+        --accent: #f4b400;
+        --accent-2: #2f7d32;
       }
       * { box-sizing: border-box; }
       body {
         margin: 0;
         min-height: 100vh;
         padding: 1.25rem;
-        font-family: 'Inter', system-ui, sans-serif;
-        background: radial-gradient(circle at top, #111827, #030712 52%);
+        font-family: 'Avenir Next', 'Inter', system-ui, sans-serif;
+        background:
+          radial-gradient(circle at top, rgba(244, 180, 0, 0.12), transparent 26%),
+          radial-gradient(circle at top left, rgba(47, 125, 50, 0.1), transparent 20%),
+          linear-gradient(180deg, #050c17, #08111d 52%);
         color: var(--text);
       }
       .shell { max-width: 1260px; margin: 0 auto; }
@@ -42,7 +45,7 @@
         font-size: 0.76rem;
         letter-spacing: 0.2em;
         text-transform: uppercase;
-        color: #d7f5d9;
+        color: #fff1c2;
       }
       .brand-strip-copy span {
         display: block;
@@ -59,7 +62,7 @@
       .headline p { margin: 0; color: var(--muted); }
       .headline h1 { margin: 0.25rem 0 0.3rem; font-size: 1.45rem; }
       .back-link {
-        color: #7dd3fc;
+        color: #ffd97a;
         text-decoration: none;
         font-weight: 700;
       }
@@ -82,7 +85,7 @@
       .toolbar button {
         cursor: pointer;
         font-weight: 700;
-        border-color: #38bdf84d;
+        border-color: rgba(244, 180, 0, 0.28);
       }
       .mode-note {
         margin: 0.55rem 0 0;
@@ -98,7 +101,7 @@
         gap: 0.9rem;
       }
       .card {
-        background: linear-gradient(170deg, #0f172aee, #0b1222f2);
+        background: linear-gradient(170deg, #10192bee, #0b1222f2);
         border: 1px solid var(--line);
         border-radius: 0.95rem;
         padding: 0.95rem;
@@ -183,8 +186,8 @@
         border-radius: 999px;
         font-size: 0.74rem;
         font-weight: 800;
-        color: #082f49;
-        background: #7dd3fc;
+        color: #0a1520;
+        background: #f4b400;
       }
       .subline {
         margin-top: 0.25rem;

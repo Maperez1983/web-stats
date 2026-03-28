@@ -8,11 +8,11 @@
     <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
     <style>
       :root {
-        --bg: #050814;
-        --panel: rgba(10, 17, 33, 0.94);
-        --panel-soft: rgba(14, 23, 42, 0.82);
+        --bg: #08111d;
+        --panel: rgba(11, 19, 33, 0.95);
+        --panel-soft: rgba(15, 23, 39, 0.84);
         --line: rgba(148, 163, 184, 0.18);
-        --ink: #f8fafc;
+        --ink: #f5f7fa;
         --muted: rgba(226, 232, 240, 0.74);
         --accent: #f4b400;
         --success: #86efac;
@@ -23,9 +23,10 @@
         min-height: 100vh;
         color: var(--ink);
         background:
-          radial-gradient(circle at top left, rgba(250, 204, 21, 0.08), transparent 24%),
-          linear-gradient(180deg, #020617 0%, #06101f 100%);
-        font-family: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
+          radial-gradient(circle at top left, rgba(244, 180, 0, 0.1), transparent 24%),
+          radial-gradient(circle at top right, rgba(47, 125, 50, 0.09), transparent 18%),
+          linear-gradient(180deg, #050c17 0%, #08111d 100%);
+        font-family: "Avenir Next", "Inter", "Segoe UI", sans-serif;
       }
       .page {
         max-width: 1320px;
@@ -46,7 +47,7 @@
         font-size: 0.78rem;
         letter-spacing: 0.2em;
         text-transform: uppercase;
-        color: #d7f5d9;
+        color: #fff1c2;
       }
       .brand-strip-copy span {
         display: block;
@@ -66,7 +67,7 @@
         border: 1px solid var(--line);
         background: var(--panel);
         padding: 1.6rem;
-        box-shadow: 0 26px 60px rgba(0, 0, 0, 0.42);
+        box-shadow: 0 30px 68px rgba(0, 0, 0, 0.38);
       }
       .club-row {
         display: flex;

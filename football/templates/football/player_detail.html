@@ -4,8 +4,12 @@
   <head>
     <meta charset="utf-8" />
     <title>2J Player · {{ player.name }}</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
     <style>
-      body { font-family: 'Inter', sans-serif; background: #030712; color: #e2e8f0; margin: 0; padding: 2rem; }
+      body { font-family: 'Avenir Next', 'Inter', sans-serif; background:
+        radial-gradient(circle at top, rgba(244,180,0,.1), transparent 24%),
+        radial-gradient(circle at top left, rgba(47,125,50,.1), transparent 18%),
+        #08111d; color: #f5f7fa; margin: 0; padding: 2rem; }
       .container { max-width: 1100px; margin: 0 auto; }
       .brand-strip {
         display: inline-flex;
@@ -22,7 +26,7 @@
         font-size: 0.76rem;
         letter-spacing: 0.2em;
         text-transform: uppercase;
-        color: #d7f5d9;
+        color: #fff1c2;
       }
       .brand-strip-copy span {
         display: block;
@@ -45,9 +49,9 @@
         font-size: 1rem;
         vertical-align: middle;
       }
-      .btn { display: inline-flex; align-items: center; padding: 0.35rem 0.8rem; border-radius: 0.7rem; border: 1px solid rgba(148, 163, 184, 0.4); background: rgba(14, 116, 144, 0.4); color: #e0f2fe; text-decoration: none; font-weight: 600; }
+      .btn { display: inline-flex; align-items: center; padding: 0.35rem 0.8rem; border-radius: 0.7rem; border: 1px solid rgba(244, 180, 0, 0.22); background: rgba(244, 180, 0, 0.1); color: #fff1c2; text-decoration: none; font-weight: 600; }
       .btn.alt { background: rgba(30, 41, 59, 0.92); color: #f8fafc; }
-      .card { background: rgba(15, 23, 42, 0.95); border-radius: 1rem; padding: 1.2rem; margin-top: 1rem; border: 1px solid rgba(148, 163, 184, 0.3); }
+      .card { background: rgba(15, 23, 39, 0.95); border-radius: 1rem; padding: 1.2rem; margin-top: 1rem; border: 1px solid rgba(148, 163, 184, 0.24); box-shadow: 0 22px 52px rgba(0,0,0,.22); }
       .preview-banner {
         margin-top: 1rem;
         border-radius: 0.9rem;
@@ -65,14 +69,14 @@
       }
       .tabs { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; }
       .tab-btn { border: 1px solid rgba(148, 163, 184, 0.35); background: rgba(15, 23, 42, 0.75); color: #cbd5e1; border-radius: 999px; padding: 0.45rem 0.95rem; cursor: pointer; font-weight: 700; }
-      .tab-btn.is-active { background: linear-gradient(120deg, #0891b2, #1d4ed8); color: #fff; border-color: rgba(56, 189, 248, 0.6); }
+      .tab-btn.is-active { background: linear-gradient(120deg, #f5c538, #f4b400); color: #0a1520; border-color: rgba(244, 180, 0, 0.48); }
       .tab-pane { display: none; }
       .tab-pane.is-active { display: block; }
       .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; }
       label { display: flex; flex-direction: column; font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; color: #94a3b8; gap: 0.35rem; }
       input, select, textarea { border-radius: 0.65rem; border: 1px solid rgba(148, 163, 184, 0.35); padding: 0.6rem 0.75rem; background: rgba(15, 23, 42, 0.6); color: #e2e8f0; font-size: 0.95rem; }
       textarea { min-height: 90px; resize: vertical; }
-      button[type="submit"] { border-radius: 0.7rem; border: none; background: linear-gradient(135deg, #38bdf8, #6366f1); color: #fff; font-weight: 700; letter-spacing: 0.08em; padding: 0.6rem 0.9rem; cursor: pointer; text-transform: uppercase; }
+      button[type="submit"] { border-radius: 0.7rem; border: none; background: linear-gradient(135deg, #f5c538, #f4b400); color: #0a1520; font-weight: 700; letter-spacing: 0.08em; padding: 0.6rem 0.9rem; cursor: pointer; text-transform: uppercase; }
       .pill { display: inline-flex; border-radius: 999px; padding: 0.2rem 0.7rem; font-size: 0.8rem; font-weight: 700; }
       .pill.ok { background: rgba(34, 197, 94, 0.18); color: #86efac; }
       .pill.warn { background: rgba(248, 113, 113, 0.2); color: #fecaca; }
@@ -89,8 +93,8 @@
       .detail-block .label { font-size: 0.8rem; letter-spacing: 0.08em; color: rgba(148, 163, 184, 0.9); margin-bottom: 0.35rem; }
       .detail-block .value { font-size: 1.5rem; font-weight: 600; margin-bottom: 0.15rem; }
       .detail-block .label-soft { color: rgba(148, 163, 184, 0.9); font-size: 0.9rem; }
-      .duel-bar { margin-top: 0.5rem; height: 0.9rem; border-radius: 999px; background: rgba(15, 23, 42, 0.8); overflow: hidden; border: 1px solid rgba(56, 189, 248, 0.35); }
-      .duel-bar span { height: 100%; background: linear-gradient(90deg, #22d3ee, #6366f1); display: block; }
+      .duel-bar { margin-top: 0.5rem; height: 0.9rem; border-radius: 999px; background: rgba(15, 23, 42, 0.8); overflow: hidden; border: 1px solid rgba(244, 180, 0, 0.24); }
+      .duel-bar span { height: 100%; background: linear-gradient(90deg, #f4b400, #2f7d32); display: block; }
       .field-diagram { position: relative; width: 100%; padding-bottom: 56%; background: #0b1b12; border-radius: 0.5rem; margin-top: 0.8rem; border: 1px solid rgba(148, 163, 184, 0.25); overflow: hidden; }
       .field-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: center; }
       .field-zone { position: absolute; border-radius: 14px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.75rem; color: #f8fafc; font-weight: 600; text-align: center; padding: 0.25rem; text-transform: uppercase; letter-spacing: 0.04em; text-shadow: 0 2px 8px rgba(2, 6, 23, 0.95), 0 0 2px rgba(15, 23, 42, 0.9); }
