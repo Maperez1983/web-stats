@@ -1720,8 +1720,8 @@ class PlatformWorkspaceTests(TestCase):
         response = self.client.get(reverse('dashboard-home'))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Cliente visible')
-        self.assertContains(response, 'Selecciona un workspace')
+        self.assertContains(response, '2J Club · Cuerpo técnico')
+        self.assertNotContains(response, 'Selecciona un workspace')
 
     def test_dashboard_shows_competitive_summary_for_workspace_admin(self):
         workspace = Workspace.objects.create(

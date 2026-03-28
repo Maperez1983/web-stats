@@ -39,20 +39,13 @@
 
       .topbar {
         display: flex;
-        align-items: center;
-        justify-content: space-between;
+        align-items: flex-start;
         gap: 1rem;
         border: 1px solid var(--line);
         border-radius: 18px;
-        padding: 0.65rem 1rem;
+        padding: 0.9rem 1rem;
         background: rgba(7, 16, 30, 0.82);
         backdrop-filter: blur(4px);
-      }
-
-      .topbar-brand {
-        display: flex;
-        align-items: center;
-        gap: 0.7rem;
       }
 
       .topbar-brand h1 {
@@ -78,44 +71,6 @@
       .module-tab.is-active {
         border-color: rgba(70, 211, 255, 0.75);
         background: rgba(70, 211, 255, 0.18);
-      }
-
-      .workspace-banner {
-        margin-top: 0.65rem;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.55rem;
-        flex-wrap: wrap;
-        border-radius: 14px;
-        border: 1px solid rgba(255, 191, 69, 0.28);
-        background: rgba(255, 191, 69, 0.12);
-        padding: 0.55rem 0.8rem;
-        color: rgba(255, 239, 209, 0.96);
-        font-size: 0.78rem;
-      }
-
-      .workspace-banner a {
-        color: #fff;
-        text-decoration: none;
-        font-weight: 700;
-      }
-
-      .workspace-switcher {
-        margin-top: 0.65rem;
-        display: flex;
-        gap: 0.55rem;
-        flex-wrap: wrap;
-        align-items: center;
-      }
-
-      .workspace-switcher select {
-        min-width: 220px;
-        border-radius: 999px;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        background: rgba(255, 255, 255, 0.05);
-        color: var(--ink);
-        padding: 0.55rem 0.85rem;
-        font: inherit;
       }
 
       .hero {
@@ -499,8 +454,7 @@
         }
 
         .topbar {
-          align-items: start;
-          flex-direction: column;
+          padding: 0.8rem;
         }
 
         .kpi-grid {
@@ -512,40 +466,10 @@
   <body>
     <div class="page product-shell">
       <header class="topbar">
-        <div class="topbar-brand">
+        <div>
           {% include 'football/includes/dragon_nav.html' %}
-          <div>
+          <div style="margin-top:0.55rem;">
             <h1>2J Club · Cuerpo técnico</h1>
-            <p class="product-kicker" style="margin-top:0.2rem;">Modo actual <span class="product-chip role">{{ current_role_label }}</span></p>
-            <div style="margin-top:0.45rem;">
-              {% if can_access_platform %}
-              <a class="module-tab" href="{% url 'platform-overview' %}">Plataforma</a>
-              {% endif %}
-              {% if can_access_admin %}
-              <a class="module-tab" href="{% url 'admin-page' %}">Operativa</a>
-              {% endif %}
-            </div>
-            {% if workspace_links %}
-            <div class="workspace-switcher">
-              <label for="workspace-switcher" class="product-kicker" style="margin:0;">Workspace</label>
-              <select id="workspace-switcher" onchange="if (this.value) window.location.href = this.value;">
-                <option value="">Selecciona un workspace</option>
-                {% for workspace_link in workspace_links %}
-                <option value="{{ workspace_link.enter_url }}" {% if active_workspace and active_workspace.id == workspace_link.id %}selected{% endif %}>{{ workspace_link.label }}</option>
-                {% endfor %}
-              </select>
-            </div>
-            {% endif %}
-            {% if active_workspace %}
-            <div class="workspace-banner">
-              <span>Workspace activo: <strong>{{ active_workspace.name }}</strong> · {{ active_workspace.kind_label }}</span>
-              {% if active_workspace.subtitle %}
-              <span>{{ active_workspace.subtitle }}</span>
-              {% endif %}
-              <a href="{% url 'platform-workspace-detail' active_workspace.id %}">Abrir ficha</a>
-              <a href="{% url 'platform-workspace-clear' %}">Salir del contexto</a>
-            </div>
-            {% endif %}
           </div>
         </div>
       </header>
