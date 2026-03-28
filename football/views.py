@@ -1028,6 +1028,94 @@ def _build_workspace_schedule_payload(primary_team):
     return payload
 
 
+def _search_workspace_competition_candidates(provider, *, team_query='', competition_query='', group_query=''):
+    team_query = str(team_query or '').strip()
+    competition_query = str(competition_query or '').strip()
+    group_query = str(group_query or '').strip()
+    base_qs = (
+        Team.objects
+        .select_related('group__season__competition')
+        .filter(group__isnull=False)
+    )
+    if team_query:
+        base_qs = base_qs.filter(
+            Q(name__icontains=team_query)
+            | Q(short_name__icontains=team_query)
+            | Q(slug__icontains=team_query)
+            | Q(external_id__icontains=team_query)
+        )
+    if competition_query:
+        base_qs = base_qs.filter(
+            Q(group__season__competition__name__icontains=competition_query)
+            | Q(group__season__competition__slug__icontains=competition_query)
+            | Q(group__season__name__icontains=competition_query)
+        )
+    if group_query:
+        base_qs = base_qs.filter(
+            Q(group__name__icontains=group_query)
+            | Q(group__slug__icontains=group_query)
+            | Q(group__external_id__icontains=group_query)
+        )
+    candidates = []
+    for team in base_qs.order_by('-group__season__is_current', 'group__season__competition__name', 'group__name', 'name')[:12]:
+        group = getattr(team, 'group', None)
+        season = getattr(group, 'season', None) if group else None
+        competition = getattr(season, 'competition', None) if season else None
+        score = 0
+        normalized_team_name = normalize_label(team.name)
+        normalized_short_name = normalize_label(team.short_name)
+        normalized_team_query = normalize_label(team_query)
+        normalized_group_name = normalize_label(getattr(group, 'name', ''))
+        normalized_group_query = normalize_label(group_query)
+        normalized_comp_name = normalize_label(getattr(competition, 'name', ''))
+        normalized_comp_query = normalize_label(competition_query)
+        if normalized_team_query:
+            if normalized_team_query == normalized_team_name or normalized_team_query == normalized_short_name:
+                score += 60
+            elif normalized_team_query in normalized_team_name:
+                score += 30
+        if normalized_group_query:
+            if normalized_group_query == normalized_group_name:
+                score += 25
+            elif normalized_group_query in normalized_group_name:
+                score += 12
+        if normalized_comp_query:
+            if normalized_comp_query == normalized_comp_name:
+                score += 25
+            elif normalized_comp_query in normalized_comp_name:
+                score += 12
+        if season and season.is_current:
+            score += 10
+        candidates.append(
+            {
+                'team_id': team.id,
+                'team_name': team.name,
+                'team_slug': team.slug,
+                'group_name': getattr(group, 'name', '') or 'Sin grupo',
+                'group_slug': getattr(group, 'slug', '') or '',
+                'group_external_id': getattr(group, 'external_id', '') or '',
+                'season_name': getattr(season, 'name', '') or '',
+                'competition_name': getattr(competition, 'name', '') or '',
+                'competition_slug': getattr(competition, 'slug', '') or '',
+                'provider': provider or WorkspaceCompetitionContext.PROVIDER_MANUAL,
+                'external_competition_key': getattr(competition, 'slug', '') or getattr(competition, 'name', '') or '',
+                'external_group_key': getattr(group, 'external_id', '') or getattr(group, 'slug', '') or '',
+                'external_team_key': team.external_id or team.slug or '',
+                'external_team_name': team.name,
+                'score': score,
+            }
+        )
+    candidates.sort(
+        key=lambda item: (
+            -item['score'],
+            item['competition_name'],
+            item['group_name'],
+            item['team_name'],
+        )
+    )
+    return candidates
+
+
 def _sync_workspace_competition_context(workspace):
     if not workspace or workspace.kind != Workspace.KIND_CLUB:
         return None, 'Este cliente no admite contexto competitivo.'
@@ -3218,6 +3306,13 @@ def platform_workspace_detail_page(request, workspace_id):
     feedback = ''
     error = ''
     can_manage_workspace = _can_manage_workspace(request.user, workspace)
+    competition_search_inputs = {
+        'provider': WorkspaceCompetitionContext.PROVIDER_MANUAL,
+        'team_query': str(getattr(workspace.primary_team, 'name', '') or '').strip(),
+        'competition_query': str(getattr(getattr(getattr(getattr(workspace.primary_team, 'group', None), 'season', None), 'competition', None), 'name', '') or '').strip(),
+        'group_query': str(getattr(getattr(workspace.primary_team, 'group', None), 'name', '') or '').strip(),
+    }
+    competition_search_results = []
     if request.method == 'POST':
         form_action = (request.POST.get('form_action') or '').strip().lower()
         if not can_manage_workspace:
@@ -3330,6 +3425,65 @@ def platform_workspace_detail_page(request, workspace_id):
                     error = sync_error
                 else:
                     feedback = 'Competición sincronizada para este cliente.'
+        elif form_action == 'search_competition_context':
+            if workspace.kind != Workspace.KIND_CLUB:
+                error = 'Solo los clientes club tienen búsqueda competitiva.'
+            else:
+                competition_search_inputs = {
+                    'provider': str(request.POST.get('competition_provider_search') or WorkspaceCompetitionContext.PROVIDER_MANUAL).strip(),
+                    'team_query': _sanitize_task_text((request.POST.get('competition_team_query') or '').strip(), multiline=False, max_len=160),
+                    'competition_query': _sanitize_task_text((request.POST.get('competition_competition_query') or '').strip(), multiline=False, max_len=160),
+                    'group_query': _sanitize_task_text((request.POST.get('competition_group_query') or '').strip(), multiline=False, max_len=160),
+                }
+                valid_providers = {choice[0] for choice in WorkspaceCompetitionContext.PROVIDER_CHOICES}
+                if competition_search_inputs['provider'] not in valid_providers:
+                    competition_search_inputs['provider'] = WorkspaceCompetitionContext.PROVIDER_MANUAL
+                competition_search_results = _search_workspace_competition_candidates(
+                    competition_search_inputs['provider'],
+                    team_query=competition_search_inputs['team_query'],
+                    competition_query=competition_search_inputs['competition_query'],
+                    group_query=competition_search_inputs['group_query'],
+                )
+                if competition_search_results:
+                    feedback = f'Se encontraron {len(competition_search_results)} coincidencias para este cliente.'
+                else:
+                    error = 'No se encontraron coincidencias con los criterios indicados.'
+        elif form_action == 'apply_competition_candidate':
+            if workspace.kind != Workspace.KIND_CLUB:
+                error = 'Solo los clientes club pueden vincular contexto competitivo.'
+            else:
+                candidate_team_id = _parse_int(request.POST.get('candidate_team_id'))
+                candidate_team = (
+                    Team.objects
+                    .select_related('group__season__competition')
+                    .filter(id=candidate_team_id)
+                    .first()
+                )
+                if not candidate_team or not getattr(candidate_team, 'group', None):
+                    error = 'La coincidencia seleccionada no es válida.'
+                else:
+                    provider = str(request.POST.get('candidate_provider') or WorkspaceCompetitionContext.PROVIDER_MANUAL).strip()
+                    valid_providers = {choice[0] for choice in WorkspaceCompetitionContext.PROVIDER_CHOICES}
+                    if provider not in valid_providers:
+                        provider = WorkspaceCompetitionContext.PROVIDER_MANUAL
+                    auto_sync_enabled = str(request.POST.get('candidate_auto_sync') or '').lower() in {'1', 'true', 'on', 'yes'}
+                    workspace.primary_team = candidate_team
+                    workspace.save(update_fields=['primary_team', 'updated_at'])
+                    _bootstrap_workspace_competition_context(
+                        workspace,
+                        primary_team=candidate_team,
+                        provider=provider,
+                        external_competition_key=str(request.POST.get('candidate_external_competition_key') or '').strip()[:140],
+                        external_group_key=str(request.POST.get('candidate_external_group_key') or '').strip()[:140],
+                        external_team_key=str(request.POST.get('candidate_external_team_key') or '').strip()[:140],
+                        external_team_name=_sanitize_task_text((request.POST.get('candidate_external_team_name') or '').strip(), multiline=False, max_len=160),
+                        auto_sync_enabled=auto_sync_enabled,
+                    )
+                    _, sync_error = _sync_workspace_competition_context(workspace)
+                    if sync_error:
+                        error = sync_error
+                    else:
+                        feedback = f'Cliente vinculado a {candidate_team.name} y sincronizado.'
         elif form_action == 'add_member':
             username = _sanitize_task_text((request.POST.get('member_username') or '').strip(), multiline=False, max_len=150)
             member_role = str(request.POST.get('member_role') or WorkspaceMembership.ROLE_MEMBER).strip()
@@ -3382,6 +3536,13 @@ def platform_workspace_detail_page(request, workspace_id):
     competition_snapshot = getattr(workspace, 'competition_snapshot', None)
     competition_summary = None
     if workspace.kind == Workspace.KIND_CLUB:
+        if not competition_search_results:
+            competition_search_inputs = {
+                'provider': getattr(competition_context, 'provider', WorkspaceCompetitionContext.PROVIDER_MANUAL) if competition_context else WorkspaceCompetitionContext.PROVIDER_MANUAL,
+                'team_query': str(getattr(workspace.primary_team, 'name', '') or '').strip(),
+                'competition_query': str(getattr(getattr(getattr(getattr(workspace.primary_team, 'group', None), 'season', None), 'competition', None), 'name', '') or '').strip(),
+                'group_query': str(getattr(getattr(workspace.primary_team, 'group', None), 'name', '') or '').strip(),
+            }
         competition_context = competition_context or _bootstrap_workspace_competition_context(workspace, primary_team=workspace.primary_team)
         if competition_context and competition_context.is_auto_sync_enabled and not competition_snapshot:
             _sync_workspace_competition_context(workspace)
@@ -3443,6 +3604,8 @@ def platform_workspace_detail_page(request, workspace_id):
             'competition_snapshot': competition_snapshot,
             'competition_summary': competition_summary,
             'competition_provider_choices': WorkspaceCompetitionContext.PROVIDER_CHOICES,
+            'competition_search_inputs': competition_search_inputs,
+            'competition_search_results': competition_search_results,
         },
     )
 

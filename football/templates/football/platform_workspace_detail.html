@@ -554,6 +554,65 @@
             <h2>Contexto competitivo</h2>
             <p>Este bloque deja vinculado el cliente a su contexto deportivo para pintar clasificación y próximo rival en su propia home.</p>
             {% if can_manage_workspace %}
+            <div class="panel-block" style="margin-top:1rem;">
+              <div class="section-kicker">Onboarding asistido</div>
+              <h3 style="margin-top:0.55rem;">Buscar equipo y competición</h3>
+              <p>Busca coincidencias reales en equipos y grupos ya cargados. Al vincular una coincidencia, el cliente adopta ese equipo, guarda el contexto competitivo y lanza la sincronización.</p>
+              <form method="post" class="workspace-form" style="margin-top:0.9rem;">
+                {% csrf_token %}
+                <input type="hidden" name="form_action" value="search_competition_context" />
+                <div class="inline-grid">
+                  <div class="field">
+                    <label for="competition_provider_search">Proveedor</label>
+                    <select id="competition_provider_search" name="competition_provider_search">
+                      {% for provider_value, provider_label in competition_provider_choices %}
+                      <option value="{{ provider_value }}" {% if competition_search_inputs.provider == provider_value %}selected{% endif %}>{{ provider_label }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="competition_team_query">Equipo</label>
+                    <input id="competition_team_query" name="competition_team_query" type="text" value="{{ competition_search_inputs.team_query }}" placeholder="C.D. Benagalbón" />
+                  </div>
+                  <div class="field">
+                    <label for="competition_competition_query">Competición</label>
+                    <input id="competition_competition_query" name="competition_competition_query" type="text" value="{{ competition_search_inputs.competition_query }}" placeholder="Primera Andaluza" />
+                  </div>
+                  <div class="field">
+                    <label for="competition_group_query">Grupo</label>
+                    <input id="competition_group_query" name="competition_group_query" type="text" value="{{ competition_search_inputs.group_query }}" placeholder="Grupo 2" />
+                  </div>
+                </div>
+                <div class="hero-links" style="margin-top:1rem;">
+                  <button class="inline-btn" type="submit">Buscar coincidencias</button>
+                </div>
+              </form>
+              {% if competition_search_results %}
+              <div class="member-list" style="margin-top:1rem;">
+                {% for candidate in competition_search_results %}
+                <div class="member-row" style="align-items:flex-start; gap:1rem;">
+                  <div>
+                    <strong>{{ candidate.team_name }}</strong>
+                    <div>{{ candidate.competition_name }} · {{ candidate.group_name }}</div>
+                    <div>{{ candidate.season_name }}</div>
+                  </div>
+                  <form method="post" class="inline-form" style="margin-left:auto;">
+                    {% csrf_token %}
+                    <input type="hidden" name="form_action" value="apply_competition_candidate" />
+                    <input type="hidden" name="candidate_provider" value="{{ candidate.provider }}" />
+                    <input type="hidden" name="candidate_team_id" value="{{ candidate.team_id }}" />
+                    <input type="hidden" name="candidate_external_competition_key" value="{{ candidate.external_competition_key }}" />
+                    <input type="hidden" name="candidate_external_group_key" value="{{ candidate.external_group_key }}" />
+                    <input type="hidden" name="candidate_external_team_key" value="{{ candidate.external_team_key }}" />
+                    <input type="hidden" name="candidate_external_team_name" value="{{ candidate.external_team_name }}" />
+                    <input type="hidden" name="candidate_auto_sync" value="on" />
+                    <button class="inline-btn" type="submit">Vincular y sincronizar</button>
+                  </form>
+                </div>
+                {% endfor %}
+              </div>
+              {% endif %}
+            </div>
             <form method="post" class="workspace-form" style="margin-top:1rem;">
               {% csrf_token %}
               <input type="hidden" name="form_action" value="update_competition_context" />
