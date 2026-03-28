@@ -4181,8 +4181,8 @@ class CoachOverviewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Rival Futuro')
         self.assertNotContains(response, 'Rival Antiguo')
-        self.assertContains(response, 'Próximo partido')
-        self.assertContains(response, 'Estado del equipo')
+        self.assertContains(response, 'Próximo rival')
+        self.assertContains(response, 'Estado competitivo')
         self.assertContains(response, 'Clasificación')
 
     @patch('football.views.load_preferred_next_match_payload', return_value=None)

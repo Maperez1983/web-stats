@@ -93,11 +93,11 @@
         gap: 1rem;
       }
       .primary-grid {
-        grid-template-columns: 1.45fr 0.9fr;
+        grid-template-columns: 1.4fr 0.85fr;
       }
       .secondary-grid {
         margin-top: 1rem;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: 1fr;
       }
       .card {
         border-radius: 22px;
@@ -199,7 +199,6 @@
         color: rgba(226, 232, 240, 0.88);
       }
       .standing-highlight {
-        margin-top: 0.85rem;
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 0.65rem;
@@ -250,33 +249,53 @@
         padding: 0.55rem 0.8rem;
         color: var(--muted);
       }
-      .probable-preview {
-        display: flex;
+      .stack {
+        display: grid;
+        gap: 1rem;
+      }
+      .hero-kicker {
+        display: inline-flex;
+        gap: 0.55rem;
         flex-wrap: wrap;
-        gap: 0.4rem;
-        margin-top: 0.75rem;
+        margin-bottom: 0.55rem;
       }
-      .chip {
+      .hero-kicker span {
         border-radius: 999px;
-        padding: 0.35rem 0.7rem;
-        background: rgba(250, 204, 21, 0.12);
-        border: 1px solid rgba(250, 204, 21, 0.24);
+        padding: 0.3rem 0.65rem;
+        background: rgba(244, 180, 0, 0.12);
+        border: 1px solid rgba(244, 180, 0, 0.22);
         color: #fef3c7;
-        font-size: 0.75rem;
+        font-size: 0.74rem;
       }
-      .status-note {
-        color: var(--success);
-        font-size: 0.82rem;
+      .summary-value {
+        display: block;
+        margin-top: 0.2rem;
+        font-size: 1.4rem;
+        color: var(--ink);
       }
-      .summary-copy {
-        margin-top: 0.9rem;
+      .detail-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 0.75rem;
+      }
+      .detail-list li span {
+        display: block;
+        font-size: 0.74rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
         color: var(--muted);
-        line-height: 1.5;
+      }
+      .detail-list li strong {
+        display: block;
+        margin-top: 0.18rem;
+        color: var(--ink);
       }
       @media (max-width: 1120px) {
         .primary-grid,
         .secondary-grid {
-          grid-template-columns: 1fr 1fr;
+          grid-template-columns: 1fr;
         }
       }
       @media (max-width: 760px) {
@@ -331,87 +350,62 @@
           <div class="card team-hero-card">
             <div class="team-hero-media">
               <div class="team-hero-copy">
-                <strong>{{ next_match_opponent }}</strong>
-                <span>{{ next_match.round|default:"Jornada por confirmar" }} · {{ next_match_date|default:"--" }}{% if next_match.time %} · {{ next_match.time }}{% endif %} · {{ next_match.location|default:"Campo por confirmar" }}</span>
+                <div class="hero-kicker">
+                  <span>{{ competition_label|default:"Competición por definir" }}</span>
+                  <span>Puesto {{ highlighted_standing.rank|default:"-" }}</span>
+                </div>
+                <strong>{{ team_display_name }}</strong>
+                <span>{{ competition_label|default:"Competición por definir" }}</span>
               </div>
             </div>
           </div>
 
-          <div class="card">
-            <h2>Estado del equipo</h2>
-            <p class="headline">{{ weekly_brief.headline }}</p>
-            <p class="status-note">Lectura rápida del club antes de entrar en los módulos.</p>
-            <ul class="metric-list">
-              {% for item in weekly_brief.availability %}
-              <li><span>{{ item.label }}</span><strong>{{ item.value }}</strong></li>
-              {% endfor %}
-            </ul>
-            <ul class="plain-list">
-              {% for line in weekly_brief.alerts %}
-              <li>{{ line }}</li>
-              {% empty %}
-              <li>Sin alertas críticas para el staff.</li>
-              {% endfor %}
-            </ul>
-            <div class="probable-preview">
-              {% for preview_name in probable_eleven_names %}
-              <span class="chip">{{ preview_name }}</span>
-              {% empty %}
-              <span class="chip">11 probable pendiente</span>
-              {% endfor %}
+          <div class="stack">
+            <div class="card compact">
+              <h3>Estado competitivo</h3>
+              <div class="standing-highlight">
+                <div class="mini">
+                  <span>Posición</span>
+                  <strong>{{ highlighted_standing.rank|default:"-" }}</strong>
+                </div>
+                <div class="mini">
+                  <span>Puntos</span>
+                  <strong>{{ highlighted_standing.points|default:"-" }}</strong>
+                </div>
+                <div class="mini">
+                  <span>Partidos</span>
+                  <strong>{{ highlighted_standing.played|default:"-" }}</strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="card compact">
+              <h3>Próximo rival</h3>
+              <ul class="detail-list">
+                <li>
+                  <span>Equipo</span>
+                  <strong>{{ next_match_opponent|default:"Rival por confirmar" }}</strong>
+                </li>
+                <li>
+                  <span>Fecha del partido</span>
+                  <strong>{{ next_match.round|default:"Jornada por confirmar" }} · {{ next_match_date|default:"--" }}{% if next_match.time %} · {{ next_match.time }}{% endif %}</strong>
+                </li>
+                <li>
+                  <span>Campo de juego</span>
+                  <strong>{{ next_match.location|default:"Campo por confirmar" }}</strong>
+                </li>
+                <li>
+                  <span>Posición</span>
+                  <strong>{% if opponent_standing %}{{ opponent_standing.rank|default:"-" }}{% else %}-{% endif %}</strong>
+                </li>
+              </ul>
             </div>
           </div>
         </section>
 
         <section class="secondary-grid">
-          <div class="card compact">
-            <h3>Próximo partido</h3>
-            <ul class="plain-list">
-              <li><strong>{{ next_match.opponent|default:"Rival por confirmar" }}</strong></li>
-              <li>{{ next_match.round|default:"Jornada por confirmar" }}</li>
-              <li>{{ next_match.date|default:"--" }}{% if next_match.time %} · {{ next_match.time }}{% endif %}</li>
-              <li>{{ next_match.location|default:"Campo por confirmar" }}</li>
-            </ul>
-          </div>
-
-          <div class="card compact">
-            <h3>Alertas staff</h3>
-            <ul class="plain-list">
-              {% for line in weekly_brief.alerts %}
-              <li>{{ line }}</li>
-              {% empty %}
-              <li>Sin alertas críticas para el staff.</li>
-              {% endfor %}
-            </ul>
-          </div>
-
-          <div class="card compact">
-            <h3>11 probable</h3>
-            <p><strong>{{ weekly_brief.probable_eleven_count }}</strong> jugadores identificables.</p>
-            <ul class="plain-list">
-              <li>{{ weekly_brief.probable_eleven_preview }}</li>
-            </ul>
-            <p class="summary-copy">La navegación principal ya vive en las pestañas superiores. La portada solo resume el estado actual del cliente.</p>
-          </div>
-
           <div class="card">
             <h2>Clasificación</h2>
-            {% if highlighted_standing %}
-            <div class="standing-highlight">
-              <div class="mini">
-                <span>Posición</span>
-                <strong>{{ highlighted_standing.rank|default:"-" }}</strong>
-              </div>
-              <div class="mini">
-                <span>Puntos</span>
-                <strong>{{ highlighted_standing.points|default:"-" }}</strong>
-              </div>
-              <div class="mini">
-                <span>Partidos</span>
-                <strong>{{ highlighted_standing.played|default:"-" }}</strong>
-              </div>
-            </div>
-            {% endif %}
             {% if standings %}
             <table class="standings-table">
               <thead>

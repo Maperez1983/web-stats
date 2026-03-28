@@ -5111,20 +5111,31 @@ def coach_overview_page(request):
         if row_name == team_name_folded or team_name_folded in row_name or row_name in team_name_folded:
             highlighted_standing = row
             break
-    compact_standings = []
-    compact_source = list(standings[:8])
-    if highlighted_standing and all(
-        str(row.get('team') or '').strip() != str(highlighted_standing.get('team') or '').strip()
-        for row in compact_source
-    ):
-        compact_source.append(highlighted_standing)
-    for row in compact_source:
+    standings_rows = []
+    for row in standings:
         row_copy = dict(row)
         row_copy['is_team'] = bool(
             highlighted_standing
             and str(row_copy.get('team') or '').strip() == str(highlighted_standing.get('team') or '').strip()
         )
-        compact_standings.append(row_copy)
+        standings_rows.append(row_copy)
+    opponent_standing = None
+    next_match_opponent_folded = next_match_opponent.strip().lower()
+    for row in standings_rows:
+        row_name = str(row.get('full_name') or row.get('team') or '').strip().lower()
+        if not row_name or not next_match_opponent_folded:
+            continue
+        if (
+            row_name == next_match_opponent_folded
+            or next_match_opponent_folded in row_name
+            or row_name in next_match_opponent_folded
+        ):
+            opponent_standing = row
+            break
+    competition_name = str(getattr(getattr(getattr(primary_team, 'group', None), 'season', None), 'competition', None).name or '').strip() if getattr(getattr(getattr(primary_team, 'group', None), 'season', None), 'competition', None) else ''
+    group_name = str(getattr(getattr(primary_team, 'group', None), 'name', '') or '').strip()
+    competition_label = ' · '.join([item for item in [competition_name, group_name] if item])
+    team_display_name = str(getattr(primary_team, 'display_name', '') or getattr(primary_team, 'name', '') or 'Club').strip()
     pending_items = []
     if isinstance(weekly_brief, dict):
         if int(weekly_brief.get('convocated_count') or 0) <= 0:
@@ -5184,11 +5195,14 @@ def coach_overview_page(request):
             'staff_extra_count': staff_extra_count,
             'rival_summary': rival_summary,
             'hero_image_url': hero_image_url,
+            'team_display_name': team_display_name,
+            'competition_label': competition_label,
             'next_match': next_match,
             'next_match_opponent': next_match_opponent,
             'next_match_date': next_match_date,
-            'standings': compact_standings,
+            'standings': standings_rows,
             'highlighted_standing': highlighted_standing,
+            'opponent_standing': opponent_standing,
             'probable_eleven_names': probable_eleven_names,
             'module_hub': module_hub,
             'pending_items': pending_items,
