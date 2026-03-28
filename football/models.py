@@ -119,6 +119,73 @@ class Workspace(models.Model):
         return self.name
 
 
+class WorkspaceCompetitionContext(models.Model):
+    PROVIDER_MANUAL = 'manual'
+    PROVIDER_RFAF = 'rfaf'
+    PROVIDER_UNIVERSO = 'universo_rfaf'
+    PROVIDER_CHOICES = [
+        (PROVIDER_MANUAL, 'Manual / base local'),
+        (PROVIDER_RFAF, 'RFAF'),
+        (PROVIDER_UNIVERSO, 'Universo RFAF'),
+    ]
+
+    STATUS_PENDING = 'pending'
+    STATUS_READY = 'ready'
+    STATUS_ERROR = 'error'
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Pendiente'),
+        (STATUS_READY, 'Sincronizado'),
+        (STATUS_ERROR, 'Error'),
+    ]
+
+    workspace = models.OneToOneField(Workspace, on_delete=models.CASCADE, related_name='competition_context')
+    team = models.ForeignKey(Team, on_delete=models.SET_NULL, null=True, blank=True, related_name='competition_contexts')
+    group = models.ForeignKey(Group, on_delete=models.SET_NULL, null=True, blank=True, related_name='competition_contexts')
+    season = models.ForeignKey(Season, on_delete=models.SET_NULL, null=True, blank=True, related_name='competition_contexts')
+    provider = models.CharField(max_length=32, choices=PROVIDER_CHOICES, default=PROVIDER_MANUAL)
+    external_competition_key = models.CharField(max_length=140, blank=True)
+    external_group_key = models.CharField(max_length=140, blank=True)
+    external_team_key = models.CharField(max_length=140, blank=True)
+    external_team_name = models.CharField(max_length=160, blank=True)
+    is_auto_sync_enabled = models.BooleanField(default=True)
+    last_sync_at = models.DateTimeField(null=True, blank=True)
+    sync_status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    sync_error = models.CharField(max_length=220, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['workspace__name']
+        verbose_name = 'Contexto competitivo'
+        verbose_name_plural = 'Contextos competitivos'
+
+    def __str__(self):
+        return f'{self.workspace.name} · {self.get_provider_display()}'
+
+
+class WorkspaceCompetitionSnapshot(models.Model):
+    workspace = models.OneToOneField(Workspace, on_delete=models.CASCADE, related_name='competition_snapshot')
+    context = models.ForeignKey(
+        WorkspaceCompetitionContext,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='snapshots',
+    )
+    standings_payload = models.JSONField(default=list, blank=True)
+    next_match_payload = models.JSONField(default=dict, blank=True)
+    schedule_payload = models.JSONField(default=list, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at']
+        verbose_name = 'Snapshot competitivo'
+        verbose_name_plural = 'Snapshots competitivos'
+
+    def __str__(self):
+        return f'Snapshot · {self.workspace.name}'
+
+
 class Player(models.Model):
     team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='players')
     name = models.CharField(max_length=120)

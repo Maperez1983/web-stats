@@ -13,7 +13,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from football.models import AnalystVideoFolder, Competition, ConvocationRecord, Group, Match, MatchEvent, Player, PlayerCommunication, PlayerFine, PlayerStatistic, RivalAnalysisReport, RivalVideo, Season, SessionTask, TaskStudioProfile, TaskStudioRosterPlayer, TaskStudioTask, Team, TeamStanding, TrainingMicrocycle, TrainingSession, UserInvitation, Workspace, WorkspaceMembership
+from football.models import AnalystVideoFolder, Competition, ConvocationRecord, Group, Match, MatchEvent, Player, PlayerCommunication, PlayerFine, PlayerStatistic, RivalAnalysisReport, RivalVideo, Season, SessionTask, TaskStudioProfile, TaskStudioRosterPlayer, TaskStudioTask, Team, TeamStanding, TrainingMicrocycle, TrainingSession, UserInvitation, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot, WorkspaceMembership
 from football.bootstrap import ensure_bootstrap_admin_from_env
 from football.event_taxonomy import (
     PASS_KEYWORDS,
@@ -767,6 +767,63 @@ class PlatformWorkspaceTests(TestCase):
             ).exists()
         )
 
+    def test_platform_overview_creates_club_competition_context(self):
+        self.client.force_login(self.admin_user)
+        rival = Team.objects.create(name='Rival Contexto', slug='rival-contexto', group=self.alt_team.group)
+        Match.objects.create(
+            season=self.alt_team.group.season,
+            group=self.alt_team.group,
+            round='J25',
+            date=date(2026, 4, 6),
+            location='Campo matriz',
+            home_team=self.alt_team,
+            away_team=rival,
+        )
+        TeamStanding.objects.create(
+            season=self.alt_team.group.season,
+            group=self.alt_team.group,
+            team=self.alt_team,
+            position=2,
+            played=24,
+            wins=14,
+            draws=4,
+            losses=6,
+            goals_for=39,
+            goals_against=25,
+            goal_difference=14,
+            points=46,
+        )
+
+        response = self.client.post(
+            reverse('platform-overview'),
+            {
+                'form_action': 'workspace_create',
+                'workspace_name': 'Cliente con contexto',
+                'workspace_kind': Workspace.KIND_CLUB,
+                'owner_username': self.workspace_manager.username,
+                'team_id': self.alt_team.id,
+                'competition_provider': WorkspaceCompetitionContext.PROVIDER_MANUAL,
+                'external_competition_key': 'liga-plataforma',
+                'external_group_key': 'grupo-plataforma',
+                'external_team_key': 'cliente-alternativo',
+                'external_team_name': 'Cliente alternativo',
+                'competition_auto_sync': 'on',
+                'module_cover': 'on',
+                'deliverable_cover__executive_home': 'on',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        workspace = Workspace.objects.get(name='Cliente con contexto')
+        context = WorkspaceCompetitionContext.objects.get(workspace=workspace)
+        snapshot = WorkspaceCompetitionSnapshot.objects.get(workspace=workspace)
+        self.assertEqual(context.team_id, self.alt_team.id)
+        self.assertEqual(context.group_id, self.alt_team.group_id)
+        self.assertEqual(context.external_group_key, 'grupo-plataforma')
+        self.assertEqual(context.sync_status, WorkspaceCompetitionContext.STATUS_READY)
+        self.assertEqual(len(snapshot.standings_payload), 1)
+        self.assertEqual(snapshot.next_match_payload.get('round'), 'J25')
+
     def test_platform_overview_rejects_unknown_initial_usernames(self):
         self.client.force_login(self.admin_user)
 
@@ -1036,6 +1093,70 @@ class PlatformWorkspaceTests(TestCase):
                 role=WorkspaceMembership.ROLE_OWNER,
             ).exists()
         )
+
+    def test_workspace_detail_can_update_and_sync_competition_context(self):
+        workspace = Workspace.objects.create(
+            name='Cliente competición',
+            slug='cliente-competicion',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.alt_team,
+            owner_user=self.admin_user,
+            enabled_modules={'dashboard': True},
+        )
+        self.client.force_login(self.admin_user)
+        Match.objects.create(
+            season=self.alt_team.group.season,
+            group=self.alt_team.group,
+            round='J28',
+            date=date(2026, 4, 12),
+            location='Campo alternativo',
+            home_team=self.alt_team,
+            away_team=self.team,
+        )
+        TeamStanding.objects.create(
+            season=self.alt_team.group.season,
+            group=self.alt_team.group,
+            team=self.alt_team,
+            position=4,
+            played=24,
+            wins=12,
+            draws=3,
+            losses=9,
+            goals_for=31,
+            goals_against=27,
+            goal_difference=4,
+            points=39,
+        )
+
+        response = self.client.post(
+            reverse('platform-workspace-detail', args=[workspace.id]),
+            {
+                'form_action': 'update_competition_context',
+                'competition_provider': WorkspaceCompetitionContext.PROVIDER_RFAF,
+                'external_competition_key': 'rfaf:liga-plataforma',
+                'external_group_key': 'rfaf:grupo-plataforma',
+                'external_team_key': 'rfaf:cliente-alternativo',
+                'external_team_name': 'Cliente alternativo',
+                'competition_auto_sync': 'on',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        context = WorkspaceCompetitionContext.objects.get(workspace=workspace)
+        self.assertEqual(context.provider, WorkspaceCompetitionContext.PROVIDER_RFAF)
+        self.assertEqual(context.external_team_key, 'rfaf:cliente-alternativo')
+
+        response = self.client.post(
+            reverse('platform-workspace-detail', args=[workspace.id]),
+            {'form_action': 'sync_competition_context'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        context.refresh_from_db()
+        snapshot = WorkspaceCompetitionSnapshot.objects.get(workspace=workspace)
+        self.assertEqual(context.sync_status, WorkspaceCompetitionContext.STATUS_READY)
+        self.assertEqual(snapshot.next_match_payload.get('round'), 'J28')
+        self.assertEqual(snapshot.standings_payload[0].get('team'), self.alt_team.name.upper())
 
     def test_workspace_detail_updates_task_studio_deliverables(self):
         workspace = Workspace.objects.create(

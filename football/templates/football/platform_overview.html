@@ -1280,6 +1280,40 @@
             </div>
 
             <div class="fieldset">
+              <h3>Contexto competitivo</h3>
+              <p>Vincula el cliente a su competición para que la home pueda pintar clasificación y próximo rival en su propio espacio.</p>
+              <div class="inline-grid">
+                <div class="field">
+                  <label for="competition_provider">Proveedor</label>
+                  <select id="competition_provider" name="competition_provider">
+                    {% for provider_value, provider_label in competition_provider_choices %}
+                    <option value="{{ provider_value }}" {% if workspace_form.competition_provider == provider_value %}selected{% endif %}>{{ provider_label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="external_competition_key">Clave competición externa</label>
+                  <input id="external_competition_key" name="external_competition_key" type="text" value="{{ workspace_form.external_competition_key }}" placeholder="Ej. rfaf:1-andaluza-malaga-g2" />
+                </div>
+                <div class="field">
+                  <label for="external_group_key">Clave grupo externa</label>
+                  <input id="external_group_key" name="external_group_key" type="text" value="{{ workspace_form.external_group_key }}" placeholder="Ej. grupo-2" />
+                </div>
+                <div class="field">
+                  <label for="external_team_key">Clave equipo externa</label>
+                  <input id="external_team_key" name="external_team_key" type="text" value="{{ workspace_form.external_team_key }}" placeholder="Ej. benagalbon" />
+                </div>
+                <div class="field">
+                  <label for="external_team_name">Nombre oficial externo</label>
+                  <input id="external_team_name" name="external_team_name" type="text" value="{{ workspace_form.external_team_name }}" placeholder="Ej. C.D. Benagalbón" />
+                </div>
+                <div class="field">
+                  <label><input type="checkbox" name="competition_auto_sync" {% if workspace_form.competition_auto_sync %}checked{% endif %} /> Sincronizar automáticamente al crear el cliente</label>
+                </div>
+              </div>
+            </div>
+
+            <div class="fieldset">
               <h3>Módulos</h3>
               <p>Plataforma gobierna qué entra en cada cliente. Activa aquí lo que deba quedar operativo desde el primer minuto.</p>
               <div class="kind-modules" data-kind="club">

@@ -91,6 +91,8 @@ from football.models import (
     TaskStudioProfile,
     TaskStudioRosterPlayer,
     TaskStudioTask,
+    WorkspaceCompetitionContext,
+    WorkspaceCompetitionSnapshot,
 )
 from football.event_taxonomy import (
     DRIBBLE_KEYWORDS,
@@ -934,6 +936,169 @@ def _workspace_default_modules(kind):
     }
 
 
+def _workspace_competition_provider_choices():
+    return WorkspaceCompetitionContext.PROVIDER_CHOICES
+
+
+def _bootstrap_workspace_competition_context(
+    workspace,
+    *,
+    primary_team=None,
+    provider=None,
+    external_competition_key=None,
+    external_group_key=None,
+    external_team_key=None,
+    external_team_name=None,
+    auto_sync_enabled=None,
+):
+    if not workspace or workspace.kind != Workspace.KIND_CLUB:
+        return None
+    primary_team = primary_team or workspace.primary_team
+    group = getattr(primary_team, 'group', None)
+    season = getattr(group, 'season', None)
+    context, _ = WorkspaceCompetitionContext.objects.get_or_create(
+        workspace=workspace,
+        defaults={
+            'team': primary_team,
+            'group': group,
+            'season': season,
+            'provider': provider or WorkspaceCompetitionContext.PROVIDER_MANUAL,
+            'external_competition_key': external_competition_key or '',
+            'external_group_key': external_group_key or '',
+            'external_team_key': external_team_key or '',
+            'external_team_name': external_team_name or str(getattr(primary_team, 'name', '') or '').strip(),
+            'is_auto_sync_enabled': True if auto_sync_enabled is None else bool(auto_sync_enabled),
+        },
+    )
+    changed = False
+    if context.team_id != getattr(primary_team, 'id', None):
+        context.team = primary_team
+        changed = True
+    if context.group_id != getattr(group, 'id', None):
+        context.group = group
+        changed = True
+    if context.season_id != getattr(season, 'id', None):
+        context.season = season
+        changed = True
+    if provider and context.provider != provider:
+        context.provider = provider
+        changed = True
+    if external_competition_key is not None and context.external_competition_key != (external_competition_key or ''):
+        context.external_competition_key = external_competition_key or ''
+        changed = True
+    if external_group_key is not None and context.external_group_key != (external_group_key or ''):
+        context.external_group_key = external_group_key or ''
+        changed = True
+    if external_team_key is not None and context.external_team_key != (external_team_key or ''):
+        context.external_team_key = external_team_key or ''
+        changed = True
+    desired_external_team_name = context.external_team_name
+    if external_team_name is not None:
+        desired_external_team_name = external_team_name or str(getattr(primary_team, 'name', '') or '').strip()
+    elif not desired_external_team_name:
+        desired_external_team_name = str(getattr(primary_team, 'name', '') or '').strip()
+    if context.external_team_name != desired_external_team_name:
+        context.external_team_name = desired_external_team_name
+        changed = True
+    if auto_sync_enabled is not None and context.is_auto_sync_enabled != bool(auto_sync_enabled):
+        context.is_auto_sync_enabled = bool(auto_sync_enabled)
+        changed = True
+    if changed:
+        context.save()
+    return context
+
+
+def _build_workspace_schedule_payload(primary_team):
+    if not primary_team:
+        return []
+    matches = (
+        Match.objects
+        .filter(Q(home_team=primary_team) | Q(away_team=primary_team))
+        .select_related('home_team', 'away_team')
+        .order_by('date', 'id')[:8]
+    )
+    payload = []
+    for match in matches:
+        match_payload = build_match_payload(
+            match,
+            primary_team,
+            status='next' if match.date and match.date >= timezone.localdate() else 'latest',
+        )
+        payload.append(match_payload)
+    return payload
+
+
+def _sync_workspace_competition_context(workspace):
+    if not workspace or workspace.kind != Workspace.KIND_CLUB:
+        return None, 'Este cliente no admite contexto competitivo.'
+    primary_team = workspace.primary_team
+    context = _bootstrap_workspace_competition_context(workspace, primary_team=primary_team)
+    if not context:
+        return None, 'No se pudo preparar el contexto competitivo.'
+    if not primary_team or not getattr(primary_team, 'group', None):
+        context.sync_status = WorkspaceCompetitionContext.STATUS_ERROR
+        context.sync_error = 'El cliente no tiene equipo o grupo vinculado.'
+        context.last_sync_at = timezone.now()
+        context.save(update_fields=['sync_status', 'sync_error', 'last_sync_at', 'updated_at'])
+        return context, context.sync_error
+
+    standings_payload = _resolve_standings_for_team(primary_team, snapshot=load_universo_snapshot())
+    convocation_next = _build_next_match_from_convocation(primary_team)
+    next_match_payload = convocation_next or load_preferred_next_match_payload(primary_team=primary_team) or get_next_match(primary_team, primary_team.group) or {}
+    schedule_payload = _build_workspace_schedule_payload(primary_team)
+    snapshot, _ = WorkspaceCompetitionSnapshot.objects.get_or_create(
+        workspace=workspace,
+        defaults={'context': context},
+    )
+    snapshot.context = context
+    snapshot.standings_payload = standings_payload or []
+    snapshot.next_match_payload = next_match_payload or {}
+    snapshot.schedule_payload = schedule_payload or []
+    snapshot.save()
+
+    context.team = primary_team
+    context.group = primary_team.group
+    context.season = getattr(primary_team.group, 'season', None)
+    context.last_sync_at = timezone.now()
+    context.sync_status = WorkspaceCompetitionContext.STATUS_READY
+    context.sync_error = ''
+    if not context.external_team_name:
+        context.external_team_name = str(primary_team.name or '').strip()
+    context.save(update_fields=['team', 'group', 'season', 'last_sync_at', 'sync_status', 'sync_error', 'external_team_name', 'updated_at'])
+    return context, ''
+
+
+def _competition_payload_for_team(workspace, primary_team):
+    if workspace and workspace.kind == Workspace.KIND_CLUB:
+        snapshot = getattr(workspace, 'competition_snapshot', None)
+        if snapshot and snapshot.context_id:
+            standings_payload = snapshot.standings_payload if isinstance(snapshot.standings_payload, list) else []
+            next_match_payload = snapshot.next_match_payload if isinstance(snapshot.next_match_payload, dict) else {}
+            if standings_payload or next_match_payload:
+                return {
+                    'standings': standings_payload,
+                    'next_match': normalize_next_match_payload(next_match_payload) if next_match_payload else {},
+                }
+        if primary_team:
+            context = _bootstrap_workspace_competition_context(workspace, primary_team=primary_team)
+            if context and context.is_auto_sync_enabled:
+                _sync_workspace_competition_context(workspace)
+                snapshot = getattr(workspace, 'competition_snapshot', None)
+                if snapshot:
+                    return {
+                        'standings': snapshot.standings_payload if isinstance(snapshot.standings_payload, list) else [],
+                        'next_match': normalize_next_match_payload(snapshot.next_match_payload) if isinstance(snapshot.next_match_payload, dict) and snapshot.next_match_payload else {},
+                    }
+    standings_payload = _resolve_standings_for_team(primary_team, snapshot=load_universo_snapshot()) if primary_team else []
+    next_match_payload = {}
+    if primary_team and getattr(primary_team, 'group', None):
+        next_match_payload = load_preferred_next_match_payload(primary_team=primary_team) or get_next_match(primary_team, primary_team.group) or {}
+    return {
+        'standings': standings_payload or [],
+        'next_match': normalize_next_match_payload(next_match_payload) if next_match_payload else {},
+    }
+
+
 def _workspace_deliverable_flag(module_key, deliverable_key):
     return f'deliverable__{module_key}__{deliverable_key}'
 
@@ -1496,14 +1661,17 @@ def _ensure_club_workspace(primary_team):
             changed = True
         if changed:
             workspace.save(update_fields=['name', 'kind', 'enabled_modules', 'updated_at'])
+        _bootstrap_workspace_competition_context(workspace, primary_team=primary_team)
         return workspace
-    return Workspace.objects.create(
+    workspace = Workspace.objects.create(
         name=str(primary_team.display_name or primary_team.name or 'Club').strip() or 'Club',
         slug=_unique_workspace_slug(primary_team.display_name or primary_team.name or 'club'),
         kind=Workspace.KIND_CLUB,
         primary_team=primary_team,
         enabled_modules=_workspace_default_modules(Workspace.KIND_CLUB),
     )
+    _bootstrap_workspace_competition_context(workspace, primary_team=primary_team)
+    return workspace
 
 
 def _ensure_task_studio_workspace(user):
@@ -2316,9 +2484,12 @@ def dashboard_data(request):
         except Exception:
             pass
 
-    universo_snapshot = load_universo_snapshot()
-    standings = _resolve_standings_for_team(primary_team, snapshot=universo_snapshot)
-    next_match = load_preferred_next_match_payload(primary_team=primary_team) or get_next_match(primary_team, group)
+    workspace = _get_active_workspace(request)
+    competition_payload = _competition_payload_for_team(workspace, primary_team)
+    standings = competition_payload.get('standings') or []
+    next_match = competition_payload.get('next_match') or {}
+    if not next_match:
+        next_match = load_preferred_next_match_payload(primary_team=primary_team) or get_next_match(primary_team, group)
     convocation_next_match = _build_next_match_from_convocation(primary_team)
     # Product rule: Home must prioritize the data configured in Convocatoria.
     if convocation_next_match:
@@ -2537,6 +2708,12 @@ def platform_overview_page(request):
         'owner_username': '',
         'team_id': '',
         'workspace_notes': '',
+        'competition_provider': WorkspaceCompetitionContext.PROVIDER_MANUAL,
+        'external_competition_key': '',
+        'external_group_key': '',
+        'external_team_key': '',
+        'external_team_name': '',
+        'competition_auto_sync': True,
         'initial_admin_usernames': '',
         'initial_member_usernames': '',
         'modules': _workspace_default_modules(Workspace.KIND_CLUB),
@@ -2570,10 +2747,19 @@ def platform_overview_page(request):
             owner_username = _sanitize_task_text((request.POST.get('owner_username') or '').strip(), multiline=False, max_len=150).lower()
             team_id = _parse_int(request.POST.get('team_id'))
             workspace_notes = _sanitize_task_text((request.POST.get('workspace_notes') or '').strip(), multiline=True, max_len=1200)
+            competition_provider = str(request.POST.get('competition_provider') or WorkspaceCompetitionContext.PROVIDER_MANUAL).strip()
+            external_competition_key = str(request.POST.get('external_competition_key') or '').strip()[:140]
+            external_group_key = str(request.POST.get('external_group_key') or '').strip()[:140]
+            external_team_key = str(request.POST.get('external_team_key') or '').strip()[:140]
+            external_team_name = _sanitize_task_text((request.POST.get('external_team_name') or '').strip(), multiline=False, max_len=160)
+            competition_auto_sync = str(request.POST.get('competition_auto_sync') or '').lower() in {'1', 'true', 'on', 'yes'}
             initial_admin_usernames = str(request.POST.get('initial_admin_usernames') or '')
             initial_member_usernames = str(request.POST.get('initial_member_usernames') or '')
             if workspace_kind not in {Workspace.KIND_CLUB, Workspace.KIND_TASK_STUDIO}:
                 workspace_kind = Workspace.KIND_CLUB
+            valid_providers = {choice[0] for choice in WorkspaceCompetitionContext.PROVIDER_CHOICES}
+            if competition_provider not in valid_providers:
+                competition_provider = WorkspaceCompetitionContext.PROVIDER_MANUAL
             module_catalog = _workspace_module_catalog(workspace_kind)
             selected_modules = {
                 item['key']: str(request.POST.get(f"module_{item['key']}") or '').lower() in {'1', 'true', 'on', 'yes'}
@@ -2595,6 +2781,12 @@ def platform_overview_page(request):
                 'owner_username': owner_username,
                 'team_id': str(team_id or ''),
                 'workspace_notes': workspace_notes,
+                'competition_provider': competition_provider,
+                'external_competition_key': external_competition_key,
+                'external_group_key': external_group_key,
+                'external_team_key': external_team_key,
+                'external_team_name': external_team_name,
+                'competition_auto_sync': competition_auto_sync,
                 'initial_admin_usernames': initial_admin_usernames,
                 'initial_member_usernames': initial_member_usernames,
                 'modules': expanded_modules,
@@ -2625,6 +2817,19 @@ def platform_overview_page(request):
                     enabled_modules=expanded_modules,
                     notes=workspace_notes,
                 )
+                if workspace.kind == Workspace.KIND_CLUB:
+                    _bootstrap_workspace_competition_context(
+                        workspace,
+                        primary_team=primary_workspace_team,
+                        provider=competition_provider,
+                        external_competition_key=external_competition_key,
+                        external_group_key=external_group_key,
+                        external_team_key=external_team_key,
+                        external_team_name=external_team_name,
+                        auto_sync_enabled=competition_auto_sync,
+                    )
+                    if competition_auto_sync:
+                        _sync_workspace_competition_context(workspace)
                 if owner_user:
                     WorkspaceMembership.objects.get_or_create(
                         workspace=workspace,
@@ -2656,6 +2861,12 @@ def platform_overview_page(request):
                     'owner_username': '',
                     'team_id': '',
                     'workspace_notes': '',
+                    'competition_provider': WorkspaceCompetitionContext.PROVIDER_MANUAL,
+                    'external_competition_key': '',
+                    'external_group_key': '',
+                    'external_team_key': '',
+                    'external_team_name': '',
+                    'competition_auto_sync': True,
                     'initial_admin_usernames': '',
                     'initial_member_usernames': '',
                     'modules': _workspace_default_modules(Workspace.KIND_CLUB),
@@ -2974,6 +3185,7 @@ def platform_overview_page(request):
             'workspace_module_catalog_club': _workspace_module_catalog_for_template(Workspace.KIND_CLUB),
             'workspace_module_catalog_task_studio': _workspace_module_catalog_for_template(Workspace.KIND_TASK_STUDIO),
             'workspace_form': workspace_form,
+            'competition_provider_choices': WorkspaceCompetitionContext.PROVIDER_CHOICES,
             'user_form': user_form,
             'role_choices': AppUserRole.ROLE_CHOICES,
             'active_workspace': active_workspace,
@@ -2994,7 +3206,7 @@ def platform_overview_page(request):
 def platform_workspace_detail_page(request, workspace_id):
     workspace = (
         Workspace.objects
-        .select_related('owner_user', 'primary_team')
+        .select_related('owner_user', 'primary_team', 'competition_context', 'competition_snapshot')
         .annotate(member_count=Count('memberships', distinct=True))
         .filter(id=workspace_id)
         .first()
@@ -3085,6 +3297,39 @@ def platform_workspace_detail_page(request, workspace_id):
             workspace.enabled_modules = enabled_modules
             workspace.save(update_fields=['enabled_modules', 'updated_at'])
             feedback = 'Módulos del workspace actualizados.'
+        elif form_action == 'update_competition_context':
+            if workspace.kind != Workspace.KIND_CLUB:
+                error = 'Solo los clientes club tienen contexto competitivo.'
+            else:
+                provider = str(request.POST.get('competition_provider') or WorkspaceCompetitionContext.PROVIDER_MANUAL).strip()
+                external_competition_key = str(request.POST.get('external_competition_key') or '').strip()[:140]
+                external_group_key = str(request.POST.get('external_group_key') or '').strip()[:140]
+                external_team_key = str(request.POST.get('external_team_key') or '').strip()[:140]
+                external_team_name = _sanitize_task_text((request.POST.get('external_team_name') or '').strip(), multiline=False, max_len=160)
+                auto_sync_enabled = str(request.POST.get('competition_auto_sync') or '').lower() in {'1', 'true', 'on', 'yes'}
+                valid_providers = {choice[0] for choice in WorkspaceCompetitionContext.PROVIDER_CHOICES}
+                if provider not in valid_providers:
+                    provider = WorkspaceCompetitionContext.PROVIDER_MANUAL
+                _bootstrap_workspace_competition_context(
+                    workspace,
+                    primary_team=workspace.primary_team,
+                    provider=provider,
+                    external_competition_key=external_competition_key,
+                    external_group_key=external_group_key,
+                    external_team_key=external_team_key,
+                    external_team_name=external_team_name,
+                    auto_sync_enabled=auto_sync_enabled,
+                )
+                feedback = 'Contexto competitivo actualizado.'
+        elif form_action == 'sync_competition_context':
+            if workspace.kind != Workspace.KIND_CLUB:
+                error = 'Solo los clientes club se pueden sincronizar.'
+            else:
+                _, sync_error = _sync_workspace_competition_context(workspace)
+                if sync_error:
+                    error = sync_error
+                else:
+                    feedback = 'Competición sincronizada para este cliente.'
         elif form_action == 'add_member':
             username = _sanitize_task_text((request.POST.get('member_username') or '').strip(), multiline=False, max_len=150)
             member_role = str(request.POST.get('member_role') or WorkspaceMembership.ROLE_MEMBER).strip()
@@ -3133,6 +3378,30 @@ def platform_workspace_detail_page(request, workspace_id):
     )
     enabled_modules = _workspace_enabled_modules(workspace)
     module_catalog = _workspace_module_catalog_for_template(workspace.kind, enabled_modules)
+    competition_context = getattr(workspace, 'competition_context', None)
+    competition_snapshot = getattr(workspace, 'competition_snapshot', None)
+    competition_summary = None
+    if workspace.kind == Workspace.KIND_CLUB:
+        competition_context = competition_context or _bootstrap_workspace_competition_context(workspace, primary_team=workspace.primary_team)
+        if competition_context and competition_context.is_auto_sync_enabled and not competition_snapshot:
+            _sync_workspace_competition_context(workspace)
+            workspace = (
+                Workspace.objects
+                .select_related('owner_user', 'primary_team', 'competition_context', 'competition_snapshot')
+                .annotate(member_count=Count('memberships', distinct=True))
+                .filter(id=workspace_id)
+                .first()
+            )
+            competition_context = getattr(workspace, 'competition_context', None)
+            competition_snapshot = getattr(workspace, 'competition_snapshot', None)
+        snapshot_standings = competition_snapshot.standings_payload if competition_snapshot and isinstance(competition_snapshot.standings_payload, list) else []
+        snapshot_next = competition_snapshot.next_match_payload if competition_snapshot and isinstance(competition_snapshot.next_match_payload, dict) else {}
+        competition_summary = {
+            'standings_count': len(snapshot_standings),
+            'next_match_opponent': _payload_opponent_name(snapshot_next) or '',
+            'next_match_round': str(snapshot_next.get('round') or '').strip() if isinstance(snapshot_next, dict) else '',
+            'last_sync_at': competition_context.last_sync_at if competition_context else None,
+        }
     module_cards = []
     if workspace.kind == Workspace.KIND_CLUB:
         module_cards = [
@@ -3170,6 +3439,10 @@ def platform_workspace_detail_page(request, workspace_id):
             'enabled_modules': enabled_modules,
             'workspace_role_choices': WorkspaceMembership.ROLE_CHOICES,
             'teams': list(Team.objects.order_by('name')[:200]),
+            'competition_context': competition_context,
+            'competition_snapshot': competition_snapshot,
+            'competition_summary': competition_summary,
+            'competition_provider_choices': WorkspaceCompetitionContext.PROVIDER_CHOICES,
         },
     )
 
@@ -3748,9 +4021,11 @@ def coach_overview_page(request):
         technical_members = ['Sin miembros técnicos configurados en Admin']
     weekly_brief = _build_weekly_staff_brief_context(primary_team)
     rival_summary = _build_coach_rival_summary(primary_team)
-    standings = _resolve_standings_for_team(primary_team, snapshot=load_universo_snapshot())
+    workspace = _get_active_workspace(request)
+    competition_payload = _competition_payload_for_team(workspace, primary_team)
+    standings = competition_payload.get('standings') or []
     convocation_next = _build_next_match_from_convocation(primary_team)
-    next_match = load_preferred_next_match_payload(primary_team=primary_team) or (get_next_match(primary_team, primary_team.group) if primary_team and primary_team.group else {}) or {}
+    next_match = competition_payload.get('next_match') or load_preferred_next_match_payload(primary_team=primary_team) or (get_next_match(primary_team, primary_team.group) if primary_team and primary_team.group else {}) or {}
     if convocation_next:
         next_match = convocation_next
     if isinstance(weekly_brief, dict):
