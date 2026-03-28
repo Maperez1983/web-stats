@@ -1436,7 +1436,7 @@
           </section>
           {% endif %}
 
-          {% if coach_overview_stats or coach_general_stats or coach_player_leaders %}
+          {% if coach_overview_stats or coach_player_leaders %}
           <section id="coach-summary" class="summary-layout">
             {% if coach_overview_stats %}
             <section class="summary-card">
@@ -1448,34 +1448,6 @@
                     <span class="overview-ring-value">{{ item.value }}</span>
                   </div>
                   <div class="overview-ring-label">{{ item.label }}</div>
-                </article>
-                {% endfor %}
-              </div>
-            </section>
-            {% endif %}
-            <section class="summary-card">
-              <h3>Estadísticas temporada</h3>
-              <div class="summary-mini-grid">
-                {% for item in coach_overview_stats.summary|slice:":6" %}
-                <article class="summary-mini-item">
-                  <div class="label">{{ item.label }}</div>
-                  <div class="value">{{ item.value }}</div>
-                </article>
-                {% endfor %}
-              </div>
-            </section>
-          </section>
-          {% endif %}
-
-          <section class="summary-layout">
-            {% if coach_general_stats %}
-            <section class="summary-card">
-              <h3>Indicadores de temporada</h3>
-              <div class="summary-mini-grid">
-                {% for item in coach_general_stats %}
-                <article class="summary-mini-item">
-                  <div class="label">{{ item.label }}</div>
-                  <div class="value">{{ item.value }}</div>
                 </article>
                 {% endfor %}
               </div>
@@ -1496,6 +1468,7 @@
             </aside>
             {% endif %}
           </section>
+          {% endif %}
 
           {% if coach_selected_match and coach_match_view %}
             <section class="summary-layout">
@@ -1633,14 +1606,6 @@
                     <span class="overview-ring-value">{{ item.value }}</span>
                   </div>
                   <div class="overview-ring-label">{{ item.label }}</div>
-                </article>
-                {% endfor %}
-              </div>
-              <div class="overview-summary is-compact">
-                {% for item in coach_player_view.summary %}
-                <article class="overview-item">
-                  <div class="label">{{ item.label }}</div>
-                  <div class="value">{{ item.value }}</div>
                 </article>
                 {% endfor %}
               </div>
