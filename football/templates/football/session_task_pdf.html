@@ -199,7 +199,6 @@
         border-top: 1px solid #d5dde7;
         font-size: 9px;
         color: {{ pdf_palette.muted }};
-        text-align: right;
       }
       .uefa-sheet {
         border: 1.5px solid #b8c0cc;
@@ -496,7 +495,22 @@
       </div>
 
       <div class="footer" style="background:#f8fafc;">
-        Formato Club · {{ team_name }} · {{ coach_name }} · Generado {{ generated_at|date:"d/m/Y H:i" }}
+        <table style="width:100%; border-collapse:collapse;">
+          <tr>
+            <td style="vertical-align:middle;">
+              <div style="display:inline-flex; align-items:center; gap:8px;">
+                <img src="{{ brand_mark_url }}" alt="2J Football Intelligence" style="width:54px; height:auto; object-fit:contain;" />
+                <div>
+                  <div style="font-size:9px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:#0b1220;">2J Club</div>
+                  <div style="font-size:8.5px;">Del partido al entrenamiento.</div>
+                </div>
+              </div>
+            </td>
+            <td style="text-align:right; vertical-align:middle;">
+              Formato Club · {{ team_name }} · {{ coach_name }} · Generado {{ generated_at|date:"d/m/Y H:i" }}
+            </td>
+          </tr>
+        </table>
       </div>
     </section>
     {% else %}
@@ -646,7 +660,22 @@
       </div>
 
       <div class="footer" style="background:#ffffff;">
-        Formato UEFA · {{ team_name }} · {{ coach_name }} · Generado {{ generated_at|date:"d/m/Y H:i" }}
+        <table style="width:100%; border-collapse:collapse;">
+          <tr>
+            <td style="vertical-align:middle;">
+              <div style="display:inline-flex; align-items:center; gap:8px;">
+                <img src="{{ brand_mark_url }}" alt="2J Football Intelligence" style="width:54px; height:auto; object-fit:contain;" />
+                <div>
+                  <div style="font-size:9px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:#0b1220;">2J Studio</div>
+                  <div style="font-size:8.5px;">Del partido al entrenamiento.</div>
+                </div>
+              </div>
+            </td>
+            <td style="text-align:right; vertical-align:middle;">
+              Formato UEFA · {{ team_name }} · {{ coach_name }} · Generado {{ generated_at|date:"d/m/Y H:i" }}
+            </td>
+          </tr>
+        </table>
       </div>
     </section>
     {% endif %}

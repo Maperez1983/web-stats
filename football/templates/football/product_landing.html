@@ -1,0 +1,294 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>2J Football Intelligence</title>
+    <style>
+      :root {
+        --midnight: #0b1220;
+        --panel: #101a2d;
+        --panel-soft: rgba(16, 26, 45, 0.72);
+        --pitch: #2f7d32;
+        --amber: #f4b400;
+        --ice: #f5f7fa;
+        --slate: #7a8797;
+        --line: rgba(122, 135, 151, 0.18);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        color: var(--ice);
+        font-family: "Avenir Next", "Segoe UI", sans-serif;
+        background:
+          radial-gradient(circle at top left, rgba(47, 125, 50, 0.22), transparent 28%),
+          radial-gradient(circle at top right, rgba(244, 180, 0, 0.18), transparent 23%),
+          linear-gradient(180deg, #07101c, #0b1220 55%, #0a1323);
+      }
+      .page { max-width: 1200px; margin: 0 auto; padding: 1.2rem; }
+      .topbar, .hero, .proof-grid, .tracks, .cta-band { display: grid; gap: 1rem; }
+      .topbar {
+        grid-template-columns: 1fr auto;
+        align-items: center;
+        margin-bottom: 1.2rem;
+      }
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: .9rem;
+      }
+      .brand img { width: 156px; height: auto; }
+      .brand-copy strong {
+        display: block;
+        font-size: .78rem;
+        letter-spacing: .24em;
+        text-transform: uppercase;
+        color: #d3dae5;
+      }
+      .brand-copy span {
+        display: block;
+        margin-top: .18rem;
+        color: var(--slate);
+        font-size: .92rem;
+      }
+      .top-actions {
+        display: inline-flex;
+        gap: .75rem;
+        flex-wrap: wrap;
+        justify-content: end;
+      }
+      .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: .8rem 1.05rem;
+        border-radius: 999px;
+        text-decoration: none;
+        font-size: .78rem;
+        font-weight: 800;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        border: 1px solid var(--line);
+        color: var(--ice);
+        background: rgba(255,255,255,.04);
+      }
+      .button.primary {
+        border: none;
+        color: #0a1a0c;
+        background: linear-gradient(135deg, var(--amber), #f8d14a);
+      }
+      .hero {
+        grid-template-columns: 1.12fr .88fr;
+        padding: 1.3rem;
+        border: 1px solid var(--line);
+        border-radius: 28px;
+        background: linear-gradient(135deg, rgba(16, 26, 45, 0.92), rgba(9, 19, 34, 0.84));
+        box-shadow: 0 28px 64px rgba(0, 0, 0, 0.28);
+      }
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        padding: .28rem .65rem;
+        border-radius: 999px;
+        background: rgba(47, 125, 50, 0.18);
+        color: #d7f5d9;
+        font-size: .74rem;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+      }
+      h1 {
+        margin: .7rem 0 .5rem;
+        font-size: clamp(2.4rem, 5vw, 4.4rem);
+        line-height: .96;
+      }
+      .hero p {
+        max-width: 58ch;
+        color: #dbe3ee;
+        font-size: 1.02rem;
+        line-height: 1.6;
+      }
+      .hero-side {
+        display: grid;
+        gap: .85rem;
+        align-content: start;
+      }
+      .hero-panel, .track-card, .proof-card, .cta-band {
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        background: var(--panel-soft);
+      }
+      .hero-panel { padding: 1rem; }
+      .hero-panel strong {
+        display: block;
+        font-size: .78rem;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+        color: #d7f5d9;
+      }
+      .hero-panel span {
+        display: block;
+        margin-top: .34rem;
+        color: #dbe3ee;
+        line-height: 1.55;
+      }
+      .proof-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        margin-top: 1rem;
+      }
+      .proof-card {
+        padding: 1rem;
+      }
+      .proof-card strong {
+        display: block;
+        margin-bottom: .32rem;
+        font-size: 1.55rem;
+        color: var(--amber);
+      }
+      .proof-card p {
+        margin: 0;
+        color: var(--slate);
+        line-height: 1.55;
+      }
+      .section-title {
+        margin: 1.5rem 0 .8rem;
+        font-size: .84rem;
+        letter-spacing: .16em;
+        text-transform: uppercase;
+        color: #d7f5d9;
+      }
+      .tracks {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+      .track-card {
+        padding: 1.15rem;
+      }
+      .track-card small {
+        display: inline-flex;
+        margin-bottom: .65rem;
+        padding: .28rem .56rem;
+        border-radius: 999px;
+        background: rgba(255,255,255,.06);
+        color: #dbe3ee;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+      }
+      .track-card h2 {
+        margin: 0 0 .4rem;
+        font-size: 1.4rem;
+      }
+      .track-card p {
+        margin: 0;
+        color: var(--slate);
+        line-height: 1.6;
+      }
+      .proof-list {
+        margin: 0;
+        padding-left: 1rem;
+        color: #dbe3ee;
+        line-height: 1.8;
+      }
+      .cta-band {
+        margin-top: 1.25rem;
+        padding: 1rem 1.1rem;
+        grid-template-columns: 1fr auto;
+        align-items: center;
+      }
+      .cta-band h3 {
+        margin: 0 0 .2rem;
+        font-size: 1.3rem;
+      }
+      .cta-band p {
+        margin: 0;
+        color: var(--slate);
+      }
+      @media (max-width: 960px) {
+        .hero, .proof-grid, .tracks, .cta-band, .topbar {
+          grid-template-columns: 1fr;
+        }
+        .top-actions { justify-content: start; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <header class="topbar">
+        <div class="brand">
+          <img src="{% static 'football/images/2j-mark.svg' %}" alt="2J Football Intelligence" />
+          <div class="brand-copy">
+            <strong>2J</strong>
+            <span>{{ brand_descriptor }} · {{ brand_claim }}</span>
+          </div>
+        </div>
+        <div class="top-actions">
+          <a class="button" href="{% url 'login' %}">Acceso clientes</a>
+          <a class="button primary" href="{% url 'login' %}">Entrar a la plataforma</a>
+        </div>
+      </header>
+
+      <section class="hero">
+        <div>
+          <span class="eyebrow">Football Intelligence</span>
+          <h1>Partido, entrenamiento y club. Todo conectado.</h1>
+          <p>2J transforma lo que ocurre en el juego en decisiones útiles para el cuerpo técnico: dato en vivo, diseño de tareas, sesiones, documentos y operación diaria del club dentro de una misma plataforma.</p>
+          <div class="proof-grid">
+            <article class="proof-card">
+              <strong>Live</strong>
+              <p>Registro en vivo optimizado para iPad, cronología de acciones y revisión postpartido.</p>
+            </article>
+            <article class="proof-card">
+              <strong>Studio</strong>
+              <p>Creador de tareas, secuencias animadas y PDFs UEFA o corporativos sin salir del flujo de trabajo.</p>
+            </article>
+            <article class="proof-card">
+              <strong>Club</strong>
+              <p>Cliente modular para convocatorias, sesiones, jugadores, estadísticas y estructura técnica.</p>
+            </article>
+          </div>
+        </div>
+        <div class="hero-side">
+          <section class="hero-panel">
+            <strong>Propuesta</strong>
+            <span>Una plataforma para registrar el partido, diseñar el entrenamiento y gobernar el trabajo del club desde una única estructura modular.</span>
+          </section>
+          <section class="hero-panel">
+            <strong>Claim</strong>
+            <span>{{ brand_claim }}</span>
+          </section>
+          <section class="hero-panel">
+            <strong>Ideal para</strong>
+            <span>Clubes, academias, canteras y cuerpos técnicos que necesitan velocidad operativa sin perder criterio táctico.</span>
+          </section>
+        </div>
+      </section>
+
+      <h2 class="section-title">Productos</h2>
+      <section class="tracks">
+        {% for track in product_tracks %}
+        <article class="track-card">
+          <small>{{ track.eyebrow }}</small>
+          <h2>{{ track.name }}</h2>
+          <p>{{ track.description }}</p>
+        </article>
+        {% endfor %}
+      </section>
+
+      <h2 class="section-title">Ventaja</h2>
+      <section class="hero-panel">
+        <ul class="proof-list">
+          {% for point in proof_points %}
+          <li>{{ point }}</li>
+          {% endfor %}
+        </ul>
+      </section>
+
+      <section class="cta-band">
+        <div>
+          <h3>2J Football Intelligence</h3>
+          <p>La plataforma para registrar, analizar, entrenar y organizar el trabajo del club.</p>
+        </div>
+        <a class="button primary" href="{% url 'login' %}">Entrar</a>
+      </section>
+    </main>
+  </body>
+</html>

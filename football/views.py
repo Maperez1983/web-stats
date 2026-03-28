@@ -503,6 +503,39 @@ def _build_public_media_url(request, raw_url):
     return url
 
 
+def product_landing_page(request):
+    return render(
+        request,
+        'football/product_landing.html',
+        {
+            'brand_descriptor': 'Football Intelligence',
+            'brand_claim': 'Del partido al entrenamiento.',
+            'product_tracks': [
+                {
+                    'name': '2J Live',
+                    'eyebrow': 'Partido y dato en vivo',
+                    'description': 'Registro táctil en iPad, cronología de acciones, KPIs y resumen postpartido para el cuerpo técnico.',
+                },
+                {
+                    'name': '2J Studio',
+                    'eyebrow': 'Tareas y sesiones',
+                    'description': 'Diseño de tareas, secuencias animadas, PDFs UEFA/Club y biblioteca reutilizable de entrenamiento.',
+                },
+                {
+                    'name': '2J Club',
+                    'eyebrow': 'Operación de cliente',
+                    'description': 'Convocatoria, 11 inicial, jugadores, cuerpo técnico, planificación y seguimiento dentro del club.',
+                },
+            ],
+            'proof_points': [
+                'Registro de acciones pensado para iPad y trabajo en banquillo.',
+                'Creador de tareas conectado con sesiones, microciclos y documentos.',
+                'Plataforma matriz para gobernar clientes, módulos y accesos.',
+            ],
+        },
+    )
+
+
 def save_player_photo(player, uploaded_photo):
     if not player or not uploaded_photo:
         return ''
@@ -5011,6 +5044,7 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
         'coach_name': coach_name,
         'animation_frames_count': len(animation_frames),
         'logo_url': request.build_absolute_uri(static(logo_path)),
+        'brand_mark_url': request.build_absolute_uri(static('football/images/2j-mark.svg')),
         'task_preview_url': preview_url,
         'generated_at': timezone.localtime(),
     }
@@ -5149,6 +5183,7 @@ def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
         'pdf_palette': _team_pdf_palette(team, pdf_style),
         'coach_name': coach_name,
         'logo_url': request.build_absolute_uri(static(logo_path)),
+        'brand_mark_url': request.build_absolute_uri(static('football/images/2j-mark.svg')),
         'generated_at': timezone.localtime(),
         'intensity_label': dict(TrainingSession.INTENSITY_CHOICES).get(session.intensity, session.intensity or '-'),
         'status_label': dict(TrainingSession.STATUS_CHOICES).get(session.status, session.status or '-'),

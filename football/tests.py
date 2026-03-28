@@ -87,6 +87,11 @@ class WriteEndpointAuthTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn('/login/', response['Location'])
 
+    def test_product_landing_is_public(self):
+        response = self.client.get(reverse('product-landing'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '2J Football Intelligence')
+
 
 class StaffBriefingTests(TestCase):
     def test_build_weekly_staff_brief_summarizes_availability(self):

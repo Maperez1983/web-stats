@@ -131,7 +131,6 @@
         padding: 8px 12px;
         border-top: 1px solid #d5dde7;
         font-size: 9px;
-        text-align: right;
         color: {{ pdf_palette.muted }};
       }
     </style>
@@ -258,7 +257,22 @@
       </div>
 
       <div class="footer">
-        {% if pdf_style == 'club' %}Formato Club{% else %}Formato UEFA{% endif %} · {{ team_name }} · {{ coach_name }} · Generado {{ generated_at|date:"d/m/Y H:i" }}
+        <table style="width:100%; border-collapse:collapse;">
+          <tr>
+            <td style="vertical-align:middle;">
+              <div style="display:inline-flex; align-items:center; gap:8px;">
+                <img src="{{ brand_mark_url }}" alt="2J Football Intelligence" style="width:54px; height:auto; object-fit:contain;" />
+                <div>
+                  <div style="font-size:9px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:#0b1220;">2J Football Intelligence</div>
+                  <div style="font-size:8.5px;">Del partido al entrenamiento.</div>
+                </div>
+              </div>
+            </td>
+            <td style="text-align:right; vertical-align:middle;">
+              {% if pdf_style == 'club' %}Formato Club{% else %}Formato UEFA{% endif %} · {{ team_name }} · {{ coach_name }} · Generado {{ generated_at|date:"d/m/Y H:i" }}
+            </td>
+          </tr>
+        </table>
       </div>
     </section>
   </body>
