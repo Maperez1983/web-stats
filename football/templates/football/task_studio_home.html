@@ -6,9 +6,9 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>2J Studio</title>
     <style>
-      :root { --bg:#0b1220; --panel:#102235; --line:rgba(244,180,0,.14); --ink:#f5f7fa; --muted:#7a8797; --accent:#2f7d32; --amber:#f4b400; }
+      :root { --bg:#08111d; --panel:#0f1b2d; --line:rgba(244,180,0,.14); --ink:#f5f7fa; --muted:#91a1b9; --accent:#2f7d32; --amber:#f4b400; }
       * { box-sizing:border-box; }
-      body { margin:0; background:radial-gradient(circle at top left, rgba(47,125,50,.16), transparent 28%), radial-gradient(circle at top right, rgba(244,180,0,.14), transparent 25%), linear-gradient(180deg,#07111c,#0c1f33); color:var(--ink); font-family:"Avenir Next","Segoe UI",sans-serif; }
+      body { margin:0; background:radial-gradient(circle at top left, rgba(47,125,50,.16), transparent 28%), radial-gradient(circle at top right, rgba(244,180,0,.12), transparent 24%), linear-gradient(180deg,#050d18,#08111d 52%,#0d1929); color:var(--ink); font-family:"Avenir Next","Inter","Segoe UI",sans-serif; }
       .page { max-width:1180px; margin:0 auto; padding:1.1rem; }
       .top, .nav, .stats, .task-head, .task-actions { display:flex; gap:.7rem; flex-wrap:wrap; align-items:center; }
       .top { justify-content:space-between; margin-bottom:1rem; }
@@ -16,17 +16,17 @@
       .search-bar { display:flex; gap:.6rem; flex-wrap:wrap; margin-bottom:1rem; }
       .search-bar input { flex:1 1 260px; min-width:220px; border-radius:999px; border:1px solid var(--line); background:rgba(255,255,255,.04); color:var(--ink); padding:.72rem .95rem; }
       .button, button { display:inline-flex; align-items:center; justify-content:center; padding:.62rem .9rem; border-radius:999px; border:1px solid var(--line); background:rgba(255,255,255,.04); color:var(--ink); text-decoration:none; font:inherit; font-size:.76rem; font-weight:700; letter-spacing:.05em; text-transform:uppercase; }
-      .button.primary { background:linear-gradient(135deg,#22c55e,#4ade80); color:#052a16; border:none; }
+      .button.primary { background:linear-gradient(135deg,#f5c538,#f4b400); color:#0a1520; border:none; }
       .button.danger, button.danger { background:rgba(220,38,38,.16); color:#fee2e2; border-color:rgba(248,113,113,.52); box-shadow:0 0 0 1px rgba(127,29,29,.12) inset; }
       .hero { display:grid; grid-template-columns:1.15fr .85fr; gap:.9rem; margin-bottom:1rem; }
       .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:.8rem; margin-bottom:1rem; }
-      .workspace-card { padding:1.1rem; background:linear-gradient(135deg,rgba(15,122,53,.22),rgba(16,39,52,.55)); border:1px solid rgba(74,222,128,.2); }
+      .workspace-card { padding:1.1rem; background:linear-gradient(135deg,rgba(244,180,0,.12),rgba(16,39,52,.55)); border:1px solid rgba(244,180,0,.16); }
       .card, .task-card { background:var(--panel); border:1px solid var(--line); border-radius:18px; }
       .card { padding:1rem; }
       .card h2, .task-card h3 { margin:0 0 .35rem; font-size:.82rem; letter-spacing:.1em; text-transform:uppercase; }
       .metric { font-size:2rem; font-weight:800; }
       .muted { color:var(--muted); }
-      .eyebrow { display:inline-flex; margin-bottom:.5rem; padding:.25rem .55rem; border-radius:999px; background:rgba(255,255,255,.08); font-size:.68rem; letter-spacing:.08em; text-transform:uppercase; color:#bbf7d0; }
+      .eyebrow { display:inline-flex; margin-bottom:.5rem; padding:.25rem .55rem; border-radius:999px; background:linear-gradient(135deg, rgba(244,180,0,.12), rgba(47,125,50,.12)); border:1px solid rgba(244,180,0,.18); font-size:.68rem; letter-spacing:.08em; text-transform:uppercase; color:#fff1c2; }
       .headline { margin:0; font-size:1.8rem; line-height:1.05; }
       .subgrid { display:grid; gap:.75rem; }
       .checklist { list-style:none; margin:0; padding:0; display:grid; gap:.7rem; }

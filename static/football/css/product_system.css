@@ -1,24 +1,39 @@
-/* 2J Brand System v1 */
+/* 2J Brand System v2 */
 :root {
-  --prod-bg: #0b1220;
-  --prod-panel: rgba(16, 25, 42, 0.92);
-  --prod-line: rgba(148, 163, 184, 0.25);
+  --prod-font-ui: "Avenir Next", "Inter", "Segoe UI", sans-serif;
+  --prod-font-display: "Avenir Next Condensed", "Avenir Next", "Inter", "Segoe UI", sans-serif;
+  --prod-bg: #08111d;
+  --prod-bg-soft: #0d1728;
+  --prod-panel: linear-gradient(180deg, rgba(17, 27, 45, 0.94), rgba(11, 19, 33, 0.92));
+  --prod-panel-flat: rgba(14, 23, 39, 0.96);
+  --prod-line: rgba(144, 161, 185, 0.22);
+  --prod-line-strong: rgba(244, 180, 0, 0.22);
   --prod-text: #f5f7fa;
-  --prod-muted: #7a8797;
+  --prod-muted: #91a1b9;
+  --prod-muted-soft: #b0bccd;
   --prod-primary: #2f7d32;
+  --prod-primary-soft: #183f26;
   --prod-secondary: #f4b400;
+  --prod-secondary-soft: #c89408;
   --prod-warning: #f4b400;
   --prod-danger: #d64545;
-  --prod-radius-lg: 20px;
+  --prod-radius-lg: 22px;
+  --prod-radius-md: 16px;
+  --prod-shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.34);
+  --prod-shadow-md: 0 16px 36px rgba(0, 0, 0, 0.24);
   --prod-ice: #f5f7fa;
-  --prod-midnight: #0b1220;
+  --prod-midnight: #08111d;
   --prod-pitch: #2f7d32;
   --prod-amber: #f4b400;
-  --prod-slate: #7a8797;
+  --prod-slate: #91a1b9;
 }
 
 html {
   -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--prod-font-ui);
 }
 
 img,
@@ -36,45 +51,48 @@ canvas {
 .product-brand {
   display: inline-flex;
   align-items: center;
-  gap: 0.85rem;
+  gap: 1rem;
 }
 
 .product-brand img {
   display: block;
   max-width: none;
+  filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.28));
 }
 
 .product-brand-copy {
   display: grid;
-  gap: 0.15rem;
+  gap: 0.18rem;
 }
 
 .product-brand-copy strong {
-  font-size: 0.82rem;
-  letter-spacing: 0.28em;
+  font-family: var(--prod-font-display);
+  font-size: 0.84rem;
+  letter-spacing: 0.24em;
   text-transform: uppercase;
   color: var(--prod-ice);
 }
 
 .product-brand-copy span {
-  font-size: 0.72rem;
-  color: var(--prod-muted);
-  letter-spacing: 0.06em;
+  font-size: 0.74rem;
+  color: var(--prod-muted-soft);
+  letter-spacing: 0.08em;
 }
 
 .product-brand-badge {
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
-  border: 1px solid rgba(244, 180, 0, 0.24);
+  gap: 0.5rem;
+  border: 1px solid var(--prod-line-strong);
   border-radius: 999px;
-  background: rgba(244, 180, 0, 0.08);
+  background: linear-gradient(135deg, rgba(244, 180, 0, 0.12), rgba(47, 125, 50, 0.1));
   color: var(--prod-ice);
-  padding: 0.3rem 0.7rem;
-  font-size: 0.68rem;
+  padding: 0.34rem 0.78rem;
+  font-size: 0.7rem;
   font-weight: 700;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.15em;
   text-transform: uppercase;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
 }
 
 .product-chip {
@@ -87,7 +105,7 @@ canvas {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--prod-text);
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .product-chip.role {
@@ -99,12 +117,12 @@ canvas {
   border: 1px solid var(--prod-line);
   border-radius: var(--prod-radius-lg);
   background: var(--prod-panel);
-  box-shadow: 0 20px 42px rgba(0, 0, 0, 0.28);
+  box-shadow: var(--prod-shadow-lg);
 }
 
 .product-empty {
   border: 1px dashed rgba(148, 163, 184, 0.5);
-  border-radius: 14px;
+  border-radius: var(--prod-radius-md);
   padding: 1rem;
   color: var(--prod-muted);
   text-align: center;
@@ -112,40 +130,42 @@ canvas {
 
 .product-kicker {
   margin: 0;
-  font-size: 0.72rem;
-  letter-spacing: 0.12em;
+  font-size: 0.74rem;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--prod-muted);
+  color: var(--prod-muted-soft);
 }
 
 .product-nav-shortcuts {
-  margin-top: 0.55rem;
+  margin-top: 0.65rem;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.35rem;
+  gap: 0.42rem;
 }
 
 .product-nav-shortcuts a {
   text-decoration: none;
   color: var(--prod-text);
-  border: 1px solid rgba(244, 180, 0, 0.16);
+  border: 1px solid rgba(244, 180, 0, 0.14);
   border-radius: 999px;
-  padding: 0.34rem 0.75rem;
-  font-size: 0.68rem;
-  letter-spacing: 0.14em;
+  padding: 0.42rem 0.86rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   background: rgba(255, 255, 255, 0.04);
   font-weight: 700;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
 }
 
 .product-nav-shortcuts a:hover {
-  border-color: rgba(244, 180, 0, 0.44);
-  background: rgba(244, 180, 0, 0.12);
+  border-color: rgba(244, 180, 0, 0.3);
+  background: rgba(244, 180, 0, 0.09);
 }
 
 .product-nav-shortcuts a.is-active {
-  border-color: rgba(244, 180, 0, 0.44);
-  background: linear-gradient(135deg, rgba(244, 180, 0, 0.16), rgba(47, 125, 50, 0.14));
+  border-color: rgba(244, 180, 0, 0.38);
+  background: linear-gradient(135deg, rgba(244, 180, 0, 0.15), rgba(47, 125, 50, 0.12));
+  color: #fff7dd;
 }
 
 .product-scroll-x {

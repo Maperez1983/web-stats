@@ -7,24 +7,24 @@
     <title>2J Football Intelligence</title>
     <style>
       :root {
-        --midnight: #0b1220;
-        --panel: #101a2d;
-        --panel-soft: rgba(16, 26, 45, 0.72);
+        --midnight: #08111d;
+        --panel: #0f192a;
+        --panel-soft: rgba(15, 25, 42, 0.78);
         --pitch: #2f7d32;
         --amber: #f4b400;
         --ice: #f5f7fa;
-        --slate: #7a8797;
-        --line: rgba(122, 135, 151, 0.18);
+        --slate: #91a1b9;
+        --line: rgba(145, 161, 185, 0.2);
       }
       * { box-sizing: border-box; }
       body {
         margin: 0;
         color: var(--ice);
-        font-family: "Avenir Next", "Segoe UI", sans-serif;
+        font-family: "Avenir Next", "Inter", "Segoe UI", sans-serif;
         background:
-          radial-gradient(circle at top left, rgba(47, 125, 50, 0.22), transparent 28%),
-          radial-gradient(circle at top right, rgba(244, 180, 0, 0.18), transparent 23%),
-          linear-gradient(180deg, #07101c, #0b1220 55%, #0a1323);
+          radial-gradient(circle at top left, rgba(47, 125, 50, 0.24), transparent 28%),
+          radial-gradient(circle at top right, rgba(244, 180, 0, 0.14), transparent 24%),
+          linear-gradient(180deg, #050c17, #08111d 52%, #091321);
       }
       .page { max-width: 1200px; margin: 0 auto; padding: 1.2rem; }
       .topbar, .hero, .proof-grid, .tracks, .plans, .demo-strip, .cta-band { display: grid; gap: 1rem; }
@@ -38,19 +38,19 @@
         align-items: center;
         gap: .9rem;
       }
-      .brand img { width: 156px; height: auto; }
+      .brand img { width: 172px; height: auto; }
       .brand-copy strong {
         display: block;
-        font-size: .78rem;
-        letter-spacing: .24em;
+        font-size: .8rem;
+        letter-spacing: .22em;
         text-transform: uppercase;
-        color: #d3dae5;
+        color: #ebf0f6;
       }
       .brand-copy span {
         display: block;
         margin-top: .18rem;
         color: var(--slate);
-        font-size: .92rem;
+        font-size: .9rem;
       }
       .top-actions {
         display: inline-flex;
@@ -75,24 +75,25 @@
       }
       .button.primary {
         border: none;
-        color: #0a1a0c;
-        background: linear-gradient(135deg, var(--amber), #f8d14a);
+        color: #0a1520;
+        background: linear-gradient(135deg, #f5c538, #f4b400);
       }
       .hero {
         grid-template-columns: 1.12fr .88fr;
-        padding: 1.3rem;
+        padding: 1.4rem;
         border: 1px solid var(--line);
         border-radius: 28px;
-        background: linear-gradient(135deg, rgba(16, 26, 45, 0.92), rgba(9, 19, 34, 0.84));
-        box-shadow: 0 28px 64px rgba(0, 0, 0, 0.28);
+        background: linear-gradient(135deg, rgba(16, 26, 45, 0.94), rgba(9, 17, 30, 0.92));
+        box-shadow: 0 32px 74px rgba(0, 0, 0, 0.34);
       }
       .eyebrow {
         display: inline-flex;
         align-items: center;
         padding: .28rem .65rem;
         border-radius: 999px;
-        background: rgba(47, 125, 50, 0.18);
-        color: #d7f5d9;
+        border: 1px solid rgba(244, 180, 0, 0.18);
+        background: linear-gradient(135deg, rgba(244, 180, 0, 0.1), rgba(47, 125, 50, 0.12));
+        color: #fff4cf;
         font-size: .74rem;
         letter-spacing: .08em;
         text-transform: uppercase;
@@ -104,7 +105,7 @@
       }
       .hero p {
         max-width: 58ch;
-        color: #dbe3ee;
+        color: #e2e8f0;
         font-size: 1.02rem;
         line-height: 1.6;
       }
@@ -124,12 +125,12 @@
         font-size: .78rem;
         letter-spacing: .12em;
         text-transform: uppercase;
-        color: #d7f5d9;
+        color: #fff4cf;
       }
       .hero-panel span {
         display: block;
         margin-top: .34rem;
-        color: #dbe3ee;
+        color: #e2e8f0;
         line-height: 1.55;
       }
       .proof-grid {
@@ -143,7 +144,7 @@
         display: block;
         margin-bottom: .32rem;
         font-size: 1.55rem;
-        color: var(--amber);
+        color: #ffd057;
       }
       .proof-card p {
         margin: 0;
