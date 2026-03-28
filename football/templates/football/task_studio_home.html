@@ -9,7 +9,6 @@
       :root { --bg:#08111d; --panel:#0f1b2d; --line:rgba(244,180,0,.14); --ink:#f5f7fa; --muted:#91a1b9; --accent:#2f7d32; --amber:#f4b400; }
       * { box-sizing:border-box; }
       body { margin:0; background:radial-gradient(circle at top left, rgba(47,125,50,.16), transparent 28%), radial-gradient(circle at top right, rgba(244,180,0,.12), transparent 24%), linear-gradient(180deg,#050d18,#08111d 52%,#0d1929); color:var(--ink); font-family:"Avenir Next","Inter","Segoe UI",sans-serif; }
-      .page { max-width:1180px; margin:0 auto; padding:1.1rem; }
       .top, .nav, .stats, .task-head, .task-actions { display:flex; gap:.7rem; flex-wrap:wrap; align-items:center; }
       .top { justify-content:space-between; margin-bottom:1rem; }
       .nav { margin-bottom:1rem; }
@@ -52,20 +51,19 @@
       .icon-trash svg { width:100%; height:100%; fill:currentColor; }
       .button.icon-only, button.icon-only { padding:.62rem .72rem; min-width:2.6rem; }
       .brand-head { display:grid; gap:.5rem; }
-      .brand-head img { width:180px; max-width:100%; height:auto; }
       @media (max-width: 920px) {
         .hero { grid-template-columns:1fr; }
       }
     </style>
   </head>
   <body>
-    <main class="page">
+    <main class="product-page">
       <div class="top">
         <div>
-          <div class="brand-head">
+          <div class="brand-head" style="margin-bottom:.15rem;">
             <img src="{% static 'football/images/2j-mark.svg' %}" alt="2J Football Intelligence" />
           </div>
-          <h1 style="margin:.25rem 0 0; font-size:1.2rem; letter-spacing:.14em; text-transform:uppercase;">2J Studio</h1>
+          <h1 class="product-title-stack" style="margin:.25rem 0 0; font-size:1.2rem; letter-spacing:.14em; text-transform:uppercase; color:var(--ink);">2J Studio</h1>
           <p class="muted" style="margin:.35rem 0 0;">
             {% if browse_all %}Vista global de administrador.{% else %}Espacio privado de creación de tareas{% endif %}
             · {{ target_user.get_username }}

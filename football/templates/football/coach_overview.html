@@ -28,39 +28,8 @@
           linear-gradient(180deg, #050c17 0%, #08111d 100%);
         font-family: "Avenir Next", "Inter", "Segoe UI", sans-serif;
       }
-      .page {
-        max-width: 1320px;
-        margin: 0 auto;
-        padding: 1.4rem 1.1rem 3rem;
-      }
-      .brand-strip {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.9rem;
-      }
-      .brand-strip img {
-        width: 148px;
-        height: auto;
-      }
-      .brand-strip-copy strong {
-        display: block;
-        font-size: 0.78rem;
-        letter-spacing: 0.2em;
-        text-transform: uppercase;
-        color: #fff1c2;
-      }
-      .brand-strip-copy span {
-        display: block;
-        margin-top: 0.18rem;
-        color: var(--muted);
-      }
       header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 1rem;
         margin-bottom: 1.2rem;
-        flex-wrap: wrap;
       }
       .hero {
         border-radius: 28px;
@@ -329,16 +298,16 @@
     </style>
   </head>
   <body>
-    <div class="page product-shell">
-      <header>
-        <div class="brand-strip">
+    <div class="product-page product-shell" style="padding-bottom:3rem;">
+      <header class="product-topbar">
+        <div class="product-brand-strip">
           <img src="{% static 'football/images/2j-mark.svg' %}" alt="2J Club" />
-          <div class="brand-strip-copy">
+          <div class="product-brand-strip-copy">
             <strong>2J Club</strong>
             <span>Football Intelligence · Del partido al entrenamiento.</span>
           </div>
         </div>
-        <a class="pill-button" style="border-radius:12px;" href="{% url 'dashboard-home' %}">Volver al inicio</a>
+        <a class="product-pill-cta" style="padding:0.68rem 1rem;" href="{% url 'dashboard-home' %}">Volver al inicio</a>
       </header>
 
       <article class="hero">

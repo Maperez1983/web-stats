@@ -48,6 +48,34 @@ canvas {
   margin: 0 auto;
 }
 
+.product-page {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 1.25rem;
+}
+
+.product-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.product-title-stack h1 {
+  margin: 0.25rem 0 0;
+  font-family: var(--prod-font-display);
+  font-size: 1.45rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--prod-text);
+}
+
+.product-title-stack p {
+  margin: 0.2rem 0 0;
+  color: var(--prod-muted);
+}
+
 .product-brand {
   display: inline-flex;
   align-items: center;
@@ -77,6 +105,36 @@ canvas {
   font-size: 0.74rem;
   color: var(--prod-muted-soft);
   letter-spacing: 0.08em;
+}
+
+.product-brand-strip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.product-brand-strip img {
+  width: 148px;
+  height: auto;
+}
+
+.product-brand-strip-copy {
+  display: grid;
+  gap: 0.14rem;
+}
+
+.product-brand-strip-copy strong {
+  display: block;
+  font-family: var(--prod-font-display);
+  font-size: 0.78rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #fff1c2;
+}
+
+.product-brand-strip-copy span {
+  display: block;
+  color: var(--prod-muted);
 }
 
 .product-brand-badge {
@@ -118,6 +176,49 @@ canvas {
   border-radius: var(--prod-radius-lg);
   background: var(--prod-panel);
   box-shadow: var(--prod-shadow-lg);
+}
+
+.product-pill-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  border-radius: 999px;
+  padding: 0.8rem 1.15rem;
+  background: linear-gradient(135deg, #f5c538, #f4b400);
+  color: #0a1520;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: none;
+  box-shadow: var(--prod-shadow-md);
+}
+
+.product-profile-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.7rem 0.95rem;
+  border-radius: 999px;
+  border: 1px solid rgba(244, 180, 0, 0.18);
+  background: rgba(15, 23, 39, 0.72);
+}
+
+.product-profile-chip img {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  object-fit: cover;
+  object-position: center 22%;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.product-profile-chip strong {
+  display: block;
+}
+
+.product-inline-note {
+  margin-top: 0.3rem;
 }
 
 .product-empty {

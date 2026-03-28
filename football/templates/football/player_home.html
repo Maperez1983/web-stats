@@ -28,36 +28,6 @@
           radial-gradient(circle at top left, rgba(47, 125, 50, 0.12), transparent 24%),
           linear-gradient(180deg, #050c17 0%, #08111d 60%, #0a1527 100%);
       }
-      .page { max-width: 1080px; margin: 0 auto; }
-      .brand-strip {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.85rem;
-        margin-bottom: 0.4rem;
-      }
-      .brand-strip img {
-        width: 138px;
-        height: auto;
-      }
-      .brand-strip-copy strong {
-        display: block;
-        font-size: 0.76rem;
-        letter-spacing: 0.2em;
-        text-transform: uppercase;
-        color: #fff1c2;
-      }
-      .brand-strip-copy span {
-        display: block;
-        margin-top: 0.14rem;
-        color: var(--muted);
-      }
-      .header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 1rem;
-        margin-bottom: 1rem;
-      }
       .headline h1 {
         margin: 0.2rem 0 0;
         font-size: 1.8rem;
@@ -96,24 +66,6 @@
         margin: 0.35rem 0 0;
         color: rgba(226, 232, 240, 0.9);
       }
-      .profile-chip {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.7rem;
-        padding: 0.7rem 0.95rem;
-        border-radius: 999px;
-        border: 1px solid rgba(244,180,0,0.18);
-        background: rgba(15, 23, 42, 0.72);
-      }
-      .profile-chip img {
-        width: 44px;
-        height: 44px;
-        border-radius: 999px;
-        object-fit: cover;
-        object-position: center 22%;
-        border: 1px solid rgba(255,255,255,0.18);
-      }
-      .profile-chip strong { display: block; }
       .grid {
         margin-top: 1rem;
         display: grid;
@@ -155,18 +107,6 @@
         padding: 0.95rem;
       }
       .next-match p { margin: 0.3rem 0; }
-      .pill-button {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        text-decoration: none;
-        border-radius: 999px;
-        padding: 0.85rem 1.2rem;
-        background: linear-gradient(135deg, #f5c538, #f4b400);
-        color: #0a1520;
-        font-weight: 700;
-        letter-spacing: 0.04em;
-      }
       .empty {
         color: var(--muted);
         border: 1px dashed rgba(148, 163, 184, 0.3);
@@ -180,12 +120,12 @@
     </style>
   </head>
   <body>
-    <div class="page product-shell">
-      <header class="header">
-        <div class="headline">
-          <div class="brand-strip">
+    <div class="product-page product-shell">
+      <header class="product-topbar" style="margin-bottom:1rem;">
+        <div class="headline product-title-stack">
+          <div class="product-brand-strip" style="margin-bottom:0.4rem;">
             <img src="{% static 'football/images/2j-mark.svg' %}" alt="2J Player" />
-            <div class="brand-strip-copy">
+            <div class="product-brand-strip-copy">
               <strong>2J Player</strong>
               <span>Football Intelligence · Seguimiento del jugador</span>
             </div>
@@ -195,7 +135,7 @@
           <h1>Inicio jugador</h1>
         </div>
         {% if current_player %}
-        <div class="profile-chip">
+        <div class="product-profile-chip">
           {% if current_player_photo_url %}
           <img src="{{ current_player_photo_url }}" alt="{{ current_player.name }}" />
           {% else %}
@@ -215,7 +155,7 @@
             <h2 id="hero-team-name">{{ team_name }}</h2>
             <p id="hero-group-name">{{ group_name|default:"Clasificación y siguiente partido" }}</p>
           </div>
-          <a class="pill-button" href="{% if current_player %}{% url 'player-detail' current_player.id %}{% else %}{% url 'player-dashboard' %}{% endif %}">
+          <a class="product-pill-cta" href="{% if current_player %}{% url 'player-detail' current_player.id %}{% else %}{% url 'player-dashboard' %}{% endif %}">
             {% if current_player %}Ir a mi perfil{% else %}Ir a jugadores{% endif %}
           </a>
         </div>

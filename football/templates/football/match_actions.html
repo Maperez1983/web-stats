@@ -52,16 +52,6 @@
         align-items: flex-start;
         flex-wrap: wrap;
       }
-      .brand-live-strip {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.85rem;
-        margin-bottom: 0.75rem;
-      }
-      .brand-live-strip img {
-        width: 144px;
-        height: auto;
-      }
       .brand-live-copy strong {
         display: block;
         font-size: 0.78rem;
@@ -1680,11 +1670,11 @@
         <section class="field-column">
           <div class="match-page-status" id="match-page-status" aria-live="polite"></div>
           <div class="field-header">
-            <div class="brand-live-strip">
+            <div class="product-brand-strip" style="margin-bottom:0.75rem;">
               <a href="{% url 'dashboard-home' %}" class="dragon-link" title="Ir al inicio">
                 <img src="{% static 'football/images/2j-mark.svg' %}" alt="2J Live" class="dragon-logo" style="width:140px;height:auto;border-radius:0;background:transparent;border:none;" />
               </a>
-              <div class="brand-live-copy">
+              <div class="product-brand-strip-copy brand-live-copy">
                 <strong>2J Live</strong>
                 <span>{{ team_name }} · Registro táctil de partido</span>
               </div>
