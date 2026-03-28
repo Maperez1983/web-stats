@@ -86,6 +86,68 @@
         display: grid;
         gap: 1rem;
       }
+      .summary-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+        gap: 1rem;
+        align-items: start;
+      }
+      .summary-card {
+        border-radius: 18px;
+        padding: 1rem;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(8, 16, 30, 0.88);
+      }
+      .summary-card h3 {
+        margin: 0 0 0.8rem;
+        font-size: 0.8rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(186, 230, 253, 0.9);
+      }
+      .summary-mini-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 0.7rem;
+      }
+      .summary-mini-item {
+        border-radius: 14px;
+        padding: 0.85rem;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(255, 255, 255, 0.04);
+      }
+      .summary-mini-item .label {
+        font-size: 0.68rem;
+        color: rgba(226, 232, 240, 0.7);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      .summary-mini-item .value {
+        margin-top: 0.28rem;
+        font-size: 1.05rem;
+        font-weight: 800;
+      }
+      .summary-leaders-list {
+        display: grid;
+        gap: 0.6rem;
+      }
+      .summary-leader {
+        border-radius: 14px;
+        padding: 0.8rem;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(255, 255, 255, 0.04);
+      }
+      .summary-leader .kicker {
+        display: block;
+        font-size: 0.68rem;
+        color: rgba(226, 232, 240, 0.7);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      .summary-leader strong {
+        display: block;
+        margin-top: 0.22rem;
+      }
       .command-layout {
         display: grid;
         grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.95fr);
@@ -667,7 +729,8 @@
       @media (max-width: 1100px) {
         .command-layout,
         .player-focus-grid,
-        .coach-match-layout {
+        .coach-match-layout,
+        .summary-layout {
           grid-template-columns: 1fr;
         }
       }
@@ -1137,11 +1200,11 @@
 
       <section class="workspace-panel is-active" data-tab-panel="summary">
         <div class="workspace-stack">
-          {% if coach_overview_stats or weekly_staff_brief %}
-          <section id="coach-summary" class="command-layout">
+          {% if coach_overview_stats or coach_general_stats or coach_player_leaders %}
+          <section id="coach-summary" class="summary-layout">
             {% if coach_overview_stats %}
-            <section class="overview">
-              <h2 class="overview-title">Resumen ejecutivo</h2>
+            <section class="summary-card">
+              <h3>Rendimiento</h3>
               <div class="overview-rings">
                 {% for item in coach_overview_stats.rings %}
                 <article class="overview-ring">
@@ -1152,9 +1215,29 @@
                 </article>
                 {% endfor %}
               </div>
-              <div class="overview-summary is-compact">
-                {% for item in coach_overview_stats.summary %}
-                <article class="overview-item">
+            </section>
+            {% endif %}
+            <section class="summary-card">
+              <h3>Temporada</h3>
+              <div class="summary-mini-grid">
+                {% for item in coach_overview_stats.summary|slice:":6" %}
+                <article class="summary-mini-item">
+                  <div class="label">{{ item.label }}</div>
+                  <div class="value">{{ item.value }}</div>
+                </article>
+                {% endfor %}
+              </div>
+            </section>
+          </section>
+          {% endif %}
+
+          <section class="summary-layout">
+            {% if coach_general_stats %}
+            <section class="summary-card">
+              <h3>Indicadores de temporada</h3>
+              <div class="summary-mini-grid">
+                {% for item in coach_general_stats %}
+                <article class="summary-mini-item">
                   <div class="label">{{ item.label }}</div>
                   <div class="value">{{ item.value }}</div>
                 </article>
@@ -1162,65 +1245,24 @@
               </div>
             </section>
             {% endif %}
-            {% if weekly_staff_brief %}
-            <aside class="analysis-section is-light">
-              <h3>Parte semanal</h3>
-              <p class="brief-headline">{{ weekly_staff_brief.headline }}</p>
-              <p class="brief-meta">{{ weekly_staff_brief.match.round }} · {{ weekly_staff_brief.match.date }} · {{ weekly_staff_brief.match.time }}</p>
-              <p class="brief-meta">{{ weekly_staff_brief.match.location }}</p>
-              <ul class="brief-list">
-                {% for line in weekly_staff_brief.alerts|slice:":3" %}
-                <li>{{ line }}</li>
-                {% empty %}
-                <li>Sin alertas destacadas para esta semana.</li>
-                {% endfor %}
-              </ul>
-              <div class="overview-summary is-compact" style="margin-top:0.9rem;">
-                {% for item in weekly_staff_brief.availability %}
-                <article class="overview-item">
-                  <div class="label">{{ item.label }}</div>
-                  <div class="value">{{ item.value }}</div>
+            {% if coach_player_leaders %}
+            <aside class="summary-card">
+              <h3>Referencias plantilla</h3>
+              <div class="summary-leaders-list">
+                {% for leader in coach_player_leaders %}
+                <article class="summary-leader">
+                  <span class="kicker">{{ leader.label }}</span>
+                  <strong>{{ leader.name }}</strong>
+                  <span>{{ leader.value }}{% if leader.suffix %} {{ leader.suffix }}{% endif %}</span>
                 </article>
                 {% endfor %}
               </div>
             </aside>
             {% endif %}
           </section>
-          {% endif %}
-
-          {% if coach_general_stats or coach_player_leaders %}
-          <section class="coach-panels">
-            {% if coach_general_stats %}
-            <article class="coach-panel">
-              <h3>Temporada</h3>
-              <div class="coach-stat-grid">
-                {% for item in coach_general_stats %}
-                <div class="coach-stat">
-                  <div class="label">{{ item.label }}</div>
-                  <div class="value">{{ item.value }}</div>
-                </div>
-                {% endfor %}
-              </div>
-            </article>
-            {% endif %}
-            {% if coach_player_leaders %}
-            <article class="coach-panel">
-              <h3>Referencias plantilla</h3>
-              <ul class="leaders">
-                {% for leader in coach_player_leaders %}
-                <li>
-                  <div class="meta">{{ leader.label }}</div>
-                  <strong>{{ leader.name }}</strong> · {{ leader.value }}{% if leader.suffix %} {{ leader.suffix }}{% endif %}
-                </li>
-                {% endfor %}
-              </ul>
-            </article>
-            {% endif %}
-          </section>
-          {% endif %}
 
           {% if coach_total_field_zones %}
-          <section class="coach-map-wrap">
+          <section class="summary-card">
             <h3>Mapa de acciones del equipo</h3>
             <p style="margin:0 0 0.6rem;color:rgba(226,232,240,0.75);">Acciones con zona válida: <strong>{{ coach_total_actions_count }}</strong></p>
             <div class="field-diagram">
