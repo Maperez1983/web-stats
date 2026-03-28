@@ -237,32 +237,15 @@
         padding: 1px;
       }
 
-      .pill-button {
-        border: none;
-        border-radius: 999px;
-        padding: 0.75rem 1.2rem;
-        background: linear-gradient(135deg, #14d8ff, #4f46e5);
-        color: #fff;
-        font-weight: 700;
-        letter-spacing: 0.04em;
-        cursor: pointer;
-      }
-
-      .pill-button:disabled {
-        opacity: 0.6;
-        cursor: wait;
-      }
-
-      #refresh-message {
-        margin: 0.65rem 0 0;
-        font-size: 0.88rem;
-      }
-
       .main-grid {
         margin-top: 1rem;
         display: grid;
         gap: 1rem;
         grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+      }
+
+      .main-grid.single-column {
+        grid-template-columns: 1fr;
       }
 
       .block {
@@ -556,8 +539,8 @@
         <article class="team-photo" id="team-hero">
           <div class="team-photo-content">
             <h2 id="hero-team-name">C.D. Benagalbón</h2>
-            <p>División de Honor Andaluza · Grupo 2</p>
-            <p id="player-cards-scope">Jugador · histórico</p>
+            <p id="hero-competition-line">Competición por definir</p>
+            <p id="hero-rank-line">Puesto -</p>
           </div>
         </article>
 
@@ -581,16 +564,10 @@
           <div class="next-match" id="next-match">
             <p>Próximo rival pendiente de carga...</p>
           </div>
-
-          <div style="margin-top:0.8rem; display:flex; align-items:center; gap:0.65rem; flex-wrap:wrap;">
-            <button class="pill-button" id="refresh-btn">Actualizar clasificación</button>
-            <span id="refresh-last" style="font-size:0.8rem; color:rgba(220,230,255,0.8);">sin datos</span>
-          </div>
-          <p id="refresh-message">Última ejecución registrada.</p>
         </aside>
       </section>
 
-      <section class="main-grid">
+      <section class="main-grid single-column">
         <article class="block standings" id="standings-block">
           <div class="standings-header">
             <h3>Clasificación</h3>
@@ -598,90 +575,11 @@
           </div>
           <div id="standings">Cargando clasificación…</div>
         </article>
-        <article class="block" id="team-metrics-block">
-          <h3>Indicadores de partido</h3>
-          <div id="team-metrics">Cargando métricas…</div>
-        </article>
       </section>
-
-      <section class="block product-card" style="margin-top:1rem;">
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:0.8rem; flex-wrap:wrap;">
-          <h3 style="margin:0;">Módulos del cliente</h3>
-          <span class="product-chip">Comercial Ready</span>
-        </div>
-        <div style="margin-top:0.7rem; display:grid; gap:0.6rem; grid-template-columns:repeat(auto-fit,minmax(220px,1fr));">
-          <a class="module-tab" href="{% url 'dashboard-home' %}">Portada</a>
-          <a class="module-tab" href="{% url 'coach-role-trainer' %}">Estadísticas</a>
-          <a class="module-tab" href="{% url 'coach-cards' %}">Cuerpo técnico</a>
-          <a class="module-tab" href="{% url 'convocation' %}">Partido</a>
-          <a class="module-tab" href="{% url 'sessions' %}">Entrenamiento</a>
-          <a class="module-tab" href="{% url 'analysis' %}">Análisis</a>
-        </div>
-      </section>
-
-      <section class="main-grid" style="margin-top:1rem;">
-        <article class="block">
-          <h3>Tu foco hoy</h3>
-          <div class="focus-grid">
-            {% for item in dashboard_focus_items %}
-            <a class="focus-card" href="{{ item.url }}">
-              <strong>{{ item.title }}</strong>
-              <span>{{ item.description }}</span>
-            </a>
-            {% empty %}
-            <div class="product-empty">No hay un foco definido para este rol todavía.</div>
-            {% endfor %}
-          </div>
-        </article>
-        <article class="block">
-          <h3>Pendientes y actividad</h3>
-          {% if dashboard_pending_cards %}
-          <div class="pending-card-grid">
-            {% for item in dashboard_pending_cards %}
-            <div class="pending-card">
-              <div>
-                <strong>{{ item.title }}</strong>
-                <span>{{ item.description }}</span>
-              </div>
-              <a class="module-tab" href="{{ item.url }}">{{ item.action }}</a>
-            </div>
-            {% endfor %}
-          </div>
-          {% endif %}
-          {% if dashboard_pending_items %}
-          <ul class="pending-list">
-            {% for item in dashboard_pending_items %}
-            <li>{{ item }}</li>
-            {% endfor %}
-          </ul>
-          {% else %}
-          <div class="product-empty">No hay pendientes críticos en este momento.</div>
-          {% endif %}
-          <div class="activity-list">
-            {% for item in dashboard_recent_activity %}
-            <a class="activity-item" href="{{ item.url }}">
-              <em>{{ item.type }}</em>
-              <strong>{{ item.title }}</strong>
-              <span>{{ item.meta }}</span>
-            </a>
-            {% empty %}
-            <div class="product-empty">Todavía no hay actividad reciente que mostrar.</div>
-            {% endfor %}
-          </div>
-        </article>
-      </section>
-
-      <section class="players-header">
-        <h2>Zona jugadores</h2>
-        <a class="module-tab" href="{% url 'player-dashboard' %}">Ver panel completo</a>
-      </section>
-      <section class="player-grid" id="player-cards"></section>
     </div>
 
     {{ hero_image_candidates|json_script:"hero-images-json" }}
     <script>
-      const refreshMessage = document.getElementById('refresh-message');
-      const refreshLast = document.getElementById('refresh-last');
       const heroElement = document.getElementById('team-hero');
       const managedHeroImages = JSON.parse(document.getElementById('hero-images-json')?.textContent || '[]');
       const staticHeroFallbacks = [
@@ -745,24 +643,22 @@
           }
 
           renderStandings(payload.standings, payload.team);
-          renderNextMatch(payload.next_match);
-          renderTeamMetrics(payload.team_metrics);
-          renderPlayerCards(payload.player_cards);
-          renderPlayerCardsScope(payload.player_cards_scope);
+          renderNextMatch(payload.next_match, payload.standings);
         } catch (error) {
           console.error(error);
           document.getElementById('standings').textContent = 'Error al cargar';
-          const playerCards = document.getElementById('player-cards');
-          if (playerCards) playerCards.innerHTML = '<div class="product-empty">No se pudieron cargar los jugadores.</div>';
         }
       }
 
       function renderStandings(standings, team) {
         const container = document.getElementById('standings');
         const toggleBtn = document.getElementById('standings-toggle');
+        const competitionLine = document.getElementById('hero-competition-line');
+        const rankLine = document.getElementById('hero-rank-line');
         if (!standings || !standings.length) {
           container.innerHTML = '<div class="product-empty">No hay datos de clasificación todavía.</div>';
           if (toggleBtn) toggleBtn.hidden = true;
+          if (rankLine) rankLine.textContent = 'Puesto -';
           return;
         }
 
@@ -774,6 +670,12 @@
         document.getElementById('kpi-rank').textContent = teamRow?.rank ?? '-';
         document.getElementById('kpi-points').textContent = teamRow?.points ?? '-';
         document.getElementById('kpi-played').textContent = teamRow?.played ?? '-';
+        if (competitionLine) {
+          competitionLine.textContent = team && team.group ? team.group : 'Competición por definir';
+        }
+        if (rankLine) {
+          rankLine.textContent = `Puesto ${teamRow?.rank ?? '-'}`;
+        }
 
         const visibleRows = standingsExpanded ? standings : standings.slice(0, 10);
         if (toggleBtn) {
@@ -825,93 +727,41 @@
         `;
       }
 
-      function renderNextMatch(nextMatch) {
+      function renderNextMatch(nextMatch, standings) {
         const container = document.getElementById('next-match');
         if (!container) {
           return;
         }
         if (!nextMatch) {
           container.innerHTML = `
-            <p><strong>Próximo rival</strong> · Pendiente de sincronización</p>
-            <p>Rival por confirmar · --</p>
-            <p>Fecha sin definir · Campo por confirmar</p>
+            <p><strong>Próximo rival</strong></p>
+            <p>Rival por confirmar</p>
+            <p>Fecha sin definir</p>
+            <p>Campo por confirmar</p>
+            <p>Posición rival · -</p>
           `;
           return;
         }
-        const label = nextMatch.status === 'latest' ? 'Último partido' : 'Próximo rival';
         const opponentName =
           typeof nextMatch.opponent === 'string'
             ? nextMatch.opponent
             : nextMatch.opponent?.full_name || nextMatch.opponent?.name || nextMatch.rival || 'Rival por confirmar';
-        const opponentCrest =
-          typeof nextMatch.opponent === 'object' ? (nextMatch.opponent?.crest_url || '') : '';
+        const normalizedOpponent = String(opponentName || '').trim().toUpperCase();
+        const opponentStanding = Array.isArray(standings)
+          ? standings.find((row) => {
+              const rowName = String(row.full_name || row.team || '').trim().toUpperCase();
+              return rowName && normalizedOpponent && (rowName === normalizedOpponent || rowName.includes(normalizedOpponent) || normalizedOpponent.includes(rowName));
+            })
+          : null;
         const dateLabel = nextMatch.date || 'Fecha sin definir';
         const timeLabel = nextMatch.time ? ` ${nextMatch.time}` : '';
         container.innerHTML = `
-          <p><strong>${label}</strong> · Jornada ${nextMatch.round || '-'}</p>
-          <p class="next-match-opponent">
-            ${opponentCrest ? `<img src="${opponentCrest}" alt="Escudo ${opponentName}" loading="lazy">` : ''}
-            <span>${opponentName} · ${nextMatch.home ? 'Local' : 'Visitante'}</span>
-          </p>
-          <p>${dateLabel}${timeLabel} · ${nextMatch.location || 'Campo por confirmar'}</p>
+          <p><strong>Próximo rival</strong></p>
+          <p>${opponentName}</p>
+          <p>${dateLabel}${timeLabel}${nextMatch.round ? ` · ${nextMatch.round}` : ''}</p>
+          <p>${nextMatch.location || 'Campo por confirmar'}</p>
+          <p>Posición rival · ${opponentStanding?.rank ?? '-'}</p>
         `;
-      }
-
-      function renderTeamMetrics(metrics) {
-        const container = document.getElementById('team-metrics');
-        if (!container || !metrics) {
-          return;
-        }
-        const events = (metrics.top_event_types || [])
-          .map((item) => `<li><span>${item.event}</span><strong>${item.count}</strong></li>`)
-          .join('');
-        container.innerHTML = `
-          <p><strong>${metrics.total_events || 0}</strong> acciones registradas</p>
-          <ul class="actions">${events || '<li><span>Sin datos</span><strong>-</strong></li>'}</ul>
-        `;
-      }
-
-      function renderPlayerCards(cards) {
-        const container = document.getElementById('player-cards');
-        if (!container) return;
-
-        if (!cards || !cards.length) {
-          container.innerHTML = '<div class="product-empty">No hay jugadores disponibles de momento.</div>';
-          return;
-        }
-
-        container.innerHTML = cards
-          .slice(0, 12)
-          .map(
-            (player) => `
-              <article class="player-card">
-                <a class="player-link" href="/player/${player.player_id}/">
-                  <div class="player-head">
-                    ${player.photo_url
-                      ? `<img class="player-avatar" src="${player.photo_url}" alt="${player.name}" loading="lazy">`
-                      : `<img class="player-avatar fallback" src="${playerAvatarFallback}" alt="${player.name}" loading="lazy">`
-                    }
-                    <strong>${(player.name || '').toUpperCase()}</strong>
-                  </div>
-                  <span>${player.pj} PJ · ${player.minutes} min</span>
-                  <span>${player.goals} goles</span>
-                  <span>${player.yellow_cards} amarillas · ${player.red_cards} rojas</span>
-                </a>
-              </article>
-            `
-          )
-          .join('');
-      }
-
-      function renderPlayerCardsScope(scope) {
-        const scopeText = document.getElementById('player-cards-scope');
-        if (!scopeText) return;
-
-        if (scope && scope.label) {
-          scopeText.textContent = scope.label;
-          return;
-        }
-        scopeText.textContent = 'Jugador · histórico';
       }
 
       function getCookie(name) {
@@ -925,61 +775,6 @@
         return matches ? decodeURIComponent(matches[1]) : undefined;
       }
 
-      async function refreshData({ silent = false } = {}) {
-        const button = document.getElementById('refresh-btn');
-        if (button) {
-          button.disabled = true;
-          button.textContent = 'Actualizando…';
-        }
-        if (refreshMessage && !silent) {
-          refreshMessage.textContent = 'Actualizando datos oficiales…';
-        }
-        try {
-          const response = await fetch('/api/dashboard/refresh/', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-CSRFToken': getCookie('csrftoken'),
-            },
-          });
-          if (!response.ok) {
-            let serverMessage = 'No se pudo actualizar';
-            try {
-              const errorPayload = await response.json();
-              if (errorPayload && errorPayload.message) {
-                serverMessage = errorPayload.message;
-              } else if (errorPayload && errorPayload.error) {
-                serverMessage = errorPayload.error;
-              }
-            } catch (e) {
-              // keep default message when response is not JSON
-            }
-            throw new Error(serverMessage);
-          }
-          const payload = await response.json();
-          if (refreshMessage) {
-            refreshMessage.textContent = 'Actualizado correctamente';
-          }
-          if (refreshLast) {
-            refreshLast.textContent = payload.message;
-          }
-          await renderDashboard();
-        } catch (error) {
-          if (refreshMessage) {
-            refreshMessage.textContent = 'Error al actualizar: ' + error.message;
-          }
-        } finally {
-          if (button) {
-            button.disabled = false;
-            button.textContent = 'Actualizar clasificación';
-          }
-        }
-      }
-
-      const refreshBtn = document.getElementById('refresh-btn');
-      if (refreshBtn) {
-        refreshBtn.addEventListener('click', () => refreshData());
-      }
       const standingsToggle = document.getElementById('standings-toggle');
       if (standingsToggle) {
         standingsToggle.addEventListener('click', () => {

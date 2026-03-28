@@ -1683,7 +1683,7 @@ class PlatformWorkspaceTests(TestCase):
         self.assertContains(response, 'Cliente visible')
         self.assertContains(response, 'Selecciona un workspace')
 
-    def test_dashboard_shows_focus_and_pending_blocks_for_workspace_admin(self):
+    def test_dashboard_shows_competitive_summary_for_workspace_admin(self):
         workspace = Workspace.objects.create(
             name='Cliente foco',
             slug='cliente-foco',
@@ -1700,8 +1700,9 @@ class PlatformWorkspaceTests(TestCase):
         response = self.client.get(reverse('dashboard-home'))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Tu foco hoy')
-        self.assertContains(response, 'Pendientes y actividad')
+        self.assertContains(response, 'Estado del equipo')
+        self.assertContains(response, 'Próximo rival')
+        self.assertContains(response, 'Clasificación')
 
     def test_workspace_member_auto_uses_assigned_club_context(self):
         workspace = Workspace.objects.create(
