@@ -520,7 +520,6 @@ def product_landing_page(request):
         'football/product_landing.html',
         {
             'brand_descriptor': 'Football Intelligence',
-            'brand_claim': 'Del partido al entrenamiento.',
             'product_tracks': [
                 {
                     'name': '2J Live',
@@ -6599,6 +6598,8 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
         if hasattr(request.user, 'get_full_name') and request.user.get_full_name().strip()
         else getattr(request.user, 'username', '') or 'Entrenador'
     )
+    primary_club_team = _get_primary_team_for_request(request) or Team.objects.filter(is_primary=True).first()
+    club_logo_url = resolve_team_crest_url(request, primary_club_team, sync=True) if primary_club_team else ''
     logo_path = 'football/images/uefa-badge.svg' if pdf_style == 'uefa' else 'football/images/cdb-logo.png'
     return {
         'team_name': team.name,
@@ -6627,6 +6628,7 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
         'animation_frames_count': len(animation_frames),
         'logo_url': request.build_absolute_uri(static(logo_path)),
         'brand_mark_url': request.build_absolute_uri(static('football/images/2j-mark.svg')),
+        'club_logo_url': club_logo_url,
         'task_preview_url': preview_url,
         'generated_at': timezone.localtime(),
     }
@@ -6753,6 +6755,8 @@ def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
         if hasattr(request.user, 'get_full_name') and request.user.get_full_name().strip()
         else getattr(request.user, 'username', '') or 'Entrenador'
     )
+    primary_club_team = _get_primary_team_for_request(request) or Team.objects.filter(is_primary=True).first()
+    club_logo_url = resolve_team_crest_url(request, primary_club_team, sync=True) if primary_club_team else ''
     logo_path = 'football/images/uefa-badge.svg' if pdf_style == 'uefa' else 'football/images/cdb-logo.png'
     return {
         'team_name': team.name,
@@ -6766,6 +6770,7 @@ def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
         'coach_name': coach_name,
         'logo_url': request.build_absolute_uri(static(logo_path)),
         'brand_mark_url': request.build_absolute_uri(static('football/images/2j-mark.svg')),
+        'club_logo_url': club_logo_url,
         'generated_at': timezone.localtime(),
         'intensity_label': dict(TrainingSession.INTENSITY_CHOICES).get(session.intensity, session.intensity or '-'),
         'status_label': dict(TrainingSession.STATUS_CHOICES).get(session.status, session.status or '-'),

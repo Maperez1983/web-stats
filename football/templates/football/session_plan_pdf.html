@@ -262,9 +262,12 @@
             <td style="vertical-align:middle;">
               <div style="display:inline-flex; align-items:center; gap:8px;">
                 <img src="{{ brand_mark_url }}" alt="2J Football Intelligence" style="width:54px; height:auto; object-fit:contain;" />
+                {% if club_logo_url %}
+                <img src="{{ club_logo_url }}" alt="Escudo {{ team_name }}" style="width:30px; height:30px; object-fit:contain; border-radius:999px; background:#fff; padding:2px; border:1px solid rgba(11,18,32,0.08);" />
+                {% endif %}
                 <div>
                   <div style="font-size:9px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:#0b1220;">2J Football Intelligence</div>
-                  <div style="font-size:8.5px;">Del partido al entrenamiento.</div>
+                  <div style="font-size:8.5px;">Football Intelligence</div>
                 </div>
               </div>
             </td>
