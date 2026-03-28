@@ -663,6 +663,22 @@
         if (!container) {
           return;
         }
+        const formatDate = (value) => {
+          const raw = String(value || '').trim();
+          if (!raw) return 'Fecha sin definir';
+          const isoMatch = raw.match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);
+          if (isoMatch) {
+            return `${isoMatch[3]}/${isoMatch[2]}/${isoMatch[1]}`;
+          }
+          return raw;
+        };
+        const formatRound = (value) => {
+          const raw = String(value || '').trim();
+          if (!raw) return '';
+          if (/^j/i.test(raw) || /jornada/i.test(raw)) return raw;
+          if (/^\\d+$/.test(raw)) return `J${raw}`;
+          return raw;
+        };
         if (!nextMatch) {
           container.innerHTML = `
             <p><strong>Próximo rival</strong></p>
@@ -688,15 +704,16 @@
           nextMatch.opponent?.crest_url ||
           opponentStanding?.crest_url ||
           '';
-        const dateLabel = nextMatch.date || 'Fecha sin definir';
-        const timeLabel = nextMatch.time ? ` ${nextMatch.time}` : '';
+        const dateLabel = formatDate(nextMatch.date);
+        const timeLabel = nextMatch.time ? ` · ${nextMatch.time}` : '';
+        const roundLabel = formatRound(nextMatch.round);
         container.innerHTML = `
           <p><strong>Próximo rival</strong></p>
           <div class="next-match-opponent">
             ${opponentCrest ? `<img src="${opponentCrest}" alt="Escudo ${opponentName}" loading="lazy">` : ''}
             <p>${opponentName}</p>
           </div>
-          <p>${dateLabel}${timeLabel}${nextMatch.round ? ` · ${nextMatch.round}` : ''}</p>
+          <p>${dateLabel}${timeLabel}${roundLabel ? ` · ${roundLabel}` : ''}</p>
           <p>${nextMatch.location || 'Campo por confirmar'}</p>
           <p>Posición rival · ${opponentStanding?.rank ?? '-'}</p>
         `;

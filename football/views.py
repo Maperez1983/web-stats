@@ -2345,6 +2345,64 @@ def normalize_next_match_payload(payload):
     return payload
 
 
+def _enrich_standings_rows_with_crests(rows):
+    if not isinstance(rows, list):
+        return []
+    snapshot_lookup = _build_universo_standings_lookup(load_universo_snapshot())
+    capture_lookup = _build_universo_capture_team_lookup()
+    crest_lookup = _build_team_crest_lookup()
+    enriched = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        row_copy = dict(row)
+        team_name = str(row_copy.get('full_name') or row_copy.get('team') or '').strip()
+        team_key = _normalize_team_lookup_key(team_name)
+        if not row_copy.get('crest_url') and team_key:
+            row_copy['crest_url'] = (
+                str(snapshot_lookup.get(team_key, {}).get('crest_url') or '').strip()
+                or str(capture_lookup.get(team_key, {}).get('crest_url') or '').strip()
+                or str(crest_lookup.get(team_key) or '').strip()
+            )
+        row_copy['crest_url'] = _absolute_universo_url(row_copy.get('crest_url'))
+        enriched.append(row_copy)
+    return enriched
+
+
+def _enrich_next_match_payload_with_crests(next_match, standings_rows=None):
+    if not isinstance(next_match, dict):
+        return {}
+    payload = normalize_next_match_payload(dict(next_match))
+    opponent = payload.get('opponent') if isinstance(payload.get('opponent'), dict) else {}
+    opponent_name = str(opponent.get('full_name') or opponent.get('name') or payload.get('rival') or '').strip()
+    if opponent_name and not str(opponent.get('crest_url') or '').strip():
+        rival_full_name, rival_crest_url = _resolve_rival_identity(opponent_name, preferred_opponent=opponent)
+        if rival_full_name and not opponent.get('full_name'):
+            opponent['full_name'] = rival_full_name
+        if rival_crest_url:
+            opponent['crest_url'] = _absolute_universo_url(rival_crest_url)
+    if opponent_name and not str(opponent.get('crest_url') or '').strip() and isinstance(standings_rows, list):
+        normalized_opponent = _normalize_team_lookup_key(opponent_name)
+        for row in standings_rows:
+            if not isinstance(row, dict):
+                continue
+            row_name = _normalize_team_lookup_key(row.get('full_name') or row.get('team'))
+            if row_name and normalized_opponent and (row_name == normalized_opponent or row_name in normalized_opponent or normalized_opponent in row_name):
+                crest_url = _absolute_universo_url(row.get('crest_url'))
+                if crest_url:
+                    opponent['crest_url'] = crest_url
+                if not opponent.get('full_name') and row.get('full_name'):
+                    opponent['full_name'] = str(row.get('full_name')).strip()
+                break
+    payload['opponent'] = {
+        'name': str(opponent.get('name') or opponent.get('full_name') or opponent_name or 'Rival por confirmar').strip() or 'Rival por confirmar',
+        'full_name': str(opponent.get('full_name') or opponent.get('name') or opponent_name or 'Rival por confirmar').strip() or 'Rival por confirmar',
+        'crest_url': _absolute_universo_url(opponent.get('crest_url')),
+        'team_code': str(opponent.get('team_code') or '').strip(),
+    }
+    return payload
+
+
 def _build_weekly_staff_brief_context(primary_team, player_cards=None):
     if not primary_team:
         return None
@@ -3588,14 +3646,17 @@ def dashboard_data(request):
 
     workspace = _get_active_workspace(request)
     competition_payload = _competition_payload_for_team(workspace, primary_team)
-    standings = competition_payload.get('standings') or []
-    next_match = competition_payload.get('next_match') or {}
+    standings = _enrich_standings_rows_with_crests(competition_payload.get('standings') or [])
+    next_match = _enrich_next_match_payload_with_crests(competition_payload.get('next_match') or {}, standings) or {}
     if not next_match:
-        next_match = load_preferred_next_match_payload(primary_team=primary_team) or get_next_match(primary_team, group)
+        next_match = _enrich_next_match_payload_with_crests(
+            load_preferred_next_match_payload(primary_team=primary_team) or get_next_match(primary_team, group),
+            standings,
+        )
     convocation_next_match = _build_next_match_from_convocation(primary_team)
     # Product rule: Home prioritizes Convocatoria only when it provides a reliable scheduled match.
     if _next_match_payload_is_reliable(convocation_next_match):
-        next_match = convocation_next_match
+        next_match = _enrich_next_match_payload_with_crests(convocation_next_match, standings)
     team_metrics = compute_team_metrics(primary_team)
     player_metrics = compute_player_metrics(primary_team)
     player_cards = compute_player_cards(primary_team)
