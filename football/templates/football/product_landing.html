@@ -27,7 +27,7 @@
           linear-gradient(180deg, #07101c, #0b1220 55%, #0a1323);
       }
       .page { max-width: 1200px; margin: 0 auto; padding: 1.2rem; }
-      .topbar, .hero, .proof-grid, .tracks, .plans, .cta-band { display: grid; gap: 1rem; }
+      .topbar, .hero, .proof-grid, .tracks, .plans, .demo-strip, .cta-band { display: grid; gap: 1rem; }
       .topbar {
         grid-template-columns: 1fr auto;
         align-items: center;
@@ -233,6 +233,31 @@
         grid-template-columns: 1fr auto;
         align-items: center;
       }
+      .demo-strip {
+        margin-top: 1rem;
+        grid-template-columns: 1.15fr .85fr;
+      }
+      .demo-card {
+        border-radius: 22px;
+        border: 1px solid var(--line);
+        background: var(--panel-soft);
+        padding: 1.15rem;
+      }
+      .demo-card h3 {
+        margin: 0 0 .35rem;
+        font-size: 1.28rem;
+      }
+      .demo-card p {
+        margin: 0;
+        color: var(--slate);
+        line-height: 1.55;
+      }
+      .demo-list {
+        margin: .85rem 0 0;
+        padding-left: 1rem;
+        color: #dbe3ee;
+        line-height: 1.8;
+      }
       .cta-band h3 {
         margin: 0 0 .2rem;
         font-size: 1.3rem;
@@ -242,7 +267,7 @@
         color: var(--slate);
       }
       @media (max-width: 960px) {
-        .hero, .proof-grid, .tracks, .plans, .cta-band, .topbar {
+        .hero, .proof-grid, .tracks, .plans, .demo-strip, .cta-band, .topbar {
           grid-template-columns: 1fr;
         }
         .top-actions { justify-content: start; }
@@ -353,6 +378,28 @@
           <li>{{ point }}</li>
           {% endfor %}
         </ul>
+      </section>
+
+      <h2 class="section-title">Demo y contacto</h2>
+      <section class="demo-strip">
+        <article class="demo-card">
+          <h3>Qué enseñar en una demo</h3>
+          <p>La demostración comercial buena de 2J no enseña todas las pantallas; enseña un flujo cerrado de valor.</p>
+          <ul class="demo-list">
+            <li>2J Live: registrar el partido y cerrar con resumen.</li>
+            <li>2J Studio: diseñar una tarea y generar PDF UEFA/Club.</li>
+            <li>2J Club: ver cómo todo encaja en el cliente y sus módulos.</li>
+          </ul>
+        </article>
+        <article class="demo-card">
+          <h3>Siguiente CTA comercial</h3>
+          <p>Cuando quieras sacar la marca fuera del sistema, este bloque debería enlazar a agenda de demo, formulario comercial o contacto directo.</p>
+          <ul class="demo-list">
+            <li>CTA 1: Solicitar demo.</li>
+            <li>CTA 2: Ver entorno de ejemplo.</li>
+            <li>CTA 3: Hablar con el equipo.</li>
+          </ul>
+        </article>
       </section>
 
       <section class="cta-band">

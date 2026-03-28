@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Dashboard Jugadores · {{ team_name }}</title>
+    <title>2J Player · Dashboard jugadores</title>
     <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
     <style>
       :root {
@@ -27,6 +27,28 @@
         color: var(--text);
       }
       .shell { max-width: 1260px; margin: 0 auto; }
+      .brand-strip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.85rem;
+        margin-bottom: 0.4rem;
+      }
+      .brand-strip img {
+        width: 138px;
+        height: auto;
+      }
+      .brand-strip-copy strong {
+        display: block;
+        font-size: 0.76rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: #d7f5d9;
+      }
+      .brand-strip-copy span {
+        display: block;
+        margin-top: 0.14rem;
+        color: var(--muted);
+      }
       .topbar {
         display: grid;
         grid-template-columns: 1fr auto;
@@ -293,6 +315,13 @@
     <div class="shell product-shell">
       <div class="topbar">
         <div class="headline">
+          <div class="brand-strip">
+            <img src="{% static 'football/images/2j-mark.svg' %}" alt="2J Player" />
+            <div class="brand-strip-copy">
+              <strong>2J Player</strong>
+              <span>Football Intelligence · Vista de rendimiento</span>
+            </div>
+          </div>
           {% include 'football/includes/dragon_nav.html' with hide_product_shortcuts=True %}
           <p>Dashboard jugadores · {{ team_name }}</p>
           <h1>Vista limpia de rendimiento</h1>

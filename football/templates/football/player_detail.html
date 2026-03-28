@@ -3,10 +3,32 @@
 <html lang="es">
   <head>
     <meta charset="utf-8" />
-    <title>Jugador · {{ player.name }}</title>
+    <title>2J Player · {{ player.name }}</title>
     <style>
       body { font-family: 'Inter', sans-serif; background: #030712; color: #e2e8f0; margin: 0; padding: 2rem; }
       .container { max-width: 1100px; margin: 0 auto; }
+      .brand-strip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.85rem;
+        margin-bottom: 0.55rem;
+      }
+      .brand-strip img {
+        width: 142px;
+        height: auto;
+      }
+      .brand-strip-copy strong {
+        display: block;
+        font-size: 0.76rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: #d7f5d9;
+      }
+      .brand-strip-copy span {
+        display: block;
+        margin-top: 0.14rem;
+        color: #94a3b8;
+      }
       header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }
       header h1 { margin: 0.2rem 0 0; font-size: 2rem; }
       .injury-alert-icon {
@@ -354,6 +376,13 @@
   </head>
   <body>
     <div class="container">
+      <div class="brand-strip">
+        <img src="{% static 'football/images/2j-mark.svg' %}" alt="2J Player" />
+        <div class="brand-strip-copy">
+          <strong>2J Player</strong>
+          <span>Football Intelligence · Ficha individual</span>
+        </div>
+      </div>
       {% include 'football/includes/dragon_nav.html' with hide_product_shortcuts=True %}
       <header>
         <div>
