@@ -14,6 +14,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from football.models import AnalystVideoFolder, Competition, ConvocationRecord, Group, Match, MatchEvent, Player, PlayerCommunication, PlayerFine, PlayerStatistic, RivalAnalysisReport, RivalVideo, Season, SessionTask, TaskStudioProfile, TaskStudioRosterPlayer, TaskStudioTask, Team, TeamStanding, TrainingMicrocycle, TrainingSession, UserInvitation, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot, WorkspaceMembership
+from football import views as football_views
 from football.bootstrap import ensure_bootstrap_admin_from_env
 from football.event_taxonomy import (
     PASS_KEYWORDS,
@@ -461,6 +462,108 @@ class PlatformWorkspaceTests(TestCase):
                 role=WorkspaceMembership.ROLE_OWNER,
             ).exists()
         )
+
+    @patch('football.views.load_cached_next_match')
+    @patch('football.views.load_universo_snapshot')
+    @patch('football.views._find_universo_next_match_for_context')
+    def test_preferred_next_match_uses_workspace_provider_before_global_cache(
+        self,
+        mocked_provider_next,
+        mocked_snapshot,
+        mocked_cached_next,
+    ):
+        context = WorkspaceCompetitionContext.objects.create(
+            workspace=Workspace.objects.create(
+                name='Cliente provider',
+                slug='cliente-provider',
+                kind=Workspace.KIND_CLUB,
+                primary_team=self.team,
+            ),
+            team=self.team,
+            group=self.team.group,
+            season=self.team.group.season,
+            provider=WorkspaceCompetitionContext.PROVIDER_UNIVERSO,
+            external_group_key='45030656',
+            external_team_name=self.team.name,
+        )
+        mocked_provider_next.return_value = {
+            'round': '27',
+            'date': '2026-03-29',
+            'location': 'Campo real',
+            'opponent': {'name': 'Rival real'},
+            'status': 'next',
+            'source': 'universo-live',
+        }
+        mocked_snapshot.return_value = {
+            'next_match': {
+                'round': 'Partido 1',
+                'date': '2026-03-01',
+                'opponent': {'name': 'PIZARRA'},
+                'status': 'next',
+            }
+        }
+        mocked_cached_next.return_value = {
+            'round': 'Partido 1',
+            'date': '2026-03-01',
+            'opponent': {'name': 'PIZARRA'},
+            'status': 'next',
+        }
+
+        payload = football_views.load_preferred_next_match_payload(
+            primary_team=self.team,
+            competition_context=context,
+        )
+
+        self.assertEqual(payload['opponent']['name'], 'Rival real')
+        mocked_provider_next.assert_called_once()
+
+    @patch('football.views.load_universo_snapshot', return_value={})
+    @patch('football.views._find_universo_next_match_for_context')
+    def test_competition_payload_resyncs_unreliable_snapshot_next_match(
+        self,
+        mocked_provider_next,
+        mocked_snapshot,
+    ):
+        workspace = Workspace.objects.create(
+            name='Cliente snapshot',
+            slug='cliente-snapshot',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.team,
+        )
+        context = WorkspaceCompetitionContext.objects.create(
+            workspace=workspace,
+            team=self.team,
+            group=self.team.group,
+            season=self.team.group.season,
+            provider=WorkspaceCompetitionContext.PROVIDER_UNIVERSO,
+            external_group_key='45030656',
+            external_team_name=self.team.name,
+        )
+        snapshot = WorkspaceCompetitionSnapshot.objects.create(
+            workspace=workspace,
+            context=context,
+            standings_payload=[{'rank': 1, 'team': self.team.name, 'points': 20}],
+            next_match_payload={
+                'round': 'Partido 1',
+                'opponent': {'name': 'PIZARRA'},
+                'status': 'next',
+                'source': 'local-match',
+            },
+        )
+        mocked_provider_next.return_value = {
+            'round': '27',
+            'date': '2026-03-29',
+            'location': 'Campo real',
+            'opponent': {'name': 'Rival real'},
+            'status': 'next',
+            'source': 'universo-live',
+        }
+
+        payload = football_views._competition_payload_for_team(workspace, self.team)
+        snapshot.refresh_from_db()
+
+        self.assertEqual(payload['next_match']['opponent']['name'], 'Rival real')
+        self.assertEqual(snapshot.next_match_payload.get('opponent', {}).get('name'), 'Rival real')
 
     def test_platform_overview_documents_tab_shows_recent_documents(self):
         self.client.force_login(self.admin_user)

@@ -1037,6 +1037,343 @@ def _build_workspace_schedule_payload(primary_team):
     return payload
 
 
+def _expand_team_lookup_variants(raw_value):
+    base_key = _normalize_team_lookup_key(raw_value)
+    if not base_key:
+        return set()
+    variants = {base_key}
+    trimmed = re.sub(r'^(cd|cf|ud|fc)+', '', base_key)
+    trimmed = re.sub(r'(cd|cf|ud|fc)+$', '', trimmed)
+    if trimmed:
+        variants.add(trimmed)
+        variants.add(f'cd{trimmed}')
+        variants.add(f'{trimmed}cd')
+    return {variant for variant in variants if variant}
+
+
+def _context_team_lookup_keys(context, primary_team):
+
+    keys = set()
+    for raw_value in (
+        getattr(primary_team, 'name', ''),
+        getattr(primary_team, 'display_name', ''),
+        getattr(context, 'external_team_name', ''),
+    ):
+        keys.update(_expand_team_lookup_variants(raw_value))
+    external_team_key = str(getattr(context, 'external_team_key', '') or '').strip()
+    if external_team_key:
+        keys.update(_expand_team_lookup_variants(external_team_key.lower()))
+    return {key for key in keys if key}
+
+
+def _ensure_universo_context_binding(context, primary_team):
+    if not context or str(getattr(context, 'provider', '') or '').strip() != WorkspaceCompetitionContext.PROVIDER_UNIVERSO:
+        return context
+    if str(getattr(context, 'external_group_key', '') or '').strip() and (
+        str(getattr(context, 'external_team_key', '') or '').strip()
+        or str(getattr(context, 'external_team_name', '') or '').strip()
+    ):
+        return context
+    if not primary_team:
+        return context
+
+    competition = getattr(getattr(getattr(primary_team, 'group', None), 'season', None), 'competition', None)
+    team_query = str(getattr(context, 'external_team_name', '') or getattr(primary_team, 'name', '') or '').strip()
+    competition_query = str(getattr(competition, 'name', '') or '').strip()
+    group_query = str(getattr(getattr(primary_team, 'group', None), 'name', '') or '').strip()
+
+    normalized_team_query = normalize_label(team_query)
+    lookup_team_query = _normalize_team_lookup_key(team_query)
+    normalized_comp_query = normalize_label(competition_query)
+    normalized_group_query = normalize_label(group_query)
+
+    def _tokenize_label(value):
+        return {
+            token
+            for token in re.split(r'[^a-z0-9]+', normalize_label(value))
+            if token and token not in {'grupo', 'gr', 'senior', 's', 'cd', 'cf'}
+        }
+
+    def _query_matches_candidate(query, candidate, *, min_overlap=1):
+        query_tokens = _tokenize_label(query)
+        candidate_tokens = _tokenize_label(candidate)
+        if not query_tokens:
+            return True
+        overlap = query_tokens & candidate_tokens
+        return len(overlap) >= min(min_overlap, len(query_tokens))
+
+    candidate_groups = (
+        Group.objects
+        .select_related('season__competition')
+        .exclude(external_id__exact='')
+        .filter(name__iexact=group_query)
+        .order_by('-season__is_current', '-id')
+    )
+    best_group_match = None
+    best_group_score = -1
+    for candidate_group in candidate_groups:
+        candidate_competition_name = str(getattr(getattr(candidate_group, 'season', None), 'competition', None).name or '').strip() if getattr(getattr(candidate_group, 'season', None), 'competition', None) else ''
+        score = 0
+        if group_query:
+            score += 25
+        if competition_query:
+            score += 25 if _query_matches_candidate(competition_query, candidate_competition_name, min_overlap=2) else 0
+        if score > best_group_score:
+            best_group_match = candidate_group
+            best_group_score = score
+    if best_group_match and best_group_score >= 25:
+        update_fields = []
+        if best_group_match.external_id and getattr(context, 'external_group_key', '') != best_group_match.external_id:
+            context.external_group_key = best_group_match.external_id
+            update_fields.append('external_group_key')
+        if update_fields:
+            context.save(update_fields=update_fields + ['updated_at'])
+        if str(getattr(context, 'external_group_key', '') or '').strip():
+            return context
+    catalog = _build_universo_competition_catalog()
+    competitions = catalog.get('competitions') or {}
+    groups = catalog.get('groups') or {}
+    classifications = catalog.get('classifications') or {}
+    candidates = []
+    for (competition_code, group_code), classification in classifications.items():
+        competition_meta = competitions.get(competition_code) or {}
+        group_meta = groups.get((competition_code, group_code)) or {}
+        resolved_competition_name = str(classification.get('competition_name') or competition_meta.get('name') or '').strip()
+        resolved_group_name = str(classification.get('group_name') or group_meta.get('group_name') or '').strip()
+        if normalized_comp_query and normalized_comp_query not in normalize_label(resolved_competition_name):
+            continue
+        if normalized_group_query and normalized_group_query not in normalize_label(resolved_group_name):
+            continue
+        for row in classification.get('rows') or []:
+            if not isinstance(row, dict):
+                continue
+            resolved_team_name = str(row.get('nombre') or '').strip()
+            if not resolved_team_name:
+                continue
+            normalized_team_name = normalize_label(resolved_team_name)
+            lookup_team_name = _normalize_team_lookup_key(resolved_team_name)
+            if lookup_team_query and not (
+                lookup_team_query == lookup_team_name
+                or lookup_team_query in lookup_team_name
+                or lookup_team_name in lookup_team_query
+            ):
+                continue
+            score = 0
+            if lookup_team_query:
+                score += 60 if lookup_team_query == lookup_team_name else 30
+            if normalized_group_query:
+                score += 25 if normalized_group_query == normalize_label(resolved_group_name) else 12
+            if normalized_comp_query:
+                score += 25 if normalized_comp_query == normalize_label(resolved_competition_name) else 12
+            candidates.append(
+                {
+                    'team_name': resolved_team_name,
+                    'competition_name': resolved_competition_name,
+                    'group_name': resolved_group_name,
+                    'season_name': str(competition_meta.get('season_name') or '').strip(),
+                    'external_competition_key': competition_code,
+                    'external_group_key': group_code,
+                    'external_team_key': str(row.get('codequipo') or '').strip(),
+                    'external_team_name': resolved_team_name,
+                    'score': score,
+                }
+            )
+    candidates.sort(key=lambda item: (-int(item.get('score') or 0), item['competition_name'], item['group_name'], item['team_name']))
+    if not candidates:
+        seasons = _fetch_universo_live_seasons()
+        season_row = next((row for row in seasons if str(row.get('nombre') or '').strip() == '2025-2026'), None)
+        if not season_row and seasons:
+            season_row = seasons[0]
+        season_id = str((season_row or {}).get('cod_temporada') or '').strip()
+        season_name = str((season_row or {}).get('nombre') or '').strip()
+        delegations = _fetch_universo_live_delegations()
+        if season_id and delegations:
+            for delegation in delegations:
+                competitions = _fetch_universo_live_competitions(delegation.get('cod_delegacion'), season_id)
+                for competition_row in competitions:
+                    competition_code = str(competition_row.get('codigo') or '').strip()
+                    resolved_competition_name = str(competition_row.get('nombre') or '').strip()
+                    if not competition_code or not resolved_competition_name:
+                        continue
+                    if competition_query and not _query_matches_candidate(competition_query, resolved_competition_name, min_overlap=2):
+                        continue
+                    groups = _fetch_universo_live_groups(competition_code)
+                    for group_row in groups:
+                        group_code = str(group_row.get('codigo') or '').strip()
+                        resolved_group_name = str(group_row.get('nombre') or '').strip()
+                        if not group_code or not resolved_group_name:
+                            continue
+                        if group_query and not _query_matches_candidate(group_query, resolved_group_name):
+                            continue
+                        classification = _fetch_universo_live_classification(group_code)
+                        for row in classification.get('clasificacion') or []:
+                            if not isinstance(row, dict):
+                                continue
+                            resolved_team_name = str(row.get('nombre') or '').strip()
+                            if not resolved_team_name:
+                                continue
+                            normalized_team_name = normalize_label(resolved_team_name)
+                            lookup_team_name = _normalize_team_lookup_key(resolved_team_name)
+                            if lookup_team_query and not (
+                                lookup_team_query == lookup_team_name
+                                or lookup_team_query in lookup_team_name
+                                or lookup_team_name in lookup_team_query
+                            ):
+                                continue
+                            score = 0
+                            if lookup_team_query:
+                                score += 60 if lookup_team_query == lookup_team_name else 30
+                            if normalized_group_query:
+                                score += 25 if _query_matches_candidate(group_query, resolved_group_name) else 12
+                            if normalized_comp_query:
+                                score += 25 if _query_matches_candidate(competition_query, resolved_competition_name, min_overlap=2) else 12
+                            candidates.append(
+                                {
+                                    'team_name': resolved_team_name,
+                                    'competition_name': resolved_competition_name,
+                                    'group_name': resolved_group_name,
+                                    'season_name': season_name,
+                                    'external_competition_key': competition_code,
+                                    'external_group_key': group_code,
+                                    'external_team_key': str(row.get('codequipo') or '').strip(),
+                                    'external_team_name': resolved_team_name,
+                                    'score': score + 20,
+                                }
+                            )
+        candidates.sort(key=lambda item: (-int(item.get('score') or 0), item['competition_name'], item['group_name'], item['team_name']))
+    if not candidates:
+        return context
+
+    normalized_team = _normalize_team_lookup_key(team_query)
+    exact_candidates = [
+        candidate
+        for candidate in candidates
+        if _normalize_team_lookup_key(candidate.get('team_name')) == normalized_team
+    ]
+    candidate_pool = exact_candidates or candidates
+    chosen = candidate_pool[0] if candidate_pool else None
+    if not chosen:
+        return context
+    if len(candidate_pool) > 1 and int(candidate_pool[0].get('score') or 0) == int(candidate_pool[1].get('score') or 0):
+        return context
+
+    update_fields = []
+    for field_name, raw_value in (
+        ('external_competition_key', chosen.get('external_competition_key')),
+        ('external_group_key', chosen.get('external_group_key')),
+        ('external_team_key', chosen.get('external_team_key')),
+        ('external_team_name', chosen.get('external_team_name') or chosen.get('team_name')),
+    ):
+        value = str(raw_value or '').strip()
+        if value and getattr(context, field_name, '') != value:
+            setattr(context, field_name, value)
+            update_fields.append(field_name)
+    if update_fields:
+        context.save(update_fields=update_fields + ['updated_at'])
+    return context
+
+
+def _find_universo_next_match_for_context(context, primary_team):
+    if not context or str(getattr(context, 'provider', '') or '').strip() != WorkspaceCompetitionContext.PROVIDER_UNIVERSO:
+        return {}
+    group_key = str(getattr(context, 'external_group_key', '') or '').strip()
+    if not group_key:
+        group_key = str(getattr(getattr(primary_team, 'group', None), 'external_id', '') or '').strip()
+    if not group_key:
+        return {}
+    team_keys = _context_team_lookup_keys(context, primary_team)
+    if not team_keys:
+        return {}
+
+    def _payload_from_row(row, fallback_date='', fallback_round=''):
+        home_name = str(row.get('Nombre_equipo_local') or '').strip()
+        away_name = str(row.get('Nombre_equipo_visitante') or '').strip()
+        home_keys = _expand_team_lookup_variants(home_name)
+        away_keys = _expand_team_lookup_variants(away_name)
+        home_code = str(row.get('CodEquipo_local') or '').strip().lower()
+        away_code = str(row.get('CodEquipo_visitante') or '').strip().lower()
+        if home_code:
+            home_keys.add(home_code)
+        if away_code:
+            away_keys.add(away_code)
+        if team_keys & home_keys:
+            opponent_name = away_name
+            home_flag = True
+            crest_url = _absolute_universo_url(row.get('url_img_visitante'))
+            team_code = str(row.get('CodEquipo_visitante') or '').strip()
+        elif team_keys & away_keys:
+            opponent_name = home_name
+            home_flag = False
+            crest_url = _absolute_universo_url(row.get('url_img_local'))
+            team_code = str(row.get('CodEquipo_local') or '').strip()
+        else:
+            return {}
+        raw_date = str(row.get('fecha') or fallback_date or '').strip()
+        date_iso = None
+        if raw_date:
+            for fmt in ('%d/%m/%Y', '%d-%m-%Y', '%Y-%m-%d'):
+                try:
+                    date_iso = datetime.strptime(raw_date, fmt).date().isoformat()
+                    break
+                except ValueError:
+                    continue
+        return normalize_next_match_payload(
+            {
+                'round': str(row.get('nombre_jornada') or row.get('jornada') or fallback_round or '').strip(),
+                'date': date_iso,
+                'time': str(row.get('hora') or '').strip(),
+                'location': str(row.get('campojuego') or '').strip(),
+                'opponent': {
+                    'name': opponent_name or 'Rival por confirmar',
+                    'full_name': opponent_name or 'Rival por confirmar',
+                    'crest_url': crest_url,
+                    'team_code': team_code,
+                },
+                'home': home_flag,
+                'status': 'next',
+                'source': 'universo-live',
+            }
+        )
+
+    today = timezone.localdate()
+    current_payload = _fetch_universo_live_results(group_key)
+    if not current_payload:
+        return {}
+    rounds = []
+    current_round = str(current_payload.get('jornada') or '').strip()
+    if current_round:
+        rounds.append(current_round)
+    for bucket in current_payload.get('listado_jornadas') or []:
+        if not isinstance(bucket, dict):
+            continue
+        for row in bucket.get('jornadas') or []:
+            if not isinstance(row, dict):
+                continue
+            round_id = str(row.get('codjornada') or '').strip()
+            if round_id and round_id not in rounds:
+                rounds.append(round_id)
+    checked = 0
+    for round_id in rounds:
+        if checked >= 6:
+            break
+        checked += 1
+        payload = current_payload if round_id == current_round else _fetch_universo_live_results(group_key, round_id)
+        if not payload:
+            continue
+        fallback_date = str(payload.get('fecha_jornada') or '').strip()
+        fallback_round = str(payload.get('nombre_jornada') or payload.get('jornada') or round_id).strip()
+        for row in payload.get('partidos') or []:
+            if not isinstance(row, dict):
+                continue
+            candidate = _payload_from_row(row, fallback_date=fallback_date, fallback_round=fallback_round)
+            if not candidate:
+                continue
+            payload_date = _parse_payload_date(candidate.get('date'))
+            if payload_date and payload_date >= today:
+                return candidate
+    return {}
+
+
 def _search_workspace_competition_candidates(provider, *, team_query='', competition_query='', group_query=''):
     team_query = str(team_query or '').strip()
     competition_query = str(competition_query or '').strip()
@@ -1139,9 +1476,21 @@ def _sync_workspace_competition_context(workspace):
         context.save(update_fields=['sync_status', 'sync_error', 'last_sync_at', 'updated_at'])
         return context, context.sync_error
 
+    context = _ensure_universo_context_binding(context, primary_team)
     standings_payload = _resolve_standings_for_team(primary_team, snapshot=load_universo_snapshot())
     convocation_next = _build_next_match_from_convocation(primary_team)
-    next_match_payload = convocation_next or load_preferred_next_match_payload(primary_team=primary_team) or get_next_match(primary_team, primary_team.group) or {}
+    provider_next = _find_universo_next_match_for_context(context, primary_team)
+    preferred_next = load_preferred_next_match_payload(primary_team=primary_team, competition_context=context)
+    local_next = get_next_match(primary_team, primary_team.group)
+    if not _next_match_payload_is_reliable(local_next):
+        local_next = {}
+    next_match_payload = (
+        (convocation_next if _next_match_payload_is_reliable(convocation_next) else {})
+        or provider_next
+        or preferred_next
+        or local_next
+        or {}
+    )
     schedule_payload = _build_workspace_schedule_payload(primary_team)
     snapshot, _ = WorkspaceCompetitionSnapshot.objects.get_or_create(
         workspace=workspace,
@@ -1167,11 +1516,11 @@ def _sync_workspace_competition_context(workspace):
 
 def _competition_payload_for_team(workspace, primary_team):
     if workspace and workspace.kind == Workspace.KIND_CLUB:
-        snapshot = getattr(workspace, 'competition_snapshot', None)
+        snapshot = WorkspaceCompetitionSnapshot.objects.filter(workspace=workspace).select_related('context').first()
         if snapshot and snapshot.context_id:
             standings_payload = snapshot.standings_payload if isinstance(snapshot.standings_payload, list) else []
             next_match_payload = snapshot.next_match_payload if isinstance(snapshot.next_match_payload, dict) else {}
-            if standings_payload or next_match_payload:
+            if standings_payload and _next_match_payload_is_reliable(next_match_payload):
                 return {
                     'standings': standings_payload,
                     'next_match': normalize_next_match_payload(next_match_payload) if next_match_payload else {},
@@ -1180,7 +1529,7 @@ def _competition_payload_for_team(workspace, primary_team):
             context = _bootstrap_workspace_competition_context(workspace, primary_team=primary_team)
             if context and context.is_auto_sync_enabled:
                 _sync_workspace_competition_context(workspace)
-                snapshot = getattr(workspace, 'competition_snapshot', None)
+                snapshot = WorkspaceCompetitionSnapshot.objects.filter(workspace=workspace).select_related('context').first()
                 if snapshot:
                     return {
                         'standings': snapshot.standings_payload if isinstance(snapshot.standings_payload, list) else [],
@@ -2334,6 +2683,14 @@ def _fetch_universo_live_classification(group_id):
     return payload if isinstance(payload, dict) else {}
 
 
+def _fetch_universo_live_results(group_id, round_id=''):
+    payload = _universo_api_post(
+        'match/get-results',
+        {'id_group': str(group_id or '').strip(), 'id_round': str(round_id or '').strip()},
+    )
+    return payload if isinstance(payload, dict) else {}
+
+
 def _parse_capture_form_payload(raw_payload):
     parsed = {}
     raw_text = str(raw_payload or '')
@@ -2836,23 +3193,30 @@ def _resolve_rival_identity(rival_name, preferred_opponent=None):
     return rival_full_name, rival_crest_url
 
 
-def load_preferred_next_match_payload(primary_team=None):
-    today = timezone.localdate()
+def load_preferred_next_match_payload(primary_team=None, competition_context=None):
+    competition_context = competition_context or (
+        WorkspaceCompetitionContext.objects
+        .filter(Q(team=primary_team) | Q(workspace__primary_team=primary_team))
+        .select_related('workspace', 'team', 'group')
+        .first()
+        if primary_team else None
+    )
+    competition_context = _ensure_universo_context_binding(competition_context, primary_team)
+    provider_next = _find_universo_next_match_for_context(competition_context, primary_team)
+    if _next_match_payload_is_reliable(provider_next):
+        return provider_next
     snapshot = load_universo_snapshot()
     can_use_external = _universo_snapshot_supports_team(snapshot, primary_team) if primary_team else True
     if can_use_external and isinstance(snapshot, dict) and isinstance(snapshot.get('next_match'), dict):
         snapshot_next = normalize_next_match_payload(snapshot.get('next_match'))
-        status = str(snapshot_next.get('status') or 'next').lower()
-        payload_date = _parse_payload_date(snapshot_next.get('date'))
-        if status == 'next' and payload_date and payload_date >= today:
+        if _next_match_payload_is_reliable(snapshot_next):
             return snapshot_next
 
     cached_next = load_cached_next_match() if can_use_external else None
     if isinstance(cached_next, dict):
-        status = str(cached_next.get('status') or '').lower()
-        payload_date = _parse_payload_date(cached_next.get('date'))
-        if status == 'next' and payload_date and payload_date >= today:
-            return normalize_next_match_payload(cached_next)
+        normalized_cached_next = normalize_next_match_payload(cached_next)
+        if _next_match_payload_is_reliable(normalized_cached_next):
+            return normalized_cached_next
     return None
 
 
@@ -2972,11 +3336,14 @@ def _next_match_payload_is_reliable(payload):
     status = str(payload.get('status') or '').strip().lower()
     if status != 'next':
         return False
+    source = str(payload.get('source') or '').strip().lower()
     opponent_name = _payload_opponent_name(payload).strip().lower()
     if not opponent_name or opponent_name in {'rival por confirmar', 'rival desconocido'}:
         return False
     payload_date = _parse_payload_date(payload.get('date'))
     if payload_date and payload_date < timezone.localdate():
+        return False
+    if not payload_date and source in {'', 'local-match'}:
         return False
     return True
 
@@ -13880,8 +14247,10 @@ def get_next_match(primary_team, group):
     snapshot = load_universo_snapshot()
     can_use_external = _universo_snapshot_supports_team(snapshot, primary_team) if primary_team else True
     cached_next = load_cached_next_match() if can_use_external else None
-    if cached_next and (cached_next.get('status') or '').lower() == 'next':
-        return normalize_next_match_payload(cached_next)
+    if isinstance(cached_next, dict):
+        normalized_cached_next = normalize_next_match_payload(cached_next)
+        if _next_match_payload_is_reliable(normalized_cached_next):
+            return normalized_cached_next
 
     upcoming = scoped_qs.filter(date__gte=today).order_by('date').first()
     if not upcoming:
@@ -13893,7 +14262,9 @@ def get_next_match(primary_team, group):
     if not undated_next:
         undated_next = _pick_undated_next(all_team_matches_qs)
     if undated_next:
-        return build_match_payload(undated_next, primary_team, status='next')
+        payload = build_match_payload(undated_next, primary_team, status='next')
+        if _next_match_payload_is_reliable(payload):
+            return payload
 
     # Live scraping on request is expensive; keep it opt-in and only as fallback.
     if RFAF_LIVE_FETCH_ON_REQUEST:
@@ -14012,6 +14383,7 @@ def build_match_payload(match, primary_team, status):
         },
         'home': match.home_team == primary_team,
         'status': status,
+        'source': 'local-match',
     })
 
 
