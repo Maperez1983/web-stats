@@ -52,6 +52,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     resetClockExternal,
     registerLiveEvent,
     removeLiveEvent,
+    onSummaryChange,
   } = options || {};
 
   const quickCounters = {
@@ -77,6 +78,20 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     corner_for: 0,
     corner_against: 0,
   };
+  const undoLastActionBtn = document.getElementById('undo-last-action-btn');
+  const emitSummaryChange = () => {
+    if (typeof onSummaryChange !== 'function') return;
+    onSummaryChange({
+      actions: liveEventStore.size,
+      yellow: quickStats.amarilla,
+      red: quickStats.roja,
+      subs: quickStats.subs,
+      cornerFor: quickStats.corner_for,
+      cornerAgainst: quickStats.corner_against,
+      elapsedSeconds: elapsedRef.value,
+      matchInfo: { ...matchInfoState },
+    });
+  };
 
   const clearRegisterHistoryUI = () => {
     if (!historyList) return;
@@ -101,6 +116,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     if (statusCounters.subsLeft) statusCounters.subsLeft.textContent = Math.max(0, MAX_SUBSTITUTIONS - quickStats.subs);
     if (statusCounters.cornerFor) statusCounters.cornerFor.textContent = quickStats.corner_for;
     if (statusCounters.cornerAgainst) statusCounters.cornerAgainst.textContent = quickStats.corner_against;
+    emitSummaryChange();
   };
 
   const renderQuickHistoryPreview = (historyKey) => {
@@ -248,6 +264,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     if (matchClockDisplay) matchClockDisplay.textContent = formatClock(elapsedRef.value);
     syncAutoFields();
     refreshLiveStatsHud();
+    emitSummaryChange();
   };
   const pauseClock = () => {
     clockRunning = false;
@@ -415,11 +432,50 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       article.remove();
       removeLiveEvent(eventId);
       showPageStatus('Acción eliminada del registro en vivo.', 'success', 2600);
+      emitSummaryChange();
     } catch (err) {
       console.error(err);
       showPageStatus('No se pudo eliminar la acción.', 'danger', 5200);
     }
   });
+
+  const deleteHistoryArticle = async (article, successMessage = 'Última acción deshecha.') => {
+    const eventId = article?.dataset?.eventId;
+    if (!eventId) return false;
+    try {
+      const response = await fetch(deleteUrl, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'X-CSRFToken': csrfToken },
+        body: new URLSearchParams({ event_id: eventId, match_id: currentMatchId }),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        showPageStatus(data.error || 'No se pudo eliminar la acción.', 'danger', 5200);
+        return false;
+      }
+      article.remove();
+      removeLiveEvent(eventId);
+      emitSummaryChange();
+      showPageStatus(successMessage, 'success', 2400);
+      return true;
+    } catch (err) {
+      console.error(err);
+      showPageStatus('No se pudo deshacer la acción.', 'danger', 5200);
+      return false;
+    }
+  };
+
+  if (undoLastActionBtn) {
+    undoLastActionBtn.addEventListener('click', async () => {
+      const latestArticle = historyList?.querySelector('[data-event-id]');
+      if (!latestArticle) {
+        showPageStatus('No hay acciones pendientes para deshacer.', 'warning', 2600);
+        return;
+      }
+      await deleteHistoryArticle(latestArticle);
+    });
+  }
 
   const matchResetBtn = document.getElementById('match-reset-btn');
   if (matchResetBtn) {
@@ -441,6 +497,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
         clearRegisterHistoryUI();
         resetRegisterHudState();
         resetClockExternal ? resetClockExternal() : resetClock();
+        emitSummaryChange();
         showPageStatus('Registro en vivo reiniciado. Las acciones finalizadas se mantienen.', 'warning', 4200);
       } catch (err) {
         console.error(err);
@@ -466,6 +523,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
         }
         renderMatchInfoState(matchInfoState);
         if (matchInfoCard) matchInfoCard.classList.remove('is-editing');
+        emitSummaryChange();
         showPageStatus(`Partido guardado. ${data.updated || 0} acciones consolidadas${data.deduplicated ? ` · ${data.deduplicated} duplicadas descartadas` : ''}.`, 'success', 4200);
       } catch (err) {
         console.error(err);
@@ -574,6 +632,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       if (csrfInput) csrfInput.value = csrfToken;
       if (lastPlayerId) playerInput.value = lastPlayerId;
       syncAutoFields();
+      emitSummaryChange();
       showPageStatus(`Acción registrada${data.duplicate ? ' (duplicado detectado)' : ''}.`, data.duplicate ? 'warning' : 'success', 2600);
     } catch (err) {
       console.error(err);
@@ -641,6 +700,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
         incrementQuickCounter(config.dropKey);
         appendQuickHistory(config.dropKey, data.player?.name || 'Equipo', data.minute || minute, config.result);
         if (!isTeamOnly && player?.id) selectPlayer(player.id);
+        emitSummaryChange();
         showPageStatus(`Acción rápida registrada${data.duplicate ? ' (duplicado detectado)' : ''}.`, data.duplicate ? 'warning' : 'success', 2600);
       } catch (err) {
         console.error(err);
@@ -681,6 +741,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
         if (!inserted) return;
         incrementQuickCounter(dropTarget.dataset.dropKey);
         appendQuickHistory(dropTarget.dataset.dropKey, data.player?.name || 'Equipo', data.minute || minute, dropTarget.dataset.result);
+        emitSummaryChange();
         showPageStatus(`Acción rápida registrada${data.duplicate ? ' (duplicado detectado)' : ''}.`, data.duplicate ? 'warning' : 'success', 2600);
       } catch (err) {
         console.error(err);

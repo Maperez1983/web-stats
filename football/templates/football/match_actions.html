@@ -548,6 +548,40 @@
         font-size: 1rem;
         letter-spacing: 0.2em;
       }
+      .match-stage-tabs {
+        display: flex;
+        gap: 0.75rem;
+        margin: 0 0 1rem;
+        padding: 0.4rem;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.76);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        overflow-x: auto;
+      }
+      .match-stage-tab {
+        border: none;
+        border-radius: 999px;
+        padding: 0.9rem 1.2rem;
+        background: transparent;
+        color: rgba(226, 232, 240, 0.78);
+        font-size: 0.92rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        white-space: nowrap;
+        cursor: pointer;
+      }
+      .match-stage-tab.is-active {
+        background: linear-gradient(135deg, rgba(250, 204, 21, 0.22), rgba(249, 115, 22, 0.18));
+        color: #f8fafc;
+        box-shadow: inset 0 0 0 1px rgba(250, 204, 21, 0.28);
+      }
+      .match-stage-panel {
+        display: none;
+      }
+      .match-stage-panel.is-active {
+        display: block;
+      }
       .match-info-card {
         background: rgba(255, 255, 255, 0.04);
         border: 1px solid rgba(255, 255, 255, 0.1);
@@ -779,6 +813,89 @@
         margin: 0;
         color: rgba(248, 250, 252, 0.65);
         font-size: 0.8rem;
+      }
+      .live-register-toolbar {
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        margin-top: 0.9rem;
+      }
+      .live-register-toolbar .toolbar-group {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+      }
+      .toolbar-pill {
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        background: rgba(15, 23, 42, 0.72);
+        color: #e2e8f0;
+        border-radius: 999px;
+        padding: 0.8rem 1rem;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .toolbar-pill.danger {
+        color: #fecaca;
+        border-color: rgba(248, 113, 113, 0.24);
+      }
+      .closure-review {
+        display: grid;
+        gap: 1rem;
+      }
+      .closure-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.9rem;
+      }
+      .closure-card {
+        padding: 1rem;
+        border-radius: 18px;
+        background: rgba(8, 13, 29, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .closure-card h4,
+      .closure-card h5 {
+        margin: 0 0 0.65rem;
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
+        font-size: 0.78rem;
+      }
+      .closure-card strong {
+        display: block;
+        font-size: 1.35rem;
+      }
+      .closure-card p,
+      .closure-card li {
+        color: rgba(226, 232, 240, 0.8);
+      }
+      .closure-card ul {
+        margin: 0;
+        padding-left: 1rem;
+      }
+      .closure-actions {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+      }
+      .closure-actions button {
+        border: none;
+        border-radius: 999px;
+        padding: 0.9rem 1.2rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
+      .closure-actions .save {
+        background: linear-gradient(135deg, #facc15, #f97316);
+        color: #0f172a;
+      }
+      .closure-actions .reset {
+        background: rgba(127, 29, 29, 0.55);
+        color: #fee2e2;
+        border: 1px solid rgba(248, 113, 113, 0.2);
       }
       .field-clock {
         display: flex;
@@ -1455,6 +1572,15 @@
         .match-info-card .match-info-actions {
           grid-template-columns: 1fr 1fr;
         }
+        .match-stage-tabs {
+          padding: 0.3rem;
+          gap: 0.5rem;
+        }
+        .match-stage-tab {
+          flex: 1 0 auto;
+          font-size: 0.78rem;
+          padding: 0.8rem 0.95rem;
+        }
         .match-selector-form {
           flex-direction: column;
           align-items: stretch;
@@ -1475,6 +1601,10 @@
         .quick-drop-row {
           display: grid;
           grid-template-columns: 1fr 1fr;
+        }
+        .quick-drop {
+          min-height: 92px;
+          font-size: 0.95rem;
         }
         .convocation-list {
           display: grid;
@@ -1503,6 +1633,17 @@
         .persistent-hud .value {
           font-size: 0.78rem;
         }
+        .closure-summary-grid {
+          grid-template-columns: 1fr;
+        }
+        .closure-actions,
+        .live-register-toolbar .toolbar-group {
+          flex-direction: column;
+        }
+        .closure-actions button,
+        .toolbar-pill {
+          width: 100%;
+        }
       }
     </style>
   </head>
@@ -1519,6 +1660,11 @@
             <span>Registro en vivo</span>
             <button type="button" id="zone-overlay-toggle" class="zone-overlay-toggle">Ver zonas</button>
           </div>
+          <nav class="match-stage-tabs" aria-label="Fases del registro">
+            <button type="button" class="match-stage-tab" data-stage-tab="pre">Prepartido</button>
+            <button type="button" class="match-stage-tab is-active" data-stage-tab="live">En vivo</button>
+            <button type="button" class="match-stage-tab" data-stage-tab="close">Cierre</button>
+          </nav>
           <div class="clock-card">
             <div class="clock-card-inner">
               <div class="position-fixed-clock" style="display: flex; align-items: center; gap: 8px;">
@@ -1530,6 +1676,7 @@
               <p class="clock-note">Cronómetro en vivo · se registra el minuto en cada acción</p>
             </div>
           </div>
+          <section class="match-stage-panel" data-stage-panel="pre">
           {% if match_info %}
           <div class="match-header-panels">
             <div class="match-info-stack">
@@ -1619,8 +1766,6 @@
                   <button type="button" id="match-info-edit-btn">Editar</button>
                   <button type="button" id="match-info-save-btn" class="save">Guardar</button>
                   <button type="button" id="match-info-reset-btn" class="reset">Restablecer</button>
-                  <button type="button" id="match-finalize-btn" class="save">Guardar partido</button>
-                  <button type="button" id="match-reset-btn" class="reset">Reiniciar registro</button>
                 </div>
                 <p class="match-db-badge">Partido BBDD · ID <strong id="match-db-id">{{ match_info.match_id }}</strong></p>
                 <form class="match-selector-form" method="get" action="{% url 'match-action-page' %}">
@@ -1769,6 +1914,8 @@
           </div>
           </div>
           {% endif %}
+          </section>
+          <section class="match-stage-panel is-active" data-stage-panel="live">
           <div class="field-wrapper">
             <div class="touch-field" id="touch-field">
             <div class="field-surface" id="field-surface">
@@ -1901,6 +2048,15 @@
             <div class="register-card">
               <h3>Registro de acciones</h3>
               <p>Pulsa sobre el césped para marcar la zona y añade el detalle en el formulario táctil.</p>
+              <div class="live-register-toolbar">
+                <div class="toolbar-group">
+                  <button type="button" class="toolbar-pill" id="undo-last-action-btn">Deshacer última acción</button>
+                  <button type="button" class="toolbar-pill" data-stage-jump="close">Revisar cierre</button>
+                </div>
+                <div class="toolbar-group">
+                  <button type="button" class="toolbar-pill" data-stage-jump="pre">Volver a prepartido</button>
+                </div>
+              </div>
             </div>
             <section class="history-panel">
               <h3>Historial reciente</h3>
@@ -1922,6 +2078,48 @@
               </article>
               {% endfor %}
             </div>
+          </section>
+          </section>
+          <section class="match-stage-panel" data-stage-panel="close">
+            <section class="closure-review">
+              <article class="register-card">
+                <h3>Cierre del partido</h3>
+                <p>Revisa los datos clave antes de consolidar el registro. Todo está pensado para tocar y confirmar en iPad.</p>
+              </article>
+              <div class="closure-summary-grid">
+                <article class="closure-card">
+                  <h4>Partido</h4>
+                  <strong id="close-summary-opponent">{{ match_info.opponent|default:"-" }}</strong>
+                  <p id="close-summary-meta">{{ match_info.location|default:"-" }} · {% if match_info.date %}{{ match_info.date }} · {{ match_info.time }}{% else %}{{ match_info.time|default:"00:00" }}{% endif %}</p>
+                </article>
+                <article class="closure-card">
+                  <h4>Once inicial</h4>
+                  <strong id="close-summary-lineup">0/11</strong>
+                  <p id="close-summary-lineup-note">Define 11 titulares antes de cerrar el partido.</p>
+                </article>
+                <article class="closure-card">
+                  <h4>Acciones registradas</h4>
+                  <strong id="close-summary-actions">0</strong>
+                  <p id="close-summary-breakdown">0 amarillas · 0 rojas · 0 sustituciones</p>
+                </article>
+                <article class="closure-card">
+                  <h4>Tiempo en vivo</h4>
+                  <strong id="close-summary-clock">00:00</strong>
+                  <p id="close-summary-corners">0 córners a favor · 0 en contra</p>
+                </article>
+              </div>
+              <article class="closure-card">
+                <h5>Pendientes antes de guardar</h5>
+                <ul id="close-summary-alerts">
+                  <li>Sin revisar todavía.</li>
+                </ul>
+              </article>
+              <div class="closure-actions">
+                <button type="button" class="save" id="match-finalize-btn">Guardar partido</button>
+                <button type="button" class="reset" id="match-reset-btn">Reiniciar registro</button>
+                <button type="button" class="toolbar-pill" data-stage-jump="live">Volver al directo</button>
+              </div>
+            </section>
           </section>
         </section>
       </section>
@@ -2504,6 +2702,9 @@
         }
         updateLineupInput();
         refreshCardAssignments();
+        if (typeof updateCloseSummary === 'function') {
+          updateCloseSummary();
+        }
       };
       const quickHistoryState = {
         amarilla: [],
@@ -2712,6 +2913,116 @@
           tercioDisplay.textContent = tercio || 'Se calcula por zona';
         }
       };
+      const stageTabs = document.querySelectorAll('[data-stage-tab]');
+      const stagePanels = document.querySelectorAll('[data-stage-panel]');
+      const stageJumpButtons = document.querySelectorAll('[data-stage-jump]');
+      const closeSummaryOpponent = document.getElementById('close-summary-opponent');
+      const closeSummaryMeta = document.getElementById('close-summary-meta');
+      const closeSummaryLineup = document.getElementById('close-summary-lineup');
+      const closeSummaryLineupNote = document.getElementById('close-summary-lineup-note');
+      const closeSummaryActions = document.getElementById('close-summary-actions');
+      const closeSummaryBreakdown = document.getElementById('close-summary-breakdown');
+      const closeSummaryClock = document.getElementById('close-summary-clock');
+      const closeSummaryCorners = document.getElementById('close-summary-corners');
+      const closeSummaryAlerts = document.getElementById('close-summary-alerts');
+      let liveSummaryState = {
+        actions: 0,
+        yellow: 0,
+        red: 0,
+        subs: 0,
+        cornerFor: 0,
+        cornerAgainst: 0,
+        elapsedSeconds: 0,
+        matchInfo: { ...matchInfoState },
+      };
+      const formatSummaryClock = (seconds) => {
+        const safeSeconds = Math.max(0, Number(seconds) || 0);
+        const minutes = Math.floor(safeSeconds / 60);
+        const secs = safeSeconds % 60;
+        return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+      };
+      function updateCloseSummary(nextSummary = {}) {
+        liveSummaryState = {
+          ...liveSummaryState,
+          ...nextSummary,
+          matchInfo: {
+            ...liveSummaryState.matchInfo,
+            ...(nextSummary.matchInfo || {}),
+          },
+        };
+        const summaryInfo = liveSummaryState.matchInfo || {};
+        const startersCount = lineupState.starters?.length || 0;
+        const benchCount = lineupState.bench?.length || 0;
+        if (closeSummaryOpponent) {
+          closeSummaryOpponent.textContent = summaryInfo.opponent || '-';
+        }
+        if (closeSummaryMeta) {
+          const metaBits = [
+            summaryInfo.location || '-',
+            summaryInfo.datetime || '-',
+            summaryInfo.round ? `Jornada ${summaryInfo.round}` : '',
+          ].filter(Boolean);
+          closeSummaryMeta.textContent = metaBits.join(' · ');
+        }
+        if (closeSummaryLineup) {
+          closeSummaryLineup.textContent = `${startersCount}/11`;
+        }
+        if (closeSummaryLineupNote) {
+          closeSummaryLineupNote.textContent = startersCount === 11
+            ? `Once listo · ${benchCount} suplentes disponibles.`
+            : `Faltan ${Math.max(0, 11 - startersCount)} titulares para completar el once.`;
+        }
+        if (closeSummaryActions) {
+          closeSummaryActions.textContent = String(liveSummaryState.actions || 0);
+        }
+        if (closeSummaryBreakdown) {
+          closeSummaryBreakdown.textContent = `${liveSummaryState.yellow || 0} amarillas · ${liveSummaryState.red || 0} rojas · ${liveSummaryState.subs || 0} sustituciones`;
+        }
+        if (closeSummaryClock) {
+          closeSummaryClock.textContent = formatSummaryClock(liveSummaryState.elapsedSeconds);
+        }
+        if (closeSummaryCorners) {
+          closeSummaryCorners.textContent = `${liveSummaryState.cornerFor || 0} córners a favor · ${liveSummaryState.cornerAgainst || 0} en contra`;
+        }
+        if (closeSummaryAlerts) {
+          const alerts = [];
+          if (!summaryInfo.opponent) alerts.push('Falta definir el rival.');
+          if (startersCount < 11) alerts.push('El once inicial no está completo.');
+          if (!(liveSummaryState.actions > 0)) alerts.push('Todavía no hay acciones registradas en vivo.');
+          if (!(liveSummaryState.elapsedSeconds > 0)) alerts.push('El cronómetro sigue en cero.');
+          closeSummaryAlerts.innerHTML = '';
+          const alertItems = alerts.length ? alerts : ['Todo listo para guardar el partido.'];
+          alertItems.forEach((message) => {
+            const item = document.createElement('li');
+            item.textContent = message;
+            closeSummaryAlerts.appendChild(item);
+          });
+        }
+      }
+      const activateStage = (stage) => {
+        stageTabs.forEach((tab) => {
+          tab.classList.toggle('is-active', tab.dataset.stageTab === stage);
+        });
+        stagePanels.forEach((panel) => {
+          panel.classList.toggle('is-active', panel.dataset.stagePanel === stage);
+        });
+      };
+      stageTabs.forEach((tab) => {
+        tab.addEventListener('click', () => activateStage(tab.dataset.stageTab));
+      });
+      stageJumpButtons.forEach((button) => {
+        button.addEventListener('click', () => activateStage(button.dataset.stageJump));
+      });
+      if (matchInfoSaveBtn) {
+        matchInfoSaveBtn.addEventListener('click', () => {
+          requestAnimationFrame(() => updateCloseSummary({ matchInfo: { ...matchInfoState } }));
+        });
+      }
+      if (matchInfoResetBtn) {
+        matchInfoResetBtn.addEventListener('click', () => {
+          requestAnimationFrame(() => updateCloseSummary({ matchInfo: { ...matchInfoState } }));
+        });
+      }
       const liveController = window.initMatchActionsLive({
         quickHistoryState,
         quickHistoryModal,
@@ -2764,7 +3075,9 @@
         selectPlayer,
         registerLiveEvent,
         removeLiveEvent,
+        onSummaryChange: updateCloseSummary,
       });
+      updateCloseSummary();
     </script>
   </body>
 </html>
