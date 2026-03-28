@@ -595,6 +595,7 @@
                     <strong>{{ candidate.team_name }}</strong>
                     <div>{{ candidate.competition_name }} · {{ candidate.group_name }}</div>
                     <div>{{ candidate.season_name }}</div>
+                    {% if candidate.source_label %}<div>{{ candidate.source_label }}</div>{% endif %}
                   </div>
                   <form method="post" class="inline-form" style="margin-left:auto;">
                     {% csrf_token %}
@@ -606,7 +607,7 @@
                     <input type="hidden" name="candidate_external_team_key" value="{{ candidate.external_team_key }}" />
                     <input type="hidden" name="candidate_external_team_name" value="{{ candidate.external_team_name }}" />
                     <input type="hidden" name="candidate_auto_sync" value="on" />
-                    <button class="inline-btn" type="submit">Vincular y sincronizar</button>
+                    <button class="inline-btn" type="submit">{% if candidate.is_import_candidate %}Importar, vincular y sincronizar{% else %}Vincular y sincronizar{% endif %}</button>
                   </form>
                 </div>
                 {% endfor %}

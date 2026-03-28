@@ -1243,6 +1243,111 @@ class PlatformWorkspaceTests(TestCase):
         self.assertEqual(snapshot.next_match_payload.get('round'), 'J29')
         self.assertEqual(snapshot.standings_payload[0].get('team'), self.alt_team.name.upper())
 
+    @patch('football.views.load_universo_snapshot')
+    @patch('football.views._build_universo_competition_catalog')
+    def test_workspace_detail_can_import_universo_candidate(self, mock_catalog, mock_snapshot):
+        workspace = Workspace.objects.create(
+            name='Cliente universo',
+            slug='cliente-universo',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.team,
+            owner_user=self.admin_user,
+            enabled_modules={'dashboard': True},
+        )
+        mock_catalog.return_value = {
+            'competitions': {
+                '45030612': {
+                    'code': '45030612',
+                    'name': 'División Honor Sénior',
+                    'season_name': '2025/2026',
+                    'start_date': '2025-09-13',
+                    'end_date': '2026-04-26',
+                    'region': 'Málaga',
+                },
+            },
+            'groups': {
+                ('45030612', '45030656'): {
+                    'competition_code': '45030612',
+                    'group_code': '45030656',
+                    'group_name': 'Grupo 2',
+                },
+            },
+            'classifications': {
+                ('45030612', '45030656'): {
+                    'competition_code': '45030612',
+                    'competition_name': 'División Honor Sénior',
+                    'group_code': '45030656',
+                    'group_name': 'Grupo 2',
+                    'round': '26',
+                    'rows': [
+                        {
+                            'codequipo': 'demo-001',
+                            'nombre': 'Club Universo Demo',
+                            'posicion': '4',
+                            'jugados': '24',
+                            'ganados': '12',
+                            'empatados': '5',
+                            'perdidos': '7',
+                            'goles_a_favor': '38',
+                            'goles_en_contra': '29',
+                            'puntos': '41',
+                        },
+                        {
+                            'codequipo': 'demo-002',
+                            'nombre': 'Rival Universo',
+                            'posicion': '7',
+                            'jugados': '24',
+                            'ganados': '10',
+                            'empatados': '4',
+                            'perdidos': '10',
+                            'goles_a_favor': '30',
+                            'goles_en_contra': '31',
+                            'puntos': '34',
+                        },
+                    ],
+                },
+            },
+        }
+        mock_snapshot.return_value = {
+            'standings': [
+                {'position': 4, 'team': 'CLUB UNIVERSO DEMO', 'points': 41},
+                {'position': 7, 'team': 'RIVAL UNIVERSO', 'points': 34},
+            ],
+            'next_match': {
+                'round': 'J27',
+                'date': '2026-04-18',
+                'location': 'Campo Universo',
+                'opponent': {'name': 'Rival Universo', 'full_name': 'Rival Universo'},
+                'home': True,
+                'status': 'next',
+            },
+        }
+        self.client.force_login(self.admin_user)
+
+        response = self.client.post(
+            reverse('platform-workspace-detail', args=[workspace.id]),
+            {
+                'form_action': 'apply_competition_candidate',
+                'candidate_provider': WorkspaceCompetitionContext.PROVIDER_UNIVERSO,
+                'candidate_team_id': '',
+                'candidate_external_competition_key': '45030612',
+                'candidate_external_group_key': '45030656',
+                'candidate_external_team_key': 'demo-001',
+                'candidate_external_team_name': 'Club Universo Demo',
+                'candidate_auto_sync': 'on',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        workspace.refresh_from_db()
+        context = WorkspaceCompetitionContext.objects.get(workspace=workspace)
+        snapshot = WorkspaceCompetitionSnapshot.objects.get(workspace=workspace)
+        self.assertEqual(workspace.primary_team.name, 'Club Universo Demo')
+        self.assertEqual(context.provider, WorkspaceCompetitionContext.PROVIDER_UNIVERSO)
+        self.assertEqual(context.external_group_key, '45030656')
+        self.assertEqual(snapshot.next_match_payload.get('round'), 'J27')
+        self.assertEqual(snapshot.standings_payload[0].get('team'), 'CLUB UNIVERSO DEMO')
+
     def test_workspace_detail_updates_task_studio_deliverables(self):
         workspace = Workspace.objects.create(
             name='Task Studio módulos',

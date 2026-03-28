@@ -36,6 +36,7 @@ from django.shortcuts import render, redirect
 from django.template.loader import render_to_string
 from django.templatetags.static import static
 from django.urls import reverse
+from django.utils.dateparse import parse_date
 from django.utils import timezone
 from django.utils.text import slugify
 from django.views.decorators.csrf import ensure_csrf_cookie
@@ -62,6 +63,8 @@ except Exception:  # pragma: no cover
     PdfReader = None
 
 from football.models import (
+    Competition,
+    Group,
     Match,
     MatchEvent,
     MatchReport,
@@ -174,6 +177,7 @@ SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "import_from_rfe
 MANAGE_PY_DIR = SCRIPT_PATH.parents[1]
 NEXT_MATCH_CACHE = Path(settings.BASE_DIR) / "data" / "input" / "rfaf-next-match.json"
 UNIVERSO_SNAPSHOT_PATH = Path(settings.BASE_DIR) / "data" / "input" / "universo-rfaf-snapshot.json"
+UNIVERSO_CAPTURE_PATH = Path(settings.BASE_DIR) / "data" / "input" / "universo-rfaf-capture.json"
 TASK_RESOURCE_LIBRARY_PATH = Path(settings.BASE_DIR) / "data" / "input" / "task-resource-library.json"
 SCRAPE_LOCK_KEY = "football:refresh_scraping_running"
 SCRAPE_LOCK_TIMEOUT_SECONDS = 900
@@ -2192,7 +2196,7 @@ def _absolute_universo_url(path_or_url):
 
 def _build_universo_capture_team_lookup():
     lookup = {}
-    capture_path = Path(settings.BASE_DIR) / 'data' / 'input' / 'universo-rfaf-capture.json'
+    capture_path = UNIVERSO_CAPTURE_PATH
     if not capture_path.exists():
         return lookup
     try:
@@ -2242,6 +2246,347 @@ def _build_universo_capture_team_lookup():
                         if isinstance(row, dict):
                             _push(row.get('nombre_equipo') or row.get('equipo'), row.get('escudo_equipo'))
     return lookup
+
+
+def load_universo_capture():
+    if not UNIVERSO_CAPTURE_PATH.exists():
+        return {}
+    try:
+        payload = json.loads(UNIVERSO_CAPTURE_PATH.read_text(encoding='utf-8'))
+    except Exception:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _parse_capture_form_payload(raw_payload):
+    parsed = {}
+    raw_text = str(raw_payload or '')
+    if not raw_text:
+        return parsed
+    for match in re.finditer(r'name="([^"]+)"\r\n\r\n(.*?)\r\n(?:--|Content-Disposition: form-data; name=)', raw_text, re.S):
+        parsed[str(match.group(1) or '').strip()] = str(match.group(2) or '').strip()
+    return parsed
+
+
+def _derive_season_label_from_dates(start_value, end_value):
+    start_date = parse_date(str(start_value or '').strip())
+    end_date = parse_date(str(end_value or '').strip())
+    if start_date and end_date:
+        return f'{start_date.year}/{end_date.year}'
+    if start_date:
+        return f'{start_date.year}/{start_date.year + 1}'
+    if end_date:
+        return f'{end_date.year - 1}/{end_date.year}'
+    today = timezone.localdate()
+    if today.month >= 7:
+        return f'{today.year}/{today.year + 1}'
+    return f'{today.year - 1}/{today.year}'
+
+
+def _extract_region_from_competition_name(name):
+    text = str(name or '').strip()
+    match = re.search(r'\(([^)]+)\)\s*$', text)
+    return str(match.group(1) or '').strip() if match else ''
+
+
+def _build_universo_competition_catalog():
+    payload = load_universo_capture()
+    items = payload.get('items') if isinstance(payload, dict) else None
+    if not isinstance(items, list):
+        return {
+            'competitions': {},
+            'groups': {},
+            'classifications': {},
+        }
+    competitions = {}
+    groups = {}
+    classifications = {}
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        url = str(item.get('url') or '').strip()
+        data = item.get('json')
+        if not isinstance(data, dict):
+            continue
+        post_data = _parse_capture_form_payload(item.get('request_post_data'))
+        if 'competition/get-competitions' in url:
+            for row in data.get('competiciones') or []:
+                if not isinstance(row, dict):
+                    continue
+                code = str(row.get('codigo') or '').strip()
+                if not code:
+                    continue
+                competitions[code] = {
+                    'code': code,
+                    'name': str(row.get('nombre') or '').strip(),
+                    'category_name': str(row.get('NombreCategoria') or '').strip(),
+                    'game_type': str(row.get('TipoJuego') or '').strip(),
+                    'season_id': str(post_data.get('id_season') or '').strip(),
+                    'start_date': str(row.get('FechaInicio') or '').strip(),
+                    'end_date': str(row.get('FechaFin') or '').strip(),
+                    'season_name': _derive_season_label_from_dates(row.get('FechaInicio'), row.get('FechaFin')),
+                    'region': _extract_region_from_competition_name(row.get('nombre')),
+                }
+        elif 'competition/get-groups' in url:
+            competition_code = str(post_data.get('id_competition') or '').strip()
+            if not competition_code:
+                continue
+            for row in data.get('grupos') or []:
+                if not isinstance(row, dict):
+                    continue
+                group_code = str(row.get('codigo') or '').strip()
+                if not group_code:
+                    continue
+                groups[(competition_code, group_code)] = {
+                    'competition_code': competition_code,
+                    'group_code': group_code,
+                    'group_name': str(row.get('nombre') or '').strip(),
+                    'total_rounds': str(row.get('total_jornadas') or '').strip(),
+                    'total_teams': str(row.get('total_equipos') or '').strip(),
+                }
+        elif 'competition/get-classification' in url:
+            competition_code = str(data.get('codigo_competicion') or '').strip()
+            group_code = str(data.get('codigo_grupo') or '').strip()
+            if not competition_code or not group_code:
+                continue
+            classifications[(competition_code, group_code)] = {
+                'competition_code': competition_code,
+                'competition_name': str(data.get('competicion') or '').strip(),
+                'group_code': group_code,
+                'group_name': str(data.get('grupo') or '').strip(),
+                'round': str(data.get('jornada') or '').strip(),
+                'round_date': str(data.get('fecha_jornada') or '').strip(),
+                'rows': [row for row in (data.get('clasificacion') or []) if isinstance(row, dict)],
+            }
+    return {
+        'competitions': competitions,
+        'groups': groups,
+        'classifications': classifications,
+    }
+
+
+def _search_universo_competition_candidates(*, team_query='', competition_query='', group_query=''):
+    team_query = str(team_query or '').strip()
+    competition_query = str(competition_query or '').strip()
+    group_query = str(group_query or '').strip()
+    normalized_team_query = normalize_label(team_query)
+    normalized_comp_query = normalize_label(competition_query)
+    normalized_group_query = normalize_label(group_query)
+    catalog = _build_universo_competition_catalog()
+    competitions = catalog.get('competitions') or {}
+    groups = catalog.get('groups') or {}
+    classifications = catalog.get('classifications') or {}
+    candidates = []
+    for (competition_code, group_code), classification in classifications.items():
+        competition_meta = competitions.get(competition_code) or {}
+        group_meta = groups.get((competition_code, group_code)) or {}
+        competition_name = str(classification.get('competition_name') or competition_meta.get('name') or '').strip()
+        group_name = str(classification.get('group_name') or group_meta.get('group_name') or '').strip()
+        if normalized_comp_query and normalized_comp_query not in normalize_label(competition_name):
+            continue
+        if normalized_group_query and normalized_group_query not in normalize_label(group_name):
+            continue
+        for row in classification.get('rows') or []:
+            team_name = str(row.get('nombre') or '').strip()
+            if not team_name:
+                continue
+            normalized_team_name = normalize_label(team_name)
+            if normalized_team_query and normalized_team_query not in normalized_team_name:
+                continue
+            score = 0
+            if normalized_team_query:
+                score += 60 if normalized_team_query == normalized_team_name else 30
+            if normalized_group_query:
+                score += 25 if normalized_group_query == normalize_label(group_name) else 12
+            if normalized_comp_query:
+                score += 25 if normalized_comp_query == normalize_label(competition_name) else 12
+            existing_team = Team.objects.filter(external_id=str(row.get('codequipo') or '').strip()).first()
+            candidates.append(
+                {
+                    'source': 'universo_capture',
+                    'source_label': 'Universo RFAF · captura local',
+                    'team_id': existing_team.id if existing_team else None,
+                    'team_name': team_name,
+                    'group_name': group_name or 'Sin grupo',
+                    'season_name': str(competition_meta.get('season_name') or '').strip(),
+                    'competition_name': competition_name or 'Competición sin nombre',
+                    'provider': WorkspaceCompetitionContext.PROVIDER_UNIVERSO,
+                    'external_competition_key': competition_code,
+                    'external_group_key': group_code,
+                    'external_team_key': str(row.get('codequipo') or '').strip(),
+                    'external_team_name': team_name,
+                    'score': score,
+                    'is_import_candidate': existing_team is None,
+                }
+            )
+    candidates.sort(key=lambda item: (-item['score'], item['competition_name'], item['group_name'], item['team_name']))
+    return candidates[:12]
+
+
+def _import_universo_competition_candidate(*, competition_key, group_key, team_key, team_name):
+    catalog = _build_universo_competition_catalog()
+    competitions = catalog.get('competitions') or {}
+    classifications = catalog.get('classifications') or {}
+    classification = classifications.get((competition_key, group_key))
+    if not classification:
+        return None, 'La captura local no contiene la clasificación de esa competición/grupo.'
+    competition_meta = competitions.get(competition_key) or {}
+    competition_name = str(classification.get('competition_name') or competition_meta.get('name') or '').strip()
+    if not competition_name:
+        return None, 'No se ha podido resolver el nombre de la competición.'
+    region = str(competition_meta.get('region') or _extract_region_from_competition_name(competition_name) or '').strip()
+    competition_slug = slugify(f'universo-{competition_key}-{competition_name}')[:150] or f'universo-{competition_key}'
+    competition, _ = Competition.objects.get_or_create(
+        slug=competition_slug,
+        defaults={
+            'name': competition_name,
+            'region': region,
+            'description': 'Importada desde captura local de Universo RFAF.',
+        },
+    )
+    if competition.name != competition_name or competition.region != region:
+        competition.name = competition_name
+        competition.region = region
+        competition.save(update_fields=['name', 'region'])
+    season_name = str(competition_meta.get('season_name') or _derive_season_label_from_dates(competition_meta.get('start_date'), competition_meta.get('end_date'))).strip()
+    season_defaults = {'is_current': True}
+    start_date = parse_date(str(competition_meta.get('start_date') or '').strip())
+    end_date = parse_date(str(competition_meta.get('end_date') or '').strip())
+    if start_date:
+        season_defaults['start_date'] = start_date
+    if end_date:
+        season_defaults['end_date'] = end_date
+    season, _ = Season.objects.get_or_create(
+        competition=competition,
+        name=season_name,
+        defaults=season_defaults,
+    )
+    season_changed = False
+    if start_date and season.start_date != start_date:
+        season.start_date = start_date
+        season_changed = True
+    if end_date and season.end_date != end_date:
+        season.end_date = end_date
+        season_changed = True
+    if not season.is_current:
+        season.is_current = True
+        season_changed = True
+    if season_changed:
+        season.save(update_fields=['start_date', 'end_date', 'is_current'])
+    group_name = str(classification.get('group_name') or '').strip() or 'Grupo importado'
+    group_slug = slugify(f'{group_name}-{group_key}')[:80] or f'grupo-{group_key}'
+    group, _ = Group.objects.get_or_create(
+        season=season,
+        slug=group_slug,
+        defaults={
+            'name': group_name,
+            'external_id': group_key,
+        },
+    )
+    if group.name != group_name or group.external_id != group_key:
+        group.name = group_name
+        group.external_id = group_key
+        group.save(update_fields=['name', 'external_id'])
+    selected_team = None
+    for row in classification.get('rows') or []:
+        row_team_name = str(row.get('nombre') or '').strip()
+        row_team_key = str(row.get('codequipo') or '').strip()
+        if not row_team_name:
+            continue
+        team = Team.objects.filter(external_id=row_team_key).first() if row_team_key else None
+        if not team:
+            team = Team.objects.filter(group=group, name__iexact=row_team_name).first()
+        if not team:
+            team = Team.objects.create(
+                name=row_team_name,
+                slug=_unique_team_slug(row_team_name),
+                short_name=row_team_name[:60],
+                group=group,
+                external_id=row_team_key,
+                is_primary=False,
+            )
+        changed_fields = []
+        if team.group_id != group.id:
+            team.group = group
+            changed_fields.append('group')
+        if row_team_key and team.external_id != row_team_key:
+            team.external_id = row_team_key
+            changed_fields.append('external_id')
+        short_name = row_team_name[:60]
+        if team.short_name != short_name:
+            team.short_name = short_name
+            changed_fields.append('short_name')
+        if changed_fields:
+            team.save(update_fields=changed_fields)
+        TeamStanding.objects.update_or_create(
+            season=season,
+            group=group,
+            team=team,
+            defaults={
+                'position': _parse_int(str(row.get('posicion') or '0')) or 0,
+                'played': _parse_int(str(row.get('jugados') or '0')),
+                'wins': _parse_int(str(row.get('ganados') or '0')),
+                'draws': _parse_int(str(row.get('empatados') or '0')),
+                'losses': _parse_int(str(row.get('perdidos') or '0')),
+                'goals_for': _parse_int(str(row.get('goles_a_favor') or '0')),
+                'goals_against': _parse_int(str(row.get('goles_en_contra') or '0')),
+                'goal_difference': _parse_int(str(row.get('goles_a_favor') or '0')) - _parse_int(str(row.get('goles_en_contra') or '0')),
+                'points': _parse_int(str(row.get('puntos') or '0')),
+                'last_updated': timezone.now(),
+            },
+        )
+        if row_team_key and row_team_key == str(team_key or '').strip():
+            selected_team = team
+        elif not selected_team and normalize_label(row_team_name) == normalize_label(team_name):
+            selected_team = team
+    if not selected_team:
+        return None, 'No se ha podido identificar el equipo seleccionado en la clasificación importada.'
+
+    snapshot = load_universo_snapshot()
+    supports_snapshot = _universo_snapshot_supports_team(snapshot, selected_team)
+    next_payload = normalize_next_match_payload(snapshot.get('next_match') or {}) if isinstance(snapshot, dict) and supports_snapshot and snapshot.get('next_match') else {}
+    if next_payload:
+        opponent_name = _payload_opponent_name(next_payload) or 'Rival por confirmar'
+        opponent_key = _normalize_team_lookup_key(opponent_name)
+        opponent = Team.objects.filter(group=group, external_id__iexact=opponent_key).first()
+        if not opponent:
+            opponent = Team.objects.filter(group=group, name__iexact=opponent_name).first()
+        if not opponent:
+            opponent = Team.objects.create(
+                name=opponent_name,
+                slug=_unique_team_slug(opponent_name),
+                short_name=opponent_name[:60],
+                group=group,
+                is_primary=False,
+            )
+        match_date = parse_date(str(next_payload.get('date') or '').strip())
+        round_label = str(next_payload.get('round') or '').strip() or str(next_payload.get('round_label') or '').strip()
+        location = str(next_payload.get('location') or '').strip()
+        home = bool(next_payload.get('home'))
+        home_team = selected_team if home else opponent
+        away_team = opponent if home else selected_team
+        match, _ = Match.objects.get_or_create(
+            season=season,
+            group=group,
+            round=round_label,
+            home_team=home_team,
+            away_team=away_team,
+            defaults={
+                'date': match_date,
+                'location': location,
+                'notes': 'Partido importado desde snapshot local de Universo RFAF.',
+            },
+        )
+        update_fields = []
+        if match_date and match.date != match_date:
+            match.date = match_date
+            update_fields.append('date')
+        if location and match.location != location:
+            match.location = location
+            update_fields.append('location')
+        if update_fields:
+            match.save(update_fields=update_fields)
+    return selected_team, ''
 
 
 def _universo_snapshot_supports_team(snapshot, primary_team):
@@ -3438,12 +3783,19 @@ def platform_workspace_detail_page(request, workspace_id):
                 valid_providers = {choice[0] for choice in WorkspaceCompetitionContext.PROVIDER_CHOICES}
                 if competition_search_inputs['provider'] not in valid_providers:
                     competition_search_inputs['provider'] = WorkspaceCompetitionContext.PROVIDER_MANUAL
-                competition_search_results = _search_workspace_competition_candidates(
-                    competition_search_inputs['provider'],
-                    team_query=competition_search_inputs['team_query'],
-                    competition_query=competition_search_inputs['competition_query'],
-                    group_query=competition_search_inputs['group_query'],
-                )
+                if competition_search_inputs['provider'] == WorkspaceCompetitionContext.PROVIDER_UNIVERSO:
+                    competition_search_results = _search_universo_competition_candidates(
+                        team_query=competition_search_inputs['team_query'],
+                        competition_query=competition_search_inputs['competition_query'],
+                        group_query=competition_search_inputs['group_query'],
+                    )
+                else:
+                    competition_search_results = _search_workspace_competition_candidates(
+                        competition_search_inputs['provider'],
+                        team_query=competition_search_inputs['team_query'],
+                        competition_query=competition_search_inputs['competition_query'],
+                        group_query=competition_search_inputs['group_query'],
+                    )
                 if competition_search_results:
                     feedback = f'Se encontraron {len(competition_search_results)} coincidencias para este cliente.'
                 else:
@@ -3459,24 +3811,39 @@ def platform_workspace_detail_page(request, workspace_id):
                     .filter(id=candidate_team_id)
                     .first()
                 )
-                if not candidate_team or not getattr(candidate_team, 'group', None):
+                provider = str(request.POST.get('candidate_provider') or WorkspaceCompetitionContext.PROVIDER_MANUAL).strip()
+                valid_providers = {choice[0] for choice in WorkspaceCompetitionContext.PROVIDER_CHOICES}
+                if provider not in valid_providers:
+                    provider = WorkspaceCompetitionContext.PROVIDER_MANUAL
+                auto_sync_enabled = str(request.POST.get('candidate_auto_sync') or '').lower() in {'1', 'true', 'on', 'yes'}
+                external_competition_key = str(request.POST.get('candidate_external_competition_key') or '').strip()[:140]
+                external_group_key = str(request.POST.get('candidate_external_group_key') or '').strip()[:140]
+                external_team_key = str(request.POST.get('candidate_external_team_key') or '').strip()[:140]
+                external_team_name = _sanitize_task_text((request.POST.get('candidate_external_team_name') or '').strip(), multiline=False, max_len=160)
+                if not candidate_team and provider == WorkspaceCompetitionContext.PROVIDER_UNIVERSO:
+                    candidate_team, import_error = _import_universo_competition_candidate(
+                        competition_key=external_competition_key,
+                        group_key=external_group_key,
+                        team_key=external_team_key,
+                        team_name=external_team_name,
+                    )
+                    if import_error:
+                        error = import_error
+                if error:
+                    pass
+                elif not candidate_team or not getattr(candidate_team, 'group', None):
                     error = 'La coincidencia seleccionada no es válida.'
                 else:
-                    provider = str(request.POST.get('candidate_provider') or WorkspaceCompetitionContext.PROVIDER_MANUAL).strip()
-                    valid_providers = {choice[0] for choice in WorkspaceCompetitionContext.PROVIDER_CHOICES}
-                    if provider not in valid_providers:
-                        provider = WorkspaceCompetitionContext.PROVIDER_MANUAL
-                    auto_sync_enabled = str(request.POST.get('candidate_auto_sync') or '').lower() in {'1', 'true', 'on', 'yes'}
                     workspace.primary_team = candidate_team
                     workspace.save(update_fields=['primary_team', 'updated_at'])
                     _bootstrap_workspace_competition_context(
                         workspace,
                         primary_team=candidate_team,
                         provider=provider,
-                        external_competition_key=str(request.POST.get('candidate_external_competition_key') or '').strip()[:140],
-                        external_group_key=str(request.POST.get('candidate_external_group_key') or '').strip()[:140],
-                        external_team_key=str(request.POST.get('candidate_external_team_key') or '').strip()[:140],
-                        external_team_name=_sanitize_task_text((request.POST.get('candidate_external_team_name') or '').strip(), multiline=False, max_len=160),
+                        external_competition_key=external_competition_key,
+                        external_group_key=external_group_key,
+                        external_team_key=external_team_key,
+                        external_team_name=external_team_name,
                         auto_sync_enabled=auto_sync_enabled,
                     )
                     _, sync_error = _sync_workspace_competition_context(workspace)
