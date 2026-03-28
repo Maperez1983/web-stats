@@ -234,7 +234,7 @@
         width: 28px;
         height: 28px;
         border-radius: 999px;
-        object-fit: cover;
+        object-fit: contain;
         background: rgba(255, 255, 255, 0.9);
         padding: 2px;
       }
@@ -246,7 +246,7 @@
       .team-cell img {
         width: 20px;
         height: 20px;
-        object-fit: cover;
+        object-fit: contain;
         border-radius: 999px;
         background: rgba(255, 255, 255, 0.9);
         padding: 1px;
@@ -600,24 +600,10 @@
     <script>
       const heroElement = document.getElementById('team-hero');
       const managedHeroImages = JSON.parse(document.getElementById('hero-images-json')?.textContent || '[]');
-      const staticHeroFallbacks = [
+      const heroFallbackCandidates = [
         '{% static "football/images/team-01.jpg" %}',
-        '{% static "football/images/team-02.jpg" %}',
-        '{% static "football/images/team-03.jpg" %}',
+        '{% static "football/campo-futbol.jpg" %}',
       ];
-      const heroImageCandidates = [];
-      [...(managedHeroImages || []), ...staticHeroFallbacks].forEach((src) => {
-        const value = String(src || '').trim();
-        if (!value) return;
-        if (!heroImageCandidates.includes(value)) {
-          heroImageCandidates.push(value);
-        }
-      });
-      const heroFallback = '{% static "football/campo-futbol.jpg" %}';
-      const playerAvatarFallback = '{% static "football/images/player-avatar.svg" %}';
-      let heroImageList = [];
-      let heroIndex = 0;
-      let heroTimer = null;
       let standingsExpanded = false;
 
       function preloadImage(src) {
@@ -634,19 +620,17 @@
         heroElement.style.setProperty('--hero-image', `url('${src}')`);
       }
 
-      async function initHeroImages() {
-        const loaded = await Promise.all(heroImageCandidates.map(preloadImage));
-        heroImageList = loaded.filter(Boolean);
-        if (!heroImageList.length) {
-          setHeroImage(heroFallback);
-          return;
+      async function initHeroImage() {
+        const candidates = [...(managedHeroImages || []), ...heroFallbackCandidates]
+          .map((src) => String(src || '').trim())
+          .filter(Boolean);
+        for (const candidate of candidates) {
+          const loaded = await preloadImage(candidate);
+          if (loaded) {
+            setHeroImage(loaded);
+            return;
+          }
         }
-        setHeroImage(heroImageList[0]);
-        if (heroImageList.length === 1) return;
-        heroTimer = window.setInterval(() => {
-          heroIndex = (heroIndex + 1) % heroImageList.length;
-          setHeroImage(heroImageList[heroIndex]);
-        }, 6500);
       }
 
       async function renderDashboard() {
@@ -776,12 +760,16 @@
               return rowName && normalizedOpponent && (rowName === normalizedOpponent || rowName.includes(normalizedOpponent) || normalizedOpponent.includes(rowName));
             })
           : null;
+        const opponentCrest =
+          nextMatch.opponent?.crest_url ||
+          opponentStanding?.crest_url ||
+          '';
         const dateLabel = nextMatch.date || 'Fecha sin definir';
         const timeLabel = nextMatch.time ? ` ${nextMatch.time}` : '';
         container.innerHTML = `
           <p><strong>Próximo rival</strong></p>
           <div class="next-match-opponent">
-            ${nextMatch.opponent?.crest_url ? `<img src="${nextMatch.opponent.crest_url}" alt="Escudo ${opponentName}" loading="lazy">` : ''}
+            ${opponentCrest ? `<img src="${opponentCrest}" alt="Escudo ${opponentName}" loading="lazy">` : ''}
             <p>${opponentName}</p>
           </div>
           <p>${dateLabel}${timeLabel}${nextMatch.round ? ` · ${nextMatch.round}` : ''}</p>
@@ -809,7 +797,7 @@
         });
       }
 
-      initHeroImages();
+      initHeroImage();
       renderDashboard();
     </script>
   </body>
