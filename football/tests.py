@@ -2160,6 +2160,206 @@ class ManualEventAggregationTests(TestCase):
         self.assertEqual(cards[0]['actions'], 3)
         self.assertEqual(cards[0]['successes'], 3)
 
+class MatchActionWorkflowTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username='match-coach',
+            email='match-coach@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_COACH)
+        competition = Competition.objects.create(name='Liga Acciones', slug='liga-acciones', region='Andalucia')
+        season = Season.objects.create(competition=competition, name='2025/2026', is_current=True)
+        group = Group.objects.create(season=season, name='Grupo Acciones', slug='grupo-acciones')
+        self.team = Team.objects.create(name='Benagalbón Acciones', slug='benagalbon-acciones', group=group, is_primary=True)
+        self.rival = Team.objects.create(name='Rival Acciones', slug='rival-acciones', group=group)
+        self.match = Match.objects.create(
+            season=season,
+            group=group,
+            home_team=self.team,
+            away_team=self.rival,
+            round='24',
+            date=date(2026, 3, 22),
+        )
+        self.workspace = Workspace.objects.create(
+            name='Benagalbón Acciones',
+            slug='benagalbon-acciones-ws',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.team,
+            enabled_modules={
+                'dashboard': True,
+                'match_actions': True,
+                'convocation': False,
+            },
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.user,
+            role=WorkspaceMembership.ROLE_ADMIN,
+        )
+        self.player = Player.objects.create(team=self.team, name='Ayala', number=4, position='Central')
+        self.convocation = ConvocationRecord.objects.create(
+            team=self.team,
+            match=self.match,
+            is_current=True,
+        )
+        self.convocation.players.add(self.player)
+        self.client.force_login(self.user)
+
+    def test_coach_can_open_and_register_match_actions(self):
+        page = self.client.get(reverse('match-action-page'))
+        self.assertEqual(page.status_code, 200)
+
+        response = self.client.post(
+            reverse('match-action-record'),
+            {
+                'match_id': self.match.id,
+                'player': self.player.id,
+                'action_type': 'Asistencia',
+                'result': 'OK',
+                'zone': 'Ataque Centro',
+                'minute': 42,
+                'period': 1,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            MatchEvent.objects.filter(
+                match=self.match,
+                player=self.player,
+                source_file='registro-acciones',
+                system='touch-field',
+            ).count(),
+            1,
+        )
+
+    def test_lineup_save_is_allowed_from_match_actions_workspace(self):
+        response = self.client.post(
+            reverse('match-lineup-save'),
+            data=json.dumps(
+                {
+                    'lineup': {
+                        'starters': [{'id': self.player.id, 'name': self.player.name, 'number': self.player.number}],
+                        'bench': [],
+                    }
+                }
+            ),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.convocation.refresh_from_db()
+        self.assertEqual(int(self.convocation.lineup_data['starters'][0]['id']), self.player.id)
+
+    def test_delete_endpoint_only_deletes_pending_live_events(self):
+        final_event = MatchEvent.objects.create(
+            match=self.match,
+            player=self.player,
+            event_type='Pase',
+            result='OK',
+            zone='Medio Centro',
+            tercio='Construcción',
+            minute=12,
+            period=1,
+            system='touch-field-final',
+            source_file='registro-acciones',
+        )
+
+        response = self.client.post(
+            reverse('match-action-delete'),
+            {
+                'match_id': self.match.id,
+                'event_id': final_event.id,
+            },
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(MatchEvent.objects.filter(id=final_event.id).exists())
+
+    def test_finalize_keeps_distinct_same_minute_actions(self):
+        MatchEvent.objects.create(
+            match=self.match,
+            player=self.player,
+            event_type='Pase',
+            result='OK',
+            zone='Medio Centro',
+            tercio='Construcción',
+            minute=12,
+            period=1,
+            system='touch-field',
+            source_file='registro-acciones',
+        )
+        MatchEvent.objects.create(
+            match=self.match,
+            player=self.player,
+            event_type='Pase',
+            result='OK',
+            zone='Ataque Centro',
+            tercio='Ataque',
+            minute=12,
+            period=1,
+            system='touch-field',
+            source_file='registro-acciones',
+        )
+
+        response = self.client.post(
+            reverse('match-action-finalize'),
+            data=json.dumps({'match_info': {'match_id': self.match.id}}),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            MatchEvent.objects.filter(
+                match=self.match,
+                system='touch-field-final',
+                source_file='registro-acciones',
+            ).count(),
+            2,
+        )
+
+    def test_reset_only_clears_pending_live_events(self):
+        MatchEvent.objects.create(
+            match=self.match,
+            player=self.player,
+            event_type='Pase',
+            result='OK',
+            zone='Medio Centro',
+            tercio='Construcción',
+            minute=12,
+            period=1,
+            system='touch-field',
+            source_file='registro-acciones',
+        )
+        final_event = MatchEvent.objects.create(
+            match=self.match,
+            player=self.player,
+            event_type='Gol',
+            result='Gol',
+            zone='Ataque Centro',
+            tercio='Ataque',
+            minute=33,
+            period=2,
+            system='touch-field-final',
+            source_file='registro-acciones',
+        )
+
+        response = self.client.post(
+            reverse('match-action-reset'),
+            {'match_id': self.match.id},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(
+            MatchEvent.objects.filter(
+                match=self.match,
+                system='touch-field',
+                source_file='registro-acciones',
+            ).exists()
+        )
+        self.assertTrue(MatchEvent.objects.filter(id=final_event.id).exists())
+
 
 class PlayerDashboardViewTests(TestCase):
     def setUp(self):

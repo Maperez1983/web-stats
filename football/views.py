@@ -700,6 +700,14 @@ def _is_admin_user(user):
     return bool(user and user.is_authenticated and (user.is_superuser or user.is_staff or role == AppUserRole.ROLE_ADMIN))
 
 
+def _can_edit_match_actions(user):
+    if not user or not user.is_authenticated:
+        return False
+    if _is_admin_user(user):
+        return True
+    return _get_user_role(user) in TECHNICAL_ROLES
+
+
 def _can_access_sessions_workspace(user):
     role = _get_user_role(user)
     if not user or not user.is_authenticated:
@@ -3812,8 +3820,8 @@ def _build_default_lineup_payload(convocation_players):
 
 @login_required
 def match_action_page(request):
-    if not _is_admin_user(request.user):
-        return HttpResponse('Solo administradores pueden editar estadísticas de partido.', status=403)
+    if not _can_edit_match_actions(request.user):
+        return HttpResponse('Solo el cuerpo técnico puede editar estadísticas de partido.', status=403)
     forbidden = _forbid_if_workspace_module_disabled(request, 'match_actions', label='registro de acciones')
     if forbidden:
         return forbidden
@@ -4003,8 +4011,8 @@ def match_action_page(request):
 @authenticated_write
 @require_POST
 def register_match_action(request):
-    if not _is_admin_user(request.user):
-        return JsonResponse({'error': 'Solo administradores pueden editar estadísticas de partido.'}, status=403)
+    if not _can_edit_match_actions(request.user):
+        return JsonResponse({'error': 'Solo el cuerpo técnico puede editar estadísticas de partido.'}, status=403)
     forbidden = _forbid_if_workspace_module_disabled(request, 'match_actions', label='registro de acciones')
     if forbidden:
         return JsonResponse({'error': 'El registro de acciones no está activo en el workspace actual.'}, status=403)
@@ -4085,11 +4093,19 @@ def register_match_action(request):
 @authenticated_write
 @require_POST
 def save_match_lineup(request):
-    if not _is_admin_user(request.user):
-        return JsonResponse({'error': 'Solo administradores pueden editar estadísticas de partido.'}, status=403)
-    forbidden = _forbid_if_workspace_module_disabled(request, 'convocation', label='convocatoria')
-    if forbidden:
-        return JsonResponse({'error': 'La convocatoria no está activa en el workspace actual.'}, status=403)
+    if not _can_edit_match_actions(request.user):
+        return JsonResponse({'error': 'Solo el cuerpo técnico puede editar estadísticas de partido.'}, status=403)
+    convocation_forbidden = _forbid_if_workspace_module_disabled(request, 'convocation', label='convocatoria')
+    match_actions_forbidden = _forbid_if_workspace_module_disabled(
+        request,
+        'match_actions',
+        label='registro de acciones',
+    )
+    if convocation_forbidden and match_actions_forbidden:
+        return JsonResponse(
+            {'error': 'La convocatoria o el registro de acciones deben estar activos en el workspace actual.'},
+            status=403,
+        )
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         return JsonResponse({'error': 'Equipo principal no configurado'}, status=400)
@@ -4127,8 +4143,8 @@ def save_match_lineup(request):
 @authenticated_write
 @require_POST
 def delete_match_action(request):
-    if not _is_admin_user(request.user):
-        return JsonResponse({'error': 'Solo administradores pueden editar estadísticas de partido.'}, status=403)
+    if not _can_edit_match_actions(request.user):
+        return JsonResponse({'error': 'Solo el cuerpo técnico puede editar estadísticas de partido.'}, status=403)
     forbidden = _forbid_if_workspace_module_disabled(request, 'match_actions', label='registro de acciones')
     if forbidden:
         return JsonResponse({'error': 'El registro de acciones no está activo en el workspace actual.'}, status=403)
@@ -4139,6 +4155,9 @@ def delete_match_action(request):
     requested_match = get_requested_match(request, primary_team)
     candidate_events = MatchEvent.objects.filter(
         Q(match__home_team=primary_team) | Q(match__away_team=primary_team)
+    ).filter(
+        source_file='registro-acciones',
+        system='touch-field',
     )
     if requested_match:
         candidate_events = candidate_events.filter(match=requested_match)
@@ -4154,8 +4173,8 @@ def delete_match_action(request):
 @authenticated_write
 @require_POST
 def finalize_match_actions(request):
-    if not _is_admin_user(request.user):
-        return JsonResponse({'error': 'Solo administradores pueden editar estadísticas de partido.'}, status=403)
+    if not _can_edit_match_actions(request.user):
+        return JsonResponse({'error': 'Solo el cuerpo técnico puede editar estadísticas de partido.'}, status=403)
     forbidden = _forbid_if_workspace_module_disabled(request, 'match_actions', label='registro de acciones')
     if forbidden:
         return JsonResponse({'error': 'El registro de acciones no está activo en el workspace actual.'}, status=403)
@@ -4174,7 +4193,11 @@ def finalize_match_actions(request):
         payload = {}
     _apply_match_info_overrides(match, primary_team, payload.get('match_info'))
     pending_events = list(
-        MatchEvent.objects.filter(match=match, system='touch-field').select_related('player')
+        MatchEvent.objects.filter(
+            match=match,
+            system='touch-field',
+            source_file='registro-acciones',
+        ).select_related('player')
     )
     if not pending_events:
         return JsonResponse({'saved': True, 'updated': 0, 'match_id': match.id})
@@ -4182,6 +4205,7 @@ def finalize_match_actions(request):
     MatchEvent.objects.filter(
         match=match,
         system='touch-field-final',
+        source_file='registro-acciones',
     ).filter(
         Q(event_type__icontains='tarjeta') | Q(event_type__icontains='sustitucion') | Q(event_type__icontains='sustitución') | Q(event_type__icontains='cambio'),
     ).delete()
@@ -4190,13 +4214,17 @@ def finalize_match_actions(request):
     # Importante: no eliminar acciones reales repetidas a lo largo del partido.
     dedupe_seconds = 12
     existing_final_by_signature = defaultdict(list)
-    for event in MatchEvent.objects.filter(match=match, system='touch-field-final').select_related('player'):
-        existing_final_by_signature[_event_signature(event)].append(event.created_at)
+    for event in MatchEvent.objects.filter(
+        match=match,
+        system='touch-field-final',
+        source_file='registro-acciones',
+    ).select_related('player'):
+        existing_final_by_signature[_match_action_dedupe_signature(event)].append(event.created_at)
     seen_pending_by_signature = defaultdict(list)
     keep_ids = []
     drop_ids = []
     for event in sorted(pending_events, key=lambda e: e.created_at or timezone.now()):
-        signature = _event_signature(event)
+        signature = _match_action_dedupe_signature(event)
         created_at = event.created_at or timezone.now()
         existing_times = existing_final_by_signature.get(signature, [])
         pending_times = seen_pending_by_signature.get(signature, [])
@@ -4231,8 +4259,8 @@ def finalize_match_actions(request):
 @authenticated_write
 @require_POST
 def reset_match_action_register(request):
-    if not _is_admin_user(request.user):
-        return JsonResponse({'error': 'Solo administradores pueden editar estadísticas de partido.'}, status=403)
+    if not _can_edit_match_actions(request.user):
+        return JsonResponse({'error': 'Solo el cuerpo técnico puede editar estadísticas de partido.'}, status=403)
     forbidden = _forbid_if_workspace_module_disabled(request, 'match_actions', label='registro de acciones')
     if forbidden:
         return JsonResponse({'error': 'El registro de acciones no está activo en el workspace actual.'}, status=403)
@@ -4247,7 +4275,7 @@ def reset_match_action_register(request):
         match=match,
         source_file='registro-acciones',
     ).filter(
-        Q(system='touch-field') | Q(system='touch-field-final'),
+        Q(system='touch-field'),
     ).delete()
     _invalidate_team_dashboard_caches(primary_team)
     return JsonResponse(
@@ -13146,6 +13174,19 @@ def _event_signature(event):
         canon(event.zone),
         canon(event.tercio),
         canon(event.observation),
+    )
+
+
+def _match_action_dedupe_signature(event):
+    return (
+        getattr(event, 'match_id', None),
+        getattr(event, 'player_id', None),
+        getattr(event, 'minute', None),
+        _canonical_action_value(getattr(event, 'event_type', '')),
+        _canonical_action_value(getattr(event, 'result', '')),
+        _canonical_action_value(getattr(event, 'zone', '')),
+        _canonical_action_value(getattr(event, 'tercio', '')),
+        _canonical_action_value(getattr(event, 'observation', '')),
     )
 
 
