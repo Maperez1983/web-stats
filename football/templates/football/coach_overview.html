@@ -88,25 +88,15 @@
         font-size: 0.86rem;
       }
       .primary-grid,
-      .secondary-grid,
-      .focus-grid,
-      .module-grid {
+      .secondary-grid {
         display: grid;
         gap: 1rem;
       }
       .primary-grid {
-        grid-template-columns: 1.3fr repeat(3, minmax(0, 1fr));
+        grid-template-columns: 1.45fr 0.9fr;
       }
       .secondary-grid {
         margin-top: 1rem;
-        grid-template-columns: 1.3fr 0.8fr;
-      }
-      .focus-grid {
-        margin-top: 1rem;
-        grid-template-columns: 1.2fr 0.8fr;
-      }
-      .module-grid {
-        margin-top: 0.9rem;
         grid-template-columns: repeat(3, minmax(0, 1fr));
       }
       .card {
@@ -278,100 +268,14 @@
         color: var(--success);
         font-size: 0.82rem;
       }
-      .module-card {
-        display: block;
-        text-decoration: none;
-        color: inherit;
-        border-radius: 18px;
-        border: 1px solid rgba(250, 204, 21, 0.14);
-        background: rgba(255, 255, 255, 0.03);
-        padding: 0.95rem;
-        transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
-      }
-      .module-card:hover {
-        transform: translateY(-2px);
-        border-color: rgba(250, 204, 21, 0.42);
-        background: rgba(250, 204, 21, 0.06);
-      }
-      .module-card strong {
-        display: block;
-        margin-bottom: 0.35rem;
-        color: var(--ink);
-      }
-      .focus-list {
-        list-style: none;
-        margin: 0;
-        padding: 0;
-        display: grid;
-        gap: 0.65rem;
-      }
-      .focus-list li {
-        padding: 0.8rem 0.9rem;
-        border-radius: 16px;
-        border: 1px solid rgba(250, 204, 21, 0.14);
-        background: rgba(255, 255, 255, 0.03);
+      .summary-copy {
+        margin-top: 0.9rem;
         color: var(--muted);
-      }
-      .action-card-list {
-        display: grid;
-        gap: 0.7rem;
-      }
-      .action-card {
-        display: flex;
-        justify-content: space-between;
-        gap: 0.8rem;
-        align-items: center;
-        padding: 0.85rem 0.9rem;
-        border-radius: 16px;
-        border: 1px solid rgba(250, 204, 21, 0.14);
-        background: rgba(255, 255, 255, 0.03);
-      }
-      .action-card strong {
-        display: block;
-        color: var(--ink);
-        margin-bottom: 0.18rem;
-      }
-      .action-card span {
-        display: block;
-        color: var(--muted);
-        font-size: 0.84rem;
-      }
-      .activity-list {
-        display: grid;
-        gap: 0.6rem;
-        margin-top: 1rem;
-      }
-      .activity-item {
-        display: block;
-        text-decoration: none;
-        color: inherit;
-        padding: 0.8rem 0.9rem;
-        border-radius: 16px;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        background: rgba(255, 255, 255, 0.025);
-      }
-      .activity-item em {
-        display: inline-flex;
-        font-style: normal;
-        font-size: 0.72rem;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: #fde68a;
-        margin-bottom: 0.15rem;
-      }
-      .activity-item strong {
-        display: block;
-      }
-      .activity-item span {
-        display: block;
-        margin-top: 0.2rem;
-        color: var(--muted);
+        line-height: 1.5;
       }
       @media (max-width: 1120px) {
         .primary-grid,
-        .secondary-grid,
-        .focus-grid,
-        .module-grid {
+        .secondary-grid {
           grid-template-columns: 1fr 1fr;
         }
       }
@@ -391,9 +295,7 @@
           height: 58px;
         }
         .primary-grid,
-        .secondary-grid,
-        .focus-grid,
-        .module-grid {
+        .secondary-grid {
           grid-template-columns: 1fr;
         }
         .headline {
@@ -426,116 +328,6 @@
         </div>
 
         <section class="primary-grid">
-          <div class="card">
-            <h2>Próximo Partido</h2>
-            <p class="headline">{{ next_match.opponent|default:"Rival por confirmar" }}</p>
-            <p class="status-note">{{ weekly_brief.headline }}</p>
-            <div class="match-meta">
-              <div>
-                <strong>{{ next_match.round|default:"Jornada por confirmar" }}</strong>
-                <span class="muted">Jornada activa</span>
-              </div>
-              <div>
-                <strong>{{ next_match.date|default:"--" }} · {{ next_match.time|default:"--:--" }}</strong>
-                <span class="muted">Fecha y hora</span>
-              </div>
-              <div>
-                <strong>{{ next_match.location|default:"Campo por confirmar" }}</strong>
-                <span class="muted">Sede</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="card compact">
-            <h3>Disponibilidad</h3>
-            <ul class="metric-list">
-              {% for item in weekly_brief.availability %}
-              <li><span>{{ item.label }}</span><strong>{{ item.value }}</strong></li>
-              {% endfor %}
-            </ul>
-          </div>
-
-          <div class="card compact">
-            <h3>Alertas Staff</h3>
-            <ul class="plain-list">
-              {% for line in weekly_brief.alerts %}
-              <li>{{ line }}</li>
-              {% endfor %}
-            </ul>
-          </div>
-
-          <div class="card compact">
-            <h3>11 Probable</h3>
-            <p><strong>{{ weekly_brief.probable_eleven_count }}</strong> jugadores identificables.</p>
-            <div class="probable-preview">
-              {% for preview_name in probable_eleven_names %}
-              <span class="chip">{{ preview_name }}</span>
-              {% empty %}
-              <span class="chip">Pendiente</span>
-              {% endfor %}
-            </div>
-            <p class="muted" style="margin-top:0.8rem;">{{ weekly_brief.probable_eleven_preview }}</p>
-          </div>
-        </section>
-
-        <section class="focus-grid">
-          <div class="card">
-            <h2>Módulos del cliente</h2>
-            <p class="muted">Entrada rápida a las áreas de trabajo del club sin depender de accesos heredados.</p>
-            <div class="module-grid">
-              {% for module in module_hub %}
-              <a class="module-card" href="{{ module.url }}">
-                <strong>{{ module.title }}</strong>
-                <span class="muted">{{ module.description }}</span>
-              </a>
-              {% endfor %}
-            </div>
-          </div>
-
-          <div class="card">
-            <h2>Siguiente foco</h2>
-            {% if pending_cards %}
-            <div class="action-card-list">
-              {% for item in pending_cards %}
-              <div class="action-card">
-                <div>
-                  <strong>{{ item.title }}</strong>
-                  <span>{{ item.description }}</span>
-                </div>
-                <a class="pill-button" style="border-radius:12px;" href="{{ item.url }}">{{ item.action }}</a>
-              </div>
-              {% endfor %}
-            </div>
-            {% endif %}
-            <ul class="focus-list">
-              {% for item in pending_items %}
-              <li>{{ item }}</li>
-              {% empty %}
-              <li>Sin bloqueos críticos. La operativa de staff está lista para seguir por módulos.</li>
-              {% endfor %}
-            </ul>
-            <div class="activity-list">
-              {% for item in recent_activity %}
-              <a class="activity-item" href="{{ item.url }}">
-                <em>{{ item.type }}</em>
-                <strong>{{ item.title }}</strong>
-                <span>{{ item.meta }}</span>
-              </a>
-              {% empty %}
-              <div class="activity-item">
-                <strong>Sin actividad reciente</strong>
-                <span>Cuando el staff cree sesiones o tareas, aparecerán aquí.</span>
-              </div>
-              {% endfor %}
-            </div>
-            <div style="margin-top:1rem; display:flex; gap:0.55rem; flex-wrap:wrap;">
-              <a class="pill-button" style="border-radius:12px;" href="{% url 'convocation' %}">Abrir partido</a>
-              <a class="pill-button" style="border-radius:12px;" href="{% url 'sessions' %}">Abrir entrenamiento</a>
-            </div>
-          </div>
-        </section>
-
-        <section class="secondary-grid">
           <div class="card team-hero-card">
             <div class="team-hero-media">
               <div class="team-hero-copy">
@@ -543,6 +335,63 @@
                 <span>{{ next_match.round|default:"Jornada por confirmar" }} · {{ next_match_date|default:"--" }}{% if next_match.time %} · {{ next_match.time }}{% endif %} · {{ next_match.location|default:"Campo por confirmar" }}</span>
               </div>
             </div>
+          </div>
+
+          <div class="card">
+            <h2>Estado del equipo</h2>
+            <p class="headline">{{ weekly_brief.headline }}</p>
+            <p class="status-note">Lectura rápida del club antes de entrar en los módulos.</p>
+            <ul class="metric-list">
+              {% for item in weekly_brief.availability %}
+              <li><span>{{ item.label }}</span><strong>{{ item.value }}</strong></li>
+              {% endfor %}
+            </ul>
+            <ul class="plain-list">
+              {% for line in weekly_brief.alerts %}
+              <li>{{ line }}</li>
+              {% empty %}
+              <li>Sin alertas críticas para el staff.</li>
+              {% endfor %}
+            </ul>
+            <div class="probable-preview">
+              {% for preview_name in probable_eleven_names %}
+              <span class="chip">{{ preview_name }}</span>
+              {% empty %}
+              <span class="chip">11 probable pendiente</span>
+              {% endfor %}
+            </div>
+          </div>
+        </section>
+
+        <section class="secondary-grid">
+          <div class="card compact">
+            <h3>Próximo partido</h3>
+            <ul class="plain-list">
+              <li><strong>{{ next_match.opponent|default:"Rival por confirmar" }}</strong></li>
+              <li>{{ next_match.round|default:"Jornada por confirmar" }}</li>
+              <li>{{ next_match.date|default:"--" }}{% if next_match.time %} · {{ next_match.time }}{% endif %}</li>
+              <li>{{ next_match.location|default:"Campo por confirmar" }}</li>
+            </ul>
+          </div>
+
+          <div class="card compact">
+            <h3>Alertas staff</h3>
+            <ul class="plain-list">
+              {% for line in weekly_brief.alerts %}
+              <li>{{ line }}</li>
+              {% empty %}
+              <li>Sin alertas críticas para el staff.</li>
+              {% endfor %}
+            </ul>
+          </div>
+
+          <div class="card compact">
+            <h3>11 probable</h3>
+            <p><strong>{{ weekly_brief.probable_eleven_count }}</strong> jugadores identificables.</p>
+            <ul class="plain-list">
+              <li>{{ weekly_brief.probable_eleven_preview }}</li>
+            </ul>
+            <p class="summary-copy">La navegación principal ya vive en las pestañas superiores. La portada solo resume el estado actual del cliente.</p>
           </div>
 
           <div class="card">

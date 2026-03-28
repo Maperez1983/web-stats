@@ -4181,10 +4181,9 @@ class CoachOverviewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Rival Futuro')
         self.assertNotContains(response, 'Rival Antiguo')
-        self.assertContains(response, 'Próximo Partido')
-        self.assertContains(response, 'Módulos del cliente')
-        self.assertContains(response, 'Siguiente foco')
-        self.assertContains(response, 'Entrenamiento')
+        self.assertContains(response, 'Próximo partido')
+        self.assertContains(response, 'Estado del equipo')
+        self.assertContains(response, 'Clasificación')
 
     @patch('football.views.load_preferred_next_match_payload', return_value=None)
     def test_coach_overview_renders_manual_rival_report_summary(self, _mock_next):
