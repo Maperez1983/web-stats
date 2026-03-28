@@ -3651,9 +3651,97 @@ class CoachOverviewTests(TestCase):
         response = self.client.get(reverse('coach-detail'))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Informe previo J24')
-        self.assertContains(response, 'Sufren cuando les obligas a defender amplitud.')
-        self.assertContains(response, 'Staff Técnico')
+        self.assertContains(response, 'Rival Futuro')
+        self.assertContains(response, 'J24')
+        self.assertContains(response, 'MANANTIALES')
+        self.assertContains(response, 'Clasificación')
+
+    @patch('football.views.load_preferred_next_match_payload', return_value=None)
+    def test_coach_overview_prioritizes_manual_current_convocation_for_next_match(self, _mock_next):
+        Match.objects.create(
+            season=self.group.season,
+            group=self.group,
+            round='J24',
+            date=date(2026, 3, 29),
+            location='MANANTIALES',
+            home_team=self.team,
+            away_team=self.rival_future,
+        )
+        ConvocationRecord.objects.create(
+            team=self.team,
+            round='J25',
+            match_date=date(2026, 4, 2),
+            match_time=timezone.datetime(2026, 4, 2, 18, 30).time(),
+            location='NUEVO CAMPO',
+            opponent_name='Rival Manual',
+            is_current=True,
+        )
+
+        response = self.client.get(reverse('coach-detail'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Rival Manual')
+        self.assertContains(response, 'J25')
+        self.assertContains(response, 'NUEVO CAMPO')
+
+    @patch('football.views.load_universo_snapshot')
+    @patch('football.views.load_preferred_next_match_payload', return_value=None)
+    def test_coach_overview_renders_compact_standings(self, _mock_next, mock_snapshot):
+        mock_snapshot.return_value = {
+            'standings': [
+                {'position': 1, 'team': 'RIVAL FUTURO', 'played': 24, 'points': 52},
+                {'position': 2, 'team': 'BENAGALBON', 'played': 24, 'points': 49},
+                {'position': 3, 'team': 'RIVAL ANTIGUO', 'played': 24, 'points': 45},
+            ]
+        }
+        Match.objects.create(
+            season=self.group.season,
+            group=self.group,
+            round='J24',
+            date=date(2026, 3, 29),
+            location='MANANTIALES',
+            home_team=self.team,
+            away_team=self.rival_future,
+        )
+
+        response = self.client.get(reverse('coach-detail'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Clasificación')
+        self.assertContains(response, 'BENAGALBON')
+        self.assertContains(response, '49')
+
+    @patch('football.views.load_universo_snapshot')
+    @patch('football.views.load_preferred_next_match_payload', return_value=None)
+    def test_coach_overview_keeps_team_row_in_compact_standings_when_outside_top_positions(self, _mock_next, mock_snapshot):
+        mock_snapshot.return_value = {
+            'standings': [
+                {'position': 1, 'team': 'RIVAL 1', 'played': 24, 'points': 60},
+                {'position': 2, 'team': 'RIVAL 2', 'played': 24, 'points': 58},
+                {'position': 3, 'team': 'RIVAL 3', 'played': 24, 'points': 56},
+                {'position': 4, 'team': 'RIVAL 4', 'played': 24, 'points': 54},
+                {'position': 5, 'team': 'RIVAL 5', 'played': 24, 'points': 52},
+                {'position': 6, 'team': 'RIVAL 6', 'played': 24, 'points': 50},
+                {'position': 7, 'team': 'RIVAL 7', 'played': 24, 'points': 48},
+                {'position': 8, 'team': 'RIVAL 8', 'played': 24, 'points': 46},
+                {'position': 9, 'team': 'BENAGALBON', 'played': 24, 'points': 44},
+            ]
+        }
+        Match.objects.create(
+            season=self.group.season,
+            group=self.group,
+            round='J24',
+            date=date(2026, 3, 29),
+            location='MANANTIALES',
+            home_team=self.team,
+            away_team=self.rival_future,
+        )
+
+        response = self.client.get(reverse('coach-detail'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'BENAGALBON')
+        self.assertContains(response, '44')
 
     def test_coach_cards_page_shows_staff_areas_without_duplicating_client_modules(self):
         response = self.client.get(reverse('coach-cards'))

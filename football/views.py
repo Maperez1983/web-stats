@@ -3710,7 +3710,45 @@ def coach_overview_page(request):
         technical_members = ['Sin miembros técnicos configurados en Admin']
     weekly_brief = _build_weekly_staff_brief_context(primary_team)
     rival_summary = _build_coach_rival_summary(primary_team)
-    next_match = weekly_brief.get('match') if isinstance(weekly_brief, dict) else {}
+    standings_snapshot = _serialize_universo_standings(load_universo_snapshot())
+    standings = standings_snapshot or serialize_standings(primary_team.group) if primary_team and primary_team.group else []
+    convocation_next = _build_next_match_from_convocation(primary_team)
+    next_match = load_preferred_next_match_payload() or (get_next_match(primary_team, primary_team.group) if primary_team and primary_team.group else {}) or {}
+    if convocation_next:
+        next_match = convocation_next
+    if isinstance(weekly_brief, dict):
+        weekly_brief['match'] = next_match
+        next_match = weekly_brief.get('match') or {}
+    next_match_opponent = _payload_opponent_name(next_match) or 'Rival por confirmar'
+    next_match_date = ''
+    parsed_next_match_date = _parse_payload_date(next_match.get('date')) if isinstance(next_match, dict) else None
+    if parsed_next_match_date:
+        next_match_date = parsed_next_match_date.strftime('%d/%m/%Y')
+    elif isinstance(next_match, dict):
+        next_match_date = str(next_match.get('date') or '').strip()
+    hero_items = list(HomeCarouselImage.objects.filter(is_active=True).order_by('order', '-created_at', '-id'))
+    hero_image_url = hero_items[0].image.url if hero_items and getattr(hero_items[0], 'image', None) else ''
+    team_name_folded = (primary_team.name or '').strip().lower() if primary_team else ''
+    highlighted_standing = None
+    for row in standings:
+        row_name = str(row.get('full_name') or row.get('team') or '').strip().lower()
+        if row_name == team_name_folded or team_name_folded in row_name or row_name in team_name_folded:
+            highlighted_standing = row
+            break
+    compact_standings = []
+    compact_source = list(standings[:8])
+    if highlighted_standing and all(
+        str(row.get('team') or '').strip() != str(highlighted_standing.get('team') or '').strip()
+        for row in compact_source
+    ):
+        compact_source.append(highlighted_standing)
+    for row in compact_source:
+        row_copy = dict(row)
+        row_copy['is_team'] = bool(
+            highlighted_standing
+            and str(row_copy.get('team') or '').strip() == str(highlighted_standing.get('team') or '').strip()
+        )
+        compact_standings.append(row_copy)
     pending_items = []
     if isinstance(weekly_brief, dict):
         if int(weekly_brief.get('convocated_count') or 0) <= 0:
@@ -3769,7 +3807,12 @@ def coach_overview_page(request):
             'staff_preview': staff_preview,
             'staff_extra_count': staff_extra_count,
             'rival_summary': rival_summary,
+            'hero_image_url': hero_image_url,
             'next_match': next_match,
+            'next_match_opponent': next_match_opponent,
+            'next_match_date': next_match_date,
+            'standings': compact_standings,
+            'highlighted_standing': highlighted_standing,
             'probable_eleven_names': probable_eleven_names,
             'module_hub': module_hub,
             'pending_items': pending_items,

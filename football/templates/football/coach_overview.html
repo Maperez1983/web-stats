@@ -181,6 +181,78 @@
         display: grid;
         gap: 0.55rem;
       }
+      .team-hero-card {
+        overflow: hidden;
+        padding: 0;
+      }
+      .team-hero-media {
+        min-height: 280px;
+        background:
+          linear-gradient(180deg, rgba(3, 7, 18, 0.16), rgba(3, 7, 18, 0.88)),
+          url('{{ hero_image_url|default_if_none:"" }}') center/cover no-repeat;
+        display: flex;
+        align-items: end;
+      }
+      .team-hero-copy {
+        width: 100%;
+        padding: 1rem 1.05rem;
+        background: linear-gradient(180deg, transparent, rgba(3, 7, 18, 0.84));
+      }
+      .team-hero-copy strong {
+        display: block;
+        font-size: 1.35rem;
+        color: var(--ink);
+      }
+      .team-hero-copy span {
+        display: block;
+        margin-top: 0.3rem;
+        color: rgba(226, 232, 240, 0.88);
+      }
+      .standing-highlight {
+        margin-top: 0.85rem;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.65rem;
+      }
+      .standing-highlight .mini {
+        border-radius: 14px;
+        border: 1px solid rgba(255,255,255,0.08);
+        background: rgba(255,255,255,0.03);
+        padding: 0.75rem 0.85rem;
+      }
+      .standing-highlight .mini span {
+        display: block;
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .standing-highlight .mini strong {
+        display: block;
+        margin-top: 0.2rem;
+        font-size: 1.25rem;
+      }
+      .standings-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 0.8rem;
+      }
+      .standings-table th,
+      .standings-table td {
+        padding: 0.5rem 0.25rem;
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+        text-align: left;
+      }
+      .standings-table th {
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .standings-table tr.is-team td {
+        color: #fde68a;
+        font-weight: 700;
+      }
       .staff-pill {
         border-radius: 999px;
         border: 1px solid rgba(255, 255, 255, 0.1);
@@ -464,31 +536,52 @@
         </section>
 
         <section class="secondary-grid">
-          <div class="card">
-            <h2>Análisis Rival</h2>
-            <ul class="plain-list">
-              {% for line in rival_summary.lines %}
-              <li><strong>{{ line.label }}:</strong> {{ line.value }}</li>
-              {% endfor %}
-            </ul>
-            <div style="margin-top:1rem; display:flex; gap:0.55rem; flex-wrap:wrap;">
-              <a class="pill-button" style="border-radius:12px;" href="{% url 'analysis' %}">Abrir análisis</a>
+          <div class="card team-hero-card">
+            <div class="team-hero-media">
+              <div class="team-hero-copy">
+                <strong>{{ next_match_opponent }}</strong>
+                <span>{{ next_match.round|default:"Jornada por confirmar" }} · {{ next_match_date|default:"--" }}{% if next_match.time %} · {{ next_match.time }}{% endif %} · {{ next_match.location|default:"Campo por confirmar" }}</span>
+              </div>
             </div>
           </div>
 
           <div class="card">
-            <h2>Staff Técnico</h2>
-            <div class="staff-stack">
-              {% for member in staff_preview %}
-              <div class="staff-pill">{{ member }}</div>
-              {% endfor %}
-              {% if staff_extra_count %}
-              <div class="staff-pill">+ {{ staff_extra_count }} miembro(s) más</div>
-              {% endif %}
+            <h2>Clasificación</h2>
+            {% if highlighted_standing %}
+            <div class="standing-highlight">
+              <div class="mini">
+                <span>Posición</span>
+                <strong>{{ highlighted_standing.rank|default:"-" }}</strong>
+              </div>
+              <div class="mini">
+                <span>Puntos</span>
+                <strong>{{ highlighted_standing.points|default:"-" }}</strong>
+              </div>
+              <div class="mini">
+                <span>Partidos</span>
+                <strong>{{ highlighted_standing.played|default:"-" }}</strong>
+              </div>
             </div>
-            <div style="margin-top:1rem; display:flex; gap:0.55rem; flex-wrap:wrap;">
-              <a class="pill-button" style="border-radius:12px;" href="{% url 'coach-cards' %}">Ver plantilla técnica</a>
-            </div>
+            {% endif %}
+            {% if standings %}
+            <table class="standings-table">
+              <thead>
+                <tr><th>Pos</th><th>Equipo</th><th>Pts</th><th>PJ</th></tr>
+              </thead>
+              <tbody>
+                {% for row in standings %}
+                <tr class="{% if row.is_team %}is-team{% endif %}">
+                  <td>{{ row.rank|default:"-" }}</td>
+                  <td>{{ row.team|default:"-" }}</td>
+                  <td>{{ row.points|default:"-" }}</td>
+                  <td>{{ row.played|default:"-" }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            {% else %}
+            <p class="muted">No hay clasificación disponible.</p>
+            {% endif %}
           </div>
         </section>
       </article>
