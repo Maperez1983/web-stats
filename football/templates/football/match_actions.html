@@ -1335,6 +1335,32 @@
         font-size: 0.8rem;
         color: rgba(248, 250, 252, 0.75);
       }
+      .match-page-status {
+        display: none;
+        margin: 0 0 14px;
+        padding: 12px 14px;
+        border-radius: 14px;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        background: rgba(15, 23, 42, 0.82);
+        color: #e2e8f0;
+        font-size: 0.92rem;
+        line-height: 1.4;
+      }
+      .match-page-status.is-visible {
+        display: block;
+      }
+      .match-page-status[data-tone='success'] {
+        border-color: rgba(34, 197, 94, 0.35);
+        background: rgba(20, 83, 45, 0.4);
+      }
+      .match-page-status[data-tone='warning'] {
+        border-color: rgba(250, 204, 21, 0.35);
+        background: rgba(113, 63, 18, 0.35);
+      }
+      .match-page-status[data-tone='danger'] {
+        border-color: rgba(248, 113, 113, 0.35);
+        background: rgba(127, 29, 29, 0.35);
+      }
       .history-delete {
         position: absolute;
         top: 0.35rem;
@@ -1456,6 +1482,7 @@
     <div class="page">
       <div class="action-screen">
         <section class="field-column">
+          <div class="match-page-status" id="match-page-status" aria-live="polite"></div>
           <div class="field-header">
             <a href="{% url 'dashboard-home' %}" class="dragon-link" title="Ir al inicio">
               <img src="{% static 'logos/logo.png' %}" alt="Escudo C.D. Benagalbón" class="dragon-logo" />
@@ -1983,6 +2010,14 @@
       const quickHistoryModalCloseBtn = document.getElementById('quick-history-close');
       const subsHistoryCard = document.getElementById('subs-history-card');
       const popupForm = document.getElementById('field-popup-form');
+      const matchInfoCard = document.getElementById('match-info-card');
+      const matchInfoEditBtn = document.getElementById('match-info-edit-btn');
+      const matchInfoSaveBtn = document.getElementById('match-info-save-btn');
+      const matchInfoResetBtn = document.getElementById('match-info-reset-btn');
+      const matchFinalizeBtn = document.getElementById('match-finalize-btn');
+      const rivalToggleBtn = matchInfoCard?.querySelector('.rival-toggle') || null;
+      const rivalDropdown = matchInfoCard?.querySelector('[data-rival-dropdown]') || null;
+      const rivalOptions = matchInfoCard?.querySelectorAll('.rival-option') || [];
       const actionInput = popupForm.querySelector('input[name="action_type"]');
       const zoneInput = popupForm.querySelector('input[name="zone"]');
       const minuteInput = popupForm.querySelector('input[name="minute"]');
@@ -2032,7 +2067,14 @@
       const csrfToken = csrfInput?.value || '';
       const submitUrl = popupForm.dataset.submitUrl;
       const initialMatchDbIdEl = document.getElementById('match-db-id');
+      const pageStatus = document.getElementById('match-page-status');
       const currentMatchId = String(initialMatchDbIdEl?.textContent || '').trim();
+      const matchInfoState = {
+        opponent: matchInfoCard?.querySelector('[data-field="opponent"] [data-input]')?.value || '',
+        location: matchInfoCard?.querySelector('[data-field="location"] [data-input]')?.value || '',
+        datetime: matchInfoCard?.querySelector('[data-field="datetime"] [data-input]')?.value || '',
+        round: matchInfoCard?.querySelector('[data-field="round"] [data-input]')?.value || '',
+      };
       const urlWithMatchId = (baseUrl) => {
         if (!currentMatchId) return baseUrl;
         const joiner = baseUrl.includes('?') ? '&' : '?';
@@ -2050,6 +2092,8 @@
         bench: [],
       };
       let lineupPersistTimer = null;
+      let lastSavedLineupSnapshot = '';
+      let lineupPersistDisabled = false;
 
       const persistentClockEl = document.getElementById('persistent-clock');
       const persistentYellowEl = document.getElementById('persistent-yellow');
@@ -2072,6 +2116,63 @@
         duelRate: document.getElementById('live-stat-duel-rate'),
       };
       const liveEventStore = new Map();
+      let pageStatusTimer = null;
+      const showPageStatus = (message, tone = 'info', timeout = 3600) => {
+        if (!pageStatus) {
+          return;
+        }
+        pageStatus.textContent = message;
+        pageStatus.dataset.tone = tone;
+        pageStatus.classList.add('is-visible');
+        if (pageStatusTimer) {
+          clearTimeout(pageStatusTimer);
+          pageStatusTimer = null;
+        }
+        if (timeout > 0) {
+          pageStatusTimer = setTimeout(() => {
+            pageStatus.classList.remove('is-visible');
+          }, timeout);
+        }
+      };
+      const setMatchInfoEditing = (editing) => {
+        if (!matchInfoCard) {
+          return;
+        }
+        matchInfoCard.classList.toggle('is-editing', Boolean(editing));
+        if (!editing && rivalDropdown) {
+          rivalDropdown.classList.remove('is-open');
+        }
+      };
+      const collectMatchInfoPayload = () => {
+        if (!matchInfoCard) {
+          return {};
+        }
+        return {
+          opponent: matchInfoCard.querySelector('[data-field="opponent"] [data-input]')?.value?.trim() || '',
+          location: matchInfoCard.querySelector('[data-field="location"] [data-input]')?.value?.trim() || '',
+          datetime: matchInfoCard.querySelector('[data-field="datetime"] [data-input]')?.value?.trim() || '',
+          round: matchInfoCard.querySelector('[data-field="round"] [data-input]')?.value?.trim() || '',
+        };
+      };
+      const renderMatchInfoState = () => {
+        if (!matchInfoCard) {
+          return;
+        }
+        Object.entries(matchInfoState).forEach(([key, value]) => {
+          const row = matchInfoCard.querySelector(`[data-field="${key}"]`);
+          if (!row) {
+            return;
+          }
+          const input = row.querySelector('[data-input]');
+          const display = row.querySelector('[data-display]');
+          if (input) {
+            input.value = value || '';
+          }
+          if (display) {
+            display.textContent = value || '-';
+          }
+        });
+      };
       const containsText = (value, terms) => {
         const txt = String(value || '').toLowerCase();
         if (!txt) return false;
@@ -2200,6 +2301,55 @@
         });
         setZoneOverlayVisibility(true);
       }
+      renderMatchInfoState();
+      if (matchInfoEditBtn) {
+        matchInfoEditBtn.addEventListener('click', () => {
+          setMatchInfoEditing(!matchInfoCard?.classList.contains('is-editing'));
+        });
+      }
+      if (matchInfoResetBtn) {
+        matchInfoResetBtn.addEventListener('click', () => {
+          renderMatchInfoState();
+          setMatchInfoEditing(false);
+          showPageStatus('Datos de partido restablecidos en pantalla.', 'info', 2400);
+        });
+      }
+      if (matchInfoSaveBtn) {
+        matchInfoSaveBtn.addEventListener('click', () => {
+          Object.assign(matchInfoState, collectMatchInfoPayload());
+          renderMatchInfoState();
+          setMatchInfoEditing(false);
+          showPageStatus('Datos del partido actualizados en pantalla. Se consolidan al guardar partido.', 'success', 3200);
+        });
+      }
+      if (rivalToggleBtn && rivalDropdown) {
+        rivalToggleBtn.addEventListener('click', () => {
+          rivalDropdown.classList.toggle('is-open');
+        });
+      }
+      rivalOptions.forEach((option) => {
+        option.addEventListener('click', () => {
+          const opponentInput = matchInfoCard?.querySelector('[data-field="opponent"] [data-input]');
+          const locationInput = matchInfoCard?.querySelector('[data-field="location"] [data-input]');
+          if (opponentInput) {
+            opponentInput.value = option.dataset.rivalName || '';
+          }
+          if (locationInput && option.dataset.rivalLocation) {
+            locationInput.value = option.dataset.rivalLocation;
+          }
+          if (rivalDropdown) {
+            rivalDropdown.classList.remove('is-open');
+          }
+        });
+      });
+      document.addEventListener('click', (event) => {
+        if (!matchInfoCard) {
+          return;
+        }
+        if (rivalDropdown && !matchInfoCard.contains(event.target)) {
+          rivalDropdown.classList.remove('is-open');
+        }
+      });
       const hydrateLineupState = () => {
         try {
           const seedRaw = document.getElementById('initial-lineup-server')?.textContent || '';
@@ -2242,24 +2392,29 @@
         } catch (err) {
           console.error('Invalid lineup payload', err);
         }
+        lastSavedLineupSnapshot = JSON.stringify(lineupState);
       };
       const updateLineupInput = () => {
+        const lineupSnapshot = JSON.stringify(lineupState);
         if (lineupInput) {
-          lineupInput.value = JSON.stringify(lineupState);
+          lineupInput.value = lineupSnapshot;
         }
         if (lineupStorageKey) {
           try {
-            localStorage.setItem(lineupStorageKey, JSON.stringify(lineupState));
+            localStorage.setItem(lineupStorageKey, lineupSnapshot);
           } catch (err) {
             console.warn('No se pudo persistir el 11 inicial', err);
           }
+        }
+        if (lineupPersistDisabled || lineupSnapshot === lastSavedLineupSnapshot) {
+          return;
         }
         if (lineupPersistTimer) {
           clearTimeout(lineupPersistTimer);
         }
         lineupPersistTimer = setTimeout(async () => {
           try {
-            await fetch(lineupSaveUrl, {
+            const response = await fetch(lineupSaveUrl, {
               method: 'POST',
               credentials: 'same-origin',
               headers: {
@@ -2269,8 +2424,22 @@
               },
               body: JSON.stringify({ lineup: lineupState }),
             });
+            if (!response.ok) {
+              const data = await response.json().catch(() => ({}));
+              if (response.status === 403) {
+                lineupPersistDisabled = true;
+              }
+              showPageStatus(
+                data.error || 'No se pudo guardar el 11 inicial.',
+                response.status === 403 ? 'warning' : 'danger',
+                5200,
+              );
+              return;
+            }
+            lastSavedLineupSnapshot = lineupSnapshot;
           } catch (err) {
             console.warn('No se pudo guardar el 11 inicial en servidor', err);
+            showPageStatus('No se pudo guardar el 11 inicial en servidor.', 'warning', 5200);
           }
         }, 450);
       };
@@ -2442,7 +2611,7 @@
         emptyItem.innerHTML = `
           <span class="hist-minute">—</span>
           <strong>Sin acciones todavía</strong>
-          <p class="hist-text">Comienza el registro para verás cómo se llenan aquí.</p>
+          <p class="hist-text">Comienza el registro para ver cómo se llenan aquí.</p>
         `;
         historyList.appendChild(emptyItem);
       };
@@ -2561,12 +2730,11 @@
       const showQuickHistoryModal = (historyKey, title) => {
         const entries = quickHistoryState[historyKey] || [];
         if (!entries.length) {
-          alert(`No hay registros de ${title.toLowerCase()} todavía.`);
+          showPageStatus(`No hay registros de ${title.toLowerCase()} todavía.`, 'warning');
           return;
         }
         if (!quickHistoryModal || !quickHistoryModalList || !quickHistoryModalTitle) {
-          const body = entries.map((entry, index) => `${index + 1}. ${entry}`).join('\n');
-          alert(`${title}\n\n${body}`);
+          showPageStatus(`No se pudo abrir el visor de ${title.toLowerCase()}.`, 'warning');
           return;
         }
         quickHistoryModalTitle.textContent = `${title} · ${entries.length}`;
@@ -2716,7 +2884,7 @@
           });
           const data = await response.json();
           if (!response.ok) {
-            alert(data.error || 'No se pudo registrar la acción rápida.');
+            showPageStatus(data.error || 'No se pudo registrar la acción rápida.', 'danger', 5200);
             return;
           }
           const inserted = appendHistoryEntry({
@@ -2740,9 +2908,10 @@
           if (!isTeamOnly && player?.id) {
             selectPlayer(player.id);
           }
+          showPageStatus(`Acción rápida registrada${data.duplicate ? ' (duplicado detectado)' : ''}.`, data.duplicate ? 'warning' : 'success', 2600);
         } catch (err) {
           console.error(err);
-          alert('Error al registrar la acción rápida.');
+          showPageStatus('Error al registrar la acción rápida.', 'danger', 5200);
         } finally {
           actionSubmitInFlight = false;
         }
@@ -3167,14 +3336,6 @@
         });
       });
 
-      convocationCards.forEach((card) => {
-        card.addEventListener('click', () => {
-          convocationCards.forEach((other) => other.classList.remove('selected'));
-          card.classList.add('selected');
-          playerInput.value = card.dataset.playerId;
-        });
-      });
-
       const appendHistoryEntry = ({ minute, player, action, zone, result, event_id }) => {
         if (!historyList) return false;
         if (event_id && historyList.querySelector(`[data-event-id="${event_id}"]`)) {
@@ -3194,7 +3355,7 @@
           item.dataset.eventId = event_id;
         }
         historyList.prepend(item);
-        if (historyList.children.length > 8) {
+        if (historyList.children.length > 24) {
           historyList.removeChild(historyList.lastChild);
         }
         registerLiveEvent({ id: event_id, action, zone, result });
@@ -3235,21 +3396,22 @@
           });
           if (!response.ok) {
             const data = await response.json().catch(() => ({}));
-            alert(data.error || 'No se pudo eliminar la acción.');
+            showPageStatus(data.error || 'No se pudo eliminar la acción.', 'danger', 5200);
             return;
           }
           article.remove();
           removeLiveEvent(eventId);
+          showPageStatus('Acción eliminada del registro en vivo.', 'success', 2600);
         } catch (err) {
           console.error(err);
-          alert('No se pudo eliminar la acción.');
+          showPageStatus('No se pudo eliminar la acción.', 'danger', 5200);
         }
       });
 
       const matchResetBtn = document.getElementById('match-reset-btn');
       if (matchResetBtn) {
         matchResetBtn.addEventListener('click', async () => {
-          const confirmed = confirm('¿Reiniciar todo el registro de acciones de este partido?');
+          const confirmed = confirm('¿Reiniciar solo las acciones pendientes del registro en vivo de este partido?');
           if (!confirmed) {
             return;
           }
@@ -3267,15 +3429,50 @@
             });
             const data = await response.json().catch(() => ({}));
             if (!response.ok) {
-              alert(data.error || 'No se pudo reiniciar el registro.');
+              showPageStatus(data.error || 'No se pudo reiniciar el registro.', 'danger', 5200);
               return;
             }
             clearRegisterHistoryUI();
             resetRegisterHudState();
             resetClock();
+            showPageStatus('Registro en vivo reiniciado. Las acciones finalizadas se mantienen.', 'warning', 4200);
           } catch (err) {
             console.error(err);
-            alert('Error al reiniciar el registro.');
+            showPageStatus('Error al reiniciar el registro.', 'danger', 5200);
+          }
+        });
+      }
+      if (matchFinalizeBtn) {
+        matchFinalizeBtn.addEventListener('click', async () => {
+          Object.assign(matchInfoState, collectMatchInfoPayload());
+          try {
+            const response = await fetch(finalizeUrl, {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,
+                Accept: 'application/json',
+              },
+              body: JSON.stringify({
+                match_info: matchInfoState,
+              }),
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+              showPageStatus(data.error || 'No se pudo guardar el partido.', 'danger', 5200);
+              return;
+            }
+            renderMatchInfoState();
+            setMatchInfoEditing(false);
+            showPageStatus(
+              `Partido guardado. ${data.updated || 0} acciones consolidadas${data.deduplicated ? ` · ${data.deduplicated} duplicadas descartadas` : ''}.`,
+              'success',
+              4200,
+            );
+          } catch (err) {
+            console.error(err);
+            showPageStatus('Error al guardar el partido.', 'danger', 5200);
           }
         });
       }
@@ -3348,7 +3545,7 @@
   const isTeamOnlyAction = teamOnlyActions.includes(currentAction);
 
   if (!isTeamOnlyAction && !playerInput.value) {
-    alert('Selecciona primero un jugador convocado.');
+    showPageStatus('Selecciona primero un jugador convocado.', 'warning', 3600);
     return;
   }
 
@@ -3375,7 +3572,7 @@
     });
     const data = await response.json();
     if (!response.ok) {
-      alert(data.error || 'No se pudo guardar la acción.');
+      showPageStatus(data.error || 'No se pudo guardar la acción.', 'danger', 5200);
       return;
     }
     const inserted = appendHistoryEntry({
@@ -3414,9 +3611,10 @@
       playerInput.value = lastPlayerId;
     }
     syncAutoFields();
+    showPageStatus(`Acción registrada${data.duplicate ? ' (duplicado detectado)' : ''}.`, data.duplicate ? 'warning' : 'success', 2600);
   } catch (err) {
     console.error(err);
-    alert('Error al guardar la acción en el servidor.');
+    showPageStatus('Error al guardar la acción en el servidor.', 'danger', 5200);
   } finally {
     actionSubmitInFlight = false;
   }
