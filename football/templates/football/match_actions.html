@@ -1440,10 +1440,33 @@
         .actions-sidebar {
           padding: 0.9rem;
         }
+        .field-header {
+          flex-wrap: wrap;
+          gap: 0.65rem;
+        }
+        .position-fixed-clock {
+          flex-wrap: wrap;
+        }
         .match-header-panels,
         .match-status-panels,
         .quick-action-columns {
           gap: 0.75rem;
+        }
+        .match-info-card .match-info-actions {
+          grid-template-columns: 1fr 1fr;
+        }
+        .match-selector-form {
+          flex-direction: column;
+          align-items: stretch;
+        }
+        .match-selector-form button,
+        .match-selector-form select {
+          width: 100%;
+        }
+        .match-info-card .rival-dropdown {
+          position: static;
+          width: 100%;
+          margin-top: 0.5rem;
         }
         .quick-action-column,
         .status-card {
@@ -1452,6 +1475,11 @@
         .quick-drop-row {
           display: grid;
           grid-template-columns: 1fr 1fr;
+        }
+        .convocation-list {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 0.75rem;
         }
         .lineup-toolbar {
           flex-wrap: nowrap;
@@ -1464,10 +1492,10 @@
           flex: 0 0 auto;
         }
         .persistent-hud {
-          bottom: 8px;
-          right: 8px;
-          left: 8px;
-          padding: 0.45rem 0.55rem;
+          position: static;
+          margin: 0.75rem;
+          min-width: 0;
+          padding: 0.55rem 0.7rem;
         }
         .persistent-hud .label {
           font-size: 0.56rem;
@@ -1987,6 +2015,7 @@
     {{ team_fields|json_script:"team-fields-data" }}
     {{ substitution_history|json_script:"substitution-history-data" }}
     {{ initial_lineup_json|default:"{\"starters\":[],\"bench\":[]}"|json_script:"initial-lineup-server" }}
+    <script src="{% static 'football/js/match_actions_chrome.js' %}"></script>
     <script>
       const getInitials = (value) => {
         const raw = String(value || '').trim();
@@ -2116,63 +2145,12 @@
         duelRate: document.getElementById('live-stat-duel-rate'),
       };
       const liveEventStore = new Map();
-      let pageStatusTimer = null;
-      const showPageStatus = (message, tone = 'info', timeout = 3600) => {
-        if (!pageStatus) {
-          return;
-        }
-        pageStatus.textContent = message;
-        pageStatus.dataset.tone = tone;
-        pageStatus.classList.add('is-visible');
-        if (pageStatusTimer) {
-          clearTimeout(pageStatusTimer);
-          pageStatusTimer = null;
-        }
-        if (timeout > 0) {
-          pageStatusTimer = setTimeout(() => {
-            pageStatus.classList.remove('is-visible');
-          }, timeout);
-        }
-      };
-      const setMatchInfoEditing = (editing) => {
-        if (!matchInfoCard) {
-          return;
-        }
-        matchInfoCard.classList.toggle('is-editing', Boolean(editing));
-        if (!editing && rivalDropdown) {
-          rivalDropdown.classList.remove('is-open');
-        }
-      };
-      const collectMatchInfoPayload = () => {
-        if (!matchInfoCard) {
-          return {};
-        }
-        return {
-          opponent: matchInfoCard.querySelector('[data-field="opponent"] [data-input]')?.value?.trim() || '',
-          location: matchInfoCard.querySelector('[data-field="location"] [data-input]')?.value?.trim() || '',
-          datetime: matchInfoCard.querySelector('[data-field="datetime"] [data-input]')?.value?.trim() || '',
-          round: matchInfoCard.querySelector('[data-field="round"] [data-input]')?.value?.trim() || '',
-        };
-      };
-      const renderMatchInfoState = () => {
-        if (!matchInfoCard) {
-          return;
-        }
-        Object.entries(matchInfoState).forEach(([key, value]) => {
-          const row = matchInfoCard.querySelector(`[data-field="${key}"]`);
-          if (!row) {
-            return;
-          }
-          const input = row.querySelector('[data-input]');
-          const display = row.querySelector('[data-display]');
-          if (input) {
-            input.value = value || '';
-          }
-          if (display) {
-            display.textContent = value || '-';
-          }
-        });
-      };
+      let showPageStatus;
+      let setMatchInfoEditing;
+      let collectMatchInfoPayload;
+      let renderMatchInfoState;
+      let showQuickHistoryModal;
+      let hideQuickHistoryModal;
       const containsText = (value, terms) => {
         const txt = String(value || '').toLowerCase();
         if (!txt) return false;
@@ -2301,15 +2279,10 @@
         });
         setZoneOverlayVisibility(true);
       }
-      renderMatchInfoState();
-      if (matchInfoEditBtn) {
-        matchInfoEditBtn.addEventListener('click', () => {
-          setMatchInfoEditing(!matchInfoCard?.classList.contains('is-editing'));
-        });
-      }
+      renderMatchInfoState(matchInfoState);
       if (matchInfoResetBtn) {
         matchInfoResetBtn.addEventListener('click', () => {
-          renderMatchInfoState();
+          renderMatchInfoState(matchInfoState);
           setMatchInfoEditing(false);
           showPageStatus('Datos de partido restablecidos en pantalla.', 'info', 2400);
         });
@@ -2317,39 +2290,11 @@
       if (matchInfoSaveBtn) {
         matchInfoSaveBtn.addEventListener('click', () => {
           Object.assign(matchInfoState, collectMatchInfoPayload());
-          renderMatchInfoState();
+          renderMatchInfoState(matchInfoState);
           setMatchInfoEditing(false);
           showPageStatus('Datos del partido actualizados en pantalla. Se consolidan al guardar partido.', 'success', 3200);
         });
       }
-      if (rivalToggleBtn && rivalDropdown) {
-        rivalToggleBtn.addEventListener('click', () => {
-          rivalDropdown.classList.toggle('is-open');
-        });
-      }
-      rivalOptions.forEach((option) => {
-        option.addEventListener('click', () => {
-          const opponentInput = matchInfoCard?.querySelector('[data-field="opponent"] [data-input]');
-          const locationInput = matchInfoCard?.querySelector('[data-field="location"] [data-input]');
-          if (opponentInput) {
-            opponentInput.value = option.dataset.rivalName || '';
-          }
-          if (locationInput && option.dataset.rivalLocation) {
-            locationInput.value = option.dataset.rivalLocation;
-          }
-          if (rivalDropdown) {
-            rivalDropdown.classList.remove('is-open');
-          }
-        });
-      });
-      document.addEventListener('click', (event) => {
-        if (!matchInfoCard) {
-          return;
-        }
-        if (rivalDropdown && !matchInfoCard.contains(event.target)) {
-          rivalDropdown.classList.remove('is-open');
-        }
-      });
       const hydrateLineupState = () => {
         try {
           const seedRaw = document.getElementById('initial-lineup-server')?.textContent || '';
@@ -2601,6 +2546,28 @@
         corner_for: [],
         corner_against: [],
       };
+      ({
+        showPageStatus,
+        setMatchInfoEditing,
+        collectMatchInfoPayload,
+        renderMatchInfoState,
+        showQuickHistoryModal,
+        hideQuickHistoryModal,
+      } = window.initMatchActionsChrome({
+        pageStatus,
+        matchInfoCard,
+        matchInfoEditBtn,
+        matchInfoSaveBtn,
+        matchInfoResetBtn,
+        rivalToggleBtn,
+        rivalDropdown,
+        rivalOptions,
+        quickHistoryModal,
+        quickHistoryModalList,
+        quickHistoryModalTitle,
+        quickHistoryModalCloseBtn,
+        quickHistoryState,
+      }));
       const clearRegisterHistoryUI = () => {
         if (!historyList) {
           return;
@@ -2727,43 +2694,6 @@
         quickHistoryState[historyKey].push(entryText);
         renderQuickHistoryPreview(historyKey);
       };
-      const showQuickHistoryModal = (historyKey, title) => {
-        const entries = quickHistoryState[historyKey] || [];
-        if (!entries.length) {
-          showPageStatus(`No hay registros de ${title.toLowerCase()} todavía.`, 'warning');
-          return;
-        }
-        if (!quickHistoryModal || !quickHistoryModalList || !quickHistoryModalTitle) {
-          showPageStatus(`No se pudo abrir el visor de ${title.toLowerCase()}.`, 'warning');
-          return;
-        }
-        quickHistoryModalTitle.textContent = `${title} · ${entries.length}`;
-        quickHistoryModalList.innerHTML = '';
-        entries.forEach((entryText) => {
-          const li = document.createElement('li');
-          li.textContent = entryText;
-          quickHistoryModalList.appendChild(li);
-        });
-        quickHistoryModal.classList.add('is-open');
-        quickHistoryModal.setAttribute('aria-hidden', 'false');
-      };
-      const hideQuickHistoryModal = () => {
-        if (!quickHistoryModal) {
-          return;
-        }
-        quickHistoryModal.classList.remove('is-open');
-        quickHistoryModal.setAttribute('aria-hidden', 'true');
-      };
-      if (quickHistoryModalCloseBtn) {
-        quickHistoryModalCloseBtn.addEventListener('click', hideQuickHistoryModal);
-      }
-      if (quickHistoryModal) {
-        quickHistoryModal.addEventListener('click', (event) => {
-          if (event.target === quickHistoryModal) {
-            hideQuickHistoryModal();
-          }
-        });
-      }
       Object.entries(quickHistoryContainers).forEach(([historyKey, container]) => {
         if (!container) {
           return;
@@ -3463,7 +3393,7 @@
               showPageStatus(data.error || 'No se pudo guardar el partido.', 'danger', 5200);
               return;
             }
-            renderMatchInfoState();
+            renderMatchInfoState(matchInfoState);
             setMatchInfoEditing(false);
             showPageStatus(
               `Partido guardado. ${data.updated || 0} acciones consolidadas${data.deduplicated ? ` · ${data.deduplicated} duplicadas descartadas` : ''}.`,
