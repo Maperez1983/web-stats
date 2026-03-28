@@ -831,6 +831,55 @@ class PlatformWorkspaceTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['team']['name'], self.alt_team.name)
 
+    @patch('football.views.load_cached_next_match')
+    @patch('football.views.load_universo_snapshot')
+    def test_dashboard_data_ignores_global_snapshot_for_other_club_workspace(self, mock_snapshot, mock_cached_next):
+        alt_competition = Competition.objects.create(name='Liga Cliente 2', slug='liga-cliente-2', region='Andalucia')
+        alt_season = Season.objects.create(competition=alt_competition, name='2025/2026', is_current=True)
+        alt_group = Group.objects.create(season=alt_season, name='Grupo Cliente 2', slug='grupo-cliente-2')
+        alt_team = Team.objects.create(name='Club Visitante', slug='club-visitante', group=alt_group, is_primary=False)
+        alt_rival = Team.objects.create(name='Rival Cliente 2', slug='rival-cliente-2', group=alt_group)
+        TeamStanding.objects.create(season=alt_season, group=alt_group, team=alt_team, position=3, played=24, wins=13, draws=4, losses=7, goals_for=41, goals_against=28, goal_difference=13, points=43)
+        Match.objects.create(
+            season=alt_season,
+            group=alt_group,
+            round='J26',
+            date=date(2026, 4, 5),
+            location='Campo Cliente 2',
+            home_team=alt_team,
+            away_team=alt_rival,
+        )
+        workspace = Workspace.objects.create(
+            name='Cliente alternativo 2',
+            slug='cliente-alternativo-2-workspace',
+            kind=Workspace.KIND_CLUB,
+            primary_team=alt_team,
+        )
+        mock_snapshot.return_value = {
+            'standings': [
+                {'position': 1, 'team': 'BENAGALBON MATRIZ', 'played': 24, 'points': 55},
+            ]
+        }
+        mock_cached_next.return_value = {
+            'status': 'next',
+            'round': 'J30',
+            'date': '2026-04-10',
+            'location': 'Campo Snapshot',
+            'opponent': {'name': 'Rival Snapshot', 'full_name': 'Rival Snapshot'},
+        }
+        self.client.force_login(self.admin_user)
+        session = self.client.session
+        session['active_workspace_id'] = workspace.id
+        session.save()
+
+        response = self.client.get(reverse('dashboard-data'))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload['team']['name'], alt_team.name)
+        self.assertEqual(payload['standings'][0]['team'], alt_team.name.upper())
+        self.assertEqual(payload['next_match']['opponent']['name'], alt_rival.name)
+
     def test_convocation_page_uses_active_club_workspace_team(self):
         workspace = Workspace.objects.create(
             name='Cliente alternativo',
@@ -867,6 +916,54 @@ class PlatformWorkspaceTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Defensa cliente')
+
+    @patch('football.views.load_cached_next_match')
+    @patch('football.views.load_universo_snapshot')
+    def test_coach_overview_uses_workspace_team_competition_context(self, mock_snapshot, mock_cached_next):
+        alt_competition = Competition.objects.create(name='Liga Coach 2', slug='liga-coach-2', region='Andalucia')
+        alt_season = Season.objects.create(competition=alt_competition, name='2025/2026', is_current=True)
+        alt_group = Group.objects.create(season=alt_season, name='Grupo Coach 2', slug='grupo-coach-2')
+        alt_team = Team.objects.create(name='Club Costero', slug='club-costero', group=alt_group, is_primary=False)
+        alt_rival = Team.objects.create(name='Rival Costero', slug='rival-costero', group=alt_group)
+        TeamStanding.objects.create(season=alt_season, group=alt_group, team=alt_team, position=5, played=24, wins=11, draws=6, losses=7, goals_for=35, goals_against=29, goal_difference=6, points=39)
+        Match.objects.create(
+            season=alt_season,
+            group=alt_group,
+            round='J27',
+            date=date(2026, 4, 12),
+            location='Campo Costero',
+            home_team=alt_team,
+            away_team=alt_rival,
+        )
+        workspace = Workspace.objects.create(
+            name='Cliente costero',
+            slug='cliente-costero-workspace',
+            kind=Workspace.KIND_CLUB,
+            primary_team=alt_team,
+        )
+        mock_snapshot.return_value = {
+            'standings': [
+                {'position': 1, 'team': 'BENAGALBON MATRIZ', 'played': 24, 'points': 55},
+            ]
+        }
+        mock_cached_next.return_value = {
+            'status': 'next',
+            'round': 'J30',
+            'date': '2026-04-10',
+            'location': 'Campo Snapshot',
+            'opponent': {'name': 'Rival Snapshot', 'full_name': 'Rival Snapshot'},
+        }
+        self.client.force_login(self.admin_user)
+        session = self.client.session
+        session['active_workspace_id'] = workspace.id
+        session.save()
+
+        response = self.client.get(reverse('coach-detail'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Rival Costero')
+        self.assertContains(response, 'CLUB COSTERO')
+        self.assertContains(response, '39')
 
     def test_workspace_detail_updates_enabled_modules(self):
         workspace = Workspace.objects.create(

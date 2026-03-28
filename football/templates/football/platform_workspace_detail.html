@@ -418,6 +418,9 @@
               <span class="sub-chip">Slug · {{ workspace.slug }}</span>
               <span class="sub-chip">{% if workspace.owner_user %}Propietario · {{ workspace.owner_user.username }}{% else %}Sin propietario{% endif %}</span>
               <span class="sub-chip">{% if workspace.primary_team %}Equipo · {{ workspace.primary_team.name }}{% else %}Sin equipo vinculado{% endif %}</span>
+              {% if workspace.primary_team and workspace.primary_team.group %}
+              <span class="sub-chip">Grupo · {{ workspace.primary_team.group.name }}</span>
+              {% endif %}
             </div>
           </div>
         </div>
@@ -537,6 +540,8 @@
             <div class="panel-block" style="margin-top:1rem;">
               <p><strong>Propietario:</strong> {% if workspace.owner_user %}{{ workspace.owner_user.username }}{% else %}Sin propietario{% endif %}</p>
               <p><strong>Equipo vinculado:</strong> {% if workspace.primary_team %}{{ workspace.primary_team.name }}{% else %}Sin equipo{% endif %}</p>
+              <p><strong>División / grupo:</strong> {% if workspace.primary_team and workspace.primary_team.group %}{{ workspace.primary_team.group.name }}{% else %}Sin grupo{% endif %}</p>
+              <p><strong>Temporada:</strong> {% if workspace.primary_team and workspace.primary_team.group and workspace.primary_team.group.season %}{{ workspace.primary_team.group.season.name|default:"Temporada actual" }}{% else %}Sin temporada{% endif %}</p>
               <p><strong>Slug:</strong> {{ workspace.slug }}</p>
             </div>
           </div>

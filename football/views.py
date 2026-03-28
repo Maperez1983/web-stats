@@ -1741,7 +1741,7 @@ def _build_weekly_staff_brief_context(primary_team, player_cards=None):
         primary_team,
         reference_match=active_match,
     )
-    next_match_payload = load_preferred_next_match_payload()
+    next_match_payload = load_preferred_next_match_payload(primary_team=primary_team)
     if not next_match_payload and primary_team.group:
         next_match_payload = get_next_match(primary_team, primary_team.group)
     return build_weekly_staff_brief(
@@ -1988,6 +1988,43 @@ def _build_universo_capture_team_lookup():
     return lookup
 
 
+def _universo_snapshot_supports_team(snapshot, primary_team):
+    if not primary_team:
+        return True
+    if not isinstance(snapshot, dict):
+        return False
+    rows = snapshot.get('standings')
+    candidate_keys = {
+        _normalize_team_lookup_key(primary_team.name),
+        _normalize_team_lookup_key(primary_team.display_name),
+    }
+    candidate_keys = {key for key in candidate_keys if key}
+    if isinstance(rows, list) and rows:
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            row_keys = {
+                _normalize_team_lookup_key(row.get('team')),
+                _normalize_team_lookup_key(row.get('full_name')),
+            }
+            row_keys = {key for key in row_keys if key}
+            if candidate_keys & row_keys:
+                return True
+        return False
+    return bool(getattr(primary_team, 'is_primary', False))
+
+
+def _resolve_standings_for_team(primary_team, snapshot=None):
+    if not primary_team or not getattr(primary_team, 'group', None):
+        return []
+    snapshot = snapshot if snapshot is not None else load_universo_snapshot()
+    if _universo_snapshot_supports_team(snapshot, primary_team):
+        universo_rows = _serialize_universo_standings(snapshot)
+        if universo_rows:
+            return universo_rows
+    return serialize_standings(primary_team.group)
+
+
 def _resolve_rival_identity(rival_name, preferred_opponent=None):
     rival_name = str(rival_name or '').strip() or 'Rival por confirmar'
     rival_full_name = rival_name
@@ -2031,17 +2068,18 @@ def _resolve_rival_identity(rival_name, preferred_opponent=None):
     return rival_full_name, rival_crest_url
 
 
-def load_preferred_next_match_payload():
+def load_preferred_next_match_payload(primary_team=None):
     today = timezone.localdate()
     snapshot = load_universo_snapshot()
-    if isinstance(snapshot, dict) and isinstance(snapshot.get('next_match'), dict):
+    can_use_external = _universo_snapshot_supports_team(snapshot, primary_team) if primary_team else True
+    if can_use_external and isinstance(snapshot, dict) and isinstance(snapshot.get('next_match'), dict):
         snapshot_next = normalize_next_match_payload(snapshot.get('next_match'))
         status = str(snapshot_next.get('status') or 'next').lower()
         payload_date = _parse_payload_date(snapshot_next.get('date'))
         if status == 'next' and payload_date and payload_date >= today:
             return snapshot_next
 
-    cached_next = load_cached_next_match()
+    cached_next = load_cached_next_match() if can_use_external else None
     if isinstance(cached_next, dict):
         status = str(cached_next.get('status') or '').lower()
         payload_date = _parse_payload_date(cached_next.get('date'))
@@ -2098,7 +2136,7 @@ def _build_next_match_from_convocation(primary_team):
 
 
 def _build_coach_rival_summary(primary_team):
-    next_match_payload = load_preferred_next_match_payload()
+    next_match_payload = load_preferred_next_match_payload(primary_team=primary_team)
     if not next_match_payload and primary_team and primary_team.group:
         next_match_payload = get_next_match(primary_team, primary_team.group)
     if not _next_match_payload_is_reliable(next_match_payload):
@@ -2279,8 +2317,8 @@ def dashboard_data(request):
             pass
 
     universo_snapshot = load_universo_snapshot()
-    standings = _serialize_universo_standings(universo_snapshot) or serialize_standings(group)
-    next_match = load_preferred_next_match_payload() or get_next_match(primary_team, group)
+    standings = _resolve_standings_for_team(primary_team, snapshot=universo_snapshot)
+    next_match = load_preferred_next_match_payload(primary_team=primary_team) or get_next_match(primary_team, group)
     convocation_next_match = _build_next_match_from_convocation(primary_team)
     # Product rule: Home must prioritize the data configured in Convocatoria.
     if convocation_next_match:
@@ -3710,10 +3748,9 @@ def coach_overview_page(request):
         technical_members = ['Sin miembros técnicos configurados en Admin']
     weekly_brief = _build_weekly_staff_brief_context(primary_team)
     rival_summary = _build_coach_rival_summary(primary_team)
-    standings_snapshot = _serialize_universo_standings(load_universo_snapshot())
-    standings = standings_snapshot or serialize_standings(primary_team.group) if primary_team and primary_team.group else []
+    standings = _resolve_standings_for_team(primary_team, snapshot=load_universo_snapshot())
     convocation_next = _build_next_match_from_convocation(primary_team)
-    next_match = load_preferred_next_match_payload() or (get_next_match(primary_team, primary_team.group) if primary_team and primary_team.group else {}) or {}
+    next_match = load_preferred_next_match_payload(primary_team=primary_team) or (get_next_match(primary_team, primary_team.group) if primary_team and primary_team.group else {}) or {}
     if convocation_next:
         next_match = convocation_next
     if isinstance(weekly_brief, dict):
@@ -3958,7 +3995,7 @@ def match_action_page(request):
             .select_related('player')
             .order_by('-created_at', '-id')[:20]
         )
-    official_next = load_preferred_next_match_payload()
+    official_next = load_preferred_next_match_payload(primary_team=primary_team)
 
     def _payload_date_label(payload):
         raw_date = (payload or {}).get('date')
@@ -4457,7 +4494,7 @@ def convocation_page(request):
             if player_id in available_ids
         ]
 
-    next_match_payload = load_preferred_next_match_payload()
+    next_match_payload = load_preferred_next_match_payload(primary_team=primary_team)
     if not next_match_payload and primary_team.group:
         next_match_payload = get_next_match(primary_team, primary_team.group)
     if isinstance(next_match_payload, dict) and str(next_match_payload.get('status') or '').lower() != 'next':
@@ -4762,7 +4799,7 @@ def convocation_pdf(request):
         rival_label = opponent.name if opponent else ''
 
     rival_name = (rival_label or '').strip() or 'Rival por confirmar'
-    preferred_next = load_preferred_next_match_payload()
+    preferred_next = load_preferred_next_match_payload(primary_team=primary_team)
     preferred_opponent = preferred_next.get('opponent') if isinstance(preferred_next, dict) else None
     rival_full_name, rival_crest_url = _resolve_rival_identity(
         rival_name,
@@ -11617,7 +11654,7 @@ def analysis_page(request):
     manual_report_error = ''
     manual_report_message = ''
     extracted = {}
-    preferred_next = load_preferred_next_match_payload() or {}
+    preferred_next = load_preferred_next_match_payload(primary_team=primary_team) or {}
     preferred_opponent = preferred_next.get('opponent') if isinstance(preferred_next, dict) else {}
     home_rival_name = _payload_opponent_name(preferred_next)
     if home_rival_name:
@@ -12348,9 +12385,7 @@ def player_detail_page(request, player_id):
         importance_score = float(stats_source.get('importance_score') or 0)
         influence_score = float(stats_source.get('influence_score') or 0)
 
-        standings_rows = _serialize_universo_standings(load_universo_snapshot())
-        if not standings_rows and primary_team.group:
-            standings_rows = serialize_standings(primary_team.group)
+        standings_rows = _resolve_standings_for_team(primary_team, snapshot=load_universo_snapshot())
         team_points = 0
         team_rank = 0
         team_key = _normalize_team_lookup_key(primary_team.name)
@@ -12870,7 +12905,9 @@ def get_next_match(primary_team, group):
     )
     scoped_qs = all_team_matches_qs.filter(group=group) if group else all_team_matches_qs
 
-    cached_next = load_cached_next_match()
+    snapshot = load_universo_snapshot()
+    can_use_external = _universo_snapshot_supports_team(snapshot, primary_team) if primary_team else True
+    cached_next = load_cached_next_match() if can_use_external else None
     if cached_next and (cached_next.get('status') or '').lower() == 'next':
         return normalize_next_match_payload(cached_next)
 
