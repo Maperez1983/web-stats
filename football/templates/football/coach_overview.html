@@ -3,7 +3,7 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <title>Cuerpo técnico · CRM Web Stats</title>
+    <title>2J Club · Cuerpo técnico</title>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
     <style>
@@ -14,8 +14,9 @@
         --line: rgba(148, 163, 184, 0.18);
         --ink: #f8fafc;
         --muted: rgba(226, 232, 240, 0.74);
-        --accent: #facc15;
+        --accent: #f4b400;
         --success: #86efac;
+        --pitch: #2f7d32;
       }
       body {
         margin: 0;
@@ -30,6 +31,27 @@
         max-width: 1320px;
         margin: 0 auto;
         padding: 1.4rem 1.1rem 3rem;
+      }
+      .brand-strip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.9rem;
+      }
+      .brand-strip img {
+        width: 148px;
+        height: auto;
+      }
+      .brand-strip-copy strong {
+        display: block;
+        font-size: 0.78rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: #d7f5d9;
+      }
+      .brand-strip-copy span {
+        display: block;
+        margin-top: 0.18rem;
+        color: var(--muted);
       }
       header {
         display: flex;
@@ -62,7 +84,7 @@
       .club-row span {
         letter-spacing: 0.18em;
         text-transform: uppercase;
-        color: var(--accent);
+        color: var(--pitch);
         font-size: 0.86rem;
       }
       .primary-grid,
@@ -315,14 +337,20 @@
   <body>
     <div class="page product-shell">
       <header>
-        {% include 'football/includes/dragon_nav.html' %}
+        <div class="brand-strip">
+          <img src="{% static 'football/images/2j-mark.svg' %}" alt="2J Club" />
+          <div class="brand-strip-copy">
+            <strong>2J Club</strong>
+            <span>Football Intelligence · Del partido al entrenamiento.</span>
+          </div>
+        </div>
         <a class="pill-button" style="border-radius:12px;" href="{% url 'dashboard-home' %}">Volver al inicio</a>
       </header>
 
       <article class="hero">
         <div class="club-row">
           <img src="{% static 'logos/logo.png' %}" alt="Escudo C.D. Benagalbón" />
-          <span>Club Deportivo Benagalbón</span>
+          <span>2J Club · Club Deportivo Benagalbón</span>
         </div>
 
         <section class="primary-grid">

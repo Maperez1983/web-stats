@@ -27,7 +27,7 @@
           linear-gradient(180deg, #07101c, #0b1220 55%, #0a1323);
       }
       .page { max-width: 1200px; margin: 0 auto; padding: 1.2rem; }
-      .topbar, .hero, .proof-grid, .tracks, .cta-band { display: grid; gap: 1rem; }
+      .topbar, .hero, .proof-grid, .tracks, .plans, .cta-band { display: grid; gap: 1rem; }
       .topbar {
         grid-template-columns: 1fr auto;
         align-items: center;
@@ -160,6 +160,10 @@
       .tracks {
         grid-template-columns: repeat(3, minmax(0, 1fr));
       }
+      .plans {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        margin-top: 1rem;
+      }
       .track-card {
         padding: 1.15rem;
       }
@@ -182,6 +186,41 @@
         color: var(--slate);
         line-height: 1.6;
       }
+      .plan-card {
+        border-radius: 22px;
+        border: 1px solid var(--line);
+        background: var(--panel-soft);
+        padding: 1.15rem;
+      }
+      .plan-card.featured {
+        border-color: rgba(244, 180, 0, 0.42);
+        box-shadow: inset 0 0 0 1px rgba(244, 180, 0, 0.12);
+      }
+      .plan-card small {
+        display: inline-flex;
+        margin-bottom: .65rem;
+        padding: .26rem .55rem;
+        border-radius: 999px;
+        background: rgba(255,255,255,.06);
+        color: #dbe3ee;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+      }
+      .plan-card h3 {
+        margin: 0 0 .35rem;
+        font-size: 1.3rem;
+      }
+      .plan-card p {
+        margin: 0;
+        color: var(--slate);
+        line-height: 1.55;
+      }
+      .plan-list {
+        margin: .9rem 0 0;
+        padding-left: 1rem;
+        color: #dbe3ee;
+        line-height: 1.8;
+      }
       .proof-list {
         margin: 0;
         padding-left: 1rem;
@@ -203,7 +242,7 @@
         color: var(--slate);
       }
       @media (max-width: 960px) {
-        .hero, .proof-grid, .tracks, .cta-band, .topbar {
+        .hero, .proof-grid, .tracks, .plans, .cta-band, .topbar {
           grid-template-columns: 1fr;
         }
         .top-actions { justify-content: start; }
@@ -271,6 +310,40 @@
           <p>{{ track.description }}</p>
         </article>
         {% endfor %}
+      </section>
+
+      <h2 class="section-title">Planes</h2>
+      <section class="plans">
+        <article class="plan-card">
+          <small>Base</small>
+          <h3>2J Live</h3>
+          <p>Para cuerpos técnicos que necesitan registrar el partido y salir con estadísticas útiles de forma inmediata.</p>
+          <ul class="plan-list">
+            <li>Registro de acciones en iPad</li>
+            <li>Resumen postpartido</li>
+            <li>KPIs y cronología</li>
+          </ul>
+        </article>
+        <article class="plan-card featured">
+          <small>Pro</small>
+          <h3>2J Studio</h3>
+          <p>Para entrenadores que quieren diseñar tareas, sesiones y documentos con una biblioteca operativa propia.</p>
+          <ul class="plan-list">
+            <li>Creador de tareas</li>
+            <li>Sesiones y microciclos</li>
+            <li>PDF UEFA y Club</li>
+          </ul>
+        </article>
+        <article class="plan-card">
+          <small>Club</small>
+          <h3>2J Club</h3>
+          <p>Para clientes que necesitan una estructura completa de trabajo: partido, entrenamiento, jugadores y cuerpo técnico.</p>
+          <ul class="plan-list">
+            <li>Módulos por cliente</li>
+            <li>Workspaces y accesos</li>
+            <li>Operativa diaria del club</li>
+          </ul>
+        </article>
       </section>
 
       <h2 class="section-title">Ventaja</h2>

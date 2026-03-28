@@ -4,7 +4,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{{ workspace.name }} · Gobierno del cliente</title>
+    <title>2J Platform · {{ workspace.name }}</title>
     <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
     <style>
       body {
@@ -20,6 +20,28 @@
         max-width: 1320px;
         margin: 0 auto;
         padding: 1.15rem;
+      }
+      .brand-strip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.9rem;
+        margin-bottom: 1rem;
+      }
+      .brand-strip img {
+        width: 156px;
+        height: auto;
+      }
+      .brand-strip-copy strong {
+        display: block;
+        font-size: 0.8rem;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: #a9c4ff;
+      }
+      .brand-strip-copy span {
+        display: block;
+        margin-top: 0.2rem;
+        color: #aab6c8;
       }
       .hero,
       .panel,
@@ -379,6 +401,13 @@
   </head>
   <body>
     <main class="shell">
+      <div class="brand-strip">
+        <img src="{% static 'football/images/2j-mark.svg' %}" alt="2J Platform" />
+        <div class="brand-strip-copy">
+          <strong>2J Platform</strong>
+          <span>Gobierno de clientes, accesos y módulos activos.</span>
+        </div>
+      </div>
       <section class="hero">
         <div class="hero-top">
           <div>
