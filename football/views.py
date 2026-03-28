@@ -7422,6 +7422,27 @@ def coach_role_trainer_page(request):
         }
         for item in sorted(player_dashboard_rows, key=lambda row: (str(row.get('name') or '').lower(), row.get('player_id') or 0))
     ]
+    coach_player_cards_all = [
+        {
+            'id': item.get('player_id'),
+            'name': item.get('name'),
+            'number': item.get('number'),
+            'minutes': int(item.get('minutes', 0) or 0),
+            'matches': int(item.get('pj', 0) or 0),
+            'goals': int(item.get('goals', 0) or 0),
+            'assists': int(item.get('assists', 0) or 0),
+            'position': item.get('position') or '-',
+            'photo_url': item.get('photo_url') or '',
+        }
+        for item in sorted(
+            player_dashboard_rows,
+            key=lambda row: (
+                -int(row.get('minutes', 0) or 0),
+                int(row.get('number') or 9999),
+                str(row.get('name') or '').lower(),
+            ),
+        )
+    ]
     selected_player_id = _parse_int(request.GET.get('player'))
     selected_player = Player.objects.filter(id=selected_player_id, team=primary_team).first() if selected_player_id else None
     selected_player_stats = next((item for item in player_dashboard_rows if item.get('player_id') == selected_player_id), None) if selected_player_id else None
@@ -7570,7 +7591,7 @@ def coach_role_trainer_page(request):
     selected_match_id = _parse_int(request.GET.get('match'))
     valid_match_ids = {row['match_id'] for row in coach_match_rows}
     if selected_match_id not in valid_match_ids:
-        selected_match_id = coach_match_rows[0]['match_id'] if coach_match_rows else None
+        selected_match_id = None
     selected_match_row = next((row for row in coach_match_rows if row['match_id'] == selected_match_id), None)
     selected_match_metrics = _summarize_events(match_events_map.get(selected_match_id, [])) if selected_match_id else None
     coach_match_view = None
@@ -7700,6 +7721,7 @@ def coach_role_trainer_page(request):
             'weekly_staff_brief': weekly_staff_brief,
             'coach_measured_matches': measured_matches,
             'coach_player_options': coach_player_options,
+            'coach_player_cards_all': coach_player_cards_all,
             'coach_selected_player_id': selected_player_id,
             'coach_player_match_options': coach_player_match_options,
             'coach_selected_player_match_id': _parse_int(request.GET.get('player_match')),
