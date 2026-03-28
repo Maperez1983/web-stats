@@ -205,6 +205,40 @@
         font-weight: 700;
         color: #0f4f47;
       }
+      .brand-footer {
+        margin-top: 10px;
+        padding-top: 8px;
+        border-top: 1px solid #c8d9d0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .brand-lockup {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .brand-lockup img {
+        object-fit: contain;
+      }
+      .brand-copy strong {
+        display: block;
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #0f4f47;
+      }
+      .brand-copy span {
+        display: block;
+        font-size: 10px;
+        color: #54746a;
+      }
+      .brand-note {
+        font-size: 10px;
+        color: #54746a;
+        text-align: right;
+      }
     </style>
   </head>
   <body>
@@ -279,6 +313,18 @@
               </div>
             </aside>
           </section>
+
+          <footer class="brand-footer">
+            <div class="brand-lockup">
+              <img src="{{ brand_mark_url }}" alt="2J Football Intelligence" style="width:46px;height:auto;" />
+              <img src="{{ logo_src }}" alt="{{ team_full_name }}" style="width:28px;height:28px;border-radius:999px;background:#fff;padding:2px;border:1px solid rgba(15,79,71,0.16);" />
+              <div class="brand-copy">
+                <strong>2J Football Intelligence</strong>
+                <span>{{ team_full_name }}</span>
+              </div>
+            </div>
+            <div class="brand-note">Convocatoria oficial · {{ round_label }}</div>
+          </footer>
         </main>
       </div>
     </section>

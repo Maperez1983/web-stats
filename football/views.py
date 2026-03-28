@@ -6341,6 +6341,7 @@ def convocation_pdf(request):
         'coach_name': os.getenv('TEAM_COACH_NAME', 'Aitor Castillo'),
         'club_hashtag': os.getenv('TEAM_HASHTAG', '#VamosVerdes'),
         'logo_src': resolve_team_crest_url(request, primary_team, sync=True) or logo_data_uri or request.build_absolute_uri(static('football/images/cdb-logo.png')),
+        'brand_mark_url': request.build_absolute_uri(static('football/images/2j-mark.svg')),
         'avatar_src': avatar_data_uri or request.build_absolute_uri(static('football/images/player-avatar.svg')),
         'team_photo_url': request.build_absolute_uri(static('football/images/team-01.jpg')),
         'team_photo_data_uri': '',
@@ -14005,7 +14006,12 @@ def player_pdf(request, player_id):
         raise Http404('Sin datos para generar el PDF')
     html = render_to_string(
         'football/player_pdf.html',
-        {'player': player, 'stats': detail},
+        {
+            'player': player,
+            'stats': detail,
+            'club_logo_url': resolve_team_crest_url(request, primary_team, sync=True),
+            'brand_mark_url': request.build_absolute_uri(static('football/images/2j-mark.svg')),
+        },
         request=request,
     )
     filename = slugify(player.name or 'jugador')
