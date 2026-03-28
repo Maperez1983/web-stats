@@ -51,6 +51,41 @@
         letter-spacing: 0.08em;
         text-transform: uppercase;
       }
+      .workspace-tabs {
+        margin-top: 1rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.65rem;
+      }
+      .workspace-tab {
+        appearance: none;
+        border: 1px solid rgba(125, 211, 252, 0.24);
+        background: rgba(8, 47, 73, 0.55);
+        color: #dbeafe;
+        border-radius: 999px;
+        padding: 0.6rem 0.95rem;
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
+      .workspace-tab.is-active {
+        background: rgba(34, 211, 238, 0.16);
+        border-color: rgba(34, 211, 238, 0.55);
+        color: #f8fafc;
+      }
+      .workspace-panel {
+        display: none;
+        margin-top: 1rem;
+      }
+      .workspace-panel.is-active {
+        display: block;
+      }
+      .workspace-stack {
+        display: grid;
+        gap: 1rem;
+      }
       .command-layout {
         display: grid;
         grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.95fr);
@@ -649,6 +684,7 @@
         </div>
         <a class="pill-button" style="border-radius:12px;" href="{% url 'coach-cards' %}">Volver</a>
       </header>
+      {% if role_key != 'trainer' %}
       <nav class="section-nav">
         <a href="#coach-summary">Resumen</a>
         {% if coach_player_options %}<a href="#coach-player">Jugador</a>{% endif %}
@@ -1091,6 +1127,377 @@
         </div>
       </details>
       {% endif %}
+      {% endif %}
+      {% if role_key == 'trainer' %}
+      <div class="workspace-tabs" role="tablist" aria-label="Estadísticas del entrenador">
+        <button class="workspace-tab is-active" type="button" data-tab-target="summary">Resumen</button>
+        <button class="workspace-tab" type="button" data-tab-target="player">Plantilla</button>
+        <button class="workspace-tab" type="button" data-tab-target="match">Partido</button>
+      </div>
+
+      <section class="workspace-panel is-active" data-tab-panel="summary">
+        <div class="workspace-stack">
+          {% if coach_overview_stats or weekly_staff_brief %}
+          <section id="coach-summary" class="command-layout">
+            {% if coach_overview_stats %}
+            <section class="overview">
+              <h2 class="overview-title">Resumen ejecutivo</h2>
+              <div class="overview-rings">
+                {% for item in coach_overview_stats.rings %}
+                <article class="overview-ring">
+                  <div class="overview-ring-chart" style="--pct: {{ item.pct|default:0 }};">
+                    <span class="overview-ring-value">{{ item.value }}</span>
+                  </div>
+                  <div class="overview-ring-label">{{ item.label }}</div>
+                </article>
+                {% endfor %}
+              </div>
+              <div class="overview-summary is-compact">
+                {% for item in coach_overview_stats.summary %}
+                <article class="overview-item">
+                  <div class="label">{{ item.label }}</div>
+                  <div class="value">{{ item.value }}</div>
+                </article>
+                {% endfor %}
+              </div>
+            </section>
+            {% endif %}
+            {% if weekly_staff_brief %}
+            <aside class="analysis-section is-light">
+              <h3>Parte semanal</h3>
+              <p class="brief-headline">{{ weekly_staff_brief.headline }}</p>
+              <p class="brief-meta">{{ weekly_staff_brief.match.round }} · {{ weekly_staff_brief.match.date }} · {{ weekly_staff_brief.match.time }}</p>
+              <p class="brief-meta">{{ weekly_staff_brief.match.location }}</p>
+              <ul class="brief-list">
+                {% for line in weekly_staff_brief.alerts|slice:":3" %}
+                <li>{{ line }}</li>
+                {% empty %}
+                <li>Sin alertas destacadas para esta semana.</li>
+                {% endfor %}
+              </ul>
+              <div class="overview-summary is-compact" style="margin-top:0.9rem;">
+                {% for item in weekly_staff_brief.availability %}
+                <article class="overview-item">
+                  <div class="label">{{ item.label }}</div>
+                  <div class="value">{{ item.value }}</div>
+                </article>
+                {% endfor %}
+              </div>
+            </aside>
+            {% endif %}
+          </section>
+          {% endif %}
+
+          {% if coach_general_stats or coach_player_leaders %}
+          <section class="coach-panels">
+            {% if coach_general_stats %}
+            <article class="coach-panel">
+              <h3>Temporada</h3>
+              <div class="coach-stat-grid">
+                {% for item in coach_general_stats %}
+                <div class="coach-stat">
+                  <div class="label">{{ item.label }}</div>
+                  <div class="value">{{ item.value }}</div>
+                </div>
+                {% endfor %}
+              </div>
+            </article>
+            {% endif %}
+            {% if coach_player_leaders %}
+            <article class="coach-panel">
+              <h3>Referencias plantilla</h3>
+              <ul class="leaders">
+                {% for leader in coach_player_leaders %}
+                <li>
+                  <div class="meta">{{ leader.label }}</div>
+                  <strong>{{ leader.name }}</strong> · {{ leader.value }}{% if leader.suffix %} {{ leader.suffix }}{% endif %}
+                </li>
+                {% endfor %}
+              </ul>
+            </article>
+            {% endif %}
+          </section>
+          {% endif %}
+
+          {% if coach_total_field_zones %}
+          <section class="coach-map-wrap">
+            <h3>Mapa de acciones del equipo</h3>
+            <p style="margin:0 0 0.6rem;color:rgba(226,232,240,0.75);">Acciones con zona válida: <strong>{{ coach_total_actions_count }}</strong></p>
+            <div class="field-diagram">
+              <img src="{% static 'football/campo-futbol.jpg' %}" alt="Campo de fútbol" />
+              {% for zone in coach_total_field_zones %}
+              <div class="field-zone" style="left: {{ zone.left }}; top: {{ zone.top }}; width: {{ zone.width }}; height: {{ zone.height }};">
+                <span>{{ zone.label }}</span>
+                <span class="zone-count" title="{{ zone.count }} acciones">{{ zone.count }} · {{ zone.pct|default:0|floatformat:-1 }}%</span>
+              </div>
+              {% endfor %}
+            </div>
+          </section>
+          {% endif %}
+        </div>
+      </section>
+
+      {% if coach_player_options %}
+      <section class="workspace-panel" data-tab-panel="player">
+        <section id="coach-player" class="analysis-section is-light coach-player-tools" style="margin-top:0;">
+          <h3>Plantilla</h3>
+          <p class="section-copy">Selecciona un jugador para revisar temporada, detalle de partido y contexto disciplinario.</p>
+          <form method="get" class="coach-player-toolbar">
+            {% if coach_selected_match %}<input type="hidden" name="match" value="{{ coach_selected_match.match_id }}"/>{% endif %}
+            <div>
+              <label for="coach-player-select">Jugador</label>
+              <select id="coach-player-select" name="player" onchange="this.form.submit()">
+                <option value="">Selecciona jugador</option>
+                {% for option in coach_player_options %}
+                <option value="{{ option.id }}" {% if coach_selected_player_id == option.id %}selected{% endif %}>
+                  {% if option.number %}{{ option.number }} · {% endif %}{{ option.name }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+            {% if coach_player_match_options %}
+            <div>
+              <label for="coach-player-match-select">Vista</label>
+              <select id="coach-player-match-select" name="player_match" onchange="this.form.submit()">
+                <option value="" {% if not coach_selected_player_match_id %}selected{% endif %}>Temporada completa</option>
+                {% for option in coach_player_match_options %}
+                <option value="{{ option.id }}" {% if coach_selected_player_match_id == option.id %}selected{% endif %}>{{ option.label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            {% endif %}
+          </form>
+          {% if coach_player_view %}
+          <div class="player-focus-grid">
+            <div>
+              <div class="coach-player-header">
+                <div class="coach-player-header-main">
+                  <img class="coach-player-avatar" src="{{ coach_player_view.photo_url|default:'' }}" alt="{{ coach_player_view.title }}" />
+                  <div>
+                    <h2 style="margin:0;">{{ coach_player_view.title }}</h2>
+                    <div class="coach-player-meta">{{ coach_player_view.meta }}</div>
+                  </div>
+                </div>
+                <a class="pill-button" style="text-decoration:none;" href="{% url 'player-detail' coach_selected_player_id %}">Ficha completa</a>
+              </div>
+              <div class="overview-rings">
+                {% for item in coach_player_view.rings %}
+                <article class="overview-ring">
+                  <div class="overview-ring-chart" style="--pct: {{ item.pct|default:0 }};">
+                    <span class="overview-ring-value">{{ item.value }}</span>
+                  </div>
+                  <div class="overview-ring-label">{{ item.label }}</div>
+                </article>
+                {% endfor %}
+              </div>
+              <div class="overview-summary is-compact">
+                {% for item in coach_player_view.summary %}
+                <article class="overview-item">
+                  <div class="label">{{ item.label }}</div>
+                  <div class="value">{{ item.value }}</div>
+                </article>
+                {% endfor %}
+              </div>
+            </div>
+            <div class="analysis-stack">
+              {% if coach_player_view.fines_summary %}
+              <div class="overview-summary is-compact">
+                {% for item in coach_player_view.fines_summary %}
+                <article class="overview-item">
+                  <div class="label">{{ item.label }}</div>
+                  <div class="value">{{ item.value }}</div>
+                </article>
+                {% endfor %}
+              </div>
+              {% endif %}
+              {% if coach_player_view.field_zones %}
+              <div class="coach-map-wrap is-light" style="margin-top:0;">
+                <h3>Mapa de calor</h3>
+                <div class="field-diagram">
+                  <img src="{% static 'football/campo-futbol.jpg' %}" alt="Campo de fútbol" />
+                  {% for zone in coach_player_view.field_zones %}
+                  <div class="field-zone" style="left: {{ zone.left }}; top: {{ zone.top }}; width: {{ zone.width }}; height: {{ zone.height }};">
+                    <span>{{ zone.label }}</span>
+                    <span class="zone-count" title="{{ zone.count }} acciones">{{ zone.pct|default:0|floatformat:-1 }}%</span>
+                  </div>
+                  {% endfor %}
+                </div>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+          {% if coach_player_view.fines_records or coach_player_view.communications %}
+          <details class="fold-card is-light">
+            <summary>Multas y comunicación</summary>
+            <div class="fold-card-body">
+              <div class="coach-player-detail-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;">
+                <article class="analysis-card">
+                  <h3 style="margin-top:0;">Multas</h3>
+                  {% if coach_player_view.fines_records %}
+                  <div class="stack-list">
+                    {% for item in coach_player_view.fines_records %}
+                    <article class="stack-item">
+                      <strong>{{ item.title }}</strong>
+                      <div class="meta">{{ item.meta }}</div>
+                      <p>{{ item.detail }}</p>
+                    </article>
+                    {% endfor %}
+                  </div>
+                  {% else %}
+                  <p class="section-copy" style="margin:0;">Sin multas registradas.</p>
+                  {% endif %}
+                </article>
+                <article class="analysis-card">
+                  <h3 style="margin-top:0;">Comunicación</h3>
+                  {% if coach_player_view.communications %}
+                  <div class="stack-list">
+                    {% for item in coach_player_view.communications %}
+                    <article class="stack-item">
+                      <strong>{{ item.title }}</strong>
+                      <div class="meta">{{ item.meta }}</div>
+                      <p>{{ item.detail }}</p>
+                    </article>
+                    {% endfor %}
+                  </div>
+                  {% else %}
+                  <p class="section-copy" style="margin:0;">Sin comunicaciones registradas.</p>
+                  {% endif %}
+                </article>
+              </div>
+            </div>
+          </details>
+          {% endif %}
+          {% endif %}
+        </section>
+      </section>
+      {% endif %}
+
+      {% if coach_match_rows %}
+      <section class="workspace-panel" data-tab-panel="match">
+        <section id="coach-match" class="analysis-section" style="margin-top:0;">
+          <h3>Partido</h3>
+          <p class="section-copy">Selecciona un partido para revisar el rendimiento colectivo y la lectura del encuentro.</p>
+          <form method="get" class="coach-match-toolbar">
+            {% if coach_selected_player_id %}<input type="hidden" name="player" value="{{ coach_selected_player_id }}" />{% endif %}
+            {% if coach_selected_player_match_id %}<input type="hidden" name="player_match" value="{{ coach_selected_player_match_id }}" />{% endif %}
+            <div>
+              <label for="coach-match-select">Partido</label>
+              <select id="coach-match-select" name="match" onchange="this.form.submit()">
+                {% for row in coach_match_rows %}
+                <option value="{{ row.match_id }}" {% if coach_selected_match and coach_selected_match.match_id == row.match_id %}selected{% endif %}>
+                  {{ row.round }} · {{ row.opponent }} · {{ row.date }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+          </form>
+          <div class="coach-match-layout">
+            <div class="coach-match-table">
+              <h3>Temporada medida</h3>
+              <p style="margin:0 0 0.85rem;color:rgba(226,232,240,0.75);">Partidos medidos con acciones: <strong>{{ coach_measured_matches|default:0 }}</strong></p>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Jornada</th>
+                    <th>Fecha</th>
+                    <th>Rival</th>
+                    <th>Acciones</th>
+                    <th>% éxito</th>
+                    <th>% duelo</th>
+                    <th>Tarjetas</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in coach_match_rows %}
+                  <tr class="{% if coach_selected_match and coach_selected_match.match_id == row.match_id %}is-selected{% endif %}">
+                    <td><a href="?match={{ row.match_id }}{% if coach_selected_player_id %}&player={{ coach_selected_player_id }}{% endif %}{% if coach_selected_player_match_id %}&player_match={{ coach_selected_player_match_id }}{% endif %}">{{ row.round }}</a></td>
+                    <td>{{ row.date }}</td>
+                    <td>{{ row.opponent }}</td>
+                    <td>{{ row.total_actions }}</td>
+                    <td>{{ row.success_rate|floatformat:-1 }}%</td>
+                    <td>{{ row.duel_rate|floatformat:-1 }}%</td>
+                    <td>{{ row.yellow_cards }}A · {{ row.red_cards }}R</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% if coach_match_view %}
+            <div class="coach-detail-side">
+              <section class="overview">
+                <h2 class="overview-title">{{ coach_match_view.title }}</h2>
+                <p class="section-copy" style="text-align:center;margin-bottom:1rem;">{{ coach_match_view.meta }}</p>
+                <div class="overview-rings">
+                  {% for item in coach_match_view.rings %}
+                  <article class="overview-ring">
+                    <div class="overview-ring-chart" style="--pct: {{ item.pct|default:0 }};">
+                      <span class="overview-ring-value">{{ item.value }}</span>
+                    </div>
+                    <div class="overview-ring-label">{{ item.label }}</div>
+                  </article>
+                  {% endfor %}
+                </div>
+                <div class="overview-summary">
+                  {% for item in coach_match_view.summary %}
+                  <article class="overview-item">
+                    <div class="label">{{ item.label }}</div>
+                    <div class="value">{{ item.value }}</div>
+                  </article>
+                  {% endfor %}
+                </div>
+              </section>
+              <section class="coach-match-table">
+                <h3>Acciones más repetidas</h3>
+                <div class="coach-tag-list">
+                  {% for item in coach_match_view.top_event_types %}
+                  <span class="coach-tag">{{ item.event }} · {{ item.count }}</span>
+                  {% empty %}
+                  <span class="coach-tag">Sin acciones registradas</span>
+                  {% endfor %}
+                </div>
+              </section>
+              <section class="coach-map-wrap" style="margin-top:0;background:#0b1b12;">
+                <h3 style="color:#f8fafc;">Mapa de calor del partido</h3>
+                <div class="field-diagram">
+                  <img src="{% static 'football/campo-futbol.jpg' %}" alt="Campo de fútbol" />
+                  {% for zone in coach_match_view.field_zones %}
+                  <div class="field-zone" style="left: {{ zone.left }}; top: {{ zone.top }}; width: {{ zone.width }}; height: {{ zone.height }};">
+                    <span>{{ zone.label }}</span>
+                    <span class="zone-count" title="{{ zone.count }} acciones">{{ zone.pct|default:0|floatformat:-1 }}%</span>
+                  </div>
+                  {% endfor %}
+                </div>
+              </section>
+            </div>
+            {% endif %}
+          </div>
+          {% if coach_match_view and coach_match_view.player_cards %}
+          <div class="coach-match-table" style="margin-top:1rem;">
+            <h3>Jugadores del partido</h3>
+            <div class="coach-player-card-grid">
+              {% for player in coach_match_view.player_cards %}
+              <article class="coach-player-card">
+                <strong>{% if player.number %}#{{ player.number }} {% endif %}{{ player.name }}</strong>
+                <span class="meta">Acciones {{ player.actions }} · Éxitos {{ player.successes }}</span>
+                <span class="meta">Tasa de éxito {{ player.success_rate|floatformat:-1 }}%</span>
+              </article>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+        </section>
+      </section>
+      {% endif %}
+      {% else %}
+      <nav class="section-nav">
+        <a href="#coach-summary">Resumen</a>
+        {% if coach_player_options %}<a href="#coach-player">Jugador</a>{% endif %}
+        {% if coach_match_rows %}<a href="#coach-match">Partido</a>{% endif %}
+        <a href="#coach-modules">Módulos</a>
+      </nav>
+      {% endif %}
+
+      {% if role_key != 'trainer' %}
       <section id="coach-modules" class="grid">
         {% for module in modules %}
         <a class="card-link" href="{% url module.link %}">
@@ -1101,6 +1508,23 @@
         </a>
         {% endfor %}
       </section>
+      {% endif %}
     </div>
+    {% if role_key == 'trainer' %}
+    <script>
+      (function () {
+        const tabs = Array.from(document.querySelectorAll('[data-tab-target]'));
+        const panels = Array.from(document.querySelectorAll('[data-tab-panel]'));
+        if (!tabs.length || !panels.length) return;
+        const activateTab = (target) => {
+          tabs.forEach((tab) => tab.classList.toggle('is-active', tab.dataset.tabTarget === target));
+          panels.forEach((panel) => panel.classList.toggle('is-active', panel.dataset.tabPanel === target));
+        };
+        tabs.forEach((tab) => {
+          tab.addEventListener('click', () => activateTab(tab.dataset.tabTarget));
+        });
+      })();
+    </script>
+    {% endif %}
   </body>
 </html>

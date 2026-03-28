@@ -2364,6 +2364,9 @@ def _enrich_standings_rows_with_crests(rows):
                 or str(capture_lookup.get(team_key, {}).get('crest_url') or '').strip()
                 or str(crest_lookup.get(team_key) or '').strip()
             )
+        if not row_copy.get('crest_url') and team_name:
+            _, rival_crest_url = _resolve_rival_identity(team_name)
+            row_copy['crest_url'] = str(rival_crest_url or '').strip()
         row_copy['crest_url'] = _absolute_universo_url(row_copy.get('crest_url'))
         enriched.append(row_copy)
     return enriched
@@ -7674,6 +7677,7 @@ def coach_role_trainer_page(request):
         'football/coach_role_hub.html',
         {
             'role_title': 'Entrenador',
+            'role_key': 'trainer',
             'role_description': 'Área operativa principal del staff técnico.',
             'modules': modules,
             'kpis': kpis,
@@ -7716,6 +7720,7 @@ def coach_role_goalkeeper_page(request):
         'football/coach_role_hub.html',
         {
             'role_title': 'Preparador de porteros',
+            'role_key': 'goalkeeper',
             'role_description': 'Repositorio técnico especializado para trabajo específico de portería.',
             'modules': modules,
         },
@@ -7741,6 +7746,7 @@ def coach_role_fitness_page(request):
         'football/coach_role_hub.html',
         {
             'role_title': 'Preparación física',
+            'role_key': 'fitness',
             'role_description': 'Base preparada para incorporar carga interna/externa y control físico.',
             'modules': modules,
         },
@@ -7761,6 +7767,7 @@ def coach_role_abp_page(request):
         'football/coach_role_hub.html',
         {
             'role_title': 'ABP',
+            'role_key': 'abp',
             'role_description': 'Acciones a balón parado: diseño, simulación y biblioteca de jugadas.',
             'modules': modules,
         },
