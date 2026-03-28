@@ -7079,17 +7079,18 @@ def coach_cards_page(request):
         members_by_role.setdefault(role_row.role, []).append(full_name)
     cards = [
         {
+            'key': 'stats',
             'title': 'Estadísticas grupales',
             'description': 'Lectura agregada del equipo y acceso rápido al seguimiento general del rendimiento colectivo.',
             'link': 'coach-role-trainer',
             'member_name': ' · '.join(members_by_role.get(AppUserRole.ROLE_COACH) or ['Sin asignar']),
             'items': [
                 {'label': 'Resumen entrenador', 'link': 'coach-role-trainer'},
-                {'label': 'Listado de jugadores', 'link': 'player-dashboard'},
                 {'label': 'Registro de jugadores', 'link': 'coach-roster'},
             ],
         },
         {
+            'key': 'match',
             'title': 'Partido',
             'description': 'Zona operativa de convocatoria, 11 inicial, registro en vivo y revisión de partido para el staff.',
             'link': 'convocation',
@@ -7105,6 +7106,7 @@ def coach_cards_page(request):
             ],
         },
         {
+            'key': 'training',
             'title': 'Entrenamiento',
             'description': 'Planificación semanal, sesiones y trabajo específico del staff sin salir del flujo de entrenamiento.',
             'link': 'sessions',
@@ -7122,6 +7124,7 @@ def coach_cards_page(request):
             ],
         },
         {
+            'key': 'analysis',
             'title': 'Análisis',
             'description': 'Scouting, rival e informes para el trabajo técnico del staff sin duplicar módulos en otras áreas.',
             'link': 'analysis',
@@ -7132,11 +7135,18 @@ def coach_cards_page(request):
             ],
         },
     ]
+    active_area = str(request.GET.get('area') or 'stats').strip().lower()
+    valid_keys = {card['key'] for card in cards}
+    if active_area not in valid_keys:
+        active_area = 'stats'
+    active_card = next((card for card in cards if card['key'] == active_area), cards[0])
     return render(
         request,
         'football/coach_cards.html',
         {
             'cards': cards,
+            'active_area': active_area,
+            'active_card': active_card,
             'staff_count': sum(1 for value in members_by_role.values() for _ in value),
         },
     )

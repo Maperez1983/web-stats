@@ -4376,7 +4376,11 @@ class CoachOverviewTests(TestCase):
         self.assertContains(response, 'Entrenamiento')
         self.assertContains(response, 'Análisis')
         self.assertNotContains(response, 'Módulos del cliente')
-        self.assertContains(response, reverse('sessions-goalkeeper'))
-        self.assertContains(response, reverse('sessions-fitness'))
-        self.assertContains(response, reverse('analysis'))
-        self.assertContains(response, reverse('player-dashboard'))
+        self.assertNotContains(response, 'Listado de jugadores')
+
+        training_response = self.client.get(f"{reverse('coach-cards')}?area=training")
+        self.assertContains(training_response, reverse('sessions-goalkeeper'))
+        self.assertContains(training_response, reverse('sessions-fitness'))
+
+        analysis_response = self.client.get(f"{reverse('coach-cards')}?area=analysis")
+        self.assertContains(analysis_response, reverse('analysis'))

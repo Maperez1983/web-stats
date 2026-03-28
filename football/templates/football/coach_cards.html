@@ -33,6 +33,58 @@
         gap: 1.25rem;
         grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
       }
+      .area-tabs {
+        margin-top: 1.4rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.65rem;
+      }
+      .area-tab {
+        text-decoration: none;
+        border-radius: 999px;
+        padding: 0.6rem 0.95rem;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(15, 23, 42, 0.72);
+        color: #e2e8f0;
+        font-size: 0.76rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .area-tab.is-active {
+        border-color: rgba(56, 189, 248, 0.42);
+        background: rgba(8, 47, 73, 0.56);
+        color: #f8fafc;
+      }
+      .focus-panel {
+        margin-top: 1.2rem;
+        background: rgba(15, 23, 42, 0.95);
+        border-radius: 22px;
+        padding: 1.5rem;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .focus-panel-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: start;
+      }
+      .focus-panel-head h2 {
+        margin: 0;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+      }
+      .focus-panel-head p {
+        margin: 0.7rem 0 0;
+        color: rgba(226, 232, 240, 0.75);
+        max-width: 720px;
+      }
+      .focus-responsible {
+        margin-top: 1rem;
+        color: #bae6fd;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+      }
       .card {
         background: rgba(15, 23, 42, 0.95);
         border-radius: 20px;
@@ -117,30 +169,31 @@
         <a class="pill-button" style="border-radius:12px;" href="{% url 'coach-detail' %}">Volver</a>
       </header>
       <p style="margin:1rem 0 0; color:#bae6fd; font-weight:700;">Miembros técnicos visibles: {{ staff_count }}</p>
-      <div class="grid">
+      <nav class="area-tabs" aria-label="Áreas del cuerpo técnico">
         {% for card in cards %}
-        <article class="card">
-          <a class="card-link" href="{% url card.link %}">
-            <div class="card-top">
-            <h3>{{ card.title }}</h3>
-            <p>{{ card.description }}</p>
-            <p class="member">Responsable: {{ card.member_name }}</p>
-            <strong>{{ card.title }} →</strong>
-            </div>
-          </a>
-          {% if card.items %}
-          <div class="card-links">
-            {% for item in card.items %}
-            <a class="mini-link" href="{% url item.link %}">
-              <span>{{ item.label }}</span>
-              <span>Entrar</span>
-            </a>
-            {% endfor %}
-          </div>
-          {% endif %}
-        </article>
+        <a class="area-tab{% if active_area == card.key %} is-active{% endif %}" href="?area={{ card.key }}">{{ card.title }}</a>
         {% endfor %}
-      </div>
+      </nav>
+      <section class="focus-panel">
+        <div class="focus-panel-head">
+          <div>
+            <h2>{{ active_card.title }}</h2>
+            <p>{{ active_card.description }}</p>
+          </div>
+          <a class="pill-button" style="border-radius:12px;" href="{% url active_card.link %}">Abrir área</a>
+        </div>
+        <p class="focus-responsible">Responsable: {{ active_card.member_name }}</p>
+        {% if active_card.items %}
+        <div class="grid" style="margin-top:1.2rem;">
+          {% for item in active_card.items %}
+          <a class="mini-link" href="{% url item.link %}">
+            <span>{{ item.label }}</span>
+            <span>Entrar</span>
+          </a>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </section>
     </div>
   </body>
 </html>
