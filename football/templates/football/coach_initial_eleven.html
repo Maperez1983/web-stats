@@ -23,6 +23,20 @@
         align-items: center;
         gap: 1rem;
       }
+      .top-brand {
+        display: flex;
+        align-items: center;
+        gap: 0.85rem;
+      }
+      .top-brand img {
+        width: 62px;
+        height: 62px;
+        border-radius: 16px;
+        object-fit: contain;
+        background: rgba(255, 255, 255, 0.92);
+        padding: 0.3rem;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+      }
       .top h1 {
         margin: 0;
         text-transform: uppercase;
@@ -266,17 +280,25 @@
     <main class="page">
       {% include 'football/includes/dragon_nav.html' %}
       <header class="top">
-        <h1>11 inicial · {{ team_name }}</h1>
+        <div class="top-brand">
+          <img src="{{ team_crest_url|default_if_none:'' }}" alt="Escudo {{ team_name }}" />
+          <div>
+            <h1>11 inicial · {{ team_name }}</h1>
+            {% if convocation_record %}
+            <p style="margin:0.3rem 0 0;color:rgba(186,230,253,0.85);display:flex;align-items:center;gap:0.45rem;">
+              {% if rival_crest_url %}
+              <img src="{{ rival_crest_url }}" alt="Escudo rival" style="width:24px;height:24px;border-radius:999px;object-fit:contain;background:rgba(255,255,255,0.92);padding:2px;" />
+              {% endif %}
+              <span>{{ convocation_record.round|default:"Sin jornada" }} · {{ convocation_record.opponent_name|default:"Rival por confirmar" }}</span>
+            </p>
+            {% endif %}
+          </div>
+        </div>
         <a class="pill-button" style="border-radius:12px;" href="{% url 'coach-role-trainer' %}">Volver</a>
       </header>
       <section class="layout">
         <aside class="panel">
           <h3>Convocados</h3>
-          {% if convocation_record %}
-          <p style="margin:0 0 0.6rem;color:rgba(186,230,253,0.85);">
-            {{ convocation_record.round|default:"Sin jornada" }} · {{ convocation_record.opponent_name|default:"Rival por confirmar" }}
-          </p>
-          {% endif %}
           {% if has_pending_convocation %}
           <p class="helper-note">Próximo partido guardado. Falta cerrar la convocatoria para poder construir el 11 inicial.</p>
           {% elif has_pending_lineup %}

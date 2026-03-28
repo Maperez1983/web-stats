@@ -142,6 +142,21 @@
       .team-photo-content {
         padding: 1.25rem;
       }
+      .team-photo-header {
+        display: flex;
+        align-items: center;
+        gap: 0.85rem;
+      }
+      .team-photo-crest {
+        width: 68px;
+        height: 68px;
+        border-radius: 18px;
+        object-fit: contain;
+        background: rgba(255, 255, 255, 0.92);
+        padding: 0.35rem;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        box-shadow: 0 10px 22px rgba(0, 0, 0, 0.28);
+      }
 
       .team-photo-content h2 {
         margin: 0;
@@ -538,7 +553,10 @@
       <section class="hero">
         <article class="team-photo" id="team-hero">
           <div class="team-photo-content">
-            <h2 id="hero-team-name">C.D. Benagalbón</h2>
+            <div class="team-photo-header">
+              <img id="hero-team-crest" class="team-photo-crest" src="{% static 'football/images/cdb-logo.png' %}" alt="Escudo del equipo" />
+              <h2 id="hero-team-name">C.D. Benagalbón</h2>
+            </div>
             <p id="hero-competition-line">Competición por definir</p>
             <p id="hero-rank-line">Puesto -</p>
           </div>
@@ -640,6 +658,11 @@
           if (payload.team && payload.team.name) {
             const heroName = document.getElementById('hero-team-name');
             if (heroName) heroName.textContent = payload.team.name;
+            const heroCrest = document.getElementById('hero-team-crest');
+            if (heroCrest && payload.team.crest_url) {
+              heroCrest.src = payload.team.crest_url;
+              heroCrest.alt = `Escudo ${payload.team.name}`;
+            }
           }
 
           renderStandings(payload.standings, payload.team);
@@ -757,7 +780,10 @@
         const timeLabel = nextMatch.time ? ` ${nextMatch.time}` : '';
         container.innerHTML = `
           <p><strong>Próximo rival</strong></p>
-          <p>${opponentName}</p>
+          <div class="next-match-opponent">
+            ${nextMatch.opponent?.crest_url ? `<img src="${nextMatch.opponent.crest_url}" alt="Escudo ${opponentName}" loading="lazy">` : ''}
+            <p>${opponentName}</p>
+          </div>
           <p>${dateLabel}${timeLabel}${nextMatch.round ? ` · ${nextMatch.round}` : ''}</p>
           <p>${nextMatch.location || 'Campo por confirmar'}</p>
           <p>Posición rival · ${opponentStanding?.rank ?? '-'}</p>

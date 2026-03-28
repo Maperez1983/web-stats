@@ -50,6 +50,20 @@
         align-items: center;
         gap: 1rem;
       }
+      .header-brand {
+        display: flex;
+        align-items: center;
+        gap: 0.85rem;
+      }
+      .header-brand img {
+        width: 64px;
+        height: 64px;
+        border-radius: 16px;
+        object-fit: contain;
+        background: rgba(255, 255, 255, 0.92);
+        padding: 0.35rem;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+      }
       .header h1 {
         margin: 0;
         font-size: clamp(1.6rem, 2.2vw, 2.2rem);
@@ -144,6 +158,27 @@
       .button.is-disabled {
         pointer-events: none;
         opacity: 0.45;
+      }
+      .match-identity {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.9rem;
+        margin-bottom: 0.9rem;
+      }
+      .match-versus {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        color: var(--muted);
+      }
+      .match-versus img {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        object-fit: contain;
+        background: rgba(255, 255, 255, 0.92);
+        padding: 0.2rem;
       }
       .control-bar {
         padding: 0.85rem 1.1rem;
@@ -385,14 +420,28 @@
     <main class="page product-shell">
       {% include 'football/includes/dragon_nav.html' %}
       <section class="panel header">
-        <div>
+        <div class="header-brand">
+          <img src="{{ team_crest_url|default_if_none:'' }}" alt="Escudo {{ team_name }}" />
+          <div>
           <h1>Convocatoria</h1>
           <p>{{ team_name }} · Lista oficial para partido <span class="product-chip role">Fase 3 · Convocatoria Matchday</span></p>
+          </div>
         </div>
         <div class="count-chip" id="count-chip">0 convocados</div>
       </section>
 
       <section class="panel match-box">
+        <div class="match-identity">
+          <strong>Partido</strong>
+          <div class="match-versus">
+            {% if match_info.rival_crest_url %}
+            <img id="match-rival-crest" src="{{ match_info.rival_crest_url }}" alt="Escudo rival" />
+            {% else %}
+            <img id="match-rival-crest" src="{% static 'football/images/cdb-logo.png' %}" alt="Escudo rival" style="display:none;" />
+            {% endif %}
+            <span id="match-rival-name">{{ match_info.rival_full_name|default:match_info.opponent|default:"Rival por confirmar" }}</span>
+          </div>
+        </div>
         <div class="match-grid">
           <label class="full">Rival
             <select id="match-opponent-select"></select>
@@ -499,6 +548,8 @@
 
       const matchOpponentSelect = document.querySelector('#match-opponent-select');
       const matchOpponentManual = document.querySelector('#match-opponent-manual');
+      const matchRivalCrest = document.querySelector('#match-rival-crest');
+      const matchRivalName = document.querySelector('#match-rival-name');
       const matchRound = document.querySelector('#match-round');
       const matchDate = document.querySelector('#match-date');
       const matchTime = document.querySelector('#match-time');
@@ -679,6 +730,28 @@
         }
       };
 
+      const refreshRivalIdentity = () => {
+        const selected = String(matchOpponentSelect?.value || '');
+        const manualName = String(matchOpponentManual?.value || '').trim();
+        const chosenName = selected === '__manual__' ? manualName : selected;
+        if (matchRivalName) {
+          matchRivalName.textContent = chosenName || 'Rival por confirmar';
+        }
+        let crestUrl = '';
+        const option = Array.from(matchOpponentSelect?.options || []).find((item) => item.value === selected);
+        if (option) {
+          crestUrl = String(option.dataset.crestUrl || '').trim();
+        }
+        if (matchRivalCrest) {
+          if (crestUrl) {
+            matchRivalCrest.src = crestUrl;
+            matchRivalCrest.style.display = '';
+          } else {
+            matchRivalCrest.style.display = 'none';
+          }
+        }
+      };
+
       const hydrateOpponentSelect = () => {
         if (!matchOpponentSelect) return;
         const uniqueMap = new Map();
@@ -691,6 +764,7 @@
             name,
             short_name: String(item?.short_name || name).trim(),
             location: String(item?.location || '').trim(),
+            crest_url: String(item?.crest_url || '').trim(),
           });
         });
         matchOpponentSelect.innerHTML = '';
@@ -706,6 +780,7 @@
             option.value = item.name;
             option.textContent = item.short_name || item.name;
             option.dataset.location = item.location || '';
+            option.dataset.crestUrl = item.crest_url || '';
             matchOpponentSelect.appendChild(option);
           });
 
@@ -726,6 +801,7 @@
           matchOpponentSelect.value = '__manual__';
           if (matchOpponentManual) matchOpponentManual.value = parsedCurrentOpponent;
         }
+        refreshRivalIdentity();
       };
 
       const updateLocationOptions = () => {
@@ -858,7 +934,9 @@
       matchOpponentSelect?.addEventListener('change', () => {
         setManualVisibility();
         updateLocationOptions();
+        refreshRivalIdentity();
       });
+      matchOpponentManual?.addEventListener('input', refreshRivalIdentity);
       matchLocationSelect?.addEventListener('change', setManualVisibility);
 
       selectVisibleBtn?.addEventListener('click', () => {

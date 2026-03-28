@@ -981,6 +981,9 @@ class PlatformWorkspaceTests(TestCase):
             kind=Workspace.KIND_CLUB,
             primary_team=self.alt_team,
         )
+        self.alt_team.crest_url = 'https://example.com/cliente-alternativo.png'
+        self.alt_team.save(update_fields=['crest_url'])
+        football_views._invalidate_team_dashboard_caches(self.alt_team)
         self.client.force_login(self.admin_user)
         session = self.client.session
         session['active_workspace_id'] = workspace.id
@@ -990,6 +993,7 @@ class PlatformWorkspaceTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['team']['name'], self.alt_team.name)
+        self.assertEqual(response.json()['team']['crest_url'], 'https://example.com/cliente-alternativo.png')
 
     @patch('football.views.load_cached_next_match')
     @patch('football.views.load_universo_snapshot')

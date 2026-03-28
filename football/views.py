@@ -1477,6 +1477,10 @@ def _sync_workspace_competition_context(workspace):
         return context, context.sync_error
 
     context = _ensure_universo_context_binding(context, primary_team)
+    _sync_team_crest_from_sources(primary_team)
+    if getattr(primary_team, 'group_id', None):
+        for team in Team.objects.filter(group=primary_team.group).only('id', 'name', 'short_name', 'external_id', 'crest_url', 'crest_image', 'is_primary'):
+            _sync_team_crest_from_sources(team)
     standings_payload = _resolve_standings_for_team(primary_team, snapshot=load_universo_snapshot())
     convocation_next = _build_next_match_from_convocation(primary_team)
     provider_next = _find_universo_next_match_for_context(context, primary_team)
@@ -2602,6 +2606,114 @@ def _build_universo_capture_team_lookup():
     return lookup
 
 
+def _build_team_crest_lookup():
+    lookup = {}
+
+    def _push(name='', external_id='', crest=''):
+        crest_url = _absolute_universo_url(crest)
+        if not crest_url:
+            return
+        normalized_name = _normalize_team_lookup_key(name)
+        normalized_external_id = str(external_id or '').strip().lower()
+        for key in (normalized_name, normalized_external_id):
+            if key and key not in lookup:
+                lookup[key] = crest_url
+
+    capture_path = UNIVERSO_CAPTURE_PATH
+    if capture_path.exists():
+        try:
+            payload = json.loads(capture_path.read_text(encoding='utf-8'))
+        except Exception:
+            payload = {}
+        items = payload.get('items') if isinstance(payload, dict) else []
+        for item in items or []:
+            if not isinstance(item, dict):
+                continue
+            data = item.get('json')
+            if not isinstance(data, dict):
+                continue
+            _push(
+                data.get('nombre_equipo') or data.get('equipo') or data.get('nombre_club'),
+                data.get('codequipo') or data.get('cod_equipo') or data.get('CodEquipo'),
+                data.get('escudo_equipo') or data.get('escudo'),
+            )
+            competitions = data.get('competiciones_participa')
+            if isinstance(competitions, list):
+                for row in competitions:
+                    if not isinstance(row, dict):
+                        continue
+                    _push(
+                        row.get('nombre_equipo') or row.get('nombre_club'),
+                        row.get('codequipo') or row.get('cod_equipo'),
+                        row.get('escudo_equipo') or row.get('escudo'),
+                    )
+            for bucket in data.values():
+                if not isinstance(bucket, list):
+                    continue
+                for row in bucket:
+                    if not isinstance(row, dict):
+                        continue
+                    _push(
+                        row.get('nombre') or row.get('nombre_equipo') or row.get('nombre_club') or row.get('Nombre_equipo_local') or row.get('Nombre_equipo_visitante'),
+                        row.get('codequipo') or row.get('CodEquipo_local') or row.get('CodEquipo_visitante'),
+                        row.get('escudo_equipo') or row.get('escudo') or row.get('url_img_local') or row.get('url_img_visitante'),
+                    )
+    snapshot = load_universo_snapshot()
+    if isinstance(snapshot, dict):
+        for row in snapshot.get('standings') or []:
+            if not isinstance(row, dict):
+                continue
+            _push(row.get('team') or row.get('full_name'), row.get('team_code'), row.get('crest_url'))
+        next_match = snapshot.get('next_match')
+        if isinstance(next_match, dict):
+            opponent = next_match.get('opponent')
+            if isinstance(opponent, dict):
+                _push(opponent.get('full_name') or opponent.get('name'), opponent.get('team_code'), opponent.get('crest_url'))
+    return lookup
+
+
+def _sync_team_crest_from_sources(team):
+    if not team:
+        return ''
+    if getattr(team, 'crest_image', None):
+        return ''
+    lookup = _build_team_crest_lookup()
+    lookup_keys = {
+        _normalize_team_lookup_key(getattr(team, 'name', '') or ''),
+        _normalize_team_lookup_key(getattr(team, 'display_name', '') or ''),
+        str(getattr(team, 'external_id', '') or '').strip().lower(),
+    }
+    resolved = ''
+    for key in lookup_keys:
+        if key and lookup.get(key):
+            resolved = lookup[key]
+            break
+    if resolved and resolved != (team.crest_url or ''):
+        team.crest_url = resolved
+        team.save(update_fields=['crest_url'])
+        _invalidate_team_dashboard_caches(team)
+    return resolved
+
+
+def resolve_team_crest_url(request, team, *, fallback_static='football/images/cdb-logo.png', sync=False):
+    if not team:
+        return request.build_absolute_uri(static(fallback_static)) if fallback_static and request else ''
+    if getattr(team, 'crest_image', None):
+        try:
+            return request.build_absolute_uri(team.crest_image.url) if request else team.crest_image.url
+        except Exception:
+            pass
+    crest_url = str(getattr(team, 'crest_url', '') or '').strip()
+    if not crest_url and sync:
+        crest_url = _sync_team_crest_from_sources(team)
+    crest_url = _absolute_universo_url(crest_url)
+    if crest_url:
+        return crest_url
+    if fallback_static:
+        return request.build_absolute_uri(static(fallback_static)) if request else static(fallback_static)
+    return ''
+
+
 def load_universo_capture():
     if not UNIVERSO_CAPTURE_PATH.exists():
         return {}
@@ -3015,6 +3127,7 @@ def _import_universo_competition_candidate(*, competition_key, group_key, team_k
     for row in classification.get('rows') or []:
         row_team_name = str(row.get('nombre') or '').strip()
         row_team_key = str(row.get('codequipo') or '').strip()
+        row_team_crest = _absolute_universo_url(row.get('escudo_equipo') or row.get('escudo'))
         if not row_team_name:
             continue
         team = Team.objects.filter(external_id=row_team_key).first() if row_team_key else None
@@ -3040,6 +3153,9 @@ def _import_universo_competition_candidate(*, competition_key, group_key, team_k
         if team.short_name != short_name:
             team.short_name = short_name
             changed_fields.append('short_name')
+        if row_team_crest and team.crest_url != row_team_crest and not getattr(team, 'crest_image', None):
+            team.crest_url = row_team_crest
+            changed_fields.append('crest_url')
         if changed_fields:
             team.save(update_fields=changed_fields)
         TeamStanding.objects.update_or_create(
@@ -3083,6 +3199,13 @@ def _import_universo_competition_candidate(*, competition_key, group_key, team_k
                 group=group,
                 is_primary=False,
             )
+        opponent_crest = ''
+        opponent_payload = next_payload.get('opponent')
+        if isinstance(opponent_payload, dict):
+            opponent_crest = _absolute_universo_url(opponent_payload.get('crest_url'))
+        if opponent_crest and opponent.crest_url != opponent_crest and not getattr(opponent, 'crest_image', None):
+            opponent.crest_url = opponent_crest
+            opponent.save(update_fields=['crest_url'])
         match_date = parse_date(str(next_payload.get('date') or '').strip())
         round_label = str(next_payload.get('round') or '').strip() or str(next_payload.get('round_label') or '').strip()
         location = str(next_payload.get('location') or '').strip()
@@ -3155,6 +3278,15 @@ def _resolve_rival_identity(rival_name, preferred_opponent=None):
     rival_full_name = rival_name
     rival_crest_url = ''
     rival_key = _normalize_team_lookup_key(rival_name)
+    known_team = (
+        Team.objects
+        .filter(Q(name__iexact=rival_name) | Q(short_name__iexact=rival_name) | Q(external_id__iexact=rival_name))
+        .order_by('-is_primary', 'name')
+        .first()
+    )
+    if known_team:
+        rival_full_name = known_team.name
+        rival_crest_url = _absolute_universo_url(getattr(known_team, 'crest_url', '') or '')
 
     if isinstance(preferred_opponent, dict):
         preferred_name = str(preferred_opponent.get('name') or '').strip()
@@ -3394,6 +3526,7 @@ def _serialize_universo_standings(snapshot):
     rows = snapshot.get('standings')
     if not isinstance(rows, list):
         return []
+    crest_lookup = _build_team_crest_lookup()
     normalized = []
     for row in rows:
         if not isinstance(row, dict):
@@ -3411,7 +3544,7 @@ def _serialize_universo_standings(snapshot):
                 'rank': _safe_int(row.get('position'), default=0),
                 'team': team,
                 'full_name': str(row.get('full_name') or team).strip() or team,
-                'crest_url': str(row.get('crest_url') or '').strip(),
+                'crest_url': str(row.get('crest_url') or crest_lookup.get(_normalize_team_lookup_key(team)) or '').strip(),
                 'team_code': str(row.get('team_code') or '').strip(),
                 'played': _safe_int(row.get('played')),
                 'wins': _safe_int(row.get('wins')),
@@ -3470,7 +3603,11 @@ def dashboard_data(request):
     player_cards_scope = {'type': 'global', 'label': 'Jugador · datos La Preferente'}
 
     payload = {
-        'team': {'name': primary_team.name, 'group': group.name},
+        'team': {
+            'name': primary_team.name,
+            'group': group.name,
+            'crest_url': resolve_team_crest_url(request, primary_team, sync=True),
+        },
         'standings': standings,
         'next_match': next_match,
         'team_metrics': team_metrics,
@@ -5883,6 +6020,12 @@ def convocation_page(request):
             match_info['location'] = convocation_record.location
         if convocation_record.opponent_name:
             match_info['opponent'] = convocation_record.opponent_name
+    rival_full_name, rival_crest_url = _resolve_rival_identity(
+        match_info.get('opponent') or 'Rival por confirmar',
+        preferred_opponent=(default_match_info.get('opponent') if isinstance(default_match_info, dict) else None),
+    )
+    match_info['rival_full_name'] = rival_full_name
+    match_info['rival_crest_url'] = _absolute_universo_url(rival_crest_url)
 
     home_location = 'ESTADIO CAÑA CHAQUETA'
     recent_home_match = (
@@ -5920,6 +6063,7 @@ def convocation_page(request):
                 'name': team.name,
                 'short_name': team.display_name,
                 'location': field_map.get(key, ''),
+                'crest_url': resolve_team_crest_url(request, team, fallback_static=None, sync=True),
             }
         )
 
@@ -5931,6 +6075,7 @@ def convocation_page(request):
                 'name': current_opponent,
                 'short_name': current_opponent,
                 'location': field_map.get(current_key, ''),
+                'crest_url': _absolute_universo_url(rival_crest_url),
             }
         )
 
@@ -5940,6 +6085,7 @@ def convocation_page(request):
         {
             'players': players,
             'team_name': primary_team.display_name,
+            'team_crest_url': resolve_team_crest_url(request, primary_team, sync=True),
             'avatar_url': request.build_absolute_uri(static('football/images/player-avatar.svg')),
             'selected_player_ids_json': json.dumps(selected_player_ids),
             'injured_player_ids_json': json.dumps(
@@ -6195,7 +6341,7 @@ def convocation_pdf(request):
         'right_column_players': right_column_players,
         'coach_name': os.getenv('TEAM_COACH_NAME', 'Aitor Castillo'),
         'club_hashtag': os.getenv('TEAM_HASHTAG', '#VamosVerdes'),
-        'logo_src': logo_data_uri or request.build_absolute_uri(static('football/images/cdb-logo.png')),
+        'logo_src': resolve_team_crest_url(request, primary_team, sync=True) or logo_data_uri or request.build_absolute_uri(static('football/images/cdb-logo.png')),
         'avatar_src': avatar_data_uri or request.build_absolute_uri(static('football/images/player-avatar.svg')),
         'team_photo_url': request.build_absolute_uri(static('football/images/team-01.jpg')),
         'team_photo_data_uri': '',
@@ -7680,6 +7826,12 @@ def initial_eleven_page(request):
         'football/coach_initial_eleven.html',
         {
             'team_name': primary_team.display_name,
+            'team_crest_url': resolve_team_crest_url(request, primary_team, sync=True),
+            'rival_crest_url': _absolute_universo_url(
+                _resolve_rival_identity(
+                    getattr(convocation_record, 'opponent_name', '') or 'Rival por confirmar'
+                )[1]
+            ) if convocation_record else '',
             'convocation_record': convocation_record,
             'convocation_players': convocation_players,
             'lineup_seed_json': json.dumps(lineup_seed, ensure_ascii=False),
@@ -14188,10 +14340,15 @@ def serialize_standings(group):
         fallback = TeamStanding.objects.filter(group__slug__icontains='grupo-2').order_by('position')
         if fallback.exists():
             standings = fallback
+    crest_lookup = _build_team_crest_lookup()
     return [
         {
             'rank': standing.position,
             'team': standing.team.name.strip().upper(),
+            'full_name': standing.team.name.strip(),
+            'crest_url': _absolute_universo_url(
+                getattr(standing.team, 'crest_url', '') or crest_lookup.get(_normalize_team_lookup_key(standing.team.name)) or ''
+            ),
             'played': standing.played,
             'wins': standing.wins,
             'draws': standing.draws,

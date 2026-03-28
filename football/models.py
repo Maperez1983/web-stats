@@ -69,6 +69,8 @@ class Team(models.Model):
     group = models.ForeignKey(Group, on_delete=models.SET_NULL, null=True, blank=True, related_name='teams')
     external_id = models.CharField(max_length=120, blank=True, help_text='Identificador oficial en la web')
     preferente_url = models.URLField(blank=True, help_text='URL del equipo en LaPreferente')
+    crest_url = models.URLField(blank=True, help_text='URL sincronizada del escudo del equipo')
+    crest_image = models.ImageField(upload_to='team-crests/', null=True, blank=True)
     is_primary = models.BooleanField(default=False, help_text='Marcar si es el equipo de Benagalbón')
 
     @property
