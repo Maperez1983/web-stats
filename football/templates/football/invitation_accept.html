@@ -1,13 +1,26 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="es">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Invitación de usuario</title>
+    <title>2J · Activación de acceso</title>
     <style>
-      body { margin:0; font-family: Inter, system-ui, sans-serif; background:#020617; color:#e2e8f0; }
+      body {
+        margin:0;
+        font-family: "Avenir Next", Inter, system-ui, sans-serif;
+        background:
+          radial-gradient(circle at top left, rgba(47,125,50,.18), transparent 26%),
+          radial-gradient(circle at top right, rgba(244,180,0,.16), transparent 22%),
+          #020617;
+        color:#e2e8f0;
+      }
       .wrap { max-width: 520px; margin: 7vh auto; padding: 0 1rem; }
-      .card { background: rgba(15,23,42,0.95); border:1px solid rgba(148,163,184,0.25); border-radius: 14px; padding: 1rem; }
+      .card { background: rgba(15,23,42,0.95); border:1px solid rgba(244,180,0,0.2); border-radius: 18px; padding: 1rem; box-shadow:0 24px 60px rgba(0,0,0,.34); }
+      .brand { display:grid; gap:.7rem; margin-bottom:1rem; }
+      .brand img { width: 162px; height:auto; }
+      .brand strong { display:block; font-size:.8rem; letter-spacing:.2em; text-transform:uppercase; color:#d7f5d9; }
+      .brand span { display:block; margin-top:.15rem; color:#94a3b8; }
       h1 { margin: 0 0 0.6rem; font-size: 1.25rem; }
       p { margin: 0.45rem 0; color:#cbd5e1; }
       label { display:block; margin:0.55rem 0 0.35rem; font-size:0.82rem; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; }
@@ -32,6 +45,13 @@
   <body>
     <div class="wrap">
       <div class="card">
+        <div class="brand">
+          <img src="{% static 'football/images/2j-mark.svg' %}" alt="2J Football Intelligence" />
+          <div>
+            <strong>2J</strong>
+            <span>Football Intelligence · Activación segura de acceso</span>
+          </div>
+        </div>
         {% if status == 'invalid' %}
         <h1>Invitación no válida</h1>
         <p>El enlace no existe o ha sido desactivado.</p>

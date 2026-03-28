@@ -899,7 +899,7 @@
           {% if invitation_links %}
           <div class="message ok">
             {% for invite in invitation_links %}
-            Invitación lista para {{ invite.username }} · caduca {{ invite.expires_at|date:"d/m/Y H:i" }} · {{ invite.url }}{% if not forloop.last %}<br />{% endif %}
+            Acceso 2J listo para {{ invite.username }} · caduca {{ invite.expires_at|date:"d/m/Y H:i" }} · {{ invite.url }}{% if not forloop.last %}<br />{% endif %}
             {% endfor %}
           </div>
           {% endif %}
