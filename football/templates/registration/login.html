@@ -4,13 +4,16 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Acceso · Web Stats</title>
+    <title>Acceso · 2J Football Intelligence</title>
     <style>
       :root {
-        --bg: #050b16;
-        --panel: rgba(7, 16, 30, 0.92);
-        --line: rgba(121, 170, 230, 0.28);
-        --text: #e2e8f0;
+        --bg: #0b1220;
+        --panel: rgba(11, 18, 32, 0.94);
+        --line: rgba(244, 180, 0, 0.18);
+        --text: #f5f7fa;
+        --muted: #7a8797;
+        --pitch: #2f7d32;
+        --amber: #f4b400;
       }
       * { box-sizing: border-box; }
       body {
@@ -20,32 +23,38 @@
         place-items: center;
         padding: 1rem;
         color: var(--text);
-        font-family: "Inter", system-ui, sans-serif;
-        background: radial-gradient(circle at top, #111827, #030712 55%);
+        font-family: "Avenir Next", "Segoe UI", "Inter", sans-serif;
+        background:
+          radial-gradient(circle at top left, rgba(47, 125, 50, 0.18), transparent 30%),
+          radial-gradient(circle at top right, rgba(244, 180, 0, 0.16), transparent 26%),
+          linear-gradient(180deg, #09101c, #050914 58%);
       }
       .card {
         width: min(420px, 100%);
         border: 1px solid var(--line);
-        border-radius: 16px;
+        border-radius: 22px;
         background: var(--panel);
-        padding: 1rem;
+        padding: 1.15rem;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.34);
       }
       .brand {
-        display: flex;
-        align-items: center;
-        gap: 0.6rem;
-        margin-bottom: 0.7rem;
+        display: grid;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
       }
       .brand img {
-        width: 48px;
-        height: 48px;
-        object-fit: contain;
+        width: 180px;
+        max-width: 100%;
+        height: auto;
       }
       h1 {
         margin: 0;
-        font-size: 1.05rem;
-        letter-spacing: 0.05em;
+        font-size: 1.1rem;
+        letter-spacing: 0.18em;
         text-transform: uppercase;
+      }
+      .brand p {
+        color: var(--muted);
       }
       p { margin: 0.45rem 0; }
       label {
@@ -54,13 +63,13 @@
         font-size: 0.75rem;
         letter-spacing: 0.06em;
         text-transform: uppercase;
-        color: rgba(205, 225, 255, 0.85);
+        color: rgba(245, 247, 250, 0.8);
       }
       input {
         width: 100%;
         border-radius: 10px;
         border: 1px solid var(--line);
-        background: rgba(9, 20, 36, 0.72);
+        background: rgba(18, 28, 48, 0.72);
         color: var(--text);
         padding: 0.62rem 0.65rem;
       }
@@ -87,10 +96,12 @@
         border: none;
         border-radius: 999px;
         padding: 0.7rem;
-        background: linear-gradient(135deg, #14d8ff, #4f46e5);
-        color: #f8fbff;
+        background: linear-gradient(135deg, var(--amber), var(--pitch));
+        color: #081320;
         font-weight: 700;
         cursor: pointer;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
       }
       .error {
         color: #fecaca;
@@ -104,8 +115,11 @@
   <body>
     <main class="card">
       <div class="brand">
-        <img src="{% static 'logos/logo.png' %}" alt="Escudo C.D. Benagalbón" />
-        <h1>Acceso Web Stats</h1>
+        <img src="{% static 'football/images/2j-mark.svg' %}" alt="2J Football Intelligence" />
+        <div>
+          <h1>Acceso 2J</h1>
+          <p>Football Intelligence · Del partido al entrenamiento.</p>
+        </div>
       </div>
 
       {% if form.errors %}

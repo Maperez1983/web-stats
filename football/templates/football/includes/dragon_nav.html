@@ -1,7 +1,7 @@
 {% load static %}
 <div class="dragon-nav">
   <a href="{% url 'dashboard-home' %}" class="dragon-link" title="Volver al inicio">
-    <img src="{% static 'logos/logo.png' %}" alt="Escudo C.D. Benagalbón" loading="lazy" />
+    <img src="{% static 'football/images/2j-icon.svg' %}" alt="2J Football Intelligence" loading="lazy" />
   </a>
 </div>
 {% if not hide_product_shortcuts %}
@@ -18,14 +18,14 @@
 .dragon-nav {
   width: 94px;
   height: 94px;
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  background: linear-gradient(135deg, rgba(7, 23, 53, 0.95), rgba(5, 25, 87, 0.95));
-  padding: 0.35rem;
+  border-radius: 22px;
+  border: 1px solid rgba(244, 180, 0, 0.22);
+  background: linear-gradient(135deg, rgba(11, 18, 32, 0.96), rgba(21, 38, 63, 0.96));
+  padding: 0.5rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 15px 35px rgba(2, 6, 23, 0.45);
+  box-shadow: 0 18px 36px rgba(2, 6, 23, 0.45);
 }
 .dragon-link {
   display: flex;
@@ -50,16 +50,19 @@
 }
 .product-nav-shortcuts a {
   text-decoration: none;
-  color: #cbd5e1;
-  border: 1px solid rgba(121, 170, 230, 0.24);
+  color: #f5f7fa;
+  border: 1px solid rgba(244, 180, 0, 0.18);
   border-radius: 999px;
-  padding: 0.28rem 0.62rem;
-  font-size: 0.72rem;
+  padding: 0.32rem 0.72rem;
+  font-size: 0.7rem;
   line-height: 1.15;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 700;
 }
 .product-nav-shortcuts a:hover {
-  border-color: rgba(34, 211, 238, 0.66);
-  color: #e2f5ff;
+  border-color: rgba(244, 180, 0, 0.5);
+  color: #fff9e8;
 }
 @media (max-width: 768px) {
   .dragon-nav {

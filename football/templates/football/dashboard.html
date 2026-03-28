@@ -3,7 +3,7 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <title>CRM Web Stats · Cuerpo técnico</title>
+    <title>2J Club · Cuerpo técnico</title>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
     <style>
@@ -12,8 +12,8 @@
         --deep: #050913;
         --panel: #0d1b2f;
         --line: rgba(255, 255, 255, 0.15);
-        --cyan: #46d3ff;
-        --amber: #ffbf45;
+        --cyan: #2f7d32;
+        --amber: #f4b400;
       }
 
       * {
@@ -28,7 +28,7 @@
           radial-gradient(circle at 10% -10%, rgba(70, 211, 255, 0.18), transparent 40%),
           radial-gradient(circle at 90% 0%, rgba(255, 191, 69, 0.15), transparent 35%),
           linear-gradient(180deg, #03070f 0%, #081120 55%, #0a1427 100%);
-        font-family: "Montserrat", "Avenir Next", "Segoe UI", sans-serif;
+        font-family: "Avenir Next", "Segoe UI", sans-serif;
       }
 
       .page {
@@ -53,13 +53,6 @@
         display: flex;
         align-items: center;
         gap: 0.7rem;
-      }
-
-      .topbar-brand img {
-        width: 42px;
-        height: 42px;
-        border-radius: 50%;
-        border: 2px solid rgba(255, 255, 255, 0.3);
       }
 
       .topbar-brand h1 {
@@ -524,7 +517,7 @@
         <div class="topbar-brand">
           {% include 'football/includes/dragon_nav.html' %}
           <div>
-            <h1>CRM · Cuerpo técnico</h1>
+            <h1>2J Club · Cuerpo técnico</h1>
             <p class="product-kicker" style="margin-top:0.2rem;">Modo actual <span class="product-chip role">{{ current_role_label }}</span></p>
             <div style="margin-top:0.45rem;">
               {% if can_access_platform %}
