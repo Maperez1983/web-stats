@@ -62,6 +62,11 @@ try:
 except Exception:  # pragma: no cover
     PdfReader = None
 
+try:
+    import requests
+except Exception:  # pragma: no cover
+    requests = None
+
 from football.models import (
     Competition,
     Group,
@@ -2258,6 +2263,77 @@ def load_universo_capture():
     return payload if isinstance(payload, dict) else {}
 
 
+def _load_universo_access_token():
+    storage_path = Path(settings.BASE_DIR) / 'data' / 'input' / 'rfaf_storage_state.json'
+    if not storage_path.exists():
+        return ''
+    try:
+        payload = json.loads(storage_path.read_text(encoding='utf-8'))
+    except Exception:
+        return ''
+    for cookie in payload.get('cookies') or []:
+        if not isinstance(cookie, dict):
+            continue
+        if str(cookie.get('name') or '').strip() == 'access_token':
+            return str(cookie.get('value') or '').strip()
+    return ''
+
+
+def _universo_api_post(endpoint, data=None):
+    if requests is None:
+        return {}
+    token = _load_universo_access_token()
+    if not token:
+        return {}
+    url = f'https://www.universorfaf.es/api/novanet/{endpoint.lstrip("/")}'
+    headers = {
+        'Authorization': f'Bearer {token}',
+        'Accept': 'application/json',
+        'User-Agent': '2j-football-intelligence/1.0',
+    }
+    try:
+        response = requests.post(url, headers=headers, data=data or {}, timeout=25)
+        response.raise_for_status()
+        payload = response.json()
+    except Exception:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _fetch_universo_live_seasons():
+    payload = _universo_api_post('competition/get-seassons')
+    return [row for row in (payload.get('temporadas') or []) if isinstance(row, dict)]
+
+
+def _fetch_universo_live_delegations():
+    payload = _universo_api_post('competition/get-delegations')
+    return [row for row in (payload.get('delegaciones') or []) if isinstance(row, dict)]
+
+
+def _fetch_universo_live_competitions(delegation_id, season_id):
+    payload = _universo_api_post(
+        'competition/get-competitions',
+        {'id_delegacion': str(delegation_id or '').strip(), 'id_season': str(season_id or '').strip()},
+    )
+    return [row for row in (payload.get('competiciones') or []) if isinstance(row, dict)]
+
+
+def _fetch_universo_live_groups(competition_id):
+    payload = _universo_api_post(
+        'competition/get-groups',
+        {'id_competition': str(competition_id or '').strip()},
+    )
+    return [row for row in (payload.get('grupos') or []) if isinstance(row, dict)]
+
+
+def _fetch_universo_live_classification(group_id):
+    payload = _universo_api_post(
+        'competition/get-classification',
+        {'id_group': str(group_id or '').strip()},
+    )
+    return payload if isinstance(payload, dict) else {}
+
+
 def _parse_capture_form_payload(raw_payload):
     parsed = {}
     raw_text = str(raw_payload or '')
@@ -2372,6 +2448,73 @@ def _search_universo_competition_candidates(*, team_query='', competition_query=
     normalized_team_query = normalize_label(team_query)
     normalized_comp_query = normalize_label(competition_query)
     normalized_group_query = normalize_label(group_query)
+    live_candidates = []
+    seasons = _fetch_universo_live_seasons()
+    season_row = next((row for row in seasons if str(row.get('nombre') or '').strip() == '2025-2026'), None)
+    if not season_row and seasons:
+        season_row = seasons[0]
+    season_id = str((season_row or {}).get('cod_temporada') or '').strip()
+    season_name = str((season_row or {}).get('nombre') or '').strip()
+    delegations = _fetch_universo_live_delegations()
+    if season_id and delegations:
+        for delegation in delegations:
+            competitions = _fetch_universo_live_competitions(delegation.get('cod_delegacion'), season_id)
+            for competition in competitions:
+                competition_code = str(competition.get('codigo') or '').strip()
+                competition_name = str(competition.get('nombre') or '').strip()
+                if not competition_code or not competition_name:
+                    continue
+                if normalized_comp_query and normalized_comp_query not in normalize_label(competition_name):
+                    continue
+                groups = _fetch_universo_live_groups(competition_code)
+                for group in groups:
+                    group_code = str(group.get('codigo') or '').strip()
+                    group_name = str(group.get('nombre') or '').strip()
+                    if not group_code or not group_name:
+                        continue
+                    if normalized_group_query and normalized_group_query not in normalize_label(group_name):
+                        continue
+                    classification = _fetch_universo_live_classification(group_code)
+                    for row in classification.get('clasificacion') or []:
+                        if not isinstance(row, dict):
+                            continue
+                        team_name = str(row.get('nombre') or '').strip()
+                        if not team_name:
+                            continue
+                        normalized_team_name = normalize_label(team_name)
+                        if normalized_team_query and normalized_team_query not in normalized_team_name:
+                            continue
+                        score = 0
+                        if normalized_team_query:
+                            score += 60 if normalized_team_query == normalized_team_name else 30
+                        if normalized_group_query:
+                            score += 25 if normalized_group_query == normalize_label(group_name) else 12
+                        if normalized_comp_query:
+                            score += 25 if normalized_comp_query == normalize_label(competition_name) else 12
+                        external_team_key = str(row.get('codequipo') or '').strip()
+                        existing_team = Team.objects.filter(external_id=external_team_key).first() if external_team_key else None
+                        live_candidates.append(
+                            {
+                                'source': 'universo_live',
+                                'source_label': 'Universo RFAF · live',
+                                'team_id': existing_team.id if existing_team else None,
+                                'team_name': team_name,
+                                'group_name': group_name or 'Sin grupo',
+                                'season_name': season_name,
+                                'competition_name': competition_name or 'Competición sin nombre',
+                                'provider': WorkspaceCompetitionContext.PROVIDER_UNIVERSO,
+                                'external_competition_key': competition_code,
+                                'external_group_key': group_code,
+                                'external_team_key': external_team_key,
+                                'external_team_name': team_name,
+                                'score': score + 20,
+                                'is_import_candidate': existing_team is None,
+                            }
+                        )
+    if live_candidates:
+        live_candidates.sort(key=lambda item: (-item['score'], item['competition_name'], item['group_name'], item['team_name']))
+        return live_candidates[:12]
+
     catalog = _build_universo_competition_catalog()
     competitions = catalog.get('competitions') or {}
     groups = catalog.get('groups') or {}
@@ -2428,9 +2571,33 @@ def _import_universo_competition_candidate(*, competition_key, group_key, team_k
     competitions = catalog.get('competitions') or {}
     classifications = catalog.get('classifications') or {}
     classification = classifications.get((competition_key, group_key))
+    competition_meta = competitions.get(competition_key) or {}
+    if not classification:
+        live_classification = _fetch_universo_live_classification(group_key)
+        if isinstance(live_classification, dict) and live_classification.get('clasificacion'):
+            live_seasons = _fetch_universo_live_seasons()
+            season_row = next((row for row in live_seasons if str(row.get('nombre') or '').strip() == '2025-2026'), None)
+            if not season_row and live_seasons:
+                season_row = live_seasons[0]
+            competition_meta = {
+                'code': competition_key,
+                'name': str(live_classification.get('competicion') or '').strip(),
+                'season_name': str((season_row or {}).get('nombre') or '').strip() or _derive_season_label_from_dates('', ''),
+                'start_date': str((season_row or {}).get('fecha_inicio') or '').strip(),
+                'end_date': str((season_row or {}).get('fecha_fin') or '').strip(),
+                'region': _extract_region_from_competition_name(live_classification.get('competicion')),
+            }
+            classification = {
+                'competition_code': competition_key,
+                'competition_name': str(live_classification.get('competicion') or '').strip(),
+                'group_code': group_key,
+                'group_name': str(live_classification.get('grupo') or '').strip(),
+                'round': str(live_classification.get('jornada') or '').strip(),
+                'round_date': str(live_classification.get('fecha_jornada') or '').strip(),
+                'rows': [row for row in (live_classification.get('clasificacion') or []) if isinstance(row, dict)],
+            }
     if not classification:
         return None, 'La captura local no contiene la clasificación de esa competición/grupo.'
-    competition_meta = competitions.get(competition_key) or {}
     competition_name = str(classification.get('competition_name') or competition_meta.get('name') or '').strip()
     if not competition_name:
         return None, 'No se ha podido resolver el nombre de la competición.'

@@ -1184,6 +1184,53 @@ class PlatformWorkspaceTests(TestCase):
         self.assertContains(response, 'Cliente alternativo')
         self.assertContains(response, 'Vincular y sincronizar')
 
+    @patch('football.views._fetch_universo_live_classification')
+    @patch('football.views._fetch_universo_live_groups')
+    @patch('football.views._fetch_universo_live_competitions')
+    @patch('football.views._fetch_universo_live_delegations')
+    @patch('football.views._fetch_universo_live_seasons')
+    def test_workspace_detail_can_search_universo_live_candidates(
+        self,
+        mock_seasons,
+        mock_delegations,
+        mock_competitions,
+        mock_groups,
+        mock_classification,
+    ):
+        workspace = Workspace.objects.create(
+            name='Cliente universo búsqueda',
+            slug='cliente-universo-busqueda',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.team,
+            owner_user=self.admin_user,
+            enabled_modules={'dashboard': True},
+        )
+        mock_seasons.return_value = [{'cod_temporada': '21', 'nombre': '2025-2026'}]
+        mock_delegations.return_value = [{'cod_delegacion': '8', 'nombre': 'Málaga'}]
+        mock_competitions.return_value = [{'codigo': '45030612', 'nombre': 'División Honor Sénior'}]
+        mock_groups.return_value = [{'codigo': '45030656', 'nombre': 'Grupo 2'}]
+        mock_classification.return_value = {
+            'clasificacion': [
+                {'codequipo': '500315', 'nombre': 'LOJA C.D.'},
+            ],
+        }
+        self.client.force_login(self.admin_user)
+
+        response = self.client.post(
+            reverse('platform-workspace-detail', args=[workspace.id]),
+            {
+                'form_action': 'search_competition_context',
+                'competition_provider_search': WorkspaceCompetitionContext.PROVIDER_UNIVERSO,
+                'competition_team_query': 'Loja',
+                'competition_competition_query': 'División Honor',
+                'competition_group_query': 'Grupo 2',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Universo RFAF · live')
+        self.assertContains(response, 'LOJA C.D.')
+
     def test_workspace_detail_can_apply_competition_candidate(self):
         workspace = Workspace.objects.create(
             name='Cliente onboarding',
