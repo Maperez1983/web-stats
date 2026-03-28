@@ -7079,45 +7079,56 @@ def coach_cards_page(request):
         members_by_role.setdefault(role_row.role, []).append(full_name)
     cards = [
         {
-            'title': 'Entrenadores',
-            'description': 'Estructura principal del staff para coordinar la lectura del partido, la semana y la operativa del cliente.',
-            'link': 'coach-detail',
+            'title': 'Estadísticas grupales',
+            'description': 'Lectura agregada del equipo y acceso rápido al seguimiento general del rendimiento colectivo.',
+            'link': 'coach-role-trainer',
             'member_name': ' · '.join(members_by_role.get(AppUserRole.ROLE_COACH) or ['Sin asignar']),
             'items': [
-                {'label': 'Portada staff', 'link': 'coach-detail'},
-                {'label': 'KPIs y temporada', 'link': 'coach-role-trainer'},
+                {'label': 'Resumen entrenador', 'link': 'coach-role-trainer'},
+                {'label': 'Listado de jugadores', 'link': 'player-dashboard'},
                 {'label': 'Registro de jugadores', 'link': 'coach-roster'},
             ],
         },
         {
-            'title': 'Porteros',
-            'description': 'Trabajo específico del preparador de porteros dentro del plan semanal y del diseño de tareas.',
-            'link': 'sessions-goalkeeper',
-            'member_name': ' · '.join(members_by_role.get(AppUserRole.ROLE_GOALKEEPER) or ['Sin asignar']),
+            'title': 'Partido',
+            'description': 'Zona operativa de convocatoria, 11 inicial, registro en vivo y revisión de partido para el staff.',
+            'link': 'convocation',
+            'member_name': ' · '.join(
+                list(members_by_role.get(AppUserRole.ROLE_COACH) or [])
+                + list(members_by_role.get(AppUserRole.ROLE_ANALYST) or [])
+                or ['Sin asignar']
+            ),
             'items': [
-                {'label': 'Sesiones de porteros', 'link': 'sessions-goalkeeper'},
-                {'label': 'Crear tarea de porteros', 'link': 'sessions-goalkeeper-task-create'},
+                {'label': 'Convocatoria', 'link': 'convocation'},
+                {'label': '11 inicial', 'link': 'initial-eleven'},
+                {'label': 'Registro de acciones', 'link': 'match-action-page'},
             ],
         },
         {
-            'title': 'Preparación física',
-            'description': 'Controla el trabajo condicional y las sesiones del área física sin mezclarlo con otros módulos del cliente.',
-            'link': 'sessions-fitness',
-            'member_name': ' · '.join(members_by_role.get(AppUserRole.ROLE_FITNESS) or ['Sin asignar']),
+            'title': 'Entrenamiento',
+            'description': 'Planificación semanal, sesiones y trabajo específico del staff sin salir del flujo de entrenamiento.',
+            'link': 'sessions',
+            'member_name': ' · '.join(
+                list(members_by_role.get(AppUserRole.ROLE_COACH) or [])
+                + list(members_by_role.get(AppUserRole.ROLE_GOALKEEPER) or [])
+                + list(members_by_role.get(AppUserRole.ROLE_FITNESS) or [])
+                or ['Sin asignar']
+            ),
             'items': [
-                {'label': 'Sesiones físicas', 'link': 'sessions-fitness'},
-                {'label': 'Crear tarea física', 'link': 'sessions-fitness-task-create'},
+                {'label': 'Planificación general', 'link': 'sessions'},
+                {'label': 'Porteros', 'link': 'sessions-goalkeeper'},
+                {'label': 'Preparación física', 'link': 'sessions-fitness'},
+                {'label': 'ABP', 'link': 'coach-role-abp'},
             ],
         },
         {
-            'title': 'Análisis y apoyo',
-            'description': 'Zona de apoyo del staff para scouting, vídeo y lectura táctica sin duplicar el módulo principal de análisis.',
+            'title': 'Análisis',
+            'description': 'Scouting, rival e informes para el trabajo técnico del staff sin duplicar módulos en otras áreas.',
             'link': 'analysis',
-            'member_name': ' · '.join(members_by_role.get(AppUserRole.ROLE_ANALYST) or ['Sin asignar']),
+            'member_name': ' · '.join(members_by_role.get(AppUserRole.ROLE_ANALYST) or members_by_role.get(AppUserRole.ROLE_COACH) or ['Sin asignar']),
             'items': [
                 {'label': 'Análisis rival', 'link': 'analysis'},
                 {'label': 'Informes y scouting', 'link': 'analysis'},
-                {'label': 'ABP', 'link': 'coach-role-abp'},
             ],
         },
     ]

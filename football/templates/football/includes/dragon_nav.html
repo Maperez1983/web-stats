@@ -7,11 +7,8 @@
 {% if not hide_product_shortcuts %}
 <nav class="product-nav-shortcuts" aria-label="Accesos rápidos">
   <a href="{% url 'dashboard-home' %}">Portada</a>
-  <a href="{% url 'coach-role-trainer' %}">Estadísticas</a>
+  <a href="{% url 'player-dashboard' %}">Jugadores</a>
   <a href="{% url 'coach-cards' %}">Cuerpo técnico</a>
-  <a href="{% url 'convocation' %}">Partido</a>
-  <a href="{% url 'sessions' %}">Entrenamiento</a>
-  <a href="{% url 'analysis' %}">Análisis</a>
 </nav>
 {% endif %}
 <style>
