@@ -41,6 +41,9 @@ from django.utils import timezone
 from django.utils.text import slugify
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_POST
+from django.views.decorators.csrf import csrf_exempt
+
+from .task_backups import write_task_backup
 
 try:
     from PIL import Image
@@ -11095,6 +11098,15 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     raise ValueError('Tarea de sesión no encontrada.')
                 session_for_order = target_task.session
                 deleted_title = str(target_task.title or f'Tarea {target_task.id}')
+                try:
+                    write_task_backup(
+                        target_task,
+                        kind='session_task',
+                        reason='delete',
+                        actor_username=(request.user.username if getattr(request, 'user', None) and request.user.is_authenticated else ''),
+                    )
+                except Exception:
+                    pass
                 target_task.deleted_at = timezone.localtime()
                 target_task.deleted_by = request.user if getattr(request, 'user', None) and request.user.is_authenticated else None
                 target_task.save(update_fields=['deleted_at', 'deleted_by'])
@@ -12520,6 +12532,15 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
             filename = f'task_preview_{task.id}{extension}'
             task.task_preview_image.save(filename, ContentFile(raw_bytes), save=False)
             task.save(update_fields=['task_preview_image'])
+    try:
+        write_task_backup(
+            task,
+            kind='session_task',
+            reason='save',
+            actor_username=(request.user.username if request and getattr(request, 'user', None) and request.user.is_authenticated else ''),
+        )
+    except Exception:
+        pass
     return task
 
 
@@ -12748,6 +12769,15 @@ def _save_task_studio_entry(request, owner, existing_task=None):
             filename = f'task_studio_preview_{task.id}{extension}'
             task.task_preview_image.save(filename, ContentFile(raw_bytes), save=False)
             task.save(update_fields=['task_preview_image'])
+    try:
+        write_task_backup(
+            task,
+            kind='task_studio_task',
+            reason='save',
+            actor_username=(request.user.username if request and getattr(request, 'user', None) and request.user.is_authenticated else ''),
+        )
+    except Exception:
+        pass
     return task
 
 
@@ -12836,6 +12866,7 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
 
 @login_required
 @require_POST
+@csrf_exempt
 def session_task_pdf_preview(request):
     if not _can_access_sessions_workspace(request.user):
         return HttpResponse('No tienes permisos para acceder a sesiones.', status=403)
@@ -13343,6 +13374,15 @@ def task_studio_task_delete_page(request, task_id):
         return forbidden
     owner = task.owner
     task_title = task.title
+    try:
+        write_task_backup(
+            task,
+            kind='task_studio_task',
+            reason='delete',
+            actor_username=(request.user.username if getattr(request, 'user', None) and request.user.is_authenticated else ''),
+        )
+    except Exception:
+        pass
     task.deleted_at = timezone.localtime()
     task.deleted_by = request.user if getattr(request, 'user', None) and request.user.is_authenticated else None
     task.save(update_fields=['deleted_at', 'deleted_by'])
@@ -13393,6 +13433,7 @@ def task_studio_task_duplicate_page(request, task_id):
 
 @login_required
 @require_POST
+@csrf_exempt
 def task_studio_task_pdf_preview(request):
     forbidden = _forbid_if_no_task_studio_access(request.user)
     if forbidden:

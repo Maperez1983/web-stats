@@ -50,6 +50,20 @@ if RENDER_HOSTNAME:
     if render_origin not in CSRF_TRUSTED_ORIGINS:
         CSRF_TRUSTED_ORIGINS.append(render_origin)
 
+# En despliegues con dominio personalizado, el Origin/Referer puede no coincidir con RENDER_EXTERNAL_HOSTNAME.
+# Para evitar 403 por CSRF al guardar tareas/acciones, añadimos automáticamente los hosts permitidos como orígenes confiables.
+for _host in list(ALLOWED_HOSTS):
+    _host = str(_host or '').strip()
+    if not _host or _host == '*' or _host.startswith('.'):
+        _host = _host.lstrip('.')
+    if not _host or _host in {'localhost', '127.0.0.1'}:
+        continue
+    # Por seguridad la app debería ir en HTTPS, pero incluimos HTTP por si hay redirección/proxy intermedio.
+    for _scheme in ('https', 'http'):
+        _origin = f'{_scheme}://{_host}'
+        if _origin not in CSRF_TRUSTED_ORIGINS:
+            CSRF_TRUSTED_ORIGINS.append(_origin)
+
 
 # Application definition
 
