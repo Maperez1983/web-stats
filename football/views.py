@@ -11019,6 +11019,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 selected_complexity = (request.POST.get('draw_task_complexity') or '').strip()
                 template_key = (request.POST.get('draw_task_template') or 'none').strip()
                 pitch_preset = (request.POST.get('draw_task_pitch_preset') or 'full_pitch').strip()
+                pitch_orientation = (request.POST.get('draw_task_pitch_orientation') or 'landscape').strip().lower()
                 constraints = [str(v).strip() for v in request.POST.getlist('draw_constraints') if str(v).strip()]
                 series = (request.POST.get('draw_task_series') or '').strip()
                 repetitions = (request.POST.get('draw_task_repetitions') or '').strip()
@@ -11079,8 +11080,10 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     selected_methodology = ''
                 if selected_complexity not in valid_complexities:
                     selected_complexity = ''
-                if pitch_preset not in {'full_pitch', 'half_pitch', 'attacking_third', 'seven_side', 'seven_side_single', 'futsal', 'blank'}:
+                if pitch_preset not in {'full_pitch', 'half_pitch', 'attacking_third', 'middle_third', 'defensive_third', 'seven_side', 'seven_side_single', 'futsal', 'blank'}:
                     pitch_preset = 'full_pitch'
+                if pitch_orientation not in {'landscape', 'portrait'}:
+                    pitch_orientation = 'landscape'
                 target_session = None
                 if target_session_id:
                     target_session = (
@@ -11123,6 +11126,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                             'template_key': template_key,
                             'surface': selected_surface,
                             'pitch_format': selected_pitch_format,
+                            'pitch_orientation': pitch_orientation,
                             'game_phase': selected_phase,
                             'methodology': selected_methodology,
                             'complexity': selected_complexity,
@@ -11955,6 +11959,7 @@ def _task_builder_initial_values(task):
         'complexity': str(meta.get('complexity') or ''),
         'template_key': str(meta.get('template_key') or 'none'),
         'pitch_preset': str(meta.get('pitch_preset') or 'full_pitch'),
+        'pitch_orientation': str(meta.get('pitch_orientation') or 'landscape'),
         'series': str(meta.get('series') or ''),
         'repetitions': str(meta.get('repetitions') or ''),
         'player_count': str(meta.get('player_count') or ''),
@@ -12031,6 +12036,8 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
     raw_template_key = request.POST.get('draw_task_template')
     template_key = (raw_template_key or 'none').strip() if raw_template_key is not None else str(existing_meta.get('template_key') or 'none')
     pitch_preset = (request.POST.get('draw_task_pitch_preset') or 'full_pitch').strip()
+    raw_pitch_orientation = request.POST.get('draw_task_pitch_orientation')
+    pitch_orientation = (raw_pitch_orientation or '').strip().lower() if raw_pitch_orientation is not None else str(existing_meta.get('pitch_orientation') or 'landscape')
     if 'draw_constraints' in request.POST:
         constraints = [str(v).strip() for v in request.POST.getlist('draw_constraints') if str(v).strip()]
     else:
@@ -12110,8 +12117,10 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
         selected_methodology = ''
     if selected_complexity not in valid_complexities:
         selected_complexity = ''
-    if pitch_preset not in {'full_pitch', 'half_pitch', 'attacking_third', 'seven_side', 'seven_side_single', 'futsal', 'blank'}:
+    if pitch_preset not in {'full_pitch', 'half_pitch', 'attacking_third', 'middle_third', 'defensive_third', 'seven_side', 'seven_side_single', 'futsal', 'blank'}:
         pitch_preset = 'full_pitch'
+    if pitch_orientation not in {'landscape', 'portrait'}:
+        pitch_orientation = 'landscape'
 
     target_session = existing_task.session if existing_task else None
     if target_session_id:
@@ -12149,6 +12158,7 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
             'surface': selected_surface,
             'pitch_format': selected_pitch_format,
             'pitch_preset': pitch_preset,
+            'pitch_orientation': pitch_orientation,
             'game_phase': selected_phase,
             'methodology': selected_methodology,
             'complexity': selected_complexity,
@@ -12256,6 +12266,8 @@ def _save_task_studio_entry(request, owner, existing_task=None):
     raw_template_key = request.POST.get('draw_task_template')
     template_key = (raw_template_key or 'none').strip() if raw_template_key is not None else str(existing_meta.get('template_key') or 'none')
     pitch_preset = (request.POST.get('draw_task_pitch_preset') or 'full_pitch').strip()
+    raw_pitch_orientation = request.POST.get('draw_task_pitch_orientation')
+    pitch_orientation = (raw_pitch_orientation or '').strip().lower() if raw_pitch_orientation is not None else str(existing_meta.get('pitch_orientation') or 'landscape')
     if 'draw_constraints' in request.POST:
         constraints = [str(v).strip() for v in request.POST.getlist('draw_constraints') if str(v).strip()]
     else:
@@ -12293,8 +12305,10 @@ def _save_task_studio_entry(request, owner, existing_task=None):
     if block not in {choice[0] for choice in SessionTask.BLOCK_CHOICES}:
         block = SessionTask.BLOCK_MAIN_1
     minutes = max(5, min(minutes, 90))
-    if pitch_preset not in {'full_pitch', 'half_pitch', 'attacking_third', 'seven_side', 'seven_side_single', 'futsal', 'blank'}:
+    if pitch_preset not in {'full_pitch', 'half_pitch', 'attacking_third', 'middle_third', 'defensive_third', 'seven_side', 'seven_side_single', 'futsal', 'blank'}:
         pitch_preset = 'full_pitch'
+    if pitch_orientation not in {'landscape', 'portrait'}:
+        pitch_orientation = 'landscape'
 
     valid_surfaces = {key for key, _ in TASK_SURFACE_CHOICES}
     valid_pitch_formats = {key for key, _ in TASK_PITCH_FORMAT_CHOICES}
@@ -12339,6 +12353,7 @@ def _save_task_studio_entry(request, owner, existing_task=None):
             'surface': selected_surface,
             'pitch_format': selected_pitch_format,
             'pitch_preset': pitch_preset,
+            'pitch_orientation': pitch_orientation,
             'game_phase': selected_phase,
             'methodology': selected_methodology,
             'complexity': selected_complexity,

@@ -289,6 +289,11 @@
         border: 1px solid rgba(255, 255, 255, 0.14);
         background: linear-gradient(180deg, #0b1725, #08111d);
       }
+      .pitch-stage.is-portrait {
+        aspect-ratio: 1 / 1.47;
+        max-width: 680px;
+        margin: 0 auto;
+      }
       .pitch-viewport {
         width: 100%;
         overflow: hidden;
@@ -583,6 +588,11 @@
           max-width: none;
           min-height: 520px;
         }
+        .pitch-stage.is-portrait {
+          width: 640px;
+          min-width: 640px;
+          min-height: 920px;
+        }
         .selection-grid {
           grid-template-columns: 1fr;
         }
@@ -627,6 +637,7 @@
         <input type="hidden" name="draw_canvas_width" id="draw-canvas-width" value="{{ initial.canvas_width }}" />
         <input type="hidden" name="draw_canvas_height" id="draw-canvas-height" value="{{ initial.canvas_height }}" />
         <input type="hidden" name="draw_canvas_preview_data" id="draw-canvas-preview-data" />
+        <input type="hidden" name="draw_task_pitch_orientation" id="draw-task-pitch-orientation" value="{{ initial.pitch_orientation|default:'landscape' }}" />
 
         <div class="builder">
           <section class="panel">
@@ -664,6 +675,20 @@
                           <small>Orientado a finalización, centros, área y situaciones próximas a portería.</small>
                         </span>
                       </button>
+                      <button type="button" class="surface-option" data-preset="middle_third">
+                        <span class="surface-option-thumb" data-surface-thumb="middle_third"></span>
+                        <span>
+                          <strong>Fútbol 11 · Tercio medio</strong>
+                          <small>Para tareas de progresión, presión media y relaciones interiores.</small>
+                        </span>
+                      </button>
+                      <button type="button" class="surface-option" data-preset="defensive_third">
+                        <span class="surface-option-thumb" data-surface-thumb="defensive_third"></span>
+                        <span>
+                          <strong>Fútbol 11 · Primer tercio</strong>
+                          <small>Salida de balón, presión alta rival y organización en inicio.</small>
+                        </span>
+                      </button>
                       <button type="button" class="surface-option" data-preset="seven_side">
                         <span class="surface-option-thumb" data-surface-thumb="seven_side"></span>
                         <span>
@@ -687,6 +712,10 @@
                       </button>
                     </div>
                   </div>
+                  <button type="button" class="surface-trigger" id="pitch-orientation-toggle">
+                    <span>Orientación</span>
+                    <span class="current" id="pitch-orientation-label">{% if initial.pitch_orientation == 'portrait' %}Vertical{% else %}Horizontal{% endif %}</span>
+                  </button>
                 </div>
               </div>
 
@@ -696,6 +725,8 @@
                   <option value="full_pitch" {% if initial.pitch_preset == 'full_pitch' %}selected{% endif %}>Campo completo</option>
                   <option value="half_pitch" {% if initial.pitch_preset == 'half_pitch' %}selected{% endif %}>Medio campo</option>
                   <option value="attacking_third" {% if initial.pitch_preset == 'attacking_third' %}selected{% endif %}>Último tercio</option>
+                  <option value="middle_third" {% if initial.pitch_preset == 'middle_third' %}selected{% endif %}>Tercio medio</option>
+                  <option value="defensive_third" {% if initial.pitch_preset == 'defensive_third' %}selected{% endif %}>Primer tercio</option>
                   <option value="seven_side" {% if initial.pitch_preset == 'seven_side' %}selected{% endif %}>Fútbol 7 sobre F11</option>
                   <option value="seven_side_single" {% if initial.pitch_preset == 'seven_side_single' %}selected{% endif %}>Fútbol 7 individual</option>
                   <option value="futsal" {% if initial.pitch_preset == 'futsal' %}selected{% endif %}>Futsal</option>

@@ -37,6 +37,8 @@
     full_pitch: '11v11_full',
     half_pitch: '11v11_half',
     attacking_third: 'specific_zone',
+    middle_third: 'specific_zone',
+    defensive_third: 'specific_zone',
     seven_side: '7v7',
     seven_side_single: '7v7',
     futsal: '5v5',
@@ -47,10 +49,16 @@
     full_pitch: 'campo completo',
     half_pitch: 'medio campo',
     attacking_third: 'último tercio',
+    middle_third: 'tercio medio',
+    defensive_third: 'primer tercio',
     seven_side: 'fútbol 7 doble',
     seven_side_single: 'fútbol 7 individual',
     futsal: 'futsal',
     blank: 'superficie libre',
+  };
+  const ORIENTATION_LABEL = {
+    landscape: 'horizontal',
+    portrait: 'vertical',
   };
 
   const COLORS = {
@@ -122,10 +130,13 @@
     return `${raw.slice(0, 15).trim()}…`;
   };
 
-  const buildPitchSvg = (presetKey) => {
+  const buildPitchSvg = (presetKey, orientationKey = 'landscape') => {
     const preset = String(presetKey || 'full_pitch').trim();
-    const stageW = 1100;
-    const stageH = 748;
+    const orientation = safeText(orientationKey, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
+    const stageW = orientation === 'portrait' ? 748 : 1100;
+    const stageH = orientation === 'portrait' ? 1100 : 748;
+    const drawW = 1100;
+    const drawH = 748;
     const doc = document.implementation.createDocument('http://www.w3.org/2000/svg', 'svg', null);
     const root = doc.documentElement;
     root.setAttribute('viewBox', `0 0 ${stageW} ${stageH}`);
@@ -139,6 +150,11 @@
     root.appendChild(defs);
 
     root.appendChild(createSvgNode(doc, 'rect', { x: 0, y: 0, width: stageW, height: stageH, fill: '#071320' }));
+    const drawRoot = createSvgNode(doc, 'g');
+    if (orientation === 'portrait') {
+      drawRoot.setAttribute('transform', `translate(${stageW} 0) rotate(90)`);
+    }
+    root.appendChild(drawRoot);
 
     const stage = { x: 50, y: 50, width: 1000, height: 1000 * 68 / 105 };
     const scale = stage.width / 105;
@@ -146,7 +162,7 @@
     const soft = 'rgba(248,250,252,0.66)';
 
     const drawFrame = (x, y, width, height, lineWidth = 4) => {
-      root.appendChild(createSvgNode(doc, 'rect', {
+      drawRoot.appendChild(createSvgNode(doc, 'rect', {
         x,
         y,
         width,
@@ -157,7 +173,7 @@
       }));
       const stripeW = width / 12;
       for (let index = 0; index < 12; index += 1) {
-        root.appendChild(createSvgNode(doc, 'rect', {
+        drawRoot.appendChild(createSvgNode(doc, 'rect', {
           x: x + (index * stripeW),
           y,
           width: stripeW + 1,
@@ -166,7 +182,7 @@
           stroke: 'none',
         }));
       }
-      root.appendChild(createSvgNode(doc, 'rect', {
+      drawRoot.appendChild(createSvgNode(doc, 'rect', {
         x,
         y,
         width,
@@ -181,9 +197,9 @@
       const topY = centerY - (goalHeight / 2);
       const bottomY = centerY + (goalHeight / 2);
       const postX = side === 'left' ? x - goalDepth : x + goalDepth;
-      root.appendChild(createSvgNode(doc, 'line', { x1: x, y1: topY, x2: postX, y2: topY, stroke: line, 'stroke-width': 3 }));
-      root.appendChild(createSvgNode(doc, 'line', { x1: x, y1: bottomY, x2: postX, y2: bottomY, stroke: line, 'stroke-width': 3 }));
-      root.appendChild(createSvgNode(doc, 'line', { x1: postX, y1: topY, x2: postX, y2: bottomY, stroke: line, 'stroke-width': 3 }));
+      drawRoot.appendChild(createSvgNode(doc, 'line', { x1: x, y1: topY, x2: postX, y2: topY, stroke: line, 'stroke-width': 3 }));
+      drawRoot.appendChild(createSvgNode(doc, 'line', { x1: x, y1: bottomY, x2: postX, y2: bottomY, stroke: line, 'stroke-width': 3 }));
+      drawRoot.appendChild(createSvgNode(doc, 'line', { x1: postX, y1: topY, x2: postX, y2: bottomY, stroke: line, 'stroke-width': 3 }));
     };
 
     const drawCornerArcs = (x, y, width, height, radius) => {
@@ -194,7 +210,7 @@
         `M ${x + width - radius} ${y + height} A ${radius} ${radius} 0 0 0 ${x + width} ${y + height - radius}`,
       ];
       corners.forEach((path) => {
-        root.appendChild(createSvgNode(doc, 'path', { d: path, fill: 'none', stroke: line, 'stroke-width': 2 }));
+        drawRoot.appendChild(createSvgNode(doc, 'path', { d: path, fill: 'none', stroke: line, 'stroke-width': 2 }));
       });
     };
 
@@ -216,21 +232,21 @@
       const goalDepth = 1.8 * scaleLocal;
       const spotDist = 8 * scaleLocal;
       const drawOne = (x) => {
-        root.appendChild(createSvgNode(doc, 'rect', { x, y: sevenY, width: sevenWidth, height: sevenHeight, fill: 'rgba(34,211,238,0.08)', stroke: '#67e8f9', 'stroke-width': 2.2, 'stroke-dasharray': '8 6' }));
-        root.appendChild(createSvgNode(doc, 'line', { x1: x, y1: sevenY + (sevenHeight / 2), x2: x + sevenWidth, y2: sevenY + (sevenHeight / 2), stroke: '#67e8f9', 'stroke-width': 2 }));
-        root.appendChild(createSvgNode(doc, 'circle', { cx: x + (sevenWidth / 2), cy: sevenY + (sevenHeight / 2), r: 5.5 * scaleLocal, fill: 'none', stroke: 'rgba(103,232,249,0.66)', 'stroke-width': 2 }));
-        root.appendChild(createSvgNode(doc, 'rect', { x: x + (sevenWidth - areaWidth) / 2, y: sevenY, width: areaWidth, height: areaDepth, fill: 'none', stroke: 'rgba(103,232,249,0.76)', 'stroke-width': 2 }));
-        root.appendChild(createSvgNode(doc, 'rect', { x: x + (sevenWidth - areaWidth) / 2, y: sevenY + sevenHeight - areaDepth, width: areaWidth, height: areaDepth, fill: 'none', stroke: 'rgba(103,232,249,0.76)', 'stroke-width': 2 }));
-        root.appendChild(createSvgNode(doc, 'rect', { x: x + (sevenWidth - goalAreaWidth) / 2, y: sevenY, width: goalAreaWidth, height: goalAreaDepth, fill: 'none', stroke: 'rgba(103,232,249,0.76)', 'stroke-width': 2 }));
-        root.appendChild(createSvgNode(doc, 'rect', { x: x + (sevenWidth - goalAreaWidth) / 2, y: sevenY + sevenHeight - goalAreaDepth, width: goalAreaWidth, height: goalAreaDepth, fill: 'none', stroke: 'rgba(103,232,249,0.76)', 'stroke-width': 2 }));
-        root.appendChild(createSvgNode(doc, 'circle', { cx: x + (sevenWidth / 2), cy: sevenY + spotDist, r: 3.5, fill: '#67e8f9' }));
-        root.appendChild(createSvgNode(doc, 'circle', { cx: x + (sevenWidth / 2), cy: sevenY + sevenHeight - spotDist, r: 3.5, fill: '#67e8f9' }));
-        root.appendChild(createSvgNode(doc, 'line', { x1: x + ((sevenWidth - goalHeight) / 2), y1: sevenY, x2: x + ((sevenWidth - goalHeight) / 2), y2: sevenY - goalDepth, stroke: '#67e8f9', 'stroke-width': 2 }));
-        root.appendChild(createSvgNode(doc, 'line', { x1: x + ((sevenWidth + goalHeight) / 2), y1: sevenY, x2: x + ((sevenWidth + goalHeight) / 2), y2: sevenY - goalDepth, stroke: '#67e8f9', 'stroke-width': 2 }));
-        root.appendChild(createSvgNode(doc, 'line', { x1: x + ((sevenWidth - goalHeight) / 2), y1: sevenY - goalDepth, x2: x + ((sevenWidth + goalHeight) / 2), y2: sevenY - goalDepth, stroke: '#67e8f9', 'stroke-width': 2 }));
-        root.appendChild(createSvgNode(doc, 'line', { x1: x + ((sevenWidth - goalHeight) / 2), y1: sevenY + sevenHeight, x2: x + ((sevenWidth - goalHeight) / 2), y2: sevenY + sevenHeight + goalDepth, stroke: '#67e8f9', 'stroke-width': 2 }));
-        root.appendChild(createSvgNode(doc, 'line', { x1: x + ((sevenWidth + goalHeight) / 2), y1: sevenY + sevenHeight, x2: x + ((sevenWidth + goalHeight) / 2), y2: sevenY + sevenHeight + goalDepth, stroke: '#67e8f9', 'stroke-width': 2 }));
-        root.appendChild(createSvgNode(doc, 'line', { x1: x + ((sevenWidth - goalHeight) / 2), y1: sevenY + sevenHeight + goalDepth, x2: x + ((sevenWidth + goalHeight) / 2), y2: sevenY + sevenHeight + goalDepth, stroke: '#67e8f9', 'stroke-width': 2 }));
+        drawRoot.appendChild(createSvgNode(doc, 'rect', { x, y: sevenY, width: sevenWidth, height: sevenHeight, fill: 'rgba(34,211,238,0.08)', stroke: '#67e8f9', 'stroke-width': 2.2, 'stroke-dasharray': '8 6' }));
+        drawRoot.appendChild(createSvgNode(doc, 'line', { x1: x, y1: sevenY + (sevenHeight / 2), x2: x + sevenWidth, y2: sevenY + (sevenHeight / 2), stroke: '#67e8f9', 'stroke-width': 2 }));
+        drawRoot.appendChild(createSvgNode(doc, 'circle', { cx: x + (sevenWidth / 2), cy: sevenY + (sevenHeight / 2), r: 5.5 * scaleLocal, fill: 'none', stroke: 'rgba(103,232,249,0.66)', 'stroke-width': 2 }));
+        drawRoot.appendChild(createSvgNode(doc, 'rect', { x: x + (sevenWidth - areaWidth) / 2, y: sevenY, width: areaWidth, height: areaDepth, fill: 'none', stroke: 'rgba(103,232,249,0.76)', 'stroke-width': 2 }));
+        drawRoot.appendChild(createSvgNode(doc, 'rect', { x: x + (sevenWidth - areaWidth) / 2, y: sevenY + sevenHeight - areaDepth, width: areaWidth, height: areaDepth, fill: 'none', stroke: 'rgba(103,232,249,0.76)', 'stroke-width': 2 }));
+        drawRoot.appendChild(createSvgNode(doc, 'rect', { x: x + (sevenWidth - goalAreaWidth) / 2, y: sevenY, width: goalAreaWidth, height: goalAreaDepth, fill: 'none', stroke: 'rgba(103,232,249,0.76)', 'stroke-width': 2 }));
+        drawRoot.appendChild(createSvgNode(doc, 'rect', { x: x + (sevenWidth - goalAreaWidth) / 2, y: sevenY + sevenHeight - goalAreaDepth, width: goalAreaWidth, height: goalAreaDepth, fill: 'none', stroke: 'rgba(103,232,249,0.76)', 'stroke-width': 2 }));
+        drawRoot.appendChild(createSvgNode(doc, 'circle', { cx: x + (sevenWidth / 2), cy: sevenY + spotDist, r: 3.5, fill: '#67e8f9' }));
+        drawRoot.appendChild(createSvgNode(doc, 'circle', { cx: x + (sevenWidth / 2), cy: sevenY + sevenHeight - spotDist, r: 3.5, fill: '#67e8f9' }));
+        drawRoot.appendChild(createSvgNode(doc, 'line', { x1: x + ((sevenWidth - goalHeight) / 2), y1: sevenY, x2: x + ((sevenWidth - goalHeight) / 2), y2: sevenY - goalDepth, stroke: '#67e8f9', 'stroke-width': 2 }));
+        drawRoot.appendChild(createSvgNode(doc, 'line', { x1: x + ((sevenWidth + goalHeight) / 2), y1: sevenY, x2: x + ((sevenWidth + goalHeight) / 2), y2: sevenY - goalDepth, stroke: '#67e8f9', 'stroke-width': 2 }));
+        drawRoot.appendChild(createSvgNode(doc, 'line', { x1: x + ((sevenWidth - goalHeight) / 2), y1: sevenY - goalDepth, x2: x + ((sevenWidth + goalHeight) / 2), y2: sevenY - goalDepth, stroke: '#67e8f9', 'stroke-width': 2 }));
+        drawRoot.appendChild(createSvgNode(doc, 'line', { x1: x + ((sevenWidth - goalHeight) / 2), y1: sevenY + sevenHeight, x2: x + ((sevenWidth - goalHeight) / 2), y2: sevenY + sevenHeight + goalDepth, stroke: '#67e8f9', 'stroke-width': 2 }));
+        drawRoot.appendChild(createSvgNode(doc, 'line', { x1: x + ((sevenWidth + goalHeight) / 2), y1: sevenY + sevenHeight, x2: x + ((sevenWidth + goalHeight) / 2), y2: sevenY + sevenHeight + goalDepth, stroke: '#67e8f9', 'stroke-width': 2 }));
+        drawRoot.appendChild(createSvgNode(doc, 'line', { x1: x + ((sevenWidth - goalHeight) / 2), y1: sevenY + sevenHeight + goalDepth, x2: x + ((sevenWidth + goalHeight) / 2), y2: sevenY + sevenHeight + goalDepth, stroke: '#67e8f9', 'stroke-width': 2 }));
       };
       drawOne(leftSevenX);
       drawOne(rightSevenX);
@@ -253,17 +269,17 @@
       const arcDx = 5.5 * scale;
       const arcYOffset = Math.sqrt((9.15 * 9.15) - (5.5 * 5.5)) * scale;
 
-      root.appendChild(createSvgNode(doc, 'line', { x1: centerX, y1: stage.y, x2: centerX, y2: stage.y + stage.height, stroke: line, 'stroke-width': 3 }));
-      root.appendChild(createSvgNode(doc, 'circle', { cx: centerX, cy: centerY, r: centerRadius, fill: 'none', stroke: soft, 'stroke-width': 3 }));
-      root.appendChild(createSvgNode(doc, 'circle', { cx: centerX, cy: centerY, r: 4, fill: line }));
-      root.appendChild(createSvgNode(doc, 'rect', { x: stage.x, y: centerY - (penaltyHeight / 2), width: penaltyDepth, height: penaltyHeight, fill: 'none', stroke: soft, 'stroke-width': 3 }));
-      root.appendChild(createSvgNode(doc, 'rect', { x: stage.x, y: centerY - (goalAreaHeight / 2), width: goalAreaDepth, height: goalAreaHeight, fill: 'none', stroke: soft, 'stroke-width': 3 }));
-      root.appendChild(createSvgNode(doc, 'rect', { x: stage.x + stage.width - penaltyDepth, y: centerY - (penaltyHeight / 2), width: penaltyDepth, height: penaltyHeight, fill: 'none', stroke: soft, 'stroke-width': 3 }));
-      root.appendChild(createSvgNode(doc, 'rect', { x: stage.x + stage.width - goalAreaDepth, y: centerY - (goalAreaHeight / 2), width: goalAreaDepth, height: goalAreaHeight, fill: 'none', stroke: soft, 'stroke-width': 3 }));
-      root.appendChild(createSvgNode(doc, 'circle', { cx: stage.x + spotDist, cy: centerY, r: 4, fill: line }));
-      root.appendChild(createSvgNode(doc, 'circle', { cx: stage.x + stage.width - spotDist, cy: centerY, r: 4, fill: line }));
-      root.appendChild(createSvgNode(doc, 'path', { d: `M ${stage.x + penaltyDepth} ${centerY - arcYOffset} A ${arcRadius} ${arcRadius} 0 0 1 ${stage.x + penaltyDepth} ${centerY + arcYOffset}`, fill: 'none', stroke: soft, 'stroke-width': 3 }));
-      root.appendChild(createSvgNode(doc, 'path', { d: `M ${stage.x + stage.width - penaltyDepth} ${centerY - arcYOffset} A ${arcRadius} ${arcRadius} 0 0 0 ${stage.x + stage.width - penaltyDepth} ${centerY + arcYOffset}`, fill: 'none', stroke: soft, 'stroke-width': 3 }));
+      drawRoot.appendChild(createSvgNode(doc, 'line', { x1: centerX, y1: stage.y, x2: centerX, y2: stage.y + stage.height, stroke: line, 'stroke-width': 3 }));
+      drawRoot.appendChild(createSvgNode(doc, 'circle', { cx: centerX, cy: centerY, r: centerRadius, fill: 'none', stroke: soft, 'stroke-width': 3 }));
+      drawRoot.appendChild(createSvgNode(doc, 'circle', { cx: centerX, cy: centerY, r: 4, fill: line }));
+      drawRoot.appendChild(createSvgNode(doc, 'rect', { x: stage.x, y: centerY - (penaltyHeight / 2), width: penaltyDepth, height: penaltyHeight, fill: 'none', stroke: soft, 'stroke-width': 3 }));
+      drawRoot.appendChild(createSvgNode(doc, 'rect', { x: stage.x, y: centerY - (goalAreaHeight / 2), width: goalAreaDepth, height: goalAreaHeight, fill: 'none', stroke: soft, 'stroke-width': 3 }));
+      drawRoot.appendChild(createSvgNode(doc, 'rect', { x: stage.x + stage.width - penaltyDepth, y: centerY - (penaltyHeight / 2), width: penaltyDepth, height: penaltyHeight, fill: 'none', stroke: soft, 'stroke-width': 3 }));
+      drawRoot.appendChild(createSvgNode(doc, 'rect', { x: stage.x + stage.width - goalAreaDepth, y: centerY - (goalAreaHeight / 2), width: goalAreaDepth, height: goalAreaHeight, fill: 'none', stroke: soft, 'stroke-width': 3 }));
+      drawRoot.appendChild(createSvgNode(doc, 'circle', { cx: stage.x + spotDist, cy: centerY, r: 4, fill: line }));
+      drawRoot.appendChild(createSvgNode(doc, 'circle', { cx: stage.x + stage.width - spotDist, cy: centerY, r: 4, fill: line }));
+      drawRoot.appendChild(createSvgNode(doc, 'path', { d: `M ${stage.x + penaltyDepth} ${centerY - arcYOffset} A ${arcRadius} ${arcRadius} 0 0 1 ${stage.x + penaltyDepth} ${centerY + arcYOffset}`, fill: 'none', stroke: soft, 'stroke-width': 3 }));
+      drawRoot.appendChild(createSvgNode(doc, 'path', { d: `M ${stage.x + stage.width - penaltyDepth} ${centerY - arcYOffset} A ${arcRadius} ${arcRadius} 0 0 0 ${stage.x + stage.width - penaltyDepth} ${centerY + arcYOffset}`, fill: 'none', stroke: soft, 'stroke-width': 3 }));
       drawGoal(stage.x, centerY, goalDepth, goalHeight, 'left');
       drawGoal(stage.x + stage.width, centerY, goalDepth, goalHeight, 'right');
       drawCornerArcs(stage.x, stage.y, stage.width, stage.height, cornerRadius);
@@ -272,8 +288,8 @@
     const drawHalfPitch = () => {
       const width = 620;
       const height = width * 68 / 52.5;
-      const x = (stageW - width) / 2;
-      const y = (stageH - height) / 2;
+      const x = (drawW - width) / 2;
+      const y = (drawH - height) / 2;
       const localScale = width / 52.5;
       drawFrame(x, y, width, height, 4);
       const centerY = y + (height / 2);
@@ -290,20 +306,20 @@
       const centerRadius = 9.15 * localScale;
       const rightX = x + width;
 
-      root.appendChild(createSvgNode(doc, 'line', { x1: x, y1: y, x2: x, y2: y + height, stroke: line, 'stroke-width': 3 }));
-      root.appendChild(createSvgNode(doc, 'circle', { cx: x, cy: centerY, r: centerRadius, fill: 'none', stroke: soft, 'stroke-width': 3 }));
-      root.appendChild(createSvgNode(doc, 'rect', { x: rightX - penaltyDepth, y: centerY - (penaltyHeight / 2), width: penaltyDepth, height: penaltyHeight, fill: 'none', stroke: soft, 'stroke-width': 3 }));
-      root.appendChild(createSvgNode(doc, 'rect', { x: rightX - goalAreaDepth, y: centerY - (goalAreaHeight / 2), width: goalAreaDepth, height: goalAreaHeight, fill: 'none', stroke: soft, 'stroke-width': 3 }));
-      root.appendChild(createSvgNode(doc, 'circle', { cx: rightX - spotDist, cy: centerY, r: 4, fill: line }));
-      root.appendChild(createSvgNode(doc, 'path', { d: `M ${rightX - penaltyDepth} ${centerY - arcYOffset} A ${arcRadius} ${arcRadius} 0 0 0 ${rightX - penaltyDepth} ${centerY + arcYOffset}`, fill: 'none', stroke: soft, 'stroke-width': 3 }));
-      drawGoal(rightX, centerY, goalDepth, goalHeight, 'right');
+      drawRoot.appendChild(createSvgNode(doc, 'line', { x1: x, y1: y, x2: x, y2: y + height, stroke: line, 'stroke-width': 3 }));
+      drawRoot.appendChild(createSvgNode(doc, 'circle', { cx: x, cy: centerY, r: centerRadius, fill: 'none', stroke: soft, 'stroke-width': 3 }));
+      drawRoot.appendChild(createSvgNode(doc, 'rect', { x: rightX - penaltyDepth, y: centerY - (penaltyHeight / 2), width: penaltyDepth, height: penaltyHeight, fill: 'none', stroke: soft, 'stroke-width': 3 }));
+      drawRoot.appendChild(createSvgNode(doc, 'rect', { x: rightX - goalAreaDepth, y: centerY - (goalAreaHeight / 2), width: goalAreaDepth, height: goalAreaHeight, fill: 'none', stroke: soft, 'stroke-width': 3 }));
+      drawRoot.appendChild(createSvgNode(doc, 'circle', { cx: rightX - spotDist, cy: centerY, r: 4, fill: line }));
+      drawRoot.appendChild(createSvgNode(doc, 'path', { d: `M ${rightX - penaltyDepth} ${centerY - arcYOffset} A ${arcRadius} ${arcRadius} 0 0 0 ${rightX - penaltyDepth} ${centerY + arcYOffset}`, fill: 'none', stroke: soft, 'stroke-width': 3 }));
+    drawGoal(rightX, centerY, goalDepth, goalHeight, 'right');
     };
 
-    const drawAttackingThird = () => {
+    const drawThirdZone = (side = 'attacking') => {
       const width = 420;
       const height = width * 68 / 35;
-      const x = (stageW - width) / 2;
-      const y = (stageH - height) / 2;
+      const x = (drawW - width) / 2;
+      const y = (drawH - height) / 2;
       const localScale = width / 35;
       drawFrame(x, y, width, height, 4);
       const centerY = y + (height / 2);
@@ -317,20 +333,44 @@
       const arcRadius = 9.15 * localScale;
       const arcYOffset = Math.sqrt((9.15 * 9.15) - (5.5 * 5.5)) * localScale;
       const rightX = x + width;
+      const isRight = side !== 'defensive';
+      drawRoot.appendChild(createSvgNode(doc, 'line', { x1: isRight ? x : rightX, y1: y, x2: isRight ? x : rightX, y2: y + height, stroke: soft, 'stroke-width': 2 }));
+      if (isRight) {
+        drawRoot.appendChild(createSvgNode(doc, 'rect', { x: rightX - penaltyDepth, y: centerY - (penaltyHeight / 2), width: penaltyDepth, height: penaltyHeight, fill: 'none', stroke: soft, 'stroke-width': 3 }));
+        drawRoot.appendChild(createSvgNode(doc, 'rect', { x: rightX - goalAreaDepth, y: centerY - (goalAreaHeight / 2), width: goalAreaDepth, height: goalAreaHeight, fill: 'none', stroke: soft, 'stroke-width': 3 }));
+        drawRoot.appendChild(createSvgNode(doc, 'circle', { cx: rightX - spotDist, cy: centerY, r: 4, fill: line }));
+        drawRoot.appendChild(createSvgNode(doc, 'path', { d: `M ${rightX - penaltyDepth} ${centerY - arcYOffset} A ${arcRadius} ${arcRadius} 0 0 0 ${rightX - penaltyDepth} ${centerY + arcYOffset}`, fill: 'none', stroke: soft, 'stroke-width': 3 }));
+        drawGoal(rightX, centerY, goalDepth, goalHeight, 'right');
+      } else {
+        drawRoot.appendChild(createSvgNode(doc, 'rect', { x, y: centerY - (penaltyHeight / 2), width: penaltyDepth, height: penaltyHeight, fill: 'none', stroke: soft, 'stroke-width': 3 }));
+        drawRoot.appendChild(createSvgNode(doc, 'rect', { x, y: centerY - (goalAreaHeight / 2), width: goalAreaDepth, height: goalAreaHeight, fill: 'none', stroke: soft, 'stroke-width': 3 }));
+        drawRoot.appendChild(createSvgNode(doc, 'circle', { cx: x + spotDist, cy: centerY, r: 4, fill: line }));
+        drawRoot.appendChild(createSvgNode(doc, 'path', { d: `M ${x + penaltyDepth} ${centerY - arcYOffset} A ${arcRadius} ${arcRadius} 0 0 1 ${x + penaltyDepth} ${centerY + arcYOffset}`, fill: 'none', stroke: soft, 'stroke-width': 3 }));
+        drawGoal(x, centerY, goalDepth, goalHeight, 'left');
+      }
+    };
 
-      root.appendChild(createSvgNode(doc, 'line', { x1: x, y1: y, x2: x, y2: y + height, stroke: soft, 'stroke-width': 2 }));
-      root.appendChild(createSvgNode(doc, 'rect', { x: rightX - penaltyDepth, y: centerY - (penaltyHeight / 2), width: penaltyDepth, height: penaltyHeight, fill: 'none', stroke: soft, 'stroke-width': 3 }));
-      root.appendChild(createSvgNode(doc, 'rect', { x: rightX - goalAreaDepth, y: centerY - (goalAreaHeight / 2), width: goalAreaDepth, height: goalAreaHeight, fill: 'none', stroke: soft, 'stroke-width': 3 }));
-      root.appendChild(createSvgNode(doc, 'circle', { cx: rightX - spotDist, cy: centerY, r: 4, fill: line }));
-      root.appendChild(createSvgNode(doc, 'path', { d: `M ${rightX - penaltyDepth} ${centerY - arcYOffset} A ${arcRadius} ${arcRadius} 0 0 0 ${rightX - penaltyDepth} ${centerY + arcYOffset}`, fill: 'none', stroke: soft, 'stroke-width': 3 }));
-      drawGoal(rightX, centerY, goalDepth, goalHeight, 'right');
+    const drawMiddleThird = () => {
+      const width = 460;
+      const height = width * 68 / 35;
+      const x = (drawW - width) / 2;
+      const y = (drawH - height) / 2;
+      drawFrame(x, y, width, height, 4);
+      const centerX = x + (width / 2);
+      const centerY = y + (height / 2);
+      const localScale = width / 35;
+      drawRoot.appendChild(createSvgNode(doc, 'line', { x1: x, y1: y, x2: x, y2: y + height, stroke: soft, 'stroke-width': 2 }));
+      drawRoot.appendChild(createSvgNode(doc, 'line', { x1: x + width, y1: y, x2: x + width, y2: y + height, stroke: soft, 'stroke-width': 2 }));
+      drawRoot.appendChild(createSvgNode(doc, 'line', { x1: centerX, y1: y, x2: centerX, y2: y + height, stroke: line, 'stroke-width': 3 }));
+      drawRoot.appendChild(createSvgNode(doc, 'circle', { cx: centerX, cy: centerY, r: 9.15 * localScale, fill: 'none', stroke: soft, 'stroke-width': 3 }));
+      drawRoot.appendChild(createSvgNode(doc, 'circle', { cx: centerX, cy: centerY, r: 4, fill: line }));
     };
 
     const drawMiniGame = (metersW, metersH, penaltyDepthMeters, penaltyHeightMeters, goalAreaDepthMeters, goalAreaHeightMeters, goalHeightMeters) => {
       const width = 920;
       const height = width * metersH / metersW;
-      const x = (stageW - width) / 2;
-      const y = (stageH - height) / 2;
+      const x = (drawW - width) / 2;
+      const y = (drawH - height) / 2;
       const localScale = width / metersW;
       drawFrame(x, y, width, height, 4);
       const centerX = x + (width / 2);
@@ -339,16 +379,16 @@
       const cornerRadius = Math.min(1, Math.min(metersW, metersH) / 38) * localScale;
       const goalDepth = 2 * localScale;
 
-      root.appendChild(createSvgNode(doc, 'line', { x1: centerX, y1: y, x2: centerX, y2: y + height, stroke: line, 'stroke-width': 3 }));
-      root.appendChild(createSvgNode(doc, 'circle', { cx: centerX, cy: centerY, r: centerRadius, fill: 'none', stroke: soft, 'stroke-width': 3 }));
-      root.appendChild(createSvgNode(doc, 'circle', { cx: centerX, cy: centerY, r: 4, fill: line }));
+      drawRoot.appendChild(createSvgNode(doc, 'line', { x1: centerX, y1: y, x2: centerX, y2: y + height, stroke: line, 'stroke-width': 3 }));
+      drawRoot.appendChild(createSvgNode(doc, 'circle', { cx: centerX, cy: centerY, r: centerRadius, fill: 'none', stroke: soft, 'stroke-width': 3 }));
+      drawRoot.appendChild(createSvgNode(doc, 'circle', { cx: centerX, cy: centerY, r: 4, fill: line }));
       if (penaltyDepthMeters > 0 && penaltyHeightMeters > 0) {
-        root.appendChild(createSvgNode(doc, 'rect', { x, y: centerY - ((penaltyHeightMeters * localScale) / 2), width: penaltyDepthMeters * localScale, height: penaltyHeightMeters * localScale, fill: 'none', stroke: soft, 'stroke-width': 3 }));
-        root.appendChild(createSvgNode(doc, 'rect', { x: x + width - (penaltyDepthMeters * localScale), y: centerY - ((penaltyHeightMeters * localScale) / 2), width: penaltyDepthMeters * localScale, height: penaltyHeightMeters * localScale, fill: 'none', stroke: soft, 'stroke-width': 3 }));
+        drawRoot.appendChild(createSvgNode(doc, 'rect', { x, y: centerY - ((penaltyHeightMeters * localScale) / 2), width: penaltyDepthMeters * localScale, height: penaltyHeightMeters * localScale, fill: 'none', stroke: soft, 'stroke-width': 3 }));
+        drawRoot.appendChild(createSvgNode(doc, 'rect', { x: x + width - (penaltyDepthMeters * localScale), y: centerY - ((penaltyHeightMeters * localScale) / 2), width: penaltyDepthMeters * localScale, height: penaltyHeightMeters * localScale, fill: 'none', stroke: soft, 'stroke-width': 3 }));
       }
       if (goalAreaDepthMeters > 0 && goalAreaHeightMeters > 0) {
-        root.appendChild(createSvgNode(doc, 'rect', { x, y: centerY - ((goalAreaHeightMeters * localScale) / 2), width: goalAreaDepthMeters * localScale, height: goalAreaHeightMeters * localScale, fill: 'none', stroke: soft, 'stroke-width': 3 }));
-        root.appendChild(createSvgNode(doc, 'rect', { x: x + width - (goalAreaDepthMeters * localScale), y: centerY - ((goalAreaHeightMeters * localScale) / 2), width: goalAreaDepthMeters * localScale, height: goalAreaHeightMeters * localScale, fill: 'none', stroke: soft, 'stroke-width': 3 }));
+        drawRoot.appendChild(createSvgNode(doc, 'rect', { x, y: centerY - ((goalAreaHeightMeters * localScale) / 2), width: goalAreaDepthMeters * localScale, height: goalAreaHeightMeters * localScale, fill: 'none', stroke: soft, 'stroke-width': 3 }));
+        drawRoot.appendChild(createSvgNode(doc, 'rect', { x: x + width - (goalAreaDepthMeters * localScale), y: centerY - ((goalAreaHeightMeters * localScale) / 2), width: goalAreaDepthMeters * localScale, height: goalAreaHeightMeters * localScale, fill: 'none', stroke: soft, 'stroke-width': 3 }));
       }
       drawGoal(x, centerY, goalDepth, goalHeightMeters * localScale, 'left');
       drawGoal(x + width, centerY, goalDepth, goalHeightMeters * localScale, 'right');
@@ -356,7 +396,9 @@
     };
 
     if (preset === 'half_pitch') drawHalfPitch();
-    else if (preset === 'attacking_third') drawAttackingThird();
+    else if (preset === 'attacking_third') drawThirdZone('attacking');
+    else if (preset === 'defensive_third') drawThirdZone('defensive');
+    else if (preset === 'middle_third') drawMiddleThird();
     else if (preset === 'seven_side') {
       drawFullPitch();
       drawSevenSideOverlay(stage.x, stage.y, stage.width, stage.height);
@@ -378,6 +420,9 @@
     const surfaceTrigger = document.getElementById('surface-trigger');
     const surfaceMenu = document.getElementById('surface-menu');
     const surfaceTriggerLabel = document.getElementById('surface-trigger-label');
+    const orientationInput = document.getElementById('draw-task-pitch-orientation');
+    const orientationToggle = document.getElementById('pitch-orientation-toggle');
+    const orientationLabel = document.getElementById('pitch-orientation-label');
     const pitchFormatInput = document.getElementById('draw-task-pitch-format');
     const stateInput = document.getElementById('draw-canvas-state');
     const widthInput = document.getElementById('draw-canvas-width');
@@ -436,6 +481,7 @@
     let activeStepIndex = -1;
     let playbackTimer = null;
     let playbackRestoreState = null;
+    let pitchOrientation = safeText(orientationInput?.value, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
 
     const clampScale = (value) => clamp(Number(value) || 1, 0.4, 2.6);
     const normalizeEditableObject = (object) => {
@@ -549,12 +595,34 @@
       commitObjectChange(message);
     };
 
-    const fitCanvas = () => {
+    const fitCanvas = (preserveObjects = false) => {
+      const previousWidth = canvas.getWidth() || 0;
+      const previousHeight = canvas.getHeight() || 0;
       const width = Math.max(320, Math.round(stage.clientWidth || 960));
       const height = Math.max(220, Math.round(stage.clientHeight || 640));
       canvas.setDimensions({ width, height });
+      if (preserveObjects && previousWidth > 0 && previousHeight > 0) {
+        const scaleX = width / previousWidth;
+        const scaleY = height / previousHeight;
+        const uniformScale = Math.min(scaleX, scaleY);
+        canvas.getObjects().forEach((item) => {
+          item.set({
+            left: (Number(item.left) || 0) * scaleX,
+            top: (Number(item.top) || 0) * scaleY,
+            scaleX: clampScale((Number(item.scaleX) || 1) * uniformScale),
+            scaleY: clampScale((Number(item.scaleY) || 1) * uniformScale),
+          });
+          item.setCoords();
+        });
+      }
       canvas.calcOffset();
       canvas.requestRenderAll();
+    };
+    const syncOrientationUi = () => {
+      if (orientationInput) orientationInput.value = pitchOrientation;
+      if (orientationLabel) orientationLabel.textContent = ORIENTATION_LABEL[pitchOrientation] === 'vertical' ? 'Vertical' : 'Horizontal';
+      stage.classList.toggle('is-portrait', pitchOrientation === 'portrait');
+      orientationToggle?.classList.toggle('is-active', pitchOrientation === 'portrait');
     };
 
     const serializeCanvasOnly = () => {
@@ -662,9 +730,21 @@
       if (pitchFormatInput && PITCH_FORMAT_BY_PRESET[preset]) pitchFormatInput.value = PITCH_FORMAT_BY_PRESET[preset];
       presetButtons.forEach((button) => button.classList.toggle('is-active', safeText(button.dataset.preset) === preset));
       if (surfaceTriggerLabel) surfaceTriggerLabel.textContent = PRESET_LABEL[preset] || 'Campo completo';
-      svgSurface.innerHTML = buildPitchSvg(preset);
+      svgSurface.innerHTML = buildPitchSvg(preset, pitchOrientation);
       refreshLivePreview();
-      setStatus(`Superficie preparada: ${PRESET_LABEL[preset] || 'campo'}.`);
+      setStatus(`Superficie preparada: ${PRESET_LABEL[preset] || 'campo'} en ${ORIENTATION_LABEL[pitchOrientation]}.`);
+    };
+    const applyPitchOrientation = (nextOrientation, options = {}) => {
+      const normalized = safeText(nextOrientation, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
+      if (normalized === pitchOrientation && !options.force) return;
+      pitchOrientation = normalized;
+      syncOrientationUi();
+      fitCanvas(options.preserveObjects !== false);
+      setPreset(presetSelect.value || 'full_pitch');
+      if (!options.silent) setStatus(`Campo en ${ORIENTATION_LABEL[pitchOrientation]}.`);
+      if (options.pushHistory) {
+        pushHistory();
+      }
     };
 
     const renderSurfaceThumbs = () => {
@@ -1235,6 +1315,7 @@
       tempForm.remove();
     };
 
+    syncOrientationUi();
     fitCanvas();
     setPreset(presetSelect.value || 'full_pitch');
     restoreState();
@@ -1440,6 +1521,9 @@
       });
     });
     presetSelect.addEventListener('change', () => setPreset(presetSelect.value || 'full_pitch'));
+    orientationToggle?.addEventListener('click', () => {
+      applyPitchOrientation(pitchOrientation === 'portrait' ? 'landscape' : 'portrait', { preserveObjects: true, pushHistory: true });
+    });
     surfaceTrigger?.addEventListener('click', () => {
       renderSurfaceThumbs();
       setSurfaceMenuOpen(!surfacePicker?.classList.contains('is-open'));
@@ -1454,7 +1538,7 @@
     window.addEventListener('resize', () => {
       window.clearTimeout(resizeTimer);
       resizeTimer = window.setTimeout(() => {
-        fitCanvas();
+        fitCanvas(true);
         renderSurfaceThumbs();
         setPreset(presetSelect.value || 'full_pitch');
       }, 140);
