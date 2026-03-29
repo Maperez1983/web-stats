@@ -1552,6 +1552,19 @@
       setSurfaceMenuOpen(false);
     });
 
+    const resourceTabs = Array.from(document.querySelectorAll('.resource-tab'));
+    const resourcePanels = Array.from(document.querySelectorAll('.resource-panel'));
+    const activateResourcePanel = (key) => {
+      resourceTabs.forEach((tab) => tab.classList.toggle('is-active', tab.dataset.resource === key));
+      resourcePanels.forEach((panel) => panel.classList.toggle('is-visible', panel.dataset.panel === key));
+    };
+    resourceTabs.forEach((tab) => {
+      tab.addEventListener('click', () => {
+        const target = safeText(tab.dataset.resource);
+        activateResourcePanel(target);
+      });
+    });
+
     let resizeTimer = null;
     window.addEventListener('resize', () => {
       window.clearTimeout(resizeTimer);

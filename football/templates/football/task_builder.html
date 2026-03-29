@@ -279,6 +279,37 @@
         line-height: 1.35;
         text-transform: none;
       }
+      .resource-tab-bar {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.5rem;
+      }
+      .resource-tab {
+        background: transparent;
+        border: 1px solid rgba(255,255,255,0.3);
+        border-radius: 999px;
+        padding: 6px 16px;
+        color: var(--body-text);
+        transition: background 0.2s ease;
+      }
+      .resource-tab.is-active {
+        background: rgba(34,211,238,0.18);
+        border-color: rgba(34,211,238,0.6);
+        color: #ffffff;
+      }
+      .resource-helper {
+        margin: 0;
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+      .resource-panel {
+        display: none;
+        margin-top: 0.6rem;
+      }
+      .resource-panel.is-visible {
+        display: block;
+      }
       .pitch-stage {
         position: relative;
         width: 100%;
@@ -744,9 +775,17 @@
                 </select>
               </label>
 
-              <div class="section" style="margin-bottom:0.85rem;">
-                <h3 class="tool-group-title">Recursos base</h3>
-                <div class="resource-strip" id="task-basic-tools">
+              <div class="section resource-section" style="margin-bottom:0.85rem;">
+                <div class="resource-tab-bar">
+                  <button type="button" class="resource-tab" data-resource="base">Recursos base</button>
+                  <button type="button" class="resource-tab" data-resource="trazos">Trazos y flechas</button>
+                  <button type="button" class="resource-tab" data-resource="figuras">Figuras geométricas</button>
+                  <button type="button" class="resource-tab" data-resource="emoji">Recursos emoji</button>
+                </div>
+                <p class="resource-helper">Pulsa una pestaña para mostrar los recursos.</p>
+                <div class="resource-panel" data-panel="base" hidden>
+                  <h3 class="tool-group-title">Recursos base</h3>
+                  <div class="resource-strip" id="task-basic-tools">
                   <button type="button" data-add="player_local">Jugador local</button>
                   <button type="button" data-add="player_rival">Jugador rival</button>
                   <button type="button" data-add="goalkeeper_local">Portero</button>
@@ -759,8 +798,10 @@
                   <button type="button" data-action="delete">Borrar</button>
                   <button type="button" data-action="clear">Limpiar</button>
                 </div>
-                <h3 class="tool-group-title" style="margin-top:0.85rem;">Trazos y flechas</h3>
-                <div class="resource-strip" id="task-lines-tools">
+                </div>
+                <div class="resource-panel" data-panel="trazos" hidden>
+                  <h3 class="tool-group-title" style="margin-top:0.85rem;">Trazos y flechas</h3>
+                  <div class="resource-strip" id="task-lines-tools">
                   <button type="button" data-add="line_solid">Línea continua</button>
                   <button type="button" data-add="line_dash">Línea discontinua</button>
                   <button type="button" data-add="line_dot">Línea puntos</button>
@@ -770,16 +811,20 @@
                   <button type="button" data-add="arrow_dot">Flecha puntos</button>
                   <button type="button" data-add="arrow_curve">Flecha curva</button>
                 </div>
-                <h3 class="tool-group-title" style="margin-top:0.85rem;">Figuras geométricas</h3>
-                <div class="resource-strip" id="task-shapes-tools">
+                </div>
+                <div class="resource-panel" data-panel="figuras" hidden>
+                  <h3 class="tool-group-title" style="margin-top:0.85rem;">Figuras geométricas</h3>
+                  <div class="resource-strip" id="task-shapes-tools">
                   <button type="button" data-add="shape_circle">Círculo</button>
                   <button type="button" data-add="shape_square">Cuadrado</button>
                   <button type="button" data-add="shape_rect">Rectángulo</button>
                   <button type="button" data-add="shape_triangle">Triángulo</button>
                   <button type="button" data-add="shape_diamond">Rombo</button>
                 </div>
-                <h3 class="tool-group-title" style="margin-top:0.85rem;">Recursos emoji</h3>
-                <div class="resource-strip" id="task-emoji-tools">
+                </div>
+                <div class="resource-panel" data-panel="emoji" hidden>
+                  <h3 class="tool-group-title" style="margin-top:0.85rem;">Recursos emoji</h3>
+                  <div class="resource-strip" id="task-emoji-tools">
                   <button type="button" data-add="emoji_ball">⚽ Balón</button>
                   <button type="button" data-add="emoji_cone">🔺 Cono</button>
                   <button type="button" data-add="emoji_pole">📍 Pica</button>
@@ -793,6 +838,7 @@
                   <button type="button" data-add="emoji_mini_goal">🥅 Mini portería</button>
                   <button type="button" data-add="emoji_whistle">📣 Silbato</button>
                   <button type="button" data-add="emoji_stopwatch">⏱️ Crono</button>
+                </div>
                 </div>
               </div>
 
