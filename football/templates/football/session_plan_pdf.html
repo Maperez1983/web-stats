@@ -108,16 +108,33 @@
         color: #475569;
         background: #f8fafc;
       }
-      .task-row {
-        border-bottom: 1px solid #d5dde7;
-        padding: 10px 0;
+      .task-sheet-card {
+        border: 1px solid #6b7280;
+        background: #fff;
+        padding: 10px;
+        margin-bottom: 10px;
       }
-      .task-row:last-child {
-        border-bottom: none;
-        padding-bottom: 0;
+      .task-sheet-card:last-child {
+        margin-bottom: 0;
       }
-      .task-row:first-child {
-        padding-top: 0;
+      .task-sheet-grid {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+        margin-top: 6px;
+      }
+      .task-sheet-grid td {
+        border: 1px solid #d5dde7;
+        padding: 6px 7px;
+        vertical-align: top;
+      }
+      .task-sheet-grid strong {
+        display: block;
+        margin-bottom: 3px;
+        font-size: 8px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #64748b;
       }
       .task-title {
         font-size: 13px;
@@ -225,31 +242,61 @@
           Tareas de la sesión
         </div>
         <div class="box">
-          {% if tasks %}
-          <table class="session-task-table">
-            <tr>
-              <th style="width:7%;">#</th>
-              <th style="width:29%;">Tarea</th>
-              <th style="width:14%;">Bloque</th>
-              <th style="width:10%;">Min</th>
-              <th style="width:20%;">Objetivo</th>
-              <th style="width:20%;">Consigna / norma</th>
-            </tr>
-            {% for task in tasks %}
-            <tr>
-              <td>{{ forloop.counter }}</td>
-              <td><strong>{{ task.title }}</strong></td>
-              <td>{{ task.get_block_display }}</td>
-              <td>{{ task.duration_minutes }}</td>
-              <td>{{ task.objective|default:"-" }}</td>
-              <td>
-                {% if task.coaching_points %}<div><strong>Consigna:</strong> {{ task.coaching_points }}</div>{% endif %}
-                {% if task.confrontation_rules %}<div style="margin-top:4px;"><strong>Norma:</strong> {{ task.confrontation_rules }}</div>{% endif %}
-                {% if not task.coaching_points and not task.confrontation_rules %}-{% endif %}
-              </td>
-            </tr>
+          {% if task_sheets %}
+            {% for sheet in task_sheets %}
+            <div class="task-sheet-card">
+              <div class="task-title">Tarea {{ forloop.counter }} · {{ sheet.title }}</div>
+              <div class="task-meta">{{ sheet.block_label }} · {{ sheet.minutes }} min{% if sheet.type_label and sheet.type_label != '-' %} · {{ sheet.type_label }}{% endif %}</div>
+              <table class="task-sheet-grid">
+                <tr>
+                  <td style="width:50%;">
+                    <strong>Contenidos</strong>
+                    {{ sheet.contents_label|default:"-" }}
+                  </td>
+                  <td style="width:50%;">
+                    <strong>Estructura</strong>
+                    {{ sheet.structure_label|default:"-" }}
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <strong>Jugadores</strong>
+                    {{ sheet.players_label|default:"-" }}
+                  </td>
+                  <td>
+                    <strong>Dimensiones / material</strong>
+                    {{ sheet.dimensions_label|default:"-" }}{% if sheet.materials_label and sheet.materials_label != '-' %} · {{ sheet.materials_label }}{% endif %}
+                  </td>
+                </tr>
+                <tr>
+                  <td colspan="2">
+                    <strong>Descripción</strong>
+                    {{ sheet.description|default:"-" }}
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <strong>Reglas</strong>
+                    {{ sheet.rules|default:"-" }}
+                  </td>
+                  <td>
+                    <strong>Incidir en</strong>
+                    {{ sheet.focus|default:"-" }}
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <strong>Variantes</strong>
+                    {{ sheet.variants|default:"-" }}
+                  </td>
+                  <td>
+                    <strong>Criterio de éxito</strong>
+                    {{ sheet.success|default:"-" }}
+                  </td>
+                </tr>
+              </table>
+            </div>
             {% endfor %}
-          </table>
           {% else %}
           <div>-</div>
           {% endif %}

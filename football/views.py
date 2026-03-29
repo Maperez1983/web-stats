@@ -6834,6 +6834,7 @@ def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
         'session': session,
         'microcycle': session.microcycle,
         'tasks': tasks,
+        'task_sheets': [_build_session_task_sheet(task) for task in tasks],
         'tasks_count': len(tasks),
         'task_minutes_total': total_task_minutes,
         'pdf_style': pdf_style,
@@ -6845,6 +6846,113 @@ def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
         'generated_at': timezone.localtime(),
         'intensity_label': dict(TrainingSession.INTENSITY_CHOICES).get(session.intensity, session.intensity or '-'),
         'status_label': dict(TrainingSession.STATUS_CHOICES).get(session.status, session.status or '-'),
+    }
+
+
+def _parse_microcycle_plan_fields(raw_notes):
+    notes = str(raw_notes or '')
+    defaults = {
+        'attack': '',
+        'defense': '',
+        'set_pieces': '',
+        'rival_notes': '',
+        'general_notes': notes.strip(),
+    }
+    if not notes.strip():
+        return defaults
+    marker = '[2J_MICROCYCLE]'
+    if marker not in notes:
+        return defaults
+    _, payload = notes.split(marker, 1)
+    parsed = defaults.copy()
+    current_key = None
+    free_lines = []
+    for raw_line in payload.splitlines():
+        line = raw_line.rstrip()
+        if not line.strip():
+            if current_key:
+                parsed[current_key] = (parsed.get(current_key, '') + '\n').strip('\n')
+            continue
+        if ':' in line:
+            key, value = line.split(':', 1)
+            normalized = key.strip().lower()
+            if normalized in {'attack', 'defense', 'set_pieces', 'rival_notes', 'general_notes'}:
+                current_key = normalized
+                parsed[current_key] = value.strip()
+                continue
+        if current_key:
+            parsed[current_key] = '\n'.join(filter(None, [parsed.get(current_key, '').strip(), line.strip()])).strip()
+        else:
+            free_lines.append(line.strip())
+    if free_lines and not parsed.get('general_notes'):
+        parsed['general_notes'] = '\n'.join(free_lines).strip()
+    return parsed
+
+
+def _serialize_microcycle_plan_fields(fields):
+    clean = {key: str(fields.get(key) or '').strip() for key in ['attack', 'defense', 'set_pieces', 'rival_notes', 'general_notes']}
+    if not any(clean.values()):
+        return ''
+    lines = ['[2J_MICROCYCLE]']
+    for key in ['attack', 'defense', 'set_pieces', 'rival_notes', 'general_notes']:
+        lines.append(f'{key}:{clean[key]}')
+    return '\n'.join(lines).strip()
+
+
+def _build_microcycle_week_slots(microcycle, session_rows):
+    labels = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+    total_days = max(1, min(7, ((microcycle.week_end - microcycle.week_start).days or 0) + 1))
+    rows_by_date = defaultdict(list)
+    for session_row in session_rows:
+        rows_by_date[session_row['obj'].session_date].append(session_row)
+    slots = []
+    for offset in range(total_days):
+        slot_date = microcycle.week_start + timedelta(days=offset)
+        slots.append(
+            {
+                'date': slot_date,
+                'label': labels[slot_date.weekday()],
+                'sessions': rows_by_date.get(slot_date, []),
+            }
+        )
+    return slots
+
+
+def _build_session_task_sheet(task):
+    meta = _normalize_task_pdf_meta(task.tactical_layout.get('meta') if isinstance(task.tactical_layout, dict) else {})
+    analysis_meta = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
+    task_sheet = analysis_meta.get('task_sheet') if isinstance(analysis_meta.get('task_sheet'), dict) else {}
+    contents = []
+    for value in [
+        meta.get('training_type'),
+        meta.get('game_phase'),
+        meta.get('principle'),
+        meta.get('subprinciple'),
+    ]:
+        text = str(value or '').strip()
+        if text:
+            contents.append(text)
+    return {
+        'title': str(task.title or '').strip() or f'Tarea {task.id}',
+        'block_label': task.get_block_display(),
+        'minutes': int(task.duration_minutes or 0),
+        'type_label': str(meta.get('training_type') or '').strip(),
+        'contents_label': ' · '.join(contents) or str(task.objective or '').strip() or '-',
+        'structure_label': ' · '.join(
+            part for part in [
+                str(meta.get('organization') or '').strip(),
+                str(meta.get('players_distribution') or '').strip(),
+                str(meta.get('player_count') or '').strip(),
+            ] if part
+        ) or '-',
+        'players_label': ', '.join(meta.get('assigned_player_names') or []) or str(meta.get('player_count') or '').strip() or '-',
+        'dimensions_label': str(task_sheet.get('dimensions') or meta.get('space') or '').strip() or '-',
+        'materials_label': str(task_sheet.get('materials') or meta.get('resources_summary') or '').strip() or '-',
+        'description': str(task_sheet.get('description') or '').strip(),
+        'rules': str(task.confrontation_rules or '').strip(),
+        'focus': str(task.coaching_points or '').strip(),
+        'variants': str(meta.get('progression') or '').strip(),
+        'success': str(meta.get('success_criteria') or '').strip(),
     }
 
 
@@ -10441,7 +10549,15 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 objective = str(request.POST.get('plan_microcycle_objective') or '').strip()[:200]
                 week_start_raw = str(request.POST.get('plan_week_start') or '').strip()
                 week_end_raw = str(request.POST.get('plan_week_end') or '').strip()
-                notes = str(request.POST.get('plan_microcycle_notes') or '').strip()
+                notes = _serialize_microcycle_plan_fields(
+                    {
+                        'attack': request.POST.get('plan_microcycle_attack'),
+                        'defense': request.POST.get('plan_microcycle_defense'),
+                        'set_pieces': request.POST.get('plan_microcycle_set_pieces'),
+                        'rival_notes': request.POST.get('plan_microcycle_rival_notes'),
+                        'general_notes': request.POST.get('plan_microcycle_notes'),
+                    }
+                )
                 if not week_start_raw or not week_end_raw:
                     raise ValueError('Indica semana inicio y fin para crear el microciclo.')
                 try:
@@ -10485,7 +10601,15 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     raise ValueError('Microciclo no encontrado.')
                 title = str(request.POST.get('edit_microcycle_title') or microcycle.title or 'Microciclo semanal').strip()[:140]
                 objective = str(request.POST.get('edit_microcycle_objective') or '').strip()[:200]
-                notes = str(request.POST.get('edit_microcycle_notes') or '').strip()
+                notes = _serialize_microcycle_plan_fields(
+                    {
+                        'attack': request.POST.get('edit_microcycle_attack'),
+                        'defense': request.POST.get('edit_microcycle_defense'),
+                        'set_pieces': request.POST.get('edit_microcycle_set_pieces'),
+                        'rival_notes': request.POST.get('edit_microcycle_rival_notes'),
+                        'general_notes': request.POST.get('edit_microcycle_notes'),
+                    }
+                )
                 week_start_raw = str(request.POST.get('edit_week_start') or '').strip()
                 week_end_raw = str(request.POST.get('edit_week_end') or '').strip()
                 if not week_start_raw or not week_end_raw:
@@ -11547,22 +11671,36 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 tasks_count_map[int(key)] = int(row.get('total') or 0)
     microcycle_rows = []
     for micro in planning_microcycles:
+        plan_fields = _parse_microcycle_plan_fields(getattr(micro, 'notes', ''))
         session_rows = []
         for session_item in sessions_by_microcycle.get(int(micro.id), []):
             session_tasks = planning_tasks_by_session.get(int(session_item.id), [])
             task_minutes_total = sum(int(getattr(task_obj, 'duration_minutes', 0) or 0) for task_obj in session_tasks)
+            task_sheets = [_build_session_task_sheet(task_obj) for task_obj in session_tasks]
+            task_rows = [
+                {
+                    'obj': task_obj,
+                    'sheet': task_sheets[index],
+                }
+                for index, task_obj in enumerate(session_tasks)
+            ]
             session_rows.append(
                 {
                     'obj': session_item,
                     'tasks_count': tasks_count_by_session.get(int(session_item.id), 0),
                     'task_minutes_total': task_minutes_total,
                     'tasks': session_tasks,
+                    'task_sheets': task_sheets,
+                    'task_rows': task_rows,
                 }
             )
             task_minutes_by_microcycle[int(micro.id)] += task_minutes_total
+        week_slots = _build_microcycle_week_slots(micro, session_rows)
         microcycle_rows.append(
             {
                 'obj': micro,
+                'plan_fields': plan_fields,
+                'week_slots': week_slots,
                 'sessions_count': sessions_count_map.get(int(micro.id), 0),
                 'tasks_count': tasks_count_map.get(int(micro.id), 0),
                 'session_minutes_total': session_minutes_by_microcycle.get(int(micro.id), 0),

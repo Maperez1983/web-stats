@@ -257,6 +257,151 @@
         gap: 0.45rem;
         margin-top: 0.65rem;
       }
+      .microcycle-plan-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.75rem;
+        margin: 0.85rem 0;
+      }
+      .microcycle-plan-card,
+      .microcycle-notes-card,
+      .session-sheet-card,
+      .session-sheet-text {
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.045);
+      }
+      .microcycle-plan-card,
+      .microcycle-notes-card,
+      .session-sheet-card {
+        padding: 0.85rem 0.9rem;
+      }
+      .microcycle-plan-card strong,
+      .microcycle-notes-card strong,
+      .session-sheet-card strong,
+      .session-sheet-text strong {
+        display: block;
+        margin-bottom: 0.28rem;
+        font-size: 0.7rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: rgba(225, 236, 255, 0.72);
+      }
+      .microcycle-plan-card p,
+      .microcycle-notes-card p,
+      .session-sheet-card p,
+      .session-sheet-text p {
+        margin: 0;
+        line-height: 1.45;
+        color: rgba(241, 245, 249, 0.92);
+      }
+      .microcycle-notes-card {
+        background: linear-gradient(135deg, rgba(34, 211, 238, 0.11), rgba(255, 255, 255, 0.04));
+        margin: 0.85rem 0 0.75rem;
+      }
+      .microcycle-week-strip {
+        display: grid;
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        gap: 0.55rem;
+        margin: 0.75rem 0 0.95rem;
+      }
+      .microcycle-day {
+        min-height: 132px;
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(4, 14, 30, 0.58);
+        padding: 0.7rem;
+      }
+      .microcycle-day-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 0.45rem;
+        margin-bottom: 0.6rem;
+      }
+      .microcycle-day-label {
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .microcycle-day-date {
+        font-size: 0.68rem;
+        color: rgba(225, 236, 255, 0.7);
+      }
+      .microcycle-day-session {
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 0.48rem 0.55rem;
+        margin-bottom: 0.42rem;
+      }
+      .microcycle-day-session:last-child { margin-bottom: 0; }
+      .microcycle-day-session strong {
+        display: block;
+        margin-bottom: 0;
+        font-size: 0.74rem;
+        text-transform: none;
+        letter-spacing: 0;
+        color: rgba(248, 250, 252, 0.96);
+      }
+      .microcycle-day-session span {
+        display: block;
+        margin-top: 0.18rem;
+        font-size: 0.64rem;
+        color: rgba(225, 236, 255, 0.7);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .microcycle-day-empty {
+        font-size: 0.72rem;
+        color: rgba(225, 236, 255, 0.48);
+      }
+      .session-sheet-stack {
+        display: grid;
+        gap: 0.75rem;
+        margin-top: 0.8rem;
+      }
+      .session-sheet-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.65rem;
+        margin-top: 0.65rem;
+      }
+      .session-sheet-title {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 0.6rem;
+        margin-bottom: 0.55rem;
+      }
+      .session-sheet-title h5 {
+        margin: 0;
+        font-size: 0.86rem;
+        line-height: 1.2;
+      }
+      .session-sheet-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.3rem;
+        margin-bottom: 0.55rem;
+      }
+      .session-sheet-row {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.5rem;
+        margin-bottom: 0.5rem;
+      }
+      .session-sheet-text {
+        background: rgba(4, 14, 30, 0.58);
+        padding: 0.65rem 0.7rem;
+      }
+      .session-sheet-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        margin-top: 0.7rem;
+      }
       .task-pick-grid {
         display: grid;
         gap: 0.45rem;
@@ -1034,10 +1179,25 @@
           padding: 0.3rem;
         }
       }
-      @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+      @media (max-width: 860px) {
+        .grid,
+        .microcycle-plan-grid,
+        .session-sheet-grid,
+        .session-sheet-row {
+          grid-template-columns: 1fr;
+        }
+        .microcycle-week-strip {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
       @media (max-width: 720px) { .summary-grid, .workflow-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
       @media (max-width: 520px) { .summary-grid { grid-template-columns: 1fr; } }
-      @media (max-width: 520px) { .workflow-grid { grid-template-columns: 1fr; } }
+      @media (max-width: 520px) {
+        .workflow-grid,
+        .microcycle-week-strip {
+          grid-template-columns: 1fr;
+        }
+      }
     </style>
   </head>
   <body>
@@ -1216,8 +1376,24 @@
                   </select>
                 </label>
                 <label style="grid-column:1/-1;">
-                  Notas
-                  <textarea name="plan_microcycle_notes" placeholder="Notas del microciclo"></textarea>
+                  Objetivos ataque
+                  <textarea name="plan_microcycle_attack" placeholder="Principios, subprincipios y focos ofensivos"></textarea>
+                </label>
+                <label style="grid-column:1/-1;">
+                  Objetivos defensa
+                  <textarea name="plan_microcycle_defense" placeholder="Principios defensivos y ajustes de comportamiento"></textarea>
+                </label>
+                <label style="grid-column:1/-1;">
+                  Objetivos ABP
+                  <textarea name="plan_microcycle_set_pieces" placeholder="ABP ofensiva/defensiva a reforzar en la semana"></textarea>
+                </label>
+                <label style="grid-column:1/-1;">
+                  Observaciones rival
+                  <textarea name="plan_microcycle_rival_notes" placeholder="Patrones del rival, alertas y contexto competitivo"></textarea>
+                </label>
+                <label style="grid-column:1/-1;">
+                  Notas generales
+                  <textarea name="plan_microcycle_notes" placeholder="Observaciones internas, carga y mensajes para el staff"></textarea>
                 </label>
                 <div><button type="submit" class="primary">Guardar microciclo</button></div>
               </form>
@@ -1315,6 +1491,53 @@
                   {% endfor %}
                 </div>
                 {% if row.obj.objective %}<p class="meta">Objetivo: {{ row.obj.objective }}</p>{% endif %}
+                <div class="microcycle-plan-grid">
+                  <div class="microcycle-plan-card">
+                    <strong>Objetivos ataque</strong>
+                    <p>{{ row.plan_fields.attack|default:"-"|linebreaksbr }}</p>
+                  </div>
+                  <div class="microcycle-plan-card">
+                    <strong>Objetivos defensa</strong>
+                    <p>{{ row.plan_fields.defense|default:"-"|linebreaksbr }}</p>
+                  </div>
+                  <div class="microcycle-plan-card">
+                    <strong>Objetivos ABP</strong>
+                    <p>{{ row.plan_fields.set_pieces|default:"-"|linebreaksbr }}</p>
+                  </div>
+                  <div class="microcycle-plan-card">
+                    <strong>Observaciones rival</strong>
+                    <p>{{ row.plan_fields.rival_notes|default:"-"|linebreaksbr }}</p>
+                  </div>
+                </div>
+                {% if row.plan_fields.general_notes %}
+                <div class="microcycle-notes-card">
+                  <strong>Notas generales</strong>
+                  <p>{{ row.plan_fields.general_notes|linebreaksbr }}</p>
+                </div>
+                {% endif %}
+                <div class="microcycle-week-strip">
+                  {% for slot in row.week_slots %}
+                  <div class="microcycle-day">
+                    <div class="microcycle-day-head">
+                      <span class="microcycle-day-label">{{ slot.label }}</span>
+                      <span class="microcycle-day-date">{{ slot.date|date:"d/m" }}</span>
+                    </div>
+                    {% if slot.sessions %}
+                      {% for slot_session in slot.sessions %}
+                      <div class="microcycle-day-session">
+                        <strong>{{ slot_session.obj.focus }}</strong>
+                        <span>
+                          {% if slot_session.obj.start_time %}{{ slot_session.obj.start_time|time:"H:i" }} · {% endif %}
+                          {{ slot_session.obj.duration_minutes }}' · {{ slot_session.obj.get_intensity_display }}
+                        </span>
+                      </div>
+                      {% endfor %}
+                    {% else %}
+                      <div class="microcycle-day-empty">Sin sesión planificada.</div>
+                    {% endif %}
+                  </div>
+                  {% endfor %}
+                </div>
                 <div class="session-actions" style="margin-bottom:0.7rem;">
                   <details class="session-editor">
                     <summary>Editar microciclo</summary>
@@ -1348,8 +1571,24 @@
                         </select>
                       </label>
                       <label style="grid-column:1/-1;">
-                        Notas
-                        <textarea name="edit_microcycle_notes">{{ row.obj.notes|default:'' }}</textarea>
+                        Objetivos ataque
+                        <textarea name="edit_microcycle_attack">{{ row.plan_fields.attack }}</textarea>
+                      </label>
+                      <label style="grid-column:1/-1;">
+                        Objetivos defensa
+                        <textarea name="edit_microcycle_defense">{{ row.plan_fields.defense }}</textarea>
+                      </label>
+                      <label style="grid-column:1/-1;">
+                        Objetivos ABP
+                        <textarea name="edit_microcycle_set_pieces">{{ row.plan_fields.set_pieces }}</textarea>
+                      </label>
+                      <label style="grid-column:1/-1;">
+                        Observaciones rival
+                        <textarea name="edit_microcycle_rival_notes">{{ row.plan_fields.rival_notes }}</textarea>
+                      </label>
+                      <label style="grid-column:1/-1;">
+                        Notas generales
+                        <textarea name="edit_microcycle_notes">{{ row.plan_fields.general_notes }}</textarea>
                       </label>
                       <div><button type="submit" class="primary">Guardar microciclo</button></div>
                     </form>
@@ -1398,49 +1637,84 @@
                     <p class="meta" style="margin-top:0.55rem;">{{ session.obj.content }}</p>
                     {% endif %}
                     {% if session.tasks %}
-                    <div class="session-stack" style="margin-top:0.75rem;">
-                      {% for task_item in session.tasks %}
-                      <article class="task" style="padding:0.85rem 0.95rem;">
-                        <div class="task-content">
-                          <h4 style="margin:0; font-size:0.88rem;">{{ task_item.title }}</h4>
-                          <p class="meta" style="margin:0.3rem 0 0;">{{ task_item.get_block_display }} · {{ task_item.duration_minutes }}' · Orden {{ task_item.order }}</p>
-                          {% if task_item.objective %}<p class="meta" style="margin:0.4rem 0 0.2rem;">{{ task_item.objective }}</p>{% endif %}
-                          <div style="display:flex; gap:0.45rem; flex-wrap:wrap; margin-top:0.55rem;">
-                            <a class="button" href="{% url 'session-task-detail' task_item.id %}">Detalle</a>
-                            {% if not task_item.task_pdf %}
-                            <a class="button" href="{% url task_builder_edit_route_name task_item.id %}">Editar</a>
-                            {% endif %}
-                            <form method="post" style="margin:0;">
-                              {% csrf_token %}
-                              <input type="hidden" name="planner_action" value="move_session_task" />
-                              <input type="hidden" name="planner_tab" value="planning" />
-                              <input type="hidden" name="task_id" value="{{ task_item.id }}" />
-                              <input type="hidden" name="move_direction" value="up" />
-                              <button type="submit" class="secondary">↑</button>
-                            </form>
-                            <form method="post" style="margin:0;">
-                              {% csrf_token %}
-                              <input type="hidden" name="planner_action" value="move_session_task" />
-                              <input type="hidden" name="planner_tab" value="planning" />
-                              <input type="hidden" name="task_id" value="{{ task_item.id }}" />
-                              <input type="hidden" name="move_direction" value="down" />
-                              <button type="submit" class="secondary">↓</button>
-                            </form>
-                            <form method="post" style="margin:0;">
-                              {% csrf_token %}
-                              <input type="hidden" name="planner_action" value="duplicate_session_task" />
-                              <input type="hidden" name="planner_tab" value="planning" />
-                              <input type="hidden" name="task_id" value="{{ task_item.id }}" />
-                              <button type="submit" class="secondary">Duplicar</button>
-                            </form>
-                            <form method="post" style="margin:0;" onsubmit="return confirm('¿Eliminar esta tarea de la sesión?');">
-                              {% csrf_token %}
-                              <input type="hidden" name="planner_action" value="delete_session_task" />
-                              <input type="hidden" name="planner_tab" value="planning" />
-                              <input type="hidden" name="task_id" value="{{ task_item.id }}" />
-                              <button type="submit" class="danger">Eliminar</button>
-                            </form>
+                    <div class="session-sheet-stack">
+                      {% for task_row in session.task_rows %}
+                      <article class="session-sheet-card">
+                        <div class="session-sheet-title">
+                          <div>
+                            <h5>{{ task_row.sheet.title }}</h5>
+                            <p class="meta" style="margin:0.28rem 0 0;">Orden {{ task_row.obj.order }} · {{ task_row.sheet.minutes }}' · {{ task_row.sheet.block_label }}</p>
                           </div>
+                          <span class="session-chip">{{ task_row.sheet.type_label|default:"Tarea" }}</span>
+                        </div>
+                        <div class="session-sheet-meta">
+                          <span class="session-chip">Contenidos · {{ task_row.sheet.contents_label }}</span>
+                          <span class="session-chip">Estructura · {{ task_row.sheet.structure_label }}</span>
+                          <span class="session-chip">Jugadores · {{ task_row.sheet.players_label }}</span>
+                        </div>
+                        <div class="session-sheet-row">
+                          <div class="session-sheet-text">
+                            <strong>Dimensiones / material</strong>
+                            <p>{{ task_row.sheet.dimensions_label }} · {{ task_row.sheet.materials_label }}</p>
+                          </div>
+                          <div class="session-sheet-text">
+                            <strong>Descripción</strong>
+                            <p>{{ task_row.sheet.description|default:task_row.obj.objective|default:"-" }}</p>
+                          </div>
+                        </div>
+                        <div class="session-sheet-grid">
+                          <div class="session-sheet-text">
+                            <strong>Reglas</strong>
+                            <p>{{ task_row.sheet.rules|default:"-" }}</p>
+                          </div>
+                          <div class="session-sheet-text">
+                            <strong>Incidir en</strong>
+                            <p>{{ task_row.sheet.focus|default:"-" }}</p>
+                          </div>
+                          <div class="session-sheet-text">
+                            <strong>Variantes</strong>
+                            <p>{{ task_row.sheet.variants|default:"-" }}</p>
+                          </div>
+                          <div class="session-sheet-text">
+                            <strong>Criterio de éxito</strong>
+                            <p>{{ task_row.sheet.success|default:"-" }}</p>
+                          </div>
+                        </div>
+                        <div class="session-sheet-actions">
+                          <a class="button" href="{% url 'session-task-detail' task_row.obj.id %}">Detalle</a>
+                          {% if not task_row.obj.task_pdf %}
+                          <a class="button" href="{% url task_builder_edit_route_name task_row.obj.id %}">Editar</a>
+                          {% endif %}
+                          <form method="post" style="margin:0;">
+                            {% csrf_token %}
+                            <input type="hidden" name="planner_action" value="move_session_task" />
+                            <input type="hidden" name="planner_tab" value="planning" />
+                            <input type="hidden" name="task_id" value="{{ task_row.obj.id }}" />
+                            <input type="hidden" name="move_direction" value="up" />
+                            <button type="submit" class="secondary">↑</button>
+                          </form>
+                          <form method="post" style="margin:0;">
+                            {% csrf_token %}
+                            <input type="hidden" name="planner_action" value="move_session_task" />
+                            <input type="hidden" name="planner_tab" value="planning" />
+                            <input type="hidden" name="task_id" value="{{ task_row.obj.id }}" />
+                            <input type="hidden" name="move_direction" value="down" />
+                            <button type="submit" class="secondary">↓</button>
+                          </form>
+                          <form method="post" style="margin:0;">
+                            {% csrf_token %}
+                            <input type="hidden" name="planner_action" value="duplicate_session_task" />
+                            <input type="hidden" name="planner_tab" value="planning" />
+                            <input type="hidden" name="task_id" value="{{ task_row.obj.id }}" />
+                            <button type="submit" class="secondary">Duplicar</button>
+                          </form>
+                          <form method="post" style="margin:0;" onsubmit="return confirm('¿Eliminar esta tarea de la sesión?');">
+                            {% csrf_token %}
+                            <input type="hidden" name="planner_action" value="delete_session_task" />
+                            <input type="hidden" name="planner_tab" value="planning" />
+                            <input type="hidden" name="task_id" value="{{ task_row.obj.id }}" />
+                            <button type="submit" class="danger">Eliminar</button>
+                          </form>
                         </div>
                       </article>
                       {% endfor %}
