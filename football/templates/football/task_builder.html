@@ -1107,15 +1107,69 @@
               </div>
               </div>
 
-              <div class="side-pane" data-pane="avanzado" role="tabpanel">
-                <div class="section">
-                  <h3>Ajustes avanzados</h3>
-                  <div class="compact-grid">
-                  <label>
-                    Coordinación
-                    <input type="text" name="draw_task_organization" value="{{ initial.organization }}" placeholder="Ej: 6v6 + 2 comodines" />
-                  </label>
-                  <label>
+	              <div class="side-pane" data-pane="avanzado" role="tabpanel">
+	                <div class="section">
+	                  <h3>Ajustes avanzados</h3>
+	                  <div class="compact-grid">
+	                  <label>
+	                    Estrategia
+	                    <select name="draw_task_strategy">
+	                      <option value="">Selecciona...</option>
+	                      {% for value, label in task_strategy_choices %}
+	                      <option value="{{ value }}" {% if initial.strategy == value %}selected{% endif %}>{{ label }}</option>
+	                      {% endfor %}
+	                    </select>
+	                  </label>
+	                  <label>
+	                    Dinámica
+	                    <select name="draw_task_dynamics">
+	                      <option value="">Selecciona...</option>
+	                      {% for value, label in task_dynamics_choices %}
+	                      <option value="{{ value }}" {% if initial.dynamics == value %}selected{% endif %}>{{ label }}</option>
+	                      {% endfor %}
+	                    </select>
+	                  </label>
+	                  <label>
+	                    Situación de Juego
+	                    <select name="draw_task_structure">
+	                      <option value="">Selecciona...</option>
+	                      {% for value, label in task_structure_choices %}
+	                      <option value="{{ value }}" {% if initial.structure == value %}selected{% endif %}>{{ label }}</option>
+	                      {% endfor %}
+	                    </select>
+	                  </label>
+	                  <label>
+	                    Coordinación
+	                    <select name="draw_task_coordination">
+	                      <option value="">Selecciona...</option>
+	                      {% for value, label in task_coordination_choices %}
+	                      <option value="{{ value }}" {% if initial.coordination == value %}selected{% endif %}>{{ label }}</option>
+	                      {% endfor %}
+	                    </select>
+	                  </label>
+	                  <label style="grid-column:1 / -1;">
+	                    Habilidades Coordinativas
+	                    <select name="draw_task_coordination_skills">
+	                      <option value="">Selecciona...</option>
+	                      {% for value, label in task_coordination_skills_choices %}
+	                      <option value="{{ value }}" {% if initial.coordination_skills == value %}selected{% endif %}>{{ label }}</option>
+	                      {% endfor %}
+	                    </select>
+	                  </label>
+	                  <label style="grid-column:1 / -1;">
+	                    Intención táctica
+	                    <select name="draw_task_tactical_intent">
+	                      <option value="">Selecciona...</option>
+	                      {% for value, label in task_tactical_intent_choices %}
+	                      <option value="{{ value }}" {% if initial.tactical_intent == value %}selected{% endif %}>{{ label }}</option>
+	                      {% endfor %}
+	                    </select>
+	                  </label>
+	                  <label>
+	                    Organización
+	                    <input type="text" name="draw_task_organization" value="{{ initial.organization }}" placeholder="Ej: 6v6 + 2 comodines" />
+	                  </label>
+	                  <label>
                     Reparto jugadores
                     <input type="text" name="draw_task_players_distribution" value="{{ initial.players_distribution }}" placeholder="Ej: 2 líneas + pivote" />
                   </label>
@@ -1127,10 +1181,10 @@
                     Repeticiones
                     <input type="text" name="draw_task_repetitions" value="{{ initial.repetitions }}" placeholder="Ej: 3" />
                   </label>
-                  <label>
-                    Habilidades coordinativas
-                    <input type="text" name="draw_task_load_target" value="{{ initial.load_target }}" placeholder="Ej: RPE 7" />
-                  </label>
+	                  <label>
+	                    Carga objetivo
+	                    <input type="text" name="draw_task_load_target" value="{{ initial.load_target }}" placeholder="Ej: RPE 7" />
+	                  </label>
                   <label>
                     Complejidad
                     <select name="draw_task_complexity">

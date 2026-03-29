@@ -539,36 +539,42 @@
 
       <div style="padding:12px 14px 0;">
         <div class="uefa-section">Detalles del Ejercicio</div>
-        <table class="uefa-table">
-          <tr>
-            <td style="width:18%;">Título</td>
-            <td colspan="3"><div class="uefa-value">{{ task.title }}</div></td>
-          </tr>
-          <tr>
-            <td style="width:18%;">Estrategia</td>
-            <td style="width:32%;"><div class="uefa-value">{{ strategy_label }}</div></td>
-            <td style="width:18%;">Objetivos</td>
-            <td style="width:32%;"><div class="uefa-value">{{ task.objective|default:"-" }}</div></td>
-          </tr>
-          <tr>
-            <td>Espacio</td>
-            <td><div class="uefa-value">{{ dimensions_label|default:space_label|default:"-" }}</div></td>
-            <td>Tiempo</td>
-            <td><div class="uefa-value">{{ task.duration_minutes }} min</div></td>
-          </tr>
-          <tr>
-            <td>Situación de Juego</td>
-            <td><div class="uefa-value">{{ game_situation_label }}</div></td>
-            <td>Coordinación</td>
-            <td><div class="uefa-value">{{ coordination_label }}</div></td>
-          </tr>
-          <tr>
-            <td>Habilidades Coordinativas</td>
-            <td><div class="uefa-value">{{ coordination_skills_label }}</div></td>
-            <td>Intención / Acción Táctica</td>
-            <td><div class="uefa-value">{{ tactical_intent_label }}</div></td>
-          </tr>
-        </table>
+	        <table class="uefa-table">
+	          <tr>
+	            <td style="width:18%;">Título</td>
+	            <td colspan="3"><div class="uefa-value">{{ task.title }}</div></td>
+	          </tr>
+	          <tr>
+	            <td style="width:18%;">Estrategia</td>
+	            <td style="width:32%;"><div class="uefa-value">{{ strategy_label }}</div></td>
+	            <td style="width:18%;">Objetivos</td>
+	            <td style="width:32%;"><div class="uefa-value">{{ task.objective|default:"-" }}</div></td>
+	          </tr>
+	          <tr>
+	            <td>Espacio</td>
+	            <td><div class="uefa-value">{{ dimensions_label|default:space_label|default:"-" }}</div></td>
+	            <td>Tiempo</td>
+	            <td><div class="uefa-value">{{ task.duration_minutes }} min</div></td>
+	          </tr>
+	          <tr>
+	            <td>Dinámica</td>
+	            <td><div class="uefa-value">{{ dynamics_label }}</div></td>
+	            <td>Complejidad</td>
+	            <td><div class="uefa-value">{{ task_meta.complexity|default:"-" }}</div></td>
+	          </tr>
+	          <tr>
+	            <td>Situación de Juego</td>
+	            <td><div class="uefa-value">{{ structure_label }}</div></td>
+	            <td>Coordinación</td>
+	            <td><div class="uefa-value">{{ coordination_label }}</div></td>
+	          </tr>
+	          <tr>
+	            <td>Habilidades Coordinativas</td>
+	            <td><div class="uefa-value">{{ coordination_skills_label }}</div></td>
+	            <td>Intención / Acción Táctica</td>
+	            <td><div class="uefa-value">{{ tactical_intent_label }}</div></td>
+	          </tr>
+	        </table>
 
         <div class="uefa-section">Descripción Gráfica</div>
         <div class="uefa-box" style="min-height:380px;">

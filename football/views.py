@@ -267,6 +267,104 @@ TASK_COMPLEXITY_CHOICES = [
     ('medium', 'Media'),
     ('high', 'Alta'),
 ]
+TASK_STRATEGY_CHOICES = [
+    ('abp', 'Acciones a Balón Parado'),
+    ('combined', 'Acciones Combinadas'),
+    ('circuit', 'Circuito'),
+    ('conservation', 'Conservación'),
+    ('adapted', 'Juego Adaptado al Fútbol'),
+    ('positional', 'Juego de Posición'),
+    ('positional_specific', 'Juego de Posición Específico'),
+    ('waves', 'Oleadas'),
+    ('matches', 'Partidos'),
+    ('possession', 'Posesión'),
+    ('passing_wheel', 'Rueda de Pases'),
+    ('reduced_games', 'Situaciones Reducidas'),
+    ('lines_work', 'Trabajo de Líneas'),
+]
+TASK_COORDINATION_SKILLS_CHOICES = [
+    ('offball', 'Actuación por Desmarcación'),
+    ('start_stop', 'Arrancar/Frenar'),
+    ('direction_change', 'Cambiar de Dirección'),
+    ('carry', 'Conducción'),
+    ('control', 'Control'),
+    ('clearances', 'Despejes'),
+    ('movements', 'Desplazamientos'),
+    ('shots', 'Disparos'),
+    ('tackles', 'Entrada'),
+    ('balance', 'Equilibrarse'),
+    ('turns', 'Giros'),
+    ('interceptions', 'Intercepción'),
+    ('pass', 'Pase'),
+    ('protection', 'Protección'),
+    ('dribble', 'Regate'),
+    ('jumps', 'Saltos'),
+]
+TASK_TACTICAL_INTENT_CHOICES = [
+    ('1v1', '1 vs 1'),
+    ('2v1', '2 vs 1'),
+    ('2v2', '2 vs 2'),
+    ('3v3', '3 vs 3'),
+    ('4v4', '4 vs 4'),
+    ('abp_def', 'ABP Defensiva'),
+    ('abp_att', 'ABP Ofensiva'),
+    ('width', 'Amplitud'),
+    ('supports', 'Apoyos'),
+    ('organized_attack', 'Ataque Organizado'),
+    ('cover', 'Cobertura'),
+    ('keep', 'Conservar'),
+    ('counter', 'Contraataque'),
+    ('def_build', 'Defensa Inicio de Juego'),
+    ('def_direct', 'Defensa de Juego Directo'),
+    ('def_organized', 'Defensa Organizada'),
+    ('runs', 'Desmarques'),
+    ('split', 'Dividir'),
+    ('avoid_progress', 'Evitar Progresión'),
+    ('phase_def', 'Fase Defensiva'),
+    ('phase_att', 'Fase Ofensiva'),
+    ('fix', 'Fijar'),
+    ('finish', 'Finalizar'),
+    ('build', 'Inicio de Juego'),
+    ('direct', 'Juego Directo'),
+    ('maintain', 'Mantener'),
+    ('marking', 'Marcaje'),
+    ('orient', 'Orientar'),
+    ('swap', 'Permuta'),
+    ('press', 'Presionar'),
+    ('first_attacker', 'Primer Atacante'),
+    ('first_defender', 'Primer Defensor'),
+    ('depth', 'Profundidad'),
+    ('progress', 'Progresar'),
+    ('protect_goal', 'Proteger Portería'),
+    ('recover', 'Recuperar'),
+    ('restart', 'Reinicio de Juego'),
+    ('retreat', 'Replegar'),
+    ('second_attacker', 'Segundo Atacante'),
+    ('second_defender', 'Segundo Defensor'),
+    ('delay', 'Temporizar'),
+    ('third_attacker', 'Tercer Atacante'),
+    ('third_defender', 'Tercer Defensor'),
+]
+TASK_DYNAMICS_CHOICES = [
+    ('adm', 'ADM'),
+    ('extensive', 'Extensiva'),
+    ('strength', 'Fuerza'),
+    ('intense_action', 'Intensiva (acción)'),
+    ('intense_interaction', 'Intensiva (interacción)'),
+    ('recovery', 'Recuperación'),
+    ('endurance', 'Resistencia'),
+    ('speed', 'Velocidad'),
+]
+TASK_STRUCTURE_CHOICES = [
+    ('complete', 'Estructura Completa'),
+    ('intersectorial', 'Intersectorial'),
+    ('sectorial', 'Sectorial'),
+]
+TASK_COORDINATION_CHOICES = [
+    ('team', 'Coordinación Equipo'),
+    ('player', 'Coordinación Jugador/a'),
+    ('players', 'Coordinación Jugadores/as'),
+]
 TASK_USEFULNESS_CHOICES = [
     ('1', '1 · Baja'),
     ('2', '2'),
@@ -6600,6 +6698,12 @@ def _normalize_task_pdf_meta(meta):
     methodology_map = {key: label for key, label in TASK_METHODOLOGY_CHOICES}
     complexity_map = {key: label for key, label in TASK_COMPLEXITY_CHOICES}
     constraint_map = {key: label for key, label in TASK_CONSTRAINT_CHOICES}
+    strategy_map = {key: label for key, label in TASK_STRATEGY_CHOICES}
+    coordination_map = {key: label for key, label in TASK_COORDINATION_CHOICES}
+    coord_skills_map = {key: label for key, label in TASK_COORDINATION_SKILLS_CHOICES}
+    tactical_intent_map = {key: label for key, label in TASK_TACTICAL_INTENT_CHOICES}
+    dynamics_map = {key: label for key, label in TASK_DYNAMICS_CHOICES}
+    structure_map = {key: label for key, label in TASK_STRUCTURE_CHOICES}
     meta = dict(meta or {})
     if meta.get('surface'):
         meta['surface'] = surface_map.get(str(meta.get('surface')), str(meta.get('surface')))
@@ -6611,6 +6715,18 @@ def _normalize_task_pdf_meta(meta):
         meta['methodology'] = methodology_map.get(str(meta.get('methodology')), str(meta.get('methodology')))
     if meta.get('complexity'):
         meta['complexity'] = complexity_map.get(str(meta.get('complexity')), str(meta.get('complexity')))
+    if meta.get('strategy'):
+        meta['strategy'] = strategy_map.get(str(meta.get('strategy')), str(meta.get('strategy')))
+    if meta.get('coordination'):
+        meta['coordination'] = coordination_map.get(str(meta.get('coordination')), str(meta.get('coordination')))
+    if meta.get('coordination_skills'):
+        meta['coordination_skills'] = coord_skills_map.get(str(meta.get('coordination_skills')), str(meta.get('coordination_skills')))
+    if meta.get('tactical_intent'):
+        meta['tactical_intent'] = tactical_intent_map.get(str(meta.get('tactical_intent')), str(meta.get('tactical_intent')))
+    if meta.get('dynamics'):
+        meta['dynamics'] = dynamics_map.get(str(meta.get('dynamics')), str(meta.get('dynamics')))
+    if meta.get('structure'):
+        meta['structure'] = structure_map.get(str(meta.get('structure')), str(meta.get('structure')))
     if isinstance(meta.get('constraints'), list):
         meta['constraints'] = [constraint_map.get(str(v), str(v)) for v in meta.get('constraints')]
     if isinstance(meta.get('category_tags'), str):
@@ -6638,21 +6754,30 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
     description_text = str(task_sheet.get('description') or '').strip()
     dimensions_text = str(task_sheet.get('dimensions') or '').strip()
     materials_text = str(task_sheet.get('materials') or meta.get('resources_summary') or '').strip()
-    strategy_label = str(meta.get('training_type') or meta.get('methodology') or '').strip()
+    strategy_label = str(meta.get('strategy') or meta.get('training_type') or meta.get('methodology') or '').strip()
     if not strategy_label:
         strategy_label = ''
     space_label = ' · '.join(part for part in [dimensions_text, _display_pdf_value(meta.get('space'))] if part)
+    # Compat: seguimos generando formato/superficie por si se quiere imprimir como detalle técnico.
     game_situation_label = ' · '.join(part for part in [_display_pdf_value(meta.get('pitch_format')), _display_pdf_value(meta.get('surface'))] if part)
-    coordination_label = ' · '.join(part for part in [_display_pdf_value(meta.get('organization')), _display_pdf_value(meta.get('players_distribution'))] if part)
-    coordination_skills_label = ' · '.join(part for part in [_display_pdf_value(meta.get('load_target')), _display_pdf_value(meta.get('complexity'))] if part)
-    tactical_intent_label = ' · '.join(
+    structure_label = str(meta.get('structure') or '').strip()
+    dynamics_label = str(meta.get('dynamics') or '').strip()
+    coordination_label = str(meta.get('coordination') or '').strip()
+    if not coordination_label:
+        coordination_label = ' · '.join(part for part in [_display_pdf_value(meta.get('organization')), _display_pdf_value(meta.get('players_distribution'))] if part)
+    coordination_skills_label = str(meta.get('coordination_skills') or '').strip()
+    if not coordination_skills_label:
+        coordination_skills_label = ' · '.join(part for part in [_display_pdf_value(meta.get('load_target')), _display_pdf_value(meta.get('complexity'))] if part)
+    tactical_intent_label = str(meta.get('tactical_intent') or '').strip()
+    if not tactical_intent_label:
+        tactical_intent_label = ' · '.join(
         part for part in [
             _display_pdf_value(meta.get('principle')),
             _display_pdf_value(meta.get('subprinciple')),
             _display_pdf_value(meta.get('targets')),
             str(getattr(task, 'objective', '') or '').strip(),
         ] if part
-    )
+        )
     animation_frames = _normalize_animation_timeline(
         tactical_layout.get('timeline') if isinstance(tactical_layout, dict) else []
     )
@@ -6696,6 +6821,8 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
         'dimensions_label': dimensions_text or '-',
         'materials_label': materials_text or '-',
         'game_situation_label': game_situation_label or '-',
+        'structure_label': structure_label or '-',
+        'dynamics_label': dynamics_label or '-',
         'coordination_label': coordination_label or '-',
         'coordination_skills_label': coordination_skills_label or '-',
         'tactical_intent_label': tactical_intent_label or '-',
@@ -6726,6 +6853,12 @@ def _build_task_draft_pdf_context(request, primary_team, pdf_style='uefa'):
     selected_phase = _sanitize_task_text((request.POST.get('draw_task_game_phase') or '').strip(), multiline=False, max_len=80)
     selected_methodology = _sanitize_task_text((request.POST.get('draw_task_methodology') or '').strip(), multiline=False, max_len=80)
     selected_complexity = _sanitize_task_text((request.POST.get('draw_task_complexity') or '').strip(), multiline=False, max_len=80)
+    selected_strategy = _sanitize_task_text((request.POST.get('draw_task_strategy') or '').strip(), multiline=False, max_len=80)
+    selected_dynamics = _sanitize_task_text((request.POST.get('draw_task_dynamics') or '').strip(), multiline=False, max_len=80)
+    selected_structure = _sanitize_task_text((request.POST.get('draw_task_structure') or '').strip(), multiline=False, max_len=80)
+    selected_coordination = _sanitize_task_text((request.POST.get('draw_task_coordination') or '').strip(), multiline=False, max_len=80)
+    selected_coord_skills = _sanitize_task_text((request.POST.get('draw_task_coordination_skills') or '').strip(), multiline=False, max_len=80)
+    selected_tactical_intent = _sanitize_task_text((request.POST.get('draw_task_tactical_intent') or '').strip(), multiline=False, max_len=80)
     space = _sanitize_task_text((request.POST.get('draw_task_space') or '').strip(), multiline=False, max_len=120)
     organization = _sanitize_task_text((request.POST.get('draw_task_organization') or '').strip(), multiline=True, max_len=500)
     players_distribution = _sanitize_task_text((request.POST.get('draw_task_players_distribution') or '').strip(), multiline=False, max_len=180)
@@ -6774,15 +6907,21 @@ def _build_task_draft_pdf_context(request, primary_team, pdf_style='uefa'):
     tactical_layout = {
         'tokens': canvas_state.get('objects') if isinstance(canvas_state.get('objects'), list) else [],
         'timeline': canvas_state.get('timeline') if isinstance(canvas_state.get('timeline'), list) else [],
-        'meta': {
-            'surface': selected_surface,
-            'pitch_format': selected_pitch_format,
-            'game_phase': selected_phase,
-            'methodology': selected_methodology,
-            'complexity': selected_complexity,
-            'space': space,
-            'organization': organization,
-            'players_distribution': players_distribution,
+	        'meta': {
+	            'surface': selected_surface,
+	            'pitch_format': selected_pitch_format,
+	            'game_phase': selected_phase,
+	            'methodology': selected_methodology,
+	            'complexity': selected_complexity,
+	            'strategy': selected_strategy,
+	            'dynamics': selected_dynamics,
+	            'structure': selected_structure,
+	            'coordination': selected_coordination,
+	            'coordination_skills': selected_coord_skills,
+	            'tactical_intent': selected_tactical_intent,
+	            'space': space,
+	            'organization': organization,
+	            'players_distribution': players_distribution,
             'load_target': load_target,
             'work_rest': work_rest,
             'series': series,
@@ -12024,6 +12163,12 @@ def _task_builder_initial_values(task):
         'game_phase': str(meta.get('game_phase') or ''),
         'methodology': str(meta.get('methodology') or ''),
         'complexity': str(meta.get('complexity') or ''),
+        'strategy': str(meta.get('strategy') or ''),
+        'coordination': str(meta.get('coordination') or ''),
+        'coordination_skills': str(meta.get('coordination_skills') or ''),
+        'tactical_intent': str(meta.get('tactical_intent') or ''),
+        'dynamics': str(meta.get('dynamics') or ''),
+        'structure': str(meta.get('structure') or ''),
         'template_key': str(meta.get('template_key') or 'none'),
         'pitch_preset': str(meta.get('pitch_preset') or 'full_pitch'),
         'pitch_orientation': str(meta.get('pitch_orientation') or 'landscape'),
@@ -12101,6 +12246,18 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
     selected_methodology = (raw_selected_methodology or '').strip() if raw_selected_methodology is not None else str(existing_meta.get('methodology') or '')
     raw_selected_complexity = request.POST.get('draw_task_complexity')
     selected_complexity = (raw_selected_complexity or '').strip() if raw_selected_complexity is not None else str(existing_meta.get('complexity') or '')
+    raw_strategy = request.POST.get('draw_task_strategy')
+    selected_strategy = (raw_strategy or '').strip() if raw_strategy is not None else str(existing_meta.get('strategy') or '')
+    raw_dynamics = request.POST.get('draw_task_dynamics')
+    selected_dynamics = (raw_dynamics or '').strip() if raw_dynamics is not None else str(existing_meta.get('dynamics') or '')
+    raw_structure = request.POST.get('draw_task_structure')
+    selected_structure = (raw_structure or '').strip() if raw_structure is not None else str(existing_meta.get('structure') or '')
+    raw_coordination = request.POST.get('draw_task_coordination')
+    selected_coordination = (raw_coordination or '').strip() if raw_coordination is not None else str(existing_meta.get('coordination') or '')
+    raw_coord_skills = request.POST.get('draw_task_coordination_skills')
+    selected_coord_skills = (raw_coord_skills or '').strip() if raw_coord_skills is not None else str(existing_meta.get('coordination_skills') or '')
+    raw_tactical_intent = request.POST.get('draw_task_tactical_intent')
+    selected_tactical_intent = (raw_tactical_intent or '').strip() if raw_tactical_intent is not None else str(existing_meta.get('tactical_intent') or '')
     raw_template_key = request.POST.get('draw_task_template')
     template_key = (raw_template_key or 'none').strip() if raw_template_key is not None else str(existing_meta.get('template_key') or 'none')
     pitch_preset = (request.POST.get('draw_task_pitch_preset') or 'full_pitch').strip()
@@ -12182,6 +12339,12 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
     valid_phases = {key for key, _ in TASK_GAME_PHASE_CHOICES}
     valid_methodologies = {key for key, _ in TASK_METHODOLOGY_CHOICES}
     valid_complexities = {key for key, _ in TASK_COMPLEXITY_CHOICES}
+    valid_strategies = {key for key, _ in TASK_STRATEGY_CHOICES}
+    valid_dynamics = {key for key, _ in TASK_DYNAMICS_CHOICES}
+    valid_structures = {key for key, _ in TASK_STRUCTURE_CHOICES}
+    valid_coordination = {key for key, _ in TASK_COORDINATION_CHOICES}
+    valid_coord_skills = {key for key, _ in TASK_COORDINATION_SKILLS_CHOICES}
+    valid_tactical_intents = {key for key, _ in TASK_TACTICAL_INTENT_CHOICES}
     valid_constraints = {key for key, _ in TASK_CONSTRAINT_CHOICES}
     constraints = [item for item in constraints if item in valid_constraints]
     if selected_surface not in valid_surfaces:
@@ -12194,6 +12357,18 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
         selected_methodology = ''
     if selected_complexity not in valid_complexities:
         selected_complexity = ''
+    if selected_strategy not in valid_strategies:
+        selected_strategy = ''
+    if selected_dynamics not in valid_dynamics:
+        selected_dynamics = ''
+    if selected_structure not in valid_structures:
+        selected_structure = ''
+    if selected_coordination not in valid_coordination:
+        selected_coordination = ''
+    if selected_coord_skills not in valid_coord_skills:
+        selected_coord_skills = ''
+    if selected_tactical_intent not in valid_tactical_intents:
+        selected_tactical_intent = ''
     if pitch_preset not in {'full_pitch', 'half_pitch', 'attacking_third', 'middle_third', 'defensive_third', 'seven_side', 'seven_side_single', 'futsal', 'blank'}:
         pitch_preset = 'full_pitch'
     if pitch_orientation not in {'landscape', 'portrait'}:
@@ -12245,6 +12420,12 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
             'game_phase': selected_phase,
             'methodology': selected_methodology,
             'complexity': selected_complexity,
+            'strategy': selected_strategy,
+            'dynamics': selected_dynamics,
+            'structure': selected_structure,
+            'coordination': selected_coordination,
+            'coordination_skills': selected_coord_skills,
+            'tactical_intent': selected_tactical_intent,
             'space': space,
             'organization': organization,
             'players_distribution': players_distribution,
@@ -12346,6 +12527,18 @@ def _save_task_studio_entry(request, owner, existing_task=None):
     selected_methodology = (raw_selected_methodology or '').strip() if raw_selected_methodology is not None else str(existing_meta.get('methodology') or '')
     raw_selected_complexity = request.POST.get('draw_task_complexity')
     selected_complexity = (raw_selected_complexity or '').strip() if raw_selected_complexity is not None else str(existing_meta.get('complexity') or '')
+    raw_strategy = request.POST.get('draw_task_strategy')
+    selected_strategy = (raw_strategy or '').strip() if raw_strategy is not None else str(existing_meta.get('strategy') or '')
+    raw_dynamics = request.POST.get('draw_task_dynamics')
+    selected_dynamics = (raw_dynamics or '').strip() if raw_dynamics is not None else str(existing_meta.get('dynamics') or '')
+    raw_structure = request.POST.get('draw_task_structure')
+    selected_structure = (raw_structure or '').strip() if raw_structure is not None else str(existing_meta.get('structure') or '')
+    raw_coordination = request.POST.get('draw_task_coordination')
+    selected_coordination = (raw_coordination or '').strip() if raw_coordination is not None else str(existing_meta.get('coordination') or '')
+    raw_coord_skills = request.POST.get('draw_task_coordination_skills')
+    selected_coord_skills = (raw_coord_skills or '').strip() if raw_coord_skills is not None else str(existing_meta.get('coordination_skills') or '')
+    raw_tactical_intent = request.POST.get('draw_task_tactical_intent')
+    selected_tactical_intent = (raw_tactical_intent or '').strip() if raw_tactical_intent is not None else str(existing_meta.get('tactical_intent') or '')
     raw_template_key = request.POST.get('draw_task_template')
     template_key = (raw_template_key or 'none').strip() if raw_template_key is not None else str(existing_meta.get('template_key') or 'none')
     pitch_preset = (request.POST.get('draw_task_pitch_preset') or 'full_pitch').strip()
@@ -12398,6 +12591,12 @@ def _save_task_studio_entry(request, owner, existing_task=None):
     valid_phases = {key for key, _ in TASK_GAME_PHASE_CHOICES}
     valid_methodologies = {key for key, _ in TASK_METHODOLOGY_CHOICES}
     valid_complexities = {key for key, _ in TASK_COMPLEXITY_CHOICES}
+    valid_strategies = {key for key, _ in TASK_STRATEGY_CHOICES}
+    valid_dynamics = {key for key, _ in TASK_DYNAMICS_CHOICES}
+    valid_structures = {key for key, _ in TASK_STRUCTURE_CHOICES}
+    valid_coordination = {key for key, _ in TASK_COORDINATION_CHOICES}
+    valid_coord_skills = {key for key, _ in TASK_COORDINATION_SKILLS_CHOICES}
+    valid_tactical_intents = {key for key, _ in TASK_TACTICAL_INTENT_CHOICES}
     valid_constraints = {key for key, _ in TASK_CONSTRAINT_CHOICES}
     constraints = [item for item in constraints if item in valid_constraints]
     if selected_surface not in valid_surfaces:
@@ -12410,6 +12609,18 @@ def _save_task_studio_entry(request, owner, existing_task=None):
         selected_methodology = ''
     if selected_complexity not in valid_complexities:
         selected_complexity = ''
+    if selected_strategy not in valid_strategies:
+        selected_strategy = ''
+    if selected_dynamics not in valid_dynamics:
+        selected_dynamics = ''
+    if selected_structure not in valid_structures:
+        selected_structure = ''
+    if selected_coordination not in valid_coordination:
+        selected_coordination = ''
+    if selected_coord_skills not in valid_coord_skills:
+        selected_coord_skills = ''
+    if selected_tactical_intent not in valid_tactical_intents:
+        selected_tactical_intent = ''
 
     canvas_state = None
     raw_canvas_state = (request.POST.get('draw_canvas_state') or '').strip()
@@ -12438,11 +12649,17 @@ def _save_task_studio_entry(request, owner, existing_task=None):
             'pitch_preset': pitch_preset,
             'pitch_orientation': pitch_orientation,
             'game_phase': selected_phase,
-            'methodology': selected_methodology,
-            'complexity': selected_complexity,
-            'space': space,
-            'organization': organization,
-            'players_distribution': players_distribution,
+	            'methodology': selected_methodology,
+	            'complexity': selected_complexity,
+	            'strategy': selected_strategy,
+	            'dynamics': selected_dynamics,
+	            'structure': selected_structure,
+	            'coordination': selected_coordination,
+	            'coordination_skills': selected_coord_skills,
+	            'tactical_intent': selected_tactical_intent,
+	            'space': space,
+	            'organization': organization,
+	            'players_distribution': players_distribution,
             'load_target': load_target,
             'work_rest': work_rest,
             'series': series,
@@ -12572,6 +12789,12 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             'task_surface_choices': TASK_SURFACE_CHOICES,
             'task_pitch_choices': TASK_PITCH_FORMAT_CHOICES,
             'task_complexity_choices': TASK_COMPLEXITY_CHOICES,
+            'task_strategy_choices': TASK_STRATEGY_CHOICES,
+            'task_coordination_skills_choices': TASK_COORDINATION_SKILLS_CHOICES,
+            'task_tactical_intent_choices': TASK_TACTICAL_INTENT_CHOICES,
+            'task_dynamics_choices': TASK_DYNAMICS_CHOICES,
+            'task_structure_choices': TASK_STRUCTURE_CHOICES,
+            'task_coordination_choices': TASK_COORDINATION_CHOICES,
             'tactical_player_catalog': player_catalog,
             'available_players': available_players,
             'initial': initial,
@@ -12665,6 +12888,12 @@ def _build_task_studio_draft_pdf_context(request, owner, pdf_style='uefa'):
     selected_phase = _sanitize_task_text((request.POST.get('draw_task_game_phase') or '').strip(), multiline=False, max_len=80)
     selected_methodology = _sanitize_task_text((request.POST.get('draw_task_methodology') or '').strip(), multiline=False, max_len=80)
     selected_complexity = _sanitize_task_text((request.POST.get('draw_task_complexity') or '').strip(), multiline=False, max_len=80)
+    selected_strategy = _sanitize_task_text((request.POST.get('draw_task_strategy') or '').strip(), multiline=False, max_len=80)
+    selected_dynamics = _sanitize_task_text((request.POST.get('draw_task_dynamics') or '').strip(), multiline=False, max_len=80)
+    selected_structure = _sanitize_task_text((request.POST.get('draw_task_structure') or '').strip(), multiline=False, max_len=80)
+    selected_coordination = _sanitize_task_text((request.POST.get('draw_task_coordination') or '').strip(), multiline=False, max_len=80)
+    selected_coord_skills = _sanitize_task_text((request.POST.get('draw_task_coordination_skills') or '').strip(), multiline=False, max_len=80)
+    selected_tactical_intent = _sanitize_task_text((request.POST.get('draw_task_tactical_intent') or '').strip(), multiline=False, max_len=80)
     space = _sanitize_task_text((request.POST.get('draw_task_space') or '').strip(), multiline=False, max_len=120)
     organization = _sanitize_task_text((request.POST.get('draw_task_organization') or '').strip(), multiline=True, max_len=500)
     players_distribution = _sanitize_task_text((request.POST.get('draw_task_players_distribution') or '').strip(), multiline=False, max_len=180)
@@ -12713,6 +12942,12 @@ def _build_task_studio_draft_pdf_context(request, owner, pdf_style='uefa'):
             'game_phase': selected_phase,
             'methodology': selected_methodology,
             'complexity': selected_complexity,
+            'strategy': selected_strategy,
+            'dynamics': selected_dynamics,
+            'structure': selected_structure,
+            'coordination': selected_coordination,
+            'coordination_skills': selected_coord_skills,
+            'tactical_intent': selected_tactical_intent,
             'space': space,
             'organization': organization,
             'players_distribution': players_distribution,
@@ -13049,6 +13284,12 @@ def task_studio_task_builder_page(request, task_id=None):
             'task_surface_choices': TASK_SURFACE_CHOICES,
             'task_pitch_choices': TASK_PITCH_FORMAT_CHOICES,
             'task_complexity_choices': TASK_COMPLEXITY_CHOICES,
+            'task_strategy_choices': TASK_STRATEGY_CHOICES,
+            'task_coordination_skills_choices': TASK_COORDINATION_SKILLS_CHOICES,
+            'task_tactical_intent_choices': TASK_TACTICAL_INTENT_CHOICES,
+            'task_dynamics_choices': TASK_DYNAMICS_CHOICES,
+            'task_structure_choices': TASK_STRUCTURE_CHOICES,
+            'task_coordination_choices': TASK_COORDINATION_CHOICES,
             'tactical_player_catalog': player_catalog,
             'available_players': available_players,
             'initial': initial,
