@@ -1679,16 +1679,17 @@
                             <strong>Criterio de éxito</strong>
                             <p>{{ task_row.sheet.success|default:"-" }}</p>
                           </div>
-                        </div>
-                        <div class="session-sheet-actions">
-                          <a class="button" href="{% url 'session-task-detail' task_row.obj.id %}">Detalle</a>
-                          {% if not task_row.obj.task_pdf %}
-                          <a class="button" href="{% url task_builder_edit_route_name task_row.obj.id %}">Editar</a>
-                          {% endif %}
-                          <form method="post" style="margin:0;">
-                            {% csrf_token %}
-                            <input type="hidden" name="planner_action" value="move_session_task" />
-                            <input type="hidden" name="planner_tab" value="planning" />
+	                        </div>
+	                        <div class="session-sheet-actions">
+	                          {% if task_row.is_imported_task %}
+	                          <a class="button" href="{% url 'session-task-detail' task_row.obj.id %}">Ficha</a>
+	                          {% else %}
+	                          <a class="button" href="{% url task_builder_edit_route_name task_row.obj.id %}">Editar</a>
+	                          {% endif %}
+	                          <form method="post" style="margin:0;">
+	                            {% csrf_token %}
+	                            <input type="hidden" name="planner_action" value="move_session_task" />
+	                            <input type="hidden" name="planner_tab" value="planning" />
                             <input type="hidden" name="task_id" value="{{ task_row.obj.id }}" />
                             <input type="hidden" name="move_direction" value="up" />
                             <button type="submit" class="secondary">↑</button>
@@ -1936,13 +1937,13 @@
         {% elif task_library_filtered %}
         <div class="task-list">
           {% for t in task_library_filtered %}
-          <article
-            class="task task-clickable"
-            data-detail-url="{% url 'session-task-detail' t.id %}"
-            tabindex="0"
-            role="link"
-            aria-label="Ver detalle de tarea {{ t.title }}"
-          >
+	          <article
+	            class="task task-clickable"
+	            data-detail-url="{% if t.is_imported %}{% url 'session-task-detail' t.id %}{% else %}{% url task_builder_edit_route_name t.id %}{% endif %}"
+	            tabindex="0"
+	            role="link"
+	            aria-label="Abrir tarea {{ t.title }}"
+	          >
             <div class="task-media">
               {% if t.task_preview_image or t.task_pdf %}
               <img src="{% url 'session-task-preview-file' t.id %}" alt="Representacion grafica de {{ t.title }}" loading="lazy" />
@@ -1968,19 +1969,20 @@
                 {% if t.players_band %}<span class="badge">{{ t.players_band }}</span>{% endif %}
                 {% if t.duration_band %}<span class="badge">{{ t.duration_band }}</span>{% endif %}
               </div>
-              {% endif %}
-              <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
-                {% if t.task_pdf %}
-                <a class="button" href="{% url 'session-task-file' t.id %}" target="_blank" rel="noopener">Abrir PDF</a>
-                {% endif %}
-                <a class="button" href="{% url 'session-task-detail' t.id %}">Ver detalle</a>
-                {% if not t.is_imported %}
-                <a class="button" href="{% url task_builder_edit_route_name t.id %}">Editar</a>
-                {% endif %}
-                {% if planning_session_items %}
-                <form method="post" style="margin:0; display:flex; gap:0.35rem; flex-wrap:wrap; align-items:center;">
-                  {% csrf_token %}
-                  <input type="hidden" name="planner_action" value="copy_library_task_to_session" />
+	              {% endif %}
+	              <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
+	                {% if t.task_pdf %}
+	                <a class="button" href="{% url 'session-task-file' t.id %}" target="_blank" rel="noopener">Abrir PDF</a>
+	                {% endif %}
+	                {% if t.is_imported %}
+	                <a class="button" href="{% url 'session-task-detail' t.id %}">Ver ficha</a>
+	                {% else %}
+	                <a class="button" href="{% url task_builder_edit_route_name t.id %}">Editar</a>
+	                {% endif %}
+	                {% if planning_session_items %}
+	                <form method="post" style="margin:0; display:flex; gap:0.35rem; flex-wrap:wrap; align-items:center;">
+	                  {% csrf_token %}
+	                  <input type="hidden" name="planner_action" value="copy_library_task_to_session" />
                   <input type="hidden" name="planner_tab" value="library" />
                   <input type="hidden" name="library_view" value="{{ library_view }}" />
                   <input type="hidden" name="library_key" value="{{ library_key }}" />

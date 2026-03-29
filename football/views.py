@@ -11885,13 +11885,17 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             deleted_session_tasks = planning_deleted_tasks_by_session.get(int(session_item.id), [])
             task_minutes_total = sum(int(getattr(task_obj, 'duration_minutes', 0) or 0) for task_obj in session_tasks)
             task_sheets = [_build_session_task_sheet(task_obj) for task_obj in session_tasks]
-            task_rows = [
-                {
-                    'obj': task_obj,
-                    'sheet': task_sheets[index],
-                }
-                for index, task_obj in enumerate(session_tasks)
-            ]
+            task_rows = []
+            for index, task_obj in enumerate(session_tasks):
+                is_imported_task = _is_imported_task(task_obj)
+                task_rows.append(
+                    {
+                        'obj': task_obj,
+                        'sheet': task_sheets[index],
+                        'is_imported_task': is_imported_task,
+                        'is_editable_task': not is_imported_task,
+                    }
+                )
             session_rows.append(
                 {
                     'obj': session_item,
@@ -13514,6 +13518,12 @@ def session_task_detail_page(request, task_id):
     error = ''
     is_editable_task = _is_task_editable(task)
     is_imported_task = _is_imported_task(task)
+
+    # Evita confusión: para tareas editables, "detalle" abre el mismo editor visual que se usa al crear.
+    # La ficha legacy queda disponible con ?legacy=1 (útil sobre todo para tareas importadas).
+    if request.method == 'GET' and is_editable_task and not (request.GET.get('legacy') or '').strip():
+        return redirect(reverse(_task_builder_edit_route_name(scope_key), args=[task.id]))
+
     if request.method == 'POST':
         detail_action = (request.POST.get('detail_action') or '').strip()
         try:
