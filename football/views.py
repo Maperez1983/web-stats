@@ -12781,6 +12781,7 @@ def _save_task_studio_entry(request, owner, existing_task=None):
     return task
 
 
+@csrf_exempt
 @login_required
 def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones · Entrenador', task_id=None):
     if not _can_access_sessions_workspace(request.user):
@@ -12864,9 +12865,9 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
     )
 
 
+@csrf_exempt
 @login_required
 @require_POST
-@csrf_exempt
 def session_task_pdf_preview(request):
     if not _can_access_sessions_workspace(request.user):
         return HttpResponse('No tienes permisos para acceder a sesiones.', status=403)
@@ -13293,6 +13294,7 @@ def task_studio_roster_page(request):
     )
 
 
+@csrf_exempt
 @login_required
 def task_studio_task_builder_page(request, task_id=None):
     forbidden = _forbid_if_no_task_studio_access(request.user)
@@ -13431,9 +13433,9 @@ def task_studio_task_duplicate_page(request, task_id):
     return redirect(reverse('task-studio-task-edit', args=[clone.id]) + _task_studio_query_suffix(owner, request.user))
 
 
+@csrf_exempt
 @login_required
 @require_POST
-@csrf_exempt
 def task_studio_task_pdf_preview(request):
     forbidden = _forbid_if_no_task_studio_access(request.user)
     if forbidden:
