@@ -1,9 +1,10 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Perfil e identidad · Task Studio</title>
+    <title>Perfil e identidad · 2J Studio</title>
     <style>
       :root { --bg:#081320; --panel:#102235; --line:rgba(255,255,255,.12); --ink:#eef2f7; --muted:rgba(226,232,240,.7); }
       * { box-sizing:border-box; }
@@ -25,8 +26,15 @@
   </head>
   <body>
     <main class="page">
-      <h1 style="margin:0 0 .35rem; font-size:1.15rem; letter-spacing:.08em; text-transform:uppercase;">Perfil e identidad</h1>
-      <p style="margin:0 0 1rem; color:rgba(226,232,240,.7);">{{ target_user.get_username }}</p>
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; margin-bottom:1rem;">
+        <div style="display:grid; gap:.4rem;">
+          <img src="{% static 'football/images/2j-mark.svg' %}" alt="2J Football Intelligence" style="width:168px; height:auto;" />
+          <div>
+            <h1 style="margin:0 0 .25rem; font-size:1.15rem; letter-spacing:.08em; text-transform:uppercase;">Perfil e identidad</h1>
+            <p style="margin:0; color:rgba(226,232,240,.7);">{{ target_user.get_username }}</p>
+          </div>
+        </div>
+      </div>
       <div class="nav">
         <a class="button" href="{% url 'task-studio-home' %}{{ query_suffix }}">Inicio</a>
         <a class="button" href="{% url 'task-studio-profile' %}{{ query_suffix }}">Perfil e identidad</a>
