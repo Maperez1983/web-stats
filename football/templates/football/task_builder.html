@@ -873,6 +873,51 @@
                   <button type="button" data-action="duplicate">Duplicar</button>
                   <button type="button" data-action="clear">Limpiar</button>
                 </div>
+                  <div data-inspector-slot="base">
+                    <div class="selection-toolbar" id="task-selection-toolbar" hidden>
+                      <div>
+                        <h3>Elemento seleccionado</h3>
+                        <p id="task-selection-summary">Selecciona un recurso para ajustarlo.</p>
+                      </div>
+                      <div class="selection-grid">
+                        <label>
+                          Longitud / ancho
+                          <input type="range" id="task-scale-x" min="40" max="260" step="5" value="100" />
+                        </label>
+                        <label>
+                          Altura / grosor
+                          <input type="range" id="task-scale-y" min="40" max="260" step="5" value="100" />
+                        </label>
+                        <label style="grid-column:1 / -1;">
+                          Giro
+                          <input type="range" id="task-rotation" min="0" max="359" step="1" value="0" />
+                        </label>
+                        <label style="grid-column:1 / -1;">
+                          Color
+                          <input type="color" id="task-style-color" value="#22d3ee" />
+                        </label>
+                      </div>
+                      <div class="selection-actions">
+                        <button type="button" data-color="#22d3ee">Cian</button>
+                        <button type="button" data-color="#f97316">Naranja</button>
+                        <button type="button" data-color="#ef4444">Rojo</button>
+                        <button type="button" data-color="#84cc16">Verde</button>
+                        <button type="button" data-color="#ffffff">Blanco</button>
+                        <button type="button" data-color="#a855f7">Morado</button>
+                      </div>
+                      <div class="selection-actions">
+                        <button type="button" data-rotate-step="-15">Girar -15°</button>
+                        <button type="button" data-rotate-step="15">Girar +15°</button>
+                        <button type="button" data-nudge-x="0" data-nudge-y="-8">Arriba</button>
+                        <button type="button" data-nudge-x="-8" data-nudge-y="0">Izquierda</button>
+                        <button type="button" data-nudge-x="8" data-nudge-y="0">Derecha</button>
+                        <button type="button" data-nudge-x="0" data-nudge-y="8">Abajo</button>
+                      </div>
+                      <div class="selection-note">
+                        Tip: usa `Cmd/Ctrl + D` para duplicar el elemento seleccionado.
+                      </div>
+                    </div>
+                  </div>
                 </div>
                 <div class="resource-panel" data-panel="trazos" hidden>
                   <h3 class="tool-group-title" style="margin-top:0.85rem;">Trazos y flechas</h3>
@@ -886,6 +931,7 @@
                   <button type="button" data-add="arrow_dot">Flecha puntos</button>
                   <button type="button" data-add="arrow_curve">Flecha curva</button>
                 </div>
+                  <div data-inspector-slot="trazos"></div>
                 </div>
                 <div class="resource-panel" data-panel="figuras" hidden>
                   <h3 class="tool-group-title" style="margin-top:0.85rem;">Figuras geométricas</h3>
@@ -896,6 +942,7 @@
                   <button type="button" data-add="shape_triangle">Triángulo</button>
                   <button type="button" data-add="shape_diamond">Rombo</button>
                 </div>
+                  <div data-inspector-slot="figuras"></div>
                 </div>
                 <div class="resource-panel" data-panel="emoji" hidden>
                   <h3 class="tool-group-title" style="margin-top:0.85rem;">Recursos emoji</h3>
@@ -914,6 +961,7 @@
                   <button type="button" data-add="emoji_whistle">📣 Silbato</button>
                   <button type="button" data-add="emoji_stopwatch">⏱️ Crono</button>
                 </div>
+                  <div data-inspector-slot="emoji"></div>
                 </div>
               </div>
 
@@ -924,49 +972,6 @@
                 </div>
               </div>
               <p class="pitch-status" id="task-builder-status">Pizarra lista.</p>
-              <div class="selection-toolbar" id="task-selection-toolbar">
-                <div>
-                  <h3>Elemento seleccionado</h3>
-                  <p id="task-selection-summary">Selecciona una línea, flecha o figura para ajustarla.</p>
-                </div>
-                <div class="selection-grid">
-                  <label>
-                    Longitud / ancho
-                    <input type="range" id="task-scale-x" min="40" max="260" step="5" value="100" />
-                  </label>
-                  <label>
-                    Altura / grosor
-                    <input type="range" id="task-scale-y" min="40" max="260" step="5" value="100" />
-                  </label>
-                  <label style="grid-column:1 / -1;">
-                    Giro
-                    <input type="range" id="task-rotation" min="0" max="359" step="1" value="0" />
-                  </label>
-                  <label style="grid-column:1 / -1;">
-                    Color
-                    <input type="color" id="task-style-color" value="#22d3ee" />
-                  </label>
-                </div>
-                <div class="selection-actions">
-                  <button type="button" data-color="#22d3ee">Cian</button>
-                  <button type="button" data-color="#f97316">Naranja</button>
-                  <button type="button" data-color="#ef4444">Rojo</button>
-                  <button type="button" data-color="#84cc16">Verde</button>
-                  <button type="button" data-color="#ffffff">Blanco</button>
-                  <button type="button" data-color="#a855f7">Morado</button>
-                </div>
-                <div class="selection-actions">
-                  <button type="button" data-rotate-step="-15">Girar -15°</button>
-                  <button type="button" data-rotate-step="15">Girar +15°</button>
-                  <button type="button" data-nudge-x="0" data-nudge-y="-8">Arriba</button>
-                  <button type="button" data-nudge-x="-8" data-nudge-y="0">Izquierda</button>
-                  <button type="button" data-nudge-x="8" data-nudge-y="0">Derecha</button>
-                  <button type="button" data-nudge-x="0" data-nudge-y="8">Abajo</button>
-                </div>
-                <div class="selection-note">
-                  También puedes arrastrar el elemento directamente sobre el campo.
-                </div>
-              </div>
 
               <div class="section" style="margin-top:0.9rem;">
                 <h3>Plantilla disponible</h3>

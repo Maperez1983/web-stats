@@ -82,6 +82,8 @@
     zone: 'una zona',
     text: 'un texto',
     token: 'un jugador',
+    line: 'una línea',
+    arrow: 'una flecha',
     line_solid: 'una línea continua',
     line_dash: 'una línea discontinua',
     line_dot: 'una línea de puntos',
@@ -488,6 +490,11 @@
     const playStepButton = document.getElementById('task-step-play');
     const presetButtons = Array.from(document.querySelectorAll('.surface-option[data-preset]'));
     const surfaceThumbs = Array.from(document.querySelectorAll('[data-surface-thumb]'));
+    const inspectorSlots = new Map(
+      Array.from(document.querySelectorAll('[data-inspector-slot]'))
+        .map((node) => [safeText(node.dataset.inspectorSlot), node])
+        .filter(([key]) => !!key),
+    );
     const sideTabs = Array.from(document.querySelectorAll('#task-side-tabs .side-tab'));
     const sidePanes = Array.from(document.querySelectorAll('.side-pane[data-pane]'));
     const assignedHidden = document.getElementById('assigned-players-hidden');
@@ -697,6 +704,7 @@
       const active = activeInspectableObject();
       const enabled = !!active;
       if (!enabled) {
+        selectionToolbar.hidden = true;
         selectionToolbar.querySelectorAll('input,button').forEach((node) => { node.disabled = true; });
         selectionSummary.textContent = 'Selecciona un recurso para ajustarlo.';
         scaleXInput.value = '100';
@@ -705,6 +713,7 @@
         colorInput.value = '#22d3ee';
         return;
       }
+      selectionToolbar.hidden = false;
       const canColor = isColorizableObject(active);
       selectionToolbar.querySelectorAll('input,button').forEach((node) => { node.disabled = false; });
       colorInput.disabled = !canColor;
@@ -1271,7 +1280,17 @@
       }
       if (kind === 'arrow_curve') {
         return (left, top) => new fabric.Group([
-          new fabric.Path('M -50 22 Q -8 -30 46 10', { stroke: '#22d3ee', fill: '', strokeWidth: 4 }),
+          new fabric.Path('M -50 22 Q -8 -30 46 10', {
+            left: 0,
+            top: 0,
+            originX: 'center',
+            originY: 'center',
+            stroke: '#22d3ee',
+            fill: '',
+            strokeWidth: 4,
+            strokeLineCap: 'round',
+            strokeLineJoin: 'round',
+          }),
           new fabric.Triangle({ left: 58, top: 10, width: 18, height: 18, angle: 122, fill: '#22d3ee', originX: 'center', originY: 'center' }),
         ], { left, top, originX: 'center', originY: 'center', data: { kind: 'arrow-curve' } });
       }
@@ -1691,6 +1710,13 @@
     canvas.on('selection:created', syncInspector);
     canvas.on('selection:updated', syncInspector);
     canvas.on('selection:cleared', syncInspector);
+    const syncInspectorDock = () => {
+      const active = activeInspectableObject();
+      if (!active) return;
+      dockInspectorIntoPanel(panelKeyForObject(active));
+    };
+    canvas.on('selection:created', syncInspectorDock);
+    canvas.on('selection:updated', syncInspectorDock);
     canvas.on('mouse:down', (event) => {
       if (!pendingFactory || event.target) return;
       const pointer = canvas.getPointer(event.e);
@@ -1924,6 +1950,22 @@
       const initialKey = safeText(baseKey || resourceTabs[0].dataset.resource);
       if (initialKey) activateResourcePanel(initialKey);
     }
+
+    const panelKeyForObject = (object) => {
+      const kind = safeText(object?.data?.kind);
+      if (!kind) return 'base';
+      if (kind.startsWith('line') || kind.startsWith('arrow')) return 'trazos';
+      if (kind.startsWith('shape')) return 'figuras';
+      if (kind.startsWith('emoji_')) return 'emoji';
+      return 'base';
+    };
+    const dockInspectorIntoPanel = (panelKey) => {
+      if (!selectionToolbar) return;
+      const slot = inspectorSlots.get(panelKey);
+      if (!slot) return;
+      if (selectionToolbar.parentElement !== slot) slot.appendChild(selectionToolbar);
+      activateResourcePanel(panelKey);
+    };
 
     let resizeTimer = null;
     window.addEventListener('resize', () => {
