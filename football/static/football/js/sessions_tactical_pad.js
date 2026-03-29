@@ -159,22 +159,25 @@
     const createStage = (orientation) => {
       const margin = 20;
       const desiredAspect = 105 / 68;
-      const availableWidth = stageW - margin * 2;
-      const availableHeight = stageH - margin * 2;
       const portrait = orientation === 'portrait';
-      const basisWidth = portrait ? availableHeight : availableWidth;
-      const basisHeight = portrait ? availableWidth : availableHeight;
-      let width = Math.min(drawW, basisWidth);
+      // En vertical, el grupo se rota 90 grados: el sistema de coordenadas "dibuja"
+      // sobre un lienzo efectivo de (stageH x stageW).
+      const effectiveW = portrait ? stageH : stageW;
+      const effectiveH = portrait ? stageW : stageH;
+      const availableWidth = effectiveW - margin * 2;
+      const availableHeight = effectiveH - margin * 2;
+
+      let width = Math.min(drawW, availableWidth);
       let height = width / desiredAspect;
-      if (height > basisHeight) {
-        height = basisHeight;
+      if (height > availableHeight) {
+        height = availableHeight;
         width = height * desiredAspect;
       }
-      const offsetX = (stageW - width) / 2;
-      const offsetY = (stageH - height) / 2;
+      const offsetX = (effectiveW - width) / 2;
+      const offsetY = (effectiveH - height) / 2;
       return { x: offsetX, y: offsetY, width, height };
     };
-    let stage = createStage('landscape');
+    let stage = createStage(orientation);
     const scale = stage.width / 105;
     const line = '#f8fafc';
     const soft = 'rgba(248,250,252,0.66)';
@@ -441,6 +444,12 @@
     const orientationInput = document.getElementById('draw-task-pitch-orientation');
     const orientationToggle = document.getElementById('pitch-orientation-toggle');
     const orientationLabel = document.getElementById('pitch-orientation-label');
+    const viewportEl = document.getElementById('task-pitch-viewport');
+    const zoomInput = document.getElementById('draw-task-pitch-zoom');
+    const zoomOutButton = document.getElementById('pitch-zoom-out');
+    const zoomInButton = document.getElementById('pitch-zoom-in');
+    const zoomResetButton = document.getElementById('pitch-zoom-reset');
+    const zoomLabel = document.getElementById('pitch-zoom-label');
     const pitchFormatInput = document.getElementById('draw-task-pitch-format');
     const stateInput = document.getElementById('draw-canvas-state');
     const widthInput = document.getElementById('draw-canvas-width');
@@ -500,6 +509,12 @@
     let playbackTimer = null;
     let playbackRestoreState = null;
     let pitchOrientation = safeText(orientationInput?.value, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
+    let pitchZoom = Number.parseFloat(String(zoomInput?.value || '').trim());
+    let zoomTouched = false;
+    if (!Number.isFinite(pitchZoom)) {
+      pitchZoom = pitchOrientation === 'portrait' ? 1.15 : 1.0;
+    }
+    pitchZoom = clamp(pitchZoom, 0.8, 1.6);
 
     const clampScale = (value) => clamp(Number(value) || 1, 0.4, 2.6);
     const normalizeEditableObject = (object) => {
@@ -640,7 +655,22 @@
       if (orientationInput) orientationInput.value = pitchOrientation;
       if (orientationLabel) orientationLabel.textContent = ORIENTATION_LABEL[pitchOrientation] === 'vertical' ? 'Vertical' : 'Horizontal';
       stage.classList.toggle('is-portrait', pitchOrientation === 'portrait');
+      viewportEl?.classList.toggle('is-portrait', pitchOrientation === 'portrait');
       orientationToggle?.classList.toggle('is-active', pitchOrientation === 'portrait');
+    };
+    const syncZoomUi = () => {
+      if (zoomInput) zoomInput.value = String(pitchZoom.toFixed(2));
+      if (zoomLabel) zoomLabel.textContent = `${Math.round(pitchZoom * 100)}%`;
+      stage.style.setProperty('--pitch-zoom', String(pitchZoom));
+      viewportEl?.classList.toggle('is-zoomed', pitchZoom > 1.02);
+      canvas.calcOffset();
+    };
+    const applyPitchZoom = (value, options = {}) => {
+      const next = clamp(Number(value) || 1, 0.8, 1.6);
+      pitchZoom = next;
+      if (!options.silent) zoomTouched = true;
+      syncZoomUi();
+      if (!options.silent) setStatus(`Zoom: ${Math.round(pitchZoom * 100)}%.`);
     };
 
     const serializeCanvasOnly = () => {
@@ -757,6 +787,10 @@
       if (normalized === pitchOrientation && !options.force) return;
       pitchOrientation = normalized;
       syncOrientationUi();
+      if (!zoomTouched) {
+        pitchZoom = pitchOrientation === 'portrait' ? 1.15 : 1.0;
+        syncZoomUi();
+      }
       fitCanvas(options.preserveObjects !== false);
       setPreset(presetSelect.value || 'full_pitch');
       if (!options.silent) setStatus(`Campo en ${ORIENTATION_LABEL[pitchOrientation]}.`);
@@ -1334,6 +1368,7 @@
     };
 
     syncOrientationUi();
+    syncZoomUi();
     fitCanvas();
     setPreset(presetSelect.value || 'full_pitch');
     restoreState();
@@ -1524,7 +1559,7 @@
       else activateFactory(simpleFactory(add), RESOURCE_LABELS[add] || add);
     });
     syncInspector();
-    Array.from(form.querySelectorAll('[data-print-style]')).forEach((button) => {
+    Array.from(document.querySelectorAll('[data-print-style]')).forEach((button) => {
       button.addEventListener('click', () => submitPrintPreview(button.dataset.printStyle || 'uefa'));
     });
 
@@ -1542,6 +1577,13 @@
     orientationToggle?.addEventListener('click', () => {
       applyPitchOrientation(pitchOrientation === 'portrait' ? 'landscape' : 'portrait', { preserveObjects: true, pushHistory: true });
     });
+    zoomOutButton?.addEventListener('click', () => applyPitchZoom(pitchZoom - 0.08));
+    zoomInButton?.addEventListener('click', () => applyPitchZoom(pitchZoom + 0.08));
+    zoomResetButton?.addEventListener('click', () => {
+      zoomTouched = false;
+      applyPitchZoom(pitchOrientation === 'portrait' ? 1.15 : 1.0, { silent: true });
+      setStatus('Zoom restablecido.');
+    });
     surfaceTrigger?.addEventListener('click', () => {
       renderSurfaceThumbs();
       setSurfaceMenuOpen(!surfacePicker?.classList.contains('is-open'));
@@ -1556,7 +1598,11 @@
     const resourcePanels = Array.from(document.querySelectorAll('.resource-panel'));
     const activateResourcePanel = (key) => {
       resourceTabs.forEach((tab) => tab.classList.toggle('is-active', tab.dataset.resource === key));
-      resourcePanels.forEach((panel) => panel.classList.toggle('is-visible', panel.dataset.panel === key));
+      resourcePanels.forEach((panel) => {
+        const visible = panel.dataset.panel === key;
+        panel.hidden = !visible;
+        panel.classList.toggle('is-visible', visible);
+      });
     };
     resourceTabs.forEach((tab) => {
       tab.addEventListener('click', () => {
@@ -1564,6 +1610,11 @@
         activateResourcePanel(target);
       });
     });
+    if (resourceTabs.length && resourcePanels.length) {
+      const baseKey = resourceTabs.find((tab) => safeText(tab.dataset.resource) === 'base')?.dataset.resource;
+      const initialKey = safeText(baseKey || resourceTabs[0].dataset.resource);
+      if (initialKey) activateResourcePanel(initialKey);
+    }
 
     let resizeTimer = null;
     window.addEventListener('resize', () => {

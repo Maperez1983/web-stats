@@ -290,7 +290,7 @@
         border: 1px solid rgba(255,255,255,0.3);
         border-radius: 999px;
         padding: 6px 16px;
-        color: var(--body-text);
+        color: var(--muted);
         transition: background 0.2s ease;
       }
       .resource-tab.is-active {
@@ -320,20 +320,29 @@
         overflow: hidden;
         border: 1px solid rgba(255, 255, 255, 0.14);
         background: linear-gradient(180deg, #0b1725, #08111d);
+        --pitch-zoom: 1;
+        transform: scale(var(--pitch-zoom));
+        transform-origin: center top;
       }
       .pitch-stage.is-portrait {
         aspect-ratio: 1 / 1.47;
-        width: auto;
-        max-width: 520px;
-        height: 720px;
+        width: 100%;
+        max-width: 680px;
         margin: 0 auto;
-        transform-origin: center top;
-        transform: scale(1.08);
       }
       .pitch-viewport {
         width: 100%;
         overflow: hidden;
         border-radius: 18px;
+      }
+      .pitch-viewport.is-portrait {
+        max-height: 78vh;
+        overflow: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      .pitch-viewport.is-zoomed {
+        overflow: auto;
+        -webkit-overflow-scrolling: touch;
       }
       .pitch-stage.is-drop-target {
         box-shadow: inset 0 0 0 2px rgba(34, 211, 238, 0.7);
@@ -350,6 +359,25 @@
         margin: 0.75rem 0 0;
         color: var(--muted);
         font-size: 0.82rem;
+      }
+      .pitch-zoom {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+      }
+      .pitch-zoom button {
+        border-radius: 10px;
+        padding: 8px 10px;
+        border: 1px solid rgba(255,255,255,0.18);
+        background: rgba(255,255,255,0.06);
+        color: #e2e8f0;
+        min-width: 38px;
+      }
+      .pitch-zoom .zoom-readout {
+        min-width: 54px;
+        text-align: center;
+        font-weight: 700;
+        color: rgba(226,232,240,0.8);
       }
       .resource-section {
         display: flex;
@@ -679,6 +707,7 @@
         <input type="hidden" name="draw_canvas_height" id="draw-canvas-height" value="{{ initial.canvas_height }}" />
         <input type="hidden" name="draw_canvas_preview_data" id="draw-canvas-preview-data" />
         <input type="hidden" name="draw_task_pitch_orientation" id="draw-task-pitch-orientation" value="{{ initial.pitch_orientation|default:'landscape' }}" />
+        <input type="hidden" name="draw_task_pitch_zoom" id="draw-task-pitch-zoom" value="{{ initial.pitch_zoom|default:'1.00' }}" />
 
         <div class="builder">
           <section class="panel">
@@ -757,6 +786,12 @@
                     <span>Orientación</span>
                     <span class="current" id="pitch-orientation-label">{% if initial.pitch_orientation == 'portrait' %}Vertical{% else %}Horizontal{% endif %}</span>
                   </button>
+                  <div class="pitch-zoom">
+                    <button type="button" id="pitch-zoom-out" title="Alejar">-</button>
+                    <span class="zoom-readout" id="pitch-zoom-label">100%</span>
+                    <button type="button" id="pitch-zoom-in" title="Acercar">+</button>
+                    <button type="button" id="pitch-zoom-reset" title="Reset">↺</button>
+                  </div>
                 </div>
               </div>
 
@@ -842,7 +877,7 @@
                 </div>
               </div>
 
-              <div class="pitch-viewport">
+              <div class="pitch-viewport" id="task-pitch-viewport">
                 <div class="pitch-stage" id="task-pitch-stage">
                   <svg id="task-pitch-surface" viewBox="0 0 1100 748" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
                   <canvas id="create-task-canvas"></canvas>

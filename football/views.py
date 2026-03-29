@@ -11960,6 +11960,7 @@ def _task_builder_initial_values(task):
         'template_key': str(meta.get('template_key') or 'none'),
         'pitch_preset': str(meta.get('pitch_preset') or 'full_pitch'),
         'pitch_orientation': str(meta.get('pitch_orientation') or 'landscape'),
+        'pitch_zoom': str(meta.get('pitch_zoom') or '1.00'),
         'series': str(meta.get('series') or ''),
         'repetitions': str(meta.get('repetitions') or ''),
         'player_count': str(meta.get('player_count') or ''),
@@ -12038,6 +12039,15 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
     pitch_preset = (request.POST.get('draw_task_pitch_preset') or 'full_pitch').strip()
     raw_pitch_orientation = request.POST.get('draw_task_pitch_orientation')
     pitch_orientation = (raw_pitch_orientation or '').strip().lower() if raw_pitch_orientation is not None else str(existing_meta.get('pitch_orientation') or 'landscape')
+    raw_pitch_zoom = request.POST.get('draw_task_pitch_zoom')
+    pitch_zoom = None
+    if raw_pitch_zoom is None:
+        pitch_zoom = float(existing_meta.get('pitch_zoom') or 1.0)
+    else:
+        try:
+            pitch_zoom = float(str(raw_pitch_zoom).strip())
+        except Exception:
+            pitch_zoom = float(existing_meta.get('pitch_zoom') or 1.0)
     if 'draw_constraints' in request.POST:
         constraints = [str(v).strip() for v in request.POST.getlist('draw_constraints') if str(v).strip()]
     else:
@@ -12121,6 +12131,11 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
         pitch_preset = 'full_pitch'
     if pitch_orientation not in {'landscape', 'portrait'}:
         pitch_orientation = 'landscape'
+    try:
+        pitch_zoom = float(pitch_zoom or 1.0)
+    except Exception:
+        pitch_zoom = 1.0
+    pitch_zoom = max(0.8, min(pitch_zoom, 1.6))
 
     target_session = existing_task.session if existing_task else None
     if target_session_id:
@@ -12159,6 +12174,7 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
             'pitch_format': selected_pitch_format,
             'pitch_preset': pitch_preset,
             'pitch_orientation': pitch_orientation,
+            'pitch_zoom': pitch_zoom,
             'game_phase': selected_phase,
             'methodology': selected_methodology,
             'complexity': selected_complexity,
