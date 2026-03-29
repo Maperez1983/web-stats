@@ -156,7 +156,23 @@
     }
     root.appendChild(drawRoot);
 
-    const stage = { x: 50, y: 50, width: 1000, height: 1000 * 68 / 105 };
+    const createStage = (orientation) => {
+      const margin = 40;
+      const limitWidth = Math.max(360, stageW - margin);
+      const limitHeight = Math.max(360, stageH - margin);
+      const baseWidth = orientation === 'portrait' ? limitHeight : limitWidth;
+      const baseHeight = orientation === 'portrait' ? limitWidth : limitHeight;
+      let width = Math.min(drawW, baseWidth);
+      let height = (width * 68) / 105;
+      if (height > baseHeight) {
+        height = baseHeight;
+        width = (height * 105) / 68;
+      }
+      const x = (stageW - width) / 2;
+      const y = (stageH - height) / 2;
+      return { x, y, width, height };
+    };
+    let stage = createStage(orientation);
     const scale = stage.width / 105;
     const line = '#f8fafc';
     const soft = 'rgba(248,250,252,0.66)';
