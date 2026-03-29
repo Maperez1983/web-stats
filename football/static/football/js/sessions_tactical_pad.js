@@ -1731,7 +1731,25 @@
       await syncHiddenBuilderFields();
       const tempForm = document.createElement('form');
       tempForm.method = 'post';
-      tempForm.action = `${actionUrl}?style=${encodeURIComponent(style || 'uefa')}`;
+      // actionUrl puede incluir query (?user=... o ?workspace=...). Si concatenamos "?style="
+      // rompemos el query string y el backend no detecta el workspace, devolviendo 403.
+      const targetStyle = safeText(style, 'uefa');
+      let resolvedAction = '';
+      try {
+        const url = new URL(actionUrl, window.location.origin);
+        url.searchParams.set('style', targetStyle || 'uefa');
+        // Si el editor se está usando con ?workspace=... en la URL actual, lo propagamos
+        // para que el PDF preview siempre resuelva el workspace correctamente.
+        const current = new URL(window.location.href);
+        const currentWs = safeText(current.searchParams.get('workspace'));
+        if (currentWs && !safeText(url.searchParams.get('workspace'))) {
+          url.searchParams.set('workspace', currentWs);
+        }
+        resolvedAction = url.toString();
+      } catch (error) {
+        resolvedAction = `${actionUrl}${actionUrl.includes('?') ? '&' : '?'}style=${encodeURIComponent(targetStyle || 'uefa')}`;
+      }
+      tempForm.action = resolvedAction;
       tempForm.target = previewWin ? targetName : '_self';
       const payload = new FormData(form);
       payload.forEach((value, key) => {
