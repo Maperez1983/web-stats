@@ -871,6 +871,7 @@
                   <div class="resource-strip" id="task-basic-tools">
                   <button type="button" data-add="player_local">Jugador local</button>
                   <button type="button" data-add="player_rival">Jugador rival</button>
+                  <button type="button" data-add="player_away">Jugador 2a equipación</button>
                   <button type="button" data-add="goalkeeper_local">Portero</button>
                   <button type="button" data-add="ball">Balón</button>
                   <button type="button" data-add="cone">Cono</button>
@@ -1111,7 +1112,7 @@
                   <h3>Ajustes avanzados</h3>
                   <div class="compact-grid">
                   <label>
-                    Organización
+                    Coordinación
                     <input type="text" name="draw_task_organization" value="{{ initial.organization }}" placeholder="Ej: 6v6 + 2 comodines" />
                   </label>
                   <label>
@@ -1127,8 +1128,17 @@
                     <input type="text" name="draw_task_repetitions" value="{{ initial.repetitions }}" placeholder="Ej: 3" />
                   </label>
                   <label>
-                    Carga objetivo
+                    Habilidades coordinativas
                     <input type="text" name="draw_task_load_target" value="{{ initial.load_target }}" placeholder="Ej: RPE 7" />
+                  </label>
+                  <label>
+                    Complejidad
+                    <select name="draw_task_complexity">
+                      <option value="">-</option>
+                      {% for value, label in task_complexity_choices %}
+                      <option value="{{ value }}" {% if initial.complexity == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
                   </label>
                   <label style="grid-column:1 / -1;">
                     Progresión

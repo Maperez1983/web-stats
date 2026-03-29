@@ -50,6 +50,14 @@
       Math.round(rgb.b * (1 - f)),
     );
   };
+  const isLightHex = (hex) => {
+    const rgb = hexToRgb(hex);
+    if (!rgb) return false;
+    // Perceived luminance.
+    const luma = (0.2126 * rgb.r + 0.7152 * rgb.g + 0.0722 * rgb.b) / 255;
+    return luma >= 0.68;
+  };
+  const contrastTextForFill = (hex) => (isLightHex(hex) ? '#0b1220' : '#ffffff');
 
   const PITCH_FORMAT_BY_PRESET = {
     full_pitch: '11v11_full',
@@ -83,6 +91,7 @@
     local: { fill: '#1d4ed8', stroke: '#eff6ff', text: '#ffffff' },
     rival: { fill: '#dc2626', stroke: '#fff7ed', text: '#ffffff' },
     goalkeeper: { fill: '#111827', stroke: '#facc15', text: '#facc15' },
+    goalkeeper_blue: { fill: '#1d4ed8', stroke: '#eff6ff', text: '#ffffff' },
   };
   const RESOURCE_LABELS = {
     ball: 'el balón',
@@ -605,27 +614,53 @@
       if (fill) return fill;
       return '#22d3ee';
     };
-    const applyTokenColor = (group, colorHex) => {
-      if (!group || !Array.isArray(group._objects)) return;
-      setObjectData(group, { color: colorHex });
-      const tokenKind = safeText(group?.data?.token_kind);
-      const stripeRects = group._objects.filter((child) => child && child.type === 'rect' && Number(child.width) <= 14 && Number(child.height) >= 40);
-      const treatAsLocal = tokenKind === 'player_local' || (!tokenKind && stripeRects.length >= 2);
-      if (treatAsLocal) {
-        stripeRects.forEach((child) => child.set({ fill: colorHex }));
-        group.dirty = true;
-        return;
-      }
-      const circle = group._objects.find((child) => child && child.type === 'circle');
-      if (circle) {
-        circle.set({
-          fill: colorHex,
-          stroke: 'rgba(255,255,255,0.92)',
-        });
-      }
+	    const applyTokenColor = (group, colorHex) => {
+	      if (!group || !Array.isArray(group._objects)) return;
+	      setObjectData(group, { color: colorHex });
+	      const tokenKind = safeText(group?.data?.token_kind);
+	      const stripeRects = group._objects.filter((child) => child && child.type === 'rect' && Number(child.width) <= 14 && Number(child.height) >= 40);
+	      const treatAsLocal = tokenKind === 'player_local' || (!tokenKind && stripeRects.length >= 2);
+	      if (treatAsLocal) {
+	        stripeRects.forEach((child) => child.set({ fill: colorHex }));
+	        group.dirty = true;
+	        return;
+	      }
+	      if (tokenKind === 'player_away') {
+	        const circle = group._objects.find((child) => child && child.type === 'circle');
+	        if (circle) {
+	          circle.set({
+	            fill: colorHex,
+	            stroke: 'rgba(255,255,255,0.92)',
+	          });
+	        }
+	        const contrast = contrastTextForFill(colorHex);
+	        const textNodes = group._objects.filter((child) => child && child.type === 'text');
+	        // Solo recolorea el dorsal central; el nombre va sobre una etiqueta oscura fija.
+	        textNodes.forEach((node) => {
+	          if (!node) return;
+	          const top = Number(node.top) || 0;
+	          if (Math.abs(top) < 1) node.set({ fill: contrast });
+	        });
+	        group.dirty = true;
+	        return;
+	      }
+	      const circle = group._objects.find((child) => child && child.type === 'circle');
+	      if (circle) {
+	        circle.set({
+	          fill: colorHex,
+	          stroke: 'rgba(255,255,255,0.92)',
+	        });
+	      }
       const textNodes = group._objects.filter((child) => child && child.type === 'text');
+      const contrast = contrastTextForFill(colorHex);
       textNodes.forEach((node) => {
-        if (node && node.fill) node.set({ fill: '#ffffff' });
+        if (!node) return;
+        // Mantén blanco si el texto tiene fondo oscuro (etiqueta inferior).
+        if (node.backgroundColor) {
+          node.set({ fill: '#ffffff' });
+          return;
+        }
+        node.set({ fill: contrast });
       });
       group.dirty = true;
     };
@@ -1122,6 +1157,7 @@
       }
       if (payload.kind === 'player_local') return { factory: playerTokenFactory('player_local', null), label: 'un jugador local' };
       if (payload.kind === 'player_rival') return { factory: playerTokenFactory('player_rival', null), label: 'un jugador rival' };
+      if (payload.kind === 'player_away') return { factory: playerTokenFactory('player_away', null), label: 'un jugador con segunda equipación' };
       if (payload.kind === 'goalkeeper_local') return { factory: playerTokenFactory('goalkeeper_local', null), label: 'un portero' };
       return { factory: simpleFactory(payload.kind), label: RESOURCE_LABELS[payload.kind] || payload.kind };
     };
@@ -1154,12 +1190,14 @@
       });
     };
 
-    const playerTokenFactory = (kind, player) => (left, top) => {
-      const palette = kind === 'goalkeeper_local'
-        ? COLORS.goalkeeper
-        : kind === 'player_rival'
-          ? COLORS.rival
-          : COLORS.local;
+	    const playerTokenFactory = (kind, player) => (left, top) => {
+	      const playerNameLower = safeText(player?.name, '').toLowerCase();
+	      const goalkeeperPreferBlue = playerNameLower.includes('trivi') || playerNameLower.includes('antonio');
+	      const palette = kind === 'goalkeeper_local'
+	        ? (goalkeeperPreferBlue ? COLORS.goalkeeper_blue : COLORS.goalkeeper)
+	        : kind === 'player_rival'
+	          ? COLORS.rival
+	          : COLORS.local;
       const label = player?.number ? String(player.number).slice(0, 2) : (kind === 'goalkeeper_local' ? 'GK' : 'J');
       const displayName = shortPlayerName(player?.name || (kind === 'player_rival' ? 'Rival' : 'Jugador'));
       const initials = safeText(player?.name, kind === 'player_rival' ? 'Rival' : 'Jugador')
@@ -1169,51 +1207,54 @@
         .slice(0, 2)
         .toUpperCase() || label;
       const tokenParts = [];
-      if (kind === 'player_local') {
-        const radius = 23;
-        const chipClip = new fabric.Circle({
-          radius: radius - 1.6,
-          originX: 'center',
-          originY: 'center',
-          left: 0,
-          top: 0,
-        });
-        const baseCircle = new fabric.Circle({
-          radius,
-          fill: '#ffffff',
-          stroke: '#e2e8f0',
-          strokeWidth: 3,
-          originX: 'center',
-          originY: 'center',
-          left: 0,
-          top: 0,
-          shadow: 'rgba(15,23,42,0.28) 0 5px 14px',
-        });
-        tokenParts.push(baseCircle);
-        [-13, 0, 13].forEach((offset) => {
-          const stripe = new fabric.Rect({
-            left: offset,
-            top: 0,
-            width: 10,
-            height: 48,
-            fill: '#1f7a38',
-            originX: 'center',
-            originY: 'center',
-          });
-          stripe.clipPath = chipClip;
-          tokenParts.push(stripe);
-        });
-        tokenParts.push(new fabric.Text(label, {
-          originX: 'center',
-          originY: 'center',
-          left: 0,
-          top: 0,
-          fontSize: 17,
-          fontWeight: '900',
-          fill: '#ffffff',
-          stroke: '#102734',
-          strokeWidth: 0.45,
-        }));
+	      if (kind === 'player_local' || kind === 'player_away') {
+	        const radius = 23;
+	        const chipClip = new fabric.Circle({
+	          radius: radius - 1.6,
+	          originX: 'center',
+	          originY: 'center',
+	          left: 0,
+	          top: 0,
+	        });
+	        const isAway = kind === 'player_away';
+	        const baseCircle = new fabric.Circle({
+	          radius,
+	          fill: isAway ? '#facc15' : '#ffffff',
+	          stroke: '#e2e8f0',
+	          strokeWidth: 3,
+	          originX: 'center',
+	          originY: 'center',
+	          left: 0,
+	          top: 0,
+	          shadow: 'rgba(15,23,42,0.28) 0 5px 14px',
+	        });
+	        tokenParts.push(baseCircle);
+	        if (!isAway) {
+	          [-13, 0, 13].forEach((offset) => {
+	            const stripe = new fabric.Rect({
+	              left: offset,
+	              top: 0,
+	              width: 10,
+	              height: 48,
+	              fill: '#1f7a38',
+	              originX: 'center',
+	              originY: 'center',
+	            });
+	            stripe.clipPath = chipClip;
+	            tokenParts.push(stripe);
+	          });
+	        }
+	        tokenParts.push(new fabric.Text(label, {
+	          originX: 'center',
+	          originY: 'center',
+	          left: 0,
+	          top: 0,
+	          fontSize: 17,
+	          fontWeight: '900',
+	          fill: isAway ? '#0b1220' : '#ffffff',
+	          stroke: '#102734',
+	          strokeWidth: 0.45,
+	        }));
         tokenParts.push(new fabric.Rect({
           originX: 'center',
           originY: 'center',
@@ -1269,20 +1310,20 @@
           backgroundColor: 'rgba(15,23,42,0.92)',
         }));
       }
-      return new fabric.Group(tokenParts, {
+	      return new fabric.Group(tokenParts, {
         left,
         top,
         originX: 'center',
         originY: 'center',
-        data: {
-          kind: 'token',
-          token_kind: kind,
-          color: kind === 'player_local' ? '#1f7a38' : palette.fill,
-          playerId: player?.id || '',
-          playerName: safeText(player?.name, ''),
-        },
-      });
-    };
+	        data: {
+	          kind: 'token',
+	          token_kind: kind,
+	          color: kind === 'player_local' ? '#1f7a38' : (kind === 'player_away' ? '#facc15' : palette.fill),
+	          playerId: player?.id || '',
+	          playerName: safeText(player?.name, ''),
+	        },
+	      });
+	    };
 
     const simpleFactory = (kind) => {
       if (kind === 'ball') {
@@ -1440,7 +1481,7 @@
       setStatus(`Haz clic en el campo para colocar ${label}.`);
     };
 
-    const restoreState = () => {
+	    const restoreState = () => {
       let parsed = { version: '5.3.0', objects: [] };
       try {
         parsed = JSON.parse(stateInput?.value || '{"version":"5.3.0","objects":[]}');
@@ -1448,35 +1489,42 @@
         parsed = { version: '5.3.0', objects: [] };
       }
       applySerializedState(parsed, { pushHistory: true });
-    };
+	    };
 
-    const renderPlayerBank = () => {
-      if (!playerBank) return;
-      playerBank.innerHTML = '';
-      players.slice(0, 25).forEach((player) => {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'player-token-bank';
-        const name = document.createElement('span');
-        name.className = 'token-name';
-        name.textContent = shortPlayerName(player.name);
-        const disk = document.createElement('span');
-        disk.className = 'token-disk';
-        const number = document.createElement('span');
-        number.className = 'token-number';
-        number.textContent = player.number ? String(player.number).slice(0, 2) : 'J';
-        disk.appendChild(number);
-        button.appendChild(name);
-        button.appendChild(disk);
-        registerDraggableButton(button, () => ({ kind: 'player_local', playerId: String(player.id) }));
-        button.addEventListener('click', () => {
-          Array.from(playerBank.querySelectorAll('button')).forEach((item) => item.classList.remove('is-active'));
-          button.classList.add('is-active');
-          activateFactory(playerTokenFactory('player_local', player), safeText(player.name, 'el jugador'));
-        });
-        playerBank.appendChild(button);
-      });
-    };
+	    const isGoalkeeperPlayer = (player) => {
+	      const pos = safeText(player?.position, '').toLowerCase();
+	      if (!pos) return false;
+	      return pos.includes('portero') || pos === 'gk' || pos.includes('goalkeeper');
+	    };
+
+	    const renderPlayerBank = () => {
+	      if (!playerBank) return;
+	      playerBank.innerHTML = '';
+	      players.slice(0, 25).forEach((player) => {
+	        const kind = isGoalkeeperPlayer(player) ? 'goalkeeper_local' : 'player_local';
+	        const button = document.createElement('button');
+	        button.type = 'button';
+	        button.className = 'player-token-bank';
+	        const name = document.createElement('span');
+	        name.className = 'token-name';
+	        name.textContent = shortPlayerName(player.name);
+	        const disk = document.createElement('span');
+	        disk.className = 'token-disk';
+	        const number = document.createElement('span');
+	        number.className = 'token-number';
+	        number.textContent = kind === 'goalkeeper_local' ? 'GK' : (player.number ? String(player.number).slice(0, 2) : 'J');
+	        disk.appendChild(number);
+	        button.appendChild(name);
+	        button.appendChild(disk);
+	        registerDraggableButton(button, () => ({ kind, playerId: String(player.id) }));
+	        button.addEventListener('click', () => {
+	          Array.from(playerBank.querySelectorAll('button')).forEach((item) => item.classList.remove('is-active'));
+	          button.classList.add('is-active');
+	          activateFactory(playerTokenFactory(kind, player), safeText(player.name, 'el jugador'));
+	        });
+	        playerBank.appendChild(button);
+	      });
+	    };
     const selectTimelineStep = (index) => {
       if (index < 0 || index >= timeline.length) return;
       if (playbackTimer) return;
@@ -1980,11 +2028,12 @@
       if (!add) return;
       Array.from(toolStrip.querySelectorAll('[data-add]')).forEach((item) => item.classList.remove('is-active'));
       button.classList.add('is-active');
-      if (add === 'player_local') activateFactory(playerTokenFactory('player_local', null), 'un jugador local');
-      else if (add === 'player_rival') activateFactory(playerTokenFactory('player_rival', null), 'un jugador rival');
-      else if (add === 'goalkeeper_local') activateFactory(playerTokenFactory('goalkeeper_local', null), 'un portero');
-      else activateFactory(simpleFactory(add), RESOURCE_LABELS[add] || add);
-    });
+	      if (add === 'player_local') activateFactory(playerTokenFactory('player_local', null), 'un jugador local');
+	      else if (add === 'player_rival') activateFactory(playerTokenFactory('player_rival', null), 'un jugador rival');
+	      else if (add === 'player_away') activateFactory(playerTokenFactory('player_away', null), 'un jugador con segunda equipación');
+	      else if (add === 'goalkeeper_local') activateFactory(playerTokenFactory('goalkeeper_local', null), 'un portero');
+	      else activateFactory(simpleFactory(add), RESOURCE_LABELS[add] || add);
+	    });
     syncInspector();
 
 	    document.addEventListener('keydown', (event) => {
