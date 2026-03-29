@@ -1346,13 +1346,32 @@
       return dataUrl;
     };
     const submitPrintPreview = async (style) => {
-      await syncHiddenBuilderFields();
       const actionUrl = form.dataset.pdfPreviewUrl;
-      if (!actionUrl) return;
+      if (!actionUrl) {
+        setStatus('No se encontró la ruta de previsualización PDF.', true);
+        return;
+      }
+
+      // Los navegadores bloquean pestañas abiertas tras un await. Abrimos la pestaña de destino
+      // de forma síncrona (gesto del click) y luego enviamos el POST cuando la pizarra esté serializada.
+      const targetName = `tpad_pdf_${Date.now()}`;
+      let previewWin = null;
+      try {
+        previewWin = window.open('about:blank', targetName);
+      } catch (error) {
+        previewWin = null;
+      }
+      if (previewWin && previewWin.document) {
+        previewWin.document.open();
+        previewWin.document.write('<!doctype html><html lang="es"><meta charset="utf-8"><title>Generando PDF…</title><body style="font-family:system-ui,Segoe UI,Arial,sans-serif;padding:24px;"><h1 style="font-size:16px;margin:0 0 8px;">Generando PDF…</h1><p style="margin:0;color:#334155;">En unos segundos aparecerá el documento.</p></body></html>');
+        previewWin.document.close();
+      }
+
+      await syncHiddenBuilderFields();
       const tempForm = document.createElement('form');
       tempForm.method = 'post';
       tempForm.action = `${actionUrl}?style=${encodeURIComponent(style || 'uefa')}`;
-      tempForm.target = '_blank';
+      tempForm.target = previewWin ? targetName : '_self';
       const payload = new FormData(form);
       payload.forEach((value, key) => {
         if (value instanceof File) return;
