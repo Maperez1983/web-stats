@@ -32,6 +32,16 @@
     }
     return fallback;
   };
+  const darkenHex = (hex, factor = 0.35) => {
+    const rgb = hexToRgb(hex);
+    if (!rgb) return hex;
+    const f = clamp(Number(factor) || 0.35, 0, 0.95);
+    return rgbToHex(
+      Math.round(rgb.r * (1 - f)),
+      Math.round(rgb.g * (1 - f)),
+      Math.round(rgb.b * (1 - f)),
+    );
+  };
 
   const PITCH_FORMAT_BY_PRESET = {
     full_pitch: '11v11_full',
@@ -71,6 +81,7 @@
     cone: 'un cono',
     zone: 'una zona',
     text: 'un texto',
+    token: 'un jugador',
     line_solid: 'una línea continua',
     line_dash: 'una línea discontinua',
     line_dot: 'una línea de puntos',
@@ -532,19 +543,36 @@
       });
       return object;
     };
-    const isFlexibleKind = (object) => {
+    const isColorizableObject = (object) => {
       const kind = safeText(object?.data?.kind);
-      return kind.startsWith('line') || kind.startsWith('arrow') || kind.startsWith('shape') || kind === 'zone';
+      if (!kind) return false;
+      if (kind === 'token' || kind === 'ball' || kind === 'cone' || kind === 'zone' || kind === 'text') return true;
+      if (kind.startsWith('line') || kind.startsWith('arrow') || kind.startsWith('shape')) return true;
+      if (kind.startsWith('emoji_')) return true;
+      return false;
     };
-    const activeFlexibleObject = () => {
-      const active = canvas.getActiveObject();
-      return active && isFlexibleKind(active) ? active : null;
+    const activeInspectableObject = () => canvas.getActiveObject() || null;
+    const setObjectData = (object, patch) => {
+      if (!object || typeof object !== 'object') return;
+      object.data = { ...(object.data || {}), ...(patch || {}) };
     };
-    const flexibleObjectColor = (object) => {
+    const objectPreferredColor = (object) => {
       if (!object) return '#22d3ee';
+      const stored = parseColorToHex(object?.data?.color, '');
+      if (stored) return stored;
+      const kind = safeText(object?.data?.kind);
+      if (kind === 'token' && Array.isArray(object._objects)) {
+        // Local token: devuelve el color de la franja si existe.
+        const stripe = object._objects.find((child) => child && child.type === 'rect' && Number(child.width) <= 14 && Number(child.height) >= 40);
+        const stripeFill = stripe ? parseColorToHex(stripe.fill, '') : '';
+        if (stripeFill) return stripeFill;
+        const circle = object._objects.find((child) => child && child.type === 'circle');
+        const circleFill = circle ? parseColorToHex(circle.fill, '') : '';
+        if (circleFill) return circleFill;
+      }
       if (Array.isArray(object._objects) && object._objects.length) {
         for (const child of object._objects) {
-          const nested = flexibleObjectColor(child);
+          const nested = objectPreferredColor(child);
           if (nested) return nested;
         }
       }
@@ -554,26 +582,72 @@
       if (fill) return fill;
       return '#22d3ee';
     };
-    const applyFlexibleObjectColor = (object, colorHex) => {
+    const applyTokenColor = (group, colorHex) => {
+      if (!group || !Array.isArray(group._objects)) return;
+      setObjectData(group, { color: colorHex });
+      const tokenKind = safeText(group?.data?.token_kind);
+      const stripeRects = group._objects.filter((child) => child && child.type === 'rect' && Number(child.width) <= 14 && Number(child.height) >= 40);
+      const treatAsLocal = tokenKind === 'player_local' || (!tokenKind && stripeRects.length >= 2);
+      if (treatAsLocal) {
+        stripeRects.forEach((child) => child.set({ fill: colorHex }));
+        group.dirty = true;
+        return;
+      }
+      const circle = group._objects.find((child) => child && child.type === 'circle');
+      if (circle) {
+        circle.set({
+          fill: colorHex,
+          stroke: 'rgba(255,255,255,0.92)',
+        });
+      }
+      const textNodes = group._objects.filter((child) => child && child.type === 'text');
+      textNodes.forEach((node) => {
+        if (node && node.fill) node.set({ fill: '#ffffff' });
+      });
+      group.dirty = true;
+    };
+    const applyEmojiColor = (group, colorHex) => {
+      if (!group || !Array.isArray(group._objects)) return;
+      setObjectData(group, { color: colorHex });
+      const circle = group._objects.find((child) => child && child.type === 'circle');
+      if (circle) circle.set({ stroke: colorHex, fill: rgbaFromHex(colorHex, 0.16) });
+      group.dirty = true;
+    };
+    const applyObjectColor = (object, colorHex) => {
       if (!object) return;
       const kind = safeText(object?.data?.kind);
+      if (kind) setObjectData(object, { color: colorHex });
+      if (kind === 'token') {
+        applyTokenColor(object, colorHex);
+        return;
+      }
+      if (kind.startsWith('emoji_') && Array.isArray(object._objects)) {
+        applyEmojiColor(object, colorHex);
+        return;
+      }
       if (Array.isArray(object._objects) && object._objects.length) {
-        object._objects.forEach((child) => applyFlexibleObjectColor(child, colorHex));
+        object._objects.forEach((child) => applyObjectColor(child, colorHex));
         object.dirty = true;
         return;
       }
       if (kind === 'zone') {
-        object.set({
-          stroke: colorHex,
-          fill: rgbaFromHex(colorHex, 0.16),
-        });
+        object.set({ stroke: colorHex, fill: rgbaFromHex(colorHex, 0.16) });
+        return;
+      }
+      if (kind === 'cone') {
+        object.set({ fill: colorHex, stroke: darkenHex(colorHex, 0.55) });
+        return;
+      }
+      if (kind === 'ball') {
+        object.set({ fill: colorHex, stroke: darkenHex(colorHex, 0.75) });
+        return;
+      }
+      if (kind === 'text') {
+        object.set({ fill: colorHex });
         return;
       }
       if (kind.startsWith('shape')) {
-        object.set({
-          stroke: colorHex,
-          fill: rgbaFromHex(colorHex, 0.12),
-        });
+        object.set({ stroke: colorHex, fill: rgbaFromHex(colorHex, 0.12) });
         return;
       }
       if (kind.startsWith('line')) {
@@ -594,24 +668,26 @@
     };
     const syncInspector = () => {
       if (!selectionToolbar || !selectionSummary || !scaleXInput || !scaleYInput || !rotationInput || !colorInput) return;
-      const active = activeFlexibleObject();
+      const active = activeInspectableObject();
       const enabled = !!active;
-      selectionToolbar.querySelectorAll('input,button').forEach((node) => {
-        node.disabled = !enabled;
-      });
       if (!enabled) {
-        selectionSummary.textContent = 'Selecciona una línea, flecha o figura para ajustarla.';
+        selectionToolbar.querySelectorAll('input,button').forEach((node) => { node.disabled = true; });
+        selectionSummary.textContent = 'Selecciona un recurso para ajustarlo.';
         scaleXInput.value = '100';
         scaleYInput.value = '100';
         rotationInput.value = '0';
         colorInput.value = '#22d3ee';
         return;
       }
+      const canColor = isColorizableObject(active);
+      selectionToolbar.querySelectorAll('input,button').forEach((node) => { node.disabled = false; });
+      colorInput.disabled = !canColor;
+      selectionToolbar.querySelectorAll('button[data-color]').forEach((node) => { node.disabled = !canColor; });
       selectionSummary.textContent = `Ajustando ${objectLabel(active)} seleccionado.`;
       scaleXInput.value = String(Math.round((Number(active.scaleX) || 1) * 100));
       scaleYInput.value = String(Math.round((Number(active.scaleY) || 1) * 100));
       rotationInput.value = String(Math.round(Number(active.angle) || 0));
-      colorInput.value = flexibleObjectColor(active);
+      colorInput.value = objectPreferredColor(active);
     };
     const commitObjectChange = (message) => {
       canvas.requestRenderAll();
@@ -621,7 +697,7 @@
       if (message) setStatus(message);
     };
     const applyToActiveFlexibleObject = (callback, message) => {
-      const active = activeFlexibleObject();
+      const active = activeInspectableObject();
       if (!active) return;
       callback(active);
       active.setCoords();
@@ -772,13 +848,35 @@
       if (history.length > 40) history = history.slice(history.length - 40);
     };
 
+    const applyPitchSurface = (presetValue, orientationValue) => {
+      // Evita SVG anidados (innerHTML con <svg> completo) que luego rompen la previsualización y el PDF.
+      const markup = buildPitchSvg(presetValue, orientationValue);
+      try {
+        const parsed = new DOMParser().parseFromString(markup, 'image/svg+xml');
+        const root = parsed.documentElement;
+        if (root && root.tagName && root.tagName.toLowerCase() === 'svg') {
+          svgSurface.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+          svgSurface.setAttribute('viewBox', root.getAttribute('viewBox') || '0 0 1100 748');
+          svgSurface.setAttribute('preserveAspectRatio', root.getAttribute('preserveAspectRatio') || 'xMidYMid meet');
+          while (svgSurface.firstChild) svgSurface.removeChild(svgSurface.firstChild);
+          Array.from(root.childNodes).forEach((child) => {
+            svgSurface.appendChild(svgSurface.ownerDocument.importNode(child, true));
+          });
+          return;
+        }
+      } catch (error) {
+        // Fallback: deja el markup tal cual si el parseo falla.
+      }
+      svgSurface.innerHTML = markup;
+    };
+
     const setPreset = (presetValue) => {
       const preset = safeText(presetValue, 'full_pitch');
       presetSelect.value = preset;
       if (pitchFormatInput && PITCH_FORMAT_BY_PRESET[preset]) pitchFormatInput.value = PITCH_FORMAT_BY_PRESET[preset];
       presetButtons.forEach((button) => button.classList.toggle('is-active', safeText(button.dataset.preset) === preset));
       if (surfaceTriggerLabel) surfaceTriggerLabel.textContent = PRESET_LABEL[preset] || 'Campo completo';
-      svgSurface.innerHTML = buildPitchSvg(preset, pitchOrientation);
+      applyPitchSurface(preset, pitchOrientation);
       refreshLivePreview();
       setStatus(`Superficie preparada: ${PRESET_LABEL[preset] || 'campo'} en ${ORIENTATION_LABEL[pitchOrientation]}.`);
     };
@@ -1024,7 +1122,13 @@
         top,
         originX: 'center',
         originY: 'center',
-        data: { kind: 'token', playerId: player?.id || '', playerName: safeText(player?.name, '') },
+        data: {
+          kind: 'token',
+          token_kind: kind,
+          color: kind === 'player_local' ? '#1f7a38' : palette.fill,
+          playerId: player?.id || '',
+          playerName: safeText(player?.name, ''),
+        },
       });
     };
 
@@ -1033,21 +1137,21 @@
         return (left, top) => new fabric.Circle({
           left, top, originX: 'center', originY: 'center',
           radius: 10, fill: '#ffffff', stroke: '#0f172a', strokeWidth: 2,
-          data: { kind: 'ball' },
+          data: { kind: 'ball', color: '#ffffff' },
         });
       }
       if (kind === 'cone') {
         return (left, top) => new fabric.Triangle({
           left, top, originX: 'center', originY: 'center',
           width: 24, height: 24, fill: '#f97316', stroke: '#7c2d12', strokeWidth: 1.6,
-          data: { kind: 'cone' },
+          data: { kind: 'cone', color: '#f97316' },
         });
       }
       if (kind === 'zone') {
         return (left, top) => new fabric.Rect({
           left, top, originX: 'center', originY: 'center',
           width: 130, height: 84, fill: 'rgba(34,211,238,0.16)', stroke: '#22d3ee', strokeWidth: 3,
-          rx: 12, ry: 12, data: { kind: 'zone' },
+          rx: 12, ry: 12, data: { kind: 'zone', color: '#22d3ee' },
         });
       }
       if (kind === 'line' || kind === 'line_solid') {
@@ -1131,14 +1235,38 @@
       if (kind === 'text') {
         return (left, top) => new fabric.IText('Texto', {
           left, top, originX: 'center', originY: 'center',
-          fontSize: 22, fill: '#ffffff', fontWeight: '700', data: { kind: 'text' },
+          fontSize: 22, fill: '#ffffff', fontWeight: '700', data: { kind: 'text', color: '#ffffff' },
         });
       }
       if (EMOJI_LIBRARY[kind]) {
-        return (left, top) => new fabric.Text(EMOJI_LIBRARY[kind], {
-          left, top, originX: 'center', originY: 'center',
-          fontSize: 28, data: { kind },
-        });
+        return (left, top) => new fabric.Group(
+          [
+            new fabric.Circle({
+              radius: 18,
+              originX: 'center',
+              originY: 'center',
+              left: 0,
+              top: 0,
+              fill: rgbaFromHex('#22d3ee', 0.16),
+              stroke: '#22d3ee',
+              strokeWidth: 2,
+            }),
+            new fabric.Text(EMOJI_LIBRARY[kind], {
+              originX: 'center',
+              originY: 'center',
+              left: 0,
+              top: 0,
+              fontSize: 28,
+            }),
+          ],
+          {
+            left,
+            top,
+            originX: 'center',
+            originY: 'center',
+            data: { kind, color: '#22d3ee' },
+          },
+        );
       }
       return null;
     };
@@ -1498,7 +1626,7 @@
     });
     colorInput?.addEventListener('input', () => {
       applyToActiveFlexibleObject((active) => {
-        applyFlexibleObjectColor(active, colorInput.value || '#22d3ee');
+        applyObjectColor(active, colorInput.value || '#22d3ee');
       }, 'Color actualizado.');
     });
     selectionToolbar?.addEventListener('click', (event) => {
@@ -1508,7 +1636,7 @@
       if (colorValue) {
         if (colorInput) colorInput.value = colorValue;
         applyToActiveFlexibleObject((active) => {
-          applyFlexibleObjectColor(active, colorValue);
+          applyObjectColor(active, colorValue);
         }, 'Color actualizado.');
         return;
       }
