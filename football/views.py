@@ -5345,6 +5345,7 @@ def coach_overview_page(request):
     group_name = str(getattr(getattr(primary_team, 'group', None), 'name', '') or '').strip()
     competition_label = ' · '.join([item for item in [competition_name, group_name] if item])
     team_display_name = str(getattr(primary_team, 'display_name', '') or getattr(primary_team, 'name', '') or 'Club').strip()
+    team_crest_url = resolve_team_crest_url(request, primary_team, sync=True) if primary_team else ''
     pending_items = []
     if isinstance(weekly_brief, dict):
         if int(weekly_brief.get('convocated_count') or 0) <= 0:
@@ -5405,6 +5406,7 @@ def coach_overview_page(request):
             'rival_summary': rival_summary,
             'hero_image_url': hero_image_url,
             'team_display_name': team_display_name,
+            'team_crest_url': team_crest_url,
             'competition_label': competition_label,
             'next_match': next_match,
             'next_match_opponent': next_match_opponent,
@@ -5423,11 +5425,16 @@ def coach_overview_page(request):
 
 @login_required
 def incident_page(request):
+    primary_team = _get_primary_team_for_request(request)
+    team_display_name = str(getattr(primary_team, 'display_name', '') or getattr(primary_team, 'name', '') or 'Club').strip()
+    team_crest_url = resolve_team_crest_url(request, primary_team, sync=True) if primary_team else ''
     return render(
         request,
         'football/incidents.html',
         {
             'title': 'Registro de incidencias',
+            'team_display_name': team_display_name,
+            'team_crest_url': team_crest_url,
         },
     )
 
@@ -5667,6 +5674,7 @@ def match_action_page(request):
             'avatar_url': request.build_absolute_uri(static('football/images/player-avatar.svg')),
             'message': message,
             'team_name': primary_team.name,
+            'team_crest_url': resolve_team_crest_url(request, primary_team, sync=True) or '',
             'quick_actions': load_match_actions(),
             'field_zone_defs': FIELD_ZONES,
             'result_options': load_match_results(),

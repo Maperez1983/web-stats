@@ -3,7 +3,7 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <title>Incidencias · C.D. Benagalbón</title>
+    <title>Incidencias · {{ team_display_name|default:'Club' }}</title>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <style>
       :root {
@@ -80,9 +80,13 @@
     <div class="page">
       {% include 'football/includes/dragon_nav.html' %}
       <header>
-        <img src="{% static 'logos/logo.png' %}" alt="Escudo C.D. Benagalbón" loading="lazy" />
+        {% if team_crest_url %}
+        <img src="{{ team_crest_url }}" alt="Escudo {{ team_display_name }}" loading="lazy" />
+        {% else %}
+        <img src="{% static 'football/images/cdb-logo.png' %}" alt="Escudo {{ team_display_name }}" loading="lazy" />
+        {% endif %}
         <div>
-          <p style="margin:0;">Club Deportivo Benagalbón</p>
+          <p style="margin:0;">{{ team_display_name|default:'Club' }}</p>
           <h1>Incidencias</h1>
         </div>
       </header>

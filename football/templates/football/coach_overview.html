@@ -312,8 +312,12 @@
 
       <article class="hero">
         <div class="club-row">
-          <img src="{% static 'logos/logo.png' %}" alt="Escudo C.D. Benagalbón" />
-          <span>2J Club · Club Deportivo Benagalbón</span>
+          {% if team_crest_url %}
+          <img src="{{ team_crest_url }}" alt="Escudo {{ team_display_name }}" />
+          {% else %}
+          <img src="{% static 'football/images/cdb-logo.png' %}" alt="Escudo {{ team_display_name }}" />
+          {% endif %}
+          <span>2J Club · {{ team_display_name }}</span>
         </div>
 
         <section class="primary-grid">
