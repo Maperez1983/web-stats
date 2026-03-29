@@ -401,6 +401,44 @@
         display: grid;
         gap: 0.85rem;
       }
+      .side-tabs {
+        display: flex;
+        gap: 0.45rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.65rem;
+      }
+      .side-tab {
+        border-radius: 999px;
+        padding: 0.44rem 0.75rem;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(255,255,255,0.04);
+        color: rgba(226,232,240,0.86);
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
+      .side-tab.is-active {
+        background: rgba(34,211,238,0.16);
+        border-color: rgba(34,211,238,0.4);
+        color: #cffafe;
+      }
+      .side-pane {
+        display: none;
+      }
+      .side-pane.is-active {
+        display: block;
+      }
+      .assigned-summary {
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 14px;
+        padding: 0.75rem 0.85rem;
+        background: rgba(255,255,255,0.03);
+        color: rgba(226,232,240,0.8);
+        font-size: 0.86rem;
+        line-height: 1.45;
+      }
       label {
         display: grid;
         gap: 0.34rem;
@@ -708,6 +746,7 @@
         <input type="hidden" name="draw_canvas_preview_data" id="draw-canvas-preview-data" />
         <input type="hidden" name="draw_task_pitch_orientation" id="draw-task-pitch-orientation" value="{{ initial.pitch_orientation|default:'landscape' }}" />
         <input type="hidden" name="draw_task_pitch_zoom" id="draw-task-pitch-zoom" value="{{ initial.pitch_zoom|default:'1.00' }}" />
+        <div id="assigned-players-hidden" style="display:none;"></div>
 
         <div class="builder">
           <section class="panel">
@@ -937,9 +976,17 @@
 
           <aside class="panel">
             <div class="panel-body stack">
-              <div class="section">
-                <h3>Base de la tarea</h3>
-                <div class="compact-grid">
+              <div class="side-tabs" id="task-side-tabs" role="tablist" aria-label="Panel de tarea">
+                <button type="button" class="side-tab is-active" data-pane="ficha" role="tab" aria-selected="true">Ficha</button>
+                <button type="button" class="side-tab" data-pane="avanzado" role="tab" aria-selected="false">Avanzado</button>
+                <button type="button" class="side-tab" data-pane="animacion" role="tab" aria-selected="false">Animación</button>
+                <button type="button" class="side-tab" data-pane="preview" role="tab" aria-selected="false">Vista previa</button>
+              </div>
+
+              <div class="side-pane is-active" data-pane="ficha" role="tabpanel">
+                <div class="section">
+                  <h3>Base de la tarea</h3>
+                  <div class="compact-grid">
                   {% if show_session_selector|default:True %}
                   <label>
                     Sesión
@@ -1038,10 +1085,12 @@
                   </label>
                 </div>
               </div>
+              </div>
 
-              <div class="section">
-                <h3>Ajustes avanzados</h3>
-                <div class="compact-grid">
+              <div class="side-pane" data-pane="avanzado" role="tabpanel">
+                <div class="section">
+                  <h3>Ajustes avanzados</h3>
+                  <div class="compact-grid">
                   <label>
                     Organización
                     <input type="text" name="draw_task_organization" value="{{ initial.organization }}" placeholder="Ej: 6v6 + 2 comodines" />
@@ -1078,19 +1127,16 @@
               </div>
 
               <div class="section">
-                <h3>Jugadores asignados</h3>
-                <div class="assign-grid">
-                  {% for player in available_players %}
-                  <label class="assign-chip">
-                    <input type="checkbox" name="assigned_player_ids" value="{{ player.id }}" {% if player.id in initial.assigned_player_ids %}checked{% endif %} />
-                    <span>{% if player.number %}#{{ player.number }} · {% endif %}{{ player.name }}</span>
-                  </label>
-                  {% endfor %}
+                <h3>Jugadores detectados</h3>
+                <div class="assigned-summary" id="task-assigned-summary">
+                  Se rellenan automáticamente según las chapas usadas en la pizarra (y en los pasos de animación).
                 </div>
               </div>
+              </div>
 
-              <div class="section">
-                <div class="timeline-head">
+              <div class="side-pane" data-pane="animacion" role="tabpanel">
+                <div class="section">
+                  <div class="timeline-head">
                   <div>
                     <h3>Animación por pasos</h3>
                     <p>Guarda escenas consecutivas para explicar la tarea de forma progresiva.</p>
@@ -1114,13 +1160,16 @@
                   </label>
                 </div>
               </div>
+              </div>
 
-              <div class="section preview-card">
-                <h3>Vista previa</h3>
-                <div class="live-preview-frame">
-                  <img id="task-live-preview" src="{{ task_preview_url }}" alt="Preview de tarea" {% if not task_preview_url %}hidden{% endif %} />
-                  <div id="task-live-preview-placeholder" class="live-preview-placeholder" {% if task_preview_url %}hidden{% endif %}>
-                    La preview se genera mientras diseñas la tarea.
+              <div class="side-pane" data-pane="preview" role="tabpanel">
+                <div class="section preview-card">
+                  <h3>Vista previa</h3>
+                  <div class="live-preview-frame">
+                    <img id="task-live-preview" src="{{ task_preview_url }}" alt="Preview de tarea" {% if not task_preview_url %}hidden{% endif %} />
+                    <div id="task-live-preview-placeholder" class="live-preview-placeholder" {% if task_preview_url %}hidden{% endif %}>
+                      La preview se genera mientras diseñas la tarea.
+                    </div>
                   </div>
                 </div>
               </div>

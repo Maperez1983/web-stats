@@ -488,6 +488,10 @@
     const playStepButton = document.getElementById('task-step-play');
     const presetButtons = Array.from(document.querySelectorAll('.surface-option[data-preset]'));
     const surfaceThumbs = Array.from(document.querySelectorAll('[data-surface-thumb]'));
+    const sideTabs = Array.from(document.querySelectorAll('#task-side-tabs .side-tab'));
+    const sidePanes = Array.from(document.querySelectorAll('.side-pane[data-pane]'));
+    const assignedHidden = document.getElementById('assigned-players-hidden');
+    const assignedSummary = document.getElementById('task-assigned-summary');
     if (!window.fabric || !form || !canvasEl || !stage || !svgSurface || !presetSelect) return;
 
     const setStatus = (message, isError = false) => {
@@ -1485,9 +1489,76 @@
         }
       }, 420);
     };
+
+    const activateSidePane = (key) => {
+      sideTabs.forEach((tab) => {
+        const active = safeText(tab.dataset.pane) === key;
+        tab.classList.toggle('is-active', active);
+        tab.setAttribute('aria-selected', active ? 'true' : 'false');
+      });
+      sidePanes.forEach((pane) => pane.classList.toggle('is-active', safeText(pane.dataset.pane) === key));
+    };
+    sideTabs.forEach((tab) => {
+      tab.addEventListener('click', () => {
+        const key = safeText(tab.dataset.pane);
+        if (key) activateSidePane(key);
+      });
+    });
+
+    const extractAssignedPlayerIdsFromState = (state) => {
+      const ids = new Set();
+      const collectFromCanvasState = (canvasState) => {
+        if (!canvasState || typeof canvasState !== 'object') return;
+        const objects = Array.isArray(canvasState.objects) ? canvasState.objects : [];
+        objects.forEach((obj) => {
+          const kind = safeText(obj?.data?.kind);
+          if (kind === 'token') {
+            const pid = obj?.data?.playerId || '';
+            const parsed = Number.parseInt(String(pid), 10);
+            if (Number.isFinite(parsed) && parsed > 0) ids.add(parsed);
+          }
+        });
+      };
+      collectFromCanvasState(state);
+      const timeline = Array.isArray(state?.timeline) ? state.timeline : [];
+      timeline.forEach((step) => collectFromCanvasState(step?.canvas_state));
+      return Array.from(ids).sort((a, b) => a - b);
+    };
+
+    const syncAssignedPlayersHidden = (state) => {
+      if (!assignedHidden) return;
+      assignedHidden.innerHTML = '';
+      const ids = extractAssignedPlayerIdsFromState(state);
+      ids.forEach((id) => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'assigned_player_ids';
+        input.value = String(id);
+        assignedHidden.appendChild(input);
+      });
+      if (assignedSummary) {
+        if (!ids.length) {
+          assignedSummary.textContent = 'No hay jugadores detectados todavía. Usa chapas de la plantilla para que se asignen automáticamente.';
+          return;
+        }
+        const labelById = new Map(players.map((p) => [Number.parseInt(String(p.id), 10), p]));
+        const chunks = ids
+          .map((id) => {
+            const p = labelById.get(id);
+            if (!p) return `#${id}`;
+            const num = p.number ? `#${String(p.number).slice(0, 2)} · ` : '';
+            return `${num}${shortPlayerName(p.name)}`;
+          })
+          .slice(0, 10);
+        const extra = Math.max(0, ids.length - chunks.length);
+        assignedSummary.textContent = extra ? `${chunks.join(', ')} y ${extra} más.` : chunks.join(', ');
+      }
+    };
     const syncHiddenBuilderFields = async () => {
       if (legacyPlayersInput && playerCountInput) legacyPlayersInput.value = playerCountInput.value || '';
-      if (stateInput) stateInput.value = JSON.stringify(serializeState());
+      const stateObj = serializeState();
+      syncAssignedPlayersHidden(stateObj);
+      if (stateInput) stateInput.value = JSON.stringify(stateObj);
       if (widthInput) widthInput.value = String(Math.round(canvas.getWidth()));
       if (heightInput) heightInput.value = String(Math.round(canvas.getHeight()));
       const dataUrl = await buildPreviewData();
@@ -1542,6 +1613,11 @@
     setPreset(presetSelect.value || 'full_pitch');
     restoreState();
     renderPlayerBank();
+    try {
+      syncAssignedPlayersHidden(serializeState());
+    } catch (error) {
+      // ignore
+    }
     refreshLivePreview();
 
     canvas.on('object:modified', () => {
