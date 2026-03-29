@@ -6827,7 +6827,7 @@ def _build_task_draft_pdf_context(request, primary_team, pdf_style='uefa'):
 
 
 def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
-    tasks = list(session.tasks.order_by('order', 'id'))
+    tasks = list(session.tasks.filter(deleted_at__isnull=True).order_by('order', 'id'))
     total_task_minutes = sum(int(getattr(task, 'duration_minutes', 0) or 0) for task in tasks)
     coach_name = (
         request.user.get_full_name().strip()
@@ -10222,6 +10222,7 @@ def _sessions_tab_from_action(action):
         'move_session_task',
         'duplicate_session_task',
         'delete_session_task',
+        'restore_session_task',
     }:
         return 'planning'
     if action_key in {
@@ -10230,6 +10231,7 @@ def _sessions_tab_from_action(action):
         'analyze_library_pdf',
         'auto_fix_task_text',
         'delete_library_task',
+        'restore_library_task',
         'update_library_task',
         'create_task_from_analysis',
     }:
@@ -10238,7 +10240,7 @@ def _sessions_tab_from_action(action):
 
 
 def _next_session_task_order(session):
-    return (SessionTask.objects.filter(session=session).aggregate(Max('order')).get('order__max') or 0) + 1
+    return (SessionTask.objects.filter(session=session, deleted_at__isnull=True).aggregate(Max('order')).get('order__max') or 0) + 1
 
 
 def _clone_session_task_to_session(source_task, target_session, note=''):
@@ -10261,7 +10263,7 @@ def _clone_session_task_to_session(source_task, target_session, note=''):
 
 
 def _normalize_session_task_orders(session):
-    ordered_tasks = list(SessionTask.objects.filter(session=session).order_by('order', 'id'))
+    ordered_tasks = list(SessionTask.objects.filter(session=session, deleted_at__isnull=True).order_by('order', 'id'))
     for index, item in enumerate(ordered_tasks, start=1):
         if int(item.order or 0) != index:
             item.order = index
@@ -10269,7 +10271,7 @@ def _normalize_session_task_orders(session):
 
 
 def _move_session_task(task, direction):
-    siblings = list(SessionTask.objects.filter(session=task.session).order_by('order', 'id'))
+    siblings = list(SessionTask.objects.filter(session=task.session, deleted_at__isnull=True).order_by('order', 'id'))
     if len(siblings) < 2:
         return False
     current_index = None
@@ -10321,7 +10323,7 @@ def _clone_training_session(source_session, target_microcycle, target_date=None,
         status=TrainingSession.STATUS_PLANNED,
         order=(TrainingSession.objects.filter(microcycle=target_microcycle).aggregate(Max('order')).get('order__max') or 0) + 1,
     )
-    for source_task in source_session.tasks.order_by('order', 'id'):
+    for source_task in source_session.tasks.filter(deleted_at__isnull=True).order_by('order', 'id'):
         _clone_session_task_to_session(
             source_task,
             cloned_session,
@@ -10865,7 +10867,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 source_task = (
                     SessionTask.objects
                     .select_related('session__microcycle')
-                    .filter(id=source_task_id, session__microcycle__team=primary_team)
+                    .filter(id=source_task_id, session__microcycle__team=primary_team, deleted_at__isnull=True)
                     .first()
                 )
                 target_session = (
@@ -10891,7 +10893,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 target_task = (
                     SessionTask.objects
                     .select_related('session__microcycle')
-                    .filter(id=task_id, session__microcycle__team=primary_team)
+                    .filter(id=task_id, session__microcycle__team=primary_team, deleted_at__isnull=True)
                     .first()
                 )
                 if not target_task:
@@ -10908,7 +10910,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 target_task = (
                     SessionTask.objects
                     .select_related('session__microcycle')
-                    .filter(id=task_id, session__microcycle__team=primary_team)
+                    .filter(id=task_id, session__microcycle__team=primary_team, deleted_at__isnull=True)
                     .first()
                 )
                 if not target_task:
@@ -10925,16 +10927,37 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 target_task = (
                     SessionTask.objects
                     .select_related('session__microcycle')
-                    .filter(id=task_id, session__microcycle__team=primary_team)
+                    .filter(id=task_id, session__microcycle__team=primary_team, deleted_at__isnull=True)
                     .first()
                 )
                 if not target_task:
                     raise ValueError('Tarea de sesión no encontrada.')
                 session_for_order = target_task.session
                 deleted_title = str(target_task.title or f'Tarea {target_task.id}')
-                target_task.delete()
+                target_task.deleted_at = timezone.localtime()
+                target_task.deleted_by = request.user if getattr(request, 'user', None) and request.user.is_authenticated else None
+                target_task.save(update_fields=['deleted_at', 'deleted_by'])
                 _normalize_session_task_orders(session_for_order)
-                feedback = f'Tarea eliminada de la sesión: {deleted_title}.'
+                feedback = f'Tarea enviada a papelera: {deleted_title}.'
+
+            elif planner_action == 'restore_session_task':
+                task_id = _parse_int(request.POST.get('task_id'))
+                target_task = (
+                    SessionTask.objects
+                    .select_related('session__microcycle')
+                    .filter(id=task_id, session__microcycle__team=primary_team, deleted_at__isnull=False)
+                    .first()
+                )
+                if not target_task:
+                    raise ValueError('No se encontró la tarea en papelera.')
+                session_for_order = target_task.session
+                target_task.deleted_at = None
+                target_task.deleted_by = None
+                target_task.order = _next_session_task_order(session_for_order)
+                target_task.save(update_fields=['deleted_at', 'deleted_by', 'order'])
+                _normalize_session_task_orders(session_for_order)
+                restored_title = str(target_task.title or f'Tarea {target_task.id}')
+                feedback = f'Tarea restaurada: {restored_title}.'
 
             elif planner_action == 'bulk_create_tasks':
                 bulk_text = (request.POST.get('bulk_tasks_text') or '').strip()
@@ -11384,7 +11407,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 target_task = (
                     SessionTask.objects
                     .select_related('session__microcycle')
-                    .filter(id=task_id, session__microcycle__team=primary_team)
+                    .filter(id=task_id, session__microcycle__team=primary_team, deleted_at__isnull=True)
                     .first()
                 )
                 if not target_task:
@@ -11405,7 +11428,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 target_task = (
                     SessionTask.objects
                     .select_related('session__microcycle')
-                    .filter(id=task_id, session__microcycle__team=primary_team)
+                    .filter(id=task_id, session__microcycle__team=primary_team, deleted_at__isnull=True)
                     .first()
                 )
                 if not target_task:
@@ -11413,21 +11436,37 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 if _task_scope_for_item(target_task) != scope_key:
                     raise ValueError('La tarea seleccionada no pertenece a este espacio.')
                 task_title = str(target_task.title or f'Tarea {target_task.id}')
-                if target_task.task_preview_image:
-                    try:
-                        target_task.task_preview_image.delete(save=False)
-                    except Exception:
-                        pass
-                # Intentionally keep PDF files that might be shared across split tasks.
-                target_task.delete()
-                feedback = f'Tarea eliminada: {task_title}.'
+                target_task.deleted_at = timezone.localtime()
+                target_task.deleted_by = request.user if getattr(request, 'user', None) and request.user.is_authenticated else None
+                target_task.save(update_fields=['deleted_at', 'deleted_by'])
+                feedback = f'Tarea enviada a papelera: {task_title}.'
+
+            elif planner_action == 'restore_library_task':
+                task_id = _parse_int(request.POST.get('task_id'))
+                target_task = (
+                    SessionTask.objects
+                    .select_related('session__microcycle')
+                    .filter(id=task_id, session__microcycle__team=primary_team, deleted_at__isnull=False)
+                    .first()
+                )
+                if not target_task:
+                    raise ValueError('No se encontró la tarea en papelera.')
+                if _task_scope_for_item(target_task) != scope_key:
+                    raise ValueError('La tarea seleccionada no pertenece a este espacio.')
+                session_for_order = target_task.session
+                target_task.deleted_at = None
+                target_task.deleted_by = None
+                target_task.order = _next_session_task_order(session_for_order)
+                target_task.save(update_fields=['deleted_at', 'deleted_by', 'order'])
+                _normalize_session_task_orders(session_for_order)
+                feedback = f'Tarea restaurada: {str(target_task.title or f"Tarea {target_task.id}")}.'
 
             elif planner_action == 'update_library_task':
                 task_id = _parse_int(request.POST.get('task_id'))
                 target_task = (
                     SessionTask.objects
                     .select_related('session__microcycle')
-                    .filter(id=task_id, session__microcycle__team=primary_team)
+                    .filter(id=task_id, session__microcycle__team=primary_team, deleted_at__isnull=True)
                     .first()
                 )
                 _update_library_task_from_post(target_task, request.POST, scope_key=scope_key)
@@ -11523,7 +11562,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         candidate = (
             SessionTask.objects
             .select_related('session__microcycle')
-            .filter(id=analyze_task_id, session__microcycle__team=primary_team)
+            .filter(id=analyze_task_id, session__microcycle__team=primary_team, deleted_at__isnull=True)
             .first()
         )
         if candidate and candidate.task_pdf:
@@ -11538,14 +11577,22 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
 
     task_library_raw = []
     task_library = []
+    library_deleted_tasks = []
     if planner_tables_ready and active_tab == 'library':
         task_library_raw = list(
             SessionTask.objects
             .select_related('session__microcycle')
-            .filter(session__microcycle__team=primary_team)
+            .filter(session__microcycle__team=primary_team, deleted_at__isnull=True)
             .order_by('-id')[:300]
         )
         task_library = [item for item in task_library_raw if _task_scope_for_item(item) == scope_key]
+        deleted_candidates = list(
+            SessionTask.objects
+            .select_related('session__microcycle')
+            .filter(session__microcycle__team=primary_team, deleted_at__isnull=False)
+            .order_by('-deleted_at', '-id')[:80]
+        )
+        library_deleted_tasks = [item for item in deleted_candidates if _task_scope_for_item(item) == scope_key]
 
     if active_tab == 'library' and task_library:
         maintenance_cache_key = f'sessions_library_maintenance:{primary_team.id}:{scope_key}'
@@ -11643,11 +11690,20 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     if planning_session_ids:
         planning_tasks = list(
             SessionTask.objects
-            .filter(session_id__in=planning_session_ids)
+            .filter(session_id__in=planning_session_ids, deleted_at__isnull=True)
             .order_by('session_id', 'order', 'id')
         )
         for item in planning_tasks:
             planning_tasks_by_session[int(item.session_id)].append(item)
+    planning_deleted_tasks_by_session = defaultdict(list)
+    if planning_session_ids:
+        deleted_tasks = list(
+            SessionTask.objects
+            .filter(session_id__in=planning_session_ids, deleted_at__isnull=False)
+            .order_by('session_id', '-deleted_at', '-id')
+        )
+        for item in deleted_tasks:
+            planning_deleted_tasks_by_session[int(item.session_id)].append(item)
     sessions_count_map = defaultdict(int)
     tasks_count_by_session = defaultdict(int)
     tasks_count_map = defaultdict(int)
@@ -11663,7 +11719,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     if planner_tables_ready:
         session_task_counts = (
             SessionTask.objects
-            .filter(session__microcycle__team=primary_team)
+            .filter(session__microcycle__team=primary_team, deleted_at__isnull=True)
             .values('session_id')
             .annotate(total=Count('id'))
         )
@@ -11673,7 +11729,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 tasks_count_by_session[int(key)] = int(row.get('total') or 0)
         task_counts = (
             SessionTask.objects
-            .filter(session__microcycle__team=primary_team)
+            .filter(session__microcycle__team=primary_team, deleted_at__isnull=True)
             .values('session__microcycle_id')
             .annotate(total=Count('id'))
         )
@@ -11687,6 +11743,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         session_rows = []
         for session_item in sessions_by_microcycle.get(int(micro.id), []):
             session_tasks = planning_tasks_by_session.get(int(session_item.id), [])
+            deleted_session_tasks = planning_deleted_tasks_by_session.get(int(session_item.id), [])
             task_minutes_total = sum(int(getattr(task_obj, 'duration_minutes', 0) or 0) for task_obj in session_tasks)
             task_sheets = [_build_session_task_sheet(task_obj) for task_obj in session_tasks]
             task_rows = [
@@ -11704,6 +11761,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     'tasks': session_tasks,
                     'task_sheets': task_sheets,
                     'task_rows': task_rows,
+                    'deleted_tasks': deleted_session_tasks,
                 }
             )
             task_minutes_by_microcycle[int(micro.id)] += task_minutes_total
@@ -11743,7 +11801,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         source_task_candidates = list(
             SessionTask.objects
             .select_related('session__microcycle')
-            .filter(session__microcycle__team=primary_team)
+            .filter(session__microcycle__team=primary_team, deleted_at__isnull=True)
             .order_by('-id')[:120]
         )
         for task_item in source_task_candidates:
@@ -11809,6 +11867,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             'all_sessions': all_sessions,
             'task_library': task_library,
             'task_library_filtered': task_library_filtered,
+            'library_deleted_tasks': library_deleted_tasks,
             'analysis': analysis,
             'analysis_task': analysis_task,
             'scope_key': scope_key,
@@ -12464,7 +12523,7 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
         task = (
             SessionTask.objects
             .select_related('session__microcycle')
-            .filter(id=task_id, session__microcycle__team=primary_team)
+            .filter(id=task_id, session__microcycle__team=primary_team, deleted_at__isnull=True)
             .first()
         )
         if not task:
@@ -12701,6 +12760,8 @@ def _task_studio_task_for_request(request, task_id):
     task = TaskStudioTask.objects.select_related('owner').filter(id=task_id).first()
     if not task:
         return None
+    if getattr(task, 'deleted_at', None):
+        return None
     if _is_admin_user(request.user):
         return task
     if int(task.owner_id) != int(request.user.id):
@@ -12742,7 +12803,7 @@ def task_studio_home_page(request):
     feedback = str(request.session.pop('task_studio_feedback', '') or '')
     browse_all = bool(_is_admin_user(request.user) and not request.GET.get('user'))
     profile = _task_studio_profile_for_user(target_user)
-    task_qs = TaskStudioTask.objects.select_related('owner')
+    task_qs = TaskStudioTask.objects.select_related('owner').filter(deleted_at__isnull=True)
     if not browse_all:
         task_qs = task_qs.filter(owner=target_user)
     search_query = _sanitize_task_text((request.GET.get('q') or '').strip(), multiline=False, max_len=120)
@@ -13008,8 +13069,10 @@ def task_studio_task_delete_page(request, task_id):
         return forbidden
     owner = task.owner
     task_title = task.title
-    task.delete()
-    request.session['task_studio_feedback'] = f'Tarea eliminada: {task_title}.'
+    task.deleted_at = timezone.localtime()
+    task.deleted_by = request.user if getattr(request, 'user', None) and request.user.is_authenticated else None
+    task.save(update_fields=['deleted_at', 'deleted_by'])
+    request.session['task_studio_feedback'] = f'Tarea enviada a papelera: {task_title}.'
     return redirect(reverse('task-studio-home') + _task_studio_query_suffix(owner, request.user))
 
 

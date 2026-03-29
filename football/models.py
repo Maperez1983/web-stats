@@ -582,6 +582,9 @@ class SessionTask(models.Model):
     order = models.PositiveSmallIntegerField(default=0)
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    # Soft-delete (papelera). No borrar físicamente por defecto para permitir restauración.
+    deleted_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    deleted_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='deleted_session_tasks')
 
     class Meta:
         ordering = ['order', 'id']
@@ -925,6 +928,9 @@ class TaskStudioTask(models.Model):
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    # Soft-delete (papelera): tareas privadas restaurables.
+    deleted_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    deleted_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='deleted_task_studio_tasks')
 
     class Meta:
         ordering = ['-updated_at', '-id']

@@ -1708,12 +1708,12 @@
                             <input type="hidden" name="task_id" value="{{ task_row.obj.id }}" />
                             <button type="submit" class="secondary">Duplicar</button>
                           </form>
-                          <form method="post" style="margin:0;" onsubmit="return confirm('¿Eliminar esta tarea de la sesión?');">
+                          <form method="post" style="margin:0;" onsubmit="return confirm('¿Enviar esta tarea a la papelera? (Se puede restaurar)');">
                             {% csrf_token %}
                             <input type="hidden" name="planner_action" value="delete_session_task" />
                             <input type="hidden" name="planner_tab" value="planning" />
                             <input type="hidden" name="task_id" value="{{ task_row.obj.id }}" />
-                            <button type="submit" class="danger">Eliminar</button>
+                            <button type="submit" class="danger">Papelera</button>
                           </form>
                         </div>
                       </article>
@@ -1721,6 +1721,30 @@
                     </div>
                     {% else %}
                     <p class="meta" style="margin-top:0.7rem;">Sesión sin tareas todavía.</p>
+                    {% endif %}
+                    {% if session.deleted_tasks %}
+                    <details style="margin-top:0.85rem;">
+                      <summary>Papelera ({{ session.deleted_tasks|length }})</summary>
+                      <div style="display:flex; flex-direction:column; gap:0.4rem; margin-top:0.6rem;">
+                        {% for trash_task in session.deleted_tasks|slice:":10" %}
+                        <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; justify-content:space-between; border:1px solid rgba(148,163,184,0.22); border-radius:12px; padding:0.55rem 0.7rem;">
+                          <div class="meta" style="flex:1; min-width:220px;">
+                            <strong>{{ trash_task.title|default:"(sin título)" }}</strong>
+                            · {{ trash_task.get_block_display }}
+                            · {{ trash_task.duration_minutes }}'
+                            {% if trash_task.deleted_at %}· {{ trash_task.deleted_at|date:"d/m H:i" }}{% endif %}
+                          </div>
+                          <form method="post" style="margin:0;">
+                            {% csrf_token %}
+                            <input type="hidden" name="planner_action" value="restore_session_task" />
+                            <input type="hidden" name="planner_tab" value="planning" />
+                            <input type="hidden" name="task_id" value="{{ trash_task.id }}" />
+                            <button type="submit" class="secondary">Restaurar</button>
+                          </form>
+                        </div>
+                        {% endfor %}
+                      </div>
+                    </details>
                     {% endif %}
                     <div class="session-actions">
                       <a class="button" href="{% url 'session-plan-pdf' session.obj.id %}" target="_blank" rel="noopener">Imprimir UEFA</a>
@@ -1842,6 +1866,32 @@
           <a class="tab-link {% if library_view == 'date' %}is-active{% endif %}" href="?tab=library&library_view=date">Por fecha</a>
           <a class="tab-link {% if library_view == 'quality' %}is-active{% endif %}" href="?tab=library&library_view=quality">Por calidad</a>
         </div>
+        {% if library_deleted_tasks %}
+        <details style="margin:-0.25rem 0 0.7rem;">
+          <summary>Papelera biblioteca ({{ library_deleted_tasks|length }})</summary>
+          <div style="display:flex; flex-direction:column; gap:0.4rem; margin-top:0.6rem;">
+            {% for trash_task in library_deleted_tasks|slice:":20" %}
+            <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; justify-content:space-between; border:1px solid rgba(148,163,184,0.22); border-radius:12px; padding:0.55rem 0.7rem;">
+              <div class="meta" style="flex:1; min-width:220px;">
+                <strong>{{ trash_task.title|default:"(sin título)" }}</strong>
+                · {{ trash_task.get_block_display }}
+                · {{ trash_task.duration_minutes }}'
+                {% if trash_task.deleted_at %}· {{ trash_task.deleted_at|date:"d/m H:i" }}{% endif %}
+              </div>
+              <form method="post" style="margin:0;">
+                {% csrf_token %}
+                <input type="hidden" name="planner_action" value="restore_library_task" />
+                <input type="hidden" name="planner_tab" value="library" />
+                <input type="hidden" name="library_view" value="{{ library_view }}" />
+                <input type="hidden" name="library_key" value="{{ library_key }}" />
+                <input type="hidden" name="task_id" value="{{ trash_task.id }}" />
+                <button type="submit" class="secondary">Restaurar</button>
+              </form>
+            </div>
+            {% endfor %}
+          </div>
+        </details>
+        {% endif %}
         {% if library_view == 'phase' and phase_group_rows %}
         <p class="meta" style="margin-top:-0.1rem;">
           {% for item in phase_group_rows %}<a class="badge" href="?tab=library&library_view=phase&library_key={{ item.key }}">{{ item.label|default:item.key }} · {{ item.count }}</a>{% endfor %}
@@ -1954,14 +2004,14 @@
                   <button type="submit" class="secondary">Autocorregir</button>
                 </form>
                 {% endif %}
-                <form method="post" style="margin:0;" onsubmit="return confirm('¿Eliminar esta tarea de la biblioteca?');">
+                <form method="post" style="margin:0;" onsubmit="return confirm('¿Enviar esta tarea a la papelera? (Se puede restaurar)');">
                   {% csrf_token %}
                   <input type="hidden" name="planner_action" value="delete_library_task" />
                   <input type="hidden" name="planner_tab" value="library" />
                   <input type="hidden" name="library_view" value="{{ library_view }}" />
                   <input type="hidden" name="library_key" value="{{ library_key }}" />
                   <input type="hidden" name="task_id" value="{{ t.id }}" />
-                  <button type="submit" class="danger">Eliminar</button>
+                  <button type="submit" class="danger">Papelera</button>
                 </form>
                 {% if t.is_imported %}
                 <span class="badge">Importada · Solo lectura</span>
