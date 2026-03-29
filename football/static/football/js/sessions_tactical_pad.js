@@ -1803,6 +1803,11 @@
     selectionToolbar?.addEventListener('click', (event) => {
       const button = event.target.closest('button');
       if (!button) return;
+      const inspectorAction = safeText(button.dataset.inspectorAction);
+      if (inspectorAction === 'duplicate') {
+        duplicateActiveObject();
+        return;
+      }
       const colorValue = safeText(button.dataset.color);
       if (colorValue) {
         if (colorInput) colorInput.value = colorValue;
