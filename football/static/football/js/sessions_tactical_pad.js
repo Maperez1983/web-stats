@@ -874,6 +874,53 @@
       if (history.length > 40) history = history.slice(history.length - 40);
     };
 
+    const duplicateActiveObject = () => {
+      const active = canvas.getActiveObject();
+      if (!active) {
+        setStatus('No hay elemento seleccionado para duplicar.', true);
+        return;
+      }
+      active.clone((cloned) => {
+        const dx = 18;
+        const dy = 18;
+        canvas.discardActiveObject();
+
+        if (cloned && cloned.type === 'activeSelection') {
+          const added = [];
+          cloned.canvas = canvas;
+          cloned.forEachObject((obj) => {
+            obj.set({
+              left: (Number(obj.left) || 0) + dx,
+              top: (Number(obj.top) || 0) + dy,
+            });
+            normalizeEditableObject(obj);
+            canvas.add(obj);
+            added.push(obj);
+          });
+          const selection = new fabric.ActiveSelection(added, { canvas });
+          canvas.setActiveObject(selection);
+          selection.setCoords();
+        } else if (cloned) {
+          cloned.set({
+            left: (Number(cloned.left) || 0) + dx,
+            top: (Number(cloned.top) || 0) + dy,
+          });
+          normalizeEditableObject(cloned);
+          if (Array.isArray(cloned._objects)) cloned._objects.forEach((obj) => normalizeEditableObject(obj));
+          canvas.add(cloned);
+          canvas.setActiveObject(cloned);
+          cloned.setCoords();
+        }
+
+        canvas.requestRenderAll();
+        persistActiveStepSnapshot();
+        pushHistory();
+        syncInspector();
+        refreshLivePreview();
+        setStatus('Elemento duplicado.');
+      }, ['data']);
+    };
+
     const applyPitchSurface = (presetValue, orientationValue) => {
       // Evita SVG anidados (innerHTML con <svg> completo) que luego rompen la previsualización y el PDF.
       const markup = buildPitchSvg(presetValue, orientationValue);
@@ -1786,6 +1833,10 @@
         setStatus('Elemento eliminado.');
         return;
       }
+      if (action === 'duplicate') {
+        duplicateActiveObject();
+        return;
+      }
       if (action === 'clear') {
         canvas.getObjects().slice().forEach((item) => canvas.remove(item));
         canvas.discardActiveObject();
@@ -1804,6 +1855,19 @@
       else activateFactory(simpleFactory(add), RESOURCE_LABELS[add] || add);
     });
     syncInspector();
+
+    document.addEventListener('keydown', (event) => {
+      const key = String(event.key || '').toLowerCase();
+      const isMod = event.metaKey || event.ctrlKey;
+      const el = document.activeElement;
+      const tag = (el && el.tagName) ? el.tagName.toLowerCase() : '';
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+      if (isMod && key === 'd') {
+        event.preventDefault();
+        duplicateActiveObject();
+      }
+    });
+
     Array.from(document.querySelectorAll('[data-print-style]')).forEach((button) => {
       button.addEventListener('click', () => submitPrintPreview(button.dataset.printStyle || 'uefa'));
     });
