@@ -162,7 +162,9 @@
     defs.appendChild(gradient);
     root.appendChild(defs);
 
-    root.appendChild(createSvgNode(doc, 'rect', { x: 0, y: 0, width: stageW, height: stageH, fill: '#071320' }));
+    // El fondo lo da el contenedor del editor. Aquí dejamos el SVG sin "marco negro"
+    // para que el campo ocupe el máximo espacio posible (especialmente en vertical).
+    root.appendChild(createSvgNode(doc, 'rect', { x: 0, y: 0, width: stageW, height: stageH, fill: 'transparent' }));
     const drawRoot = createSvgNode(doc, 'g');
     if (orientation === 'portrait') {
       drawRoot.setAttribute('transform', `translate(${stageW} 0) rotate(90)`);
@@ -170,25 +172,15 @@
     root.appendChild(drawRoot);
 
     const createStage = (orientation) => {
-      const margin = 20;
-      const desiredAspect = 105 / 68;
-      const portrait = orientation === 'portrait';
       // En vertical, el grupo se rota 90 grados: el sistema de coordenadas "dibuja"
       // sobre un lienzo efectivo de (stageH x stageW).
+      const margin = 8;
+      const portrait = orientation === 'portrait';
       const effectiveW = portrait ? stageH : stageW;
       const effectiveH = portrait ? stageW : stageH;
-      const availableWidth = effectiveW - margin * 2;
-      const availableHeight = effectiveH - margin * 2;
-
-      let width = Math.min(drawW, availableWidth);
-      let height = width / desiredAspect;
-      if (height > availableHeight) {
-        height = availableHeight;
-        width = height * desiredAspect;
-      }
-      const offsetX = (effectiveW - width) / 2;
-      const offsetY = (effectiveH - height) / 2;
-      return { x: offsetX, y: offsetY, width, height };
+      const width = Math.max(80, effectiveW - (margin * 2));
+      const height = Math.max(80, effectiveH - (margin * 2));
+      return { x: margin, y: margin, width, height };
     };
     let stage = createStage(orientation);
     const scale = stage.width / 105;
@@ -520,9 +512,11 @@
       selection: true,
     });
 
-    let history = [];
-    let pendingFactory = null;
-    const DRAG_MIME = 'application/x-webstats-tactical-resource';
+	    let history = [];
+	    let pendingFactory = null;
+	    let clipboardObject = null;
+	    let pasteOffset = 0;
+	    const DRAG_MIME = 'application/x-webstats-tactical-resource';
     let previewRefreshTimer = null;
     let previewBuildInFlight = false;
     let surfacesRendered = false;
@@ -883,11 +877,11 @@
       if (history.length > 40) history = history.slice(history.length - 40);
     };
 
-    const duplicateActiveObject = () => {
-      const active = canvas.getActiveObject();
-      if (!active) {
-        setStatus('No hay elemento seleccionado para duplicar.', true);
-        return;
+	    const duplicateActiveObject = () => {
+	      const active = canvas.getActiveObject();
+	      if (!active) {
+	        setStatus('No hay elemento seleccionado para duplicar.', true);
+	        return;
       }
       active.clone((cloned) => {
         const dx = 18;
@@ -926,9 +920,67 @@
         pushHistory();
         syncInspector();
         refreshLivePreview();
-        setStatus('Elemento duplicado.');
-      }, ['data']);
-    };
+	        setStatus('Elemento duplicado.');
+	      }, ['data']);
+	    };
+
+	    const copyActiveObject = () => {
+	      const active = canvas.getActiveObject();
+	      if (!active) {
+	        setStatus('No hay elemento seleccionado para copiar.', true);
+	        return;
+	      }
+	      active.clone((cloned) => {
+	        clipboardObject = cloned;
+	        pasteOffset = 0;
+	        setStatus('Elemento copiado.');
+	      }, ['data']);
+	    };
+
+	    const pasteClipboardObject = () => {
+	      if (!clipboardObject) {
+	        setStatus('No hay nada copiado todavía.', true);
+	        return;
+	      }
+	      const dx = 18 + (pasteOffset % 54);
+	      const dy = 18 + (pasteOffset % 54);
+	      pasteOffset += 18;
+	      clipboardObject.clone((cloned) => {
+	        canvas.discardActiveObject();
+	        if (cloned && cloned.type === 'activeSelection') {
+	          const added = [];
+	          cloned.canvas = canvas;
+	          cloned.forEachObject((obj) => {
+	            obj.set({
+	              left: (Number(obj.left) || 0) + dx,
+	              top: (Number(obj.top) || 0) + dy,
+	            });
+	            normalizeEditableObject(obj);
+	            canvas.add(obj);
+	            added.push(obj);
+	          });
+	          const selection = new fabric.ActiveSelection(added, { canvas });
+	          canvas.setActiveObject(selection);
+	          selection.setCoords();
+	        } else if (cloned) {
+	          cloned.set({
+	            left: (Number(cloned.left) || 0) + dx,
+	            top: (Number(cloned.top) || 0) + dy,
+	          });
+	          normalizeEditableObject(cloned);
+	          if (Array.isArray(cloned._objects)) cloned._objects.forEach((obj) => normalizeEditableObject(obj));
+	          canvas.add(cloned);
+	          canvas.setActiveObject(cloned);
+	          cloned.setCoords();
+	        }
+	        canvas.requestRenderAll();
+	        persistActiveStepSnapshot();
+	        pushHistory();
+	        syncInspector();
+	        refreshLivePreview();
+	        setStatus('Pegado.');
+	      }, ['data']);
+	    };
 
     const applyPitchSurface = (presetValue, orientationValue) => {
       // Evita SVG anidados (innerHTML con <svg> completo) que luego rompen la previsualización y el PDF.
@@ -1800,18 +1852,26 @@
         applyObjectColor(active, colorInput.value || '#22d3ee');
       }, 'Color actualizado.');
     });
-    selectionToolbar?.addEventListener('click', (event) => {
-      const button = event.target.closest('button');
-      if (!button) return;
-      const inspectorAction = safeText(button.dataset.inspectorAction);
-      if (inspectorAction === 'duplicate') {
-        duplicateActiveObject();
-        return;
-      }
-      const colorValue = safeText(button.dataset.color);
-      if (colorValue) {
-        if (colorInput) colorInput.value = colorValue;
-        applyToActiveFlexibleObject((active) => {
+	    selectionToolbar?.addEventListener('click', (event) => {
+	      const button = event.target.closest('button');
+	      if (!button) return;
+	      const inspectorAction = safeText(button.dataset.inspectorAction);
+	      if (inspectorAction === 'duplicate') {
+	        duplicateActiveObject();
+	        return;
+	      }
+	      if (inspectorAction === 'copy') {
+	        copyActiveObject();
+	        return;
+	      }
+	      if (inspectorAction === 'paste') {
+	        pasteClipboardObject();
+	        return;
+	      }
+	      const colorValue = safeText(button.dataset.color);
+	      if (colorValue) {
+	        if (colorInput) colorInput.value = colorValue;
+	        applyToActiveFlexibleObject((active) => {
           applyObjectColor(active, colorValue);
         }, 'Color actualizado.');
         return;
@@ -1887,17 +1947,25 @@
     });
     syncInspector();
 
-    document.addEventListener('keydown', (event) => {
-      const key = String(event.key || '').toLowerCase();
-      const isMod = event.metaKey || event.ctrlKey;
-      const el = document.activeElement;
-      const tag = (el && el.tagName) ? el.tagName.toLowerCase() : '';
-      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
-      if (isMod && key === 'd') {
-        event.preventDefault();
-        duplicateActiveObject();
-      }
-    });
+	    document.addEventListener('keydown', (event) => {
+	      const key = String(event.key || '').toLowerCase();
+	      const isMod = event.metaKey || event.ctrlKey;
+	      const el = document.activeElement;
+	      const tag = (el && el.tagName) ? el.tagName.toLowerCase() : '';
+	      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+	      if (isMod && key === 'd') {
+	        event.preventDefault();
+	        duplicateActiveObject();
+	      }
+	      if (isMod && key === 'c') {
+	        event.preventDefault();
+	        copyActiveObject();
+	      }
+	      if (isMod && key === 'v') {
+	        event.preventDefault();
+	        pasteClipboardObject();
+	      }
+	    });
 
     Array.from(document.querySelectorAll('[data-print-style]')).forEach((button) => {
       button.addEventListener('click', () => submitPrintPreview(button.dataset.printStyle || 'uefa'));
@@ -1936,10 +2004,13 @@
 
     const resourceTabs = Array.from(document.querySelectorAll('.resource-tab'));
     const resourcePanels = Array.from(document.querySelectorAll('.resource-panel'));
+    let activeResourceKey = '';
     const activateResourcePanel = (key) => {
-      resourceTabs.forEach((tab) => tab.classList.toggle('is-active', tab.dataset.resource === key));
+      const normalized = safeText(key);
+      activeResourceKey = normalized;
+      resourceTabs.forEach((tab) => tab.classList.toggle('is-active', safeText(tab.dataset.resource) === normalized && !!normalized));
       resourcePanels.forEach((panel) => {
-        const visible = panel.dataset.panel === key;
+        const visible = !!normalized && safeText(panel.dataset.panel) === normalized;
         panel.hidden = !visible;
         panel.classList.toggle('is-visible', visible);
       });
@@ -1947,13 +2018,13 @@
     resourceTabs.forEach((tab) => {
       tab.addEventListener('click', () => {
         const target = safeText(tab.dataset.resource);
-        activateResourcePanel(target);
+        if (target && target === activeResourceKey) activateResourcePanel('');
+        else activateResourcePanel(target);
       });
     });
     if (resourceTabs.length && resourcePanels.length) {
-      const baseKey = resourceTabs.find((tab) => safeText(tab.dataset.resource) === 'base')?.dataset.resource;
-      const initialKey = safeText(baseKey || resourceTabs[0].dataset.resource);
-      if (initialKey) activateResourcePanel(initialKey);
+      // Arranca limpio: no mostramos recursos hasta que el usuario pulse una pestaña.
+      activateResourcePanel('');
     }
 
     const panelKeyForObject = (object) => {

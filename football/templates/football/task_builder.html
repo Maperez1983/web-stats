@@ -327,8 +327,8 @@
       .pitch-stage.is-portrait {
         aspect-ratio: 1 / 1.47;
         width: 100%;
-        max-width: 680px;
-        margin: 0 auto;
+        /* En vertical no limitamos el ancho: el objetivo es que el campo no se vea "enano". */
+        max-width: 940px;
       }
       .pitch-viewport {
         width: 100%;
@@ -906,18 +906,20 @@
                         <button type="button" data-color="#000000">Negro</button>
                         <button type="button" data-color="#a855f7">Morado</button>
                       </div>
-                      <div class="selection-actions">
-                        <button type="button" data-rotate-step="-15">Girar -15°</button>
-                        <button type="button" data-rotate-step="15">Girar +15°</button>
-                        <button type="button" data-inspector-action="duplicate">Duplicar</button>
-                        <button type="button" data-nudge-x="0" data-nudge-y="-8">Arriba</button>
-                        <button type="button" data-nudge-x="-8" data-nudge-y="0">Izquierda</button>
-                        <button type="button" data-nudge-x="8" data-nudge-y="0">Derecha</button>
-                        <button type="button" data-nudge-x="0" data-nudge-y="8">Abajo</button>
-                      </div>
-                      <div class="selection-note">
-                        Tip: usa `Cmd/Ctrl + D` para duplicar el elemento seleccionado.
-                      </div>
+	                      <div class="selection-actions">
+	                        <button type="button" data-rotate-step="-15">Girar -15°</button>
+	                        <button type="button" data-rotate-step="15">Girar +15°</button>
+	                        <button type="button" data-inspector-action="copy">Copiar</button>
+	                        <button type="button" data-inspector-action="paste">Pegar</button>
+	                        <button type="button" data-inspector-action="duplicate">Duplicar</button>
+	                        <button type="button" data-nudge-x="0" data-nudge-y="-8">Arriba</button>
+	                        <button type="button" data-nudge-x="-8" data-nudge-y="0">Izquierda</button>
+	                        <button type="button" data-nudge-x="8" data-nudge-y="0">Derecha</button>
+	                        <button type="button" data-nudge-x="0" data-nudge-y="8">Abajo</button>
+	                      </div>
+	                      <div class="selection-note">
+	                        Tip: usa `Cmd/Ctrl + D` para duplicar. `Cmd/Ctrl + C/V` copia y pega.
+	                      </div>
                     </div>
                   </div>
                 </div>
