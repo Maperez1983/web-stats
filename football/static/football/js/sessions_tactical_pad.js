@@ -157,22 +157,24 @@
     root.appendChild(drawRoot);
 
     const createStage = (orientation) => {
-      const margin = 40;
-      const limitWidth = Math.max(360, stageW - margin);
-      const limitHeight = Math.max(360, stageH - margin);
-      const baseWidth = orientation === 'portrait' ? limitHeight : limitWidth;
-      const baseHeight = orientation === 'portrait' ? limitWidth : limitHeight;
-      let width = Math.min(drawW, baseWidth);
-      let height = (width * 68) / 105;
-      if (height > baseHeight) {
-        height = baseHeight;
-        width = (height * 105) / 68;
+      const margin = 20;
+      const desiredAspect = 105 / 68;
+      const availableWidth = stageW - margin * 2;
+      const availableHeight = stageH - margin * 2;
+      const portrait = orientation === 'portrait';
+      const basisWidth = portrait ? availableHeight : availableWidth;
+      const basisHeight = portrait ? availableWidth : availableHeight;
+      let width = Math.min(drawW, basisWidth);
+      let height = width / desiredAspect;
+      if (height > basisHeight) {
+        height = basisHeight;
+        width = height * desiredAspect;
       }
-      const x = (stageW - width) / 2;
-      const y = (stageH - height) / 2;
-      return { x, y, width, height };
+      const offsetX = (stageW - width) / 2;
+      const offsetY = (stageH - height) / 2;
+      return { x: offsetX, y: offsetY, width, height };
     };
-    let stage = createStage(orientation);
+    let stage = createStage('landscape');
     const scale = stage.width / 105;
     const line = '#f8fafc';
     const soft = 'rgba(248,250,252,0.66)';

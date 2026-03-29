@@ -282,6 +282,7 @@
       .pitch-stage {
         position: relative;
         width: 100%;
+        max-width: 940px;
         aspect-ratio: 1.47 / 1;
         min-height: 420px;
         border-radius: 18px;
@@ -291,7 +292,9 @@
       }
       .pitch-stage.is-portrait {
         aspect-ratio: 1 / 1.47;
-        max-width: 680px;
+        width: auto;
+        max-width: 520px;
+        height: 720px;
         margin: 0 auto;
       }
       .pitch-viewport {
@@ -314,6 +317,11 @@
         margin: 0.75rem 0 0;
         color: var(--muted);
         font-size: 0.82rem;
+      }
+      .resource-section {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
       }
       .resource-strip,
       .player-bank {
