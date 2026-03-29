@@ -13514,11 +13514,13 @@ def sessions_page(request):
     return _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones · Entrenador')
 
 
+@csrf_exempt
 @login_required
 def sessions_task_create_page(request):
     return session_task_builder_page(request, scope_key='coach', scope_title='Sesiones · Entrenador')
 
 
+@csrf_exempt
 @login_required
 def sessions_task_edit_page(request, task_id):
     return session_task_builder_page(request, scope_key='coach', scope_title='Sesiones · Entrenador', task_id=task_id)
@@ -13529,11 +13531,13 @@ def sessions_goalkeeper_page(request):
     return _sessions_workspace_page(request, scope_key='goalkeeper', scope_title='Sesiones · Porteros')
 
 
+@csrf_exempt
 @login_required
 def sessions_goalkeeper_task_create_page(request):
     return session_task_builder_page(request, scope_key='goalkeeper', scope_title='Sesiones · Porteros')
 
 
+@csrf_exempt
 @login_required
 def sessions_goalkeeper_task_edit_page(request, task_id):
     return session_task_builder_page(request, scope_key='goalkeeper', scope_title='Sesiones · Porteros', task_id=task_id)
@@ -13544,11 +13548,13 @@ def sessions_fitness_page(request):
     return _sessions_workspace_page(request, scope_key='fitness', scope_title='Sesiones · Preparacion fisica')
 
 
+@csrf_exempt
 @login_required
 def sessions_fitness_task_create_page(request):
     return session_task_builder_page(request, scope_key='fitness', scope_title='Sesiones · Preparacion fisica')
 
 
+@csrf_exempt
 @login_required
 def sessions_fitness_task_edit_page(request, task_id):
     return session_task_builder_page(request, scope_key='fitness', scope_title='Sesiones · Preparacion fisica', task_id=task_id)
