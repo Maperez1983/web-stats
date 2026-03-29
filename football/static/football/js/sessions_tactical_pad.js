@@ -625,6 +625,28 @@
         applyEmojiColor(object, colorHex);
         return;
       }
+      if (kind.startsWith('emoji_') && object && object.type === 'text') {
+        // Compat: emojis antiguos eran Text plano. Los convertimos a Group con halo para poder colorear.
+        const insertIndex = canvas.getObjects().indexOf(object);
+        const factory = simpleFactory(kind);
+        if (typeof factory === 'function') {
+          const replacement = factory(Number(object.left) || 0, Number(object.top) || 0);
+          if (replacement) {
+            replacement.set({
+              angle: Number(object.angle) || 0,
+              scaleX: Number(object.scaleX) || 1,
+              scaleY: Number(object.scaleY) || 1,
+            });
+            normalizeEditableObject(replacement);
+            canvas.remove(object);
+            if (insertIndex >= 0) canvas.insertAt(replacement, insertIndex, false);
+            else canvas.add(replacement);
+            canvas.setActiveObject(replacement);
+            applyEmojiColor(replacement, colorHex);
+          }
+        }
+        return;
+      }
       if (Array.isArray(object._objects) && object._objects.length) {
         object._objects.forEach((child) => applyObjectColor(child, colorHex));
         object.dirty = true;
