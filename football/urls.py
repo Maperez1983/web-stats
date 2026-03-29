@@ -47,6 +47,7 @@ urlpatterns = [
     path('task-studio/tareas/<int:task_id>/editar/', views.task_studio_task_builder_page, name='task-studio-task-edit'),
     path('task-studio/tareas/<int:task_id>/duplicar/', views.task_studio_task_duplicate_page, name='task-studio-task-duplicate'),
     path('task-studio/tareas/<int:task_id>/eliminar/', views.task_studio_task_delete_page, name='task-studio-task-delete'),
+    path('task-studio/tareas/<int:task_id>/restaurar/', views.task_studio_task_restore_page, name='task-studio-task-restore'),
     path('task-studio/tareas/<int:task_id>/preview/', views.task_studio_task_preview_file, name='task-studio-task-preview-file'),
     path('task-studio/tareas/<int:task_id>/pdf/', views.task_studio_task_pdf, name='task-studio-task-pdf'),
     path('coach/sesiones/', views.sessions_page, name='sessions'),

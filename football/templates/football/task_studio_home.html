@@ -187,6 +187,28 @@
         </div>
       </section>
 
+      {% if deleted_tasks %}
+      <section class="card" style="margin-bottom:1rem;">
+        <h2 style="margin:0 0 .75rem; font-size:.82rem; letter-spacing:.1em; text-transform:uppercase;">Papelera</h2>
+        <div class="docs-grid">
+          {% for task in deleted_tasks %}
+          <div class="doc-item">
+            <div>
+              <strong>{{ task.title }}</strong>
+              <div class="muted">{{ task.get_block_display }} · {{ task.duration_minutes }} min · Eliminada {{ task.deleted_at|date:"d/m/Y H:i" }}</div>
+            </div>
+            <div class="doc-actions">
+              <form method="post" action="{% url 'task-studio-task-restore' task.id %}{% if browse_all %}?user={{ task.owner.id }}{% endif %}" style="display:inline-flex;">
+                {% csrf_token %}
+                <button class="button" type="submit">Restaurar</button>
+              </form>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
       <section class="tasks">
         {% for task in tasks %}
         <article class="task-card">
@@ -199,7 +221,7 @@
               {% if browse_all %}
               <span class="pill">{{ task.owner.username }}</span>
               {% endif %}
-              <form method="post" action="{% url 'task-studio-task-delete' task.id %}{% if browse_all %}?user={{ task.owner.id }}{% endif %}" onsubmit="return confirm('Se eliminará esta tarea creada.');" style="display:inline-flex;">
+              <form method="post" action="{% url 'task-studio-task-delete' task.id %}{% if browse_all %}?user={{ task.owner.id }}{% endif %}" onsubmit="return confirm('¿Enviar esta tarea a la papelera? (Se puede restaurar)');" style="display:inline-flex;">
                 {% csrf_token %}
                 <button class="button danger icon-only" type="submit" title="Eliminar tarea" aria-label="Eliminar tarea">
                   <span class="icon-trash" aria-hidden="true">
@@ -218,13 +240,13 @@
             </form>
             <a class="button" href="{% url 'task-studio-task-pdf' task.id %}" target="_blank" rel="noopener">Imprimir UEFA</a>
             <a class="button" href="{% url 'task-studio-task-pdf' task.id %}?style=club" target="_blank" rel="noopener">Imprimir Club</a>
-            <form method="post" action="{% url 'task-studio-task-delete' task.id %}{% if browse_all %}?user={{ task.owner.id }}{% endif %}" onsubmit="return confirm('Se eliminará esta tarea creada.');" style="display:inline-flex;">
+            <form method="post" action="{% url 'task-studio-task-delete' task.id %}{% if browse_all %}?user={{ task.owner.id }}{% endif %}" onsubmit="return confirm('¿Enviar esta tarea a la papelera? (Se puede restaurar)');" style="display:inline-flex;">
               {% csrf_token %}
               <button class="button danger" type="submit">
                 <span class="icon-trash" aria-hidden="true">
                   <svg viewBox="0 0 24 24"><path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm1 6h2v8h-2V9Zm4 0h2v8h-2V9ZM7 9h2v8H7V9Zm-1 12a2 2 0 0 1-2-2V8h16v11a2 2 0 0 1-2 2H6Z"/></svg>
                 </span>
-                Eliminar
+                Papelera
               </button>
             </form>
           </div>

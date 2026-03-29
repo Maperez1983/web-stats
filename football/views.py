@@ -12815,6 +12815,10 @@ def task_studio_home_page(request):
         )
     tasks = list(task_qs.order_by('-updated_at', '-id')[:80])
     recent_document_tasks = tasks[:6]
+    deleted_task_qs = TaskStudioTask.objects.select_related('owner').filter(deleted_at__isnull=False)
+    if not browse_all:
+        deleted_task_qs = deleted_task_qs.filter(owner=target_user)
+    deleted_tasks = list(deleted_task_qs.order_by('-deleted_at', '-id')[:24])
     roster_count = TaskStudioRosterPlayer.objects.filter(owner=target_user, is_active=True).count()
     query_suffix = _task_studio_query_suffix(target_user, request.user)
     task_count = task_qs.count()
@@ -12872,6 +12876,7 @@ def task_studio_home_page(request):
             'has_identity': has_identity,
             'search_query': search_query,
             'recent_document_tasks': recent_document_tasks,
+            'deleted_tasks': deleted_tasks,
         },
     )
 
@@ -13073,6 +13078,29 @@ def task_studio_task_delete_page(request, task_id):
     task.deleted_by = request.user if getattr(request, 'user', None) and request.user.is_authenticated else None
     task.save(update_fields=['deleted_at', 'deleted_by'])
     request.session['task_studio_feedback'] = f'Tarea enviada a papelera: {task_title}.'
+    return redirect(reverse('task-studio-home') + _task_studio_query_suffix(owner, request.user))
+
+
+@login_required
+@require_POST
+def task_studio_task_restore_page(request, task_id):
+    forbidden = _forbid_if_no_task_studio_access(request.user)
+    if forbidden:
+        return forbidden
+    task = TaskStudioTask.objects.select_related('owner').filter(id=task_id, deleted_at__isnull=False).first()
+    if not task:
+        raise Http404('Tarea no encontrada')
+    forbidden = _forbid_if_task_studio_module_disabled(request, task.owner, 'task_studio_tasks', label='tareas Task Studio')
+    if forbidden:
+        return forbidden
+    if not _is_admin_user(request.user) and int(task.owner_id) != int(request.user.id):
+        return HttpResponse('No tienes permisos para restaurar esta tarea.', status=403)
+    owner = task.owner
+    task_title = task.title
+    task.deleted_at = None
+    task.deleted_by = None
+    task.save(update_fields=['deleted_at', 'deleted_by'])
+    request.session['task_studio_feedback'] = f'Tarea restaurada: {task_title}.'
     return redirect(reverse('task-studio-home') + _task_studio_query_suffix(owner, request.user))
 
 
