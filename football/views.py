@@ -878,7 +878,12 @@ def _can_access_task_studio(user):
         has_workspace = Workspace.objects.filter(kind=Workspace.KIND_TASK_STUDIO, owner_user=user, is_active=True).exists()
         has_profile = TaskStudioProfile.objects.filter(user=user).exists()
         if not has_workspace and not has_profile:
-            return False
+            # Invitados: si se les ha asignado el rol, deben poder entrar. Si aún no tienen workspace/perfil
+            # (por ejemplo tras crearles acceso desde Platform), lo inicializamos sin crear tareas automáticamente.
+            try:
+                _ensure_task_studio_workspace(user)
+            except Exception:
+                return False
     profile = TaskStudioProfile.objects.filter(user=user).first()
     if profile and not profile.is_enabled:
         return False
@@ -968,6 +973,23 @@ def _get_active_workspace(request):
     if fallback_workspace:
         request.session['active_workspace_id'] = fallback_workspace.id
         return fallback_workspace
+    # Reparación segura: si el usuario no tiene ningún workspace asignado pero el sistema sólo tiene
+    # un workspace de club activo, lo asignamos automáticamente. Esto evita 403 en entornos de un solo club.
+    role = _get_user_role(request.user)
+    if role in {AppUserRole.ROLE_PLAYER, AppUserRole.ROLE_COACH, AppUserRole.ROLE_FITNESS, AppUserRole.ROLE_GOALKEEPER, AppUserRole.ROLE_ANALYST}:
+        club_ws = list(Workspace.objects.filter(kind=Workspace.KIND_CLUB, is_active=True).order_by('id')[:2])
+        if len(club_ws) == 1:
+            workspace = club_ws[0]
+            try:
+                WorkspaceMembership.objects.get_or_create(
+                    workspace=workspace,
+                    user=request.user,
+                    defaults={'role': WorkspaceMembership.ROLE_MEMBER},
+                )
+            except Exception:
+                pass
+            request.session['active_workspace_id'] = workspace.id
+            return workspace
     return None
 
 
