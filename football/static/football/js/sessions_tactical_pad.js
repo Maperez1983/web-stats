@@ -1,6 +1,14 @@
 (function () {
   const safeText = (value, fallback = '') => String(value || '').trim() || fallback;
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+  const runWhenIdle = (fn, timeout = 900) => {
+    if (typeof window === 'undefined') return fn();
+    if (typeof window.requestIdleCallback === 'function') {
+      window.requestIdleCallback(() => fn(), { timeout });
+      return;
+    }
+    window.setTimeout(() => fn(), Math.min(350, timeout));
+  };
   const hexToRgb = (hex) => {
     const cleaned = String(hex || '').trim().replace('#', '');
     if (cleaned.length !== 3 && cleaned.length !== 6) return null;
@@ -173,14 +181,24 @@
 
     const createStage = (orientation) => {
       // En vertical, el grupo se rota 90 grados: el sistema de coordenadas "dibuja"
-      // sobre un lienzo efectivo de (stageH x stageW).
-      const margin = 8;
+      // sobre un lienzo efectivo de (stageH x stageW). Mantenemos proporción real 105x68.
+      const margin = 10;
+      const desiredAspect = 105 / 68;
       const portrait = orientation === 'portrait';
       const effectiveW = portrait ? stageH : stageW;
       const effectiveH = portrait ? stageW : stageH;
-      const width = Math.max(80, effectiveW - (margin * 2));
-      const height = Math.max(80, effectiveH - (margin * 2));
-      return { x: margin, y: margin, width, height };
+      const availableWidth = effectiveW - margin * 2;
+      const availableHeight = effectiveH - margin * 2;
+
+      let width = availableWidth;
+      let height = width / desiredAspect;
+      if (height > availableHeight) {
+        height = availableHeight;
+        width = height * desiredAspect;
+      }
+      const offsetX = (effectiveW - width) / 2;
+      const offsetY = (effectiveH - height) / 2;
+      return { x: offsetX, y: offsetY, width, height };
     };
     let stage = createStage(orientation);
     const scale = stage.width / 105;
@@ -1556,7 +1574,8 @@
     const buildPreviewData = () => new Promise((resolve) => {
       const sourceWidth = Math.round(canvas.getWidth());
       const sourceHeight = Math.round(canvas.getHeight());
-      const maxPreviewWidth = 960;
+      // En iPad conviene limitar el tamaño para que no bloquee el hilo principal.
+      const maxPreviewWidth = 720;
       const ratio = sourceWidth > maxPreviewWidth ? (maxPreviewWidth / sourceWidth) : 1;
       const output = document.createElement('canvas');
       output.width = Math.max(320, Math.round(sourceWidth * ratio));
@@ -1566,6 +1585,9 @@
         resolve('');
         return;
       }
+      // Fondo sólido para que la preview y el PDF no muestren "barras" por transparencia.
+      context.fillStyle = '#ffffff';
+      context.fillRect(0, 0, output.width, output.height);
       const svgMarkup = new XMLSerializer().serializeToString(svgSurface);
       const blob = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' });
       const blobUrl = URL.createObjectURL(blob);
@@ -1605,7 +1627,7 @@
         } finally {
           previewBuildInFlight = false;
         }
-      }, 420);
+      }, 650);
     };
 
     const activateSidePane = (key) => {
@@ -1730,13 +1752,13 @@
     fitCanvas();
     setPreset(presetSelect.value || 'full_pitch');
     restoreState();
-    renderPlayerBank();
+    runWhenIdle(() => renderPlayerBank(), 1100);
     try {
       syncAssignedPlayersHidden(serializeState());
     } catch (error) {
       // ignore
     }
-    refreshLivePreview();
+    runWhenIdle(() => refreshLivePreview(), 1100);
 
     canvas.on('object:modified', () => {
       if (canvas.__loading) return;

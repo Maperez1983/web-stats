@@ -314,7 +314,8 @@
         position: relative;
         width: 100%;
         max-width: 940px;
-        aspect-ratio: 1.47 / 1;
+        /* Proporción real (105x68) para evitar márgenes raros y mejorar el giro vertical. */
+        aspect-ratio: 105 / 68;
         min-height: 420px;
         border-radius: 18px;
         overflow: hidden;
@@ -325,7 +326,7 @@
         transform-origin: center top;
       }
       .pitch-stage.is-portrait {
-        aspect-ratio: 1 / 1.47;
+        aspect-ratio: 68 / 105;
         width: 100%;
         /* En vertical no limitamos el ancho: el objetivo es que el campo no se vea "enano". */
         max-width: 940px;
@@ -512,10 +513,18 @@
         border: 1px solid rgba(255, 255, 255, 0.12);
         border-radius: 14px;
         overflow: hidden;
-        background: rgba(255, 255, 255, 0.03);
-        min-height: 180px;
+        /* La preview representa el PDF (hoja A4). */
+        background: #f8fafc;
+        aspect-ratio: 210 / 297;
+        min-height: 220px;
         display: grid;
         place-items: center;
+      }
+      .live-preview-frame img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        background: #ffffff;
       }
       .live-preview-placeholder {
         padding: 1rem;
@@ -1194,10 +1203,12 @@
     </main>
 
     {{ tactical_player_catalog|json_script:"tpad-players-catalog" }}
-    <script src="{% static 'vendor/fabric.min.js' %}"></script>
-    <script src="{% static 'football/js/sessions_tactical_pad.js' %}"></script>
+    <script src="{% static 'vendor/fabric.min.js' %}" defer></script>
+    <script src="{% static 'football/js/sessions_tactical_pad.js' %}" defer></script>
     <script>
-      if (window.initSessionsTacticalPad) window.initSessionsTacticalPad();
+      window.addEventListener('DOMContentLoaded', () => {
+        if (window.initSessionsTacticalPad) window.initSessionsTacticalPad();
+      });
     </script>
   </body>
 </html>
