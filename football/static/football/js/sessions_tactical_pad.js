@@ -339,11 +339,14 @@
     };
 
     const drawHalfPitch = () => {
-      const width = 620;
-      const height = width * 68 / 52.5;
-      const x = (drawW - width) / 2;
-      const y = (drawH - height) / 2;
-      const localScale = width / 52.5;
+      const metersW = 52.5;
+      const metersH = 68;
+      const pitch = createStage(orientation, metersW / metersH);
+      const x = pitch.x;
+      const y = pitch.y;
+      const width = pitch.width;
+      const height = pitch.height;
+      const localScale = width / metersW;
       drawFrame(x, y, width, height, 4);
       const centerY = y + (height / 2);
       const penaltyDepth = 16.5 * localScale;
@@ -354,7 +357,6 @@
       const goalDepth = 2.2 * localScale;
       const spotDist = 11 * localScale;
       const arcRadius = 9.15 * localScale;
-      const arcDx = 5.5 * localScale;
       const arcYOffset = Math.sqrt((9.15 * 9.15) - (5.5 * 5.5)) * localScale;
       const centerRadius = 9.15 * localScale;
       const rightX = x + width;
@@ -365,15 +367,18 @@
       drawRoot.appendChild(createSvgNode(doc, 'rect', { x: rightX - goalAreaDepth, y: centerY - (goalAreaHeight / 2), width: goalAreaDepth, height: goalAreaHeight, fill: 'none', stroke: soft, 'stroke-width': 3 }));
       drawRoot.appendChild(createSvgNode(doc, 'circle', { cx: rightX - spotDist, cy: centerY, r: 4, fill: line }));
       drawRoot.appendChild(createSvgNode(doc, 'path', { d: `M ${rightX - penaltyDepth} ${centerY - arcYOffset} A ${arcRadius} ${arcRadius} 0 0 0 ${rightX - penaltyDepth} ${centerY + arcYOffset}`, fill: 'none', stroke: soft, 'stroke-width': 3 }));
-    drawGoal(rightX, centerY, goalDepth, goalHeight, 'right');
+      drawGoal(rightX, centerY, goalDepth, goalHeight, 'right');
     };
 
     const drawThirdZone = (side = 'attacking') => {
-      const width = 420;
-      const height = width * 68 / 35;
-      const x = (drawW - width) / 2;
-      const y = (drawH - height) / 2;
-      const localScale = width / 35;
+      const metersW = 35;
+      const metersH = 68;
+      const pitch = createStage(orientation, metersW / metersH);
+      const x = pitch.x;
+      const y = pitch.y;
+      const width = pitch.width;
+      const height = pitch.height;
+      const localScale = width / metersW;
       drawFrame(x, y, width, height, 4);
       const centerY = y + (height / 2);
       const penaltyDepth = 16.5 * localScale;
@@ -404,14 +409,17 @@
     };
 
     const drawMiddleThird = () => {
-      const width = 460;
-      const height = width * 68 / 35;
-      const x = (drawW - width) / 2;
-      const y = (drawH - height) / 2;
+      const metersW = 35;
+      const metersH = 68;
+      const pitch = createStage(orientation, metersW / metersH);
+      const x = pitch.x;
+      const y = pitch.y;
+      const width = pitch.width;
+      const height = pitch.height;
+      const localScale = width / metersW;
       drawFrame(x, y, width, height, 4);
       const centerX = x + (width / 2);
       const centerY = y + (height / 2);
-      const localScale = width / 35;
       drawRoot.appendChild(createSvgNode(doc, 'line', { x1: x, y1: y, x2: x, y2: y + height, stroke: soft, 'stroke-width': 2 }));
       drawRoot.appendChild(createSvgNode(doc, 'line', { x1: x + width, y1: y, x2: x + width, y2: y + height, stroke: soft, 'stroke-width': 2 }));
       drawRoot.appendChild(createSvgNode(doc, 'line', { x1: centerX, y1: y, x2: centerX, y2: y + height, stroke: line, 'stroke-width': 3 }));
@@ -419,11 +427,12 @@
       drawRoot.appendChild(createSvgNode(doc, 'circle', { cx: centerX, cy: centerY, r: 4, fill: line }));
     };
 
-    const drawMiniGame = (metersW, metersH, penaltyDepthMeters, penaltyHeightMeters, goalAreaDepthMeters, goalAreaHeightMeters, goalHeightMeters) => {
-      const width = 920;
-      const height = width * metersH / metersW;
-      const x = (drawW - width) / 2;
-      const y = (drawH - height) / 2;
+    const drawMiniGame = (metersW, metersH, penaltyDepthMeters, penaltyHeightMeters, goalAreaDepthMeters, goalAreaHeightMeters, goalHeightMeters, options = {}) => {
+      const pitch = createStage(orientation, metersW / metersH);
+      const x = pitch.x;
+      const y = pitch.y;
+      const width = pitch.width;
+      const height = pitch.height;
       const localScale = width / metersW;
       drawFrame(x, y, width, height, 4);
       const centerX = x + (width / 2);
@@ -431,10 +440,24 @@
       const centerRadius = Math.min(9.15, Math.min(metersW, metersH) / 7.5) * localScale;
       const cornerRadius = Math.min(1, Math.min(metersW, metersH) / 38) * localScale;
       const goalDepth = 2 * localScale;
+      const offsideColor = options?.offsideColor || '#facc15';
+      const offsideDistance = Number(options?.offsideLineFromGoalMeters);
 
       drawRoot.appendChild(createSvgNode(doc, 'line', { x1: centerX, y1: y, x2: centerX, y2: y + height, stroke: line, 'stroke-width': 3 }));
       drawRoot.appendChild(createSvgNode(doc, 'circle', { cx: centerX, cy: centerY, r: centerRadius, fill: 'none', stroke: soft, 'stroke-width': 3 }));
       drawRoot.appendChild(createSvgNode(doc, 'circle', { cx: centerX, cy: centerY, r: 4, fill: line }));
+      if (!Number.isNaN(offsideDistance) && offsideDistance > 0 && offsideDistance < (metersW / 2)) {
+        const leftOffsideX = x + (offsideDistance * localScale);
+        const rightOffsideX = x + width - (offsideDistance * localScale);
+        drawRoot.appendChild(createSvgNode(doc, 'line', {
+          x1: leftOffsideX, y1: y, x2: leftOffsideX, y2: y + height,
+          stroke: offsideColor, 'stroke-width': 3, 'stroke-opacity': 0.92,
+        }));
+        drawRoot.appendChild(createSvgNode(doc, 'line', {
+          x1: rightOffsideX, y1: y, x2: rightOffsideX, y2: y + height,
+          stroke: offsideColor, 'stroke-width': 3, 'stroke-opacity': 0.92,
+        }));
+      }
       if (penaltyDepthMeters > 0 && penaltyHeightMeters > 0) {
         drawRoot.appendChild(createSvgNode(doc, 'rect', { x, y: centerY - ((penaltyHeightMeters * localScale) / 2), width: penaltyDepthMeters * localScale, height: penaltyHeightMeters * localScale, fill: 'none', stroke: soft, 'stroke-width': 3 }));
         drawRoot.appendChild(createSvgNode(doc, 'rect', { x: x + width - (penaltyDepthMeters * localScale), y: centerY - ((penaltyHeightMeters * localScale) / 2), width: penaltyDepthMeters * localScale, height: penaltyHeightMeters * localScale, fill: 'none', stroke: soft, 'stroke-width': 3 }));
@@ -456,7 +479,7 @@
       drawFullPitch();
       drawSevenSideOverlay(stage.x, stage.y, stage.width, stage.height);
     }
-    else if (preset === 'seven_side_single') drawMiniGame(65, 45, 13, 26, 4.5, 12, 6);
+    else if (preset === 'seven_side_single') drawMiniGame(65, 45, 13, 26, 4.5, 12, 6, { offsideLineFromGoalMeters: 13, offsideColor: '#facc15' });
     else if (preset === 'futsal') drawMiniGame(40, 20, 6, 16, 0, 0, 3);
     else drawFullPitch();
 
