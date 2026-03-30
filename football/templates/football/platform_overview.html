@@ -1302,7 +1302,7 @@
           <div class="simple-list">
             {% for item in carousel_images %}
             <div class="carousel-row">
-              <img class="carousel-thumb" src="{{ item.image.url }}" alt="{{ item.title|default:'Imagen home' }}" loading="lazy" />
+              <img class="carousel-thumb" src="{% url 'home-carousel-image-file' item.id %}" alt="{{ item.title|default:'Imagen home' }}" loading="lazy" />
               <form method="post" class="workspace-form" style="margin:0;">
                 {% csrf_token %}
                 <input type="hidden" name="form_action" value="carousel_update" />

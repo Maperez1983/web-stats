@@ -802,6 +802,30 @@ def player_photo_file(request, player_id):
     return response
 
 
+@login_required
+def home_carousel_image_file(request, image_id):
+    item = HomeCarouselImage.objects.filter(id=image_id).first()
+    if not item or not item.image:
+        raise Http404('Imagen no disponible')
+    file_field = item.image
+    try:
+        file_field.open('rb')
+    except Exception:
+        return HttpResponse('No se pudo abrir la imagen.', status=500)
+    extension = Path(file_field.name).suffix.lower()
+    content_type = {
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.webp': 'image/webp',
+        '.gif': 'image/gif',
+    }.get(extension, 'application/octet-stream')
+    response = FileResponse(file_field, content_type=content_type)
+    response['Content-Disposition'] = f'inline; filename="{Path(file_field.name).name}"'
+    response['Cache-Control'] = 'private, max-age=900'
+    return response
+
+
 def resolve_player_photo_url(request, player):
     for storage_name in _player_photo_storage_candidates(player):
         try:
@@ -4063,7 +4087,7 @@ def dashboard_page(request):
     active_items = list(HomeCarouselImage.objects.filter(is_active=True).order_by('order', '-created_at', '-id'))
     all_items = list(HomeCarouselImage.objects.order_by('order', '-created_at', '-id'))
     candidates = active_items if active_items else all_items
-    hero_image_candidates = [item.image.url for item in candidates if item.image]
+    hero_image_candidates = [reverse('home-carousel-image-file', args=[item.id]) for item in candidates if item.image]
     role_labels = dict(AppUserRole.ROLE_CHOICES)
     can_access_admin = _is_admin_user(request.user)
     can_access_sessions = _can_access_sessions_workspace(request.user)
