@@ -13429,6 +13429,34 @@ def task_studio_task_builder_page(request, task_id=None):
             error = 'No se pudo guardar la tarea.'
     initial = _task_builder_initial_values(task)
     player_catalog = _build_task_studio_player_catalog(request, target_user)
+    can_export_to_club = bool(task and _is_admin_user(request.user))
+    club_sessions = []
+    if can_export_to_club:
+        sessions = list(
+            TrainingSession.objects
+            .select_related('microcycle__team')
+            .order_by('-session_date', '-id')[:220]
+        )
+        team_ids = [int(getattr(getattr(session, 'microcycle', None), 'team_id', 0) or 0) for session in sessions]
+        workspace_map = {
+            int(item.primary_team_id): item
+            for item in Workspace.objects.filter(kind=Workspace.KIND_CLUB, primary_team_id__in=[tid for tid in team_ids if tid])
+        }
+        for session in sessions:
+            team = getattr(getattr(session, 'microcycle', None), 'team', None)
+            if not team:
+                continue
+            ws = workspace_map.get(int(team.id))
+            if not ws:
+                continue
+            date_label = session.session_date.strftime('%d/%m/%Y') if session.session_date else ''
+            focus = str(session.focus or '').strip()
+            club_sessions.append(
+                {
+                    'id': session.id,
+                    'label': f'{ws.name} · {date_label} · {focus}',
+                }
+            )
     available_players = list(
         TaskStudioRosterPlayer.objects
         .filter(owner=target_user, is_active=True)
@@ -13447,6 +13475,8 @@ def task_studio_task_builder_page(request, task_id=None):
             'error': error,
             'task_blocks': SessionTask.BLOCK_CHOICES,
             'all_sessions': [],
+            'can_export_to_club': can_export_to_club,
+            'club_sessions': club_sessions,
             'task_surface_choices': TASK_SURFACE_CHOICES,
             'task_pitch_choices': TASK_PITCH_FORMAT_CHOICES,
             'task_complexity_choices': TASK_COMPLEXITY_CHOICES,
@@ -13538,6 +13568,48 @@ def task_studio_task_duplicate_page(request, task_id):
     clone = _clone_task_studio_task(task)
     request.session['task_studio_feedback'] = f'Tarea duplicada: {clone.title}.'
     return redirect(reverse('task-studio-task-edit', args=[clone.id]) + _task_studio_query_suffix(owner, request.user))
+
+
+@login_required
+@require_POST
+def task_studio_task_export_to_session(request, task_id):
+    forbidden = _forbid_if_no_task_studio_access(request.user)
+    if forbidden:
+        return forbidden
+    if not _is_admin_user(request.user):
+        return HttpResponse('No tienes permisos para exportar tareas a un cliente.', status=403)
+    task = _task_studio_task_for_request(request, task_id)
+    if not task:
+        raise Http404('Tarea no encontrada')
+    session_id = _parse_int(request.POST.get('target_session_id'))
+    target_session = (
+        TrainingSession.objects
+        .select_related('microcycle__team')
+        .filter(id=session_id)
+        .first()
+    )
+    if not target_session:
+        return HttpResponse('Sesión no encontrada.', status=404)
+    team = getattr(getattr(target_session, 'microcycle', None), 'team', None)
+    workspace = Workspace.objects.filter(kind=Workspace.KIND_CLUB, primary_team=team, is_active=True).first() if team else None
+    if not workspace:
+        return HttpResponse('No se encontró el cliente club asociado a esa sesión.', status=400)
+    order = (SessionTask.objects.filter(session=target_session).aggregate(Max('order')).get('order__max') or 0) + 1
+    new_task = SessionTask.objects.create(
+        session=target_session,
+        title=str(task.title or 'Tarea')[:160],
+        block=task.block,
+        duration_minutes=int(task.duration_minutes or 15),
+        objective=str(task.objective or '')[:180],
+        coaching_points=str(task.coaching_points or ''),
+        confrontation_rules=str(task.confrontation_rules or ''),
+        tactical_layout=copy.deepcopy(task.tactical_layout) if isinstance(task.tactical_layout, dict) else {},
+        status=SessionTask.STATUS_PLANNED,
+        order=order,
+        notes=f'Importada desde Task Studio ({task.owner.username})',
+    )
+    request.session['active_workspace_id'] = workspace.id
+    return redirect(reverse('sessions-task-edit', args=[new_task.id]))
 
 
 @csrf_exempt

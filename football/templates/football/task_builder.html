@@ -752,6 +752,24 @@
       {% if feedback %}<div class="alert ok">{{ feedback }}</div>{% endif %}
       {% if error %}<div class="alert err">{{ error }}</div>{% endif %}
       <div class="alert warn" id="task-builder-draft-alert" hidden></div>
+      {% if scope_key == 'task_studio' and task and can_export_to_club and club_sessions %}
+      <div class="alert" style="display:flex; align-items:center; justify-content:space-between; gap:0.75rem; flex-wrap:wrap;">
+        <div>
+          <strong>Exportar</strong>
+          <span class="meta" style="display:block; margin-top:0.15rem;">Copia esta tarea a una sesión de un cliente Club (para verla en Entrenamiento).</span>
+        </div>
+        <form method="post" action="{% url 'task-studio-task-export' task.id %}" style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+          {% csrf_token %}
+          <select name="target_session_id" required>
+            <option value="">Selecciona sesión…</option>
+            {% for item in club_sessions %}
+            <option value="{{ item.id }}">{{ item.label }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="button">Copiar a sesión</button>
+        </form>
+      </div>
+      {% endif %}
 
       <form
         method="post"
