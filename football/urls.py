@@ -21,6 +21,7 @@ urlpatterns = [
     path('api/share/revoke/<str:token>/', views.share_link_revoke, name='share-link-revoke'),
     path('coach/', views.coach_overview_page, name='coach-detail'),
     path('player/<int:player_id>/', views.player_detail_page, name='player-detail'),
+    path('player/<int:player_id>/photo/', views.player_photo_file, name='player-photo-file'),
     path('player/<int:player_id>/pdf/', views.player_pdf, name='player-pdf'),
     path('player/<int:player_id>/presentacion/', views.player_presentation, name='player-presentation'),
     path('player/<int:player_id>/match/<int:match_id>/', views.player_match_stats_page, name='player-match-stats'),

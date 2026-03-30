@@ -707,11 +707,53 @@ def save_player_photo(player, uploaded_photo):
         return ''
 
 
+@login_required
+def player_photo_file(request, player_id):
+    primary_team = _get_player_team_for_request(request)
+    if not primary_team:
+        raise Http404('Equipo principal no configurado')
+    player = Player.objects.filter(id=player_id, team=primary_team).first()
+    if not player:
+        raise Http404('Jugador no encontrado')
+    forbidden = _forbid_if_no_player_access(request.user, player, primary_team=primary_team)
+    if forbidden:
+        return forbidden
+    storage_name = ''
+    for candidate in _player_photo_storage_candidates(player):
+        try:
+            if default_storage.exists(candidate):
+                storage_name = candidate
+                break
+        except Exception:
+            continue
+    if not storage_name:
+        raise Http404('Foto no disponible')
+    try:
+        file_field = default_storage.open(storage_name, 'rb')
+    except Exception:
+        return HttpResponse('No se pudo abrir la foto del jugador.', status=500)
+    extension = Path(storage_name).suffix.lower()
+    content_type = {
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.webp': 'image/webp',
+        '.gif': 'image/gif',
+    }.get(extension, 'application/octet-stream')
+    response = FileResponse(file_field, content_type=content_type)
+    response['Content-Disposition'] = f'inline; filename="{Path(storage_name).name}"'
+    response['Cache-Control'] = 'private, max-age=600'
+    return response
+
+
 def resolve_player_photo_url(request, player):
     for storage_name in _player_photo_storage_candidates(player):
         try:
             if default_storage.exists(storage_name):
-                return _build_public_media_url(request, default_storage.url(storage_name))
+                url = reverse('player-photo-file', args=[player.id])
+                if request is None:
+                    return url
+                return request.build_absolute_uri(url)
         except Exception:
             logger.exception('No se pudo resolver la foto subida del jugador %s', getattr(player, 'id', ''))
     static_path = resolve_player_photo_static_path(player)
