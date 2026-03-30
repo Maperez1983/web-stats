@@ -746,7 +746,8 @@
           if (/^\\d+$/.test(raw)) return `J${raw}`;
           return raw;
         };
-        if (!nextMatch) {
+        const status = String(nextMatch?.status || '').trim().toLowerCase();
+        if (!nextMatch || status !== 'next') {
           container.innerHTML = `
             <p><strong>Próximo rival</strong></p>
             <p>Rival por confirmar</p>

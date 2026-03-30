@@ -159,15 +159,18 @@ def extract_next_match_from_classification(html: str) -> Optional[Dict[str, str]
     blocks = soup.select("h3")
     today = datetime.now().date()
     candidates: List[Dict[str, str]] = []
+    result_pattern = re.compile(r"\b\d{1,2}\s*-\s*\d{1,2}\b")
+    time_pattern = re.compile(r"\b\d{1,2}:\d{2}\b")
     for heading in blocks:
         text = heading.get_text(strip=True)
         round_match = re.search(r"Jornada\s*(\d+)", text, re.IGNORECASE)
-        date_match = re.search(r"\((\d{2}-\d{2}-\d{4})\)", text)
+        date_match = re.search(r"\((\d{2}[/-]\d{2}[/-]\d{4})\)", text)
         round_number = round_match.group(1) if round_match else None
         date_iso = None
         if date_match:
             try:
-                date_iso = datetime.strptime(date_match.group(1), "%d-%m-%Y").date().isoformat()
+                raw_date = date_match.group(1).replace("/", "-")
+                date_iso = datetime.strptime(raw_date, "%d-%m-%Y").date().isoformat()
             except ValueError:
                 date_iso = None
         table = heading.find_next("table")
@@ -182,8 +185,9 @@ def extract_next_match_from_classification(html: str) -> Optional[Dict[str, str]
             away_name = cells[2].get_text(" ", strip=True)
             home_norm = normalize_text(home_name)
             away_norm = normalize_text(away_name)
-            total_score_digits = re.search(r"\d", score_text)
-            is_future = not bool(total_score_digits)
+            # En RFAF el "marcador" para partidos futuros suele ser la hora (p.e. 18:00),
+            # que contiene dígitos pero NO es un resultado. Detectamos resultados explícitos "1-0".
+            is_future = not bool(result_pattern.search(score_text))
             if "benagalbon" not in home_norm and "benagalbon" not in away_norm:
                 continue
             is_home = "benagalbon" in home_norm
@@ -192,6 +196,7 @@ def extract_next_match_from_classification(html: str) -> Optional[Dict[str, str]
             payload = {
                 "round": round_number or "",
                 "date": date_iso,
+                "time": (time_pattern.search(score_text).group(0) if time_pattern.search(score_text) else ""),
                 "location": "",
                 "opponent": {"name": opponent.title()},
                 "home": is_home,
@@ -229,6 +234,29 @@ def extract_next_match_from_classification(html: str) -> Optional[Dict[str, str]
 
 
 def extract_next_jornada(html: str) -> Optional[int]:
+    # Intentar inferir la próxima jornada desde la tabla (PJ del Benagalbón + 1).
+    try:
+        soup = BeautifulSoup(html, "html.parser")
+        table = (
+            soup.select_one("#CL_Detalle table.table.table-striped")
+            or soup.select_one("#CL_Detalle table")
+            or soup.select_one("#CL_Resumen table.table.table-striped")
+        )
+        if table:
+            for row in table.select("tr"):
+                cells = row.find_all(["td", "th"])
+                if len(cells) < 14:
+                    continue
+                team_name = _team_text(cells[2])
+                if "benagalbon" not in normalize_text(team_name):
+                    continue
+                home_j = _parse_int(cells[4].get_text(strip=True))
+                away_j = _parse_int(cells[8].get_text(strip=True))
+                played = home_j + away_j
+                if played > 0:
+                    return played + 1
+    except Exception:
+        pass
     match = re.search(r"IrA\((\d+)\)", html)
     if match:
         return int(match.group(1))

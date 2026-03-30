@@ -227,10 +227,11 @@
         `;
       }
 
-      function renderNextMatch(nextMatch = {}) {
+      function renderNextMatch(nextMatch) {
         const target = document.getElementById('next-match');
         if (!target) return;
-        if (!nextMatch || !Object.keys(nextMatch).length) {
+        const status = String(nextMatch?.status || '').trim().toLowerCase();
+        if (!nextMatch || status !== 'next') {
           target.innerHTML = '<div class="empty">No hay próximo partido configurado.</div>';
           return;
         }
@@ -252,7 +253,7 @@
         .then((payload) => {
           const team = payload.team || {};
           const standings = payload.standings || [];
-          const nextMatch = payload.next_match || {};
+          const nextMatch = payload.next_match;
           const heroName = document.getElementById('hero-team-name');
           const heroGroup = document.getElementById('hero-group-name');
           if (heroName) heroName.textContent = team.name || 'C.D. Benagalbón';
@@ -262,7 +263,7 @@
         })
         .catch(() => {
           renderStandings([]);
-          renderNextMatch({});
+          renderNextMatch(null);
         });
     </script>
   </body>

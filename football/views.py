@@ -4030,6 +4030,9 @@ def dashboard_data(request):
     # Product rule: Home prioritizes Convocatoria only when it provides a reliable scheduled match.
     if _next_match_payload_is_reliable(convocation_next_match):
         next_match = _enrich_next_match_payload_with_crests(convocation_next_match, standings)
+    # Evitar mostrar el "último partido" como si fuera el próximo rival.
+    if not _next_match_payload_is_reliable(next_match):
+        next_match = None
     team_metrics = compute_team_metrics(primary_team)
     player_metrics = compute_player_metrics(primary_team)
     player_cards = compute_player_cards(primary_team)
