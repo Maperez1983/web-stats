@@ -323,8 +323,8 @@
         position: relative;
       }
       .icon-btn {
-        width: 48px;
-        height: 44px;
+        width: 60px;
+        height: 54px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -336,8 +336,8 @@
         transition: transform 0.12s ease, background 0.12s ease;
       }
       .icon-btn svg {
-        width: 24px;
-        height: 24px;
+        width: 30px;
+        height: 30px;
         display: block;
         fill: currentColor;
       }
@@ -423,6 +423,26 @@
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 10px;
+      }
+      .pattern-fields.is-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+      .pattern-options {
+        display: grid;
+        gap: 8px;
+      }
+      .pattern-check {
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.82);
+      }
+      .pattern-check input {
+        width: 18px;
+        height: 18px;
       }
       .pattern-field {
         display: grid;
@@ -1098,10 +1118,11 @@
         {% csrf_token %}
         <input type="hidden" name="planner_action" value="create_draw_task" />
         <input type="hidden" name="draw_canvas_state" id="draw-canvas-state" value="{{ initial.canvas_state|escape }}" />
-        <input type="hidden" name="draw_canvas_width" id="draw-canvas-width" value="{{ initial.canvas_width }}" />
-        <input type="hidden" name="draw_canvas_height" id="draw-canvas-height" value="{{ initial.canvas_height }}" />
-        <input type="hidden" name="draw_canvas_preview_data" id="draw-canvas-preview-data" />
-        <input type="hidden" name="draw_task_pitch_orientation" id="draw-task-pitch-orientation" value="{{ initial.pitch_orientation|default:'landscape' }}" />
+	        <input type="hidden" name="draw_canvas_width" id="draw-canvas-width" value="{{ initial.canvas_width }}" />
+	        <input type="hidden" name="draw_canvas_height" id="draw-canvas-height" value="{{ initial.canvas_height }}" />
+	        <input type="hidden" name="draw_canvas_preview_data" id="draw-canvas-preview-data" />
+	        <input type="hidden" name="draw_canvas_timeline_previews" id="draw-canvas-timeline-previews" />
+	        <input type="hidden" name="draw_task_pitch_orientation" id="draw-task-pitch-orientation" value="{{ initial.pitch_orientation|default:'landscape' }}" />
         <input type="hidden" name="draw_task_pitch_zoom" id="draw-task-pitch-zoom" value="{{ initial.pitch_zoom|default:'1.00' }}" />
         <div id="assigned-players-hidden" style="display:none;"></div>
 
@@ -1232,8 +1253,9 @@
 		                      <button type="button" data-command="align_y">Alinear centro Y <span class="shortcut">⌘/Ctrl</span></button>
 		                      <button type="button" data-command="distribute_x">Distribuir X <span class="shortcut">⇧</span></button>
 		                      <button type="button" data-command="distribute_y">Distribuir Y <span class="shortcut">⇧</span></button>
-		                      <button type="button" data-command="pattern_row">Patrón en fila <span class="shortcut">↔</span></button>
-		                      <button type="button" data-command="pattern_col">Patrón en columna <span class="shortcut">↕</span></button>
+			                      <button type="button" data-command="pattern_row">Patrón en fila <span class="shortcut">↔</span></button>
+			                      <button type="button" data-command="pattern_col">Patrón en columna <span class="shortcut">↕</span></button>
+			                      <button type="button" data-command="pattern_grid">Patrón en rejilla <span class="shortcut">⌗</span></button>
 		                      <button type="button" data-command="front">Traer al frente <span class="shortcut">⌘]</span></button>
 		                      <button type="button" data-command="back">Enviar atrás <span class="shortcut">⌘[</span></button>
 		                      <button type="button" data-command="lock">Bloquear/Desbloquear <span class="shortcut">⌘L</span></button>
@@ -1242,10 +1264,11 @@
 		                      <button type="button" data-command="grid_size">Tamaño rejilla <span class="shortcut">S/M/L</span></button>
 		                      <button type="button" data-command="group">Agrupar <span class="shortcut">⌘G</span></button>
 		                      <button type="button" data-command="ungroup">Desagrupar <span class="shortcut">⌘⇧G</span></button>
+		                      <button type="button" data-command="clear">Limpiar pizarra</button>
 			                    </div>
 			                    <div class="pattern-popover" id="task-pattern-popover" hidden>
 			                      <h4 id="task-pattern-title">Patrón</h4>
-			                      <div class="pattern-fields">
+			                      <div class="pattern-fields" id="task-pattern-fields-line">
 			                        <div class="pattern-field">
 			                          Copias
 			                          <input type="number" id="task-pattern-count" min="1" max="25" step="1" value="4" />
@@ -1254,6 +1277,38 @@
 			                          Separación (px)
 			                          <input type="number" id="task-pattern-spacing" min="8" max="400" step="1" value="40" />
 			                        </div>
+			                      </div>
+			                      <div class="pattern-fields is-grid" id="task-pattern-fields-grid" hidden>
+			                        <div class="pattern-field">
+			                          Filas
+			                          <input type="number" id="task-pattern-rows" min="1" max="12" step="1" value="3" />
+			                        </div>
+			                        <div class="pattern-field">
+			                          Columnas
+			                          <input type="number" id="task-pattern-cols" min="1" max="12" step="1" value="3" />
+			                        </div>
+			                        <div class="pattern-field">
+			                          Separación X (px)
+			                          <input type="number" id="task-pattern-spacing-x" min="8" max="400" step="1" value="40" />
+			                        </div>
+			                        <div class="pattern-field">
+			                          Separación Y (px)
+			                          <input type="number" id="task-pattern-spacing-y" min="8" max="400" step="1" value="40" />
+			                        </div>
+			                      </div>
+			                      <div class="pattern-options">
+			                        <label class="pattern-check">
+			                          <input type="checkbox" id="task-pattern-center" checked />
+			                          Centrar en original
+			                        </label>
+			                        <label class="pattern-check">
+			                          <input type="checkbox" id="task-pattern-invert-x" />
+			                          Invertir X
+			                        </label>
+			                        <label class="pattern-check">
+			                          <input type="checkbox" id="task-pattern-invert-y" />
+			                          Invertir Y
+			                        </label>
 			                      </div>
 			                      <div class="pattern-actions">
 			                        <button type="button" id="task-pattern-cancel">Cancelar</button>
@@ -1278,9 +1333,7 @@
                   <button type="button" data-add="cone">Cono</button>
                   <button type="button" data-add="zone">Zona</button>
                   <button type="button" data-add="text">Texto</button>
-                  <button type="button" data-action="select">Selección</button>
                   <button type="button" data-action="duplicate">Duplicar</button>
-                  <button type="button" data-action="clear">Limpiar</button>
                 </div>
                   <div data-inspector-slot="base">
                     <div class="selection-toolbar" id="task-selection-toolbar" hidden>

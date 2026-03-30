@@ -514,7 +514,8 @@
     const stateInput = document.getElementById('draw-canvas-state');
     const widthInput = document.getElementById('draw-canvas-width');
     const heightInput = document.getElementById('draw-canvas-height');
-    const previewInput = document.getElementById('draw-canvas-preview-data');
+	    const previewInput = document.getElementById('draw-canvas-preview-data');
+	    const timelinePreviewsInput = document.getElementById('draw-canvas-timeline-previews');
     const livePreviewImg = document.getElementById('task-live-preview');
     const livePreviewPlaceholder = document.getElementById('task-live-preview-placeholder');
     const playerCountInput = form.querySelector('[name="draw_task_player_count"]');
@@ -537,8 +538,17 @@
 		    const commandMenu = document.getElementById('task-command-menu');
 		    const patternPopover = document.getElementById('task-pattern-popover');
 		    const patternTitle = document.getElementById('task-pattern-title');
+		    const patternFieldsLine = document.getElementById('task-pattern-fields-line');
+		    const patternFieldsGrid = document.getElementById('task-pattern-fields-grid');
 		    const patternCountInput = document.getElementById('task-pattern-count');
 		    const patternSpacingInput = document.getElementById('task-pattern-spacing');
+		    const patternRowsInput = document.getElementById('task-pattern-rows');
+		    const patternColsInput = document.getElementById('task-pattern-cols');
+		    const patternSpacingXInput = document.getElementById('task-pattern-spacing-x');
+		    const patternSpacingYInput = document.getElementById('task-pattern-spacing-y');
+		    const patternCenterInput = document.getElementById('task-pattern-center');
+		    const patternInvertXInput = document.getElementById('task-pattern-invert-x');
+		    const patternInvertYInput = document.getElementById('task-pattern-invert-y');
 		    const patternApplyBtn = document.getElementById('task-pattern-apply');
 		    const patternCancelBtn = document.getElementById('task-pattern-cancel');
 		    const layersList = document.getElementById('task-layers-list');
@@ -1317,6 +1327,75 @@
 		        resolve(null);
 		      }
 		    });
+		    const patternDuplicateGrid = async (options = {}) => {
+		      const sources = getSelectionObjects();
+		      if (!sources.length) {
+		        setStatus('Selecciona uno o varios elementos para crear un patrón.', true);
+		        return;
+		      }
+		      const rows = clamp(Number.parseInt(String(options.rows || ''), 10) || 0, 1, 12);
+		      const cols = clamp(Number.parseInt(String(options.cols || ''), 10) || 0, 1, 12);
+		      const spacingX = clamp(Number.parseInt(String(options.spacingX || ''), 10) || 0, 8, 400);
+		      const spacingY = clamp(Number.parseInt(String(options.spacingY || ''), 10) || 0, 8, 400);
+		      const center = !!options.center;
+		      const invertX = !!options.invertX;
+		      const invertY = !!options.invertY;
+		      if (!rows || !cols || !spacingX || !spacingY) {
+		        setStatus('Valores de patrón no válidos.', true);
+		        return;
+		      }
+		      const xSign = invertX ? -1 : 1;
+		      const ySign = invertY ? -1 : 1;
+		      const xIndices = [];
+		      const yIndices = [];
+		      if (center) {
+		        const left = Math.floor((cols - 1) / 2);
+		        const right = (cols - 1) - left;
+		        for (let x = -left; x <= right; x += 1) xIndices.push(x);
+		        const up = Math.floor((rows - 1) / 2);
+		        const down = (rows - 1) - up;
+		        for (let y = -up; y <= down; y += 1) yIndices.push(y);
+		      } else {
+		        for (let x = 0; x < cols; x += 1) xIndices.push(x);
+		        for (let y = 0; y < rows; y += 1) yIndices.push(y);
+		      }
+
+		      const added = [];
+		      for (const yIndex of yIndices) {
+		        for (const xIndex of xIndices) {
+		          if (xIndex === 0 && yIndex === 0) continue;
+		          const offsetX = xIndex * spacingX * xSign;
+		          const offsetY = yIndex * spacingY * ySign;
+		          const clones = await Promise.all(sources.map((obj) => cloneObjectAsync(obj)));
+		          clones.filter(Boolean).forEach((cloned) => {
+		            cloned.set({
+		              left: (Number(cloned.left) || 0) + offsetX,
+		              top: (Number(cloned.top) || 0) + offsetY,
+		            });
+		            normalizeEditableObject(cloned);
+		            if (Array.isArray(cloned._objects)) cloned._objects.forEach((obj) => normalizeEditableObject(obj));
+		            canvas.add(cloned);
+		            if (isBackgroundShape(cloned)) canvas.sendToBack(cloned);
+		            cloned.setCoords();
+		            added.push(cloned);
+		          });
+		        }
+		      }
+
+		      if (!added.length) {
+		        setStatus('No se pudo crear el patrón en rejilla.', true);
+		        return;
+		      }
+		      canvas.discardActiveObject();
+		      if (added.length === 1) canvas.setActiveObject(added[0]);
+		      else canvas.setActiveObject(new fabric.ActiveSelection(added, { canvas }));
+		      canvas.requestRenderAll();
+		      persistActiveStepSnapshot();
+		      pushHistory();
+		      syncInspector();
+		      refreshLivePreview();
+		      setStatus('Patrón en rejilla creado.');
+		    };
 		    const patternDuplicate = async (axis, options = {}) => {
 		      const active = canvas.getActiveObject();
 		      if (!active) {
@@ -1352,18 +1431,33 @@
 		        return;
 		      }
 
-		      const dx = axis === 'x' ? spacing : 0;
-		      const dy = axis === 'y' ? spacing : 0;
+		      const center = !!options?.center;
+		      const invertX = !!options?.invertX;
+		      const invertY = !!options?.invertY;
+		      const sign = axis === 'x' ? (invertX ? -1 : 1) : (invertY ? -1 : 1);
+		      const offsets = [];
+		      if (center) {
+		        const left = Math.floor(count / 2);
+		        const right = count - left;
+		        for (let i = -left; i <= right; i += 1) {
+		          if (i === 0) continue;
+		          offsets.push(i);
+		        }
+		      } else {
+		        for (let i = 1; i <= count; i += 1) offsets.push(i);
+		      }
+		      const dx = axis === 'x' ? spacing * sign : 0;
+		      const dy = axis === 'y' ? spacing * sign : 0;
 		      const sources = getSelectionObjects();
 		      if (!sources.length) return;
 
 		      const added = [];
-		      for (let i = 1; i <= count; i += 1) {
+		      for (const step of offsets) {
 		        const clones = await Promise.all(sources.map((obj) => cloneObjectAsync(obj)));
 		        clones.filter(Boolean).forEach((cloned) => {
 		          cloned.set({
-		            left: (Number(cloned.left) || 0) + (dx * i),
-		            top: (Number(cloned.top) || 0) + (dy * i),
+		            left: (Number(cloned.left) || 0) + (dx * step),
+		            top: (Number(cloned.top) || 0) + (dy * step),
 		          });
 		          normalizeEditableObject(cloned);
 		          if (Array.isArray(cloned._objects)) cloned._objects.forEach((obj) => normalizeEditableObject(obj));
@@ -1449,6 +1543,7 @@
 		      if (!commandMenu) return;
 		      commandMenu.hidden = !open;
 		    };
+		    let patternMode = 'line';
 		    let patternAxis = 'x';
 		    const setPatternPopoverOpen = (open) => {
 		      if (!patternPopover) return;
@@ -1462,13 +1557,35 @@
 		      const base = axis === 'x' ? (bounds?.width || 40) : (bounds?.height || 40);
 		      return clamp(Math.round(Number(base || 40) + 12), 12, 320);
 		    };
-		    const openPatternPopover = (axis) => {
-		      patternAxis = axis === 'y' ? 'y' : 'x';
-		      if (patternTitle) patternTitle.textContent = patternAxis === 'x' ? 'Patrón en fila' : 'Patrón en columna';
-		      if (patternSpacingInput) patternSpacingInput.value = String(suggestPatternSpacing(patternAxis));
+		    const setPatternUiMode = (mode) => {
+		      patternMode = mode === 'grid' ? 'grid' : 'line';
+		      if (patternFieldsLine) patternFieldsLine.hidden = patternMode !== 'line';
+		      if (patternFieldsGrid) patternFieldsGrid.hidden = patternMode !== 'grid';
+		      const showXInvert = patternMode === 'grid' || patternAxis === 'x';
+		      const showYInvert = patternMode === 'grid' || patternAxis === 'y';
+		      if (patternInvertXInput?.parentElement) patternInvertXInput.parentElement.hidden = !showXInvert;
+		      if (patternInvertYInput?.parentElement) patternInvertYInput.parentElement.hidden = !showYInvert;
+		    };
+		    const openPatternPopover = (axisOrGrid) => {
+		      if (axisOrGrid === 'grid') {
+		        patternAxis = 'x';
+		        if (patternTitle) patternTitle.textContent = 'Patrón en rejilla';
+		        setPatternUiMode('grid');
+		        if (patternSpacingXInput) patternSpacingXInput.value = String(suggestPatternSpacing('x'));
+		        if (patternSpacingYInput) patternSpacingYInput.value = String(suggestPatternSpacing('y'));
+		      } else {
+		        patternAxis = axisOrGrid === 'y' ? 'y' : 'x';
+		        if (patternTitle) patternTitle.textContent = patternAxis === 'x' ? 'Patrón en fila' : 'Patrón en columna';
+		        setPatternUiMode('line');
+		        if (patternSpacingInput) patternSpacingInput.value = String(suggestPatternSpacing(patternAxis));
+		      }
 		      setPatternPopoverOpen(true);
 		      window.setTimeout(() => {
-		        try { patternCountInput?.focus(); patternCountInput?.select(); } catch (error) { /* ignore */ }
+		        try {
+		          const target = patternMode === 'grid' ? patternRowsInput : patternCountInput;
+		          target?.focus();
+		          target?.select?.();
+		        } catch (error) { /* ignore */ }
 		      }, 0);
 		    };
 		    commandMoreBtn?.addEventListener('click', (event) => {
@@ -1488,6 +1605,7 @@
 		      else if (command === 'distribute_y') distributeSelection('y');
 		      else if (command === 'pattern_row') openPatternPopover('x');
 		      else if (command === 'pattern_col') openPatternPopover('y');
+		      else if (command === 'pattern_grid') openPatternPopover('grid');
 		      else if (command === 'front') setSelectionLayer('front');
 		      else if (command === 'back') setSelectionLayer('back');
 		      else if (command === 'lock') toggleLockSelection();
@@ -1496,12 +1614,30 @@
 		      else if (command === 'grid_size') cycleGridSize();
 		      else if (command === 'group') groupSelection();
 		      else if (command === 'ungroup') ungroupSelection();
+		      else if (command === 'clear') handleCanvasAction('clear');
 		    });
 		    patternCancelBtn?.addEventListener('click', (event) => {
 		      event.preventDefault();
 		      closePatternPopover();
 		    });
 		    const applyPatternFromUi = async () => {
+		      const center = !!patternCenterInput?.checked;
+		      const invertX = !!patternInvertXInput?.checked;
+		      const invertY = !!patternInvertYInput?.checked;
+		      if (patternMode === 'grid') {
+		        const rows = clamp(Number.parseInt(String(patternRowsInput?.value || ''), 10) || 0, 1, 12);
+		        const cols = clamp(Number.parseInt(String(patternColsInput?.value || ''), 10) || 0, 1, 12);
+		        const spacingX = clamp(Number.parseInt(String(patternSpacingXInput?.value || ''), 10) || 0, 8, 400);
+		        const spacingY = clamp(Number.parseInt(String(patternSpacingYInput?.value || ''), 10) || 0, 8, 400);
+		        if (!rows || !cols || !spacingX || !spacingY) {
+		          setStatus('Valores de patrón no válidos.', true);
+		          return;
+		        }
+		        closePatternPopover();
+		        await patternDuplicateGrid({ rows, cols, spacingX, spacingY, center, invertX, invertY });
+		        return;
+		      }
+
 		      const count = clamp(Number.parseInt(String(patternCountInput?.value || ''), 10) || 0, 1, 25);
 		      const spacing = clamp(Number.parseInt(String(patternSpacingInput?.value || ''), 10) || 0, 8, 400);
 		      if (!count || !spacing) {
@@ -1509,7 +1645,7 @@
 		        return;
 		      }
 		      closePatternPopover();
-		      await patternDuplicate(patternAxis, { count, spacing });
+		      await patternDuplicate(patternAxis, { count, spacing, center, invertX, invertY });
 		    };
 		    patternApplyBtn?.addEventListener('click', (event) => {
 		      event.preventDefault();
@@ -2709,6 +2845,7 @@
 	      const dataUrl = await buildPreviewData(previewOptions);
 	      if (previewInput) previewInput.value = dataUrl;
 	      if (applyLive) applyLivePreview(dataUrl);
+	      if (timelinePreviewsInput) timelinePreviewsInput.value = '';
 	      return dataUrl;
 	    };
     const submitPrintPreview = async (style) => {
@@ -2734,7 +2871,7 @@
       }
 
 	      await syncHiddenBuilderFields({
-	        previewOptions: { maxWidth: 2400, mime: 'image/jpeg', quality: 0.92 },
+	        previewOptions: { maxWidth: 2600, mime: 'image/jpeg', quality: 0.94 },
 	        applyLivePreview: false,
 	      });
       const tempForm = document.createElement('form');
@@ -3686,16 +3823,21 @@
       }, 140);
     });
 
-    form.addEventListener('submit', async (event) => {
+	    form.addEventListener('submit', async (event) => {
       if (form.dataset.previewReady === '1') {
         form.dataset.previewReady = '';
         return;
       }
-      event.preventDefault();
-      persistDraftNow('submit');
-      await syncHiddenBuilderFields();
-      form.dataset.previewReady = '1';
-      form.requestSubmit();
-    });
+	      event.preventDefault();
+	      persistDraftNow('submit');
+	      // Enviar preview más grande al guardar para que los PDFs de tareas guardadas salgan nítidos.
+	      const hdWidth = pitchOrientation === 'portrait' ? 3200 : 2600;
+	      await syncHiddenBuilderFields({
+	        previewOptions: { maxWidth: hdWidth, mime: 'image/jpeg', quality: 0.94 },
+	        applyLivePreview: false,
+	      });
+	      form.dataset.previewReady = '1';
+	      form.requestSubmit();
+	    });
   };
 })();

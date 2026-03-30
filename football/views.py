@@ -6830,6 +6830,9 @@ def _normalize_task_pdf_meta(meta):
         normalized = lowered.replace(' ', '_').replace('-', '_')
         if normalized in mapping:
             return mapping.get(normalized, raw)
+        normalized_key = _normalize_meta_key(raw)
+        if normalized_key in mapping:
+            return mapping.get(normalized_key, raw)
         return raw
 
     surface_map = {key: label for key, label in TASK_SURFACE_CHOICES}
@@ -6845,6 +6848,23 @@ def _normalize_task_pdf_meta(meta):
     dynamics_map = {key: label for key, label in TASK_DYNAMICS_CHOICES}
     structure_map = {key: label for key, label in TASK_STRUCTURE_CHOICES}
     meta = _normalize_meta_dict(meta or {})
+    # Compat: algunas importaciones/analíticas guardan claves en castellano.
+    # Unificamos para que el PDF siempre muestre etiquetas correctas.
+    key_aliases = {
+        'estrategia': 'strategy',
+        'dinamica': 'dynamics',
+        'situacion_de_juego': 'structure',
+        'situacion_juego': 'structure',
+        'habilidades_coordinativas': 'coordination_skills',
+        'habilidades_coordinativas_y': 'coordination_skills',
+        'intencion_accion_tactica': 'tactical_intent',
+        'intencion_accion': 'tactical_intent',
+        'coordinacion': 'coordination',
+        'complejidad': 'complexity',
+    }
+    for alias_key, canonical_key in key_aliases.items():
+        if alias_key in meta and canonical_key not in meta:
+            meta[canonical_key] = meta.get(alias_key)
     if not meta:
         return {}
     if not meta.get('strategy') and meta.get('training_type'):
