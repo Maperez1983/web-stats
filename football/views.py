@@ -6729,6 +6729,20 @@ def _build_task_pdf_tokens_from_canvas_state(request, canvas_state, canvas_width
 
 
 def _normalize_task_pdf_meta(meta):
+    def _map_choice(value, mapping):
+        raw = str(value or '').strip()
+        if not raw:
+            return raw
+        if raw in mapping:
+            return mapping.get(raw, raw)
+        lowered = raw.lower()
+        if lowered in mapping:
+            return mapping.get(lowered, raw)
+        normalized = lowered.replace(' ', '_').replace('-', '_')
+        if normalized in mapping:
+            return mapping.get(normalized, raw)
+        return raw
+
     surface_map = {key: label for key, label in TASK_SURFACE_CHOICES}
     pitch_map = {key: label for key, label in TASK_PITCH_FORMAT_CHOICES}
     phase_map = {key: label for key, label in TASK_GAME_PHASE_CHOICES}
@@ -6743,27 +6757,27 @@ def _normalize_task_pdf_meta(meta):
     structure_map = {key: label for key, label in TASK_STRUCTURE_CHOICES}
     meta = dict(meta or {})
     if meta.get('surface'):
-        meta['surface'] = surface_map.get(str(meta.get('surface')), str(meta.get('surface')))
+        meta['surface'] = _map_choice(meta.get('surface'), surface_map) or str(meta.get('surface'))
     if meta.get('pitch_format'):
-        meta['pitch_format'] = pitch_map.get(str(meta.get('pitch_format')), str(meta.get('pitch_format')))
+        meta['pitch_format'] = _map_choice(meta.get('pitch_format'), pitch_map) or str(meta.get('pitch_format'))
     if meta.get('game_phase'):
-        meta['game_phase'] = phase_map.get(str(meta.get('game_phase')), str(meta.get('game_phase')))
+        meta['game_phase'] = _map_choice(meta.get('game_phase'), phase_map) or str(meta.get('game_phase'))
     if meta.get('methodology'):
-        meta['methodology'] = methodology_map.get(str(meta.get('methodology')), str(meta.get('methodology')))
+        meta['methodology'] = _map_choice(meta.get('methodology'), methodology_map) or str(meta.get('methodology'))
     if meta.get('complexity'):
-        meta['complexity'] = complexity_map.get(str(meta.get('complexity')), str(meta.get('complexity')))
+        meta['complexity'] = _map_choice(meta.get('complexity'), complexity_map) or str(meta.get('complexity'))
     if meta.get('strategy'):
-        meta['strategy'] = strategy_map.get(str(meta.get('strategy')), str(meta.get('strategy')))
+        meta['strategy'] = _map_choice(meta.get('strategy'), strategy_map) or str(meta.get('strategy'))
     if meta.get('coordination'):
-        meta['coordination'] = coordination_map.get(str(meta.get('coordination')), str(meta.get('coordination')))
+        meta['coordination'] = _map_choice(meta.get('coordination'), coordination_map) or str(meta.get('coordination'))
     if meta.get('coordination_skills'):
-        meta['coordination_skills'] = coord_skills_map.get(str(meta.get('coordination_skills')), str(meta.get('coordination_skills')))
+        meta['coordination_skills'] = _map_choice(meta.get('coordination_skills'), coord_skills_map) or str(meta.get('coordination_skills'))
     if meta.get('tactical_intent'):
-        meta['tactical_intent'] = tactical_intent_map.get(str(meta.get('tactical_intent')), str(meta.get('tactical_intent')))
+        meta['tactical_intent'] = _map_choice(meta.get('tactical_intent'), tactical_intent_map) or str(meta.get('tactical_intent'))
     if meta.get('dynamics'):
-        meta['dynamics'] = dynamics_map.get(str(meta.get('dynamics')), str(meta.get('dynamics')))
+        meta['dynamics'] = _map_choice(meta.get('dynamics'), dynamics_map) or str(meta.get('dynamics'))
     if meta.get('structure'):
-        meta['structure'] = structure_map.get(str(meta.get('structure')), str(meta.get('structure')))
+        meta['structure'] = _map_choice(meta.get('structure'), structure_map) or str(meta.get('structure'))
     if isinstance(meta.get('constraints'), list):
         meta['constraints'] = [constraint_map.get(str(v), str(v)) for v in meta.get('constraints')]
     if isinstance(meta.get('category_tags'), str):
