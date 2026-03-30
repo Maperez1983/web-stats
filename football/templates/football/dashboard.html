@@ -677,7 +677,23 @@
           refreshBtn.disabled = true;
           refreshBtn.textContent = 'Actualizando…';
           try {
-            const resp = await fetch('/api/dashboard/refresh/', { credentials: 'same-origin' });
+            const readCookie = (name) => {
+              const raw = String(document.cookie || '');
+              const needle = `${name}=`;
+              return raw
+                .split(';')
+                .map((part) => part.trim())
+                .filter((part) => part.startsWith(needle))
+                .map((part) => decodeURIComponent(part.slice(needle.length)))[0] || '';
+            };
+            const csrf =
+              readCookie('webstats_csrftoken') ||
+              readCookie('csrftoken');
+            const resp = await fetch('/api/dashboard/refresh/', {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: csrf ? { 'X-CSRFToken': csrf } : {},
+            });
             const data = await resp.json().catch(() => ({}));
             if (!resp.ok) throw new Error(data.message || 'No se pudo actualizar.');
             // Evita caché en despliegues con múltiples instancias: fuerza recomputar.
