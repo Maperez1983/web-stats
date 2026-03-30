@@ -530,14 +530,15 @@
 	    const rotationInput = document.getElementById('task-rotation');
 	    const colorInput = document.getElementById('task-style-color');
 	    const strokeWidthRow = document.getElementById('task-stroke-width-row');
-	    const strokeWidthInput = document.getElementById('task-stroke-width');
-	    const strokePresetsRow = document.getElementById('task-stroke-presets');
-	    const commandBar = document.getElementById('task-command-bar');
-	    const commandMoreBtn = document.getElementById('task-command-more');
-	    const commandMenu = document.getElementById('task-command-menu');
-	    const timelineList = document.getElementById('task-timeline-list');
-    const stepTitleInput = document.getElementById('task-step-title');
-    const stepDurationInput = document.getElementById('task-step-duration');
+		    const strokeWidthInput = document.getElementById('task-stroke-width');
+		    const strokePresetsRow = document.getElementById('task-stroke-presets');
+		    const commandBar = document.getElementById('task-command-bar');
+		    const commandMoreBtn = document.getElementById('task-command-more');
+		    const commandMenu = document.getElementById('task-command-menu');
+		    const layersList = document.getElementById('task-layers-list');
+		    const timelineList = document.getElementById('task-timeline-list');
+	    const stepTitleInput = document.getElementById('task-step-title');
+	    const stepDurationInput = document.getElementById('task-step-duration');
     const addStepButton = document.getElementById('task-step-add');
     const duplicateStepButton = document.getElementById('task-step-duplicate');
     const removeStepButton = document.getElementById('task-step-remove');
@@ -679,20 +680,83 @@
     }
     if (!Array.isArray(players)) players = [];
 
-    const canvas = new fabric.Canvas(canvasEl, {
-      preserveObjectStacking: true,
-      selection: true,
-    });
+	    const canvas = new fabric.Canvas(canvasEl, {
+	      preserveObjectStacking: true,
+	      selection: true,
+	    });
 
-	    let history = [];
-      let historyIndex = -1;
-		    let pendingFactory = null;
-		    let pendingKind = '';
-		    const lastPlacedByKind = new Map();
-		    let clipboardObject = null;
-		    let pasteOffset = 0;
-		    const DRAG_MIME = 'application/x-webstats-tactical-resource';
-	    let previewRefreshTimer = null;
+	    const GRID_SIZES = [28, 40, 56];
+	    const gridPrefsKey = 'tpad_grid_prefs_v1';
+	    const readGridPrefs = () => {
+	      if (!canUseStorage) return null;
+	      try {
+	        return JSON.parse(window.localStorage.getItem(gridPrefsKey) || 'null');
+	      } catch (error) {
+	        return null;
+	      }
+	    };
+	    const writeGridPrefs = (prefs) => {
+	      if (!canUseStorage) return;
+	      try {
+	        window.localStorage.setItem(gridPrefsKey, JSON.stringify(prefs || {}));
+	      } catch (error) {
+	        // ignore
+	      }
+	    };
+	    const initialGridPrefs = readGridPrefs() || {};
+	    let gridVisible = !!initialGridPrefs.visible;
+	    let gridSnapEnabled = !!initialGridPrefs.snap;
+	    let gridSizeIndex = clamp(Number(initialGridPrefs.sizeIndex) || 1, 0, GRID_SIZES.length - 1);
+	    const gridSizePx = () => GRID_SIZES[gridSizeIndex] || 40;
+	    const syncGridUi = (options = {}) => {
+	      if (!stage) return;
+	      stage.classList.toggle('has-grid', !!gridVisible);
+	      stage.style.setProperty('--grid-size', `${gridSizePx()}px`);
+	      if (!options.silent) writeGridPrefs({ visible: gridVisible, snap: gridSnapEnabled, sizeIndex: gridSizeIndex });
+	    };
+	    const toggleGridVisible = () => {
+	      gridVisible = !gridVisible;
+	      syncGridUi();
+	      setStatus(gridVisible ? 'Rejilla activada.' : 'Rejilla oculta.');
+	    };
+	    const toggleGridSnap = () => {
+	      gridSnapEnabled = !gridSnapEnabled;
+	      syncGridUi();
+	      setStatus(gridSnapEnabled ? 'Snap a rejilla activado (Alt lo desactiva temporalmente).' : 'Snap a rejilla desactivado (Alt lo activa temporalmente).');
+	    };
+	    const cycleGridSize = () => {
+	      gridSizeIndex = (gridSizeIndex + 1) % GRID_SIZES.length;
+	      syncGridUi();
+	      const label = gridSizeIndex === 0 ? 'S' : (gridSizeIndex === 1 ? 'M' : 'L');
+	      setStatus(`Tamaño de rejilla: ${label}.`);
+	    };
+	    const shouldSnapToGridForEvent = (rawEvent) => {
+	      const alt = !!rawEvent?.altKey;
+	      return gridSnapEnabled ? !alt : alt;
+	    };
+	    const snapPointToGrid = (point) => {
+	      const size = gridSizePx();
+	      const baseX = Number(point?.x) || 0;
+	      const baseY = Number(point?.y) || 0;
+	      const snappedX = Math.round(baseX / size) * size;
+	      const snappedY = Math.round(baseY / size) * size;
+	      return {
+	        x: clamp(snappedX, 0, canvas.getWidth()),
+	        y: clamp(snappedY, 0, canvas.getHeight()),
+	      };
+	    };
+	    syncGridUi({ silent: true });
+
+		    let history = [];
+	      let historyIndex = -1;
+			    let pendingFactory = null;
+			    let pendingKind = '';
+			    const lastPlacedByKind = new Map();
+			    let clipboardObject = null;
+			    let pasteOffset = 0;
+			    let layerUidCounter = 1;
+			    const DRAG_MIME = 'application/x-webstats-tactical-resource';
+		    let previewRefreshTimer = null;
 	    let previewBuildInFlight = false;
 	    let exportInFlight = false;
     let surfacesRendered = false;
@@ -951,14 +1015,95 @@
       if ('stroke' in object && object.stroke) object.set({ stroke: colorHex });
       if ('fill' in object && object.fill !== undefined && object.fill !== '') object.set({ fill: colorHex });
     };
-    const objectLabel = (object) => {
-      const kind = safeText(object?.data?.kind).replace(/-/g, '_');
-      return RESOURCE_LABELS[kind] || 'el elemento';
-    };
-    const syncInspector = () => {
-      if (!selectionToolbar || !selectionSummary || !scaleXInput || !scaleYInput || !rotationInput || !colorInput) return;
-      const active = activeInspectableObject();
-      const enabled = !!active;
+	    const objectLabel = (object) => {
+	      const kind = safeText(object?.data?.kind).replace(/-/g, '_');
+	      return RESOURCE_LABELS[kind] || 'el elemento';
+	    };
+	    const renderLayers = () => {
+	      if (!layersList) return;
+	      const objects = (canvas.getObjects() || []).filter((obj) => obj && !obj?.data?.base);
+	      const used = new Set();
+	      objects.forEach((obj) => {
+	        obj.data = obj.data || {};
+	        const current = safeText(obj.data.layer_uid);
+	        if (!current || used.has(current)) {
+	          obj.data.layer_uid = `layer_${Date.now()}_${layerUidCounter++}`;
+	        }
+	        used.add(safeText(obj.data.layer_uid));
+	      });
+
+	      const active = canvas.getActiveObject();
+	      const activeObjects = (() => {
+	        if (!active) return [];
+	        if (active.type === 'activeSelection' && typeof active.getObjects === 'function') return active.getObjects() || [];
+	        return [active];
+	      })();
+	      const activeUids = new Set(activeObjects.map((obj) => safeText(obj?.data?.layer_uid)).filter(Boolean));
+
+	      layersList.textContent = '';
+	      const ordered = objects.slice().reverse();
+	      ordered.forEach((obj) => {
+	        const uid = safeText(obj?.data?.layer_uid);
+	        const kind = safeText(obj?.data?.kind);
+	        const locked = !!obj?.data?.locked;
+	        const visible = obj?.visible !== false;
+
+	        let title = objectLabel(obj);
+	        let subtitle = '';
+	        if (kind === 'token') {
+	          const tokenKind = safeText(obj?.data?.token_kind).replace(/-/g, '_');
+	          title = RESOURCE_LABELS[tokenKind] || 'Jugador';
+	          subtitle = safeText(obj?.data?.playerName);
+	        } else if (kind === 'text' && typeof obj.text === 'string') {
+	          title = obj.text.trim().slice(0, 40) || 'Texto';
+	        }
+	        const flags = [];
+	        if (!visible) flags.push('Oculto');
+	        if (locked) flags.push('Bloqueado');
+	        if (flags.length) {
+	          subtitle = subtitle ? `${subtitle} · ${flags.join(' · ')}` : flags.join(' · ');
+	        }
+
+	        const row = document.createElement('div');
+	        row.className = 'layer-row';
+	        if (uid && activeUids.has(uid)) row.classList.add('is-active');
+	        row.dataset.layerUid = uid;
+
+	        const titleBox = document.createElement('div');
+	        titleBox.className = 'layer-title';
+	        const strong = document.createElement('strong');
+	        strong.textContent = title;
+	        titleBox.appendChild(strong);
+	        const small = document.createElement('small');
+	        small.textContent = subtitle || (RESOURCE_LABELS[safeText(kind).replace(/-/g, '_')] || safeText(kind));
+	        titleBox.appendChild(small);
+	        row.appendChild(titleBox);
+
+	        const actions = document.createElement('div');
+	        actions.className = 'layer-actions';
+	        const mkBtn = (action, label, aria) => {
+	          const btn = document.createElement('button');
+	          btn.type = 'button';
+	          btn.dataset.layerAction = action;
+	          btn.dataset.layerUid = uid;
+	          btn.textContent = label;
+	          btn.title = aria;
+	          btn.setAttribute('aria-label', aria);
+	          return btn;
+	        };
+	        actions.appendChild(mkBtn('up', '↑', 'Subir capa'));
+	        actions.appendChild(mkBtn('down', '↓', 'Bajar capa'));
+	        actions.appendChild(mkBtn('visible', visible ? '👁' : '🙈', visible ? 'Ocultar' : 'Mostrar'));
+	        actions.appendChild(mkBtn('lock', locked ? '🔒' : '🔓', locked ? 'Desbloquear' : 'Bloquear'));
+	        row.appendChild(actions);
+
+	        layersList.appendChild(row);
+	      });
+	    };
+	    const syncInspector = () => {
+	      if (!selectionToolbar || !selectionSummary || !scaleXInput || !scaleYInput || !rotationInput || !colorInput) return;
+	      const active = activeInspectableObject();
+	      const enabled = !!active;
 	      if (!enabled) {
 	        selectionToolbar.hidden = true;
 	        selectionToolbar.querySelectorAll('input,button').forEach((node) => { node.disabled = true; });
@@ -1041,12 +1186,12 @@
 	      refreshLivePreview();
 	      setStatus(axis === 'x' ? 'Alineado por centro X.' : 'Alineado por centro Y.');
 	    };
-	    const distributeSelection = (axis) => {
-	      const objects = getSelectionObjects().filter((obj) => obj && !obj?.data?.locked);
-	      if (objects.length < 3) {
-	        setStatus('Selecciona al menos 3 elementos para distribuir.', true);
-	        return;
-	      }
+		    const distributeSelection = (axis) => {
+		      const objects = getSelectionObjects().filter((obj) => obj && !obj?.data?.locked);
+		      if (objects.length < 3) {
+		        setStatus('Selecciona al menos 3 elementos para distribuir.', true);
+		        return;
+		      }
 	      const items = objects
 	        .map((obj) => ({ obj, center: obj.getCenterPoint() }))
 	        .sort((a, b) => (axis === 'x' ? a.center.x - b.center.x : a.center.y - b.center.y));
@@ -1065,13 +1210,85 @@
 	      canvas.requestRenderAll();
 	      pushHistory();
 	      syncInspector();
-	      refreshLivePreview();
-	      setStatus(axis === 'x' ? 'Distribución horizontal aplicada.' : 'Distribución vertical aplicada.');
-	    };
-	    const setSelectionLayer = (mode) => {
-	      const objects = getSelectionObjects();
-	      if (!objects.length) return;
-	      objects.forEach((obj) => {
+		      refreshLivePreview();
+		      setStatus(axis === 'x' ? 'Distribución horizontal aplicada.' : 'Distribución vertical aplicada.');
+		    };
+		    const cloneObjectAsync = (obj) => new Promise((resolve) => {
+		      try {
+		        obj.clone((cloned) => resolve(cloned || null), ['data']);
+		      } catch (error) {
+		        resolve(null);
+		      }
+		    });
+		    const patternDuplicate = async (axis) => {
+		      const active = canvas.getActiveObject();
+		      if (!active) {
+		        setStatus('Selecciona un elemento para crear un patrón.', true);
+		        return;
+		      }
+
+		      const bounds = typeof active.getBoundingRect === 'function' ? active.getBoundingRect(true, true) : null;
+		      const defaultSpacing = axis === 'x'
+		        ? clamp(Math.round((bounds?.width || 40) + 12), 12, 320)
+		        : clamp(Math.round((bounds?.height || 40) + 12), 12, 320);
+
+		      const countRaw = window.prompt('¿Cuántas copias quieres añadir?', '4');
+		      if (countRaw === null) return;
+		      const count = clamp(Number.parseInt(String(countRaw), 10) || 0, 1, 25);
+		      if (!count) {
+		        setStatus('Número de copias no válido.', true);
+		        return;
+		      }
+
+		      const spacingRaw = window.prompt('Separación (px) entre copias:', String(defaultSpacing));
+		      if (spacingRaw === null) return;
+		      const spacing = clamp(Number.parseInt(String(spacingRaw), 10) || 0, 8, 400);
+		      if (!spacing) {
+		        setStatus('Separación no válida.', true);
+		        return;
+		      }
+
+		      const dx = axis === 'x' ? spacing : 0;
+		      const dy = axis === 'y' ? spacing : 0;
+		      const sources = getSelectionObjects();
+		      if (!sources.length) return;
+
+		      const added = [];
+		      for (let i = 1; i <= count; i += 1) {
+		        const clones = await Promise.all(sources.map((obj) => cloneObjectAsync(obj)));
+		        clones.filter(Boolean).forEach((cloned) => {
+		          cloned.set({
+		            left: (Number(cloned.left) || 0) + (dx * i),
+		            top: (Number(cloned.top) || 0) + (dy * i),
+		          });
+		          normalizeEditableObject(cloned);
+		          if (Array.isArray(cloned._objects)) cloned._objects.forEach((obj) => normalizeEditableObject(obj));
+		          canvas.add(cloned);
+		          if (isBackgroundShape(cloned)) canvas.sendToBack(cloned);
+		          cloned.setCoords();
+		          added.push(cloned);
+		        });
+		      }
+
+		      if (!added.length) {
+		        setStatus('No se pudo duplicar la selección.', true);
+		        return;
+		      }
+
+		      canvas.discardActiveObject();
+		      if (added.length === 1) canvas.setActiveObject(added[0]);
+		      else canvas.setActiveObject(new fabric.ActiveSelection(added, { canvas }));
+		      canvas.requestRenderAll();
+		      persistActiveStepSnapshot();
+		      pushHistory();
+		      syncInspector();
+		      refreshLivePreview();
+		      setStatus('Patrón creado.');
+		    };
+		    const setSelectionLayer = (mode) => {
+		      const objects = getSelectionObjects();
+		      if (!objects.length) return;
+		      objects.forEach((obj) => {
 	        if (!obj) return;
 	        if (mode === 'front') canvas.bringToFront(obj);
 	        else canvas.sendToBack(obj);
@@ -1133,31 +1350,101 @@
 	      event.stopPropagation();
 	      setCommandMenuOpen(commandMenu?.hidden);
 	    });
-	    commandMenu?.addEventListener('click', (event) => {
-	      const button = event.target.closest('button[data-command]');
-	      if (!button) return;
-	      const command = safeText(button.dataset.command);
-	      if (!command) return;
-	      setCommandMenuOpen(false);
-	      if (command === 'align_x') alignSelection('x');
-	      else if (command === 'align_y') alignSelection('y');
-	      else if (command === 'distribute_x') distributeSelection('x');
-	      else if (command === 'distribute_y') distributeSelection('y');
-	      else if (command === 'front') setSelectionLayer('front');
-	      else if (command === 'back') setSelectionLayer('back');
-	      else if (command === 'lock') toggleLockSelection();
-	      else if (command === 'group') groupSelection();
-	      else if (command === 'ungroup') ungroupSelection();
-	    });
-	    document.addEventListener('click', (event) => {
-	      if (!commandMenu || commandMenu.hidden) return;
-	      const inside = event.target && (event.target.closest('#task-command-bar') || event.target.closest('#task-command-menu'));
-	      if (!inside) setCommandMenuOpen(false);
-	    });
+		    commandMenu?.addEventListener('click', (event) => {
+		      const button = event.target.closest('button[data-command]');
+		      if (!button) return;
+		      const command = safeText(button.dataset.command);
+		      if (!command) return;
+		      setCommandMenuOpen(false);
+		      if (command === 'align_x') alignSelection('x');
+		      else if (command === 'align_y') alignSelection('y');
+		      else if (command === 'distribute_x') distributeSelection('x');
+		      else if (command === 'distribute_y') distributeSelection('y');
+		      else if (command === 'pattern_row') patternDuplicate('x');
+		      else if (command === 'pattern_col') patternDuplicate('y');
+		      else if (command === 'front') setSelectionLayer('front');
+		      else if (command === 'back') setSelectionLayer('back');
+		      else if (command === 'lock') toggleLockSelection();
+		      else if (command === 'grid_toggle') toggleGridVisible();
+		      else if (command === 'grid_snap') toggleGridSnap();
+		      else if (command === 'grid_size') cycleGridSize();
+		      else if (command === 'group') groupSelection();
+		      else if (command === 'ungroup') ungroupSelection();
+		    });
+		    document.addEventListener('click', (event) => {
+		      if (!commandMenu || commandMenu.hidden) return;
+		      const inside = event.target && (event.target.closest('#task-command-bar') || event.target.closest('#task-command-menu'));
+		      if (!inside) setCommandMenuOpen(false);
+		    });
 
-    const fitCanvas = (preserveObjects = false) => {
-      const previousWidth = canvas.getWidth() || 0;
-      const previousHeight = canvas.getHeight() || 0;
+		    const findObjectByLayerUid = (uid) => (canvas.getObjects() || []).find((obj) => safeText(obj?.data?.layer_uid) === safeText(uid));
+		    const commitLayerChange = (message) => {
+		      canvas.requestRenderAll();
+		      persistActiveStepSnapshot();
+		      pushHistory();
+		      syncInspector();
+		      refreshLivePreview();
+		      renderLayers();
+		      if (message) setStatus(message);
+		    };
+		    layersList?.addEventListener('click', (event) => {
+		      const actionBtn = event.target.closest('button[data-layer-action]');
+		      const targetUid = safeText(actionBtn?.dataset?.layerUid || event.target.closest('.layer-row')?.dataset?.layerUid);
+		      if (!targetUid) return;
+		      const obj = findObjectByLayerUid(targetUid);
+		      if (!obj) {
+		        renderLayers();
+		        return;
+		      }
+
+		      if (!actionBtn) {
+		        if (obj.visible === false) {
+		          obj.visible = true;
+		          canvas.setActiveObject(obj);
+		          commitLayerChange('Elemento mostrado.');
+		          return;
+		        }
+		        canvas.setActiveObject(obj);
+		        canvas.requestRenderAll();
+		        syncInspector();
+		        renderLayers();
+		        return;
+		      }
+
+		      const action = safeText(actionBtn.dataset.layerAction);
+		      if (!action) return;
+		      if (action === 'up') {
+		        canvas.bringForward(obj);
+		        commitLayerChange('Capa subida.');
+		        return;
+		      }
+		      if (action === 'down') {
+		        canvas.sendBackwards(obj);
+		        commitLayerChange('Capa bajada.');
+		        return;
+		      }
+		      if (action === 'visible') {
+		        const next = obj.visible === false;
+		        obj.visible = next;
+		        if (!next) {
+		          const active = canvas.getActiveObject();
+		          if (active === obj) canvas.discardActiveObject();
+		        }
+		        commitLayerChange(next ? 'Elemento mostrado.' : 'Elemento oculto.');
+		        return;
+		      }
+		      if (action === 'lock') {
+		        obj.data = obj.data || {};
+		        obj.data.locked = !obj.data.locked;
+		        normalizeEditableObject(obj);
+		        obj.setCoords();
+		        commitLayerChange(obj.data.locked ? 'Elemento bloqueado.' : 'Elemento desbloqueado.');
+		      }
+		    });
+
+	    const fitCanvas = (preserveObjects = false) => {
+	      const previousWidth = canvas.getWidth() || 0;
+	      const previousHeight = canvas.getHeight() || 0;
       const width = Math.max(320, Math.round(stage.clientWidth || 960));
       const height = Math.max(220, Math.round(stage.clientHeight || 640));
       canvas.setDimensions({ width, height });
@@ -2292,12 +2579,13 @@
       tempForm.remove();
     };
 
-    syncOrientationUi();
-    syncZoomUi();
-    fitCanvas();
-    setPreset(presetSelect.value || 'full_pitch');
-    restoreState();
-    runWhenIdle(() => renderPlayerBank(), 1100);
+	    syncOrientationUi();
+	    syncZoomUi();
+	    fitCanvas();
+	    setPreset(presetSelect.value || 'full_pitch');
+	    restoreState();
+	    renderLayers();
+	    runWhenIdle(() => renderPlayerBank(), 1100);
     try {
       syncAssignedPlayersHidden(serializeState());
     } catch (error) {
@@ -2397,41 +2685,56 @@
       }, 240_000);
     }
 
-    canvas.on('object:modified', () => {
-      if (canvas.__loading) return;
-      persistActiveStepSnapshot();
-      pushHistory();
-      syncInspector();
-      refreshLivePreview();
-      scheduleDraftSave('canvas');
-    });
-    canvas.on('object:added', () => {
-      if (!canvas.__loading) {
-        persistActiveStepSnapshot();
-        pushHistory();
-      }
-      refreshLivePreview();
-      scheduleDraftSave('canvas');
-    });
-    canvas.on('object:removed', () => {
-      if (!canvas.__loading) {
-        persistActiveStepSnapshot();
-        pushHistory();
-      }
-      refreshLivePreview();
-      scheduleDraftSave('canvas');
-    });
-	    canvas.on('object:moving', (event) => {
-	      const target = event?.target;
-	      const rawEvent = event?.e;
-	      if (!target || !rawEvent) return;
-	      if (!(rawEvent.ctrlKey || rawEvent.metaKey)) return;
-	      const targetCenter = target.getCenterPoint();
-	      const snapped = snapPointToCenters({ x: targetCenter.x, y: targetCenter.y }, target, 10);
-	      if (!snapped.snappedX && !snapped.snappedY) return;
-	      target.setPositionByOrigin(new fabric.Point(snapped.x, snapped.y), 'center', 'center');
-	      target.setCoords();
+	    canvas.on('object:modified', () => {
+	      if (canvas.__loading) return;
+	      persistActiveStepSnapshot();
+	      pushHistory();
+	      syncInspector();
+	      renderLayers();
+	      refreshLivePreview();
+	      scheduleDraftSave('canvas');
 	    });
+	    canvas.on('object:added', () => {
+	      if (!canvas.__loading) {
+	        persistActiveStepSnapshot();
+	        pushHistory();
+	        renderLayers();
+	      }
+	      refreshLivePreview();
+	      scheduleDraftSave('canvas');
+	    });
+	    canvas.on('object:removed', () => {
+	      if (!canvas.__loading) {
+	        persistActiveStepSnapshot();
+	        pushHistory();
+	        renderLayers();
+	      }
+	      refreshLivePreview();
+	      scheduleDraftSave('canvas');
+	    });
+		    canvas.on('object:moving', (event) => {
+		      const target = event?.target;
+		      const rawEvent = event?.e;
+		      if (!target || !rawEvent) return;
+		      const targetCenter = target.getCenterPoint();
+		      const isMod = !!(rawEvent.ctrlKey || rawEvent.metaKey);
+		      const snapGrid = shouldSnapToGridForEvent(rawEvent);
+		      let next = { x: targetCenter.x, y: targetCenter.y };
+		      let didSnap = false;
+		      if (isMod) {
+		        const snapped = snapPointToCenters(next, target, 10);
+		        if (snapped.snappedX || snapped.snappedY) {
+		          next = { x: snapped.x, y: snapped.y };
+		          didSnap = true;
+		        }
+		      } else if (snapGrid) {
+		        next = snapPointToGrid(next);
+		        didSnap = true;
+		      }
+		      if (!didSnap) return;
+		      target.setPositionByOrigin(new fabric.Point(next.x, next.y), 'center', 'center');
+		      target.setCoords();
+		    });
 
 	    const buildCompositeCanvas = async (options = {}) => {
 	      const sourceWidth = Math.round(canvas.getWidth());
@@ -2515,31 +2818,37 @@
 	      downloadBlob(blob, `${title}.json`);
 	      setStatus('JSON descargado.');
 	    };
-    canvas.on('selection:created', syncInspector);
-    canvas.on('selection:updated', syncInspector);
-    canvas.on('selection:cleared', syncInspector);
-    const syncInspectorDock = () => {
-      const active = activeInspectableObject();
-      if (!active) return;
-      dockInspectorIntoPanel(panelKeyForObject(active));
-    };
+	    canvas.on('selection:created', syncInspector);
+	    canvas.on('selection:updated', syncInspector);
+	    canvas.on('selection:cleared', syncInspector);
+	    canvas.on('selection:created', renderLayers);
+	    canvas.on('selection:updated', renderLayers);
+	    canvas.on('selection:cleared', renderLayers);
+	    const syncInspectorDock = () => {
+	      const active = activeInspectableObject();
+	      if (!active) return;
+	      dockInspectorIntoPanel(panelKeyForObject(active));
+	    };
     canvas.on('selection:created', syncInspectorDock);
     canvas.on('selection:updated', syncInspectorDock);
-	    canvas.on('mouse:down', (event) => {
-	      if (!pendingFactory || event.target) return;
-	      const raw = canvas.getPointer(event.e);
-	      const base = { x: Number(raw?.x) || 0, y: Number(raw?.y) || 0 };
-	      const e = event?.e;
-	      const isMod = !!(e && (e.ctrlKey || e.metaKey));
-	      const isShift = !!(e && e.shiftKey);
-	      let pointer = base;
+		    canvas.on('mouse:down', (event) => {
+		      if (!pendingFactory || event.target) return;
+		      const raw = canvas.getPointer(event.e);
+		      const base = { x: Number(raw?.x) || 0, y: Number(raw?.y) || 0 };
+		      const e = event?.e;
+		      const isMod = !!(e && (e.ctrlKey || e.metaKey));
+		      const snapGrid = shouldSnapToGridForEvent(e);
+		      const isShift = !!(e && e.shiftKey);
+		      let pointer = base;
 
-	      if (isMod) {
-	        pointer = snapPointToCenters(base, null, 10);
-	      } else if (pendingKind && lastPlacedByKind.has(pendingKind)) {
-	        // Snap suave a la última colocación del mismo tipo (útil para alinear conos/jugadores).
-	        const last = lastPlacedByKind.get(pendingKind);
-	        const threshold = 16;
+		      if (isMod) {
+		        pointer = snapPointToCenters(base, null, 10);
+		      } else if (snapGrid) {
+		        pointer = snapPointToGrid(base);
+		      } else if (pendingKind && lastPlacedByKind.has(pendingKind)) {
+		        // Snap suave a la última colocación del mismo tipo (útil para alinear conos/jugadores).
+		        const last = lastPlacedByKind.get(pendingKind);
+		        const threshold = 16;
 	        pointer = {
 	          x: Math.abs(base.x - last.x) <= threshold ? last.x : base.x,
 	          y: Math.abs(base.y - last.y) <= threshold ? last.y : base.y,
@@ -2796,20 +3105,25 @@
 			        event.preventDefault();
 			        return;
 			      }
-			      if ((event.code === 'Space' || key === ' ') && viewportEl) {
-			        // Modo "mano": espacio + arrastrar para desplazar el viewport (como Camelot).
-			        if (!spacePanArmed) {
-			          spacePanArmed = true;
-			          viewportEl.classList.add('is-hand');
-			        }
-			        event.preventDefault();
-			        return;
-			      }
-			      if (isMod && key === 'g') {
-			        event.preventDefault();
-			        if (isShift) ungroupSelection();
-			        else groupSelection();
-			        return;
+				      if ((event.code === 'Space' || key === ' ') && viewportEl) {
+				        // Modo "mano": espacio + arrastrar para desplazar el viewport (como Camelot).
+				        if (!spacePanArmed) {
+				          spacePanArmed = true;
+				          viewportEl.classList.add('is-hand');
+				        }
+				        event.preventDefault();
+				        return;
+				      }
+				      if (!isMod && key === 'g') {
+				        event.preventDefault();
+				        toggleGridVisible();
+				        return;
+				      }
+				      if (isMod && key === 'g') {
+				        event.preventDefault();
+				        if (isShift) ungroupSelection();
+				        else groupSelection();
+				        return;
 			      }
 			      if (isMod && key === 'l') {
 			        event.preventDefault();

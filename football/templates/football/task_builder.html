@@ -397,6 +397,54 @@
         color: rgba(226,232,240,0.6);
         font-weight: 900;
       }
+      .layers-list {
+        display: grid;
+        gap: 8px;
+        margin-top: 0.75rem;
+      }
+      .layer-row {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 10px;
+        align-items: center;
+        padding: 10px 12px;
+        border-radius: 14px;
+        border: 1px solid rgba(255,255,255,0.10);
+        background: rgba(255,255,255,0.03);
+      }
+      .layer-row.is-active {
+        border-color: rgba(34,211,238,0.42);
+        background: rgba(34,211,238,0.10);
+      }
+      .layer-title {
+        display: grid;
+        gap: 2px;
+      }
+      .layer-title strong {
+        font-size: 0.9rem;
+        letter-spacing: 0.02em;
+      }
+      .layer-title small {
+        font-size: 0.78rem;
+        color: rgba(226,232,240,0.65);
+      }
+      .layer-actions {
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+      }
+      .layer-actions button {
+        width: 38px;
+        height: 34px;
+        border-radius: 10px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(255,255,255,0.04);
+        color: rgba(248,250,252,0.92);
+        cursor: pointer;
+      }
+      .layer-actions button:hover {
+        background: rgba(255,255,255,0.07);
+      }
       .resource-tab {
         background: transparent;
         border: 1px solid rgba(255,255,255,0.3);
@@ -436,6 +484,22 @@
         --pitch-zoom: 1;
         transform: scale(var(--pitch-zoom));
         transform-origin: center top;
+      }
+      .pitch-stage::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        opacity: 0;
+        --grid-size: 40px;
+        background-image:
+          linear-gradient(to right, rgba(248,250,252,0.08) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(248,250,252,0.08) 1px, transparent 1px);
+        background-size: var(--grid-size) var(--grid-size);
+        mix-blend-mode: overlay;
+      }
+      .pitch-stage.has-grid::before {
+        opacity: 1;
       }
       .pitch-stage.is-portrait {
         aspect-ratio: 68 / 105;
@@ -1058,17 +1122,22 @@
 	                    <button type="button" class="icon-btn" id="task-command-more" title="Más acciones" aria-label="Más acciones">
 	                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 14a2 2 0 1 1 0-4 2 2 0 0 1 0 4Zm6 0a2 2 0 1 1 0-4 2 2 0 0 1 0 4Zm6 0a2 2 0 1 1 0-4 2 2 0 0 1 0 4Z"/></svg>
 	                    </button>
-	                    <div class="command-menu" id="task-command-menu" hidden>
-	                      <button type="button" data-command="align_x">Alinear centro X <span class="shortcut">⌘/Ctrl</span></button>
-	                      <button type="button" data-command="align_y">Alinear centro Y <span class="shortcut">⌘/Ctrl</span></button>
-	                      <button type="button" data-command="distribute_x">Distribuir X <span class="shortcut">⇧</span></button>
-	                      <button type="button" data-command="distribute_y">Distribuir Y <span class="shortcut">⇧</span></button>
-	                      <button type="button" data-command="front">Traer al frente <span class="shortcut">⌘]</span></button>
-	                      <button type="button" data-command="back">Enviar atrás <span class="shortcut">⌘[</span></button>
-	                      <button type="button" data-command="lock">Bloquear/Desbloquear <span class="shortcut">⌘L</span></button>
-	                      <button type="button" data-command="group">Agrupar <span class="shortcut">⌘G</span></button>
-	                      <button type="button" data-command="ungroup">Desagrupar <span class="shortcut">⌘⇧G</span></button>
-	                    </div>
+		                    <div class="command-menu" id="task-command-menu" hidden>
+		                      <button type="button" data-command="align_x">Alinear centro X <span class="shortcut">⌘/Ctrl</span></button>
+		                      <button type="button" data-command="align_y">Alinear centro Y <span class="shortcut">⌘/Ctrl</span></button>
+		                      <button type="button" data-command="distribute_x">Distribuir X <span class="shortcut">⇧</span></button>
+		                      <button type="button" data-command="distribute_y">Distribuir Y <span class="shortcut">⇧</span></button>
+		                      <button type="button" data-command="pattern_row">Patrón en fila <span class="shortcut">↔</span></button>
+		                      <button type="button" data-command="pattern_col">Patrón en columna <span class="shortcut">↕</span></button>
+		                      <button type="button" data-command="front">Traer al frente <span class="shortcut">⌘]</span></button>
+		                      <button type="button" data-command="back">Enviar atrás <span class="shortcut">⌘[</span></button>
+		                      <button type="button" data-command="lock">Bloquear/Desbloquear <span class="shortcut">⌘L</span></button>
+		                      <button type="button" data-command="grid_toggle">Mostrar/Ocultar rejilla <span class="shortcut">G</span></button>
+		                      <button type="button" data-command="grid_snap">Snap a rejilla <span class="shortcut">Alt</span></button>
+		                      <button type="button" data-command="grid_size">Tamaño rejilla <span class="shortcut">S/M/L</span></button>
+		                      <button type="button" data-command="group">Agrupar <span class="shortcut">⌘G</span></button>
+		                      <button type="button" data-command="ungroup">Desagrupar <span class="shortcut">⌘⇧G</span></button>
+		                    </div>
 	                  </div>
 	                </div>
                 <p class="resource-helper">Pulsa una pestaña para mostrar los recursos.</p>
@@ -1220,6 +1289,7 @@
 		                <button type="button" class="side-tab" data-pane="avanzado" role="tab" aria-selected="false">Avanzado</button>
 		                <button type="button" class="side-tab" data-pane="animacion" role="tab" aria-selected="false">Animación</button>
 		                <button type="button" class="side-tab" data-pane="biblioteca" role="tab" aria-selected="false">Biblioteca</button>
+		                <button type="button" class="side-tab" data-pane="capas" role="tab" aria-selected="false">Capas</button>
 		                <button type="button" class="side-tab" data-pane="exportar" role="tab" aria-selected="false">Exportar</button>
 		                <button type="button" class="side-tab" data-pane="preview" role="tab" aria-selected="false">Vista previa</button>
 		              </div>
@@ -1503,6 +1573,14 @@
 	                    <button type="button" data-add="shape_triangle" title="Triángulo"><span class="library-emoji" aria-hidden="true">△</span>Triáng.</button>
 	                  </div>
 	                </div>
+		              </div>
+
+		              <div class="side-pane" data-pane="capas" role="tabpanel">
+		                <div class="section">
+		                  <h3>Capas</h3>
+		                  <p>Reordena, oculta o bloquea elementos de la pizarra.</p>
+		                  <div class="layers-list" id="task-layers-list"></div>
+		                </div>
 		              </div>
 
 		              <div class="side-pane" data-pane="exportar" role="tabpanel">
