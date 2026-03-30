@@ -397,6 +397,64 @@
         color: rgba(226,232,240,0.6);
         font-weight: 900;
       }
+      .pattern-popover {
+        position: absolute;
+        top: calc(100% + 10px);
+        right: 0;
+        min-width: 270px;
+        padding: 12px;
+        border-radius: 14px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(2, 6, 23, 0.92);
+        backdrop-filter: blur(12px);
+        z-index: 61;
+        box-shadow: 0 18px 44px rgba(0,0,0,0.38);
+        display: grid;
+        gap: 10px;
+      }
+      .pattern-popover h4 {
+        margin: 0;
+        font-size: 0.78rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(248,250,252,0.92);
+      }
+      .pattern-fields {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .pattern-field {
+        display: grid;
+        gap: 6px;
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.82);
+      }
+      .pattern-field input {
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(255,255,255,0.05);
+        color: rgba(248,250,252,0.94);
+        padding: 10px 10px;
+        font-weight: 750;
+        letter-spacing: 0.02em;
+        text-transform: none;
+      }
+      .pattern-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+      .pattern-actions button {
+        border-radius: 999px;
+        padding: 10px 12px;
+        font-size: 0.74rem;
+        font-weight: 900;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
       .layers-list {
         display: grid;
         gap: 8px;
@@ -1156,7 +1214,7 @@
                   <button type="button" class="resource-tab" data-resource="figuras">Figuras geométricas</button>
                   <button type="button" class="resource-tab" data-resource="emoji">Recursos emoji</button>
                   </div>
-	                  <div class="command-bar" id="task-command-bar" aria-label="Comandos rápidos">
+		                  <div class="command-bar" id="task-command-bar" aria-label="Comandos rápidos">
 	                    <button type="button" class="icon-btn" data-action="undo" title="Deshacer" aria-label="Deshacer">
 	                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7V4L2 9l5 5v-3h7a4 4 0 1 1 0 8H9v2h5a6 6 0 1 0 0-12H7Z"/></svg>
 	                    </button>
@@ -1169,7 +1227,7 @@
 	                    <button type="button" class="icon-btn" id="task-command-more" title="Más acciones" aria-label="Más acciones">
 	                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 14a2 2 0 1 1 0-4 2 2 0 0 1 0 4Zm6 0a2 2 0 1 1 0-4 2 2 0 0 1 0 4Zm6 0a2 2 0 1 1 0-4 2 2 0 0 1 0 4Z"/></svg>
 	                    </button>
-		                    <div class="command-menu" id="task-command-menu" hidden>
+			                    <div class="command-menu" id="task-command-menu" hidden>
 		                      <button type="button" data-command="align_x">Alinear centro X <span class="shortcut">⌘/Ctrl</span></button>
 		                      <button type="button" data-command="align_y">Alinear centro Y <span class="shortcut">⌘/Ctrl</span></button>
 		                      <button type="button" data-command="distribute_x">Distribuir X <span class="shortcut">⇧</span></button>
@@ -1184,9 +1242,26 @@
 		                      <button type="button" data-command="grid_size">Tamaño rejilla <span class="shortcut">S/M/L</span></button>
 		                      <button type="button" data-command="group">Agrupar <span class="shortcut">⌘G</span></button>
 		                      <button type="button" data-command="ungroup">Desagrupar <span class="shortcut">⌘⇧G</span></button>
-		                    </div>
-	                  </div>
-	                </div>
+			                    </div>
+			                    <div class="pattern-popover" id="task-pattern-popover" hidden>
+			                      <h4 id="task-pattern-title">Patrón</h4>
+			                      <div class="pattern-fields">
+			                        <div class="pattern-field">
+			                          Copias
+			                          <input type="number" id="task-pattern-count" min="1" max="25" step="1" value="4" />
+			                        </div>
+			                        <div class="pattern-field">
+			                          Separación (px)
+			                          <input type="number" id="task-pattern-spacing" min="8" max="400" step="1" value="40" />
+			                        </div>
+			                      </div>
+			                      <div class="pattern-actions">
+			                        <button type="button" id="task-pattern-cancel">Cancelar</button>
+			                        <button type="button" class="primary" id="task-pattern-apply">Aplicar</button>
+			                      </div>
+			                    </div>
+		                  </div>
+		                </div>
                 <p class="resource-helper">Pulsa una pestaña para mostrar los recursos.</p>
                 <div class="resource-panel" data-panel="base" hidden>
                   <h3 class="tool-group-title">Recursos base</h3>
@@ -1551,10 +1626,26 @@
 	                      {% endfor %}
 	                    </select>
 	                  </label>
-	                  <label>
-	                    Organización
-	                    <input type="text" name="draw_task_organization" value="{{ initial.organization }}" placeholder="Ej: 6v6 + 2 comodines" />
-	                  </label>
+		                  <label style="grid-column:1 / -1;">
+		                    Organización
+		                    <div class="rich-editor" data-rich-editor data-rich-name="draw_task_organization" data-rich-html-name="draw_task_organization_html">
+		                      <div class="rich-toolbar" aria-label="Formato de texto">
+		                        <button type="button" data-rich-cmd="bold" title="Negrita">B</button>
+		                        <button type="button" data-rich-cmd="italic" title="Cursiva">I</button>
+		                        <button type="button" data-rich-cmd="underline" title="Subrayado">U</button>
+		                        <button type="button" data-rich-cmd="upper" title="Mayúsculas">MAY</button>
+		                        <button type="button" data-rich-cmd="lower" title="Minúsculas">min</button>
+		                        <button type="button" data-rich-cmd="insertUnorderedList" title="Viñetas">•</button>
+		                        <button type="button" data-rich-cmd="insertOrderedList" title="Numeración">1.</button>
+		                        <button type="button" data-rich-cmd="removeFormat" title="Quitar formato">Tx</button>
+		                      </div>
+		                      <div class="rich-area" contenteditable="true" data-rich-area>
+		                        {% if initial.organization_html %}{{ initial.organization_html|safe }}{% else %}{{ initial.organization|linebreaksbr }}{% endif %}
+		                      </div>
+		                    </div>
+		                    <textarea name="draw_task_organization" id="draw-task-organization" hidden>{{ initial.organization }}</textarea>
+		                    <input type="hidden" name="draw_task_organization_html" id="draw-task-organization-html" value="{{ initial.organization_html|default:''|escape }}" />
+		                  </label>
 	                  <label>
                     Reparto jugadores
                     <input type="text" name="draw_task_players_distribution" value="{{ initial.players_distribution }}" placeholder="Ej: 2 líneas + pivote" />
@@ -1580,18 +1671,66 @@
                       {% endfor %}
                     </select>
                   </label>
-                  <label style="grid-column:1 / -1;">
-                    Progresión
-                    <textarea name="draw_task_progression">{{ initial.progression }}</textarea>
-                  </label>
-                  <label style="grid-column:1 / -1;">
-                    Regresión
-                    <textarea name="draw_task_regression">{{ initial.regression }}</textarea>
-                  </label>
-                  <label style="grid-column:1 / -1;">
-                    Criterio de éxito
-                    <textarea name="draw_task_success_criteria">{{ initial.success_criteria }}</textarea>
-                  </label>
+	                  <label style="grid-column:1 / -1;">
+	                    Progresión
+	                    <div class="rich-editor" data-rich-editor data-rich-name="draw_task_progression" data-rich-html-name="draw_task_progression_html">
+	                      <div class="rich-toolbar" aria-label="Formato de texto">
+	                        <button type="button" data-rich-cmd="bold" title="Negrita">B</button>
+	                        <button type="button" data-rich-cmd="italic" title="Cursiva">I</button>
+	                        <button type="button" data-rich-cmd="underline" title="Subrayado">U</button>
+	                        <button type="button" data-rich-cmd="upper" title="Mayúsculas">MAY</button>
+	                        <button type="button" data-rich-cmd="lower" title="Minúsculas">min</button>
+	                        <button type="button" data-rich-cmd="insertUnorderedList" title="Viñetas">•</button>
+	                        <button type="button" data-rich-cmd="insertOrderedList" title="Numeración">1.</button>
+	                        <button type="button" data-rich-cmd="removeFormat" title="Quitar formato">Tx</button>
+	                      </div>
+	                      <div class="rich-area" contenteditable="true" data-rich-area>
+	                        {% if initial.progression_html %}{{ initial.progression_html|safe }}{% else %}{{ initial.progression|linebreaksbr }}{% endif %}
+	                      </div>
+	                    </div>
+	                    <textarea name="draw_task_progression" id="draw-task-progression" hidden>{{ initial.progression }}</textarea>
+	                    <input type="hidden" name="draw_task_progression_html" id="draw-task-progression-html" value="{{ initial.progression_html|default:''|escape }}" />
+	                  </label>
+	                  <label style="grid-column:1 / -1;">
+	                    Regresión
+	                    <div class="rich-editor" data-rich-editor data-rich-name="draw_task_regression" data-rich-html-name="draw_task_regression_html">
+	                      <div class="rich-toolbar" aria-label="Formato de texto">
+	                        <button type="button" data-rich-cmd="bold" title="Negrita">B</button>
+	                        <button type="button" data-rich-cmd="italic" title="Cursiva">I</button>
+	                        <button type="button" data-rich-cmd="underline" title="Subrayado">U</button>
+	                        <button type="button" data-rich-cmd="upper" title="Mayúsculas">MAY</button>
+	                        <button type="button" data-rich-cmd="lower" title="Minúsculas">min</button>
+	                        <button type="button" data-rich-cmd="insertUnorderedList" title="Viñetas">•</button>
+	                        <button type="button" data-rich-cmd="insertOrderedList" title="Numeración">1.</button>
+	                        <button type="button" data-rich-cmd="removeFormat" title="Quitar formato">Tx</button>
+	                      </div>
+	                      <div class="rich-area" contenteditable="true" data-rich-area>
+	                        {% if initial.regression_html %}{{ initial.regression_html|safe }}{% else %}{{ initial.regression|linebreaksbr }}{% endif %}
+	                      </div>
+	                    </div>
+	                    <textarea name="draw_task_regression" id="draw-task-regression" hidden>{{ initial.regression }}</textarea>
+	                    <input type="hidden" name="draw_task_regression_html" id="draw-task-regression-html" value="{{ initial.regression_html|default:''|escape }}" />
+	                  </label>
+	                  <label style="grid-column:1 / -1;">
+	                    Criterio de éxito
+	                    <div class="rich-editor" data-rich-editor data-rich-name="draw_task_success_criteria" data-rich-html-name="draw_task_success_criteria_html">
+	                      <div class="rich-toolbar" aria-label="Formato de texto">
+	                        <button type="button" data-rich-cmd="bold" title="Negrita">B</button>
+	                        <button type="button" data-rich-cmd="italic" title="Cursiva">I</button>
+	                        <button type="button" data-rich-cmd="underline" title="Subrayado">U</button>
+	                        <button type="button" data-rich-cmd="upper" title="Mayúsculas">MAY</button>
+	                        <button type="button" data-rich-cmd="lower" title="Minúsculas">min</button>
+	                        <button type="button" data-rich-cmd="insertUnorderedList" title="Viñetas">•</button>
+	                        <button type="button" data-rich-cmd="insertOrderedList" title="Numeración">1.</button>
+	                        <button type="button" data-rich-cmd="removeFormat" title="Quitar formato">Tx</button>
+	                      </div>
+	                      <div class="rich-area" contenteditable="true" data-rich-area>
+	                        {% if initial.success_criteria_html %}{{ initial.success_criteria_html|safe }}{% else %}{{ initial.success_criteria|linebreaksbr }}{% endif %}
+	                      </div>
+	                    </div>
+	                    <textarea name="draw_task_success_criteria" id="draw-task-success-criteria" hidden>{{ initial.success_criteria }}</textarea>
+	                    <input type="hidden" name="draw_task_success_criteria_html" id="draw-task-success-criteria-html" value="{{ initial.success_criteria_html|default:''|escape }}" />
+	                  </label>
                 </div>
               </div>
 

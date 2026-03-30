@@ -501,18 +501,26 @@
                   {% else %}
                   <div class="text-block">-</div>
                   {% endif %}
-                  {% if task_meta.success_criteria %}
-                  <div style="margin-top:10px;">
-                    <span class="label">Criterio de éxito</span>
-                    <div class="text-block">{{ task_meta.success_criteria }}</div>
-                  </div>
-                  {% endif %}
-                  {% if task_meta.progression %}
-                  <div style="margin-top:10px;">
-                    <span class="label">Progresión</span>
-                    <div class="text-block">{{ task_meta.progression }}</div>
-                  </div>
-                  {% endif %}
+	                  {% if task_meta.success_criteria %}
+	                  <div style="margin-top:10px;">
+	                    <span class="label">Criterio de éxito</span>
+	                    {% if success_criteria_rich_html %}
+	                    <div class="rich-text">{{ success_criteria_rich_html|safe }}</div>
+	                    {% else %}
+	                    <div class="text-block">{{ task_meta.success_criteria }}</div>
+	                    {% endif %}
+	                  </div>
+	                  {% endif %}
+	                  {% if task_meta.progression %}
+	                  <div style="margin-top:10px;">
+	                    <span class="label">Progresión</span>
+	                    {% if progression_rich_html %}
+	                    <div class="rich-text">{{ progression_rich_html|safe }}</div>
+	                    {% else %}
+	                    <div class="text-block">{{ task_meta.progression }}</div>
+	                    {% endif %}
+	                  </div>
+	                  {% endif %}
                 </div>
               </div>
             </td>
@@ -685,18 +693,26 @@
             <span>{{ rules_lines|join:" · " }}</span>
           </div>
           {% endif %}
-          {% if task_meta.progression %}
-          <div style="margin-top:8px;">
-            <strong>Progresión:</strong>
-            <span>{{ task_meta.progression }}</span>
-          </div>
-          {% endif %}
-          {% if task_meta.success_criteria %}
-          <div style="margin-top:8px;">
-            <strong>Criterio de éxito:</strong>
-            <span>{{ task_meta.success_criteria }}</span>
-          </div>
-          {% endif %}
+	          {% if task_meta.progression %}
+	          <div style="margin-top:8px;">
+	            <strong>Progresión:</strong>
+	            {% if progression_rich_html %}
+	            <div class="rich-text">{{ progression_rich_html|safe }}</div>
+	            {% else %}
+	            <span>{{ task_meta.progression }}</span>
+	            {% endif %}
+	          </div>
+	          {% endif %}
+	          {% if task_meta.success_criteria %}
+	          <div style="margin-top:8px;">
+	            <strong>Criterio de éxito:</strong>
+	            {% if success_criteria_rich_html %}
+	            <div class="rich-text">{{ success_criteria_rich_html|safe }}</div>
+	            {% else %}
+	            <span>{{ task_meta.success_criteria }}</span>
+	            {% endif %}
+	          </div>
+	          {% endif %}
           {% if materials_label and materials_label != '-' %}
           <div style="margin-top:8px;">
             <strong>Material:</strong>

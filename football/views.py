@@ -6902,6 +6902,10 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
     description_html = str(task_sheet.get('description_html') or '').strip()
     coaching_html = str(task_sheet.get('coaching_html') or '').strip()
     rules_html = str(task_sheet.get('rules_html') or '').strip()
+    progression_html = str(meta.get('progression_html') or '').strip()
+    regression_html = str(meta.get('regression_html') or '').strip()
+    success_criteria_html = str(meta.get('success_criteria_html') or '').strip()
+    organization_html = str(meta.get('organization_html') or '').strip()
     dimensions_text = str(task_sheet.get('dimensions') or '').strip()
     materials_text = str(task_sheet.get('materials') or meta.get('resources_summary') or '').strip()
     strategy_label = str(meta.get('strategy') or meta.get('training_type') or meta.get('methodology') or '').strip()
@@ -6958,6 +6962,10 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
     rich_description = _sanitize_task_rich_html(description_html) if description_html else _rich_html_from_plain_text(description_text)
     rich_coaching = _sanitize_task_rich_html(coaching_html) if coaching_html else _rich_html_from_plain_text(getattr(task, 'coaching_points', '') or '')
     rich_rules = _sanitize_task_rich_html(rules_html) if rules_html else _rich_html_from_plain_text(getattr(task, 'confrontation_rules', '') or '')
+    rich_progression = _sanitize_task_rich_html(progression_html) if progression_html else _rich_html_from_plain_text(str(meta.get('progression') or ''))
+    rich_regression = _sanitize_task_rich_html(regression_html) if regression_html else _rich_html_from_plain_text(str(meta.get('regression') or ''))
+    rich_success = _sanitize_task_rich_html(success_criteria_html) if success_criteria_html else _rich_html_from_plain_text(str(meta.get('success_criteria') or ''))
+    rich_organization = _sanitize_task_rich_html(organization_html) if organization_html else _rich_html_from_plain_text(str(meta.get('organization') or ''))
     return {
         'team_name': team.name,
         'task': task,
@@ -6970,6 +6978,10 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
         'description_rich_html': rich_description,
         'coaching_rich_html': rich_coaching,
         'rules_rich_html': rich_rules,
+        'progression_rich_html': rich_progression,
+        'regression_rich_html': rich_regression,
+        'success_criteria_rich_html': rich_success,
+        'organization_rich_html': rich_organization,
         'tokens': _build_task_pdf_tokens(request, tactical_layout),
         'task_meta': meta,
         'strategy_label': strategy_label or '-',
@@ -7028,7 +7040,12 @@ def _build_task_draft_pdf_context(request, primary_team, pdf_style='uefa'):
     dimensions = _sanitize_task_text((request.POST.get('draw_task_dimensions') or '').strip(), multiline=False, max_len=120)
     materials = _sanitize_task_text((request.POST.get('draw_task_materials') or '').strip(), multiline=False, max_len=180)
     progression = _sanitize_task_text((request.POST.get('draw_task_progression') or '').strip(), multiline=True, max_len=500)
+    regression = _sanitize_task_text((request.POST.get('draw_task_regression') or '').strip(), multiline=True, max_len=500)
     success_criteria = _sanitize_task_text((request.POST.get('draw_task_success_criteria') or '').strip(), multiline=True, max_len=500)
+    organization_html = _sanitize_task_rich_html((request.POST.get('draw_task_organization_html') or '').strip())
+    progression_html = _sanitize_task_rich_html((request.POST.get('draw_task_progression_html') or '').strip())
+    regression_html = _sanitize_task_rich_html((request.POST.get('draw_task_regression_html') or '').strip())
+    success_criteria_html = _sanitize_task_rich_html((request.POST.get('draw_task_success_criteria_html') or '').strip())
     category_tags_raw = _sanitize_task_text((request.POST.get('draw_task_category_tags') or '').strip(), multiline=False, max_len=240)
     category_tags = [tag.strip() for tag in category_tags_raw.split(',') if tag.strip()]
     assigned_player_ids = [
@@ -7077,6 +7094,7 @@ def _build_task_draft_pdf_context(request, primary_team, pdf_style='uefa'):
 	            'tactical_intent': selected_tactical_intent,
 	            'space': space,
 	            'organization': organization,
+	            'organization_html': organization_html,
 	            'players_distribution': players_distribution,
             'load_target': load_target,
             'work_rest': work_rest,
@@ -7088,7 +7106,11 @@ def _build_task_draft_pdf_context(request, primary_team, pdf_style='uefa'):
             'category_tags': category_tags,
             'assigned_player_names': assigned_player_names,
             'progression': progression,
+            'progression_html': progression_html,
+            'regression': regression,
+            'regression_html': regression_html,
             'success_criteria': success_criteria,
+            'success_criteria_html': success_criteria_html,
             'analysis': {
                 'task_sheet': {
                     'description': _sanitize_task_text((request.POST.get('draw_task_description') or '').strip(), multiline=True),
@@ -11427,12 +11449,16 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 space = _sanitize_task_text((request.POST.get('draw_task_space') or '').strip(), multiline=False, max_len=120)
                 materials = _sanitize_task_text((request.POST.get('draw_task_materials') or '').strip(), multiline=False, max_len=300)
                 organization = _sanitize_task_text((request.POST.get('draw_task_organization') or '').strip(), multiline=True, max_len=500)
+                organization_html = _sanitize_task_rich_html((request.POST.get('draw_task_organization_html') or '').strip())
                 work_rest = _sanitize_task_text((request.POST.get('draw_task_work_rest') or '').strip(), multiline=False, max_len=180)
                 load_target = _sanitize_task_text((request.POST.get('draw_task_load_target') or '').strip(), multiline=False, max_len=180)
                 players_distribution = _sanitize_task_text((request.POST.get('draw_task_players_distribution') or '').strip(), multiline=False, max_len=180)
                 progression = _sanitize_task_text((request.POST.get('draw_task_progression') or '').strip(), multiline=True, max_len=500)
+                progression_html = _sanitize_task_rich_html((request.POST.get('draw_task_progression_html') or '').strip())
                 regression = _sanitize_task_text((request.POST.get('draw_task_regression') or '').strip(), multiline=True, max_len=500)
+                regression_html = _sanitize_task_rich_html((request.POST.get('draw_task_regression_html') or '').strip())
                 success_criteria = _sanitize_task_text((request.POST.get('draw_task_success_criteria') or '').strip(), multiline=True, max_len=500)
+                success_criteria_html = _sanitize_task_rich_html((request.POST.get('draw_task_success_criteria_html') or '').strip())
                 selected_surface = (request.POST.get('draw_task_surface') or '').strip()
                 selected_pitch_format = (request.POST.get('draw_task_pitch_format') or '').strip()
                 selected_phase = (request.POST.get('draw_task_game_phase') or '').strip()
@@ -11553,6 +11579,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                             'complexity': selected_complexity,
                             'space': space,
                             'organization': organization,
+                            'organization_html': organization_html,
                             'players_distribution': players_distribution,
                             'load_target': load_target,
                             'work_rest': work_rest,
@@ -11561,6 +11588,9 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                             'progression': progression,
                             'regression': regression,
                             'success_criteria': success_criteria,
+                            'progression_html': progression_html,
+                            'regression_html': regression_html,
+                            'success_criteria_html': success_criteria_html,
                             'constraints': constraints,
                             'graphic_editor': {
                                 'canvas_state': canvas_state,
@@ -12413,12 +12443,16 @@ def _task_builder_initial_values(task):
         'dimensions': str(task_sheet.get('dimensions') or ''),
         'space': str(meta.get('space') or task_sheet.get('space') or ''),
         'organization': str(meta.get('organization') or ''),
+        'organization_html': str(meta.get('organization_html') or ''),
         'work_rest': str(meta.get('work_rest') or ''),
         'load_target': str(meta.get('load_target') or ''),
         'players_distribution': str(meta.get('players_distribution') or ''),
         'progression': str(meta.get('progression') or ''),
+        'progression_html': str(meta.get('progression_html') or ''),
         'regression': str(meta.get('regression') or ''),
+        'regression_html': str(meta.get('regression_html') or ''),
         'success_criteria': str(meta.get('success_criteria') or ''),
+        'success_criteria_html': str(meta.get('success_criteria_html') or ''),
         'surface': str(meta.get('surface') or ''),
         'pitch_format': str(meta.get('pitch_format') or ''),
         'game_phase': str(meta.get('game_phase') or ''),
@@ -12495,13 +12529,17 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
     space = _sanitize_task_text((request.POST.get('draw_task_space') or '').strip(), multiline=False, max_len=120)
     materials = _sanitize_task_text((request.POST.get('draw_task_materials') or '').strip(), multiline=False, max_len=300)
     organization = _sanitize_task_text((request.POST.get('draw_task_organization') or '').strip(), multiline=True, max_len=500)
+    organization_html = _sanitize_task_rich_html((request.POST.get('draw_task_organization_html') or '').strip())
     raw_work_rest = request.POST.get('draw_task_work_rest')
     work_rest = _sanitize_task_text((raw_work_rest or '').strip(), multiline=False, max_len=180) if raw_work_rest is not None else str(existing_meta.get('work_rest') or '')
     load_target = _sanitize_task_text((request.POST.get('draw_task_load_target') or '').strip(), multiline=False, max_len=180)
     players_distribution = _sanitize_task_text((request.POST.get('draw_task_players_distribution') or '').strip(), multiline=False, max_len=180)
     progression = _sanitize_task_text((request.POST.get('draw_task_progression') or '').strip(), multiline=True, max_len=500)
+    progression_html = _sanitize_task_rich_html((request.POST.get('draw_task_progression_html') or '').strip())
     regression = _sanitize_task_text((request.POST.get('draw_task_regression') or '').strip(), multiline=True, max_len=500)
+    regression_html = _sanitize_task_rich_html((request.POST.get('draw_task_regression_html') or '').strip())
     success_criteria = _sanitize_task_text((request.POST.get('draw_task_success_criteria') or '').strip(), multiline=True, max_len=500)
+    success_criteria_html = _sanitize_task_rich_html((request.POST.get('draw_task_success_criteria_html') or '').strip())
     selected_surface = (request.POST.get('draw_task_surface') or '').strip()
     selected_pitch_format = (request.POST.get('draw_task_pitch_format') or '').strip()
     raw_selected_phase = request.POST.get('draw_task_game_phase')
@@ -12692,6 +12730,7 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
             'tactical_intent': selected_tactical_intent,
             'space': space,
             'organization': organization,
+            'organization_html': organization_html,
             'players_distribution': players_distribution,
             'load_target': load_target,
             'work_rest': work_rest,
@@ -12699,7 +12738,10 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
             'repetitions': repetitions,
             'progression': progression,
             'regression': regression,
+            'progression_html': progression_html,
+            'regression_html': regression_html,
             'success_criteria': success_criteria,
+            'success_criteria_html': success_criteria_html,
             'constraints': constraints,
             'player_count': player_count,
             'age_group': age_group,
@@ -12791,13 +12833,17 @@ def _save_task_studio_entry(request, owner, existing_task=None):
     space = _sanitize_task_text((request.POST.get('draw_task_space') or '').strip(), multiline=False, max_len=120)
     materials = _sanitize_task_text((request.POST.get('draw_task_materials') or '').strip(), multiline=False, max_len=300)
     organization = _sanitize_task_text((request.POST.get('draw_task_organization') or '').strip(), multiline=True, max_len=500)
+    organization_html = _sanitize_task_rich_html((request.POST.get('draw_task_organization_html') or '').strip())
     raw_work_rest = request.POST.get('draw_task_work_rest')
     work_rest = _sanitize_task_text((raw_work_rest or '').strip(), multiline=False, max_len=180) if raw_work_rest is not None else str(existing_meta.get('work_rest') or '')
     load_target = _sanitize_task_text((request.POST.get('draw_task_load_target') or '').strip(), multiline=False, max_len=180)
     players_distribution = _sanitize_task_text((request.POST.get('draw_task_players_distribution') or '').strip(), multiline=False, max_len=180)
     progression = _sanitize_task_text((request.POST.get('draw_task_progression') or '').strip(), multiline=True, max_len=500)
+    progression_html = _sanitize_task_rich_html((request.POST.get('draw_task_progression_html') or '').strip())
     regression = _sanitize_task_text((request.POST.get('draw_task_regression') or '').strip(), multiline=True, max_len=500)
+    regression_html = _sanitize_task_rich_html((request.POST.get('draw_task_regression_html') or '').strip())
     success_criteria = _sanitize_task_text((request.POST.get('draw_task_success_criteria') or '').strip(), multiline=True, max_len=500)
+    success_criteria_html = _sanitize_task_rich_html((request.POST.get('draw_task_success_criteria_html') or '').strip())
     selected_surface = (request.POST.get('draw_task_surface') or '').strip()
     selected_pitch_format = (request.POST.get('draw_task_pitch_format') or '').strip()
     raw_selected_phase = request.POST.get('draw_task_game_phase')
@@ -12938,6 +12984,7 @@ def _save_task_studio_entry(request, owner, existing_task=None):
 	            'tactical_intent': selected_tactical_intent,
 	            'space': space,
 	            'organization': organization,
+	            'organization_html': organization_html,
 	            'players_distribution': players_distribution,
             'load_target': load_target,
             'work_rest': work_rest,
@@ -12946,6 +12993,9 @@ def _save_task_studio_entry(request, owner, existing_task=None):
             'progression': progression,
             'regression': regression,
             'success_criteria': success_criteria,
+            'progression_html': progression_html,
+            'regression_html': regression_html,
+            'success_criteria_html': success_criteria_html,
             'constraints': constraints,
             'player_count': player_count,
             'age_group': age_group,
@@ -13200,7 +13250,12 @@ def _build_task_studio_draft_pdf_context(request, owner, pdf_style='uefa'):
     dimensions = _sanitize_task_text((request.POST.get('draw_task_dimensions') or '').strip(), multiline=False, max_len=120)
     materials = _sanitize_task_text((request.POST.get('draw_task_materials') or '').strip(), multiline=False, max_len=180)
     progression = _sanitize_task_text((request.POST.get('draw_task_progression') or '').strip(), multiline=True, max_len=500)
+    regression = _sanitize_task_text((request.POST.get('draw_task_regression') or '').strip(), multiline=True, max_len=500)
     success_criteria = _sanitize_task_text((request.POST.get('draw_task_success_criteria') or '').strip(), multiline=True, max_len=500)
+    organization_html = _sanitize_task_rich_html((request.POST.get('draw_task_organization_html') or '').strip())
+    progression_html = _sanitize_task_rich_html((request.POST.get('draw_task_progression_html') or '').strip())
+    regression_html = _sanitize_task_rich_html((request.POST.get('draw_task_regression_html') or '').strip())
+    success_criteria_html = _sanitize_task_rich_html((request.POST.get('draw_task_success_criteria_html') or '').strip())
     category_tags_raw = _sanitize_task_text((request.POST.get('draw_task_category_tags') or '').strip(), multiline=False, max_len=240)
     category_tags = [tag.strip() for tag in category_tags_raw.split(',') if tag.strip()]
     assigned_player_ids = [
@@ -13243,6 +13298,7 @@ def _build_task_studio_draft_pdf_context(request, owner, pdf_style='uefa'):
             'tactical_intent': selected_tactical_intent,
             'space': space,
             'organization': organization,
+            'organization_html': organization_html,
             'players_distribution': players_distribution,
             'load_target': load_target,
             'work_rest': work_rest,
@@ -13254,7 +13310,11 @@ def _build_task_studio_draft_pdf_context(request, owner, pdf_style='uefa'):
             'category_tags': category_tags,
             'assigned_player_names': assigned_player_names,
             'progression': progression,
+            'progression_html': progression_html,
+            'regression': regression,
+            'regression_html': regression_html,
             'success_criteria': success_criteria,
+            'success_criteria_html': success_criteria_html,
             'analysis': {
                 'task_sheet': {
                     'description': _sanitize_task_text((request.POST.get('draw_task_description') or '').strip(), multiline=True),

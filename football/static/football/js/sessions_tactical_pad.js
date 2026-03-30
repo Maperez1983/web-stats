@@ -535,6 +535,12 @@
 		    const commandBar = document.getElementById('task-command-bar');
 		    const commandMoreBtn = document.getElementById('task-command-more');
 		    const commandMenu = document.getElementById('task-command-menu');
+		    const patternPopover = document.getElementById('task-pattern-popover');
+		    const patternTitle = document.getElementById('task-pattern-title');
+		    const patternCountInput = document.getElementById('task-pattern-count');
+		    const patternSpacingInput = document.getElementById('task-pattern-spacing');
+		    const patternApplyBtn = document.getElementById('task-pattern-apply');
+		    const patternCancelBtn = document.getElementById('task-pattern-cancel');
 		    const layersList = document.getElementById('task-layers-list');
 		    const timelineList = document.getElementById('task-timeline-list');
 	    const stepTitleInput = document.getElementById('task-step-title');
@@ -1134,15 +1140,20 @@
 	        const locked = !!obj?.data?.locked;
 	        const visible = obj?.visible !== false;
 
-	        let title = objectLabel(obj);
-	        let subtitle = '';
-	        if (kind === 'token') {
-	          const tokenKind = safeText(obj?.data?.token_kind).replace(/-/g, '_');
-	          title = RESOURCE_LABELS[tokenKind] || 'Jugador';
-	          subtitle = safeText(obj?.data?.playerName);
-	        } else if (kind === 'text' && typeof obj.text === 'string') {
-	          title = obj.text.trim().slice(0, 40) || 'Texto';
-	        }
+		        let title = objectLabel(obj);
+		        let subtitle = '';
+		        if (kind === 'token') {
+		          const tokenKind = safeText(obj?.data?.token_kind).replace(/-/g, '_');
+		          title = RESOURCE_LABELS[tokenKind] || 'Jugador';
+		          subtitle = safeText(obj?.data?.playerName);
+		        } else if (kind === 'text' && typeof obj.text === 'string') {
+		          title = obj.text.trim().slice(0, 40) || 'Texto';
+		        }
+		        const customName = safeText(obj?.data?.layer_name);
+		        if (customName) {
+		          subtitle = subtitle ? `${subtitle} · ${title}` : title;
+		          title = customName;
+		        }
 	        const flags = [];
 	        if (!visible) flags.push('Oculto');
 	        if (locked) flags.push('Bloqueado');
@@ -1306,7 +1317,7 @@
 		        resolve(null);
 		      }
 		    });
-		    const patternDuplicate = async (axis) => {
+		    const patternDuplicate = async (axis, options = {}) => {
 		      const active = canvas.getActiveObject();
 		      if (!active) {
 		        setStatus('Selecciona un elemento para crear un patrón.', true);
@@ -1318,17 +1329,24 @@
 		        ? clamp(Math.round((bounds?.width || 40) + 12), 12, 320)
 		        : clamp(Math.round((bounds?.height || 40) + 12), 12, 320);
 
-		      const countRaw = window.prompt('¿Cuántas copias quieres añadir?', '4');
-		      if (countRaw === null) return;
-		      const count = clamp(Number.parseInt(String(countRaw), 10) || 0, 1, 25);
+		      let count = clamp(Number.parseInt(String(options?.count ?? ''), 10) || 0, 0, 25);
+		      if (!count) {
+		        const countRaw = window.prompt('¿Cuántas copias quieres añadir?', '4');
+		        if (countRaw === null) return;
+		        count = clamp(Number.parseInt(String(countRaw), 10) || 0, 1, 25);
+		      }
 		      if (!count) {
 		        setStatus('Número de copias no válido.', true);
 		        return;
 		      }
 
-		      const spacingRaw = window.prompt('Separación (px) entre copias:', String(defaultSpacing));
-		      if (spacingRaw === null) return;
-		      const spacing = clamp(Number.parseInt(String(spacingRaw), 10) || 0, 8, 400);
+		      let spacing = clamp(Number.parseInt(String(options?.spacing ?? ''), 10) || 0, 0, 400);
+		      if (!spacing) {
+		        const spacingRaw = window.prompt('Separación (px) entre copias:', String(defaultSpacing));
+		        if (spacingRaw === null) return;
+		        spacing = clamp(Number.parseInt(String(spacingRaw), 10) || 0, 8, 400);
+		      }
+		      spacing = clamp(spacing, 8, 400);
 		      if (!spacing) {
 		        setStatus('Separación no válida.', true);
 		        return;
@@ -1427,15 +1445,37 @@
 	      setStatus('Grupo deshecho.');
 	    };
 
-	    const setCommandMenuOpen = (open) => {
-	      if (!commandMenu) return;
-	      commandMenu.hidden = !open;
-	    };
-	    commandMoreBtn?.addEventListener('click', (event) => {
-	      event.preventDefault();
-	      event.stopPropagation();
-	      setCommandMenuOpen(commandMenu?.hidden);
-	    });
+		    const setCommandMenuOpen = (open) => {
+		      if (!commandMenu) return;
+		      commandMenu.hidden = !open;
+		    };
+		    let patternAxis = 'x';
+		    const setPatternPopoverOpen = (open) => {
+		      if (!patternPopover) return;
+		      patternPopover.hidden = !open;
+		    };
+		    const closePatternPopover = () => setPatternPopoverOpen(false);
+		    const suggestPatternSpacing = (axis) => {
+		      const active = canvas.getActiveObject();
+		      if (!active || typeof active.getBoundingRect !== 'function') return 40;
+		      const bounds = active.getBoundingRect(true, true);
+		      const base = axis === 'x' ? (bounds?.width || 40) : (bounds?.height || 40);
+		      return clamp(Math.round(Number(base || 40) + 12), 12, 320);
+		    };
+		    const openPatternPopover = (axis) => {
+		      patternAxis = axis === 'y' ? 'y' : 'x';
+		      if (patternTitle) patternTitle.textContent = patternAxis === 'x' ? 'Patrón en fila' : 'Patrón en columna';
+		      if (patternSpacingInput) patternSpacingInput.value = String(suggestPatternSpacing(patternAxis));
+		      setPatternPopoverOpen(true);
+		      window.setTimeout(() => {
+		        try { patternCountInput?.focus(); patternCountInput?.select(); } catch (error) { /* ignore */ }
+		      }, 0);
+		    };
+		    commandMoreBtn?.addEventListener('click', (event) => {
+		      event.preventDefault();
+		      event.stopPropagation();
+		      setCommandMenuOpen(commandMenu?.hidden);
+		    });
 		    commandMenu?.addEventListener('click', (event) => {
 		      const button = event.target.closest('button[data-command]');
 		      if (!button) return;
@@ -1446,8 +1486,8 @@
 		      else if (command === 'align_y') alignSelection('y');
 		      else if (command === 'distribute_x') distributeSelection('x');
 		      else if (command === 'distribute_y') distributeSelection('y');
-		      else if (command === 'pattern_row') patternDuplicate('x');
-		      else if (command === 'pattern_col') patternDuplicate('y');
+		      else if (command === 'pattern_row') openPatternPopover('x');
+		      else if (command === 'pattern_col') openPatternPopover('y');
 		      else if (command === 'front') setSelectionLayer('front');
 		      else if (command === 'back') setSelectionLayer('back');
 		      else if (command === 'lock') toggleLockSelection();
@@ -1457,10 +1497,45 @@
 		      else if (command === 'group') groupSelection();
 		      else if (command === 'ungroup') ungroupSelection();
 		    });
+		    patternCancelBtn?.addEventListener('click', (event) => {
+		      event.preventDefault();
+		      closePatternPopover();
+		    });
+		    const applyPatternFromUi = async () => {
+		      const count = clamp(Number.parseInt(String(patternCountInput?.value || ''), 10) || 0, 1, 25);
+		      const spacing = clamp(Number.parseInt(String(patternSpacingInput?.value || ''), 10) || 0, 8, 400);
+		      if (!count || !spacing) {
+		        setStatus('Valores de patrón no válidos.', true);
+		        return;
+		      }
+		      closePatternPopover();
+		      await patternDuplicate(patternAxis, { count, spacing });
+		    };
+		    patternApplyBtn?.addEventListener('click', (event) => {
+		      event.preventDefault();
+		      applyPatternFromUi();
+		    });
+		    patternPopover?.addEventListener('keydown', (event) => {
+		      const key = String(event.key || '').toLowerCase();
+		      if (key === 'escape') {
+		        event.preventDefault();
+		        closePatternPopover();
+		        return;
+		      }
+		      if (key === 'enter') {
+		        event.preventDefault();
+		        applyPatternFromUi();
+		      }
+		    });
 		    document.addEventListener('click', (event) => {
 		      if (!commandMenu || commandMenu.hidden) return;
 		      const inside = event.target && (event.target.closest('#task-command-bar') || event.target.closest('#task-command-menu'));
 		      if (!inside) setCommandMenuOpen(false);
+		    });
+		    document.addEventListener('click', (event) => {
+		      if (!patternPopover || patternPopover.hidden) return;
+		      const inside = event.target && (event.target.closest('#task-command-bar') || event.target.closest('#task-pattern-popover'));
+		      if (!inside) closePatternPopover();
 		    });
 
 		    const findObjectByLayerUid = (uid) => (canvas.getObjects() || []).find((obj) => safeText(obj?.data?.layer_uid) === safeText(uid));
@@ -1526,6 +1601,24 @@
 		        obj.setCoords();
 		        commitLayerChange(obj.data.locked ? 'Elemento bloqueado.' : 'Elemento desbloqueado.');
 		      }
+		    });
+		    layersList?.addEventListener('dblclick', (event) => {
+		      const targetUid = safeText(event.target.closest('.layer-row')?.dataset?.layerUid);
+		      if (!targetUid) return;
+		      const obj = findObjectByLayerUid(targetUid);
+		      if (!obj) return;
+		      obj.data = obj.data || {};
+		      const current = safeText(obj.data.layer_name) || objectLabel(obj);
+		      const next = window.prompt('Nombre de capa:', current);
+		      if (next === null) return;
+		      const cleaned = safeText(next).slice(0, 60);
+		      if (!cleaned) {
+		        delete obj.data.layer_name;
+		        commitLayerChange('Nombre eliminado.');
+		        return;
+		      }
+		      obj.data.layer_name = cleaned;
+		      commitLayerChange('Nombre actualizado.');
 		    });
 
 	    const fitCanvas = (preserveObjects = false) => {
@@ -2470,20 +2563,22 @@
       runNext();
     };
 
-	    const buildPreviewData = () => new Promise((resolve) => {
-      const sourceWidth = Math.round(canvas.getWidth());
-      const sourceHeight = Math.round(canvas.getHeight());
-      // En iPad conviene limitar el tamaño para que no bloquee el hilo principal.
-      const maxPreviewWidth = 720;
-      const ratio = sourceWidth > maxPreviewWidth ? (maxPreviewWidth / sourceWidth) : 1;
-      const output = document.createElement('canvas');
-      output.width = Math.max(320, Math.round(sourceWidth * ratio));
-      output.height = Math.max(180, Math.round(sourceHeight * ratio));
-      const context = output.getContext('2d');
-      if (!context) {
-        resolve('');
-        return;
-      }
+		    const buildPreviewData = (options = {}) => new Promise((resolve) => {
+	      const sourceWidth = Math.round(canvas.getWidth());
+	      const sourceHeight = Math.round(canvas.getHeight());
+	      // En iPad conviene limitar el tamaño para que no bloquee el hilo principal.
+	      const maxPreviewWidth = clamp(Number(options.maxWidth) || 720, 480, 3200);
+	      const ratio = sourceWidth > maxPreviewWidth ? (maxPreviewWidth / sourceWidth) : 1;
+	      const mime = safeText(options.mime, 'image/png').toLowerCase();
+	      const quality = clamp(Number(options.quality) || 0.92, 0.5, 0.98);
+	      const output = document.createElement('canvas');
+	      output.width = Math.max(320, Math.round(sourceWidth * ratio));
+	      output.height = Math.max(180, Math.round(sourceHeight * ratio));
+	      const context = output.getContext('2d');
+	      if (!context) {
+	        resolve('');
+	        return;
+	      }
       // Fondo sólido para que la preview y el PDF no muestren "barras" por transparencia.
       context.fillStyle = '#ffffff';
       context.fillRect(0, 0, output.width, output.height);
@@ -2491,18 +2586,26 @@
       const blob = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' });
       const blobUrl = URL.createObjectURL(blob);
       const image = new Image();
-      image.onload = () => {
-        context.drawImage(image, 0, 0, output.width, output.height);
-        context.drawImage(canvas.lowerCanvasEl, 0, 0, output.width, output.height);
-        URL.revokeObjectURL(blobUrl);
-        resolve(output.toDataURL('image/png', 0.92));
-      };
-      image.onerror = () => {
-        URL.revokeObjectURL(blobUrl);
-        resolve(canvas.lowerCanvasEl.toDataURL('image/png', 0.92));
-      };
-      image.src = blobUrl;
-    });
+	      image.onload = () => {
+	        context.drawImage(image, 0, 0, output.width, output.height);
+	        context.drawImage(canvas.lowerCanvasEl, 0, 0, output.width, output.height);
+	        URL.revokeObjectURL(blobUrl);
+	        try {
+	          resolve(output.toDataURL(mime === 'image/jpeg' ? 'image/jpeg' : 'image/png', quality));
+	        } catch (error) {
+	          resolve(output.toDataURL('image/png', 0.92));
+	        }
+	      };
+	      image.onerror = () => {
+	        URL.revokeObjectURL(blobUrl);
+	        try {
+	          resolve(canvas.lowerCanvasEl.toDataURL(mime === 'image/jpeg' ? 'image/jpeg' : 'image/png', quality));
+	        } catch (error) {
+	          resolve(canvas.lowerCanvasEl.toDataURL('image/png', 0.92));
+	        }
+	      };
+	      image.src = blobUrl;
+	    });
     const applyLivePreview = (dataUrl) => {
       if (!livePreviewImg || !livePreviewPlaceholder) return;
       if (!dataUrl) {
@@ -2594,18 +2697,20 @@
         assignedSummary.textContent = extra ? `${chunks.join(', ')} y ${extra} más.` : chunks.join(', ');
       }
     };
-    const syncHiddenBuilderFields = async () => {
-      if (legacyPlayersInput && playerCountInput) legacyPlayersInput.value = playerCountInput.value || '';
-      const stateObj = serializeState();
-      syncAssignedPlayersHidden(stateObj);
-      if (stateInput) stateInput.value = JSON.stringify(stateObj);
-      if (widthInput) widthInput.value = String(Math.round(canvas.getWidth()));
-      if (heightInput) heightInput.value = String(Math.round(canvas.getHeight()));
-      const dataUrl = await buildPreviewData();
-      if (previewInput) previewInput.value = dataUrl;
-      applyLivePreview(dataUrl);
-      return dataUrl;
-    };
+	    const syncHiddenBuilderFields = async (options = {}) => {
+	      if (legacyPlayersInput && playerCountInput) legacyPlayersInput.value = playerCountInput.value || '';
+	      const stateObj = serializeState();
+	      syncAssignedPlayersHidden(stateObj);
+	      if (stateInput) stateInput.value = JSON.stringify(stateObj);
+	      if (widthInput) widthInput.value = String(Math.round(canvas.getWidth()));
+	      if (heightInput) heightInput.value = String(Math.round(canvas.getHeight()));
+	      const previewOptions = options && typeof options === 'object' ? (options.previewOptions || {}) : {};
+	      const applyLive = !(options && typeof options === 'object' && options.applyLivePreview === false);
+	      const dataUrl = await buildPreviewData(previewOptions);
+	      if (previewInput) previewInput.value = dataUrl;
+	      if (applyLive) applyLivePreview(dataUrl);
+	      return dataUrl;
+	    };
     const submitPrintPreview = async (style) => {
       const actionUrl = form.dataset.pdfPreviewUrl;
       if (!actionUrl) {
@@ -2628,7 +2733,10 @@
         previewWin.document.close();
       }
 
-      await syncHiddenBuilderFields();
+	      await syncHiddenBuilderFields({
+	        previewOptions: { maxWidth: 2400, mime: 'image/jpeg', quality: 0.92 },
+	        applyLivePreview: false,
+	      });
       const tempForm = document.createElement('form');
       tempForm.method = 'post';
       // actionUrl puede incluir query (?user=... o ?workspace=...). Si concatenamos "?style="
