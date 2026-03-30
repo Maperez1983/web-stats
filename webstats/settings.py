@@ -124,14 +124,6 @@ CSRF_COOKIE_NAME = (os.getenv('CSRF_COOKIE_NAME') or 'webstats_csrftoken').strip
 SESSION_ENGINE_ENV = os.getenv('SESSION_ENGINE', '').strip()
 if SESSION_ENGINE_ENV:
     SESSION_ENGINE = SESSION_ENGINE_ENV
-else:
-    # En despliegues con múltiples instancias + SQLite local, las sesiones en DB no se comparten y el usuario
-    # puede acabar redirigido a /login/ en cada request. Usamos cookies firmadas por defecto en ese caso.
-    try:
-        if not DEBUG and str(DATABASES.get('default', {}).get('ENGINE', '')).endswith('sqlite3'):
-            SESSION_ENGINE = 'django.contrib.sessions.backends.signed_cookies'
-    except Exception:
-        pass
 
 if not DEBUG:
     SECURE_SSL_REDIRECT = _env_bool('SECURE_SSL_REDIRECT', True)
@@ -173,6 +165,16 @@ DATABASES = {
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+
+# Backend de sesión
+# En despliegues con múltiples instancias + SQLite local, las sesiones en DB no se comparten y el usuario
+# puede acabar redirigido a /login/ en cada request. Usamos cookies firmadas por defecto en ese caso.
+if not SESSION_ENGINE_ENV:
+    try:
+        if not DEBUG and str(DATABASES.get('default', {}).get('ENGINE', '')).endswith('sqlite3'):
+            SESSION_ENGINE = 'django.contrib.sessions.backends.signed_cookies'
+    except Exception:
+        pass
 
 
 # Password validation
