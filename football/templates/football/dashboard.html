@@ -694,8 +694,10 @@
               credentials: 'same-origin',
               headers: csrf ? { 'X-CSRFToken': csrf } : {},
             });
-            const data = await resp.json().catch(() => ({}));
-            if (!resp.ok) throw new Error(data.message || 'No se pudo actualizar.');
+            const rawText = await resp.text();
+            let data = {};
+            try { data = JSON.parse(rawText || '{}'); } catch (error) { data = {}; }
+            if (!resp.ok) throw new Error(data.message || rawText || `No se pudo actualizar (HTTP ${resp.status}).`);
             // Evita caché en despliegues con múltiples instancias: fuerza recomputar.
             try {
               const response = await fetch(`/api/dashboard/?fresh=1&ts=${Date.now()}`, { credentials: 'same-origin' });

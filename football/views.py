@@ -16041,9 +16041,13 @@ def player_match_stats_page(request, player_id, match_id):
     )
 
 
+@csrf_exempt
 @authenticated_write
 @require_POST
 def refresh_scraping(request):
+    # Evitar CSRF 403 en Render (cookies/hosts) y limitar acceso a administradores.
+    if not (_is_admin_user(request.user) or _can_access_platform(request.user)):
+        return JsonResponse({'status': 'error', 'message': 'Solo administradores pueden actualizar la clasificación.'}, status=403)
     if not cache.add(SCRAPE_LOCK_KEY, "1", timeout=SCRAPE_LOCK_TIMEOUT_SECONDS):
         return JsonResponse(
             {'status': 'error', 'message': 'Ya hay una actualización en curso. Inténtalo en unos minutos.'},
@@ -16080,13 +16084,15 @@ def refresh_scraping(request):
         except Exception:
             pass
     latest_updated = _team_standings_last_updated(primary_team.group) if primary_team and getattr(primary_team, 'group', None) else None
-    return JsonResponse(
+    response = JsonResponse(
         {
             'status': 'success',
             'message': f'{refresh_message} {roster_status}.',
             'standings_last_updated': latest_updated.isoformat() if latest_updated else '',
         }
     )
+    response['Cache-Control'] = 'no-store'
+    return response
 
 
 def serialize_standings(group):
