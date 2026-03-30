@@ -1702,7 +1702,11 @@ def _sync_workspace_competition_context(workspace):
     if getattr(primary_team, 'group_id', None):
         for team in Team.objects.filter(group=primary_team.group).only('id', 'name', 'short_name', 'external_id', 'crest_url', 'crest_image', 'is_primary'):
             _sync_team_crest_from_sources(team)
-    standings_payload = _resolve_standings_for_team(primary_team, snapshot=load_universo_snapshot())
+    standings_payload = _resolve_standings_for_team(
+        primary_team,
+        snapshot=load_universo_snapshot(),
+        provider=getattr(context, 'provider', None),
+    )
     convocation_next = _build_next_match_from_convocation(primary_team)
     provider_next = _find_universo_next_match_for_context(context, primary_team)
     preferred_next = load_preferred_next_match_payload(primary_team=primary_team, competition_context=context)
@@ -1742,38 +1746,39 @@ def _sync_workspace_competition_context(workspace):
 
 
 def _competition_payload_for_team(workspace, primary_team):
+    context = None
+    snapshot = None
     if workspace and workspace.kind == Workspace.KIND_CLUB:
         snapshot = WorkspaceCompetitionSnapshot.objects.filter(workspace=workspace).select_related('context').first()
         if snapshot and snapshot.context_id:
-            standings_payload = snapshot.standings_payload if isinstance(snapshot.standings_payload, list) else []
-            next_match_payload = snapshot.next_match_payload if isinstance(snapshot.next_match_payload, dict) else {}
-            if standings_payload:
-                return {
-                    'standings': standings_payload,
-                    'next_match': (
-                        normalize_next_match_payload(next_match_payload)
-                        if _next_match_payload_is_reliable(next_match_payload)
-                        else {}
-                    ),
-                }
-        if primary_team:
+            context = snapshot.context
+        elif primary_team:
             context = _bootstrap_workspace_competition_context(workspace, primary_team=primary_team)
             if context and context.is_auto_sync_enabled:
                 _sync_workspace_competition_context(workspace)
                 snapshot = WorkspaceCompetitionSnapshot.objects.filter(workspace=workspace).select_related('context').first()
-                if snapshot:
-                    return {
-                        'standings': snapshot.standings_payload if isinstance(snapshot.standings_payload, list) else [],
-                        'next_match': (
-                            normalize_next_match_payload(snapshot.next_match_payload)
-                            if isinstance(snapshot.next_match_payload, dict) and _next_match_payload_is_reliable(snapshot.next_match_payload)
-                            else {}
-                        ),
-                    }
-    standings_payload = _resolve_standings_for_team(primary_team, snapshot=load_universo_snapshot()) if primary_team else []
+                context = snapshot.context if snapshot and snapshot.context_id else context
+
+    provider_key = str(getattr(context, 'provider', '') or '').strip().lower()
+    standings_payload = _resolve_standings_for_team(
+        primary_team,
+        snapshot=load_universo_snapshot(),
+        provider=provider_key,
+    ) if primary_team else []
     next_match_payload = {}
     if primary_team and getattr(primary_team, 'group', None):
-        next_match_payload = load_preferred_next_match_payload(primary_team=primary_team) or get_next_match(primary_team, primary_team.group) or {}
+        next_match_payload = (
+            load_preferred_next_match_payload(primary_team=primary_team, competition_context=context)
+            or load_preferred_next_match_payload(primary_team=primary_team)
+            or get_next_match(primary_team, primary_team.group)
+            or {}
+        )
+    # Si el provider es Universo y tenemos snapshot, preferimos su payload (más rico) cuando exista.
+    if provider_key == WorkspaceCompetitionContext.PROVIDER_UNIVERSO and snapshot:
+        if isinstance(snapshot.standings_payload, list) and snapshot.standings_payload:
+            standings_payload = snapshot.standings_payload
+        if isinstance(snapshot.next_match_payload, dict) and _next_match_payload_is_reliable(snapshot.next_match_payload):
+            next_match_payload = snapshot.next_match_payload
     return {
         'standings': standings_payload or [],
         'next_match': normalize_next_match_payload(next_match_payload) if next_match_payload else {},
@@ -3590,10 +3595,21 @@ def _universo_snapshot_supports_team(snapshot, primary_team):
     return bool(getattr(primary_team, 'is_primary', False))
 
 
-def _resolve_standings_for_team(primary_team, snapshot=None):
+def _resolve_standings_for_team(primary_team, snapshot=None, provider=None):
     if not primary_team or not getattr(primary_team, 'group', None):
         return []
     snapshot = snapshot if snapshot is not None else load_universo_snapshot()
+    provider_key = str(provider or '').strip().lower()
+    if provider_key == WorkspaceCompetitionContext.PROVIDER_UNIVERSO:
+        if _universo_snapshot_supports_team(snapshot, primary_team):
+            universo_rows = _serialize_universo_standings(snapshot)
+            if universo_rows:
+                return universo_rows
+        return serialize_standings(primary_team.group)
+    # Manual/RFAF: prioriza siempre la BD (lo que importa el script de federación).
+    db_rows = serialize_standings(primary_team.group)
+    if db_rows:
+        return db_rows
     if _universo_snapshot_supports_team(snapshot, primary_team):
         universo_rows = _serialize_universo_standings(snapshot)
         if universo_rows:
@@ -15967,6 +15983,12 @@ def refresh_scraping(request):
         roster_status = 'plantilla gestionada por Universo RFAF'
     if primary_team:
         _invalidate_team_dashboard_caches(primary_team)
+        try:
+            workspace = _get_active_workspace(request)
+            if workspace and workspace.kind == Workspace.KIND_CLUB and int(getattr(workspace, 'primary_team_id', 0) or 0) == int(primary_team.id):
+                _sync_workspace_competition_context(workspace)
+        except Exception:
+            pass
     return JsonResponse(
         {'status': 'success', 'message': f'Clasificación actualizada desde RFAF, {roster_status}.'}
     )
