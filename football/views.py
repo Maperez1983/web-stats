@@ -8,12 +8,14 @@ import base64
 import mimetypes
 import io
 import csv
+import html
 import zipfile
 import uuid
 import tempfile
 import shutil
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, time, date
+from html.parser import HTMLParser
 from functools import wraps
 from pathlib import Path
 import unicodedata
@@ -6897,6 +6899,9 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
     analysis_meta = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
     task_sheet = analysis_meta.get('task_sheet') if isinstance(analysis_meta.get('task_sheet'), dict) else {}
     description_text = str(task_sheet.get('description') or '').strip()
+    description_html = str(task_sheet.get('description_html') or '').strip()
+    coaching_html = str(task_sheet.get('coaching_html') or '').strip()
+    rules_html = str(task_sheet.get('rules_html') or '').strip()
     dimensions_text = str(task_sheet.get('dimensions') or '').strip()
     materials_text = str(task_sheet.get('materials') or meta.get('resources_summary') or '').strip()
     strategy_label = str(meta.get('strategy') or meta.get('training_type') or meta.get('methodology') or '').strip()
@@ -6950,6 +6955,9 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
     primary_club_team = _get_primary_team_for_request(request) or Team.objects.filter(is_primary=True).first()
     club_logo_url = resolve_team_crest_url(request, primary_club_team, sync=True) if primary_club_team else ''
     logo_path = 'football/images/uefa-badge.svg' if pdf_style == 'uefa' else 'football/images/cdb-logo.png'
+    rich_description = _sanitize_task_rich_html(description_html) if description_html else _rich_html_from_plain_text(description_text)
+    rich_coaching = _sanitize_task_rich_html(coaching_html) if coaching_html else _rich_html_from_plain_text(getattr(task, 'coaching_points', '') or '')
+    rich_rules = _sanitize_task_rich_html(rules_html) if rules_html else _rich_html_from_plain_text(getattr(task, 'confrontation_rules', '') or '')
     return {
         'team_name': team.name,
         'task': task,
@@ -6959,6 +6967,9 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
         'coaching_lines': _task_pdf_lines(getattr(task, 'coaching_points', '')),
         'rules_lines': _task_pdf_lines(getattr(task, 'confrontation_rules', '')),
         'description_lines': _task_pdf_lines(description_text),
+        'description_rich_html': rich_description,
+        'coaching_rich_html': rich_coaching,
+        'rules_rich_html': rich_rules,
         'tokens': _build_task_pdf_tokens(request, tactical_layout),
         'task_meta': meta,
         'strategy_label': strategy_label or '-',
@@ -7081,6 +7092,9 @@ def _build_task_draft_pdf_context(request, primary_team, pdf_style='uefa'):
             'analysis': {
                 'task_sheet': {
                     'description': _sanitize_task_text((request.POST.get('draw_task_description') or '').strip(), multiline=True),
+                    'description_html': _sanitize_task_rich_html((request.POST.get('draw_task_description_html') or '').strip()),
+                    'coaching_html': _sanitize_task_rich_html((request.POST.get('draw_task_coaching_points_html') or '').strip()),
+                    'rules_html': _sanitize_task_rich_html((request.POST.get('draw_task_confrontation_rules_html') or '').strip()),
                     'dimensions': dimensions,
                     'materials': materials,
                 }
@@ -9071,6 +9085,86 @@ def _sanitize_task_text(value, multiline=True, max_len=None):
         multiline=multiline,
         max_len=max_len,
     )
+
+
+_RICH_ALLOWED_TAGS = {
+    'b',
+    'strong',
+    'i',
+    'em',
+    'u',
+    's',
+    'br',
+    'p',
+    'ul',
+    'ol',
+    'li',
+    'div',
+    'span',
+    'sub',
+    'sup',
+}
+
+
+class _RichTextSanitizer(HTMLParser):
+    def __init__(self, allowed_tags):
+        super().__init__()
+        self.allowed = set(allowed_tags or [])
+        self.out = []
+
+    def handle_starttag(self, tag, attrs):
+        name = str(tag or '').lower()
+        if name not in self.allowed:
+            return
+        if name == 'br':
+            self.out.append('<br>')
+            return
+        self.out.append(f'<{name}>')
+
+    def handle_startendtag(self, tag, attrs):
+        name = str(tag or '').lower()
+        if name not in self.allowed:
+            return
+        if name == 'br':
+            self.out.append('<br>')
+            return
+        self.out.append(f'<{name}></{name}>')
+
+    def handle_endtag(self, tag):
+        name = str(tag or '').lower()
+        if name not in self.allowed or name == 'br':
+            return
+        self.out.append(f'</{name}>')
+
+    def handle_data(self, data):
+        if data is None:
+            return
+        self.out.append(html.escape(str(data)))
+
+
+def _sanitize_task_rich_html(value, max_len=6000):
+    raw = str(value or '').strip()
+    if not raw:
+        return ''
+    sanitizer = _RichTextSanitizer(_RICH_ALLOWED_TAGS)
+    try:
+        sanitizer.feed(raw)
+        sanitizer.close()
+    except Exception:
+        return html.escape(raw)[: int(max_len)]
+    cleaned = ''.join(sanitizer.out).strip()
+    if max_len:
+        cleaned = cleaned[: int(max_len)]
+    return cleaned
+
+
+def _rich_html_from_plain_text(value, max_len=6000):
+    raw = str(value or '').strip()
+    if not raw:
+        return ''
+    if max_len:
+        raw = raw[: int(max_len)]
+    return html.escape(raw).replace('\n', '<br>')
 
 
 def _text_has_quality_issues(value):
@@ -11325,6 +11419,9 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 coaching_points = _sanitize_task_text((request.POST.get('draw_task_coaching_points') or '').strip(), multiline=True)
                 confrontation_rules = _sanitize_task_text((request.POST.get('draw_task_confrontation_rules') or '').strip(), multiline=True)
                 description = _sanitize_task_text((request.POST.get('draw_task_description') or '').strip(), multiline=True, max_len=1200)
+                description_html = _sanitize_task_rich_html((request.POST.get('draw_task_description_html') or '').strip())
+                coaching_html = _sanitize_task_rich_html((request.POST.get('draw_task_coaching_points_html') or '').strip())
+                rules_html = _sanitize_task_rich_html((request.POST.get('draw_task_confrontation_rules_html') or '').strip())
                 players = _sanitize_task_text((request.POST.get('draw_task_players') or '').strip(), multiline=False, max_len=120)
                 dimensions = _sanitize_task_text((request.POST.get('draw_task_dimensions') or '').strip(), multiline=False, max_len=120)
                 space = _sanitize_task_text((request.POST.get('draw_task_space') or '').strip(), multiline=False, max_len=120)
@@ -11473,6 +11570,9 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                             'analysis': {
                                 'task_sheet': {
                                     'description': description,
+                                    'description_html': description_html,
+                                    'coaching_html': coaching_html,
+                                    'rules_html': rules_html,
                                     'players': players,
                                     'space': space,
                                     'dimensions': dimensions,
@@ -12305,6 +12405,9 @@ def _task_builder_initial_values(task):
         'coaching_points': str(getattr(task, 'coaching_points', '') or ''),
         'confrontation_rules': str(getattr(task, 'confrontation_rules', '') or ''),
         'description': str(task_sheet.get('description') or ''),
+        'description_html': str(task_sheet.get('description_html') or ''),
+        'coaching_points_html': str(task_sheet.get('coaching_html') or ''),
+        'confrontation_rules_html': str(task_sheet.get('rules_html') or ''),
         'players': str(task_sheet.get('players') or ''),
         'materials': str(task_sheet.get('materials') or ''),
         'dimensions': str(task_sheet.get('dimensions') or ''),
@@ -12384,6 +12487,9 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
     coaching_points = _sanitize_task_text((request.POST.get('draw_task_coaching_points') or '').strip(), multiline=True)
     confrontation_rules = _sanitize_task_text((request.POST.get('draw_task_confrontation_rules') or '').strip(), multiline=True)
     description = _sanitize_task_text((request.POST.get('draw_task_description') or '').strip(), multiline=True, max_len=1200)
+    description_html = _sanitize_task_rich_html((request.POST.get('draw_task_description_html') or '').strip())
+    coaching_html = _sanitize_task_rich_html((request.POST.get('draw_task_coaching_points_html') or '').strip())
+    rules_html = _sanitize_task_rich_html((request.POST.get('draw_task_confrontation_rules_html') or '').strip())
     players = _sanitize_task_text((request.POST.get('draw_task_players') or '').strip(), multiline=False, max_len=120)
     dimensions = _sanitize_task_text((request.POST.get('draw_task_dimensions') or '').strip(), multiline=False, max_len=120)
     space = _sanitize_task_text((request.POST.get('draw_task_space') or '').strip(), multiline=False, max_len=120)
@@ -12609,6 +12715,9 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
             'analysis': {
                 'task_sheet': {
                     'description': description,
+                    'description_html': description_html,
+                    'coaching_html': coaching_html,
+                    'rules_html': rules_html,
                     'players': players,
                     'space': space,
                     'dimensions': dimensions,
@@ -12674,6 +12783,9 @@ def _save_task_studio_entry(request, owner, existing_task=None):
     coaching_points = _sanitize_task_text((request.POST.get('draw_task_coaching_points') or '').strip(), multiline=True)
     confrontation_rules = _sanitize_task_text((request.POST.get('draw_task_confrontation_rules') or '').strip(), multiline=True)
     description = _sanitize_task_text((request.POST.get('draw_task_description') or '').strip(), multiline=True, max_len=1200)
+    description_html = _sanitize_task_rich_html((request.POST.get('draw_task_description_html') or '').strip())
+    coaching_html = _sanitize_task_rich_html((request.POST.get('draw_task_coaching_points_html') or '').strip())
+    rules_html = _sanitize_task_rich_html((request.POST.get('draw_task_confrontation_rules_html') or '').strip())
     players = _sanitize_task_text((request.POST.get('draw_task_players') or '').strip(), multiline=False, max_len=120)
     dimensions = _sanitize_task_text((request.POST.get('draw_task_dimensions') or '').strip(), multiline=False, max_len=120)
     space = _sanitize_task_text((request.POST.get('draw_task_space') or '').strip(), multiline=False, max_len=120)
@@ -12849,6 +12961,9 @@ def _save_task_studio_entry(request, owner, existing_task=None):
             'analysis': {
                 'task_sheet': {
                     'description': description,
+                    'description_html': description_html,
+                    'coaching_html': coaching_html,
+                    'rules_html': rules_html,
                     'players': players,
                     'space': space,
                     'dimensions': dimensions,
@@ -13143,6 +13258,9 @@ def _build_task_studio_draft_pdf_context(request, owner, pdf_style='uefa'):
             'analysis': {
                 'task_sheet': {
                     'description': _sanitize_task_text((request.POST.get('draw_task_description') or '').strip(), multiline=True),
+                    'description_html': _sanitize_task_rich_html((request.POST.get('draw_task_description_html') or '').strip()),
+                    'coaching_html': _sanitize_task_rich_html((request.POST.get('draw_task_coaching_points_html') or '').strip()),
+                    'rules_html': _sanitize_task_rich_html((request.POST.get('draw_task_confrontation_rules_html') or '').strip()),
                     'dimensions': dimensions,
                     'materials': materials,
                 }

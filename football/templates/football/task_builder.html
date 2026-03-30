@@ -673,6 +673,53 @@
         min-height: 92px;
         resize: vertical;
       }
+      .rich-editor {
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: rgba(255, 255, 255, 0.05);
+        overflow: hidden;
+        text-transform: none;
+        letter-spacing: normal;
+        color: var(--ink);
+      }
+      .rich-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        padding: 8px 10px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(2, 6, 23, 0.42);
+      }
+      .rich-toolbar button {
+        border-radius: 10px;
+        padding: 6px 10px;
+        font-size: 0.78rem;
+        font-weight: 900;
+        letter-spacing: 0.02em;
+        text-transform: none;
+        background: rgba(255, 255, 255, 0.04);
+      }
+      .rich-toolbar button:hover {
+        background: rgba(255, 255, 255, 0.07);
+      }
+      .rich-area {
+        min-height: 120px;
+        padding: 0.72rem 0.82rem;
+        outline: none;
+        font-size: 0.92rem;
+        letter-spacing: 0.02em;
+        text-transform: none;
+        white-space: pre-wrap;
+        line-height: 1.55;
+      }
+      .rich-area ul,
+      .rich-area ol {
+        margin: 0;
+        padding-left: 18px;
+      }
+      .rich-area p {
+        margin: 0 0 8px;
+      }
       .compact-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1376,15 +1423,63 @@
                 <div class="stack">
                   <label>
                     Descripción
-                    <textarea name="draw_task_description">{{ initial.description }}</textarea>
+                    <div class="rich-editor" data-rich-editor data-rich-name="draw_task_description" data-rich-html-name="draw_task_description_html">
+                      <div class="rich-toolbar" aria-label="Formato de texto">
+                        <button type="button" data-rich-cmd="bold" title="Negrita">B</button>
+                        <button type="button" data-rich-cmd="italic" title="Cursiva">I</button>
+                        <button type="button" data-rich-cmd="underline" title="Subrayado">U</button>
+                        <button type="button" data-rich-cmd="upper" title="Mayúsculas">MAY</button>
+                        <button type="button" data-rich-cmd="lower" title="Minúsculas">min</button>
+                        <button type="button" data-rich-cmd="insertUnorderedList" title="Viñetas">•</button>
+                        <button type="button" data-rich-cmd="insertOrderedList" title="Numeración">1.</button>
+                        <button type="button" data-rich-cmd="removeFormat" title="Quitar formato">Tx</button>
+                      </div>
+                      <div class="rich-area" contenteditable="true" data-rich-area>
+                        {% if initial.description_html %}{{ initial.description_html|safe }}{% else %}{{ initial.description|linebreaksbr }}{% endif %}
+                      </div>
+                    </div>
+                    <textarea name="draw_task_description" id="draw-task-description" hidden>{{ initial.description }}</textarea>
+                    <input type="hidden" name="draw_task_description_html" id="draw-task-description-html" value="{{ initial.description_html|default:''|escape }}" />
                   </label>
                   <label>
                     Consignas
-                    <textarea name="draw_task_coaching_points">{{ initial.coaching_points }}</textarea>
+                    <div class="rich-editor" data-rich-editor data-rich-name="draw_task_coaching_points" data-rich-html-name="draw_task_coaching_points_html">
+                      <div class="rich-toolbar" aria-label="Formato de texto">
+                        <button type="button" data-rich-cmd="bold" title="Negrita">B</button>
+                        <button type="button" data-rich-cmd="italic" title="Cursiva">I</button>
+                        <button type="button" data-rich-cmd="underline" title="Subrayado">U</button>
+                        <button type="button" data-rich-cmd="upper" title="Mayúsculas">MAY</button>
+                        <button type="button" data-rich-cmd="lower" title="Minúsculas">min</button>
+                        <button type="button" data-rich-cmd="insertUnorderedList" title="Viñetas">•</button>
+                        <button type="button" data-rich-cmd="insertOrderedList" title="Numeración">1.</button>
+                        <button type="button" data-rich-cmd="removeFormat" title="Quitar formato">Tx</button>
+                      </div>
+                      <div class="rich-area" contenteditable="true" data-rich-area>
+                        {% if initial.coaching_points_html %}{{ initial.coaching_points_html|safe }}{% else %}{{ initial.coaching_points|linebreaksbr }}{% endif %}
+                      </div>
+                    </div>
+                    <textarea name="draw_task_coaching_points" id="draw-task-coaching-points" hidden>{{ initial.coaching_points }}</textarea>
+                    <input type="hidden" name="draw_task_coaching_points_html" id="draw-task-coaching-points-html" value="{{ initial.coaching_points_html|default:''|escape }}" />
                   </label>
                   <label>
                     Normas de confrontación
-                    <textarea name="draw_task_confrontation_rules">{{ initial.confrontation_rules }}</textarea>
+                    <div class="rich-editor" data-rich-editor data-rich-name="draw_task_confrontation_rules" data-rich-html-name="draw_task_confrontation_rules_html">
+                      <div class="rich-toolbar" aria-label="Formato de texto">
+                        <button type="button" data-rich-cmd="bold" title="Negrita">B</button>
+                        <button type="button" data-rich-cmd="italic" title="Cursiva">I</button>
+                        <button type="button" data-rich-cmd="underline" title="Subrayado">U</button>
+                        <button type="button" data-rich-cmd="upper" title="Mayúsculas">MAY</button>
+                        <button type="button" data-rich-cmd="lower" title="Minúsculas">min</button>
+                        <button type="button" data-rich-cmd="insertUnorderedList" title="Viñetas">•</button>
+                        <button type="button" data-rich-cmd="insertOrderedList" title="Numeración">1.</button>
+                        <button type="button" data-rich-cmd="removeFormat" title="Quitar formato">Tx</button>
+                      </div>
+                      <div class="rich-area" contenteditable="true" data-rich-area>
+                        {% if initial.confrontation_rules_html %}{{ initial.confrontation_rules_html|safe }}{% else %}{{ initial.confrontation_rules|linebreaksbr }}{% endif %}
+                      </div>
+                    </div>
+                    <textarea name="draw_task_confrontation_rules" id="draw-task-confrontation-rules" hidden>{{ initial.confrontation_rules }}</textarea>
+                    <input type="hidden" name="draw_task_confrontation_rules_html" id="draw-task-confrontation-rules-html" value="{{ initial.confrontation_rules_html|default:''|escape }}" />
                   </label>
                   <label>
                     Material

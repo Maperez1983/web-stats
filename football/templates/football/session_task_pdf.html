@@ -118,7 +118,8 @@
       }
       .preview-frame img {
         display: block;
-        max-width: 100%;
+        width: 100%;
+        height: auto;
         max-height: 460px;
         margin: 0 auto;
       }
@@ -252,6 +253,21 @@
       .uefa-long-copy {
         line-height: 1.55;
         white-space: pre-line;
+      }
+      .rich-text {
+        line-height: 1.55;
+        white-space: normal;
+      }
+      .rich-text ul,
+      .rich-text ol {
+        margin: 0;
+        padding-left: 18px;
+      }
+      .rich-text p {
+        margin: 0 0 8px;
+      }
+      .rich-text li {
+        margin-bottom: 5px;
       }
       .sequence-list {
         display: grid;
@@ -452,8 +468,12 @@
               <div style="border:1px solid #d5dde7; border-radius:14px; overflow:hidden;">
                 <div style="padding:8px 12px; background:{{ pdf_palette.accent }}; color:#fff; font-weight:800; letter-spacing:0.08em; text-transform:uppercase;">Consignas</div>
                 <div style="padding:10px 14px; background:#fff;">
-                  {% if description_lines and description_lines.0 != '-' %}
+                  {% if description_rich_html %}
+                  <div class="rich-text">{{ description_rich_html|safe }}</div>
+                  {% elif description_lines and description_lines.0 != '-' %}
                   <div class="text-block">{{ description_lines|join:"\n" }}</div>
+                  {% elif coaching_rich_html %}
+                  <div class="rich-text">{{ coaching_rich_html|safe }}</div>
                   {% elif coaching_lines and coaching_lines.0 != '-' %}
                   <ul class="bullet-list">
                     {% for line in coaching_lines %}
@@ -470,7 +490,9 @@
               <div style="border:1px solid #d5dde7; border-radius:14px; overflow:hidden;">
                 <div style="padding:8px 12px; background:{{ pdf_palette.accent }}; color:#fff; font-weight:800; letter-spacing:0.08em; text-transform:uppercase;">Normas y criterio</div>
                 <div style="padding:10px 14px; background:#fff;">
-                  {% if rules_lines and rules_lines.0 != '-' %}
+                  {% if rules_rich_html %}
+                  <div class="rich-text">{{ rules_rich_html|safe }}</div>
+                  {% elif rules_lines and rules_lines.0 != '-' %}
                   <ul class="bullet-list">
                     {% for line in rules_lines %}
                     <li>{{ line }}</li>
@@ -634,18 +656,30 @@
 
         <div style="margin-top:12px;" class="uefa-section">Consigna / Explicación</div>
         <div class="uefa-box uefa-long-copy" style="min-height:150px;">
-          {% if description_lines and description_lines.0 != '-' %}
+          {% if description_rich_html %}
+          <div class="rich-text">{{ description_rich_html|safe }}</div>
+          {% elif description_lines and description_lines.0 != '-' %}
           <div class="text-block">{{ description_lines|join:"\n" }}</div>
           {% else %}
           <div class="text-block">-</div>
           {% endif %}
-          {% if coaching_lines and coaching_lines.0 != '-' %}
+          {% if coaching_rich_html %}
+          <div style="margin-top:10px;">
+            <strong>Consignas:</strong>
+            <div class="rich-text">{{ coaching_rich_html|safe }}</div>
+          </div>
+          {% elif coaching_lines and coaching_lines.0 != '-' %}
           <div style="margin-top:10px;">
             <strong>Consignas:</strong>
             <span>{{ coaching_lines|join:" · " }}</span>
           </div>
           {% endif %}
-          {% if rules_lines and rules_lines.0 != '-' %}
+          {% if rules_rich_html %}
+          <div style="margin-top:8px;">
+            <strong>Normas de confrontación:</strong>
+            <div class="rich-text">{{ rules_rich_html|safe }}</div>
+          </div>
+          {% elif rules_lines and rules_lines.0 != '-' %}
           <div style="margin-top:8px;">
             <strong>Normas de confrontación:</strong>
             <span>{{ rules_lines|join:" · " }}</span>

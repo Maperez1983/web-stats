@@ -666,16 +666,102 @@
       }
     }
 
-    const setStatus = (message, isError = false) => {
-      if (!statusEl) return;
-      statusEl.textContent = message;
-      statusEl.style.color = isError ? '#fca5a5' : 'rgba(226,232,240,0.72)';
-    };
+	    const setStatus = (message, isError = false) => {
+	      if (!statusEl) return;
+	      statusEl.textContent = message;
+	      statusEl.style.color = isError ? '#fca5a5' : 'rgba(226,232,240,0.72)';
+	    };
 
-    let players = [];
-    try {
-      players = JSON.parse(document.getElementById('tpad-players-catalog')?.textContent || '[]');
-    } catch (error) {
+	    const initRichEditors = () => {
+	      const wrappers = Array.from(form.querySelectorAll('[data-rich-editor]'));
+	      if (!wrappers.length) return;
+
+	      const applyCaseToSelection = (mode) => {
+	        const selection = window.getSelection ? window.getSelection() : null;
+	        if (!selection || selection.rangeCount <= 0) return false;
+	        const range = selection.getRangeAt(0);
+	        if (!range || range.collapsed) return false;
+	        const text = String(range.toString() || '');
+	        const replaced = mode === 'upper' ? text.toUpperCase() : text.toLowerCase();
+	        range.deleteContents();
+	        range.insertNode(document.createTextNode(replaced));
+	        selection.removeAllRanges();
+	        selection.addRange(range);
+	        return true;
+	      };
+
+	      wrappers.forEach((wrapper) => {
+	        const plainName = safeText(wrapper.dataset.richName);
+	        const htmlName = safeText(wrapper.dataset.richHtmlName);
+	        if (!plainName || !htmlName) return;
+	        const area = wrapper.querySelector('[data-rich-area]');
+	        const toolbar = wrapper.querySelector('.rich-toolbar');
+	        const plainField = form.querySelector(`[name="${CSS.escape(plainName)}"]`);
+	        const htmlField = form.querySelector(`[name="${CSS.escape(htmlName)}"]`);
+	        if (!area || !plainField || !htmlField) return;
+
+	        const normalizePlain = (value) => String(value || '')
+	          .replace(/\u00a0/g, ' ')
+	          .replace(/[ \t]+\n/g, '\n')
+	          .replace(/\n{3,}/g, '\n\n')
+	          .trim();
+
+	        const sync = () => {
+	          htmlField.value = String(area.innerHTML || '').trim();
+	          plainField.value = normalizePlain(area.innerText || area.textContent || '');
+	          plainField.dispatchEvent(new Event('input', { bubbles: true }));
+	        };
+
+	        area.addEventListener('input', sync);
+	        area.addEventListener('blur', sync);
+	        area.addEventListener('paste', (event) => {
+	          const text = event.clipboardData?.getData('text/plain');
+	          if (typeof text !== 'string') return;
+	          event.preventDefault();
+	          try {
+	            document.execCommand('insertText', false, text);
+	          } catch (error) {
+	            // fallback
+	            const selection = window.getSelection ? window.getSelection() : null;
+	            if (!selection || selection.rangeCount <= 0) return;
+	            const range = selection.getRangeAt(0);
+	            range.deleteContents();
+	            range.insertNode(document.createTextNode(text));
+	          }
+	          sync();
+	        });
+
+	        toolbar?.addEventListener('click', (event) => {
+	          const btn = event.target.closest('button[data-rich-cmd]');
+	          if (!btn) return;
+	          event.preventDefault();
+	          const cmd = safeText(btn.dataset.richCmd);
+	          if (!cmd) return;
+	          area.focus();
+	          if (cmd === 'upper' || cmd === 'lower') {
+	            const did = applyCaseToSelection(cmd);
+	            if (!did) setStatus('Selecciona texto para cambiar mayúsculas/minúsculas.', true);
+	            sync();
+	            return;
+	          }
+	          try {
+	            document.execCommand(cmd, false, null);
+	          } catch (error) {
+	            // ignore
+	          }
+	          sync();
+	        });
+
+	        // Inicializa hidden fields al cargar (para el caso de que vengan con HTML).
+	        sync();
+	      });
+	    };
+	    initRichEditors();
+
+	    let players = [];
+	    try {
+	      players = JSON.parse(document.getElementById('tpad-players-catalog')?.textContent || '[]');
+	    } catch (error) {
       players = [];
     }
     if (!Array.isArray(players)) players = [];
@@ -3096,15 +3182,15 @@
 			    document.addEventListener('keydown', (event) => {
 			      const key = String(event.key || '').toLowerCase();
 			      const isMod = event.metaKey || event.ctrlKey;
-		        const isShift = !!event.shiftKey;
-			      const el = document.activeElement;
-			      const tag = (el && el.tagName) ? el.tagName.toLowerCase() : '';
-			      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
-			      if (key === 'escape' && !commandMenu?.hidden) {
-			        setCommandMenuOpen(false);
-			        event.preventDefault();
-			        return;
-			      }
+				      const isShift = !!event.shiftKey;
+				      const el = document.activeElement;
+				      const tag = (el && el.tagName) ? el.tagName.toLowerCase() : '';
+				      if (tag === 'input' || tag === 'textarea' || tag === 'select' || (el && el.isContentEditable)) return;
+				      if (key === 'escape' && !commandMenu?.hidden) {
+				        setCommandMenuOpen(false);
+				        event.preventDefault();
+				        return;
+				      }
 				      if ((event.code === 'Space' || key === ' ') && viewportEl) {
 				        // Modo "mano": espacio + arrastrar para desplazar el viewport (como Camelot).
 				        if (!spacePanArmed) {
