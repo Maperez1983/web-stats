@@ -680,7 +680,23 @@
             const resp = await fetch('/api/dashboard/refresh/', { credentials: 'same-origin' });
             const data = await resp.json().catch(() => ({}));
             if (!resp.ok) throw new Error(data.message || 'No se pudo actualizar.');
-            await renderDashboard();
+            // Evita caché en despliegues con múltiples instancias: fuerza recomputar.
+            try {
+              const response = await fetch(`/api/dashboard/?fresh=1&ts=${Date.now()}`, { credentials: 'same-origin' });
+              if (!response.ok) throw new Error('No se pudo recargar la dashboard');
+              const payload = await response.json();
+              renderStandings(payload.standings, payload.team);
+              renderNextMatch(payload.next_match, payload.standings);
+              const meta = payload.standings_meta || {};
+              const metaEl = document.getElementById('standings-meta');
+              if (metaEl) {
+                const updated = String(meta.last_updated || '').trim();
+                const provider = String(meta.provider || '').trim();
+                metaEl.textContent = updated ? `Actualizado: ${updated}${provider ? ` · ${provider}` : ''}` : '';
+              }
+            } catch (reloadError) {
+              await renderDashboard();
+            }
           } catch (error) {
             console.error(error);
             alert(String(error.message || error));

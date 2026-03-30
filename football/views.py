@@ -3974,10 +3974,12 @@ def dashboard_data(request):
     if not group:
         return JsonResponse({'error': 'El equipo principal no está asignado a ningún grupo'}, status=400)
 
+    force_fresh = str(request.GET.get('fresh') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
     cache_key = _dashboard_cache_key(primary_team.id)
-    cached_payload = cache.get(cache_key)
-    if isinstance(cached_payload, dict):
-        return JsonResponse(cached_payload)
+    if not force_fresh:
+        cached_payload = cache.get(cache_key)
+        if isinstance(cached_payload, dict):
+            return JsonResponse(cached_payload)
 
     refresh_roster_on_load = str(
         os.getenv('PREFERENTE_ROSTER_REFRESH_ON_LOAD', '0')
@@ -4029,7 +4031,10 @@ def dashboard_data(request):
         'player_cards_scope': player_cards_scope,
     }
     cache.set(cache_key, payload, DASHBOARD_CACHE_SECONDS)
-    return JsonResponse(payload)
+    response = JsonResponse(payload)
+    if force_fresh:
+        response['Cache-Control'] = 'no-store'
+    return response
 
 
 @login_required
