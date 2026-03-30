@@ -2431,17 +2431,25 @@
       }
       if (action === 'undo') return performUndo();
       if (action === 'redo') return performRedo();
-      if (action === 'delete') {
-        const active = canvas.getActiveObject();
-        if (!active) return false;
-        canvas.remove(active);
-        canvas.discardActiveObject();
-        canvas.requestRenderAll();
-        pushHistory();
-        syncInspector();
-        setStatus('Elemento eliminado.');
-        return true;
-      }
+	      if (action === 'delete') {
+	        const active = canvas.getActiveObject();
+	        if (!active) return false;
+	        if (active.type === 'activeSelection' && typeof active.getObjects === 'function') {
+	          const objects = active.getObjects();
+	          canvas.discardActiveObject();
+	          objects.forEach((obj) => {
+	            if (obj) canvas.remove(obj);
+	          });
+	        } else {
+	          canvas.remove(active);
+	          canvas.discardActiveObject();
+	        }
+	        canvas.requestRenderAll();
+	        pushHistory();
+	        syncInspector();
+	        setStatus('Elemento eliminado.');
+	        return true;
+	      }
       if (action === 'duplicate') {
         duplicateActiveObject();
         return true;
