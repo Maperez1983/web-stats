@@ -1037,6 +1037,9 @@
                 <div class="user-card-meta">
                   <span class="user-pill">{{ item.workspace_count }} espacios</span>
                   <span class="user-pill {% if item.is_active %}ok{% else %}warn{% endif %}">{% if item.is_active %}Activo{% else %}Inactivo{% endif %}</span>
+                  {% if item.role_value == 'task_studio' or item.role_value == 'guest' %}
+                  <a class="link-btn" href="{% url 'task-studio-home' %}?user={{ item.id }}">Task Studio</a>
+                  {% endif %}
                   <form method="post" class="compact-form" style="justify-content:flex-end;">
                     {% csrf_token %}
                     <input type="hidden" name="form_action" value="platform_user_invite_create" />

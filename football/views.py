@@ -935,7 +935,11 @@ def _task_studio_profile_for_user(user):
         if not workspace and profile and profile.workspace_id and getattr(profile.workspace, 'kind', None) == Workspace.KIND_TASK_STUDIO:
             workspace = profile.workspace
         if not profile and not workspace:
-            return None
+            workspace = _ensure_task_studio_workspace(user)
+            if not workspace:
+                return None
+            profile = TaskStudioProfile.objects.create(user=user, workspace=workspace)
+            return profile
         if not profile:
             profile = TaskStudioProfile.objects.create(user=user, workspace=workspace)
         elif workspace and profile.workspace_id != workspace.id:
@@ -4045,7 +4049,7 @@ def platform_overview_page(request):
     }
     if primary_team:
         _ensure_club_workspace(primary_team)
-    studio_users = User.objects.filter(app_role__role=AppUserRole.ROLE_TASK_STUDIO).distinct()
+    studio_users = User.objects.filter(app_role__role__in=[AppUserRole.ROLE_TASK_STUDIO, AppUserRole.ROLE_GUEST]).distinct()
     for studio_user in studio_users:
         _ensure_task_studio_workspace(studio_user)
 
@@ -6729,6 +6733,40 @@ def _build_task_pdf_tokens_from_canvas_state(request, canvas_state, canvas_width
 
 
 def _normalize_task_pdf_meta(meta):
+    def _normalize_meta_key(raw_key):
+        text = str(raw_key or '').strip()
+        if not text:
+            return ''
+        text = re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', text)
+        text = text.replace(' ', '_').replace('-', '_')
+        text = re.sub(r'[^a-zA-Z0-9_]', '', text)
+        text = re.sub(r'__+', '_', text).strip('_').lower()
+        return text
+
+    def _normalize_meta_dict(raw_value):
+        if not isinstance(raw_value, dict):
+            return {}
+        normalized = {}
+        for key, value in raw_value.items():
+            normalized_key = _normalize_meta_key(key)
+            if not normalized_key:
+                continue
+            if isinstance(value, dict):
+                normalized_value = _normalize_meta_dict(value)
+            elif isinstance(value, list):
+                normalized_value = [
+                    _normalize_meta_dict(item) if isinstance(item, dict) else item
+                    for item in value
+                ]
+            else:
+                normalized_value = value
+            existing = normalized.get(normalized_key)
+            if existing in (None, '', [], {}) and normalized_value not in (None, '', [], {}):
+                normalized[normalized_key] = normalized_value
+            elif normalized_key not in normalized:
+                normalized[normalized_key] = normalized_value
+        return normalized
+
     def _map_choice(value, mapping):
         raw = str(value or '').strip()
         if not raw:
@@ -6755,7 +6793,14 @@ def _normalize_task_pdf_meta(meta):
     tactical_intent_map = {key: label for key, label in TASK_TACTICAL_INTENT_CHOICES}
     dynamics_map = {key: label for key, label in TASK_DYNAMICS_CHOICES}
     structure_map = {key: label for key, label in TASK_STRUCTURE_CHOICES}
-    meta = dict(meta or {})
+    meta = _normalize_meta_dict(meta or {})
+    if not meta:
+        return {}
+    if not meta.get('strategy') and meta.get('training_type'):
+        strategy_candidate = _map_choice(meta.get('training_type'), strategy_map)
+        training_type_key = str(meta.get('training_type') or '').strip().lower().replace(' ', '_').replace('-', '_')
+        if training_type_key in strategy_map or strategy_candidate in strategy_map.values():
+            meta['strategy'] = strategy_candidate
     if meta.get('surface'):
         meta['surface'] = _map_choice(meta.get('surface'), surface_map) or str(meta.get('surface'))
     if meta.get('pitch_format'):
@@ -6779,7 +6824,7 @@ def _normalize_task_pdf_meta(meta):
     if meta.get('structure'):
         meta['structure'] = _map_choice(meta.get('structure'), structure_map) or str(meta.get('structure'))
     if isinstance(meta.get('constraints'), list):
-        meta['constraints'] = [constraint_map.get(str(v), str(v)) for v in meta.get('constraints')]
+        meta['constraints'] = [_map_choice(v, constraint_map) or str(v) for v in meta.get('constraints')]
     if isinstance(meta.get('category_tags'), str):
         meta['category_tags'] = [item.strip() for item in str(meta.get('category_tags') or '').split(',') if item.strip()]
     elif not isinstance(meta.get('category_tags'), list):
