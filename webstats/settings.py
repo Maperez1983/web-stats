@@ -24,6 +24,15 @@ def _env_bool(name, default=False):
         return bool(default)
     return str(raw).strip().lower() in {'1', 'true', 'yes', 'on'}
 
+def _env_int(name, default):
+    raw = os.getenv(name)
+    if raw is None:
+        return int(default)
+    try:
+        return int(str(raw).strip())
+    except Exception:
+        return int(default)
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
@@ -103,6 +112,13 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = 'same-origin'
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'
+
+# Sesiones (login)
+# - SESSION_COOKIE_AGE: segundos (por defecto Django: 1209600 = 2 semanas)
+# - SESSION_SAVE_EVERY_REQUEST: renueva caducidad en cada request (expiración "deslizante")
+SESSION_COOKIE_AGE = _env_int('SESSION_COOKIE_AGE', 1209600)
+SESSION_SAVE_EVERY_REQUEST = _env_bool('SESSION_SAVE_EVERY_REQUEST', False)
+SESSION_EXPIRE_AT_BROWSER_CLOSE = _env_bool('SESSION_EXPIRE_AT_BROWSER_CLOSE', False)
 
 if not DEBUG:
     SECURE_SSL_REDIRECT = _env_bool('SECURE_SSL_REDIRECT', True)
