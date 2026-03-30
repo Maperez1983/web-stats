@@ -714,6 +714,43 @@
             </select>
             <button class="inline-btn" type="submit">Añadir miembro</button>
           </form>
+          <details style="margin-top:0.75rem;">
+            <summary style="cursor:pointer;">Invitar usuario (crear enlace de acceso)</summary>
+            <div class="panel-block" style="margin-top:0.6rem;">
+              <form method="post" class="inline-form" style="flex-wrap:wrap; gap:0.5rem;">
+                {% csrf_token %}
+                <input type="hidden" name="form_action" value="invite_member" />
+                <input type="text" name="invite_username" placeholder="username" required />
+                <input type="text" name="invite_full_name" placeholder="nombre completo (opcional)" />
+                <input type="email" name="invite_email" placeholder="email (opcional)" />
+                <select name="invite_app_role" title="Rol global">
+                  <option value="invitado">Invitado</option>
+                  <option value="entrenador">Entrenador</option>
+                  <option value="preparador_fisico">Preparador físico</option>
+                  <option value="preparador_portero">Preparador portero</option>
+                  <option value="analista">Analista</option>
+                  <option value="jugador">Jugador</option>
+                  <option value="task_studio">Task Studio</option>
+                </select>
+                <select name="invite_member_role" title="Rol en este workspace">
+                  {% for role_value, role_label in workspace_role_choices %}
+                  <option value="{{ role_value }}" {% if role_value == 'viewer' %}selected{% endif %}>{{ role_label }}</option>
+                  {% endfor %}
+                </select>
+                <input type="number" name="invite_valid_days" min="1" max="30" value="7" title="Días de validez" />
+                <button class="inline-btn" type="submit">Generar enlace</button>
+              </form>
+              {% if invite_link %}
+              <div style="margin-top:0.75rem;">
+                <div style="font-weight:800;">Enlace de acceso</div>
+                <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; margin-top:0.35rem;">
+                  <input type="text" value="{{ invite_link }}" readonly style="min-width:320px; flex:1; padding:10px 12px; border-radius:12px; border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.04); color:#e2e8f0;" onclick="this.select();" />
+                  <button type="button" class="inline-btn" onclick="navigator.clipboard?.writeText('{{ invite_link }}');">Copiar</button>
+                </div>
+              </div>
+              {% endif %}
+            </div>
+          </details>
           {% endif %}
           <div class="member-list">
             {% for membership in memberships %}

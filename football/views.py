@@ -25,6 +25,7 @@ from types import SimpleNamespace
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
+from django.contrib.auth import login as auth_login
 from django.contrib.auth.password_validation import validate_password
 from django.core.cache import cache
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -103,6 +104,7 @@ from football.models import (
     RivalAnalysisReport,
     AppUserRole,
     UserInvitation,
+    ShareLink,
     TaskBlueprint,
     TaskStudioProfile,
     TaskStudioRosterPlayer,
@@ -4617,6 +4619,7 @@ def platform_workspace_detail_page(request, workspace_id):
     feedback = ''
     error = ''
     can_manage_workspace = _can_manage_workspace(request.user, workspace)
+    invite_link = ''
     competition_search_inputs = {
         'provider': WorkspaceCompetitionContext.PROVIDER_MANUAL,
         'team_query': str(getattr(workspace.primary_team, 'name', '') or '').strip(),
@@ -4851,6 +4854,79 @@ def platform_workspace_detail_page(request, workspace_id):
                     defaults={'role': member_role},
                 )
                 feedback = f'Usuario {target_user.username} vinculado al workspace.'
+        elif form_action == 'invite_member':
+            # Invitación + alta opcional de usuario (para que pueda poner su contraseña).
+            username = _sanitize_task_text((request.POST.get('invite_username') or '').strip(), multiline=False, max_len=150)
+            full_name = _sanitize_task_text((request.POST.get('invite_full_name') or '').strip(), multiline=False, max_len=150)
+            email = re.sub(r'\s+', '', str(request.POST.get('invite_email') or '').strip()).lower()[:190]
+            app_role = str(request.POST.get('invite_app_role') or AppUserRole.ROLE_GUEST).strip()
+            member_role = str(request.POST.get('invite_member_role') or WorkspaceMembership.ROLE_VIEWER).strip()
+            validity_days = _parse_int(request.POST.get('invite_valid_days')) or 7
+            validity_days = max(1, min(validity_days, 30))
+            if member_role not in {choice[0] for choice in WorkspaceMembership.ROLE_CHOICES}:
+                member_role = WorkspaceMembership.ROLE_VIEWER
+            allowed_roles = {
+                AppUserRole.ROLE_PLAYER,
+                AppUserRole.ROLE_GUEST,
+                AppUserRole.ROLE_COACH,
+                AppUserRole.ROLE_FITNESS,
+                AppUserRole.ROLE_GOALKEEPER,
+                AppUserRole.ROLE_ANALYST,
+                AppUserRole.ROLE_TASK_STUDIO,
+            }
+            if app_role not in allowed_roles:
+                app_role = AppUserRole.ROLE_GUEST
+            try:
+                if not username:
+                    raise ValueError('Indica un username para invitar.')
+                username = re.sub(r'\s+', '', username).lower()[:150]
+                first_name, last_name = _split_full_name(full_name)
+                user_obj = User.objects.filter(username__iexact=username).first()
+                if not user_obj:
+                    user_obj = User.objects.create_user(
+                        username=username,
+                        email=email,
+                        password=None,
+                        first_name=first_name,
+                        last_name=last_name,
+                        is_active=False,
+                    )
+                else:
+                    # Actualiza datos básicos si se proporcionan.
+                    changed = False
+                    if email and (user_obj.email or '').strip().lower() != email:
+                        user_obj.email = email
+                        changed = True
+                    if full_name:
+                        user_obj.first_name = first_name
+                        user_obj.last_name = last_name
+                        changed = True
+                    if changed:
+                        user_obj.save(update_fields=['email', 'first_name', 'last_name'])
+                AppUserRole.objects.update_or_create(user=user_obj, defaults={'role': app_role})
+                if app_role == AppUserRole.ROLE_TASK_STUDIO:
+                    _ensure_task_studio_workspace(user_obj)
+                WorkspaceMembership.objects.update_or_create(
+                    workspace=workspace,
+                    user=user_obj,
+                    defaults={'role': member_role},
+                )
+                # Reemplaza invitaciones previas no usadas.
+                UserInvitation.objects.filter(user=user_obj, is_active=True, accepted_at__isnull=True).update(is_active=False)
+                invitation = UserInvitation.objects.create(
+                    user=user_obj,
+                    token=UserInvitation.generate_token(),
+                    email=(user_obj.email or '').strip(),
+                    expires_at=timezone.now() + timedelta(days=validity_days),
+                    created_by=request.user.get_username() if request.user.is_authenticated else '',
+                    is_active=True,
+                )
+                invite_link = request.build_absolute_uri(reverse('user-invite-accept', args=[invitation.token]))
+                feedback = f'Invitación generada para {user_obj.username}.'
+            except ValueError as exc:
+                error = str(exc)
+            except Exception:
+                error = 'No se pudo generar la invitación.'
         elif form_action == 'update_member_role':
             membership_id = _parse_int(request.POST.get('membership_id'))
             member_role = str(request.POST.get('member_role') or WorkspaceMembership.ROLE_MEMBER).strip()
@@ -5005,6 +5081,7 @@ def platform_workspace_detail_page(request, workspace_id):
             'competition_provider_choices': WorkspaceCompetitionContext.PROVIDER_CHOICES,
             'competition_search_inputs': competition_search_inputs,
             'competition_search_results': competition_search_results,
+            'invite_link': invite_link,
         },
     )
 
@@ -5443,7 +5520,11 @@ def invitation_accept_page(request, token):
                     is_active=True,
                     accepted_at__isnull=True,
                 ).exclude(id=invitation.id).update(is_active=False)
-                success = 'Invitación aceptada. Ya puedes iniciar sesión.'
+                try:
+                    auth_login(request, invitation.user)
+                    return redirect('dashboard-home')
+                except Exception:
+                    success = 'Invitación aceptada. Ya puedes iniciar sesión.'
             except DjangoValidationError as exc:
                 error = ' '.join(exc.messages) or 'Contraseña inválida.'
             except Exception:
@@ -5459,6 +5540,159 @@ def invitation_accept_page(request, token):
             'success': success,
         },
     )
+
+
+def _file_field_as_data_url(file_field):
+    if not file_field:
+        return ''
+    try:
+        file_field.open('rb')
+        raw = file_field.read()
+        file_field.close()
+    except Exception:
+        return ''
+    if not raw:
+        return ''
+    ext = Path(getattr(file_field, 'name', '') or '').suffix.lower()
+    mime = {
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.webp': 'image/webp',
+        '.gif': 'image/gif',
+    }.get(ext, 'image/jpeg')
+    return f"data:{mime};base64,{base64.b64encode(raw).decode('utf-8')}"
+
+
+@login_required
+@require_POST
+def share_task_pdf_create(request):
+    """
+    Crea un enlace público (token) para imprimir/abrir el PDF de una tarea.
+    """
+    task_kind = str(request.POST.get('task_kind') or '').strip().lower()
+    task_id = _parse_int(request.POST.get('task_id'))
+    style = (request.POST.get('style') or 'uefa').strip().lower()
+    if style not in {'uefa', 'club'}:
+        style = 'uefa'
+    validity_days = _parse_int(request.POST.get('valid_days')) or 14
+    validity_days = max(1, min(validity_days, 60))
+    try:
+        if not task_kind or task_kind not in {'session', 'task_studio'}:
+            raise ValueError('Tipo de tarea no válido.')
+        if not task_id:
+            raise ValueError('Tarea no válida.')
+        if task_kind == 'session':
+            if not _can_access_sessions_workspace(request.user):
+                return JsonResponse({'error': 'No tienes permisos para acceder a sesiones.'}, status=403)
+            forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+            if forbidden:
+                return JsonResponse({'error': 'El módulo sesiones no está disponible.'}, status=403)
+            task = (
+                SessionTask.objects
+                .select_related('session__microcycle__team')
+                .filter(id=task_id, deleted_at__isnull=True)
+                .first()
+            )
+            if not task:
+                raise ValueError('Tarea no encontrada.')
+            ws = _get_active_workspace(request)
+            if not _can_access_platform(request.user) and ws and ws.kind == Workspace.KIND_CLUB and ws.primary_team_id:
+                if int(ws.primary_team_id) != int(task.session.microcycle.team_id):
+                    return JsonResponse({'error': 'No tienes permisos para compartir esta tarea.'}, status=403)
+        else:
+            forbidden = _forbid_if_no_task_studio_access(request.user)
+            if forbidden:
+                return JsonResponse({'error': 'No tienes permisos para acceder a Task Studio.'}, status=403)
+            task = _task_studio_task_for_request(request, task_id)
+            if not task:
+                raise ValueError('Tarea no encontrada.')
+
+        ShareLink.objects.filter(
+            is_active=True,
+            kind=ShareLink.KIND_TASK_PDF,
+            payload__task_kind=task_kind,
+            payload__task_id=task_id,
+            payload__style=style,
+        ).update(is_active=False)
+        link = ShareLink.objects.create(
+            token=ShareLink.generate_token(),
+            kind=ShareLink.KIND_TASK_PDF,
+            payload={'task_kind': task_kind, 'task_id': task_id, 'style': style},
+            expires_at=timezone.now() + timedelta(days=validity_days),
+            created_by=request.user.get_username() if request.user.is_authenticated else '',
+            is_active=True,
+        )
+        url = request.build_absolute_uri(reverse('share-task-pdf', args=[link.token]))
+        return JsonResponse({'ok': True, 'url': url, 'expires_at': link.expires_at})
+    except ValueError as exc:
+        return JsonResponse({'error': str(exc)}, status=400)
+    except Exception:
+        return JsonResponse({'error': 'No se pudo crear el enlace.'}, status=500)
+
+
+def share_task_pdf_page(request, token):
+    """
+    Endpoint público para el PDF de una tarea compartida por token.
+    """
+    token = str(token or '').strip()
+    link = (
+        ShareLink.objects
+        .filter(token=token, is_active=True, kind=ShareLink.KIND_TASK_PDF)
+        .order_by('-created_at')
+        .first()
+    )
+    now = timezone.now()
+    if not link or not link.can_be_used(now=now):
+        raise Http404('Enlace no disponible')
+    payload = link.payload if isinstance(link.payload, dict) else {}
+    task_kind = str(payload.get('task_kind') or '').strip().lower()
+    task_id = _parse_int(payload.get('task_id'))
+    pdf_style = str(payload.get('style') or 'uefa').strip().lower()
+    if pdf_style not in {'uefa', 'club'}:
+        pdf_style = 'uefa'
+    if task_kind == 'session':
+        task = (
+            SessionTask.objects
+            .select_related('session__microcycle__team')
+            .filter(id=task_id, deleted_at__isnull=True)
+            .first()
+        )
+        if not task:
+            raise Http404('Tarea no encontrada')
+        team = task.session.microcycle.team
+        preview_url = _file_field_as_data_url(task.task_preview_image) if task.task_preview_image else ''
+        context = _build_task_pdf_context(
+            request,
+            team=team,
+            session=task.session,
+            microcycle=task.session.microcycle,
+            task=task,
+            tactical_layout=task.tactical_layout if isinstance(task.tactical_layout, dict) else {},
+            pdf_style=pdf_style,
+            preview_url=preview_url,
+        )
+        html = render_to_string('football/session_task_pdf.html', context)
+        filename = slugify(f'tarea-compartida-{task.id}-{task.title}') or f'tarea-{task.id}'
+        return _build_pdf_response_or_html_fallback(request, html, filename)
+    if task_kind == 'task_studio':
+        task = TaskStudioTask.objects.select_related('owner').filter(id=task_id, deleted_at__isnull=True).first()
+        if not task:
+            raise Http404('Tarea no encontrada')
+        owner = task.owner
+        preview_url = _file_field_as_data_url(task.task_preview_image) if task.task_preview_image else ''
+        context = _build_task_studio_pdf_context(
+            request,
+            owner=owner,
+            task=task,
+            tactical_layout=task.tactical_layout if isinstance(task.tactical_layout, dict) else {},
+            pdf_style=pdf_style,
+            preview_url=preview_url,
+        )
+        html = render_to_string('football/session_task_pdf.html', context)
+        filename = slugify(f'task-studio-compartida-{task.id}-{task.title}') or f'task-studio-{task.id}'
+        return _build_pdf_response_or_html_fallback(request, html, filename)
+    raise Http404('Enlace no válido')
 
 
 @login_required

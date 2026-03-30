@@ -575,6 +575,7 @@
 	    const exportJsonBtn = document.getElementById('export-json');
 	    const exportStepsBtn = document.getElementById('export-png-steps');
 	    const exportWebmBtn = document.getElementById('export-webm');
+	    const exportVideoWidthSelect = document.getElementById('export-video-width');
     if (!window.fabric || !form || !canvasEl || !stage || !svgSurface || !presetSelect) return;
 
     const draftAlert = document.getElementById('task-builder-draft-alert');
@@ -3654,7 +3655,8 @@
 	        const title = fileSafeSlug(form.querySelector('[name="draw_task_title"]')?.value);
 	        const sourceW = Math.round(canvas.getWidth());
 	        const sourceH = Math.round(canvas.getHeight());
-	        const outW = 1280;
+	        const chosenWidth = Number.parseInt(String(exportVideoWidthSelect?.value || ''), 10);
+	        const outW = clamp(Number.isFinite(chosenWidth) ? chosenWidth : 1280, 960, 4096);
 	        const scale = outW / Math.max(1, sourceW);
 	        const outH = Math.max(180, Math.round(sourceH * scale));
 	        const exportCanvas = document.createElement('canvas');

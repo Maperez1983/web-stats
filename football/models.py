@@ -799,6 +799,40 @@ class UserInvitation(models.Model):
         return f'Invitación {self.user.username} · {self.created_at:%Y-%m-%d %H:%M}'
 
 
+class ShareLink(models.Model):
+    KIND_TASK_PDF = 'task_pdf'
+    KIND_CHOICES = [
+        (KIND_TASK_PDF, 'PDF de tarea'),
+    ]
+
+    token = models.CharField(max_length=120, unique=True, db_index=True)
+    kind = models.CharField(max_length=40, choices=KIND_CHOICES, default=KIND_TASK_PDF)
+    payload = models.JSONField(default=dict, blank=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    created_by = models.CharField(max_length=80, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+        verbose_name = 'Enlace compartido'
+        verbose_name_plural = 'Enlaces compartidos'
+
+    @classmethod
+    def generate_token(cls):
+        return secrets.token_urlsafe(32)
+
+    def is_expired(self, now=None):
+        reference = now or timezone.now()
+        return bool(self.expires_at and self.expires_at <= reference)
+
+    def can_be_used(self, now=None):
+        return bool(self.is_active and not self.is_expired(now=now))
+
+    def __str__(self):
+        return f'{self.kind} · {self.created_at:%Y-%m-%d %H:%M}'
+
+
 class AppUserRole(models.Model):
     ROLE_PLAYER = 'jugador'
     ROLE_GUEST = 'invitado'

@@ -1070,6 +1070,10 @@
           <a href="{{ back_url|default:'#' }}" class="button">{{ back_label|default:'Volver a sesiones' }}</a>
           <button type="button" class="button" data-print-style="uefa">Imprimir UEFA</button>
           <button type="button" class="button" data-print-style="club">Imprimir Club</button>
+          {% if task %}
+          <button type="button" class="button" id="share-pdf-uefa">Compartir PDF UEFA</button>
+          <button type="button" class="button" id="share-pdf-club">Compartir PDF Club</button>
+          {% endif %}
           {% if task and scope_key == 'task_studio' %}
           <form method="post" action="{% url 'task-studio-task-delete' task.id %}{% if query_suffix %}{{ query_suffix }}{% endif %}" onsubmit="return confirm('Se eliminará esta tarea creada.');">
             {% csrf_token %}
@@ -1874,6 +1878,15 @@
 		                <div class="section">
 		                  <h3>Exportar</h3>
 		                  <p>Descarga la pizarra como imagen, la animación como vídeo o el estado como archivo.</p>
+		                  <label style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; margin-bottom:0.65rem;">
+		                    <span class="meta" style="margin:0;">Calidad vídeo</span>
+		                    <select id="export-video-width">
+		                      <option value="1280">HD (1280)</option>
+		                      <option value="1920" selected>FullHD (1920)</option>
+		                      <option value="2560">2K (2560)</option>
+		                      <option value="3200">Ultra (3200)</option>
+		                    </select>
+		                  </label>
 		                  <div class="export-grid">
 		                    <button type="button" class="button" id="export-png">PNG (actual)</button>
 		                    <button type="button" class="button" id="export-png-hd">PNG (HD)</button>
@@ -1916,5 +1929,40 @@
         if (window.initSessionsTacticalPad) window.initSessionsTacticalPad();
       });
     </script>
+    {% if task %}
+    <script>
+      (function () {
+        const uefaBtn = document.getElementById('share-pdf-uefa');
+        const clubBtn = document.getElementById('share-pdf-club');
+        const csrf = document.querySelector('#task-builder-form input[name="csrfmiddlewaretoken"]')?.value || '';
+        const taskId = '{{ task.id }}';
+        const taskKind = '{{ scope_key }}' === 'task_studio' ? 'task_studio' : 'session';
+        const createUrl = "{% url 'share-task-pdf-create' %}";
+        const run = async (style) => {
+          try {
+            const body = new URLSearchParams();
+            body.set('task_kind', taskKind);
+            body.set('task_id', String(taskId));
+            body.set('style', String(style || 'uefa'));
+            body.set('valid_days', '30');
+            const resp = await fetch(createUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': csrf },
+              credentials: 'same-origin',
+              body: body.toString(),
+            });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok || !data?.url) throw new Error(data?.error || 'No se pudo crear el enlace.');
+            try { await navigator.clipboard?.writeText(data.url); } catch (e) { /* ignore */ }
+            window.prompt('Enlace público (copiado si el navegador lo permite):', data.url);
+          } catch (err) {
+            window.alert(err?.message || 'Error al crear enlace.');
+          }
+        };
+        uefaBtn?.addEventListener('click', () => run('uefa'));
+        clubBtn?.addEventListener('click', () => run('club'));
+      })();
+    </script>
+    {% endif %}
   </body>
 </html>

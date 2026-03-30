@@ -1,14 +1,20 @@
 {% load static %}
 <div class="dragon-nav">
-  <a href="{% url 'dashboard-home' %}" class="dragon-link" title="Volver al inicio">
+  <a href="{% if workspace_entry_url %}{{ workspace_entry_url }}{% else %}{% url 'dashboard-home' %}{% endif %}" class="dragon-link" title="Volver al inicio">
     <img src="{% static 'football/images/2j-icon.svg' %}" alt="2J Football Intelligence" loading="lazy" />
   </a>
 </div>
 {% if not hide_product_shortcuts %}
 <nav class="product-nav-shortcuts" aria-label="Accesos rápidos">
+  {% if workspace_module_access.dashboard|default:True %}
   <a href="{% url 'dashboard-home' %}">Portada</a>
+  {% endif %}
+  {% if workspace_module_access.players|default:True %}
   <a href="{% url 'player-dashboard' %}">Jugadores</a>
+  {% endif %}
+  {% if workspace_module_access.coach_overview|default:True %}
   <a href="{% url 'coach-cards' %}">Cuerpo técnico</a>
+  {% endif %}
 </nav>
 {% endif %}
 <style>
