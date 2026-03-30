@@ -119,9 +119,19 @@ LOGIN_REDIRECT_URL = '/'
 SESSION_COOKIE_AGE = _env_int('SESSION_COOKIE_AGE', 1209600)
 SESSION_SAVE_EVERY_REQUEST = _env_bool('SESSION_SAVE_EVERY_REQUEST', False)
 SESSION_EXPIRE_AT_BROWSER_CLOSE = _env_bool('SESSION_EXPIRE_AT_BROWSER_CLOSE', False)
+SESSION_COOKIE_NAME = (os.getenv('SESSION_COOKIE_NAME') or 'webstats_sessionid').strip() or 'webstats_sessionid'
+CSRF_COOKIE_NAME = (os.getenv('CSRF_COOKIE_NAME') or 'webstats_csrftoken').strip() or 'webstats_csrftoken'
 SESSION_ENGINE_ENV = os.getenv('SESSION_ENGINE', '').strip()
 if SESSION_ENGINE_ENV:
     SESSION_ENGINE = SESSION_ENGINE_ENV
+else:
+    # En despliegues con múltiples instancias + SQLite local, las sesiones en DB no se comparten y el usuario
+    # puede acabar redirigido a /login/ en cada request. Usamos cookies firmadas por defecto en ese caso.
+    try:
+        if not DEBUG and str(DATABASES.get('default', {}).get('ENGINE', '')).endswith('sqlite3'):
+            SESSION_ENGINE = 'django.contrib.sessions.backends.signed_cookies'
+    except Exception:
+        pass
 
 if not DEBUG:
     SECURE_SSL_REDIRECT = _env_bool('SECURE_SSL_REDIRECT', True)

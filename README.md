@@ -57,7 +57,12 @@ SESSION_COOKIE_SECURE=false
 CSRF_COOKIE_SECURE=false
 
 # Si necesitas compartir sesión sin Redis (p. ej. varias instancias con SQLite)
+# (en producción con SQLite esto ya se activa por defecto si no defines SESSION_ENGINE)
 SESSION_ENGINE=django.contrib.sessions.backends.signed_cookies
+
+# Evitar colisión con otras apps en el mismo dominio
+SESSION_COOKIE_NAME=webstats_sessionid
+CSRF_COOKIE_NAME=webstats_csrftoken
 
 # Caducidad
 SESSION_COOKIE_AGE=2592000          # 30 días
