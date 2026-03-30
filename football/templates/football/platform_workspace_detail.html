@@ -735,6 +735,33 @@
                   </select>
                   <button class="inline-btn" type="submit">Guardar rol</button>
                 </form>
+                <details style="display:inline-block;">
+                  <summary class="inline-btn" style="cursor:pointer;">Permisos</summary>
+                  <div style="margin-top:0.6rem; padding:0.75rem; border-radius:12px; border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.04); min-width:320px;">
+                    <form method="post">
+                      {% csrf_token %}
+                      <input type="hidden" name="form_action" value="update_member_modules" />
+                      <input type="hidden" name="membership_id" value="{{ membership.id }}" />
+                      <div style="display:flex; flex-wrap:wrap; gap:0.5rem;">
+                        {% for row in membership.access_module_rows %}
+                          <label style="display:inline-flex; align-items:center; gap:8px; padding:8px 10px; border-radius:999px; border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.03); {% if not row.workspace_enabled %}opacity:0.45;{% endif %}">
+                            <input type="checkbox" name="member_module_{{ row.key }}" {% if row.allowed %}checked{% endif %} {% if not row.workspace_enabled %}disabled{% endif %} />
+                            <span>{{ row.label }}</span>
+                          </label>
+                        {% endfor %}
+                      </div>
+                      <div style="display:flex; gap:0.5rem; margin-top:0.75rem;">
+                        <button class="inline-btn" type="submit">Guardar permisos</button>
+                      </div>
+                    </form>
+                    <form method="post" style="margin-top:0.5rem;">
+                      {% csrf_token %}
+                      <input type="hidden" name="form_action" value="reset_member_modules" />
+                      <input type="hidden" name="membership_id" value="{{ membership.id }}" />
+                      <button class="inline-btn" type="submit">Restablecer (heredar workspace)</button>
+                    </form>
+                  </div>
+                </details>
                 <form method="post" class="inline-form">
                   {% csrf_token %}
                   <input type="hidden" name="form_action" value="remove_member" />

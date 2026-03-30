@@ -848,6 +848,9 @@ class WorkspaceMembership(models.Model):
     workspace = models.ForeignKey(Workspace, on_delete=models.CASCADE, related_name='memberships')
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='workspace_memberships')
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default=ROLE_MEMBER)
+    # Permisos por miembro. Si una clave está a False, el miembro no puede acceder al módulo/route_key
+    # aunque esté activado a nivel de workspace. Si la clave no existe, se asume permitido.
+    module_access = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

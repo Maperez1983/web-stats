@@ -1098,6 +1098,28 @@ def _workspace_default_modules(kind):
     }
 
 
+def _workspace_access_module_catalog(kind):
+    if kind == Workspace.KIND_TASK_STUDIO:
+        return [
+            {'key': 'task_studio_home', 'label': 'Inicio'},
+            {'key': 'task_studio_profile', 'label': 'Perfil'},
+            {'key': 'task_studio_roster', 'label': 'Plantilla'},
+            {'key': 'task_studio_tasks', 'label': 'Tareas'},
+            {'key': 'task_studio_pdfs', 'label': 'PDFs'},
+        ]
+    return [
+        {'key': 'dashboard', 'label': 'Portada'},
+        {'key': 'coach_overview', 'label': 'Cuerpo técnico'},
+        {'key': 'players', 'label': 'Plantilla'},
+        {'key': 'convocation', 'label': 'Convocatoria'},
+        {'key': 'match_actions', 'label': 'Acciones'},
+        {'key': 'sessions', 'label': 'Sesiones'},
+        {'key': 'analysis', 'label': 'Análisis'},
+        {'key': 'abp_board', 'label': 'ABP'},
+        {'key': 'manual_stats', 'label': 'Est. manuales'},
+    ]
+
+
 def _workspace_competition_provider_choices():
     return WorkspaceCompetitionContext.PROVIDER_CHOICES
 
@@ -2130,10 +2152,40 @@ def _workspace_enabled_modules(workspace):
 
 
 def _workspace_has_module(workspace, module_key):
+    return _workspace_has_module_for_user(workspace, module_key, user=None)
+
+
+def _workspace_member_allows_module(workspace, user, module_key):
+    if not workspace or not module_key:
+        return True
+    if not user or not getattr(user, 'is_authenticated', False):
+        return False
+    if _can_access_platform(user):
+        return True
+    membership = _workspace_membership_for_user(workspace, user)
+    if not membership:
+        # Owner explícito siempre permitido.
+        if int(getattr(workspace, 'owner_user_id', 0) or 0) == int(getattr(user, 'id', 0) or 0):
+            return True
+        return False
+    if membership.role in {WorkspaceMembership.ROLE_OWNER, WorkspaceMembership.ROLE_ADMIN}:
+        return True
+    raw = getattr(membership, 'module_access', None)
+    if not isinstance(raw, dict) or not raw:
+        return True
+    # Sólo interpretamos flags explícitas a False como "denegar".
+    return raw.get(module_key, True) is not False
+
+
+def _workspace_has_module_for_user(workspace, module_key, *, user=None):
     if not workspace or not module_key:
         return True
     enabled_modules = _workspace_enabled_modules(workspace)
-    return bool(enabled_modules.get(module_key, False))
+    if not bool(enabled_modules.get(module_key, False)):
+        return False
+    if user is None:
+        return True
+    return _workspace_member_allows_module(workspace, user, module_key)
 
 
 def _forbid_if_workspace_module_disabled(request, module_key, label='módulo'):
@@ -2148,7 +2200,7 @@ def _forbid_if_workspace_module_disabled(request, module_key, label='módulo'):
         if request and getattr(request, 'user', None) and request.user.is_authenticated and not _can_access_platform(request.user):
             return HttpResponse('El workspace activo no es de tipo club.', status=403)
         return None
-    if _workspace_has_module(workspace, module_key):
+    if _workspace_has_module_for_user(workspace, module_key, user=request.user if request else None):
         return None
     return HttpResponse(f'El {label} no está activo en el workspace actual.', status=403)
 
@@ -2163,12 +2215,12 @@ def _forbid_if_task_studio_module_disabled(request, owner, module_key, label='m�
     workspace = _task_studio_workspace_for_target(owner)
     if not workspace:
         return None
-    if _workspace_has_module(workspace, module_key):
+    if _workspace_has_module_for_user(workspace, module_key, user=request.user if request else None):
         return None
     return HttpResponse(f'El {label} no está activo en este Task Studio.', status=403)
 
 
-def _workspace_entry_url(workspace):
+def _workspace_entry_url(workspace, *, user=None):
     if not workspace:
         return reverse('platform-overview')
     if workspace.kind == Workspace.KIND_TASK_STUDIO:
@@ -2180,7 +2232,7 @@ def _workspace_entry_url(workspace):
             ('task_studio_tasks', reverse('task-studio-task-create')),
         ]
         for module_key, url in candidates:
-            if _workspace_has_module(workspace, module_key):
+            if _workspace_has_module_for_user(workspace, module_key, user=user):
                 return f'{url}?user={owner_id}' if owner_id else url
         return reverse('platform-workspace-detail', args=[workspace.id])
     candidates = [
@@ -2195,7 +2247,7 @@ def _workspace_entry_url(workspace):
         ('manual_stats', reverse('manual-player-stats')),
     ]
     for module_key, url in candidates:
-        if _workspace_has_module(workspace, module_key):
+        if _workspace_has_module_for_user(workspace, module_key, user=user):
             return url
     return reverse('platform-workspace-detail', args=[workspace.id])
 
@@ -3859,7 +3911,7 @@ def dashboard_page(request):
         else:
             return redirect('task-studio-home')
     if active_workspace_obj and not _can_access_platform(request.user):
-        target_url = _workspace_entry_url(active_workspace_obj)
+        target_url = _workspace_entry_url(active_workspace_obj, user=request.user)
         target_path = str(target_url or '').split('?', 1)[0]
         if target_path != request.path:
             return redirect(target_url)
@@ -4811,6 +4863,36 @@ def platform_workspace_detail_page(request, workspace_id):
                 membership.role = member_role
                 membership.save(update_fields=['role'])
                 feedback = f'Rol actualizado para {membership.user.username}.'
+        elif form_action == 'update_member_modules':
+            membership_id = _parse_int(request.POST.get('membership_id'))
+            membership = WorkspaceMembership.objects.filter(id=membership_id, workspace=workspace).select_related('user').first()
+            if not membership:
+                error = 'Miembro no encontrado.'
+            else:
+                catalog = _workspace_access_module_catalog(workspace.kind)
+                module_access = {}
+                for entry in catalog:
+                    key = entry.get('key')
+                    if not key:
+                        continue
+                    # Si el módulo no está activo en el workspace, no lo guardamos.
+                    if not bool(_workspace_enabled_modules(workspace).get(key, False)):
+                        continue
+                    checked = str(request.POST.get(f"member_module_{key}") or '').lower() in {'1', 'true', 'on', 'yes'}
+                    if not checked:
+                        module_access[key] = False
+                membership.module_access = module_access
+                membership.save(update_fields=['module_access'])
+                feedback = f'Permisos por módulo actualizados para {membership.user.username}.'
+        elif form_action == 'reset_member_modules':
+            membership_id = _parse_int(request.POST.get('membership_id'))
+            membership = WorkspaceMembership.objects.filter(id=membership_id, workspace=workspace).select_related('user').first()
+            if not membership:
+                error = 'Miembro no encontrado.'
+            else:
+                membership.module_access = {}
+                membership.save(update_fields=['module_access'])
+                feedback = f'Permisos por módulo restablecidos para {membership.user.username}.'
         elif form_action == 'remove_member':
             membership_id = _parse_int(request.POST.get('membership_id'))
             membership = WorkspaceMembership.objects.filter(id=membership_id, workspace=workspace).select_related('user').first()
@@ -4832,6 +4914,22 @@ def platform_workspace_detail_page(request, workspace_id):
     )
     enabled_modules = _workspace_enabled_modules(workspace)
     module_catalog = _workspace_module_catalog_for_template(workspace.kind, enabled_modules)
+    access_module_catalog = _workspace_access_module_catalog(workspace.kind)
+    # Prepara filas de permisos por miembro para la plantilla (evita lookups dinámicos en template).
+    for membership in memberships:
+        raw_access = getattr(membership, 'module_access', None)
+        if not isinstance(raw_access, dict):
+            raw_access = {}
+        membership_role = str(getattr(membership, 'role', '') or '')
+        is_privileged = membership_role in {WorkspaceMembership.ROLE_OWNER, WorkspaceMembership.ROLE_ADMIN}
+        rows = []
+        for entry in access_module_catalog:
+            key = entry.get('key')
+            label = entry.get('label') or key
+            ws_enabled = bool(enabled_modules.get(key, False)) if key else False
+            allowed = ws_enabled and (is_privileged or (raw_access.get(key, True) is not False))
+            rows.append({'key': key, 'label': label, 'workspace_enabled': ws_enabled, 'allowed': allowed})
+        membership.access_module_rows = rows
     competition_context = getattr(workspace, 'competition_context', None)
     competition_snapshot = getattr(workspace, 'competition_snapshot', None)
     competition_summary = None
@@ -4898,6 +4996,7 @@ def platform_workspace_detail_page(request, workspace_id):
             'memberships': memberships,
             'module_catalog': module_catalog,
             'enabled_modules': enabled_modules,
+            'access_module_catalog': access_module_catalog,
             'workspace_role_choices': WorkspaceMembership.ROLE_CHOICES,
             'teams': list(Team.objects.order_by('name')[:200]),
             'competition_context': competition_context,
@@ -4947,7 +5046,7 @@ def platform_workspace_enter_page(request, workspace_id):
     if not _can_view_workspace(request.user, workspace):
         return HttpResponse('No tienes permisos para acceder a este workspace.', status=403)
     request.session['active_workspace_id'] = workspace.id
-    return redirect(_workspace_entry_url(workspace))
+    return redirect(_workspace_entry_url(workspace, user=request.user))
 
 
 @login_required
