@@ -40,6 +40,12 @@ HEADERS = [
 ]
 
 USER_AGENT = "webstats-crm/1.0"
+ALLOW_FALLBACK_HTML = str(os.getenv("RFAF_ALLOW_FALLBACK_HTML", "0")).strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
 
 
 def _parse_int(value: str) -> int:
@@ -69,7 +75,7 @@ def normalize_text(value: str) -> str:
     return normalized.lower().strip()
 
 
-def fetch_html() -> str:
+def fetch_html(*, allow_fallback: bool = False) -> str:
     headers = {
         "User-Agent": USER_AGENT,
         "Accept-Language": "es-ES,es;q=0.9",
@@ -82,13 +88,13 @@ def fetch_html() -> str:
         response.raise_for_status()
         return response.text
     except requests.RequestException:
-        if FALLBACK_HTML.exists():
+        if allow_fallback and FALLBACK_HTML.exists():
             return FALLBACK_HTML.read_text(encoding="utf-8")
         raise
 
 
-def parse_table() -> (List[dict], str):
-    html = fetch_html()
+def parse_table(*, allow_fallback: bool = False) -> (List[dict], str):
+    html = fetch_html(allow_fallback=allow_fallback)
     soup = BeautifulSoup(html, "html.parser")
     table = soup.select_one("#CL_Detalle table.table.table-striped")
     if not table:
@@ -311,7 +317,7 @@ def import_csv():
 
 def main():
     print("Descargando tabla oficial desde la RFAF…")
-    rows, html = parse_table()
+    rows, html = parse_table(allow_fallback=ALLOW_FALLBACK_HTML)
     next_match = extract_next_match_from_classification(html)
     if not next_match:
         next_jornada = extract_next_jornada(html)

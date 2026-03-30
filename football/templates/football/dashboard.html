@@ -513,8 +513,12 @@
         <article class="block standings" id="standings-block">
           <div class="standings-header">
             <h3>Clasificación</h3>
-            <button id="standings-toggle" class="standings-toggle" type="button" hidden>Ver toda</button>
+            <div style="display:flex; gap:0.5rem; align-items:center;">
+              <button id="standings-refresh" class="standings-toggle" type="button" {% if not can_access_admin %}hidden{% endif %}>Actualizar</button>
+              <button id="standings-toggle" class="standings-toggle" type="button" hidden>Ver toda</button>
+            </div>
           </div>
+          <div id="standings-meta" class="meta" style="margin-top:0.35rem;"></div>
           <div id="standings">Cargando clasificación…</div>
         </article>
       </section>
@@ -575,6 +579,13 @@
 
           renderStandings(payload.standings, payload.team);
           renderNextMatch(payload.next_match, payload.standings);
+          const meta = payload.standings_meta || {};
+          const metaEl = document.getElementById('standings-meta');
+          if (metaEl) {
+            const updated = String(meta.last_updated || '').trim();
+            const provider = String(meta.provider || '').trim();
+            metaEl.textContent = updated ? `Actualizado: ${updated}${provider ? ` · ${provider}` : ''}` : '';
+          }
         } catch (error) {
           console.error(error);
           document.getElementById('standings').textContent = 'Error al cargar';
@@ -584,6 +595,7 @@
       function renderStandings(standings, team) {
         const container = document.getElementById('standings');
         const toggleBtn = document.getElementById('standings-toggle');
+        const refreshBtn = document.getElementById('standings-refresh');
         const competitionLine = document.getElementById('hero-competition-line');
         const rankLine = document.getElementById('hero-rank-line');
         if (!standings || !standings.length) {
@@ -617,6 +629,7 @@
             toggleBtn.hidden = true;
           }
         }
+        if (refreshBtn) refreshBtn.disabled = false;
 
         const rows = visibleRows
           .map(
@@ -656,6 +669,26 @@
             <tbody>${rows}</tbody>
           </table>
         `;
+      }
+
+      const refreshBtn = document.getElementById('standings-refresh');
+      if (refreshBtn) {
+        refreshBtn.addEventListener('click', async () => {
+          refreshBtn.disabled = true;
+          refreshBtn.textContent = 'Actualizando…';
+          try {
+            const resp = await fetch('/api/dashboard/refresh/', { credentials: 'same-origin' });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok) throw new Error(data.message || 'No se pudo actualizar.');
+            await renderDashboard();
+          } catch (error) {
+            console.error(error);
+            alert(String(error.message || error));
+          } finally {
+            refreshBtn.textContent = 'Actualizar';
+            refreshBtn.disabled = false;
+          }
+        });
       }
 
       function renderNextMatch(nextMatch, standings) {

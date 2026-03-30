@@ -153,6 +153,7 @@ from football.services import (
     compute_probable_eleven,
     compute_formation,
     build_rival_insights,
+    update_team_standings,
     fetch_preferente_team_roster,
     find_roster_entry,
     get_roster_stats_cache,
@@ -189,6 +190,61 @@ from football.query_helpers import (
 from football.task_library import filter_task_library, prepare_task_library
 
 logger = logging.getLogger(__name__)
+
+def _team_standings_last_updated(group):
+    if not group:
+        return None
+    try:
+        return TeamStanding.objects.filter(group=group).aggregate(latest=Max('last_updated')).get('latest')
+    except Exception:
+        return None
+
+
+def _latest_standings_group_for_team(primary_team):
+    if not primary_team:
+        return None
+    try:
+        standing = (
+            TeamStanding.objects
+            .select_related('group')
+            .filter(team=primary_team)
+            .order_by('-last_updated', '-played', '-id')
+            .first()
+        )
+        return standing.group if standing else None
+    except Exception:
+        return None
+
+
+def _refresh_rfaf_standings_inline(*, allow_fallback=False):
+    """
+    Refresco rápido (en-process) de la clasificación RFAF.
+    Evita subprocess largos y permite devolver errores claros.
+    """
+    try:
+        from scripts import import_from_rfef
+    except Exception as exc:
+        return False, f'No se pudo cargar el módulo RFAF: {exc}'
+    try:
+        rows, html = import_from_rfef.parse_table(allow_fallback=bool(allow_fallback))
+        next_match = import_from_rfef.extract_next_match_from_classification(html)
+        if not next_match:
+            next_jornada = import_from_rfef.extract_next_jornada(html)
+            next_match = import_from_rfef.fetch_schedule(next_jornada) if next_jornada else None
+        if next_match and next_match.get("status") != "next":
+            next_match = None
+        try:
+            import_from_rfef.save_next_match_cache(next_match)
+        except Exception:
+            pass
+        update_team_standings(
+            rows,
+            'RFAF',
+            getattr(import_from_rfef, 'URL', '') or '',
+        )
+        return True, f'Clasificación actualizada (filas={len(rows)}).'
+    except Exception as exc:
+        return False, str(exc) or 'Error desconocido actualizando RFAF.'
 
 
 @login_required
@@ -3607,7 +3663,8 @@ def _resolve_standings_for_team(primary_team, snapshot=None, provider=None):
                 return universo_rows
         return serialize_standings(primary_team.group)
     # Manual/RFAF: prioriza siempre la BD (lo que importa el script de federación).
-    db_rows = serialize_standings(primary_team.group)
+    group_for_db = _latest_standings_group_for_team(primary_team) or primary_team.group
+    db_rows = serialize_standings(group_for_db)
     if db_rows:
         return db_rows
     if _universo_snapshot_supports_team(snapshot, primary_team):
@@ -3933,6 +3990,9 @@ def dashboard_data(request):
 
     workspace = _get_active_workspace(request)
     competition_payload = _competition_payload_for_team(workspace, primary_team)
+    provider_key = str(getattr(getattr(workspace, 'competition_context', None), 'provider', '') or '').strip().lower()
+    standings_group = _latest_standings_group_for_team(primary_team) or primary_team.group
+    standings_last_updated = _team_standings_last_updated(standings_group)
     standings = _enrich_standings_rows_with_crests(competition_payload.get('standings') or [])
     next_match = _enrich_next_match_payload_with_crests(competition_payload.get('next_match') or {}, standings) or {}
     if not next_match:
@@ -3957,6 +4017,12 @@ def dashboard_data(request):
         },
         'standings': standings,
         'next_match': next_match,
+        'standings_meta': {
+            'provider': provider_key,
+            'last_updated': standings_last_updated.isoformat() if standings_last_updated else '',
+            'group': str(getattr(standings_group, 'name', '') or ''),
+            'season': str(getattr(getattr(standings_group, 'season', None), 'name', '') or ''),
+        },
         'team_metrics': team_metrics,
         'player_metrics': player_metrics,
         'player_cards': player_cards,
@@ -15958,16 +16024,11 @@ def refresh_scraping(request):
     if forbidden:
         return JsonResponse({'status': 'error', 'message': 'El dashboard no está activo en el workspace actual.'}, status=403)
     primary_team = _get_primary_team_for_request(request)
+    refresh_message = ''
     try:
-        result = subprocess.run(
-            [sys.executable, str(SCRIPT_PATH)],
-            cwd=str(MANAGE_PY_DIR),
-            capture_output=True,
-            text=True,
-            timeout=600,
-        )
-        if result.returncode != 0:
-            raise RuntimeError(result.stderr.strip() or 'Error desconocido al ejecutar el script.')
+        ok, refresh_message = _refresh_rfaf_standings_inline(allow_fallback=False)
+        if not ok:
+            raise RuntimeError(refresh_message or 'No se pudo actualizar la clasificación.')
     except Exception as exc:
         return JsonResponse({'status': 'error', 'message': str(exc)}, status=500)
     finally:
@@ -15989,8 +16050,13 @@ def refresh_scraping(request):
                 _sync_workspace_competition_context(workspace)
         except Exception:
             pass
+    latest_updated = _team_standings_last_updated(primary_team.group) if primary_team and getattr(primary_team, 'group', None) else None
     return JsonResponse(
-        {'status': 'success', 'message': f'Clasificación actualizada desde RFAF, {roster_status}.'}
+        {
+            'status': 'success',
+            'message': f'{refresh_message} {roster_status}.',
+            'standings_last_updated': latest_updated.isoformat() if latest_updated else '',
+        }
     )
 
 
