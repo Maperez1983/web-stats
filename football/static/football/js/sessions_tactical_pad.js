@@ -533,7 +533,9 @@
 	    const strokeWidthInput = document.getElementById('task-stroke-width');
 	    const strokePresetsRow = document.getElementById('task-stroke-presets');
 	    const commandBar = document.getElementById('task-command-bar');
-    const timelineList = document.getElementById('task-timeline-list');
+	    const commandMoreBtn = document.getElementById('task-command-more');
+	    const commandMenu = document.getElementById('task-command-menu');
+	    const timelineList = document.getElementById('task-timeline-list');
     const stepTitleInput = document.getElementById('task-step-title');
     const stepDurationInput = document.getElementById('task-step-duration');
     const addStepButton = document.getElementById('task-step-add');
@@ -710,21 +712,41 @@
     pitchZoom = clamp(pitchZoom, 0.8, 1.6);
 
     const clampScale = (value) => clamp(Number(value) || 1, 0.4, 2.6);
-    const normalizeEditableObject = (object) => {
-      if (!object) return object;
-      object.set({
-        hasControls: true,
-        hasBorders: true,
-        transparentCorners: false,
-        cornerStyle: 'circle',
-        cornerColor: '#22d3ee',
-        borderColor: '#67e8f9',
-        cornerStrokeColor: '#071320',
-        padding: 8,
-        lockScalingFlip: true,
-      });
-      return object;
-    };
+	    const normalizeEditableObject = (object) => {
+	      if (!object) return object;
+	      const locked = !!object?.data?.locked;
+	      object.set({
+	        hasControls: !locked,
+	        hasBorders: true,
+	        transparentCorners: false,
+	        cornerStyle: 'circle',
+	        cornerColor: '#22d3ee',
+	        borderColor: '#67e8f9',
+	        cornerStrokeColor: '#071320',
+	        padding: 8,
+	        lockScalingFlip: true,
+	      });
+	      if (locked) {
+	        object.set({
+	          lockMovementX: true,
+	          lockMovementY: true,
+	          lockScalingX: true,
+	          lockScalingY: true,
+	          lockRotation: true,
+	          hoverCursor: 'default',
+	          moveCursor: 'default',
+	        });
+	      } else {
+	        object.set({
+	          lockMovementX: false,
+	          lockMovementY: false,
+	          lockScalingX: false,
+	          lockScalingY: false,
+	          lockRotation: false,
+	        });
+	      }
+	      return object;
+	    };
     const isColorizableObject = (object) => {
       const kind = safeText(object?.data?.kind);
       if (!kind) return false;
@@ -976,13 +998,162 @@
       refreshLivePreview();
       if (message) setStatus(message);
     };
-    const applyToActiveFlexibleObject = (callback, message) => {
-      const active = activeInspectableObject();
-      if (!active) return;
-      callback(active);
-      active.setCoords();
-      commitObjectChange(message);
-    };
+	    const applyToActiveFlexibleObject = (callback, message) => {
+	      const active = activeInspectableObject();
+	      if (!active) return;
+	      if (active?.data?.locked) {
+	        setStatus('Elemento bloqueado. Usa “Desbloquear” para editarlo.', true);
+	        return;
+	      }
+	      callback(active);
+	      active.setCoords();
+	      commitObjectChange(message);
+	    };
+
+	    const getSelectionObjects = () => {
+	      const active = canvas.getActiveObject();
+	      if (!active) return [];
+	      if (active.type === 'activeSelection' && typeof active.getObjects === 'function') return active.getObjects() || [];
+	      return [active];
+	    };
+	    const selectionCenter = () => {
+	      const active = canvas.getActiveObject();
+	      if (active && typeof active.getCenterPoint === 'function') return active.getCenterPoint();
+	      return new fabric.Point(canvas.getWidth() / 2, canvas.getHeight() / 2);
+	    };
+	    const alignSelection = (axis) => {
+	      const objects = getSelectionObjects();
+	      if (objects.length < 2) {
+	        setStatus('Selecciona al menos 2 elementos para alinear.', true);
+	        return;
+	      }
+	      const center = selectionCenter();
+	      objects.forEach((obj) => {
+	        if (!obj || obj?.data?.locked) return;
+	        const current = obj.getCenterPoint();
+	        const next = new fabric.Point(axis === 'x' ? center.x : current.x, axis === 'y' ? center.y : current.y);
+	        obj.setPositionByOrigin(next, 'center', 'center');
+	        obj.setCoords();
+	      });
+	      canvas.requestRenderAll();
+	      pushHistory();
+	      syncInspector();
+	      refreshLivePreview();
+	      setStatus(axis === 'x' ? 'Alineado por centro X.' : 'Alineado por centro Y.');
+	    };
+	    const distributeSelection = (axis) => {
+	      const objects = getSelectionObjects().filter((obj) => obj && !obj?.data?.locked);
+	      if (objects.length < 3) {
+	        setStatus('Selecciona al menos 3 elementos para distribuir.', true);
+	        return;
+	      }
+	      const items = objects
+	        .map((obj) => ({ obj, center: obj.getCenterPoint() }))
+	        .sort((a, b) => (axis === 'x' ? a.center.x - b.center.x : a.center.y - b.center.y));
+	      const first = items[0].center;
+	      const last = items[items.length - 1].center;
+	      const span = axis === 'x' ? (last.x - first.x) : (last.y - first.y);
+	      const step = span / (items.length - 1);
+	      items.forEach((item, index) => {
+	        const c = item.obj.getCenterPoint();
+	        const next = axis === 'x'
+	          ? new fabric.Point(first.x + (step * index), c.y)
+	          : new fabric.Point(c.x, first.y + (step * index));
+	        item.obj.setPositionByOrigin(next, 'center', 'center');
+	        item.obj.setCoords();
+	      });
+	      canvas.requestRenderAll();
+	      pushHistory();
+	      syncInspector();
+	      refreshLivePreview();
+	      setStatus(axis === 'x' ? 'Distribución horizontal aplicada.' : 'Distribución vertical aplicada.');
+	    };
+	    const setSelectionLayer = (mode) => {
+	      const objects = getSelectionObjects();
+	      if (!objects.length) return;
+	      objects.forEach((obj) => {
+	        if (!obj) return;
+	        if (mode === 'front') canvas.bringToFront(obj);
+	        else canvas.sendToBack(obj);
+	      });
+	      canvas.requestRenderAll();
+	      pushHistory();
+	      setStatus(mode === 'front' ? 'Traído al frente.' : 'Enviado atrás.');
+	    };
+	    const toggleLockSelection = () => {
+	      const objects = getSelectionObjects();
+	      if (!objects.length) return;
+	      const allLocked = objects.every((obj) => !!obj?.data?.locked);
+	      objects.forEach((obj) => {
+	        if (!obj) return;
+	        const nextLocked = !allLocked;
+	        obj.data = obj.data || {};
+	        obj.data.locked = nextLocked;
+	        normalizeEditableObject(obj);
+	        obj.setCoords();
+	      });
+	      canvas.requestRenderAll();
+	      pushHistory();
+	      syncInspector();
+	      setStatus(allLocked ? 'Elementos desbloqueados.' : 'Elementos bloqueados.');
+	    };
+	    const groupSelection = () => {
+	      const active = canvas.getActiveObject();
+	      if (!active || active.type !== 'activeSelection' || typeof active.toGroup !== 'function') {
+	        setStatus('Selecciona varios elementos para agrupar.', true);
+	        return;
+	      }
+	      const group = active.toGroup();
+	      canvas.setActiveObject(group);
+	      canvas.requestRenderAll();
+	      pushHistory();
+	      syncInspector();
+	      setStatus('Grupo creado.');
+	    };
+	    const ungroupSelection = () => {
+	      const active = canvas.getActiveObject();
+	      if (!active || active.type !== 'group' || typeof active.toActiveSelection !== 'function') {
+	        setStatus('Selecciona un grupo para desagrupar.', true);
+	        return;
+	      }
+	      const sel = active.toActiveSelection();
+	      canvas.setActiveObject(sel);
+	      canvas.requestRenderAll();
+	      pushHistory();
+	      syncInspector();
+	      setStatus('Grupo deshecho.');
+	    };
+
+	    const setCommandMenuOpen = (open) => {
+	      if (!commandMenu) return;
+	      commandMenu.hidden = !open;
+	    };
+	    commandMoreBtn?.addEventListener('click', (event) => {
+	      event.preventDefault();
+	      event.stopPropagation();
+	      setCommandMenuOpen(commandMenu?.hidden);
+	    });
+	    commandMenu?.addEventListener('click', (event) => {
+	      const button = event.target.closest('button[data-command]');
+	      if (!button) return;
+	      const command = safeText(button.dataset.command);
+	      if (!command) return;
+	      setCommandMenuOpen(false);
+	      if (command === 'align_x') alignSelection('x');
+	      else if (command === 'align_y') alignSelection('y');
+	      else if (command === 'distribute_x') distributeSelection('x');
+	      else if (command === 'distribute_y') distributeSelection('y');
+	      else if (command === 'front') setSelectionLayer('front');
+	      else if (command === 'back') setSelectionLayer('back');
+	      else if (command === 'lock') toggleLockSelection();
+	      else if (command === 'group') groupSelection();
+	      else if (command === 'ungroup') ungroupSelection();
+	    });
+	    document.addEventListener('click', (event) => {
+	      if (!commandMenu || commandMenu.hidden) return;
+	      const inside = event.target && (event.target.closest('#task-command-bar') || event.target.closest('#task-command-menu'));
+	      if (!inside) setCommandMenuOpen(false);
+	    });
 
     const fitCanvas = (preserveObjects = false) => {
       const previousWidth = canvas.getWidth() || 0;
@@ -2613,22 +2784,43 @@
 	    });
 	    syncInspector();
 
-		    document.addEventListener('keydown', (event) => {
-		      const key = String(event.key || '').toLowerCase();
-		      const isMod = event.metaKey || event.ctrlKey;
-	        const isShift = !!event.shiftKey;
-		      const el = document.activeElement;
-		      const tag = (el && el.tagName) ? el.tagName.toLowerCase() : '';
-		      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
-		      if ((event.code === 'Space' || key === ' ') && viewportEl) {
-		        // Modo "mano": espacio + arrastrar para desplazar el viewport (como Camelot).
-		        if (!spacePanArmed) {
-		          spacePanArmed = true;
-		          viewportEl.classList.add('is-hand');
-		        }
-		        event.preventDefault();
-		        return;
-		      }
+			    document.addEventListener('keydown', (event) => {
+			      const key = String(event.key || '').toLowerCase();
+			      const isMod = event.metaKey || event.ctrlKey;
+		        const isShift = !!event.shiftKey;
+			      const el = document.activeElement;
+			      const tag = (el && el.tagName) ? el.tagName.toLowerCase() : '';
+			      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+			      if (key === 'escape' && !commandMenu?.hidden) {
+			        setCommandMenuOpen(false);
+			        event.preventDefault();
+			        return;
+			      }
+			      if ((event.code === 'Space' || key === ' ') && viewportEl) {
+			        // Modo "mano": espacio + arrastrar para desplazar el viewport (como Camelot).
+			        if (!spacePanArmed) {
+			          spacePanArmed = true;
+			          viewportEl.classList.add('is-hand');
+			        }
+			        event.preventDefault();
+			        return;
+			      }
+			      if (isMod && key === 'g') {
+			        event.preventDefault();
+			        if (isShift) ungroupSelection();
+			        else groupSelection();
+			        return;
+			      }
+			      if (isMod && key === 'l') {
+			        event.preventDefault();
+			        toggleLockSelection();
+			        return;
+			      }
+			      if (isMod && (event.key === '[' || event.key === ']')) {
+			        event.preventDefault();
+			        setSelectionLayer(event.key === ']' ? 'front' : 'back');
+			        return;
+			      }
 	        if (isMod && key === 's') {
 	          event.preventDefault();
 	          persistDraftNow('shortcut-save');

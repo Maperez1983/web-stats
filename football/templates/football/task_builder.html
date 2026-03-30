@@ -320,6 +320,7 @@
         border-radius: 999px;
         border: 1px solid rgba(255,255,255,0.12);
         background: rgba(255,255,255,0.05);
+        position: relative;
       }
       .icon-btn {
         width: 48px;
@@ -351,6 +352,50 @@
         border-color: rgba(239,68,68,0.35);
         background: rgba(239,68,68,0.08);
         color: rgba(252,165,165,0.95);
+      }
+      .command-menu {
+        position: absolute;
+        top: calc(100% + 10px);
+        right: 0;
+        min-width: 240px;
+        padding: 10px;
+        border-radius: 14px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(2, 6, 23, 0.92);
+        backdrop-filter: blur(12px);
+        display: grid;
+        gap: 6px;
+        z-index: 60;
+        box-shadow: 0 18px 44px rgba(0,0,0,0.38);
+      }
+      .command-menu button {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.10);
+        background: rgba(255,255,255,0.04);
+        color: rgba(248,250,252,0.92);
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: none;
+        cursor: pointer;
+      }
+      .command-menu button:hover {
+        background: rgba(255,255,255,0.07);
+      }
+      .command-menu button:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      .command-menu .shortcut {
+        font-size: 0.74rem;
+        letter-spacing: 0.08em;
+        color: rgba(226,232,240,0.6);
+        font-weight: 900;
       }
       .resource-tab {
         background: transparent;
@@ -1000,18 +1045,32 @@
                   <button type="button" class="resource-tab" data-resource="figuras">Figuras geométricas</button>
                   <button type="button" class="resource-tab" data-resource="emoji">Recursos emoji</button>
                   </div>
-                  <div class="command-bar" id="task-command-bar" aria-label="Comandos rápidos">
-                    <button type="button" class="icon-btn" data-action="undo" title="Deshacer" aria-label="Deshacer">
-                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7V4L2 9l5 5v-3h7a4 4 0 1 1 0 8H9v2h5a6 6 0 1 0 0-12H7Z"/></svg>
-                    </button>
-                    <button type="button" class="icon-btn" data-action="redo" title="Rehacer" aria-label="Rehacer">
-                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 7h-7a6 6 0 1 0 0 12h5v-2H10a4 4 0 1 1 0-8h7v3l5-5-5-5v3Z"/></svg>
-                    </button>
-                    <button type="button" class="icon-btn danger" data-action="delete" title="Borrar seleccionado" aria-label="Borrar seleccionado">
-                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm1 6h2v10h-2V9Zm4 0h2v10h-2V9ZM6 8h12v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V8Z"/></svg>
-                    </button>
-                  </div>
-                </div>
+	                  <div class="command-bar" id="task-command-bar" aria-label="Comandos rápidos">
+	                    <button type="button" class="icon-btn" data-action="undo" title="Deshacer" aria-label="Deshacer">
+	                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7V4L2 9l5 5v-3h7a4 4 0 1 1 0 8H9v2h5a6 6 0 1 0 0-12H7Z"/></svg>
+	                    </button>
+	                    <button type="button" class="icon-btn" data-action="redo" title="Rehacer" aria-label="Rehacer">
+	                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 7h-7a6 6 0 1 0 0 12h5v-2H10a4 4 0 1 1 0-8h7v3l5-5-5-5v3Z"/></svg>
+	                    </button>
+	                    <button type="button" class="icon-btn danger" data-action="delete" title="Borrar seleccionado" aria-label="Borrar seleccionado">
+	                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm1 6h2v10h-2V9Zm4 0h2v10h-2V9ZM6 8h12v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V8Z"/></svg>
+	                    </button>
+	                    <button type="button" class="icon-btn" id="task-command-more" title="Más acciones" aria-label="Más acciones">
+	                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 14a2 2 0 1 1 0-4 2 2 0 0 1 0 4Zm6 0a2 2 0 1 1 0-4 2 2 0 0 1 0 4Zm6 0a2 2 0 1 1 0-4 2 2 0 0 1 0 4Z"/></svg>
+	                    </button>
+	                    <div class="command-menu" id="task-command-menu" hidden>
+	                      <button type="button" data-command="align_x">Alinear centro X <span class="shortcut">⌘/Ctrl</span></button>
+	                      <button type="button" data-command="align_y">Alinear centro Y <span class="shortcut">⌘/Ctrl</span></button>
+	                      <button type="button" data-command="distribute_x">Distribuir X <span class="shortcut">⇧</span></button>
+	                      <button type="button" data-command="distribute_y">Distribuir Y <span class="shortcut">⇧</span></button>
+	                      <button type="button" data-command="front">Traer al frente <span class="shortcut">⌘]</span></button>
+	                      <button type="button" data-command="back">Enviar atrás <span class="shortcut">⌘[</span></button>
+	                      <button type="button" data-command="lock">Bloquear/Desbloquear <span class="shortcut">⌘L</span></button>
+	                      <button type="button" data-command="group">Agrupar <span class="shortcut">⌘G</span></button>
+	                      <button type="button" data-command="ungroup">Desagrupar <span class="shortcut">⌘⇧G</span></button>
+	                    </div>
+	                  </div>
+	                </div>
                 <p class="resource-helper">Pulsa una pestaña para mostrar los recursos.</p>
                 <div class="resource-panel" data-panel="base" hidden>
                   <h3 class="tool-group-title">Recursos base</h3>
