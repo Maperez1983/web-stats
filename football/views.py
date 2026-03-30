@@ -836,6 +836,16 @@ TECHNICAL_ROLES = {
     AppUserRole.ROLE_ADMIN,
 }
 
+def _has_club_workspace_access(user):
+    if not user or not user.is_authenticated:
+        return False
+    if _get_user_role(user) == AppUserRole.ROLE_PLAYER:
+        return False
+    return (
+        WorkspaceMembership.objects.filter(user=user, workspace__kind=Workspace.KIND_CLUB, workspace__is_active=True).exists()
+        or Workspace.objects.filter(owner_user=user, kind=Workspace.KIND_CLUB, is_active=True).exists()
+    )
+
 
 def _get_user_role(user):
     if not user or not user.is_authenticated:
@@ -864,7 +874,7 @@ def _can_edit_match_actions(user):
         return False
     if _is_admin_user(user):
         return True
-    return _get_user_role(user) in TECHNICAL_ROLES
+    return _get_user_role(user) in TECHNICAL_ROLES or _has_club_workspace_access(user)
 
 
 def _can_access_sessions_workspace(user):
@@ -873,7 +883,7 @@ def _can_access_sessions_workspace(user):
         return False
     if _is_admin_user(user):
         return True
-    return role in TECHNICAL_ROLES
+    return role in TECHNICAL_ROLES or _has_club_workspace_access(user)
 
 
 def _can_access_coach_workspace(user):
@@ -881,7 +891,7 @@ def _can_access_coach_workspace(user):
         return False
     if _is_admin_user(user):
         return True
-    return _get_user_role(user) in TECHNICAL_ROLES
+    return _get_user_role(user) in TECHNICAL_ROLES or _has_club_workspace_access(user)
 
 
 def _can_access_task_studio(user):
@@ -3840,9 +3850,12 @@ def dashboard_page(request):
         if current_player:
             return redirect('player-detail', player_id=current_player.id)
         return redirect('player-dashboard')
-    if current_role in {AppUserRole.ROLE_TASK_STUDIO, AppUserRole.ROLE_GUEST} and _can_access_task_studio(request.user):
-        return redirect('task-studio-home')
     active_workspace_obj = _get_active_workspace(request)
+    if current_role in {AppUserRole.ROLE_TASK_STUDIO, AppUserRole.ROLE_GUEST} and _can_access_task_studio(request.user):
+        if active_workspace_obj and active_workspace_obj.kind == Workspace.KIND_CLUB and _has_club_workspace_access(request.user):
+            pass
+        else:
+            return redirect('task-studio-home')
     if active_workspace_obj and not _can_access_platform(request.user):
         target_url = _workspace_entry_url(active_workspace_obj)
         target_path = str(target_url or '').split('?', 1)[0]
