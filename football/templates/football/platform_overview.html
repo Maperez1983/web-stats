@@ -1342,10 +1342,17 @@
                     {% endfor %}
                   </select>
                 </div>
+                <div class="field">
+                  <label for="team_new_name">O crear equipo nuevo</label>
+                  <input id="team_new_name" name="team_new_name" type="text" placeholder="Ej. Demo FC" value="{{ workspace_form.team_new_name }}" />
+                </div>
               </div>
               <div class="field">
                 <label for="workspace_notes">Notas de arranque</label>
                 <textarea id="workspace_notes" name="workspace_notes" rows="4" placeholder="Objetivo del cliente, observaciones de acceso, alcance del workspace...">{{ workspace_form.workspace_notes }}</textarea>
+              </div>
+              <div class="field">
+                <label><input type="checkbox" name="seed_demo_data" {% if workspace_form.seed_demo_data %}checked{% endif %} /> Generar datos demo (plantilla, partido, acciones y estadísticas)</label>
               </div>
             </div>
 
@@ -1487,6 +1494,17 @@
             });
           });
           syncDeliverableState();
+
+          const clubOnlyIds = ['team_id', 'team_new_name'];
+          clubOnlyIds.forEach((id) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.disabled = activeKind !== 'club';
+          });
+          const demoToggle = document.querySelector('input[name="seed_demo_data"]');
+          if (demoToggle) {
+            demoToggle.disabled = activeKind !== 'club';
+          }
         }
 
         function syncDeliverableState() {

@@ -430,6 +430,13 @@
         <div class="hero-links">
           <a class="primary-link" href="{% url 'platform-workspace-enter' workspace.id %}">Entrar en cliente</a>
           <a href="{% url 'platform-overview' %}">Volver a plataforma</a>
+          {% if can_manage_workspace and workspace.kind == 'club' %}
+          <form method="post" onsubmit="return confirm('Se generarán jugadores, partido, eventos y estadísticas de ejemplo.');">
+            {% csrf_token %}
+            <input type="hidden" name="form_action" value="bootstrap_demo_data" />
+            <button class="inline-btn" type="submit">Generar datos demo</button>
+          </form>
+          {% endif %}
           {% if can_manage_workspace and workspace.kind == 'task_studio' %}
           <form method="post" action="{% url 'platform-workspace-delete' workspace.id %}" onsubmit="return confirm('Se eliminará este Task Studio y sus datos privados.');">
             {% csrf_token %}

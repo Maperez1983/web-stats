@@ -71,11 +71,13 @@ except Exception:  # pragma: no cover
     requests = None
 
 from football.models import (
+    DataSource,
     Competition,
     Group,
     Match,
     MatchEvent,
     MatchReport,
+    CustomMetric,
     Player,
     PlayerInjuryRecord,
     PlayerCommunication,
@@ -86,6 +88,7 @@ from football.models import (
     ScrapeSource,
     Season,
     Team,
+    TeamStatistic,
     TeamStanding,
     Workspace,
     WorkspaceMembership,
@@ -4022,6 +4025,7 @@ def platform_overview_page(request):
         'workspace_kind': Workspace.KIND_CLUB,
         'owner_username': '',
         'team_id': '',
+        'team_new_name': '',
         'workspace_notes': '',
         'competition_provider': WorkspaceCompetitionContext.PROVIDER_MANUAL,
         'external_competition_key': '',
@@ -4029,6 +4033,7 @@ def platform_overview_page(request):
         'external_team_key': '',
         'external_team_name': '',
         'competition_auto_sync': True,
+        'seed_demo_data': False,
         'initial_admin_usernames': '',
         'initial_member_usernames': '',
         'modules': _workspace_default_modules(Workspace.KIND_CLUB),
@@ -4061,6 +4066,7 @@ def platform_overview_page(request):
             workspace_kind = str(request.POST.get('workspace_kind') or Workspace.KIND_CLUB).strip()
             owner_username = _sanitize_task_text((request.POST.get('owner_username') or '').strip(), multiline=False, max_len=150).lower()
             team_id = _parse_int(request.POST.get('team_id'))
+            team_new_name = _sanitize_task_text((request.POST.get('team_new_name') or '').strip(), multiline=False, max_len=150)
             workspace_notes = _sanitize_task_text((request.POST.get('workspace_notes') or '').strip(), multiline=True, max_len=1200)
             competition_provider = str(request.POST.get('competition_provider') or WorkspaceCompetitionContext.PROVIDER_MANUAL).strip()
             external_competition_key = str(request.POST.get('external_competition_key') or '').strip()[:140]
@@ -4068,6 +4074,7 @@ def platform_overview_page(request):
             external_team_key = str(request.POST.get('external_team_key') or '').strip()[:140]
             external_team_name = _sanitize_task_text((request.POST.get('external_team_name') or '').strip(), multiline=False, max_len=160)
             competition_auto_sync = str(request.POST.get('competition_auto_sync') or '').lower() in {'1', 'true', 'on', 'yes'}
+            seed_demo_data = str(request.POST.get('seed_demo_data') or '').lower() in {'1', 'true', 'on', 'yes'}
             initial_admin_usernames = str(request.POST.get('initial_admin_usernames') or '')
             initial_member_usernames = str(request.POST.get('initial_member_usernames') or '')
             if workspace_kind not in {Workspace.KIND_CLUB, Workspace.KIND_TASK_STUDIO}:
@@ -4095,6 +4102,7 @@ def platform_overview_page(request):
                 'workspace_kind': workspace_kind,
                 'owner_username': owner_username,
                 'team_id': str(team_id or ''),
+                'team_new_name': team_new_name,
                 'workspace_notes': workspace_notes,
                 'competition_provider': competition_provider,
                 'external_competition_key': external_competition_key,
@@ -4102,6 +4110,7 @@ def platform_overview_page(request):
                 'external_team_key': external_team_key,
                 'external_team_name': external_team_name,
                 'competition_auto_sync': competition_auto_sync,
+                'seed_demo_data': seed_demo_data,
                 'initial_admin_usernames': initial_admin_usernames,
                 'initial_member_usernames': initial_member_usernames,
                 'modules': expanded_modules,
@@ -4122,7 +4131,11 @@ def platform_overview_page(request):
                     raise ValueError(f'No existen estos administradores iniciales: {", ".join(missing_admin_users)}.')
                 if missing_member_users:
                     raise ValueError(f'No existen estos miembros iniciales: {", ".join(missing_member_users)}.')
-                primary_workspace_team = Team.objects.filter(id=team_id).first() if team_id else None
+                primary_workspace_team = None
+                if workspace_kind == Workspace.KIND_CLUB and team_new_name:
+                    primary_workspace_team = _ensure_platform_team(team_new_name)
+                if not primary_workspace_team and team_id:
+                    primary_workspace_team = Team.objects.filter(id=team_id).first()
                 workspace = Workspace.objects.create(
                     name=workspace_name,
                     slug=_unique_workspace_slug(workspace_name),
@@ -4145,6 +4158,8 @@ def platform_overview_page(request):
                     )
                     if competition_auto_sync:
                         _sync_workspace_competition_context(workspace)
+                    if seed_demo_data and workspace.primary_team_id:
+                        _bootstrap_demo_club_workspace(workspace)
                 if owner_user:
                     WorkspaceMembership.objects.get_or_create(
                         workspace=workspace,
@@ -4175,6 +4190,7 @@ def platform_overview_page(request):
                     'workspace_kind': Workspace.KIND_CLUB,
                     'owner_username': '',
                     'team_id': '',
+                    'team_new_name': '',
                     'workspace_notes': '',
                     'competition_provider': WorkspaceCompetitionContext.PROVIDER_MANUAL,
                     'external_competition_key': '',
@@ -4182,6 +4198,7 @@ def platform_overview_page(request):
                     'external_team_key': '',
                     'external_team_name': '',
                     'competition_auto_sync': True,
+                    'seed_demo_data': False,
                     'initial_admin_usernames': '',
                     'initial_member_usernames': '',
                     'modules': _workspace_default_modules(Workspace.KIND_CLUB),
@@ -4619,6 +4636,25 @@ def platform_workspace_detail_page(request, workspace_id):
             workspace.enabled_modules = enabled_modules
             workspace.save(update_fields=['enabled_modules', 'updated_at'])
             feedback = 'Módulos del workspace actualizados.'
+        elif form_action == 'bootstrap_demo_data':
+            if workspace.kind != Workspace.KIND_CLUB:
+                error = 'Solo los clientes club pueden generar datos demo.'
+            elif not workspace.primary_team_id:
+                error = 'Asocia un equipo al workspace antes de generar datos demo.'
+            else:
+                try:
+                    created = _bootstrap_demo_club_workspace(workspace)
+                    feedback = (
+                        'Datos demo generados. '
+                        f"Jugadores: {created.get('players', 0)}, "
+                        f"partidos: {created.get('matches', 0)}, "
+                        f"eventos: {created.get('events', 0)}, "
+                        f"sesiones: {created.get('sessions', 0)}, "
+                        f"tareas: {created.get('tasks', 0)}, "
+                        f"estadísticas: {created.get('stats', 0)}."
+                    )
+                except Exception:
+                    error = 'No se pudieron generar los datos demo.'
         elif form_action == 'update_competition_context':
             if workspace.kind != Workspace.KIND_CLUB:
                 error = 'Solo los clientes club tienen contexto competitivo.'
@@ -15258,6 +15294,252 @@ def _unique_team_slug(base_name):
         slug = f'{base_slug}-{suffix}'
         suffix += 1
     return slug
+
+
+def _ensure_platform_team(team_name, *, region=''):
+    clean_name = _sanitize_task_text(str(team_name or '').strip(), multiline=False, max_len=150)
+    if not clean_name:
+        return None
+    existing = Team.objects.filter(name__iexact=clean_name).first()
+    if existing:
+        has_season = bool(getattr(getattr(existing.group, 'season', None), 'id', None)) if getattr(existing, 'group_id', None) else False
+        if has_season:
+            return existing
+    demo_competition, _ = Competition.objects.get_or_create(
+        name='Liga Demo',
+        region=str(region or '').strip(),
+        defaults={'slug': slugify('Liga Demo') or 'liga-demo'},
+    )
+    demo_season, _ = Season.objects.get_or_create(
+        competition=demo_competition,
+        name='2025/2026',
+        defaults={'is_current': True},
+    )
+    group_slug = slugify(f'demo-{clean_name}')[:80] or 'demo'
+    demo_group, _ = Group.objects.get_or_create(
+        season=demo_season,
+        slug=group_slug,
+        defaults={'name': 'Grupo Demo'},
+    )
+    if existing:
+        existing.group = demo_group
+        existing.save(update_fields=['group'])
+        return existing
+    return Team.objects.create(
+        name=clean_name,
+        slug=_unique_team_slug(clean_name),
+        short_name=clean_name[:60],
+        group=demo_group,
+    )
+
+
+def _bootstrap_demo_club_workspace(workspace):
+    if not workspace or workspace.kind != Workspace.KIND_CLUB or not workspace.primary_team_id:
+        return {'players': 0, 'matches': 0, 'events': 0, 'sessions': 0, 'tasks': 0, 'stats': 0}
+    team = workspace.primary_team
+    if not team:
+        return {'players': 0, 'matches': 0, 'events': 0, 'sessions': 0, 'tasks': 0, 'stats': 0}
+    created = {'players': 0, 'matches': 0, 'events': 0, 'sessions': 0, 'tasks': 0, 'stats': 0}
+    today = timezone.localdate()
+    monday = today - timedelta(days=today.weekday())
+    sunday = monday + timedelta(days=6)
+
+    # Plantilla (players)
+    if Player.objects.filter(team=team).count() < 8:
+        for number in range(1, 19):
+            player_name = f'Jugador {number}'
+            obj, was_created = Player.objects.get_or_create(
+                team=team,
+                name=player_name,
+                defaults={
+                    'number': number,
+                    'position': 'DEF' if number in {2, 3, 4, 5} else ('MED' if number in {6, 7, 8, 10} else ('DEL' if number in {9, 11, 12} else '')),
+                    'is_active': True,
+                },
+            )
+            if was_created:
+                created['players'] += 1
+
+    # Contexto (season/group) para partido y estadísticas
+    group = team.group
+    season = getattr(group, 'season', None) if group else None
+    if not season:
+        demo_team = _ensure_platform_team(team.name)
+        team = demo_team or team
+        workspace.primary_team = team
+        workspace.save(update_fields=['primary_team'])
+        group = team.group
+        season = getattr(group, 'season', None) if group else None
+
+    # Partido demo + eventos
+    opponent = Team.objects.filter(name__iexact='Rival Demo').first()
+    if not opponent:
+        opponent = _ensure_platform_team('Rival Demo')
+    match = None
+    if season:
+        match = Match.objects.filter(season=season, home_team=team).order_by('-id').first()
+        if not match:
+            match = Match.objects.create(
+                season=season,
+                group=group,
+                round='Jornada Demo',
+                date=saturday_date(monday),
+                location='Campo Demo',
+                home_team=team,
+                away_team=opponent,
+                home_score=2,
+                away_score=1,
+                result='2-1',
+                notes='Partido de ejemplo para onboarding.',
+            )
+            created['matches'] += 1
+    if match and MatchEvent.objects.filter(match=match).count() < 3:
+        sample_players = list(Player.objects.filter(team=team).order_by('number', 'id')[:6])
+        base_events = [
+            (1, 8, 'Inicio', 'Kick-off'),
+            (1, 12, 'Pase', 'Completo'),
+            (1, 24, 'Robo', 'Recuperación alta'),
+            (2, 52, 'Disparo', 'A puerta'),
+            (2, 68, 'Gol', 'Finalización'),
+        ]
+        for idx, (period, minute, event_type, result) in enumerate(base_events):
+            player = sample_players[idx % len(sample_players)] if sample_players else None
+            obj, was_created = MatchEvent.objects.get_or_create(
+                match=match,
+                period=period,
+                minute=minute,
+                event_type=event_type,
+                defaults={
+                    'player': player,
+                    'result': result,
+                    'zone': 'Zona 2',
+                    'tercio': 'Medio',
+                    'observation': 'Evento demo',
+                    'system': '4-3-3',
+                    'source_file': 'demo',
+                    'raw_data': {'demo': True},
+                },
+            )
+            if was_created:
+                created['events'] += 1
+
+    # Microciclo + sesiones + tareas
+    microcycle, mc_created = TrainingMicrocycle.objects.get_or_create(
+        team=team,
+        week_start=monday,
+        defaults={
+            'week_end': sunday,
+            'title': 'Microciclo demo',
+            'objective': 'Onboarding de sesiones y tareas.',
+            'reference_match': match if match else None,
+        },
+    )
+    if mc_created:
+        created['sessions'] += 0
+    session_dates = [monday + timedelta(days=1), monday + timedelta(days=3), monday + timedelta(days=5)]
+    for index, session_date in enumerate(session_dates):
+        session, was_created = TrainingSession.objects.get_or_create(
+            microcycle=microcycle,
+            session_date=session_date,
+            defaults={
+                'start_time': None,
+                'duration_minutes': 90,
+                'intensity': TrainingSession.INTENSITY_MEDIUM,
+                'focus': ['Construcción', 'Presión', 'Finalización'][index],
+                'content': 'Sesión de ejemplo para un usuario de prueba.',
+                'status': TrainingSession.STATUS_PLANNED,
+                'order': index,
+            },
+        )
+        if was_created:
+            created['sessions'] += 1
+        if session.tasks.filter(deleted_at__isnull=True).count() < 2:
+            base_tasks = [
+                ('Rondo 6v3', SessionTask.BLOCK_ACTIVATION, 12, 'Activar + orientación corporal'),
+                ('Juego de posición', SessionTask.BLOCK_MAIN_1, 20, 'Progresar y fijar'),
+            ]
+            for order_idx, (title, block, minutes, objective) in enumerate(base_tasks):
+                task, task_created = SessionTask.objects.get_or_create(
+                    session=session,
+                    title=title,
+                    defaults={
+                        'block': block,
+                        'duration_minutes': minutes,
+                        'objective': objective,
+                        'coaching_points': '- Perfil corporal\n- Pase tenso\n- Apoyos y tercer hombre',
+                        'confrontation_rules': '- 1 punto por 6 pases\n- 2 puntos por robo y salida',
+                        'tactical_layout': {
+                            'tokens': [],
+                            'timeline': [],
+                            'meta': {
+                                'strategy': 'passing_wheel',
+                                'complexity': 'low',
+                                'dynamics': 'extensive',
+                                'structure': 'complete',
+                                'coordination': 'team',
+                                'tactical_intent': 'direct',
+                            },
+                        },
+                        'status': SessionTask.STATUS_PLANNED,
+                        'order': order_idx,
+                    },
+                )
+                if task_created:
+                    created['tasks'] += 1
+
+    # Estadísticas rápidas
+    if season:
+        ds, _ = DataSource.objects.get_or_create(name='Demo', defaults={'base_url': '', 'notes': 'Datos de demostración.'})
+        for name, value, context in [
+            ('Posesión', 56.0, 'Global'),
+            ('Disparos', 12.0, 'Último partido'),
+            ('Recuperaciones', 38.0, 'Último partido'),
+        ]:
+            obj, was_created = TeamStatistic.objects.get_or_create(
+                team=team,
+                season=season,
+                name=name,
+                context=context,
+                defaults={'value': float(value), 'source': ds},
+            )
+            if was_created:
+                created['stats'] += 1
+        first_player = Player.objects.filter(team=team).order_by('number', 'id').first()
+        if first_player and match:
+            obj, was_created = PlayerStatistic.objects.get_or_create(
+                player=first_player,
+                season=season,
+                match=match,
+                name='Minutos',
+                context='Jornada Demo',
+                defaults={'value': 90.0, 'source': ds},
+            )
+            if was_created:
+                created['stats'] += 1
+        for name, value in [('RPE medio', 7.2), ('Distancia total', 102.4)]:
+            existing_metric = (
+                CustomMetric.objects
+                .filter(team=team, season=season, name=name, recorded_at__date=today)
+                .order_by('-recorded_at')
+                .first()
+            )
+            if not existing_metric:
+                CustomMetric.objects.create(
+                    team=team,
+                    season=season,
+                    name=name,
+                    value=float(value),
+                    recorded_at=timezone.now().replace(minute=0, second=0, microsecond=0),
+                    source_notes='Demo',
+                )
+                created['stats'] += 1
+    return created
+
+
+def saturday_date(monday_date):
+    if not monday_date:
+        return None
+    return monday_date + timedelta(days=5)
 
 
 def _apply_match_info_overrides(match, primary_team, match_info_payload):
