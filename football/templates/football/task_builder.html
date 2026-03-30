@@ -521,6 +521,17 @@
       .side-pane.is-active {
         display: block;
       }
+      .export-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.55rem;
+        margin-top: 0.75rem;
+      }
+      .export-note {
+        margin-top: 0.75rem;
+        font-size: 0.86rem;
+        color: rgba(226,232,240,0.72);
+      }
       .assigned-summary {
         border: 1px solid rgba(255,255,255,0.12);
         border-radius: 14px;
@@ -1145,13 +1156,14 @@
 
           <aside class="panel">
             <div class="panel-body stack">
-	              <div class="side-tabs" id="task-side-tabs" role="tablist" aria-label="Panel de tarea">
-	                <button type="button" class="side-tab is-active" data-pane="ficha" role="tab" aria-selected="true">Ficha</button>
-	                <button type="button" class="side-tab" data-pane="avanzado" role="tab" aria-selected="false">Avanzado</button>
-	                <button type="button" class="side-tab" data-pane="animacion" role="tab" aria-selected="false">Animación</button>
-	                <button type="button" class="side-tab" data-pane="biblioteca" role="tab" aria-selected="false">Biblioteca</button>
-	                <button type="button" class="side-tab" data-pane="preview" role="tab" aria-selected="false">Vista previa</button>
-	              </div>
+		              <div class="side-tabs" id="task-side-tabs" role="tablist" aria-label="Panel de tarea">
+		                <button type="button" class="side-tab is-active" data-pane="ficha" role="tab" aria-selected="true">Ficha</button>
+		                <button type="button" class="side-tab" data-pane="avanzado" role="tab" aria-selected="false">Avanzado</button>
+		                <button type="button" class="side-tab" data-pane="animacion" role="tab" aria-selected="false">Animación</button>
+		                <button type="button" class="side-tab" data-pane="biblioteca" role="tab" aria-selected="false">Biblioteca</button>
+		                <button type="button" class="side-tab" data-pane="exportar" role="tab" aria-selected="false">Exportar</button>
+		                <button type="button" class="side-tab" data-pane="preview" role="tab" aria-selected="false">Vista previa</button>
+		              </div>
 
               <div class="side-pane is-active" data-pane="ficha" role="tabpanel">
                 <div class="section">
@@ -1395,7 +1407,7 @@
 	              </div>
 	              </div>
 
-	              <div class="side-pane" data-pane="biblioteca" role="tabpanel">
+		              <div class="side-pane" data-pane="biblioteca" role="tabpanel">
 	                <div class="section">
 	                  <h3>Biblioteca visual</h3>
 	                  <p>Arrastra o haz clic para colocar recursos en la pizarra.</p>
@@ -1432,12 +1444,29 @@
 	                    <button type="button" data-add="shape_triangle" title="Triángulo"><span class="library-emoji" aria-hidden="true">△</span>Triáng.</button>
 	                  </div>
 	                </div>
-	              </div>
+		              </div>
 
-	              <div class="side-pane" data-pane="preview" role="tabpanel">
-	                <div class="section preview-card">
-	                  <h3>Vista previa</h3>
-	                  <div class="live-preview-frame">
+		              <div class="side-pane" data-pane="exportar" role="tabpanel">
+		                <div class="section">
+		                  <h3>Exportar</h3>
+		                  <p>Descarga la pizarra como imagen, la animación como vídeo o el estado como archivo.</p>
+		                  <div class="export-grid">
+		                    <button type="button" class="button" id="export-png">PNG (actual)</button>
+		                    <button type="button" class="button" id="export-png-hd">PNG (HD)</button>
+		                    <button type="button" class="button" id="export-json">Estado (JSON)</button>
+		                    <button type="button" class="button" id="export-png-steps">PNGs (pasos)</button>
+		                    <button type="button" class="button primary" id="export-webm">Vídeo (WebM)</button>
+		                  </div>
+		                  <div class="export-note">
+		                    Tip: el PDF se genera desde “Vista previa” con los botones de impresión.
+		                  </div>
+		                </div>
+		              </div>
+
+		              <div class="side-pane" data-pane="preview" role="tabpanel">
+		                <div class="section preview-card">
+		                  <h3>Vista previa</h3>
+		                  <div class="live-preview-frame">
                     <img id="task-live-preview" src="{{ task_preview_url }}" alt="Preview de tarea" {% if not task_preview_url %}hidden{% endif %} />
                     <div id="task-live-preview-placeholder" class="live-preview-placeholder" {% if task_preview_url %}hidden{% endif %}>
                       La preview se genera mientras diseñas la tarea.

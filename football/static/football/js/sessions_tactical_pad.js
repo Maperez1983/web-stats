@@ -510,7 +510,7 @@
     const zoomInButton = document.getElementById('pitch-zoom-in');
     const zoomResetButton = document.getElementById('pitch-zoom-reset');
     const zoomLabel = document.getElementById('pitch-zoom-label');
-    const pitchFormatInput = document.getElementById('draw-task-pitch-format');
+	    const pitchFormatInput = document.getElementById('draw-task-pitch-format');
     const stateInput = document.getElementById('draw-canvas-state');
     const widthInput = document.getElementById('draw-canvas-width');
     const heightInput = document.getElementById('draw-canvas-height');
@@ -549,8 +549,13 @@
     );
     const sideTabs = Array.from(document.querySelectorAll('#task-side-tabs .side-tab'));
     const sidePanes = Array.from(document.querySelectorAll('.side-pane[data-pane]'));
-    const assignedHidden = document.getElementById('assigned-players-hidden');
-    const assignedSummary = document.getElementById('task-assigned-summary');
+	    const assignedHidden = document.getElementById('assigned-players-hidden');
+	    const assignedSummary = document.getElementById('task-assigned-summary');
+	    const exportPngBtn = document.getElementById('export-png');
+	    const exportPngHdBtn = document.getElementById('export-png-hd');
+	    const exportJsonBtn = document.getElementById('export-json');
+	    const exportStepsBtn = document.getElementById('export-png-steps');
+	    const exportWebmBtn = document.getElementById('export-webm');
     if (!window.fabric || !form || !canvasEl || !stage || !svgSurface || !presetSelect) return;
 
     const draftAlert = document.getElementById('task-builder-draft-alert');
@@ -685,8 +690,9 @@
 		    let clipboardObject = null;
 		    let pasteOffset = 0;
 		    const DRAG_MIME = 'application/x-webstats-tactical-resource';
-    let previewRefreshTimer = null;
-    let previewBuildInFlight = false;
+	    let previewRefreshTimer = null;
+	    let previewBuildInFlight = false;
+	    let exportInFlight = false;
     let surfacesRendered = false;
     let timeline = [];
     let activeStepIndex = -1;
@@ -1920,7 +1926,7 @@
       runNext();
     };
 
-    const buildPreviewData = () => new Promise((resolve) => {
+	    const buildPreviewData = () => new Promise((resolve) => {
       const sourceWidth = Math.round(canvas.getWidth());
       const sourceHeight = Math.round(canvas.getHeight());
       // En iPad conviene limitar el tamaño para que no bloquee el hilo principal.
@@ -1964,10 +1970,11 @@
       livePreviewImg.hidden = false;
       livePreviewPlaceholder.hidden = true;
     };
-    const refreshLivePreview = () => {
-      window.clearTimeout(previewRefreshTimer);
-      previewRefreshTimer = window.setTimeout(async () => {
-        if (previewBuildInFlight) return;
+	    const refreshLivePreview = () => {
+	      if (exportInFlight) return;
+	      window.clearTimeout(previewRefreshTimer);
+	      previewRefreshTimer = window.setTimeout(async () => {
+	        if (previewBuildInFlight) return;
         previewBuildInFlight = true;
         try {
           const dataUrl = await buildPreviewData();
@@ -2254,6 +2261,89 @@
 	      target.setPositionByOrigin(new fabric.Point(snapped.x, snapped.y), 'center', 'center');
 	      target.setCoords();
 	    });
+
+	    const buildCompositeCanvas = async (options = {}) => {
+	      const sourceWidth = Math.round(canvas.getWidth());
+	      const sourceHeight = Math.round(canvas.getHeight());
+	      const maxWidth = clamp(Number(options.maxWidth) || sourceWidth, 320, 4096);
+	      const ratio = sourceWidth > maxWidth ? (maxWidth / sourceWidth) : 1;
+	      const output = document.createElement('canvas');
+	      output.width = Math.max(320, Math.round(sourceWidth * ratio));
+	      output.height = Math.max(180, Math.round(sourceHeight * ratio));
+	      const context = output.getContext('2d');
+	      if (!context) return null;
+	      context.fillStyle = '#ffffff';
+	      context.fillRect(0, 0, output.width, output.height);
+	      const svgMarkup = new XMLSerializer().serializeToString(svgSurface);
+	      const blob = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' });
+	      const blobUrl = URL.createObjectURL(blob);
+	      const image = new Image();
+	      await new Promise((resolve) => {
+	        image.onload = resolve;
+	        image.onerror = resolve;
+	        image.src = blobUrl;
+	      });
+	      try { URL.revokeObjectURL(blobUrl); } catch (error) { /* ignore */ }
+	      try {
+	        context.drawImage(image, 0, 0, output.width, output.height);
+	      } catch (error) {
+	        // ignore
+	      }
+	      context.drawImage(canvas.lowerCanvasEl, 0, 0, output.width, output.height);
+	      return output;
+	    };
+
+	    const downloadBlob = (blob, filename) => {
+	      if (!blob) return;
+	      const url = URL.createObjectURL(blob);
+	      const link = document.createElement('a');
+	      link.href = url;
+	      link.download = filename || `export_${Date.now()}`;
+	      document.body.appendChild(link);
+	      link.click();
+	      link.remove();
+	      window.setTimeout(() => {
+	        try { URL.revokeObjectURL(url); } catch (error) { /* ignore */ }
+	      }, 2_500);
+	    };
+
+	    const canvasToBlob = (c, type = 'image/png', quality = 0.92) => new Promise((resolve) => {
+	      try {
+	        c.toBlob((blob) => resolve(blob), type, quality);
+	      } catch (error) {
+	        resolve(null);
+	      }
+	    });
+
+	    const fileSafeSlug = (value) => safeText(value || '')
+	      .toLowerCase()
+	      .replace(/[^a-z0-9]+/g, '-')
+	      .replace(/^-+|-+$/g, '')
+	      .slice(0, 60) || 'tarea';
+
+	    const exportCurrentPng = async (maxWidth) => {
+	      const title = fileSafeSlug(form.querySelector('[name="draw_task_title"]')?.value);
+	      const composite = await buildCompositeCanvas({ maxWidth });
+	      if (!composite) {
+	        setStatus('No se pudo generar la imagen.', true);
+	        return;
+	      }
+	      const blob = await canvasToBlob(composite, 'image/png', 0.92);
+	      if (!blob) {
+	        setStatus('No se pudo generar el PNG.', true);
+	        return;
+	      }
+	      downloadBlob(blob, `${title}.png`);
+	      setStatus('PNG descargado.');
+	    };
+
+	    const exportStateJson = () => {
+	      const title = fileSafeSlug(form.querySelector('[name="draw_task_title"]')?.value);
+	      const payload = serializeState();
+	      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
+	      downloadBlob(blob, `${title}.json`);
+	      setStatus('JSON descargado.');
+	    };
     canvas.on('selection:created', syncInspector);
     canvas.on('selection:updated', syncInspector);
     canvas.on('selection:cleared', syncInspector);
@@ -2647,9 +2737,176 @@
       button.addEventListener('click', () => submitPrintPreview(button.dataset.printStyle || 'uefa'));
     });
 
-    Array.from(document.querySelectorAll('.resource-strip button[data-add]')).forEach((button) => {
-      registerDraggableButton(button, () => ({ kind: safeText(button.dataset.add) }));
-    });
+	    Array.from(document.querySelectorAll('.resource-strip button[data-add]')).forEach((button) => {
+	      registerDraggableButton(button, () => ({ kind: safeText(button.dataset.add) }));
+	    });
+
+	    const loadCanvasSnapshotAsync = (rawState) => new Promise((resolve) => {
+	      loadCanvasSnapshot(rawState, () => resolve(true));
+	    });
+	    const sleep = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
+
+	    exportPngBtn?.addEventListener('click', async () => {
+	      if (exportInFlight) return;
+	      exportInFlight = true;
+	      stopPlayback(true);
+	      try {
+	        setStatus('Generando PNG…');
+	        await exportCurrentPng(canvas.getWidth());
+	      } finally {
+	        exportInFlight = false;
+	        refreshLivePreview();
+	      }
+	    });
+	    exportPngHdBtn?.addEventListener('click', async () => {
+	      if (exportInFlight) return;
+	      exportInFlight = true;
+	      stopPlayback(true);
+	      try {
+	        setStatus('Generando PNG (HD)…');
+	        await exportCurrentPng(1280);
+	      } finally {
+	        exportInFlight = false;
+	        refreshLivePreview();
+	      }
+	    });
+	    exportJsonBtn?.addEventListener('click', () => {
+	      if (exportInFlight) return;
+	      stopPlayback(true);
+	      exportStateJson();
+	    });
+	    exportStepsBtn?.addEventListener('click', async () => {
+	      if (exportInFlight) return;
+	      exportInFlight = true;
+	      stopPlayback(true);
+	      const saved = serializeState();
+	      try {
+	        persistActiveStepSnapshot();
+	        if (!timeline.length) {
+	          setStatus('No hay pasos. Descargando PNG actual…');
+	          await exportCurrentPng(1280);
+	          return;
+	        }
+	        const title = fileSafeSlug(form.querySelector('[name="draw_task_title"]')?.value);
+	        for (let i = 0; i < timeline.length; i += 1) {
+	          const step = timeline[i];
+	          setStatus(`Exportando PNG ${i + 1}/${timeline.length}…`);
+	          await loadCanvasSnapshotAsync(step.canvas_state);
+	          const composite = await buildCompositeCanvas({ maxWidth: 1280 });
+	          if (!composite) continue;
+	          const blob = await canvasToBlob(composite, 'image/png', 0.92);
+	          if (blob) downloadBlob(blob, `${title}_paso_${String(i + 1).padStart(2, '0')}.png`);
+	          // Pequeña pausa para que el navegador no bloquee múltiples descargas.
+	          await sleep(240);
+	        }
+	        setStatus('Exportación de pasos completada.');
+	      } finally {
+	        applySerializedState(saved);
+	        exportInFlight = false;
+	        refreshLivePreview();
+	      }
+	    });
+
+	    exportWebmBtn?.addEventListener('click', async () => {
+	      if (exportInFlight) return;
+	      exportInFlight = true;
+	      stopPlayback(true);
+	      const saved = serializeState();
+	      try {
+	        persistActiveStepSnapshot();
+	        const title = fileSafeSlug(form.querySelector('[name="draw_task_title"]')?.value);
+	        const sourceW = Math.round(canvas.getWidth());
+	        const sourceH = Math.round(canvas.getHeight());
+	        const outW = 1280;
+	        const scale = outW / Math.max(1, sourceW);
+	        const outH = Math.max(180, Math.round(sourceH * scale));
+	        const exportCanvas = document.createElement('canvas');
+	        exportCanvas.width = outW;
+	        exportCanvas.height = outH;
+	        const ctx = exportCanvas.getContext('2d');
+	        if (!ctx) {
+	          setStatus('No se pudo iniciar el export de vídeo.', true);
+	          return;
+	        }
+
+	        if (!('MediaRecorder' in window) || typeof exportCanvas.captureStream !== 'function') {
+	          setStatus('Tu navegador no soporta exportar vídeo desde la pizarra.', true);
+	          return;
+	        }
+
+	        const pickMime = () => {
+	          const candidates = [
+	            'video/webm;codecs=vp9',
+	            'video/webm;codecs=vp8',
+	            'video/webm',
+	          ];
+	          return candidates.find((m) => window.MediaRecorder && window.MediaRecorder.isTypeSupported && window.MediaRecorder.isTypeSupported(m)) || '';
+	        };
+	        const mimeType = pickMime();
+
+	        // Pre-render del fondo (SVG) para no serializarlo en cada frame.
+	        const svgMarkup = new XMLSerializer().serializeToString(svgSurface);
+	        const svgBlob = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' });
+	        const svgUrl = URL.createObjectURL(svgBlob);
+	        const pitchImg = new Image();
+	        await new Promise((resolve) => {
+	          pitchImg.onload = resolve;
+	          pitchImg.onerror = resolve;
+	          pitchImg.src = svgUrl;
+	        });
+	        try { URL.revokeObjectURL(svgUrl); } catch (error) { /* ignore */ }
+
+	        const drawFrame = () => {
+	          ctx.fillStyle = '#ffffff';
+	          ctx.fillRect(0, 0, outW, outH);
+	          try {
+	            ctx.drawImage(pitchImg, 0, 0, outW, outH);
+	          } catch (error) {
+	            // ignore
+	          }
+	          ctx.drawImage(canvas.lowerCanvasEl, 0, 0, outW, outH);
+	        };
+
+	        const stream = exportCanvas.captureStream(30);
+	        const chunks = [];
+	        const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+	        recorder.ondataavailable = (event) => {
+	          if (event.data && event.data.size > 0) chunks.push(event.data);
+	        };
+
+	        setStatus('Exportando vídeo…');
+	        recorder.start(1000);
+
+	        if (!timeline.length) {
+	          drawFrame();
+	          await sleep(3_000);
+	        } else {
+	          for (let i = 0; i < timeline.length; i += 1) {
+	            const step = timeline[i];
+	            setStatus(`Exportando vídeo ${i + 1}/${timeline.length}…`);
+	            await loadCanvasSnapshotAsync(step.canvas_state);
+	            drawFrame();
+	            await sleep(clamp(Number(step.duration) || 3, 1, 20) * 1000);
+	          }
+	        }
+
+	        const stopPromise = new Promise((resolve) => {
+	          recorder.onstop = resolve;
+	        });
+	        recorder.stop();
+	        await stopPromise;
+
+	        const blob = new Blob(chunks, { type: recorder.mimeType || 'video/webm' });
+	        downloadBlob(blob, `${title}.webm`);
+	        setStatus('Vídeo descargado.');
+	      } catch (error) {
+	        setStatus('Falló el export de vídeo.', true);
+	      } finally {
+	        applySerializedState(saved);
+	        exportInFlight = false;
+	        refreshLivePreview();
+	      }
+	    });
 
     presetButtons.forEach((button) => {
       button.addEventListener('click', () => {
