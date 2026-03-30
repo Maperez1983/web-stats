@@ -101,6 +101,12 @@
         background: rgba(127, 29, 29, 0.22);
         border-color: rgba(248, 113, 113, 0.4);
       }
+      .alert.warn {
+        background: rgba(245, 158, 11, 0.14);
+        border-color: rgba(251, 191, 36, 0.42);
+        color: rgba(254, 243, 199, 0.98);
+        font-weight: 650;
+      }
       .builder {
         display: grid;
         grid-template-columns: minmax(0, 1.45fr) minmax(340px, 420px);
@@ -745,8 +751,17 @@
 
       {% if feedback %}<div class="alert ok">{{ feedback }}</div>{% endif %}
       {% if error %}<div class="alert err">{{ error }}</div>{% endif %}
+      <div class="alert warn" id="task-builder-draft-alert" hidden></div>
 
-      <form method="post" id="task-builder-form" data-pdf-preview-url="{{ pdf_preview_url|default:'' }}">
+      <form
+        method="post"
+        id="task-builder-form"
+        data-pdf-preview-url="{{ pdf_preview_url|default:'' }}"
+        data-keepalive-url="{% url 'session-keepalive' %}"
+        data-save-success="{% if feedback %}1{% else %}0{% endif %}"
+        data-draft-key="webstats:tpad:draft:{{ scope_key }}:{% if task %}{{ task.id }}{% else %}new{% endif %}:{% firstof request.GET.workspace '' %}"
+        data-draft-new-key="webstats:tpad:draft:{{ scope_key }}:new:{% firstof request.GET.workspace '' %}"
+      >
         {% csrf_token %}
         <input type="hidden" name="planner_action" value="create_draw_task" />
         <input type="hidden" name="draw_canvas_state" id="draw-canvas-state" value="{{ initial.canvas_state|escape }}" />

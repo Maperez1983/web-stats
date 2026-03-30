@@ -520,6 +520,111 @@
     const assignedSummary = document.getElementById('task-assigned-summary');
     if (!window.fabric || !form || !canvasEl || !stage || !svgSurface || !presetSelect) return;
 
+    const draftAlert = document.getElementById('task-builder-draft-alert');
+    const keepaliveUrl = safeText(form.dataset.keepaliveUrl);
+    const saveSuccess = safeText(form.dataset.saveSuccess) === '1';
+    const draftKey = safeText(form.dataset.draftKey);
+    const draftNewKey = safeText(form.dataset.draftNewKey);
+    const currentDraftUrl = `${window.location.pathname}${window.location.search || ''}`;
+    const canUseStorage = (() => {
+      try {
+        const probeKey = '__tpad_storage_probe__';
+        window.localStorage.setItem(probeKey, '1');
+        window.localStorage.removeItem(probeKey);
+        return true;
+      } catch (error) {
+        return false;
+      }
+    })();
+    const setDraftAlert = (message) => {
+      if (!draftAlert) return;
+      const text = safeText(message);
+      draftAlert.textContent = text;
+      draftAlert.hidden = !text;
+    };
+
+    const clearDraftKeys = () => {
+      if (!canUseStorage) return;
+      const keys = new Set([draftKey, draftNewKey].map((k) => safeText(k)).filter(Boolean));
+      keys.forEach((key) => {
+        try {
+          window.localStorage.removeItem(key);
+        } catch (error) {
+          // ignore
+        }
+      });
+    };
+    const readDraft = (key) => {
+      if (!canUseStorage) return null;
+      const safeKey = safeText(key);
+      if (!safeKey) return null;
+      let raw = '';
+      try {
+        raw = window.localStorage.getItem(safeKey) || '';
+      } catch (error) {
+        raw = '';
+      }
+      if (!raw) return null;
+      try {
+        return JSON.parse(raw);
+      } catch (error) {
+        try {
+          window.localStorage.removeItem(safeKey);
+        } catch (removeError) {
+          // ignore
+        }
+        return null;
+      }
+    };
+    const applyDraftToForm = (draft) => {
+      const fields = draft && typeof draft === 'object' ? draft.fields : null;
+      if (!fields || typeof fields !== 'object') return false;
+      const elements = Array.from(form.elements || []);
+      elements.forEach((el) => {
+        if (!el || !el.name) return;
+        const key = safeText(el.name);
+        if (!Object.prototype.hasOwnProperty.call(fields, key)) return;
+        const stored = fields[key];
+        const type = safeText(el.type);
+        if (type === 'file' || type === 'password') return;
+        if (type === 'checkbox') {
+          if (Array.isArray(stored)) {
+            el.checked = stored.map((v) => safeText(v)).includes(safeText(el.value));
+          } else {
+            el.checked = !!stored;
+          }
+          return;
+        }
+        if (type === 'radio') {
+          el.checked = safeText(stored) === safeText(el.value);
+          return;
+        }
+        if (el.tagName === 'SELECT' && el.multiple && Array.isArray(stored)) {
+          const wanted = new Set(stored.map((v) => safeText(v)));
+          Array.from(el.options || []).forEach((opt) => {
+            opt.selected = wanted.has(safeText(opt.value));
+          });
+          return;
+        }
+        el.value = stored == null ? '' : String(stored);
+      });
+      return true;
+    };
+
+    if (saveSuccess) {
+      clearDraftKeys();
+      setDraftAlert('');
+    } else if (draftKey) {
+      const draft = readDraft(draftKey);
+      const matchesUrl = !draft?.url || safeText(draft.url) === currentDraftUrl;
+      if (draft && matchesUrl && applyDraftToForm(draft)) {
+        const stamp = safeText(draft.updated_at);
+        setDraftAlert(stamp ? `Borrador local recuperado (${stamp}).` : 'Borrador local recuperado.');
+      } else {
+        setDraftAlert('');
+      }
+    }
+
     const setStatus = (message, isError = false) => {
       if (!statusEl) return;
       statusEl.textContent = message;
@@ -1826,12 +1931,105 @@
     }
     runWhenIdle(() => refreshLivePreview(), 1100);
 
+    let draftSaveTimer = null;
+    const persistDraftNow = (reason) => {
+      if (!canUseStorage || !draftKey || saveSuccess) return;
+      const elements = Array.from(form.elements || []);
+      const fields = {};
+      const checkboxBuckets = new Map();
+      elements.forEach((el) => {
+        if (!el || !el.name) return;
+        const key = safeText(el.name);
+        if (!key) return;
+        if (key === 'csrfmiddlewaretoken' || key === 'draw_canvas_preview_data') return;
+        const type = safeText(el.type);
+        if (type === 'file' || type === 'password' || type === 'submit' || type === 'button' || type === 'reset') return;
+        if (type === 'checkbox') {
+          const bucket = checkboxBuckets.get(key) || [];
+          if (el.checked) bucket.push(safeText(el.value) || 'on');
+          checkboxBuckets.set(key, bucket);
+          return;
+        }
+        if (type === 'radio') {
+          if (el.checked) fields[key] = safeText(el.value);
+          return;
+        }
+        if (el.tagName === 'SELECT' && el.multiple) {
+          fields[key] = Array.from(el.selectedOptions || []).map((opt) => safeText(opt.value));
+          return;
+        }
+        fields[key] = el.value == null ? '' : String(el.value);
+      });
+      checkboxBuckets.forEach((bucket, key) => {
+        fields[key] = bucket;
+      });
+      try {
+        fields.draw_canvas_state = JSON.stringify(serializeState());
+      } catch (error) {
+        // leave current hidden value
+      }
+      try {
+        fields.draw_canvas_width = String(Math.round(canvas.getWidth()));
+        fields.draw_canvas_height = String(Math.round(canvas.getHeight()));
+      } catch (error) {
+        // ignore
+      }
+      const payload = {
+        v: 1,
+        url: currentDraftUrl,
+        updated_at: new Date().toISOString(),
+        reason: safeText(reason),
+        fields,
+      };
+      try {
+        window.localStorage.setItem(draftKey, JSON.stringify(payload));
+      } catch (error) {
+        // ignore (quota / privacy mode)
+      }
+    };
+    const scheduleDraftSave = (reason) => {
+      if (!canUseStorage || !draftKey || saveSuccess) return;
+      window.clearTimeout(draftSaveTimer);
+      draftSaveTimer = window.setTimeout(() => persistDraftNow(reason || 'auto'), 900);
+    };
+
+    if (canUseStorage && draftKey && !saveSuccess) {
+      form.addEventListener('input', () => scheduleDraftSave('input'));
+      form.addEventListener('change', () => scheduleDraftSave('change'));
+    }
+
+    if (keepaliveUrl) {
+      const ping = async () => {
+        try {
+          const response = await fetch(keepaliveUrl, { credentials: 'same-origin' });
+          const redirectedToLogin = response.redirected && /\/login\/?$/.test(new URL(response.url).pathname);
+          if (redirectedToLogin || response.status === 401 || response.status === 403) {
+            persistDraftNow('session-expired');
+            setDraftAlert('Sesión caducada. Se guardó un borrador local; inicia sesión y vuelve a esta pestaña.');
+            return false;
+          }
+          return true;
+        } catch (error) {
+          return true;
+        }
+      };
+      // Primer ping pronto para renovar el vencimiento tras abrir el editor.
+      window.setTimeout(() => {
+        ping();
+      }, 25_000);
+      const keepaliveTimer = window.setInterval(async () => {
+        const ok = await ping();
+        if (!ok) window.clearInterval(keepaliveTimer);
+      }, 240_000);
+    }
+
     canvas.on('object:modified', () => {
       if (canvas.__loading) return;
       persistActiveStepSnapshot();
       pushHistory();
       syncInspector();
       refreshLivePreview();
+      scheduleDraftSave('canvas');
     });
     canvas.on('object:added', () => {
       if (!canvas.__loading) {
@@ -1839,6 +2037,7 @@
         pushHistory();
       }
       refreshLivePreview();
+      scheduleDraftSave('canvas');
     });
     canvas.on('object:removed', () => {
       if (!canvas.__loading) {
@@ -1846,6 +2045,7 @@
         pushHistory();
       }
       refreshLivePreview();
+      scheduleDraftSave('canvas');
     });
     canvas.on('selection:created', syncInspector);
     canvas.on('selection:updated', syncInspector);
@@ -2148,6 +2348,7 @@
         return;
       }
       event.preventDefault();
+      persistDraftNow('submit');
       await syncHiddenBuilderFields();
       form.dataset.previewReady = '1';
       form.requestSubmit();

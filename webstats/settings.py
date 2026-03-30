@@ -18,6 +18,13 @@ from django.core.exceptions import ImproperlyConfigured
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
+def _env_bool(name, default=False):
+    raw = os.getenv(name)
+    if raw is None:
+        return bool(default)
+    return str(raw).strip().lower() in {'1', 'true', 'yes', 'on'}
+
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
@@ -98,9 +105,11 @@ LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'
 
 if not DEBUG:
-    SECURE_SSL_REDIRECT = os.getenv('SECURE_SSL_REDIRECT', 'true').lower() == 'true'
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
+    SECURE_SSL_REDIRECT = _env_bool('SECURE_SSL_REDIRECT', True)
+    # Si se despliega sin HTTPS (p.ej. red local o proxy sin SSL), permitir desactivar cookies Secure
+    # para evitar que la sesión no persista y obligue a loguearse continuamente.
+    SESSION_COOKIE_SECURE = _env_bool('SESSION_COOKIE_SECURE', SECURE_SSL_REDIRECT)
+    CSRF_COOKIE_SECURE = _env_bool('CSRF_COOKIE_SECURE', SECURE_SSL_REDIRECT)
     SECURE_HSTS_SECONDS = int(os.getenv('SECURE_HSTS_SECONDS', '31536000'))
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True

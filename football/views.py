@@ -181,6 +181,18 @@ from football.task_library import filter_task_library, prepare_task_library
 
 logger = logging.getLogger(__name__)
 
+
+@login_required
+def session_keepalive(request):
+    """
+    Mantiene viva la sesión mientras el usuario está en el editor (pizarra) sin hacer requests.
+    Evita perder trabajo por caducidad de sesión al pulsar "Guardar/Crear" tras estar tiempo editando.
+    """
+    request.session['__keepalive__'] = timezone.now().isoformat()
+    response = JsonResponse({'ok': True})
+    response['Cache-Control'] = 'no-store'
+    return response
+
 SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "import_from_rfef.py"
 MANAGE_PY_DIR = SCRIPT_PATH.parents[1]
 NEXT_MATCH_CACHE = Path(settings.BASE_DIR) / "data" / "input" / "rfaf-next-match.json"
