@@ -27,6 +27,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.contrib.auth import login as auth_login
 from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth.hashers import make_password, check_password
 from django.core.cache import cache
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.base import ContentFile
@@ -105,6 +106,7 @@ from football.models import (
     AppUserRole,
     UserInvitation,
     ShareLink,
+    AuditEvent,
     TaskBlueprint,
     TaskStudioProfile,
     TaskStudioRosterPlayer,
@@ -4507,6 +4509,41 @@ def platform_overview_page(request):
         platform_attention_items.append('La matriz no tiene alertas críticas de configuración.')
 
     recent_documents = []
+    search_query = _sanitize_task_text((request.GET.get('q') or '').strip(), multiline=False, max_len=120)
+    search_results = []
+    if search_query:
+        q = search_query
+        session_hits = list(
+            SessionTask.objects
+            .select_related('session__microcycle__team')
+            .filter(title__icontains=q)
+            .order_by('-created_at', '-id')[:20]
+        )
+        for item in session_hits:
+            search_results.append(
+                {
+                    'type': 'Tarea club',
+                    'title': str(item.title or 'Tarea').strip() or 'Tarea',
+                    'meta': f"{item.session.session_date:%d/%m/%Y} · {item.get_block_display()} · {item.duration_minutes or 0} min",
+                    'url': reverse('sessions-task-edit', args=[item.id]),
+                }
+            )
+        studio_hits = list(
+            TaskStudioTask.objects
+            .select_related('owner')
+            .filter(title__icontains=q)
+            .order_by('-updated_at', '-id')[:20]
+        )
+        for item in studio_hits:
+            search_results.append(
+                {
+                    'type': 'Task Studio',
+                    'title': str(item.title or 'Tarea').strip() or 'Tarea',
+                    'meta': f"{item.owner.get_username()} · {item.updated_at:%d/%m/%Y}",
+                    'url': f"{reverse('task-studio-task-edit', args=[item.id])}?user={item.owner_id}",
+                }
+            )
+        search_results = search_results[:30]
     recent_session_tasks = list(
         SessionTask.objects
         .select_related('session__microcycle__team')
@@ -4564,6 +4601,12 @@ def platform_overview_page(request):
         reverse=True,
     )[:14]
 
+    recent_audit_events = list(
+        AuditEvent.objects
+        .select_related('workspace', 'actor_user')
+        .order_by('-created_at', '-id')[:24]
+    )
+
     return render(
         request,
         'football/platform_overview.html',
@@ -4599,6 +4642,9 @@ def platform_overview_page(request):
             'studio_workspaces_without_tasks': studio_workspaces_without_tasks,
             'platform_attention_items': platform_attention_items,
             'recent_documents': recent_documents,
+            'recent_audit_events': recent_audit_events,
+            'search_query': search_query,
+            'search_results': search_results,
         },
     )
 
@@ -4854,6 +4900,13 @@ def platform_workspace_detail_page(request, workspace_id):
                     defaults={'role': member_role},
                 )
                 feedback = f'Usuario {target_user.username} vinculado al workspace.'
+                _audit(
+                    request,
+                    'workspace_member_add',
+                    workspace=workspace,
+                    message='Miembro añadido al workspace',
+                    payload={'user': target_user.username, 'role': member_role},
+                )
         elif form_action == 'invite_member':
             # Invitación + alta opcional de usuario (para que pueda poner su contraseña).
             username = _sanitize_task_text((request.POST.get('invite_username') or '').strip(), multiline=False, max_len=150)
@@ -4923,6 +4976,13 @@ def platform_workspace_detail_page(request, workspace_id):
                 )
                 invite_link = request.build_absolute_uri(reverse('user-invite-accept', args=[invitation.token]))
                 feedback = f'Invitación generada para {user_obj.username}.'
+                _audit(
+                    request,
+                    'workspace_invite',
+                    workspace=workspace,
+                    message='Invitación generada',
+                    payload={'user': user_obj.username, 'app_role': app_role, 'member_role': member_role, 'days': validity_days},
+                )
             except ValueError as exc:
                 error = str(exc)
             except Exception:
@@ -4939,6 +4999,13 @@ def platform_workspace_detail_page(request, workspace_id):
                 membership.role = member_role
                 membership.save(update_fields=['role'])
                 feedback = f'Rol actualizado para {membership.user.username}.'
+                _audit(
+                    request,
+                    'workspace_member_role',
+                    workspace=workspace,
+                    message='Rol de miembro actualizado',
+                    payload={'user': membership.user.username, 'role': member_role},
+                )
         elif form_action == 'update_member_modules':
             membership_id = _parse_int(request.POST.get('membership_id'))
             membership = WorkspaceMembership.objects.filter(id=membership_id, workspace=workspace).select_related('user').first()
@@ -4960,6 +5027,13 @@ def platform_workspace_detail_page(request, workspace_id):
                 membership.module_access = module_access
                 membership.save(update_fields=['module_access'])
                 feedback = f'Permisos por módulo actualizados para {membership.user.username}.'
+                _audit(
+                    request,
+                    'workspace_member_modules',
+                    workspace=workspace,
+                    message='Permisos por módulo actualizados',
+                    payload={'user': membership.user.username, 'denied': sorted([k for k, v in module_access.items() if v is False])[:40]},
+                )
         elif form_action == 'reset_member_modules':
             membership_id = _parse_int(request.POST.get('membership_id'))
             membership = WorkspaceMembership.objects.filter(id=membership_id, workspace=workspace).select_related('user').first()
@@ -4969,6 +5043,13 @@ def platform_workspace_detail_page(request, workspace_id):
                 membership.module_access = {}
                 membership.save(update_fields=['module_access'])
                 feedback = f'Permisos por módulo restablecidos para {membership.user.username}.'
+                _audit(
+                    request,
+                    'workspace_member_modules_reset',
+                    workspace=workspace,
+                    message='Permisos por módulo restablecidos',
+                    payload={'user': membership.user.username},
+                )
         elif form_action == 'remove_member':
             membership_id = _parse_int(request.POST.get('membership_id'))
             membership = WorkspaceMembership.objects.filter(id=membership_id, workspace=workspace).select_related('user').first()
@@ -4978,6 +5059,13 @@ def platform_workspace_detail_page(request, workspace_id):
                 removed_username = membership.user.username
                 membership.delete()
                 feedback = f'Usuario {removed_username} eliminado del workspace.'
+                _audit(
+                    request,
+                    'workspace_member_remove',
+                    workspace=workspace,
+                    message='Miembro eliminado del workspace',
+                    payload={'user': removed_username},
+                )
     workspace.task_count = TaskStudioTask.objects.filter(workspace=workspace).count()
     workspace.profile_count = TaskStudioProfile.objects.filter(workspace=workspace).count()
     roster_count = TaskStudioRosterPlayer.objects.filter(workspace=workspace).count()
@@ -5564,6 +5652,37 @@ def _file_field_as_data_url(file_field):
     return f"data:{mime};base64,{base64.b64encode(raw).decode('utf-8')}"
 
 
+def _client_ip(request):
+    if not request:
+        return ''
+    forwarded = str(request.META.get('HTTP_X_FORWARDED_FOR') or '').split(',')[0].strip()
+    return forwarded or str(request.META.get('REMOTE_ADDR') or '').strip()
+
+
+def _audit(request, action, *, workspace=None, message='', payload=None):
+    try:
+        if payload is None:
+            payload = {}
+        actor_user = request.user if request and getattr(request, 'user', None) and request.user.is_authenticated else None
+        actor = ''
+        if actor_user:
+            actor = actor_user.get_username()
+            full_name = actor_user.get_full_name().strip() if hasattr(actor_user, 'get_full_name') else ''
+            if full_name:
+                actor = f'{actor} · {full_name}'
+        AuditEvent.objects.create(
+            workspace=workspace,
+            actor_user=actor_user,
+            actor=actor[:150],
+            action=str(action or '')[:80],
+            message=str(message or '')[:220],
+            payload=payload if isinstance(payload, dict) else {},
+            ip=_client_ip(request)[:60],
+        )
+    except Exception:
+        pass
+
+
 @login_required
 @require_POST
 def share_task_pdf_create(request):
@@ -5577,6 +5696,7 @@ def share_task_pdf_create(request):
         style = 'uefa'
     validity_days = _parse_int(request.POST.get('valid_days')) or 14
     validity_days = max(1, min(validity_days, 60))
+    password = (request.POST.get('password') or '').strip()
     try:
         if not task_kind or task_kind not in {'session', 'task_studio'}:
             raise ValueError('Tipo de tarea no válido.')
@@ -5619,11 +5739,20 @@ def share_task_pdf_create(request):
             token=ShareLink.generate_token(),
             kind=ShareLink.KIND_TASK_PDF,
             payload={'task_kind': task_kind, 'task_id': task_id, 'style': style},
+            password_hash=make_password(password) if password else '',
             expires_at=timezone.now() + timedelta(days=validity_days),
             created_by=request.user.get_username() if request.user.is_authenticated else '',
+            created_by_user=request.user if request.user.is_authenticated else None,
             is_active=True,
         )
         url = request.build_absolute_uri(reverse('share-task-pdf', args=[link.token]))
+        _audit(
+            request,
+            'share_link_create',
+            workspace=_get_active_workspace(request),
+            message='Enlace compartido creado',
+            payload={'kind': 'task_pdf', 'task_kind': task_kind, 'task_id': task_id, 'style': style, 'expires_days': validity_days, 'password': bool(password)},
+        )
         return JsonResponse({'ok': True, 'url': url, 'expires_at': link.expires_at})
     except ValueError as exc:
         return JsonResponse({'error': str(exc)}, status=400)
@@ -5645,6 +5774,22 @@ def share_task_pdf_page(request, token):
     now = timezone.now()
     if not link or not link.can_be_used(now=now):
         raise Http404('Enlace no disponible')
+    if (link.password_hash or '').strip():
+        if request.method != 'POST':
+            return render(
+                request,
+                'football/share_link_gate.html',
+                {'error': '', 'expires_at': link.expires_at},
+                status=200,
+            )
+        supplied = (request.POST.get('password') or '').strip()
+        if not supplied or not check_password(supplied, link.password_hash):
+            return render(
+                request,
+                'football/share_link_gate.html',
+                {'error': 'Contraseña incorrecta.', 'expires_at': link.expires_at},
+                status=403,
+            )
     payload = link.payload if isinstance(link.payload, dict) else {}
     task_kind = str(payload.get('task_kind') or '').strip().lower()
     task_id = _parse_int(payload.get('task_id'))
@@ -5674,6 +5819,10 @@ def share_task_pdf_page(request, token):
         )
         html = render_to_string('football/session_task_pdf.html', context)
         filename = slugify(f'tarea-compartida-{task.id}-{task.title}') or f'tarea-{task.id}'
+        try:
+            ShareLink.objects.filter(id=link.id).update(access_count=(link.access_count or 0) + 1, last_accessed_at=timezone.now())
+        except Exception:
+            pass
         return _build_pdf_response_or_html_fallback(request, html, filename)
     if task_kind == 'task_studio':
         task = TaskStudioTask.objects.select_related('owner').filter(id=task_id, deleted_at__isnull=True).first()
@@ -5691,8 +5840,27 @@ def share_task_pdf_page(request, token):
         )
         html = render_to_string('football/session_task_pdf.html', context)
         filename = slugify(f'task-studio-compartida-{task.id}-{task.title}') or f'task-studio-{task.id}'
+        try:
+            ShareLink.objects.filter(id=link.id).update(access_count=(link.access_count or 0) + 1, last_accessed_at=timezone.now())
+        except Exception:
+            pass
         return _build_pdf_response_or_html_fallback(request, html, filename)
     raise Http404('Enlace no válido')
+
+
+@login_required
+@require_POST
+def share_link_revoke(request, token):
+    token = str(token or '').strip()
+    link = ShareLink.objects.filter(token=token, is_active=True).first()
+    if not link:
+        return JsonResponse({'error': 'Enlace no encontrado.'}, status=404)
+    if not _can_access_platform(request.user) and int(getattr(link, 'created_by_user_id', 0) or 0) != int(request.user.id):
+        return JsonResponse({'error': 'No tienes permisos para revocar este enlace.'}, status=403)
+    link.is_active = False
+    link.save(update_fields=['is_active'])
+    _audit(request, 'share_link_revoke', workspace=_get_active_workspace(request), message='Enlace compartido revocado', payload={'token': token, 'kind': link.kind})
+    return JsonResponse({'ok': True})
 
 
 @login_required

@@ -808,9 +808,13 @@ class ShareLink(models.Model):
     token = models.CharField(max_length=120, unique=True, db_index=True)
     kind = models.CharField(max_length=40, choices=KIND_CHOICES, default=KIND_TASK_PDF)
     payload = models.JSONField(default=dict, blank=True)
+    password_hash = models.CharField(max_length=180, blank=True)
     expires_at = models.DateTimeField(null=True, blank=True)
     created_by = models.CharField(max_length=80, blank=True)
+    created_by_user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='share_links')
     is_active = models.BooleanField(default=True)
+    access_count = models.PositiveIntegerField(default=0)
+    last_accessed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -831,6 +835,25 @@ class ShareLink(models.Model):
 
     def __str__(self):
         return f'{self.kind} · {self.created_at:%Y-%m-%d %H:%M}'
+
+
+class AuditEvent(models.Model):
+    workspace = models.ForeignKey(Workspace, on_delete=models.SET_NULL, null=True, blank=True, related_name='audit_events')
+    actor_user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='audit_events')
+    actor = models.CharField(max_length=150, blank=True)
+    action = models.CharField(max_length=80)
+    message = models.CharField(max_length=220, blank=True)
+    payload = models.JSONField(default=dict, blank=True)
+    ip = models.CharField(max_length=60, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+        verbose_name = 'Evento de auditoría'
+        verbose_name_plural = 'Eventos de auditoría'
+
+    def __str__(self):
+        return f'{self.action} · {self.created_at:%Y-%m-%d %H:%M}'
 
 
 class AppUserRole(models.Model):

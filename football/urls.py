@@ -18,6 +18,7 @@ urlpatterns = [
     path('invitation/<str:token>/', views.invitation_accept_page, name='user-invite-accept'),
     path('share/task-pdf/<str:token>/', views.share_task_pdf_page, name='share-task-pdf'),
     path('api/share/task-pdf/create/', views.share_task_pdf_create, name='share-task-pdf-create'),
+    path('api/share/revoke/<str:token>/', views.share_link_revoke, name='share-link-revoke'),
     path('coach/', views.coach_overview_page, name='coach-detail'),
     path('player/<int:player_id>/', views.player_detail_page, name='player-detail'),
     path('player/<int:player_id>/pdf/', views.player_pdf, name='player-pdf'),

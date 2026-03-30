@@ -962,7 +962,7 @@
           </div>
         </div>
 
-        {% elif active_tab == 'users' %}
+      {% elif active_tab == 'users' %}
         <div class="section-shell stack-section" id="usuarios-club">
           <div class="section-head">
             <div>
@@ -1230,6 +1230,36 @@
                 <small>Todavía no hay PDFs recientes que mostrar desde la matriz.</small>
               </div>
             </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="section-shell stack-section" style="margin-top:1rem;">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Auditoría</div>
+              <h2>Actividad reciente</h2>
+              <p>Eventos del sistema: invitaciones, compartidos, cambios de permisos y operaciones relevantes.</p>
+            </div>
+            <div class="count-pill">{{ recent_audit_events|length }}</div>
+          </div>
+          <div class="simple-list">
+            {% for ev in recent_audit_events %}
+            <div class="user-row" style="align-items:flex-start;">
+              <div>
+                <strong>{{ ev.action }}</strong>
+                <div class="user-card-sub">
+                  {% if ev.workspace %}{{ ev.workspace.name }} · {% endif %}
+                  {% if ev.actor %}{{ ev.actor }}{% elif ev.actor_user %}{{ ev.actor_user.username }}{% endif %}
+                </div>
+                {% if ev.message %}<div style="margin-top:0.25rem;color:#aeb9cc;">{{ ev.message }}</div>{% endif %}
+              </div>
+              <div style="text-align:right; color:#94a3b8; font-weight:700;">
+                {{ ev.created_at|date:"d/m/Y H:i" }}
+              </div>
+            </div>
+            {% empty %}
+            <div class="user-row"><div>Sin eventos todavía.</div></div>
             {% endfor %}
           </div>
         </div>

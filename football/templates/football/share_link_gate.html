@@ -1,0 +1,102 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Acceso protegido · 2J</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background:
+          radial-gradient(circle at 10% 0%, rgba(244, 180, 0, 0.12), transparent 40%),
+          radial-gradient(circle at 90% 10%, rgba(47, 125, 50, 0.14), transparent 44%),
+          #07101d;
+        color: #e7ebf3;
+        font-family: "Avenir Next", "Inter", system-ui, sans-serif;
+        padding: 1.25rem;
+      }
+      .card {
+        width: min(520px, 100%);
+        background: rgba(12, 20, 34, 0.92);
+        border: 1px solid rgba(145, 161, 185, 0.18);
+        border-radius: 22px;
+        padding: 1.15rem 1.2rem;
+        box-shadow: 0 22px 52px rgba(0, 0, 0, 0.28);
+      }
+      h1 {
+        margin: 0;
+        font-size: 1.2rem;
+      }
+      p {
+        margin: 0.5rem 0 0;
+        color: #aeb9cc;
+      }
+      form {
+        margin-top: 1rem;
+        display: grid;
+        gap: 0.75rem;
+      }
+      label {
+        display: grid;
+        gap: 0.35rem;
+        font-weight: 700;
+      }
+      input {
+        padding: 0.7rem 0.85rem;
+        border-radius: 14px;
+        border: 1px solid rgba(145, 161, 185, 0.22);
+        background: rgba(255, 255, 255, 0.04);
+        color: #f3f7ff;
+      }
+      button {
+        border-radius: 999px;
+        border: 1px solid rgba(244, 180, 0, 0.18);
+        background: rgba(255, 255, 255, 0.06);
+        color: #f3f7ff;
+        padding: 0.72rem 0.98rem;
+        font-weight: 800;
+        cursor: pointer;
+      }
+      .error {
+        margin-top: 0.6rem;
+        padding: 0.75rem 0.85rem;
+        border-radius: 14px;
+        border: 1px solid rgba(248, 113, 113, 0.22);
+        background: rgba(248, 113, 113, 0.08);
+        color: #fecaca;
+        font-weight: 700;
+      }
+      .meta {
+        margin-top: 0.6rem;
+        font-size: 0.85rem;
+        color: #94a3b8;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <h1>Acceso protegido</h1>
+      <p>Este documento compartido requiere contraseña.</p>
+      {% if error %}
+      <div class="error">{{ error }}</div>
+      {% endif %}
+      <form method="post">
+        {% csrf_token %}
+        <label>
+          Contraseña
+          <input type="password" name="password" autocomplete="current-password" required />
+        </label>
+        <button type="submit">Abrir documento</button>
+      </form>
+      {% if expires_at %}
+      <div class="meta">Caduca: {{ expires_at|date:"d/m/Y H:i" }}</div>
+      {% endif %}
+    </main>
+  </body>
+</html>
+

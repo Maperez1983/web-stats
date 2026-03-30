@@ -1940,11 +1940,13 @@
         const createUrl = "{% url 'share-task-pdf-create' %}";
         const run = async (style) => {
           try {
+            const password = window.prompt('Contraseña (opcional, deja vacío si no quieres):', '') || '';
             const body = new URLSearchParams();
             body.set('task_kind', taskKind);
             body.set('task_id', String(taskId));
             body.set('style', String(style || 'uefa'));
             body.set('valid_days', '30');
+            if (password) body.set('password', password);
             const resp = await fetch(createUrl, {
               method: 'POST',
               headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': csrf },
