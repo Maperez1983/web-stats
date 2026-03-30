@@ -158,6 +158,18 @@
         font-weight: 700;
         padding: 0.62rem 0.82rem;
       }
+      .resource-strip button {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .resource-strip button svg {
+        width: 18px;
+        height: 18px;
+        fill: currentColor;
+        opacity: 0.92;
+        flex: 0 0 auto;
+      }
       .resource-strip button[data-add],
       .player-bank button.player-token-bank {
         cursor: grab;
@@ -304,27 +316,28 @@
         gap: 0.35rem;
         align-items: center;
         margin-left: auto;
-        padding: 4px 6px;
+        padding: 6px 8px;
         border-radius: 999px;
         border: 1px solid rgba(255,255,255,0.12);
-        background: rgba(255,255,255,0.03);
+        background: rgba(255,255,255,0.05);
       }
       .icon-btn {
-        width: 38px;
-        height: 34px;
+        width: 48px;
+        height: 44px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         border-radius: 999px;
         border: 1px solid rgba(255,255,255,0.14);
-        background: rgba(255,255,255,0.03);
-        color: rgba(226,232,240,0.9);
+        background: rgba(255,255,255,0.05);
+        color: rgba(255,255,255,0.92);
         cursor: pointer;
         transition: transform 0.12s ease, background 0.12s ease;
       }
       .icon-btn svg {
-        width: 18px;
-        height: 18px;
+        width: 24px;
+        height: 24px;
+        display: block;
         fill: currentColor;
       }
       .icon-btn:hover {
@@ -968,6 +981,10 @@
                   <button type="button" data-add="player_away">Jugador 2a equipación</button>
                   <button type="button" data-add="goalkeeper_local">Portero</button>
                   <button type="button" data-add="ball">Balón</button>
+                  <button type="button" data-add="goal" title="Portería">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14h-2v-2H6v2H4V6Zm2 0v10h12V6H6Zm2 2h2v6H8V8Zm4 0h2v6h-2V8Zm4 0h2v6h-2V8Z"/></svg>
+                    Portería
+                  </button>
                   <button type="button" data-add="cone">Cono</button>
                   <button type="button" data-add="zone">Zona</button>
                   <button type="button" data-add="text">Texto</button>
@@ -1014,18 +1031,10 @@
 	                        <button type="button" data-color="#a855f7">Morado</button>
 	                      </div>
 	                      <div class="selection-actions">
-	                        <button type="button" data-rotate-step="-15">Girar -15°</button>
-	                        <button type="button" data-rotate-step="15">Girar +15°</button>
-	                        <button type="button" data-inspector-action="copy">Copiar</button>
-	                        <button type="button" data-inspector-action="paste">Pegar</button>
 	                        <button type="button" data-inspector-action="duplicate">Duplicar</button>
-	                        <button type="button" data-nudge-x="0" data-nudge-y="-8">Arriba</button>
-	                        <button type="button" data-nudge-x="-8" data-nudge-y="0">Izquierda</button>
-	                        <button type="button" data-nudge-x="8" data-nudge-y="0">Derecha</button>
-	                        <button type="button" data-nudge-x="0" data-nudge-y="8">Abajo</button>
 	                      </div>
 	                      <div class="selection-note">
-	                        Tip: usa `Cmd/Ctrl + D` para duplicar. `Cmd/Ctrl + C/V` copia y pega.
+	                        Tip: usa `Cmd/Ctrl + D` para duplicar.
 	                      </div>
                     </div>
                   </div>

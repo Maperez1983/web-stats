@@ -98,6 +98,7 @@
     cone: 'un cono',
     zone: 'una zona',
     text: 'un texto',
+    goal: 'una portería',
     token: 'un jugador',
     line: 'una línea',
     arrow: 'una flecha',
@@ -188,11 +189,10 @@
     }
     root.appendChild(drawRoot);
 
-    const createStage = (orientation) => {
+    const createStage = (orientation, desiredAspect = 105 / 68) => {
       // En vertical, el grupo se rota 90 grados: el sistema de coordenadas "dibuja"
       // sobre un lienzo efectivo de (stageH x stageW). Mantenemos proporción real 105x68.
       const margin = 10;
-      const desiredAspect = 105 / 68;
       const portrait = orientation === 'portrait';
       const effectiveW = portrait ? stageH : stageW;
       const effectiveH = portrait ? stageW : stageH;
@@ -687,7 +687,7 @@
     const isColorizableObject = (object) => {
       const kind = safeText(object?.data?.kind);
       if (!kind) return false;
-      if (kind === 'token' || kind === 'ball' || kind === 'cone' || kind === 'zone' || kind === 'text') return true;
+      if (kind === 'token' || kind === 'ball' || kind === 'cone' || kind === 'zone' || kind === 'text' || kind === 'goal') return true;
       if (kind.startsWith('line') || kind.startsWith('arrow') || kind.startsWith('shape')) return true;
       if (kind.startsWith('emoji_')) return true;
       return false;
@@ -695,7 +695,7 @@
     const isBackgroundShape = (object) => {
       const kind = safeText(object?.data?.kind);
       if (!kind) return false;
-      return kind === 'zone' || kind.startsWith('shape-');
+      return kind === 'zone' || kind.startsWith('shape-') || kind === 'goal';
     };
     const getObjectStrokeWidth = (object) => {
       if (!object) return 0;
@@ -1528,6 +1528,57 @@
           rx: 12, ry: 12, data: { kind: 'zone', color: '#22d3ee' },
         });
       }
+      if (kind === 'goal') {
+        return (left, top) => {
+          const stroke = '#f8fafc';
+          const strokeWidth = 3;
+          const w = 128;
+          const h = 74;
+          const frame = new fabric.Rect({
+            left: 0,
+            top: 0,
+            originX: 'center',
+            originY: 'center',
+            width: w,
+            height: h,
+            rx: 8,
+            ry: 8,
+            fill: '',
+            stroke,
+            strokeWidth,
+          });
+          const netStroke = 'rgba(248,250,252,0.22)';
+          const net = [];
+          for (let x = -w / 2 + 14; x <= w / 2 - 14; x += 18) {
+            net.push(new fabric.Line([x, -h / 2 + 10, x, h / 2 - 10], {
+              stroke: netStroke,
+              strokeWidth: 1,
+              originX: 'center',
+              originY: 'center',
+              selectable: false,
+              evented: false,
+            }));
+          }
+          for (let y = -h / 2 + 10; y <= h / 2 - 10; y += 16) {
+            net.push(new fabric.Line([-w / 2 + 12, y, w / 2 - 12, y], {
+              stroke: netStroke,
+              strokeWidth: 1,
+              originX: 'center',
+              originY: 'center',
+              selectable: false,
+              evented: false,
+            }));
+          }
+          const group = new fabric.Group([frame, ...net], {
+            left,
+            top,
+            originX: 'center',
+            originY: 'center',
+            data: { kind: 'goal', color: stroke, stroke_width: strokeWidth },
+          });
+          return group;
+        };
+      }
       if (kind === 'line' || kind === 'line_solid') {
         return (left, top) => new fabric.Line([-55, 0, 55, 0], {
           left, top, originX: 'center', originY: 'center',
@@ -2123,6 +2174,38 @@
       refreshLivePreview();
       scheduleDraftSave('canvas');
     });
+    canvas.on('object:moving', (event) => {
+      const target = event?.target;
+      const rawEvent = event?.e;
+      if (!target || !rawEvent) return;
+      if (!(rawEvent.ctrlKey || rawEvent.metaKey)) return;
+      const threshold = 10;
+      const targetCenter = target.getCenterPoint();
+      let bestDx = threshold + 1;
+      let bestDy = threshold + 1;
+      let snapX = null;
+      let snapY = null;
+      canvas.getObjects().forEach((obj) => {
+        if (!obj || obj === target) return;
+        if (obj.evented === false && obj.selectable === false) return;
+        const center = obj.getCenterPoint();
+        const dx = Math.abs(center.x - targetCenter.x);
+        const dy = Math.abs(center.y - targetCenter.y);
+        if (dx <= threshold && dx < bestDx) {
+          bestDx = dx;
+          snapX = center.x;
+        }
+        if (dy <= threshold && dy < bestDy) {
+          bestDy = dy;
+          snapY = center.y;
+        }
+      });
+      if (snapX === null && snapY === null) return;
+      const nextX = snapX === null ? targetCenter.x : snapX;
+      const nextY = snapY === null ? targetCenter.y : snapY;
+      target.setPositionByOrigin(new fabric.Point(nextX, nextY), 'center', 'center');
+      target.setCoords();
+    });
     canvas.on('selection:created', syncInspector);
     canvas.on('selection:updated', syncInspector);
     canvas.on('selection:cleared', syncInspector);
@@ -2340,6 +2423,13 @@
 	      const el = document.activeElement;
 	      const tag = (el && el.tagName) ? el.tagName.toLowerCase() : '';
 	      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+        if (isMod && key === 's') {
+          event.preventDefault();
+          persistDraftNow('shortcut-save');
+          setStatus('Guardando…');
+          form.requestSubmit();
+          return;
+        }
         if (isMod && key === 'z' && !isShift) {
           event.preventDefault();
           performUndo();
@@ -2348,6 +2438,22 @@
         if (isMod && (key === 'y' || (key === 'z' && isShift))) {
           event.preventDefault();
           performRedo();
+          return;
+        }
+        if (key === 'escape') {
+          event.preventDefault();
+          pendingFactory = null;
+          Array.from(toolStrip?.querySelectorAll('[data-add]') || []).forEach((item) => item.classList.remove('is-active'));
+          Array.from(playerBank?.querySelectorAll('button') || []).forEach((item) => item.classList.remove('is-active'));
+          canvas.discardActiveObject();
+          canvas.requestRenderAll();
+          syncInspector();
+          setStatus('Modo selección activo.');
+          return;
+        }
+        if (key === 'delete' || key === 'backspace') {
+          const did = handleCanvasAction('delete');
+          if (did) event.preventDefault();
           return;
         }
 	      if (isMod && key === 'd') {
