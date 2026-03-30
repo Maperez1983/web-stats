@@ -41,6 +41,29 @@ Verificacion rapida del entorno:
 python3 manage.py system_healthcheck
 ```
 
+## Sesión y login (evitar re-login continuo)
+
+Si la app te manda al login "a cada paso", casi siempre es porque el navegador **no está guardando** la cookie de sesión. Dos causas típicas:
+
+- Estás entrando por `http://` pero en producción tienes `SESSION_COOKIE_SECURE=true` (la cookie no se guarda en HTTP).
+- Estás en un despliegue con **más de una instancia** usando SQLite: la sesión en DB puede no ser compartida entre instancias.
+
+Variables útiles:
+
+```
+# Si no tienes HTTPS (solo para entornos internos)
+SECURE_SSL_REDIRECT=false
+SESSION_COOKIE_SECURE=false
+CSRF_COOKIE_SECURE=false
+
+# Si necesitas compartir sesión sin Redis (p. ej. varias instancias con SQLite)
+SESSION_ENGINE=django.contrib.sessions.backends.signed_cookies
+
+# Caducidad
+SESSION_COOKIE_AGE=2592000          # 30 días
+SESSION_SAVE_EVERY_REQUEST=false
+```
+
 ## Bootstrap admin opcional
 
 En entornos como Render, si quieres asegurar un admin tras `migrate`, puedes definir:
