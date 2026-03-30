@@ -500,6 +500,9 @@
     const scaleYInput = document.getElementById('task-scale-y');
     const rotationInput = document.getElementById('task-rotation');
     const colorInput = document.getElementById('task-style-color');
+    const strokeWidthRow = document.getElementById('task-stroke-width-row');
+    const strokeWidthInput = document.getElementById('task-stroke-width');
+    const commandBar = document.getElementById('task-command-bar');
     const timelineList = document.getElementById('task-timeline-list');
     const stepTitleInput = document.getElementById('task-step-title');
     const stepDurationInput = document.getElementById('task-step-duration');
@@ -645,6 +648,7 @@
     });
 
 	    let history = [];
+      let historyIndex = -1;
 	    let pendingFactory = null;
 	    let clipboardObject = null;
 	    let pasteOffset = 0;
@@ -687,6 +691,43 @@
       if (kind.startsWith('line') || kind.startsWith('arrow') || kind.startsWith('shape')) return true;
       if (kind.startsWith('emoji_')) return true;
       return false;
+    };
+    const isBackgroundShape = (object) => {
+      const kind = safeText(object?.data?.kind);
+      if (!kind) return false;
+      return kind === 'zone' || kind.startsWith('shape-');
+    };
+    const getObjectStrokeWidth = (object) => {
+      if (!object) return 0;
+      const value = Number(object.strokeWidth);
+      if (Number.isFinite(value) && value > 0) return value;
+      if (Array.isArray(object._objects)) {
+        for (const child of object._objects) {
+          const nested = getObjectStrokeWidth(child);
+          if (nested) return nested;
+        }
+      }
+      return 0;
+    };
+    const applyObjectStrokeWidth = (object, strokeWidth) => {
+      if (!object) return;
+      const width = clamp(Number(strokeWidth) || 3, 1, 14);
+      if (typeof object.set === 'function' && object.strokeWidth !== undefined) {
+        object.set({ strokeWidth: width });
+      }
+      const kind = safeText(object?.data?.kind);
+      if (Array.isArray(object._objects)) {
+        object._objects.forEach((child) => {
+          if (!child) return;
+          if (child.strokeWidth !== undefined) child.set({ strokeWidth: width });
+          if (kind.startsWith('arrow') && child.type === 'triangle' && child.width && child.height) {
+            const headSize = clamp(width * 5, 14, 44);
+            child.set({ width: headSize, height: headSize });
+          }
+        });
+        object.dirty = true;
+      }
+      setObjectData(object, { stroke_width: width });
     };
     const activeInspectableObject = () => canvas.getActiveObject() || null;
     const setObjectData = (object, patch) => {
@@ -863,6 +904,8 @@
         scaleYInput.value = '100';
         rotationInput.value = '0';
         colorInput.value = '#22d3ee';
+        if (strokeWidthRow) strokeWidthRow.hidden = true;
+        if (strokeWidthInput) strokeWidthInput.value = '3';
         return;
       }
       selectionToolbar.hidden = false;
@@ -875,6 +918,13 @@
       scaleYInput.value = String(Math.round((Number(active.scaleY) || 1) * 100));
       rotationInput.value = String(Math.round(Number(active.angle) || 0));
       colorInput.value = objectPreferredColor(active);
+      const strokeWidth = getObjectStrokeWidth(active);
+      if (strokeWidthRow && strokeWidthInput) {
+        const canStroke = strokeWidth > 0;
+        strokeWidthRow.hidden = !canStroke;
+        strokeWidthInput.disabled = !canStroke;
+        if (canStroke) strokeWidthInput.value = String(Math.round(strokeWidth));
+      }
     };
     const commitObjectChange = (message) => {
       canvas.requestRenderAll();
@@ -1031,8 +1081,33 @@
     };
     const pushHistory = () => {
       const snapshot = JSON.stringify(serializeState());
-      if (!history.length || history[history.length - 1] !== snapshot) history.push(snapshot);
-      if (history.length > 40) history = history.slice(history.length - 40);
+      if (historyIndex >= 0 && history[historyIndex] === snapshot) return;
+      if (historyIndex >= 0 && historyIndex < history.length - 1) {
+        history = history.slice(0, historyIndex + 1);
+      }
+      history.push(snapshot);
+      historyIndex = history.length - 1;
+      if (history.length > 60) {
+        const drop = history.length - 60;
+        history = history.slice(drop);
+        historyIndex = Math.max(0, historyIndex - drop);
+      }
+    };
+
+    const performUndo = () => {
+      if (historyIndex <= 0) return false;
+      historyIndex -= 1;
+      applySerializedState(JSON.parse(history[historyIndex]));
+      setStatus('Último cambio deshecho.');
+      return true;
+    };
+
+    const performRedo = () => {
+      if (historyIndex < 0 || historyIndex >= history.length - 1) return false;
+      historyIndex += 1;
+      applySerializedState(JSON.parse(history[historyIndex]));
+      setStatus('Cambio rehecho.');
+      return true;
     };
 
 	    const duplicateActiveObject = () => {
@@ -1231,6 +1306,7 @@
       if (!object) return;
       normalizeEditableObject(object);
       canvas.add(object);
+      if (isBackgroundShape(object)) canvas.sendToBack(object);
       canvas.setActiveObject(object);
       canvas.requestRenderAll();
       pushHistory();
@@ -2064,6 +2140,23 @@
       clearPendingPlacement();
       setStatus('Elemento colocado.');
     });
+    canvas.on('mouse:down', (event) => {
+      const target = event.target;
+      if (!target || !isBackgroundShape(target) || !event.e || event.e.shiftKey) return;
+      try {
+        const wasEvented = target.evented !== false;
+        target.evented = false;
+        const underneath = canvas.findTarget(event.e, true);
+        target.evented = wasEvented;
+        if (underneath && underneath !== target) {
+          canvas.setActiveObject(underneath);
+          canvas.requestRenderAll();
+          syncInspector();
+        }
+      } catch (error) {
+        // ignore
+      }
+    });
 
     stage.addEventListener('dragover', (event) => {
       if (!event.dataTransfer?.types?.includes(DRAG_MIME) && !event.dataTransfer?.types?.includes('text/plain')) return;
@@ -2140,6 +2233,11 @@
         applyObjectColor(active, colorInput.value || '#22d3ee');
       }, 'Color actualizado.');
     });
+    strokeWidthInput?.addEventListener('input', () => {
+      applyToActiveFlexibleObject((active) => {
+        applyObjectStrokeWidth(active, Number(strokeWidthInput.value) || 3);
+      }, 'Grosor actualizado.');
+    });
 	    selectionToolbar?.addEventListener('click', (event) => {
 	      const button = event.target.closest('button');
 	      if (!button) return;
@@ -2181,40 +2279,30 @@
       }
     });
 
-    toolStrip?.addEventListener('click', (event) => {
-      const button = event.target.closest('button');
-      if (!button) return;
-      const action = safeText(button.dataset.action);
-      const add = safeText(button.dataset.add);
+    const handleCanvasAction = (action) => {
       if (action === 'select') {
         pendingFactory = null;
-        Array.from(toolStrip.querySelectorAll('[data-add]')).forEach((item) => item.classList.remove('is-active'));
+        Array.from(toolStrip?.querySelectorAll('[data-add]') || []).forEach((item) => item.classList.remove('is-active'));
         Array.from(playerBank?.querySelectorAll('button') || []).forEach((item) => item.classList.remove('is-active'));
         setStatus('Modo selección activo.');
-        return;
+        return true;
       }
-      if (action === 'undo') {
-        if (history.length <= 1) return;
-        history.pop();
-        const previous = history[history.length - 1];
-        applySerializedState(JSON.parse(previous));
-        setStatus('Último cambio deshecho.');
-        return;
-      }
+      if (action === 'undo') return performUndo();
+      if (action === 'redo') return performRedo();
       if (action === 'delete') {
         const active = canvas.getActiveObject();
-        if (!active) return;
+        if (!active) return false;
         canvas.remove(active);
         canvas.discardActiveObject();
         canvas.requestRenderAll();
         pushHistory();
         syncInspector();
         setStatus('Elemento eliminado.');
-        return;
+        return true;
       }
       if (action === 'duplicate') {
         duplicateActiveObject();
-        return;
+        return true;
       }
       if (action === 'clear') {
         canvas.getObjects().slice().forEach((item) => canvas.remove(item));
@@ -2223,8 +2311,17 @@
         pushHistory();
         syncInspector();
         setStatus('Pizarra limpiada.');
-        return;
+        return true;
       }
+      return false;
+    };
+
+    toolStrip?.addEventListener('click', (event) => {
+      const button = event.target.closest('button');
+      if (!button) return;
+      const action = safeText(button.dataset.action);
+      const add = safeText(button.dataset.add);
+      if (action && handleCanvasAction(action)) return;
       if (!add) return;
       Array.from(toolStrip.querySelectorAll('[data-add]')).forEach((item) => item.classList.remove('is-active'));
       button.classList.add('is-active');
@@ -2239,9 +2336,20 @@
 	    document.addEventListener('keydown', (event) => {
 	      const key = String(event.key || '').toLowerCase();
 	      const isMod = event.metaKey || event.ctrlKey;
+        const isShift = !!event.shiftKey;
 	      const el = document.activeElement;
 	      const tag = (el && el.tagName) ? el.tagName.toLowerCase() : '';
 	      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+        if (isMod && key === 'z' && !isShift) {
+          event.preventDefault();
+          performUndo();
+          return;
+        }
+        if (isMod && (key === 'y' || (key === 'z' && isShift))) {
+          event.preventDefault();
+          performRedo();
+          return;
+        }
 	      if (isMod && key === 'd') {
 	        event.preventDefault();
 	        duplicateActiveObject();
@@ -2255,6 +2363,14 @@
 	        pasteClipboardObject();
 	      }
 	    });
+
+    commandBar?.addEventListener('click', (event) => {
+      const button = event.target.closest('button');
+      if (!button) return;
+      const action = safeText(button.dataset.action);
+      if (!action) return;
+      handleCanvasAction(action);
+    });
 
     Array.from(document.querySelectorAll('[data-print-style]')).forEach((button) => {
       button.addEventListener('click', () => submitPrintPreview(button.dataset.printStyle || 'uefa'));
