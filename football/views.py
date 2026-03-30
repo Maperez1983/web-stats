@@ -1684,6 +1684,8 @@ def _sync_workspace_competition_context(workspace):
     snapshot.next_match_payload = next_match_payload or {}
     snapshot.schedule_payload = schedule_payload or []
     snapshot.save()
+    if primary_team:
+        _invalidate_team_dashboard_caches(primary_team)
 
     context.team = primary_team
     context.group = primary_team.group
@@ -1703,10 +1705,14 @@ def _competition_payload_for_team(workspace, primary_team):
         if snapshot and snapshot.context_id:
             standings_payload = snapshot.standings_payload if isinstance(snapshot.standings_payload, list) else []
             next_match_payload = snapshot.next_match_payload if isinstance(snapshot.next_match_payload, dict) else {}
-            if standings_payload and _next_match_payload_is_reliable(next_match_payload):
+            if standings_payload:
                 return {
                     'standings': standings_payload,
-                    'next_match': normalize_next_match_payload(next_match_payload) if next_match_payload else {},
+                    'next_match': (
+                        normalize_next_match_payload(next_match_payload)
+                        if _next_match_payload_is_reliable(next_match_payload)
+                        else {}
+                    ),
                 }
         if primary_team:
             context = _bootstrap_workspace_competition_context(workspace, primary_team=primary_team)
@@ -1716,7 +1722,11 @@ def _competition_payload_for_team(workspace, primary_team):
                 if snapshot:
                     return {
                         'standings': snapshot.standings_payload if isinstance(snapshot.standings_payload, list) else [],
-                        'next_match': normalize_next_match_payload(snapshot.next_match_payload) if isinstance(snapshot.next_match_payload, dict) and snapshot.next_match_payload else {},
+                        'next_match': (
+                            normalize_next_match_payload(snapshot.next_match_payload)
+                            if isinstance(snapshot.next_match_payload, dict) and _next_match_payload_is_reliable(snapshot.next_match_payload)
+                            else {}
+                        ),
                     }
     standings_payload = _resolve_standings_for_team(primary_team, snapshot=load_universo_snapshot()) if primary_team else []
     next_match_payload = {}
@@ -4794,6 +4804,8 @@ def platform_workspace_detail_page(request, workspace_id):
                     external_team_name=external_team_name,
                     auto_sync_enabled=auto_sync_enabled,
                 )
+                if workspace.primary_team_id:
+                    _invalidate_team_dashboard_caches(workspace.primary_team)
                 feedback = 'Contexto competitivo actualizado.'
         elif form_action == 'sync_competition_context':
             if workspace.kind != Workspace.KIND_CLUB:
@@ -4803,6 +4815,8 @@ def platform_workspace_detail_page(request, workspace_id):
                 if sync_error:
                     error = sync_error
                 else:
+                    if workspace.primary_team_id:
+                        _invalidate_team_dashboard_caches(workspace.primary_team)
                     feedback = 'Competición sincronizada para este cliente.'
         elif form_action == 'search_competition_context':
             if workspace.kind != Workspace.KIND_CLUB:

@@ -19,6 +19,7 @@ from django.conf import settings
 from django.urls import include, path
 from django.urls import re_path
 from django.views.static import serve
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth import views as auth_views
 
 urlpatterns = [
@@ -28,7 +29,9 @@ urlpatterns = [
     path('', include('football.urls')),
 ]
 
-if settings.DEBUG and str(settings.MEDIA_URL).startswith('/'):
+# En producción sin S3, seguimos sirviendo MEDIA_URL desde la app (Render no sirve /media/ por defecto).
+# Se protege con login para que las fotos/archivos solo se vean con sesión iniciada.
+if str(settings.MEDIA_URL).startswith('/') and not getattr(settings, 'USE_S3_MEDIA', False):
     urlpatterns += [
-        re_path(r'^media/(?P<path>.*)$', serve, {'document_root': settings.MEDIA_ROOT}),
+        re_path(r'^media/(?P<path>.*)$', login_required(serve), {'document_root': settings.MEDIA_ROOT}),
     ]
