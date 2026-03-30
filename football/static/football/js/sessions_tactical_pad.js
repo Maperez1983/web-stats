@@ -574,8 +574,6 @@
 	    const exportPngHdBtn = document.getElementById('export-png-hd');
 	    const exportJsonBtn = document.getElementById('export-json');
 	    const exportStepsBtn = document.getElementById('export-png-steps');
-	    const exportWebmBtn = document.getElementById('export-webm');
-	    const exportVideoWidthSelect = document.getElementById('export-video-width');
     if (!window.fabric || !form || !canvasEl || !stage || !svgSurface || !presetSelect) return;
 
     const draftAlert = document.getElementById('task-builder-draft-alert');
@@ -3638,108 +3636,6 @@
 	          await sleep(240);
 	        }
 	        setStatus('Exportación de pasos completada.');
-	      } finally {
-	        applySerializedState(saved);
-	        exportInFlight = false;
-	        refreshLivePreview();
-	      }
-	    });
-
-	    exportWebmBtn?.addEventListener('click', async () => {
-	      if (exportInFlight) return;
-	      exportInFlight = true;
-	      stopPlayback(true);
-	      const saved = serializeState();
-	      try {
-	        persistActiveStepSnapshot();
-	        const title = fileSafeSlug(form.querySelector('[name="draw_task_title"]')?.value);
-	        const sourceW = Math.round(canvas.getWidth());
-	        const sourceH = Math.round(canvas.getHeight());
-	        const chosenWidth = Number.parseInt(String(exportVideoWidthSelect?.value || ''), 10);
-	        const outW = clamp(Number.isFinite(chosenWidth) ? chosenWidth : 1280, 960, 4096);
-	        const scale = outW / Math.max(1, sourceW);
-	        const outH = Math.max(180, Math.round(sourceH * scale));
-	        const exportCanvas = document.createElement('canvas');
-	        exportCanvas.width = outW;
-	        exportCanvas.height = outH;
-	        const ctx = exportCanvas.getContext('2d');
-	        if (!ctx) {
-	          setStatus('No se pudo iniciar el export de vídeo.', true);
-	          return;
-	        }
-
-	        if (!('MediaRecorder' in window) || typeof exportCanvas.captureStream !== 'function') {
-	          setStatus('Tu navegador no soporta exportar vídeo desde la pizarra.', true);
-	          return;
-	        }
-
-	        const pickMime = () => {
-	          const candidates = [
-	            'video/webm;codecs=vp9',
-	            'video/webm;codecs=vp8',
-	            'video/webm',
-	          ];
-	          return candidates.find((m) => window.MediaRecorder && window.MediaRecorder.isTypeSupported && window.MediaRecorder.isTypeSupported(m)) || '';
-	        };
-	        const mimeType = pickMime();
-
-	        // Pre-render del fondo (SVG) para no serializarlo en cada frame.
-	        const svgMarkup = new XMLSerializer().serializeToString(svgSurface);
-	        const svgBlob = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' });
-	        const svgUrl = URL.createObjectURL(svgBlob);
-	        const pitchImg = new Image();
-	        await new Promise((resolve) => {
-	          pitchImg.onload = resolve;
-	          pitchImg.onerror = resolve;
-	          pitchImg.src = svgUrl;
-	        });
-	        try { URL.revokeObjectURL(svgUrl); } catch (error) { /* ignore */ }
-
-	        const drawFrame = () => {
-	          ctx.fillStyle = '#ffffff';
-	          ctx.fillRect(0, 0, outW, outH);
-	          try {
-	            ctx.drawImage(pitchImg, 0, 0, outW, outH);
-	          } catch (error) {
-	            // ignore
-	          }
-	          ctx.drawImage(canvas.lowerCanvasEl, 0, 0, outW, outH);
-	        };
-
-	        const stream = exportCanvas.captureStream(30);
-	        const chunks = [];
-	        const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
-	        recorder.ondataavailable = (event) => {
-	          if (event.data && event.data.size > 0) chunks.push(event.data);
-	        };
-
-	        setStatus('Exportando vídeo…');
-	        recorder.start(1000);
-
-	        if (!timeline.length) {
-	          drawFrame();
-	          await sleep(3_000);
-	        } else {
-	          for (let i = 0; i < timeline.length; i += 1) {
-	            const step = timeline[i];
-	            setStatus(`Exportando vídeo ${i + 1}/${timeline.length}…`);
-	            await loadCanvasSnapshotAsync(step.canvas_state);
-	            drawFrame();
-	            await sleep(clamp(Number(step.duration) || 3, 1, 20) * 1000);
-	          }
-	        }
-
-	        const stopPromise = new Promise((resolve) => {
-	          recorder.onstop = resolve;
-	        });
-	        recorder.stop();
-	        await stopPromise;
-
-	        const blob = new Blob(chunks, { type: recorder.mimeType || 'video/webm' });
-	        downloadBlob(blob, `${title}.webm`);
-	        setStatus('Vídeo descargado.');
-	      } catch (error) {
-	        setStatus('Falló el export de vídeo.', true);
 	      } finally {
 	        applySerializedState(saved);
 	        exportInFlight = false;
