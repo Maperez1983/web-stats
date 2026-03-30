@@ -677,10 +677,12 @@
 
 	    let history = [];
       let historyIndex = -1;
-	    let pendingFactory = null;
-	    let clipboardObject = null;
-	    let pasteOffset = 0;
-	    const DRAG_MIME = 'application/x-webstats-tactical-resource';
+		    let pendingFactory = null;
+		    let pendingKind = '';
+		    const lastPlacedByKind = new Map();
+		    let clipboardObject = null;
+		    let pasteOffset = 0;
+		    const DRAG_MIME = 'application/x-webstats-tactical-resource';
     let previewRefreshTimer = null;
     let previewBuildInFlight = false;
     let surfacesRendered = false;
@@ -1330,21 +1332,51 @@
       return factory(left, top);
     };
 
-    const addObject = (object) => {
-      if (!object) return;
-      normalizeEditableObject(object);
-      canvas.add(object);
+	    const addObject = (object) => {
+	      if (!object) return;
+	      normalizeEditableObject(object);
+	      canvas.add(object);
       if (isBackgroundShape(object)) canvas.sendToBack(object);
       canvas.setActiveObject(object);
       canvas.requestRenderAll();
       pushHistory();
       syncInspector();
-    };
-    const clearPendingPlacement = () => {
-      pendingFactory = null;
-      Array.from(toolStrip?.querySelectorAll('[data-add]') || []).forEach((button) => button.classList.remove('is-active'));
-      Array.from(playerBank?.querySelectorAll('button') || []).forEach((button) => button.classList.remove('is-active'));
-    };
+	    };
+	    const snapPointToCenters = (point, target, threshold = 10) => {
+	      const baseX = Number(point?.x) || 0;
+	      const baseY = Number(point?.y) || 0;
+	      let bestDx = threshold + 1;
+	      let bestDy = threshold + 1;
+	      let snapX = null;
+	      let snapY = null;
+	      canvas.getObjects().forEach((obj) => {
+	        if (!obj || obj === target) return;
+	        if (obj.evented === false && obj.selectable === false) return;
+	        const center = obj.getCenterPoint();
+	        const dx = Math.abs(center.x - baseX);
+	        const dy = Math.abs(center.y - baseY);
+	        if (dx <= threshold && dx < bestDx) {
+	          bestDx = dx;
+	          snapX = center.x;
+	        }
+	        if (dy <= threshold && dy < bestDy) {
+	          bestDy = dy;
+	          snapY = center.y;
+	        }
+	      });
+	      return {
+	        x: snapX === null ? baseX : snapX,
+	        y: snapY === null ? baseY : snapY,
+	        snappedX: snapX !== null,
+	        snappedY: snapY !== null,
+	      };
+	    };
+	    const clearPendingPlacement = () => {
+	      pendingFactory = null;
+	      pendingKind = '';
+	      Array.from(toolStrip?.querySelectorAll('[data-add]') || []).forEach((button) => button.classList.remove('is-active'));
+	      Array.from(playerBank?.querySelectorAll('button') || []).forEach((button) => button.classList.remove('is-active'));
+	    };
     const pointerFromStageEvent = (event) => {
       const rect = stage.getBoundingClientRect();
       const x = ((event.clientX - rect.left) / rect.width) * canvas.getWidth();
@@ -1734,12 +1766,13 @@
       return null;
     };
 
-    const activateFactory = (factory, label) => {
-      pendingFactory = factory;
-      Array.from(toolStrip?.querySelectorAll('[data-add]') || []).forEach((button) => button.classList.remove('is-active'));
-      Array.from(playerBank?.querySelectorAll('button') || []).forEach((button) => button.classList.remove('is-active'));
-      setStatus(`Haz clic en el campo para colocar ${label}.`);
-    };
+	    const activateFactory = (factory, label, kind = '') => {
+	      pendingFactory = factory;
+	      pendingKind = safeText(kind || '');
+	      Array.from(toolStrip?.querySelectorAll('[data-add]') || []).forEach((button) => button.classList.remove('is-active'));
+	      Array.from(playerBank?.querySelectorAll('button') || []).forEach((button) => button.classList.remove('is-active'));
+	      setStatus(`Haz clic en el campo para colocar ${label}. (Shift: varios · Cmd/Ctrl: alinear por centro)`);
+	    };
 
 	    const restoreState = () => {
       let parsed = { version: '5.3.0', objects: [] };
@@ -1777,11 +1810,11 @@
 	        button.appendChild(name);
 	        button.appendChild(disk);
 	        registerDraggableButton(button, () => ({ kind, playerId: String(player.id) }));
-	        button.addEventListener('click', () => {
-	          Array.from(playerBank.querySelectorAll('button')).forEach((item) => item.classList.remove('is-active'));
-	          button.classList.add('is-active');
-	          activateFactory(playerTokenFactory(kind, player), safeText(player.name, 'el jugador'));
-	        });
+		        button.addEventListener('click', () => {
+		          Array.from(playerBank.querySelectorAll('button')).forEach((item) => item.classList.remove('is-active'));
+		          button.classList.add('is-active');
+		          activateFactory(playerTokenFactory(kind, player), safeText(player.name, 'el jugador'), kind);
+		        });
 	        playerBank.appendChild(button);
 	      });
 	    };
@@ -2202,38 +2235,17 @@
       refreshLivePreview();
       scheduleDraftSave('canvas');
     });
-    canvas.on('object:moving', (event) => {
-      const target = event?.target;
-      const rawEvent = event?.e;
-      if (!target || !rawEvent) return;
-      if (!(rawEvent.ctrlKey || rawEvent.metaKey)) return;
-      const threshold = 10;
-      const targetCenter = target.getCenterPoint();
-      let bestDx = threshold + 1;
-      let bestDy = threshold + 1;
-      let snapX = null;
-      let snapY = null;
-      canvas.getObjects().forEach((obj) => {
-        if (!obj || obj === target) return;
-        if (obj.evented === false && obj.selectable === false) return;
-        const center = obj.getCenterPoint();
-        const dx = Math.abs(center.x - targetCenter.x);
-        const dy = Math.abs(center.y - targetCenter.y);
-        if (dx <= threshold && dx < bestDx) {
-          bestDx = dx;
-          snapX = center.x;
-        }
-        if (dy <= threshold && dy < bestDy) {
-          bestDy = dy;
-          snapY = center.y;
-        }
-      });
-      if (snapX === null && snapY === null) return;
-      const nextX = snapX === null ? targetCenter.x : snapX;
-      const nextY = snapY === null ? targetCenter.y : snapY;
-      target.setPositionByOrigin(new fabric.Point(nextX, nextY), 'center', 'center');
-      target.setCoords();
-    });
+	    canvas.on('object:moving', (event) => {
+	      const target = event?.target;
+	      const rawEvent = event?.e;
+	      if (!target || !rawEvent) return;
+	      if (!(rawEvent.ctrlKey || rawEvent.metaKey)) return;
+	      const targetCenter = target.getCenterPoint();
+	      const snapped = snapPointToCenters({ x: targetCenter.x, y: targetCenter.y }, target, 10);
+	      if (!snapped.snappedX && !snapped.snappedY) return;
+	      target.setPositionByOrigin(new fabric.Point(snapped.x, snapped.y), 'center', 'center');
+	      target.setCoords();
+	    });
     canvas.on('selection:created', syncInspector);
     canvas.on('selection:updated', syncInspector);
     canvas.on('selection:cleared', syncInspector);
@@ -2244,13 +2256,32 @@
     };
     canvas.on('selection:created', syncInspectorDock);
     canvas.on('selection:updated', syncInspectorDock);
-    canvas.on('mouse:down', (event) => {
-      if (!pendingFactory || event.target) return;
-      const pointer = canvas.getPointer(event.e);
-      addObject(objectAtPointer(pendingFactory, pointer));
-      clearPendingPlacement();
-      setStatus('Elemento colocado.');
-    });
+	    canvas.on('mouse:down', (event) => {
+	      if (!pendingFactory || event.target) return;
+	      const raw = canvas.getPointer(event.e);
+	      const base = { x: Number(raw?.x) || 0, y: Number(raw?.y) || 0 };
+	      const e = event?.e;
+	      const isMod = !!(e && (e.ctrlKey || e.metaKey));
+	      const isShift = !!(e && e.shiftKey);
+	      let pointer = base;
+
+	      if (isMod) {
+	        pointer = snapPointToCenters(base, null, 10);
+	      } else if (pendingKind && lastPlacedByKind.has(pendingKind)) {
+	        // Snap suave a la última colocación del mismo tipo (útil para alinear conos/jugadores).
+	        const last = lastPlacedByKind.get(pendingKind);
+	        const threshold = 16;
+	        pointer = {
+	          x: Math.abs(base.x - last.x) <= threshold ? last.x : base.x,
+	          y: Math.abs(base.y - last.y) <= threshold ? last.y : base.y,
+	        };
+	      }
+
+	      addObject(objectAtPointer(pendingFactory, pointer));
+	      if (pendingKind) lastPlacedByKind.set(pendingKind, { x: pointer.x, y: pointer.y, ts: Date.now() });
+	      if (!isShift) clearPendingPlacement();
+	      setStatus(isShift ? 'Elemento colocado. Sigue colocando (Shift activo).' : 'Elemento colocado.');
+	    });
     canvas.on('mouse:down', (event) => {
       const target = event.target;
       if (!target || !isBackgroundShape(target) || !event.e || event.e.shiftKey) return;
@@ -2432,16 +2463,16 @@
       if (!button) return;
       const action = safeText(button.dataset.action);
       const add = safeText(button.dataset.add);
-      if (action && handleCanvasAction(action)) return;
-      if (!add) return;
-      Array.from(toolStrip.querySelectorAll('[data-add]')).forEach((item) => item.classList.remove('is-active'));
-      button.classList.add('is-active');
-	      if (add === 'player_local') activateFactory(playerTokenFactory('player_local', null), 'un jugador local');
-	      else if (add === 'player_rival') activateFactory(playerTokenFactory('player_rival', null), 'un jugador rival');
-	      else if (add === 'player_away') activateFactory(playerTokenFactory('player_away', null), 'un jugador con segunda equipación');
-	      else if (add === 'goalkeeper_local') activateFactory(playerTokenFactory('goalkeeper_local', null), 'un portero');
-	      else activateFactory(simpleFactory(add), RESOURCE_LABELS[add] || add);
-	    });
+	      if (action && handleCanvasAction(action)) return;
+	      if (!add) return;
+	      Array.from(toolStrip.querySelectorAll('[data-add]')).forEach((item) => item.classList.remove('is-active'));
+	      button.classList.add('is-active');
+		      if (add === 'player_local') activateFactory(playerTokenFactory('player_local', null), 'un jugador local', 'player_local');
+		      else if (add === 'player_rival') activateFactory(playerTokenFactory('player_rival', null), 'un jugador rival', 'player_rival');
+		      else if (add === 'player_away') activateFactory(playerTokenFactory('player_away', null), 'un jugador con segunda equipación', 'player_away');
+		      else if (add === 'goalkeeper_local') activateFactory(playerTokenFactory('goalkeeper_local', null), 'un portero', 'goalkeeper_local');
+		      else activateFactory(simpleFactory(add), RESOURCE_LABELS[add] || add, add);
+		    });
     syncInspector();
 
 	    document.addEventListener('keydown', (event) => {
