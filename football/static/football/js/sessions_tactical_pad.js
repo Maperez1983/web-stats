@@ -519,18 +519,20 @@
     const livePreviewPlaceholder = document.getElementById('task-live-preview-placeholder');
     const playerCountInput = form.querySelector('[name="draw_task_player_count"]');
     const legacyPlayersInput = form.querySelector('[name="draw_task_players"]');
-    const statusEl = document.getElementById('task-builder-status');
-    const toolStrip = document.getElementById('task-basic-tools');
-    const playerBank = document.getElementById('task-player-bank');
-    const selectionToolbar = document.getElementById('task-selection-toolbar');
+	    const statusEl = document.getElementById('task-builder-status');
+	    const toolStrip = document.getElementById('task-basic-tools');
+	    const playerBank = document.getElementById('task-player-bank');
+	    const libraryPane = document.querySelector('.side-pane[data-pane="biblioteca"]');
+	    const selectionToolbar = document.getElementById('task-selection-toolbar');
     const selectionSummary = document.getElementById('task-selection-summary');
     const scaleXInput = document.getElementById('task-scale-x');
     const scaleYInput = document.getElementById('task-scale-y');
-    const rotationInput = document.getElementById('task-rotation');
-    const colorInput = document.getElementById('task-style-color');
-    const strokeWidthRow = document.getElementById('task-stroke-width-row');
-    const strokeWidthInput = document.getElementById('task-stroke-width');
-    const commandBar = document.getElementById('task-command-bar');
+	    const rotationInput = document.getElementById('task-rotation');
+	    const colorInput = document.getElementById('task-style-color');
+	    const strokeWidthRow = document.getElementById('task-stroke-width-row');
+	    const strokeWidthInput = document.getElementById('task-stroke-width');
+	    const strokePresetsRow = document.getElementById('task-stroke-presets');
+	    const commandBar = document.getElementById('task-command-bar');
     const timelineList = document.getElementById('task-timeline-list');
     const stepTitleInput = document.getElementById('task-step-title');
     const stepDurationInput = document.getElementById('task-step-duration');
@@ -691,11 +693,14 @@
     let playbackTimer = null;
     let playbackRestoreState = null;
     let pitchOrientation = safeText(orientationInput?.value, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
-    let pitchZoom = Number.parseFloat(String(zoomInput?.value || '').trim());
-    let zoomTouched = false;
-    if (!Number.isFinite(pitchZoom)) {
-      pitchZoom = pitchOrientation === 'portrait' ? 1.15 : 1.0;
-    }
+	    let pitchZoom = Number.parseFloat(String(zoomInput?.value || '').trim());
+	    let zoomTouched = false;
+	    let spacePanArmed = false;
+	    let spacePanning = false;
+	    let spacePanStart = null;
+	    if (!Number.isFinite(pitchZoom)) {
+	      pitchZoom = pitchOrientation === 'portrait' ? 1.15 : 1.0;
+	    }
     pitchZoom = clamp(pitchZoom, 0.8, 1.6);
 
     const clampScale = (value) => clamp(Number(value) || 1, 0.4, 2.6);
@@ -926,18 +931,19 @@
       if (!selectionToolbar || !selectionSummary || !scaleXInput || !scaleYInput || !rotationInput || !colorInput) return;
       const active = activeInspectableObject();
       const enabled = !!active;
-      if (!enabled) {
-        selectionToolbar.hidden = true;
-        selectionToolbar.querySelectorAll('input,button').forEach((node) => { node.disabled = true; });
-        selectionSummary.textContent = 'Selecciona un recurso para ajustarlo.';
-        scaleXInput.value = '100';
-        scaleYInput.value = '100';
-        rotationInput.value = '0';
-        colorInput.value = '#22d3ee';
-        if (strokeWidthRow) strokeWidthRow.hidden = true;
-        if (strokeWidthInput) strokeWidthInput.value = '3';
-        return;
-      }
+	      if (!enabled) {
+	        selectionToolbar.hidden = true;
+	        selectionToolbar.querySelectorAll('input,button').forEach((node) => { node.disabled = true; });
+	        selectionSummary.textContent = 'Selecciona un recurso para ajustarlo.';
+	        scaleXInput.value = '100';
+	        scaleYInput.value = '100';
+	        rotationInput.value = '0';
+	        colorInput.value = '#22d3ee';
+	        if (strokeWidthRow) strokeWidthRow.hidden = true;
+	        if (strokePresetsRow) strokePresetsRow.hidden = true;
+	        if (strokeWidthInput) strokeWidthInput.value = '3';
+	        return;
+	      }
       selectionToolbar.hidden = false;
       const canColor = isColorizableObject(active);
       selectionToolbar.querySelectorAll('input,button').forEach((node) => { node.disabled = false; });
@@ -949,13 +955,14 @@
       rotationInput.value = String(Math.round(Number(active.angle) || 0));
       colorInput.value = objectPreferredColor(active);
       const strokeWidth = getObjectStrokeWidth(active);
-      if (strokeWidthRow && strokeWidthInput) {
-        const canStroke = strokeWidth > 0;
-        strokeWidthRow.hidden = !canStroke;
-        strokeWidthInput.disabled = !canStroke;
-        if (canStroke) strokeWidthInput.value = String(Math.round(strokeWidth));
-      }
-    };
+	      if (strokeWidthRow && strokeWidthInput) {
+	        const canStroke = strokeWidth > 0;
+	        strokeWidthRow.hidden = !canStroke;
+	        if (strokePresetsRow) strokePresetsRow.hidden = !canStroke;
+	        strokeWidthInput.disabled = !canStroke;
+	        if (canStroke) strokeWidthInput.value = String(Math.round(strokeWidth));
+	      }
+	    };
     const commitObjectChange = (message) => {
       canvas.requestRenderAll();
       pushHistory();
@@ -1376,6 +1383,7 @@
 	      pendingKind = '';
 	      Array.from(toolStrip?.querySelectorAll('[data-add]') || []).forEach((button) => button.classList.remove('is-active'));
 	      Array.from(playerBank?.querySelectorAll('button') || []).forEach((button) => button.classList.remove('is-active'));
+	      Array.from(libraryPane?.querySelectorAll('button[data-add]') || []).forEach((button) => button.classList.remove('is-active'));
 	    };
     const pointerFromStageEvent = (event) => {
       const rect = stage.getBoundingClientRect();
@@ -2380,26 +2388,44 @@
         applyObjectStrokeWidth(active, Number(strokeWidthInput.value) || 3);
       }, 'Grosor actualizado.');
     });
-	    selectionToolbar?.addEventListener('click', (event) => {
-	      const button = event.target.closest('button');
-	      if (!button) return;
-	      const inspectorAction = safeText(button.dataset.inspectorAction);
-	      if (inspectorAction === 'duplicate') {
-	        duplicateActiveObject();
-	        return;
-	      }
+		    selectionToolbar?.addEventListener('click', (event) => {
+		      const button = event.target.closest('button');
+		      if (!button) return;
+		      const inspectorAction = safeText(button.dataset.inspectorAction);
+		      if (inspectorAction === 'duplicate') {
+		        duplicateActiveObject();
+		        return;
+		      }
 	      if (inspectorAction === 'copy') {
 	        copyActiveObject();
 	        return;
 	      }
-	      if (inspectorAction === 'paste') {
-	        pasteClipboardObject();
-	        return;
-	      }
-	      const colorValue = safeText(button.dataset.color);
-	      if (colorValue) {
-	        if (colorInput) colorInput.value = colorValue;
-	        applyToActiveFlexibleObject((active) => {
+		      if (inspectorAction === 'paste') {
+		        pasteClipboardObject();
+		        return;
+		      }
+		      const scalePreset = Number(button.dataset.scalePreset);
+		      if (!Number.isNaN(scalePreset) && button.dataset.scalePreset !== undefined) {
+		        const next = clampScale(scalePreset / 100);
+		        if (scaleXInput) scaleXInput.value = String(scalePreset);
+		        if (scaleYInput) scaleYInput.value = String(scalePreset);
+		        applyToActiveFlexibleObject((active) => {
+		          active.set({ scaleX: next, scaleY: next });
+		        }, `Tamaño: ${scalePreset}%.`);
+		        return;
+		      }
+		      const strokePreset = Number(button.dataset.strokePreset);
+		      if (!Number.isNaN(strokePreset) && button.dataset.strokePreset !== undefined) {
+		        if (strokeWidthInput) strokeWidthInput.value = String(strokePreset);
+		        applyToActiveFlexibleObject((active) => {
+		          applyObjectStrokeWidth(active, strokePreset);
+		        }, `Grosor: ${strokePreset}.`);
+		        return;
+		      }
+		      const colorValue = safeText(button.dataset.color);
+		      if (colorValue) {
+		        if (colorInput) colorInput.value = colorValue;
+		        applyToActiveFlexibleObject((active) => {
           applyObjectColor(active, colorValue);
         }, 'Color actualizado.');
         return;
@@ -2466,9 +2492,9 @@
       return false;
     };
 
-    toolStrip?.addEventListener('click', (event) => {
-      const button = event.target.closest('button');
-      if (!button) return;
+	    toolStrip?.addEventListener('click', (event) => {
+	      const button = event.target.closest('button');
+	      if (!button) return;
       const action = safeText(button.dataset.action);
       const add = safeText(button.dataset.add);
 	      if (action && handleCanvasAction(action)) return;
@@ -2481,19 +2507,42 @@
 		      else if (add === 'goalkeeper_local') activateFactory(playerTokenFactory('goalkeeper_local', null), 'un portero', 'goalkeeper_local');
 		      else activateFactory(simpleFactory(add), RESOURCE_LABELS[add] || add, add);
 		    });
-    syncInspector();
 
-	    document.addEventListener('keydown', (event) => {
-	      const key = String(event.key || '').toLowerCase();
-	      const isMod = event.metaKey || event.ctrlKey;
-        const isShift = !!event.shiftKey;
-	      const el = document.activeElement;
-	      const tag = (el && el.tagName) ? el.tagName.toLowerCase() : '';
-	      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
-        if (isMod && key === 's') {
-          event.preventDefault();
-          persistDraftNow('shortcut-save');
-          setStatus('Guardando…');
+	    libraryPane?.addEventListener('click', (event) => {
+	      const button = event.target.closest('button[data-add]');
+	      if (!button) return;
+	      const add = safeText(button.dataset.add);
+	      if (!add) return;
+	      Array.from(libraryPane.querySelectorAll('button[data-add]')).forEach((item) => item.classList.remove('is-active'));
+	      button.classList.add('is-active');
+	      if (add === 'player_local') activateFactory(playerTokenFactory('player_local', null), 'un jugador local', 'player_local');
+	      else if (add === 'player_rival') activateFactory(playerTokenFactory('player_rival', null), 'un jugador rival', 'player_rival');
+	      else if (add === 'player_away') activateFactory(playerTokenFactory('player_away', null), 'un jugador con segunda equipación', 'player_away');
+	      else if (add === 'goalkeeper_local') activateFactory(playerTokenFactory('goalkeeper_local', null), 'un portero', 'goalkeeper_local');
+	      else activateFactory(simpleFactory(add), RESOURCE_LABELS[add] || add, add);
+	    });
+	    syncInspector();
+
+		    document.addEventListener('keydown', (event) => {
+		      const key = String(event.key || '').toLowerCase();
+		      const isMod = event.metaKey || event.ctrlKey;
+	        const isShift = !!event.shiftKey;
+		      const el = document.activeElement;
+		      const tag = (el && el.tagName) ? el.tagName.toLowerCase() : '';
+		      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+		      if ((event.code === 'Space' || key === ' ') && viewportEl) {
+		        // Modo "mano": espacio + arrastrar para desplazar el viewport (como Camelot).
+		        if (!spacePanArmed) {
+		          spacePanArmed = true;
+		          viewportEl.classList.add('is-hand');
+		        }
+		        event.preventDefault();
+		        return;
+		      }
+	        if (isMod && key === 's') {
+	          event.preventDefault();
+	          persistDraftNow('shortcut-save');
+	          setStatus('Guardando…');
           form.requestSubmit();
           return;
         }
@@ -2531,15 +2580,64 @@
 	        event.preventDefault();
 	        copyActiveObject();
 	      }
-	      if (isMod && key === 'v') {
-	        event.preventDefault();
-	        pasteClipboardObject();
-	      }
-	    });
+		      if (isMod && key === 'v') {
+		        event.preventDefault();
+		        pasteClipboardObject();
+		      }
+		    });
 
-    commandBar?.addEventListener('click', (event) => {
-      const button = event.target.closest('button');
-      if (!button) return;
+		    document.addEventListener('keyup', (event) => {
+		      const key = String(event.key || '').toLowerCase();
+		      if (!(event.code === 'Space' || key === ' ')) return;
+		      spacePanArmed = false;
+		      spacePanning = false;
+		      spacePanStart = null;
+		      viewportEl?.classList.remove('is-hand');
+		      viewportEl?.classList.remove('is-grabbing');
+		    });
+
+		    const startSpacePan = (event) => {
+		      if (!viewportEl || !spacePanArmed) return;
+		      // Solo tiene sentido si el viewport puede desplazarse.
+		      const canScroll = viewportEl.scrollWidth > viewportEl.clientWidth || viewportEl.scrollHeight > viewportEl.clientHeight;
+		      if (!canScroll) return;
+		      spacePanning = true;
+		      spacePanStart = {
+		        x: Number(event.clientX) || 0,
+		        y: Number(event.clientY) || 0,
+		        scrollLeft: viewportEl.scrollLeft,
+		        scrollTop: viewportEl.scrollTop,
+		      };
+		      viewportEl.classList.add('is-grabbing');
+		      event.preventDefault();
+		      event.stopPropagation();
+		    };
+		    const moveSpacePan = (event) => {
+		      if (!viewportEl || !spacePanning || !spacePanStart) return;
+		      const dx = (Number(event.clientX) || 0) - spacePanStart.x;
+		      const dy = (Number(event.clientY) || 0) - spacePanStart.y;
+		      viewportEl.scrollLeft = spacePanStart.scrollLeft - dx;
+		      viewportEl.scrollTop = spacePanStart.scrollTop - dy;
+		      event.preventDefault();
+		      event.stopPropagation();
+		    };
+		    const stopSpacePan = (event) => {
+		      if (!viewportEl || !spacePanning) return;
+		      spacePanning = false;
+		      spacePanStart = null;
+		      viewportEl.classList.remove('is-grabbing');
+		      if (event) {
+		        event.preventDefault();
+		        event.stopPropagation();
+		      }
+		    };
+		    viewportEl?.addEventListener('mousedown', startSpacePan, true);
+		    window.addEventListener('mousemove', moveSpacePan, true);
+		    window.addEventListener('mouseup', stopSpacePan, true);
+
+	    commandBar?.addEventListener('click', (event) => {
+	      const button = event.target.closest('button');
+	      if (!button) return;
       const action = safeText(button.dataset.action);
       if (!action) return;
       handleCanvasAction(action);
