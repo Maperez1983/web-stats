@@ -192,7 +192,8 @@
     const createStage = (orientation, desiredAspect = 105 / 68) => {
       // En vertical, el grupo se rota 90 grados: el sistema de coordenadas "dibuja"
       // sobre un lienzo efectivo de (stageH x stageW). Mantenemos proporción real 105x68.
-      const margin = 10;
+      // Deja margen suficiente para que el trazo del borde no se recorte en miniaturas / contenedores con overflow hidden.
+      const margin = 18;
       const portrait = orientation === 'portrait';
       const effectiveW = portrait ? stageH : stageW;
       const effectiveH = portrait ? stageW : stageH;
