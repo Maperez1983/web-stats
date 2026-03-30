@@ -268,29 +268,33 @@
       });
     };
 
-    const drawSevenSideOverlay = (fieldX, fieldY, fieldWidth, fieldHeight) => {
-      const halfWidth = fieldWidth / 2;
-      const sevenHeight = fieldHeight * 0.84;
-      const sevenWidth = sevenHeight * 45 / 65;
-      const insetY = (fieldHeight - sevenHeight) / 2;
-      const leftSevenX = fieldX + (halfWidth - sevenWidth) / 2;
-      const rightSevenX = fieldX + halfWidth + ((halfWidth - sevenWidth) / 2);
-      const sevenY = fieldY + insetY;
-      const metersH = 65;
-      const scaleLocal = sevenHeight / metersH;
-      const areaDepth = 13 * scaleLocal;
-      const areaWidth = 26 * scaleLocal;
-      const goalAreaDepth = 4.5 * scaleLocal;
-      const goalAreaWidth = 12 * scaleLocal;
-      const goalHeight = 6 * scaleLocal;
-      const goalDepth = 1.8 * scaleLocal;
-      const spotDist = 8 * scaleLocal;
-      const drawOne = (x) => {
-        drawRoot.appendChild(createSvgNode(doc, 'rect', { x, y: sevenY, width: sevenWidth, height: sevenHeight, fill: 'rgba(34,211,238,0.08)', stroke: '#67e8f9', 'stroke-width': 2.2, 'stroke-dasharray': '8 6' }));
-        drawRoot.appendChild(createSvgNode(doc, 'line', { x1: x, y1: sevenY + (sevenHeight / 2), x2: x + sevenWidth, y2: sevenY + (sevenHeight / 2), stroke: '#67e8f9', 'stroke-width': 2 }));
-        drawRoot.appendChild(createSvgNode(doc, 'circle', { cx: x + (sevenWidth / 2), cy: sevenY + (sevenHeight / 2), r: 5.5 * scaleLocal, fill: 'none', stroke: 'rgba(103,232,249,0.66)', 'stroke-width': 2 }));
-        drawRoot.appendChild(createSvgNode(doc, 'rect', { x: x + (sevenWidth - areaWidth) / 2, y: sevenY, width: areaWidth, height: areaDepth, fill: 'none', stroke: 'rgba(103,232,249,0.76)', 'stroke-width': 2 }));
-        drawRoot.appendChild(createSvgNode(doc, 'rect', { x: x + (sevenWidth - areaWidth) / 2, y: sevenY + sevenHeight - areaDepth, width: areaWidth, height: areaDepth, fill: 'none', stroke: 'rgba(103,232,249,0.76)', 'stroke-width': 2 }));
+	    const drawSevenSideOverlay = (fieldX, fieldY, fieldWidth, fieldHeight) => {
+	      const halfWidth = fieldWidth / 2;
+	      const sevenHeight = fieldHeight * 0.84;
+	      const sevenWidth = sevenHeight * 45 / 65;
+	      const insetY = (fieldHeight - sevenHeight) / 2;
+	      const leftSevenX = fieldX + (halfWidth - sevenWidth) / 2;
+	      const rightSevenX = fieldX + halfWidth + ((halfWidth - sevenWidth) / 2);
+	      const sevenY = fieldY + insetY;
+	      const metersH = 65;
+	      const scaleLocal = sevenHeight / metersH;
+	      const areaDepth = 13 * scaleLocal;
+	      const areaWidth = 26 * scaleLocal;
+	      const goalAreaDepth = 4.5 * scaleLocal;
+	      const goalAreaWidth = 12 * scaleLocal;
+	      const goalHeight = 6 * scaleLocal;
+	      const goalDepth = 1.8 * scaleLocal;
+	      const spotDist = 8 * scaleLocal;
+	      const offsideColor = '#facc15';
+	      const drawOne = (x) => {
+	        drawRoot.appendChild(createSvgNode(doc, 'rect', { x, y: sevenY, width: sevenWidth, height: sevenHeight, fill: 'rgba(34,211,238,0.08)', stroke: '#67e8f9', 'stroke-width': 2.2, 'stroke-dasharray': '8 6' }));
+	        drawRoot.appendChild(createSvgNode(doc, 'line', { x1: x, y1: sevenY + (sevenHeight / 2), x2: x + sevenWidth, y2: sevenY + (sevenHeight / 2), stroke: '#67e8f9', 'stroke-width': 2 }));
+	        // Fuera de juego (Fútbol 7): líneas a 13m de cada línea de fondo.
+	        drawRoot.appendChild(createSvgNode(doc, 'line', { x1: x, y1: sevenY + areaDepth, x2: x + sevenWidth, y2: sevenY + areaDepth, stroke: offsideColor, 'stroke-width': 3, 'stroke-opacity': 0.92 }));
+	        drawRoot.appendChild(createSvgNode(doc, 'line', { x1: x, y1: sevenY + sevenHeight - areaDepth, x2: x + sevenWidth, y2: sevenY + sevenHeight - areaDepth, stroke: offsideColor, 'stroke-width': 3, 'stroke-opacity': 0.92 }));
+	        drawRoot.appendChild(createSvgNode(doc, 'circle', { cx: x + (sevenWidth / 2), cy: sevenY + (sevenHeight / 2), r: 5.5 * scaleLocal, fill: 'none', stroke: 'rgba(103,232,249,0.66)', 'stroke-width': 2 }));
+	        drawRoot.appendChild(createSvgNode(doc, 'rect', { x: x + (sevenWidth - areaWidth) / 2, y: sevenY, width: areaWidth, height: areaDepth, fill: 'none', stroke: 'rgba(103,232,249,0.76)', 'stroke-width': 2 }));
+	        drawRoot.appendChild(createSvgNode(doc, 'rect', { x: x + (sevenWidth - areaWidth) / 2, y: sevenY + sevenHeight - areaDepth, width: areaWidth, height: areaDepth, fill: 'none', stroke: 'rgba(103,232,249,0.76)', 'stroke-width': 2 }));
         drawRoot.appendChild(createSvgNode(doc, 'rect', { x: x + (sevenWidth - goalAreaWidth) / 2, y: sevenY, width: goalAreaWidth, height: goalAreaDepth, fill: 'none', stroke: 'rgba(103,232,249,0.76)', 'stroke-width': 2 }));
         drawRoot.appendChild(createSvgNode(doc, 'rect', { x: x + (sevenWidth - goalAreaWidth) / 2, y: sevenY + sevenHeight - goalAreaDepth, width: goalAreaWidth, height: goalAreaDepth, fill: 'none', stroke: 'rgba(103,232,249,0.76)', 'stroke-width': 2 }));
         drawRoot.appendChild(createSvgNode(doc, 'circle', { cx: x + (sevenWidth / 2), cy: sevenY + spotDist, r: 3.5, fill: '#67e8f9' }));
