@@ -2279,6 +2279,33 @@
       const tercioDisplay = popupForm.querySelector('[data-tercio-display]');
       const observationInput = popupForm.querySelector('textarea[name="observation"]');
       const popupEditToggle = document.getElementById('popup-edit-toggle');
+      const setPopupEditMode = (enabled, { focusField = false } = {}) => {
+        const isEdit = Boolean(enabled);
+        if (popupEditToggle) {
+          popupEditToggle.dataset.mode = isEdit ? 'edit' : 'ipad';
+          popupEditToggle.textContent = isEdit ? 'Modo edición' : 'Modo iPad';
+        }
+        if (actionInput) {
+          actionInput.readOnly = !isEdit;
+          actionInput.inputMode = isEdit ? 'text' : 'none';
+        }
+        if (observationInput) {
+          observationInput.readOnly = false;
+        }
+        if (isEdit && focusField && actionInput) {
+          try {
+            actionInput.focus();
+          } catch (err) {
+            // ignore
+          }
+        }
+      };
+      if (popupEditToggle) {
+        popupEditToggle.addEventListener('click', () => {
+          setPopupEditMode(popupEditToggle.dataset.mode !== 'edit', { focusField: true });
+        });
+      }
+      setPopupEditMode(false);
       const playerInput = document.getElementById('selected-player');
       const quickButtons = popupForm.querySelectorAll('.quick-action');
       const popupCloseButtons = popupForm.querySelectorAll('.close-popup');
@@ -2370,6 +2397,7 @@
       let renderMatchInfoState;
       let showQuickHistoryModal;
       let hideQuickHistoryModal;
+      let updateCloseSummary;
       const containsText = (value, terms) => {
         const txt = String(value || '').toLowerCase();
         if (!txt) return false;
@@ -2491,7 +2519,6 @@
         });
         setZoneOverlayVisibility(true);
       }
-      renderMatchInfoState(matchInfoState);
       if (matchInfoResetBtn) {
         matchInfoResetBtn.addEventListener('click', () => {
           renderMatchInfoState(matchInfoState);
@@ -2760,6 +2787,9 @@
         quickHistoryModalCloseBtn,
         quickHistoryState,
       }));
+      if (typeof renderMatchInfoState === 'function') {
+        renderMatchInfoState(matchInfoState);
+      }
 
       const removeLineupEntry = (playerId) => {
         let changed = false;
@@ -2966,7 +2996,7 @@
         const secs = safeSeconds % 60;
         return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
       };
-      function updateCloseSummary(nextSummary = {}) {
+      updateCloseSummary = (nextSummary = {}) => {
         liveSummaryState = {
           ...liveSummaryState,
           ...nextSummary,
@@ -3023,7 +3053,7 @@
             closeSummaryAlerts.appendChild(item);
           });
         }
-      }
+      };
       const activateStage = (stage) => {
         stageTabs.forEach((tab) => {
           tab.classList.toggle('is-active', tab.dataset.stageTab === stage);

@@ -277,6 +277,9 @@ RFAF_LIVE_FETCH_ON_REQUEST = str(
     os.getenv('RFAF_LIVE_FETCH_ON_REQUEST', '0')
 ).strip().lower() in {'1', 'true', 'yes', 'on'}
 UNIVERSO_API_TIMEOUT_SECONDS = max(1, int(os.getenv('UNIVERSO_API_TIMEOUT_SECONDS', '8') or 8))
+UNIVERSO_EXTERNAL_IMAGES_ENABLED = str(
+    os.getenv('UNIVERSO_EXTERNAL_IMAGES_ENABLED', '0')
+).strip().lower() in {'1', 'true', 'yes', 'on'}
 
 TASK_MATERIAL_LIBRARY = [
     {'label': 'CONO', 'title': 'Cono alto', 'kind': 'cone', 'category': 'delimitacion', 'icon': '△'},
@@ -2776,7 +2779,9 @@ def _enrich_standings_rows_with_crests(rows):
         if not row_copy.get('crest_url') and team_name:
             _, rival_crest_url = _resolve_rival_identity(team_name)
             row_copy['crest_url'] = str(rival_crest_url or '').strip()
-        row_copy['crest_url'] = _absolute_universo_url(row_copy.get('crest_url'))
+        row_copy['crest_url'] = _sanitize_universo_external_image(
+            _absolute_universo_url(row_copy.get('crest_url'))
+        )
         enriched.append(row_copy)
     return enriched
 
@@ -2809,7 +2814,7 @@ def _enrich_next_match_payload_with_crests(next_match, standings_rows=None):
     payload['opponent'] = {
         'name': str(opponent.get('name') or opponent.get('full_name') or opponent_name or 'Rival por confirmar').strip() or 'Rival por confirmar',
         'full_name': str(opponent.get('full_name') or opponent.get('name') or opponent_name or 'Rival por confirmar').strip() or 'Rival por confirmar',
-        'crest_url': _absolute_universo_url(opponent.get('crest_url')),
+        'crest_url': _sanitize_universo_external_image(_absolute_universo_url(opponent.get('crest_url'))),
         'team_code': str(opponent.get('team_code') or '').strip(),
     }
     return payload
@@ -3027,6 +3032,23 @@ def _absolute_universo_url(path_or_url):
     return f'https://www.universorfaf.es/{value.lstrip("/")}'
 
 
+def _sanitize_universo_external_image(url):
+    """Universo RFAF expone URLs de escudos que en la práctica pueden devolver HTML/404.
+
+    En esos casos el navegador los bloquea (ORB) y ralentiza la home. Por defecto los anulamos
+    y dejamos que el frontend muestre el equipo sin imagen.
+    """
+    value = str(url or '').strip()
+    if not value:
+        return ''
+    if UNIVERSO_EXTERNAL_IMAGES_ENABLED:
+        return value
+    lowered = value.lower()
+    if 'universorfaf.es/pnfg/pimg/' in lowered:
+        return ''
+    return value
+
+
 def _build_universo_capture_team_lookup():
     lookup = {}
     capture_path = UNIVERSO_CAPTURE_PATH
@@ -3181,7 +3203,7 @@ def resolve_team_crest_url(request, team, *, fallback_static='football/images/cd
     crest_url = str(getattr(team, 'crest_url', '') or '').strip()
     if not crest_url and sync:
         crest_url = _sync_team_crest_from_sources(team)
-    crest_url = _absolute_universo_url(crest_url)
+    crest_url = _sanitize_universo_external_image(_absolute_universo_url(crest_url))
     if crest_url:
         return crest_url
     if fallback_static:
