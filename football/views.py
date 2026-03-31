@@ -6076,10 +6076,17 @@ def player_dashboard_page(request):
     primary_team = _get_player_team_for_request(request)
     if not primary_team:
         return JsonResponse({'error': 'No hay equipo principal configurado'}, status=400)
-    try:
-        refresh_primary_roster_cache(primary_team, force=False)
-    except Exception:
-        pass
+    refresh_roster_default = str(os.getenv('PREFERENTE_ROSTER_REFRESH_ON_LOAD', '0')).strip().lower() in {'1', 'true', 'yes', 'on'}
+    refresh_roster_override = os.getenv('PREFERENTE_ROSTER_REFRESH_ON_PLAYER_DASHBOARD')
+    if refresh_roster_override is None:
+        refresh_roster_on_load = refresh_roster_default
+    else:
+        refresh_roster_on_load = str(refresh_roster_override).strip().lower() in {'1', 'true', 'yes', 'on'}
+    if refresh_roster_on_load:
+        try:
+            refresh_primary_roster_cache(primary_team, force=False)
+        except Exception:
+            pass
     player_stats = compute_player_dashboard(primary_team)
     team_matches = list(
         _team_match_queryset(primary_team)

@@ -1,5 +1,6 @@
 import base64
 import json
+import os
 import shutil
 import tempfile
 from datetime import date, timedelta
@@ -3003,12 +3004,22 @@ class PlayerDashboardViewTests(TestCase):
     @patch('football.views.refresh_primary_roster_cache')
     def test_player_dashboard_supports_match_filter(self, mocked_refresh):
         self.client.force_login(self.user)
-        response = self.client.get(reverse('player-dashboard'), {'match': self.match.id})
+        with patch.dict(os.environ, {'PREFERENTE_ROSTER_REFRESH_ON_PLAYER_DASHBOARD': '1'}):
+            response = self.client.get(reverse('player-dashboard'), {'match': self.match.id})
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Rival View')
         self.assertContains(response, 'Acciones totales:')
         mocked_refresh.assert_called_once_with(self.team, force=False)
+
+    @patch('football.views.refresh_primary_roster_cache')
+    def test_player_dashboard_does_not_refresh_roster_by_default(self, mocked_refresh):
+        self.client.force_login(self.user)
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop('PREFERENTE_ROSTER_REFRESH_ON_PLAYER_DASHBOARD', None)
+            response = self.client.get(reverse('player-dashboard'))
+        self.assertEqual(response.status_code, 200)
+        mocked_refresh.assert_not_called()
 
     def test_compute_player_dashboard_reuses_cached_payload(self):
         first = compute_player_dashboard(self.team)

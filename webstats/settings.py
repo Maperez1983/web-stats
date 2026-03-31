@@ -289,6 +289,21 @@ if not DEBUG and DATABASES['default']['ENGINE'] == 'django.db.backends.sqlite3' 
         'SQLite solo se permite con ALLOW_SQLITE_IN_PROD=true.'
     )
 
+# Cache
+# Por defecto Django usa DummyCache si no se define CACHES (no cachea nada) y las vistas de métricas
+# recalculan todo en cada request. Usamos FileBasedCache para compartir entre workers sin dependencias extra.
+CACHE_DIR = (os.getenv('CACHE_DIR') or '/tmp/webstats-cache').strip() or '/tmp/webstats-cache'
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+        'LOCATION': CACHE_DIR,
+        'TIMEOUT': None,
+        'OPTIONS': {
+            'MAX_ENTRIES': _env_int('CACHE_MAX_ENTRIES', 10000),
+        },
+    }
+}
+
 
 LOGGING = {
     'version': 1,
