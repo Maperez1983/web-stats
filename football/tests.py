@@ -63,6 +63,8 @@ class WriteEndpointAuthTests(TestCase):
         self.assertEqual(response.status_code, 401)
 
     def test_refresh_is_rate_limited_when_lock_exists(self):
+        self.user.is_staff = True
+        self.user.save(update_fields=['is_staff'])
         self.client.force_login(self.user)
         cache.set(SCRAPE_LOCK_KEY, '1', timeout=60)
         response = self.client.post(reverse('dashboard-refresh'))

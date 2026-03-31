@@ -2349,12 +2349,15 @@ def _forbid_if_workspace_module_disabled(request, module_key, label='módulo'):
     workspace = _get_active_workspace(request)
     if not workspace:
         if request and getattr(request, 'user', None) and request.user.is_authenticated and not _can_access_platform(request.user):
-            if module_key == 'players':
+            # Para uso "monocliente" (sin workspaces configurados), permitimos dashboard/jugadores.
+            if module_key in {'players', 'dashboard'}:
                 return None
             return HttpResponse('No tienes un workspace de club asignado.', status=403)
         return None
     if workspace.kind != Workspace.KIND_CLUB:
         if request and getattr(request, 'user', None) and request.user.is_authenticated and not _can_access_platform(request.user):
+            if module_key in {'players', 'dashboard'}:
+                return None
             return HttpResponse('El workspace activo no es de tipo club.', status=403)
         return None
     if _workspace_has_module_for_user(workspace, module_key, user=request.user if request else None):
