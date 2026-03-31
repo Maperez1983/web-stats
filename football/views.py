@@ -266,9 +266,11 @@ TASK_RESOURCE_LIBRARY_PATH = Path(settings.BASE_DIR) / "data" / "input" / "task-
 SCRAPE_LOCK_KEY = "football:refresh_scraping_running"
 SCRAPE_LOCK_TIMEOUT_SECONDS = 900
 DASHBOARD_CACHE_KEY_PREFIX = "football:dashboard_payload"
-DASHBOARD_CACHE_SECONDS = int(os.getenv('DASHBOARD_CACHE_SECONDS', '90'))
+DASHBOARD_CACHE_SECONDS = int(os.getenv('DASHBOARD_CACHE_SECONDS', '600'))
 PLAYER_DASHBOARD_CACHE_KEY_PREFIX = "football:player_dashboard"
-PLAYER_DASHBOARD_CACHE_SECONDS = int(os.getenv('PLAYER_DASHBOARD_CACHE_SECONDS', '120'))
+PLAYER_DASHBOARD_CACHE_SECONDS = int(os.getenv('PLAYER_DASHBOARD_CACHE_SECONDS', '600'))
+TEAM_METRICS_CACHE_SECONDS = int(os.getenv('TEAM_METRICS_CACHE_SECONDS', '900'))
+PLAYER_METRICS_CACHE_SECONDS = int(os.getenv('PLAYER_METRICS_CACHE_SECONDS', '900'))
 RFAF_LIVE_FETCH_ON_REQUEST = str(
     os.getenv('RFAF_LIVE_FETCH_ON_REQUEST', '0')
 ).strip().lower() in {'1', 'true', 'yes', 'on'}
@@ -3931,6 +3933,12 @@ def _next_match_payload_is_reliable(payload):
 def _dashboard_cache_key(team_id):
     return f'{DASHBOARD_CACHE_KEY_PREFIX}:{team_id}'
 
+def _team_metrics_cache_key(team_id):
+    return f'football:team_metrics:{team_id}'
+
+def _player_metrics_cache_key(team_id):
+    return f'football:player_metrics:{team_id}'
+
 
 def _player_dashboard_cache_key(team_id):
     return f'{PLAYER_DASHBOARD_CACHE_KEY_PREFIX}:{team_id}'
@@ -3943,6 +3951,8 @@ def _invalidate_team_dashboard_caches(primary_team):
         [
             _dashboard_cache_key(primary_team.id),
             _player_dashboard_cache_key(primary_team.id),
+            _team_metrics_cache_key(primary_team.id),
+            _player_metrics_cache_key(primary_team.id),
         ]
     )
 
@@ -6143,6 +6153,8 @@ def player_dashboard_page(request):
     current_role = _get_user_role(request.user) or AppUserRole.ROLE_PLAYER
     role_labels = dict(AppUserRole.ROLE_CHOICES)
     can_preview_player_view = current_role != AppUserRole.ROLE_PLAYER or _is_admin_user(request.user)
+    active_workspace = _get_active_workspace(request)
+    home_url = _workspace_entry_url(active_workspace, user=request.user) if active_workspace else reverse('dashboard-home')
     return render(
         request,
         'football/player_dashboard.html',
@@ -6156,6 +6168,8 @@ def player_dashboard_page(request):
             'current_role': current_role,
             'current_role_label': role_labels.get(current_role, 'Jugador'),
             'can_preview_player_view': can_preview_player_view,
+            'workspace_entry_url': home_url,
+            'home_url': home_url,
         },
     )
 
@@ -15757,6 +15771,8 @@ def player_detail_page(request, player_id):
             {'label': 'Rojas', 'value': red_cards, 'pct': round(min(red_cards * 30, 100), 1)},
             {'label': 'Doble amarilla', 'value': second_yellow_cards, 'pct': round(min(second_yellow_cards * 30, 100), 1)},
         ]
+        active_workspace = _get_active_workspace(request)
+        home_url = _workspace_entry_url(active_workspace, user=request.user) if active_workspace else reverse('dashboard-home')
 
         return render(
             request,
@@ -15789,6 +15805,8 @@ def player_detail_page(request, player_id):
                 'is_player_readonly': is_player_readonly,
                 'player_view_preview': player_view_preview,
                 'can_preview_player_view': can_preview_player_view,
+                'workspace_entry_url': home_url,
+                'home_url': home_url,
             },
         )
     except Exception:
@@ -16811,6 +16829,12 @@ def append_events_to_bd_eventos(match, primary_team, events):
 
 
 def compute_team_metrics(primary_team):
+    if not primary_team:
+        return {'total_events': 0, 'top_event_types': [], 'top_results': []}
+    cache_key = _team_metrics_cache_key(primary_team.id)
+    cached = cache.get(cache_key)
+    if isinstance(cached, dict) and cached:
+        return cached
     preferred_sources = preferred_event_source_by_match(primary_team)
     events = _filter_stats_events(
         confirmed_events_queryset()
@@ -16826,11 +16850,13 @@ def compute_team_metrics(primary_team):
     top_events = [{'event': etype, 'count': count} for etype, count in event_counter.most_common(5)]
     top_results = [{'result': result, 'count': count} for result, count in result_counter.most_common(5)]
 
-    return {
+    payload = {
         'total_events': total_events,
         'top_event_types': top_events,
         'top_results': top_results,
     }
+    cache.set(cache_key, payload, TEAM_METRICS_CACHE_SECONDS)
+    return payload
 
 
 def compute_team_metrics_for_match(match, primary_team=None):
@@ -16941,6 +16967,12 @@ def compute_player_cards_for_match(match, primary_team, source_file=None):
     return sorted(cards, key=lambda item: item['actions'], reverse=True)
 
 def compute_player_metrics(primary_team):
+    if not primary_team:
+        return []
+    cache_key = _player_metrics_cache_key(primary_team.id)
+    cached = cache.get(cache_key)
+    if isinstance(cached, list) and cached:
+        return cached
     preferred_sources = preferred_event_source_by_match(primary_team)
     events = _filter_stats_events(
         confirmed_events_queryset()
@@ -16966,7 +16998,9 @@ def compute_player_metrics(primary_team):
         item['actions'] += 1
         if result_is_success(event.result):
             item['successes'] += 1
-    return sorted(per_player.values(), key=lambda item: (-item['actions'], item['player']))
+    result = sorted(per_player.values(), key=lambda item: (-item['actions'], item['player']))
+    cache.set(cache_key, result, PLAYER_METRICS_CACHE_SECONDS)
+    return result
 
 
 def compute_player_cards(primary_team):

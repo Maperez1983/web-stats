@@ -123,14 +123,13 @@
     <div class="product-page product-shell">
       <header class="product-topbar" style="margin-bottom:1rem;">
         <div class="headline product-title-stack">
-          <a class="product-brand-strip" href="{% if workspace_entry_url %}{{ workspace_entry_url }}{% else %}{% url 'dashboard-home' %}{% endif %}" style="margin-bottom:0.4rem; text-decoration:none; color:inherit;">
-            <img src="{% static 'football/images/2j-mark.svg' %}" alt="2J Player" />
+          <a class="product-brand-strip" href="{% if home_url %}{{ home_url }}{% elif workspace_entry_url %}{{ workspace_entry_url }}{% else %}{% url 'dashboard-home' %}{% endif %}" style="margin-bottom:0.4rem; text-decoration:none; color:inherit;">
             <div class="product-brand-strip-copy">
               <strong>2J Player</strong>
               <span>Football Intelligence · Seguimiento del jugador</span>
             </div>
           </a>
-          {% include 'football/includes/dragon_nav.html' with hide_product_shortcuts=True hide_dragon_logo=True %}
+          {% include 'football/includes/dragon_nav.html' with hide_product_shortcuts=True hide_dragon_logo=False %}
           <p>Modo actual <span class="product-chip role">{{ current_role_label }}</span></p>
           <h1>Inicio jugador</h1>
         </div>

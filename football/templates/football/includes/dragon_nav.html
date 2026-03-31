@@ -1,7 +1,7 @@
 {% load static %}
 {% if not hide_dragon_logo %}
 <div class="dragon-nav">
-  <a href="{% if workspace_entry_url %}{{ workspace_entry_url }}{% else %}{% url 'dashboard-home' %}{% endif %}" class="dragon-link" title="Volver al inicio">
+  <a href="{% if home_url %}{{ home_url }}{% elif workspace_entry_url %}{{ workspace_entry_url }}{% else %}{% url 'dashboard-home' %}{% endif %}" class="dragon-link" title="Volver al inicio">
     <img src="{% static 'football/images/2j-icon.svg' %}" alt="2J Football Intelligence" loading="lazy" />
   </a>
 </div>

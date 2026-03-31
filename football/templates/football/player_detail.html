@@ -358,14 +358,13 @@
   </head>
   <body>
     <div class="container">
-      <a class="product-brand-strip" href="{% if workspace_entry_url %}{{ workspace_entry_url }}{% else %}{% url 'dashboard-home' %}{% endif %}" style="margin-bottom:0.55rem; text-decoration:none; color:inherit;">
-        <img src="{% static 'football/images/2j-mark.svg' %}" alt="2J Player" />
+      <a class="product-brand-strip" href="{% if home_url %}{{ home_url }}{% elif workspace_entry_url %}{{ workspace_entry_url }}{% else %}{% url 'dashboard-home' %}{% endif %}" style="margin-bottom:0.55rem; text-decoration:none; color:inherit;">
         <div class="product-brand-strip-copy">
           <strong>2J Player</strong>
           <span>Football Intelligence · Ficha individual</span>
         </div>
       </a>
-      {% include 'football/includes/dragon_nav.html' with hide_product_shortcuts=True hide_dragon_logo=True %}
+      {% include 'football/includes/dragon_nav.html' with hide_product_shortcuts=True hide_dragon_logo=False %}
       <header>
         <div>
           <p style="margin:0;" class="subtle">Jugador · {{ player.team.display_name }}</p>
