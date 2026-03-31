@@ -113,6 +113,52 @@
         gap: 1rem;
         align-items: start;
       }
+      /* En pantallas grandes, el editor debe caber en una sola vista:
+         - el campo siempre visible
+         - el panel derecho scrollea internamente */
+      @media (min-width: 980px) {
+        .page {
+          height: 100vh;
+          overflow: hidden;
+        }
+        .builder {
+          height: var(--builder-vh, auto);
+          align-items: stretch;
+        }
+        .builder > .panel {
+          height: 100%;
+          min-height: 0;
+        }
+        .builder > section.panel .panel-body {
+          height: 100%;
+          min-height: 0;
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+        }
+        .builder > aside.panel .panel-body {
+          height: 100%;
+          min-height: 0;
+          overflow: auto;
+        }
+        .pitch-viewport {
+          flex: 1 1 auto;
+          min-height: 260px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .pitch-stage {
+          height: 100%;
+          width: auto;
+          max-width: 100%;
+          min-height: 0;
+        }
+        .resource-panel.is-visible {
+          max-height: 240px;
+          overflow: auto;
+        }
+      }
       .panel {
         border: 1px solid var(--line);
         border-radius: 22px;
@@ -2019,6 +2065,23 @@
     <script src="{% static 'football/js/sessions_tactical_pad.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
     <script>
       window.addEventListener('DOMContentLoaded', () => {
+        const builder = document.querySelector('.builder');
+        const applyBuilderVh = () => {
+          try {
+            if (!builder || !window.matchMedia || !window.matchMedia('(min-width: 980px)').matches) return;
+            const rect = builder.getBoundingClientRect();
+            const padding = 16;
+            const height = Math.max(520, Math.floor(window.innerHeight - rect.top - padding));
+            document.documentElement.style.setProperty('--builder-vh', `${height}px`);
+          } catch (error) { /* ignore */ }
+        };
+        applyBuilderVh();
+        let resizeTimer = null;
+        window.addEventListener('resize', () => {
+          window.clearTimeout(resizeTimer);
+          resizeTimer = window.setTimeout(applyBuilderVh, 100);
+        });
+
         if (window.initSessionsTacticalPad) window.initSessionsTacticalPad();
       });
     </script>
