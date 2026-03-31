@@ -3679,7 +3679,14 @@
 
     const resourceTabs = Array.from(document.querySelectorAll('.resource-tab'));
     const resourcePanels = Array.from(document.querySelectorAll('.resource-panel'));
+    const resourceDetails = document.getElementById('task-resource-details');
+    const resourceSummaryLabel = document.getElementById('task-resource-summary-label');
     let activeResourceKey = '';
+    const resourceLabelForKey = (key) => {
+      const normalized = safeText(key);
+      const match = resourceTabs.find((tab) => safeText(tab.dataset.resource) === normalized);
+      return safeText(match?.textContent, normalized);
+    };
     const activateResourcePanel = (key) => {
       const normalized = safeText(key);
       activeResourceKey = normalized;
@@ -3689,12 +3696,21 @@
         panel.hidden = !visible;
         panel.classList.toggle('is-visible', visible);
       });
+      if (resourceSummaryLabel) {
+        resourceSummaryLabel.textContent = normalized ? resourceLabelForKey(normalized) : 'Selecciona…';
+      }
     };
     resourceTabs.forEach((tab) => {
       tab.addEventListener('click', () => {
         const target = safeText(tab.dataset.resource);
         if (target && target === activeResourceKey) activateResourcePanel('');
         else activateResourcePanel(target);
+        // En móvil/tablet, cerrar el desplegable al elegir una pestaña.
+        try {
+          if (resourceDetails && resourceDetails.open && window.matchMedia && window.matchMedia('(max-width: 979px)').matches) {
+            resourceDetails.open = false;
+          }
+        } catch (error) { /* ignore */ }
       });
     });
     if (resourceTabs.length && resourcePanels.length) {

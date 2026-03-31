@@ -305,6 +305,68 @@
         justify-content: space-between;
         margin-bottom: 0.5rem;
       }
+      .resource-details {
+        position: relative;
+        margin: 0;
+        padding: 0;
+      }
+      .resource-summary {
+        list-style: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.55rem;
+        padding: 0.44rem 0.75rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(255,255,255,0.04);
+        color: rgba(226,232,240,0.92);
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        cursor: pointer;
+        user-select: none;
+        min-width: 210px;
+      }
+      .resource-summary::-webkit-details-marker { display: none; }
+      .resource-summary .current {
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        color: rgba(248,250,252,0.78);
+        text-transform: none;
+      }
+      .resource-details[open] .resource-tabs {
+        position: absolute;
+        top: calc(100% + 10px);
+        left: 0;
+        z-index: 70;
+        width: min(520px, 92vw);
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        gap: 0.6rem;
+        padding: 0.7rem;
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(8, 18, 30, 0.96);
+        box-shadow: 0 26px 56px rgba(2, 6, 23, 0.42);
+      }
+      @media (min-width: 980px) {
+        .resource-summary { display: none; }
+        .resource-details:not([open]) > :not(summary) { display: flex; }
+        .resource-details .resource-tabs {
+          position: static;
+          display: flex;
+          padding: 0;
+          border: 0;
+          background: transparent;
+          box-shadow: none;
+          width: auto;
+          gap: 0.5rem;
+          flex-wrap: wrap;
+          align-items: center;
+        }
+      }
       .resource-tabs {
         display: flex;
         gap: 0.5rem;
@@ -1233,12 +1295,18 @@
 
               <div class="section resource-section" style="margin-bottom:0.85rem;">
                 <div class="resource-tab-bar">
-                  <div class="resource-tabs">
-                  <button type="button" class="resource-tab" data-resource="base">Recursos base</button>
-                  <button type="button" class="resource-tab" data-resource="trazos">Trazos y flechas</button>
-                  <button type="button" class="resource-tab" data-resource="figuras">Figuras geométricas</button>
-                  <button type="button" class="resource-tab" data-resource="emoji">Recursos emoji</button>
-                  </div>
+                  <details class="resource-details" id="task-resource-details">
+                    <summary class="resource-summary" aria-label="Selector de recursos">
+                      <span>Recursos</span>
+                      <span class="current" id="task-resource-summary-label">Selecciona…</span>
+                    </summary>
+                    <div class="resource-tabs">
+                      <button type="button" class="resource-tab" data-resource="base">Recursos base</button>
+                      <button type="button" class="resource-tab" data-resource="trazos">Trazos y flechas</button>
+                      <button type="button" class="resource-tab" data-resource="figuras">Figuras geométricas</button>
+                      <button type="button" class="resource-tab" data-resource="emoji">Recursos emoji</button>
+                    </div>
+                  </details>
 		                  <div class="command-bar" id="task-command-bar" aria-label="Comandos rápidos">
 	                    <button type="button" class="icon-btn" data-action="undo" title="Deshacer" aria-label="Deshacer">
 	                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7V4L2 9l5 5v-3h7a4 4 0 1 1 0 8H9v2h5a6 6 0 1 0 0-12H7Z"/></svg>
