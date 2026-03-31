@@ -83,22 +83,28 @@
 <script>
 (function () {
   const url = "{% url 'session-keepalive' %}";
-  let lastActivity = Date.now();
-  const mark = () => { lastActivity = Date.now(); };
-  ['click', 'keydown', 'mousemove', 'touchstart', 'scroll'].forEach((evt) => {
-    window.addEventListener(evt, mark, { passive: true });
-  });
-  const ping = async () => {
-    if (document.hidden) return;
-    // Evita pings si el usuario lleva mucho tiempo inactivo.
-    if (Date.now() - lastActivity > 8 * 60 * 1000) return;
+  // Mantén la sesión viva de forma robusta.
+  // En Safari/iPad y en despliegues con proxy, una ventana sin requests puede perder sesión y al guardar
+  // se redirige al login. Este heartbeat reduce al mínimo ese riesgo.
+  const ping = async (reason) => {
     try {
-      await fetch(url, { credentials: 'same-origin', cache: 'no-store' });
+      const resp = await fetch(url, { credentials: 'same-origin', cache: 'no-store' });
+      // Si por cualquier motivo el keepalive devuelve HTML (redirección a login), lo dejamos registrado.
+      const ct = String(resp.headers.get('content-type') || '');
+      if (!resp.ok || resp.redirected || (ct && !ct.includes('application/json'))) {
+        console.warn('[keepalive] respuesta no esperada', { ok: resp.ok, redirected: resp.redirected, ct, reason });
+      }
     } catch (e) {
-      // ignore
+      console.warn('[keepalive] error', e);
     }
   };
-  window.setTimeout(ping, 25_000);
-  window.setInterval(ping, 240_000);
+  // Ping inicial y luego cada 2 minutos mientras la pestaña esté visible.
+  window.setTimeout(() => ping('init'), 12_000);
+  window.setInterval(() => { if (!document.hidden) ping('interval'); }, 120_000);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) ping('visible');
+  });
+  // Refuerzo: al enviar un formulario, ping inmediato (no bloqueante).
+  document.addEventListener('submit', () => { ping('submit'); }, true);
 })();
 </script>
