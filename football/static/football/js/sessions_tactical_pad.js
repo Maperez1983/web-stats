@@ -1663,16 +1663,19 @@
 		        applyPatternFromUi();
 		      }
 		    });
-		    document.addEventListener('click', (event) => {
-		      if (!commandMenu || commandMenu.hidden) return;
-		      const inside = event.target && (event.target.closest('#task-command-bar') || event.target.closest('#task-command-menu'));
-		      if (!inside) setCommandMenuOpen(false);
-		    });
-		    document.addEventListener('click', (event) => {
-		      if (!patternPopover || patternPopover.hidden) return;
-		      const inside = event.target && (event.target.closest('#task-command-bar') || event.target.closest('#task-pattern-popover'));
-		      if (!inside) closePatternPopover();
-		    });
+		    // Cerrar menús aunque Fabric/otros handlers hagan stopPropagation.
+		    // Usamos pointerdown en fase de captura para que no se queden "pegados" tapando el campo.
+		    document.addEventListener('pointerdown', (event) => {
+		      const target = event.target;
+		      if (commandMenu && !commandMenu.hidden) {
+		        const inside = target && (target.closest('#task-command-bar') || target.closest('#task-command-menu'));
+		        if (!inside) setCommandMenuOpen(false);
+		      }
+		      if (patternPopover && !patternPopover.hidden) {
+		        const inside = target && (target.closest('#task-command-bar') || target.closest('#task-pattern-popover'));
+		        if (!inside) closePatternPopover();
+		      }
+		    }, true);
 
 		    const findObjectByLayerUid = (uid) => (canvas.getObjects() || []).find((obj) => safeText(obj?.data?.layer_uid) === safeText(uid));
 		    const commitLayerChange = (message) => {
