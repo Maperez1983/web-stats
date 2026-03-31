@@ -17101,6 +17101,7 @@ def compute_player_dashboard(primary_team, force_refresh=False):
         if not player:
             continue
         photo_path = resolve_player_photo_static_path(player)
+        resolved_photo_url = resolve_player_photo_url(None, player) or (static(photo_path) if photo_path else '')
         match = event.match
         preferred_source = preferred_sources.get(match.id if match else None)
         event_source = (event.source_file or '').strip().lower()
@@ -17166,7 +17167,7 @@ def compute_player_dashboard(primary_team, force_refresh=False):
                 'player_id': player.id,
                 'name': player.name,
                 'number': player.number,
-                'photo_url': static(photo_path) if photo_path else '',
+                'photo_url': resolved_photo_url,
                 'position': player.position or universo_entry.get('position') or roster_entry.get('position', ''),
                 'total_actions': 0,
                 'successes': 0,
