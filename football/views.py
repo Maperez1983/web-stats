@@ -1962,15 +1962,26 @@ def _competition_payload_for_team(workspace, primary_team):
             or get_next_match(primary_team, primary_team.group)
             or {}
         )
+    normalized_next_match_payload = normalize_next_match_payload(next_match_payload) if next_match_payload else {}
     # Si el provider es Universo y tenemos snapshot, preferimos su payload (más rico) cuando exista.
     if provider_key == WorkspaceCompetitionContext.PROVIDER_UNIVERSO and snapshot:
         if isinstance(snapshot.standings_payload, list) and snapshot.standings_payload:
             standings_payload = snapshot.standings_payload
         if isinstance(snapshot.next_match_payload, dict) and _next_match_payload_is_reliable(snapshot.next_match_payload):
-            next_match_payload = snapshot.next_match_payload
+            normalized_next_match_payload = snapshot.next_match_payload
+        elif normalized_next_match_payload and _next_match_payload_is_reliable(normalized_next_match_payload):
+            # Si el snapshot tiene un próximo partido poco fiable (sin fecha, rival placeholder, etc.),
+            # lo refrescamos con el candidato fiable para que el dashboard no se quede "atascado".
+            try:
+                snapshot_payload = snapshot.next_match_payload if isinstance(snapshot.next_match_payload, dict) else {}
+                if snapshot_payload != normalized_next_match_payload:
+                    snapshot.next_match_payload = normalized_next_match_payload
+                    snapshot.save(update_fields=['next_match_payload', 'updated_at'])
+            except Exception:
+                pass
     return {
         'standings': standings_payload or [],
-        'next_match': normalize_next_match_payload(next_match_payload) if next_match_payload else {},
+        'next_match': normalized_next_match_payload or {},
     }
 
 
@@ -4505,6 +4516,16 @@ def dashboard_page(request):
     )
 
 
+def _split_full_name(value):
+    text = str(value or '').strip()
+    if not text:
+        return '', ''
+    parts = [part for part in text.split() if part]
+    if len(parts) == 1:
+        return parts[0], ''
+    return parts[0], ' '.join(parts[1:])
+
+
 @login_required
 def platform_overview_page(request):
     if not _can_access_platform(request.user):
@@ -4516,15 +4537,6 @@ def platform_overview_page(request):
     users_subtab = str(request.GET.get('subtab') or 'list').strip().lower()
     if users_subtab not in {'list', 'create'}:
         users_subtab = 'list'
-
-    def _split_full_name(value):
-        text = str(value or '').strip()
-        if not text:
-            return '', ''
-        parts = [part for part in text.split() if part]
-        if len(parts) == 1:
-            return parts[0], ''
-        return parts[0], ' '.join(parts[1:])
 
     feedback = str(request.session.pop('platform_feedback', '') or '')
     error = ''

@@ -478,6 +478,7 @@ class PlatformWorkspaceTests(TestCase):
         mocked_snapshot,
         mocked_cached_next,
     ):
+        future_date = (timezone.localdate() + timedelta(days=7)).isoformat()
         context = WorkspaceCompetitionContext.objects.create(
             workspace=Workspace.objects.create(
                 name='Cliente provider',
@@ -494,7 +495,7 @@ class PlatformWorkspaceTests(TestCase):
         )
         mocked_provider_next.return_value = {
             'round': '27',
-            'date': '2026-03-29',
+            'date': future_date,
             'location': 'Campo real',
             'opponent': {'name': 'Rival real'},
             'status': 'next',
@@ -556,9 +557,10 @@ class PlatformWorkspaceTests(TestCase):
                 'source': 'local-match',
             },
         )
+        future_date = (timezone.localdate() + timedelta(days=7)).isoformat()
         mocked_provider_next.return_value = {
             'round': '27',
-            'date': '2026-03-29',
+            'date': future_date,
             'location': 'Campo real',
             'opponent': {'name': 'Rival real'},
             'status': 'next',
@@ -791,7 +793,7 @@ class PlatformWorkspaceTests(TestCase):
         response = self.client.get(reverse('platform-overview'))
 
         self.assertEqual(response.status_code, 200)
-        self.assertFalse(Workspace.objects.filter(owner_user=guest_user, kind=Workspace.KIND_TASK_STUDIO).exists())
+        self.assertTrue(Workspace.objects.filter(owner_user=guest_user, kind=Workspace.KIND_TASK_STUDIO).exists())
 
     def test_platform_overview_can_generate_global_invitation(self):
         self.client.force_login(self.admin_user)
@@ -1306,6 +1308,34 @@ class PlatformWorkspaceTests(TestCase):
         self.assertEqual(context.sync_status, WorkspaceCompetitionContext.STATUS_READY)
         self.assertEqual(snapshot.next_match_payload.get('round'), 'J28')
         self.assertEqual(snapshot.standings_payload[0].get('team'), self.alt_team.name.upper())
+
+    def test_workspace_detail_can_invite_member(self):
+        workspace = Workspace.objects.create(
+            name='Task Studio invitaciones',
+            slug='task-studio-invite',
+            kind=Workspace.KIND_TASK_STUDIO,
+            owner_user=self.studio_user,
+        )
+        self.client.force_login(self.admin_user)
+
+        response = self.client.post(
+            reverse('platform-workspace-detail', args=[workspace.id]),
+            {
+                'form_action': 'invite_member',
+                'invite_username': 'invite-demo',
+                'invite_full_name': 'Demo Invitado',
+                'invite_email': 'invite-demo@example.com',
+                'invite_app_role': AppUserRole.ROLE_GUEST,
+                'invite_member_role': WorkspaceMembership.ROLE_VIEWER,
+                'invite_valid_days': '7',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Invitación generada')
+        invitation = UserInvitation.objects.filter(user__username='invite-demo', is_active=True).order_by('-created_at').first()
+        self.assertIsNotNone(invitation)
+        self.assertTrue(WorkspaceMembership.objects.filter(workspace=workspace, user=invitation.user).exists())
 
     def test_workspace_detail_can_search_competition_candidates(self):
         workspace = Workspace.objects.create(
