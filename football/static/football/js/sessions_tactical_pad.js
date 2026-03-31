@@ -3357,10 +3357,13 @@
         return true;
       }
       if (action === 'undo') return performUndo();
-      if (action === 'redo') return performRedo();
+	      if (action === 'redo') return performRedo();
 	      if (action === 'delete') {
 	        const active = canvas.getActiveObject();
-	        if (!active) return false;
+	        if (!active) {
+	          setStatus('No hay elemento seleccionado para borrar.', true);
+	          return false;
+	        }
 	        if (active.type === 'activeSelection' && typeof active.getObjects === 'function') {
 	          const objects = active.getObjects();
 	          canvas.discardActiveObject();

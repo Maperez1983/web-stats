@@ -80,3 +80,25 @@
   }
 }
 </style>
+<script>
+(function () {
+  const url = "{% url 'session-keepalive' %}";
+  let lastActivity = Date.now();
+  const mark = () => { lastActivity = Date.now(); };
+  ['click', 'keydown', 'mousemove', 'touchstart', 'scroll'].forEach((evt) => {
+    window.addEventListener(evt, mark, { passive: true });
+  });
+  const ping = async () => {
+    if (document.hidden) return;
+    // Evita pings si el usuario lleva mucho tiempo inactivo.
+    if (Date.now() - lastActivity > 8 * 60 * 1000) return;
+    try {
+      await fetch(url, { credentials: 'same-origin', cache: 'no-store' });
+    } catch (e) {
+      // ignore
+    }
+  };
+  window.setTimeout(ping, 25_000);
+  window.setInterval(ping, 240_000);
+})();
+</script>

@@ -766,6 +766,11 @@ def save_player_photo(player, uploaded_photo):
                 logger.exception('No se pudo limpiar una foto previa del jugador %s', player.id)
         saved_name = default_storage.save(target_name, content)
         try:
+            player.photo_updated_at = timezone.now()
+            player.save(update_fields=['photo_updated_at'])
+        except Exception:
+            pass
+        try:
             cache.set(
                 f'{PLAYER_PHOTO_VERSION_CACHE_KEY_PREFIX}:{player.id}',
                 int(timezone.now().timestamp()),
@@ -855,23 +860,30 @@ def resolve_player_photo_url(request, player):
     if resolved_storage_name:
         url = reverse('player-photo-file', args=[player.id])
         version = ''
-        cache_key = f'{PLAYER_PHOTO_VERSION_CACHE_KEY_PREFIX}:{player.id}'
+        # Fuente preferida: campo persistente (evita depender de caché en despliegues multi-instancia).
         try:
-            cached_version = cache.get(cache_key)
-            if cached_version:
-                version = str(int(cached_version))
+            updated_at = getattr(player, 'photo_updated_at', None)
+            if updated_at:
+                version = str(int(updated_at.timestamp()))
         except Exception:
             version = ''
         if not version:
+            # Fallback: caché + metadatos del storage.
+            cache_key = f'{PLAYER_PHOTO_VERSION_CACHE_KEY_PREFIX}:{player.id}'
             try:
-                modified = default_storage.get_modified_time(resolved_storage_name)
-                if modified:
-                    version = str(int(modified.timestamp()))
+                cached_version = cache.get(cache_key)
+                if cached_version:
+                    version = str(int(cached_version))
             except Exception:
                 version = ''
             if not version:
-                # Fallback: evita que el navegador se quede pegado a una versión antigua
-                # cuando el storage no expone metadatos (o falla) y se reutiliza el mismo nombre.
+                try:
+                    modified = default_storage.get_modified_time(resolved_storage_name)
+                    if modified:
+                        version = str(int(modified.timestamp()))
+                except Exception:
+                    version = ''
+            if not version:
                 version = str(int(timezone.now().timestamp()))
             try:
                 cache.set(cache_key, int(version), timeout=PLAYER_PHOTO_VERSION_CACHE_SECONDS)
@@ -3053,10 +3065,19 @@ def _sanitize_universo_external_image(url):
 
 
 def _build_universo_capture_team_lookup():
+    memo = getattr(_build_universo_capture_team_lookup, '_memo', None)
     lookup = {}
     capture_path = UNIVERSO_CAPTURE_PATH
     if not capture_path.exists():
         return lookup
+    try:
+        mtime = capture_path.stat().st_mtime
+    except Exception:
+        mtime = None
+    if isinstance(memo, dict) and memo.get('mtime') and mtime and float(memo.get('mtime')) == float(mtime):
+        cached_lookup = memo.get('lookup')
+        if isinstance(cached_lookup, dict):
+            return cached_lookup
     try:
         payload = json.loads(capture_path.read_text(encoding='utf-8'))
     except Exception:
@@ -3103,10 +3124,15 @@ def _build_universo_capture_team_lookup():
                     for row in bucket:
                         if isinstance(row, dict):
                             _push(row.get('nombre_equipo') or row.get('equipo'), row.get('escudo_equipo'))
+    try:
+        _build_universo_capture_team_lookup._memo = {'mtime': mtime, 'lookup': lookup}
+    except Exception:
+        pass
     return lookup
 
 
 def _build_team_crest_lookup():
+    memo = getattr(_build_team_crest_lookup, '_memo', None)
     lookup = {}
 
     def _push(name='', external_id='', crest=''):
@@ -3120,6 +3146,18 @@ def _build_team_crest_lookup():
                 lookup[key] = crest_url
 
     capture_path = UNIVERSO_CAPTURE_PATH
+    try:
+        capture_mtime = capture_path.stat().st_mtime if capture_path.exists() else None
+    except Exception:
+        capture_mtime = None
+    snapshot_mtime = None
+    snapshot_memo = getattr(load_universo_snapshot, '_memo', None)
+    if isinstance(snapshot_memo, dict):
+        snapshot_mtime = snapshot_memo.get('mtime')
+    if isinstance(memo, dict) and memo.get('capture_mtime') == capture_mtime and memo.get('snapshot_mtime') == snapshot_mtime:
+        cached_lookup = memo.get('lookup')
+        if isinstance(cached_lookup, dict):
+            return cached_lookup
     if capture_path.exists():
         try:
             payload = json.loads(capture_path.read_text(encoding='utf-8'))
@@ -3169,6 +3207,10 @@ def _build_team_crest_lookup():
             opponent = next_match.get('opponent')
             if isinstance(opponent, dict):
                 _push(opponent.get('full_name') or opponent.get('name'), opponent.get('team_code'), opponent.get('crest_url'))
+    try:
+        _build_team_crest_lookup._memo = {'capture_mtime': capture_mtime, 'snapshot_mtime': snapshot_mtime, 'lookup': lookup}
+    except Exception:
+        pass
     return lookup
 
 
@@ -4095,9 +4137,24 @@ def load_universo_snapshot():
     if not UNIVERSO_SNAPSHOT_PATH.exists():
         return None
     try:
+        mtime = UNIVERSO_SNAPSHOT_PATH.stat().st_mtime
+    except Exception:
+        mtime = None
+    memo = getattr(load_universo_snapshot, '_memo', None)
+    if isinstance(memo, dict) and memo.get('mtime') and mtime and float(memo.get('mtime')) == float(mtime):
+        cached_payload = memo.get('payload')
+        if isinstance(cached_payload, dict):
+            return cached_payload
+    try:
         with UNIVERSO_SNAPSHOT_PATH.open(encoding='utf-8') as handle:
             payload = json.load(handle)
-            return payload if isinstance(payload, dict) else None
+            if not isinstance(payload, dict):
+                return None
+            try:
+                load_universo_snapshot._memo = {'mtime': mtime, 'payload': payload}
+            except Exception:
+                pass
+            return payload
     except Exception:
         return None
 
@@ -14397,6 +14454,7 @@ def _clone_task_studio_task(source_task):
 
 
 @login_required
+@ensure_csrf_cookie
 def task_studio_home_page(request):
     forbidden = _forbid_if_no_task_studio_access(request.user)
     if forbidden:
@@ -14893,6 +14951,7 @@ def task_studio_task_pdf(request, task_id):
 
 
 @login_required
+@ensure_csrf_cookie
 def sessions_page(request):
     return _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones · Entrenador')
 
@@ -14910,6 +14969,7 @@ def sessions_task_edit_page(request, task_id):
 
 
 @login_required
+@ensure_csrf_cookie
 def sessions_goalkeeper_page(request):
     return _sessions_workspace_page(request, scope_key='goalkeeper', scope_title='Sesiones · Porteros')
 
@@ -14927,6 +14987,7 @@ def sessions_goalkeeper_task_edit_page(request, task_id):
 
 
 @login_required
+@ensure_csrf_cookie
 def sessions_fitness_page(request):
     return _sessions_workspace_page(request, scope_key='fitness', scope_title='Sesiones · Preparacion fisica')
 

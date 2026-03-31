@@ -207,6 +207,8 @@ class Player(models.Model):
     manual_sanction_reason = models.CharField(max_length=180, blank=True)
     manual_sanction_until = models.DateField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
+    # Control de caché de foto (para busting sin depender de caches por proceso).
+    photo_updated_at = models.DateTimeField(null=True, blank=True)
     notes = models.TextField(blank=True)
 
     class Meta:

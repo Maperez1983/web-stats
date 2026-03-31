@@ -201,7 +201,8 @@ class TaskStudioAccessTests(TestCase):
         response = self.client.post(reverse('task-studio-task-delete', args=[self.own_task.id]))
 
         self.assertRedirects(response, reverse('task-studio-home'))
-        self.assertFalse(TaskStudioTask.objects.filter(id=self.own_task.id).exists())
+        task = TaskStudioTask.objects.get(id=self.own_task.id)
+        self.assertIsNotNone(task.deleted_at)
 
     def test_task_studio_owner_can_duplicate_own_task(self):
         self.client.force_login(self.user)
@@ -227,7 +228,8 @@ class TaskStudioAccessTests(TestCase):
         response = self.client.post(reverse('task-studio-task-delete', args=[self.other_task.id]) + f'?user={self.other_user.id}')
 
         self.assertRedirects(response, reverse('task-studio-home') + f'?user={self.other_user.id}')
-        self.assertFalse(TaskStudioTask.objects.filter(id=self.other_task.id).exists())
+        task = TaskStudioTask.objects.get(id=self.other_task.id)
+        self.assertIsNotNone(task.deleted_at)
 
     def test_disabled_task_studio_profile_blocks_module_access(self):
         TaskStudioProfile.objects.create(user=self.user, is_enabled=False)
@@ -338,8 +340,9 @@ class TaskStudioAccessTests(TestCase):
 
         response = self.client.get(reverse('task-studio-home'))
 
-        self.assertEqual(response.status_code, 403)
-        self.assertFalse(Workspace.objects.filter(owner_user=guest_user, kind=Workspace.KIND_TASK_STUDIO).exists())
+        # Invitados: si tienen rol asignado, inicializamos Task Studio para que puedan entrar a modo demo.
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(Workspace.objects.filter(owner_user=guest_user, kind=Workspace.KIND_TASK_STUDIO).exists())
 
     @patch('football.views.weasyprint', None)
     def test_disabled_task_studio_pdf_module_returns_403(self):
