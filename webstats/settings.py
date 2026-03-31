@@ -291,18 +291,36 @@ if not DEBUG and DATABASES['default']['ENGINE'] == 'django.db.backends.sqlite3' 
 
 # Cache
 # Por defecto Django usa DummyCache si no se define CACHES (no cachea nada) y las vistas de métricas
-# recalculan todo en cada request. Usamos FileBasedCache para compartir entre workers sin dependencias extra.
-CACHE_DIR = (os.getenv('CACHE_DIR') or '/tmp/webstats-cache').strip() or '/tmp/webstats-cache'
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
-        'LOCATION': CACHE_DIR,
-        'TIMEOUT': None,
-        'OPTIONS': {
-            'MAX_ENTRIES': _env_int('CACHE_MAX_ENTRIES', 10000),
-        },
+# recalculan todo en cada request.
+#
+# Importante: FileBasedCache puede bloquearse o ir lento en algunos entornos (I/O / locks).
+# Usamos LocMemCache por defecto (rápido) y dejamos FileBasedCache como opción por env.
+CACHE_BACKEND = (os.getenv('CACHE_BACKEND') or 'locmem').strip().lower()
+CACHE_DEFAULT_TIMEOUT = _env_int('CACHE_DEFAULT_TIMEOUT', 3600)
+_cache_max_entries = _env_int('CACHE_MAX_ENTRIES', 10000)
+if CACHE_BACKEND in {'file', 'filebased'}:
+    CACHE_DIR = (os.getenv('CACHE_DIR') or '/tmp/webstats-cache').strip() or '/tmp/webstats-cache'
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+            'LOCATION': CACHE_DIR,
+            'TIMEOUT': CACHE_DEFAULT_TIMEOUT,
+            'OPTIONS': {
+                'MAX_ENTRIES': _cache_max_entries,
+            },
+        }
     }
-}
+else:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'webstats-locmem',
+            'TIMEOUT': CACHE_DEFAULT_TIMEOUT,
+            'OPTIONS': {
+                'MAX_ENTRIES': _cache_max_entries,
+            },
+        }
+    }
 
 
 LOGGING = {
