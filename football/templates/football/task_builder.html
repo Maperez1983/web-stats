@@ -707,8 +707,8 @@
         position: relative;
         width: 100%;
         max-width: 940px;
-        /* Proporción real (105x68) para evitar márgenes raros y mejorar el giro vertical. */
-        aspect-ratio: 105 / 68;
+        /* Mantener misma proporción que el SVG (viewBox 1100x748) para evitar bandas en preview/PDF. */
+        aspect-ratio: 1100 / 748;
         min-height: 420px;
         border-radius: 18px;
         overflow: hidden;
@@ -735,7 +735,7 @@
         opacity: 1;
       }
       .pitch-stage.is-portrait {
-        aspect-ratio: 68 / 105;
+        aspect-ratio: 748 / 1100;
         width: 100%;
         /* En vertical no limitamos el ancho: el objetivo es que el campo no se vea "enano". */
         max-width: 940px;

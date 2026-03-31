@@ -1,5 +1,9 @@
 (function () {
   const safeText = (value, fallback = '') => String(value || '').trim() || fallback;
+  const parseIntSafe = (value, fallback = 0) => {
+    const parsed = Number.parseInt(String(value ?? '').trim(), 10);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  };
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
   const runWhenIdle = (fn, timeout = 900) => {
     if (typeof window === 'undefined') return fn();
@@ -1977,6 +1981,8 @@
             title: safeText(item.title, `Paso ${index + 1}`),
             duration: clamp(Number(item.duration) || 3, 1, 20),
             canvas_state: sanitizeLoadedState(item.canvas_state),
+            canvas_width: parseIntSafe(item.canvas_width) || 0,
+            canvas_height: parseIntSafe(item.canvas_height) || 0,
           };
         })
         .filter(Boolean)
@@ -1991,6 +1997,8 @@
       if (activeStepIndex < 0 || !timeline[activeStepIndex]) return;
       persistActiveStepMeta();
       timeline[activeStepIndex].canvas_state = serializeCanvasOnly();
+      timeline[activeStepIndex].canvas_width = Math.round(canvas.getWidth() || 0);
+      timeline[activeStepIndex].canvas_height = Math.round(canvas.getHeight() || 0);
     };
     const syncStepInputs = () => {
       const active = activeStepIndex >= 0 ? timeline[activeStepIndex] : null;
@@ -2031,10 +2039,37 @@
       });
       syncStepInputs();
     };
-    const loadCanvasSnapshot = (rawState, callback) => {
+    const scaleLoadedObjects = (sourceWidth, sourceHeight) => {
+      const fromW = Number(sourceWidth) || 0;
+      const fromH = Number(sourceHeight) || 0;
+      const toW = Number(canvas.getWidth()) || 0;
+      const toH = Number(canvas.getHeight()) || 0;
+      if (fromW <= 0 || fromH <= 0 || toW <= 0 || toH <= 0) return false;
+      if (Math.abs(fromW - toW) < 2 && Math.abs(fromH - toH) < 2) return false;
+      const scaleX = toW / fromW;
+      const scaleY = toH / fromH;
+      const uniformScale = Math.min(scaleX, scaleY);
+      canvas.getObjects().forEach((item) => {
+        if (!item) return;
+        item.set({
+          left: (Number(item.left) || 0) * scaleX,
+          top: (Number(item.top) || 0) * scaleY,
+          scaleX: clampScale((Number(item.scaleX) || 1) * uniformScale),
+          scaleY: clampScale((Number(item.scaleY) || 1) * uniformScale),
+        });
+        item.setCoords();
+      });
+      return true;
+    };
+    const loadCanvasSnapshot = (rawState, callback, options = {}) => {
       const parsed = sanitizeLoadedState(rawState);
+      const sourceWidth = Number(options?.sourceWidth) || 0;
+      const sourceHeight = Number(options?.sourceHeight) || 0;
       canvas.__loading = true;
       canvas.loadFromJSON(parsed, () => {
+        // Compat: si el canvas se creó en otra resolución, reescalamos los objetos cargados
+        // para que las tareas guardadas no cambien de posición al adaptar el editor.
+        scaleLoadedObjects(sourceWidth, sourceHeight);
         canvas.getObjects().forEach((item) => normalizeEditableObject(item));
         canvas.__loading = false;
         canvas.requestRenderAll();
@@ -2046,15 +2081,26 @@
     const applySerializedState = (rawState, options = {}) => {
       const parsed = rawState && typeof rawState === 'object' ? rawState : { version: '5.3.0', objects: [] };
       timeline = normalizeTimeline(parsed.timeline);
+      const fallbackWidth = parseIntSafe(options.sourceWidth) || 0;
+      const fallbackHeight = parseIntSafe(options.sourceHeight) || 0;
+      if (timeline.length && (fallbackWidth || fallbackHeight)) {
+        timeline = timeline.map((step) => ({
+          ...step,
+          canvas_width: step.canvas_width || fallbackWidth,
+          canvas_height: step.canvas_height || fallbackHeight,
+        }));
+      }
       const nextIndex = timeline.length
         ? clamp(Number(parsed.active_step_index) || 0, 0, timeline.length - 1)
         : -1;
       activeStepIndex = nextIndex;
       const sourceState = activeStepIndex >= 0 ? timeline[activeStepIndex].canvas_state : parsed;
+      const sourceWidth = (activeStepIndex >= 0 ? parseIntSafe(timeline[activeStepIndex]?.canvas_width) : 0) || parseIntSafe(options.sourceWidth) || 0;
+      const sourceHeight = (activeStepIndex >= 0 ? parseIntSafe(timeline[activeStepIndex]?.canvas_height) : 0) || parseIntSafe(options.sourceHeight) || 0;
       loadCanvasSnapshot(sourceState, () => {
         renderTimeline();
         if (options.pushHistory) pushHistory();
-      });
+      }, { sourceWidth, sourceHeight });
     };
     const pushHistory = () => {
       const snapshot = JSON.stringify(serializeState());
@@ -2770,7 +2816,9 @@
       } catch (error) {
         parsed = { version: '5.3.0', objects: [] };
       }
-      applySerializedState(parsed, { pushHistory: true });
+      const sourceWidth = Number.parseInt(String(widthInput?.value || ''), 10) || 0;
+      const sourceHeight = Number.parseInt(String(heightInput?.value || ''), 10) || 0;
+      applySerializedState(parsed, { pushHistory: true, sourceWidth, sourceHeight });
 	    };
 
 	    const isGoalkeeperPlayer = (player) => {
@@ -2815,7 +2863,7 @@
       loadCanvasSnapshot(timeline[index].canvas_state, () => {
         renderTimeline();
         setStatus(`Editando ${timeline[index].title}.`);
-      });
+      }, { sourceWidth: parseIntSafe(timeline[index].canvas_width), sourceHeight: parseIntSafe(timeline[index].canvas_height) });
     };
     const addTimelineStep = (duplicateCurrent = false) => {
       persistActiveStepSnapshot();
@@ -2830,6 +2878,8 @@
         title: duplicateCurrent ? `${sourceTitle} copia` : `Paso ${timeline.length + 1}`,
         duration: duplicateCurrent && activeStepIndex >= 0 && timeline[activeStepIndex] ? clamp(Number(timeline[activeStepIndex].duration) || 3, 1, 20) : 3,
         canvas_state: baseState,
+        canvas_width: Math.round(canvas.getWidth() || 0),
+        canvas_height: Math.round(canvas.getHeight() || 0),
       });
       activeStepIndex = insertionIndex;
       renderTimeline();
@@ -2851,7 +2901,7 @@
         renderTimeline();
         pushHistory();
         setStatus('Paso eliminado.');
-      });
+      }, { sourceWidth: parseIntSafe(timeline[activeStepIndex].canvas_width), sourceHeight: parseIntSafe(timeline[activeStepIndex].canvas_height) });
     };
     const stopPlayback = (restore = true) => {
       if (playbackTimer) {
@@ -2896,7 +2946,7 @@
             playIndex += 1;
             runNext();
           }, clamp(Number(timeline[playIndex].duration) || 3, 1, 20) * 1000);
-        });
+        }, { sourceWidth: parseIntSafe(timeline[playIndex].canvas_width), sourceHeight: parseIntSafe(timeline[playIndex].canvas_height) });
       };
       runNext();
     };
@@ -3783,8 +3833,8 @@
 	      registerDraggableButton(button, () => ({ kind: safeText(button.dataset.add) }));
 	    });
 
-	    const loadCanvasSnapshotAsync = (rawState) => new Promise((resolve) => {
-	      loadCanvasSnapshot(rawState, () => resolve(true));
+	    const loadCanvasSnapshotAsync = (rawState, options = {}) => new Promise((resolve) => {
+	      loadCanvasSnapshot(rawState, () => resolve(true), options);
 	    });
 	    const sleep = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
@@ -3833,7 +3883,7 @@
 	        for (let i = 0; i < timeline.length; i += 1) {
 	          const step = timeline[i];
 	          setStatus(`Exportando PNG ${i + 1}/${timeline.length}…`);
-	          await loadCanvasSnapshotAsync(step.canvas_state);
+	          await loadCanvasSnapshotAsync(step.canvas_state, { sourceWidth: parseIntSafe(step.canvas_width), sourceHeight: parseIntSafe(step.canvas_height) });
 	          const composite = await buildCompositeCanvas({ maxWidth: 1280 });
 	          if (!composite) continue;
 	          const blob = await canvasToBlob(composite, 'image/png', 0.92);
