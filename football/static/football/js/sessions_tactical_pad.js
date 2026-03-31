@@ -897,6 +897,19 @@
 	    const normalizeEditableObject = (object) => {
 	      if (!object) return object;
 	      const locked = !!object?.data?.locked;
+	      const kind = safeText(object?.data?.kind);
+	      // Emojis: oculta el halo/círculo legacy si viene en Group antiguo.
+	      if (kind && kind.startsWith('emoji_') && Array.isArray(object._objects)) {
+	        const circle = object._objects.find((child) => child && child.type === 'circle');
+	        if (circle) {
+	          circle.set({
+	            opacity: 0,
+	            strokeWidth: 0,
+	            stroke: 'rgba(0,0,0,0)',
+	            fill: 'rgba(0,0,0,0)',
+	          });
+	        }
+	      }
 	      object.set({
 	        hasControls: !locked,
 	        hasBorders: true,
@@ -1057,12 +1070,29 @@
       });
       group.dirty = true;
     };
-    const applyEmojiColor = (group, colorHex) => {
-      if (!group || !Array.isArray(group._objects)) return;
-      setObjectData(group, { color: colorHex });
-      const circle = group._objects.find((child) => child && child.type === 'circle');
-      if (circle) circle.set({ stroke: colorHex, fill: rgbaFromHex(colorHex, 0.16) });
-      group.dirty = true;
+    const applyEmojiColor = (emojiObject, colorHex) => {
+      if (!emojiObject) return;
+      setObjectData(emojiObject, { color: colorHex });
+      const glow = `${rgbaFromHex(colorHex, 0.55)} 0 0 10px`;
+      if (emojiObject.type === 'text') {
+        emojiObject.set({ shadow: glow });
+        emojiObject.dirty = true;
+        return;
+      }
+      if (Array.isArray(emojiObject._objects)) {
+        const circle = emojiObject._objects.find((child) => child && child.type === 'circle');
+        if (circle) {
+          circle.set({
+            opacity: 0,
+            strokeWidth: 0,
+            stroke: 'rgba(0,0,0,0)',
+            fill: 'rgba(0,0,0,0)',
+          });
+        }
+        const text = emojiObject._objects.find((child) => child && child.type === 'text');
+        if (text) text.set({ shadow: glow });
+        emojiObject.dirty = true;
+      }
     };
     const applyObjectColor = (object, colorHex) => {
       if (!object) return;
@@ -1072,30 +1102,8 @@
         applyTokenColor(object, colorHex);
         return;
       }
-      if (kind.startsWith('emoji_') && Array.isArray(object._objects)) {
+      if (kind.startsWith('emoji_')) {
         applyEmojiColor(object, colorHex);
-        return;
-      }
-      if (kind.startsWith('emoji_') && object && object.type === 'text') {
-        // Compat: emojis antiguos eran Text plano. Los convertimos a Group con halo para poder colorear.
-        const insertIndex = canvas.getObjects().indexOf(object);
-        const factory = simpleFactory(kind);
-        if (typeof factory === 'function') {
-          const replacement = factory(Number(object.left) || 0, Number(object.top) || 0);
-          if (replacement) {
-            replacement.set({
-              angle: Number(object.angle) || 0,
-              scaleX: Number(object.scaleX) || 1,
-              scaleY: Number(object.scaleY) || 1,
-            });
-            normalizeEditableObject(replacement);
-            canvas.remove(object);
-            if (insertIndex >= 0) canvas.insertAt(replacement, insertIndex, false);
-            else canvas.add(replacement);
-            canvas.setActiveObject(replacement);
-            applyEmojiColor(replacement, colorHex);
-          }
-        }
         return;
       }
       if (Array.isArray(object._objects) && object._objects.length) {
@@ -2784,34 +2792,16 @@
         });
       }
       if (EMOJI_LIBRARY[kind]) {
-        return (left, top) => new fabric.Group(
-          [
-            new fabric.Circle({
-              radius: 18,
-              originX: 'center',
-              originY: 'center',
-              left: 0,
-              top: 0,
-              fill: rgbaFromHex('#22d3ee', 0.16),
-              stroke: '#22d3ee',
-              strokeWidth: 2,
-            }),
-            new fabric.Text(EMOJI_LIBRARY[kind], {
-              originX: 'center',
-              originY: 'center',
-              left: 0,
-              top: 0,
-              fontSize: 28,
-            }),
-          ],
-          {
-            left,
-            top,
-            originX: 'center',
-            originY: 'center',
-            data: { kind, color: '#22d3ee' },
-          },
-        );
+        return (left, top) => new fabric.Text(EMOJI_LIBRARY[kind], {
+          left,
+          top,
+          originX: 'center',
+          originY: 'center',
+          fontSize: 30,
+          shadow: 'rgba(15,23,42,0.62) 0 1px 2px',
+          fontFamily: 'Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, system-ui, sans-serif',
+          data: { kind, color: '#0f172a' },
+        });
       }
       return null;
     };
