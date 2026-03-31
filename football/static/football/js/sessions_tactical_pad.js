@@ -538,6 +538,7 @@
 		    const commandMoreBtn = document.getElementById('task-command-more');
 		    const commandMenu = document.getElementById('task-command-menu');
 		    const patternPopover = document.getElementById('task-pattern-popover');
+		    const patternCloseBtn = document.getElementById('task-pattern-close');
 		    const patternTitle = document.getElementById('task-pattern-title');
 		    const patternFieldsLine = document.getElementById('task-pattern-fields-line');
 		    const patternFieldsGrid = document.getElementById('task-pattern-fields-grid');
@@ -1627,6 +1628,10 @@
 		      event.preventDefault();
 		      closePatternPopover();
 		    });
+		    patternCloseBtn?.addEventListener('click', (event) => {
+		      event.preventDefault();
+		      closePatternPopover();
+		    });
 		    const applyPatternFromUi = async () => {
 		      const center = !!patternCenterInput?.checked;
 		      const invertX = !!patternInvertXInput?.checked;
@@ -1670,18 +1675,33 @@
 		        applyPatternFromUi();
 		      }
 		    });
-		    // Cerrar menús aunque Fabric/otros handlers hagan stopPropagation.
-		    // Usamos pointerdown en fase de captura para que no se queden "pegados" tapando el campo.
-		    document.addEventListener('pointerdown', (event) => {
-		      const target = event.target;
+		    const resolveClosest = (node, selector) => {
+		      if (!node || !selector) return null;
+		      const element = node instanceof Element ? node : node?.parentElement;
+		      if (!element || typeof element.closest !== 'function') return null;
+		      return element.closest(selector);
+		    };
+		    const handleOutsideFloatingMenus = (event) => {
+		      const target = event?.target;
 		      if (commandMenu && !commandMenu.hidden) {
-		        const inside = target && (target.closest('#task-command-bar') || target.closest('#task-command-menu'));
+		        const inside = resolveClosest(target, '#task-command-bar') || resolveClosest(target, '#task-command-menu');
 		        if (!inside) setCommandMenuOpen(false);
 		      }
 		      if (patternPopover && !patternPopover.hidden) {
-		        const inside = target && (target.closest('#task-command-bar') || target.closest('#task-pattern-popover'));
+		        const inside = resolveClosest(target, '#task-command-bar') || resolveClosest(target, '#task-pattern-popover');
 		        if (!inside) closePatternPopover();
 		      }
+		    };
+		    // Cerrar menús aunque Fabric/otros handlers hagan stopPropagation.
+		    // Usamos eventos en fase de captura para que no se queden "pegados" tapando el campo (Safari/iPad incluido).
+		    window.addEventListener('pointerdown', handleOutsideFloatingMenus, true);
+		    window.addEventListener('mousedown', handleOutsideFloatingMenus, true);
+		    window.addEventListener('touchstart', handleOutsideFloatingMenus, true);
+		    window.addEventListener('keydown', (event) => {
+		      const key = String(event?.key || '').toLowerCase();
+		      if (key !== 'escape') return;
+		      if (commandMenu && !commandMenu.hidden) setCommandMenuOpen(false);
+		      if (patternPopover && !patternPopover.hidden) closePatternPopover();
 		    }, true);
 
 		    const findObjectByLayerUid = (uid) => (canvas.getObjects() || []).find((obj) => safeText(obj?.data?.layer_uid) === safeText(uid));

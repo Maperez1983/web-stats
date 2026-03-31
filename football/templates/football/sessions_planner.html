@@ -2085,7 +2085,7 @@
     <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
     <script src="{% static 'vendor/fabric.min.js' %}"></script>
     <script src="{% static 'football/js/tactical_pad_shared.js' %}"></script>
-    <script src="{% static 'football/js/sessions_tactical_pad.js' %}"></script>
+    <script src="{% static 'football/js/sessions_tactical_pad.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"></script>
     <script>
       (() => {
         const cards = document.querySelectorAll('.task.task-clickable[data-detail-url]');

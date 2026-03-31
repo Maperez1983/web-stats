@@ -1,5 +1,26 @@
 from __future__ import annotations
 
+import os
+
+
+def build_meta(request):
+    """
+    Metadatos para cache-busting de estáticos.
+
+    Render suele exponer `RENDER_GIT_COMMIT` (o variables similares). Si no existe,
+    devolvemos vacío para no añadir querystrings.
+    """
+    build_id = (
+        os.getenv('RENDER_GIT_COMMIT')
+        or os.getenv('RENDER_DEPLOY_ID')
+        or os.getenv('SOURCE_VERSION')
+        or os.getenv('GIT_SHA')
+        or ''
+    ).strip()
+    return {
+        'static_build_id': build_id,
+    }
+
 
 def workspace_access(request):
     """
@@ -42,4 +63,3 @@ def workspace_access(request):
         'workspace_entry_url': entry_url,
         'workspace_module_access': module_access,
     }
-

@@ -481,6 +481,27 @@
         text-transform: uppercase;
         color: rgba(248,250,252,0.92);
       }
+      .pattern-popover .pattern-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .pattern-popover .pattern-close {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(255,255,255,0.05);
+        color: rgba(248,250,252,0.92);
+        font-size: 22px;
+        font-weight: 900;
+        line-height: 1;
+        cursor: pointer;
+      }
+      .pattern-popover .pattern-close:hover {
+        background: rgba(255,255,255,0.08);
+      }
       .pattern-fields {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -1339,7 +1360,10 @@
 		                      <button type="button" data-command="clear">Limpiar pizarra</button>
 			                    </div>
 			                    <div class="pattern-popover" id="task-pattern-popover" hidden>
-			                      <h4 id="task-pattern-title">Patrón</h4>
+			                      <div class="pattern-head">
+			                        <h4 id="task-pattern-title">Patrón</h4>
+			                        <button type="button" class="pattern-close" id="task-pattern-close" aria-label="Cerrar">×</button>
+			                      </div>
 			                      <div class="pattern-fields" id="task-pattern-fields-line">
 			                        <div class="pattern-field">
 			                          Copias
@@ -1980,8 +2004,8 @@
     </main>
 
     {{ tactical_player_catalog|json_script:"tpad-players-catalog" }}
-    <script src="{% static 'vendor/fabric.min.js' %}" defer></script>
-    <script src="{% static 'football/js/sessions_tactical_pad.js' %}" defer></script>
+    <script src="{% static 'vendor/fabric.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+    <script src="{% static 'football/js/sessions_tactical_pad.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
     <script>
       window.addEventListener('DOMContentLoaded', () => {
         if (window.initSessionsTacticalPad) window.initSessionsTacticalPad();
