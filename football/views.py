@@ -229,8 +229,7 @@ def _refresh_rfaf_standings_inline(*, allow_fallback=False):
         rows, html = import_from_rfef.parse_table(allow_fallback=bool(allow_fallback))
         next_match = import_from_rfef.extract_next_match_from_classification(html)
         if not next_match:
-            next_jornada = import_from_rfef.extract_next_jornada(html)
-            next_match = import_from_rfef.fetch_schedule(next_jornada) if next_jornada else None
+            next_match = import_from_rfef.fetch_next_match_from_classification(html)
         if next_match and next_match.get("status") != "next":
             next_match = None
         try:
@@ -16172,16 +16171,14 @@ def get_next_match(primary_team, group):
     def _fetch_next_from_rfaf():
         try:
             from scripts.import_from_rfef import (
-                extract_next_jornada,
                 extract_next_match_from_classification,
+                fetch_next_match_from_classification,
                 fetch_html,
-                fetch_schedule,
             )
             html = fetch_html()
             payload = extract_next_match_from_classification(html)
             if not payload:
-                next_jornada = extract_next_jornada(html)
-                payload = fetch_schedule(next_jornada) if next_jornada else None
+                payload = fetch_next_match_from_classification(html)
             if not isinstance(payload, dict):
                 return None
             if (payload.get('status') or '').lower() != 'next':

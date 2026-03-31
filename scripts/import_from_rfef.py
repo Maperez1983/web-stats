@@ -47,6 +47,8 @@ ALLOW_FALLBACK_HTML = str(os.getenv("RFAF_ALLOW_FALLBACK_HTML", "0")).strip().lo
     "on",
 }
 
+BASE_ORIGIN = "https://www.rfaf.es"
+
 
 def _parse_int(value: str) -> int:
     if not value:
@@ -159,7 +161,8 @@ def extract_next_match_from_classification(html: str) -> Optional[Dict[str, str]
     blocks = soup.select("h3")
     today = datetime.now().date()
     candidates: List[Dict[str, str]] = []
-    result_pattern = re.compile(r"\b\d{1,2}\s*-\s*\d{1,2}\b")
+    # Resultado típico: "2-1" (sin texto adicional). Evitamos falsos positivos con fechas tipo "29-03-2026".
+    result_pattern = re.compile(r"^\s*\d{1,2}\s*-\s*\d{1,2}\s*$")
     time_pattern = re.compile(r"\b\d{1,2}:\d{2}\b")
     for heading in blocks:
         text = heading.get_text(strip=True)
@@ -187,7 +190,7 @@ def extract_next_match_from_classification(html: str) -> Optional[Dict[str, str]
             away_norm = normalize_text(away_name)
             # En RFAF el "marcador" para partidos futuros suele ser la hora (p.e. 18:00),
             # que contiene dígitos pero NO es un resultado. Detectamos resultados explícitos "1-0".
-            is_future = not bool(result_pattern.search(score_text))
+            is_future = not bool(result_pattern.match(score_text or ""))
             if "benagalbon" not in home_norm and "benagalbon" not in away_norm:
                 continue
             is_home = "benagalbon" in home_norm
@@ -233,6 +236,53 @@ def extract_next_match_from_classification(html: str) -> Optional[Dict[str, str]
     return best
 
 
+def _extract_schedule_template(html: str):
+    """
+    Extrae una URL de jornada desde la propia página de clasificación.
+    Ejemplo embebido:
+      /pnfg/NPcd/NFG_CmpJornada?...&CodJornada=27
+    """
+    if not html:
+        return None, None
+    match = re.search(
+        r'(/pnfg/NPcd/NFG_CmpJornada\?[^"\']*?(?:CodJornada|codjornada)=(\d+))',
+        html,
+        re.IGNORECASE,
+    )
+    if not match:
+        return None, None
+    url = match.group(1)
+    try:
+        current_round = int(match.group(2))
+    except ValueError:
+        current_round = None
+    template = re.sub(r'(?:CodJornada|codjornada)=\d+', 'CodJornada={jornada}', url, flags=re.IGNORECASE)
+    return template, current_round
+
+
+def fetch_next_match_from_classification(html: str, *, max_checks: int = 8) -> Optional[dict]:
+    """
+    Fallback robusto: si la página de clasificación no trae el cuadro de partidos,
+    buscamos el próximo partido iterando jornadas (NFG_CmpJornada) a partir de la actual.
+    """
+    template, current_round = _extract_schedule_template(html or "")
+    # Incluimos la jornada actual: puede haber partidos "Suspendidos/Aplazados" aún pendientes.
+    start_round = current_round if isinstance(current_round, int) else None
+    if not start_round:
+        start_round = extract_next_jornada(html) if html else None
+    if not start_round:
+        return None
+    for offset in range(max_checks):
+        jornada = int(start_round) + offset
+        payload = fetch_schedule(jornada, template=template) if template else fetch_schedule(jornada)
+        if not isinstance(payload, dict):
+            continue
+        if str(payload.get("status") or "").strip().lower() != "next":
+            continue
+        return payload
+    return None
+
+
 def extract_next_jornada(html: str) -> Optional[int]:
     # Intentar inferir la próxima jornada desde la tabla (PJ del Benagalbón + 1).
     try:
@@ -266,10 +316,12 @@ def extract_next_jornada(html: str) -> Optional[int]:
     return None
 
 
-def fetch_schedule(jornada: int) -> Optional[dict]:
+def fetch_schedule(jornada: int, template: Optional[str] = None) -> Optional[dict]:
     if not jornada:
         return None
-    url = SCHEDULE_TEMPLATE.format(jornada=jornada)
+    url = (template or SCHEDULE_TEMPLATE).format(jornada=jornada)
+    if url.startswith("/"):
+        url = f"{BASE_ORIGIN}{url}"
     headers = {
         "User-Agent": USER_AGENT,
         "Accept-Language": "es-ES,es;q=0.9",
@@ -293,25 +345,69 @@ def parse_schedule(html: str, jornada: int) -> Optional[dict]:
     table = soup.select_one("table")
     if not table:
         return None
+    # Resultado típico: "2-1" (sin texto adicional). Evitamos falsos positivos con fechas.
+    result_pattern = re.compile(r"^\s*\d{1,2}\s*-\s*\d{1,2}\s*$")
+    date_in_cell = re.compile(r"\b(\d{2}[/-]\d{2}[/-]\d{4})\b")
+    time_in_cell = re.compile(r"\b(\d{1,2}:\d{2})\b")
+    today = datetime.now().date()
     for row in table.select("tr"):
         cells = row.find_all("td")
         if len(cells) < 3:
             continue
-        home_name = cells[0].get_text(" ", strip=True)
-        away_name = cells[2].get_text(" ", strip=True)
+        # Algunas tablas traen una primera celda "combinada" y luego (local, estado/resultado, visitante, campo).
+        # Otras vienen en formato simple (local, estado/resultado, visitante).
+        cell_texts = [cell.get_text(" ", strip=True) for cell in cells]
+        if len(cell_texts) >= 4 and (
+            "benagalbon" in normalize_text(cell_texts[1])
+            or "benagalbon" in normalize_text(cell_texts[3])
+        ):
+            home_name = cell_texts[1]
+            middle_text = cell_texts[2] if len(cell_texts) > 2 else ""
+            away_name = cell_texts[3] if len(cell_texts) > 3 else ""
+            location = cell_texts[4] if len(cell_texts) > 4 else ""
+        else:
+            home_name = cell_texts[0]
+            middle_text = cell_texts[1] if len(cell_texts) > 1 else ""
+            away_name = cell_texts[2] if len(cell_texts) > 2 else ""
+            location = cell_texts[3] if len(cell_texts) > 3 else ""
         home_norm = normalize_text(home_name)
         away_norm = normalize_text(away_name)
         if "benagalbon" not in home_norm and "benagalbon" not in away_norm:
             continue
         is_home = "benagalbon" in home_norm
         opponent = away_name if is_home else home_name
+        status = "latest" if result_pattern.match(middle_text or "") else "next"
+        time_label = ""
+        time_match = time_in_cell.search(middle_text or "")
+        if time_match:
+            time_label = time_match.group(1)
+        # Preferimos la fecha del encabezado; si no existe, intentamos extraerla de la celda central.
+        final_date_iso = date_iso
+        if not final_date_iso:
+            date_match = date_in_cell.search(middle_text or "")
+            if date_match:
+                raw = date_match.group(1).replace("/", "-")
+                try:
+                    final_date_iso = datetime.strptime(raw, "%d-%m-%Y").date().isoformat()
+                except ValueError:
+                    final_date_iso = None
+        # Si el partido está aplazado/suspendido, no usamos una fecha pasada como "indicador de ya jugado".
+        if status == "next" and final_date_iso:
+            try:
+                parsed_date = datetime.strptime(final_date_iso, "%Y-%m-%d").date()
+            except ValueError:
+                parsed_date = None
+            if parsed_date and parsed_date < today and re.search(r"(suspendid|aplazad|pendient)", middle_text.lower()):
+                final_date_iso = None
         return {
             "round": f"{jornada}",
-            "date": date_iso,
-            "location": "",
+            "date": final_date_iso,
+            "time": time_label,
+            "location": location,
             "opponent": {"name": opponent.title()},
             "home": is_home,
-            "status": "next",
+            "status": status,
+            "source": "rfaf",
         }
     return None
 
@@ -348,8 +444,7 @@ def main():
     rows, html = parse_table(allow_fallback=ALLOW_FALLBACK_HTML)
     next_match = extract_next_match_from_classification(html)
     if not next_match:
-        next_jornada = extract_next_jornada(html)
-        next_match = fetch_schedule(next_jornada) if next_jornada else None
+        next_match = fetch_next_match_from_classification(html)
     if next_match and next_match.get("status") != "next":
         next_match = None
     save_next_match_cache(next_match)
