@@ -430,6 +430,10 @@
         z-index: 60;
         box-shadow: 0 18px 44px rgba(0,0,0,0.38);
       }
+      /* No dejar que estilos del autor anulen el atributo HTML `hidden`. */
+      .command-menu[hidden] {
+        display: none !important;
+      }
       .command-menu button {
         width: 100%;
         display: flex;
@@ -473,6 +477,10 @@
         box-shadow: 0 18px 44px rgba(0,0,0,0.38);
         display: grid;
         gap: 10px;
+      }
+      /* No dejar que estilos del autor anulen el atributo HTML `hidden`. */
+      .pattern-popover[hidden] {
+        display: none !important;
       }
       .pattern-popover h4 {
         margin: 0;
