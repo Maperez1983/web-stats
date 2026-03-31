@@ -179,12 +179,15 @@ async function main() {
 
     const t0 = Date.now();
     await Promise.all([
-      page.waitForNavigation({ waitUntil: 'networkidle', timeout: 60000 }).catch(() => null),
+      page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 60000 }).catch(() => null),
       page.click('button[type="submit"]'),
     ]);
+    await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => null);
     const duration = Date.now() - t0;
     const afterUrl = page.url();
-    const ok = !afterUrl.includes('/login');
+    const cookies = await context.cookies().catch(() => []);
+    const hasSessionCookie = (cookies || []).some((c) => c && c.name && String(c.name) === 'webstats_sessionid');
+    const ok = !afterUrl.includes('/login') && hasSessionCookie;
     globalLog.actions.push({
       action: 'login',
       ok,

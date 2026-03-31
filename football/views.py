@@ -3195,6 +3195,17 @@ def _sync_team_crest_from_sources(team):
     return resolved
 
 
+def _is_benagalbon_team(team):
+    if not team:
+        return False
+    if bool(getattr(team, 'is_primary', False)):
+        return True
+    slug = str(getattr(team, 'slug', '') or '').strip().lower()
+    name = str(getattr(team, 'name', '') or '').strip().lower()
+    short_name = str(getattr(team, 'short_name', '') or '').strip().lower()
+    return 'benagalbon' in slug or 'benagalbon' in name or 'benagalbon' in short_name
+
+
 def resolve_team_crest_url(request, team, *, fallback_static='football/images/cdb-logo.png', sync=False):
     if not team:
         return request.build_absolute_uri(static(fallback_static)) if fallback_static and request else ''
@@ -3209,6 +3220,13 @@ def resolve_team_crest_url(request, team, *, fallback_static='football/images/cd
     crest_url = _sanitize_universo_external_image(_absolute_universo_url(crest_url))
     if crest_url:
         return crest_url
+    # Para el equipo principal, usar un escudo local estable si no hay imagen subida.
+    if _is_benagalbon_team(team):
+        try:
+            local_primary = 'football/images/cdb-benagalbon-crest.png'
+            return request.build_absolute_uri(static(local_primary)) if request else static(local_primary)
+        except Exception:
+            pass
     # Fallback estable: escudo generado (evita imágenes externas rotas).
     try:
         generated = reverse('team-crest-svg', args=[team.id])
