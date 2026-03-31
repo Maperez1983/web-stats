@@ -696,9 +696,11 @@
 	      statusEl.style.color = isError ? '#fca5a5' : 'rgba(226,232,240,0.72)';
 	    };
 
+	    let syncRichEditorsNow = () => {};
 	    const initRichEditors = () => {
 	      const wrappers = Array.from(form.querySelectorAll('[data-rich-editor]'));
 	      if (!wrappers.length) return;
+	      const syncFns = [];
 
 	      const applyCaseToSelection = (mode) => {
 	        const selection = window.getSelection ? window.getSelection() : null;
@@ -735,6 +737,7 @@
 	          plainField.value = normalizePlain(area.innerText || area.textContent || '');
 	          plainField.dispatchEvent(new Event('input', { bubbles: true }));
 	        };
+	        syncFns.push(sync);
 
 	        area.addEventListener('input', sync);
 	        area.addEventListener('blur', sync);
@@ -779,6 +782,11 @@
 	        // Inicializa hidden fields al cargar (para el caso de que vengan con HTML).
 	        sync();
 	      });
+	      syncRichEditorsNow = () => {
+	        syncFns.forEach((fn) => {
+	          try { fn(); } catch (error) { /* ignore */ }
+	        });
+	      };
 	    };
 	    initRichEditors();
 
@@ -3086,6 +3094,7 @@
       }
     };
 	    const syncHiddenBuilderFields = async (options = {}) => {
+	      try { syncRichEditorsNow(); } catch (error) { /* ignore */ }
 	      if (legacyPlayersInput && playerCountInput) legacyPlayersInput.value = playerCountInput.value || '';
 	      const stateObj = serializeState();
 	      syncAssignedPlayersHidden(stateObj);
@@ -3987,7 +3996,7 @@
       activateResourcePanel(initialResource);
     }
 
-    const panelKeyForObject = (object) => {
+	    const panelKeyForObject = (object) => {
       const kind = safeText(object?.data?.kind);
       if (!kind) return 'base';
       if (kind.startsWith('line') || kind.startsWith('arrow')) return 'trazos';
@@ -4003,15 +4012,62 @@
       activateResourcePanel(panelKey);
     };
 
-    let resizeTimer = null;
-    window.addEventListener('resize', () => {
-      window.clearTimeout(resizeTimer);
-      resizeTimer = window.setTimeout(() => {
-        fitCanvas(true);
-        renderSurfaceThumbs();
-        setPreset(presetSelect.value || 'full_pitch');
-      }, 140);
-    });
+	    let resizeTimer = null;
+	    let resizeBaseline = null;
+	    let resizeFinalizeTimer = null;
+	    const captureResizeBaseline = () => {
+	      if (resizeBaseline) return resizeBaseline;
+	      resizeBaseline = {
+	        width: Math.round(canvas.getWidth() || 0),
+	        height: Math.round(canvas.getHeight() || 0),
+	        canvas_state: serializeCanvasOnly(),
+	        preset: presetSelect.value || 'full_pitch',
+	        orientation: pitchOrientation,
+	        zoom: pitchZoom,
+	      };
+	      return resizeBaseline;
+	    };
+	    const clearResizeBaseline = () => { resizeBaseline = null; };
+	    const applyResizeFromBaseline = () => {
+	      const baseline = captureResizeBaseline();
+	      const width = Math.max(320, Math.round(stage.clientWidth || 960));
+	      const height = Math.max(220, Math.round(stage.clientHeight || 640));
+	      if (width <= 0 || height <= 0) return;
+	      if (Math.abs(width - (canvas.getWidth() || 0)) < 2 && Math.abs(height - (canvas.getHeight() || 0)) < 2) return;
+	      canvas.setDimensions({ width, height });
+	      canvas.calcOffset();
+	      // Reescalado "sin acumulación": siempre desde el snapshot capturado al inicio del resize.
+	      loadCanvasSnapshot(
+	        baseline.canvas_state,
+	        () => {
+	          try { persistActiveStepSnapshot(); } catch (e) { /* ignore */ }
+	          try { syncInspector(); } catch (e) { /* ignore */ }
+	          try { refreshLivePreview(); } catch (e) { /* ignore */ }
+	        },
+	        { sourceWidth: baseline.width, sourceHeight: baseline.height },
+	      );
+	      // El SVG del césped depende del preset/orientación, lo reinyectamos por seguridad sin tocar objetos.
+	      try { applyPitchSurface(baseline.preset, baseline.orientation); } catch (e) { /* ignore */ }
+	      try { syncZoomUi(); } catch (e) { /* ignore */ }
+	    };
+	    const scheduleResize = () => {
+	      window.clearTimeout(resizeTimer);
+	      window.clearTimeout(resizeFinalizeTimer);
+	      captureResizeBaseline();
+	      resizeTimer = window.setTimeout(() => {
+	        applyResizeFromBaseline();
+	        renderSurfaceThumbs();
+	      }, 200);
+	      // Si durante la rotación/resize hay varios eventos, cerramos la sesión cuando se estabilice.
+	      resizeFinalizeTimer = window.setTimeout(() => {
+	        clearResizeBaseline();
+	      }, 900);
+	    };
+	    window.addEventListener('resize', scheduleResize);
+	    window.addEventListener('orientationchange', scheduleResize);
+	    try {
+	      window.visualViewport?.addEventListener('resize', scheduleResize);
+	    } catch (error) { /* ignore */ }
 
 	    form.addEventListener('submit', async (event) => {
       if (form.dataset.previewReady === '1') {

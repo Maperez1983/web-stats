@@ -2093,10 +2093,11 @@
         const builder = document.querySelector('.builder');
         const applyBuilderVh = () => {
           try {
-            if (!builder || !window.matchMedia || !window.matchMedia('(min-width: 980px)').matches) return;
+            if (!builder || !window.matchMedia || !window.matchMedia('(min-width: 740px)').matches) return;
             const rect = builder.getBoundingClientRect();
             const padding = 16;
-            const height = Math.max(520, Math.floor(window.innerHeight - rect.top - padding));
+            const viewportHeight = Math.floor((window.visualViewport?.height || window.innerHeight || 0));
+            const height = Math.max(520, Math.floor(viewportHeight - rect.top - padding));
             document.documentElement.style.setProperty('--builder-vh', `${height}px`);
           } catch (error) { /* ignore */ }
         };
@@ -2106,6 +2107,12 @@
           window.clearTimeout(resizeTimer);
           resizeTimer = window.setTimeout(applyBuilderVh, 100);
         });
+        try {
+          window.visualViewport?.addEventListener('resize', () => {
+            window.clearTimeout(resizeTimer);
+            resizeTimer = window.setTimeout(applyBuilderVh, 100);
+          });
+        } catch (error) { /* ignore */ }
 
         if (window.initSessionsTacticalPad) window.initSessionsTacticalPad();
       });
