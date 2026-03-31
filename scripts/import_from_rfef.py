@@ -273,6 +273,8 @@ def fetch_next_match_from_classification(html: str, *, max_checks: int = 8) -> O
         start_round = extract_next_jornada(html) if html else None
     if not start_round:
         return None
+    undated_candidate = None
+    today = datetime.now().date()
     for offset in range(max_checks):
         jornada = int(start_round) + offset
         payload = fetch_schedule(jornada, template=template) if template else fetch_schedule(jornada)
@@ -280,8 +282,17 @@ def fetch_next_match_from_classification(html: str, *, max_checks: int = 8) -> O
             continue
         if str(payload.get("status") or "").strip().lower() != "next":
             continue
-        return payload
-    return None
+        raw_date = str(payload.get("date") or "").strip()
+        if raw_date:
+            try:
+                parsed = datetime.strptime(raw_date, "%Y-%m-%d").date()
+            except ValueError:
+                parsed = None
+            if parsed and parsed >= today:
+                return payload
+        if undated_candidate is None:
+            undated_candidate = payload
+    return undated_candidate
 
 
 def extract_next_jornada(html: str) -> Optional[int]:

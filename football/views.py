@@ -4058,12 +4058,17 @@ def dashboard_data(request):
     player_cards = compute_player_cards(primary_team)
     player_cards_scope = {'type': 'global', 'label': 'Jugador · datos La Preferente'}
     competition_name = ''
+    season_name = ''
     try:
         competition_name = str(getattr(getattr(getattr(group, 'season', None), 'competition', None), 'name', '') or '').strip()
+        season_name = str(getattr(getattr(group, 'season', None), 'name', '') or '').strip()
     except Exception:
         competition_name = ''
+        season_name = ''
     group_label = group.name
-    if competition_name and competition_name.lower() not in str(group_label or '').lower():
+    if season_name and season_name.lower() not in str(group_label or '').lower():
+        group_label = f'{season_name} · {group_label}'
+    elif competition_name and competition_name.lower() not in str(group_label or '').lower():
         group_label = f'{competition_name} · {group_label}'
 
     payload = {
@@ -4071,6 +4076,7 @@ def dashboard_data(request):
             'name': primary_team.name,
             'group': group_label,
             'competition': competition_name,
+            'season': season_name,
             'crest_url': resolve_team_crest_url(request, primary_team, sync=True),
         },
         'standings': standings,
