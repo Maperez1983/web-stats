@@ -56,6 +56,7 @@ async function main() {
   const baseUrl = (process.env.E2E_BASE_URL || 'http://127.0.0.1:8000').replace(/\/+$/, '');
   const username = process.env.E2E_USERNAME || 'localadmin';
   const password = process.env.E2E_PASSWORD || 'localadmin';
+  const convocationCount = Math.max(1, Math.min(parseInt(process.env.E2E_CONVOCATION_COUNT || '11', 10) || 11, 30));
   const outDir =
     process.env.E2E_OUT_DIR ||
     path.join(process.cwd(), 'artifacts', 'e2e-audit', timestampId());
@@ -194,6 +195,12 @@ async function main() {
     return { ok };
   }
 
+  async function getCsrfToken() {
+    const cookies = await context.cookies().catch(() => []);
+    const csrfCookie = (cookies || []).find((c) => c && c.name === 'csrftoken');
+    return csrfCookie ? csrfCookie.value : '';
+  }
+
   async function extractTaskIdFromPage() {
     const html = await page.content().catch(() => '');
     const match = html.match(/const\s+taskId\s*=\s*'(\d+)'/);
@@ -277,24 +284,21 @@ async function main() {
     try {
       await gotoTracked('/convocatoria/', { label: 'convocation' });
       await page.waitForSelector('.roster-card', { timeout: 20000 }).catch(() => null);
-      // Selecciona al menos 1 jugador (evita 400 en PDF).
-      const firstCardId = await page
-        .evaluate(() => {
-          const card = document.querySelector('.roster-card');
-          return card ? String(card.getAttribute('data-player-id') || '') : '';
-        })
-        .catch(() => '');
-      if (firstCardId) {
-        await page.locator(`.roster-card[data-player-id="${firstCardId}"]`).click().catch(() => null);
-      } else {
-        await page.click('#select-visible').catch(() => null);
-      }
-      await page.waitForTimeout(250);
+      // Recoge N ids de jugadores (sirve para convocatoria + 11 inicial + registro acciones).
+      const selectedIds = await page
+        .evaluate((count) => {
+          const ids = [];
+          document.querySelectorAll('.roster-card[data-player-id]').forEach((card) => {
+            const id = String(card.getAttribute('data-player-id') || '').trim();
+            if (!id) return;
+            if (ids.length < count) ids.push(id);
+          });
+          return ids;
+        }, convocationCount)
+        .catch(() => []);
 
       // Guardado robusto: usamos el mismo endpoint que el frontend (evita depender de mensajes UI).
-      const cookies = await context.cookies().catch(() => []);
-      const csrfCookie = (cookies || []).find((c) => c && c.name === 'csrftoken');
-      const csrf = csrfCookie ? csrfCookie.value : '';
+      const csrf = await getCsrfToken();
       const matchInfo = await page
         .evaluate(() => ({
           opponent: String(document.getElementById('match-opponent-manual')?.value || document.getElementById('match-opponent-select')?.value || '').trim(),
@@ -306,7 +310,7 @@ async function main() {
         .catch(() => ({}));
 
       const payload = {
-        players: firstCardId ? [firstCardId] : [],
+        players: Array.isArray(selectedIds) ? selectedIds : [],
         match_info: matchInfo || {},
       };
       const resp = await context.request.post(`${baseUrl}/convocatoria/save/`, {
@@ -319,8 +323,97 @@ async function main() {
       });
       const data = await resp.json().catch(() => ({}));
       entry.ok = resp.ok() && Boolean(data && data.saved);
-      entry.details = { status: resp.status(), response: data };
+      entry.details = { status: resp.status(), response: data, selected_count: (payload.players || []).length, selected_ids: payload.players || [] };
       await screenshot('convocation-saved');
+    } catch (err) {
+      entry.ok = false;
+      entry.details = { error: String(err && err.message ? err.message : err) };
+    }
+    entry.duration_ms = Date.now() - start;
+    globalLog.actions.push(entry);
+    return entry;
+  }
+
+  async function saveInitialEleven(matchId, playerIds) {
+    const start = Date.now();
+    const entry = { action: 'initial_eleven_save', ok: false, duration_ms: 0, details: {} };
+    try {
+      const starters = (playerIds || []).slice(0, 11).map((id) => ({ id: String(id) }));
+      const bench = (playerIds || []).slice(11, 18).map((id) => ({ id: String(id) }));
+      const csrf = await getCsrfToken();
+      const url = matchId ? `${baseUrl}/registro-acciones/lineup/save/?match_id=${encodeURIComponent(String(matchId))}` : `${baseUrl}/registro-acciones/lineup/save/`;
+      const resp = await context.request.post(url, {
+        data: { lineup: { starters, bench } },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrf,
+          Referer: `${baseUrl}/coach/11-inicial/`,
+        },
+      });
+      const data = await resp.json().catch(() => ({}));
+      entry.ok = resp.ok() && Boolean(data && data.saved);
+      entry.details = { status: resp.status(), response: data, starters: starters.length, bench: bench.length };
+      await gotoTracked('/coach/11-inicial/', { label: 'initial-eleven' });
+      await screenshot('initial-eleven-after');
+    } catch (err) {
+      entry.ok = false;
+      entry.details = { error: String(err && err.message ? err.message : err) };
+    }
+    entry.duration_ms = Date.now() - start;
+    globalLog.actions.push(entry);
+    return entry;
+  }
+
+  async function recordAndDeleteMatchAction(matchId, playerId) {
+    const start = Date.now();
+    const entry = { action: 'match_action_record_delete', ok: false, duration_ms: 0, details: {} };
+    try {
+      const csrf = await getCsrfToken();
+      const recordUrl = matchId
+        ? `${baseUrl}/registro-acciones/guardar/?match_id=${encodeURIComponent(String(matchId))}`
+        : `${baseUrl}/registro-acciones/guardar/`;
+      const recordResp = await context.request.post(recordUrl, {
+        form: {
+          match_id: matchId ? String(matchId) : '',
+          player: String(playerId || ''),
+          action_type: 'Pase',
+          result: 'OK',
+          minute: '0',
+          zone: '',
+          observation: 'E2E',
+        },
+        headers: {
+          'X-CSRFToken': csrf,
+          Referer: `${baseUrl}/registro-acciones/${matchId ? `?match_id=${encodeURIComponent(String(matchId))}` : ''}`,
+        },
+      });
+      const recorded = await recordResp.json().catch(() => ({}));
+      const eventId = recorded && (recorded.id || recorded.event_id);
+      if (!recordResp.ok() || !eventId) {
+        entry.details = { record_status: recordResp.status(), record_response: recorded };
+        entry.ok = false;
+      } else {
+        const deleteUrl = matchId
+          ? `${baseUrl}/registro-acciones/eliminar/?match_id=${encodeURIComponent(String(matchId))}`
+          : `${baseUrl}/registro-acciones/eliminar/`;
+        const delResp = await context.request.post(deleteUrl, {
+          form: { event_id: String(eventId) },
+          headers: {
+            'X-CSRFToken': csrf,
+            Referer: `${baseUrl}/registro-acciones/${matchId ? `?match_id=${encodeURIComponent(String(matchId))}` : ''}`,
+          },
+        });
+        const deleted = await delResp.json().catch(() => ({}));
+        entry.ok = delResp.ok() && Boolean(deleted && deleted.deleted);
+        entry.details = {
+          record_status: recordResp.status(),
+          record_id: eventId,
+          delete_status: delResp.status(),
+          delete_response: deleted,
+        };
+      }
+      await gotoTracked(matchId ? `/registro-acciones/?match_id=${encodeURIComponent(String(matchId))}` : '/registro-acciones/', { label: 'match-actions' });
+      await screenshot('match-actions-after');
     } catch (err) {
       entry.ok = false;
       entry.details = { error: String(err && err.message ? err.message : err) };
@@ -398,6 +491,12 @@ async function main() {
     const createdSessionGk = await createBuilderTask('/coach/sesiones/porteros/tareas/nueva/', { labelPrefix: 'sessions-gk' });
     const createdSessionFit = await createBuilderTask('/coach/sesiones/preparacion-fisica/tareas/nueva/', { labelPrefix: 'sessions-fit' });
     const convocationSaved = await saveConvocation();
+    const matchId = convocationSaved?.details?.response?.match_id || null;
+    const convocationPlayerIds = convocationSaved?.details?.selected_ids || [];
+    if (matchId && convocationPlayerIds.length) {
+      await saveInitialEleven(matchId, convocationPlayerIds);
+      await recordAndDeleteMatchAction(matchId, convocationPlayerIds[0]);
+    }
     await updatePlayerPhoto(playerId);
 
     const seedPaths = [
