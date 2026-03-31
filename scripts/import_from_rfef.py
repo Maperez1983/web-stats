@@ -204,6 +204,7 @@ def extract_next_match_from_classification(html: str) -> Optional[Dict[str, str]
                 "opponent": {"name": opponent.title()},
                 "home": is_home,
                 "status": status,
+                "source": "rfaf",
             }
             if status == "next":
                 candidates.append(payload)

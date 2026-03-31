@@ -2656,6 +2656,7 @@ def load_cached_next_match():
                 payload = normalize_next_match_payload(payload)
                 payload.setdefault("status", "next")
                 status = (payload.get('status') or '').lower()
+                source = str(payload.get('source') or '').strip().lower()
                 date_raw = payload.get('date')
                 if date_raw:
                     payload_date = _parse_payload_date(date_raw)
@@ -2667,6 +2668,11 @@ def load_cached_next_match():
                             return None
                     elif status == 'next':
                         # If we cannot parse the date, avoid surfacing stale "next match" payloads.
+                        return None
+                else:
+                    # Permitimos "próximo partido" sin fecha cuando el origen es una agenda (RFAF/Universo live).
+                    # Ejemplo: partidos suspendidos/aplazados en la jornada con fecha pasada.
+                    if status == 'next' and source in {'', 'local-match'}:
                         return None
                 return payload
     except Exception:
@@ -4051,11 +4057,20 @@ def dashboard_data(request):
     player_metrics = compute_player_metrics(primary_team)
     player_cards = compute_player_cards(primary_team)
     player_cards_scope = {'type': 'global', 'label': 'Jugador · datos La Preferente'}
+    competition_name = ''
+    try:
+        competition_name = str(getattr(getattr(getattr(group, 'season', None), 'competition', None), 'name', '') or '').strip()
+    except Exception:
+        competition_name = ''
+    group_label = group.name
+    if competition_name and competition_name.lower() not in str(group_label or '').lower():
+        group_label = f'{competition_name} · {group_label}'
 
     payload = {
         'team': {
             'name': primary_team.name,
-            'group': group.name,
+            'group': group_label,
+            'competition': competition_name,
             'crest_url': resolve_team_crest_url(request, primary_team, sync=True),
         },
         'standings': standings,
