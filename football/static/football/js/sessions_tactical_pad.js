@@ -493,6 +493,7 @@
 
   window.initSessionsTacticalPad = function initSessionsTacticalPad() {
     const form = document.getElementById('task-builder-form');
+    if (!form) return;
     const canvasEl = document.getElementById('create-task-canvas');
     const stage = document.getElementById('task-pitch-stage');
     const svgSurface = document.getElementById('task-pitch-surface');

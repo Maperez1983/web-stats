@@ -120,7 +120,8 @@ SESSION_COOKIE_AGE = _env_int('SESSION_COOKIE_AGE', 1209600)
 SESSION_SAVE_EVERY_REQUEST = _env_bool('SESSION_SAVE_EVERY_REQUEST', False)
 SESSION_EXPIRE_AT_BROWSER_CLOSE = _env_bool('SESSION_EXPIRE_AT_BROWSER_CLOSE', False)
 SESSION_COOKIE_NAME = (os.getenv('SESSION_COOKIE_NAME') or 'webstats_sessionid').strip() or 'webstats_sessionid'
-CSRF_COOKIE_NAME = (os.getenv('CSRF_COOKIE_NAME') or 'webstats_csrftoken').strip() or 'webstats_csrftoken'
+# Por compatibilidad: el frontend usa `csrftoken` (nombre estándar de Django) en fetch/XHR.
+CSRF_COOKIE_NAME = (os.getenv('CSRF_COOKIE_NAME') or 'csrftoken').strip() or 'csrftoken'
 SESSION_ENGINE_ENV = os.getenv('SESSION_ENGINE', '').strip()
 if SESSION_ENGINE_ENV:
     SESSION_ENGINE = SESSION_ENGINE_ENV

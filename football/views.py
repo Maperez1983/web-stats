@@ -3884,6 +3884,7 @@ def _resolve_rival_identity(rival_name, preferred_opponent=None):
 
     rival_full_name = best_meta.get('full_name') or rival_full_name
     rival_crest_url = best_meta.get('crest_url') or rival_crest_url
+    rival_crest_url = _sanitize_universo_external_image(_absolute_universo_url(rival_crest_url))
     return rival_full_name, rival_crest_url
 
 
@@ -7132,6 +7133,8 @@ def reset_match_action_register(request):
     )
 
 
+@login_required
+@ensure_csrf_cookie
 def convocation_page(request):
     forbidden = _forbid_if_workspace_module_disabled(request, 'convocation', label='convocatoria')
     if forbidden:
@@ -7264,7 +7267,7 @@ def convocation_page(request):
         preferred_opponent=(default_match_info.get('opponent') if isinstance(default_match_info, dict) else None),
     )
     match_info['rival_full_name'] = rival_full_name
-    match_info['rival_crest_url'] = _absolute_universo_url(rival_crest_url)
+    match_info['rival_crest_url'] = rival_crest_url
 
     home_location = 'ESTADIO CAÑA CHAQUETA'
     recent_home_match = (
@@ -7314,7 +7317,7 @@ def convocation_page(request):
                 'name': current_opponent,
                 'short_name': current_opponent,
                 'location': field_map.get(current_key, ''),
-                'crest_url': _absolute_universo_url(rival_crest_url),
+                'crest_url': rival_crest_url,
             }
         )
 
@@ -7546,7 +7549,7 @@ def convocation_pdf(request):
         rival_name,
         preferred_opponent=preferred_opponent,
     )
-    rival_crest_url = _absolute_universo_url(rival_crest_url)
+    rival_crest_url = _sanitize_universo_external_image(_absolute_universo_url(rival_crest_url))
 
     round_digits = ''.join(re.findall(r'\d+', convocation_record.round or ''))
     round_short = f'J{round_digits}' if round_digits else 'J'
