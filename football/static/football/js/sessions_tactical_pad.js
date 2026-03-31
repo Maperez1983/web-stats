@@ -3708,6 +3708,14 @@
     const resourcePanels = Array.from(document.querySelectorAll('.resource-panel'));
     const resourceDetails = document.getElementById('task-resource-details');
     const resourceSummaryLabel = document.getElementById('task-resource-summary-label');
+    // En escritorio ocultamos el <summary> y queremos que las pestañas estén visibles siempre.
+    // Algunos navegadores no permiten "forzar" el contenido de <details> cuando está cerrado,
+    // así que abrimos el <details> automáticamente en pantallas grandes.
+    try {
+      if (resourceDetails && window.matchMedia && window.matchMedia('(min-width: 980px)').matches) {
+        resourceDetails.open = true;
+      }
+    } catch (error) { /* ignore */ }
     let activeResourceKey = '';
     const resourceLabelForKey = (key) => {
       const normalized = safeText(key);
