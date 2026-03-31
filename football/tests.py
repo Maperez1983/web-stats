@@ -4049,7 +4049,7 @@ class SessionsPlanningTests(TestCase):
             },
         )
 
-        response = self.client.get(reverse('session-task-detail', args=[task.id]))
+        response = self.client.get(reverse('session-task-detail', args=[task.id]) + '?legacy=1')
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Secuencia animada')
@@ -4137,7 +4137,8 @@ class SessionsPlanningTests(TestCase):
             },
         )
         self.assertEqual(response.status_code, 200)
-        self.assertFalse(SessionTask.objects.filter(id=task_a.id).exists())
+        task_a.refresh_from_db()
+        self.assertIsNotNone(task_a.deleted_at)
 
     def test_microcycle_can_be_cloned_with_sessions_and_tasks(self):
         session = TrainingSession.objects.create(

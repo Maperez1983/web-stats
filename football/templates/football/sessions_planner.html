@@ -1729,6 +1729,13 @@
                             <input type="hidden" name="task_id" value="{{ trash_task.id }}" />
                             <button type="submit" class="secondary">Restaurar</button>
                           </form>
+                          <form method="post" style="margin:0;" onsubmit="return confirm('Se eliminará definitivamente (no se puede deshacer). ¿Continuar?');">
+                            {% csrf_token %}
+                            <input type="hidden" name="planner_action" value="purge_session_task" />
+                            <input type="hidden" name="planner_tab" value="planning" />
+                            <input type="hidden" name="task_id" value="{{ trash_task.id }}" />
+                            <button type="submit" class="danger">Eliminar definitivo</button>
+                          </form>
                         </div>
                         {% endfor %}
                       </div>
@@ -1874,6 +1881,15 @@
                 <input type="hidden" name="library_key" value="{{ library_key }}" />
                 <input type="hidden" name="task_id" value="{{ trash_task.id }}" />
                 <button type="submit" class="secondary">Restaurar</button>
+              </form>
+              <form method="post" style="margin:0;" onsubmit="return confirm('Se eliminará definitivamente (no se puede deshacer). ¿Continuar?');">
+                {% csrf_token %}
+                <input type="hidden" name="planner_action" value="purge_library_task" />
+                <input type="hidden" name="planner_tab" value="library" />
+                <input type="hidden" name="library_view" value="{{ library_view }}" />
+                <input type="hidden" name="library_key" value="{{ library_key }}" />
+                <input type="hidden" name="task_id" value="{{ trash_task.id }}" />
+                <button type="submit" class="danger">Eliminar definitivo</button>
               </form>
             </div>
             {% endfor %}

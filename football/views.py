@@ -11734,6 +11734,7 @@ def _sessions_tab_from_action(action):
         'duplicate_session_task',
         'delete_session_task',
         'restore_session_task',
+        'purge_session_task',
     }:
         return 'planning'
     if action_key in {
@@ -11743,6 +11744,7 @@ def _sessions_tab_from_action(action):
         'auto_fix_task_text',
         'delete_library_task',
         'restore_library_task',
+        'purge_library_task',
         'update_library_task',
         'create_task_from_analysis',
     }:
@@ -12479,6 +12481,32 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 restored_title = str(target_task.title or f'Tarea {target_task.id}')
                 feedback = f'Tarea restaurada: {restored_title}.'
 
+            elif planner_action == 'purge_session_task':
+                task_id = _parse_int(request.POST.get('task_id'))
+                target_task = (
+                    SessionTask.objects
+                    .select_related('session__microcycle')
+                    .filter(id=task_id, session__microcycle__team=primary_team, deleted_at__isnull=False)
+                    .first()
+                )
+                if not target_task:
+                    raise ValueError('No se encontró la tarea en papelera.')
+                session_for_order = target_task.session
+                task_title = str(target_task.title or f'Tarea {target_task.id}')
+                try:
+                    if getattr(target_task, 'task_pdf', None):
+                        target_task.task_pdf.delete(save=False)
+                except Exception:
+                    pass
+                try:
+                    if getattr(target_task, 'task_preview_image', None):
+                        target_task.task_preview_image.delete(save=False)
+                except Exception:
+                    pass
+                target_task.delete()
+                _normalize_session_task_orders(session_for_order)
+                feedback = f'Tarea eliminada definitivamente: {task_title}.'
+
             elif planner_action == 'bulk_create_tasks':
                 bulk_text = (request.POST.get('bulk_tasks_text') or '').strip()
                 block_default = (request.POST.get('bulk_default_block') or SessionTask.BLOCK_MAIN_1).strip()
@@ -12973,7 +13001,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 target_task.deleted_at = timezone.localtime()
                 target_task.deleted_by = request.user if getattr(request, 'user', None) and request.user.is_authenticated else None
                 target_task.save(update_fields=['deleted_at', 'deleted_by'])
-                feedback = f'Tarea enviada a papelera: {task_title}.'
+                feedback = f'Tarea enviada a papelera: {task_title}. (Puedes borrarla definitivamente desde “Papelera biblioteca”)'
 
             elif planner_action == 'restore_library_task':
                 task_id = _parse_int(request.POST.get('task_id'))
@@ -12994,6 +13022,32 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 target_task.save(update_fields=['deleted_at', 'deleted_by', 'order'])
                 _normalize_session_task_orders(session_for_order)
                 feedback = f'Tarea restaurada: {str(target_task.title or f"Tarea {target_task.id}")}.'
+
+            elif planner_action == 'purge_library_task':
+                task_id = _parse_int(request.POST.get('task_id'))
+                target_task = (
+                    SessionTask.objects
+                    .select_related('session__microcycle')
+                    .filter(id=task_id, session__microcycle__team=primary_team, deleted_at__isnull=False)
+                    .first()
+                )
+                if not target_task:
+                    raise ValueError('No se encontró la tarea en papelera.')
+                if _task_scope_for_item(target_task) != scope_key:
+                    raise ValueError('La tarea seleccionada no pertenece a este espacio.')
+                task_title = str(target_task.title or f'Tarea {target_task.id}')
+                try:
+                    if getattr(target_task, 'task_pdf', None):
+                        target_task.task_pdf.delete(save=False)
+                except Exception:
+                    pass
+                try:
+                    if getattr(target_task, 'task_preview_image', None):
+                        target_task.task_preview_image.delete(save=False)
+                except Exception:
+                    pass
+                target_task.delete()
+                feedback = f'Tarea eliminada definitivamente: {task_title}.'
 
             elif planner_action == 'update_library_task':
                 task_id = _parse_int(request.POST.get('task_id'))
