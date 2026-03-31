@@ -4,6 +4,7 @@ from . import views
 
 urlpatterns = [
     path('2j/', views.product_landing_page, name='product-landing'),
+    path('team/<int:team_id>/crest.svg', views.team_crest_svg, name='team-crest-svg'),
     path('', views.dashboard_page, name='dashboard-home'),
     path('api/session/keepalive/', views.session_keepalive, name='session-keepalive'),
     path('platform/', views.platform_overview_page, name='platform-overview'),

@@ -3028,7 +3028,10 @@ def _absolute_universo_url(path_or_url):
     if value.startswith('http://') or value.startswith('https://'):
         return value
     if value.startswith('/'):
-        return f'https://www.universorfaf.es{value}'
+        # Solo convertimos rutas relativas de Universo. Rutas locales (MEDIA_URL/STATIC_URL) deben quedarse tal cual.
+        if value.startswith('/pnfg/') or value.startswith('/api/') or value.startswith('/_next/'):
+            return f'https://www.universorfaf.es{value}'
+        return value
     return f'https://www.universorfaf.es/{value.lstrip("/")}'
 
 
@@ -3206,9 +3209,59 @@ def resolve_team_crest_url(request, team, *, fallback_static='football/images/cd
     crest_url = _sanitize_universo_external_image(_absolute_universo_url(crest_url))
     if crest_url:
         return crest_url
-    if fallback_static:
-        return request.build_absolute_uri(static(fallback_static)) if request else static(fallback_static)
-    return ''
+    # Fallback estable: escudo generado (evita imágenes externas rotas).
+    try:
+        generated = reverse('team-crest-svg', args=[team.id])
+        return request.build_absolute_uri(generated) if request else generated
+    except Exception:
+        if fallback_static:
+            return request.build_absolute_uri(static(fallback_static)) if request else static(fallback_static)
+        return ''
+
+
+def _team_initials(label):
+    text = ' '.join(str(label or '').split()).strip()
+    if not text:
+        return '??'
+    tokens = [tok for tok in re.split(r'[^A-Za-z0-9]+', text) if tok]
+    if not tokens:
+        return (text[:2] if len(text) >= 2 else text).upper()
+    if len(tokens) == 1:
+        return (tokens[0][:2] if len(tokens[0]) >= 2 else tokens[0]).upper()
+    return (tokens[0][0] + tokens[1][0]).upper()
+
+
+def _team_color_seed(team):
+    base = str(getattr(team, 'slug', '') or getattr(team, 'name', '') or '').strip().lower()
+    if not base:
+        base = str(getattr(team, 'id', '') or 'team')
+    total = 0
+    for ch in base:
+        total = (total * 31 + ord(ch)) % 360
+    return total
+
+
+@login_required
+def team_crest_svg(request, team_id):
+    team = Team.objects.filter(id=team_id).first()
+    if not team:
+        raise Http404('Equipo no encontrado')
+    hue = _team_color_seed(team)
+    initials = _team_initials(team.display_name or team.name)
+    svg = f"""<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="hsl({hue}, 70%, 42%)"/>
+      <stop offset="100%" stop-color="hsl({(hue + 35) % 360}, 74%, 36%)"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="160" height="160" rx="32" fill="url(#g)"/>
+  <rect x="10" y="10" width="140" height="140" rx="28" fill="rgba(2, 6, 23, 0.25)" stroke="rgba(255,255,255,0.26)" stroke-width="2"/>
+  <text x="80" y="92" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, Arial" font-size="56" font-weight="800" fill="rgba(255,255,255,0.92)" letter-spacing="2">{html.escape(initials)}</text>
+</svg>"""
+    response = HttpResponse(svg, content_type='image/svg+xml; charset=utf-8')
+    response['Cache-Control'] = 'public, max-age=604800, immutable'
+    return response
 
 
 def load_universo_capture():
@@ -3795,7 +3848,7 @@ def _resolve_rival_identity(rival_name, preferred_opponent=None):
     )
     if known_team:
         rival_full_name = known_team.name
-        rival_crest_url = _absolute_universo_url(getattr(known_team, 'crest_url', '') or '')
+        rival_crest_url = resolve_team_crest_url(None, known_team, fallback_static='', sync=False)
 
     if isinstance(preferred_opponent, dict):
         preferred_name = str(preferred_opponent.get('name') or '').strip()
@@ -16261,8 +16314,16 @@ def serialize_standings(group):
             'rank': standing.position,
             'team': standing.team.name.strip().upper(),
             'full_name': standing.team.name.strip(),
-            'crest_url': _absolute_universo_url(
-                getattr(standing.team, 'crest_url', '') or crest_lookup.get(_normalize_team_lookup_key(standing.team.name)) or ''
+            'crest_url': resolve_team_crest_url(
+                None,
+                standing.team,
+                fallback_static='',
+                sync=False,
+            )
+            or _sanitize_universo_external_image(
+                _absolute_universo_url(
+                    getattr(standing.team, 'crest_url', '') or crest_lookup.get(_normalize_team_lookup_key(standing.team.name)) or ''
+                )
             ),
             'played': standing.played,
             'wins': standing.wins,
