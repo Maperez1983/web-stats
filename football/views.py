@@ -1229,6 +1229,25 @@ def _get_active_workspace(request):
         request.session.pop('active_workspace_id', None)
     if _can_access_platform(request.user):
         return None
+
+    # Modo monocliente: si el sistema sólo tiene un club activo, damos acceso de lectura a roles
+    # internos (incluyendo Task Studio) aunque su primer workspace sea privado. Esto permite que
+    # usuarios "task" puedan navegar módulos de partido (convocatoria/11/acciones) cuando se ha
+    # decidido habilitarlo para demos.
+    try:
+        role = _get_user_role(request.user)
+        if role and role != AppUserRole.ROLE_PLAYER:
+            club_ws = list(Workspace.objects.filter(kind=Workspace.KIND_CLUB, is_active=True).order_by('id')[:2])
+            if len(club_ws) == 1:
+                club = club_ws[0]
+                if not WorkspaceMembership.objects.filter(workspace=club, user=request.user).exists() and int(getattr(club, 'owner_user_id', 0) or 0) != int(request.user.id):
+                    WorkspaceMembership.objects.get_or_create(
+                        workspace=club,
+                        user=request.user,
+                        defaults={'role': WorkspaceMembership.ROLE_VIEWER},
+                    )
+    except Exception:
+        pass
     fallback_workspace = available_qs.order_by('kind', 'name', 'id').first()
     if fallback_workspace:
         request.session['active_workspace_id'] = fallback_workspace.id
@@ -14605,6 +14624,17 @@ def task_studio_home_page(request):
     )
     has_roster = roster_count > 0
     has_tasks = task_count > 0
+    club_workspaces = []
+    club_primary = None
+    try:
+        # Links de "modo club" para usuarios Task Studio: muestran módulos de partido (convocatoria/11/acciones)
+        # en el contexto del club activo (monocliente) o de clubs donde tengan membresía.
+        club_qs = _available_workspaces_for_user(request.user).filter(kind=Workspace.KIND_CLUB).select_related('primary_team')
+        club_workspaces = list(club_qs.order_by('name', 'id')[:6])
+        club_primary = club_workspaces[0] if club_workspaces else None
+    except Exception:
+        club_workspaces = []
+        club_primary = None
     onboarding_steps = [
         {
             'title': 'Perfil e identidad',
@@ -14647,6 +14677,8 @@ def task_studio_home_page(request):
             'search_query': search_query,
             'recent_document_tasks': recent_document_tasks,
             'deleted_tasks': deleted_tasks,
+            'club_workspaces': club_workspaces,
+            'club_primary': club_primary,
         },
     )
 

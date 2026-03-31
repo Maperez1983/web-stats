@@ -76,7 +76,30 @@
         <a class="button" href="{% url 'task-studio-home' %}{{ query_suffix }}">Inicio</a>
         <a class="button" href="{% url 'task-studio-profile' %}{{ query_suffix }}">Perfil e identidad</a>
         <a class="button" href="{% url 'task-studio-roster' %}{{ query_suffix }}">Plantilla</a>
+        {% if club_workspaces %}
+        <a class="button" href="{% url 'dashboard-home' %}?workspace={{ club_primary.id }}">Modo club</a>
+        {% endif %}
       </div>
+
+      {% if club_workspaces %}
+      <section class="cards" style="margin-top:0.35rem;">
+        <article class="card">
+          <h2>Módulos club</h2>
+          <p class="muted" style="margin:0.2rem 0 0.9rem;">Acceso rápido a convocatoria, 11 y estadísticas del partido dentro del club.</p>
+          <div class="task-actions" style="margin-top:0.2rem;">
+            <a class="button" href="{% url 'convocation' %}?workspace={{ club_primary.id }}">Convocatoria</a>
+            <a class="button" href="{% url 'initial-eleven' %}?workspace={{ club_primary.id }}">11 inicial</a>
+            <a class="button" href="{% url 'match-action-page' %}?workspace={{ club_primary.id }}">Registro acciones</a>
+            <a class="button" href="{% url 'player-dashboard' %}?workspace={{ club_primary.id }}">Estadísticas</a>
+          </div>
+          {% if club_workspaces|length > 1 %}
+          <div class="muted" style="margin-top:0.85rem; font-size:0.82rem;">
+            Club activo: <strong style="color:var(--ink);">{{ club_primary.name }}</strong> · Cambia usando el selector de contexto (arriba a la izquierda) o entra desde Plataforma.
+          </div>
+          {% endif %}
+        </article>
+      </section>
+      {% endif %}
 
       <form class="search-bar" method="get">
         {% if browse_all and target_user %}
