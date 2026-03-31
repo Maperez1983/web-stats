@@ -342,6 +342,19 @@
         {% if roster_error %}
         <p style="color:#fecaca;">{{ roster_error }}</p>
         {% endif %}
+        <form method="post" enctype="multipart/form-data" class="roster-form" style="margin-bottom:0.75rem;">
+          {% csrf_token %}
+          <input type="hidden" name="form_action" value="crest_import_zip" />
+          <input type="hidden" name="active_tab" value="roster" />
+          <label style="grid-column:1 / -1;">
+            <span>Escudos (ZIP)</span>
+            <input type="file" name="crest_zip" accept=".zip" />
+            <small style="display:block;opacity:.75;margin-top:.25rem;">
+              Nombra los ficheros como <code>slug.png</code>, <code>external_id.png</code> o el nombre del equipo.
+            </small>
+          </label>
+          <button class="pill-button" type="submit" title="Importar escudos" aria-label="Importar escudos">Importar escudos</button>
+        </form>
         <form method="post" class="roster-form">
           {% csrf_token %}
           <input type="hidden" name="form_action" value="roster_add_or_update" />

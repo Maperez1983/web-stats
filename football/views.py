@@ -5624,8 +5624,138 @@ def admin_page(request):
         }:
             target_anchor = '#home-global' if form_action.startswith('carousel_') else '#usuarios-club'
             return redirect(f"{reverse('platform-overview')}{target_anchor}")
-        if form_action in {'roster_add_or_update', 'roster_deactivate', 'roster_reactivate'} and primary_team:
+        if form_action in {'roster_add_or_update', 'roster_deactivate', 'roster_reactivate', 'crest_import_zip'} and primary_team:
             active_tab = 'roster'
+            if form_action == 'crest_import_zip':
+                if not is_admin_user:
+                    roster_error = 'Solo administradores pueden subir escudos.'
+                else:
+                    uploaded_zip = request.FILES.get('crest_zip')
+                    if not uploaded_zip:
+                        roster_error = 'Sube un ZIP con los escudos (png/jpg/webp).'
+                    else:
+                        allowed_ext = {'.png', '.jpg', '.jpeg', '.webp'}
+                        group_teams = list(
+                            Team.objects
+                            .filter(group=primary_team.group)
+                            .only('id', 'name', 'slug', 'short_name', 'external_id', 'crest_url', 'crest_image')
+                        )
+
+                        def _team_keys(team_obj):
+                            candidates = set()
+                            for raw in (
+                                getattr(team_obj, 'slug', ''),
+                                getattr(team_obj, 'external_id', ''),
+                                getattr(team_obj, 'name', ''),
+                                getattr(team_obj, 'short_name', ''),
+                                getattr(team_obj, 'display_name', ''),
+                            ):
+                                val = str(raw or '').strip()
+                                if not val:
+                                    continue
+                                candidates.add(val.lower())
+                                candidates.add(normalize_label(val))
+                                candidates.add(_normalize_team_lookup_key(val))
+                            return {key for key in candidates if key}
+
+                        lookup = {}
+                        for team in group_teams:
+                            for key in _team_keys(team):
+                                lookup.setdefault(key, team)
+
+                        imported = 0
+                        unknown = []
+                        skipped = 0
+
+                        def _match_team(filename):
+                            stem = Path(filename).stem
+                            base = str(stem or '').strip()
+                            if not base:
+                                return None
+                            candidates = [
+                                base.lower(),
+                                normalize_label(base),
+                                _normalize_team_lookup_key(base),
+                            ]
+                            for key in candidates:
+                                if key and lookup.get(key):
+                                    return lookup[key]
+                            # Fuzzy: por inclusión (evita casos como "C.D. CANTORIA 2017 F.C.")
+                            base_key = _normalize_team_lookup_key(base)
+                            if base_key:
+                                for key, team_obj in lookup.items():
+                                    if key and (base_key in key or key in base_key):
+                                        return team_obj
+                            return None
+
+                        try:
+                            uploaded_zip.seek(0)
+                            with zipfile.ZipFile(uploaded_zip) as zf:
+                                for info in zf.infolist():
+                                    if info.is_dir():
+                                        continue
+                                    inner_name = Path(info.filename).name
+                                    ext = Path(inner_name).suffix.lower()
+                                    if ext not in allowed_ext:
+                                        skipped += 1
+                                        continue
+                                    if info.file_size and info.file_size > 5 * 1024 * 1024:
+                                        skipped += 1
+                                        continue
+                                    team_obj = _match_team(inner_name)
+                                    if not team_obj:
+                                        unknown.append(inner_name)
+                                        continue
+                                    try:
+                                        blob = zf.read(info)
+                                    except Exception:
+                                        skipped += 1
+                                        continue
+                                    if not blob:
+                                        skipped += 1
+                                        continue
+                                    content = ContentFile(blob)
+                                    content.name = inner_name
+                                    # Guardar en MEDIA (S3 si está activo).
+                                    try:
+                                        team_obj.crest_image.save(f'{team_obj.slug}{ext}', content, save=True)
+                                        if team_obj.crest_url:
+                                            team_obj.crest_url = ''
+                                            team_obj.save(update_fields=['crest_url'])
+                                        _invalidate_team_dashboard_caches(team_obj)
+                                        imported += 1
+                                    except Exception:
+                                        skipped += 1
+                        except zipfile.BadZipFile:
+                            roster_error = 'El archivo no es un ZIP válido.'
+                        except Exception:
+                            roster_error = 'No se pudieron importar los escudos.'
+
+                        if not roster_error:
+                            roster_message = f'Escudos importados: {imported}.'
+                            if skipped:
+                                roster_message += f' Saltados: {skipped}.'
+                            if unknown:
+                                unknown_preview = ', '.join(unknown[:6])
+                                roster_message += f' Sin equipo asociado: {unknown_preview}'
+                                if len(unknown) > 6:
+                                    roster_message += f' (+{len(unknown) - 6}).'
+                roster_players = list(Player.objects.filter(team=primary_team).order_by('name'))
+                return render(
+                    request,
+                    'football/admin.html',
+                    {
+                        'primary_team': primary_team,
+                        'team_name': getattr(primary_team, 'display_name', None) or getattr(primary_team, 'name', ''),
+                        'is_admin_user': is_admin_user,
+                        'active_tab': active_tab,
+                        'roster_message': roster_message,
+                        'roster_error': roster_error,
+                        'roster_players': roster_players,
+                        'actions_message': actions_message,
+                        'actions_error': actions_error,
+                    },
+                )
             player_id = _parse_int(request.POST.get('player_id'))
             name = (request.POST.get('name') or '').strip()
             number_raw = (request.POST.get('number') or '').strip()
