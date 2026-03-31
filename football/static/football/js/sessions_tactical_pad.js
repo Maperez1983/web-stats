@@ -1567,6 +1567,13 @@
 		      if (patternInvertYInput?.parentElement) patternInvertYInput.parentElement.hidden = !showYInvert;
 		    };
 		    const openPatternPopover = (axisOrGrid) => {
+		      const active = canvas.getActiveObject();
+		      if (!active) {
+		        setStatus('Selecciona un elemento para aplicar un patrón.', true);
+		        return;
+		      }
+		      // Evita doble overlay (menú + popover) tapando el campo.
+		      setCommandMenuOpen(false);
 		      if (axisOrGrid === 'grid') {
 		        patternAxis = 'x';
 		        if (patternTitle) patternTitle.textContent = 'Patrón en rejilla';
