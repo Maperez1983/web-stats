@@ -797,7 +797,8 @@ def player_photo_file(request, player_id):
     }.get(extension, 'application/octet-stream')
     response = FileResponse(file_field, content_type=content_type)
     response['Content-Disposition'] = f'inline; filename="{Path(storage_name).name}"'
-    response['Cache-Control'] = 'private, max-age=600'
+    # El fichero se sobrescribe con el mismo nombre (player-{id}.png), así que evitamos caché larga.
+    response['Cache-Control'] = 'private, max-age=60'
     return response
 
 
@@ -826,15 +827,29 @@ def home_carousel_image_file(request, image_id):
 
 
 def resolve_player_photo_url(request, player):
+    resolved_storage_name = ''
     for storage_name in _player_photo_storage_candidates(player):
         try:
             if default_storage.exists(storage_name):
-                url = reverse('player-photo-file', args=[player.id])
-                if request is None:
-                    return url
-                return request.build_absolute_uri(url)
+                resolved_storage_name = storage_name
+                break
         except Exception:
             logger.exception('No se pudo resolver la foto subida del jugador %s', getattr(player, 'id', ''))
+    if resolved_storage_name:
+        url = reverse('player-photo-file', args=[player.id])
+        version = ''
+        try:
+            modified = default_storage.get_modified_time(resolved_storage_name)
+            if modified:
+                version = str(int(modified.timestamp()))
+        except Exception:
+            version = ''
+        if version:
+            joiner = '&' if '?' in url else '?'
+            url = f'{url}{joiner}v={version}'
+        if request is None:
+            return url
+        return _build_public_media_url(request, url)
     static_path = resolve_player_photo_static_path(player)
     if not static_path:
         return ''
