@@ -21,6 +21,7 @@ urlpatterns = [
     path('share/task-pdf/<str:token>/', views.share_task_pdf_page, name='share-task-pdf'),
     path('api/share/task-pdf/create/', views.share_task_pdf_create, name='share-task-pdf-create'),
     path('api/share/revoke/<str:token>/', views.share_link_revoke, name='share-link-revoke'),
+    path('api/system/diagnostics/', views.system_diagnostics, name='system-diagnostics'),
     path('coach/', views.coach_overview_page, name='coach-detail'),
     path('player/<int:player_id>/', views.player_detail_page, name='player-detail'),
     path('player/<int:player_id>/photo/', views.player_photo_file, name='player-photo-file'),

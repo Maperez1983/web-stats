@@ -32,6 +32,7 @@ from django.core.cache import cache
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
+from django.db import connections
 from django.db import transaction
 from django.db.models import Count, Max, Q
 from django.db.utils import OperationalError, ProgrammingError
@@ -256,6 +257,46 @@ def session_keepalive(request):
     response = JsonResponse({'ok': True})
     response['Cache-Control'] = 'no-store'
     return response
+
+
+@login_required
+def system_diagnostics(request):
+    """Diagnóstico (solo admin) para comprobar persistencia en Render.
+
+    No expone secretos: únicamente vendor/engine y flags.
+    """
+    if not _is_admin_user(request.user):
+        return JsonResponse({'error': 'No autorizado'}, status=403)
+    default_db = settings.DATABASES.get('default', {}) if hasattr(settings, 'DATABASES') else {}
+    engine = str(default_db.get('ENGINE') or '').strip()
+    name = str(default_db.get('NAME') or '').strip()
+    vendor = ''
+    try:
+        vendor = str(getattr(connections['default'], 'vendor', '') or '')
+    except Exception:
+        vendor = ''
+    return JsonResponse(
+        {
+            'ok': True,
+            'database': {
+                'vendor': vendor,
+                'engine': engine,
+                # Solo devolvemos NAME en DEBUG o sqlite (en Postgres se oculta).
+                'name': name if (settings.DEBUG or vendor == 'sqlite') else '',
+                'uses_database_url': bool(os.getenv('DATABASE_URL', '').strip()),
+            },
+            'session': {
+                'engine': str(getattr(settings, 'SESSION_ENGINE', '') or '').strip(),
+                'cookie_name': str(getattr(settings, 'SESSION_COOKIE_NAME', '') or '').strip(),
+                'cookie_age': int(getattr(settings, 'SESSION_COOKIE_AGE', 0) or 0),
+                'save_every_request': bool(getattr(settings, 'SESSION_SAVE_EVERY_REQUEST', False)),
+            },
+            'csrf': {
+                'cookie_name': str(getattr(settings, 'CSRF_COOKIE_NAME', '') or '').strip(),
+                'trusted_origins_count': len(getattr(settings, 'CSRF_TRUSTED_ORIGINS', []) or []),
+            },
+        }
+    )
 
 SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "import_from_rfef.py"
 MANAGE_PY_DIR = SCRIPT_PATH.parents[1]
