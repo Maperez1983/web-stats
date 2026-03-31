@@ -3708,6 +3708,7 @@
     const resourcePanels = Array.from(document.querySelectorAll('.resource-panel'));
     const resourceDetails = document.getElementById('task-resource-details');
     const resourceSummaryLabel = document.getElementById('task-resource-summary-label');
+    const resourceHelper = document.querySelector('.resource-helper');
     // En escritorio ocultamos el <summary> y queremos que las pestañas estén visibles siempre.
     // Algunos navegadores no permiten "forzar" el contenido de <details> cuando está cerrado,
     // así que abrimos el <details> automáticamente en pantallas grandes.
@@ -3734,6 +3735,9 @@
       if (resourceSummaryLabel) {
         resourceSummaryLabel.textContent = normalized ? resourceLabelForKey(normalized) : 'Selecciona…';
       }
+      if (resourceHelper) {
+        resourceHelper.hidden = !!normalized;
+      }
     };
     resourceTabs.forEach((tab) => {
       tab.addEventListener('click', () => {
@@ -3749,8 +3753,16 @@
       });
     });
     if (resourceTabs.length && resourcePanels.length) {
-      // Arranca limpio: no mostramos recursos hasta que el usuario pulse una pestaña.
-      activateResourcePanel('');
+      // En escritorio mostramos por defecto "Recursos base" (más rápido).
+      // En móvil/tablet arrancamos cerrado para dejar más espacio al campo.
+      let initialResource = '';
+      try {
+        const isDesktop = window.matchMedia && window.matchMedia('(min-width: 980px)').matches;
+        initialResource = isDesktop ? 'base' : '';
+      } catch (error) {
+        initialResource = 'base';
+      }
+      activateResourcePanel(initialResource);
     }
 
     const panelKeyForObject = (object) => {
