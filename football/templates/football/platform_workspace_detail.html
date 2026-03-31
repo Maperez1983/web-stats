@@ -447,6 +447,15 @@
         {% if feedback %}
         <div class="message ok">{{ feedback }}</div>
         {% endif %}
+        {% if invite_link %}
+        <div class="message ok">
+          <div style="font-weight:800; margin-bottom:0.35rem;">Enlace de invitación</div>
+          <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+            <input type="text" value="{{ invite_link }}" readonly style="min-width:320px; flex:1; padding:10px 12px; border-radius:12px; border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.04); color:#e2e8f0;" onclick="this.select();" />
+            <button type="button" class="inline-btn" onclick="navigator.clipboard?.writeText('{{ invite_link }}');">Copiar</button>
+          </div>
+        </div>
+        {% endif %}
         {% if error %}
         <div class="message error">{{ error }}</div>
         {% endif %}
@@ -714,7 +723,7 @@
             </select>
             <button class="inline-btn" type="submit">Añadir miembro</button>
           </form>
-          <details style="margin-top:0.75rem;">
+          <details style="margin-top:0.75rem;" {% if invite_link %}open{% endif %}>
             <summary style="cursor:pointer;">Invitar usuario (crear enlace de acceso)</summary>
             <div class="panel-block" style="margin-top:0.6rem;">
               <form method="post" class="inline-form" style="flex-wrap:wrap; gap:0.5rem;">
