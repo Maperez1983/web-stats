@@ -4401,3 +4401,45 @@ class CoachOverviewTests(TestCase):
 
         analysis_response = self.client.get(f"{reverse('coach-cards')}?area=analysis")
         self.assertContains(analysis_response, reverse('analysis'))
+
+
+class TaskBuilderUiVisibilityTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username='builder-user',
+            email='builder@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_COACH)
+        team = Team.objects.create(name='Equipo pruebas', slug='equipo-pruebas', is_primary=True)
+        workspace = Workspace.objects.create(
+            name='Workspace pruebas',
+            slug='workspace-pruebas',
+            kind=Workspace.KIND_CLUB,
+            primary_team=team,
+            owner_user=self.user,
+            enabled_modules={'sessions': True},
+            is_active=True,
+        )
+        WorkspaceMembership.objects.create(
+            workspace=workspace,
+            user=self.user,
+            role=WorkspaceMembership.ROLE_MEMBER,
+            module_access={'sessions': True},
+        )
+
+    def test_task_builder_command_menu_is_hidden_by_default(self):
+        """
+        Regression: el atributo HTML `hidden` debe ocultar siempre el menú de comandos y el popover,
+        incluso si el CSS del autor define `display:`.
+        """
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse('sessions-task-create'))
+
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode('utf-8', errors='ignore')
+        self.assertIn('id="task-command-menu" hidden', html)
+        self.assertIn('id="task-pattern-popover" hidden', html)
+        self.assertIn('.command-menu[hidden]', html)
+        self.assertIn('.pattern-popover[hidden]', html)
