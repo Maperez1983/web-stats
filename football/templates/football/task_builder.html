@@ -688,6 +688,21 @@
       .resource-panel[hidden] {
         display: none !important;
       }
+      .token-meta {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 140px;
+        gap: 10px;
+        align-items: end;
+      }
+      .token-meta[hidden] {
+        display: none !important;
+      }
+      @media (max-width: 760px) {
+        .token-meta {
+          grid-template-columns: 1fr;
+        }
+      }
       .pitch-stage {
         position: relative;
         width: 100%;
@@ -1495,6 +1510,16 @@
                         <p id="task-selection-summary">Selecciona un recurso para ajustarlo.</p>
                       </div>
 	                      <div class="selection-grid">
+	                        <div class="token-meta" id="task-token-meta" hidden>
+	                          <label>
+	                            Nombre
+	                            <input type="text" id="task-token-name" placeholder="Ej. Cristian" maxlength="40" />
+	                          </label>
+	                          <label>
+	                            Dorsal
+	                            <input type="text" id="task-token-number" placeholder="Ej. 9" inputmode="numeric" maxlength="2" />
+	                          </label>
+	                        </div>
 	                        <label>
 	                          Longitud / ancho
 	                          <input type="range" id="task-scale-x" min="40" max="260" step="5" value="100" />

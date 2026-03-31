@@ -534,6 +534,9 @@
 	    const strokeWidthRow = document.getElementById('task-stroke-width-row');
 		    const strokeWidthInput = document.getElementById('task-stroke-width');
 		    const strokePresetsRow = document.getElementById('task-stroke-presets');
+		    const tokenMetaRow = document.getElementById('task-token-meta');
+		    const tokenNameInput = document.getElementById('task-token-name');
+		    const tokenNumberInput = document.getElementById('task-token-number');
 		    const commandBar = document.getElementById('task-command-bar');
 		    const commandMoreBtn = document.getElementById('task-command-more');
 		    const commandMenu = document.getElementById('task-command-menu');
@@ -1215,6 +1218,9 @@
 	      if (!enabled) {
 	        selectionToolbar.hidden = true;
 	        selectionToolbar.querySelectorAll('input,button').forEach((node) => { node.disabled = true; });
+	        if (tokenMetaRow) tokenMetaRow.hidden = true;
+	        if (tokenNameInput) tokenNameInput.value = '';
+	        if (tokenNumberInput) tokenNumberInput.value = '';
 	        selectionSummary.textContent = 'Selecciona un recurso para ajustarlo.';
 	        scaleXInput.value = '100';
 	        scaleYInput.value = '100';
@@ -1243,6 +1249,19 @@
 	        strokeWidthInput.disabled = !canStroke;
 	        if (canStroke) strokeWidthInput.value = String(Math.round(strokeWidth));
 	      }
+	      const isToken = safeText(active?.data?.kind) === 'token';
+	      if (tokenMetaRow && tokenNameInput && tokenNumberInput) {
+	        tokenMetaRow.hidden = !isToken;
+	        if (isToken) {
+	          const storedName = safeText(active?.data?.playerName, '');
+	          const storedNumber = safeText(active?.data?.playerNumber, '');
+	          tokenNameInput.value = storedName || safeText(findTokenChild(active, 'token_name', (child) => child?.type === 'text' && Math.abs((Number(child.top) || 0) + 35) <= 5)?.text, '');
+	          tokenNumberInput.value = storedNumber || safeText(findTokenChild(active, 'token_number', (child) => child?.type === 'text' && (Number(child.fontSize) || 0) >= 8)?.text, '');
+	        } else {
+	          tokenNameInput.value = '';
+	          tokenNumberInput.value = '';
+	        }
+	      }
 	    };
     const commitObjectChange = (message) => {
       canvas.requestRenderAll();
@@ -1251,6 +1270,89 @@
       refreshLivePreview();
       if (message) setStatus(message);
     };
+
+	    const isTokenGroup = (object) => safeText(object?.data?.kind) === 'token';
+	    const sanitizeTokenNumber = (raw, fallback) => {
+	      const cleaned = safeText(raw).toUpperCase().replace(/[^0-9A-Z]/g, '').slice(0, 2);
+	      return cleaned || safeText(fallback).toUpperCase().slice(0, 2);
+	    };
+	    const computeInitials = (name, fallback) => {
+	      const base = safeText(name);
+	      if (!base) return safeText(fallback);
+	      const letters = base
+	        .split(/\s+/)
+	        .map((piece) => safeText(piece)[0] || '')
+	        .join('')
+	        .toUpperCase()
+	        .slice(0, 2);
+	      return letters || safeText(fallback);
+	    };
+	    const findTokenChild = (group, role, fallbackFinder) => {
+	      if (!group) return null;
+	      const objects = Array.isArray(group._objects) ? group._objects : (typeof group.getObjects === 'function' ? group.getObjects() : []);
+	      const wanted = safeText(role);
+	      if (wanted) {
+	        const byRole = objects.find((child) => safeText(child?.data?.role) === wanted);
+	        if (byRole) return byRole;
+	      }
+	      if (typeof fallbackFinder === 'function') {
+	        return objects.find((child) => fallbackFinder(child)) || null;
+	      }
+	      return null;
+	    };
+	    const updateTokenAppearance = (group, { name, number }) => {
+	      if (!group || !isTokenGroup(group)) return;
+	      const tokenKind = safeText(group?.data?.token_kind);
+	      const defaultNumber = tokenKind === 'goalkeeper_local' ? 'GK' : 'J';
+	      const nextNumber = sanitizeTokenNumber(number, defaultNumber);
+	      const nextName = safeText(name);
+	      const displayName = shortPlayerName(
+	        nextName || (tokenKind === 'goalkeeper_local' ? 'Portero' : (tokenKind === 'player_rival' ? 'Rival' : 'Jugador')),
+	      );
+
+	      group.data = group.data || {};
+	      group.data.playerName = nextName;
+	      group.data.playerNumber = nextNumber;
+
+	      const isLocalStyle = tokenKind === 'player_local' || tokenKind === 'player_away';
+	      const numberText = findTokenChild(
+	        group,
+	        'token_number',
+	        (child) => child?.type === 'text'
+	          && Math.abs((Number(child.top) || 0) - (isLocalStyle ? 0 : 26)) <= (isLocalStyle ? 4 : 8)
+	          && (Number(child.fontSize) || 0) >= (isLocalStyle ? 14 : 8),
+	      );
+	      if (numberText && typeof numberText.set === 'function') numberText.set('text', nextNumber);
+
+	      const nameText = findTokenChild(
+	        group,
+	        'token_name',
+	        (child) => child?.type === 'text' && Math.abs((Number(child.top) || 0) + 35) <= 5 && (Number(child.fontSize) || 0) <= 12,
+	      );
+	      if (nameText && typeof nameText.set === 'function') nameText.set('text', displayName);
+
+	      const nameBg = findTokenChild(
+	        group,
+	        'token_name_bg',
+	        (child) => child?.type === 'rect' && Math.abs((Number(child.top) || 0) + 35) <= 5 && (Number(child.height) || 0) >= 16,
+	      );
+	      if (nameBg && typeof nameBg.set === 'function') {
+	        const width = Math.max(42, Math.min(110, (displayName.length * 6.4) + 14));
+	        nameBg.set('width', width);
+	      }
+
+	      const initialsText = findTokenChild(
+	        group,
+	        'token_initials',
+	        (child) => child?.type === 'text' && Math.abs((Number(child.top) || 0) - 0) <= 4 && (Number(child.fontSize) || 0) >= 10 && (Number(child.fontSize) || 0) <= 14,
+	      );
+	      if (initialsText && typeof initialsText.set === 'function') initialsText.set('text', computeInitials(nextName, nextNumber));
+
+	      try {
+	        if (typeof group._calcBounds === 'function') group._calcBounds();
+	        if (typeof group._updateObjectsCoords === 'function') group._updateObjectsCoords();
+	      } catch (error) { /* ignore */ }
+	    };
 	    const applyToActiveFlexibleObject = (callback, message) => {
 	      const active = activeInspectableObject();
 	      if (!active) return;
@@ -1262,6 +1364,35 @@
 	      active.setCoords();
 	      commitObjectChange(message);
 	    };
+
+	    const applyTokenMetaFromUi = () => {
+	      if (!tokenNameInput || !tokenNumberInput) return;
+	      applyToActiveFlexibleObject((active) => {
+	        if (!isTokenGroup(active)) return;
+	        updateTokenAppearance(active, { name: tokenNameInput.value, number: tokenNumberInput.value });
+	      }, 'Etiqueta actualizada.');
+	    };
+	    tokenNameInput?.addEventListener('blur', applyTokenMetaFromUi);
+	    tokenNumberInput?.addEventListener('blur', applyTokenMetaFromUi);
+	    const handleTokenInputKeydown = (event) => {
+	      const key = String(event.key || '').toLowerCase();
+	      if (key === 'enter') {
+	        event.preventDefault();
+	        applyTokenMetaFromUi();
+	      }
+	      if (key === 'escape') {
+	        event.preventDefault();
+	        syncInspector();
+	      }
+	    };
+	    tokenNameInput?.addEventListener('keydown', handleTokenInputKeydown);
+	    tokenNumberInput?.addEventListener('keydown', handleTokenInputKeydown);
+	    tokenNumberInput?.addEventListener('input', () => {
+	      if (!tokenNumberInput) return;
+	      const raw = String(tokenNumberInput.value || '');
+	      const cleaned = raw.toUpperCase().replace(/[^0-9A-Z]/g, '').slice(0, 2);
+	      if (raw !== cleaned) tokenNumberInput.value = cleaned;
+	    });
 
 	    const getSelectionObjects = () => {
 	      const active = canvas.getActiveObject();
@@ -2257,8 +2388,12 @@
 	          ? COLORS.rival
 	          : COLORS.local;
       const label = player?.number ? String(player.number).slice(0, 2) : (kind === 'goalkeeper_local' ? 'GK' : 'J');
-      const displayName = shortPlayerName(player?.name || (kind === 'player_rival' ? 'Rival' : 'Jugador'));
-      const initials = safeText(player?.name, kind === 'player_rival' ? 'Rival' : 'Jugador')
+      const playerName = safeText(
+        player?.name,
+        kind === 'goalkeeper_local' ? 'Portero' : (kind === 'player_rival' ? 'Rival' : 'Jugador'),
+      );
+      const displayName = shortPlayerName(playerName);
+      const initials = safeText(playerName, kind === 'player_rival' ? 'Rival' : 'Jugador')
         .split(/\s+/)
         .map((piece) => piece[0] || '')
         .join('')
@@ -2302,7 +2437,7 @@
 	            tokenParts.push(stripe);
 	          });
 	        }
-	        tokenParts.push(new fabric.Text(label, {
+	        const numberText = new fabric.Text(label, {
 	          originX: 'center',
 	          originY: 'center',
 	          left: 0,
@@ -2312,8 +2447,10 @@
 	          fill: isAway ? '#0b1220' : '#ffffff',
 	          stroke: '#102734',
 	          strokeWidth: 0.45,
-	        }));
-        tokenParts.push(new fabric.Rect({
+	        });
+	        numberText.data = { role: 'token_number' };
+	        tokenParts.push(numberText);
+        const nameBg = new fabric.Rect({
           originX: 'center',
           originY: 'center',
           left: 0,
@@ -2325,8 +2462,10 @@
           fill: 'rgba(15,23,42,0.94)',
           stroke: 'rgba(255,255,255,0.14)',
           strokeWidth: 1,
-        }));
-        tokenParts.push(new fabric.Text(displayName, {
+        });
+        nameBg.data = { role: 'token_name_bg' };
+        tokenParts.push(nameBg);
+        const nameText = new fabric.Text(displayName, {
           originX: 'center',
           originY: 'center',
           left: 0,
@@ -2334,7 +2473,9 @@
           fontSize: 10,
           fontWeight: '700',
           fill: '#f8fafc',
-        }));
+        });
+        nameText.data = { role: 'token_name' };
+        tokenParts.push(nameText);
       } else {
         const circle = new fabric.Circle({
           radius: kind === 'goalkeeper_local' ? 24 : 21,
@@ -2348,7 +2489,7 @@
           top: 0,
         });
         tokenParts.push(circle);
-        tokenParts.push(new fabric.Text(initials, {
+        const initialsText = new fabric.Text(initials, {
           originX: 'center',
           originY: 'center',
           left: 0,
@@ -2356,8 +2497,10 @@
           fontSize: 12,
           fontWeight: '700',
           fill: palette.text,
-        }));
-        tokenParts.push(new fabric.Text(label, {
+        });
+        initialsText.data = { role: 'token_initials' };
+        tokenParts.push(initialsText);
+        const labelText = new fabric.Text(label, {
           originX: 'center',
           originY: 'center',
           left: 0,
@@ -2366,7 +2509,35 @@
           fontWeight: '700',
           fill: '#ffffff',
           backgroundColor: 'rgba(15,23,42,0.92)',
-        }));
+        });
+        labelText.data = { role: 'token_number' };
+        tokenParts.push(labelText);
+        const nameBg = new fabric.Rect({
+          originX: 'center',
+          originY: 'center',
+          left: 0,
+          top: -35,
+          width: Math.max(42, Math.min(90, (displayName.length * 6.4) + 14)),
+          height: 18,
+          rx: 7,
+          ry: 7,
+          fill: 'rgba(15,23,42,0.94)',
+          stroke: 'rgba(255,255,255,0.14)',
+          strokeWidth: 1,
+        });
+        nameBg.data = { role: 'token_name_bg' };
+        tokenParts.push(nameBg);
+        const nameText = new fabric.Text(displayName, {
+          originX: 'center',
+          originY: 'center',
+          left: 0,
+          top: -35,
+          fontSize: 10,
+          fontWeight: '700',
+          fill: '#f8fafc',
+        });
+        nameText.data = { role: 'token_name' };
+        tokenParts.push(nameText);
       }
 	      return new fabric.Group(tokenParts, {
         left,
@@ -2378,7 +2549,8 @@
 	          token_kind: kind,
 	          color: kind === 'player_local' ? '#1f7a38' : (kind === 'player_away' ? '#facc15' : palette.fill),
 	          playerId: player?.id || '',
-	          playerName: safeText(player?.name, ''),
+	          playerName,
+	          playerNumber: safeText(label),
 	        },
 	      });
 	    };
