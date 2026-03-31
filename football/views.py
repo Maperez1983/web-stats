@@ -269,11 +269,14 @@ DASHBOARD_CACHE_KEY_PREFIX = "football:dashboard_payload"
 DASHBOARD_CACHE_SECONDS = int(os.getenv('DASHBOARD_CACHE_SECONDS', '600'))
 PLAYER_DASHBOARD_CACHE_KEY_PREFIX = "football:player_dashboard"
 PLAYER_DASHBOARD_CACHE_SECONDS = int(os.getenv('PLAYER_DASHBOARD_CACHE_SECONDS', '600'))
+PLAYER_PHOTO_VERSION_CACHE_KEY_PREFIX = "football:player_photo_version"
+PLAYER_PHOTO_VERSION_CACHE_SECONDS = int(os.getenv('PLAYER_PHOTO_VERSION_CACHE_SECONDS', '86400'))
 TEAM_METRICS_CACHE_SECONDS = int(os.getenv('TEAM_METRICS_CACHE_SECONDS', '900'))
 PLAYER_METRICS_CACHE_SECONDS = int(os.getenv('PLAYER_METRICS_CACHE_SECONDS', '900'))
 RFAF_LIVE_FETCH_ON_REQUEST = str(
     os.getenv('RFAF_LIVE_FETCH_ON_REQUEST', '0')
 ).strip().lower() in {'1', 'true', 'yes', 'on'}
+UNIVERSO_API_TIMEOUT_SECONDS = max(1, int(os.getenv('UNIVERSO_API_TIMEOUT_SECONDS', '8') or 8))
 
 TASK_MATERIAL_LIBRARY = [
     {'label': 'CONO', 'title': 'Cono alto', 'kind': 'cone', 'category': 'delimitacion', 'icon': '△'},
@@ -758,7 +761,16 @@ def save_player_photo(player, uploaded_photo):
                     default_storage.delete(candidate)
             except Exception:
                 logger.exception('No se pudo limpiar una foto previa del jugador %s', player.id)
-        return default_storage.save(target_name, content)
+        saved_name = default_storage.save(target_name, content)
+        try:
+            cache.set(
+                f'{PLAYER_PHOTO_VERSION_CACHE_KEY_PREFIX}:{player.id}',
+                int(timezone.now().timestamp()),
+                timeout=PLAYER_PHOTO_VERSION_CACHE_SECONDS,
+            )
+        except Exception:
+            pass
+        return saved_name
     except Exception:
         logger.exception('No se pudo guardar la foto del jugador %s', player.id)
         return ''
@@ -840,12 +852,28 @@ def resolve_player_photo_url(request, player):
     if resolved_storage_name:
         url = reverse('player-photo-file', args=[player.id])
         version = ''
+        cache_key = f'{PLAYER_PHOTO_VERSION_CACHE_KEY_PREFIX}:{player.id}'
         try:
-            modified = default_storage.get_modified_time(resolved_storage_name)
-            if modified:
-                version = str(int(modified.timestamp()))
+            cached_version = cache.get(cache_key)
+            if cached_version:
+                version = str(int(cached_version))
         except Exception:
             version = ''
+        if not version:
+            try:
+                modified = default_storage.get_modified_time(resolved_storage_name)
+                if modified:
+                    version = str(int(modified.timestamp()))
+            except Exception:
+                version = ''
+            if not version:
+                # Fallback: evita que el navegador se quede pegado a una versión antigua
+                # cuando el storage no expone metadatos (o falla) y se reutiliza el mismo nombre.
+                version = str(int(timezone.now().timestamp()))
+            try:
+                cache.set(cache_key, int(version), timeout=PLAYER_PHOTO_VERSION_CACHE_SECONDS)
+            except Exception:
+                pass
         if version:
             joiner = '&' if '?' in url else '?'
             url = f'{url}{joiner}v={version}'
@@ -1669,11 +1697,20 @@ def _find_universo_next_match_for_context(context, primary_team):
             round_id = str(row.get('codjornada') or '').strip()
             if round_id and round_id not in rounds:
                 rounds.append(round_id)
-    checked = 0
-    for round_id in rounds:
-        if checked >= 6:
-            break
-        checked += 1
+
+    # Universo suele devolver `listado_jornadas` desde la jornada 1, por lo que si iteramos "en crudo"
+    # acabamos consultando sólo jornadas pasadas. Priorizamos jornada actual y siguientes.
+    numeric_rounds = [rid for rid in rounds if str(rid).isdigit()]
+    if numeric_rounds:
+        ordered_unique = sorted({rid for rid in numeric_rounds}, key=lambda value: int(value))
+        start_index = 0
+        if current_round.isdigit() and current_round in ordered_unique:
+            start_index = ordered_unique.index(current_round)
+        rounds_to_check = ordered_unique[start_index:start_index + 6]
+    else:
+        rounds_to_check = rounds[:6]
+
+    for round_id in rounds_to_check:
         payload = current_payload if round_id == current_round else _fetch_universo_live_results(group_key, round_id)
         if not payload:
             continue
@@ -3191,7 +3228,7 @@ def _universo_api_post(endpoint, data=None):
         'User-Agent': '2j-football-intelligence/1.0',
     }
     try:
-        response = requests.post(url, headers=headers, data=data or {}, timeout=25)
+        response = requests.post(url, headers=headers, data=data or {}, timeout=UNIVERSO_API_TIMEOUT_SECONDS)
         response.raise_for_status()
         payload = response.json()
     except Exception:
@@ -17097,6 +17134,14 @@ def compute_player_dashboard(primary_team, force_refresh=False):
             if overlap >= 2:
                 return entry
         return {}
+
+    roster_entry_by_player_id = {player.id: (find_roster_entry(player.name, roster_cache) or {}) for player in roster_players}
+    manual_entry_by_player_id = manual_overrides if isinstance(manual_overrides, dict) else {}
+    universo_entry_by_player_id = {player.id: (_find_universo_entry(player) or {}) for player in roster_players}
+    player_photo_url_by_id = {}
+    for player in roster_players:
+        photo_path = resolve_player_photo_static_path(player)
+        player_photo_url_by_id[player.id] = resolve_player_photo_url(None, player) or (static(photo_path) if photo_path else '')
     preferred_sources = preferred_event_source_by_match(primary_team)
     lineup_by_match = {}
     convocation_qs = (
@@ -17144,8 +17189,7 @@ def compute_player_dashboard(primary_team, force_refresh=False):
         player = event.player
         if not player:
             continue
-        photo_path = resolve_player_photo_static_path(player)
-        resolved_photo_url = resolve_player_photo_url(None, player) or (static(photo_path) if photo_path else '')
+        resolved_photo_url = player_photo_url_by_id.get(player.id, '')
         match = event.match
         preferred_source = preferred_sources.get(match.id if match else None)
         event_source = (event.source_file or '').strip().lower()
@@ -17158,9 +17202,9 @@ def compute_player_dashboard(primary_team, force_refresh=False):
         if signature in seen_signatures:
             continue
         seen_signatures.add(signature)
-        roster_entry = find_roster_entry(player.name, roster_cache) or {}
-        manual_entry = manual_overrides.get(player.id, {})
-        universo_entry = _find_universo_entry(player) or {}
+        roster_entry = roster_entry_by_player_id.get(player.id, {})
+        manual_entry = manual_entry_by_player_id.get(player.id, {})
+        universo_entry = universo_entry_by_player_id.get(player.id, {})
         base_pj = (
             manual_entry.get('pj')
             if manual_entry.get('pj') is not None
