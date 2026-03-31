@@ -986,7 +986,8 @@
       const kind = safeText(object?.data?.kind);
       if (kind === 'token' && Array.isArray(object._objects)) {
         // Local token: devuelve el color de la franja si existe.
-        const stripe = object._objects.find((child) => child && child.type === 'rect' && Number(child.width) <= 14 && Number(child.height) >= 40);
+        const stripe = object._objects.find((child) => child && child.type === 'rect' && safeText(child?.data?.role) === 'token_stripe')
+          || object._objects.find((child) => child && child.type === 'rect' && Number(child.width) <= 14 && Number(child.height) >= 40 && parseColorToHex(child.fill, '') !== '#f8fafc');
         const stripeFill = stripe ? parseColorToHex(stripe.fill, '') : '';
         if (stripeFill) return stripeFill;
         const circle = object._objects.find((child) => child && child.type === 'circle');
@@ -1009,10 +1010,11 @@
 	      if (!group || !Array.isArray(group._objects)) return;
 	      setObjectData(group, { color: colorHex });
 	      const tokenKind = safeText(group?.data?.token_kind);
-	      const stripeRects = group._objects.filter((child) => child && child.type === 'rect' && Number(child.width) <= 14 && Number(child.height) >= 40);
-	      const treatAsLocal = tokenKind === 'player_local' || (!tokenKind && stripeRects.length >= 2);
+	      const stripeRects = group._objects.filter((child) => child && child.type === 'rect' && Number(child.height) >= 40);
+	      const paintableStripes = stripeRects.filter((child) => safeText(child?.data?.role) === 'token_stripe');
+	      const treatAsLocal = tokenKind === 'player_local' || tokenKind === 'goalkeeper_local' || (!tokenKind && paintableStripes.length >= 2);
 	      if (treatAsLocal) {
-	        stripeRects.forEach((child) => child.set({ fill: colorHex }));
+	        paintableStripes.forEach((child) => child.set({ fill: colorHex }));
 	        group.dirty = true;
 	        return;
 	      }
@@ -2468,7 +2470,7 @@
 	          radius,
 	          fill: isAway ? '#facc15' : '#ffffff',
 	          stroke: '#e2e8f0',
-	          strokeWidth: 3,
+	          strokeWidth: 2,
 	          originX: 'center',
 	          originY: 'center',
 	          left: 0,
@@ -2477,30 +2479,35 @@
 	        });
 	        tokenParts.push(baseCircle);
 	        if (!isAway) {
-	          [-13, 0, 13].forEach((offset) => {
+	          const stripeWidth = 8;
+	          const stripeHeight = 48;
+	          const stripeCount = Math.ceil((radius * 2) / stripeWidth) + 1;
+	          const start = (-radius) + (stripeWidth / 2);
+	          for (let i = 0; i < stripeCount; i += 1) {
+	            const isGreen = i % 2 === 0;
 	            const stripe = new fabric.Rect({
-	              left: offset,
+	              left: start + (i * stripeWidth),
 	              top: 0,
-	              width: 10,
-	              height: 48,
-	              fill: '#1f7a38',
+	              width: stripeWidth,
+	              height: stripeHeight,
+	              fill: isGreen ? '#0f7a35' : '#f8fafc',
 	              originX: 'center',
 	              originY: 'center',
 	            });
+	            if (isGreen) stripe.data = { role: 'token_stripe' };
 	            stripe.clipPath = chipClip;
 	            tokenParts.push(stripe);
-	          });
+	          }
 	        }
 	        const numberText = new fabric.Text(label, {
 	          originX: 'center',
 	          originY: 'center',
 	          left: 0,
 	          top: 0,
-	          fontSize: 17,
+	          fontSize: 16,
 	          fontWeight: '900',
 	          fill: isAway ? '#0b1220' : '#ffffff',
-	          stroke: '#102734',
-	          strokeWidth: 0.45,
+	          shadow: 'rgba(15,23,42,0.65) 0 1px 2px',
 	        });
 	        numberText.data = { role: 'token_number' };
 	        tokenParts.push(numberText);
@@ -2848,6 +2855,7 @@
 	        name.textContent = shortPlayerName(player.name);
 	        const disk = document.createElement('span');
 	        disk.className = 'token-disk';
+	        if (kind === 'goalkeeper_local') disk.classList.add('is-goalkeeper');
 	        const number = document.createElement('span');
 	        number.className = 'token-number';
 	        number.textContent = kind === 'goalkeeper_local' ? 'GK' : (player.number ? String(player.number).slice(0, 2) : 'J');
