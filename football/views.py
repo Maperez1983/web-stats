@@ -25,7 +25,7 @@ from types import SimpleNamespace
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
-from django.contrib.auth import login as auth_login
+from django.contrib.auth import login as auth_login, update_session_auth_hash
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.hashers import make_password, check_password
 from django.core.cache import cache
@@ -4678,6 +4678,7 @@ def _split_full_name(value):
 
 
 @login_required
+@login_required
 def platform_overview_page(request):
     if not _can_access_platform(request.user):
         return HttpResponse('No tienes permisos para acceder a la plataforma.', status=403)
@@ -5005,6 +5006,10 @@ def platform_overview_page(request):
                 if password:
                     update_fields.append('password')
                 user_obj.save(update_fields=update_fields)
+                # Si el admin se cambia su propia contraseña desde este panel,
+                # Django invalida la sesión (auth hash). Mantén la sesión activa.
+                if password and request.user.is_authenticated and user_obj.id == request.user.id:
+                    update_session_auth_hash(request, user_obj)
                 AppUserRole.objects.update_or_create(user=user_obj, defaults={'role': role_value})
                 if role_value == AppUserRole.ROLE_TASK_STUDIO:
                     _ensure_task_studio_workspace(user_obj)
