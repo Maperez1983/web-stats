@@ -3432,38 +3432,71 @@
       runNext();
     };
 
-		    const buildPreviewData = (options = {}) => new Promise((resolve) => {
-		      const sourceWidth = Math.round(canvas.getWidth());
-		      const sourceHeight = Math.round(canvas.getHeight());
-		      // En iPad conviene limitar el tamaño para que no bloquee el hilo principal.
-		      const maxPreviewWidth = clamp(Number(options.maxWidth) || 720, 480, 4096);
-		      const ratio = sourceWidth > maxPreviewWidth ? (maxPreviewWidth / sourceWidth) : 1;
-		      const mime = safeText(options.mime, 'image/png').toLowerCase();
-		      const quality = clamp(Number(options.quality) || 0.92, 0.5, 0.98);
-	      const output = document.createElement('canvas');
-	      output.width = Math.max(320, Math.round(sourceWidth * ratio));
-	      output.height = Math.max(180, Math.round(sourceHeight * ratio));
+			    const buildPreviewData = (options = {}) => new Promise((resolve) => {
+			      const sourceWidth = Math.round(canvas.getWidth());
+			      const sourceHeight = Math.round(canvas.getHeight());
+			      // En iPad conviene limitar el tamaño para que no bloquee el hilo principal.
+			      const maxPreviewWidth = clamp(Number(options.maxWidth) || 720, 480, 4096);
+			      // Para PDF necesitamos HD real: si el lienzo en pantalla mide 1200-1800px, queremos
+			      // generar una imagen de 3200-4096px (ratio > 1). Con Fabric, usamos `multiplier`
+			      // para renderizar nítido (no un simple upscale).
+			      const ratio = clamp((maxPreviewWidth / Math.max(1, sourceWidth)), 0.25, 4);
+			      const mime = safeText(options.mime, 'image/png').toLowerCase();
+			      const quality = clamp(Number(options.quality) || 0.92, 0.5, 0.98);
+		      const output = document.createElement('canvas');
+		      output.width = Math.max(320, Math.round(sourceWidth * ratio));
+		      output.height = Math.max(180, Math.round(sourceHeight * ratio));
 	      const context = output.getContext('2d');
 	      if (!context) {
 	        resolve('');
 	        return;
 	      }
       // Fondo sólido para que la preview y el PDF no muestren "barras" por transparencia.
-      context.fillStyle = '#ffffff';
-      context.fillRect(0, 0, output.width, output.height);
-      const svgMarkup = new XMLSerializer().serializeToString(svgSurface);
-      const blob = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' });
-      const blobUrl = URL.createObjectURL(blob);
-	      const image = new Image();
-		      image.onload = () => {
-		        context.drawImage(image, 0, 0, output.width, output.height);
-		        context.drawImage(canvas.lowerCanvasEl, 0, 0, output.width, output.height);
+	      context.fillStyle = '#ffffff';
+	      context.fillRect(0, 0, output.width, output.height);
+
+	      // Renderiza la capa Fabric en alta resolución (sin perder nitidez).
+	      let overlayUrl = '';
+	      try {
+	        // Siempre generamos la capa como PNG para conservar transparencia (si la hacemos JPEG,
+	        // la pizarra pierde alpha y tapa el césped al componer).
+	        const format = 'png';
+	        overlayUrl = canvas.toDataURL({
+	          format,
+	          quality,
+	          multiplier: ratio,
+	          enableRetinaScaling: false,
+	        });
+	      } catch (error) {
+	        overlayUrl = '';
+	      }
+
+	      const svgMarkup = new XMLSerializer().serializeToString(svgSurface);
+	      const blob = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' });
+	      const blobUrl = URL.createObjectURL(blob);
+		      const pitchImage = new Image();
+		      const overlayImage = new Image();
+		      let pitchLoaded = false;
+		      let overlayLoaded = false;
+		      let overlayFailed = false;
+		      const finish = () => {
+		        if (!pitchLoaded) return;
+		        if (overlayUrl && !overlayLoaded && !overlayFailed) return;
+		        if (pitchImage && pitchImage.complete) {
+		          try { context.drawImage(pitchImage, 0, 0, output.width, output.height); } catch (error) { /* ignore */ }
+		        }
+		        if (overlayUrl && overlayLoaded && overlayImage && overlayImage.complete) {
+		          try { context.drawImage(overlayImage, 0, 0, output.width, output.height); } catch (error) { /* ignore */ }
+		        } else {
+		          // Fallback: si no pudimos generar HD con Fabric, usamos el canvas visible.
+		          try { context.drawImage(canvas.lowerCanvasEl, 0, 0, output.width, output.height); } catch (error) { /* ignore */ }
+		        }
 		        URL.revokeObjectURL(blobUrl);
-		        // Recorta a la caja real del rectángulo de juego (evita grandes márgenes vacíos
-		        // en superficies parciales que luego hacen que en el PDF el campo salga "pequeñísimo").
-		        try {
-		          const pitchBoxRaw = safeText(svgSurface.getAttribute('data-pitch-box'));
-		          const viewBoxRaw = safeText(svgSurface.getAttribute('viewBox'));
+			        // Recorta a la caja real del rectángulo de juego (evita grandes márgenes vacíos
+			        // en superficies parciales que luego hacen que en el PDF el campo salga "pequeñísimo").
+			        try {
+			          const pitchBoxRaw = safeText(svgSurface.getAttribute('data-pitch-box'));
+			          const viewBoxRaw = safeText(svgSurface.getAttribute('viewBox'));
 		          const boxParts = pitchBoxRaw.split(/\s+/).map((v) => Number(v)).filter((n) => Number.isFinite(n));
 		          const vbParts = viewBoxRaw.split(/\s+/).map((v) => Number(v)).filter((n) => Number.isFinite(n));
 		          if (boxParts.length >= 4 && vbParts.length >= 4) {
@@ -3501,23 +3534,24 @@
 		              }
 		            }
 		          }
-		        } catch (error) { /* ignore */ }
-		        try {
-		          resolve(output.toDataURL(mime === 'image/jpeg' ? 'image/jpeg' : 'image/png', quality));
-		        } catch (error) {
-		          resolve(output.toDataURL('image/png', 0.92));
-		        }
+			        } catch (error) { /* ignore */ }
+			        try {
+			          resolve(output.toDataURL(mime === 'image/jpeg' ? 'image/jpeg' : 'image/png', quality));
+			        } catch (error) {
+			          resolve(output.toDataURL('image/png', 0.92));
+			        }
 		      };
-	      image.onerror = () => {
-	        URL.revokeObjectURL(blobUrl);
-	        try {
-	          resolve(canvas.lowerCanvasEl.toDataURL(mime === 'image/jpeg' ? 'image/jpeg' : 'image/png', quality));
-	        } catch (error) {
-	          resolve(canvas.lowerCanvasEl.toDataURL('image/png', 0.92));
-	        }
-	      };
-	      image.src = blobUrl;
-	    });
+		      pitchImage.onload = () => { pitchLoaded = true; finish(); };
+		      pitchImage.onerror = () => { pitchLoaded = true; finish(); };
+		      if (overlayUrl) {
+		        overlayImage.onload = () => { overlayLoaded = true; finish(); };
+		        overlayImage.onerror = () => { overlayFailed = true; finish(); };
+		        overlayImage.src = overlayUrl;
+		      } else {
+		        overlayFailed = true;
+		      }
+		      pitchImage.src = blobUrl;
+		    });
     const applyLivePreview = (dataUrl) => {
       if (!livePreviewImg || !livePreviewPlaceholder) return;
       if (!dataUrl) {
@@ -3655,10 +3689,11 @@
         previewWin.document.close();
       }
 
-		      await syncHiddenBuilderFields({
-		        previewOptions: { maxWidth: 3200, mime: 'image/jpeg', quality: 0.98 },
-		        applyLivePreview: false,
-		      });
+			      await syncHiddenBuilderFields({
+			        // PNG para mantener líneas nítidas y sin artefactos JPEG en el PDF.
+			        previewOptions: { maxWidth: 4096, mime: 'image/png', quality: 0.98 },
+			        applyLivePreview: false,
+			      });
       const tempForm = document.createElement('form');
       tempForm.method = 'post';
       // actionUrl puede incluir query (?user=... o ?workspace=...). Si concatenamos "?style="
@@ -4740,12 +4775,13 @@
 	        }
 	      }
 	      isSubmitting = true;
-		      // Enviar preview más grande al guardar para que los PDFs de tareas guardadas salgan nítidos.
-		      const hdWidth = 4096;
-		      await syncHiddenBuilderFields({
-		        previewOptions: { maxWidth: hdWidth, mime: 'image/jpeg', quality: 0.98 },
-		        applyLivePreview: false,
-		      });
+			      // Enviar preview más grande al guardar para que los PDFs de tareas guardadas salgan nítidos.
+			      const hdWidth = 4096;
+			      await syncHiddenBuilderFields({
+			        // PNG para máxima nitidez en PDF (mantiene transparencias).
+			        previewOptions: { maxWidth: hdWidth, mime: 'image/png', quality: 0.98 },
+			        applyLivePreview: false,
+			      });
 		      form.dataset.previewReady = '1';
 	      isSubmitting = false;
 		      form.requestSubmit();
