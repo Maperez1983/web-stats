@@ -632,7 +632,7 @@
       {% if task.task_preview_image %}
       <section class="panel">
         <h2>Vista previa</h2>
-        <img class="preview" src="{% url 'session-task-preview-file' task.id %}" alt="Vista previa de {{ task.title }}" />
+        <img class="preview" src="{% url 'session-task-preview-file' task.id %}?v={{ task.task_preview_image.name|urlencode }}" alt="Vista previa de {{ task.title }}" />
       </section>
       {% endif %}
 
@@ -852,7 +852,7 @@
         };
         pushHistory();
 
-        const previewUrl = "{% if task.task_preview_image %}{% url 'session-task-preview-file' task.id %}{% endif %}";
+        const previewUrl = "{% if task.task_preview_image %}{% url 'session-task-preview-file' task.id %}?v={{ task.task_preview_image.name|urlencode }}{% endif %}";
         const restoreState = () => {
           const editorState = savedState.canvas_state && typeof savedState.canvas_state === 'object'
             ? savedState.canvas_state

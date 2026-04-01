@@ -1947,9 +1947,9 @@
 	            role="link"
 	            aria-label="Abrir tarea {{ t.title }}"
 	          >
-            <div class="task-media">
-              {% if t.task_preview_image or t.task_pdf %}
-              <img src="{% url 'session-task-preview-file' t.id %}" alt="Representacion grafica de {{ t.title }}" loading="lazy" />
+              <div class="task-media">
+                {% if t.task_preview_image or t.task_pdf %}
+              <img src="{% url 'session-task-preview-file' t.id %}?v={{ t.task_preview_image.name|urlencode }}" alt="Representacion grafica de {{ t.title }}" loading="lazy" />
               {% else %}
               <div class="task-media-fallback">Sin representacion grafica<br />{{ t.get_block_display }}</div>
               {% endif %}

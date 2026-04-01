@@ -12936,7 +12936,12 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 if preview_data:
                     raw_bytes, extension = _decode_canvas_data_url(preview_data)
                     if raw_bytes and extension:
-                        filename = f'task_preview_{task.id}{extension}'
+                        try:
+                            if getattr(task, 'task_preview_image', None):
+                                task.task_preview_image.delete(save=False)
+                        except Exception:
+                            pass
+                        filename = f'task-{task.id}-graphic-{uuid.uuid4().hex[:10]}{extension}'
                         task.task_preview_image.save(filename, ContentFile(raw_bytes), save=False)
                         task.save(update_fields=['task_preview_image'])
                 feedback = 'Tarea creada con pizarra táctica.'
@@ -14111,7 +14116,12 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
     if preview_data:
         raw_bytes, extension = _decode_canvas_data_url(preview_data)
         if raw_bytes and extension:
-            filename = f'task_preview_{task.id}{extension}'
+            try:
+                if getattr(task, 'task_preview_image', None):
+                    task.task_preview_image.delete(save=False)
+            except Exception:
+                pass
+            filename = f'task-{task.id}-graphic-{uuid.uuid4().hex[:10]}{extension}'
             task.task_preview_image.save(filename, ContentFile(raw_bytes), save=False)
             task.save(update_fields=['task_preview_image'])
     try:
@@ -14362,7 +14372,12 @@ def _save_task_studio_entry(request, owner, existing_task=None):
     if preview_data:
         raw_bytes, extension = _decode_canvas_data_url(preview_data)
         if raw_bytes and extension:
-            filename = f'task_studio_preview_{task.id}{extension}'
+            try:
+                if getattr(task, 'task_preview_image', None):
+                    task.task_preview_image.delete(save=False)
+            except Exception:
+                pass
+            filename = f'task-studio-{task.id}-graphic-{uuid.uuid4().hex[:10]}{extension}'
             task.task_preview_image.save(filename, ContentFile(raw_bytes), save=False)
             task.save(update_fields=['task_preview_image'])
     try:
@@ -15174,6 +15189,7 @@ def task_studio_task_preview_file(request, task_id):
     }.get(extension, 'application/octet-stream')
     response = FileResponse(file_field, content_type=content_type)
     response['Content-Disposition'] = f'inline; filename="{Path(file_field.name).name}"'
+    response['Cache-Control'] = 'private, max-age=0, must-revalidate'
     return response
 
 
@@ -15457,6 +15473,7 @@ def session_task_preview_file(request, task_id):
     }.get(extension, 'application/octet-stream')
     response = FileResponse(file_field, content_type=content_type)
     response['Content-Disposition'] = f'inline; filename="{Path(file_field.name).name}"'
+    response['Cache-Control'] = 'private, max-age=0, must-revalidate'
     return response
 
 
