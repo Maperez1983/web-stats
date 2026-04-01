@@ -1378,12 +1378,12 @@
 	      }
 	      return null;
 	    };
-	    const updateTokenAppearance = (group, { name, number }) => {
-	      if (!group || !isTokenGroup(group)) return;
-	      const tokenKind = safeText(group?.data?.token_kind);
-	      const defaultNumber = tokenKind === 'goalkeeper_local' ? 'GK' : 'J';
-	      const nextNumber = sanitizeTokenNumber(number, defaultNumber);
-	      const nextName = safeText(name);
+		    const updateTokenAppearance = (group, { name, number }) => {
+		      if (!group || !isTokenGroup(group)) return;
+		      const tokenKind = safeText(group?.data?.token_kind);
+		      const defaultNumber = tokenKind === 'goalkeeper_local' ? 'GK' : 'J';
+		      const nextNumber = sanitizeTokenNumber(number, defaultNumber);
+		      const nextName = safeText(name);
 	      const displayName = shortPlayerName(
 	        nextName || (tokenKind === 'goalkeeper_local' ? 'Portero' : (tokenKind === 'player_rival' ? 'Rival' : 'Jugador')),
 	      );
@@ -1392,14 +1392,14 @@
 	      group.data.playerName = nextName;
 	      group.data.playerNumber = nextNumber;
 
-	      const isLocalStyle = tokenKind === 'player_local' || tokenKind === 'player_away';
-	      const numberText = findTokenChild(
-	        group,
-	        'token_number',
-	        (child) => child?.type === 'text'
-	          && Math.abs((Number(child.top) || 0) - (isLocalStyle ? 0 : 26)) <= (isLocalStyle ? 4 : 8)
-	          && (Number(child.fontSize) || 0) >= (isLocalStyle ? 14 : 8),
-	      );
+		      const isLocalStyle = tokenKind === 'player_local' || tokenKind === 'player_away' || tokenKind === 'goalkeeper_local';
+		      const numberText = findTokenChild(
+		        group,
+		        'token_number',
+		        (child) => child?.type === 'text'
+		          && Math.abs((Number(child.top) || 0) - (isLocalStyle ? 0 : 26)) <= (isLocalStyle ? 4 : 8)
+		          && (Number(child.fontSize) || 0) >= (isLocalStyle ? 14 : 8),
+		      );
 	      if (numberText && typeof numberText.set === 'function') numberText.set('text', nextNumber);
 
 	      const nameText = findTokenChild(
@@ -2510,7 +2510,7 @@
       });
     };
 
-	    const playerTokenFactory = (kind, player) => (left, top) => {
+		    const playerTokenFactory = (kind, player) => (left, top) => {
 	      const playerNameLower = safeText(player?.name, '').toLowerCase();
 	      const goalkeeperPreferBlue = playerNameLower.includes('trivi') || playerNameLower.includes('antonio');
 	      const palette = kind === 'goalkeeper_local'
@@ -2530,32 +2530,67 @@
         .join('')
         .slice(0, 2)
         .toUpperCase() || label;
-      const tokenParts = [];
-	      if (kind === 'player_local' || kind === 'player_away') {
-	        const radius = 23;
+	      const tokenParts = [];
+	      // Estilo "chapa" (igual que en la plantilla de abajo): disco con dorsal centrado y nombre simple.
+	      // Evitamos el "jersey" y los cartuchos para que dentro del campo se vea igual que fuera.
+	      if (kind === 'player_local' || kind === 'player_away' || kind === 'goalkeeper_local') {
+	        const radius = 22;
 	        const chipClip = new fabric.Circle({
-	          radius: radius - 1.6,
+	          radius: radius - 1.2,
 	          originX: 'center',
 	          originY: 'center',
 	          left: 0,
 	          top: 0,
 	        });
 	        const isAway = kind === 'player_away';
+	        const isGoalkeeper = kind === 'goalkeeper_local';
 	        const baseCircle = new fabric.Circle({
 	          radius,
 	          fill: isAway ? '#facc15' : '#ffffff',
-	          stroke: '#e2e8f0',
+	          stroke: 'rgba(255,255,255,0.92)',
 	          strokeWidth: 2,
 	          originX: 'center',
 	          originY: 'center',
 	          left: 0,
 	          top: 0,
-	          shadow: 'rgba(15,23,42,0.28) 0 5px 14px',
+	          shadow: 'rgba(15,23,42,0.28) 0 6px 14px',
 	        });
 	        tokenParts.push(baseCircle);
-	        if (!isAway) {
+	        if (isGoalkeeper) {
+	          // Portero: disco azul con brillo suave (aproxima el gradiente CSS del bank).
+	          const gkBg = new fabric.Circle({
+	            radius: radius - 1,
+	            originX: 'center',
+	            originY: 'center',
+	            left: 0,
+	            top: 0,
+	            strokeWidth: 0,
+	            fill: new fabric.Gradient({
+	              type: 'linear',
+	              gradientUnits: 'percentage',
+	              coords: { x1: 0, y1: 0, x2: 1, y2: 1 },
+	              colorStops: [
+	                { offset: 0, color: '#1d4ed8' },
+	                { offset: 1, color: '#0ea5e9' },
+	              ],
+	            }),
+	          });
+	          gkBg.clipPath = chipClip;
+	          tokenParts.push(gkBg);
+	          const highlight = new fabric.Circle({
+	            radius: 10,
+	            originX: 'center',
+	            originY: 'center',
+	            left: -7,
+	            top: -10,
+	            fill: 'rgba(255,255,255,0.28)',
+	            strokeWidth: 0,
+	          });
+	          highlight.clipPath = chipClip;
+	          tokenParts.push(highlight);
+	        } else if (!isAway) {
 	          const stripeWidth = 8;
-	          const stripeHeight = 48;
+	          const stripeHeight = 46;
 	          const stripeCount = Math.ceil((radius * 2) / stripeWidth) + 1;
 	          const start = (-radius) + (stripeWidth / 2);
 	          for (let i = 0; i < stripeCount; i += 1) {
@@ -2574,49 +2609,35 @@
 	            tokenParts.push(stripe);
 	          }
 	        }
-	        const numberText = new fabric.Text(label, {
+	        const numberText = new fabric.Text(isGoalkeeper ? 'GK' : label, {
 	          originX: 'center',
 	          originY: 'center',
 	          left: 0,
 	          top: 0,
-	          fontSize: 16,
-	          fontWeight: '900',
+	          fontSize: 15,
+	          fontWeight: '800',
 	          fill: isAway ? '#0b1220' : '#ffffff',
 	          shadow: 'rgba(15,23,42,0.65) 0 1px 2px',
 	        });
 	        numberText.data = { role: 'token_number' };
 	        tokenParts.push(numberText);
-        const nameBg = new fabric.Rect({
-          originX: 'center',
-          originY: 'center',
-          left: 0,
-          top: -35,
-          width: Math.max(42, Math.min(90, (displayName.length * 6.4) + 14)),
-          height: 18,
-          rx: 7,
-          ry: 7,
-          fill: 'rgba(15,23,42,0.94)',
-          stroke: 'rgba(255,255,255,0.14)',
-          strokeWidth: 1,
-        });
-        nameBg.data = { role: 'token_name_bg' };
-        tokenParts.push(nameBg);
-        const nameText = new fabric.Text(displayName, {
-          originX: 'center',
-          originY: 'center',
-          left: 0,
-          top: -35,
-          fontSize: 10,
-          fontWeight: '700',
-          fill: '#f8fafc',
-        });
-        nameText.data = { role: 'token_name' };
-        tokenParts.push(nameText);
-      } else {
-        const circle = new fabric.Circle({
-          radius: kind === 'goalkeeper_local' ? 24 : 21,
-          fill: palette.fill,
-          stroke: palette.stroke,
+	        const nameText = new fabric.Text(displayName, {
+	          originX: 'center',
+	          originY: 'center',
+	          left: 0,
+	          top: -34,
+	          fontSize: 10,
+	          fontWeight: '700',
+	          fill: '#e2e8f0',
+	          shadow: 'rgba(15,23,42,0.55) 0 1px 2px',
+	        });
+	        nameText.data = { role: 'token_name' };
+	        tokenParts.push(nameText);
+	      } else {
+	        const circle = new fabric.Circle({
+	          radius: kind === 'goalkeeper_local' ? 24 : 21,
+	          fill: palette.fill,
+	          stroke: palette.stroke,
           strokeWidth: 3,
           shadow: 'rgba(15,23,42,0.35) 0 4px 14px',
           originX: 'center',
@@ -2662,8 +2683,8 @@
           strokeWidth: 1,
         });
         nameBg.data = { role: 'token_name_bg' };
-        tokenParts.push(nameBg);
-        const nameText = new fabric.Text(displayName, {
+	        tokenParts.push(nameBg);
+	        const nameText = new fabric.Text(displayName, {
           originX: 'center',
           originY: 'center',
           left: 0,
@@ -2673,8 +2694,8 @@
           fill: '#f8fafc',
         });
         nameText.data = { role: 'token_name' };
-        tokenParts.push(nameText);
-      }
+	        tokenParts.push(nameText);
+	      }
 	      return new fabric.Group(tokenParts, {
         left,
         top,
