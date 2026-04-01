@@ -376,6 +376,19 @@
           flex-wrap: wrap;
           align-items: center;
         }
+        /* Por si el <details> quedase abierto por el navegador, forzamos el estilo inline (sin overlay). */
+        .resource-details[open] .resource-tabs {
+          position: static;
+          display: flex;
+          padding: 0;
+          border: 0;
+          background: transparent;
+          box-shadow: none;
+          width: auto;
+          gap: 0.5rem;
+          flex-wrap: wrap;
+          align-items: center;
+        }
       }
       .resource-tabs {
         display: flex;

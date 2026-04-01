@@ -4471,20 +4471,19 @@
       setSurfaceMenuOpen(false);
     });
 
-    const resourceTabs = Array.from(document.querySelectorAll('.resource-tab'));
-    const resourcePanels = Array.from(document.querySelectorAll('.resource-panel'));
-    const resourceDetails = document.getElementById('task-resource-details');
-    const resourceSummaryLabel = document.getElementById('task-resource-summary-label');
-    const resourceHelper = document.querySelector('.resource-helper');
-    // En escritorio ocultamos el <summary> y queremos que las pestañas estén visibles siempre.
-    // Algunos navegadores no permiten "forzar" el contenido de <details> cuando está cerrado,
-    // así que abrimos el <details> automáticamente en pantallas grandes.
-    try {
-      if (resourceDetails && window.matchMedia && window.matchMedia('(min-width: 980px)').matches) {
-        resourceDetails.open = true;
-      }
-    } catch (error) { /* ignore */ }
-    let activeResourceKey = '';
+	    const resourceTabs = Array.from(document.querySelectorAll('.resource-tab'));
+	    const resourcePanels = Array.from(document.querySelectorAll('.resource-panel'));
+	    const resourceDetails = document.getElementById('task-resource-details');
+	    const resourceSummaryLabel = document.getElementById('task-resource-summary-label');
+	    const resourceHelper = document.querySelector('.resource-helper');
+	    // En escritorio ocultamos el <summary> y mostramos las pestañas siempre vía CSS
+	    // (sin necesidad de abrir el <details>, que podía superponer el contenido).
+	    try {
+	      if (resourceDetails && window.matchMedia && window.matchMedia('(min-width: 980px)').matches) {
+	        resourceDetails.open = false;
+	      }
+	    } catch (error) { /* ignore */ }
+	    let activeResourceKey = '';
     const resourceLabelForKey = (key) => {
       const normalized = safeText(key);
       const match = resourceTabs.find((tab) => safeText(tab.dataset.resource) === normalized);
