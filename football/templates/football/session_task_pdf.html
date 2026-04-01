@@ -354,6 +354,30 @@
         background: #fde68a;
         color: #111827;
       }
+      .pdf-columns {
+        width: 100%;
+      }
+      .pdf-columns::after {
+        content: "";
+        display: block;
+        clear: both;
+      }
+      .pdf-col {
+        float: left;
+        width: calc(50% - 5px);
+      }
+      .pdf-col + .pdf-col {
+        margin-left: 10px;
+      }
+      .pdf-block + .pdf-block {
+        margin-top: 10px;
+      }
+      .rich-text,
+      .text-block,
+      .uefa-long-copy {
+        overflow-wrap: anywhere;
+        word-break: break-word;
+      }
     </style>
   </head>
   <body>
@@ -462,70 +486,145 @@
           </tr>
         </table>
 
-        <table style="width:100%; border-collapse:separate; border-spacing:10px 0; margin-top:2px;">
-          <tr>
-            <td style="width:50%; vertical-align:top;">
-              <div style="border:1px solid #d5dde7; border-radius:14px; overflow:hidden;">
-                <div style="padding:8px 12px; background:{{ pdf_palette.accent }}; color:#fff; font-weight:800; letter-spacing:0.08em; text-transform:uppercase;">Consignas</div>
-                <div style="padding:10px 14px; background:#fff;">
-                  {% if description_rich_html %}
-                  <div class="rich-text">{{ description_rich_html|safe }}</div>
-                  {% elif description_lines and description_lines.0 != '-' %}
-                  <div class="text-block">{{ description_lines|join:"\n" }}</div>
-                  {% elif coaching_rich_html %}
+        {% if pdf_text_heavy or pdf_text_superheavy %}
+        <div style="margin-top:2px;">
+          <div class="pdf-block" style="border:1px solid #d5dde7; border-radius:14px; overflow:hidden;">
+            <div style="padding:8px 12px; background:{{ pdf_palette.accent }}; color:#fff; font-weight:800; letter-spacing:0.08em; text-transform:uppercase;">Contenido y consignas</div>
+            <div style="padding:10px 14px; background:#fff;">
+              {% if description_rich_html %}
+              <div class="rich-text">{{ description_rich_html|safe }}</div>
+              {% elif description_lines and description_lines.0 != '-' %}
+              <div class="text-block">{{ description_lines|join:"\n" }}</div>
+              {% else %}
+              <div class="text-block">-</div>
+              {% endif %}
+              {% if coaching_rich_html %}
+              <div style="margin-top:10px;">
+                <span class="label">Consignas</span>
+                <div class="rich-text">{{ coaching_rich_html|safe }}</div>
+              </div>
+              {% elif coaching_lines and coaching_lines.0 != '-' %}
+              <div style="margin-top:10px;">
+                <span class="label">Consignas</span>
+                <ul class="bullet-list">
+                  {% for line in coaching_lines %}
+                  <li>{{ line }}</li>
+                  {% endfor %}
+                </ul>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="pdf-block" style="border:1px solid #d5dde7; border-radius:14px; overflow:hidden;">
+            <div style="padding:8px 12px; background:{{ pdf_palette.accent }}; color:#fff; font-weight:800; letter-spacing:0.08em; text-transform:uppercase;">Normas y criterio</div>
+            <div style="padding:10px 14px; background:#fff;">
+              {% if rules_rich_html %}
+              <div class="rich-text">{{ rules_rich_html|safe }}</div>
+              {% elif rules_lines and rules_lines.0 != '-' %}
+              <ul class="bullet-list">
+                {% for line in rules_lines %}
+                <li>{{ line }}</li>
+                {% endfor %}
+              </ul>
+              {% else %}
+              <div class="text-block">-</div>
+              {% endif %}
+              {% if task_meta.success_criteria %}
+              <div style="margin-top:10px;">
+                <span class="label">Criterio de éxito</span>
+                {% if success_criteria_rich_html %}
+                <div class="rich-text">{{ success_criteria_rich_html|safe }}</div>
+                {% else %}
+                <div class="text-block">{{ task_meta.success_criteria }}</div>
+                {% endif %}
+              </div>
+              {% endif %}
+              {% if task_meta.progression %}
+              <div style="margin-top:10px;">
+                <span class="label">Progresión</span>
+                {% if progression_rich_html %}
+                <div class="rich-text">{{ progression_rich_html|safe }}</div>
+                {% else %}
+                <div class="text-block">{{ task_meta.progression }}</div>
+                {% endif %}
+              </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        {% else %}
+        <div class="pdf-columns" style="margin-top:2px;">
+          <div class="pdf-col">
+            <div style="border:1px solid #d5dde7; border-radius:14px; overflow:hidden;">
+              <div style="padding:8px 12px; background:{{ pdf_palette.accent }}; color:#fff; font-weight:800; letter-spacing:0.08em; text-transform:uppercase;">Contenido y consignas</div>
+              <div style="padding:10px 14px; background:#fff;">
+                {% if description_rich_html %}
+                <div class="rich-text">{{ description_rich_html|safe }}</div>
+                {% elif description_lines and description_lines.0 != '-' %}
+                <div class="text-block">{{ description_lines|join:"\n" }}</div>
+                {% else %}
+                <div class="text-block">-</div>
+                {% endif %}
+                {% if coaching_rich_html %}
+                <div style="margin-top:10px;">
+                  <span class="label">Consignas</span>
                   <div class="rich-text">{{ coaching_rich_html|safe }}</div>
-                  {% elif coaching_lines and coaching_lines.0 != '-' %}
+                </div>
+                {% elif coaching_lines and coaching_lines.0 != '-' %}
+                <div style="margin-top:10px;">
+                  <span class="label">Consignas</span>
                   <ul class="bullet-list">
                     {% for line in coaching_lines %}
                     <li>{{ line }}</li>
                     {% endfor %}
                   </ul>
+                </div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          <div class="pdf-col">
+            <div style="border:1px solid #d5dde7; border-radius:14px; overflow:hidden;">
+              <div style="padding:8px 12px; background:{{ pdf_palette.accent }}; color:#fff; font-weight:800; letter-spacing:0.08em; text-transform:uppercase;">Normas y criterio</div>
+              <div style="padding:10px 14px; background:#fff;">
+                {% if rules_rich_html %}
+                <div class="rich-text">{{ rules_rich_html|safe }}</div>
+                {% elif rules_lines and rules_lines.0 != '-' %}
+                <ul class="bullet-list">
+                  {% for line in rules_lines %}
+                  <li>{{ line }}</li>
+                  {% endfor %}
+                </ul>
+                {% else %}
+                <div class="text-block">-</div>
+                {% endif %}
+                {% if task_meta.success_criteria %}
+                <div style="margin-top:10px;">
+                  <span class="label">Criterio de éxito</span>
+                  {% if success_criteria_rich_html %}
+                  <div class="rich-text">{{ success_criteria_rich_html|safe }}</div>
                   {% else %}
-                  <div class="text-block">-</div>
+                  <div class="text-block">{{ task_meta.success_criteria }}</div>
                   {% endif %}
                 </div>
-              </div>
-            </td>
-            <td style="width:50%; vertical-align:top;">
-              <div style="border:1px solid #d5dde7; border-radius:14px; overflow:hidden;">
-                <div style="padding:8px 12px; background:{{ pdf_palette.accent }}; color:#fff; font-weight:800; letter-spacing:0.08em; text-transform:uppercase;">Normas y criterio</div>
-                <div style="padding:10px 14px; background:#fff;">
-                  {% if rules_rich_html %}
-                  <div class="rich-text">{{ rules_rich_html|safe }}</div>
-                  {% elif rules_lines and rules_lines.0 != '-' %}
-                  <ul class="bullet-list">
-                    {% for line in rules_lines %}
-                    <li>{{ line }}</li>
-                    {% endfor %}
-                  </ul>
+                {% endif %}
+                {% if task_meta.progression %}
+                <div style="margin-top:10px;">
+                  <span class="label">Progresión</span>
+                  {% if progression_rich_html %}
+                  <div class="rich-text">{{ progression_rich_html|safe }}</div>
                   {% else %}
-                  <div class="text-block">-</div>
+                  <div class="text-block">{{ task_meta.progression }}</div>
                   {% endif %}
-	                  {% if task_meta.success_criteria %}
-	                  <div style="margin-top:10px;">
-	                    <span class="label">Criterio de éxito</span>
-	                    {% if success_criteria_rich_html %}
-	                    <div class="rich-text">{{ success_criteria_rich_html|safe }}</div>
-	                    {% else %}
-	                    <div class="text-block">{{ task_meta.success_criteria }}</div>
-	                    {% endif %}
-	                  </div>
-	                  {% endif %}
-	                  {% if task_meta.progression %}
-	                  <div style="margin-top:10px;">
-	                    <span class="label">Progresión</span>
-	                    {% if progression_rich_html %}
-	                    <div class="rich-text">{{ progression_rich_html|safe }}</div>
-	                    {% else %}
-	                    <div class="text-block">{{ task_meta.progression }}</div>
-	                    {% endif %}
-	                  </div>
-	                  {% endif %}
                 </div>
+                {% endif %}
               </div>
-            </td>
-          </tr>
-        </table>
+            </div>
+          </div>
+        </div>
+        {% endif %}
       </div>
 
       <div class="footer" style="background:#f8fafc;">
