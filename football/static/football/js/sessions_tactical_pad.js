@@ -785,11 +785,11 @@
 	      statusEl.style.color = isError ? '#fca5a5' : 'rgba(226,232,240,0.72)';
 	    };
 
-	    let syncRichEditorsNow = () => {};
-	    const initRichEditors = () => {
-	      const wrappers = Array.from(form.querySelectorAll('[data-rich-editor]'));
-	      if (!wrappers.length) return;
-	      const syncFns = [];
+		    let syncRichEditorsNow = () => {};
+		    const initRichEditors = () => {
+		      const wrappers = Array.from(form.querySelectorAll('[data-rich-editor]'));
+		      if (!wrappers.length) return;
+		      const syncFns = [];
 
 	      const applyCaseToSelection = (mode) => {
 	        const selection = window.getSelection ? window.getSelection() : null;
@@ -805,35 +805,57 @@
 	        return true;
 	      };
 
-	      wrappers.forEach((wrapper) => {
-	        const plainName = safeText(wrapper.dataset.richName);
-	        const htmlName = safeText(wrapper.dataset.richHtmlName);
-	        if (!plainName || !htmlName) return;
-	        const area = wrapper.querySelector('[data-rich-area]');
-	        const toolbar = wrapper.querySelector('.rich-toolbar');
-	        const plainField = form.querySelector(`[name="${CSS.escape(plainName)}"]`);
-	        const htmlField = form.querySelector(`[name="${CSS.escape(htmlName)}"]`);
-	        if (!area || !plainField || !htmlField) return;
+		      wrappers.forEach((wrapper) => {
+		        const plainName = safeText(wrapper.dataset.richName);
+		        const htmlName = safeText(wrapper.dataset.richHtmlName);
+		        if (!plainName || !htmlName) return;
+		        const area = wrapper.querySelector('[data-rich-area]');
+		        const toolbar = wrapper.querySelector('.rich-toolbar');
+		        const plainField = form.querySelector(`[name="${CSS.escape(plainName)}"]`);
+		        const htmlField = form.querySelector(`[name="${CSS.escape(htmlName)}"]`);
+		        if (!area || !plainField || !htmlField) return;
 
-	        const normalizePlain = (value) => String(value || '')
-	          .replace(/\u00a0/g, ' ')
-	          .replace(/[ \t]+\n/g, '\n')
-	          .replace(/\n{3,}/g, '\n\n')
-	          .trim();
+		        // Fuerza alineación a la izquierda y evita estilos heredados/inline que pueden
+		        // acabar centrando el texto (sobre todo al rehidratar HTML guardado).
+		        const forceLeftAlignment = () => {
+		          try {
+		            area.style.setProperty('text-align', 'left', 'important');
+		            area.style.setProperty('display', 'block');
+		            area.style.setProperty('justify-content', 'flex-start');
+		            area.style.setProperty('align-items', 'stretch');
+		          } catch (error) { /* ignore */ }
+		          try {
+		            area.querySelectorAll('[style]').forEach((node) => {
+		              try { node.style.setProperty('text-align', 'left', 'important'); } catch (error) { /* ignore */ }
+		              try { node.style.removeProperty('justify-content'); } catch (error) { /* ignore */ }
+		              try { node.style.removeProperty('align-items'); } catch (error) { /* ignore */ }
+		            });
+		          } catch (error) { /* ignore */ }
+		        };
+		        forceLeftAlignment();
 
-	        const sync = () => {
-	          htmlField.value = String(area.innerHTML || '').trim();
-	          plainField.value = normalizePlain(area.innerText || area.textContent || '');
-	          plainField.dispatchEvent(new Event('input', { bubbles: true }));
-	        };
-	        syncFns.push(sync);
+		        const normalizePlain = (value) => String(value || '')
+		          .replace(/\u00a0/g, ' ')
+		          .replace(/[ \t]+\n/g, '\n')
+		          .replace(/\n{3,}/g, '\n\n')
+		          .trim();
 
-	        area.addEventListener('input', sync);
-	        area.addEventListener('blur', sync);
-	        area.addEventListener('paste', (event) => {
-	          const text = event.clipboardData?.getData('text/plain');
-	          if (typeof text !== 'string') return;
-	          event.preventDefault();
+		        const sync = () => {
+		          htmlField.value = String(area.innerHTML || '').trim();
+		          plainField.value = normalizePlain(area.innerText || area.textContent || '');
+		          plainField.dispatchEvent(new Event('input', { bubbles: true }));
+		        };
+		        syncFns.push(sync);
+
+		        area.addEventListener('input', sync);
+		        area.addEventListener('blur', () => {
+		          forceLeftAlignment();
+		          sync();
+		        });
+		        area.addEventListener('paste', (event) => {
+		          const text = event.clipboardData?.getData('text/plain');
+		          if (typeof text !== 'string') return;
+		          event.preventDefault();
 	          try {
 	            document.execCommand('insertText', false, text);
 	          } catch (error) {
@@ -868,9 +890,10 @@
 	          sync();
 	        });
 
-	        // Inicializa hidden fields al cargar (para el caso de que vengan con HTML).
-	        sync();
-	      });
+		        // Inicializa hidden fields al cargar (para el caso de que vengan con HTML).
+		        forceLeftAlignment();
+		        sync();
+		      });
 	      syncRichEditorsNow = () => {
 	        syncFns.forEach((fn) => {
 	          try { fn(); } catch (error) { /* ignore */ }
