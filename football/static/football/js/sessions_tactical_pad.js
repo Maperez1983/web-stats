@@ -2165,12 +2165,23 @@
           const current = canvas.getObjects().slice();
           const active = canvas.getActiveObject();
           const replacementMap = new Map();
+          const hasRole = (obj, expected) =>
+            Array.isArray(obj?._objects)
+            && obj._objects.some((child) => safeText(child?.data?.role) === expected);
           const hasTokenRoles = (obj) =>
             Array.isArray(obj?._objects)
             && obj._objects.some((child) => {
               const role = safeText(child?.data?.role);
               return role && role.startsWith('token_');
             });
+          const shouldConvertToken = (obj, tokenKind) => {
+            // player_local: siempre convertimos si NO lleva el grupo de stripes nuevo.
+            // Esto arregla tareas existentes creadas con el clip por-rect (que se veía como "camiseta")
+            // sin tocar el estilo ya migrado.
+            if (tokenKind === 'player_local') return !hasRole(obj, 'token_stripes');
+            // Otros: convertimos solo si no es el estilo nuevo (por roles).
+            return !hasTokenRoles(obj);
+          };
           const resolvePlayerForLegacy = (obj) => {
             const playerId = safeText(obj?.data?.playerId);
             if (playerId) {
@@ -2187,7 +2198,7 @@
             if (kind !== 'token') return;
             const tokenKind = safeText(obj?.data?.token_kind);
             if (!playerTokenKinds.has(tokenKind)) return;
-            if (hasTokenRoles(obj)) return; // ya es el estilo nuevo
+            if (!shouldConvertToken(obj, tokenKind)) return; // ya es el estilo nuevo
             const center = obj.getCenterPoint ? obj.getCenterPoint() : { x: Number(obj.left) || 0, y: Number(obj.top) || 0 };
             const legacyPlayer = resolvePlayerForLegacy(obj);
             if (typeof playerTokenFactory !== 'function') return;
