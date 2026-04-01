@@ -3333,11 +3333,11 @@
 		    const buildPreviewData = (options = {}) => new Promise((resolve) => {
 		      const sourceWidth = Math.round(canvas.getWidth());
 		      const sourceHeight = Math.round(canvas.getHeight());
-	      // En iPad conviene limitar el tamaño para que no bloquee el hilo principal.
-	      const maxPreviewWidth = clamp(Number(options.maxWidth) || 720, 480, 3200);
-	      const ratio = sourceWidth > maxPreviewWidth ? (maxPreviewWidth / sourceWidth) : 1;
-	      const mime = safeText(options.mime, 'image/png').toLowerCase();
-	      const quality = clamp(Number(options.quality) || 0.92, 0.5, 0.98);
+		      // En iPad conviene limitar el tamaño para que no bloquee el hilo principal.
+		      const maxPreviewWidth = clamp(Number(options.maxWidth) || 720, 480, 4096);
+		      const ratio = sourceWidth > maxPreviewWidth ? (maxPreviewWidth / sourceWidth) : 1;
+		      const mime = safeText(options.mime, 'image/png').toLowerCase();
+		      const quality = clamp(Number(options.quality) || 0.92, 0.5, 0.98);
 	      const output = document.createElement('canvas');
 	      output.width = Math.max(320, Math.round(sourceWidth * ratio));
 	      output.height = Math.max(180, Math.round(sourceHeight * ratio));
@@ -3553,10 +3553,10 @@
         previewWin.document.close();
       }
 
-	      await syncHiddenBuilderFields({
-	        previewOptions: { maxWidth: 2600, mime: 'image/jpeg', quality: 0.94 },
-	        applyLivePreview: false,
-	      });
+		      await syncHiddenBuilderFields({
+		        previewOptions: { maxWidth: 3200, mime: 'image/jpeg', quality: 0.98 },
+		        applyLivePreview: false,
+		      });
       const tempForm = document.createElement('form');
       tempForm.method = 'post';
       // actionUrl puede incluir query (?user=... o ?workspace=...). Si concatenamos "?style="
@@ -4640,9 +4640,9 @@
 	      }
 	      isSubmitting = true;
 		      // Enviar preview más grande al guardar para que los PDFs de tareas guardadas salgan nítidos.
-		      const hdWidth = pitchOrientation === 'portrait' ? 3200 : 2600;
+		      const hdWidth = 4096;
 		      await syncHiddenBuilderFields({
-		        previewOptions: { maxWidth: hdWidth, mime: 'image/jpeg', quality: 0.94 },
+		        previewOptions: { maxWidth: hdWidth, mime: 'image/jpeg', quality: 0.98 },
 		        applyLivePreview: false,
 		      });
 		      form.dataset.previewReady = '1';
