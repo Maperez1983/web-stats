@@ -190,6 +190,15 @@ class WorkspaceCompetitionSnapshot(models.Model):
 
 class Player(models.Model):
     team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='players')
+    # Vínculo explícito con el usuario del jugador para evitar ambigüedades al resolver
+    # la ficha en base a nombre/username (puede mezclar jugadores con nombres similares).
+    user = models.OneToOneField(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='player_profile',
+    )
     name = models.CharField(max_length=120)
     full_name = models.CharField(max_length=180, blank=True)
     nickname = models.CharField(max_length=80, blank=True)

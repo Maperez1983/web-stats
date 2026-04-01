@@ -115,6 +115,26 @@ class LoginNextRedirectTests(TestCase):
         self.assertEqual(response['Location'], reverse('dashboard-home'))
 
 
+class PlayerUserLinkTests(TestCase):
+    def test_resolve_player_uses_explicit_user_link(self):
+        team = Team.objects.create(name='Equipo', slug='equipo', short_name='Equipo', is_primary=True)
+        p1 = Player.objects.create(team=team, name='Ayala', full_name='Angel Ayala', is_active=True)
+        p2 = Player.objects.create(team=team, name='Sanchez', full_name='Angel Sanchez', is_active=True)
+
+        u1 = get_user_model().objects.create_user(username='angel.ayala', password='pass-1234', first_name='Angel', last_name='Ayala')
+        u2 = get_user_model().objects.create_user(username='angel.sanchez', password='pass-1234', first_name='Angel', last_name='Sanchez')
+        AppUserRole.objects.create(user=u1, role=AppUserRole.ROLE_PLAYER)
+        AppUserRole.objects.create(user=u2, role=AppUserRole.ROLE_PLAYER)
+
+        p1.user = u1
+        p1.save(update_fields=['user'])
+        p2.user = u2
+        p2.save(update_fields=['user'])
+
+        self.assertEqual(football_views._resolve_player_for_user(u1, team).id, p1.id)
+        self.assertEqual(football_views._resolve_player_for_user(u2, team).id, p2.id)
+
+
 class StaffBriefingTests(TestCase):
     def test_build_weekly_staff_brief_summarizes_availability(self):
         brief = build_weekly_staff_brief(

@@ -2682,7 +2682,14 @@ def _can_access_player_resource(user, player, primary_team=None):
     if role in TECHNICAL_ROLES:
         return True
     if role == AppUserRole.ROLE_PLAYER:
-        resolved_player = _resolve_player_for_user(user, primary_team or getattr(player, 'team', None))
+        team = primary_team or getattr(player, 'team', None)
+        if team:
+            try:
+                if int(getattr(player, 'user_id', 0) or 0) == int(getattr(user, 'id', 0) or 0):
+                    return True
+            except Exception:
+                pass
+        resolved_player = _resolve_player_for_user(user, team)
         return bool(resolved_player and resolved_player.id == player.id)
     return False
 
@@ -2702,11 +2709,23 @@ def _forbid_if_no_player_access(user, player, primary_team=None):
 def _resolve_player_for_user(user, primary_team):
     if not user or not user.is_authenticated or not primary_team:
         return None
-    candidates = list(Player.objects.filter(team=primary_team, is_active=True))
+    # Prioridad: vínculo explícito.
+    linked = Player.objects.filter(team=primary_team, user=user).first()
+    if linked:
+        return linked
+
+    candidates = list(Player.objects.filter(team=primary_team, is_active=True).order_by('id'))
     if not candidates:
         return None
     if len(candidates) == 1:
         return candidates[0]
+
+    # Tokens "fuertes" para desempatar sin depender de heurísticas frágiles.
+    raw_username = str(user.get_username() or '').strip()
+    username_pre = re.sub(r'[\.\_\-]+', ' ', raw_username)
+    username_tokens = [tok for tok in normalize_player_name(username_pre).split('-') if tok]
+    first_name_token = normalize_player_name(getattr(user, 'first_name', '') or '')
+    last_name_token = normalize_player_name(getattr(user, 'last_name', '') or '')
     raw_values = [
         user.get_username(),
         getattr(user, 'email', ''),
@@ -2724,6 +2743,7 @@ def _resolve_player_for_user(user, primary_team):
             normalized_tokens.add(normalize_player_name(value.split('@', 1)[0]))
     best_player = None
     best_score = 0
+    second_best_score = 0
     for player in candidates:
         variants = [
             player.name,
@@ -2742,10 +2762,35 @@ def _resolve_player_for_user(user, primary_team):
                     continue
                 if token in normalized_variant or normalized_variant in token:
                     score = max(score, min(len(token), len(normalized_variant)))
+            # Bonus por tokens fuertes (apellidos/username) para evitar mezclar "Ángel X" vs "Ángel Y".
+            if last_name_token and last_name_token in normalized_variant:
+                score = max(score, score + 20)
+            if first_name_token and first_name_token in normalized_variant:
+                score = max(score, score + 5)
+            if username_tokens and any(tok in normalized_variant for tok in username_tokens):
+                score = max(score, score + 10)
         if score > best_score:
+            second_best_score = best_score
             best_score = score
             best_player = player
-    return best_player if best_score >= 4 else None
+        elif score > second_best_score:
+            second_best_score = score
+
+    resolved = best_player if best_score >= 4 else None
+
+    # Autovinculado (conservador): sólo si el ganador es claramente mejor que el segundo.
+    try:
+        if (
+            resolved
+            and not resolved.user_id
+            and _get_user_role(user) == AppUserRole.ROLE_PLAYER
+            and best_score > second_best_score
+        ):
+            resolved.user = user
+            resolved.save(update_fields=['user'])
+    except Exception:
+        pass
+    return resolved
 
 
 def _is_team_only_action(action_type: str) -> bool:

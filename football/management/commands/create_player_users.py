@@ -79,6 +79,9 @@ class Command(BaseCommand):
                 user=user,
                 defaults={'role': AppUserRole.ROLE_PLAYER},
             )
+            if getattr(player, 'user_id', None) != user.id:
+                player.user = user
+                player.save(update_fields=['user'])
 
         self.stdout.write(
             self.style.SUCCESS(
