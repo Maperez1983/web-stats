@@ -1940,6 +1940,8 @@
 		      commitLayerChange('Nombre actualizado.');
 		    });
 
+      let pendingOrientationTransform = null;
+
 	    const fitCanvas = (preserveObjects = false) => {
 	      const previousWidth = canvas.getWidth() || 0;
 	      const previousHeight = canvas.getHeight() || 0;
@@ -1947,18 +1949,60 @@
       const height = Math.max(220, Math.round(stage.clientHeight || 640));
       canvas.setDimensions({ width, height });
       if (preserveObjects && previousWidth > 0 && previousHeight > 0) {
-        const scaleX = width / previousWidth;
-        const scaleY = height / previousHeight;
-        const uniformScale = Math.min(scaleX, scaleY);
-        canvas.getObjects().forEach((item) => {
-          item.set({
-            left: (Number(item.left) || 0) * scaleX,
-            top: (Number(item.top) || 0) * scaleY,
-            scaleX: clampScale((Number(item.scaleX) || 1) * uniformScale),
-            scaleY: clampScale((Number(item.scaleY) || 1) * uniformScale),
+        const pending = pendingOrientationTransform;
+        pendingOrientationTransform = null;
+        if (pending && pending.from && pending.to && pending.from !== pending.to) {
+          // Al girar el campo, el SVG se rota 90º. Para que los objetos no "salten" fuera del campo,
+          // rotamos su posición en coordenadas normalizadas, manteniendo su orientación (texto/chapa
+          // siempre legible).
+          const rotateClockwise = pending.from === 'landscape' && pending.to === 'portrait';
+          const rotateCounter = pending.from === 'portrait' && pending.to === 'landscape';
+          const uniformScale = Math.min(width / previousHeight, height / previousWidth);
+          canvas.discardActiveObject();
+          canvas.getObjects().forEach((item) => {
+            if (!item) return;
+            const center = item.getCenterPoint();
+            const normX = clamp((Number(center.x) || 0) / previousWidth, 0, 1);
+            const normY = clamp((Number(center.y) || 0) / previousHeight, 0, 1);
+            let nextNormX = normX;
+            let nextNormY = normY;
+            if (rotateClockwise) {
+              nextNormX = 1 - normY;
+              nextNormY = normX;
+            } else if (rotateCounter) {
+              nextNormX = normY;
+              nextNormY = 1 - normX;
+            }
+            const nextCenterX = clamp(nextNormX * width, 0, width);
+            const nextCenterY = clamp(nextNormY * height, 0, height);
+            item.set({
+              scaleX: clampScale((Number(item.scaleX) || 1) * uniformScale),
+              scaleY: clampScale((Number(item.scaleY) || 1) * uniformScale),
+            });
+            item.setPositionByOrigin(new fabric.Point(nextCenterX, nextCenterY), 'center', 'center');
+            item.setCoords();
           });
-          item.setCoords();
-        });
+          // Al rotar, restablecemos el scroll del viewport para evitar que parezca "descentrado".
+          try {
+            if (viewportEl) {
+              viewportEl.scrollLeft = 0;
+              viewportEl.scrollTop = 0;
+            }
+          } catch (e) { /* ignore */ }
+        } else {
+          const scaleX = width / previousWidth;
+          const scaleY = height / previousHeight;
+          const uniformScale = Math.min(scaleX, scaleY);
+          canvas.getObjects().forEach((item) => {
+            item.set({
+              left: (Number(item.left) || 0) * scaleX,
+              top: (Number(item.top) || 0) * scaleY,
+              scaleX: clampScale((Number(item.scaleX) || 1) * uniformScale),
+              scaleY: clampScale((Number(item.scaleY) || 1) * uniformScale),
+            });
+            item.setCoords();
+          });
+        }
       }
       canvas.calcOffset();
       canvas.requestRenderAll();
@@ -2295,11 +2339,15 @@
     const applyPitchOrientation = (nextOrientation, options = {}) => {
       const normalized = safeText(nextOrientation, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
       if (normalized === pitchOrientation && !options.force) return;
+      const previous = pitchOrientation;
       pitchOrientation = normalized;
       syncOrientationUi();
       if (!zoomTouched) {
         pitchZoom = pitchOrientation === 'portrait' ? 1.15 : 1.0;
         syncZoomUi();
+      }
+      if (previous !== pitchOrientation) {
+        pendingOrientationTransform = { from: previous, to: pitchOrientation };
       }
       fitCanvas(options.preserveObjects !== false);
       setPreset(presetSelect.value || 'full_pitch');
