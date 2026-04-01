@@ -209,7 +209,7 @@
     }
     root.appendChild(drawRoot);
 
-    const createStage = (orientation, desiredAspect = 105 / 68) => {
+    const createStage = (orientation, desiredAspect = 105 / 68, fitMode = 'contain') => {
       // En vertical, el grupo se rota 90 grados: el sistema de coordenadas "dibuja"
       // sobre un lienzo efectivo de (stageH x stageW). Mantenemos proporción real 105x68.
       // Deja margen suficiente para que el trazo del borde no se recorte en miniaturas / contenedores con overflow hidden.
@@ -222,11 +222,23 @@
       const availableWidth = effectiveW - margin * 2;
       const availableHeight = effectiveH - margin * 2;
 
+      const fit = safeText(fitMode, 'contain') === 'cover' ? 'cover' : 'contain';
       let width = availableWidth;
       let height = width / desiredAspect;
-      if (height > availableHeight) {
+      if (fit === 'contain') {
+        if (height > availableHeight) {
+          height = availableHeight;
+          width = height * desiredAspect;
+        }
+      } else {
+        // Cover: llena el alto disponible (evita barras arriba/abajo en superficies muy anchas como futsal),
+        // recortando por laterales si hace falta.
         height = availableHeight;
         width = height * desiredAspect;
+        if (width < availableWidth) {
+          width = availableWidth;
+          height = width / desiredAspect;
+        }
       }
       const offsetX = (effectiveW - width) / 2;
       const offsetY = (effectiveH - height) / 2;
@@ -462,7 +474,9 @@
     };
 
     const drawMiniGame = (metersW, metersH, penaltyDepthMeters, penaltyHeightMeters, goalAreaDepthMeters, goalAreaHeightMeters, goalHeightMeters, options = {}) => {
-      const pitch = createStage(orientation, metersW / metersH);
+      // Superficies muy anchas (p.ej. futsal 40x20) quedan con demasiado "aire" arriba/abajo en modo contain.
+      // En esos casos usamos cover para que el césped rellene mejor el viewport y se reduzca el scroll.
+      const pitch = createStage(orientation, metersW / metersH, (metersW / metersH) > (105 / 68) ? 'cover' : 'contain');
       pitchBox = { x: pitch.x, y: pitch.y, width: pitch.width, height: pitch.height };
       const x = pitch.x;
       const y = pitch.y;

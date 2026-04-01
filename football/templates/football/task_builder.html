@@ -781,6 +781,23 @@
         grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
         gap: 0.45rem;
       }
+      /* En escritorio, una sola fila con scroll horizontal reduce altura total y evita scroll vertical excesivo. */
+      @media (min-width: 761px) {
+        .resource-strip,
+        .player-bank {
+          display: flex;
+          flex-wrap: nowrap;
+          overflow-x: auto;
+          overflow-y: hidden;
+          -webkit-overflow-scrolling: touch;
+          padding-bottom: 4px;
+        }
+        .resource-strip > button,
+        .player-bank > button {
+          flex: 0 0 auto;
+          min-width: 132px;
+        }
+      }
       .library-grid {
         grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
       }
