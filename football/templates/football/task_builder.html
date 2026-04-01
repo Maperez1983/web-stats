@@ -714,7 +714,8 @@
         max-width: 940px;
         /* Mantener misma proporción que el SVG (viewBox 1100x748) para evitar bandas en preview/PDF. */
         aspect-ratio: 1100 / 748;
-        min-height: 420px;
+        min-height: 0;
+        max-height: 100%;
         border-radius: 18px;
         overflow: hidden;
         border: 1px solid rgba(255, 255, 255, 0.14);
@@ -744,6 +745,19 @@
         width: 100%;
         /* En vertical no limitamos el ancho: el objetivo es que el campo no se vea "enano". */
         max-width: 940px;
+      }
+      @media (min-width: 980px) {
+        /* En escritorio, ajusta el campo a la altura disponible para que se vea completo sin cortes. */
+        .pitch-stage {
+          height: 100%;
+          width: auto;
+          max-width: 100%;
+        }
+        .pitch-stage.is-portrait {
+          height: 100%;
+          width: auto;
+          max-width: 100%;
+        }
       }
       .pitch-viewport {
         width: 100%;
