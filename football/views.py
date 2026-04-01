@@ -13345,46 +13345,10 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         )
         library_deleted_tasks = [item for item in deleted_candidates if _task_scope_for_item(item) == scope_key]
 
-    if active_tab == 'library' and task_library:
-        maintenance_cache_key = f'sessions_library_maintenance:{primary_team.id}:{scope_key}'
-        run_maintenance = bool(cache.add(maintenance_cache_key, '1', timeout=60 * 10))
-        preview_rebuilt = 0
-        preview_upgraded = 0
-        text_normalized = 0
-        analysis_refreshed = 0
-        if run_maintenance:
-            maintenance_slice = task_library[:90]
-            for task in maintenance_slice:
-                if _task_analysis_needs_refresh(task):
-                    if _refresh_task_from_pdf_analysis(task):
-                        analysis_refreshed += 1
-                if _ensure_task_reference_date(task):
-                    text_normalized += 1
-                if _cleanup_task_joined_text_fields(task):
-                    text_normalized += 1
-                before_name = str(getattr(task, 'task_preview_image', '') or '').strip()
-                should_refresh = _task_preview_needs_refresh(task)
-                if not should_refresh:
-                    continue
-                had_preview = bool(before_name)
-                if _ensure_library_task_preview(task, force=had_preview, prefer_render=had_preview):
-                    after_name = str(getattr(task, 'task_preview_image', '') or '').strip()
-                    if after_name:
-                        if had_preview:
-                            preview_upgraded += 1
-                        else:
-                            preview_rebuilt += 1
-            if preview_rebuilt or preview_upgraded or text_normalized or analysis_refreshed:
-                rebuilt_msg = f'Previews recuperadas: {preview_rebuilt}.' if preview_rebuilt else ''
-                upgraded_msg = f'Previews mejoradas: {preview_upgraded}.' if preview_upgraded else ''
-                cleaned_msg = f'Textos corregidos: {text_normalized}.' if text_normalized else ''
-                refreshed_msg = f'Análisis regenerados: {analysis_refreshed}.' if analysis_refreshed else ''
-                joined = ' '.join([part for part in [rebuilt_msg, upgraded_msg, cleaned_msg, refreshed_msg] if part]).strip()
-                feedback = (
-                    f'{feedback} '
-                    if feedback
-                    else ''
-                ) + joined
+    # IMPORTANTE (rendimiento): no hagas mantenimiento pesado (parseo PDF / render previews)
+    # dentro de la petición de la vista. En Render esto puede bloquear varios minutos el primer acceso
+    # tras un restart y degradar toda la zona de Sesiones/Tareas.
+    # Para operaciones de mantenimiento usa `python manage.py reanalyze_library_tasks_pro`.
 
     task_library_context = prepare_task_library(
         task_library,
@@ -13405,7 +13369,11 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         is_imported_task=_is_imported_task,
     )
     task_library = task_library_context['task_library']
-    _persist_detected_resources_library(task_library, scope_key=scope_key)
+    if task_library:
+        # Evita I/O en cada request: persistimos el catálogo detectado como máximo cada 30 minutos.
+        persist_cache_key = f'sessions_resources_library:{primary_team.id}:{scope_key}'
+        if cache.add(persist_cache_key, '1', timeout=60 * 30):
+            _persist_detected_resources_library(task_library, scope_key=scope_key)
     context_group_rows = task_library_context['context_group_rows']
     objective_group_rows = task_library_context['objective_group_rows']
     type_group_rows = task_library_context['type_group_rows']
