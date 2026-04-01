@@ -672,8 +672,8 @@
         --pitch-zoom: 1;
         width: min(calc(100% * var(--pitch-zoom)), calc(1240px * var(--pitch-zoom)));
         max-width: none;
-        /* Mantener misma proporción que el SVG (viewBox 1100x748) para evitar bandas en preview/PDF. */
-        aspect-ratio: 1100 / 748;
+        /* Mantener misma proporción que el SVG (viewBox 1100x712). */
+        aspect-ratio: 1100 / 712;
         min-height: 0;
         max-height: 100%;
         border-radius: 18px;
@@ -698,7 +698,7 @@
         opacity: 1;
       }
       .pitch-stage.is-portrait {
-        aspect-ratio: 748 / 1100;
+        aspect-ratio: 712 / 1100;
         width: min(calc(100% * var(--pitch-zoom)), calc(1240px * var(--pitch-zoom)));
       }
       .pitch-viewport {
@@ -1689,7 +1689,7 @@
 
               <div class="pitch-viewport" id="task-pitch-viewport">
                 <div class="pitch-stage" id="task-pitch-stage">
-                  <svg id="task-pitch-surface" viewBox="0 0 1100 748" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
+                  <svg id="task-pitch-surface" viewBox="0 0 1100 712" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
                   <canvas id="create-task-canvas"></canvas>
                 </div>
               </div>

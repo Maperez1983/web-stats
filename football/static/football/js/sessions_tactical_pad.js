@@ -168,8 +168,10 @@
   const buildPitchSvg = (presetKey, orientationKey = 'landscape') => {
     const preset = String(presetKey || 'full_pitch').trim();
     const orientation = safeText(orientationKey, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
-    const stageW = orientation === 'portrait' ? 748 : 1100;
-    const stageH = orientation === 'portrait' ? 1100 : 748;
+    // Ajuste de lienzo para que el campo (105x68) ocupe casi todo el stage
+    // y no quede “aire” sobrante arriba/abajo (reduce scroll).
+    const stageW = orientation === 'portrait' ? 712 : 1100;
+    const stageH = orientation === 'portrait' ? 1100 : 712;
     const drawW = 1100;
     const drawH = 748;
     const doc = document.implementation.createDocument('http://www.w3.org/2000/svg', 'svg', null);
@@ -199,7 +201,7 @@
       // Deja margen suficiente para que el trazo del borde no se recorte en miniaturas / contenedores con overflow hidden.
       // Margen de seguridad para que los bordes no se recorten con overflow hidden,
       // pero lo más pequeño posible para que el campo ocupe pantalla.
-      const margin = 6;
+      const margin = 2;
       const portrait = orientation === 'portrait';
       const effectiveW = portrait ? stageH : stageW;
       const effectiveH = portrait ? stageW : stageH;
@@ -2400,7 +2402,7 @@
         const root = parsed.documentElement;
         if (root && root.tagName && root.tagName.toLowerCase() === 'svg') {
           svgSurface.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-          svgSurface.setAttribute('viewBox', root.getAttribute('viewBox') || '0 0 1100 748');
+          svgSurface.setAttribute('viewBox', root.getAttribute('viewBox') || '0 0 1100 712');
           svgSurface.setAttribute('preserveAspectRatio', root.getAttribute('preserveAspectRatio') || 'xMidYMid meet');
           while (svgSurface.firstChild) svgSurface.removeChild(svgSurface.firstChild);
           Array.from(root.childNodes).forEach((child) => {
