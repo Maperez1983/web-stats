@@ -178,7 +178,10 @@
     const doc = document.implementation.createDocument('http://www.w3.org/2000/svg', 'svg', null);
     const root = doc.documentElement;
     root.setAttribute('viewBox', `${-bleed} ${-bleed} ${stageW + (bleed * 2)} ${stageH + (bleed * 2)}`);
-    root.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    // En vertical, algunos contenedores (y navegadores) pueden acabar con una ligera
+    // desincronización de ratio, generando "barras" arriba/abajo. Usamos `slice` para
+    // priorizar llenar el viewport y minimizar esos márgenes.
+    root.setAttribute('preserveAspectRatio', orientation === 'portrait' ? 'xMidYMid slice' : 'xMidYMid meet');
 
     const defs = createSvgNode(doc, 'defs');
     const gradient = createSvgNode(doc, 'linearGradient', { id: 'pitch-bg', x1: '0%', y1: '0%', x2: '0%', y2: '100%' });
