@@ -1196,20 +1196,59 @@
       }
       /* Evita que la plantilla disponible “coma” toda la altura. */
       body.is-compact .player-bank {
-        display: flex;
-        flex-wrap: nowrap;
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: 120px;
+        grid-template-rows: repeat(2, auto);
         gap: 0.5rem;
         overflow-x: auto;
         overflow-y: hidden;
         padding: 0.1rem 0.1rem 0.35rem;
         -webkit-overflow-scrolling: touch;
-        scroll-snap-type: x mandatory;
         scrollbar-gutter: stable both-edges;
       }
       body.is-compact .player-bank button.player-token-bank {
         flex: 0 0 auto;
-        width: 120px;
-        scroll-snap-align: start;
+        width: auto;
+      }
+      body.is-compact .player-bank-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.6rem;
+        margin-bottom: 0.55rem;
+      }
+      body.is-compact .player-bank-nav {
+        display: inline-flex;
+        gap: 0.35rem;
+        align-items: center;
+      }
+      .player-bank-nav {
+        display: none;
+      }
+      body.is-compact .player-bank-nav {
+        display: inline-flex;
+      }
+      .player-bank-nav button {
+        width: 46px;
+        height: 40px;
+        border-radius: 999px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid rgba(255,255,255,0.16);
+        background: rgba(255,255,255,0.05);
+        color: rgba(248,250,252,0.9);
+        font-weight: 900;
+        font-size: 20px;
+        cursor: pointer;
+      }
+      .player-bank-nav button:active {
+        transform: translateY(0);
+      }
+      .player-bank-nav button:hover {
+        background: rgba(255,255,255,0.08);
       }
       body.is-compact textarea {
         min-height: 76px;
@@ -1657,7 +1696,13 @@
               <p class="pitch-status" id="task-builder-status">Pizarra lista.</p>
 
               <div class="section" style="margin-top:0.9rem;">
-                <h3>Plantilla disponible</h3>
+                <div class="player-bank-head">
+                  <h3 style="margin:0;">Plantilla disponible</h3>
+                  <div class="player-bank-nav" aria-label="Navegación de plantilla">
+                    <button type="button" id="player-bank-prev" title="Anterior" aria-label="Anterior">‹</button>
+                    <button type="button" id="player-bank-next" title="Siguiente" aria-label="Siguiente">›</button>
+                  </div>
+                </div>
                 <div class="player-bank" id="task-player-bank"></div>
               </div>
             </div>
@@ -2120,6 +2165,9 @@
       window.addEventListener('DOMContentLoaded', () => {
         const compactKey = 'webstats:tpad:compact';
         const toggleBtn = document.getElementById('task-builder-compact-toggle');
+        const playerBank = document.getElementById('task-player-bank');
+        const playerPrev = document.getElementById('player-bank-prev');
+        const playerNext = document.getElementById('player-bank-next');
         const applyCompact = (enabled) => {
           document.body.classList.toggle('is-compact', !!enabled);
           if (toggleBtn) {
@@ -2142,6 +2190,22 @@
             } catch (error) {}
             applyCompact(isCompact);
           });
+        }
+        const scrollPlayerBank = (dir) => {
+          if (!playerBank) return;
+          const amount = Math.max(240, Math.round((playerBank.clientWidth || 480) * 0.85));
+          playerBank.scrollBy({ left: dir * amount, top: 0, behavior: 'smooth' });
+        };
+        playerPrev?.addEventListener('click', () => scrollPlayerBank(-1));
+        playerNext?.addEventListener('click', () => scrollPlayerBank(1));
+        // En modo compacto, permite rueda vertical para scroll horizontal (trackpad/mouse).
+        if (playerBank) {
+          playerBank.addEventListener('wheel', (event) => {
+            if (!document.body.classList.contains('is-compact')) return;
+            if (Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
+            playerBank.scrollLeft += event.deltaY;
+            event.preventDefault();
+          }, { passive: false });
         }
         if (window.initSessionsTacticalPad) window.initSessionsTacticalPad();
       });

@@ -8240,6 +8240,19 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
     rich_regression = _sanitize_task_rich_html(regression_html) if regression_html else _rich_html_from_plain_text(str(meta.get('regression') or ''))
     rich_success = _sanitize_task_rich_html(success_criteria_html) if success_criteria_html else _rich_html_from_plain_text(str(meta.get('success_criteria') or ''))
     rich_organization = _sanitize_task_rich_html(organization_html) if organization_html else _rich_html_from_plain_text(str(meta.get('organization') or ''))
+    copy_len = sum(
+        len(str(part or '').strip())
+        for part in [
+            description_text,
+            getattr(task, 'coaching_points', '') or '',
+            getattr(task, 'confrontation_rules', '') or '',
+            str(meta.get('success_criteria') or ''),
+            str(meta.get('progression') or ''),
+            str(meta.get('regression') or ''),
+        ]
+    )
+    pdf_text_heavy = copy_len >= 700
+    pdf_text_superheavy = copy_len >= 1300
     return {
         'team_name': team.name,
         'task': task,
@@ -8278,6 +8291,8 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
         'brand_mark_url': request.build_absolute_uri(static('football/images/2j-mark.svg')),
         'club_logo_url': club_logo_url,
         'task_preview_url': preview_url,
+        'pdf_text_heavy': pdf_text_heavy,
+        'pdf_text_superheavy': pdf_text_superheavy,
         'generated_at': timezone.localtime(),
     }
 

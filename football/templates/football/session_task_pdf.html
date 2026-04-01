@@ -607,10 +607,10 @@
 	        </table>
 
         <div class="uefa-section">Descripción Gráfica</div>
-        <div class="uefa-box" style="min-height:380px;">
+        <div class="uefa-box" style="min-height:{% if pdf_text_superheavy %}240px{% elif pdf_text_heavy %}300px{% else %}340px{% endif %};">
           {% if task_preview_url %}
           <div class="preview-frame" style="border:1px solid #d5dde7;">
-            <img src="{{ task_preview_url }}" alt="Vista gráfica de la tarea" />
+            <img src="{{ task_preview_url }}" alt="Vista gráfica de la tarea" style="max-height:{% if pdf_text_superheavy %}260px{% elif pdf_text_heavy %}320px{% else %}360px{% endif %};" />
           </div>
           {% else %}
           <div class="field">
@@ -663,7 +663,7 @@
         {% endif %}
 
         <div style="margin-top:12px;" class="uefa-section">Consigna / Explicación</div>
-        <div class="uefa-box uefa-long-copy" style="min-height:150px;">
+        <div class="uefa-box uefa-long-copy" style="min-height:120px;{% if pdf_text_superheavy %} font-size:9.6px;{% elif pdf_text_heavy %} font-size:10px;{% endif %}">
           {% if description_rich_html %}
           <div class="rich-text">{{ description_rich_html|safe }}</div>
           {% elif description_lines and description_lines.0 != '-' %}
