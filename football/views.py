@@ -2950,6 +2950,18 @@ def _parse_payload_date(raw):
     return None
 
 
+def _parse_payload_time(raw):
+    if not raw:
+        return None
+    value = str(raw).strip()
+    for fmt in ('%H:%M', '%H.%M', '%H,%M'):
+        try:
+            return datetime.strptime(value, fmt).time()
+        except ValueError:
+            continue
+    return None
+
+
 def _payload_opponent_name(payload):
     if not isinstance(payload, dict):
         return ''
@@ -4214,6 +4226,91 @@ def _invalidate_team_dashboard_caches(primary_team):
     )
 
 
+def _upsert_match_from_next_match_payload(primary_team, payload):
+    if not primary_team or not _next_match_payload_is_reliable(payload):
+        return None
+    group = getattr(primary_team, 'group', None)
+    season = getattr(group, 'season', None) if group else None
+    if not group or not season:
+        return None
+    match_date = _parse_payload_date(payload.get('date'))
+    if not match_date:
+        return None
+    opponent_name = _payload_opponent_name(payload).strip()
+    if not opponent_name or opponent_name.lower() in {'rival por confirmar', 'rival desconocido'}:
+        return None
+    opponent = (
+        Team.objects
+        .filter(group=group)
+        .filter(Q(name__iexact=opponent_name) | Q(short_name__iexact=opponent_name) | Q(slug__iexact=slugify(opponent_name)))
+        .order_by('-is_primary', 'name')
+        .first()
+    ) or (
+        Team.objects
+        .filter(Q(name__iexact=opponent_name) | Q(short_name__iexact=opponent_name) | Q(slug__iexact=slugify(opponent_name)))
+        .order_by('-is_primary', 'name')
+        .first()
+    )
+    if not opponent:
+        opponent = Team.objects.create(
+            name=opponent_name,
+            slug=_unique_team_slug(opponent_name),
+            short_name=opponent_name[:60],
+            group=group,
+        )
+    is_home = payload.get('home')
+    if is_home is None:
+        is_home = True
+    is_home = bool(is_home)
+    home_team = primary_team if is_home else opponent
+    away_team = opponent if is_home else primary_team
+    kickoff = _parse_payload_time(payload.get('time'))
+    round_label = str(payload.get('round') or '').strip()
+    location = str(payload.get('location') or '').strip()
+
+    match_qs = (
+        Match.objects
+        .filter(season=season)
+        .filter(Q(home_team=primary_team) | Q(away_team=primary_team))
+        .filter(date=match_date)
+    )
+    match = match_qs.order_by('-id').first()
+    if not match:
+        return Match.objects.create(
+            season=season,
+            group=group,
+            round=round_label,
+            date=match_date,
+            kickoff_time=kickoff,
+            location=location,
+            home_team=home_team,
+            away_team=away_team,
+            source='',
+        )
+    update_fields = []
+    if match.group_id != getattr(group, 'id', None):
+        match.group = group
+        update_fields.append('group')
+    if round_label and match.round != round_label:
+        match.round = round_label
+        update_fields.append('round')
+    if location and match.location != location:
+        match.location = location
+        update_fields.append('location')
+    if kickoff and match.kickoff_time != kickoff:
+        match.kickoff_time = kickoff
+        update_fields.append('kickoff_time')
+    if match.home_team_id != getattr(home_team, 'id', None):
+        match.home_team = home_team
+        update_fields.append('home_team')
+    if match.away_team_id != getattr(away_team, 'id', None):
+        match.away_team = away_team
+        update_fields.append('away_team')
+    if update_fields:
+        match.save(update_fields=update_fields)
+    return match
+
+
 def load_universo_snapshot():
     if not UNIVERSO_SNAPSHOT_PATH.exists():
         return None
@@ -4305,6 +4402,21 @@ def dashboard_data(request):
     if not force_fresh:
         cached_payload = cache.get(cache_key)
         if isinstance(cached_payload, dict):
+            # Autorreparación: si en caché se guardó un próximo rival nulo (p.ej. porque todavía no
+            # existía el match en BD o falló una extracción externa), intentamos reconstruirlo sin
+            # coste (solo DB) y actualizar la caché.
+            try:
+                cached_next = cached_payload.get('next_match')
+                if not _next_match_payload_is_reliable(cached_next):
+                    repaired_next = load_preferred_next_match_payload(primary_team=primary_team) or (
+                        get_next_match(primary_team, group) if group else None
+                    )
+                    if _next_match_payload_is_reliable(repaired_next):
+                        cached_payload = dict(cached_payload)
+                        cached_payload['next_match'] = repaired_next
+                        cache.set(cache_key, cached_payload, DASHBOARD_CACHE_SECONDS)
+            except Exception:
+                pass
             return JsonResponse(cached_payload)
 
     refresh_roster_on_load = str(
@@ -4328,6 +4440,13 @@ def dashboard_data(request):
             load_preferred_next_match_payload(primary_team=primary_team) or get_next_match(primary_team, group),
             standings,
         )
+    # Si detectamos un próximo partido fiable, lo persistimos como Match para que nunca dependa de
+    # ficheros locales ni de providers externos (Render / múltiples instancias).
+    if _next_match_payload_is_reliable(next_match):
+        try:
+            _upsert_match_from_next_match_payload(primary_team, next_match)
+        except Exception:
+            pass
     convocation_next_match = _build_next_match_from_convocation(primary_team)
     # Product rule: Home prioritizes Convocatoria only when it provides a reliable scheduled match.
     if _next_match_payload_is_reliable(convocation_next_match):
@@ -16626,6 +16745,10 @@ def refresh_scraping(request):
                 _sync_workspace_competition_context(workspace)
             # Persistimos el próximo partido en BD para que no dependa del filesystem (Render / múltiples instancias).
             if isinstance(next_match_payload, dict) and _next_match_payload_is_reliable(next_match_payload):
+                try:
+                    _upsert_match_from_next_match_payload(primary_team, next_match_payload)
+                except Exception:
+                    pass
                 club_ws = workspace
                 if not club_ws or getattr(club_ws, 'kind', None) != Workspace.KIND_CLUB:
                     club_ws = (
