@@ -1171,6 +1171,57 @@
           grid-template-columns: 1fr;
         }
       }
+
+      /* Vista compacta: solo cambia layout/presentación (no afecta a la lógica del editor). */
+      body.is-compact .page {
+        padding: 0.85rem;
+      }
+      body.is-compact .topbar {
+        margin-bottom: 0.75rem;
+      }
+      body.is-compact .panel-body {
+        padding: 0.85rem;
+      }
+      body.is-compact .panel-head {
+        margin-bottom: 0.7rem;
+      }
+      body.is-compact .pitch-toolbar {
+        margin-bottom: 0.6rem;
+      }
+      body.is-compact .stack {
+        gap: 0.65rem;
+      }
+      body.is-compact .pitch-status {
+        margin-top: 0.55rem;
+      }
+      /* Evita que la plantilla disponible “coma” toda la altura. */
+      body.is-compact .player-bank {
+        max-height: 170px;
+        overflow: auto;
+        padding-right: 0.2rem;
+      }
+      body.is-compact textarea {
+        min-height: 76px;
+      }
+      body.is-compact .rich-area {
+        min-height: 86px;
+        padding: 0.6rem 0.72rem;
+        font-size: 0.9rem;
+      }
+      body.is-compact .pitch-toolbar button,
+      body.is-compact .resource-strip button,
+      body.is-compact .player-bank button {
+        padding: 0.52rem 0.72rem;
+        font-size: 0.78rem;
+      }
+      body.is-compact .icon-btn {
+        width: 54px;
+        height: 48px;
+      }
+      body.is-compact .icon-btn svg {
+        width: 26px;
+        height: 26px;
+      }
     </style>
   </head>
   <body>
@@ -1185,6 +1236,7 @@
         </div>
         <div class="actions">
           <a href="{{ back_url|default:'#' }}" class="button">{{ back_label|default:'Volver a sesiones' }}</a>
+          <button type="button" class="button" id="task-builder-compact-toggle" aria-pressed="false">Vista compacta</button>
           <button type="button" class="button" data-print-style="uefa">Imprimir UEFA</button>
           <button type="button" class="button" data-print-style="club">Imprimir Club</button>
           {% if task %}
@@ -2055,6 +2107,31 @@
     <script src="{% static 'football/js/sessions_tactical_pad.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
     <script>
       window.addEventListener('DOMContentLoaded', () => {
+        const compactKey = 'webstats:tpad:compact';
+        const toggleBtn = document.getElementById('task-builder-compact-toggle');
+        const applyCompact = (enabled) => {
+          document.body.classList.toggle('is-compact', !!enabled);
+          if (toggleBtn) {
+            toggleBtn.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+            toggleBtn.textContent = enabled ? 'Vista normal' : 'Vista compacta';
+          }
+        };
+        let isCompact = false;
+        try {
+          isCompact = window.localStorage?.getItem(compactKey) === '1';
+        } catch (error) {
+          isCompact = false;
+        }
+        applyCompact(isCompact);
+        if (toggleBtn) {
+          toggleBtn.addEventListener('click', () => {
+            isCompact = !isCompact;
+            try {
+              window.localStorage?.setItem(compactKey, isCompact ? '1' : '0');
+            } catch (error) {}
+            applyCompact(isCompact);
+          });
+        }
         if (window.initSessionsTacticalPad) window.initSessionsTacticalPad();
       });
     </script>
