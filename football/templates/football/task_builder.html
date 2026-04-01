@@ -1250,7 +1250,10 @@
 
       {% if feedback %}<div class="alert ok">{{ feedback }}</div>{% endif %}
       {% if error %}<div class="alert err">{{ error }}</div>{% endif %}
-      <div class="alert warn" id="task-builder-draft-alert" hidden></div>
+      <div class="alert warn" id="task-builder-draft-alert" hidden style="display:flex; align-items:center; justify-content:space-between; gap:0.75rem; flex-wrap:wrap;">
+        <span id="task-builder-draft-text"></span>
+        <button type="button" class="button" id="task-builder-draft-clear">Borrar borrador</button>
+      </div>
       {% if scope_key == 'task_studio' and task and can_export_to_club and club_sessions %}
       <div class="alert" style="display:flex; align-items:center; justify-content:space-between; gap:0.75rem; flex-wrap:wrap;">
         <div>

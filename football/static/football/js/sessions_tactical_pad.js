@@ -586,11 +586,20 @@
     if (!window.fabric || !form || !canvasEl || !stage || !svgSurface || !presetSelect) return;
 
     const draftAlert = document.getElementById('task-builder-draft-alert');
+    const draftText = document.getElementById('task-builder-draft-text');
+    const draftClearBtn = document.getElementById('task-builder-draft-clear');
     const keepaliveUrl = safeText(form.dataset.keepaliveUrl);
     const saveSuccess = safeText(form.dataset.saveSuccess) === '1';
     const draftKey = safeText(form.dataset.draftKey);
     const draftNewKey = safeText(form.dataset.draftNewKey);
     const currentDraftUrl = `${window.location.pathname}${window.location.search || ''}`;
+    const urlParams = (() => {
+      try {
+        return new URLSearchParams(window.location.search || '');
+      } catch (error) {
+        return new URLSearchParams();
+      }
+    })();
     const canUseStorage = (() => {
       try {
         const probeKey = '__tpad_storage_probe__';
@@ -604,7 +613,11 @@
     const setDraftAlert = (message) => {
       if (!draftAlert) return;
       const text = safeText(message);
-      draftAlert.textContent = text;
+      if (draftText) {
+        draftText.textContent = text;
+      } else {
+        draftAlert.textContent = text;
+      }
       draftAlert.hidden = !text;
     };
 
@@ -680,6 +693,14 @@
       clearDraftKeys();
       setDraftAlert('');
     } else if (draftKey) {
+      const ignoreDraft = urlParams.get('nodraft') === '1' || urlParams.get('reset') === '1';
+      if (urlParams.get('cleardraft') === '1') {
+        clearDraftKeys();
+        setDraftAlert('Borrador local borrado. Recarga la página.');
+      }
+      if (ignoreDraft) {
+        setDraftAlert('');
+      } else {
       const draft = readDraft(draftKey);
       const matchesUrl = !draft?.url || safeText(draft.url) === currentDraftUrl;
       if (draft && matchesUrl && applyDraftToForm(draft)) {
@@ -688,6 +709,14 @@
       } else {
         setDraftAlert('');
       }
+      }
+    }
+    if (draftClearBtn) {
+      draftClearBtn.addEventListener('click', () => {
+        clearDraftKeys();
+        setDraftAlert('Borrador local borrado. Recargando…');
+        try { window.location.reload(); } catch (error) { /* ignore */ }
+      });
     }
 
 	    const setStatus = (message, isError = false) => {
