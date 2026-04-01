@@ -72,8 +72,15 @@
         max-height: 360px;
         border-radius: 12px;
         border: 1px solid rgba(255, 255, 255, 0.16);
+        object-fit: cover;
+        object-position: center;
+        background: rgba(255, 255, 255, 0.06);
+        cursor: zoom-in;
+        transition: object-fit 0.15s ease, background 0.15s ease;
+      }
+      .preview.is-contain {
         object-fit: contain;
-        background: rgba(255, 255, 255, 0.03);
+        cursor: zoom-out;
       }
       .chips {
         display: flex;
@@ -632,7 +639,7 @@
       {% if task.task_preview_image %}
       <section class="panel">
         <h2>Vista previa</h2>
-        <img class="preview" src="{% url 'session-task-preview-file' task.id %}?v={{ task.task_preview_image.name|urlencode }}" alt="Vista previa de {{ task.title }}" />
+      <img class="preview" id="task-preview-image" src="{% url 'session-task-preview-file' task.id %}?v={{ task.task_preview_image.name|urlencode }}" alt="Vista previa de {{ task.title }}" />
       </section>
       {% endif %}
 
@@ -1370,16 +1377,23 @@
           }
         });
         let resizeTimer = null;
-        window.addEventListener('resize', () => {
+      window.addEventListener('resize', () => {
           clearTimeout(resizeTimer);
           resizeTimer = setTimeout(() => {
             fitCanvasToContainer(true);
             refreshLayerList();
             setStatus(isEditable ? 'Lienzo reajustado al tamaño de pantalla.' : 'Vista reajustada.');
           }, 180);
-        });
+      });
 
-        const animationCanvasEl = document.getElementById('task-animation-canvas');
+      // Preview: por defecto recorta (cover) para evitar grandes barras en pantallas verticales.
+      // Click alterna a "contain" si necesitas ver todo el lienzo sin recorte.
+      const previewImg = document.getElementById('task-preview-image');
+      previewImg?.addEventListener('click', () => {
+        previewImg.classList.toggle('is-contain');
+      });
+
+      const animationCanvasEl = document.getElementById('task-animation-canvas');
         const animationStatusEl = document.getElementById('animation-status');
         const animationButtons = Array.from(document.querySelectorAll('[data-animation-step]'));
         const animationPlayBtn = document.getElementById('animation-play-btn');
