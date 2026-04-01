@@ -225,7 +225,7 @@ def _refresh_rfaf_standings_inline(*, allow_fallback=False):
     try:
         from scripts import import_from_rfef
     except Exception as exc:
-        return False, f'No se pudo cargar el módulo RFAF: {exc}'
+        return False, f'No se pudo cargar el módulo RFAF: {exc}', None
     try:
         rows, html = import_from_rfef.parse_table(allow_fallback=bool(allow_fallback))
         next_match = import_from_rfef.extract_next_match_from_classification(html)
@@ -242,9 +242,9 @@ def _refresh_rfaf_standings_inline(*, allow_fallback=False):
             'RFAF',
             getattr(import_from_rfef, 'URL', '') or '',
         )
-        return True, f'Clasificación actualizada (filas={len(rows)}).'
+        return True, f'Clasificación actualizada (filas={len(rows)}).', next_match
     except Exception as exc:
-        return False, str(exc) or 'Error desconocido actualizando RFAF.'
+        return False, str(exc) or 'Error desconocido actualizando RFAF.', None
 
 
 @login_required
@@ -4031,6 +4031,16 @@ def load_preferred_next_match_payload(primary_team=None, competition_context=Non
     provider_next = _find_universo_next_match_for_context(competition_context, primary_team)
     if _next_match_payload_is_reliable(provider_next):
         return provider_next
+    try:
+        ws = getattr(competition_context, 'workspace', None)
+        if ws and getattr(ws, 'id', None):
+            snapshot = WorkspaceCompetitionSnapshot.objects.filter(workspace=ws).first()
+            if snapshot and isinstance(snapshot.next_match_payload, dict):
+                snapshot_next = normalize_next_match_payload(dict(snapshot.next_match_payload))
+                if _next_match_payload_is_reliable(snapshot_next):
+                    return snapshot_next
+    except Exception:
+        pass
     snapshot = load_universo_snapshot()
     can_use_external = _universo_snapshot_supports_team(snapshot, primary_team) if primary_team else True
     if can_use_external and isinstance(snapshot, dict) and isinstance(snapshot.get('next_match'), dict):
@@ -4342,6 +4352,8 @@ def dashboard_data(request):
         group_label = f'{season_name} · {group_label}'
     elif competition_name and competition_name.lower() not in str(group_label or '').lower():
         group_label = f'{competition_name} · {group_label}'
+    corporate_parts = [competition_name, season_name, group.name]
+    corporate_line = ' · '.join([part for part in corporate_parts if str(part or '').strip()])
 
     payload = {
         'team': {
@@ -4349,6 +4361,7 @@ def dashboard_data(request):
             'group': group_label,
             'competition': competition_name,
             'season': season_name,
+            'corporate_line': corporate_line,
             'crest_url': resolve_team_crest_url(request, primary_team, sync=True),
         },
         'standings': standings,
@@ -16587,8 +16600,9 @@ def refresh_scraping(request):
         return JsonResponse({'status': 'error', 'message': 'El dashboard no está activo en el workspace actual.'}, status=403)
     primary_team = _get_primary_team_for_request(request)
     refresh_message = ''
+    next_match_payload = None
     try:
-        ok, refresh_message = _refresh_rfaf_standings_inline(allow_fallback=False)
+        ok, refresh_message, next_match_payload = _refresh_rfaf_standings_inline(allow_fallback=False)
         if not ok:
             raise RuntimeError(refresh_message or 'No se pudo actualizar la clasificación.')
     except Exception as exc:
@@ -16610,6 +16624,21 @@ def refresh_scraping(request):
             workspace = _get_active_workspace(request)
             if workspace and workspace.kind == Workspace.KIND_CLUB and int(getattr(workspace, 'primary_team_id', 0) or 0) == int(primary_team.id):
                 _sync_workspace_competition_context(workspace)
+            # Persistimos el próximo partido en BD para que no dependa del filesystem (Render / múltiples instancias).
+            if isinstance(next_match_payload, dict) and _next_match_payload_is_reliable(next_match_payload):
+                club_ws = workspace
+                if not club_ws or getattr(club_ws, 'kind', None) != Workspace.KIND_CLUB:
+                    club_ws = (
+                        Workspace.objects
+                        .filter(kind=Workspace.KIND_CLUB, is_active=True, primary_team=primary_team)
+                        .select_related('competition_context')
+                        .first()
+                    )
+                if club_ws:
+                    snapshot, _ = WorkspaceCompetitionSnapshot.objects.get_or_create(workspace=club_ws)
+                    snapshot.context = getattr(club_ws, 'competition_context', None)
+                    snapshot.next_match_payload = normalize_next_match_payload(dict(next_match_payload))
+                    snapshot.save(update_fields=['context', 'next_match_payload', 'updated_at'])
         except Exception:
             pass
     latest_updated = _team_standings_last_updated(primary_team.group) if primary_team and getattr(primary_team, 'group', None) else None

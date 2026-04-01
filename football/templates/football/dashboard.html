@@ -614,7 +614,7 @@
         document.getElementById('kpi-points').textContent = teamRow?.points ?? '-';
         document.getElementById('kpi-played').textContent = teamRow?.played ?? '-';
         if (competitionLine) {
-          competitionLine.textContent = team && team.group ? team.group : 'Competición por definir';
+          competitionLine.textContent = team && (team.corporate_line || team.group) ? (team.corporate_line || team.group) : 'Competición por definir';
         }
         if (rankLine) {
           rankLine.textContent = `Puesto ${teamRow?.rank ?? '-'}`;
