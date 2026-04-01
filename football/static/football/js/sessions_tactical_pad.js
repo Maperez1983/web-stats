@@ -199,7 +199,7 @@
       // Deja margen suficiente para que el trazo del borde no se recorte en miniaturas / contenedores con overflow hidden.
       // Margen de seguridad para que los bordes no se recorten con overflow hidden,
       // pero lo más pequeño posible para que el campo ocupe pantalla.
-      const margin = 10;
+      const margin = 6;
       const portrait = orientation === 'portrait';
       const effectiveW = portrait ? stageH : stageW;
       const effectiveH = portrait ? stageW : stageH;
