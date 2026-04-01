@@ -113,50 +113,9 @@
         gap: 1rem;
         align-items: start;
       }
-      /* En pantallas grandes, el editor debe caber en una sola vista:
-         - el campo siempre visible
-         - el panel derecho scrollea internamente */
       @media (min-width: 980px) {
-        .page {
-          height: 100vh;
-          overflow: hidden;
-        }
         .builder {
-          height: var(--builder-vh, auto);
-          align-items: stretch;
-        }
-        .builder > .panel {
-          height: 100%;
-          min-height: 0;
-        }
-        .builder > section.panel .panel-body {
-          height: 100%;
-          min-height: 0;
-          overflow: hidden;
-          display: flex;
-          flex-direction: column;
-        }
-        .builder > aside.panel .panel-body {
-          height: 100%;
-          min-height: 0;
-          overflow: auto;
-        }
-        .pitch-viewport {
-          flex: 1 1 auto;
-          min-height: 260px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-        .pitch-stage {
-          height: 100%;
-          width: auto;
-          max-width: 100%;
-          min-height: 0;
-        }
-        .resource-panel.is-visible {
-          max-height: 240px;
-          overflow: auto;
+          grid-template-columns: minmax(0, 1.85fr) minmax(340px, 420px);
         }
       }
       .panel {
@@ -710,8 +669,9 @@
       }
       .pitch-stage {
         position: relative;
-        width: 100%;
-        max-width: 940px;
+        --pitch-zoom: 1;
+        width: min(calc(100% * var(--pitch-zoom)), calc(1240px * var(--pitch-zoom)));
+        max-width: none;
         /* Mantener misma proporción que el SVG (viewBox 1100x748) para evitar bandas en preview/PDF. */
         aspect-ratio: 1100 / 748;
         min-height: 0;
@@ -720,9 +680,6 @@
         overflow: hidden;
         border: 1px solid rgba(255, 255, 255, 0.14);
         background: linear-gradient(180deg, #0b1725, #08111d);
-        --pitch-zoom: 1;
-        transform: scale(var(--pitch-zoom));
-        transform-origin: center top;
       }
       .pitch-stage::before {
         content: "";
@@ -742,22 +699,7 @@
       }
       .pitch-stage.is-portrait {
         aspect-ratio: 748 / 1100;
-        width: 100%;
-        /* En vertical no limitamos el ancho: el objetivo es que el campo no se vea "enano". */
-        max-width: 940px;
-      }
-      @media (min-width: 980px) {
-        /* En escritorio, ajusta el campo a la altura disponible para que se vea completo sin cortes. */
-        .pitch-stage {
-          height: 100%;
-          width: auto;
-          max-width: 100%;
-        }
-        .pitch-stage.is-portrait {
-          height: 100%;
-          width: auto;
-          max-width: 100%;
-        }
+        width: min(calc(100% * var(--pitch-zoom)), calc(1240px * var(--pitch-zoom)));
       }
       .pitch-viewport {
         width: 100%;
@@ -2113,30 +2055,6 @@
     <script src="{% static 'football/js/sessions_tactical_pad.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
     <script>
       window.addEventListener('DOMContentLoaded', () => {
-        const builder = document.querySelector('.builder');
-        const applyBuilderVh = () => {
-          try {
-            if (!builder || !window.matchMedia || !window.matchMedia('(min-width: 740px)').matches) return;
-            const rect = builder.getBoundingClientRect();
-            const padding = 16;
-            const viewportHeight = Math.floor((window.visualViewport?.height || window.innerHeight || 0));
-            const height = Math.max(520, Math.floor(viewportHeight - rect.top - padding));
-            document.documentElement.style.setProperty('--builder-vh', `${height}px`);
-          } catch (error) { /* ignore */ }
-        };
-        applyBuilderVh();
-        let resizeTimer = null;
-        window.addEventListener('resize', () => {
-          window.clearTimeout(resizeTimer);
-          resizeTimer = window.setTimeout(applyBuilderVh, 100);
-        });
-        try {
-          window.visualViewport?.addEventListener('resize', () => {
-            window.clearTimeout(resizeTimer);
-            resizeTimer = window.setTimeout(applyBuilderVh, 100);
-          });
-        } catch (error) { /* ignore */ }
-
         if (window.initSessionsTacticalPad) window.initSessionsTacticalPad();
       });
     </script>

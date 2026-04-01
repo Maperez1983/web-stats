@@ -2026,41 +2026,30 @@
       viewportEl?.classList.toggle('is-portrait', pitchOrientation === 'portrait');
       orientationToggle?.classList.toggle('is-active', pitchOrientation === 'portrait');
     };
-    const syncZoomUi = () => {
-      if (zoomInput) zoomInput.value = String(pitchZoom.toFixed(2));
-      if (zoomLabel) zoomLabel.textContent = `${Math.round(pitchZoom * 100)}%`;
-      stage.style.setProperty('--pitch-zoom', String(pitchZoom));
-      viewportEl?.classList.toggle('is-zoomed', pitchZoom > 1.02);
-      canvas.calcOffset();
-    };
+	    const syncZoomUi = () => {
+	      if (zoomInput) zoomInput.value = String(pitchZoom.toFixed(2));
+	      if (zoomLabel) zoomLabel.textContent = `${Math.round(pitchZoom * 100)}%`;
+	      stage.style.setProperty('--pitch-zoom', String(pitchZoom));
+	      viewportEl?.classList.toggle('is-zoomed', pitchZoom > 1.02);
+	      // El zoom cambia el tamaño del stage; reajustamos canvas y SVG para mantener todo alineado y nítido.
+	      try {
+	        window.requestAnimationFrame(() => {
+	          try { fitCanvas(true); } catch (error) { /* ignore */ }
+	          try { applyPitchSurface(presetSelect.value || 'full_pitch', pitchOrientation); } catch (error) { /* ignore */ }
+	          try { canvas.calcOffset(); } catch (error) { /* ignore */ }
+	        });
+	      } catch (error) {
+	        try { fitCanvas(true); } catch (e) { /* ignore */ }
+	        try { applyPitchSurface(presetSelect.value || 'full_pitch', pitchOrientation); } catch (e) { /* ignore */ }
+	        try { canvas.calcOffset(); } catch (e) { /* ignore */ }
+	      }
+	    };
 	    const applyPitchZoom = (value, options = {}) => {
 	      const next = clamp(Number(value) || 1, 0.8, 1.6);
 	      pitchZoom = next;
 	      if (!options.silent) zoomTouched = true;
 	      syncZoomUi();
 	      if (!options.silent) setStatus(`Zoom: ${Math.round(pitchZoom * 100)}%.`);
-	    };
-
-	    const applyAutoFitZoom = () => {
-	      if (!viewportEl || !stage) return;
-	      if (zoomTouched) return;
-	      try {
-	        const viewportW = Math.max(1, Math.round(viewportEl.clientWidth || 0));
-	        const viewportH = Math.max(1, Math.round(viewportEl.clientHeight || 0));
-	        const rect = stage.getBoundingClientRect();
-	        const currentZoom = clamp(Number(pitchZoom) || 1, 0.8, 1.6);
-	        const unscaledW = Math.max(1, rect.width / currentZoom);
-	        const unscaledH = Math.max(1, rect.height / currentZoom);
-	        const fitScale = Math.min(viewportW / unscaledW, viewportH / unscaledH);
-	        const defaultZoom = pitchOrientation === 'portrait' ? 1.15 : 1.0;
-	        const nextZoom = clamp(Math.min(defaultZoom, fitScale), 0.8, 1.6);
-	        if (Math.abs(nextZoom - currentZoom) >= 0.02) {
-	          pitchZoom = nextZoom;
-	          syncZoomUi();
-	        }
-	      } catch (error) {
-	        // ignore
-	      }
 	    };
 
     const serializeCanvasOnly = () => {
@@ -2377,7 +2366,6 @@
 	      }
 	      fitCanvas(options.preserveObjects !== false);
 	      setPreset(presetSelect.value || 'full_pitch');
-	      applyAutoFitZoom();
 	      if (!options.silent) setStatus(`Campo en ${ORIENTATION_LABEL[pitchOrientation]}.`);
 	      if (options.pushHistory) {
 	        pushHistory();
@@ -4125,9 +4113,6 @@
       }
 	      activateResourcePanel(initialResource);
 	    }
-	    // Ajusta zoom inicial para que el campo se vea completo si la ventana es pequeña,
-	    // sin tocar el zoom si el usuario ya lo modificó.
-	    applyAutoFitZoom();
 
 	    const panelKeyForObject = (object) => {
       const kind = safeText(object?.data?.kind);
@@ -4189,7 +4174,6 @@
 	      captureResizeBaseline();
 		      resizeTimer = window.setTimeout(() => {
 		        applyResizeFromBaseline();
-		        applyAutoFitZoom();
 		        renderSurfaceThumbs();
 		      }, 200);
 	      // Si durante la rotación/resize hay varios eventos, cerramos la sesión cuando se estabilice.
