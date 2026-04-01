@@ -193,9 +193,9 @@
     // - Para superficies parciales (medio campo/tercios/futsal/F7 individual) dejamos transparente
     //   el exterior del rectángulo de juego para que no “gaste” página con verde innecesario
     //   (en editor se verá el fondo del panel; en PDF quedará blanco).
-    const fillOutside = (preset === 'full_pitch' || preset === 'seven_side')
-      ? 'url(#pitch-bg)'
-      : 'transparent';
+    // En el editor rellenamos el exterior con césped para que no parezca que hay “huecos” alrededor.
+    // El recorte para PDF/cards ya se hace al exportar la preview (data-pitch-box).
+    const fillOutside = 'url(#pitch-bg)';
     root.appendChild(createSvgNode(doc, 'rect', {
       x: -bleed,
       y: -bleed,
