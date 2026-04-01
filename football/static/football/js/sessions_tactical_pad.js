@@ -921,17 +921,18 @@
 	      const alt = !!rawEvent?.altKey;
 	      return gridSnapEnabled ? !alt : alt;
 	    };
-	    const snapPointToGrid = (point) => {
-	      const size = gridSizePx();
-	      const baseX = Number(point?.x) || 0;
-	      const baseY = Number(point?.y) || 0;
-	      const snappedX = Math.round(baseX / size) * size;
-	      const snappedY = Math.round(baseY / size) * size;
-	      return {
-	        x: clamp(snappedX, 0, canvas.getWidth()),
-	        y: clamp(snappedY, 0, canvas.getHeight()),
-	      };
-	    };
+		    const snapPointToGrid = (point) => {
+		      const size = gridSizePx();
+		      const baseX = Number(point?.x) || 0;
+		      const baseY = Number(point?.y) || 0;
+		      const snappedX = Math.round(baseX / size) * size;
+		      const snappedY = Math.round(baseY / size) * size;
+		      const { w: boundW, h: boundH } = worldSize();
+		      return {
+		        x: clamp(snappedX, 0, boundW),
+		        y: clamp(snappedY, 0, boundH),
+		      };
+		    };
 	    syncGridUi({ silent: true });
 
 		    let history = [];
@@ -951,16 +952,53 @@
     let activeStepIndex = -1;
     let playbackTimer = null;
     let playbackRestoreState = null;
-    let pitchOrientation = safeText(orientationInput?.value, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
-	    let pitchZoom = Number.parseFloat(String(zoomInput?.value || '').trim());
-	    let zoomTouched = false;
+	    let pitchOrientation = safeText(orientationInput?.value, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
+		    let pitchZoom = Number.parseFloat(String(zoomInput?.value || '').trim());
+		    let zoomTouched = false;
 	    let spacePanArmed = false;
 	    let spacePanning = false;
 	    let spacePanStart = null;
+	    const useViewportMapping = (() => {
+	      const flag = safeText(urlParams?.get('tpad_vpt'));
+	      if (flag === '0') return false;
+	      return true;
+	    })();
+
+	    let worldWidth = parseIntSafe(widthInput?.value) || 0;
+	    let worldHeight = parseIntSafe(heightInput?.value) || 0;
+
 	    if (!Number.isFinite(pitchZoom)) pitchZoom = 1.0;
 	    pitchZoom = clamp(pitchZoom, 0.8, 1.6);
 
-    const clampScale = (value) => clamp(Number(value) || 1, 0.4, 2.6);
+	    const clampScale = (value) => clamp(Number(value) || 1, 0.4, 2.6);
+	    const worldSize = () => {
+	      const w = Number(worldWidth) || 0;
+	      const h = Number(worldHeight) || 0;
+	      if (w > 0 && h > 0) return { w, h };
+	      return { w: Math.round(canvas.getWidth() || 0), h: Math.round(canvas.getHeight() || 0) };
+	    };
+	    const syncWorldFromInputs = () => {
+	      const nextW = parseIntSafe(widthInput?.value);
+	      const nextH = parseIntSafe(heightInput?.value);
+	      if (nextW > 0 && nextH > 0) {
+	        worldWidth = nextW;
+	        worldHeight = nextH;
+	      }
+	    };
+	    const applyViewportTransformToWorld = () => {
+	      if (!useViewportMapping) {
+	        canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+	        return;
+	      }
+	      const { w: fromW, h: fromH } = worldSize();
+	      const toW = Math.round(canvas.getWidth() || 0);
+	      const toH = Math.round(canvas.getHeight() || 0);
+	      if (fromW <= 0 || fromH <= 0 || toW <= 0 || toH <= 0) return;
+	      const scale = Math.min(toW / fromW, toH / fromH);
+	      const offsetX = (toW - (fromW * scale)) / 2;
+	      const offsetY = (toH - (fromH * scale)) / 2;
+	      canvas.setViewportTransform([scale, 0, 0, scale, offsetX, offsetY]);
+	    };
 		    const normalizeEditableObject = (object) => {
 		      if (!object) return object;
 		      const rawLocked = object?.data?.locked;
@@ -1560,11 +1598,12 @@
 	      if (active.type === 'activeSelection' && typeof active.getObjects === 'function') return active.getObjects() || [];
 	      return [active];
 	    };
-	    const selectionCenter = () => {
-	      const active = canvas.getActiveObject();
-	      if (active && typeof active.getCenterPoint === 'function') return active.getCenterPoint();
-	      return new fabric.Point(canvas.getWidth() / 2, canvas.getHeight() / 2);
-	    };
+		    const selectionCenter = () => {
+		      const active = canvas.getActiveObject();
+		      if (active && typeof active.getCenterPoint === 'function') return active.getCenterPoint();
+		      const { w, h } = worldSize();
+		      return new fabric.Point(w / 2, h / 2);
+		    };
 	    const alignSelection = (axis) => {
 	      const objects = getSelectionObjects();
 	      if (objects.length < 2) {
@@ -2086,29 +2125,33 @@
 		      commitLayerChange('Nombre actualizado.');
 		    });
 
-	    const fitCanvas = (preserveObjects = false) => {
-	      const previousWidth = canvas.getWidth() || 0;
-	      const previousHeight = canvas.getHeight() || 0;
-      const width = Math.max(320, Math.round(stage.clientWidth || 960));
-      const height = Math.max(220, Math.round(stage.clientHeight || 640));
-      canvas.setDimensions({ width, height });
-      if (preserveObjects && previousWidth > 0 && previousHeight > 0) {
-        const scaleX = width / previousWidth;
-        const scaleY = height / previousHeight;
-        const uniformScale = Math.min(scaleX, scaleY);
-        canvas.getObjects().forEach((item) => {
-          item.set({
+		    const fitCanvas = (preserveObjects = false) => {
+		      const previousWidth = canvas.getWidth() || 0;
+		      const previousHeight = canvas.getHeight() || 0;
+	      const width = Math.max(320, Math.round(stage.clientWidth || 960));
+	      const height = Math.max(220, Math.round(stage.clientHeight || 640));
+	      canvas.setDimensions({ width, height });
+	      if (!useViewportMapping && preserveObjects && previousWidth > 0 && previousHeight > 0) {
+	        const scaleX = width / previousWidth;
+	        const scaleY = height / previousHeight;
+	        const uniformScale = Math.min(scaleX, scaleY);
+	        canvas.getObjects().forEach((item) => {
+	          item.set({
             left: (Number(item.left) || 0) * scaleX,
             top: (Number(item.top) || 0) * scaleY,
             scaleX: clampScale((Number(item.scaleX) || 1) * uniformScale),
             scaleY: clampScale((Number(item.scaleY) || 1) * uniformScale),
           });
           item.setCoords();
-        });
-      }
-      canvas.calcOffset();
-      canvas.requestRenderAll();
-    };
+	        });
+	      }
+	      if (useViewportMapping) {
+	        syncWorldFromInputs();
+	        applyViewportTransformToWorld();
+	      }
+	      canvas.calcOffset();
+	      canvas.requestRenderAll();
+	    };
     const syncOrientationUi = () => {
       if (orientationInput) orientationInput.value = pitchOrientation;
       if (orientationLabel) orientationLabel.textContent = ORIENTATION_LABEL[pitchOrientation] === 'vertical' ? 'Vertical' : 'Horizontal';
@@ -2116,24 +2159,24 @@
       viewportEl?.classList.toggle('is-portrait', pitchOrientation === 'portrait');
       orientationToggle?.classList.toggle('is-active', pitchOrientation === 'portrait');
     };
-	    const syncZoomUi = () => {
-	      if (zoomInput) zoomInput.value = String(pitchZoom.toFixed(2));
-	      if (zoomLabel) zoomLabel.textContent = `${Math.round(pitchZoom * 100)}%`;
-	      stage.style.setProperty('--pitch-zoom', String(pitchZoom));
-	      viewportEl?.classList.toggle('is-zoomed', pitchZoom > 1.02);
-	      // El zoom cambia el tamaño del stage; reajustamos canvas y SVG para mantener todo alineado y nítido.
-	      try {
-	        window.requestAnimationFrame(() => {
-	          try { fitCanvas(true); } catch (error) { /* ignore */ }
-	          try { applyPitchSurface(presetSelect.value || 'full_pitch', pitchOrientation); } catch (error) { /* ignore */ }
-	          try { canvas.calcOffset(); } catch (error) { /* ignore */ }
-	        });
-	      } catch (error) {
-	        try { fitCanvas(true); } catch (e) { /* ignore */ }
-	        try { applyPitchSurface(presetSelect.value || 'full_pitch', pitchOrientation); } catch (e) { /* ignore */ }
-	        try { canvas.calcOffset(); } catch (e) { /* ignore */ }
-	      }
-	    };
+		    const syncZoomUi = () => {
+		      if (zoomInput) zoomInput.value = String(pitchZoom.toFixed(2));
+		      if (zoomLabel) zoomLabel.textContent = `${Math.round(pitchZoom * 100)}%`;
+		      stage.style.setProperty('--pitch-zoom', String(pitchZoom));
+		      viewportEl?.classList.toggle('is-zoomed', pitchZoom > 1.02);
+		      // El zoom cambia el tamaño del stage; reajustamos canvas y SVG para mantener todo alineado y nítido.
+		      try {
+		        window.requestAnimationFrame(() => {
+		          try { fitCanvas(!useViewportMapping); } catch (error) { /* ignore */ }
+		          try { applyPitchSurface(presetSelect.value || 'full_pitch', pitchOrientation); } catch (error) { /* ignore */ }
+		          try { canvas.calcOffset(); } catch (error) { /* ignore */ }
+		        });
+		      } catch (error) {
+		        try { fitCanvas(!useViewportMapping); } catch (e) { /* ignore */ }
+		        try { applyPitchSurface(presetSelect.value || 'full_pitch', pitchOrientation); } catch (e) { /* ignore */ }
+		        try { canvas.calcOffset(); } catch (e) { /* ignore */ }
+		      }
+		    };
 	    const applyPitchZoom = (value, options = {}) => {
 	      const next = clamp(Number(value) || 1, 0.8, 1.6);
 	      pitchZoom = next;
@@ -2168,13 +2211,14 @@
       timeline[activeStepIndex].title = safeText(stepTitleInput?.value, `Paso ${activeStepIndex + 1}`);
       timeline[activeStepIndex].duration = clamp(Number(stepDurationInput?.value) || 3, 1, 20);
     };
-    const persistActiveStepSnapshot = () => {
-      if (activeStepIndex < 0 || !timeline[activeStepIndex]) return;
-      persistActiveStepMeta();
-      timeline[activeStepIndex].canvas_state = serializeCanvasOnly();
-      timeline[activeStepIndex].canvas_width = Math.round(canvas.getWidth() || 0);
-      timeline[activeStepIndex].canvas_height = Math.round(canvas.getHeight() || 0);
-    };
+	    const persistActiveStepSnapshot = () => {
+	      if (activeStepIndex < 0 || !timeline[activeStepIndex]) return;
+	      persistActiveStepMeta();
+	      timeline[activeStepIndex].canvas_state = serializeCanvasOnly();
+	      const { w, h } = worldSize();
+	      timeline[activeStepIndex].canvas_width = Math.round(w || 0);
+	      timeline[activeStepIndex].canvas_height = Math.round(h || 0);
+	    };
     const syncStepInputs = () => {
       const active = activeStepIndex >= 0 ? timeline[activeStepIndex] : null;
       [stepTitleInput, stepDurationInput, duplicateStepButton, removeStepButton, playStepButton].forEach((node) => {
@@ -2236,17 +2280,27 @@
       });
       return true;
     };
-    const loadCanvasSnapshot = (rawState, callback, options = {}) => {
-      const parsed = sanitizeLoadedState(rawState);
-      const sourceWidth = Number(options?.sourceWidth) || 0;
-      const sourceHeight = Number(options?.sourceHeight) || 0;
-      canvas.__loading = true;
-      canvas.loadFromJSON(parsed, () => {
-        // Compat: si el canvas se creó en otra resolución, reescalamos los objetos cargados
-        // para que las tareas guardadas no cambien de posición al adaptar el editor.
-        scaleLoadedObjects(sourceWidth, sourceHeight);
-        // Compat: algunas tareas antiguas guardaron chapas tipo "camiseta". Al abrirlas,
-        // las convertimos a estilo "disco" para que se parezcan a la plantilla disponible.
+	    const loadCanvasSnapshot = (rawState, callback, options = {}) => {
+	      const parsed = sanitizeLoadedState(rawState);
+	      const sourceWidth = Number(options?.sourceWidth) || 0;
+	      const sourceHeight = Number(options?.sourceHeight) || 0;
+	      if (sourceWidth > 0 && sourceHeight > 0) {
+	        worldWidth = sourceWidth;
+	        worldHeight = sourceHeight;
+	      }
+	      canvas.__loading = true;
+	      canvas.loadFromJSON(parsed, () => {
+	        if (!useViewportMapping) {
+	          // Compat: si el canvas se creó en otra resolución, reescalamos los objetos cargados
+	          // para que las tareas guardadas no cambien de posición al adaptar el editor.
+	          scaleLoadedObjects(sourceWidth, sourceHeight);
+	        } else {
+	          // En modo viewport, NO mutamos coordenadas: ajustamos el viewport para encajar el "mundo" guardado.
+	          try { syncWorldFromInputs(); } catch (e) { /* ignore */ }
+	          try { applyViewportTransformToWorld(); } catch (e) { /* ignore */ }
+	        }
+	        // Compat: algunas tareas antiguas guardaron chapas tipo "camiseta". Al abrirlas,
+	        // las convertimos a estilo "disco" para que se parezcan a la plantilla disponible.
         // Solo afecta a objetos con data.kind='token' y token_kind de jugadores.
         try {
           const playerTokenKinds = new Set(['player_local', 'player_away', 'goalkeeper_local']);
@@ -2312,11 +2366,11 @@
         } catch (error) {
           // ignore conversion errors
         }
-        canvas.getObjects().forEach((item) => normalizeEditableObject(item));
-        canvas.__loading = false;
-        canvas.requestRenderAll();
-        syncInspector();
-        refreshLivePreview();
+	        canvas.getObjects().forEach((item) => normalizeEditableObject(item));
+	        canvas.__loading = false;
+	        canvas.requestRenderAll();
+	        syncInspector();
+	        refreshLivePreview();
         if (typeof callback === 'function') callback();
       });
     };
@@ -2512,22 +2566,22 @@
       refreshLivePreview();
       setStatus(`Superficie preparada: ${PRESET_LABEL[preset] || 'campo'} en ${ORIENTATION_LABEL[pitchOrientation]}.`);
     };
-	    const applyPitchOrientation = (nextOrientation, options = {}) => {
-	      const normalized = safeText(nextOrientation, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
-	      if (normalized === pitchOrientation && !options.force) return;
-	      pitchOrientation = normalized;
+		    const applyPitchOrientation = (nextOrientation, options = {}) => {
+		      const normalized = safeText(nextOrientation, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
+		      if (normalized === pitchOrientation && !options.force) return;
+		      pitchOrientation = normalized;
 		      syncOrientationUi();
 		      if (!zoomTouched) {
 		        pitchZoom = 1.0;
 		        syncZoomUi();
 		      }
-	      fitCanvas(options.preserveObjects !== false);
-	      setPreset(presetSelect.value || 'full_pitch');
-	      if (!options.silent) setStatus(`Campo en ${ORIENTATION_LABEL[pitchOrientation]}.`);
-	      if (options.pushHistory) {
-	        pushHistory();
-	      }
-	    };
+		      fitCanvas(!useViewportMapping && options.preserveObjects !== false);
+		      setPreset(presetSelect.value || 'full_pitch');
+		      if (!options.silent) setStatus(`Campo en ${ORIENTATION_LABEL[pitchOrientation]}.`);
+		      if (options.pushHistory) {
+		        pushHistory();
+		      }
+		    };
 
     const renderSurfaceThumbs = () => {
       if (surfacesRendered) return;
@@ -2561,11 +2615,12 @@
       return { version: raw.version || '5.3.0', objects };
     };
 
-    const objectAtPointer = (factory, pointer) => {
-      const left = clamp(pointer.x || 0, 24, canvas.getWidth() - 24);
-      const top = clamp(pointer.y || 0, 24, canvas.getHeight() - 24);
-      return factory(left, top);
-    };
+	    const objectAtPointer = (factory, pointer) => {
+	      const { w, h } = worldSize();
+	      const left = clamp(pointer.x || 0, 24, w - 24);
+	      const top = clamp(pointer.y || 0, 24, h - 24);
+	      return factory(left, top);
+	    };
 
 	    const addObject = (object) => {
 	      if (!object) return;
@@ -2613,15 +2668,26 @@
 	      Array.from(playerBank?.querySelectorAll('button') || []).forEach((button) => button.classList.remove('is-active'));
 	      Array.from(libraryPane?.querySelectorAll('button[data-add]') || []).forEach((button) => button.classList.remove('is-active'));
 	    };
-    const pointerFromStageEvent = (event) => {
-      const rect = stage.getBoundingClientRect();
-      const x = ((event.clientX - rect.left) / rect.width) * canvas.getWidth();
-      const y = ((event.clientY - rect.top) / rect.height) * canvas.getHeight();
-      return {
-        x: clamp(x, 24, canvas.getWidth() - 24),
-        y: clamp(y, 24, canvas.getHeight() - 24),
-      };
-    };
+	    const pointerFromStageEvent = (event) => {
+	      const rect = stage.getBoundingClientRect();
+	      const screenX = ((event.clientX - rect.left) / rect.width) * canvas.getWidth();
+	      const screenY = ((event.clientY - rect.top) / rect.height) * canvas.getHeight();
+	      let x = screenX;
+	      let y = screenY;
+	      if (useViewportMapping) {
+	        const vpt = canvas.viewportTransform || [1, 0, 0, 1, 0, 0];
+	        const scale = Number(vpt[0]) || 1;
+	        const offsetX = Number(vpt[4]) || 0;
+	        const offsetY = Number(vpt[5]) || 0;
+	        x = (screenX - offsetX) / scale;
+	        y = (screenY - offsetY) / scale;
+	      }
+	      const { w, h } = worldSize();
+	      return {
+	        x: clamp(x, 24, w - 24),
+	        y: clamp(y, 24, h - 24),
+	      };
+	    };
     const createFactoryFromPayload = (payload) => {
       if (!payload || typeof payload !== 'object') return null;
       if (payload.playerId) {
@@ -3137,13 +3203,13 @@
       const sourceTitle = duplicateCurrent && activeStepIndex >= 0 && timeline[activeStepIndex]
         ? safeText(timeline[activeStepIndex].title, `Paso ${activeStepIndex + 1}`)
         : '';
-      timeline.splice(insertionIndex, 0, {
-        title: duplicateCurrent ? `${sourceTitle} copia` : `Paso ${timeline.length + 1}`,
-        duration: duplicateCurrent && activeStepIndex >= 0 && timeline[activeStepIndex] ? clamp(Number(timeline[activeStepIndex].duration) || 3, 1, 20) : 3,
-        canvas_state: baseState,
-        canvas_width: Math.round(canvas.getWidth() || 0),
-        canvas_height: Math.round(canvas.getHeight() || 0),
-      });
+	      timeline.splice(insertionIndex, 0, {
+	        title: duplicateCurrent ? `${sourceTitle} copia` : `Paso ${timeline.length + 1}`,
+	        duration: duplicateCurrent && activeStepIndex >= 0 && timeline[activeStepIndex] ? clamp(Number(timeline[activeStepIndex].duration) || 3, 1, 20) : 3,
+	        canvas_state: baseState,
+	        canvas_width: Math.round(worldSize().w || 0),
+	        canvas_height: Math.round(worldSize().h || 0),
+	      });
       activeStepIndex = insertionIndex;
       renderTimeline();
       pushHistory();
@@ -3348,17 +3414,25 @@
         assignedSummary.textContent = extra ? `${chunks.join(', ')} y ${extra} más.` : chunks.join(', ');
       }
     };
-	    const syncHiddenBuilderFields = async (options = {}) => {
-	      try { syncRichEditorsNow(); } catch (error) { /* ignore */ }
-	      if (legacyPlayersInput && playerCountInput) legacyPlayersInput.value = playerCountInput.value || '';
-	      const stateObj = serializeState();
-	      syncAssignedPlayersHidden(stateObj);
-	      if (stateInput) stateInput.value = JSON.stringify(stateObj);
-	      if (widthInput) widthInput.value = String(Math.round(canvas.getWidth()));
-	      if (heightInput) heightInput.value = String(Math.round(canvas.getHeight()));
-	      const previewOptions = options && typeof options === 'object' ? (options.previewOptions || {}) : {};
-	      const applyLive = !(options && typeof options === 'object' && options.applyLivePreview === false);
-	      const dataUrl = await buildPreviewData(previewOptions);
+		    const syncHiddenBuilderFields = async (options = {}) => {
+		      try { syncRichEditorsNow(); } catch (error) { /* ignore */ }
+		      if (legacyPlayersInput && playerCountInput) legacyPlayersInput.value = playerCountInput.value || '';
+		      if (useViewportMapping) syncWorldFromInputs();
+		      const stateObj = serializeState();
+		      syncAssignedPlayersHidden(stateObj);
+		      if (stateInput) stateInput.value = JSON.stringify(stateObj);
+		      if (widthInput || heightInput) {
+		        if (!useViewportMapping) {
+		          worldWidth = Math.round(canvas.getWidth() || 0);
+		          worldHeight = Math.round(canvas.getHeight() || 0);
+		        }
+		        const { w, h } = worldSize();
+		        if (widthInput) widthInput.value = String(Math.round(w || 0));
+		        if (heightInput) heightInput.value = String(Math.round(h || 0));
+		      }
+		      const previewOptions = options && typeof options === 'object' ? (options.previewOptions || {}) : {};
+		      const applyLive = !(options && typeof options === 'object' && options.applyLivePreview === false);
+		      const dataUrl = await buildPreviewData(previewOptions);
 	      if (previewInput) previewInput.value = dataUrl;
 	      if (applyLive) applyLivePreview(dataUrl);
 	      if (timelinePreviewsInput) timelinePreviewsInput.value = '';
@@ -3477,12 +3551,17 @@
       } catch (error) {
         // leave current hidden value
       }
-      try {
-        fields.draw_canvas_width = String(Math.round(canvas.getWidth()));
-        fields.draw_canvas_height = String(Math.round(canvas.getHeight()));
-      } catch (error) {
-        // ignore
-      }
+	      try {
+	        if (!useViewportMapping) {
+	          worldWidth = Math.round(canvas.getWidth() || 0);
+	          worldHeight = Math.round(canvas.getHeight() || 0);
+	        }
+	        const { w, h } = worldSize();
+	        fields.draw_canvas_width = String(Math.round(w || 0));
+	        fields.draw_canvas_height = String(Math.round(h || 0));
+	      } catch (error) {
+	        // ignore
+	      }
       const payload = {
         v: 1,
         url: currentDraftUrl,
@@ -3856,12 +3935,13 @@
       }
       const nudgeX = Number(button.dataset.nudgeX);
       const nudgeY = Number(button.dataset.nudgeY);
-      if ((!Number.isNaN(nudgeX) || !Number.isNaN(nudgeY)) && (button.dataset.nudgeX !== undefined || button.dataset.nudgeY !== undefined)) {
-        applyToActiveFlexibleObject((active) => {
-          active.left = clamp((Number(active.left) || 0) + (Number.isNaN(nudgeX) ? 0 : nudgeX), 12, canvas.getWidth() - 12);
-          active.top = clamp((Number(active.top) || 0) + (Number.isNaN(nudgeY) ? 0 : nudgeY), 12, canvas.getHeight() - 12);
-        }, 'Posición actualizada.');
-      }
+	      if ((!Number.isNaN(nudgeX) || !Number.isNaN(nudgeY)) && (button.dataset.nudgeX !== undefined || button.dataset.nudgeY !== undefined)) {
+	        applyToActiveFlexibleObject((active) => {
+	          const { w, h } = worldSize();
+	          active.left = clamp((Number(active.left) || 0) + (Number.isNaN(nudgeX) ? 0 : nudgeX), 12, w - 12);
+	          active.top = clamp((Number(active.top) || 0) + (Number.isNaN(nudgeY) ? 0 : nudgeY), 12, h - 12);
+	        }, 'Posición actualizada.');
+	      }
     });
 
     const handleCanvasAction = (action) => {
@@ -4349,28 +4429,38 @@
 	      return resizeBaseline;
 	    };
 	    const clearResizeBaseline = () => { resizeBaseline = null; };
-	    const applyResizeFromBaseline = () => {
-	      const baseline = captureResizeBaseline();
-	      const width = Math.max(320, Math.round(stage.clientWidth || 960));
-	      const height = Math.max(220, Math.round(stage.clientHeight || 640));
-	      if (width <= 0 || height <= 0) return;
-	      if (Math.abs(width - (canvas.getWidth() || 0)) < 2 && Math.abs(height - (canvas.getHeight() || 0)) < 2) return;
-	      canvas.setDimensions({ width, height });
-	      canvas.calcOffset();
-	      // Reescalado "sin acumulación": siempre desde el snapshot capturado al inicio del resize.
-	      loadCanvasSnapshot(
-	        baseline.canvas_state,
-	        () => {
-	          try { persistActiveStepSnapshot(); } catch (e) { /* ignore */ }
-	          try { syncInspector(); } catch (e) { /* ignore */ }
-	          try { refreshLivePreview(); } catch (e) { /* ignore */ }
-	        },
-	        { sourceWidth: baseline.width, sourceHeight: baseline.height },
-	      );
-	      // El SVG del césped depende del preset/orientación, lo reinyectamos por seguridad sin tocar objetos.
-	      try { applyPitchSurface(baseline.preset, baseline.orientation); } catch (e) { /* ignore */ }
-	      try { syncZoomUi(); } catch (e) { /* ignore */ }
-	    };
+		    const applyResizeFromBaseline = () => {
+		      const baseline = captureResizeBaseline();
+		      const width = Math.max(320, Math.round(stage.clientWidth || 960));
+		      const height = Math.max(220, Math.round(stage.clientHeight || 640));
+		      if (width <= 0 || height <= 0) return;
+		      if (Math.abs(width - (canvas.getWidth() || 0)) < 2 && Math.abs(height - (canvas.getHeight() || 0)) < 2) return;
+		      canvas.setDimensions({ width, height });
+		      canvas.calcOffset();
+		      if (!useViewportMapping) {
+		        // Reescalado "sin acumulación": siempre desde el snapshot capturado al inicio del resize.
+		        loadCanvasSnapshot(
+		          baseline.canvas_state,
+		          () => {
+		            try { persistActiveStepSnapshot(); } catch (e) { /* ignore */ }
+		            try { syncInspector(); } catch (e) { /* ignore */ }
+		            try { refreshLivePreview(); } catch (e) { /* ignore */ }
+		          },
+		          { sourceWidth: baseline.width, sourceHeight: baseline.height },
+		        );
+		      } else {
+		        // En modo viewport, nunca reescalamos/reescribimos objetos al girar o hacer resize:
+		        // solo reajustamos el encuadre.
+		        try { applyViewportTransformToWorld(); } catch (e) { /* ignore */ }
+		        try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+		        try { persistActiveStepSnapshot(); } catch (e) { /* ignore */ }
+		        try { syncInspector(); } catch (e) { /* ignore */ }
+		        try { refreshLivePreview(); } catch (e) { /* ignore */ }
+		      }
+		      // El SVG del césped depende del preset/orientación, lo reinyectamos por seguridad sin tocar objetos.
+		      try { applyPitchSurface(baseline.preset, baseline.orientation); } catch (e) { /* ignore */ }
+		      try { syncZoomUi(); } catch (e) { /* ignore */ }
+		    };
 		    const scheduleResize = () => {
 	      window.clearTimeout(resizeTimer);
 	      window.clearTimeout(resizeFinalizeTimer);
