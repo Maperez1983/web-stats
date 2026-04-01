@@ -14,6 +14,11 @@
         --line: rgba(255, 255, 255, 0.15);
         --cyan: #2f7d32;
         --amber: #f4b400;
+        --paper: rgba(255, 255, 255, 0.92);
+        --paper-2: rgba(255, 255, 255, 0.82);
+        --paper-ink: #0b1220;
+        --paper-muted: rgba(71, 85, 105, 0.96);
+        --paper-line: rgba(15, 23, 42, 0.12);
       }
 
       * {
@@ -127,10 +132,12 @@
 
       .status-panel {
         border-radius: 22px;
-        border: 1px solid var(--line);
-        background: linear-gradient(170deg, rgba(13, 27, 47, 0.95), rgba(8, 18, 34, 0.97));
+        border: 1px solid var(--paper-line);
+        background: var(--paper);
         padding: 1rem;
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+        box-shadow: 0 20px 40px rgba(2, 6, 23, 0.18);
+        color: var(--paper-ink);
+        backdrop-filter: blur(4px);
       }
 
       .status-panel h3 {
@@ -138,7 +145,7 @@
         font-size: 0.85rem;
         letter-spacing: 0.16em;
         text-transform: uppercase;
-        color: rgba(214, 225, 255, 0.85);
+        color: var(--paper-muted);
       }
 
       .kpi-grid {
@@ -150,8 +157,8 @@
 
       .kpi {
         border-radius: 14px;
-        border: 1px solid rgba(255, 255, 255, 0.13);
-        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid var(--paper-line);
+        background: rgba(15, 23, 42, 0.04);
         padding: 0.6rem;
       }
 
@@ -160,7 +167,7 @@
         font-size: 0.66rem;
         letter-spacing: 0.12em;
         text-transform: uppercase;
-        color: rgba(223, 232, 255, 0.72);
+        color: var(--paper-muted);
       }
 
       .kpi strong {
@@ -172,8 +179,8 @@
       .next-match {
         margin-top: 0.8rem;
         border-radius: 14px;
-        border: 1px solid rgba(70, 211, 255, 0.35);
-        background: rgba(70, 211, 255, 0.08);
+        border: 1px solid rgba(15, 124, 147, 0.22);
+        background: rgba(15, 124, 147, 0.08);
         padding: 0.75rem;
       }
 
@@ -220,9 +227,10 @@
 
       .block {
         border-radius: 20px;
-        border: 1px solid var(--line);
-        background: rgba(8, 16, 30, 0.9);
+        border: 1px solid var(--paper-line);
+        background: var(--paper);
         padding: 1rem;
+        color: var(--paper-ink);
       }
 
       .block h3 {
@@ -244,14 +252,14 @@
         gap: 0.5rem;
       }
       .standings-toggle {
-        border: 1px solid rgba(255, 255, 255, 0.2);
+        border: 1px solid rgba(15, 23, 42, 0.14);
         border-radius: 999px;
         padding: 0.32rem 0.75rem;
         font-size: 0.72rem;
         letter-spacing: 0.06em;
         text-transform: uppercase;
-        color: #e5efff;
-        background: rgba(255, 255, 255, 0.08);
+        color: rgba(15, 23, 42, 0.86);
+        background: rgba(15, 23, 42, 0.05);
         cursor: pointer;
       }
       .standings-toggle[hidden] {
@@ -265,7 +273,7 @@
       }
 
       .standings tr + tr {
-        border-top: 1px solid rgba(255, 255, 255, 0.13);
+        border-top: 1px solid rgba(15, 23, 42, 0.10);
       }
 
       .actions {
