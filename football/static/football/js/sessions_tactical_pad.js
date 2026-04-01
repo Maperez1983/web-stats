@@ -3586,8 +3586,9 @@
       form.addEventListener('change', () => scheduleDraftSave('change'));
     }
 
+    let pingKeepalive = null;
     if (keepaliveUrl) {
-      const ping = async () => {
+      pingKeepalive = async () => {
         try {
           const response = await fetch(keepaliveUrl, { credentials: 'same-origin' });
           const redirectedToLogin = response.redirected && /\/login\/?$/.test(new URL(response.url).pathname);
@@ -3603,13 +3604,16 @@
       };
       // Primer ping pronto para renovar el vencimiento tras abrir el editor.
       window.setTimeout(() => {
-        ping();
+        pingKeepalive?.();
       }, 25_000);
       const keepaliveTimer = window.setInterval(async () => {
-        const ok = await ping();
+        const ok = await pingKeepalive?.();
         if (!ok) window.clearInterval(keepaliveTimer);
       }, 240_000);
     }
+
+    // El submit real se gestiona al final del fichero (unificado con el sync de campos ocultos + preview HD).
+    // Aquí solo mantenemos pingKeepalive para reutilizarlo en ese handler.
 
 	    canvas.on('object:modified', () => {
 	      if (canvas.__loading) return;
@@ -4480,21 +4484,39 @@
 	      window.visualViewport?.addEventListener('resize', scheduleResize);
 	    } catch (error) { /* ignore */ }
 
-	    form.addEventListener('submit', async (event) => {
-      if (form.dataset.previewReady === '1') {
-        form.dataset.previewReady = '';
-        return;
-      }
-	      event.preventDefault();
-	      persistDraftNow('submit');
-	      // Enviar preview más grande al guardar para que los PDFs de tareas guardadas salgan nítidos.
-	      const hdWidth = pitchOrientation === 'portrait' ? 3200 : 2600;
-	      await syncHiddenBuilderFields({
-	        previewOptions: { maxWidth: hdWidth, mime: 'image/jpeg', quality: 0.94 },
-	        applyLivePreview: false,
-	      });
-	      form.dataset.previewReady = '1';
-	      form.requestSubmit();
-	    });
-  };
+		    let isSubmitting = false;
+		    form.addEventListener('submit', async (event) => {
+	      // Segunda pasada: dejamos que el navegador envíe el POST (evita bucles con requestSubmit()).
+	      if (form.dataset.previewReady === '1') {
+	        form.dataset.previewReady = '';
+	        return;
+	      }
+	      if (isSubmitting) return;
+		      event.preventDefault();
+	      try { syncRichEditorsNow(); } catch (error) { /* ignore */ }
+		      try { persistDraftNow('submit'); } catch (error) { /* ignore */ }
+	      if (pingKeepalive) {
+	        const ok = await pingKeepalive();
+	        if (!ok) {
+	          // Asegura mensaje visible incluso si el usuario está scrolleado abajo.
+	          try { window.alert('Sesión caducada. Se guardó un borrador local; inicia sesión y vuelve a esta pestaña.'); } catch (error) { /* ignore */ }
+	          try {
+	            const next = encodeURIComponent(window.location.pathname + window.location.search);
+	            window.location.href = `/login/?next=${next}`;
+	          } catch (error) { /* ignore */ }
+	          return;
+	        }
+	      }
+	      isSubmitting = true;
+		      // Enviar preview más grande al guardar para que los PDFs de tareas guardadas salgan nítidos.
+		      const hdWidth = pitchOrientation === 'portrait' ? 3200 : 2600;
+		      await syncHiddenBuilderFields({
+		        previewOptions: { maxWidth: hdWidth, mime: 'image/jpeg', quality: 0.94 },
+		        applyLivePreview: false,
+		      });
+		      form.dataset.previewReady = '1';
+	      isSubmitting = false;
+		      form.requestSubmit();
+		    });
+	  };
 })();
