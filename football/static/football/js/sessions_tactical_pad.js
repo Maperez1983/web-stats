@@ -197,7 +197,9 @@
       // En vertical, el grupo se rota 90 grados: el sistema de coordenadas "dibuja"
       // sobre un lienzo efectivo de (stageH x stageW). Mantenemos proporción real 105x68.
       // Deja margen suficiente para que el trazo del borde no se recorte en miniaturas / contenedores con overflow hidden.
-      const margin = 18;
+      // Margen de seguridad para que los bordes no se recorten con overflow hidden,
+      // pero lo más pequeño posible para que el campo ocupe pantalla.
+      const margin = 10;
       const portrait = orientation === 'portrait';
       const effectiveW = portrait ? stageH : stageW;
       const effectiveH = portrait ? stageW : stageH;
