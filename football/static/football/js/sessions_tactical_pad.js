@@ -2581,30 +2581,75 @@
 	      }, ['data']);
 	    };
 
-    const applyPitchSurface = (presetValue, orientationValue) => {
-      // Evita SVG anidados (innerHTML con <svg> completo) que luego rompen la previsualización y el PDF.
-      const markup = buildPitchSvg(presetValue, orientationValue);
-      try {
-        const parsed = new DOMParser().parseFromString(markup, 'image/svg+xml');
-        const root = parsed.documentElement;
-        if (root && root.tagName && root.tagName.toLowerCase() === 'svg') {
-          svgSurface.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-          svgSurface.setAttribute('viewBox', root.getAttribute('viewBox') || '-2 -2 1054 684');
-          svgSurface.setAttribute('preserveAspectRatio', root.getAttribute('preserveAspectRatio') || 'xMidYMid meet');
-          const pitchBox = root.getAttribute('data-pitch-box') || '';
-          if (pitchBox) svgSurface.setAttribute('data-pitch-box', pitchBox);
-          else svgSurface.removeAttribute('data-pitch-box');
-          while (svgSurface.firstChild) svgSurface.removeChild(svgSurface.firstChild);
-          Array.from(root.childNodes).forEach((child) => {
-            svgSurface.appendChild(svgSurface.ownerDocument.importNode(child, true));
-          });
-          return;
-        }
-      } catch (error) {
-        // Fallback: deja el markup tal cual si el parseo falla.
-      }
-      svgSurface.innerHTML = markup;
-    };
+	    const applyPitchSurface = (presetValue, orientationValue) => {
+	      // Evita SVG anidados (innerHTML con <svg> completo) que luego rompen la previsualización y el PDF.
+	      const markup = buildPitchSvg(presetValue, orientationValue);
+	      const applyFromRoot = (root) => {
+	        svgSurface.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+	        svgSurface.setAttribute('viewBox', root.getAttribute('viewBox') || '-2 -2 1054 684');
+	        svgSurface.setAttribute('preserveAspectRatio', root.getAttribute('preserveAspectRatio') || 'xMidYMid meet');
+	        const pitchBox = root.getAttribute('data-pitch-box') || '';
+	        if (pitchBox) svgSurface.setAttribute('data-pitch-box', pitchBox);
+	        else svgSurface.removeAttribute('data-pitch-box');
+	        while (svgSurface.firstChild) svgSurface.removeChild(svgSurface.firstChild);
+	        Array.from(root.childNodes).forEach((child) => {
+	          svgSurface.appendChild(svgSurface.ownerDocument.importNode(child, true));
+	        });
+	      };
+
+	      // 1) Ruta normal: DOMParser + import de nodos (evita <svg> anidado).
+	      try {
+	        const parsed = new DOMParser().parseFromString(markup, 'image/svg+xml');
+	        const rootTag = parsed.documentElement;
+	        let root = rootTag;
+	        if (root && root.tagName && root.tagName.toLowerCase() !== 'svg') {
+	          // Safari/Edge pueden devolver <parsererror> como documentElement; buscamos el primer <svg>.
+	          const candidate = parsed.querySelector && parsed.querySelector('svg');
+	          if (candidate) root = candidate;
+	        }
+	        if (root && root.tagName && root.tagName.toLowerCase() === 'svg') {
+	          applyFromRoot(root);
+	          return;
+	        }
+	      } catch (error) {
+	        // sigue al fallback
+	      }
+
+	      // 2) Fallback robusto: extrae el contenido interior del <svg> serializado y lo inserta dentro del <svg> existente.
+	      // Esto evita que aparezca el campo "pequeñísimo" con grandes márgenes (por <svg> anidado con tamaño por defecto 300x150).
+	      try {
+	        const openMatch = markup.match(/<svg\b([^>]*)>/i);
+	        const closeIndex = markup.lastIndexOf('</svg>');
+	        if (openMatch && closeIndex > 0) {
+	          const openIndex = openMatch.index || 0;
+	          const openEnd = markup.indexOf('>', openIndex);
+	          if (openEnd > openIndex) {
+	            const attrs = openMatch[1] || '';
+	            const inner = markup.slice(openEnd + 1, closeIndex);
+	            const readAttr = (name) => {
+	              const re = new RegExp(`\\b${name}\\s*=\\s*["']([^"']+)["']`, 'i');
+	              const m = attrs.match(re);
+	              return m ? safeText(m[1]) : '';
+	            };
+	            const viewBox = readAttr('viewBox') || '-2 -2 1054 684';
+	            const preserve = readAttr('preserveAspectRatio') || 'xMidYMid meet';
+	            const pitchBox = readAttr('data-pitch-box');
+	            svgSurface.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+	            svgSurface.setAttribute('viewBox', viewBox);
+	            svgSurface.setAttribute('preserveAspectRatio', preserve);
+	            if (pitchBox) svgSurface.setAttribute('data-pitch-box', pitchBox);
+	            else svgSurface.removeAttribute('data-pitch-box');
+	            svgSurface.innerHTML = inner;
+	            return;
+	          }
+	        }
+	      } catch (error) {
+	        // ignore
+	      }
+
+	      // Último recurso: si no podemos parsear, dejamos el contenido vacío (mejor que romper el layout con <svg> anidado).
+	      svgSurface.innerHTML = '';
+	    };
 
     const setPreset = (presetValue) => {
       const preset = safeText(presetValue, 'full_pitch');
