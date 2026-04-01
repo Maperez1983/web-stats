@@ -1064,11 +1064,31 @@
       const stored = parseColorToHex(object?.data?.color, '');
       if (stored) return stored;
       const kind = safeText(object?.data?.kind);
+      const walkObjects = (node, fn) => {
+        if (!node) return;
+        try { if (fn(node)) return; } catch (e) { /* ignore */ }
+        if (Array.isArray(node?._objects)) node._objects.forEach((child) => walkObjects(child, fn));
+      };
       if (kind === 'token' && Array.isArray(object._objects)) {
         // Local token: devuelve el color de la franja si existe.
-        const stripe = object._objects.find((child) => child && child.type === 'rect' && safeText(child?.data?.role) === 'token_stripe')
-          || object._objects.find((child) => child && child.type === 'rect' && Number(child.width) <= 14 && Number(child.height) >= 40 && parseColorToHex(child.fill, '') !== '#f8fafc');
-        const stripeFill = stripe ? parseColorToHex(stripe.fill, '') : '';
+        let stripeFill = '';
+        walkObjects(object, (child) => {
+          if (!child) return false;
+          if (child.type !== 'rect') return false;
+          const role = safeText(child?.data?.role);
+          if (role === 'token_stripe') {
+            stripeFill = parseColorToHex(child.fill, '') || '';
+            return true;
+          }
+          const width = Number(child.width) || 0;
+          const height = Number(child.height) || 0;
+          const fill = parseColorToHex(child.fill, '');
+          if (width > 0 && height > 0 && width <= 14 && height >= 40 && fill && fill !== '#f8fafc') {
+            stripeFill = fill;
+            return true;
+          }
+          return false;
+        });
         if (stripeFill) return stripeFill;
         const circle = object._objects.find((child) => child && child.type === 'circle');
         const circleFill = circle ? parseColorToHex(circle.fill, '') : '';
@@ -1090,11 +1110,40 @@
 	      if (!group || !Array.isArray(group._objects)) return;
 	      setObjectData(group, { color: colorHex });
 	      const tokenKind = safeText(group?.data?.token_kind);
-	      const stripeRects = group._objects.filter((child) => child && child.type === 'rect' && Number(child.height) >= 40);
-	      const paintableStripes = stripeRects.filter((child) => safeText(child?.data?.role) === 'token_stripe');
+	      const walkObjects = (node, fn) => {
+	        if (!node) return;
+	        try { fn(node); } catch (e) { /* ignore */ }
+	        if (Array.isArray(node?._objects)) node._objects.forEach((child) => walkObjects(child, fn));
+	      };
+	      const stripeRects = [];
+	      const paintableStripes = [];
+	      walkObjects(group, (child) => {
+	        if (!child) return;
+	        if (child.type !== 'rect') return;
+	        const height = Number(child.height) || 0;
+	        if (height < 30) return;
+	        stripeRects.push(child);
+	        if (safeText(child?.data?.role) === 'token_stripe') paintableStripes.push(child);
+	      });
 	      const treatAsLocal = tokenKind === 'player_local' || tokenKind === 'goalkeeper_local' || (!tokenKind && paintableStripes.length >= 2);
 	      if (treatAsLocal) {
-	        paintableStripes.forEach((child) => child.set({ fill: colorHex }));
+	        if (paintableStripes.length) {
+	          paintableStripes.forEach((child) => child.set({ fill: colorHex }));
+	        } else if (stripeRects.length) {
+	          // Compat: tareas creadas antes de que marcásemos las franjas verdes con role=token_stripe.
+	          // Recoloreamos solo las franjas "no blancas".
+	          stripeRects.forEach((child) => {
+	            const current = parseColorToHex(child.fill, '');
+	            if (!current || current === '#f8fafc') return;
+	            child.set({ fill: colorHex });
+	          });
+	        } else {
+	          // Portero u otros tokens sin franjas: intentamos recolorear el círculo principal.
+	          const circles = [];
+	          walkObjects(group, (child) => { if (child?.type === 'circle') circles.push(child); });
+	          const target = circles.length > 1 ? circles[1] : circles[0];
+	          if (target) target.set({ fill: colorHex });
+	        }
 	        group.dirty = true;
 	        return;
 	      }
@@ -2626,6 +2675,7 @@
 	          top: 0,
 	          shadow: 'rgba(15,23,42,0.28) 0 6px 14px',
 	        });
+	        baseCircle.data = { role: isAway ? 'token_fill' : 'token_base' };
 	        tokenParts.push(baseCircle);
 	        if (isGoalkeeper) {
 	          // Portero: disco azul con brillo suave (aproxima el gradiente CSS del bank).
@@ -2646,6 +2696,7 @@
 	              ],
 	            }),
 	          });
+	          gkBg.data = { role: 'token_fill' };
 	          tokenParts.push(gkBg);
 	          const highlight = new fabric.Circle({
 	            radius: 10,
@@ -2656,6 +2707,7 @@
 	            fill: 'rgba(255,255,255,0.28)',
 	            strokeWidth: 0,
 	          });
+	          highlight.data = { role: 'token_highlight' };
 	          tokenParts.push(highlight);
 	        } else if (!isAway) {
 	          const stripeWidth = 8;
@@ -2674,6 +2726,7 @@
 	              originX: 'center',
 	              originY: 'center',
 	            });
+	            if (isGreen) stripe.data = { role: 'token_stripe' };
 	            stripes.push(stripe);
 	          }
 	          // Clip a nivel de grupo (más robusto que aplicar el mismo clipPath a cada rect).
