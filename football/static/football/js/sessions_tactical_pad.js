@@ -233,6 +233,9 @@
       return { x: offsetX, y: offsetY, width, height };
     };
     let stage = createStage(orientation);
+    // Caja del rectángulo de juego dentro del viewBox, para poder recortar previews/PDF
+    // y evitar márgenes vacíos enormes en superficies parciales (tercios, medio campo, futsal, etc).
+    let pitchBox = { x: stage.x, y: stage.y, width: stage.width, height: stage.height };
     const scale = stage.width / 105;
     const line = '#f8fafc';
     const soft = 'rgba(248,250,252,0.66)';
@@ -333,6 +336,7 @@
     };
 
     const drawFullPitch = () => {
+      pitchBox = { x: stage.x, y: stage.y, width: stage.width, height: stage.height };
       drawFrame(stage.x, stage.y, stage.width, stage.height, 4);
       const centerX = stage.x + (stage.width / 2);
       const centerY = stage.y + (stage.height / 2);
@@ -369,6 +373,7 @@
       const metersW = 52.5;
       const metersH = 68;
       const pitch = createStage(orientation, metersW / metersH);
+      pitchBox = { x: pitch.x, y: pitch.y, width: pitch.width, height: pitch.height };
       const x = pitch.x;
       const y = pitch.y;
       const width = pitch.width;
@@ -401,6 +406,7 @@
       const metersW = 35;
       const metersH = 68;
       const pitch = createStage(orientation, metersW / metersH);
+      pitchBox = { x: pitch.x, y: pitch.y, width: pitch.width, height: pitch.height };
       const x = pitch.x;
       const y = pitch.y;
       const width = pitch.width;
@@ -439,6 +445,7 @@
       const metersW = 35;
       const metersH = 68;
       const pitch = createStage(orientation, metersW / metersH);
+      pitchBox = { x: pitch.x, y: pitch.y, width: pitch.width, height: pitch.height };
       const x = pitch.x;
       const y = pitch.y;
       const width = pitch.width;
@@ -456,6 +463,7 @@
 
     const drawMiniGame = (metersW, metersH, penaltyDepthMeters, penaltyHeightMeters, goalAreaDepthMeters, goalAreaHeightMeters, goalHeightMeters, options = {}) => {
       const pitch = createStage(orientation, metersW / metersH);
+      pitchBox = { x: pitch.x, y: pitch.y, width: pitch.width, height: pitch.height };
       const x = pitch.x;
       const y = pitch.y;
       const width = pitch.width;
@@ -509,6 +517,23 @@
     else if (preset === 'seven_side_single') drawMiniGame(65, 45, 13, 26, 4.5, 12, 6, { offsideLineFromGoalMeters: 13, offsideColor: '#facc15' });
     else if (preset === 'futsal') drawMiniGame(40, 20, 6, 16, 0, 0, 3);
     else drawFullPitch();
+
+    // Guarda el bounding box del rectángulo de juego en coordenadas del root viewBox.
+    // En vertical el grupo se rota 90º, así que convertimos la caja antes de exportar.
+    try {
+      let box = pitchBox;
+      if (orientation === 'portrait') {
+        box = {
+          x: stageW - (box.y + box.height),
+          y: box.x,
+          width: box.height,
+          height: box.width,
+        };
+      }
+      root.setAttribute('data-pitch-box', `${box.x} ${box.y} ${box.width} ${box.height}`);
+    } catch (error) {
+      // ignore
+    }
 
     return new XMLSerializer().serializeToString(doc);
   };
@@ -2566,6 +2591,9 @@
           svgSurface.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
           svgSurface.setAttribute('viewBox', root.getAttribute('viewBox') || '-2 -2 1054 684');
           svgSurface.setAttribute('preserveAspectRatio', root.getAttribute('preserveAspectRatio') || 'xMidYMid meet');
+          const pitchBox = root.getAttribute('data-pitch-box') || '';
+          if (pitchBox) svgSurface.setAttribute('data-pitch-box', pitchBox);
+          else svgSurface.removeAttribute('data-pitch-box');
           while (svgSurface.firstChild) svgSurface.removeChild(svgSurface.firstChild);
           Array.from(root.childNodes).forEach((child) => {
             svgSurface.appendChild(svgSurface.ownerDocument.importNode(child, true));
@@ -3303,8 +3331,8 @@
     };
 
 		    const buildPreviewData = (options = {}) => new Promise((resolve) => {
-	      const sourceWidth = Math.round(canvas.getWidth());
-	      const sourceHeight = Math.round(canvas.getHeight());
+		      const sourceWidth = Math.round(canvas.getWidth());
+		      const sourceHeight = Math.round(canvas.getHeight());
 	      // En iPad conviene limitar el tamaño para que no bloquee el hilo principal.
 	      const maxPreviewWidth = clamp(Number(options.maxWidth) || 720, 480, 3200);
 	      const ratio = sourceWidth > maxPreviewWidth ? (maxPreviewWidth / sourceWidth) : 1;
@@ -3324,17 +3352,60 @@
       const svgMarkup = new XMLSerializer().serializeToString(svgSurface);
       const blob = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' });
       const blobUrl = URL.createObjectURL(blob);
-      const image = new Image();
-	      image.onload = () => {
-	        context.drawImage(image, 0, 0, output.width, output.height);
-	        context.drawImage(canvas.lowerCanvasEl, 0, 0, output.width, output.height);
-	        URL.revokeObjectURL(blobUrl);
-	        try {
-	          resolve(output.toDataURL(mime === 'image/jpeg' ? 'image/jpeg' : 'image/png', quality));
-	        } catch (error) {
-	          resolve(output.toDataURL('image/png', 0.92));
-	        }
-	      };
+	      const image = new Image();
+		      image.onload = () => {
+		        context.drawImage(image, 0, 0, output.width, output.height);
+		        context.drawImage(canvas.lowerCanvasEl, 0, 0, output.width, output.height);
+		        URL.revokeObjectURL(blobUrl);
+		        // Recorta a la caja real del rectángulo de juego (evita grandes márgenes vacíos
+		        // en superficies parciales que luego hacen que en el PDF el campo salga "pequeñísimo").
+		        try {
+		          const pitchBoxRaw = safeText(svgSurface.getAttribute('data-pitch-box'));
+		          const viewBoxRaw = safeText(svgSurface.getAttribute('viewBox'));
+		          const boxParts = pitchBoxRaw.split(/\s+/).map((v) => Number(v)).filter((n) => Number.isFinite(n));
+		          const vbParts = viewBoxRaw.split(/\s+/).map((v) => Number(v)).filter((n) => Number.isFinite(n));
+		          if (boxParts.length >= 4 && vbParts.length >= 4) {
+		            const [boxX, boxY, boxW, boxH] = boxParts;
+		            const [vbX, vbY, vbW, vbH] = vbParts;
+		            if (vbW > 0 && vbH > 0 && boxW > 0 && boxH > 0) {
+		              const scaleX = output.width / vbW;
+		              const scaleY = output.height / vbH;
+		              let cropX = (boxX - vbX) * scaleX;
+		              let cropY = (boxY - vbY) * scaleY;
+		              let cropW = boxW * scaleX;
+		              let cropH = boxH * scaleY;
+		              const pad = Math.max(6, Math.round(Math.min(cropW, cropH) * 0.02));
+		              cropX = Math.max(0, Math.floor(cropX - pad));
+		              cropY = Math.max(0, Math.floor(cropY - pad));
+		              cropW = Math.min(output.width - cropX, Math.ceil(cropW + pad * 2));
+		              cropH = Math.min(output.height - cropY, Math.ceil(cropH + pad * 2));
+		              if (cropW > 120 && cropH > 80 && cropW < output.width && cropH < output.height) {
+		                const cropped = document.createElement('canvas');
+		                cropped.width = Math.round(cropW);
+		                cropped.height = Math.round(cropH);
+		                const cctx = cropped.getContext('2d');
+		                if (cctx) {
+		                  cctx.fillStyle = '#ffffff';
+		                  cctx.fillRect(0, 0, cropped.width, cropped.height);
+		                  cctx.drawImage(output, -cropX, -cropY);
+		                  try {
+		                    resolve(cropped.toDataURL(mime === 'image/jpeg' ? 'image/jpeg' : 'image/png', quality));
+		                    return;
+		                  } catch (error) {
+		                    resolve(cropped.toDataURL('image/png', 0.92));
+		                    return;
+		                  }
+		                }
+		              }
+		            }
+		          }
+		        } catch (error) { /* ignore */ }
+		        try {
+		          resolve(output.toDataURL(mime === 'image/jpeg' ? 'image/jpeg' : 'image/png', quality));
+		        } catch (error) {
+		          resolve(output.toDataURL('image/png', 0.92));
+		        }
+		      };
 	      image.onerror = () => {
 	        URL.revokeObjectURL(blobUrl);
 	        try {
