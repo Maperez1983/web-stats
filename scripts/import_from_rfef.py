@@ -50,6 +50,45 @@ ALLOW_FALLBACK_HTML = str(os.getenv("RFAF_ALLOW_FALLBACK_HTML", "0")).strip().lo
 BASE_ORIGIN = "https://www.rfaf.es"
 
 
+def _extract_query_param(url: str, key: str) -> Optional[str]:
+    if not url or not key:
+        return None
+    match = re.search(rf"(?:^|[?&]){re.escape(key)}=([^&#]+)", url, re.IGNORECASE)
+    return match.group(1) if match else None
+
+
+def _infer_schedule_template(html: str) -> Optional[str]:
+    """
+    Fallback cuando la página de clasificación no incluye enlaces directos a jornadas.
+
+    Construye la URL de jornada usando los parámetros de la URL de clasificación y, si existe,
+    el CodTemporada embebido en el HTML. Si no se puede inferir CodTemporada, se usa el valor
+    del template hardcoded como último recurso.
+    """
+    cod_primaria = _extract_query_param(URL, "cod_primaria") or "1000120"
+    cod_grupo = _extract_query_param(URL, "codgrupo") or _extract_query_param(URL, "CodGrupo") or ""
+    cod_comp = _extract_query_param(URL, "codcompeticion") or _extract_query_param(URL, "CodCompeticion") or ""
+
+    cod_temporada = None
+    if html:
+        cod_temporada = _extract_query_param(html, "CodTemporada") or _extract_query_param(html, "codtemporada")
+        if not cod_temporada:
+            match = re.search(r"\bCodTemporada\s*=\s*(\d+)\b", html, re.IGNORECASE)
+            if match:
+                cod_temporada = match.group(1)
+    if not cod_temporada:
+        cod_temporada = _extract_query_param(SCHEDULE_TEMPLATE, "CodTemporada") or "21"
+
+    if not cod_grupo or not cod_comp:
+        return None
+
+    return (
+        f"{BASE_ORIGIN}/pnfg/NPcd/NFG_CmpJornada?"
+        f"cod_primaria={cod_primaria}&CodTemporada={cod_temporada}&"
+        f"CodGrupo={cod_grupo}&CodCompeticion={cod_comp}&CodJornada={{jornada}}"
+    )
+
+
 def _parse_int(value: str) -> int:
     if not value:
         return 0
@@ -251,7 +290,8 @@ def _extract_schedule_template(html: str):
         re.IGNORECASE,
     )
     if not match:
-        return None, None
+        inferred = _infer_schedule_template(html)
+        return (inferred, None) if inferred else (None, None)
     url = match.group(1)
     try:
         current_round = int(match.group(2))
