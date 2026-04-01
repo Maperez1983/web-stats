@@ -187,14 +187,21 @@
     defs.appendChild(gradient);
     root.appendChild(defs);
 
-    // Fondo: evitar "zona oscura" alrededor del campo. Si el preset es "blank" mantenemos transparente.
-    // Para el resto, usamos el verde base del campo para que el margen exterior no distraiga.
+    // Fondo:
+    // - Para "campo completo" y "F7 sobre F11" rellenamos toda la superficie para que el césped no
+    //   quede cortado por bordes/redondeos del contenedor.
+    // - Para superficies parciales (medio campo/tercios/futsal/F7 individual) dejamos transparente
+    //   el exterior del rectángulo de juego para que no “gaste” página con verde innecesario
+    //   (en editor se verá el fondo del panel; en PDF quedará blanco).
+    const fillOutside = (preset === 'full_pitch' || preset === 'seven_side')
+      ? 'url(#pitch-bg)'
+      : 'transparent';
     root.appendChild(createSvgNode(doc, 'rect', {
       x: -bleed,
       y: -bleed,
       width: stageW + (bleed * 2),
       height: stageH + (bleed * 2),
-      fill: preset === 'blank' ? 'transparent' : 'url(#pitch-bg)',
+      fill: preset === 'blank' ? 'transparent' : fillOutside,
     }));
     const drawRoot = createSvgNode(doc, 'g');
     if (orientation === 'portrait') {
@@ -950,25 +957,32 @@
 	    let spacePanArmed = false;
 	    let spacePanning = false;
 	    let spacePanStart = null;
-	    if (!Number.isFinite(pitchZoom)) {
-	      pitchZoom = pitchOrientation === 'portrait' ? 1.15 : 1.0;
-	    }
-    pitchZoom = clamp(pitchZoom, 0.8, 1.6);
+	    if (!Number.isFinite(pitchZoom)) pitchZoom = 1.0;
+	    pitchZoom = clamp(pitchZoom, 0.8, 1.6);
 
     const clampScale = (value) => clamp(Number(value) || 1, 0.4, 2.6);
-	    const normalizeEditableObject = (object) => {
-	      if (!object) return object;
-	      const rawLocked = object?.data?.locked;
+		    const normalizeEditableObject = (object) => {
+		      if (!object) return object;
+		      const rawLocked = object?.data?.locked;
 	      // Compat: algunos estados antiguos pueden traer locked como string ('false'/'true').
-	      const locked = rawLocked === true
-	        || rawLocked === 1
-	        || rawLocked === '1'
-	        || String(rawLocked || '').toLowerCase() === 'true';
-	      const kind = safeText(object?.data?.kind);
-	      // Emojis: oculta el halo/círculo legacy si viene en Group antiguo.
-	      if (kind && kind.startsWith('emoji_') && Array.isArray(object._objects)) {
-	        const circle = object._objects.find((child) => child && child.type === 'circle');
-	        if (circle) {
+		      const locked = rawLocked === true
+		        || rawLocked === 1
+		        || rawLocked === '1'
+		        || String(rawLocked || '').toLowerCase() === 'true';
+		      const kind = safeText(object?.data?.kind);
+		      // Figuras de fondo (zonas/figuras/porterías): por defecto dejan pasar los clicks
+		      // para que no bloqueen mover fichas o trazos colocados encima.
+		      // Se pueden editar desde el panel "Capas" (activa background_edit temporalmente).
+		      const isBackground = isBackgroundShape(object);
+		      if (isBackground) {
+		        object.data = object.data || {};
+		        if (object.data.background !== true) object.data.background = true;
+		      }
+		      const backgroundEdit = !!object?.data?.background_edit;
+		      // Emojis: oculta el halo/círculo legacy si viene en Group antiguo.
+		      if (kind && kind.startsWith('emoji_') && Array.isArray(object._objects)) {
+		        const circle = object._objects.find((child) => child && child.type === 'circle');
+		        if (circle) {
 	          circle.set({
 	            opacity: 0,
 	            strokeWidth: 0,
@@ -998,17 +1012,25 @@
 	          hoverCursor: 'default',
 	          moveCursor: 'default',
 	        });
-	      } else {
-	        object.set({
-	          lockMovementX: false,
-	          lockMovementY: false,
-	          lockScalingX: false,
-	          lockScalingY: false,
-	          lockRotation: false,
-	        });
-	      }
-	      return object;
-	    };
+		      } else {
+		        object.set({
+		          lockMovementX: false,
+		          lockMovementY: false,
+		          lockScalingX: false,
+		          lockScalingY: false,
+		          lockRotation: false,
+		        });
+		      }
+		      if (!locked && isBackground) {
+		        object.set({
+		          selectable: true,
+		          evented: !!backgroundEdit,
+		          hoverCursor: backgroundEdit ? 'move' : 'default',
+		          moveCursor: backgroundEdit ? 'move' : 'default',
+		        });
+		      }
+		      return object;
+		    };
     const isColorizableObject = (object) => {
       const kind = safeText(object?.data?.kind);
       if (!kind) return false;
@@ -1993,19 +2015,26 @@
 		        return;
 		      }
 
-		      if (!actionBtn) {
-		        if (obj.visible === false) {
-		          obj.visible = true;
-		          canvas.setActiveObject(obj);
-		          commitLayerChange('Elemento mostrado.');
-		          return;
-		        }
-		        canvas.setActiveObject(obj);
-		        canvas.requestRenderAll();
-		        syncInspector();
-		        renderLayers();
-		        return;
-		      }
+			      if (!actionBtn) {
+			        if (obj.visible === false) {
+			          obj.visible = true;
+			          canvas.setActiveObject(obj);
+			          commitLayerChange('Elemento mostrado.');
+			          return;
+			        }
+			        // Si es una figura de fondo, al seleccionarla desde "Capas" permitimos edición temporal.
+			        if (isBackgroundShape(obj)) {
+			          obj.data = obj.data || {};
+			          obj.data.background_edit = true;
+			          normalizeEditableObject(obj);
+			        }
+			        canvas.setActiveObject(obj);
+			        canvas.requestRenderAll();
+			        syncInspector();
+			        renderLayers();
+			        if (isBackgroundShape(obj)) setStatus('Fondo en modo edición (desde Capas). Pulsa Esc para volver a modo “pasar a través”.');
+			        return;
+			      }
 
 		      const action = safeText(actionBtn.dataset.layerAction);
 		      if (!action) return;
@@ -2029,13 +2058,14 @@
 		        commitLayerChange(next ? 'Elemento mostrado.' : 'Elemento oculto.');
 		        return;
 		      }
-		      if (action === 'lock') {
-		        obj.data = obj.data || {};
-		        obj.data.locked = !obj.data.locked;
-		        normalizeEditableObject(obj);
-		        obj.setCoords();
-		        commitLayerChange(obj.data.locked ? 'Elemento bloqueado.' : 'Elemento desbloqueado.');
-		      }
+			      if (action === 'lock') {
+			        obj.data = obj.data || {};
+			        obj.data.locked = !obj.data.locked;
+			        if (obj.data.locked) obj.data.background_edit = false;
+			        normalizeEditableObject(obj);
+			        obj.setCoords();
+			        commitLayerChange(obj.data.locked ? 'Elemento bloqueado.' : 'Elemento desbloqueado.');
+			      }
 		    });
 		    layersList?.addEventListener('dblclick', (event) => {
 		      const targetUid = safeText(event.target.closest('.layer-row')?.dataset?.layerUid);
@@ -2486,11 +2516,11 @@
 	      const normalized = safeText(nextOrientation, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
 	      if (normalized === pitchOrientation && !options.force) return;
 	      pitchOrientation = normalized;
-	      syncOrientationUi();
-	      if (!zoomTouched) {
-	        pitchZoom = pitchOrientation === 'portrait' ? 1.15 : 1.0;
-	        syncZoomUi();
-	      }
+		      syncOrientationUi();
+		      if (!zoomTouched) {
+		        pitchZoom = 1.0;
+		        syncZoomUi();
+		      }
 	      fitCanvas(options.preserveObjects !== false);
 	      setPreset(presetSelect.value || 'full_pitch');
 	      if (!options.silent) setStatus(`Campo en ${ORIENTATION_LABEL[pitchOrientation]}.`);
@@ -3920,11 +3950,24 @@
 				      const el = document.activeElement;
 				      const tag = (el && el.tagName) ? el.tagName.toLowerCase() : '';
 				      if (tag === 'input' || tag === 'textarea' || tag === 'select' || (el && el.isContentEditable)) return;
-				      if (key === 'escape' && !commandMenu?.hidden) {
-				        setCommandMenuOpen(false);
-				        event.preventDefault();
-				        return;
-				      }
+					      if (key === 'escape') {
+					        if (!commandMenu?.hidden) {
+					          setCommandMenuOpen(false);
+					          event.preventDefault();
+					          return;
+					        }
+					        const active = canvas.getActiveObject();
+					        if (active && isBackgroundShape(active) && active?.data?.background_edit) {
+					          active.data.background_edit = false;
+					          normalizeEditableObject(active);
+					          canvas.requestRenderAll();
+					          syncInspector();
+					          renderLayers();
+					          setStatus('Fondo: modo edición desactivado.');
+					          event.preventDefault();
+					          return;
+					        }
+					      }
 				      if ((event.code === 'Space' || key === ' ') && viewportEl) {
 				        // Modo "mano": espacio + arrastrar para desplazar el viewport (como Camelot).
 				        if (!spacePanArmed) {
@@ -4198,11 +4241,11 @@
     });
     zoomOutButton?.addEventListener('click', () => applyPitchZoom(pitchZoom - 0.08));
     zoomInButton?.addEventListener('click', () => applyPitchZoom(pitchZoom + 0.08));
-    zoomResetButton?.addEventListener('click', () => {
-      zoomTouched = false;
-      applyPitchZoom(pitchOrientation === 'portrait' ? 1.15 : 1.0, { silent: true });
-      setStatus('Zoom restablecido.');
-    });
+	    zoomResetButton?.addEventListener('click', () => {
+	      zoomTouched = false;
+	      applyPitchZoom(1.0, { silent: true });
+	      setStatus('Zoom restablecido.');
+	    });
     surfaceTrigger?.addEventListener('click', () => {
       renderSurfaceThumbs();
       setSurfaceMenuOpen(!surfacePicker?.classList.contains('is-open'));
