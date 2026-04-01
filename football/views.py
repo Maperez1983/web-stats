@@ -6298,6 +6298,7 @@ def admin_page(request):
     )
 
 
+@ensure_csrf_cookie
 def invitation_accept_page(request, token):
     invitation = (
         UserInvitation.objects
@@ -6345,6 +6346,13 @@ def invitation_accept_page(request, token):
                 invitation.user.set_password(password)
                 invitation.user.is_active = True
                 invitation.user.save(update_fields=['password', 'is_active'])
+                try:
+                    AppUserRole.objects.get_or_create(
+                        user=invitation.user,
+                        defaults={'role': AppUserRole.ROLE_PLAYER},
+                    )
+                except Exception:
+                    pass
                 invitation.accepted_at = timezone.now()
                 invitation.is_active = False
                 invitation.save(update_fields=['accepted_at', 'is_active'])
@@ -6354,7 +6362,17 @@ def invitation_accept_page(request, token):
                     accepted_at__isnull=True,
                 ).exclude(id=invitation.id).update(is_active=False)
                 try:
-                    auth_login(request, invitation.user)
+                    backend = getattr(invitation.user, 'backend', None)
+                    if not backend:
+                        backend = (
+                            settings.AUTHENTICATION_BACKENDS[0]
+                            if getattr(settings, 'AUTHENTICATION_BACKENDS', None)
+                            else None
+                        )
+                    if backend:
+                        auth_login(request, invitation.user, backend=backend)
+                    else:
+                        auth_login(request, invitation.user)
                     return redirect('dashboard-home')
                 except Exception:
                     success = 'Invitación aceptada. Ya puedes iniciar sesión.'

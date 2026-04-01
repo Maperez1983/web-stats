@@ -97,6 +97,24 @@ class WriteEndpointAuthTests(TestCase):
         self.assertContains(response, '2J Football Intelligence')
 
 
+class LoginNextRedirectTests(TestCase):
+    def setUp(self):
+        self.player_user = get_user_model().objects.create_user(
+            username='player-next',
+            email='player-next@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=self.player_user, role=AppUserRole.ROLE_PLAYER)
+
+    def test_player_login_ignores_platform_next(self):
+        response = self.client.post(
+            f"{reverse('login')}?next=/platform/",
+            {'username': 'player-next', 'password': 'pass-1234'},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response['Location'], reverse('dashboard-home'))
+
+
 class StaffBriefingTests(TestCase):
     def test_build_weekly_staff_brief_summarizes_availability(self):
         brief = build_weekly_staff_brief(
@@ -143,7 +161,8 @@ class InvitationAcceptanceTests(TestCase):
             },
         )
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response['Location'], reverse('dashboard-home'))
         self.invitation.refresh_from_db()
         self.user.refresh_from_db()
         self.assertFalse(self.invitation.is_active)
