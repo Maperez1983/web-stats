@@ -184,9 +184,9 @@
     defs.appendChild(gradient);
     root.appendChild(defs);
 
-    // El fondo lo da el contenedor del editor. Aquí dejamos el SVG sin "marco negro"
-    // para que el campo ocupe el máximo espacio posible (especialmente en vertical).
-    root.appendChild(createSvgNode(doc, 'rect', { x: 0, y: 0, width: stageW, height: stageH, fill: 'transparent' }));
+    // Fondo: evitar "zona oscura" alrededor del campo. Si el preset es "blank" mantenemos transparente.
+    // Para el resto, usamos el verde base del campo para que el margen exterior no distraiga.
+    root.appendChild(createSvgNode(doc, 'rect', { x: 0, y: 0, width: stageW, height: stageH, fill: preset === 'blank' ? 'transparent' : 'url(#pitch-bg)' }));
     const drawRoot = createSvgNode(doc, 'g');
     if (orientation === 'portrait') {
       drawRoot.setAttribute('transform', `translate(${stageW} 0) rotate(90)`);
