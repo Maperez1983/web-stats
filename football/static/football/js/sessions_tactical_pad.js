@@ -831,6 +831,15 @@
 	      preserveObjectStacking: true,
 	      selection: true,
 	    });
+	    // iPad/Safari: si el canvas no tiene touch-action:none, el navegador intercepta el gesto
+	    // y Fabric no recibe bien los eventos (parece que "no se puede mover nada").
+	    try {
+	      if (canvasEl && canvasEl.style) canvasEl.style.touchAction = 'none';
+	      if (canvas.upperCanvasEl && canvas.upperCanvasEl.style) canvas.upperCanvasEl.style.touchAction = 'none';
+	      if (canvas.lowerCanvasEl && canvas.lowerCanvasEl.style) canvas.lowerCanvasEl.style.touchAction = 'none';
+	    } catch (error) {
+	      // ignore
+	    }
 
 	    const GRID_SIZES = [28, 40, 56];
 	    const gridPrefsKey = 'tpad_grid_prefs_v1';
@@ -3849,9 +3858,62 @@
 		        event.stopPropagation();
 		      }
 		    };
-		    viewportEl?.addEventListener('mousedown', startSpacePan, true);
-		    window.addEventListener('mousemove', moveSpacePan, true);
-		    window.addEventListener('mouseup', stopSpacePan, true);
+			    viewportEl?.addEventListener('mousedown', startSpacePan, true);
+			    window.addEventListener('mousemove', moveSpacePan, true);
+			    window.addEventListener('mouseup', stopSpacePan, true);
+
+			    // Touch: pan con 2 dedos cuando el viewport es scrollable (zoom/orientación vertical),
+			    // sin romper el drag normal (1 dedo) para mover fichas.
+			    let touchPanActive = false;
+			    let touchPanStart = null;
+			    const canViewportScroll = () => {
+			      if (!viewportEl) return false;
+			      return viewportEl.scrollWidth > viewportEl.clientWidth || viewportEl.scrollHeight > viewportEl.clientHeight;
+			    };
+			    const touchCenter = (touches) => {
+			      const t0 = touches?.[0];
+			      const t1 = touches?.[1];
+			      if (!t0 || !t1) return null;
+			      return {
+			        x: ((Number(t0.clientX) || 0) + (Number(t1.clientX) || 0)) / 2,
+			        y: ((Number(t0.clientY) || 0) + (Number(t1.clientY) || 0)) / 2,
+			      };
+			    };
+			    const startTouchPan = (event) => {
+			      if (!viewportEl) return;
+			      if (!canViewportScroll()) return;
+			      if (!event.touches || event.touches.length !== 2) return;
+			      const c = touchCenter(event.touches);
+			      if (!c) return;
+			      touchPanActive = true;
+			      touchPanStart = {
+			        x: c.x,
+			        y: c.y,
+			        scrollLeft: viewportEl.scrollLeft,
+			        scrollTop: viewportEl.scrollTop,
+			      };
+			      event.preventDefault();
+			    };
+			    const moveTouchPan = (event) => {
+			      if (!viewportEl || !touchPanActive || !touchPanStart) return;
+			      if (!event.touches || event.touches.length !== 2) return;
+			      const c = touchCenter(event.touches);
+			      if (!c) return;
+			      const dx = c.x - touchPanStart.x;
+			      const dy = c.y - touchPanStart.y;
+			      viewportEl.scrollLeft = touchPanStart.scrollLeft - dx;
+			      viewportEl.scrollTop = touchPanStart.scrollTop - dy;
+			      event.preventDefault();
+			      event.stopPropagation();
+			    };
+			    const stopTouchPan = () => {
+			      touchPanActive = false;
+			      touchPanStart = null;
+			    };
+			    viewportEl?.addEventListener('touchstart', startTouchPan, { capture: true, passive: false });
+			    viewportEl?.addEventListener('touchmove', moveTouchPan, { capture: true, passive: false });
+			    viewportEl?.addEventListener('touchend', stopTouchPan, { capture: true, passive: true });
+			    viewportEl?.addEventListener('touchcancel', stopTouchPan, { capture: true, passive: true });
 
 	    commandBar?.addEventListener('click', (event) => {
 	      const button = event.target.closest('button');
