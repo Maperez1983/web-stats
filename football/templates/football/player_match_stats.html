@@ -7,18 +7,20 @@
     <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
     <style>
       :root {
-        --bg: #030712;
-        --bg-2: #0b1220;
-        --panel: rgba(15, 23, 42, 0.88);
-        --panel-2: rgba(2, 6, 23, 0.62);
-        --line: rgba(148, 163, 184, 0.22);
-        --text: rgba(226, 232, 240, 0.92);
-        --muted: rgba(148, 163, 184, 0.9);
-        --accent: #38bdf8;
+        --bg: #f4f7fb;
+        --bg-2: #e9f0f7;
+        --panel: rgba(255, 255, 255, 0.92);
+        --panel-2: rgba(255, 255, 255, 0.78);
+        --line: rgba(15, 23, 42, 0.12);
+        --text: #0b1220;
+        --muted: rgba(71, 85, 105, 0.96);
+        --accent: #0f7c93;
+        --gold: #f4b400;
       }
       body {
         font-family: 'Inter', sans-serif;
-        background: radial-gradient(circle at 12% 18%, rgba(56, 189, 248, 0.12), transparent 46%),
+        background:
+          radial-gradient(circle at 12% 18%, rgba(15, 124, 147, 0.12), transparent 46%),
           radial-gradient(circle at 78% 12%, rgba(244, 180, 0, 0.12), transparent 52%),
           linear-gradient(180deg, var(--bg), var(--bg-2));
         color: var(--text);
@@ -54,14 +56,14 @@
         border-radius: 1.2rem;
         border: 1px solid var(--line);
         margin: 1rem 0;
-        box-shadow: 0 18px 46px rgba(2, 6, 23, 0.55);
+        box-shadow: 0 18px 46px rgba(15, 23, 42, 0.08);
       }
       .overview {
         padding: 1.8rem;
       }
       .overview-title {
         text-align: center;
-        color: rgba(226, 232, 240, 0.92);
+        color: var(--accent);
         letter-spacing: 0.06em;
         text-transform: uppercase;
         margin: 0 0 1.2rem;
@@ -84,14 +86,14 @@
         display: grid;
         place-items: center;
         background:
-          radial-gradient(circle at center, rgba(15, 23, 42, 0.95) 0 56px, transparent 57px),
-          conic-gradient(var(--accent) calc(var(--pct) * 1%), rgba(148, 163, 184, 0.22) 0);
-        border: 1px solid rgba(148, 163, 184, 0.18);
+          radial-gradient(circle at center, rgba(255, 255, 255, 0.98) 0 56px, transparent 57px),
+          conic-gradient(var(--accent) calc(var(--pct) * 1%), rgba(148, 163, 184, 0.28) 0);
+        border: 1px solid rgba(15, 23, 42, 0.10);
       }
       .ring-value {
         font-size: 1.2rem;
         font-weight: 800;
-        color: rgba(226, 232, 240, 0.95);
+        color: #0b1220;
       }
       .ring-label {
         font-size: 0.95rem;
@@ -105,7 +107,7 @@
       }
       .summary-item {
         background: var(--panel-2);
-        border: 1px solid rgba(148, 163, 184, 0.18);
+        border: 1px solid rgba(15, 23, 42, 0.10);
         border-radius: 1rem;
         padding: 1rem;
         text-align: center;
@@ -120,11 +122,11 @@
         margin-top: 0.25rem;
         font-size: 1.15rem;
         font-weight: 800;
-        color: rgba(226, 232, 240, 0.95);
+        color: #0b1220;
       }
       .section-title {
         margin: 0 0 0.8rem;
-        color: rgba(226, 232, 240, 0.95);
+        color: #0b1220;
       }
       .heatmap-row.field-surface-row {
         position: relative;
