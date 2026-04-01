@@ -2621,21 +2621,37 @@
 	      }, ['data']);
 	    };
 
-	    const applyPitchSurface = (presetValue, orientationValue) => {
-	      // Evita SVG anidados (innerHTML con <svg> completo) que luego rompen la previsualización y el PDF.
-	      const markup = buildPitchSvg(presetValue, orientationValue);
-	      const applyFromRoot = (root) => {
-	        svgSurface.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-	        svgSurface.setAttribute('viewBox', root.getAttribute('viewBox') || '-2 -2 1054 684');
-	        svgSurface.setAttribute('preserveAspectRatio', root.getAttribute('preserveAspectRatio') || 'xMidYMid meet');
-	        const pitchBox = root.getAttribute('data-pitch-box') || '';
-	        if (pitchBox) svgSurface.setAttribute('data-pitch-box', pitchBox);
-	        else svgSurface.removeAttribute('data-pitch-box');
-	        while (svgSurface.firstChild) svgSurface.removeChild(svgSurface.firstChild);
-	        Array.from(root.childNodes).forEach((child) => {
-	          svgSurface.appendChild(svgSurface.ownerDocument.importNode(child, true));
-	        });
-	      };
+		    const applyPitchSurface = (presetValue, orientationValue) => {
+		      // Evita SVG anidados (innerHTML con <svg> completo) que luego rompen la previsualización y el PDF.
+		      const markup = buildPitchSvg(presetValue, orientationValue);
+		      const syncStageAspectFromSvg = () => {
+		        try {
+		          const viewBoxRaw = safeText(svgSurface.getAttribute('viewBox'));
+		          const parts = viewBoxRaw.split(/\s+/).map((v) => Number(v)).filter((n) => Number.isFinite(n));
+		          if (parts.length >= 4) {
+		            const vbW = parts[2];
+		            const vbH = parts[3];
+		            if (vbW > 0 && vbH > 0) {
+		              // Fuerza ratio exacto del contenedor al del SVG para evitar "barras" (sobre todo en vertical
+		              // cuando por CSS/clases no coincide el aspect-ratio).
+		              stage.style.aspectRatio = `${vbW} / ${vbH}`;
+		            }
+		          }
+		        } catch (error) { /* ignore */ }
+		      };
+		      const applyFromRoot = (root) => {
+		        svgSurface.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+		        svgSurface.setAttribute('viewBox', root.getAttribute('viewBox') || '-2 -2 1054 684');
+		        svgSurface.setAttribute('preserveAspectRatio', root.getAttribute('preserveAspectRatio') || 'xMidYMid meet');
+		        const pitchBox = root.getAttribute('data-pitch-box') || '';
+		        if (pitchBox) svgSurface.setAttribute('data-pitch-box', pitchBox);
+		        else svgSurface.removeAttribute('data-pitch-box');
+		        while (svgSurface.firstChild) svgSurface.removeChild(svgSurface.firstChild);
+		        Array.from(root.childNodes).forEach((child) => {
+		          svgSurface.appendChild(svgSurface.ownerDocument.importNode(child, true));
+		        });
+		        syncStageAspectFromSvg();
+		      };
 
 	      // 1) Ruta normal: DOMParser + import de nodos (evita <svg> anidado).
 	      try {
@@ -2674,16 +2690,17 @@
 	            const viewBox = readAttr('viewBox') || '-2 -2 1054 684';
 	            const preserve = readAttr('preserveAspectRatio') || 'xMidYMid meet';
 	            const pitchBox = readAttr('data-pitch-box');
-	            svgSurface.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-	            svgSurface.setAttribute('viewBox', viewBox);
-	            svgSurface.setAttribute('preserveAspectRatio', preserve);
-	            if (pitchBox) svgSurface.setAttribute('data-pitch-box', pitchBox);
-	            else svgSurface.removeAttribute('data-pitch-box');
-	            svgSurface.innerHTML = inner;
-	            return;
-	          }
-	        }
-	      } catch (error) {
+		            svgSurface.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+		            svgSurface.setAttribute('viewBox', viewBox);
+		            svgSurface.setAttribute('preserveAspectRatio', preserve);
+		            if (pitchBox) svgSurface.setAttribute('data-pitch-box', pitchBox);
+		            else svgSurface.removeAttribute('data-pitch-box');
+		            svgSurface.innerHTML = inner;
+		            syncStageAspectFromSvg();
+		            return;
+		          }
+		        }
+		      } catch (error) {
 	        // ignore
 	      }
 
