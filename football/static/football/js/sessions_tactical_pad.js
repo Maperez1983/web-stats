@@ -168,15 +168,16 @@
   const buildPitchSvg = (presetKey, orientationKey = 'landscape') => {
     const preset = String(presetKey || 'full_pitch').trim();
     const orientation = safeText(orientationKey, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
-    // Ajuste de lienzo para que el campo (105x68) ocupe casi todo el stage
-    // y no quede “aire” sobrante arriba/abajo (reduce scroll).
-    const stageW = orientation === 'portrait' ? 712 : 1100;
-    const stageH = orientation === 'portrait' ? 1100 : 712;
+    // Lienzo con proporción real 105x68 (escalado) y un pequeño "bleed" para que el trazo
+    // del borde no se recorte incluso con overflow hidden.
+    const stageW = orientation === 'portrait' ? 680 : 1050;
+    const stageH = orientation === 'portrait' ? 1050 : 680;
+    const bleed = 2;
     const drawW = 1100;
     const drawH = 748;
     const doc = document.implementation.createDocument('http://www.w3.org/2000/svg', 'svg', null);
     const root = doc.documentElement;
-    root.setAttribute('viewBox', `0 0 ${stageW} ${stageH}`);
+    root.setAttribute('viewBox', `${-bleed} ${-bleed} ${stageW + (bleed * 2)} ${stageH + (bleed * 2)}`);
     root.setAttribute('preserveAspectRatio', 'xMidYMid meet');
 
     const defs = createSvgNode(doc, 'defs');
@@ -188,7 +189,13 @@
 
     // Fondo: evitar "zona oscura" alrededor del campo. Si el preset es "blank" mantenemos transparente.
     // Para el resto, usamos el verde base del campo para que el margen exterior no distraiga.
-    root.appendChild(createSvgNode(doc, 'rect', { x: 0, y: 0, width: stageW, height: stageH, fill: preset === 'blank' ? 'transparent' : 'url(#pitch-bg)' }));
+    root.appendChild(createSvgNode(doc, 'rect', {
+      x: -bleed,
+      y: -bleed,
+      width: stageW + (bleed * 2),
+      height: stageH + (bleed * 2),
+      fill: preset === 'blank' ? 'transparent' : 'url(#pitch-bg)',
+    }));
     const drawRoot = createSvgNode(doc, 'g');
     if (orientation === 'portrait') {
       drawRoot.setAttribute('transform', `translate(${stageW} 0) rotate(90)`);
@@ -201,7 +208,7 @@
       // Deja margen suficiente para que el trazo del borde no se recorte en miniaturas / contenedores con overflow hidden.
       // Margen de seguridad para que los bordes no se recorten con overflow hidden,
       // pero lo más pequeño posible para que el campo ocupe pantalla.
-      const margin = 2;
+      const margin = 0;
       const portrait = orientation === 'portrait';
       const effectiveW = portrait ? stageH : stageW;
       const effectiveH = portrait ? stageW : stageH;
@@ -2402,7 +2409,7 @@
         const root = parsed.documentElement;
         if (root && root.tagName && root.tagName.toLowerCase() === 'svg') {
           svgSurface.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-          svgSurface.setAttribute('viewBox', root.getAttribute('viewBox') || '0 0 1100 712');
+          svgSurface.setAttribute('viewBox', root.getAttribute('viewBox') || '-2 -2 1054 684');
           svgSurface.setAttribute('preserveAspectRatio', root.getAttribute('preserveAspectRatio') || 'xMidYMid meet');
           while (svgSurface.firstChild) svgSurface.removeChild(svgSurface.firstChild);
           Array.from(root.childNodes).forEach((child) => {
