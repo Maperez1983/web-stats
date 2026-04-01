@@ -977,6 +977,9 @@
 	      if (w > 0 && h > 0) return { w, h };
 	      return { w: Math.round(canvas.getWidth() || 0), h: Math.round(canvas.getHeight() || 0) };
 	    };
+	    // Pan del viewport (en px de canvas) cuando se usa viewportTransform (sin scrollbars).
+	    let viewportPanX = 0;
+	    let viewportPanY = 0;
 	    const syncWorldFromInputs = () => {
 	      const nextW = parseIntSafe(widthInput?.value);
 	      const nextH = parseIntSafe(heightInput?.value);
@@ -994,9 +997,21 @@
 	      const toW = Math.round(canvas.getWidth() || 0);
 	      const toH = Math.round(canvas.getHeight() || 0);
 	      if (fromW <= 0 || fromH <= 0 || toW <= 0 || toH <= 0) return;
-	      const scale = Math.min(toW / fromW, toH / fromH);
-	      const offsetX = (toW - (fromW * scale)) / 2;
-	      const offsetY = (toH - (fromH * scale)) / 2;
+	      const baseScale = Math.min(toW / fromW, toH / fromH);
+	      const zoom = clamp(Number(pitchZoom) || 1, 0.8, 1.6);
+	      const scale = baseScale * zoom;
+	      const scaledW = fromW * scale;
+	      const scaledH = fromH * scale;
+	      const baseOffsetX = (toW - scaledW) / 2;
+	      const baseOffsetY = (toH - scaledH) / 2;
+	      const maxPanX = scaledW > toW ? (scaledW - toW) / 2 : 0;
+	      const maxPanY = scaledH > toH ? (scaledH - toH) / 2 : 0;
+	      if (maxPanX <= 0) viewportPanX = 0;
+	      else viewportPanX = clamp(viewportPanX, -maxPanX, maxPanX);
+	      if (maxPanY <= 0) viewportPanY = 0;
+	      else viewportPanY = clamp(viewportPanY, -maxPanY, maxPanY);
+	      const offsetX = baseOffsetX + viewportPanX;
+	      const offsetY = baseOffsetY + viewportPanY;
 	      canvas.setViewportTransform([scale, 0, 0, scale, offsetX, offsetY]);
 	    };
 		    const normalizeEditableObject = (object) => {
@@ -2162,17 +2177,24 @@
 		    const syncZoomUi = () => {
 		      if (zoomInput) zoomInput.value = String(pitchZoom.toFixed(2));
 		      if (zoomLabel) zoomLabel.textContent = `${Math.round(pitchZoom * 100)}%`;
-		      stage.style.setProperty('--pitch-zoom', String(pitchZoom));
 		      viewportEl?.classList.toggle('is-zoomed', pitchZoom > 1.02);
-		      // El zoom cambia el tamaño del stage; reajustamos canvas y SVG para mantener todo alineado y nítido.
+		      // En modo viewportTransform, el zoom no cambia el tamaño del stage: cambia la escala del viewport.
+		      if (useViewportMapping) {
+		        try { applyViewportTransformToWorld(); } catch (error) { /* ignore */ }
+		        try { canvas.requestRenderAll(); } catch (error) { /* ignore */ }
+		        try { canvas.calcOffset(); } catch (error) { /* ignore */ }
+		        return;
+		      }
+		      // Fallback legacy: el zoom cambia tamaño del stage.
+		      stage.style.setProperty('--pitch-zoom', String(pitchZoom));
 		      try {
 		        window.requestAnimationFrame(() => {
-		          try { fitCanvas(!useViewportMapping); } catch (error) { /* ignore */ }
+		          try { fitCanvas(true); } catch (error) { /* ignore */ }
 		          try { applyPitchSurface(presetSelect.value || 'full_pitch', pitchOrientation); } catch (error) { /* ignore */ }
 		          try { canvas.calcOffset(); } catch (error) { /* ignore */ }
 		        });
 		      } catch (error) {
-		        try { fitCanvas(!useViewportMapping); } catch (e) { /* ignore */ }
+		        try { fitCanvas(true); } catch (e) { /* ignore */ }
 		        try { applyPitchSurface(presetSelect.value || 'full_pitch', pitchOrientation); } catch (e) { /* ignore */ }
 		        try { canvas.calcOffset(); } catch (e) { /* ignore */ }
 		      }
@@ -4141,15 +4163,28 @@
 
 		    const startSpacePan = (event) => {
 		      if (!viewportEl || !spacePanArmed) return;
-		      // Solo tiene sentido si el viewport puede desplazarse.
-		      const canScroll = viewportEl.scrollWidth > viewportEl.clientWidth || viewportEl.scrollHeight > viewportEl.clientHeight;
-		      if (!canScroll) return;
+		      // Solo tiene sentido si el viewport puede desplazarse o si hay zoom/pan por viewportTransform.
+		      const canPan = (() => {
+		        if (useViewportMapping) {
+		          const { w: fromW, h: fromH } = worldSize();
+		          const toW = Math.round(canvas.getWidth() || 0);
+		          const toH = Math.round(canvas.getHeight() || 0);
+		          if (fromW <= 0 || fromH <= 0 || toW <= 0 || toH <= 0) return false;
+		          const baseScale = Math.min(toW / fromW, toH / fromH);
+		          const scale = baseScale * clamp(Number(pitchZoom) || 1, 0.8, 1.6);
+		          return (fromW * scale) > (toW + 2) || (fromH * scale) > (toH + 2);
+		        }
+		        return viewportEl.scrollWidth > viewportEl.clientWidth || viewportEl.scrollHeight > viewportEl.clientHeight;
+		      })();
+		      if (!canPan) return;
 		      spacePanning = true;
 		      spacePanStart = {
 		        x: Number(event.clientX) || 0,
 		        y: Number(event.clientY) || 0,
 		        scrollLeft: viewportEl.scrollLeft,
 		        scrollTop: viewportEl.scrollTop,
+		        panX: viewportPanX,
+		        panY: viewportPanY,
 		      };
 		      viewportEl.classList.add('is-grabbing');
 		      event.preventDefault();
@@ -4159,8 +4194,15 @@
 		      if (!viewportEl || !spacePanning || !spacePanStart) return;
 		      const dx = (Number(event.clientX) || 0) - spacePanStart.x;
 		      const dy = (Number(event.clientY) || 0) - spacePanStart.y;
-		      viewportEl.scrollLeft = spacePanStart.scrollLeft - dx;
-		      viewportEl.scrollTop = spacePanStart.scrollTop - dy;
+		      if (useViewportMapping) {
+		        viewportPanX = (Number(spacePanStart.panX) || 0) + dx;
+		        viewportPanY = (Number(spacePanStart.panY) || 0) + dy;
+		        try { applyViewportTransformToWorld(); } catch (error) { /* ignore */ }
+		        try { canvas.requestRenderAll(); } catch (error) { /* ignore */ }
+		      } else {
+		        viewportEl.scrollLeft = spacePanStart.scrollLeft - dx;
+		        viewportEl.scrollTop = spacePanStart.scrollTop - dy;
+		      }
 		      event.preventDefault();
 		      event.stopPropagation();
 		    };
@@ -4180,12 +4222,21 @@
 
 			    // Touch: pan con 2 dedos cuando el viewport es scrollable (zoom/orientación vertical),
 			    // sin romper el drag normal (1 dedo) para mover fichas.
-			    let touchPanActive = false;
-			    let touchPanStart = null;
-			    const canViewportScroll = () => {
-			      if (!viewportEl) return false;
-			      return viewportEl.scrollWidth > viewportEl.clientWidth || viewportEl.scrollHeight > viewportEl.clientHeight;
-			    };
+				    let touchPanActive = false;
+				    let touchPanStart = null;
+				    const canViewportScroll = () => {
+				      if (!viewportEl) return false;
+				      if (useViewportMapping) {
+				        const { w: fromW, h: fromH } = worldSize();
+				        const toW = Math.round(canvas.getWidth() || 0);
+				        const toH = Math.round(canvas.getHeight() || 0);
+				        if (fromW <= 0 || fromH <= 0 || toW <= 0 || toH <= 0) return false;
+				        const baseScale = Math.min(toW / fromW, toH / fromH);
+				        const scale = baseScale * clamp(Number(pitchZoom) || 1, 0.8, 1.6);
+				        return (fromW * scale) > (toW + 2) || (fromH * scale) > (toH + 2);
+				      }
+				      return viewportEl.scrollWidth > viewportEl.clientWidth || viewportEl.scrollHeight > viewportEl.clientHeight;
+				    };
 			    const touchCenter = (touches) => {
 			      const t0 = touches?.[0];
 			      const t1 = touches?.[1];
@@ -4195,33 +4246,42 @@
 			        y: ((Number(t0.clientY) || 0) + (Number(t1.clientY) || 0)) / 2,
 			      };
 			    };
-			    const startTouchPan = (event) => {
-			      if (!viewportEl) return;
-			      if (!canViewportScroll()) return;
-			      if (!event.touches || event.touches.length !== 2) return;
+				    const startTouchPan = (event) => {
+				      if (!viewportEl) return;
+				      if (!canViewportScroll()) return;
+				      if (!event.touches || event.touches.length !== 2) return;
 			      const c = touchCenter(event.touches);
 			      if (!c) return;
-			      touchPanActive = true;
-			      touchPanStart = {
-			        x: c.x,
-			        y: c.y,
-			        scrollLeft: viewportEl.scrollLeft,
-			        scrollTop: viewportEl.scrollTop,
-			      };
-			      event.preventDefault();
-			    };
-			    const moveTouchPan = (event) => {
-			      if (!viewportEl || !touchPanActive || !touchPanStart) return;
-			      if (!event.touches || event.touches.length !== 2) return;
-			      const c = touchCenter(event.touches);
-			      if (!c) return;
-			      const dx = c.x - touchPanStart.x;
-			      const dy = c.y - touchPanStart.y;
-			      viewportEl.scrollLeft = touchPanStart.scrollLeft - dx;
-			      viewportEl.scrollTop = touchPanStart.scrollTop - dy;
-			      event.preventDefault();
-			      event.stopPropagation();
-			    };
+				      touchPanActive = true;
+				      touchPanStart = {
+				        x: c.x,
+				        y: c.y,
+				        scrollLeft: viewportEl.scrollLeft,
+				        scrollTop: viewportEl.scrollTop,
+				        panX: viewportPanX,
+				        panY: viewportPanY,
+				      };
+				      event.preventDefault();
+				    };
+				    const moveTouchPan = (event) => {
+				      if (!viewportEl || !touchPanActive || !touchPanStart) return;
+				      if (!event.touches || event.touches.length !== 2) return;
+				      const c = touchCenter(event.touches);
+				      if (!c) return;
+				      const dx = c.x - touchPanStart.x;
+				      const dy = c.y - touchPanStart.y;
+				      if (useViewportMapping) {
+				        viewportPanX = (Number(touchPanStart.panX) || 0) + dx;
+				        viewportPanY = (Number(touchPanStart.panY) || 0) + dy;
+				        try { applyViewportTransformToWorld(); } catch (error) { /* ignore */ }
+				        try { canvas.requestRenderAll(); } catch (error) { /* ignore */ }
+				      } else {
+				        viewportEl.scrollLeft = touchPanStart.scrollLeft - dx;
+				        viewportEl.scrollTop = touchPanStart.scrollTop - dy;
+				      }
+				      event.preventDefault();
+				      event.stopPropagation();
+				    };
 			    const stopTouchPan = () => {
 			      touchPanActive = false;
 			      touchPanStart = null;

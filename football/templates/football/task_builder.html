@@ -670,8 +670,9 @@
       .pitch-stage {
         position: relative;
         --pitch-zoom: 1;
-        width: min(calc(100% * var(--pitch-zoom)), calc(1500px * var(--pitch-zoom)));
-        max-width: none;
+        width: 100%;
+        max-width: 1500px;
+        margin: 0 auto;
         /* Mantener misma proporción que el SVG (viewBox -2 -2 1054x684). */
         aspect-ratio: 1054 / 684;
         min-height: 0;
@@ -699,13 +700,12 @@
       }
       .pitch-stage.is-portrait {
         aspect-ratio: 684 / 1054;
-        width: min(calc(100% * var(--pitch-zoom)), calc(1500px * var(--pitch-zoom)));
+        width: 100%;
       }
       .pitch-viewport {
         width: 100%;
-        overflow: auto;
+        overflow: hidden;
         border-radius: 18px;
-        -webkit-overflow-scrolling: touch;
       }
       .pitch-viewport.is-hand,
       .pitch-viewport.is-hand * {
@@ -715,9 +715,7 @@
       .pitch-viewport.is-hand.is-grabbing * {
         cursor: grabbing;
       }
-      .pitch-viewport.is-portrait {
-        max-height: 78vh;
-      }
+      .pitch-viewport.is-portrait { }
       .pitch-viewport.is-zoomed {
         /* mantiene compatibilidad: ahora el overflow ya es auto por defecto */
       }
@@ -1155,21 +1153,19 @@
           grid-template-columns: 1fr;
         }
         .pitch-viewport {
-          overflow-x: auto;
-          overflow-y: hidden;
-          -webkit-overflow-scrolling: touch;
-          padding-bottom: 0.35rem;
+          overflow: hidden;
         }
         .pitch-stage {
-          width: 920px;
-          min-width: 920px;
-          max-width: none;
-          min-height: 520px;
+          width: 100%;
+          max-width: 100%;
+          min-width: 0;
+          min-height: 0;
         }
         .pitch-stage.is-portrait {
-          width: 640px;
-          min-width: 640px;
-          min-height: 920px;
+          width: 100%;
+          max-width: 100%;
+          min-width: 0;
+          min-height: 0;
         }
         .selection-grid {
           grid-template-columns: 1fr;
