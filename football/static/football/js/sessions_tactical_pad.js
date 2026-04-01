@@ -2593,13 +2593,6 @@
 	      // Evitamos el "jersey" y los cartuchos para que dentro del campo se vea igual que fuera.
 	      if (kind === 'player_local' || kind === 'player_away' || kind === 'goalkeeper_local') {
 	        const radius = 22;
-	        const chipClip = new fabric.Circle({
-	          radius: radius - 1.2,
-	          originX: 'center',
-	          originY: 'center',
-	          left: 0,
-	          top: 0,
-	        });
 	        const isAway = kind === 'player_away';
 	        const isGoalkeeper = kind === 'goalkeeper_local';
 	        const baseCircle = new fabric.Circle({
@@ -2633,7 +2626,6 @@
 	              ],
 	            }),
 	          });
-	          gkBg.clipPath = chipClip;
 	          tokenParts.push(gkBg);
 	          const highlight = new fabric.Circle({
 	            radius: 10,
@@ -2644,13 +2636,13 @@
 	            fill: 'rgba(255,255,255,0.28)',
 	            strokeWidth: 0,
 	          });
-	          highlight.clipPath = chipClip;
 	          tokenParts.push(highlight);
 	        } else if (!isAway) {
 	          const stripeWidth = 8;
 	          const stripeHeight = 46;
 	          const stripeCount = Math.ceil((radius * 2) / stripeWidth) + 1;
 	          const start = (-radius) + (stripeWidth / 2);
+	          const stripes = [];
 	          for (let i = 0; i < stripeCount; i += 1) {
 	            const isGreen = i % 2 === 0;
 	            const stripe = new fabric.Rect({
@@ -2662,10 +2654,26 @@
 	              originX: 'center',
 	              originY: 'center',
 	            });
-	            if (isGreen) stripe.data = { role: 'token_stripe' };
-	            stripe.clipPath = chipClip;
-	            tokenParts.push(stripe);
+	            stripes.push(stripe);
 	          }
+	          // Clip a nivel de grupo (más robusto que aplicar el mismo clipPath a cada rect).
+	          const stripeGroup = new fabric.Group(stripes, {
+	            originX: 'center',
+	            originY: 'center',
+	            left: 0,
+	            top: 0,
+	            selectable: false,
+	            evented: false,
+	          });
+	          stripeGroup.clipPath = new fabric.Circle({
+	            radius: radius - 1.2,
+	            originX: 'center',
+	            originY: 'center',
+	            left: 0,
+	            top: 0,
+	          });
+	          stripeGroup.data = { role: 'token_stripes' };
+	          tokenParts.push(stripeGroup);
 	        }
 	        const numberText = new fabric.Text(isGoalkeeper ? 'GK' : label, {
 	          originX: 'center',
