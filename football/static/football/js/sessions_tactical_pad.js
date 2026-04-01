@@ -2155,6 +2155,62 @@
         // Compat: si el canvas se creó en otra resolución, reescalamos los objetos cargados
         // para que las tareas guardadas no cambien de posición al adaptar el editor.
         scaleLoadedObjects(sourceWidth, sourceHeight);
+        // Compat: algunas tareas antiguas guardaron chapas tipo "camiseta". Al abrirlas,
+        // las convertimos a estilo "disco" para que se parezcan a la plantilla disponible.
+        // Solo afecta a objetos con data.kind='token' y token_kind de jugadores.
+        try {
+          const playerTokenKinds = new Set(['player_local', 'player_away', 'goalkeeper_local']);
+          const current = canvas.getObjects().slice();
+          const active = canvas.getActiveObject();
+          const replacementMap = new Map();
+          const hasTokenRoles = (obj) =>
+            Array.isArray(obj?._objects)
+            && obj._objects.some((child) => {
+              const role = safeText(child?.data?.role);
+              return role && role.startsWith('token_');
+            });
+          const resolvePlayerForLegacy = (obj) => {
+            const playerId = safeText(obj?.data?.playerId);
+            if (playerId) {
+              const found = players.find((item) => String(item.id) === String(playerId));
+              if (found) return found;
+            }
+            const playerName = safeText(obj?.data?.playerName) || safeText(obj?.data?.name);
+            const playerNumber = safeText(obj?.data?.playerNumber) || safeText(obj?.data?.number);
+            if (!playerName && !playerNumber) return null;
+            return { id: playerId, name: playerName, number: playerNumber, position: '' };
+          };
+          current.forEach((obj, index) => {
+            const kind = safeText(obj?.data?.kind);
+            if (kind !== 'token') return;
+            const tokenKind = safeText(obj?.data?.token_kind);
+            if (!playerTokenKinds.has(tokenKind)) return;
+            if (hasTokenRoles(obj)) return; // ya es el estilo nuevo
+            const center = obj.getCenterPoint ? obj.getCenterPoint() : { x: Number(obj.left) || 0, y: Number(obj.top) || 0 };
+            const legacyPlayer = resolvePlayerForLegacy(obj);
+            if (typeof playerTokenFactory !== 'function') return;
+            const factory = playerTokenFactory(tokenKind, legacyPlayer);
+            if (typeof factory !== 'function') return;
+            const fresh = factory(center.x, center.y);
+            if (!fresh) return;
+            const locked = obj?.data?.locked;
+            fresh.set({
+              angle: Number(obj.angle) || 0,
+              scaleX: clampScale(Number(obj.scaleX) || 1),
+              scaleY: clampScale(Number(obj.scaleY) || 1),
+              opacity: obj.opacity == null ? 1 : obj.opacity,
+            });
+            fresh.data = { ...(fresh.data || {}), locked };
+            replacementMap.set(obj, fresh);
+            canvas.remove(obj);
+            canvas.insertAt(fresh, index, false);
+          });
+          if (active && replacementMap.has(active)) {
+            canvas.setActiveObject(replacementMap.get(active));
+          }
+        } catch (error) {
+          // ignore conversion errors
+        }
         canvas.getObjects().forEach((item) => normalizeEditableObject(item));
         canvas.__loading = false;
         canvas.requestRenderAll();
