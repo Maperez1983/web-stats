@@ -1196,9 +1196,20 @@
       }
       /* Evita que la plantilla disponible “coma” toda la altura. */
       body.is-compact .player-bank {
-        max-height: 170px;
-        overflow: auto;
-        padding-right: 0.2rem;
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 0.5rem;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding: 0.1rem 0.1rem 0.35rem;
+        -webkit-overflow-scrolling: touch;
+        scroll-snap-type: x mandatory;
+        scrollbar-gutter: stable both-edges;
+      }
+      body.is-compact .player-bank button.player-token-bank {
+        flex: 0 0 auto;
+        width: 120px;
+        scroll-snap-align: start;
       }
       body.is-compact textarea {
         min-height: 76px;
