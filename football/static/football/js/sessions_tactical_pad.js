@@ -2257,25 +2257,29 @@
 	    };
 
     const applyPitchSurface = (presetValue, orientationValue) => {
-      // Evita SVG anidados (innerHTML con <svg> completo) que luego rompen la previsualización y el PDF.
+      // Evita SVG anidados: `buildPitchSvg()` devuelve un `<svg>...</svg>` completo, pero nuestro
+      // template ya contiene el `<svg id="task-pitch-surface">`. Si metemos otro `<svg>` dentro,
+      // el `viewBox` del wrapper (p.ej. 1100x748) puede no coincidir con el de la orientación
+      // vertical (748x1100) y el campo queda con bandas/centrado incorrecto.
       const markup = buildPitchSvg(presetValue, orientationValue);
-      try {
-        const parsed = new DOMParser().parseFromString(markup, 'image/svg+xml');
-        const root = parsed.documentElement;
-        if (root && root.tagName && root.tagName.toLowerCase() === 'svg') {
-          svgSurface.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-          svgSurface.setAttribute('viewBox', root.getAttribute('viewBox') || '0 0 1100 748');
-          svgSurface.setAttribute('preserveAspectRatio', root.getAttribute('preserveAspectRatio') || 'xMidYMid meet');
-          while (svgSurface.firstChild) svgSurface.removeChild(svgSurface.firstChild);
-          Array.from(root.childNodes).forEach((child) => {
-            svgSurface.appendChild(svgSurface.ownerDocument.importNode(child, true));
-          });
-          return;
-        }
-      } catch (error) {
-        // Fallback: deja el markup tal cual si el parseo falla.
-      }
-      svgSurface.innerHTML = markup;
+      const normalizedOrientation = safeText(orientationValue, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
+      const stageW = normalizedOrientation === 'portrait' ? 748 : 1100;
+      const stageH = normalizedOrientation === 'portrait' ? 1100 : 748;
+
+      const extractInnerSvg = (raw) => {
+        const text = String(raw || '');
+        const svgIndex = text.indexOf('<svg');
+        if (svgIndex === -1) return text;
+        const openEnd = text.indexOf('>', svgIndex);
+        const closeIndex = text.lastIndexOf('</svg>');
+        if (openEnd === -1 || closeIndex === -1 || closeIndex <= openEnd) return text;
+        return text.slice(openEnd + 1, closeIndex);
+      };
+
+      svgSurface.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      svgSurface.setAttribute('viewBox', `0 0 ${stageW} ${stageH}`);
+      svgSurface.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+      svgSurface.innerHTML = extractInnerSvg(markup);
     };
 
     const setPreset = (presetValue) => {
