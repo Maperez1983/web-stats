@@ -840,6 +840,19 @@
 	    } catch (error) {
 	      // ignore
 	    }
+	    // Si el viewport es scrollable (zoom/orientación), el offset del canvas cambia y Fabric
+	    // necesita recalcularlo para que clicks/drag coincidan con la posición real.
+	    const scheduleCanvasOffset = () => {
+	      try {
+	        window.requestAnimationFrame(() => {
+	          try { canvas.calcOffset(); } catch (error) { /* ignore */ }
+	        });
+	      } catch (error) {
+	        try { canvas.calcOffset(); } catch (e) { /* ignore */ }
+	      }
+	    };
+	    viewportEl?.addEventListener('scroll', scheduleCanvasOffset, { passive: true });
+	    window.addEventListener('scroll', scheduleCanvasOffset, { passive: true });
 
 	    const GRID_SIZES = [28, 40, 56];
 	    const gridPrefsKey = 'tpad_grid_prefs_v1';
