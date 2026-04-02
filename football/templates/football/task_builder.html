@@ -5,6 +5,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>{% if task %}Editar tarea{% else %}Crear tarea{% endif %} · {{ scope_title }}</title>
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}" />
     <style>
       :root {
         --bg: #071320;
@@ -1346,12 +1347,7 @@
         display: inline;
       }
       .task-mode-tabs [data-task-mode="both"] {
-        display: none;
-      }
-      @media (min-width: 1161px) {
-        .task-mode-tabs [data-task-mode="both"] {
-          display: inline-flex;
-        }
+        display: none !important;
       }
       body.task-mode-ready.task-mode-board .builder > aside.panel {
         display: none;
@@ -1602,10 +1598,9 @@
         <div id="assigned-players-hidden" style="display:none;"></div>
 
         <div class="task-mode-tabs" id="task-mode-tabs" role="tablist" aria-label="Vista de edición">
-          <button type="button" data-task-mode="both" role="tab" aria-selected="false">Todo</button>
           <button type="button" class="is-active" data-task-mode="board" role="tab" aria-selected="true">Pizarra</button>
-          <button type="button" data-task-mode="text" role="tab" aria-selected="false">Textos</button>
-          <span class="hint">Cambia de vista sin hacer scroll.</span>
+          <button type="button" data-task-mode="text" role="tab" aria-selected="false">Contenido</button>
+          <span class="hint">Alterna para editar sin scroll.</span>
         </div>
 
         <div class="builder">

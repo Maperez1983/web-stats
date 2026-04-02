@@ -4018,39 +4018,29 @@
       const readMode = () => {
         try {
           const stored = safeText(window.localStorage.getItem(storageKey));
-          if (stored === 'text' || stored === 'board' || stored === 'both') return stored;
+          if (stored === 'text' || stored === 'board') return stored;
         } catch (error) { /* ignore */ }
-        return isNarrow() ? 'board' : 'both';
+        return 'board';
       };
       const writeMode = (mode) => {
         try { window.localStorage.setItem(storageKey, mode); } catch (error) { /* ignore */ }
       };
       const apply = (mode, options = {}) => {
-        const requested = mode === 'text' ? 'text' : (mode === 'both' ? 'both' : 'board');
-        const next = (isNarrow() && requested === 'both') ? 'board' : requested;
+        const next = mode === 'text' ? 'text' : 'board';
         document.body.classList.toggle('task-mode-board', next === 'board');
         document.body.classList.toggle('task-mode-text', next === 'text');
-        document.body.classList.toggle('task-mode-both', next === 'both');
-        document.body.classList.toggle('task-mode-ready', next !== 'both');
+        document.body.classList.toggle('task-mode-both', false);
+        document.body.classList.toggle('task-mode-ready', true);
         buttons.forEach((btn) => {
           const active = safeText(btn.dataset.taskMode) === next;
           btn.classList.toggle('is-active', active);
           btn.setAttribute('aria-selected', active ? 'true' : 'false');
         });
-        if (!options.silent) writeMode(requested);
-        if (next === 'both') {
-          if (!options.silent) setStatus('Vista: Todo.');
-          window.setTimeout(() => {
-            try { fitCanvas(); } catch (error) { /* ignore */ }
-            try { canvas.calcOffset(); } catch (error) { /* ignore */ }
-            try { canvas.requestRenderAll(); } catch (error) { /* ignore */ }
-          }, 50);
-          return;
-        }
+        if (!options.silent) writeMode(next);
         if (next === 'text') {
           try { syncRichEditorsNow?.(); } catch (error) { /* ignore */ }
           try { persistDraftNow('mode-switch'); } catch (error) { /* ignore */ }
-          if (!options.silent) setStatus('Vista: Textos.');
+          if (!options.silent) setStatus('Vista: Contenido.');
           return;
         }
         window.setTimeout(() => {

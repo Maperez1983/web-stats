@@ -21,7 +21,7 @@ body.prod-commercial {
     radial-gradient(circle at 14% -12%, rgba(47, 125, 50, 0.22), transparent 52%),
     radial-gradient(circle at 88% -6%, rgba(244, 180, 0, 0.18), transparent 46%),
     radial-gradient(circle at 70% 120%, rgba(34, 211, 238, 0.12), transparent 52%),
-    linear-gradient(180deg, #02060d 0%, #08111d 58%, #050a13 100%);
+    linear-gradient(180deg, #02060d 0%, #08111d 58%, #050a13 100%) !important;
   background-attachment: fixed;
 }
 
