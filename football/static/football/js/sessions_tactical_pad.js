@@ -1080,6 +1080,7 @@
 	    let spacePanArmed = false;
 	    let spacePanning = false;
 	    let spacePanStart = null;
+	    let backgroundPickMode = false;
 	    const useViewportMapping = (() => {
 	      const flag = safeText(urlParams?.get('tpad_vpt'));
 	      if (flag === '0') return false;
@@ -1267,6 +1268,42 @@
       }
       try { canvas.requestRenderAll(); } catch (error) { /* ignore */ }
       return true;
+    };
+
+    const findBackgroundShapeAtPoint = (point) => {
+      if (!point) return null;
+      const objects = (canvas.getObjects() || []).slice();
+      for (let i = objects.length - 1; i >= 0; i -= 1) {
+        const obj = objects[i];
+        if (!obj || !isBackgroundShape(obj) || obj.visible === false) continue;
+        let hit = false;
+        try {
+          if (typeof obj.containsPoint === 'function') hit = !!obj.containsPoint(point);
+        } catch (err) {
+          hit = false;
+        }
+        if (!hit) {
+          try {
+            const rect = obj.getBoundingRect(true, true);
+            hit = point.x >= rect.left && point.x <= (rect.left + rect.width) && point.y >= rect.top && point.y <= (rect.top + rect.height);
+          } catch (err) {
+            hit = false;
+          }
+        }
+        if (hit) return obj;
+      }
+      return null;
+    };
+
+    const pickBackgroundFromEvent = (e) => {
+      if (!e) return null;
+      try {
+        const pointer = canvas.getPointer(e);
+        const point = new fabric.Point(Number(pointer?.x) || 0, Number(pointer?.y) || 0);
+        return findBackgroundShapeAtPoint(point);
+      } catch (error) {
+        return null;
+      }
     };
 
     const disableBackgroundEditExcept = (keepObject) => {
@@ -4566,34 +4603,24 @@
 	    });
     canvas.on('mouse:down', (event) => {
       const e = event?.e;
+      if (backgroundPickMode && e && !pendingFactory) {
+        const candidate = pickBackgroundFromEvent(e);
+        backgroundPickMode = false;
+        if (candidate) {
+          setBackgroundEditMode(candidate, true, { force: true });
+          canvas.setActiveObject(candidate);
+          canvas.requestRenderAll();
+          syncInspector();
+          renderLayers();
+          setStatus('Figura en modo edición. Pulsa Esc o selecciona otro elemento para salir.');
+        } else {
+          setStatus('No se encontró una figura en ese punto.', true);
+        }
+        return;
+      }
       if (e && e.altKey && !pendingFactory) {
         try {
-          const pointer = canvas.getPointer(e);
-          const point = new fabric.Point(Number(pointer?.x) || 0, Number(pointer?.y) || 0);
-          const objects = (canvas.getObjects() || []).slice();
-          let candidate = null;
-          for (let i = objects.length - 1; i >= 0; i -= 1) {
-            const obj = objects[i];
-            if (!obj || !isBackgroundShape(obj) || obj.visible === false) continue;
-            let hit = false;
-            try {
-              if (typeof obj.containsPoint === 'function') hit = !!obj.containsPoint(point);
-            } catch (err) {
-              hit = false;
-            }
-            if (!hit) {
-              try {
-                const rect = obj.getBoundingRect(true, true);
-                hit = point.x >= rect.left && point.x <= (rect.left + rect.width) && point.y >= rect.top && point.y <= (rect.top + rect.height);
-              } catch (err) {
-                hit = false;
-              }
-            }
-            if (hit) {
-              candidate = obj;
-              break;
-            }
-          }
+          const candidate = pickBackgroundFromEvent(e);
           if (candidate) {
             setBackgroundEditMode(candidate, true, { force: true });
             canvas.setActiveObject(candidate);
@@ -4783,7 +4810,7 @@
       }
       if (action === 'undo') return performUndo();
 	      if (action === 'redo') return performRedo();
-	      if (action === 'delete') {
+      if (action === 'delete') {
 	        const active = canvas.getActiveObject();
 	        if (!active) {
 	          setStatus('No hay elemento seleccionado para borrar.', true);
@@ -4803,8 +4830,32 @@
 	        pushHistory();
 	        syncInspector();
 	        setStatus('Elemento eliminado.');
-	        return true;
-	      }
+        return true;
+      }
+      if (action === 'edit_bg') {
+        const active = canvas.getActiveObject();
+        if (active && isBackgroundShape(active)) {
+          const next = !(active?.data?.background_edit);
+          setBackgroundEditMode(active, next, { force: true });
+          if (!next) canvas.discardActiveObject();
+          canvas.requestRenderAll();
+          pushHistory();
+          syncInspector();
+          renderLayers();
+          backgroundPickMode = false;
+          setStatus(next ? 'Figura: modo edición activado.' : 'Figura: modo edición desactivado.');
+          return true;
+        }
+        backgroundPickMode = !backgroundPickMode;
+        if (backgroundPickMode) {
+          clearPendingPlacement();
+          pendingFactory = null;
+          setStatus('Toca una figura/zona/portería para editarla (o pulsa de nuevo para cancelar).');
+        } else {
+          setStatus('Modo edición de figuras cancelado.');
+        }
+        return true;
+      }
       if (action === 'duplicate') {
         duplicateActiveObject();
         return true;
