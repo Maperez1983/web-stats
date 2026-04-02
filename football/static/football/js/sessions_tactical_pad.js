@@ -3815,33 +3815,65 @@
 			            const [boxX, boxY, boxW, boxH] = boxParts;
 			            const [vbX, vbY, vbW, vbH] = vbParts;
 			            if (vbW > 0 && vbH > 0 && boxW > 0 && boxH > 0) {
-			              const scaleX = output.width / vbW;
-			              const scaleY = output.height / vbH;
-			              let cropX = (boxX - vbX) * scaleX;
-			              let cropY = (boxY - vbY) * scaleY;
-			              let cropW = boxW * scaleX;
-			              let cropH = boxH * scaleY;
-			              const pad = Math.max(10, Math.round(Math.min(cropW, cropH) * 0.035));
-			              // Unión con overlayBounds (para no cortar elementos colocados fuera del campo).
-			              if (overlayBounds && overlayBounds.w > 6 && overlayBounds.h > 6) {
-			                const extraPad = Math.max(10, Math.round(Math.min(cropW, cropH) * 0.03));
-			                const minUx = Math.min(cropX, overlayBounds.x - extraPad);
-			                const minUy = Math.min(cropY, overlayBounds.y - extraPad);
-			                const maxUx = Math.max(cropX + cropW, overlayBounds.x + overlayBounds.w + extraPad);
-			                const maxUy = Math.max(cropY + cropH, overlayBounds.y + overlayBounds.h + extraPad);
-			                cropX = minUx;
-			                cropY = minUy;
-			                cropW = maxUx - minUx;
-			                cropH = maxUy - minUy;
-			              }
-			              cropX = Math.max(0, Math.floor(cropX - pad));
-			              cropY = Math.max(0, Math.floor(cropY - pad));
-			              cropW = Math.min(output.width - cropX, Math.ceil(cropW + pad * 2));
-			              cropH = Math.min(output.height - cropY, Math.ceil(cropH + pad * 2));
-			              if (cropW > 120 && cropH > 80 && cropW < output.width && cropH < output.height) {
-			                const cropped = document.createElement('canvas');
-			                cropped.width = Math.round(cropW);
-			                cropped.height = Math.round(cropH);
+				              const scaleX = output.width / vbW;
+				              const scaleY = output.height / vbH;
+				              const baseX = (boxX - vbX) * scaleX;
+				              const baseY = (boxY - vbY) * scaleY;
+				              const baseW = boxW * scaleX;
+				              const baseH = boxH * scaleY;
+
+				              // Recorte base = rectángulo real del campo.
+				              let uX = baseX;
+				              let uY = baseY;
+				              let uW = baseW;
+				              let uH = baseH;
+
+				              // Permitimos algo de “overflow” fuera del campo para no cortar etiquetas/flechas,
+				              // pero lo capamos para que no salga un “mar verde” que empequeñece la tarea.
+				              const maxExtra = Math.max(18, Math.round(Math.min(baseW, baseH) * 0.12));
+
+				              // Unión con overlayBounds (para no cortar elementos colocados ligeramente fuera del campo).
+				              if (overlayBounds && overlayBounds.w > 6 && overlayBounds.h > 6) {
+				                const extraPad = Math.max(10, Math.round(Math.min(baseW, baseH) * 0.03));
+				                const minUx = Math.min(uX, overlayBounds.x - extraPad);
+				                const minUy = Math.min(uY, overlayBounds.y - extraPad);
+				                const maxUx = Math.max(uX + uW, overlayBounds.x + overlayBounds.w + extraPad);
+				                const maxUy = Math.max(uY + uH, overlayBounds.y + overlayBounds.h + extraPad);
+				                uX = minUx;
+				                uY = minUy;
+				                uW = maxUx - minUx;
+				                uH = maxUy - minUy;
+				              }
+
+				              const allowedMinX = Math.max(0, Math.floor(baseX - maxExtra));
+				              const allowedMinY = Math.max(0, Math.floor(baseY - maxExtra));
+				              const allowedMaxX = Math.min(output.width, Math.ceil(baseX + baseW + maxExtra));
+				              const allowedMaxY = Math.min(output.height, Math.ceil(baseY + baseH + maxExtra));
+
+				              // Normaliza unión dentro de los límites permitidos.
+				              uX = clamp(uX, allowedMinX, Math.max(allowedMinX, allowedMaxX - 120));
+				              uY = clamp(uY, allowedMinY, Math.max(allowedMinY, allowedMaxY - 80));
+				              uW = clamp(uW, 120, Math.max(120, allowedMaxX - uX));
+				              uH = clamp(uH, 80, Math.max(80, allowedMaxY - uY));
+
+				              // Padding final controlado.
+				              let pad = Math.max(10, Math.round(Math.min(baseW, baseH) * 0.035));
+				              pad = Math.min(pad, Math.round(maxExtra * 0.6));
+
+				              let cropX = Math.max(0, Math.floor(uX - pad));
+				              let cropY = Math.max(0, Math.floor(uY - pad));
+				              let cropW = Math.min(output.width - cropX, Math.ceil(uW + pad * 2));
+				              let cropH = Math.min(output.height - cropY, Math.ceil(uH + pad * 2));
+
+				              // Clamp final dentro de los límites permitidos.
+				              cropX = clamp(cropX, allowedMinX, Math.max(allowedMinX, allowedMaxX - 120));
+				              cropY = clamp(cropY, allowedMinY, Math.max(allowedMinY, allowedMaxY - 80));
+				              cropW = clamp(cropW, 120, Math.max(120, allowedMaxX - cropX));
+				              cropH = clamp(cropH, 80, Math.max(80, allowedMaxY - cropY));
+				              if (cropW > 120 && cropH > 80 && cropW < output.width && cropH < output.height) {
+				                const cropped = document.createElement('canvas');
+				                cropped.width = Math.round(cropW);
+				                cropped.height = Math.round(cropH);
 			                const cctx = cropped.getContext('2d');
 		                if (cctx) {
 		                  cctx.fillStyle = '#ffffff';
