@@ -13,6 +13,7 @@ import zipfile
 import uuid
 import tempfile
 import shutil
+import math
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, time, date
 from html.parser import HTMLParser
@@ -9973,7 +9974,7 @@ def _is_preview_quality_low(raw_bytes):
 
 
 def _extract_preview_images_from_pdf(pdf_file, max_images=8, prefer_render=False):
-    if PdfReader is None or pdf_file is None:
+    if pdf_file is None:
         return []
     if prefer_render:
         rendered_payload = _render_pdf_preview_with_pdftoppm(pdf_file)
@@ -9981,34 +9982,35 @@ def _extract_preview_images_from_pdf(pdf_file, max_images=8, prefer_render=False
             return [rendered_payload]
     payloads = []
     candidates = []
-    try:
-        if hasattr(pdf_file, 'seek'):
-            pdf_file.seek(0)
-        reader = PdfReader(pdf_file)
-        seq = 0
-        for page_idx, page in enumerate(reader.pages):
-            images = getattr(page, 'images', []) or []
-            for image in images:
-                seq += 1
-                raw = getattr(image, 'data', b'') or b''
-                if not raw:
-                    continue
-                ext = str(getattr(image, 'name', 'img.bin') or 'img.bin').rsplit('.', 1)[-1].lower()
-                if ext not in {'png', 'jpg', 'jpeg', 'webp'}:
-                    ext = 'png'
-                metrics = _analyze_preview_image_bytes(raw)
-                score = float(metrics.get('score') or 0.0) if metrics else 0.0
-                candidates.append(
-                    {
-                        'raw': raw,
-                        'ext': ext,
-                        'score': score,
-                        'page_idx': page_idx,
-                        'seq': seq,
-                    }
-                )
-    except Exception:
-        candidates = []
+    if PdfReader is not None:
+        try:
+            if hasattr(pdf_file, 'seek'):
+                pdf_file.seek(0)
+            reader = PdfReader(pdf_file)
+            seq = 0
+            for page_idx, page in enumerate(reader.pages):
+                images = getattr(page, 'images', []) or []
+                for image in images:
+                    seq += 1
+                    raw = getattr(image, 'data', b'') or b''
+                    if not raw:
+                        continue
+                    ext = str(getattr(image, 'name', 'img.bin') or 'img.bin').rsplit('.', 1)[-1].lower()
+                    if ext not in {'png', 'jpg', 'jpeg', 'webp'}:
+                        ext = 'png'
+                    metrics = _analyze_preview_image_bytes(raw)
+                    score = float(metrics.get('score') or 0.0) if metrics else 0.0
+                    candidates.append(
+                        {
+                            'raw': raw,
+                            'ext': ext,
+                            'score': score,
+                            'page_idx': page_idx,
+                            'seq': seq,
+                        }
+                    )
+        except Exception:
+            candidates = []
     if candidates:
         max_count = max(1, int(max_images or 1))
         good_candidates = [item for item in candidates if float(item.get('score') or 0.0) >= 12.0]
@@ -10028,9 +10030,9 @@ def _extract_preview_images_from_pdf(pdf_file, max_images=8, prefer_render=False
         return payloads
 
     # Fallback: render first page when PDF uses vector drawings (no embedded images).
-    fallback_payload = _render_pdf_preview_with_pdftoppm(pdf_file)
-    if fallback_payload:
-        return [fallback_payload]
+    fallback_payloads = _render_pdf_previews_with_pdftoppm(pdf_file, max_images=max_images)
+    if fallback_payloads:
+        return fallback_payloads
 
     # Last fallback: generic field image so old tasks never stay without thumbnail.
     default_payload = _default_task_preview_payload()
@@ -10044,59 +10046,719 @@ def _extract_preview_image_from_pdf(pdf_file, prefer_render=False):
     return payloads[0] if payloads else None
 
 
-def _render_pdf_preview_with_pdftoppm(pdf_file):
-    if pdf_file is None:
+def _recreate_canvas_state_from_preview_image_bytes(raw_bytes, canvas_width=1054, canvas_height=684):
+    """
+    Intenta reconstruir una pizarra editable a partir de una imagen raster (extraída del PDF).
+    Es una aproximación basada en color/contornos (beta): zonas, conos, jugadores (local/visitante) y flechas simples.
+    """
+    if not raw_bytes or Image is None:
         return None
+    try:
+        img = Image.open(io.BytesIO(raw_bytes))
+        img.load()
+        img = img.convert('RGB')
+    except Exception:
+        return None
+
+    # Auto-crop al área del campo (dominante en verde) para mejorar el reconocimiento.
+    # Muchos PDFs renderizados incluyen márgenes y tablas; sin recorte, los elementos quedan demasiado pequeños.
+    try:
+        w0, h0 = img.size
+        if w0 > 0 and h0 > 0:
+            probe_max = 320
+            probe_scale = min(1.0, float(probe_max) / float(max(w0, h0)))
+            probe = img
+            if probe_scale < 1.0:
+                probe = img.resize(
+                    (max(1, int(round(w0 * probe_scale))), max(1, int(round(h0 * probe_scale)))),
+                    Image.BILINEAR,
+                )
+            pw, ph = probe.size
+            ppx = probe.load()
+
+            minx = pw
+            miny = ph
+            maxx = -1
+            maxy = -1
+            green_count = 0
+            for yy in range(ph):
+                for xx in range(pw):
+                    r, g, b = ppx[xx, yy]
+                    if g > 70 and g > r + 14 and g > b + 14:
+                        green_count += 1
+                        if xx < minx:
+                            minx = xx
+                        if yy < miny:
+                            miny = yy
+                        if xx > maxx:
+                            maxx = xx
+                        if yy > maxy:
+                            maxy = yy
+            if maxx > minx and maxy > miny:
+                area = float((maxx - minx + 1) * (maxy - miny + 1))
+                total = float(max(1, pw * ph))
+                # Recortamos si el área verde es sustancial (evita falsos positivos en PDFs sin pizarra).
+                if area / total >= 0.12 and green_count / total >= 0.10:
+                    pad = int(round(0.04 * float(max(pw, ph))))
+                    minx = max(0, minx - pad)
+                    miny = max(0, miny - pad)
+                    maxx = min(pw - 1, maxx + pad)
+                    maxy = min(ph - 1, maxy + pad)
+                    sx = 1.0 / probe_scale
+                    crop_box = (
+                        int(minx * sx),
+                        int(miny * sx),
+                        int((maxx + 1) * sx),
+                        int((maxy + 1) * sx),
+                    )
+                    # Clamp to image bounds
+                    crop_box = (
+                        max(0, min(int(crop_box[0]), w0 - 1)),
+                        max(0, min(int(crop_box[1]), h0 - 1)),
+                        max(1, min(int(crop_box[2]), w0)),
+                        max(1, min(int(crop_box[3]), h0)),
+                    )
+                    if crop_box[2] > crop_box[0] + 20 and crop_box[3] > crop_box[1] + 20:
+                        img = img.crop(crop_box)
+    except Exception:
+        pass
+
+    try:
+        world_w = max(320, int(canvas_width or 1054))
+        world_h = max(180, int(canvas_height or 684))
+    except Exception:
+        world_w, world_h = 1054, 684
+
+    w0, h0 = img.size
+    if w0 <= 0 or h0 <= 0:
+        return None
+    max_side = 520
+    scale = min(1.0, float(max_side) / float(max(w0, h0)))
+    if scale < 1.0:
+        img = img.resize((max(1, int(round(w0 * scale))), max(1, int(round(h0 * scale)))), Image.BILINEAR)
+    w, h = img.size
+    px = img.load()
+
+    def _iter_components(predicate, min_pixels=10, max_pixels=50000):
+        visited = bytearray(w * h)
+        components = []
+        for y in range(h):
+            row_base = y * w
+            for x in range(w):
+                idx = row_base + x
+                if visited[idx]:
+                    continue
+                r, g, b = px[x, y]
+                if not predicate(r, g, b):
+                    continue
+                queue = [idx]
+                visited[idx] = 1
+                minx = maxx = x
+                miny = maxy = y
+                count = 0
+                sumx = sumy = 0
+                sumr = sumg = sumb = 0
+                points = []
+                while queue:
+                    cur = queue.pop()
+                    cy, cx = divmod(cur, w)
+                    rr, gg, bb = px[cx, cy]
+                    if not predicate(rr, gg, bb):
+                        continue
+                    count += 1
+                    sumx += cx
+                    sumy += cy
+                    sumr += rr
+                    sumg += gg
+                    sumb += bb
+                    if count <= 1800:
+                        points.append((cx, cy))
+                    if cx < minx:
+                        minx = cx
+                    if cx > maxx:
+                        maxx = cx
+                    if cy < miny:
+                        miny = cy
+                    if cy > maxy:
+                        maxy = cy
+                    if cx > 0:
+                        n = cur - 1
+                        if not visited[n]:
+                            visited[n] = 1
+                            queue.append(n)
+                    if cx + 1 < w:
+                        n = cur + 1
+                        if not visited[n]:
+                            visited[n] = 1
+                            queue.append(n)
+                    if cy > 0:
+                        n = cur - w
+                        if not visited[n]:
+                            visited[n] = 1
+                            queue.append(n)
+                    if cy + 1 < h:
+                        n = cur + w
+                        if not visited[n]:
+                            visited[n] = 1
+                            queue.append(n)
+                    if count > max_pixels:
+                        break
+                if count < min_pixels:
+                    continue
+                components.append(
+                    {
+                        'minx': minx,
+                        'maxx': maxx,
+                        'miny': miny,
+                        'maxy': maxy,
+                        'count': count,
+                        'sumx': sumx,
+                        'sumy': sumy,
+                        'sumr': sumr,
+                        'sumg': sumg,
+                        'sumb': sumb,
+                        'points': points,
+                    }
+                )
+        return components
+
+    def _map_x(x):
+        return float(x) / max(1, w) * float(world_w)
+
+    def _map_y(y):
+        return float(y) / max(1, h) * float(world_h)
+
+    def _avg_rgb(comp):
+        n = max(1, int(comp.get('count') or 1))
+        return (
+            int((comp.get('sumr') or 0) / n),
+            int((comp.get('sumg') or 0) / n),
+            int((comp.get('sumb') or 0) / n),
+        )
+
+    def _bbox(comp):
+        return (
+            int(comp.get('minx') or 0),
+            int(comp.get('miny') or 0),
+            int(comp.get('maxx') or 0),
+            int(comp.get('maxy') or 0),
+        )
+
+    def _is_zone_color(r, g, b):
+        return g >= 185 and r >= 120 and b <= 175 and (g - b) >= 35
+
+    def _is_marker_color(r, g, b):
+        if r <= 10 and g <= 10 and b <= 10:
+            return False
+        mx = max(r, g, b)
+        mn = min(r, g, b)
+        if mx < 85:
+            return False
+        if mx - mn < 55:
+            return False
+        if g > r and g > b and mx < 210 and (g - max(r, b)) < 70:
+            return False
+        return True
+
+    def _is_dark_line(r, g, b):
+        return r <= 55 and g <= 55 and b <= 55
+
+    zones = _iter_components(_is_zone_color, min_pixels=180)
+    markers = _iter_components(_is_marker_color, min_pixels=18, max_pixels=6000)
+    dark_lines = _iter_components(_is_dark_line, min_pixels=38, max_pixels=18000)
+
+    objects = []
+
+    for comp in zones:
+        x1, y1, x2, y2 = _bbox(comp)
+        bw = max(1, x2 - x1 + 1)
+        bh = max(1, y2 - y1 + 1)
+        if bw < 18 or bh < 14:
+            continue
+        if (bw * bh) < 260:
+            continue
+        cx = (x1 + x2) / 2.0
+        cy = (y1 + y2) / 2.0
+        objects.append(
+            {
+                'type': 'rect',
+                'left': _map_x(cx),
+                'top': _map_y(cy),
+                'originX': 'center',
+                'originY': 'center',
+                'width': _map_x(bw) - _map_x(0),
+                'height': _map_y(bh) - _map_y(0),
+                'rx': 12,
+                'ry': 12,
+                'fill': 'rgba(34,211,238,0.16)',
+                'stroke': '#22d3ee',
+                'strokeWidth': 3,
+                'data': {'kind': 'zone', 'color': '#22d3ee'},
+                'objectCaching': False,
+            }
+        )
+
+    for comp in markers:
+        x1, y1, x2, y2 = _bbox(comp)
+        bw = max(1, x2 - x1 + 1)
+        bh = max(1, y2 - y1 + 1)
+        area = int(comp.get('count') or 0)
+        if bw > 46 or bh > 46:
+            continue
+        if area > 2600:
+            continue
+        cx = (x1 + x2) / 2.0
+        cy = (y1 + y2) / 2.0
+        r, g, b = _avg_rgb(comp)
+        is_green = g > r + 35 and g > b + 35 and g >= 120
+        is_purple = b >= 120 and r >= 80 and g <= 135 and (b - g) >= 25
+        is_red = r >= 140 and g <= 120 and (r - g) >= 30
+        is_orange = r >= 150 and g >= 80 and b <= 120 and (r - b) >= 35
+
+        if (is_red or is_orange) and area <= 520:
+            objects.append(
+                {
+                    'type': 'triangle',
+                    'left': _map_x(cx),
+                    'top': _map_y(cy),
+                    'originX': 'center',
+                    'originY': 'center',
+                    'width': 24,
+                    'height': 24,
+                    'fill': '#f97316',
+                    'stroke': '#7c2d12',
+                    'strokeWidth': 1.6,
+                    'data': {'kind': 'cone', 'color': '#f97316'},
+                    'objectCaching': False,
+                }
+            )
+            continue
+
+        if is_green and area <= 900:
+            objects.append(
+                {
+                    'type': 'circle',
+                    'left': _map_x(cx),
+                    'top': _map_y(cy),
+                    'originX': 'center',
+                    'originY': 'center',
+                    'radius': 14,
+                    'fill': '#1f7a38',
+                    'stroke': '#ffffff',
+                    'strokeWidth': 2,
+                    'data': {'kind': 'player_local', 'label': 'L'},
+                    'objectCaching': False,
+                }
+            )
+            continue
+
+        if is_purple and area <= 1100:
+            objects.append(
+                {
+                    'type': 'circle',
+                    'left': _map_x(cx),
+                    'top': _map_y(cy),
+                    'originX': 'center',
+                    'originY': 'center',
+                    'radius': 14,
+                    'fill': '#facc15',
+                    'stroke': '#854d0e',
+                    'strokeWidth': 2,
+                    'data': {'kind': 'player_away', 'label': 'V'},
+                    'objectCaching': False,
+                }
+            )
+            continue
+
+    for comp in dark_lines:
+        x1, y1, x2, y2 = _bbox(comp)
+        bw = max(1, x2 - x1 + 1)
+        bh = max(1, y2 - y1 + 1)
+        if bw < 26 and bh < 26:
+            continue
+        if (bw * bh) < 500:
+            continue
+        points = comp.get('points') or []
+        if len(points) < 12:
+            continue
+        min_s = 1e9
+        max_s = -1e9
+        min_d = 1e9
+        max_d = -1e9
+        p_min_s = p_max_s = p_min_d = p_max_d = points[0]
+        for (pxx, pyy) in points:
+            s = pxx + pyy
+            d = pxx - pyy
+            if s < min_s:
+                min_s = s
+                p_min_s = (pxx, pyy)
+            if s > max_s:
+                max_s = s
+                p_max_s = (pxx, pyy)
+            if d < min_d:
+                min_d = d
+                p_min_d = (pxx, pyy)
+            if d > max_d:
+                max_d = d
+                p_max_d = (pxx, pyy)
+        candidates = [(p_min_s, p_max_s), (p_min_d, p_max_d)]
+        best = None
+        best_len = 0.0
+        for a, b in candidates:
+            dx = float(b[0] - a[0])
+            dy = float(b[1] - a[1])
+            dist = (dx * dx + dy * dy) ** 0.5
+            if dist > best_len:
+                best_len = dist
+                best = (a, b)
+        if not best or best_len < 24:
+            continue
+        (ax, ay), (bx, by) = best
+        x1w, y1w = _map_x(ax), _map_y(ay)
+        x2w, y2w = _map_x(bx), _map_y(by)
+        cx = (x1w + x2w) / 2.0
+        cy = (y1w + y2w) / 2.0
+        dx = x2w - x1w
+        dy = y2w - y1w
+        length = (dx * dx + dy * dy) ** 0.5
+        if length < 60:
+            continue
+        angle = (180.0 / math.pi) * math.atan2(dy, dx)
+        base_len = 102.0
+        scale_x = max(0.55, min(6.2, float(length) / base_len))
+        objects.append(
+            {
+                'type': 'group',
+                'left': cx,
+                'top': cy,
+                'originX': 'center',
+                'originY': 'center',
+                'angle': angle,
+                'scaleX': scale_x,
+                'scaleY': 1.0,
+                'data': {'kind': 'arrow'},
+                'objectCaching': False,
+                'objects': [
+                    {
+                        'type': 'line',
+                        'x1': -50,
+                        'y1': 0,
+                        'x2': 40,
+                        'y2': 0,
+                        'originX': 'center',
+                        'originY': 'center',
+                        'stroke': '#22d3ee',
+                        'strokeWidth': 4,
+                        'objectCaching': False,
+                    },
+                    {
+                        'type': 'triangle',
+                        'left': 52,
+                        'top': 0,
+                        'width': 18,
+                        'height': 18,
+                        'angle': 90,
+                        'fill': '#22d3ee',
+                        'originX': 'center',
+                        'originY': 'center',
+                        'objectCaching': False,
+                    },
+                ],
+            }
+        )
+
+    if not objects:
+        return None
+    objects_sorted = []
+    objects_sorted.extend([obj for obj in objects if str(obj.get('type')) == 'rect'])
+    objects_sorted.extend([obj for obj in objects if str(obj.get('type')) != 'rect'])
+    return {'version': '5.3.0', 'objects': objects_sorted}
+
+
+def _maybe_recreate_board_from_preview_bytes(task, preview_bytes):
+    if not task or not preview_bytes or Image is None:
+        return False
+    try:
+        portrait = False
+        try:
+            with Image.open(io.BytesIO(preview_bytes)) as im:
+                portrait = bool(im.height > im.width)
+        except Exception:
+            portrait = False
+        world_w = 684 if portrait else 1054
+        world_h = 1054 if portrait else 684
+        recreated = _recreate_canvas_state_from_preview_image_bytes(
+            preview_bytes,
+            canvas_width=world_w,
+            canvas_height=world_h,
+        )
+        if not recreated or not isinstance(recreated.get('objects'), list) or not recreated.get('objects'):
+            return False
+        layout = task.tactical_layout if isinstance(getattr(task, 'tactical_layout', None), dict) else {}
+        meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+        meta = dict(meta)
+        meta.setdefault('pitch_preset', 'full_pitch')
+        meta['pitch_orientation'] = 'portrait' if portrait else 'landscape'
+        meta['graphic_editor'] = {
+            'canvas_state': recreated,
+            'canvas_width': world_w,
+            'canvas_height': world_h,
+        }
+        layout['meta'] = meta
+        task.tactical_layout = layout
+        task.save(update_fields=['tactical_layout'])
+        try:
+            _maybe_render_task_preview_server_side(task, force=True)
+        except Exception:
+            pass
+        return True
+    except Exception:
+        return False
+
+
+def _render_pdf_preview_with_pdftoppm(pdf_file):
+    previews = _render_pdf_previews_with_pdftoppm(pdf_file, max_images=1)
+    return previews[0] if previews else None
+
+
+def _split_board_page_image_bytes(raw_bytes, max_images=3):
+    """
+    Intenta dividir una página que contiene varias pizarras/campos en varias imágenes recortadas.
+    Útil para PDFs donde hay varias tareas en la misma página (p.ej. "Tarea 1/2/3" con 3 campos).
+    Devuelve lista de JPEG bytes en orden visual (arriba->abajo, izquierda->derecha).
+    """
+    if not raw_bytes or Image is None:
+        return []
+    try:
+        max_images = max(1, int(max_images or 1))
+    except Exception:
+        max_images = 3
+    try:
+        with Image.open(io.BytesIO(raw_bytes)) as img:
+            img = img.convert('RGB')
+            w0, h0 = img.size
+            if w0 <= 0 or h0 <= 0:
+                return []
+            probe_max = 420
+            probe_scale = min(1.0, float(probe_max) / float(max(w0, h0)))
+            probe = img
+            if probe_scale < 1.0:
+                probe = img.resize(
+                    (max(1, int(round(w0 * probe_scale))), max(1, int(round(h0 * probe_scale)))),
+                    Image.BILINEAR,
+                )
+            w, h = probe.size
+            px = probe.load()
+            visited = bytearray(w * h)
+
+            def is_green(r, g, b):
+                return g > 70 and g > r + 14 and g > b + 14
+
+            components = []
+            for y in range(h):
+                row = y * w
+                for x in range(w):
+                    idx = row + x
+                    if visited[idx]:
+                        continue
+                    r, g, b = px[x, y]
+                    if not is_green(r, g, b):
+                        continue
+                    stack = [idx]
+                    visited[idx] = 1
+                    minx = maxx = x
+                    miny = maxy = y
+                    count = 0
+                    while stack:
+                        cur = stack.pop()
+                        cy, cx = divmod(cur, w)
+                        rr, gg, bb = px[cx, cy]
+                        if not is_green(rr, gg, bb):
+                            continue
+                        count += 1
+                        if cx < minx:
+                            minx = cx
+                        if cx > maxx:
+                            maxx = cx
+                        if cy < miny:
+                            miny = cy
+                        if cy > maxy:
+                            maxy = cy
+                        if cx > 0:
+                            n = cur - 1
+                            if not visited[n]:
+                                visited[n] = 1
+                                stack.append(n)
+                        if cx + 1 < w:
+                            n = cur + 1
+                            if not visited[n]:
+                                visited[n] = 1
+                                stack.append(n)
+                        if cy > 0:
+                            n = cur - w
+                            if not visited[n]:
+                                visited[n] = 1
+                                stack.append(n)
+                        if cy + 1 < h:
+                            n = cur + w
+                            if not visited[n]:
+                                visited[n] = 1
+                                stack.append(n)
+                    bw = (maxx - minx + 1)
+                    bh = (maxy - miny + 1)
+                    area = bw * bh
+                    # Filtra blobs pequeños (ruido)
+                    if count < 80 or area < int(0.012 * float(w * h)):
+                        continue
+                    aspect = float(bw) / float(max(1, bh))
+                    if aspect < 0.22 or aspect > 4.2:
+                        continue
+                    components.append({'minx': minx, 'miny': miny, 'maxx': maxx, 'maxy': maxy, 'area': area})
+
+            if len(components) < 2:
+                return []
+            # Orden visual: arriba->abajo, izquierda->derecha
+            components.sort(key=lambda c: (int(c['miny']), int(c['minx'])))
+            # Mantén solo las componentes grandes primero
+            components = sorted(components, key=lambda c: int(c['area']), reverse=True)[: max_images * 2]
+            components.sort(key=lambda c: (int(c['miny']), int(c['minx'])))
+
+            pad = int(round(0.03 * float(max(w, h))))
+            sx = 1.0 / probe_scale
+            crops = []
+            for comp in components[:max_images]:
+                minx = max(0, int((comp['minx'] - pad) * sx))
+                miny = max(0, int((comp['miny'] - pad) * sx))
+                maxx = min(w0, int((comp['maxx'] + 1 + pad) * sx))
+                maxy = min(h0, int((comp['maxy'] + 1 + pad) * sx))
+                if maxx <= minx + 40 or maxy <= miny + 40:
+                    continue
+                crop = img.crop((minx, miny, maxx, maxy))
+                buf = io.BytesIO()
+                crop.save(buf, format='JPEG', quality=86, optimize=True)
+                crops.append(buf.getvalue())
+            return crops
+    except Exception:
+        return []
+
+
+def _render_pdf_previews_with_pdftoppm(pdf_file, max_images=1, max_pages=10):
+    """
+    Renderiza páginas del PDF (vía pdftoppm) y devuelve las mejores previsualizaciones.
+    - Si el PDF incluye varias páginas, elegimos las más "gráficas" (ratio verde alto -> pizarra/campo).
+    - Devuelve lista de (filename, ContentFile).
+    """
+    if pdf_file is None:
+        return []
     pdftoppm_bin = shutil.which('pdftoppm')
     if not pdftoppm_bin:
-        return None
+        return []
+    try:
+        max_images = max(1, int(max_images or 1))
+    except Exception:
+        max_images = 1
+    try:
+        max_pages = max(1, int(max_pages or 1))
+    except Exception:
+        max_pages = 10
     try:
         if hasattr(pdf_file, 'seek'):
             pdf_file.seek(0)
         pdf_bytes = pdf_file.read()
         if not pdf_bytes:
-            return None
+            return []
         with tempfile.TemporaryDirectory(prefix='task-preview-') as tmpdir:
             tmp_path = Path(tmpdir)
             source_pdf = tmp_path / 'source.pdf'
             output_base = tmp_path / 'preview'
             source_pdf.write_bytes(pdf_bytes)
+            # Renderiza varias páginas. pdftoppm generará preview-1.jpg, preview-2.jpg, ...
             subprocess.run(
                 [
                     pdftoppm_bin,
                     '-jpeg',
                     '-f',
                     '1',
-                    '-singlefile',
+                    '-l',
+                    str(max_pages),
                     '-scale-to',
-                    '1400',
+                    '1700',
                     str(source_pdf),
                     str(output_base),
                 ],
                 check=True,
                 capture_output=True,
-                timeout=30,
+                timeout=60,
             )
-            output_jpg = tmp_path / 'preview.jpg'
-            if not output_jpg.exists():
-                return None
-            raw = output_jpg.read_bytes()
-            if not raw:
-                return None
-            if Image is not None:
-                try:
-                    with Image.open(io.BytesIO(raw)) as img:
-                        optimized = img.convert('RGB')
-                        optimized.thumbnail((1400, 1000))
-                        buffer = io.BytesIO()
-                        optimized.save(buffer, format='JPEG', quality=76, optimize=True)
-                        raw = buffer.getvalue()
-                except Exception:
-                    pass
-            filename = f'task-preview-{uuid.uuid4().hex[:10]}.jpg'
-            return filename, ContentFile(raw)
+            rendered = []
+            for page_idx in range(1, max_pages + 1):
+                candidate_path = tmp_path / f'preview-{page_idx}.jpg'
+                if not candidate_path.exists():
+                    continue
+                raw = candidate_path.read_bytes()
+                if not raw:
+                    continue
+                metrics = _analyze_preview_image_bytes(raw) or {}
+                score = float(metrics.get('score') or 0.0)
+                green_ratio = float(metrics.get('green_ratio') or 0.0)
+                white_ratio = float(metrics.get('white_ratio') or 0.0)
+                rendered.append(
+                    {
+                        'page_idx': page_idx,
+                        'raw': raw,
+                        'score': score,
+                        'green_ratio': green_ratio,
+                        'white_ratio': white_ratio,
+                    }
+                )
+            if not rendered:
+                return []
+
+            # Selección:
+            # Preferimos páginas con "campo" (dominante verde). Esto evita elegir tablas grandes con poco verde.
+            board_pages = [
+                item
+                for item in rendered
+                if float(item.get('green_ratio') or 0.0) >= 0.08
+                and float(item.get('white_ratio') or 0.0) <= 0.82
+                and float(item.get('score') or 0.0) >= 16.0
+            ]
+            if board_pages:
+                # Mantiene orden de documento: útil cuando hay varias tareas/diagramas.
+                selected = sorted(board_pages, key=lambda item: int(item.get('page_idx') or 0))
+            else:
+                # Si no hay campo claro, caemos al score general.
+                good = [item for item in rendered if float(item.get('score') or 0.0) >= 12.0]
+                if good:
+                    selected = sorted(good, key=lambda item: int(item.get('page_idx') or 0))
+                else:
+                    selected = sorted(rendered, key=lambda item: float(item.get('score') or 0.0), reverse=True)
+
+            # Si solo hay una página de campo pero se pidieron varias imágenes, intentamos dividirla en varios campos.
+            if max_images > 1 and len(selected) == 1:
+                split = _split_board_page_image_bytes(selected[0].get('raw') or b'', max_images=max_images)
+                if split:
+                    selected = [{'page_idx': int(selected[0].get('page_idx') or 1), 'raw': chunk, 'score': 0.0} for chunk in split]
+
+            payloads = []
+            for item in selected[:max_images]:
+                raw = item.get('raw') or b''
+                if Image is not None and raw:
+                    try:
+                        with Image.open(io.BytesIO(raw)) as img:
+                            optimized = img.convert('RGB')
+                            # Mini-optimización para peso, manteniendo buena calidad.
+                            optimized.thumbnail((1700, 1200))
+                            buffer = io.BytesIO()
+                            optimized.save(buffer, format='JPEG', quality=82, optimize=True)
+                            raw = buffer.getvalue()
+                    except Exception:
+                        pass
+                filename = f'task-preview-{uuid.uuid4().hex[:10]}.jpg'
+                payloads.append((filename, ContentFile(raw)))
+            return payloads
     except Exception:
-        return None
+        return []
 
 
 def _default_task_preview_payload():
@@ -12420,6 +13082,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 objective = _sanitize_task_text((request.POST.get('pdf_task_objective') or '').strip(), multiline=False, max_len=180)
                 block = (request.POST.get('pdf_task_block') or SessionTask.BLOCK_MAIN_1).strip()
                 minutes = _parse_int(request.POST.get('pdf_task_minutes')) or 15
+                recreate_board = str(request.POST.get('pdf_recreate_board') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
                 pdf_files = list(request.FILES.getlist('library_task_pdf'))
                 if block not in {choice[0] for choice in SessionTask.BLOCK_CHOICES}:
                     block = SessionTask.BLOCK_MAIN_1
@@ -12504,14 +13167,28 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                         order=base_order + created_count + 1,
                         notes='Cargada desde Biblioteca PDF',
                     )
-                    preview_payload = preview_payloads[0] if preview_payloads else None
-                    if preview_payload:
-                        preview_name, preview_content = preview_payload
+                    preview_bytes = b''
+                    if preview_payloads:
+                        preview_name, preview_content = preview_payloads[0]
+                        try:
+                            preview_content.seek(0)
+                        except Exception:
+                            pass
+                        try:
+                            preview_bytes = preview_content.read() or b''
+                        except Exception:
+                            preview_bytes = b''
+                        try:
+                            preview_content.seek(0)
+                        except Exception:
+                            pass
                         first_task.task_preview_image.save(preview_name, preview_content, save=True)
                     try:
                         _apply_analysis_to_task(first_task, first_analysis)
                     except Exception:
                         pass
+                    if recreate_board and preview_bytes:
+                        _maybe_recreate_board_from_preview_bytes(first_task, preview_bytes)
                     created_count += 1
                     processed_pdfs += 1
 
@@ -12545,11 +13222,24 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                             notes='Extraída automáticamente desde PDF multi-tarea',
                         )
                         segment_index = max(1, int(extra.get('segment_index') or 1))
+                        extra_preview_bytes = b''
                         extra_preview_payload = None
                         if preview_payloads:
                             extra_preview_payload = preview_payloads[min(segment_index - 1, len(preview_payloads) - 1)]
                         if extra_preview_payload:
                             extra_preview_name, extra_preview_content = extra_preview_payload
+                            try:
+                                extra_preview_content.seek(0)
+                            except Exception:
+                                pass
+                            try:
+                                extra_preview_bytes = extra_preview_content.read() or b''
+                            except Exception:
+                                extra_preview_bytes = b''
+                            try:
+                                extra_preview_content.seek(0)
+                            except Exception:
+                                pass
                             extra_task.task_preview_image.save(extra_preview_name, extra_preview_content, save=True)
                         elif shared_preview_name:
                             extra_task.task_preview_image = shared_preview_name
@@ -12558,6 +13248,8 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                             _apply_analysis_to_task(extra_task, extra_analysis)
                         except Exception:
                             pass
+                        if recreate_board and extra_preview_bytes:
+                            _maybe_recreate_board_from_preview_bytes(extra_task, extra_preview_bytes)
                         created_count += 1
                 feedback = (
                     f'Se procesó 1 PDF y se creó 1 tarea.'
