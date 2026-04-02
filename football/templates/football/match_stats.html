@@ -1,9 +1,11 @@
-{% load football_extras %}
+{% load static football_extras %}
 <!DOCTYPE html>
 <html lang="es">
   <head>
     <meta charset="utf-8" />
     <title>Partido · {{ match.opponent }}</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     <style>
       body {
         font-family: 'Inter', sans-serif;
@@ -88,7 +90,7 @@
       }
     </style>
   </head>
-  <body>
+  <body class="prod-commercial">
     {% include 'football/includes/dragon_nav.html' %}
     <header>
       <div>

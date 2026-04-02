@@ -5,6 +5,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>2J Football Intelligence</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     <style>
       :root {
         --midnight: #08111d;
@@ -462,7 +464,7 @@
       }
     </style>
   </head>
-  <body>
+  <body class="prod-commercial">
     <main class="page">
       <header class="topbar">
         <div class="brand">

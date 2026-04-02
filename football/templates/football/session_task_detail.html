@@ -5,6 +5,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>{{ task.title }} · Detalle tarea</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     <style>
       :root {
         --ink: #f3f4f6;
@@ -371,7 +373,7 @@
       }
     </style>
   </head>
-  <body>
+  <body class="prod-commercial">
     <main class="page product-shell">
       {% include 'football/includes/dragon_nav.html' %}
       <header class="top">

@@ -5,6 +5,8 @@
     <meta charset="UTF-8" />
     <title>11 Inicial · {{ team_name }}</title>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     <style>
       body {
         margin: 0;
@@ -276,7 +278,7 @@
       }
     </style>
   </head>
-  <body>
+  <body class="prod-commercial">
     <main class="page">
       {% include 'football/includes/dragon_nav.html' %}
       <header class="top">

@@ -5,6 +5,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>2J Studio</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     <style>
       :root { --bg:#08111d; --panel:#0f1b2d; --line:rgba(244,180,0,.14); --ink:#f5f7fa; --muted:#91a1b9; --accent:#2f7d32; --amber:#f4b400; }
       * { box-sizing:border-box; }
@@ -56,7 +58,7 @@
       }
     </style>
   </head>
-  <body>
+  <body class="prod-commercial">
     <main class="product-page">
       <div class="top">
         <div>

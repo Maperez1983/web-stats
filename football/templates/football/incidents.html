@@ -5,6 +5,8 @@
     <meta charset="UTF-8" />
     <title>Incidencias · {{ team_display_name|default:'Club' }}</title>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     <style>
       :root {
         --brand-dark: #050816;
@@ -76,7 +78,7 @@
       }
     </style>
   </head>
-  <body>
+  <body class="prod-commercial">
     <div class="page">
       {% include 'football/includes/dragon_nav.html' %}
       <header>
