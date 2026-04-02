@@ -5,6 +5,7 @@
     <meta charset="utf-8" />
     <title>{{ player.name }} · {{ match.opponent }}</title>
     <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}" />
     <style>
       :root {
         --bg: #f4f7fb;
@@ -182,7 +183,7 @@
       }
     </style>
   </head>
-  <body>
+  <body class="prod-commercial">
     <div class="container">
       {% include 'football/includes/dragon_nav.html' with hide_product_shortcuts=True %}
       <header>

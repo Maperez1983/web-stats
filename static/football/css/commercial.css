@@ -1,0 +1,73 @@
+/* Commercial polish layer (safe overrides).
+   Scope: only active when <body class="prod-commercial"> is present. */
+
+body.prod-commercial {
+  --bg: var(--prod-bg);
+  --panel: var(--prod-panel);
+  --panel-soft: rgba(15, 23, 39, 0.84);
+  --line: var(--prod-line);
+  --ink: var(--prod-text);
+  --muted: var(--prod-muted);
+  --accent: var(--prod-secondary);
+  --pitch: var(--prod-primary);
+
+  color: var(--ink);
+  font-family: var(--prod-font-ui);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: geometricPrecision;
+
+  background:
+    radial-gradient(circle at 14% -12%, rgba(47, 125, 50, 0.22), transparent 52%),
+    radial-gradient(circle at 88% -6%, rgba(244, 180, 0, 0.18), transparent 46%),
+    radial-gradient(circle at 70% 120%, rgba(34, 211, 238, 0.12), transparent 52%),
+    linear-gradient(180deg, #02060d 0%, #08111d 58%, #050a13 100%);
+  background-attachment: fixed;
+}
+
+body.prod-commercial :focus-visible {
+  outline: 2px solid rgba(244, 180, 0, 0.65);
+  outline-offset: 3px;
+}
+
+body.prod-commercial a,
+body.prod-commercial button {
+  transition: transform 160ms ease, background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease, color 160ms ease;
+}
+
+body.prod-commercial .topbar,
+body.prod-commercial .hero,
+body.prod-commercial .panel,
+body.prod-commercial .card,
+body.prod-commercial .product-card {
+  backdrop-filter: blur(8px) saturate(1.14);
+}
+
+body.prod-commercial .module-tab:hover,
+body.prod-commercial .tab:hover,
+body.prod-commercial .button:hover,
+body.prod-commercial button:hover {
+  border-color: rgba(244, 180, 0, 0.32);
+}
+
+body.prod-commercial .module-tab:hover,
+body.prod-commercial .button:hover {
+  transform: translateY(-1px);
+}
+
+body.prod-commercial .product-card,
+body.prod-commercial .hero,
+body.prod-commercial .topbar {
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.32);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.prod-commercial a,
+  body.prod-commercial button {
+    transition: none;
+  }
+  body.prod-commercial .module-tab:hover,
+  body.prod-commercial .button:hover {
+    transform: none;
+  }
+}

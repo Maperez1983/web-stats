@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Convocatoria · {{ team_name }}</title>
     <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}" />
     <style>
       :root {
         --bg: #071022;
@@ -416,7 +417,7 @@
       }
     </style>
   </head>
-  <body>
+  <body class="prod-commercial">
     <main class="page product-shell">
       {% include 'football/includes/dragon_nav.html' %}
       <section class="panel header">

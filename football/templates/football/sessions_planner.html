@@ -6,6 +6,7 @@
     <title>{{ scope_title|default:"Sesiones" }} · Carga y Analisis PDF</title>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}" />
     <style>
       :root {
         --ink: #f3f4f6;
@@ -1200,7 +1201,7 @@
       }
     </style>
   </head>
-  <body>
+  <body class="prod-commercial">
     <main class="page product-shell">
       {% include 'football/includes/dragon_nav.html' %}
       <div class="top">
