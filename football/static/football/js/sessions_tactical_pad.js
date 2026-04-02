@@ -4684,18 +4684,18 @@
         } catch (error) { /* ignore */ }
       });
     });
-	    if (resourceTabs.length && resourcePanels.length) {
-      // En escritorio mostramos por defecto "Recursos base" (más rápido).
-      // En móvil/tablet arrancamos cerrado para dejar más espacio al campo.
-      let initialResource = '';
-      try {
-        const isDesktop = window.matchMedia && window.matchMedia('(min-width: 980px)').matches;
-        initialResource = isDesktop ? 'base' : '';
-      } catch (error) {
-        initialResource = 'base';
-      }
-	      activateResourcePanel(initialResource);
-	    }
+		    if (resourceTabs.length && resourcePanels.length) {
+	      // En escritorio mostramos por defecto "Recursos base" (más rápido).
+	      // En pantallas pequeñas arrancamos cerrado para dejar más espacio al campo.
+	      let initialResource = '';
+	      try {
+	        const isWide = window.matchMedia && window.matchMedia('(min-width: 761px)').matches;
+	        initialResource = isWide ? 'base' : '';
+	      } catch (error) {
+	        initialResource = 'base';
+	      }
+		      activateResourcePanel(initialResource);
+		    }
 
 	    const panelKeyForObject = (object) => {
       const kind = safeText(object?.data?.kind);
