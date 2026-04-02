@@ -130,6 +130,12 @@ SESSION_ENGINE_ENV = os.getenv('SESSION_ENGINE', '').strip()
 if SESSION_ENGINE_ENV:
     SESSION_ENGINE = SESSION_ENGINE_ENV
 
+# Payloads grandes (preview HD de la pizarra)
+# Por defecto Django limita el tamaño del body en memoria (≈2.5MB). Las previews en base64 pueden
+# superar ese límite y hacer que "Guardar" falle silenciosamente o devuelva 400/413.
+DATA_UPLOAD_MAX_MEMORY_SIZE = _env_int('DATA_UPLOAD_MAX_MEMORY_SIZE', 30 * 1024 * 1024)  # 30MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = _env_int('FILE_UPLOAD_MAX_MEMORY_SIZE', 30 * 1024 * 1024)  # 30MB
+
 if not DEBUG:
     SECURE_SSL_REDIRECT = _env_bool('SECURE_SSL_REDIRECT', True)
     # Si se despliega sin HTTPS (p.ej. red local o proxy sin SSL), permitir desactivar cookies Secure
