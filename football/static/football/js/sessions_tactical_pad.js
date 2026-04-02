@@ -601,6 +601,8 @@
     const scaleYInput = document.getElementById('task-scale-y');
 	    const rotationInput = document.getElementById('task-rotation');
 	    const colorInput = document.getElementById('task-style-color');
+	    const scalePresetsRow = document.getElementById('task-scale-presets');
+	    const tokenSizePresetsRow = document.getElementById('task-token-size-presets');
 	    const strokeWidthRow = document.getElementById('task-stroke-width-row');
 		    const strokeWidthInput = document.getElementById('task-stroke-width');
 		    const strokePresetsRow = document.getElementById('task-stroke-presets');
@@ -1255,6 +1257,10 @@
       object.data.background_edit = next;
       normalizeEditableObject(object);
       try { object.setCoords(); } catch (error) { /* ignore */ }
+      if (next) {
+        // Durante la edición lo subimos arriba para que sea fácil agarrarlo/ajustarlo.
+        try { canvas.bringToFront(object); } catch (error) { /* ignore */ }
+      }
       if (!next) {
         // Al salir de edición, vuelve atrás para que no bloquee otros elementos.
         try { canvas.sendToBack(object); } catch (error) { /* ignore */ }
@@ -1608,6 +1614,8 @@
 	        selectionToolbar.hidden = true;
 	        selectionToolbar.querySelectorAll('input,button').forEach((node) => { node.disabled = true; });
 	        if (tokenMetaRow) tokenMetaRow.hidden = true;
+	        if (tokenSizePresetsRow) tokenSizePresetsRow.hidden = true;
+	        if (scalePresetsRow) scalePresetsRow.hidden = false;
 	        if (tokenNameInput) tokenNameInput.value = '';
 	        if (tokenNumberInput) tokenNumberInput.value = '';
 	        selectionSummary.textContent = 'Selecciona un recurso para ajustarlo.';
@@ -1630,7 +1638,7 @@
       scaleYInput.value = String(Math.round((Number(active.scaleY) || 1) * 100));
       rotationInput.value = String(Math.round(Number(active.angle) || 0));
       colorInput.value = objectPreferredColor(active);
-      const strokeWidth = getObjectStrokeWidth(active);
+	      const strokeWidth = getObjectStrokeWidth(active);
 	      if (strokeWidthRow && strokeWidthInput) {
 	        const canStroke = strokeWidth > 0;
 	        strokeWidthRow.hidden = !canStroke;
@@ -1639,6 +1647,8 @@
 	        if (canStroke) strokeWidthInput.value = String(Math.round(strokeWidth));
 	      }
 	      const isToken = safeText(active?.data?.kind) === 'token';
+	      if (tokenSizePresetsRow) tokenSizePresetsRow.hidden = !isToken;
+	      if (scalePresetsRow) scalePresetsRow.hidden = !!isToken;
 	      if (tokenMetaRow && tokenNameInput && tokenNumberInput) {
 	        tokenMetaRow.hidden = !isToken;
 	        if (isToken) {
@@ -1661,6 +1671,34 @@
     };
 
 	    const isTokenGroup = (object) => safeText(object?.data?.kind) === 'token';
+	    const getTokenBaseRadius = (group) => {
+	      const stored = Number(group?.data?.token_base_radius);
+	      if (Number.isFinite(stored) && stored > 0) return stored;
+	      const objects = Array.isArray(group?._objects) ? group._objects : (typeof group?.getObjects === 'function' ? group.getObjects() : []);
+	      let candidate = 0;
+	      let preferred = 0;
+	      objects.forEach((child) => {
+	        if (!child || child.type !== 'circle') return;
+	        const r = Number(child.radius) || 0;
+	        if (r <= 0) return;
+	        const role = safeText(child?.data?.role);
+	        if (role === 'token_base' || role === 'token_fill') preferred = Math.max(preferred, r);
+	        candidate = Math.max(candidate, r);
+	      });
+	      return preferred || candidate || 22;
+	    };
+	    const setTokenStandardSize = (group, presetKey) => {
+	      if (!group || !isTokenGroup(group)) return false;
+	      const key = safeText(presetKey, 'm').toLowerCase();
+	      const targetRadius = key === 's' ? 18 : (key === 'l' ? 26 : 22);
+	      const baseRadius = getTokenBaseRadius(group);
+	      const next = clampScale(targetRadius / Math.max(1, baseRadius));
+	      group.set({ scaleX: next, scaleY: next });
+	      group.data = group.data || {};
+	      group.data.token_size = key;
+	      group.setCoords();
+	      return true;
+	    };
 	    const sanitizeTokenNumber = (raw, fallback) => {
 	      const cleaned = safeText(raw).toUpperCase().replace(/[^0-9A-Z]/g, '').slice(0, 2);
 	      return cleaned || safeText(fallback).toUpperCase().slice(0, 2);
@@ -3140,10 +3178,12 @@
         .slice(0, 2)
         .toUpperCase() || label;
 	      const tokenParts = [];
+	      let baseRadius = 22;
 	      // Estilo "chapa" (igual que en la plantilla de abajo): disco con dorsal centrado y nombre simple.
 	      // Evitamos el "jersey" y los cartuchos para que dentro del campo se vea igual que fuera.
 	      if (kind === 'player_local' || kind === 'player_away' || kind === 'goalkeeper_local') {
 	        const radius = 22;
+	        baseRadius = radius;
 	        const isAway = kind === 'player_away';
 	        const isGoalkeeper = kind === 'goalkeeper_local';
 	        const baseCircle = new fabric.Circle({
@@ -3255,8 +3295,9 @@
 	        nameText.data = { role: 'token_name' };
 	        tokenParts.push(nameText);
 	      } else {
+	        baseRadius = kind === 'goalkeeper_local' ? 24 : 21;
 	        const circle = new fabric.Circle({
-	          radius: kind === 'goalkeeper_local' ? 24 : 21,
+	          radius: baseRadius,
 	          fill: palette.fill,
 	          stroke: palette.stroke,
           strokeWidth: 3,
@@ -3325,6 +3366,8 @@
 		        data: {
 		          kind: 'token',
 		          token_kind: kind,
+		          token_base_radius: baseRadius,
+		          token_size: 'm',
 		          color: kind === 'player_local' ? '#1f7a38' : (kind === 'player_away' ? '#facc15' : palette.fill),
 		          playerId: player?.id || '',
 		          playerName,
@@ -4522,6 +4565,48 @@
 	      setStatus(isShift ? 'Elemento colocado. Sigue colocando (Shift activo).' : 'Elemento colocado.');
 	    });
     canvas.on('mouse:down', (event) => {
+      const e = event?.e;
+      if (e && e.altKey && !pendingFactory) {
+        try {
+          const pointer = canvas.getPointer(e);
+          const point = new fabric.Point(Number(pointer?.x) || 0, Number(pointer?.y) || 0);
+          const objects = (canvas.getObjects() || []).slice();
+          let candidate = null;
+          for (let i = objects.length - 1; i >= 0; i -= 1) {
+            const obj = objects[i];
+            if (!obj || !isBackgroundShape(obj) || obj.visible === false) continue;
+            let hit = false;
+            try {
+              if (typeof obj.containsPoint === 'function') hit = !!obj.containsPoint(point);
+            } catch (err) {
+              hit = false;
+            }
+            if (!hit) {
+              try {
+                const rect = obj.getBoundingRect(true, true);
+                hit = point.x >= rect.left && point.x <= (rect.left + rect.width) && point.y >= rect.top && point.y <= (rect.top + rect.height);
+              } catch (err) {
+                hit = false;
+              }
+            }
+            if (hit) {
+              candidate = obj;
+              break;
+            }
+          }
+          if (candidate) {
+            setBackgroundEditMode(candidate, true, { force: true });
+            canvas.setActiveObject(candidate);
+            canvas.requestRenderAll();
+            syncInspector();
+            renderLayers();
+            setStatus('Figura en modo edición (Alt). Pulsa Esc o selecciona otro elemento para salir.');
+            return;
+          }
+        } catch (error) {
+          // ignore
+        }
+      }
       const target = event.target;
       if (!target || !isBackgroundShape(target) || !event.e || event.e.shiftKey) return;
       if (target?.data?.background_edit) return;
@@ -4634,6 +4719,14 @@
 	      }
 		      if (inspectorAction === 'paste') {
 		        pasteClipboardObject();
+		        return;
+		      }
+		      const tokenSize = safeText(button.dataset.tokenSize);
+		      if (tokenSize) {
+		        applyToActiveFlexibleObject((active) => {
+		          if (!isTokenGroup(active)) return;
+		          setTokenStandardSize(active, tokenSize);
+		        }, `Chapa: ${tokenSize.toUpperCase()}.`);
 		        return;
 		      }
 		      const scalePreset = Number(button.dataset.scalePreset);
