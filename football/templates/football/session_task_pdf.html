@@ -111,16 +111,21 @@
         padding: 10px;
       }
       .preview-frame {
-        min-height: 380px;
+        height: 380px;
         border: 1px solid #d5dde7;
         background: #ffffff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         text-align: center;
       }
       .preview-frame img {
         display: block;
-        width: 100%;
+        width: auto;
         height: auto;
-        max-height: 620px;
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
         margin: 0 auto;
       }
       .field {

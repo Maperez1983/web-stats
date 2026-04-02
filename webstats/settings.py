@@ -240,6 +240,11 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# Tactical pad: server-side HD preview rendering (Playwright).
+# Disabled by default because it requires browsers and increases CPU usage.
+TPAD_SERVER_RENDER_PREVIEW = os.getenv('TPAD_SERVER_RENDER_PREVIEW', 'false').lower() == 'true'
+TPAD_SERVER_RENDER_PREVIEW_FORCE = os.getenv('TPAD_SERVER_RENDER_PREVIEW_FORCE', 'false').lower() == 'true'
+
 USE_S3_MEDIA = os.getenv('USE_S3_MEDIA', 'false').lower() == 'true'
 if USE_S3_MEDIA:
     aws_access_key_id = os.getenv('AWS_ACCESS_KEY_ID', '').strip()

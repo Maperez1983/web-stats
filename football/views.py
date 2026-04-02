@@ -49,6 +49,7 @@ from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
 
 from .task_backups import write_task_backup
+from .preview_render import render_task_preview_png
 
 try:
     from PIL import Image
@@ -8491,6 +8492,29 @@ def _build_task_draft_pdf_context(request, primary_team, pdf_style='uefa'):
         get_block_display=lambda: dict(SessionTask.BLOCK_CHOICES).get(block, block),
     )
     preview_data = str(request.POST.get('draw_canvas_preview_data') or '').strip()
+    if getattr(settings, "TPAD_SERVER_RENDER_PREVIEW", False) and isinstance(canvas_state, dict) and canvas_state:
+        try:
+            pitch_preset = (request.POST.get('draw_task_pitch_preset') or 'full_pitch').strip()
+            pitch_orientation = (request.POST.get('draw_task_pitch_orientation') or 'landscape').strip().lower()
+            try:
+                pitch_zoom = float(str(request.POST.get('draw_task_pitch_zoom') or '1.0').strip())
+            except Exception:
+                pitch_zoom = 1.0
+            canvas_width = max(320, min(_parse_int(request.POST.get('draw_canvas_width')) or 1280, 3840))
+            canvas_height = max(180, min(_parse_int(request.POST.get('draw_canvas_height')) or 720, 2160))
+            png_bytes = render_task_preview_png(
+                canvas_state=canvas_state,
+                pitch_preset=pitch_preset,
+                pitch_orientation="portrait" if pitch_orientation == "portrait" else "landscape",
+                pitch_zoom=pitch_zoom,
+                world_width=canvas_width,
+                world_height=canvas_height,
+                max_side=4096,
+            )
+            if png_bytes:
+                preview_data = "data:image/png;base64," + base64.b64encode(png_bytes).decode("ascii")
+        except Exception:
+            pass
     return _build_task_pdf_context(
         request,
         team=primary_team,
@@ -11964,6 +11988,64 @@ def _decode_canvas_data_url(data_url):
     return raw_bytes, extension
 
 
+def _maybe_render_task_preview_server_side(task, *, force=False):
+    """
+    Replace/refresh task.task_preview_image using Playwright WYSIWYG rendering.
+    Safe fallback: if Playwright/browsers aren't available, leaves the existing preview.
+    """
+    if not task:
+        return False
+    if not force:
+        if not getattr(settings, "TPAD_SERVER_RENDER_PREVIEW", False):
+            return False
+        if not getattr(settings, "TPAD_SERVER_RENDER_PREVIEW_FORCE", False):
+            # Evita re-render innecesario si ya hay una preview con calidad aceptable.
+            try:
+                if not _task_preview_needs_refresh(task):
+                    return False
+            except Exception:
+                # Si no podemos evaluar, intentamos renderizar (mejor tener HD que nada).
+                pass
+    layout = task.tactical_layout if isinstance(getattr(task, "tactical_layout", None), dict) else {}
+    meta = layout.get("meta") if isinstance(layout.get("meta"), dict) else {}
+    graphic = meta.get("graphic_editor") if isinstance(meta.get("graphic_editor"), dict) else {}
+    canvas_state = graphic.get("canvas_state") if isinstance(graphic.get("canvas_state"), dict) else None
+    if not canvas_state:
+        return False
+    world_w = _parse_int(graphic.get("canvas_width")) or 1280
+    world_h = _parse_int(graphic.get("canvas_height")) or 720
+    pitch_preset = str(meta.get("pitch_preset") or "full_pitch").strip() or "full_pitch"
+    pitch_orientation = str(meta.get("pitch_orientation") or "landscape").strip().lower()
+    pitch_zoom = meta.get("pitch_zoom") or 1.0
+    try:
+        pitch_zoom = float(pitch_zoom)
+    except Exception:
+        pitch_zoom = 1.0
+    png_bytes = render_task_preview_png(
+        canvas_state=canvas_state,
+        pitch_preset=pitch_preset,
+        pitch_orientation="portrait" if pitch_orientation == "portrait" else "landscape",
+        pitch_zoom=pitch_zoom,
+        world_width=world_w,
+        world_height=world_h,
+        max_side=4096,
+    )
+    if not png_bytes:
+        return False
+    try:
+        if getattr(task, "task_preview_image", None):
+            try:
+                task.task_preview_image.delete(save=False)
+            except Exception:
+                pass
+        filename = f"task-{task.id}-graphic-hd-{uuid.uuid4().hex[:10]}.png"
+        task.task_preview_image.save(filename, ContentFile(png_bytes), save=False)
+        task.save(update_fields=["task_preview_image"])
+        return True
+    except Exception:
+        return False
+
+
 def _sessions_tab_from_action(action):
     action_key = str(action or '').strip()
     if action_key == 'library_upload_pdf':
@@ -13015,6 +13097,11 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                         filename = f'task-{task.id}-graphic-{uuid.uuid4().hex[:10]}{extension}'
                         task.task_preview_image.save(filename, ContentFile(raw_bytes), save=False)
                         task.save(update_fields=['task_preview_image'])
+                # Si está activado, reemplaza la preview con un render HD server-side (Playwright).
+                try:
+                    _maybe_render_task_preview_server_side(task)
+                except Exception:
+                    pass
                 feedback = 'Tarea creada con pizarra táctica.'
 
             elif planner_action == 'analyze_all_library_pdfs':
@@ -14195,6 +14282,11 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
             filename = f'task-{task.id}-graphic-{uuid.uuid4().hex[:10]}{extension}'
             task.task_preview_image.save(filename, ContentFile(raw_bytes), save=False)
             task.save(update_fields=['task_preview_image'])
+    # Si está activado, reemplaza la preview con un render HD server-side (Playwright).
+    try:
+        _maybe_render_task_preview_server_side(task)
+    except Exception:
+        pass
     try:
         write_task_backup(
             task,
@@ -14451,6 +14543,11 @@ def _save_task_studio_entry(request, owner, existing_task=None):
             filename = f'task-studio-{task.id}-graphic-{uuid.uuid4().hex[:10]}{extension}'
             task.task_preview_image.save(filename, ContentFile(raw_bytes), save=False)
             task.save(update_fields=['task_preview_image'])
+    # Si está activado, reemplaza la preview con un render HD server-side (Playwright).
+    try:
+        _maybe_render_task_preview_server_side(task)
+    except Exception:
+        pass
     try:
         write_task_backup(
             task,
@@ -14735,6 +14832,29 @@ def _build_task_studio_draft_pdf_context(request, owner, pdf_style='uefa'):
         get_block_display=lambda: dict(SessionTask.BLOCK_CHOICES).get(block, block),
     )
     preview_data = str(request.POST.get('draw_canvas_preview_data') or '').strip()
+    if getattr(settings, "TPAD_SERVER_RENDER_PREVIEW", False) and isinstance(canvas_state, dict) and canvas_state:
+        try:
+            pitch_preset = (request.POST.get('draw_task_pitch_preset') or 'full_pitch').strip()
+            pitch_orientation = (request.POST.get('draw_task_pitch_orientation') or 'landscape').strip().lower()
+            try:
+                pitch_zoom = float(str(request.POST.get('draw_task_pitch_zoom') or '1.0').strip())
+            except Exception:
+                pitch_zoom = 1.0
+            canvas_width = max(320, min(_parse_int(request.POST.get('draw_canvas_width')) or 1280, 3840))
+            canvas_height = max(180, min(_parse_int(request.POST.get('draw_canvas_height')) or 720, 2160))
+            png_bytes = render_task_preview_png(
+                canvas_state=canvas_state,
+                pitch_preset=pitch_preset,
+                pitch_orientation="portrait" if pitch_orientation == "portrait" else "landscape",
+                pitch_zoom=pitch_zoom,
+                world_width=canvas_width,
+                world_height=canvas_height,
+                max_side=4096,
+            )
+            if png_bytes:
+                preview_data = "data:image/png;base64," + base64.b64encode(png_bytes).decode("ascii")
+        except Exception:
+            pass
     return _build_task_studio_pdf_context(
         request,
         owner=owner,
