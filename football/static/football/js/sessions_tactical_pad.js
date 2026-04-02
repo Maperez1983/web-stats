@@ -2219,8 +2219,11 @@
 		    const fitCanvas = (preserveObjects = false) => {
 		      const previousWidth = canvas.getWidth() || 0;
 		      const previousHeight = canvas.getHeight() || 0;
-	      const width = Math.max(320, Math.round(stage.clientWidth || 960));
-	      const height = Math.max(220, Math.round(stage.clientHeight || 640));
+	      // En iPad/rotación, clientWidth puede no reflejar el tamaño renderizado real (viewport scaling).
+	      // Usamos getBoundingClientRect para mantener punteros/targets coherentes.
+	      const stageRect = stage?.getBoundingClientRect?.() || { width: stage?.clientWidth || 960, height: stage?.clientHeight || 640 };
+	      const width = Math.max(320, Math.round(stageRect.width || 960));
+	      const height = Math.max(220, Math.round(stageRect.height || 640));
 	      canvas.setDimensions({ width, height });
 	      if (!useViewportMapping && preserveObjects && previousWidth > 0 && previousHeight > 0) {
 	        const scaleX = width / previousWidth;
@@ -4851,8 +4854,9 @@
 	    const clearResizeBaseline = () => { resizeBaseline = null; };
 		    const applyResizeFromBaseline = () => {
 		      const baseline = captureResizeBaseline();
-		      const width = Math.max(320, Math.round(stage.clientWidth || 960));
-		      const height = Math.max(220, Math.round(stage.clientHeight || 640));
+		      const stageRect = stage?.getBoundingClientRect?.() || { width: stage?.clientWidth || 960, height: stage?.clientHeight || 640 };
+		      const width = Math.max(320, Math.round(stageRect.width || 960));
+		      const height = Math.max(220, Math.round(stageRect.height || 640));
 		      if (width <= 0 || height <= 0) return;
 		      if (Math.abs(width - (canvas.getWidth() || 0)) < 2 && Math.abs(height - (canvas.getHeight() || 0)) < 2) return;
 		      canvas.setDimensions({ width, height });
