@@ -11,16 +11,20 @@
         --bg: #071320;
         --panel: #0d1b2b;
         --panel-soft: rgba(255, 255, 255, 0.04);
-        --line: rgba(255, 255, 255, 0.12);
-        --ink: #edf2f7;
-        --muted: rgba(226, 232, 240, 0.72);
+        --line: rgba(255, 255, 255, 0.16);
+        --ink: #f8fafc;
+        --muted: rgba(226, 232, 240, 0.84);
         --accent: #22d3ee;
         --accent-soft: rgba(34, 211, 238, 0.16);
       }
       * { box-sizing: border-box; }
       body {
         margin: 0;
-        background: radial-gradient(circle at top, #102746 0%, #071320 58%);
+        /* Fondo algo más claro para que el editor no quede “apagado”. */
+        background:
+          radial-gradient(circle at 10% -10%, rgba(34,211,238,0.14), transparent 44%),
+          radial-gradient(circle at 90% -10%, rgba(244,180,0,0.10), transparent 42%),
+          linear-gradient(180deg, #071c33 0%, #071320 60%, #050a13 100%);
         color: var(--ink);
         font-family: "Montserrat", "Avenir Next", "Segoe UI", sans-serif;
       }
@@ -146,7 +150,7 @@
       .panel {
         border: 1px solid var(--line);
         border-radius: 22px;
-        background: rgba(10, 22, 38, 0.92);
+        background: rgba(10, 22, 38, 0.88);
         box-shadow: 0 18px 48px rgba(2, 6, 23, 0.34);
         /* Importante en grid: evita que contenidos con overflow-x ensanchen la columna. */
         min-width: 0;
@@ -736,7 +740,7 @@
         border: 1px solid rgba(255,255,255,0.3);
         border-radius: 999px;
         padding: 6px 16px;
-        color: var(--muted);
+        color: rgba(248,250,252,0.78);
         transition: background 0.2s ease;
       }
       .resource-tab.is-active {
@@ -814,6 +818,42 @@
         overflow: hidden;
         border-radius: 18px;
       }
+      .pitch-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 380px;
+        grid-template-areas: "main side";
+        gap: 1rem;
+        align-items: start;
+      }
+      .pitch-main,
+      .pitch-side {
+        min-width: 0;
+      }
+      .pitch-main { grid-area: main; }
+      .pitch-side {
+        grid-area: side;
+        position: sticky;
+        top: 0.75rem;
+        align-self: start;
+        max-height: calc(100vh - 2.75rem);
+        overflow: auto;
+        padding-right: 2px;
+      }
+      @media (max-width: 1160px) {
+        .pitch-layout {
+          grid-template-columns: 1fr;
+          grid-template-areas:
+            "side"
+            "main";
+        }
+        .pitch-side {
+          position: relative;
+          top: auto;
+          max-height: none;
+          overflow: visible;
+          padding-right: 0;
+        }
+      }
       .pitch-viewport.is-hand,
       .pitch-viewport.is-hand * {
         cursor: grab;
@@ -868,6 +908,19 @@
         display: flex;
         flex-direction: column;
         gap: 0.5rem;
+      }
+      /* En el lateral, preferimos recursos en “wrap” para evitar scroll horizontal. */
+      .pitch-side .resource-strip {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.45rem;
+        overflow: visible;
+        padding-bottom: 0;
+      }
+      @media (max-width: 760px) {
+        .pitch-side .resource-strip {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
       }
       .resource-strip,
       .player-bank {
@@ -1704,7 +1757,8 @@
                 </select>
               </label>
 
-	              <div class="section resource-section" style="margin-bottom:0.85rem;">
+              <div class="pitch-layout">
+	              <div class="section resource-section pitch-side">
 	                <div class="resource-tab-bar">
 	                  <details class="resource-details" id="task-resource-details">
                     <summary class="resource-summary" aria-label="Selector de recursos">
@@ -1950,6 +2004,7 @@
                 </div>
               </div>
 
+              <div class="pitch-main">
               <div class="pitch-viewport" id="task-pitch-viewport">
                 <div class="pitch-stage" id="task-pitch-stage">
                   <svg id="task-pitch-surface" viewBox="-2 -2 1054 684" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
@@ -1973,6 +2028,8 @@
 	                  </div>
 	                </div>
                 <div class="player-bank" id="task-player-bank"></div>
+              </div>
+              </div>
               </div>
             </div>
           </section>
