@@ -468,12 +468,13 @@
         align-items: center;
         justify-content: center;
       }
-      .task-media img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        display: block;
-      }
+	      .task-media img {
+	        width: 100%;
+	        height: 100%;
+	        /* Evita recortes: mejor ver toda la tarea aunque haya “letterbox”. */
+	        object-fit: contain;
+	        display: block;
+	      }
       .task-media-fallback {
         text-align: center;
         padding: 0 0.8rem;

@@ -560,12 +560,13 @@
     if (!form) return;
     const canvasEl = document.getElementById('create-task-canvas');
     const stage = document.getElementById('task-pitch-stage');
-    const svgSurface = document.getElementById('task-pitch-surface');
-    const presetSelect = document.getElementById('draw-task-preset');
-    const surfacePicker = document.getElementById('surface-picker');
-    const surfaceTrigger = document.getElementById('surface-trigger');
-    const surfaceMenu = document.getElementById('surface-menu');
-    const surfaceTriggerLabel = document.getElementById('surface-trigger-label');
+	    const svgSurface = document.getElementById('task-pitch-surface');
+	    const presetSelect = document.getElementById('draw-task-preset');
+	    const surfacePicker = document.getElementById('surface-picker');
+	    const surfaceTrigger = document.getElementById('surface-trigger');
+	    const surfaceMenu = document.getElementById('surface-menu');
+	    const surfaceTriggerLabel = document.getElementById('surface-trigger-label');
+	    const pitchResizeHandle = document.getElementById('pitch-resize-handle');
     const orientationInput = document.getElementById('draw-task-pitch-orientation');
     const orientationToggle = document.getElementById('pitch-orientation-toggle');
     const orientationLabel = document.getElementById('pitch-orientation-label');
@@ -2386,6 +2387,70 @@
 	        try { canvas.calcOffset(); } catch (e) { /* ignore */ }
 	      }
 	    };
+
+	    // Redimensionado libre (drag) del campo en pantalla.
+	    // Esto NO toca posiciones ni escala objetos: solo cambia el tamaño del stage/canvas.
+	    // En modo viewportTransform (por defecto), los objetos mantienen su tamaño relativo.
+	    const initPitchResizer = () => {
+	      if (!pitchResizeHandle || !stage) return;
+	      let resizing = false;
+	      let start = null;
+	      let raf = 0;
+	      const stopRaf = () => {
+	        if (raf) {
+	          try { window.cancelAnimationFrame(raf); } catch (error) { /* ignore */ }
+	          raf = 0;
+	        }
+	      };
+	      const scheduleFit = () => {
+	        if (raf) return;
+	        raf = window.requestAnimationFrame(() => {
+	          raf = 0;
+	          try { fitCanvas(!useViewportMapping); } catch (error) { /* ignore */ }
+	          try { canvas.calcOffset(); } catch (error) { /* ignore */ }
+	          try { canvas.requestRenderAll(); } catch (error) { /* ignore */ }
+	        });
+	      };
+	      const onMove = (event) => {
+	        if (!resizing || !start) return;
+	        const dx = (Number(event.clientX) || 0) - start.x;
+	        // Solo controlamos el ancho (mantiene aspect ratio vía CSS).
+	        const desiredW = clamp(start.width + dx, 320, 2400);
+	        const base = stageBaseMaxWidth();
+	        const next = writeStageFactor(desiredW / Math.max(1, base));
+	        // Actualiza sin reflow pesado: set maxWidth directo.
+	        try { stage.style.maxWidth = `${Math.round(base * next)}px`; } catch (error) { /* ignore */ }
+	        if (stageSizeLabel) stageSizeLabel.textContent = `Campo ${Math.round(next * 100)}%`;
+	        scheduleFit();
+	        try { event.preventDefault(); } catch (error) { /* ignore */ }
+	      };
+	      const end = () => {
+	        if (!resizing) return;
+	        resizing = false;
+	        start = null;
+	        stopRaf();
+	        // Ajuste final + preview.
+	        try { applyStageSizeUi(); } catch (error) { /* ignore */ }
+	        try { refreshLivePreview(); } catch (error) { /* ignore */ }
+	        try { setStatus('Tamaño de campo actualizado.'); } catch (error) { /* ignore */ }
+	      };
+	      pitchResizeHandle.addEventListener('pointerdown', (event) => {
+	        try { event.preventDefault(); } catch (error) { /* ignore */ }
+	        try { event.stopPropagation(); } catch (error) { /* ignore */ }
+	        try { pitchResizeHandle.setPointerCapture(event.pointerId); } catch (error) { /* ignore */ }
+	        const rect = stage.getBoundingClientRect();
+	        resizing = true;
+	        start = {
+	          x: Number(event.clientX) || 0,
+	          width: Number(rect?.width) || stage.clientWidth || 800,
+	        };
+	      });
+	      pitchResizeHandle.addEventListener('pointermove', onMove);
+	      pitchResizeHandle.addEventListener('pointerup', end);
+	      pitchResizeHandle.addEventListener('pointercancel', end);
+	      pitchResizeHandle.addEventListener('lostpointercapture', end);
+	      window.addEventListener('blur', end);
+	    };
 		    const syncZoomUi = () => {
 		      if (zoomInput) zoomInput.value = String(pitchZoom.toFixed(2));
 		      if (zoomLabel) zoomLabel.textContent = `${Math.round(pitchZoom * 100)}%`;
@@ -4090,6 +4155,7 @@
 		    syncZoomUi();
 		    applyStageSizeUi({ noFit: true });
 		    fitCanvas();
+		    initPitchResizer();
 		    setPreset(presetSelect.value || 'full_pitch');
 	    restoreState();
 	    renderLayers();
