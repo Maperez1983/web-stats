@@ -920,10 +920,11 @@
     }
     if (!Array.isArray(players)) players = [];
 
-	    const canvas = new fabric.Canvas(canvasEl, {
-	      preserveObjectStacking: true,
-	      selection: true,
-	    });
+		    const canvas = new fabric.Canvas(canvasEl, {
+		      preserveObjectStacking: true,
+		      selection: true,
+		      enableRetinaScaling: true,
+		    });
 	    // iPad/Safari: si el canvas no tiene touch-action:none, el navegador intercepta el gesto
 	    // y Fabric no recibe bien los eventos (parece que "no se puede mover nada").
 	    try {
@@ -2895,7 +2896,7 @@
       });
     };
 
-		    const playerTokenFactory = (kind, player) => (left, top) => {
+			    const playerTokenFactory = (kind, player) => (left, top) => {
 	      const playerNameLower = safeText(player?.name, '').toLowerCase();
 	      const goalkeeperPreferBlue = playerNameLower.includes('trivi') || playerNameLower.includes('antonio');
 	      const palette = kind === 'goalkeeper_local'
@@ -3093,21 +3094,32 @@
         nameText.data = { role: 'token_name' };
 	        tokenParts.push(nameText);
 	      }
-	      return new fabric.Group(tokenParts, {
-        left,
-        top,
-        originX: 'center',
-        originY: 'center',
-	        data: {
-	          kind: 'token',
-	          token_kind: kind,
-	          color: kind === 'player_local' ? '#1f7a38' : (kind === 'player_away' ? '#facc15' : palette.fill),
-	          playerId: player?.id || '',
-	          playerName,
-	          playerNumber: safeText(label),
-	        },
-	      });
-	    };
+		      const group = new fabric.Group(tokenParts, {
+	        left,
+	        top,
+	        originX: 'center',
+	        originY: 'center',
+		        data: {
+		          kind: 'token',
+		          token_kind: kind,
+		          color: kind === 'player_local' ? '#1f7a38' : (kind === 'player_away' ? '#facc15' : palette.fill),
+		          playerId: player?.id || '',
+		          playerName,
+		          playerNumber: safeText(label),
+		        },
+		      });
+		      // Evita blur por cache rasterizado al escalar/zoomear; los tokens son vectoriales.
+		      try { group.objectCaching = false; } catch (error) { /* ignore */ }
+		      try { group.noScaleCache = true; } catch (error) { /* ignore */ }
+		      try {
+		        tokenParts.forEach((part) => {
+		          if (!part) return;
+		          try { part.objectCaching = false; } catch (e) { /* ignore */ }
+		          try { part.noScaleCache = true; } catch (e) { /* ignore */ }
+		        });
+		      } catch (error) { /* ignore */ }
+		      return group;
+		    };
 
     const simpleFactory = (kind) => {
       if (kind === 'ball') {
@@ -3972,7 +3984,7 @@
 		      schedulePlayerBankUpdate();
 		      scheduleDraftSave('canvas');
 		    });
-		    canvas.on('object:moving', (event) => {
+			    canvas.on('object:moving', (event) => {
 		      const target = event?.target;
 		      const rawEvent = event?.e;
 		      if (!target || !rawEvent) return;
@@ -4923,5 +4935,21 @@
 		      isSubmitting = false;
 			      form.requestSubmit();
 			    });
+		    // Rotación con snap (Shift): útil para flechas/líneas rectas delimitando zonas.
+		    const shouldSnapRotation = (obj) => {
+		      const kind = safeText(obj?.data?.kind).toLowerCase();
+		      return kind.startsWith('line') || kind.startsWith('arrow') || kind === 'zone' || kind.startsWith('shape');
+		    };
+		    canvas.on('object:rotating', (opt) => {
+		      const target = opt?.target;
+		      const e = opt?.e;
+		      if (!target || !e || !e.shiftKey) return;
+		      if (!shouldSnapRotation(target)) return;
+		      const step = 45;
+		      const raw = Number(target.angle) || 0;
+		      const snapped = Math.round(raw / step) * step;
+		      try { target.rotate(snapped); } catch (error) { /* ignore */ }
+		      try { target.setCoords(); } catch (error) { /* ignore */ }
+		    });
 	  };
 })();
