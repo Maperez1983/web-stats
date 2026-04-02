@@ -4006,6 +4006,68 @@
       form.addEventListener('change', () => scheduleDraftSave('change'));
     }
 
+    const initTaskModeTabs = () => {
+      const tabs = document.getElementById('task-mode-tabs');
+      if (!tabs) return;
+      const buttons = Array.from(tabs.querySelectorAll('button[data-task-mode]'));
+      if (!buttons.length) return;
+      const storageKey = 'tpad_task_mode_v1';
+      const isNarrow = () => {
+        try { return window.matchMedia('(max-width: 1160px)').matches; } catch (error) { return true; }
+      };
+      const readMode = () => {
+        try {
+          const stored = safeText(window.localStorage.getItem(storageKey));
+          if (stored === 'text' || stored === 'board') return stored;
+        } catch (error) { /* ignore */ }
+        return 'board';
+      };
+      const writeMode = (mode) => {
+        try { window.localStorage.setItem(storageKey, mode); } catch (error) { /* ignore */ }
+      };
+      const apply = (mode, options = {}) => {
+        const next = mode === 'text' ? 'text' : 'board';
+        document.body.classList.toggle('task-mode-board', next === 'board');
+        document.body.classList.toggle('task-mode-text', next === 'text');
+        document.body.classList.add('task-mode-ready');
+        buttons.forEach((btn) => {
+          const active = safeText(btn.dataset.taskMode) === next;
+          btn.classList.toggle('is-active', active);
+          btn.setAttribute('aria-selected', active ? 'true' : 'false');
+        });
+        if (!options.silent) writeMode(next);
+        if (!isNarrow()) return;
+        if (next === 'text') {
+          try { syncRichEditorsNow?.(); } catch (error) { /* ignore */ }
+          try { persistDraftNow('mode-switch'); } catch (error) { /* ignore */ }
+          if (!options.silent) setStatus('Vista: Textos.');
+          return;
+        }
+        window.setTimeout(() => {
+          try { fitCanvas(); } catch (error) { /* ignore */ }
+          try { canvas.calcOffset(); } catch (error) { /* ignore */ }
+          try { canvas.requestRenderAll(); } catch (error) { /* ignore */ }
+        }, 50);
+        if (!options.silent) setStatus('Vista: Pizarra.');
+      };
+
+      // Importante: solo después de inicializar el canvas para evitar tamaños 0.
+      apply(readMode(), { silent: true });
+
+      buttons.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const mode = safeText(btn.dataset.taskMode);
+          apply(mode);
+        });
+      });
+
+      window.addEventListener('resize', () => {
+        if (!isNarrow()) return;
+        apply(readMode(), { silent: true });
+      }, { passive: true });
+    };
+    initTaskModeTabs();
+
     let pingKeepalive = null;
     if (keepaliveUrl) {
       pingKeepalive = async () => {

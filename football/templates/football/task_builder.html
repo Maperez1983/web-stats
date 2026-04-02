@@ -1312,6 +1312,50 @@
           grid-template-columns: 1fr;
         }
       }
+
+      .task-mode-tabs {
+        display: none;
+        gap: 0.55rem;
+        align-items: center;
+        justify-content: center;
+        margin: 0.25rem 0 0.95rem;
+      }
+      .task-mode-tabs button {
+        border-radius: 999px;
+        padding: 0.6rem 1rem;
+        border: 1px solid rgba(255,255,255,0.16);
+        background: rgba(255,255,255,0.05);
+        color: rgba(226,232,240,0.92);
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        cursor: pointer;
+      }
+      .task-mode-tabs button.is-active {
+        background: rgba(34,211,238,0.18);
+        border-color: rgba(34,211,238,0.55);
+        color: #ffffff;
+      }
+      .task-mode-tabs .hint {
+        font-size: 0.78rem;
+        color: rgba(226,232,240,0.62);
+        margin-left: 0.25rem;
+        display: none;
+      }
+      @media (max-width: 1160px) {
+        .task-mode-tabs {
+          display: flex;
+          flex-wrap: wrap;
+        }
+        .task-mode-tabs .hint {
+          display: inline;
+        }
+        body.task-mode-ready.task-mode-board .builder > aside.panel {
+          display: none;
+        }
+        body.task-mode-ready.task-mode-text .builder > section.panel {
+          display: none;
+        }
+      }
       @media (max-width: 760px) {
         .page {
           padding: 0.75rem;
@@ -1547,6 +1591,12 @@
 	        <input type="hidden" name="draw_task_pitch_orientation" id="draw-task-pitch-orientation" value="{{ initial.pitch_orientation|default:'landscape' }}" />
         <input type="hidden" name="draw_task_pitch_zoom" id="draw-task-pitch-zoom" value="{{ initial.pitch_zoom|default:'1.00' }}" />
         <div id="assigned-players-hidden" style="display:none;"></div>
+
+        <div class="task-mode-tabs" id="task-mode-tabs" role="tablist" aria-label="Vista de edición">
+          <button type="button" class="is-active" data-task-mode="board" role="tab" aria-selected="true">Pizarra</button>
+          <button type="button" data-task-mode="text" role="tab" aria-selected="false">Textos</button>
+          <span class="hint">Cambia de vista sin hacer scroll.</span>
+        </div>
 
         <div class="builder">
           <section class="panel">
