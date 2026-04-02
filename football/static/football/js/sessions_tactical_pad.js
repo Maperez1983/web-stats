@@ -5106,13 +5106,12 @@
 	        }
 	      }
 		      isSubmitting = true;
-				      // Enviar preview HD al guardar, pero sin romper el POST por tamaño.
-				      // JPEG a alta resolución mantiene buena nitidez en el PDF y reduce mucho el payload.
-				      const hdWidth = 3200;
-				      await syncHiddenBuilderFields({
-				        previewOptions: { maxWidth: hdWidth, mime: 'image/jpeg', quality: 0.92 },
-				        applyLivePreview: false,
-				      });
+					      // Enviar preview HD al guardar (se usa también en la card y en el PDF).
+					      // Usamos PNG para evitar artefactos en líneas/flechas dentro del PDF.
+					      await syncHiddenBuilderFields({
+					        previewOptions: { maxWidth: 4096, mime: 'image/png', quality: 0.98 },
+					        applyLivePreview: false,
+					      });
 			      form.dataset.previewReady = '1';
 		      isSubmitting = false;
 			      form.requestSubmit();
