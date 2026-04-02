@@ -1158,6 +1158,21 @@
 		          moveCursor: backgroundEdit ? 'move' : 'default',
 		        });
 		      }
+
+		      // Nitidez: por defecto Fabric cachea en bitmap muchos objetos al escalar/rotar,
+		      // lo que provoca blur perceptible (especialmente en iPad y al hacer zoom).
+		      // Para nuestro editor, priorizamos fidelidad visual sobre micro-optimizaciones.
+		      try { object.objectCaching = false; } catch (error) { /* ignore */ }
+		      try { object.noScaleCache = true; } catch (error) { /* ignore */ }
+		      try {
+		        if (Array.isArray(object._objects)) {
+		          object._objects.forEach((child) => {
+		            if (!child) return;
+		            try { child.objectCaching = false; } catch (e) { /* ignore */ }
+		            try { child.noScaleCache = true; } catch (e) { /* ignore */ }
+		          });
+		        }
+		      } catch (error) { /* ignore */ }
 		      return object;
 		    };
     const isColorizableObject = (object) => {
@@ -2729,6 +2744,18 @@
       presetButtons.forEach((button) => button.classList.toggle('is-active', safeText(button.dataset.preset) === preset));
       if (surfaceTriggerLabel) surfaceTriggerLabel.textContent = PRESET_LABEL[preset] || 'Campo completo';
       applyPitchSurface(preset, pitchOrientation);
+      // Al cambiar de superficie cambia el aspect-ratio del stage. Si no reajustamos el canvas,
+      // los punteros quedan desincronizados y “parece” que las chapas no se dibujan (se colocan fuera de vista).
+      try {
+        window.requestAnimationFrame(() => {
+          try { fitCanvas(!useViewportMapping); } catch (error) { /* ignore */ }
+          try { canvas.calcOffset(); } catch (error) { /* ignore */ }
+          try { canvas.requestRenderAll(); } catch (error) { /* ignore */ }
+        });
+      } catch (error) {
+        try { fitCanvas(!useViewportMapping); } catch (e) { /* ignore */ }
+        try { canvas.calcOffset(); } catch (e) { /* ignore */ }
+      }
       refreshLivePreview();
       setStatus(`Superficie preparada: ${PRESET_LABEL[preset] || 'campo'} en ${ORIENTATION_LABEL[pitchOrientation]}.`);
     };
