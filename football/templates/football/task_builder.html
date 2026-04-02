@@ -842,10 +842,17 @@
         grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
         gap: 0.45rem;
       }
-      /* En escritorio, una sola fila con scroll horizontal reduce altura total y evita scroll vertical excesivo. */
+      .player-bank-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.55rem;
+      }
+      /* En escritorio, los recursos van en una sola fila con scroll horizontal. */
       @media (min-width: 761px) {
-        .resource-strip,
-        .player-bank {
+        .resource-strip {
           display: flex;
           flex-wrap: nowrap;
           overflow-x: auto;
@@ -853,11 +860,66 @@
           -webkit-overflow-scrolling: touch;
           padding-bottom: 4px;
         }
-        .resource-strip > button,
-        .player-bank > button {
+        .resource-strip > button {
           flex: 0 0 auto;
           min-width: 132px;
         }
+        .player-bank {
+          grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+        }
+        .player-bank > button {
+          min-width: 0;
+        }
+      }
+      /* Plantilla: en modo ordenador queremos ver todos (grid multi-fila, sin scroll lateral). */
+      body.ui-desktop .player-bank {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+        overflow: visible;
+      }
+      body.ui-desktop .player-bank > button {
+        min-width: 0;
+      }
+      /* Plantilla: en modo iPad preferimos fila con scroll horizontal (menos alto). */
+      body.ui-tablet .player-bank {
+        display: flex;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 4px;
+      }
+      body.ui-tablet .player-bank > button {
+        flex: 0 0 auto;
+        min-width: 132px;
+      }
+      .player-bank-tools {
+        display: inline-flex;
+        gap: 0.45rem;
+        align-items: center;
+        justify-content: flex-end;
+        margin-left: auto;
+      }
+      .chip-toggle {
+        display: inline-flex;
+        gap: 0.4rem;
+        align-items: center;
+        padding: 0.4rem 0.65rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(255,255,255,0.04);
+        color: rgba(226,232,240,0.85);
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        user-select: none;
+      }
+      .chip-toggle input {
+        width: 18px;
+        height: 18px;
+        margin: 0;
+        accent-color: #22d3ee;
       }
       .library-grid {
         grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
@@ -1796,14 +1858,20 @@
               </div>
               <p class="pitch-status" id="task-builder-status">Pizarra lista.</p>
 
-              <div class="section" style="margin-top:0.9rem;">
-                <div class="player-bank-head">
-                  <h3 style="margin:0;">Plantilla disponible</h3>
-                  <div class="player-bank-nav" aria-label="Navegación de plantilla">
-                    <button type="button" id="player-bank-prev" title="Anterior" aria-label="Anterior">‹</button>
-                    <button type="button" id="player-bank-next" title="Siguiente" aria-label="Siguiente">›</button>
-                  </div>
-                </div>
+	              <div class="section" style="margin-top:0.9rem;">
+	                <div class="player-bank-head">
+	                  <h3 style="margin:0;">Plantilla disponible</h3>
+	                  <div class="player-bank-tools">
+	                    <label class="chip-toggle" title="Oculta jugadores ya colocados en la pizarra (vuelven a aparecer al borrarlos).">
+	                      <input type="checkbox" id="task-hide-used-players" checked />
+	                      Ocultar usados
+	                    </label>
+	                  </div>
+	                  <div class="player-bank-nav" aria-label="Navegación de plantilla">
+	                    <button type="button" id="player-bank-prev" title="Anterior" aria-label="Anterior">‹</button>
+	                    <button type="button" id="player-bank-next" title="Siguiente" aria-label="Siguiente">›</button>
+	                  </div>
+	                </div>
                 <div class="player-bank" id="task-player-bank"></div>
               </div>
             </div>

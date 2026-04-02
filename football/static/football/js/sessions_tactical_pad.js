@@ -585,11 +585,12 @@
     const livePreviewPlaceholder = document.getElementById('task-live-preview-placeholder');
     const playerCountInput = form.querySelector('[name="draw_task_player_count"]');
     const legacyPlayersInput = form.querySelector('[name="draw_task_players"]');
-	    const statusEl = document.getElementById('task-builder-status');
-	    const toolStrip = document.getElementById('task-basic-tools');
-	    const playerBank = document.getElementById('task-player-bank');
-	    const libraryPane = document.querySelector('.side-pane[data-pane="biblioteca"]');
-	    const selectionToolbar = document.getElementById('task-selection-toolbar');
+		    const statusEl = document.getElementById('task-builder-status');
+		    const toolStrip = document.getElementById('task-basic-tools');
+		    const playerBank = document.getElementById('task-player-bank');
+		    const hideUsedPlayersToggle = document.getElementById('task-hide-used-players');
+		    const libraryPane = document.querySelector('.side-pane[data-pane="biblioteca"]');
+		    const selectionToolbar = document.getElementById('task-selection-toolbar');
     const selectionSummary = document.getElementById('task-selection-summary');
     const scaleXInput = document.getElementById('task-scale-x');
     const scaleYInput = document.getElementById('task-scale-y');
@@ -3298,35 +3299,97 @@
 	      setStatus(`Haz clic en el campo para colocar ${label}. (Shift: varios · Cmd/Ctrl: alinear por centro)`);
 	    };
 
-	    const restoreState = () => {
-      let parsed = { version: '5.3.0', objects: [] };
+		    const restoreState = () => {
+	      let parsed = { version: '5.3.0', objects: [] };
       try {
         parsed = JSON.parse(stateInput?.value || '{"version":"5.3.0","objects":[]}');
       } catch (error) {
         parsed = { version: '5.3.0', objects: [] };
       }
-      const sourceWidth = Number.parseInt(String(widthInput?.value || ''), 10) || 0;
-      const sourceHeight = Number.parseInt(String(heightInput?.value || ''), 10) || 0;
-      applySerializedState(parsed, { pushHistory: true, sourceWidth, sourceHeight });
-	    };
+	      const sourceWidth = Number.parseInt(String(widthInput?.value || ''), 10) || 0;
+	      const sourceHeight = Number.parseInt(String(heightInput?.value || ''), 10) || 0;
+	      applySerializedState(parsed, { pushHistory: true, sourceWidth, sourceHeight });
+	      schedulePlayerBankUpdate();
+		    };
 
-	    const isGoalkeeperPlayer = (player) => {
-	      const pos = safeText(player?.position, '').toLowerCase();
-	      if (!pos) return false;
-	      return pos.includes('portero') || pos === 'gk' || pos.includes('goalkeeper');
-	    };
+		    const isGoalkeeperPlayer = (player) => {
+		      const pos = safeText(player?.position, '').toLowerCase();
+		      if (!pos) return false;
+		      return pos.includes('portero') || pos === 'gk' || pos.includes('goalkeeper');
+		    };
 
-	    const renderPlayerBank = () => {
-	      if (!playerBank) return;
-	      playerBank.innerHTML = '';
-	      players.slice(0, 25).forEach((player) => {
-	        const kind = isGoalkeeperPlayer(player) ? 'goalkeeper_local' : 'player_local';
-	        const button = document.createElement('button');
-	        button.type = 'button';
-	        button.className = 'player-token-bank';
-	        const name = document.createElement('span');
-	        name.className = 'token-name';
-	        name.textContent = shortPlayerName(player.name);
+		    // Plantilla: ocultar jugadores ya usados (para no duplicar chapas).
+		    const collectPlayerIdsFromCanvasState = (canvasState, outSet) => {
+		      if (!canvasState || typeof canvasState !== 'object') return;
+		      const objects = Array.isArray(canvasState.objects) ? canvasState.objects : [];
+		      objects.forEach((obj) => {
+		        if (safeText(obj?.data?.kind) !== 'token') return;
+		        const pid = Number.parseInt(String(obj?.data?.playerId || ''), 10);
+		        if (Number.isFinite(pid) && pid > 0) outSet.add(String(pid));
+		      });
+		    };
+		    const computeUsedPlayerIds = () => {
+		      const used = new Set();
+		      try { persistActiveStepSnapshot(); } catch (error) { /* ignore */ }
+		      try { collectPlayerIdsFromCanvasState(serializeCanvasOnly(), used); } catch (error) { /* ignore */ }
+		      try {
+		        (Array.isArray(timeline) ? timeline : []).forEach((step) => collectPlayerIdsFromCanvasState(step?.canvas_state, used));
+		      } catch (error) { /* ignore */ }
+		      return used;
+		    };
+		    const HIDE_USED_KEY = 'webstats:tpad:hide_used_players';
+		    const readHideUsedPref = () => {
+		      try {
+		        const raw = safeText(window.localStorage?.getItem(HIDE_USED_KEY));
+		        if (raw === '0') return false;
+		        if (raw === '1') return true;
+		      } catch (error) { /* ignore */ }
+		      return true;
+		    };
+		    let hideUsedPlayersEnabled = readHideUsedPref();
+		    if (hideUsedPlayersToggle) {
+		      hideUsedPlayersToggle.checked = hideUsedPlayersEnabled;
+		      hideUsedPlayersToggle.addEventListener('change', () => {
+		        hideUsedPlayersEnabled = !!hideUsedPlayersToggle.checked;
+		        try { window.localStorage?.setItem(HIDE_USED_KEY, hideUsedPlayersEnabled ? '1' : '0'); } catch (error) { /* ignore */ }
+		        schedulePlayerBankUpdate();
+		      });
+		    }
+		    let playerBankUpdateTimer = null;
+		    const updatePlayerBankVisibility = () => {
+		      if (!playerBank) return;
+		      const used = hideUsedPlayersEnabled ? computeUsedPlayerIds() : new Set();
+		      Array.from(playerBank.querySelectorAll('button.player-token-bank')).forEach((btn) => {
+		        const pid = safeText(btn.dataset.playerId);
+		        btn.hidden = !!(hideUsedPlayersEnabled && pid && used.has(pid));
+		      });
+		    };
+		    const schedulePlayerBankUpdate = () => {
+		      window.clearTimeout(playerBankUpdateTimer);
+		      playerBankUpdateTimer = window.setTimeout(updatePlayerBankVisibility, 120);
+		    };
+
+		    const renderPlayerBank = () => {
+		      if (!playerBank) return;
+		      playerBank.innerHTML = '';
+		      const roster = (Array.isArray(players) ? players.slice() : []);
+		      roster.sort((a, b) => {
+		        const na = Number.parseInt(String(a?.number || ''), 10);
+		        const nb = Number.parseInt(String(b?.number || ''), 10);
+		        if (Number.isFinite(na) && Number.isFinite(nb)) return na - nb;
+		        if (Number.isFinite(na)) return -1;
+		        if (Number.isFinite(nb)) return 1;
+		        return safeText(a?.name).localeCompare(safeText(b?.name));
+		      });
+		      roster.forEach((player) => {
+		        const kind = isGoalkeeperPlayer(player) ? 'goalkeeper_local' : 'player_local';
+		        const button = document.createElement('button');
+		        button.type = 'button';
+		        button.className = 'player-token-bank';
+		        button.dataset.playerId = String(player.id || '');
+		        const name = document.createElement('span');
+		        name.className = 'token-name';
+		        name.textContent = shortPlayerName(player.name);
 	        const disk = document.createElement('span');
 	        disk.className = 'token-disk';
 	        if (kind === 'goalkeeper_local') disk.classList.add('is-goalkeeper');
@@ -3341,21 +3404,23 @@
 		          Array.from(playerBank.querySelectorAll('button')).forEach((item) => item.classList.remove('is-active'));
 		          button.classList.add('is-active');
 		          activateFactory(playerTokenFactory(kind, player), safeText(player.name, 'el jugador'), kind);
-		        });
-	        playerBank.appendChild(button);
-	      });
+			        });
+		        playerBank.appendChild(button);
+		      });
+		      schedulePlayerBankUpdate();
+		    };
+	    const selectTimelineStep = (index) => {
+	      if (index < 0 || index >= timeline.length) return;
+	      if (playbackTimer) return;
+	      persistActiveStepSnapshot();
+	      activeStepIndex = index;
+	      loadCanvasSnapshot(timeline[index].canvas_state, () => {
+	        renderTimeline();
+	        setStatus(`Editando ${timeline[index].title}.`);
+	        schedulePlayerBankUpdate();
+	      }, { sourceWidth: parseIntSafe(timeline[index].canvas_width), sourceHeight: parseIntSafe(timeline[index].canvas_height) });
 	    };
-    const selectTimelineStep = (index) => {
-      if (index < 0 || index >= timeline.length) return;
-      if (playbackTimer) return;
-      persistActiveStepSnapshot();
-      activeStepIndex = index;
-      loadCanvasSnapshot(timeline[index].canvas_state, () => {
-        renderTimeline();
-        setStatus(`Editando ${timeline[index].title}.`);
-      }, { sourceWidth: parseIntSafe(timeline[index].canvas_width), sourceHeight: parseIntSafe(timeline[index].canvas_height) });
-    };
-    const addTimelineStep = (duplicateCurrent = false) => {
+	    const addTimelineStep = (duplicateCurrent = false) => {
       persistActiveStepSnapshot();
       const baseState = duplicateCurrent && activeStepIndex >= 0 && timeline[activeStepIndex]
         ? sanitizeLoadedState(timeline[activeStepIndex].canvas_state)
@@ -3372,27 +3437,30 @@
 	        canvas_height: Math.round(worldSize().h || 0),
 	      });
       activeStepIndex = insertionIndex;
-      renderTimeline();
-      pushHistory();
-      setStatus(duplicateCurrent ? 'Paso duplicado.' : 'Paso añadido.');
-    };
-    const removeTimelineStep = () => {
+	      renderTimeline();
+	      pushHistory();
+	      setStatus(duplicateCurrent ? 'Paso duplicado.' : 'Paso añadido.');
+	      schedulePlayerBankUpdate();
+	    };
+	    const removeTimelineStep = () => {
       if (activeStepIndex < 0 || !timeline[activeStepIndex]) return;
       timeline.splice(activeStepIndex, 1);
-      if (!timeline.length) {
-        activeStepIndex = -1;
-        renderTimeline();
-        pushHistory();
-        setStatus('Paso eliminado.');
-        return;
-      }
+	      if (!timeline.length) {
+	        activeStepIndex = -1;
+	        renderTimeline();
+	        pushHistory();
+	        setStatus('Paso eliminado.');
+	        schedulePlayerBankUpdate();
+	        return;
+	      }
       activeStepIndex = clamp(activeStepIndex, 0, timeline.length - 1);
-      loadCanvasSnapshot(timeline[activeStepIndex].canvas_state, () => {
-        renderTimeline();
-        pushHistory();
-        setStatus('Paso eliminado.');
-      }, { sourceWidth: parseIntSafe(timeline[activeStepIndex].canvas_width), sourceHeight: parseIntSafe(timeline[activeStepIndex].canvas_height) });
-    };
+	      loadCanvasSnapshot(timeline[activeStepIndex].canvas_state, () => {
+	        renderTimeline();
+	        pushHistory();
+	        setStatus('Paso eliminado.');
+	        schedulePlayerBankUpdate();
+	      }, { sourceWidth: parseIntSafe(timeline[activeStepIndex].canvas_width), sourceHeight: parseIntSafe(timeline[activeStepIndex].canvas_height) });
+	    };
     const stopPlayback = (restore = true) => {
       if (playbackTimer) {
         window.clearTimeout(playbackTimer);
@@ -3874,33 +3942,36 @@
     // El submit real se gestiona al final del fichero (unificado con el sync de campos ocultos + preview HD).
     // Aquí solo mantenemos pingKeepalive para reutilizarlo en ese handler.
 
-	    canvas.on('object:modified', () => {
-	      if (canvas.__loading) return;
-	      persistActiveStepSnapshot();
-	      pushHistory();
-	      syncInspector();
-	      renderLayers();
-	      refreshLivePreview();
-	      scheduleDraftSave('canvas');
-	    });
-	    canvas.on('object:added', () => {
-	      if (!canvas.__loading) {
-	        persistActiveStepSnapshot();
-	        pushHistory();
-	        renderLayers();
-	      }
-	      refreshLivePreview();
-	      scheduleDraftSave('canvas');
-	    });
-	    canvas.on('object:removed', () => {
-	      if (!canvas.__loading) {
-	        persistActiveStepSnapshot();
-	        pushHistory();
-	        renderLayers();
-	      }
-	      refreshLivePreview();
-	      scheduleDraftSave('canvas');
-	    });
+		    canvas.on('object:modified', () => {
+		      if (canvas.__loading) return;
+		      persistActiveStepSnapshot();
+		      pushHistory();
+		      syncInspector();
+		      renderLayers();
+		      refreshLivePreview();
+		      schedulePlayerBankUpdate();
+		      scheduleDraftSave('canvas');
+		    });
+		    canvas.on('object:added', () => {
+		      if (!canvas.__loading) {
+		        persistActiveStepSnapshot();
+		        pushHistory();
+		        renderLayers();
+		      }
+		      refreshLivePreview();
+		      schedulePlayerBankUpdate();
+		      scheduleDraftSave('canvas');
+		    });
+		    canvas.on('object:removed', () => {
+		      if (!canvas.__loading) {
+		        persistActiveStepSnapshot();
+		        pushHistory();
+		        renderLayers();
+		      }
+		      refreshLivePreview();
+		      schedulePlayerBankUpdate();
+		      scheduleDraftSave('canvas');
+		    });
 		    canvas.on('object:moving', (event) => {
 		      const target = event?.target;
 		      const rawEvent = event?.e;
