@@ -571,10 +571,14 @@
     const orientationLabel = document.getElementById('pitch-orientation-label');
     const viewportEl = document.getElementById('task-pitch-viewport');
     const zoomInput = document.getElementById('draw-task-pitch-zoom');
-    const zoomOutButton = document.getElementById('pitch-zoom-out');
-    const zoomInButton = document.getElementById('pitch-zoom-in');
-    const zoomResetButton = document.getElementById('pitch-zoom-reset');
-    const zoomLabel = document.getElementById('pitch-zoom-label');
+	    const zoomOutButton = document.getElementById('pitch-zoom-out');
+	    const zoomInButton = document.getElementById('pitch-zoom-in');
+	    const zoomResetButton = document.getElementById('pitch-zoom-reset');
+	    const zoomLabel = document.getElementById('pitch-zoom-label');
+	    const stageSizeDownButton = document.getElementById('pitch-size-down');
+	    const stageSizeUpButton = document.getElementById('pitch-size-up');
+	    const stageSizeFitButton = document.getElementById('pitch-size-fit');
+	    const stageSizeLabel = document.getElementById('pitch-size-label');
 	    const pitchFormatInput = document.getElementById('draw-task-pitch-format');
     const stateInput = document.getElementById('draw-canvas-state');
     const widthInput = document.getElementById('draw-canvas-width');
@@ -1054,9 +1058,22 @@
     let activeStepIndex = -1;
     let playbackTimer = null;
     let playbackRestoreState = null;
-	    let pitchOrientation = safeText(orientationInput?.value, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
-		    let pitchZoom = Number.parseFloat(String(zoomInput?.value || '').trim());
-		    let zoomTouched = false;
+		    let pitchOrientation = safeText(orientationInput?.value, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
+			    let pitchZoom = Number.parseFloat(String(zoomInput?.value || '').trim());
+			    let zoomTouched = false;
+		    // Tamaño del stage (solo UI): ajusta cuánto ocupa el campo en pantalla, sin tocar posiciones.
+		    const STAGE_SIZE_KEY_PORTRAIT = 'tpad_stage_size_portrait_v1';
+		    const STAGE_SIZE_KEY_LANDSCAPE = 'tpad_stage_size_landscape_v1';
+		    const readStageFactor = (key, fallback) => {
+		      try {
+		        const raw = safeText(window.localStorage.getItem(key));
+		        const val = Number.parseFloat(raw);
+		        if (Number.isFinite(val)) return clamp(val, 0.55, 1.15);
+		      } catch (error) { /* ignore */ }
+		      return fallback;
+		    };
+		    let stageFactorPortrait = readStageFactor(STAGE_SIZE_KEY_PORTRAIT, 0.82);
+		    let stageFactorLandscape = readStageFactor(STAGE_SIZE_KEY_LANDSCAPE, 1.0);
 	    let spacePanArmed = false;
 	    let spacePanning = false;
 	    let spacePanStart = null;
@@ -2329,13 +2346,46 @@
 	      canvas.calcOffset();
 	      canvas.requestRenderAll();
 	    };
-    const syncOrientationUi = () => {
-      if (orientationInput) orientationInput.value = pitchOrientation;
-      if (orientationLabel) orientationLabel.textContent = ORIENTATION_LABEL[pitchOrientation] === 'vertical' ? 'Vertical' : 'Horizontal';
-      stage.classList.toggle('is-portrait', pitchOrientation === 'portrait');
-      viewportEl?.classList.toggle('is-portrait', pitchOrientation === 'portrait');
-      orientationToggle?.classList.toggle('is-active', pitchOrientation === 'portrait');
-    };
+	    const syncOrientationUi = () => {
+	      if (orientationInput) orientationInput.value = pitchOrientation;
+	      if (orientationLabel) orientationLabel.textContent = ORIENTATION_LABEL[pitchOrientation] === 'vertical' ? 'Vertical' : 'Horizontal';
+	      stage.classList.toggle('is-portrait', pitchOrientation === 'portrait');
+	      viewportEl?.classList.toggle('is-portrait', pitchOrientation === 'portrait');
+	      orientationToggle?.classList.toggle('is-active', pitchOrientation === 'portrait');
+	    };
+	    const stageBaseMaxWidth = () => (pitchOrientation === 'portrait' ? 560 : 1500);
+	    const getStageFactor = () => (pitchOrientation === 'portrait' ? stageFactorPortrait : stageFactorLandscape);
+	    const writeStageFactor = (value) => {
+	      const factor = clamp(Number(value) || 1, 0.55, 1.15);
+	      if (pitchOrientation === 'portrait') stageFactorPortrait = factor;
+	      else stageFactorLandscape = factor;
+	      try {
+	        window.localStorage.setItem(
+	          pitchOrientation === 'portrait' ? STAGE_SIZE_KEY_PORTRAIT : STAGE_SIZE_KEY_LANDSCAPE,
+	          String(factor),
+	        );
+	      } catch (error) { /* ignore */ }
+	      return factor;
+	    };
+	    const applyStageSizeUi = (options = {}) => {
+	      if (!stage) return;
+	      const factor = getStageFactor();
+	      const base = stageBaseMaxWidth();
+	      const maxW = Math.round(base * factor);
+	      try { stage.style.maxWidth = `${maxW}px`; } catch (error) { /* ignore */ }
+	      if (stageSizeLabel) stageSizeLabel.textContent = `Campo ${Math.round(factor * 100)}%`;
+	      if (options.noFit) return;
+	      try {
+	        window.requestAnimationFrame(() => {
+	          try { fitCanvas(!useViewportMapping); } catch (error) { /* ignore */ }
+	          try { canvas.calcOffset(); } catch (error) { /* ignore */ }
+	          try { canvas.requestRenderAll(); } catch (error) { /* ignore */ }
+	        });
+	      } catch (error) {
+	        try { fitCanvas(!useViewportMapping); } catch (e) { /* ignore */ }
+	        try { canvas.calcOffset(); } catch (e) { /* ignore */ }
+	      }
+	    };
 		    const syncZoomUi = () => {
 		      if (zoomInput) zoomInput.value = String(pitchZoom.toFixed(2));
 		      if (zoomLabel) zoomLabel.textContent = `${Math.round(pitchZoom * 100)}%`;
@@ -2827,22 +2877,23 @@
       refreshLivePreview();
       setStatus(`Superficie preparada: ${PRESET_LABEL[preset] || 'campo'} en ${ORIENTATION_LABEL[pitchOrientation]}.`);
     };
-		    const applyPitchOrientation = (nextOrientation, options = {}) => {
-		      const normalized = safeText(nextOrientation, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
-		      if (normalized === pitchOrientation && !options.force) return;
-		      pitchOrientation = normalized;
-		      syncOrientationUi();
-		      if (!zoomTouched) {
-		        pitchZoom = 1.0;
-		        syncZoomUi();
-		      }
-		      fitCanvas(!useViewportMapping && options.preserveObjects !== false);
-		      setPreset(presetSelect.value || 'full_pitch');
-		      if (!options.silent) setStatus(`Campo en ${ORIENTATION_LABEL[pitchOrientation]}.`);
-		      if (options.pushHistory) {
-		        pushHistory();
-		      }
-		    };
+			    const applyPitchOrientation = (nextOrientation, options = {}) => {
+			      const normalized = safeText(nextOrientation, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
+			      if (normalized === pitchOrientation && !options.force) return;
+			      pitchOrientation = normalized;
+			      syncOrientationUi();
+			      applyStageSizeUi({ noFit: true });
+			      if (!zoomTouched) {
+			        pitchZoom = 1.0;
+			        syncZoomUi();
+			      }
+			      fitCanvas(!useViewportMapping && options.preserveObjects !== false);
+			      setPreset(presetSelect.value || 'full_pitch');
+			      if (!options.silent) setStatus(`Campo en ${ORIENTATION_LABEL[pitchOrientation]}.`);
+			      if (options.pushHistory) {
+			        pushHistory();
+			      }
+			    };
 
     const renderSurfaceThumbs = () => {
       if (surfacesRendered) return;
@@ -3946,10 +3997,11 @@
       tempForm.remove();
     };
 
-	    syncOrientationUi();
-	    syncZoomUi();
-	    fitCanvas();
-	    setPreset(presetSelect.value || 'full_pitch');
+		    syncOrientationUi();
+		    syncZoomUi();
+		    applyStageSizeUi({ noFit: true });
+		    fitCanvas();
+		    setPreset(presetSelect.value || 'full_pitch');
 	    restoreState();
 	    renderLayers();
 	    runWhenIdle(() => renderPlayerBank(), 1100);
@@ -4884,12 +4936,41 @@
     orientationToggle?.addEventListener('click', () => {
       applyPitchOrientation(pitchOrientation === 'portrait' ? 'landscape' : 'portrait', { preserveObjects: true, pushHistory: true });
     });
-    zoomOutButton?.addEventListener('click', () => applyPitchZoom(pitchZoom - 0.08));
-    zoomInButton?.addEventListener('click', () => applyPitchZoom(pitchZoom + 0.08));
-	    zoomResetButton?.addEventListener('click', () => {
-	      zoomTouched = false;
-	      applyPitchZoom(1.0, { silent: true });
-	      setStatus('Zoom restablecido.');
+	    zoomOutButton?.addEventListener('click', () => applyPitchZoom(pitchZoom - 0.08));
+	    zoomInButton?.addEventListener('click', () => applyPitchZoom(pitchZoom + 0.08));
+		    zoomResetButton?.addEventListener('click', () => {
+		      zoomTouched = false;
+		      applyPitchZoom(1.0, { silent: true });
+		      setStatus('Zoom restablecido.');
+		    });
+	    stageSizeDownButton?.addEventListener('click', () => {
+	      const next = writeStageFactor(getStageFactor() - 0.06);
+	      applyStageSizeUi();
+	      setStatus(`Campo: ${Math.round(next * 100)}%.`);
+	    });
+	    stageSizeUpButton?.addEventListener('click', () => {
+	      const next = writeStageFactor(getStageFactor() + 0.06);
+	      applyStageSizeUi();
+	      setStatus(`Campo: ${Math.round(next * 100)}%.`);
+	    });
+	    stageSizeFitButton?.addEventListener('click', () => {
+	      // Ajuste rápido para minimizar scroll de página: intentamos que el alto del campo
+	      // quepa en la ventana actual (sin tocar posiciones/objetos).
+	      try {
+	        const rect = stage.getBoundingClientRect();
+	        const top = Math.max(0, Number(rect.top) || 0);
+	        const room = Math.max(260, window.innerHeight - top - 240);
+	        const aspect = pitchOrientation === 'portrait' ? (684 / 1054) : (1054 / 684); // width/height
+	        const desiredW = room * aspect;
+	        const base = stageBaseMaxWidth();
+	        const next = writeStageFactor(desiredW / Math.max(1, base));
+	        applyStageSizeUi();
+	        setStatus('Campo ajustado a pantalla.');
+	      } catch (error) {
+	        const next = writeStageFactor(0.82);
+	        applyStageSizeUi();
+	        setStatus(`Campo: ${Math.round(next * 100)}%.`);
+	      }
 	    });
     surfaceTrigger?.addEventListener('click', () => {
       renderSurfaceThumbs();

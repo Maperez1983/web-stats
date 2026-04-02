@@ -911,25 +911,32 @@
         color: var(--muted);
         font-size: 0.82rem;
       }
-      .pitch-zoom {
-        display: flex;
-        align-items: center;
-        gap: 0.45rem;
-      }
-      .pitch-zoom button {
-        border-radius: 10px;
-        padding: 8px 10px;
-        border: 1px solid rgba(255,255,255,0.18);
-        background: rgba(255,255,255,0.06);
-        color: #e2e8f0;
-        min-width: 38px;
-      }
-      .pitch-zoom .zoom-readout {
-        min-width: 54px;
-        text-align: center;
-        font-weight: 700;
-        color: rgba(226,232,240,0.8);
-      }
+	      .pitch-zoom {
+	        display: flex;
+	        align-items: center;
+	        gap: 0.45rem;
+	      }
+	      .pitch-size {
+	        display: flex;
+	        align-items: center;
+	        gap: 0.45rem;
+	      }
+	      .pitch-zoom button,
+	      .pitch-size button {
+	        border-radius: 10px;
+	        padding: 8px 10px;
+	        border: 1px solid rgba(255,255,255,0.18);
+	        background: rgba(255,255,255,0.06);
+	        color: #e2e8f0;
+	        min-width: 38px;
+	      }
+	      .pitch-zoom .zoom-readout,
+	      .pitch-size .zoom-readout {
+	        min-width: 54px;
+	        text-align: center;
+	        font-weight: 700;
+	        color: rgba(226,232,240,0.8);
+	      }
       .resource-section {
         display: flex;
         flex-direction: column;
@@ -1759,14 +1766,20 @@
                     <span>Orientación</span>
                     <span class="current" id="pitch-orientation-label">{% if initial.pitch_orientation == 'portrait' %}Vertical{% else %}Horizontal{% endif %}</span>
                   </button>
-                  <div class="pitch-zoom">
-                    <button type="button" id="pitch-zoom-out" title="Alejar">-</button>
-                    <span class="zoom-readout" id="pitch-zoom-label">100%</span>
-                    <button type="button" id="pitch-zoom-in" title="Acercar">+</button>
-                    <button type="button" id="pitch-zoom-reset" title="Reset">↺</button>
-                  </div>
-                </div>
-              </div>
+	                  <div class="pitch-zoom">
+	                    <button type="button" id="pitch-zoom-out" title="Alejar">-</button>
+	                    <span class="zoom-readout" id="pitch-zoom-label">100%</span>
+	                    <button type="button" id="pitch-zoom-in" title="Acercar">+</button>
+	                    <button type="button" id="pitch-zoom-reset" title="Reset">↺</button>
+	                  </div>
+	                  <div class="pitch-size" title="Tamaño del campo en pantalla">
+	                    <button type="button" id="pitch-size-down" title="Campo más pequeño">-</button>
+	                    <span class="zoom-readout" id="pitch-size-label">Campo</span>
+	                    <button type="button" id="pitch-size-up" title="Campo más grande">+</button>
+	                    <button type="button" id="pitch-size-fit" title="Ajustar a pantalla">⤢</button>
+	                  </div>
+	                </div>
+	              </div>
 
               <label style="display:none;">
                 Preset
