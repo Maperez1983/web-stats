@@ -52,6 +52,30 @@
         gap: 0.55rem;
         flex-wrap: wrap;
       }
+      .device-toggle {
+        display: inline-flex;
+        gap: 0.35rem;
+        align-items: center;
+        padding: 6px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(255,255,255,0.04);
+      }
+      .device-toggle button {
+        border-radius: 999px;
+        padding: 0.55rem 0.8rem;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(255,255,255,0.04);
+        color: rgba(226,232,240,0.92);
+        font-weight: 900;
+        letter-spacing: 0.04em;
+        cursor: pointer;
+      }
+      .device-toggle button.is-active {
+        background: rgba(34, 211, 238, 0.14);
+        border-color: rgba(34, 211, 238, 0.42);
+        color: #cffafe;
+      }
       .button, button {
         border: 1px solid var(--line);
         background: rgba(255, 255, 255, 0.05);
@@ -389,6 +413,43 @@
           flex-wrap: wrap;
           align-items: center;
         }
+      }
+
+      /* Selector de dispositivo (UI):
+         - ui-desktop fuerza pestañas siempre visibles (sin desplegable).
+         - ui-tablet fuerza desplegable (para dejar más espacio al campo). */
+      body.ui-desktop .resource-summary { display: none !important; }
+      body.ui-desktop .resource-details:not([open]) > :not(summary) { display: flex !important; }
+      body.ui-desktop .resource-details .resource-tabs,
+      body.ui-desktop .resource-details[open] .resource-tabs {
+        position: static !important;
+        display: flex !important;
+        padding: 0 !important;
+        border: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        width: auto !important;
+        gap: 0.5rem !important;
+        flex-wrap: wrap !important;
+        align-items: center !important;
+      }
+      body.ui-tablet .resource-summary { display: inline-flex !important; }
+      body.ui-tablet .resource-details:not([open]) > :not(summary) { display: none !important; }
+      body.ui-tablet .resource-details .resource-tabs { display: none; }
+      body.ui-tablet .resource-details[open] .resource-tabs {
+        position: absolute;
+        top: calc(100% + 10px);
+        left: 0;
+        z-index: 70;
+        width: min(520px, 92vw);
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        gap: 0.6rem;
+        padding: 0.7rem;
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(8, 18, 30, 0.96);
+        box-shadow: 0 26px 56px rgba(2, 6, 23, 0.42);
       }
       .resource-tabs {
         display: flex;
@@ -1319,12 +1380,17 @@
           <h1>{% if task %}Editar tarea{% else %}Crear tarea{% endif %} · Editor visual dedicado</h1>
           <p class="meta">Superficie real de juego, recursos básicos y ficha corta para que la pizarra sea lo principal.</p>
         </div>
-        <div class="actions">
-          <a href="{{ back_url|default:'#' }}" class="button">{{ back_label|default:'Volver a sesiones' }}</a>
-          <button type="button" class="button" id="task-builder-compact-toggle" aria-pressed="false">Vista compacta</button>
-          <button type="button" class="button" data-print-style="uefa">Imprimir UEFA</button>
-          <button type="button" class="button" data-print-style="club">Imprimir Club</button>
-          {% if task %}
+	        <div class="actions">
+	          <a href="{{ back_url|default:'#' }}" class="button">{{ back_label|default:'Volver a sesiones' }}</a>
+	          <div class="device-toggle" role="group" aria-label="Modo de edición">
+	            <button type="button" data-device-mode="desktop">Ordenador</button>
+	            <button type="button" data-device-mode="tablet">iPad</button>
+	            <button type="button" data-device-mode="auto" class="is-active">Auto</button>
+	          </div>
+	          <button type="button" class="button" id="task-builder-compact-toggle" aria-pressed="false">Vista compacta</button>
+	          <button type="button" class="button" data-print-style="uefa">Imprimir UEFA</button>
+	          <button type="button" class="button" data-print-style="club">Imprimir Club</button>
+	          {% if task %}
           <button type="button" class="button" id="share-pdf-uefa">Compartir PDF UEFA</button>
           <button type="button" class="button" id="share-pdf-club">Compartir PDF Club</button>
           {% endif %}
@@ -2196,13 +2262,47 @@
     {{ tactical_player_catalog|json_script:"tpad-players-catalog" }}
     <script src="{% static 'vendor/fabric.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
     <script src="{% static 'football/js/sessions_tactical_pad.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
-    <script>
-      window.addEventListener('DOMContentLoaded', () => {
-        const compactKey = 'webstats:tpad:compact';
-        const toggleBtn = document.getElementById('task-builder-compact-toggle');
-        const playerBank = document.getElementById('task-player-bank');
-        const playerPrev = document.getElementById('player-bank-prev');
-        const playerNext = document.getElementById('player-bank-next');
+	    <script>
+	      window.addEventListener('DOMContentLoaded', () => {
+	        // Selector de dispositivo (solo UI): auto/desktop/tablet.
+	        const deviceKey = 'webstats:tpad:device';
+	        const deviceButtons = Array.from(document.querySelectorAll('[data-device-mode]'));
+	        const normalizeDevice = (value) => {
+	          const v = String(value || '').trim().toLowerCase();
+	          if (v === 'desktop' || v === 'tablet') return v;
+	          return 'auto';
+	        };
+	        const applyDevice = (mode) => {
+	          const normalized = normalizeDevice(mode);
+	          document.body.classList.toggle('ui-desktop', normalized === 'desktop');
+	          document.body.classList.toggle('ui-tablet', normalized === 'tablet');
+	          document.body.dataset.deviceMode = normalized;
+	          deviceButtons.forEach((btn) => btn.classList.toggle('is-active', normalizeDevice(btn.dataset.deviceMode) === normalized));
+	          try { window.dispatchEvent(new CustomEvent('webstats:tpad:device-change', { detail: { mode: normalized } })); } catch (error) {}
+	        };
+	        let initialDevice = 'auto';
+	        try {
+	          const url = new URL(window.location.href);
+	          const fromUrl = normalizeDevice(url.searchParams.get('device'));
+	          if (url.searchParams.has('device')) initialDevice = fromUrl;
+	          else initialDevice = normalizeDevice(window.localStorage?.getItem(deviceKey));
+	        } catch (error) {
+	          initialDevice = 'auto';
+	        }
+	        applyDevice(initialDevice);
+	        deviceButtons.forEach((btn) => {
+	          btn.addEventListener('click', () => {
+	            const mode = normalizeDevice(btn.dataset.deviceMode);
+	            try { window.localStorage?.setItem(deviceKey, mode); } catch (error) {}
+	            applyDevice(mode);
+	          });
+	        });
+
+	        const compactKey = 'webstats:tpad:compact';
+	        const toggleBtn = document.getElementById('task-builder-compact-toggle');
+	        const playerBank = document.getElementById('task-player-bank');
+	        const playerPrev = document.getElementById('player-bank-prev');
+	        const playerNext = document.getElementById('player-bank-next');
         const applyCompact = (enabled) => {
           document.body.classList.toggle('is-compact', !!enabled);
           if (toggleBtn) {

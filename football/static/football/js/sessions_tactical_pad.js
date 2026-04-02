@@ -4637,19 +4637,39 @@
       setSurfaceMenuOpen(false);
     });
 
-	    const resourceTabs = Array.from(document.querySelectorAll('.resource-tab'));
-	    const resourcePanels = Array.from(document.querySelectorAll('.resource-panel'));
-	    const resourceDetails = document.getElementById('task-resource-details');
-	    const resourceSummaryLabel = document.getElementById('task-resource-summary-label');
-	    const resourceHelper = document.querySelector('.resource-helper');
-	    // En escritorio ocultamos el <summary> y mostramos las pestañas siempre vía CSS
-	    // (sin necesidad de abrir el <details>, que podía superponer el contenido).
-	    try {
-	      if (resourceDetails && window.matchMedia && window.matchMedia('(min-width: 980px)').matches) {
-	        resourceDetails.open = false;
-	      }
-	    } catch (error) { /* ignore */ }
-	    let activeResourceKey = '';
+		    const resourceTabs = Array.from(document.querySelectorAll('.resource-tab'));
+		    const resourcePanels = Array.from(document.querySelectorAll('.resource-panel'));
+		    const resourceDetails = document.getElementById('task-resource-details');
+		    const resourceSummaryLabel = document.getElementById('task-resource-summary-label');
+		    const resourceHelper = document.querySelector('.resource-helper');
+		    const getDeviceMode = () => {
+		      const raw = safeText(document.body?.dataset?.deviceMode);
+		      if (raw === 'desktop' || raw === 'tablet') return raw;
+		      return 'auto';
+		    };
+		    const isDesktopUi = () => {
+		      if (getDeviceMode() === 'desktop') return true;
+		      if (getDeviceMode() === 'tablet') return false;
+		      try { return !!(window.matchMedia && window.matchMedia('(min-width: 980px)').matches); } catch (error) { return true; }
+		    };
+		    const isWideUi = () => {
+		      if (getDeviceMode() === 'desktop') return true;
+		      if (getDeviceMode() === 'tablet') return false;
+		      try { return !!(window.matchMedia && window.matchMedia('(min-width: 761px)').matches); } catch (error) { return true; }
+		    };
+		    const isSmallUi = () => {
+		      if (getDeviceMode() === 'tablet') return true;
+		      if (getDeviceMode() === 'desktop') return false;
+		      try { return !!(window.matchMedia && window.matchMedia('(max-width: 979px)').matches); } catch (error) { return false; }
+		    };
+		    // En escritorio ocultamos el <summary> y mostramos las pestañas siempre vía CSS
+		    // (sin necesidad de abrir el <details>, que podía superponer el contenido).
+		    try {
+		      if (resourceDetails && isDesktopUi()) {
+		        resourceDetails.open = false;
+		      }
+		    } catch (error) { /* ignore */ }
+		    let activeResourceKey = '';
     const resourceLabelForKey = (key) => {
       const normalized = safeText(key);
       const match = resourceTabs.find((tab) => safeText(tab.dataset.resource) === normalized);
@@ -4671,31 +4691,40 @@
         resourceHelper.hidden = !!normalized;
       }
     };
-    resourceTabs.forEach((tab) => {
-      tab.addEventListener('click', () => {
-        const target = safeText(tab.dataset.resource);
-        if (target && target === activeResourceKey) activateResourcePanel('');
-        else activateResourcePanel(target);
-        // En móvil/tablet, cerrar el desplegable al elegir una pestaña.
-        try {
-          if (resourceDetails && resourceDetails.open && window.matchMedia && window.matchMedia('(max-width: 979px)').matches) {
-            resourceDetails.open = false;
-          }
-        } catch (error) { /* ignore */ }
-      });
-    });
+	    resourceTabs.forEach((tab) => {
+	      tab.addEventListener('click', () => {
+	        const target = safeText(tab.dataset.resource);
+	        if (target && target === activeResourceKey) activateResourcePanel('');
+	        else activateResourcePanel(target);
+	        // En móvil/tablet, cerrar el desplegable al elegir una pestaña.
+	        try {
+	          if (resourceDetails && resourceDetails.open && isSmallUi()) {
+	            resourceDetails.open = false;
+	          }
+	        } catch (error) { /* ignore */ }
+	      });
+	    });
 		    if (resourceTabs.length && resourcePanels.length) {
 	      // En escritorio mostramos por defecto "Recursos base" (más rápido).
 	      // En pantallas pequeñas arrancamos cerrado para dejar más espacio al campo.
 	      let initialResource = '';
 	      try {
-	        const isWide = window.matchMedia && window.matchMedia('(min-width: 761px)').matches;
-	        initialResource = isWide ? 'base' : '';
+	        initialResource = isWideUi() ? 'base' : '';
 	      } catch (error) {
 	        initialResource = 'base';
 	      }
 		      activateResourcePanel(initialResource);
 		    }
+		    // Permite alternar el modo (Ordenador/iPad/Auto) sin recargar ni perder trabajo.
+		    try {
+		      window.addEventListener('webstats:tpad:device-change', () => {
+		        try {
+		          if (resourceDetails && isDesktopUi()) resourceDetails.open = false;
+		          if (!activeResourceKey) activateResourcePanel(isWideUi() ? 'base' : '');
+		          else activateResourcePanel(activeResourceKey);
+		        } catch (error) { /* ignore */ }
+		      });
+		    } catch (error) { /* ignore */ }
 
 	    const panelKeyForObject = (object) => {
       const kind = safeText(object?.data?.kind);
