@@ -4018,25 +4018,35 @@
       const readMode = () => {
         try {
           const stored = safeText(window.localStorage.getItem(storageKey));
-          if (stored === 'text' || stored === 'board') return stored;
+          if (stored === 'text' || stored === 'board' || stored === 'both') return stored;
         } catch (error) { /* ignore */ }
-        return 'board';
+        return isNarrow() ? 'board' : 'both';
       };
       const writeMode = (mode) => {
         try { window.localStorage.setItem(storageKey, mode); } catch (error) { /* ignore */ }
       };
       const apply = (mode, options = {}) => {
-        const next = mode === 'text' ? 'text' : 'board';
+        const requested = mode === 'text' ? 'text' : (mode === 'both' ? 'both' : 'board');
+        const next = (isNarrow() && requested === 'both') ? 'board' : requested;
         document.body.classList.toggle('task-mode-board', next === 'board');
         document.body.classList.toggle('task-mode-text', next === 'text');
-        document.body.classList.add('task-mode-ready');
+        document.body.classList.toggle('task-mode-both', next === 'both');
+        document.body.classList.toggle('task-mode-ready', next !== 'both');
         buttons.forEach((btn) => {
           const active = safeText(btn.dataset.taskMode) === next;
           btn.classList.toggle('is-active', active);
           btn.setAttribute('aria-selected', active ? 'true' : 'false');
         });
-        if (!options.silent) writeMode(next);
-        if (!isNarrow()) return;
+        if (!options.silent) writeMode(requested);
+        if (next === 'both') {
+          if (!options.silent) setStatus('Vista: Todo.');
+          window.setTimeout(() => {
+            try { fitCanvas(); } catch (error) { /* ignore */ }
+            try { canvas.calcOffset(); } catch (error) { /* ignore */ }
+            try { canvas.requestRenderAll(); } catch (error) { /* ignore */ }
+          }, 50);
+          return;
+        }
         if (next === 'text') {
           try { syncRichEditorsNow?.(); } catch (error) { /* ignore */ }
           try { persistDraftNow('mode-switch'); } catch (error) { /* ignore */ }
@@ -4062,7 +4072,6 @@
       });
 
       window.addEventListener('resize', () => {
-        if (!isNarrow()) return;
         apply(readMode(), { silent: true });
       }, { passive: true });
     };
