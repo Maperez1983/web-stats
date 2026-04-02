@@ -715,11 +715,11 @@
         return null;
       }
     };
-    const applyDraftToForm = (draft) => {
-      const fields = draft && typeof draft === 'object' ? draft.fields : null;
-      if (!fields || typeof fields !== 'object') return false;
-      const elements = Array.from(form.elements || []);
-      elements.forEach((el) => {
+	    const applyDraftToForm = (draft) => {
+	      const fields = draft && typeof draft === 'object' ? draft.fields : null;
+	      if (!fields || typeof fields !== 'object') return false;
+	      const elements = Array.from(form.elements || []);
+	      elements.forEach((el) => {
         if (!el || !el.name) return;
         const key = safeText(el.name);
         if (!Object.prototype.hasOwnProperty.call(fields, key)) return;
@@ -745,10 +745,36 @@
           });
           return;
         }
-        el.value = stored == null ? '' : String(stored);
-      });
-      return true;
-    };
+	        el.value = stored == null ? '' : String(stored);
+	      });
+	      // Rehidrata los editores enriquecidos desde los campos hidden aplicados.
+	      // Importante: el initRichEditors() sincroniza "área -> hidden" al cargar; si no
+	      // actualizamos el área aquí, se perdería el borrador restaurado.
+	      try {
+	        const wrappers = Array.from(form.querySelectorAll('[data-rich-editor]'));
+	        wrappers.forEach((wrapper) => {
+	          const plainName = safeText(wrapper.dataset.richName);
+	          const htmlName = safeText(wrapper.dataset.richHtmlName);
+	          const area = wrapper.querySelector('[data-rich-area]');
+	          if (!plainName || !htmlName || !area) return;
+	          const plainField = form.querySelector(`[name="${CSS.escape(plainName)}"]`);
+	          const htmlField = form.querySelector(`[name="${CSS.escape(htmlName)}"]`);
+	          if (!plainField || !htmlField) return;
+	          const htmlValue = String(htmlField.value || '');
+	          if (htmlValue) {
+	            area.innerHTML = htmlValue;
+	            return;
+	          }
+	          const textValue = String(plainField.value || '');
+	          area.textContent = textValue;
+	          // Convierte saltos de línea a <br> para mantener la estructura básica.
+	          area.innerHTML = area.innerHTML.replace(/\n/g, '<br>');
+	        });
+	      } catch (error) {
+	        // ignore
+	      }
+	      return true;
+	    };
 
     if (saveSuccess) {
       clearDraftKeys();
@@ -3934,13 +3960,15 @@
     }
     runWhenIdle(() => refreshLivePreview(), 1100);
 
-    let draftSaveTimer = null;
-    const persistDraftNow = (reason) => {
-      if (!canUseStorage || !draftKey || saveSuccess) return;
-      const elements = Array.from(form.elements || []);
-      const fields = {};
-      const checkboxBuckets = new Map();
-      elements.forEach((el) => {
+	    let draftSaveTimer = null;
+	    const persistDraftNow = (reason) => {
+	      if (!canUseStorage || !draftKey || saveSuccess) return;
+	      // Asegura que los campos hidden de texto enriquecido estén sincronizados antes de serializar.
+	      try { syncRichEditorsNow?.(); } catch (error) { /* ignore */ }
+	      const elements = Array.from(form.elements || []);
+	      const fields = {};
+	      const checkboxBuckets = new Map();
+	      elements.forEach((el) => {
         if (!el || !el.name) return;
         const key = safeText(el.name);
         if (!key) return;
