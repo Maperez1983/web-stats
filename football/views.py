@@ -8692,7 +8692,10 @@ def session_task_pdf(request, task_id):
         task=task,
         tactical_layout=task.tactical_layout if isinstance(task.tactical_layout, dict) else {},
         pdf_style=pdf_style,
-        preview_url=request.build_absolute_uri(reverse('session-task-preview-file', args=[task.id])) if task.task_preview_image else '',
+        # Importante: WeasyPrint no hereda cookies/sesión del usuario, así que si usamos una URL protegida
+        # (`session-task-preview-file`) la imagen puede no cargarse. Empaquetamos el binario como data URL
+        # para garantizar que el PDF siempre incluya la vista gráfica con la máxima calidad disponible.
+        preview_url=_file_field_as_data_url(task.task_preview_image) if task.task_preview_image else '',
     )
     html = render_to_string('football/session_task_pdf.html', context)
     filename = slugify(f'tarea-{task.session.session_date}-{task.title}') or f'tarea-{task.id}'
@@ -15281,7 +15284,8 @@ def task_studio_task_pdf(request, task_id):
         task=task,
         tactical_layout=task.tactical_layout if isinstance(task.tactical_layout, dict) else {},
         pdf_style=pdf_style,
-        preview_url=request.build_absolute_uri(reverse('task-studio-task-preview-file', args=[task.id])) if task.task_preview_image else '',
+        # Igual que en sesiones: WeasyPrint no hereda cookies, así que embebemos como data URL.
+        preview_url=_file_field_as_data_url(task.task_preview_image) if task.task_preview_image else '',
     )
     html = render_to_string('football/session_task_pdf.html', context)
     filename = slugify(f'task-studio-{task.title}') or f'task-studio-{task.id}'
