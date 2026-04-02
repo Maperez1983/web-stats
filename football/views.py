@@ -10896,12 +10896,29 @@ def _apply_analysis_to_task(task, analysis):
     confidence = _analysis_confidence_scores(analysis)
     summary_clean = _sanitize_task_text((analysis.get('summary') or '')[:900], multiline=True, max_len=900)
     task_sheet_raw = analysis.get('task_sheet') if isinstance(analysis.get('task_sheet'), dict) else {}
+    description_plain = _sanitize_task_text(task_sheet_raw.get('description') or '', multiline=True, max_len=1200)
+    players_plain = _sanitize_task_text(task_sheet_raw.get('players') or '', multiline=False, max_len=120)
+    space_plain = _sanitize_task_text(task_sheet_raw.get('space') or '', multiline=False, max_len=120)
+    dimensions_plain = _sanitize_task_text(task_sheet_raw.get('dimensions') or '', multiline=False, max_len=120)
+    materials_plain = _sanitize_task_text(task_sheet_raw.get('materials') or '', multiline=False, max_len=300)
+
+    description_html_raw = str(task_sheet_raw.get('description_html') or '').strip()
+    coaching_html_raw = str(task_sheet_raw.get('coaching_html') or '').strip()
+    rules_html_raw = str(task_sheet_raw.get('rules_html') or '').strip()
+
+    description_html_clean = _sanitize_task_rich_html(description_html_raw) if description_html_raw else _rich_html_from_plain_text(description_plain)
+    coaching_html_clean = _sanitize_task_rich_html(coaching_html_raw) if coaching_html_raw else _rich_html_from_plain_text(str(analysis.get('coaching_points') or ''))
+    rules_html_clean = _sanitize_task_rich_html(rules_html_raw) if rules_html_raw else _rich_html_from_plain_text(str(analysis.get('confrontation_rules') or ''))
+
     task_sheet_clean = {
-        'description': _sanitize_task_text(task_sheet_raw.get('description') or '', multiline=True, max_len=1200),
-        'players': _sanitize_task_text(task_sheet_raw.get('players') or '', multiline=False, max_len=120),
-        'space': _sanitize_task_text(task_sheet_raw.get('space') or '', multiline=False, max_len=120),
-        'dimensions': _sanitize_task_text(task_sheet_raw.get('dimensions') or '', multiline=False, max_len=120),
-        'materials': _sanitize_task_text(task_sheet_raw.get('materials') or '', multiline=False, max_len=300),
+        'description': description_plain,
+        'description_html': description_html_clean,
+        'coaching_html': coaching_html_clean,
+        'rules_html': rules_html_clean,
+        'players': players_plain,
+        'space': space_plain,
+        'dimensions': dimensions_plain,
+        'materials': materials_plain,
     }
     upload_date = _task_upload_date(task)
     reference_date = _coerce_reference_date(analysis.get('reference_date'))
@@ -11164,8 +11181,49 @@ def _extract_task_sheet_from_pdf(text, detected_materials=None, template_key='ge
     }
 
 
+def _normalize_pdf_task_text(value):
+    """
+    La extracción de PDF a veces concatena títulos + secciones (Consignas/Dosificación/etc.) en una sola línea.
+    Insertamos saltos de línea en cabeceras comunes y normalizamos bullets para mejorar el parsing.
+    """
+    text = str(value or '').replace('\r\n', '\n').replace('\r', '\n')
+    if not text.strip():
+        return ''
+    # Asegura que cabeceras típicas empiecen en línea nueva.
+    headings = [
+        'Objetivo',
+        'Objective',
+        'Descripción',
+        'Descripcion',
+        'Consignas',
+        'Dosificación',
+        'Dosificacion',
+        'Tiempo total',
+        'Tiempo total de trabajo',
+        'Material',
+        'Materiales',
+        'Reglas',
+        'Normas',
+        'Observaciones',
+    ]
+    for heading in headings:
+        text = re.sub(
+            rf'(?i)(?<!^)(?<!\n)\s+(?={re.escape(heading)}\s*[:\-])',
+            '\n',
+            text,
+        )
+    # Normaliza listas inline: "Consignas: - a - b" -> "Consignas:\n- a\n- b"
+    text = re.sub(r'(?i)(consignas\s*[:\-])\s*-\s*', r'\1\n- ', text)
+    text = re.sub(r'(?i)((?:reglas|normas)\s*[:\-])\s*-\s*', r'\1\n- ', text)
+    # Si hay múltiples "- " seguidos en la misma línea, fuerza salto.
+    text = re.sub(r'(?<!\n)\s-\s+', '\n- ', text)
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    return text.strip()
+
+
 def _suggest_task_from_pdf(pdf_text):
     text = _polish_spanish_text(_repair_joined_words_text(pdf_text or ''), multiline=True)
+    text = _normalize_pdf_task_text(text)
     text = str(text or '').strip()
     template_key = _detect_pdf_template(text)
     if not text:
@@ -11195,10 +11253,14 @@ def _suggest_task_from_pdf(pdf_text):
     if template_key == 'sesion_sheet_compact':
         skip_title_tokens.extend(['tiempototaldetrabajo', 'dosificacion', 'hidratacion'])
     for line in lines[:24]:
-        if len(line) > 120 or re.search(r'^\d+$', line):
+        # Permite títulos largos (a veces el PDF concatena el nombre completo en una sola línea).
+        if len(line) > 260 or re.search(r'^\d+$', line):
             continue
         folded = _normalize_folded_text(line)
         if not folded or folded in {',', '.', ';'}:
+            continue
+        # Salta marcadores tipo "Tarea 2" sin título real.
+        if re.match(r'^(?:tarea|ejercicio|task|drill)\s*\d{1,2}\s*$', folded, flags=re.IGNORECASE):
             continue
         if any(token in folded for token in skip_title_tokens):
             continue
@@ -11209,8 +11271,48 @@ def _suggest_task_from_pdf(pdf_text):
             or re.match(r'^tiempo\s*total', folded)
         ):
             continue
-        title = line
+        # Si la línea empieza por "Tarea 2: ..." o "Tarea 2 ..." nos quedamos con el resto como título.
+        marker = re.match(
+            r'(?i)^(?:tarea|ejercicio|task|drill)\s*(?:n[\.\s]*[oº°])?\s*\d{1,2}\s*[:\-]?\s*(.+)$',
+            line,
+        )
+        if marker and marker.group(1) and marker.group(1).strip():
+            candidate_title = marker.group(1).strip()
+            if len(candidate_title) >= 4:
+                title = candidate_title
+            else:
+                title = line
+        else:
+            title = line
         break
+    # Fallback: si no encontramos título por límites de línea (PDFs con textos concatenados),
+    # toma la primera línea útil, incluso si es larga (se truncará a max_len más tarde).
+    if not title:
+        for line in lines[:10]:
+            if not line or re.search(r'^\d+$', line):
+                continue
+            folded = _normalize_folded_text(line)
+            if re.match(r'^(?:tarea|ejercicio|task|drill)\s*\d{1,2}\s*$', folded, flags=re.IGNORECASE):
+                continue
+            if any(token in folded for token in skip_title_tokens):
+                continue
+            marker = re.match(
+                r'(?i)^(?:tarea|ejercicio|task|drill)\s*(?:n[\.\s]*[oº°])?\s*\d{1,2}\s*[:\-]?\s*(.+)$',
+                line,
+            )
+            if marker and marker.group(1) and marker.group(1).strip():
+                candidate_title = marker.group(1).strip()
+                if len(candidate_title) >= 4:
+                    title = candidate_title
+                    break
+            title = line
+            break
+    # Limpia títulos que vienen concatenados con bullets/dosificación.
+    if title:
+        title = re.split(r'\s*[•●]\s*', title, maxsplit=1)[0].strip()
+        minutes_in_title = re.search(r'\b\d{1,3}\s*[\'’`´]', title)
+        if minutes_in_title and minutes_in_title.start() > 10:
+            title = title[: minutes_in_title.start()].strip()
 
     objective_aliases = ['objetivo', 'objective', 'finalidad', 'meta']
     if template_key == 'sesion_sheet_compact':
@@ -11283,6 +11385,15 @@ def _suggest_task_from_pdf(pdf_text):
     phase_tags = _detect_keyword_tags(' '.join([text, objective, coaching_points]), TASK_PHASE_KEYWORDS)
     detected_materials = _detect_materials_in_text(text)
     task_sheet = _extract_task_sheet_from_pdf(text, detected_materials=detected_materials, template_key=template_key)
+    # Para el editor/PDF actual guardamos también versión HTML (rich) desde el import.
+    try:
+        task_sheet = dict(task_sheet or {})
+        description_plain = str(task_sheet.get('description') or '').strip()
+        task_sheet['description_html'] = _rich_html_from_plain_text(description_plain) if description_plain else ''
+        task_sheet['coaching_html'] = _rich_html_from_plain_text(coaching_points) if str(coaching_points or '').strip() else ''
+        task_sheet['rules_html'] = _rich_html_from_plain_text(confrontation_rules) if str(confrontation_rules or '').strip() else ''
+    except Exception:
+        pass
     players_count_estimate = _estimate_players_count(task_sheet.get('players'), text)
     players_band = _players_band_label(players_count_estimate)
     duration_band = _duration_band_label(minutes)
@@ -11315,6 +11426,12 @@ def _split_pdf_into_task_sections(pdf_text):
     text = str(pdf_text or '').strip()
     if not text:
         return []
+    # Algunos PDFs concatenan "Tarea 1 Tarea 2 ..." en una sola línea: forzamos saltos para detectar boundaries.
+    text = re.sub(
+        r'(?i)(?<!^)(?<!\n)(?=\s*(?:tarea|ejercicio|task|drill)\s*(?:n[\.\s]*[oº°])?\s*\d{1,2}\b)',
+        '\n',
+        text,
+    )
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     if len(lines) < 6:
         return [text]
@@ -11330,6 +11447,31 @@ def _split_pdf_into_task_sections(pdf_text):
     for idx, line in enumerate(lines):
         if any(pattern.search(line) for pattern in start_patterns):
             boundaries.append(idx)
+
+    # Elimina boundaries duplicados tipo "Tarea 3" repetido (cabeceras/pies de página).
+    if boundaries:
+        filtered = []
+        prev_num = None
+        prev_has_rest = False
+        prev_idx = None
+        for idx in boundaries:
+            line = lines[idx]
+            match = re.match(
+                r'(?i)^(?:tarea|ejercicio|task|drill)\s*(?:n[\.\s]*[oº°])?\s*(\d{1,2})\b(.*)$',
+                line,
+            )
+            num = int(match.group(1)) if match else None
+            rest = (match.group(2) or '').strip() if match else ''
+            has_rest = bool(rest.strip(' :.-'))
+            if num and prev_num == num and prev_idx is not None:
+                close = (idx - prev_idx) <= 8
+                if close and prev_has_rest and not has_rest:
+                    continue
+            filtered.append(idx)
+            prev_num = num
+            prev_has_rest = has_rest
+            prev_idx = idx
+        boundaries = filtered
 
     if len(boundaries) < 2:
         objective_indices = []
@@ -11355,7 +11497,7 @@ def _split_pdf_into_task_sections(pdf_text):
     )
     for i, start in enumerate(boundaries):
         end = boundaries[i + 1] if i + 1 < len(boundaries) else len(lines)
-        if end - start < 3:
+        if end <= start:
             continue
         chunk = '\n'.join(lines[start:end]).strip()
         folded = _normalize_folded_text(chunk)
@@ -11372,6 +11514,31 @@ def _split_pdf_into_task_sections(pdf_text):
             continue
         seen.add(normalized)
         sections.append(chunk)
+
+    # Heuristic: añade el bloque previo (calentamiento/activación) si tiene carga/tiempos y queda antes de la 1ª tarea.
+    if boundaries:
+        prefix_lines = lines[: boundaries[0]]
+        if prefix_lines:
+            prefix_text = '\n'.join(prefix_lines).strip()
+            prefix_folded = _normalize_folded_text(prefix_text)
+            start_idx = None
+            for idx, line in enumerate(prefix_lines):
+                folded = _normalize_folded_text(line)
+                if any(token in folded for token in ('acondicionamiento', 'calentamiento', 'activacion', 'activación', 'partepreparatoria', 'parte preparatoria')):
+                    start_idx = idx
+            if start_idx is not None:
+                candidate = '\n'.join(prefix_lines[start_idx:]).strip()
+                # Si el PDF venía con cabecera en la misma línea, recorta desde el inicio del bloque preparatorio.
+                trim_match = re.search(r'(?i)(acondicionamiento|calentamiento|activaci[oó]n)', candidate)
+                if trim_match:
+                    candidate = candidate[trim_match.start():].strip()
+                cand_folded = _normalize_folded_text(candidate)
+                if (
+                    len(candidate) >= 220
+                    and ('tiempodetrabajo' in cand_folded or re.search(r'\b\d{1,3}\s*[\'’`´]\b', candidate))
+                    and 'tiempototaldesesion' not in cand_folded
+                ):
+                    sections.insert(0, candidate)
 
     # Heuristic for session sheets where "Tarea 1" is implicit and first explicit marker is Tarea 2.
     if sections:
