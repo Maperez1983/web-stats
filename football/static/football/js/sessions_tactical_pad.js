@@ -3746,46 +3746,103 @@
 		      let pitchLoaded = false;
 		      let overlayLoaded = false;
 		      let overlayFailed = false;
-		      const finish = () => {
-		        if (!pitchLoaded) return;
-		        if (overlayUrl && !overlayLoaded && !overlayFailed) return;
-		        if (pitchImage && pitchImage.complete) {
-		          try { context.drawImage(pitchImage, 0, 0, output.width, output.height); } catch (error) { /* ignore */ }
-		        }
-		        if (overlayUrl && overlayLoaded && overlayImage && overlayImage.complete) {
-		          try { context.drawImage(overlayImage, 0, 0, output.width, output.height); } catch (error) { /* ignore */ }
-		        } else {
-		          // Fallback: si no pudimos generar HD con Fabric, usamos el canvas visible.
-		          try { context.drawImage(canvas.lowerCanvasEl, 0, 0, output.width, output.height); } catch (error) { /* ignore */ }
-		        }
-		        URL.revokeObjectURL(blobUrl);
-			        // Recorta a la caja real del rectángulo de juego (evita grandes márgenes vacíos
-			        // en superficies parciales que luego hacen que en el PDF el campo salga "pequeñísimo").
-			        try {
-			          const pitchBoxRaw = safeText(svgSurface.getAttribute('data-pitch-box'));
-			          const viewBoxRaw = safeText(svgSurface.getAttribute('viewBox'));
-		          const boxParts = pitchBoxRaw.split(/\s+/).map((v) => Number(v)).filter((n) => Number.isFinite(n));
-		          const vbParts = viewBoxRaw.split(/\s+/).map((v) => Number(v)).filter((n) => Number.isFinite(n));
-		          if (boxParts.length >= 4 && vbParts.length >= 4) {
-		            const [boxX, boxY, boxW, boxH] = boxParts;
-		            const [vbX, vbY, vbW, vbH] = vbParts;
-		            if (vbW > 0 && vbH > 0 && boxW > 0 && boxH > 0) {
-		              const scaleX = output.width / vbW;
-		              const scaleY = output.height / vbH;
-		              let cropX = (boxX - vbX) * scaleX;
-		              let cropY = (boxY - vbY) * scaleY;
-		              let cropW = boxW * scaleX;
-		              let cropH = boxH * scaleY;
-		              const pad = Math.max(6, Math.round(Math.min(cropW, cropH) * 0.02));
-		              cropX = Math.max(0, Math.floor(cropX - pad));
-		              cropY = Math.max(0, Math.floor(cropY - pad));
-		              cropW = Math.min(output.width - cropX, Math.ceil(cropW + pad * 2));
-		              cropH = Math.min(output.height - cropY, Math.ceil(cropH + pad * 2));
-		              if (cropW > 120 && cropH > 80 && cropW < output.width && cropH < output.height) {
-		                const cropped = document.createElement('canvas');
-		                cropped.width = Math.round(cropW);
-		                cropped.height = Math.round(cropH);
-		                const cctx = cropped.getContext('2d');
+			      const finish = () => {
+			        if (!pitchLoaded) return;
+			        if (overlayUrl && !overlayLoaded && !overlayFailed) return;
+			        if (pitchImage && pitchImage.complete) {
+			          try { context.drawImage(pitchImage, 0, 0, output.width, output.height); } catch (error) { /* ignore */ }
+			        }
+			        if (overlayUrl && overlayLoaded && overlayImage && overlayImage.complete) {
+			          try { context.drawImage(overlayImage, 0, 0, output.width, output.height); } catch (error) { /* ignore */ }
+			        } else {
+			          // Fallback: si no pudimos generar HD con Fabric, usamos el canvas visible.
+			          try { context.drawImage(canvas.lowerCanvasEl, 0, 0, output.width, output.height); } catch (error) { /* ignore */ }
+			        }
+			        URL.revokeObjectURL(blobUrl);
+			        // Calcula bounding box del overlay (alpha>0) para evitar recortes agresivos.
+			        // Esto cubre casos donde hay elementos colocados fuera del rectángulo de juego
+			        // (p.ej. chapas/porterías auxiliares), y no queremos que el preview/PDF los corte.
+			        const overlayBounds = (() => {
+			          if (!overlayUrl || !overlayLoaded || !overlayImage || !overlayImage.complete) return null;
+			          try {
+			            const sampleW = clamp(Math.round(output.width / 8), 240, 640);
+			            const sampleH = Math.max(1, Math.round(output.height * (sampleW / Math.max(1, output.width))));
+			            const sample = document.createElement('canvas');
+			            sample.width = sampleW;
+			            sample.height = sampleH;
+			            const sctx = sample.getContext('2d', { willReadFrequently: true });
+			            if (!sctx) return null;
+			            sctx.clearRect(0, 0, sampleW, sampleH);
+			            sctx.drawImage(overlayImage, 0, 0, sampleW, sampleH);
+			            const data = sctx.getImageData(0, 0, sampleW, sampleH).data;
+			            let minX = sampleW;
+			            let minY = sampleH;
+			            let maxX = -1;
+			            let maxY = -1;
+			            for (let y = 0; y < sampleH; y += 1) {
+			              const row = y * sampleW * 4;
+			              for (let x = 0; x < sampleW; x += 1) {
+			                const a = data[row + (x * 4) + 3];
+			                if (a > 10) {
+			                  if (x < minX) minX = x;
+			                  if (y < minY) minY = y;
+			                  if (x > maxX) maxX = x;
+			                  if (y > maxY) maxY = y;
+			                }
+			              }
+			            }
+			            if (maxX < 0 || maxY < 0) return null;
+			            const scaleX = output.width / sampleW;
+			            const scaleY = output.height / sampleH;
+			            return {
+			              x: minX * scaleX,
+			              y: minY * scaleY,
+			              w: (maxX - minX + 1) * scaleX,
+			              h: (maxY - minY + 1) * scaleY,
+			            };
+			          } catch (error) {
+			            return null;
+			          }
+			        })();
+				        // Recorta a la caja real del rectángulo de juego (evita grandes márgenes vacíos
+				        // en superficies parciales que luego hacen que en el PDF el campo salga "pequeñísimo").
+				        try {
+				          const pitchBoxRaw = safeText(svgSurface.getAttribute('data-pitch-box'));
+				          const viewBoxRaw = safeText(svgSurface.getAttribute('viewBox'));
+			          const boxParts = pitchBoxRaw.split(/\s+/).map((v) => Number(v)).filter((n) => Number.isFinite(n));
+			          const vbParts = viewBoxRaw.split(/\s+/).map((v) => Number(v)).filter((n) => Number.isFinite(n));
+			          if (boxParts.length >= 4 && vbParts.length >= 4) {
+			            const [boxX, boxY, boxW, boxH] = boxParts;
+			            const [vbX, vbY, vbW, vbH] = vbParts;
+			            if (vbW > 0 && vbH > 0 && boxW > 0 && boxH > 0) {
+			              const scaleX = output.width / vbW;
+			              const scaleY = output.height / vbH;
+			              let cropX = (boxX - vbX) * scaleX;
+			              let cropY = (boxY - vbY) * scaleY;
+			              let cropW = boxW * scaleX;
+			              let cropH = boxH * scaleY;
+			              const pad = Math.max(10, Math.round(Math.min(cropW, cropH) * 0.035));
+			              // Unión con overlayBounds (para no cortar elementos colocados fuera del campo).
+			              if (overlayBounds && overlayBounds.w > 6 && overlayBounds.h > 6) {
+			                const extraPad = Math.max(10, Math.round(Math.min(cropW, cropH) * 0.03));
+			                const minUx = Math.min(cropX, overlayBounds.x - extraPad);
+			                const minUy = Math.min(cropY, overlayBounds.y - extraPad);
+			                const maxUx = Math.max(cropX + cropW, overlayBounds.x + overlayBounds.w + extraPad);
+			                const maxUy = Math.max(cropY + cropH, overlayBounds.y + overlayBounds.h + extraPad);
+			                cropX = minUx;
+			                cropY = minUy;
+			                cropW = maxUx - minUx;
+			                cropH = maxUy - minUy;
+			              }
+			              cropX = Math.max(0, Math.floor(cropX - pad));
+			              cropY = Math.max(0, Math.floor(cropY - pad));
+			              cropW = Math.min(output.width - cropX, Math.ceil(cropW + pad * 2));
+			              cropH = Math.min(output.height - cropY, Math.ceil(cropH + pad * 2));
+			              if (cropW > 120 && cropH > 80 && cropW < output.width && cropH < output.height) {
+			                const cropped = document.createElement('canvas');
+			                cropped.width = Math.round(cropW);
+			                cropped.height = Math.round(cropH);
+			                const cctx = cropped.getContext('2d');
 		                if (cctx) {
 		                  cctx.fillStyle = '#ffffff';
 		                  cctx.fillRect(0, 0, cropped.width, cropped.height);
