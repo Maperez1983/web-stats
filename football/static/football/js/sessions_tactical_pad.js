@@ -1093,7 +1093,7 @@
 		    const normalizeEditableObject = (object) => {
 		      if (!object) return object;
 		      const rawLocked = object?.data?.locked;
-	      // Compat: algunos estados antiguos pueden traer locked como string ('false'/'true').
+		      // Compat: algunos estados antiguos pueden traer locked como string ('false'/'true').
 		      const locked = rawLocked === true
 		        || rawLocked === 1
 		        || rawLocked === '1'
@@ -1120,21 +1120,34 @@
 	          });
 	        }
 	      }
-	      object.set({
-	        hasControls: !locked,
-	        hasBorders: true,
-	        transparentCorners: false,
-	        cornerStyle: 'circle',
-	        cornerColor: '#22d3ee',
-	        borderColor: '#67e8f9',
-	        cornerStrokeColor: '#071320',
-	        padding: 8,
-	        lockScalingFlip: true,
-	      });
-	      if (locked) {
-	        object.set({
-	          lockMovementX: true,
-	          lockMovementY: true,
+		      object.set({
+		        hasControls: !locked,
+		        hasBorders: true,
+		        transparentCorners: false,
+		        cornerStyle: 'circle',
+		        cornerColor: '#22d3ee',
+		        borderColor: '#67e8f9',
+		        cornerStrokeColor: '#071320',
+		        padding: isBackground ? (backgroundEdit ? 14 : 10) : 8,
+		        cornerSize: isBackground ? (backgroundEdit ? 30 : 22) : 18,
+		        lockScalingFlip: true,
+		      });
+		      try {
+		        // Fabric 5: en pantallas táctiles aumenta el área de agarre.
+		        if (typeof object.touchCornerSize !== 'undefined') {
+		          object.touchCornerSize = isBackground ? (backgroundEdit ? 46 : 36) : 30;
+		        }
+		      } catch (error) { /* ignore */ }
+		      try {
+		        // Fabric 5: tolerancia extra al seleccionar (especialmente útil con trackpad/touch).
+		        if (typeof object.targetFindTolerance !== 'undefined') {
+		          object.targetFindTolerance = isBackground ? (backgroundEdit ? 14 : 10) : 8;
+		        }
+		      } catch (error) { /* ignore */ }
+		      if (locked) {
+		        object.set({
+		          lockMovementX: true,
+		          lockMovementY: true,
 	          lockScalingX: true,
 	          lockScalingY: true,
 	          lockRotation: true,
@@ -1187,6 +1200,34 @@
       const kind = safeText(object?.data?.kind);
       if (!kind) return false;
       return kind === 'zone' || kind.startsWith('shape-') || kind === 'goal';
+    };
+
+    const setBackgroundEditMode = (object, enabled, options = {}) => {
+      if (!object || !isBackgroundShape(object)) return false;
+      object.data = object.data || {};
+      const next = !!enabled;
+      const prev = !!object.data.background_edit;
+      if (prev === next && !options.force) return false;
+      object.data.background_edit = next;
+      normalizeEditableObject(object);
+      try { object.setCoords(); } catch (error) { /* ignore */ }
+      if (!next) {
+        // Al salir de edición, vuelve atrás para que no bloquee otros elementos.
+        try { canvas.sendToBack(object); } catch (error) { /* ignore */ }
+      }
+      try { canvas.requestRenderAll(); } catch (error) { /* ignore */ }
+      return true;
+    };
+
+    const disableBackgroundEditExcept = (keepObject) => {
+      let changed = false;
+      (canvas.getObjects() || []).forEach((obj) => {
+        if (!obj || !isBackgroundShape(obj)) return;
+        if (obj === keepObject) return;
+        if (!obj?.data?.background_edit) return;
+        changed = setBackgroundEditMode(obj, false, { force: true }) || changed;
+      });
+      return changed;
     };
     const getObjectStrokeWidth = (object) => {
       if (!object) return 0;
@@ -2169,9 +2210,10 @@
 			        }
 			        // Si es una figura de fondo, al seleccionarla desde "Capas" permitimos edición temporal.
 			        if (isBackgroundShape(obj)) {
-			          obj.data = obj.data || {};
-			          obj.data.background_edit = true;
-			          normalizeEditableObject(obj);
+			          disableBackgroundEditExcept(obj);
+			          setBackgroundEditMode(obj, true, { force: true });
+			        } else {
+			          disableBackgroundEditExcept(null);
 			        }
 			        canvas.setActiveObject(obj);
 			        canvas.requestRenderAll();
@@ -2815,16 +2857,25 @@
 	      return factory(left, top);
 	    };
 
-	    const addObject = (object) => {
-	      if (!object) return;
-	      normalizeEditableObject(object);
-	      canvas.add(object);
-      if (isBackgroundShape(object)) canvas.sendToBack(object);
-      canvas.setActiveObject(object);
-      canvas.requestRenderAll();
-      pushHistory();
-      syncInspector();
-	    };
+		    const addObject = (object) => {
+		      if (!object) return;
+		      // Figuras de fondo: al crearlas queremos permitir edición inmediata (mover/escala).
+		      // Luego se desactiva automáticamente al seleccionar otra cosa o con Escape.
+		      if (isBackgroundShape(object)) {
+		        object.data = object.data || {};
+		        object.data.background_edit = true;
+		      }
+		      normalizeEditableObject(object);
+		      canvas.add(object);
+	      if (isBackgroundShape(object)) canvas.sendToBack(object);
+	      canvas.setActiveObject(object);
+	      canvas.requestRenderAll();
+	      pushHistory();
+	      syncInspector();
+		      if (isBackgroundShape(object)) {
+		        setStatus('Fondo añadido en modo edición. Ajusta tamaño/posición y pulsa Esc (o selecciona otro elemento) para volver a modo “pasar a través”.');
+		      }
+		    };
 	    const snapPointToCenters = (point, target, threshold = 10) => {
 	      const baseX = Number(point?.x) || 0;
 	      const baseY = Number(point?.y) || 0;
@@ -4133,6 +4184,18 @@
 	    };
     canvas.on('selection:created', syncInspectorDock);
     canvas.on('selection:updated', syncInspectorDock);
+    const autoDisableBackgroundEdits = () => {
+      const active = canvas.getActiveObject();
+      const keep = (active && isBackgroundShape(active) && active?.data?.background_edit) ? active : null;
+      const changed = disableBackgroundEditExcept(keep);
+      if (!changed) return;
+      try { canvas.requestRenderAll(); } catch (error) { /* ignore */ }
+      syncInspector();
+      renderLayers();
+    };
+    canvas.on('selection:created', autoDisableBackgroundEdits);
+    canvas.on('selection:updated', autoDisableBackgroundEdits);
+    canvas.on('selection:cleared', autoDisableBackgroundEdits);
 		    canvas.on('mouse:down', (event) => {
 		      if (!pendingFactory || event.target) return;
 		      const raw = canvas.getPointer(event.e);
@@ -4165,6 +4228,7 @@
     canvas.on('mouse:down', (event) => {
       const target = event.target;
       if (!target || !isBackgroundShape(target) || !event.e || event.e.shiftKey) return;
+      if (target?.data?.background_edit) return;
       try {
         const wasEvented = target.evented !== false;
         target.evented = false;
@@ -4414,9 +4478,7 @@
 					        }
 					        const active = canvas.getActiveObject();
 					        if (active && isBackgroundShape(active) && active?.data?.background_edit) {
-					          active.data.background_edit = false;
-					          normalizeEditableObject(active);
-					          canvas.requestRenderAll();
+					          setBackgroundEditMode(active, false, { force: true });
 					          syncInspector();
 					          renderLayers();
 					          setStatus('Fondo: modo edición desactivado.');
