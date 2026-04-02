@@ -2,17 +2,18 @@
    Scope: only active when <body class="prod-commercial"> is present. */
 
 body.prod-commercial {
-  --bg: var(--prod-bg);
-  --panel: var(--prod-panel);
+  /* Fallbacks para páginas standalone que aún no cargan product_system.css. */
+  --bg: var(--prod-bg, #08111d);
+  --panel: var(--prod-panel, #0d1728);
   --panel-soft: rgba(15, 23, 39, 0.84);
-  --line: var(--prod-line);
-  --ink: var(--prod-text);
-  --muted: var(--prod-muted);
-  --accent: var(--prod-secondary);
-  --pitch: var(--prod-primary);
+  --line: var(--prod-line, rgba(144, 161, 185, 0.22));
+  --ink: var(--prod-text, #f5f7fa);
+  --muted: var(--prod-muted, #91a1b9);
+  --accent: var(--prod-secondary, #f4b400);
+  --pitch: var(--prod-primary, #2f7d32);
 
   color: var(--ink);
-  font-family: var(--prod-font-ui);
+  font-family: var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", sans-serif);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: geometricPrecision;
