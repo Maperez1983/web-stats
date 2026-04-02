@@ -810,10 +810,35 @@
       .pitch-stage.has-grid::before {
         opacity: 1;
       }
-      .pitch-stage.is-portrait {
-        aspect-ratio: 684 / 1054;
-        width: 100%;
-      }
+	      .pitch-stage.is-portrait {
+	        aspect-ratio: 684 / 1054;
+	        width: 100%;
+	      }
+	      /* En vertical (portrait) el stage se vuelve demasiado alto si ocupa todo el ancho.
+	         En escritorio lo limitamos para que la pizarra siga siendo usable en una sola pantalla. */
+	      body.ui-desktop .pitch-stage.is-portrait {
+	        max-width: clamp(380px, 42vw, 560px);
+	      }
+	      /* En vertical, la plantilla en grid multi-fila aumenta muchísimo el alto.
+	         Cambiamos a fila con scroll horizontal (como en iPad) para reducir scroll de página. */
+	      body.ui-desktop #task-pitch-viewport.is-portrait ~ .section .player-bank {
+	        display: flex;
+	        flex-wrap: nowrap;
+	        overflow-x: auto;
+	        overflow-y: hidden;
+	        -webkit-overflow-scrolling: touch;
+	        padding-bottom: 4px;
+	      }
+	      body.ui-desktop #task-pitch-viewport.is-portrait ~ .section .player-bank > button {
+	        flex: 0 0 auto;
+	        min-width: 132px;
+	      }
+	      body.ui-desktop #task-pitch-viewport.is-portrait ~ .pitch-status {
+	        margin-top: 0.5rem;
+	      }
+	      body.ui-desktop #task-pitch-viewport.is-portrait ~ .section {
+	        margin-top: 0.65rem !important;
+	      }
       .pitch-viewport {
         width: 100%;
         overflow: hidden;
