@@ -4712,6 +4712,7 @@
 		    const resourcePanels = Array.from(document.querySelectorAll('.resource-panel'));
 		    const resourceDetails = document.getElementById('task-resource-details');
 		    const resourceSummaryLabel = document.getElementById('task-resource-summary-label');
+		    const resourceSelect = document.getElementById('task-resource-select');
 		    const resourceHelper = document.querySelector('.resource-helper');
 		    const getDeviceMode = () => {
 		      const raw = safeText(document.body?.dataset?.deviceMode);
@@ -4746,22 +4747,25 @@
       const match = resourceTabs.find((tab) => safeText(tab.dataset.resource) === normalized);
       return safeText(match?.textContent, normalized);
     };
-    const activateResourcePanel = (key) => {
-      const normalized = safeText(key);
-      activeResourceKey = normalized;
-      resourceTabs.forEach((tab) => tab.classList.toggle('is-active', safeText(tab.dataset.resource) === normalized && !!normalized));
-      resourcePanels.forEach((panel) => {
-        const visible = !!normalized && safeText(panel.dataset.panel) === normalized;
-        panel.hidden = !visible;
-        panel.classList.toggle('is-visible', visible);
-      });
-      if (resourceSummaryLabel) {
-        resourceSummaryLabel.textContent = normalized ? resourceLabelForKey(normalized) : 'Selecciona…';
-      }
-      if (resourceHelper) {
-        resourceHelper.hidden = !!normalized;
-      }
-    };
+	    const activateResourcePanel = (key) => {
+	      const normalized = safeText(key);
+	      activeResourceKey = normalized;
+	      resourceTabs.forEach((tab) => tab.classList.toggle('is-active', safeText(tab.dataset.resource) === normalized && !!normalized));
+	      resourcePanels.forEach((panel) => {
+	        const visible = !!normalized && safeText(panel.dataset.panel) === normalized;
+	        panel.hidden = !visible;
+	        panel.classList.toggle('is-visible', visible);
+	      });
+	      if (resourceSelect) {
+	        resourceSelect.value = normalized || '';
+	      }
+	      if (resourceSummaryLabel) {
+	        resourceSummaryLabel.textContent = normalized ? resourceLabelForKey(normalized) : 'Selecciona…';
+	      }
+	      if (resourceHelper) {
+	        resourceHelper.hidden = !!normalized;
+	      }
+	    };
 	    resourceTabs.forEach((tab) => {
 	      tab.addEventListener('click', () => {
 	        const target = safeText(tab.dataset.resource);
@@ -4774,6 +4778,10 @@
 	          }
 	        } catch (error) { /* ignore */ }
 	      });
+	    });
+	    resourceSelect?.addEventListener('change', () => {
+	      const key = safeText(resourceSelect.value);
+	      activateResourcePanel(key);
 	    });
 		    if (resourceTabs.length && resourcePanels.length) {
 	      // En escritorio mostramos por defecto "Recursos base" (más rápido).
