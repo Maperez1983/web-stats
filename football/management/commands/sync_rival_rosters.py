@@ -80,7 +80,8 @@ class Command(BaseCommand):
             if not isinstance(rows, list) or not rows:
                 raise CommandError(
                     'No se pudo obtener la clasificación desde Universo RFAF. '
-                    'Comprueba que el storage_state/token esté vigente.'
+                    'Comprueba que `RFAF_USER`/`RFAF_PASS` sean correctos (o define `RFAF_ACCESS_TOKEN`). '
+                    'Puedes ejecutar: `python manage.py universo_rfaf_diagnostics --group-id <id>`'
                 )
 
             for row in rows:
@@ -191,4 +192,3 @@ class Command(BaseCommand):
                 f'Rivales procesados: {processed} · refrescados: {refreshed} · omitidos: {skipped} · fallidos: {failed}'
             )
         )
-

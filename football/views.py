@@ -3536,13 +3536,13 @@ def _load_universo_access_token_from_storage_state() -> tuple[str, float]:
     return '', 0.0
 
 
-def _fetch_universo_access_token_via_login() -> tuple[str, float]:
+def _fetch_universo_access_token_via_login() -> tuple[str, float, str]:
     if requests is None:
-        return '', 0.0
+        return '', 0.0, 'requests no disponible'
     username = str(os.getenv('RFAF_USER', '') or '').strip()
     password = str(os.getenv('RFAF_PASS', '') or '').strip()
     if not username or not password:
-        return '', 0.0
+        return '', 0.0, 'Faltan RFAF_USER/RFAF_PASS'
     url = 'https://www.universorfaf.es/api/login'
     headers = {
         'Accept': 'application/json',
@@ -3556,20 +3556,24 @@ def _fetch_universo_access_token_via_login() -> tuple[str, float]:
             timeout=UNIVERSO_API_TIMEOUT_SECONDS,
         )
     except Exception:
-        return '', 0.0
+        return '', 0.0, 'Error de red al hacer login'
     if not getattr(response, 'ok', False):
-        return '', 0.0
+        try:
+            details = response.json() if response.headers.get('content-type', '').startswith('application/json') else response.text
+        except Exception:
+            details = ''
+        return '', 0.0, f'Login HTTP {getattr(response, "status_code", "")} {details}'.strip()
     try:
         payload = response.json()
     except Exception:
-        return '', 0.0
+        return '', 0.0, 'Login no devolvió JSON'
     if not isinstance(payload, dict):
-        return '', 0.0
+        return '', 0.0, 'Login devolvió formato inesperado'
     token = str(payload.get('token') or payload.get('access_token') or '').strip()
     if not token:
-        return '', 0.0
+        return '', 0.0, 'Login OK pero sin token'
     exp_ts = _jwt_exp_timestamp(token)
-    return token, exp_ts
+    return token, exp_ts, ''
 
 
 def _load_universo_access_token():
@@ -3584,7 +3588,12 @@ def _load_universo_access_token():
     token, exp_ts = _load_universo_access_token_from_storage_state()
     if token and (not exp_ts or exp_ts - 60 > now_ts):
         try:
-            _load_universo_access_token._memo = {'token': token, 'expires': exp_ts}
+            _load_universo_access_token._memo = {
+                'token': token,
+                'expires': exp_ts,
+                'source': 'storage_state',
+                'error': '',
+            }
         except Exception:
             pass
         return token
@@ -3594,18 +3603,33 @@ def _load_universo_access_token():
         env_exp = _jwt_exp_timestamp(env_token)
         if not env_exp or env_exp - 60 > now_ts:
             try:
-                _load_universo_access_token._memo = {'token': env_token, 'expires': env_exp}
+                _load_universo_access_token._memo = {
+                    'token': env_token,
+                    'expires': env_exp,
+                    'source': 'env',
+                    'error': '',
+                }
             except Exception:
                 pass
             return env_token
 
-    token, exp_ts = _fetch_universo_access_token_via_login()
+    token, exp_ts, error = _fetch_universo_access_token_via_login()
     if token:
         try:
-            _load_universo_access_token._memo = {'token': token, 'expires': exp_ts}
+            _load_universo_access_token._memo = {
+                'token': token,
+                'expires': exp_ts,
+                'source': 'api_login',
+                'error': '',
+            }
         except Exception:
             pass
         return token
+    if error:
+        try:
+            _load_universo_access_token._memo = {'token': '', 'expires': 0.0, 'source': 'api_login', 'error': error}
+        except Exception:
+            pass
     return ''
 
 
@@ -3639,6 +3663,17 @@ def _universo_api_post(endpoint, data=None):
     }
     try:
         response = requests.post(url, headers=headers, data=data or {}, timeout=UNIVERSO_API_TIMEOUT_SECONDS)
+        if getattr(response, 'status_code', None) in (401, 403):
+            # Token caducado: limpia memo y reintenta una vez (login por API).
+            try:
+                _load_universo_access_token._memo = None
+            except Exception:
+                pass
+            token = _load_universo_access_token()
+            if not token:
+                return {}
+            headers['Authorization'] = f'Bearer {token}'
+            response = requests.post(url, headers=headers, data=data or {}, timeout=UNIVERSO_API_TIMEOUT_SECONDS)
         response.raise_for_status()
         payload = response.json()
     except Exception:
