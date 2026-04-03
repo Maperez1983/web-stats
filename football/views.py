@@ -305,9 +305,33 @@ def system_diagnostics(request):
 
 SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "import_from_rfef.py"
 MANAGE_PY_DIR = SCRIPT_PATH.parents[1]
-NEXT_MATCH_CACHE = Path(settings.BASE_DIR) / "data" / "input" / "rfaf-next-match.json"
-UNIVERSO_SNAPSHOT_PATH = Path(settings.BASE_DIR) / "data" / "input" / "universo-rfaf-snapshot.json"
-UNIVERSO_CAPTURE_PATH = Path(settings.BASE_DIR) / "data" / "input" / "universo-rfaf-capture.json"
+
+def _env_path(var_name: str, default_path: Path) -> Path:
+    raw = str(os.getenv(var_name, '') or '').strip()
+    if raw:
+        try:
+            return Path(raw).expanduser()
+        except Exception:
+            return default_path
+    return default_path
+
+
+NEXT_MATCH_CACHE = _env_path(
+    'NEXT_MATCH_CACHE_PATH',
+    Path(settings.BASE_DIR) / "data" / "input" / "rfaf-next-match.json",
+)
+UNIVERSO_SNAPSHOT_PATH = _env_path(
+    'UNIVERSO_SNAPSHOT_PATH',
+    Path(settings.BASE_DIR) / "data" / "input" / "universo-rfaf-snapshot.json",
+)
+UNIVERSO_CAPTURE_PATH = _env_path(
+    'UNIVERSO_CAPTURE_PATH',
+    Path(settings.BASE_DIR) / "data" / "input" / "universo-rfaf-capture.json",
+)
+UNIVERSO_STORAGE_STATE_PATH = _env_path(
+    'RFAF_STORAGE_STATE_PATH',
+    Path(settings.BASE_DIR) / 'data' / 'input' / 'rfaf_storage_state.json',
+)
 TASK_RESOURCE_LIBRARY_PATH = Path(settings.BASE_DIR) / "data" / "input" / "task-resource-library.json"
 SCRAPE_LOCK_KEY = "football:refresh_scraping_running"
 SCRAPE_LOCK_TIMEOUT_SECONDS = 900
@@ -3473,7 +3497,7 @@ def load_universo_capture():
 
 
 def _load_universo_access_token():
-    storage_path = Path(settings.BASE_DIR) / 'data' / 'input' / 'rfaf_storage_state.json'
+    storage_path = UNIVERSO_STORAGE_STATE_PATH
     if not storage_path.exists():
         return ''
     try:
@@ -3489,7 +3513,7 @@ def _load_universo_access_token():
 
 
 def _load_universo_access_token_expires() -> float:
-    storage_path = Path(settings.BASE_DIR) / 'data' / 'input' / 'rfaf_storage_state.json'
+    storage_path = UNIVERSO_STORAGE_STATE_PATH
     if not storage_path.exists():
         return 0.0
     try:

@@ -12,6 +12,9 @@ class Command(BaseCommand):
     )
 
     def add_arguments(self, parser):
+        storage_default = os.getenv('RFAF_STORAGE_STATE_PATH', '').strip() or str(Path('data') / 'input' / 'rfaf_storage_state.json')
+        capture_default = os.getenv('UNIVERSO_CAPTURE_PATH', '').strip() or str(Path('data') / 'input' / 'universo-rfaf-capture.json')
+        snapshot_default = os.getenv('UNIVERSO_SNAPSHOT_PATH', '').strip() or str(Path('data') / 'input' / 'universo-rfaf-snapshot.json')
         parser.add_argument(
             '--team-url',
             default=os.getenv('RFAF_UNIVERSO_TEAM_URL', '').strip(),
@@ -19,17 +22,17 @@ class Command(BaseCommand):
         )
         parser.add_argument(
             '--storage-state',
-            default=str(Path('data') / 'input' / 'rfaf_storage_state.json'),
+            default=storage_default,
             help='Ruta del storage_state.',
         )
         parser.add_argument(
             '--capture-out',
-            default=str(Path('data') / 'input' / 'universo-rfaf-capture.json'),
+            default=capture_default,
             help='Salida de capturas crudas.',
         )
         parser.add_argument(
             '--snapshot-out',
-            default=str(Path('data') / 'input' / 'universo-rfaf-snapshot.json'),
+            default=snapshot_default,
             help='Salida snapshot estructurado.',
         )
         parser.add_argument(
