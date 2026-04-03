@@ -3024,23 +3024,142 @@
       refreshLivePreview();
       setStatus(`Superficie preparada: ${PRESET_LABEL[preset] || 'campo'} en ${ORIENTATION_LABEL[pitchOrientation]}.`);
     };
-			    const applyPitchOrientation = (nextOrientation, options = {}) => {
-			      const normalized = safeText(nextOrientation, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
-			      if (normalized === pitchOrientation && !options.force) return;
-			      pitchOrientation = normalized;
-			      syncOrientationUi();
-			      applyStageSizeUi({ noFit: true });
-			      if (!zoomTouched) {
-			        pitchZoom = 1.0;
-			        syncZoomUi();
-			      }
-			      fitCanvas(!useViewportMapping && options.preserveObjects !== false);
-			      setPreset(presetSelect.value || 'full_pitch');
-			      if (!options.silent) setStatus(`Campo en ${ORIENTATION_LABEL[pitchOrientation]}.`);
-			      if (options.pushHistory) {
-			        pushHistory();
-			      }
-			    };
+				    const applyPitchOrientation = (nextOrientation, options = {}) => {
+				      const normalized = safeText(nextOrientation, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
+				      if (normalized === pitchOrientation && !options.force) return;
+				      const fromOrientation = pitchOrientation;
+				      const fromWorld = worldSize();
+				      const toWorld = (normalized !== fromOrientation)
+				        ? { w: Math.max(1, Number(fromWorld.h) || 0), h: Math.max(1, Number(fromWorld.w) || 0) }
+				        : { w: Math.max(1, Number(fromWorld.w) || 0), h: Math.max(1, Number(fromWorld.h) || 0) };
+				      const remapPoint = (x, y) => {
+				        const fromW = Math.max(1, Number(fromWorld.w) || 1);
+				        const fromH = Math.max(1, Number(fromWorld.h) || 1);
+				        const toW = Math.max(1, Number(toWorld.w) || 1);
+				        const toH = Math.max(1, Number(toWorld.h) || 1);
+				        const rx = clamp(Number(x) / fromW, 0, 1);
+				        const ry = clamp(Number(y) / fromH, 0, 1);
+				        if (fromOrientation === 'landscape' && normalized === 'portrait') {
+				          // Rotación 90º CCW: derecha -> arriba.
+				          return { x: ry * toW, y: (1 - rx) * toH };
+				        }
+				        if (fromOrientation === 'portrait' && normalized === 'landscape') {
+				          // Rotación 90º CW: arriba -> derecha.
+				          return { x: (1 - ry) * toW, y: rx * toH };
+				        }
+				        return { x: rx * toW, y: ry * toH };
+				      };
+				      const shouldRotateAngle = (objLike) => {
+				        const kind = safeText(objLike?.data?.kind);
+				        if (!kind) {
+				          const t = safeText(objLike?.type);
+				          if (t === 'text' || t === 'i-text') return false;
+				          return true;
+				        }
+				        if (kind === 'token' || kind === 'text') return false;
+				        if (kind.startsWith('emoji_')) return false;
+				        return true;
+				      };
+				      const deltaAngle = (fromOrientation === 'landscape' && normalized === 'portrait') ? -90 : 90;
+				      const remapCanvasObjects = () => {
+				        if (!options.preserveObjects) return false;
+				        if (normalized === fromOrientation) return false;
+				        const objects = canvas.getObjects() || [];
+				        if (!objects.length) return false;
+				        // Evita “activeSelection” inconsistente durante el remapeo.
+				        try { canvas.discardActiveObject(); } catch (error) { /* ignore */ }
+				        objects.forEach((obj) => {
+				          if (!obj) return;
+				          const center = obj.getCenterPoint ? obj.getCenterPoint() : { x: Number(obj.left) || 0, y: Number(obj.top) || 0 };
+				          const mapped = remapPoint(center.x, center.y);
+				          try {
+				            if (typeof obj.setPositionByOrigin === 'function' && window.fabric) {
+				              obj.setPositionByOrigin(new fabric.Point(mapped.x, mapped.y), 'center', 'center');
+				            } else {
+				              obj.set({ left: mapped.x, top: mapped.y, originX: 'center', originY: 'center' });
+				            }
+				          } catch (error) {
+				            obj.set({ left: mapped.x, top: mapped.y });
+				          }
+				          if (shouldRotateAngle(obj)) {
+				            obj.set({ angle: (Number(obj.angle) || 0) + deltaAngle });
+				          }
+				          try { obj.setCoords(); } catch (error) { /* ignore */ }
+				        });
+				        // Mantén los fondos detrás si no están en modo edición.
+				        try {
+				          canvas.getObjects().forEach((obj) => {
+				            if (!obj || !isBackgroundShape(obj) || obj?.data?.background_edit) return;
+				            canvas.sendToBack(obj);
+				          });
+				        } catch (error) { /* ignore */ }
+				        return true;
+				      };
+				      const remapSerializedState = (state) => {
+				        if (!state || typeof state !== 'object') return state;
+				        const objects = Array.isArray(state.objects) ? state.objects : [];
+				        if (!objects.length) return state;
+				        const nextObjects = objects.map((obj) => {
+				          if (!obj || typeof obj !== 'object') return obj;
+				          const left = Number(obj.left);
+				          const top = Number(obj.top);
+				          if (!Number.isFinite(left) || !Number.isFinite(top)) return obj;
+				          const mapped = remapPoint(left, top);
+				          const next = { ...obj, left: mapped.x, top: mapped.y };
+				          if (normalized !== fromOrientation && shouldRotateAngle(obj)) {
+				            const a = Number(obj.angle) || 0;
+				            next.angle = a + deltaAngle;
+				          }
+				          return next;
+				        });
+				        return { ...state, objects: nextObjects };
+				      };
+				      const remapTimelineSnapshots = () => {
+				        if (!options.preserveObjects) return false;
+				        if (normalized === fromOrientation) return false;
+				        if (!Array.isArray(timeline) || !timeline.length) return false;
+				        timeline = timeline.map((step) => {
+				          if (!step || typeof step !== 'object') return step;
+				          return {
+				            ...step,
+				            canvas_state: remapSerializedState(step.canvas_state),
+				            canvas_width: toWorld.w,
+				            canvas_height: toWorld.h,
+				          };
+				        });
+				        return true;
+				      };
+
+				      // 1) Remapea el contenido a la nueva orientación (para que no “se descoloque”).
+				      const didRemapCanvas = remapCanvasObjects();
+				      const didRemapTimeline = remapTimelineSnapshots();
+
+				      // 2) Actualiza el tamaño del “mundo” (viewBox) para que el lienzo y el SVG del campo
+				      // compartan el mismo sistema de coordenadas.
+				      if (widthInput) widthInput.value = String(Math.round(toWorld.w || 0));
+				      if (heightInput) heightInput.value = String(Math.round(toWorld.h || 0));
+				      worldWidth = Math.round(toWorld.w || 0);
+				      worldHeight = Math.round(toWorld.h || 0);
+				      viewportPanX = 0;
+				      viewportPanY = 0;
+
+				      pitchOrientation = normalized;
+				      syncOrientationUi();
+				      applyStageSizeUi({ noFit: true });
+				      if (!zoomTouched) {
+				        pitchZoom = 1.0;
+				        syncZoomUi();
+				      }
+				      fitCanvas(!useViewportMapping && options.preserveObjects !== false);
+				      setPreset(presetSelect.value || 'full_pitch');
+				      if (!options.silent) setStatus(`Campo en ${ORIENTATION_LABEL[pitchOrientation]}.`);
+				      if (options.pushHistory) {
+				        if (didRemapCanvas || didRemapTimeline) {
+				          try { persistActiveStepSnapshot(); } catch (error) { /* ignore */ }
+				        }
+				        pushHistory();
+				      }
+				    };
 
     const renderSurfaceThumbs = () => {
       if (surfacesRendered) return;
