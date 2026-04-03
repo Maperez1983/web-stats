@@ -16717,9 +16717,16 @@ def recreate_session_task_graphic(request, task_id):
 
     preview_bytes = b''
     try:
+        # Usamos el storage del propio FileField (puede diferir de default_storage en algunos despliegues).
         if task.task_preview_image and task.task_preview_image.name:
-            with default_storage.open(task.task_preview_image.name, 'rb') as fh:
-                preview_bytes = fh.read() or b''
+            task.task_preview_image.open('rb')
+            try:
+                preview_bytes = task.task_preview_image.read() or b''
+            finally:
+                try:
+                    task.task_preview_image.close()
+                except Exception:
+                    pass
     except Exception:
         preview_bytes = b''
 
