@@ -5,7 +5,7 @@ import unicodedata
 from io import BytesIO, StringIO
 from pathlib import Path
 from typing import Optional
-from urllib.parse import urljoin, urlparse
+from urllib.parse import quote_plus, urljoin, urlparse
 
 from PIL import Image
 import pytesseract
@@ -510,6 +510,98 @@ def fetch_preferente_team_roster(team_url: str) -> list[dict]:
     except requests.RequestException as exc:
         raise ValueError(f'Error al consultar LaPreferente: {exc}') from exc
     return parse_preferente_roster(response.text)
+
+
+def find_preferente_team_url(team_name: str) -> str:
+    """
+    Intenta localizar la URL del equipo en LaPreferente a partir del nombre (búsqueda).
+    - Evita depender de un endpoint único: prueba varios patrones habituales.
+    - Valida candidatos abriendo la página y comprobando que existe `tablePlantilla`.
+    """
+    if not team_name or requests is None:
+        return ''
+    query = str(team_name or '').strip()
+    if not query:
+        return ''
+    q = quote_plus(query)
+    search_urls = [
+        f'{PREFERENTE_BASE_URL}buscar.php?buscar={q}',
+        f'{PREFERENTE_BASE_URL}buscador.php?buscar={q}',
+        f'{PREFERENTE_BASE_URL}index.php?buscar={q}',
+        f'{PREFERENTE_BASE_URL}search.php?q={q}',
+    ]
+
+    def _norm(text: str) -> str:
+        return re.sub(r'[^a-z0-9]+', '', normalize_player_name(text or ''))
+
+    target = _norm(query)
+    if not target:
+        return ''
+
+    def _score_candidate(label: str, href: str) -> int:
+        label_key = _norm(label)
+        href_key = _norm(href)
+        score = 0
+        if label_key == target:
+            score += 80
+        if target and (target in label_key or label_key in target):
+            score += 35
+        if target and (target in href_key or href_key in target):
+            score += 25
+        # Penaliza candidatos vacíos
+        if not label_key:
+            score -= 10
+        return score
+
+    def _extract_candidates(html: str) -> list[str]:
+        soup = BeautifulSoup(html or '', 'html.parser')
+        candidates = []
+        for a in soup.find_all('a', href=True):
+            href = str(a.get('href') or '').strip()
+            if not href:
+                continue
+            lowered = href.lower()
+            if 'equipo' not in lowered:
+                continue
+            # Filtra enlaces irrelevantes (assets, anchors, etc.)
+            if lowered.startswith('javascript:') or lowered.startswith('#'):
+                continue
+            label = a.get_text(' ', strip=True)
+            score = _score_candidate(label, href)
+            if score < 20:
+                continue
+            full = urljoin(PREFERENTE_BASE_URL, href)
+            candidates.append((score, full))
+        candidates.sort(key=lambda item: item[0], reverse=True)
+        return [url for _, url in candidates[:10]]
+
+    # 1) Busca en páginas de búsqueda.
+    for url in search_urls:
+        try:
+            response = _fetch_preferente_response(url, timeout=18)
+        except Exception:
+            continue
+        if not getattr(response, 'text', ''):
+            continue
+        for candidate in _extract_candidates(response.text):
+            try:
+                page = _fetch_preferente_response(candidate, timeout=18)
+            except Exception:
+                continue
+            html = page.text or ''
+            if 'tablePlantilla' in html:
+                return candidate
+
+    # 2) Fallback: si el equipo ya viene con enlace incrustado en el nombre (p.ej. pegado).
+    maybe_url = str(team_name or '').strip()
+    if maybe_url.startswith('http://') or maybe_url.startswith('https://'):
+        try:
+            page = _fetch_preferente_response(maybe_url, timeout=18)
+            if 'tablePlantilla' in (page.text or ''):
+                return maybe_url
+        except Exception:
+            pass
+    return ''
 
 
 def infer_roster_role(position: str) -> str:

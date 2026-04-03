@@ -159,6 +159,7 @@ from football.services import (
     build_rival_insights,
     update_team_standings,
     fetch_preferente_team_roster,
+    find_preferente_team_url,
     find_roster_entry,
     get_roster_stats_cache,
     load_match_actions,
@@ -17544,8 +17545,26 @@ def analysis_page(request):
             try:
                 if raw_text:
                     roster = parse_preferente_roster(raw_text)
-                elif team_url:
-                    roster = fetch_preferente_team_roster(team_url)
+                else:
+                    if not team_url and team:
+                        # Auto-búsqueda: si no hay URL guardada, intentamos localizar el equipo en La Preferente.
+                        try:
+                            team_url = find_preferente_team_url(team.name)
+                        except Exception:
+                            team_url = ''
+                    if not team_url and not team and home_rival_name:
+                        try:
+                            team_url = find_preferente_team_url(home_rival_name)
+                        except Exception:
+                            team_url = ''
+                    if team_url and team and (team.preferente_url or '').strip() != team_url:
+                        team.preferente_url = team_url
+                        team.save(update_fields=['preferente_url'])
+                    if team_url:
+                        roster = fetch_preferente_team_roster(team_url)
+
+                if not raw_text and not roster and not team_url:
+                    error = 'No se ha encontrado la URL del rival en La Preferente. Pega el enlace manualmente.'
 
                 probable_eleven = compute_probable_eleven(roster)
                 insights = build_rival_insights(roster)
@@ -17556,7 +17575,7 @@ def analysis_page(request):
                     lineup = []
                     error = 'Plantilla cargada, pero no se ha podido dibujar el 11 probable.'
 
-                if not roster:
+                if not roster and not error:
                     error = 'No se han encontrado jugadores en la plantilla.'
             except Exception:
                 error = 'No se ha podido procesar la plantilla del rival. Revisa URL o el contenido pegado.'
@@ -17574,6 +17593,17 @@ def analysis_page(request):
             team_id = str(auto_team.id)
             auto_team_name = auto_team.name
             team_url = (auto_team.preferente_url or '').strip()
+            if not team_url and auto_team_name:
+                try:
+                    team_url = find_preferente_team_url(auto_team_name)
+                except Exception:
+                    team_url = ''
+                if team_url:
+                    try:
+                        auto_team.preferente_url = team_url
+                        auto_team.save(update_fields=['preferente_url'])
+                    except Exception:
+                        pass
             if team_url:
                 try:
                     roster = fetch_preferente_team_roster(team_url)
