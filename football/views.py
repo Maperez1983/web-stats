@@ -3496,39 +3496,132 @@ def load_universo_capture():
     return payload if isinstance(payload, dict) else {}
 
 
-def _load_universo_access_token():
+def _jwt_exp_timestamp(token: str) -> float:
+    raw = str(token or '').strip()
+    if not raw or '.' not in raw:
+        return 0.0
+    try:
+        parts = raw.split('.')
+        if len(parts) < 2:
+            return 0.0
+        payload_b64 = parts[1]
+        payload_b64 += '=' * (-len(payload_b64) % 4)
+        decoded = base64.urlsafe_b64decode(payload_b64.encode('utf-8'))
+        payload = json.loads(decoded.decode('utf-8'))
+        exp = payload.get('exp')
+        return float(exp or 0.0) if exp else 0.0
+    except Exception:
+        return 0.0
+
+
+def _load_universo_access_token_from_storage_state() -> tuple[str, float]:
     storage_path = UNIVERSO_STORAGE_STATE_PATH
     if not storage_path.exists():
-        return ''
+        return '', 0.0
     try:
         payload = json.loads(storage_path.read_text(encoding='utf-8'))
     except Exception:
-        return ''
-    for cookie in payload.get('cookies') or []:
-        if not isinstance(cookie, dict):
-            continue
-        if str(cookie.get('name') or '').strip() == 'access_token':
-            return str(cookie.get('value') or '').strip()
-    return ''
-
-
-def _load_universo_access_token_expires() -> float:
-    storage_path = UNIVERSO_STORAGE_STATE_PATH
-    if not storage_path.exists():
-        return 0.0
-    try:
-        payload = json.loads(storage_path.read_text(encoding='utf-8'))
-    except Exception:
-        return 0.0
+        return '', 0.0
     for cookie in payload.get('cookies') or []:
         if not isinstance(cookie, dict):
             continue
         if str(cookie.get('name') or '').strip() != 'access_token':
             continue
+        token = str(cookie.get('value') or '').strip()
         try:
-            return float(cookie.get('expires') or 0.0) or 0.0
+            expires = float(cookie.get('expires') or 0.0) or 0.0
+        except Exception:
+            expires = 0.0
+        return token, expires
+    return '', 0.0
+
+
+def _fetch_universo_access_token_via_login() -> tuple[str, float]:
+    if requests is None:
+        return '', 0.0
+    username = str(os.getenv('RFAF_USER', '') or '').strip()
+    password = str(os.getenv('RFAF_PASS', '') or '').strip()
+    if not username or not password:
+        return '', 0.0
+    url = 'https://www.universorfaf.es/api/login'
+    headers = {
+        'Accept': 'application/json',
+        'User-Agent': '2j-football-intelligence/1.0',
+    }
+    try:
+        response = requests.post(
+            url,
+            headers=headers,
+            data={'email': username, 'password': password},
+            timeout=UNIVERSO_API_TIMEOUT_SECONDS,
+        )
+    except Exception:
+        return '', 0.0
+    if not getattr(response, 'ok', False):
+        return '', 0.0
+    try:
+        payload = response.json()
+    except Exception:
+        return '', 0.0
+    if not isinstance(payload, dict):
+        return '', 0.0
+    token = str(payload.get('token') or payload.get('access_token') or '').strip()
+    if not token:
+        return '', 0.0
+    exp_ts = _jwt_exp_timestamp(token)
+    return token, exp_ts
+
+
+def _load_universo_access_token():
+    memo = getattr(_load_universo_access_token, '_memo', None)
+    now_ts = timezone.now().timestamp()
+    if isinstance(memo, dict):
+        token = str(memo.get('token') or '').strip()
+        exp_ts = float(memo.get('expires') or 0.0) if memo.get('expires') else 0.0
+        if token and (not exp_ts or exp_ts - 60 > now_ts):
+            return token
+
+    token, exp_ts = _load_universo_access_token_from_storage_state()
+    if token and (not exp_ts or exp_ts - 60 > now_ts):
+        try:
+            _load_universo_access_token._memo = {'token': token, 'expires': exp_ts}
+        except Exception:
+            pass
+        return token
+
+    env_token = str(os.getenv('RFAF_ACCESS_TOKEN', '') or '').strip()
+    if env_token:
+        env_exp = _jwt_exp_timestamp(env_token)
+        if not env_exp or env_exp - 60 > now_ts:
+            try:
+                _load_universo_access_token._memo = {'token': env_token, 'expires': env_exp}
+            except Exception:
+                pass
+            return env_token
+
+    token, exp_ts = _fetch_universo_access_token_via_login()
+    if token:
+        try:
+            _load_universo_access_token._memo = {'token': token, 'expires': exp_ts}
+        except Exception:
+            pass
+        return token
+    return ''
+
+
+def _load_universo_access_token_expires() -> float:
+    memo = getattr(_load_universo_access_token, '_memo', None)
+    if isinstance(memo, dict) and memo.get('token'):
+        try:
+            return float(memo.get('expires') or 0.0) or 0.0
         except Exception:
             return 0.0
+    _, exp_ts = _load_universo_access_token_from_storage_state()
+    if exp_ts:
+        return float(exp_ts) or 0.0
+    env_token = str(os.getenv('RFAF_ACCESS_TOKEN', '') or '').strip()
+    if env_token:
+        return _jwt_exp_timestamp(env_token)
     return 0.0
 
 
