@@ -1210,14 +1210,18 @@
 		          lockRotation: false,
 		        });
 		      }
-		      if (!locked && isBackground) {
-		        object.set({
-		          selectable: true,
-		          evented: !!backgroundEdit,
-		          hoverCursor: backgroundEdit ? 'move' : 'default',
-		          moveCursor: backgroundEdit ? 'move' : 'default',
-		        });
-		      }
+			      if (!locked && isBackground) {
+			        object.set({
+			          selectable: true,
+			          // Importante: mantenemos `evented` activo incluso fuera de background_edit,
+			          // pero hacemos "pasar a través" en los handlers (clic normal) para no
+			          // bloquear colocar/mover elementos encima. Así la figura se puede seleccionar
+			          // fácilmente (p.ej. con Shift, o clic en zona vacía) sin quedar “ineditable”.
+			          evented: true,
+			          hoverCursor: backgroundEdit ? 'move' : 'default',
+			          moveCursor: backgroundEdit ? 'move' : 'default',
+			        });
+			      }
 
 		      // Nitidez: por defecto Fabric cachea en bitmap muchos objetos al escalar/rotar,
 		      // lo que provoca blur perceptible (especialmente en iPad y al hacer zoom).
@@ -4572,13 +4576,20 @@
     canvas.on('selection:created', autoDisableBackgroundEdits);
     canvas.on('selection:updated', autoDisableBackgroundEdits);
     canvas.on('selection:cleared', autoDisableBackgroundEdits);
-		    canvas.on('mouse:down', (event) => {
-		      if (!pendingFactory || event.target) return;
-		      const raw = canvas.getPointer(event.e);
-		      const base = { x: Number(raw?.x) || 0, y: Number(raw?.y) || 0 };
-		      const e = event?.e;
-		      const isMod = !!(e && (e.ctrlKey || e.metaKey));
-		      const snapGrid = shouldSnapToGridForEvent(e);
+			    canvas.on('mouse:down', (event) => {
+			      if (!pendingFactory) return;
+			      // Permitir colocar encima de figuras de fondo (zonas/figuras/porterías) sin que
+			      // el fondo intercepte el click. Si el fondo está en background_edit, sí bloquea.
+			      const target = event?.target;
+			      if (target) {
+			        const isBg = isBackgroundShape(target) && !target?.data?.background_edit;
+			        if (!isBg) return;
+			      }
+			      const raw = canvas.getPointer(event.e);
+			      const base = { x: Number(raw?.x) || 0, y: Number(raw?.y) || 0 };
+			      const e = event?.e;
+			      const isMod = !!(e && (e.ctrlKey || e.metaKey));
+			      const snapGrid = shouldSnapToGridForEvent(e);
 		      const isShift = !!(e && e.shiftKey);
 		      let pointer = base;
 

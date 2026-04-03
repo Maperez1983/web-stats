@@ -53,9 +53,10 @@ from .task_backups import write_task_backup
 from .preview_render import render_task_preview_png
 
 try:
-    from PIL import Image
+    from PIL import Image, ImageFilter
 except Exception:  # pragma: no cover
     Image = None
+    ImageFilter = None
 
 try:
     import pytesseract
@@ -10222,6 +10223,84 @@ def _recreate_canvas_state_from_preview_image_bytes(raw_bytes, canvas_width=1054
                 )
         return components
 
+    def _iter_components_mask(mask_px, min_pixels=10, max_pixels=50000):
+        """
+        Igual que `_iter_components`, pero basado en una máscara binaria ya calculada.
+        `mask_px[x, y]` debe ser >0 para considerar el pixel como parte del componente.
+        """
+        visited = bytearray(w * h)
+        components = []
+        for y in range(h):
+            row_base = y * w
+            for x in range(w):
+                idx = row_base + x
+                if visited[idx]:
+                    continue
+                if not mask_px[x, y]:
+                    continue
+                queue = [idx]
+                visited[idx] = 1
+                minx = maxx = x
+                miny = maxy = y
+                count = 0
+                sumx = sumy = 0
+                points = []
+                while queue:
+                    cur = queue.pop()
+                    cy, cx = divmod(cur, w)
+                    if not mask_px[cx, cy]:
+                        continue
+                    count += 1
+                    sumx += cx
+                    sumy += cy
+                    if count <= 1800:
+                        points.append((cx, cy))
+                    if cx < minx:
+                        minx = cx
+                    if cx > maxx:
+                        maxx = cx
+                    if cy < miny:
+                        miny = cy
+                    if cy > maxy:
+                        maxy = cy
+                    if cx > 0:
+                        n = cur - 1
+                        if not visited[n]:
+                            visited[n] = 1
+                            queue.append(n)
+                    if cx + 1 < w:
+                        n = cur + 1
+                        if not visited[n]:
+                            visited[n] = 1
+                            queue.append(n)
+                    if cy > 0:
+                        n = cur - w
+                        if not visited[n]:
+                            visited[n] = 1
+                            queue.append(n)
+                    if cy + 1 < h:
+                        n = cur + w
+                        if not visited[n]:
+                            visited[n] = 1
+                            queue.append(n)
+                    if count > max_pixels:
+                        break
+                if count < min_pixels:
+                    continue
+                components.append(
+                    {
+                        'minx': minx,
+                        'maxx': maxx,
+                        'miny': miny,
+                        'maxy': maxy,
+                        'count': count,
+                        'sumx': sumx,
+                        'sumy': sumy,
+                        'points': points,
+                    }
+                )
+        return components
+
     def _map_x(x):
         return float(x) / max(1, w) * float(world_w)
 
@@ -10260,12 +10339,48 @@ def _recreate_canvas_state_from_preview_image_bytes(raw_bytes, canvas_width=1054
             return False
         return True
 
-    def _is_dark_line(r, g, b):
-        return r <= 55 and g <= 55 and b <= 55
+    def _is_ink_pixel(r, g, b):
+        """
+        Píxeles "tinta" (flechas/trazos) sobre el césped.
+        - Excluye verdes dominantes (césped).
+        - Incluye grises/negros incluso con anti-alias al reescalar.
+        """
+        # césped (verde dominante)
+        if g > 70 and g > r + 14 and g > b + 14:
+            return False
+        # luminancia perceptual
+        lum = 0.2126 * float(r) + 0.7152 * float(g) + 0.0722 * float(b)
+        if lum <= 145:
+            return True
+        # colores medios saturados (p.ej. flechas oscuras no-grises)
+        mx = max(r, g, b)
+        mn = min(r, g, b)
+        if lum <= 170 and (mx - mn) >= 45 and mx <= 210:
+            return True
+        return False
 
     zones = _iter_components(_is_zone_color, min_pixels=180)
     markers = _iter_components(_is_marker_color, min_pixels=18, max_pixels=6000)
-    dark_lines = _iter_components(_is_dark_line, min_pixels=38, max_pixels=18000)
+    ink_lines = []
+    try:
+        mask = Image.new('L', (w, h), 0)
+        mp = mask.load()
+        for yy in range(h):
+            for xx in range(w):
+                rr, gg, bb = px[xx, yy]
+                if _is_ink_pixel(rr, gg, bb):
+                    mp[xx, yy] = 255
+        # Conecta trazos discontinuos (dash/dot) tras reescalar.
+        if ImageFilter is not None:
+            try:
+                mask = mask.filter(ImageFilter.MaxFilter(3))
+                mp = mask.load()
+            except Exception:
+                pass
+        ink_lines = _iter_components_mask(mp, min_pixels=28, max_pixels=22000)
+    except Exception:
+        # Fallback sin máscara: no reconstruye flechas, pero no rompe el import.
+        ink_lines = []
 
     objects = []
 
@@ -10403,13 +10518,19 @@ def _recreate_canvas_state_from_preview_image_bytes(raw_bytes, canvas_width=1054
             )
             continue
 
-    for comp in dark_lines:
+    for comp in ink_lines:
         x1, y1, x2, y2 = _bbox(comp)
         bw = max(1, x2 - x1 + 1)
         bh = max(1, y2 - y1 + 1)
-        if bw < 26 and bh < 26:
+        bbox_area = int(bw * bh)
+        count = int(comp.get('count') or 0)
+        if bw < 22 and bh < 22:
             continue
-        if (bw * bh) < 500:
+        if bbox_area < 260:
+            continue
+        # Densidad alta => normalmente etiquetas rectangulares o iconos rellenos (no flechas).
+        density = float(count) / float(max(1, bbox_area))
+        if density > 0.62 and bbox_area > 520:
             continue
         points = comp.get('points') or []
         if len(points) < 12:
@@ -10444,7 +10565,7 @@ def _recreate_canvas_state_from_preview_image_bytes(raw_bytes, canvas_width=1054
             if dist > best_len:
                 best_len = dist
                 best = (a, b)
-        if not best or best_len < 24:
+        if not best or best_len < 20:
             continue
         (ax, ay), (bx, by) = best
         x1w, y1w = _map_x(ax), _map_y(ay)
@@ -10454,7 +10575,7 @@ def _recreate_canvas_state_from_preview_image_bytes(raw_bytes, canvas_width=1054
         dx = x2w - x1w
         dy = y2w - y1w
         length = (dx * dx + dy * dy) ** 0.5
-        if length < 60:
+        if length < 52:
             continue
         angle = (180.0 / math.pi) * math.atan2(dy, dx)
         base_len = 102.0
