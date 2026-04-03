@@ -9978,9 +9978,17 @@ def _extract_preview_images_from_pdf(pdf_file, max_images=8, prefer_render=False
     if pdf_file is None:
         return []
     if prefer_render:
-        rendered_payload = _render_pdf_preview_with_pdftoppm(pdf_file)
-        if rendered_payload:
-            return [rendered_payload]
+        # Render via pdftoppm tends to be much sharper than embedded images
+        # (many PDFs embed ~800px thumbnails). Also support multi-task PDFs by
+        # returning up to `max_images`.
+        rendered_payloads = _render_pdf_previews_with_pdftoppm(
+            pdf_file,
+            max_images=max_images,
+            max_pages=10,
+            scale_to=2400,
+        )
+        if rendered_payloads:
+            return rendered_payloads
     payloads = []
     candidates = []
     if PdfReader is not None:
@@ -10133,12 +10141,36 @@ def _recreate_canvas_state_from_preview_image_bytes(raw_bytes, canvas_width=1054
     w0, h0 = img.size
     if w0 <= 0 or h0 <= 0:
         return None
-    max_side = 520
+    # Más resolución => mejor detección de flechas/figuras (sin subir a tamaños que ralenticen demasiado).
+    max_side = 780
     scale = min(1.0, float(max_side) / float(max(w0, h0)))
     if scale < 1.0:
         img = img.resize((max(1, int(round(w0 * scale))), max(1, int(round(h0 * scale)))), Image.BILINEAR)
     w, h = img.size
     px = img.load()
+
+    def _reservoir_sample_point(points, px_x, px_y, count, cap=1800):
+        """
+        Guarda una muestra representativa de puntos del componente (para endpoints/clasificación)
+        sin sesgo de "los primeros píxeles explorados" por DFS/BFS.
+        Usamos una variante determinista de reservoir sampling basada en hash.
+        """
+        if cap <= 0:
+            return
+        if len(points) < cap:
+            points.append((px_x, px_y))
+            return
+        try:
+            c = int(count or 0)
+        except Exception:
+            c = 0
+        if c <= 0:
+            return
+        # Hash determinista "suficientemente aleatorio" para dispersar la muestra.
+        h = ((int(px_x) + 1) * 73856093) ^ ((int(px_y) + 1) * 19349663) ^ (c * 83492791)
+        j = int(h % c)
+        if j < cap:
+            points[j] = (px_x, px_y)
 
     def _iter_components(predicate, min_pixels=10, max_pixels=50000):
         visited = bytearray(w * h)
@@ -10172,8 +10204,7 @@ def _recreate_canvas_state_from_preview_image_bytes(raw_bytes, canvas_width=1054
                     sumr += rr
                     sumg += gg
                     sumb += bb
-                    if count <= 1800:
-                        points.append((cx, cy))
+                    _reservoir_sample_point(points, cx, cy, count, cap=1800)
                     if cx < minx:
                         minx = cx
                     if cx > maxx:
@@ -10253,8 +10284,7 @@ def _recreate_canvas_state_from_preview_image_bytes(raw_bytes, canvas_width=1054
                     count += 1
                     sumx += cx
                     sumy += cy
-                    if count <= 1800:
-                        points.append((cx, cy))
+                    _reservoir_sample_point(points, cx, cy, count, cap=1800)
                     if cx < minx:
                         minx = cx
                     if cx > maxx:
@@ -10350,12 +10380,17 @@ def _recreate_canvas_state_from_preview_image_bytes(raw_bytes, canvas_width=1054
             return False
         # luminancia perceptual
         lum = 0.2126 * float(r) + 0.7152 * float(g) + 0.0722 * float(b)
-        if lum <= 145:
+        if lum <= 150:
             return True
-        # colores medios saturados (p.ej. flechas oscuras no-grises)
         mx = max(r, g, b)
         mn = min(r, g, b)
-        if lum <= 170 and (mx - mn) >= 45 and mx <= 210:
+        sat = mx - mn
+        # Muchos PDFs rasterizan flechas/trazos en gris (no negro). Capturamos grises medios,
+        # pero evitamos blancos puros para no "pillar" las líneas del campo.
+        if lum <= 190 and sat <= 26 and mx <= 215:
+            return True
+        # colores medios saturados (p.ej. flechas oscuras no-grises)
+        if lum <= 175 and sat >= 45 and mx <= 215:
             return True
         return False
 
@@ -10535,6 +10570,120 @@ def _recreate_canvas_state_from_preview_image_bytes(raw_bytes, canvas_width=1054
         points = comp.get('points') or []
         if len(points) < 12:
             continue
+
+        # Algunas figuras geométricas llegan como contorno (no relleno) y se confunden con diagonales.
+        # Intentamos detectar rectángulos/círculos para convertirlos a "shape-*" editable.
+        def _edge_hit_counts(_points, tol=4):
+            left = right = top = bottom = 0
+            for (pxx, pyy) in _points:
+                if abs(pxx - x1) <= tol:
+                    left += 1
+                if abs(pxx - x2) <= tol:
+                    right += 1
+                if abs(pyy - y1) <= tol:
+                    top += 1
+                if abs(pyy - y2) <= tol:
+                    bottom += 1
+            return left, right, top, bottom
+
+        def _looks_like_rect_outline(_points):
+            if bw < 46 or bh < 46:
+                return False
+            left, right, top, bottom = _edge_hit_counts(_points, tol=4)
+            total = max(1, len(_points))
+            min_edge = max(12, int(round(0.05 * total)))
+            if left < min_edge or right < min_edge or top < min_edge or bottom < min_edge:
+                return False
+            edge_sum = left + right + top + bottom
+            # La mayoría de puntos deben estar cerca del perímetro.
+            # Nota: tras `MaxFilter`/anti-alias puede haber "relleno" parcial; usamos umbral más laxo.
+            if (edge_sum / float(total)) < 0.55:
+                return False
+            # Evita "marcos" muy finos (probablemente líneas del campo).
+            if min(bw, bh) < 18:
+                return False
+            return True
+
+        def _looks_like_circle_outline(_points):
+            if bw < 44 or bh < 44:
+                return False
+            aspect = float(bw) / float(max(1, bh))
+            if aspect < 0.78 or aspect > 1.28:
+                return False
+            # Si hay mucha presencia en los 4 bordes del bbox, no es un círculo (es un rectángulo).
+            left, right, top, bottom = _edge_hit_counts(_points, tol=4)
+            total = max(1, len(_points))
+            min_edge = max(12, int(round(0.06 * total)))
+            if left >= min_edge and right >= min_edge and top >= min_edge and bottom >= min_edge:
+                return False
+            cx0 = (x1 + x2) / 2.0
+            cy0 = (y1 + y2) / 2.0
+            stride = max(1, int(len(_points) / 220))
+            dists = []
+            for (pxx, pyy) in _points[::stride]:
+                dx0 = float(pxx) - cx0
+                dy0 = float(pyy) - cy0
+                dists.append((dx0 * dx0 + dy0 * dy0) ** 0.5)
+            if len(dists) < 10:
+                return False
+            mean = sum(dists) / float(len(dists))
+            if mean < 18:
+                return False
+            var = sum((d - mean) ** 2 for d in dists) / float(len(dists))
+            stdev = var ** 0.5
+            return stdev <= mean * 0.18
+
+        if _looks_like_rect_outline(points):
+            cx0 = (x1 + x2) / 2.0
+            cy0 = (y1 + y2) / 2.0
+            world_wd = _map_x(bw) - _map_x(0)
+            world_ht = _map_y(bh) - _map_y(0)
+            kind = 'shape-rect'
+            if 0.92 <= (float(bw) / float(max(1, bh))) <= 1.08:
+                kind = 'shape-square'
+            objects.append(
+                {
+                    'type': 'rect',
+                    'left': _map_x(cx0),
+                    'top': _map_y(cy0),
+                    'originX': 'center',
+                    'originY': 'center',
+                    'width': world_wd,
+                    'height': world_ht,
+                    'rx': 10,
+                    'ry': 10,
+                    'fill': 'rgba(34,211,238,0.12)',
+                    'stroke': '#22d3ee',
+                    'strokeWidth': 3,
+                    'data': {'kind': kind},
+                    'objectCaching': False,
+                }
+            )
+            continue
+
+        if _looks_like_circle_outline(points):
+            cx0 = (x1 + x2) / 2.0
+            cy0 = (y1 + y2) / 2.0
+            world_wd = _map_x(bw) - _map_x(0)
+            world_ht = _map_y(bh) - _map_y(0)
+            radius = max(12.0, min(world_wd, world_ht) / 2.0)
+            objects.append(
+                {
+                    'type': 'circle',
+                    'left': _map_x(cx0),
+                    'top': _map_y(cy0),
+                    'originX': 'center',
+                    'originY': 'center',
+                    'radius': radius,
+                    'fill': 'rgba(34,211,238,0.12)',
+                    'stroke': '#22d3ee',
+                    'strokeWidth': 3,
+                    'data': {'kind': 'shape-circle'},
+                    'objectCaching': False,
+                }
+            )
+            continue
+
         min_s = 1e9
         max_s = -1e9
         min_d = 1e9
@@ -10796,7 +10945,7 @@ def _split_board_page_image_bytes(raw_bytes, max_images=3):
         return []
 
 
-def _render_pdf_previews_with_pdftoppm(pdf_file, max_images=1, max_pages=10):
+def _render_pdf_previews_with_pdftoppm(pdf_file, max_images=1, max_pages=10, scale_to=1700):
     """
     Renderiza páginas del PDF (vía pdftoppm) y devuelve las mejores previsualizaciones.
     - Si el PDF incluye varias páginas, elegimos las más "gráficas" (ratio verde alto -> pizarra/campo).
@@ -10815,6 +10964,11 @@ def _render_pdf_previews_with_pdftoppm(pdf_file, max_images=1, max_pages=10):
         max_pages = max(1, int(max_pages or 1))
     except Exception:
         max_pages = 10
+    try:
+        scale_to = int(scale_to or 1700)
+    except Exception:
+        scale_to = 1700
+    scale_to = max(900, min(scale_to, 3200))
     try:
         if hasattr(pdf_file, 'seek'):
             pdf_file.seek(0)
@@ -10836,7 +10990,7 @@ def _render_pdf_previews_with_pdftoppm(pdf_file, max_images=1, max_pages=10):
                     '-l',
                     str(max_pages),
                     '-scale-to',
-                    '1700',
+                    str(scale_to),
                     str(source_pdf),
                     str(output_base),
                 ],
@@ -13445,6 +13599,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     preview_payloads = _extract_preview_images_from_pdf(
                         pdf_file,
                         max_images=max(1, len(parsed_tasks)),
+                        prefer_render=recreate_board,
                     )
 
                     first = parsed_tasks[0]
