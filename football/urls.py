@@ -71,6 +71,7 @@ urlpatterns = [
     path('coach/sesiones/preparacion-fisica/tareas/<int:task_id>/editar/', views.sessions_fitness_task_edit_page, name='sessions-fitness-task-edit'),
     path('coach/sesiones/tarea/<int:task_id>/', views.session_task_detail_page, name='session-task-detail'),
     path('coach/sesiones/tarea/<int:task_id>/graphic/save/', views.save_session_task_graphic, name='session-task-graphic-save'),
+    path('coach/sesiones/tarea/<int:task_id>/graphic/recreate/', views.recreate_session_task_graphic, name='session-task-graphic-recreate'),
     path('coach/sesiones/tarea/<int:task_id>/archivo/', views.session_task_file, name='session-task-file'),
     path('coach/sesiones/tarea/<int:task_id>/preview/', views.session_task_preview_file, name='session-task-preview-file'),
     path('coach/sesiones/tarea/<int:task_id>/pdf/', views.session_task_pdf, name='session-task-pdf'),

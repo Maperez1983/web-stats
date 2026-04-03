@@ -15630,6 +15630,17 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
 
     feedback = ''
     error = ''
+    if request.method == 'GET':
+        if str(request.GET.get('board_recreated') or '').strip() == '1':
+            feedback = 'Pizarra reconstruida desde el PDF. Revisa la tarea y guarda.'
+        board_err = str(request.GET.get('board_recreate_error') or '').strip().lower()
+        if board_err:
+            messages = {
+                'already': 'La pizarra ya tiene elementos. Si quieres sobrescribirla, indícalo.',
+                'no_preview': 'No hay imagen previa/PDF para reconstruir la pizarra.',
+                'failed': 'No se pudo reconstruir la pizarra desde el PDF.',
+            }
+            error = messages.get(board_err, 'No se pudo reconstruir la pizarra desde el PDF.')
     if request.method == 'POST':
         try:
             task = _save_task_builder_entry(request, primary_team, scope_key, existing_task=task)
@@ -16661,6 +16672,80 @@ def save_session_task_graphic(request, task_id):
 
     task.save(update_fields=update_fields)
     return JsonResponse({'saved': True, 'task_id': task.id})
+
+
+@authenticated_write
+@require_POST
+def recreate_session_task_graphic(request, task_id):
+    """
+    Reconstruye la pizarra editable usando la previsualización (card) o el PDF original.
+    Útil cuando se importó el PDF sin marcar "Recrear pizarra" o cuando falló el proceso.
+    """
+    if not _can_access_sessions_workspace(request.user):
+        return HttpResponse('No tienes permisos para acceder a sesiones.', status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        raise Http404('Equipo principal no configurado')
+    task = (
+        SessionTask.objects
+        .select_related('session__microcycle__team')
+        .filter(id=task_id, deleted_at__isnull=True)
+        .first()
+    )
+    if not task:
+        raise Http404('Tarea no encontrada')
+    if task.session and task.session.microcycle and task.session.microcycle.team_id != primary_team.id:
+        return HttpResponse('La tarea no pertenece a este equipo.', status=403)
+
+    scope_key = _task_scope_for_item(task)
+    edit_route = _task_builder_edit_route_name(scope_key)
+
+    layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
+    meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+    graphic = meta.get('graphic_editor') if isinstance(meta.get('graphic_editor'), dict) else {}
+    canvas_state = graphic.get('canvas_state') if isinstance(graphic.get('canvas_state'), dict) else {}
+    objects = canvas_state.get('objects') if isinstance(canvas_state, dict) else None
+    has_objects = isinstance(objects, list) and len(objects) > 0
+    force = str(request.POST.get('force') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    if has_objects and not force:
+        return redirect(f"{reverse(edit_route, args=[task.id])}?board_recreate_error=already")
+
+    _ensure_original_task_snapshot(task)
+
+    preview_bytes = b''
+    try:
+        if task.task_preview_image and task.task_preview_image.name:
+            with default_storage.open(task.task_preview_image.name, 'rb') as fh:
+                preview_bytes = fh.read() or b''
+    except Exception:
+        preview_bytes = b''
+
+    if (not preview_bytes) and getattr(task, 'task_pdf', None):
+        try:
+            preview_payload = _extract_preview_image_from_pdf(task.task_pdf, prefer_render=True)
+            if preview_payload:
+                _, content = preview_payload
+                try:
+                    content.seek(0)
+                except Exception:
+                    pass
+                try:
+                    preview_bytes = content.read() or b''
+                except Exception:
+                    preview_bytes = b''
+        except Exception:
+            preview_bytes = b''
+
+    if not preview_bytes:
+        return redirect(f"{reverse(edit_route, args=[task.id])}?board_recreate_error=no_preview")
+
+    ok = _maybe_recreate_board_from_preview_bytes(task, preview_bytes)
+    if not ok:
+        return redirect(f"{reverse(edit_route, args=[task.id])}?board_recreate_error=failed")
+    return redirect(f"{reverse(edit_route, args=[task.id])}?board_recreated=1")
 
 
 @login_required

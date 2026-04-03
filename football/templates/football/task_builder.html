@@ -2548,17 +2548,34 @@
 		                </div>
 		              </div>
 
-		              <div class="side-pane" data-pane="preview" role="tabpanel">
-		                <div class="section preview-card">
-		                  <h3>Vista previa</h3>
-		                  <div class="live-preview-frame">
-                    <img id="task-live-preview" src="{{ task_preview_url }}" alt="Preview de tarea" {% if not task_preview_url %}hidden{% endif %} />
-                    <div id="task-live-preview-placeholder" class="live-preview-placeholder" {% if task_preview_url %}hidden{% endif %}>
-                      La preview se genera mientras diseñas la tarea.
-                    </div>
-                  </div>
-                </div>
-              </div>
+			              <div class="side-pane" data-pane="preview" role="tabpanel">
+			                <div class="section preview-card">
+			                  <h3>Vista previa</h3>
+			                  <div class="live-preview-frame">
+	                    <img id="task-live-preview" src="{{ task_preview_url }}" alt="Preview de tarea" {% if not task_preview_url %}hidden{% endif %} />
+	                    <div id="task-live-preview-placeholder" class="live-preview-placeholder" {% if task_preview_url %}hidden{% endif %}>
+	                      La preview se genera mientras diseñas la tarea.
+	                    </div>
+	                  </div>
+	                  {% if task and task.task_pdf and scope_key != 'task_studio' %}
+	                  <div style="margin-top:0.75rem; display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+	                    <button
+	                      type="submit"
+	                      class="button"
+	                      formaction="{% url 'session-task-graphic-recreate' task.id %}"
+	                      formmethod="post"
+	                      title="Reconstruye la pizarra editable usando el gráfico del PDF (si la tarea se importó sin pizarra)."
+	                    >
+	                      Reconstruir pizarra desde PDF
+	                    </button>
+	                    <label style="display:flex; gap:8px; align-items:center; font-size:0.95rem; opacity:0.9;">
+	                      <input type="checkbox" name="force" value="1" />
+	                      Sobrescribir si ya hay elementos
+	                    </label>
+	                  </div>
+	                  {% endif %}
+	                </div>
+	              </div>
 
               <div class="submit-row">
                 <button type="submit" class="primary">{% if task %}Guardar tarea{% else %}Crear tarea{% endif %}</button>
