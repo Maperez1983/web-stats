@@ -4076,11 +4076,16 @@
 	        overlayUrl = '';
 	      }
 
-		      // Clona el SVG y fija width/height al tamaño final de exportación para que el rasterizado
-		      // respete el `preserveAspectRatio` real (meet/slice) y no distorsione el campo al componer.
+		      // Clona el SVG y fija width/height al tamaño final de exportación.
+		      // Importante: en el editor, el SVG en vertical usa `slice` para evitar “barras”, pero en exportación
+		      // necesitamos `meet` para NO recortar el campo. Luego recortamos de forma controlada con data-pitch-box.
 		      let svgMarkup = '';
+		      let exportPreserveAspectRatio = safeText(svgSurface.getAttribute('preserveAspectRatio'));
 		      try {
 		        const clone = svgSurface.cloneNode(true);
+		        // En exportación, evita recortes por `slice` (vertical) y deja que el recorte lo haga data-pitch-box.
+		        clone.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+		        exportPreserveAspectRatio = safeText(clone.getAttribute('preserveAspectRatio')) || exportPreserveAspectRatio;
 		        const viewBoxRaw = safeText(clone.getAttribute('viewBox'));
 		        const vbParts = viewBoxRaw.split(/\s+/).map((v) => Number(v)).filter((n) => Number.isFinite(n));
 		        if (vbParts.length >= 4) {
@@ -4175,7 +4180,7 @@
 			            const [boxX, boxY, boxW, boxH] = boxParts;
 			            const [vbX, vbY, vbW, vbH] = vbParts;
 			            if (vbW > 0 && vbH > 0 && boxW > 0 && boxH > 0) {
-				              const preserveRaw = safeText(svgSurface.getAttribute('preserveAspectRatio'));
+				              const preserveRaw = exportPreserveAspectRatio || safeText(svgSurface.getAttribute('preserveAspectRatio'));
 				              const isNone = /\bnone\b/i.test(preserveRaw);
 				              const isSlice = /\bslice\b/i.test(preserveRaw);
 				              const outW = Math.max(1, Number(output.width || 1));
