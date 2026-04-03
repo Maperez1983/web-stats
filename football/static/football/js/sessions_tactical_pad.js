@@ -97,16 +97,19 @@
     goalkeeper: { fill: '#111827', stroke: '#facc15', text: '#facc15' },
     goalkeeper_blue: { fill: '#1d4ed8', stroke: '#eff6ff', text: '#ffffff' },
   };
-  const RESOURCE_LABELS = {
-    ball: 'el balón',
-    cone: 'un cono',
-    zone: 'una zona',
-    text: 'un texto',
-    goal: 'una portería',
-    token: 'un jugador',
-    line: 'una línea',
-    arrow: 'una flecha',
-    line_solid: 'una línea continua',
+	  const RESOURCE_LABELS = {
+	    ball: 'el balón',
+	    cone: 'un cono',
+	    zone: 'una zona',
+	    text: 'un texto',
+	    goal: 'una portería',
+	    goal_posts: 'una portería (marco)',
+	    goal_3d: 'una portería 3D',
+	    goal_mini: 'una mini portería',
+	    token: 'un jugador',
+	    line: 'una línea',
+	    arrow: 'una flecha',
+	    line_solid: 'una línea continua',
     line_dash: 'una línea discontinua',
     line_dot: 'una línea de puntos',
     line_double: 'una línea doble',
@@ -3425,10 +3428,144 @@
 		          try { part.noScaleCache = true; } catch (e) { /* ignore */ }
 		        });
 		      } catch (error) { /* ignore */ }
-		      return group;
-		    };
+			      return group;
+			    };
 
-    const simpleFactory = (kind) => {
+	    const buildGoalGroup = (left, top, style = 'net', options = {}) => {
+	      const stroke = safeText(options.stroke, '#f8fafc') || '#f8fafc';
+	      const strokeWidth = clamp(Number(options.strokeWidth) || 3, 2, 8);
+	      const baseW = Number(options.width) || 128;
+	      const baseH = Number(options.height) || 74;
+	      const w = clamp(baseW, 60, 260);
+	      const h = clamp(baseH, 40, 200);
+
+	      const parts = [];
+	      const frameRx = style === 'posts' ? 2 : 8;
+	      const front = new fabric.Rect({
+	        left: 0,
+	        top: 0,
+	        originX: 'center',
+	        originY: 'center',
+	        width: w,
+	        height: h,
+	        rx: frameRx,
+	        ry: frameRx,
+	        fill: '',
+	        stroke,
+	        strokeWidth,
+	      });
+	      parts.push(front);
+
+	      const addNetGrid = (gridW, gridH, offsetX = 0, offsetY = 0, stepX = 18, stepY = 16, opacity = 0.22) => {
+	        const strokeLocal = `rgba(248,250,252,${opacity})`;
+	        for (let x = -gridW / 2 + 14; x <= gridW / 2 - 14; x += stepX) {
+	          parts.push(new fabric.Line([x + offsetX, -gridH / 2 + 10 + offsetY, x + offsetX, gridH / 2 - 10 + offsetY], {
+	            stroke: strokeLocal,
+	            strokeWidth: 1,
+	            originX: 'center',
+	            originY: 'center',
+	            selectable: false,
+	            evented: false,
+	          }));
+	        }
+	        for (let y = -gridH / 2 + 10; y <= gridH / 2 - 10; y += stepY) {
+	          parts.push(new fabric.Line([-gridW / 2 + 12 + offsetX, y + offsetY, gridW / 2 - 12 + offsetX, y + offsetY], {
+	            stroke: strokeLocal,
+	            strokeWidth: 1,
+	            originX: 'center',
+	            originY: 'center',
+	            selectable: false,
+	            evented: false,
+	          }));
+	        }
+	      };
+
+	      if (style === 'net') {
+	        addNetGrid(w, h, 0, 0, 18, 16, 0.22);
+	      } else if (style === '3d') {
+	        const depthX = Math.max(10, Math.round(w * 0.11));
+	        const depthY = Math.max(8, Math.round(h * 0.12));
+	        const backW = Math.max(52, Math.round(w * 0.84));
+	        const backH = Math.max(38, Math.round(h * 0.84));
+	        const back = new fabric.Rect({
+	          left: depthX,
+	          top: depthY,
+	          originX: 'center',
+	          originY: 'center',
+	          width: backW,
+	          height: backH,
+	          rx: 6,
+	          ry: 6,
+	          fill: '',
+	          stroke: 'rgba(248,250,252,0.72)',
+	          strokeWidth: Math.max(2, strokeWidth - 1),
+	          selectable: false,
+	          evented: false,
+	        });
+	        parts.push(back);
+
+	        const frontLeft = { x: -w / 2, y: -h / 2 };
+	        const frontRight = { x: w / 2, y: -h / 2 };
+	        const frontBottomLeft = { x: -w / 2, y: h / 2 };
+	        const frontBottomRight = { x: w / 2, y: h / 2 };
+	        const backLeft = { x: depthX - (backW / 2), y: depthY - (backH / 2) };
+	        const backRight = { x: depthX + (backW / 2), y: depthY - (backH / 2) };
+	        const backBottomLeft = { x: depthX - (backW / 2), y: depthY + (backH / 2) };
+	        const backBottomRight = { x: depthX + (backW / 2), y: depthY + (backH / 2) };
+
+	        [
+	          [frontLeft, backLeft],
+	          [frontRight, backRight],
+	          [frontBottomLeft, backBottomLeft],
+	          [frontBottomRight, backBottomRight],
+	        ].forEach(([a, b]) => {
+	          parts.push(new fabric.Line([a.x, a.y, b.x, b.y], {
+	            stroke: 'rgba(248,250,252,0.55)',
+	            strokeWidth: Math.max(2, strokeWidth - 1),
+	            selectable: false,
+	            evented: false,
+	          }));
+	        });
+	        addNetGrid(backW, backH, depthX, depthY, 16, 14, 0.18);
+	        for (let i = 0; i < 5; i += 1) {
+	          const t = (i + 1) / 6;
+	          const x1 = backLeft.x + (backW * t);
+	          const y1 = backLeft.y;
+	          const x2 = backBottomLeft.x;
+	          const y2 = backBottomLeft.y - (backH * t);
+	          parts.push(new fabric.Line([x1, y1, x2, y2], {
+	            stroke: 'rgba(248,250,252,0.14)',
+	            strokeWidth: 1,
+	            selectable: false,
+	            evented: false,
+	          }));
+	        }
+	      } else if (style === 'mini') {
+	        addNetGrid(w, h, 0, 0, 22, 18, 0.16);
+	      } else if (style === 'posts') {
+	        // Solo marco: nada de red.
+	      }
+
+	      const group = new fabric.Group(parts, {
+	        left,
+	        top,
+	        originX: 'center',
+	        originY: 'center',
+	        data: { kind: 'goal', goal_style: style, color: stroke, stroke_width: strokeWidth },
+	      });
+	      try { group.objectCaching = false; } catch (error) { /* ignore */ }
+	      try { group.noScaleCache = true; } catch (error) { /* ignore */ }
+	      try {
+	        parts.forEach((part) => {
+	          if (!part) return;
+	          try { part.objectCaching = false; } catch (e) { /* ignore */ }
+	          try { part.noScaleCache = true; } catch (e) { /* ignore */ }
+	        });
+	      } catch (error) { /* ignore */ }
+	      return group;
+	    };
+
+	    const simpleFactory = (kind) => {
       if (kind === 'ball') {
         return (left, top) => new fabric.Circle({
           left, top, originX: 'center', originY: 'center',
@@ -3443,64 +3580,17 @@
           data: { kind: 'cone', color: '#f97316' },
         });
       }
-      if (kind === 'zone') {
-        return (left, top) => new fabric.Rect({
-          left, top, originX: 'center', originY: 'center',
-          width: 130, height: 84, fill: 'rgba(34,211,238,0.16)', stroke: '#22d3ee', strokeWidth: 3,
-          rx: 12, ry: 12, data: { kind: 'zone', color: '#22d3ee' },
-        });
-      }
-      if (kind === 'goal') {
-        return (left, top) => {
-          const stroke = '#f8fafc';
-          const strokeWidth = 3;
-          const w = 128;
-          const h = 74;
-          const frame = new fabric.Rect({
-            left: 0,
-            top: 0,
-            originX: 'center',
-            originY: 'center',
-            width: w,
-            height: h,
-            rx: 8,
-            ry: 8,
-            fill: '',
-            stroke,
-            strokeWidth,
-          });
-          const netStroke = 'rgba(248,250,252,0.22)';
-          const net = [];
-          for (let x = -w / 2 + 14; x <= w / 2 - 14; x += 18) {
-            net.push(new fabric.Line([x, -h / 2 + 10, x, h / 2 - 10], {
-              stroke: netStroke,
-              strokeWidth: 1,
-              originX: 'center',
-              originY: 'center',
-              selectable: false,
-              evented: false,
-            }));
-          }
-          for (let y = -h / 2 + 10; y <= h / 2 - 10; y += 16) {
-            net.push(new fabric.Line([-w / 2 + 12, y, w / 2 - 12, y], {
-              stroke: netStroke,
-              strokeWidth: 1,
-              originX: 'center',
-              originY: 'center',
-              selectable: false,
-              evented: false,
-            }));
-          }
-          const group = new fabric.Group([frame, ...net], {
-            left,
-            top,
-            originX: 'center',
-            originY: 'center',
-            data: { kind: 'goal', color: stroke, stroke_width: strokeWidth },
-          });
-          return group;
-        };
-      }
+	      if (kind === 'zone') {
+	        return (left, top) => new fabric.Rect({
+	          left, top, originX: 'center', originY: 'center',
+	          width: 130, height: 84, fill: 'rgba(34,211,238,0.16)', stroke: '#22d3ee', strokeWidth: 3,
+	          rx: 12, ry: 12, data: { kind: 'zone', color: '#22d3ee' },
+	        });
+	      }
+	      if (kind === 'goal') return (left, top) => buildGoalGroup(left, top, 'net');
+	      if (kind === 'goal_posts') return (left, top) => buildGoalGroup(left, top, 'posts');
+	      if (kind === 'goal_3d') return (left, top) => buildGoalGroup(left, top, '3d');
+	      if (kind === 'goal_mini') return (left, top) => buildGoalGroup(left, top, 'mini', { width: 96, height: 56 });
       if (kind === 'line' || kind === 'line_solid') {
         return (left, top) => new fabric.Line([-55, 0, 55, 0], {
           left, top, originX: 'center', originY: 'center',
