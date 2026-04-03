@@ -187,28 +187,42 @@ def resolve_preferente_team(session: requests.Session, expected_name: str) -> Op
     expected = (expected_name or '').strip()
     if len(expected) < 3:
         return None
-    queries: list[str] = []
-    queries.append(expected)
+
+    # Alias puntuales cuando en nuestra BD el nombre difiere del alias que usa LaPreferente.
+    # Ej: en algunas fuentes aparece "C.P. ALMERIA", pero en LaPreferente el equipo es "Poli Almería".
+    alias_map = {
+        'cpalmeria': ['Poli Almería', 'Poli Almeria', 'Polideportivo Almeria'],
+    }
+
+    queries: list[tuple[str, str]] = []
+    queries.append((expected, expected))
+
+    normalized = _norm(expected)
+    for alias in alias_map.get(normalized, []):
+        if alias and alias.lower() != expected.lower():
+            # Para alias usamos el propio alias como nombre esperado (score) para que case con el resultado.
+            queries.append((alias, alias))
+
     simplified = simplify_team_name(expected)
     if simplified and simplified.lower() != expected.lower():
-        queries.append(simplified)
+        queries.append((simplified, expected))
         tokens = simplified.split()
         if len(tokens) >= 2:
-            queries.append(' '.join(tokens[:2]))
-            queries.append(' '.join(tokens[-2:]))
+            queries.append((' '.join(tokens[:2]), expected))
+            queries.append((' '.join(tokens[-2:]), expected))
         if len(tokens) >= 3:
-            queries.append(' '.join(tokens[:3]))
+            queries.append((' '.join(tokens[:3]), expected))
 
     seen = set()
-    for query in queries:
-        q = query.strip()
+    for query, expected_for_score in queries:
+        q = (query or '').strip()
         if len(q) < 3:
             continue
         key = q.lower()
         if key in seen:
             continue
         seen.add(key)
-        candidate = search_preferente_team(session, q, expected_name=expected)
+        candidate = search_preferente_team(session, q, expected_name=expected_for_score)
         if candidate:
             return candidate
     return None
@@ -273,8 +287,7 @@ class Command(BaseCommand):
             if latest_group_id:
                 group_id = int(latest_group_id)
                 standings_qs = standings_qs.filter(group_id=group_id)
-        team_ids = list(standings_qs.values_list('team_id', flat=True).distinct())
-        teams = Team.objects.filter(id__in=team_ids).order_by('name')
+        standings_rows = list(standings_qs.order_by('position', 'id'))
 
         session = requests.Session()
         try:
@@ -286,7 +299,8 @@ class Command(BaseCommand):
         skipped = 0
         not_found = 0
         rows: list[str] = []
-        for team in teams:
+        for standing in standings_rows:
+            team = standing.team
             existing = (team.preferente_url or '').strip()
             if existing and not force:
                 skipped += 1
@@ -313,6 +327,6 @@ class Command(BaseCommand):
         mode = 'APLICADO' if apply else 'SIMULACIÓN'
         self.stdout.write(
             self.style.SUCCESS(
-                f'[{mode}] Equipos: {teams.count()} · actualizados: {updated} · omitidos: {skipped} · no encontrados: {not_found}'
+                f'[{mode}] Equipos: {len(standings_rows)} · actualizados: {updated} · omitidos: {skipped} · no encontrados: {not_found}'
             )
         )

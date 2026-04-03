@@ -533,8 +533,58 @@ def find_preferente_team_url(team_name: str) -> str:
     if not query:
         return ''
 
+    # Alias puntuales cuando el nombre externo no coincide con LaPreferente.
+    # Ej: "C.P. ALMERIA" suele ser "Poli Almería" en LaPreferente.
+    def _alias_queries(original: str) -> list[str]:
+        normalized = _norm(original)
+        if normalized == 'cpalmeria':
+            return ['Poli Almería', 'Poli Almeria', 'Polideportivo Almeria']
+        return []
+
     def _norm(text: str) -> str:
         return re.sub(r'[^a-z0-9]+', '', normalize_player_name(text or ''))
+
+    def _try_json_search(search_text: str) -> str:
+        local_target = _norm(search_text)
+        if not local_target:
+            return ''
+        session = requests.Session()
+        try:
+            session.get(PREFERENTE_BASE_URL, headers=_preferente_headers(PREFERENTE_BASE_URL), timeout=10)
+        except Exception:
+            pass
+        try:
+            response = session.get(
+                urljoin(PREFERENTE_BASE_URL, 'json/buscaEquipos.php'),
+                params={'q': search_text},
+                headers=_preferente_headers(PREFERENTE_BASE_URL),
+                timeout=18,
+            )
+            data = response.json() if response.ok else {}
+            results = data.get('results') if isinstance(data, dict) else None
+            if not isinstance(results, list):
+                return ''
+            scored = []
+            for item in results[:20]:
+                if not isinstance(item, dict):
+                    continue
+                team_id = str(item.get('id') or '').strip()
+                if not team_id.isdigit():
+                    continue
+                label = (item.get('nombre') or item.get('text') or '').strip()
+                # Reutilizamos el scoring existente, pero con el target del texto buscado.
+                score = _score_candidate(label, team_id)
+                if score < 20:
+                    continue
+                candidate_url = f'{PREFERENTE_BASE_URL}?IDequipo={team_id}'
+                scored.append((score, candidate_url))
+            scored.sort(key=lambda row: row[0], reverse=True)
+            for _, candidate in scored[:10]:
+                if _open_and_validate(session, candidate):
+                    return candidate
+        except Exception:
+            return ''
+        return ''
 
     target = _norm(query)
     if not target:
@@ -588,38 +638,13 @@ def find_preferente_team_url(team_name: str) -> str:
     # 1) Buscador oficial (select2) vía JSON: json/buscaEquipos.php?q=...
     # Es la forma más estable de localizar el IDequipo y construir /?IDequipo=...
     if len(query) >= 3:
-        session = requests.Session()
-        try:
-            session.get(PREFERENTE_BASE_URL, headers=_preferente_headers(PREFERENTE_BASE_URL), timeout=10)
-        except Exception:
-            pass
-        try:
-            response = session.get(
-                urljoin(PREFERENTE_BASE_URL, 'json/buscaEquipos.php'),
-                params={'q': query},
-                headers=_preferente_headers(PREFERENTE_BASE_URL),
-                timeout=18,
-            )
-            data = response.json() if response.ok else {}
-            results = data.get('results') if isinstance(data, dict) else None
-            if isinstance(results, list):
-                scored = []
-                for item in results[:20]:
-                    if not isinstance(item, dict):
-                        continue
-                    team_id = str(item.get('id') or '').strip()
-                    if not team_id.isdigit():
-                        continue
-                    label = (item.get('nombre') or item.get('text') or '').strip()
-                    score = _score_candidate(label, team_id)
-                    candidate_url = f'{PREFERENTE_BASE_URL}?IDequipo={team_id}'
-                    scored.append((score, candidate_url))
-                scored.sort(key=lambda row: row[0], reverse=True)
-                for _, candidate in scored[:10]:
-                    if _open_and_validate(session, candidate):
-                        return candidate
-        except Exception:
-            pass
+        direct = _try_json_search(query)
+        if direct:
+            return direct
+        for alias in _alias_queries(query):
+            found = _try_json_search(alias)
+            if found:
+                return found
 
     # 2) Fallback HTML: extrae enlaces a páginas "equipo" cuando existan.
     # (Mantiene compatibilidad si LaPreferente cambia el buscador.)
