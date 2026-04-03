@@ -12888,7 +12888,10 @@ def _is_imported_task(task):
 
 
 def _is_task_editable(task):
-    return not _is_imported_task(task)
+    # Las tareas importadas desde PDF se convierten al formato del sistema (campos + pizarra editable),
+    # por lo que deben poder editarse igual que una tarea creada manualmente.
+    # Conservamos el PDF original y una snapshot inicial para poder restaurar si hace falta.
+    return True
 
 
 def _restore_task_from_original_snapshot(task, scope_key=None):
@@ -15591,8 +15594,6 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             raise Http404('Tarea no encontrada')
         if _task_scope_for_item(task) != scope_key:
             return HttpResponse('La tarea no pertenece a este espacio.', status=403)
-        if not _is_task_editable(task):
-            return HttpResponse('Las tareas importadas son de solo lectura.', status=403)
 
     feedback = ''
     error = ''
@@ -16513,14 +16514,10 @@ def session_task_detail_page(request, task_id):
         detail_action = (request.POST.get('detail_action') or '').strip()
         try:
             if detail_action == 'update_task_detail':
-                if not is_editable_task:
-                    raise ValueError('Las tareas importadas son de solo lectura.')
                 _update_library_task_from_post(task, request.POST, scope_key=scope_key)
                 feedback = 'Tarea actualizada correctamente.'
                 task.refresh_from_db()
             elif detail_action == 'restore_original_version':
-                if not is_editable_task:
-                    raise ValueError('Las tareas importadas son de solo lectura.')
                 _restore_task_from_original_snapshot(task, scope_key=scope_key)
                 feedback = 'Se restauró la versión original de la tarea.'
                 task.refresh_from_db()
@@ -16587,8 +16584,6 @@ def save_session_task_graphic(request, task_id):
     )
     if not task:
         return JsonResponse({'error': 'Tarea no encontrada.'}, status=404)
-    if not _is_task_editable(task):
-        return JsonResponse({'error': 'Las tareas importadas son de solo lectura.'}, status=403)
     payload = {}
     try:
         payload = json.loads(request.body.decode('utf-8')) if request.body else {}
