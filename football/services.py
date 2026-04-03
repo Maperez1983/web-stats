@@ -31,6 +31,14 @@ PREFERENTE_USER_AGENT = (
 )
 PREFERENTE_BASE_URL = 'https://www.lapreferente.com/'
 ROSTER_REFRESH_SECONDS = int(getattr(settings, 'PREFERENTE_ROSTER_REFRESH_SECONDS', 6 * 3600))
+_PREFERENTE_SESSION: Optional[requests.Session] = None
+
+
+def _get_preferente_session() -> requests.Session:
+    global _PREFERENTE_SESSION
+    if _PREFERENTE_SESSION is None:
+        _PREFERENTE_SESSION = requests.Session()
+    return _PREFERENTE_SESSION
 
 
 def normalize_header(value):
@@ -52,15 +60,26 @@ def _preferente_headers(referer: str = PREFERENTE_BASE_URL) -> dict:
 
 
 def _fetch_preferente_response(team_url: str, timeout: int = 25) -> requests.Response:
-    session = requests.Session()
-    try:
-        session.get(PREFERENTE_BASE_URL, headers=_preferente_headers(PREFERENTE_BASE_URL), timeout=timeout)
-    except requests.RequestException:
-        pass
+    """
+    Mantiene una sesión (cookies) entre peticiones para reducir bloqueos (403) en producción.
+    """
+    session = _get_preferente_session()
+
+    # Si no tenemos cookies aún, calentamos sesión con la home.
+    if not session.cookies:
+        try:
+            session.get(PREFERENTE_BASE_URL, headers=_preferente_headers(PREFERENTE_BASE_URL), timeout=timeout)
+        except requests.RequestException:
+            pass
 
     response = session.get(team_url, headers=_preferente_headers(PREFERENTE_BASE_URL), timeout=timeout)
     if response.status_code == 403:
-        time.sleep(1.2)
+        # Reintento suave: refresca cookies y vuelve a probar.
+        try:
+            time.sleep(0.9)
+            session.get(PREFERENTE_BASE_URL, headers=_preferente_headers(PREFERENTE_BASE_URL), timeout=timeout)
+        except requests.RequestException:
+            pass
         response = session.get(team_url, headers=_preferente_headers(PREFERENTE_BASE_URL), timeout=timeout)
     return response
 
@@ -548,11 +567,12 @@ def find_preferente_team_url(team_name: str) -> str:
         local_target = _norm(search_text)
         if not local_target:
             return ''
-        session = requests.Session()
-        try:
-            session.get(PREFERENTE_BASE_URL, headers=_preferente_headers(PREFERENTE_BASE_URL), timeout=10)
-        except Exception:
-            pass
+        session = _get_preferente_session()
+        if not session.cookies:
+            try:
+                session.get(PREFERENTE_BASE_URL, headers=_preferente_headers(PREFERENTE_BASE_URL), timeout=10)
+            except Exception:
+                pass
         try:
             response = session.get(
                 urljoin(PREFERENTE_BASE_URL, 'json/buscaEquipos.php'),
@@ -579,9 +599,8 @@ def find_preferente_team_url(team_name: str) -> str:
                 candidate_url = f'{PREFERENTE_BASE_URL}?IDequipo={team_id}'
                 scored.append((score, candidate_url))
             scored.sort(key=lambda row: row[0], reverse=True)
-            for _, candidate in scored[:10]:
-                if _open_and_validate(session, candidate):
-                    return candidate
+            # No validamos abriendo la página del equipo: reduce peticiones y evita bloqueos 403.
+            return scored[0][1] if scored else ''
         except Exception:
             return ''
         return ''
@@ -627,14 +646,6 @@ def find_preferente_team_url(team_name: str) -> str:
         candidates.sort(key=lambda item: item[0], reverse=True)
         return [url for _, url in candidates[:10]]
 
-    def _open_and_validate(session: requests.Session, url: str) -> bool:
-        try:
-            page = session.get(url, headers=_preferente_headers(PREFERENTE_BASE_URL), timeout=18)
-        except Exception:
-            return False
-        html = getattr(page, 'text', '') or ''
-        return 'tablePlantilla' in html
-
     # 1) Buscador oficial (select2) vía JSON: json/buscaEquipos.php?q=...
     # Es la forma más estable de localizar el IDequipo y construir /?IDequipo=...
     if len(query) >= 3:
@@ -653,11 +664,12 @@ def find_preferente_team_url(team_name: str) -> str:
         f'{PREFERENTE_BASE_URL}?buscar={q}',
         f'{PREFERENTE_BASE_URL}buscador.html?buscar={q}',
     ]
-    session = requests.Session()
-    try:
-        session.get(PREFERENTE_BASE_URL, headers=_preferente_headers(PREFERENTE_BASE_URL), timeout=10)
-    except Exception:
-        pass
+    session = _get_preferente_session()
+    if not session.cookies:
+        try:
+            session.get(PREFERENTE_BASE_URL, headers=_preferente_headers(PREFERENTE_BASE_URL), timeout=10)
+        except Exception:
+            pass
     for url in search_urls:
         try:
             response = session.get(url, headers=_preferente_headers(PREFERENTE_BASE_URL), timeout=18)
@@ -667,19 +679,12 @@ def find_preferente_team_url(team_name: str) -> str:
         if not html:
             continue
         for candidate in _extract_candidates(html):
-            if _open_and_validate(session, candidate):
-                return candidate
+            return candidate
 
     # 2) Fallback: si el equipo ya viene con enlace incrustado en el nombre (p.ej. pegado).
     maybe_url = str(team_name or '').strip()
     if maybe_url.startswith('http://') or maybe_url.startswith('https://'):
-        session = requests.Session()
-        try:
-            session.get(PREFERENTE_BASE_URL, headers=_preferente_headers(PREFERENTE_BASE_URL), timeout=10)
-        except Exception:
-            pass
-        if _open_and_validate(session, maybe_url):
-            return maybe_url
+        return maybe_url
     return ''
 
 
