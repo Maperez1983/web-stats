@@ -11626,13 +11626,17 @@ def _apply_analysis_to_task(task, analysis):
 
 
 def _extract_section_block(text, section_aliases):
+    """
+    Extrae un bloque de texto bajo una cabecera (alias) hasta que detecta otra cabecera.
+    Esta versión es más robusta para PDFs: corta por "Dosificación", "Tiempo total", "Material", etc.
+    """
     lines = [ln.strip() for ln in str(text or '').splitlines()]
     if not lines:
         return ''
-    aliases = [a.lower() for a in section_aliases]
+    aliases = [str(a or '').strip().lower() for a in (section_aliases or []) if str(a or '').strip()]
     start = None
     for idx, line in enumerate(lines):
-        low = line.lower()
+        low = str(line or '').lower()
         if any(re.search(rf'^{re.escape(alias)}\s*[:\-]?\s*$', low) for alias in aliases):
             start = idx + 1
             break
@@ -11643,14 +11647,97 @@ def _extract_section_block(text, section_aliases):
     if start is None:
         return ''
 
+    stop_tokens = {
+        'objetivo',
+        'objective',
+        'descripcion',
+        'descripción',
+        'desarrollo',
+        'consignas',
+        'dosificacion',
+        'dosificación',
+        'tiempo total',
+        'tiempototal',
+        'tiempo total de trabajo',
+        'tiempototaldetrabajo',
+        'material',
+        'materiales',
+        'reglas',
+        'normas',
+        'observaciones',
+        'parteprincipal',
+        'parte principal',
+        'partefinal',
+        'parte final',
+        'ausentes',
+        'lesionados',
+    }
+
     end = len(lines)
     for idx in range(start, len(lines)):
-        low = lines[idx].lower()
-        if re.match(r'^[a-záéíóúüñ ]{3,30}\s*[:\-]?\s*$', low):
-            if idx > start:
+        folded = _normalize_folded_text(lines[idx])
+        if not folded:
+            continue
+        if re.match(r'^(?:tarea|ejercicio|task|drill)\s*(?:n[\.\s]*[oº°])?\s*\d{1,2}\b', folded):
+            end = idx
+            break
+        if any(
+            folded.startswith(token.replace(' ', ''))
+            or folded.startswith(token)
+            for token in {t.replace(' ', '') for t in stop_tokens}.union(stop_tokens)
+        ):
+            # Evita cortar por bullets "- ..." o "1) ..." que son contenido.
+            raw = str(lines[idx] or '').strip()
+            if raw.startswith(('-', '•', '*')) or re.match(r'^\d+[\).\s-]', raw):
+                continue
+            # Solo cortar si realmente parece cabecera.
+            if ':' in raw or re.match(r'^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ ]{3,34}\s*$', raw):
                 end = idx
                 break
     return '\n'.join([ln for ln in lines[start:end] if ln]).strip()
+
+
+def _clean_task_notes_block(value):
+    """
+    Limpia bloques de texto tipo consignas/normas para evitar que "Dosificación", "Tiempo total", etc.
+    contaminen el contenido.
+    """
+    raw = str(value or '').strip()
+    if not raw:
+        return ''
+    cleaned = []
+    noise_prefixes = (
+        'dosificacion',
+        'tiempototal',
+        'tiempo total',
+        'tiempototaldetrabajo',
+        'tiempo total de trabajo',
+        'tiempodetrabajo',
+        'tiempo de trabajo',
+        'hidratacion',
+        'hidratación',
+        'bloques',
+        'partefinal',
+        'parte final',
+        'ausentes',
+        'lesionados',
+        'observaciones',
+    )
+    for line in raw.splitlines():
+        ln = str(line or '').strip()
+        if not ln:
+            continue
+        folded = _normalize_folded_text(ln)
+        if any(folded.startswith(prefix) for prefix in noise_prefixes):
+            continue
+        # Suprime líneas sueltas de tiempo tipo "Tiempo total: 30"
+        if re.match(r'(?i)^tiempo\s*total\s*[:\-]?\s*\d{1,3}', ln):
+            continue
+        cleaned.append(ln)
+    text = '\n'.join(cleaned).strip()
+    # Compacta saltos
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    return text
 
 
 def _pick_bullets_or_sentences(raw_text, limit=5):
@@ -11807,11 +11894,29 @@ def _detect_pdf_template(text):
 def _extract_task_sheet_from_pdf(text, detected_materials=None, template_key='generic'):
     description_aliases = ['descripcion', 'descripción', 'desarrollo', 'organizacion', 'organización', 'estructura', 'dinamica', 'dinámica']
     if template_key == 'sesion_sheet_compact':
-        description_aliases = ['consignas', 'descripcion', 'descripción', 'desarrollo', 'organizacion', 'organización']
+        # En plantillas compactas, "Consignas" suele ser una sección aparte (no la descripción general).
+        description_aliases = ['descripcion', 'descripción', 'desarrollo', 'organizacion', 'organización']
     description = _extract_section_block(
         text,
         description_aliases,
     )
+    if template_key == 'sesion_sheet_compact' and not description:
+        # Fallback específico: usa el bloque antes de "Consignas"/"Dosificación" como descripción.
+        lines = [ln.strip() for ln in str(text or '').splitlines() if ln.strip()]
+        if lines:
+            # Quita encabezados tipo "Tarea2:..."
+            while lines and re.match(r'(?i)^(?:tarea|ejercicio|task|drill)\s*\d{1,2}\b', lines[0]):
+                lines = lines[1:]
+            stop_idx = len(lines)
+            for idx, ln in enumerate(lines[:70]):
+                folded = _normalize_folded_text(ln)
+                if folded.startswith('consignas') or folded.startswith('dosificacion') or folded.startswith('tiempototal'):
+                    stop_idx = idx
+                    break
+            if stop_idx > 1:
+                candidate = '\n'.join(lines[:stop_idx]).strip()
+                # Si es demasiado largo, recorta dejando lo más descriptivo.
+                description = candidate[:1400]
     if not description:
         description = _pick_bullets_or_sentences(text, limit=6)
 
@@ -11978,7 +12083,8 @@ def _suggest_task_from_pdf(pdf_text):
 
     objective_aliases = ['objetivo', 'objective', 'finalidad', 'meta']
     if template_key == 'sesion_sheet_compact':
-        objective_aliases.extend(['consignas', 'descripcion', 'desarrollo'])
+        # Importante: NO usar "consignas" como alias de objetivo (si no, se mezcla con la sección de consignas).
+        objective_aliases.extend(['descripcion', 'desarrollo'])
     objective = _extract_section_block(text, objective_aliases)
     if not objective:
         objective_match = re.search(r'(objetivo|objective)\s*[:\-]\s*(.+)', text, re.IGNORECASE)
@@ -11988,6 +12094,8 @@ def _suggest_task_from_pdf(pdf_text):
             for candidate in lines[1:10]:
                 folded = _normalize_folded_text(candidate)
                 if len(candidate.strip(' ,.;:-')) < 4:
+                    continue
+                if folded.startswith('consignas') or folded.startswith('dosificacion') or folded.startswith('tiempototal'):
                     continue
                 if re.match(r'^(dosificacion|tiempo\s*total|parteprincipal)\b', folded):
                     continue
@@ -12024,21 +12132,62 @@ def _suggest_task_from_pdf(pdf_text):
         text,
         ['reglas', 'reglas de confrontacion', 'puntuacion', 'normas', 'restricciones'],
     )
+    has_consignas = bool(re.search(r'(?im)^\s*consignas\s*[:\-]?\s*$', text) or re.search(r'(?i)\bconsignas\s*[:\-]\s*\S', text))
+    has_rules = bool(
+        re.search(r'(?im)^\s*(?:reglas|normas)\s*[:\-]?\s*$', text) or re.search(r'(?i)\b(?:reglas|normas)\s*[:\-]\s*\S', text)
+    )
+
+    # Si el objetivo ha quedado contaminado por bullets o por cabeceras, aplica fallback más simple.
+    if objective and (objective.lstrip().startswith(('-', '•', '*')) or '\n-' in objective[:60]):
+        objective = ''
+    if objective:
+        objective = re.sub(r'(?i)^(?:tarea\s*\d+\s*)$', '', objective).strip()
+        if _normalize_folded_text(objective) in {'consignas', 'dosificacion', 'tiempototal', 'tiempodetrabajo'}:
+            objective = ''
+    if not objective:
+        # Fallback: toma la primera frase útil antes de "Consignas"/"Dosificación".
+        obj_lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+        if obj_lines:
+            # Salta títulos/markers iniciales
+            obj_candidates = []
+            for ln in obj_lines[:40]:
+                folded = _normalize_folded_text(ln)
+                if not folded:
+                    continue
+                if re.match(r'^(?:tarea|ejercicio|task|drill)\s*\d{1,2}\b', folded):
+                    continue
+                if folded.startswith('consignas') or folded.startswith('dosificacion') or folded.startswith('tiempototal'):
+                    break
+                if ln.startswith(('-', '•', '*')) or re.match(r'^\d+[\).\s-]', ln):
+                    continue
+                if len(ln.strip(' ,.;:-')) < 4:
+                    continue
+                obj_candidates.append(ln)
+                if len(' '.join(obj_candidates)) >= 140:
+                    break
+            if obj_candidates:
+                objective = ' '.join(obj_candidates)[:180]
     if not coaching_points or not confrontation_rules:
-        bullet_like = []
-        for line in lines:
-            if line.startswith(('-', '•', '*')) or re.match(r'^\d+[\).\s-]', line):
-                bullet_like.append(re.sub(r'^[\-\•\*\d\)\.\s]+', '', line).strip())
-            if len(bullet_like) >= 10:
-                break
-        if not coaching_points:
-            coaching_points = '\n'.join(bullet_like[:5])
-        if not confrontation_rules:
-            confrontation_rules = '\n'.join(bullet_like[5:10])
-    if not coaching_points:
+        # En plantillas compactas, solo rellenamos consignas/normas si hay cabecera explícita
+        # (si no, nos llevamos "Dosificación" y otros bloques no deseados).
+        if template_key != 'sesion_sheet_compact' or has_consignas or has_rules:
+            bullet_like = []
+            for line in lines:
+                if line.startswith(('-', '•', '*')) or re.match(r'^\d+[\).\s-]', line):
+                    bullet_like.append(re.sub(r'^[\-\•\*\d\)\.\s]+', '', line).strip())
+                if len(bullet_like) >= 10:
+                    break
+            if not coaching_points:
+                coaching_points = '\n'.join(bullet_like[:5])
+            if not confrontation_rules:
+                confrontation_rules = '\n'.join(bullet_like[5:10])
+    if not coaching_points and template_key != 'sesion_sheet_compact':
         coaching_points = _pick_bullets_or_sentences(text, limit=4)
     if not confrontation_rules:
         confrontation_rules = ''
+
+    coaching_points = _clean_task_notes_block(coaching_points)
+    confrontation_rules = _clean_task_notes_block(confrontation_rules)
 
     summary = '\n'.join(lines[:12])[:900]
     work_contexts = _detect_keyword_tags(text, TASK_CONTEXT_KEYWORDS)
