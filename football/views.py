@@ -17577,8 +17577,12 @@ def analysis_page(request):
 
                 if not roster and not error:
                     error = 'No se han encontrado jugadores en la plantilla.'
-            except Exception:
-                error = 'No se ha podido procesar la plantilla del rival. Revisa URL o el contenido pegado.'
+            except Exception as exc:
+                logger.exception('Error al analizar rival (LaPreferente).')
+                if isinstance(exc, ValueError) and str(exc):
+                    error = str(exc)
+                else:
+                    error = 'No se ha podido procesar la plantilla del rival. Revisa URL o el contenido pegado.'
         if team and team_url and team.preferente_url != team_url:
             team.preferente_url = team_url
             team.save(update_fields=['preferente_url'])

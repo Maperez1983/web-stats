@@ -510,6 +510,11 @@ def fetch_preferente_team_roster(team_url: str) -> list[dict]:
         return []
     try:
         response = _fetch_preferente_response(team_url, timeout=20)
+        if getattr(response, 'status_code', None) == 403:
+            raise ValueError(
+                'LaPreferente ha bloqueado la petición (403). '
+                'Prueba de nuevo en unos minutos o pega el HTML/texto en el campo de abajo.'
+            )
         response.raise_for_status()
     except requests.RequestException as exc:
         raise ValueError(f'Error al consultar LaPreferente: {exc}') from exc
