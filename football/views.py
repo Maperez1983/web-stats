@@ -10337,17 +10337,34 @@ def _recreate_canvas_state_from_preview_image_bytes(raw_bytes, canvas_width=1054
         if is_green and area <= 900:
             objects.append(
                 {
-                    'type': 'circle',
+                    # Importante: usamos un grupo "token" mínimo para que el editor JS
+                    # lo convierta automáticamente a la chapa oficial (player_local).
+                    'type': 'group',
                     'left': _map_x(cx),
                     'top': _map_y(cy),
                     'originX': 'center',
                     'originY': 'center',
-                    'radius': 14,
-                    'fill': '#1f7a38',
-                    'stroke': '#ffffff',
-                    'strokeWidth': 2,
-                    'data': {'kind': 'player_local', 'label': 'L'},
                     'objectCaching': False,
+                    'data': {
+                        'kind': 'token',
+                        'token_kind': 'player_local',
+                        'playerName': 'Jugador',
+                        'playerNumber': '',
+                    },
+                    'objects': [
+                        {
+                            'type': 'circle',
+                            'left': 0,
+                            'top': 0,
+                            'originX': 'center',
+                            'originY': 'center',
+                            'radius': 16,
+                            'fill': '#1d4ed8',
+                            'stroke': '#eff6ff',
+                            'strokeWidth': 2,
+                            'objectCaching': False,
+                        }
+                    ],
                 }
             )
             continue
@@ -10355,17 +10372,33 @@ def _recreate_canvas_state_from_preview_image_bytes(raw_bytes, canvas_width=1054
         if is_purple and area <= 1100:
             objects.append(
                 {
-                    'type': 'circle',
+                    # Token rival mínimo => conversión a chapa oficial (player_rival).
+                    'type': 'group',
                     'left': _map_x(cx),
                     'top': _map_y(cy),
                     'originX': 'center',
                     'originY': 'center',
-                    'radius': 14,
-                    'fill': '#facc15',
-                    'stroke': '#854d0e',
-                    'strokeWidth': 2,
-                    'data': {'kind': 'player_away', 'label': 'V'},
                     'objectCaching': False,
+                    'data': {
+                        'kind': 'token',
+                        'token_kind': 'player_rival',
+                        'playerName': 'Rival',
+                        'playerNumber': '',
+                    },
+                    'objects': [
+                        {
+                            'type': 'circle',
+                            'left': 0,
+                            'top': 0,
+                            'originX': 'center',
+                            'originY': 'center',
+                            'radius': 16,
+                            'fill': '#dc2626',
+                            'stroke': '#fff7ed',
+                            'strokeWidth': 2,
+                            'objectCaching': False,
+                        }
+                    ],
                 }
             )
             continue

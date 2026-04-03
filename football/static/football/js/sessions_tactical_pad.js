@@ -2677,7 +2677,7 @@
 	        // las convertimos a estilo "disco" para que se parezcan a la plantilla disponible.
         // Solo afecta a objetos con data.kind='token' y token_kind de jugadores.
         try {
-          const playerTokenKinds = new Set(['player_local', 'player_away', 'goalkeeper_local']);
+          const playerTokenKinds = new Set(['player_local', 'player_away', 'player_rival', 'goalkeeper_local']);
           const current = canvas.getObjects().slice();
           const active = canvas.getActiveObject();
           const replacementMap = new Map();
