@@ -629,8 +629,10 @@ def _canonical_action_value(value):
     return ' '.join(str(value or '').split()).strip().lower()
 
 
-def _build_pdf_response_or_html_fallback(request, html: str, filename: str):
+def _build_pdf_response_or_html_fallback(request, html: str, filename: str, *, inline: bool = False, force_pdf: bool = False):
     if not weasyprint:
+        if force_pdf:
+            return HttpResponse('PDF no disponible en este servidor.', status=503)
         return HttpResponse(html, content_type='text/html; charset=utf-8')
     try:
         def _safe_url_fetcher(url, timeout=4, ssl_context=None):
@@ -648,9 +650,12 @@ def _build_pdf_response_or_html_fallback(request, html: str, filename: str):
             url_fetcher=_safe_url_fetcher,
         ).write_pdf()
         response = HttpResponse(pdf_file, content_type='application/pdf')
-        response['Content-Disposition'] = f'attachment; filename="{filename}.pdf"'
+        disposition = 'inline' if inline else 'attachment'
+        response['Content-Disposition'] = f'{disposition}; filename="{filename}.pdf"'
         return response
     except Exception:
+        if force_pdf:
+            return HttpResponse('No se pudo generar el PDF.', status=503)
         return HttpResponse(html, content_type='text/html; charset=utf-8')
 
 
@@ -6569,6 +6574,222 @@ def share_task_pdf_create(request):
         return JsonResponse({'error': str(exc)}, status=400)
     except Exception:
         return JsonResponse({'error': 'No se pudo crear el enlace.'}, status=500)
+
+
+@login_required
+@require_POST
+def share_convocation_pdf_create(request):
+    """
+    Crea un enlace público (token) para abrir/descargar el PDF de convocatoria sin login.
+    Guarda el `ConvocationRecord` actual para que el enlace sea estable aunque cambie la convocatoria.
+    """
+    validity_days = _parse_int(request.POST.get('valid_days')) or 14
+    validity_days = max(1, min(validity_days, 60))
+    password = (request.POST.get('password') or '').strip()
+    try:
+        forbidden = _forbid_if_workspace_module_disabled(request, 'convocation', label='convocatoria')
+        if forbidden:
+            return JsonResponse({'error': 'El módulo convocatoria no está disponible.'}, status=403)
+        primary_team = _get_primary_team_for_request(request)
+        if not primary_team:
+            return JsonResponse({'error': 'Equipo principal no configurado.'}, status=400)
+        convocation_record = get_current_convocation_record(primary_team)
+        if not convocation_record:
+            return JsonResponse({'error': 'No hay convocatoria guardada.'}, status=400)
+        players = list(convocation_record.players.all()[:1])
+        if not players:
+            return JsonResponse({'error': 'No hay jugadores convocados.'}, status=400)
+
+        ShareLink.objects.filter(
+            is_active=True,
+            kind=ShareLink.KIND_CONVOCATION_PDF,
+            payload__record_id=int(convocation_record.id),
+        ).update(is_active=False)
+
+        link = ShareLink.objects.create(
+            token=ShareLink.generate_token(),
+            kind=ShareLink.KIND_CONVOCATION_PDF,
+            payload={'team_id': int(primary_team.id), 'record_id': int(convocation_record.id)},
+            password_hash=make_password(password) if password else '',
+            expires_at=timezone.now() + timedelta(days=validity_days),
+            created_by=request.user.get_username() if request.user.is_authenticated else '',
+            created_by_user=request.user if request.user.is_authenticated else None,
+            is_active=True,
+        )
+        url = request.build_absolute_uri(reverse('share-convocation-pdf', args=[link.token]))
+        _audit(
+            request,
+            'share_link_create',
+            workspace=_get_active_workspace(request),
+            message='Enlace compartido creado',
+            payload={'kind': 'convocation_pdf', 'team_id': int(primary_team.id), 'record_id': int(convocation_record.id), 'expires_days': validity_days, 'password': bool(password)},
+        )
+        return JsonResponse({'ok': True, 'url': url, 'expires_at': link.expires_at})
+    except Exception:
+        return JsonResponse({'error': 'No se pudo crear el enlace.'}, status=500)
+
+
+def share_convocation_pdf_page(request, token):
+    """
+    Endpoint público para el PDF de convocatoria compartido por token.
+    """
+    token = str(token or '').strip()
+    link = (
+        ShareLink.objects
+        .filter(token=token, is_active=True, kind=ShareLink.KIND_CONVOCATION_PDF)
+        .order_by('-created_at')
+        .first()
+    )
+    now = timezone.now()
+    if not link or not link.can_be_used(now=now):
+        raise Http404('Enlace no disponible')
+    if (link.password_hash or '').strip():
+        if request.method != 'POST':
+            return render(
+                request,
+                'football/share_link_gate.html',
+                {'error': '', 'expires_at': link.expires_at},
+                status=200,
+            )
+        supplied = (request.POST.get('password') or '').strip()
+        if not supplied or not check_password(supplied, link.password_hash):
+            return render(
+                request,
+                'football/share_link_gate.html',
+                {'error': 'Contraseña incorrecta.', 'expires_at': link.expires_at},
+                status=403,
+            )
+
+    payload = link.payload if isinstance(link.payload, dict) else {}
+    record_id = _parse_int(payload.get('record_id'))
+    team_id = _parse_int(payload.get('team_id'))
+    if not record_id or not team_id:
+        raise Http404('Enlace no válido')
+
+    primary_team = Team.objects.filter(id=team_id).first()
+    if not primary_team:
+        raise Http404('Equipo no encontrado')
+
+    convocation_record = (
+        ConvocationRecord.objects
+        .select_related('match', 'team')
+        .filter(id=record_id, team_id=team_id)
+        .first()
+    )
+    if not convocation_record:
+        raise Http404('Convocatoria no encontrada')
+
+    players = list(convocation_record.players.order_by('number', 'name'))
+    if not players:
+        raise Http404('Convocatoria vacía')
+
+    def _sort_player_key(player):
+        number = player.number if player.number is not None else 999
+        return (number, (player.name or '').lower())
+
+    ordered_players = sorted(players, key=_sort_player_key)
+
+    static_base_dir = Path(settings.BASE_DIR) / 'static'
+    logo_static_path = static_base_dir / 'football' / 'images' / 'cdb-logo.png'
+    avatar_static_path = static_base_dir / 'football' / 'images' / 'player-avatar.svg'
+    logo_data_uri = _file_as_data_uri(logo_static_path)
+    avatar_data_uri = _file_as_data_uri(avatar_static_path)
+
+    include_player_photos = str(os.getenv('CONVOCATION_PDF_PLAYER_PHOTOS', '0')).strip().lower() in {'1', 'true', 'yes', 'on'}
+
+    def _player_photo_src(player_obj):
+        if not include_player_photos:
+            if avatar_data_uri:
+                return avatar_data_uri
+            return request.build_absolute_uri(static('football/images/player-avatar.svg'))
+        player_static_rel = resolve_player_photo_static_path(player_obj)
+        if player_static_rel:
+            player_data_uri = _image_file_as_small_data_uri(
+                static_base_dir / player_static_rel,
+                max_width=220,
+                max_height=220,
+                quality=65,
+            )
+            if player_data_uri:
+                return player_data_uri
+            return request.build_absolute_uri(static(player_static_rel))
+        if avatar_data_uri:
+            return avatar_data_uri
+        return request.build_absolute_uri(static('football/images/player-avatar.svg'))
+
+    player_rows = [{'number': player.number, 'name': player.name, 'photo_src': _player_photo_src(player)} for player in ordered_players]
+    midpoint = (len(player_rows) + 1) // 2
+    left_column_players = player_rows[:midpoint]
+    right_column_players = player_rows[midpoint:]
+
+    date_label = convocation_record.match_date.strftime('%d/%m/%Y') if convocation_record.match_date else '--'
+    time_label = convocation_record.match_time.strftime('%H:%M') if convocation_record.match_time else '--:--'
+    location_label = convocation_record.location or (convocation_record.match.location if convocation_record.match else '')
+    rival_label = convocation_record.opponent_name
+    if not rival_label and convocation_record.match:
+        opponent = (
+            convocation_record.match.away_team
+            if convocation_record.match.home_team_id == primary_team.id
+            else convocation_record.match.home_team
+        )
+        rival_label = opponent.name if opponent else ''
+
+    rival_name = (rival_label or '').strip() or 'Rival por confirmar'
+    preferred_next = load_preferred_next_match_payload(primary_team=primary_team)
+    preferred_opponent = preferred_next.get('opponent') if isinstance(preferred_next, dict) else None
+    rival_full_name, rival_crest_url = _resolve_rival_identity(rival_name, preferred_opponent=preferred_opponent)
+    rival_crest_url = _sanitize_universo_external_image(_absolute_universo_url(rival_crest_url))
+    rival_crest_src = str(rival_crest_url or '').strip()
+    if rival_crest_src.startswith('http://') or rival_crest_src.startswith('https://'):
+        rival_crest_src = ''
+
+    round_digits = ''.join(re.findall(r'\d+', convocation_record.round or ''))
+    round_short = f'J{round_digits}' if round_digits else 'J'
+    date_human = date_label
+    if convocation_record.match_date:
+        day_map = ['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB', 'DOM']
+        month_map = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC']
+        weekday = day_map[convocation_record.match_date.weekday()]
+        month = month_map[convocation_record.match_date.month - 1]
+        date_human = f'{weekday} {convocation_record.match_date.day} {month}'
+
+    context = {
+        'team_name': primary_team.display_name,
+        'team_full_name': primary_team.name,
+        'round_label': convocation_record.round or 'Jornada por confirmar',
+        'round_short': round_short,
+        'date_label': date_label,
+        'date_human': date_human,
+        'time_label': time_label,
+        'location_label': location_label or 'Campo por confirmar',
+        'rival_label': rival_name,
+        'rival_full_name': rival_full_name,
+        'rival_crest_src': rival_crest_src,
+        'players': player_rows,
+        'left_column_players': left_column_players,
+        'right_column_players': right_column_players,
+        'coach_name': os.getenv('TEAM_COACH_NAME', 'Aitor Castillo'),
+        'club_hashtag': os.getenv('TEAM_HASHTAG', '#VamosVerdes'),
+        'logo_src': resolve_team_crest_url(request, primary_team, sync=True) or logo_data_uri or request.build_absolute_uri(static('football/images/cdb-logo.png')),
+        'brand_mark_url': request.build_absolute_uri(static('football/images/2j-mark.svg')),
+        'avatar_src': avatar_data_uri or request.build_absolute_uri(static('football/images/player-avatar.svg')),
+        'team_photo_url': request.build_absolute_uri(static('football/images/team-01.jpg')),
+        'team_photo_data_uri': '',
+        'coach_photo_url': request.build_absolute_uri(static(os.getenv('TEAM_COACH_PHOTO', 'football/images/team-01.jpg'))),
+    }
+    team_photo = resolve_team_photo_for_pdf(request)
+    context['team_photo_url'] = team_photo.get('url') or context['team_photo_url']
+    context['coach_photo_url'] = context['team_photo_url']
+    context['team_photo_data_uri'] = team_photo.get('data_uri') or ''
+
+    html = render_to_string('football/convocation_pdf.html', context)
+    filename = slugify(f'convocatoria-{primary_team.display_name}-{convocation_record.match_date or timezone.localdate()}') or f'convocatoria-{convocation_record.id}'
+    try:
+        ShareLink.objects.filter(id=link.id).update(access_count=(link.access_count or 0) + 1, last_accessed_at=timezone.now())
+    except Exception:
+        pass
+    # En enlace público preferimos inline para que abra directo en móvil/desktop.
+    return _build_pdf_response_or_html_fallback(request, html, filename, inline=True, force_pdf=True)
 
 
 def share_task_pdf_page(request, token):

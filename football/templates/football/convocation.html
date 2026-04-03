@@ -465,6 +465,7 @@
         <div class="actions">
           <button id="save-convocation" class="button primary" type="button">Guardar convocatoria</button>
           <a href="{% url 'convocation-pdf' %}" class="button {% if not can_generate_convocation_pdf %}is-disabled{% endif %}" id="pdf-convocation">Generar PDF</a>
+          <button id="share-convocation-pdf" class="button {% if not can_generate_convocation_pdf %}is-disabled{% endif %}" type="button">Compartir PDF</button>
           <span id="convocation-message" class="status"></span>
         </div>
         {% if has_pending_convocation %}
@@ -868,12 +869,17 @@
       };
 
       const pdfButton = document.querySelector('#pdf-convocation');
+      const sharePdfButton = document.querySelector('#share-convocation-pdf');
 
       const updatePdfState = () => {
         const enabled = selectedSet.size > 0;
         pdfButton?.classList.toggle('is-disabled', !enabled);
+        sharePdfButton?.classList.toggle('is-disabled', !enabled);
         if (pdfButton) {
           pdfButton.title = enabled ? '' : 'El PDF se activa al guardar una lista con jugadores convocados.';
+        }
+        if (sharePdfButton) {
+          sharePdfButton.title = enabled ? '' : 'El enlace se activa al guardar una lista con jugadores convocados.';
         }
       };
 
@@ -965,6 +971,33 @@
       });
 
       saveButton?.addEventListener('click', saveConvocation);
+
+      sharePdfButton?.addEventListener('click', async () => {
+        if (sharePdfButton.classList.contains('is-disabled')) {
+          showMessage('Guarda una convocatoria con jugadores para habilitar el PDF.', 'error');
+          return;
+        }
+        try {
+          const csrf = getCookie('csrftoken');
+          const createUrl = "{% url 'share-convocation-pdf-create' %}";
+          const password = window.prompt('Contraseña (opcional, deja vacío si no quieres):', '') || '';
+          const body = new URLSearchParams();
+          body.set('valid_days', '30');
+          if (password) body.set('password', password);
+          const resp = await fetch(createUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': csrf },
+            credentials: 'same-origin',
+            body: body.toString(),
+          });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok || !data?.url) throw new Error(data?.error || 'No se pudo crear el enlace.');
+          try { await navigator.clipboard?.writeText(data.url); } catch (e) {}
+          window.prompt('Enlace público (copiado si el navegador lo permite):', data.url);
+        } catch (error) {
+          showMessage(error?.message || 'No se pudo crear el enlace.', 'error');
+        }
+      });
 
       hydratePositionFilter();
       hydrateOpponentSelect();
