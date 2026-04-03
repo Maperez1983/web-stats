@@ -4076,8 +4076,8 @@
 	        overlayUrl = '';
 	      }
 
-		      // Clona el SVG y fija width/height según el viewBox para que al rasterizar como <img>
-		      // no use el viewport por defecto (300x150) que provoca "barras" (muy notable en vertical).
+		      // Clona el SVG y fija width/height al tamaño final de exportación para que el rasterizado
+		      // respete el `preserveAspectRatio` real (meet/slice) y no distorsione el campo al componer.
 		      let svgMarkup = '';
 		      try {
 		        const clone = svgSurface.cloneNode(true);
@@ -4087,10 +4087,12 @@
 		          const vbW = vbParts[2];
 		          const vbH = vbParts[3];
 		          if (vbW > 0 && vbH > 0) {
-		            clone.setAttribute('width', String(Math.round(vbW)));
-		            clone.setAttribute('height', String(Math.round(vbH)));
-		            // Al tener el mismo ratio que el viewBox, no hay letterboxing; 'none' evita sorpresas.
-		            clone.setAttribute('preserveAspectRatio', 'none');
+		            // Importantísimo: el editor puede tener un canvas "apaisado" incluso en orientación vertical.
+		            // Si forzamos `preserveAspectRatio="none"` + escalado no uniforme, el recorte por pitchBox
+		            // acaba convirtiendo el campo vertical en una imagen horizontal (y el PDF lo recorta).
+		            // Exportamos el SVG al mismo tamaño final, manteniendo su preserveAspectRatio original.
+		            clone.setAttribute('width', String(Math.round(output.width)));
+		            clone.setAttribute('height', String(Math.round(output.height)));
 		          }
 		        }
 		        svgMarkup = new XMLSerializer().serializeToString(clone);
@@ -4173,12 +4175,35 @@
 			            const [boxX, boxY, boxW, boxH] = boxParts;
 			            const [vbX, vbY, vbW, vbH] = vbParts;
 			            if (vbW > 0 && vbH > 0 && boxW > 0 && boxH > 0) {
-				              const scaleX = output.width / vbW;
-				              const scaleY = output.height / vbH;
-				              const baseX = (boxX - vbX) * scaleX;
-				              const baseY = (boxY - vbY) * scaleY;
-				              const baseW = boxW * scaleX;
-				              const baseH = boxH * scaleY;
+				              const preserveRaw = safeText(svgSurface.getAttribute('preserveAspectRatio'));
+				              const isNone = /\bnone\b/i.test(preserveRaw);
+				              const isSlice = /\bslice\b/i.test(preserveRaw);
+				              const outW = Math.max(1, Number(output.width || 1));
+				              const outH = Math.max(1, Number(output.height || 1));
+
+				              // Mapea pitchBox (coordenadas viewBox) a píxeles de la imagen exportada.
+				              // Si el SVG usa meet/slice, el escalado es UNIFORME + offsets (xMidYMid).
+				              // Si fuese none (no debería), caemos a escalado no uniforme por compat.
+				              let baseX = 0;
+				              let baseY = 0;
+				              let baseW = 0;
+				              let baseH = 0;
+				              if (isNone) {
+				                const scaleX = outW / vbW;
+				                const scaleY = outH / vbH;
+				                baseX = (boxX - vbX) * scaleX;
+				                baseY = (boxY - vbY) * scaleY;
+				                baseW = boxW * scaleX;
+				                baseH = boxH * scaleY;
+				              } else {
+				                const scale = (isSlice ? Math.max(outW / vbW, outH / vbH) : Math.min(outW / vbW, outH / vbH));
+				                const offsetX = (outW - (vbW * scale)) / 2;
+				                const offsetY = (outH - (vbH * scale)) / 2;
+				                baseX = offsetX + ((boxX - vbX) * scale);
+				                baseY = offsetY + ((boxY - vbY) * scale);
+				                baseW = boxW * scale;
+				                baseH = boxH * scale;
+				              }
 
 				              // Recorte base = rectángulo real del campo.
 				              let uX = baseX;
