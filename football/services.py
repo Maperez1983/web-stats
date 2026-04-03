@@ -5,7 +5,7 @@ import unicodedata
 from io import BytesIO, StringIO
 from pathlib import Path
 from typing import Optional
-from urllib.parse import quote_plus, urljoin, urlparse
+from urllib.parse import parse_qs, quote_plus, urljoin, urlparse
 
 from PIL import Image
 import pytesseract
@@ -82,6 +82,91 @@ def _fetch_preferente_response(team_url: str, timeout: int = 25) -> requests.Res
             pass
         response = session.get(team_url, headers=_preferente_headers(PREFERENTE_BASE_URL), timeout=timeout)
     return response
+
+
+def _extract_preferente_team_id(team_url: str) -> str:
+    if not team_url:
+        return ''
+    parsed = urlparse(team_url)
+    query = parse_qs(parsed.query or '')
+    team_id = (query.get('IDequipo') or query.get('idequipo') or [''])[0]
+    team_id = str(team_id or '').strip()
+    if team_id.isdigit():
+        return team_id
+    match = re.search(r'\bE(\d+)C\d+\b', parsed.path or '', flags=re.IGNORECASE)
+    if match:
+        return str(match.group(1) or '').strip()
+    return ''
+
+
+def _fetch_preferente_team_roster_via_json(team_id: str, timeout: int = 20) -> list[dict]:
+    """
+    Fallback cuando Cloudflare bloquea el HTML (403).
+    Usa el endpoint JSON de búsqueda de jugadores filtrado por equipo.
+    Nota: no devuelve stats completas, pero sí la lista de jugadores.
+    """
+    if not team_id or not str(team_id).isdigit():
+        return []
+    session = _get_preferente_session()
+    if not session.cookies:
+        try:
+            session.get(PREFERENTE_BASE_URL, headers=_preferente_headers(PREFERENTE_BASE_URL), timeout=10)
+        except requests.RequestException:
+            pass
+
+    results_by_id: dict[str, dict] = {}
+    # Con vocales es suficiente para nombres en español y minimiza peticiones.
+    queries = ['a', 'e', 'i', 'o', 'u']
+    for q in queries:
+        page = 1
+        more = True
+        while more and page <= 8:  # guardrail
+            try:
+                response = session.get(
+                    urljoin(PREFERENTE_BASE_URL, 'json/buscaJugador.php'),
+                    params={'q': q, 'IDequipo': str(team_id), 'page': str(page)},
+                    headers=_preferente_headers(PREFERENTE_BASE_URL),
+                    timeout=timeout,
+                )
+            except requests.RequestException:
+                break
+            if response.status_code == 403:
+                break
+            if not response.ok:
+                break
+            try:
+                payload = response.json()
+            except Exception:
+                break
+            items = payload.get('results') if isinstance(payload, dict) else None
+            if not isinstance(items, list) or not items:
+                break
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                player_id = str(item.get('id') or '').strip()
+                name = str(item.get('jugador') or '').strip()
+                if not player_id or not name:
+                    continue
+                results_by_id[player_id] = {
+                    'name': name,
+                    'position': '',
+                    'age': 0,
+                    'pc': 0,
+                    'pj': 0,
+                    'pt': 0,
+                    'minutes': 0,
+                    'goals': 0,
+                    'yellow_cards': 0,
+                    'red_cards': 0,
+                }
+            pagination = payload.get('pagination') if isinstance(payload, dict) else None
+            more = bool((pagination or {}).get('more')) if isinstance(pagination, dict) else False
+            page += 1
+        if response.status_code == 403:
+            # si nos bloquean aquí, no insistimos con más queries
+            break
+    return list(results_by_id.values())
 
 
 def ensure_league_structure(competition_name, season_name, group_name):
@@ -530,6 +615,10 @@ def fetch_preferente_team_roster(team_url: str) -> list[dict]:
     try:
         response = _fetch_preferente_response(team_url, timeout=20)
         if getattr(response, 'status_code', None) == 403:
+            team_id = _extract_preferente_team_id(team_url)
+            fallback = _fetch_preferente_team_roster_via_json(team_id)
+            if fallback:
+                return fallback
             raise ValueError(
                 'LaPreferente ha bloqueado la petición (403). '
                 'Prueba de nuevo en unos minutos o pega el HTML/texto en el campo de abajo.'
@@ -537,7 +626,14 @@ def fetch_preferente_team_roster(team_url: str) -> list[dict]:
         response.raise_for_status()
     except requests.RequestException as exc:
         raise ValueError(f'Error al consultar LaPreferente: {exc}') from exc
-    return parse_preferente_roster(response.text)
+    roster = parse_preferente_roster(response.text)
+    if not roster:
+        # si por algún motivo no hay tabla (HTML parcial), intentamos el fallback JSON igualmente
+        team_id = _extract_preferente_team_id(team_url)
+        fallback = _fetch_preferente_team_roster_via_json(team_id)
+        if fallback:
+            return fallback
+    return roster
 
 
 def find_preferente_team_url(team_name: str) -> str:

@@ -283,11 +283,11 @@
             </select>
           </div>
           <div>
-            <label for="team_url">URL del rival (opcional)</label>
+            <label for="team_url">URL del rival (Universo RFAF o LaPreferente)</label>
             <input id="team_url" name="team_url" type="text" value="{{ team_url }}" />
           </div>
           <div>
-            <label for="raw_text">Pega aquí el texto/HTML de LaPreferente</label>
+            <label for="raw_text">Pega aquí el texto/HTML (solo si LaPreferente bloquea)</label>
             <textarea id="raw_text" name="raw_text">{{ raw_text }}</textarea>
           </div>
           <div class="actions">
@@ -303,6 +303,8 @@
             <ul class="list">
               <li><strong>Prioridad de fuente:</strong> <span class="meta">{{ extracted.source_priority }}</span></li>
               <li><strong>Rival:</strong> <span class="meta">{{ extracted.rival_name }}</span></li>
+              <li><strong>Código rival (RFAF):</strong> <span class="meta">{{ extracted.rival_team_code|default:"-" }}</span></li>
+              <li><strong>Sesión Universo RFAF:</strong> <span class="meta">{{ extracted.universo_session|default:"-" }}</span></li>
               <li><strong>Jornada:</strong> <span class="meta">{{ extracted.next_match_round|default:"-" }}</span></li>
               <li><strong>Fecha/Hora:</strong> <span class="meta">{{ extracted.next_match_date|default:"-" }} {{ extracted.next_match_time|default:"" }}</span></li>
               <li><strong>Campo:</strong> <span class="meta">{{ extracted.next_match_location|default:"-" }}</span></li>

@@ -3487,6 +3487,26 @@ def _load_universo_access_token():
     return ''
 
 
+def _load_universo_access_token_expires() -> float:
+    storage_path = Path(settings.BASE_DIR) / 'data' / 'input' / 'rfaf_storage_state.json'
+    if not storage_path.exists():
+        return 0.0
+    try:
+        payload = json.loads(storage_path.read_text(encoding='utf-8'))
+    except Exception:
+        return 0.0
+    for cookie in payload.get('cookies') or []:
+        if not isinstance(cookie, dict):
+            continue
+        if str(cookie.get('name') or '').strip() != 'access_token':
+            continue
+        try:
+            return float(cookie.get('expires') or 0.0) or 0.0
+        except Exception:
+            return 0.0
+    return 0.0
+
+
 def _universo_api_post(endpoint, data=None):
     if requests is None:
         return {}
@@ -3506,6 +3526,104 @@ def _universo_api_post(endpoint, data=None):
     except Exception:
         return {}
     return payload if isinstance(payload, dict) else {}
+
+
+def _universo_internal_post(endpoint, data=None):
+    """
+    Llama a endpoints `api/internal-data/...` de Universo RFAF.
+    - Requiere access_token (se lee del storage_state).
+    - Devuelve dict o {} en caso de error.
+    """
+    if requests is None:
+        return {}
+    token = _load_universo_access_token()
+    if not token:
+        return {}
+    url = f'https://www.universorfaf.es/api/internal-data/{endpoint.lstrip("/")}'
+    headers = {
+        'Authorization': f'Bearer {token}',
+        'Accept': 'application/json',
+        'User-Agent': '2j-football-intelligence/1.0',
+    }
+    try:
+        response = requests.post(url, headers=headers, data=data or {}, timeout=UNIVERSO_API_TIMEOUT_SECONDS)
+        response.raise_for_status()
+        payload = response.json()
+    except Exception:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _parse_universo_team_code_from_url(value: str) -> str:
+    raw = str(value or '').strip()
+    if not raw:
+        return ''
+    match = re.search(r'/team/(\d+)', raw)
+    return str(match.group(1) or '').strip() if match else ''
+
+
+def fetch_universo_team_roster(team_code: str) -> list[dict]:
+    """
+    Devuelve una plantilla "mínima" desde Universo RFAF para un equipo.
+    - Si Universo no devuelve métricas completas, rellena stats a 0.
+    - Se apoya en `internal-data/teams/detail` (incluye `squad`).
+    """
+    code = str(team_code or '').strip()
+    if not code:
+        return []
+    payload = _universo_internal_post('teams/detail', {'cod_equipo': code})
+    # Si la sesión expiró o no hay token, Universo suele devolver {'error': ...}
+    if not payload:
+        raise ValueError(
+            'No se pudo consultar Universo RFAF (sin sesión o token caducado). '
+            'Regenera `data/input/rfaf_storage_state.json` o ejecuta el sync automático.'
+        )
+    if payload.get('error'):
+        raise ValueError(
+            'Universo RFAF rechazó la petición (sesión caducada). '
+            'Regenera `data/input/rfaf_storage_state.json` o ejecuta el sync automático.'
+        )
+    squad = payload.get('squad')
+    if not isinstance(squad, list):
+        squad = []
+
+    roster: list[dict] = []
+    for row in squad:
+        if not isinstance(row, dict):
+            continue
+        name = (row.get('nombre') or row.get('name') or row.get('nombre_jugador') or '').strip()
+        if not name:
+            continue
+        position = (row.get('posicion') or row.get('posicion_jugador') or row.get('position') or '').strip()
+        dorsal_raw = (
+            row.get('dorsal')
+            or row.get('dorsal_jugador')
+            or row.get('numero')
+            or row.get('number')
+            or ''
+        )
+        try:
+            dorsal = int(str(dorsal_raw).strip() or 0)
+        except Exception:
+            dorsal = 0
+        roster.append(
+            {
+                'name': name,
+                'position': position,
+                'age': _parse_int(row.get('edad') or row.get('age') or 0) or 0,
+                'pc': 0,
+                'pj': 0,
+                'pt': 0,
+                'minutes': 0,
+                'goals': 0,
+                'yellow_cards': 0,
+                'red_cards': 0,
+                'dorsal': dorsal,
+                'code': str(row.get('codigo_jugador') or row.get('code') or row.get('id') or '').strip(),
+            }
+        )
+
+    return roster
 
 
 def _fetch_universo_live_seasons():
@@ -17537,6 +17655,14 @@ def analysis_page(request):
         team_id = (request.POST.get('team_id') or '').strip()
         raw_text = (request.POST.get('raw_text') or '').strip()
         team = None
+        def _looks_like_preferente_url(url_value: str) -> bool:
+            lowered = str(url_value or '').lower()
+            return 'lapreferente' in lowered or 'idequipo=' in lowered
+
+        def _looks_like_universo_url(url_value: str) -> bool:
+            lowered = str(url_value or '').lower()
+            return 'universorfaf.es/team/' in lowered or '/universorfaf.es/team/' in lowered or '/team/' in lowered and 'universorfaf.es' in lowered
+
         if team_id:
             team = Team.objects.filter(id=team_id).first()
             if team and not team_url:
@@ -17546,25 +17672,57 @@ def analysis_page(request):
                 if raw_text:
                     roster = parse_preferente_roster(raw_text)
                 else:
-                    if not team_url and team:
-                        # Auto-búsqueda: si no hay URL guardada, intentamos localizar el equipo en La Preferente.
+                    universo_team_code = ''
+                    if _looks_like_universo_url(team_url):
+                        universo_team_code = _parse_universo_team_code_from_url(team_url)
+                    elif team and str(getattr(team, 'external_id', '') or '').strip().isdigit():
+                        universo_team_code = str(team.external_id or '').strip()
+                    if universo_team_code:
                         try:
-                            team_url = find_preferente_team_url(team.name)
-                        except Exception:
-                            team_url = ''
-                    if not team_url and not team and home_rival_name:
-                        try:
-                            team_url = find_preferente_team_url(home_rival_name)
-                        except Exception:
-                            team_url = ''
-                    if team_url and team and (team.preferente_url or '').strip() != team_url:
-                        team.preferente_url = team_url
-                        team.save(update_fields=['preferente_url'])
-                    if team_url:
-                        roster = fetch_preferente_team_roster(team_url)
+                            roster = fetch_universo_team_roster(universo_team_code)
+                            if team and team.external_id != universo_team_code:
+                                team.external_id = universo_team_code
+                                team.save(update_fields=['external_id'])
+                        except ValueError as exc:
+                            # Si Universo falla por token caducado, intentamos fallback LaPreferente si hay URL.
+                            roster = []
+                            error = str(exc) or 'No se pudo cargar la plantilla desde Universo RFAF.'
+                            candidate_url = ''
+                            if team and (team.preferente_url or '').strip():
+                                candidate_url = team.preferente_url
+                            elif team:
+                                try:
+                                    candidate_url = find_preferente_team_url(team.name)
+                                except Exception:
+                                    candidate_url = ''
+                            if candidate_url:
+                                try:
+                                    roster = fetch_preferente_team_roster(candidate_url)
+                                    if roster:
+                                        team_url = candidate_url
+                                        error = ''
+                                except Exception:
+                                    pass
+                    else:
+                        if not team_url and team:
+                            # Auto-búsqueda: si no hay URL guardada, intentamos localizar el equipo en La Preferente.
+                            try:
+                                team_url = find_preferente_team_url(team.name)
+                            except Exception:
+                                team_url = ''
+                        if not team_url and not team and home_rival_name:
+                            try:
+                                team_url = find_preferente_team_url(home_rival_name)
+                            except Exception:
+                                team_url = ''
+                        if team_url and team and _looks_like_preferente_url(team_url) and (team.preferente_url or '').strip() != team_url:
+                            team.preferente_url = team_url
+                            team.save(update_fields=['preferente_url'])
+                        if team_url:
+                            roster = fetch_preferente_team_roster(team_url)
 
                 if not raw_text and not roster and not team_url:
-                    error = 'No se ha encontrado la URL del rival en La Preferente. Pega el enlace manualmente.'
+                    error = 'No se ha encontrado la plantilla del rival. Pega la URL de Universo RFAF/LaPreferente o el HTML/texto.'
 
                 probable_eleven = compute_probable_eleven(roster)
                 insights = build_rival_insights(roster)
@@ -17578,12 +17736,12 @@ def analysis_page(request):
                 if not roster and not error:
                     error = 'No se han encontrado jugadores en la plantilla.'
             except Exception as exc:
-                logger.exception('Error al analizar rival (LaPreferente).')
+                logger.exception('Error al analizar rival.')
                 if isinstance(exc, ValueError) and str(exc):
                     error = str(exc)
                 else:
                     error = 'No se ha podido procesar la plantilla del rival. Revisa URL o el contenido pegado.'
-        if team and team_url and team.preferente_url != team_url:
+        if team and team_url and _looks_like_preferente_url(team_url) and team.preferente_url != team_url:
             team.preferente_url = team_url
             team.save(update_fields=['preferente_url'])
     else:
@@ -17597,6 +17755,16 @@ def analysis_page(request):
             team_id = str(auto_team.id)
             auto_team_name = auto_team.name
             team_url = (auto_team.preferente_url or '').strip()
+            if not team_url and str(getattr(auto_team, 'external_id', '') or '').strip().isdigit():
+                try:
+                    roster = fetch_universo_team_roster(str(auto_team.external_id or '').strip())
+                    probable_eleven = compute_probable_eleven(roster)
+                    insights = build_rival_insights(roster)
+                    formation = compute_formation(probable_eleven)
+                    lineup = assign_lineup_slots(probable_eleven, formation)
+                    auto_loaded = True
+                except Exception:
+                    roster = []
             if not team_url and auto_team_name:
                 try:
                     team_url = find_preferente_team_url(auto_team_name)
@@ -17626,7 +17794,7 @@ def analysis_page(request):
             else:
                 error = (
                     f'Rival detectado automáticamente ({auto_team.name}), '
-                    'pero no tiene URL de La Preferente guardada.'
+                    'pero no tiene URL de La Preferente ni código RFAF (Universo) guardado.'
                 )
     selected_team = Team.objects.filter(id=_parse_int(team_id)).first() if team_id else None
     selected_folder_id = _parse_int(request.GET.get('folder')) or _parse_int(request.POST.get('selected_folder_id'))
@@ -17637,11 +17805,25 @@ def analysis_page(request):
     rival_full_name, rival_crest_url = _resolve_rival_identity(rival_name, preferred_opponent=preferred_opponent)
     rival_meta = team_lookup.get(_normalize_team_lookup_key(rival_name), {})
     rival_team_code = str((preferred_opponent.get('team_code') if isinstance(preferred_opponent, dict) else '') or rival_meta.get('team_code') or '').strip()
+    universo_expires_ts = _load_universo_access_token_expires()
+    universo_session_label = 'No configurada'
+    if universo_expires_ts:
+        try:
+            expires_dt = datetime.fromtimestamp(float(universo_expires_ts), tz=timezone.utc)
+            now_dt = timezone.now()
+            universo_session_label = (
+                f'Activa hasta {expires_dt.astimezone(timezone.get_current_timezone()).strftime("%Y-%m-%d %H:%M")}'
+                if expires_dt > now_dt
+                else f'Caducada ({expires_dt.astimezone(timezone.get_current_timezone()).strftime("%Y-%m-%d %H:%M")})'
+            )
+        except Exception:
+            universo_session_label = 'Configurada (sin fecha)'
     extracted = {
         'source_priority': 'Universo RFAF > RFAF > La Preferente',
         'rival_name': rival_full_name,
         'rival_crest_url': _absolute_universo_url(rival_crest_url or rival_meta.get('crest_url')),
         'rival_team_code': rival_team_code,
+        'universo_session': universo_session_label,
         'standings_count': len(standings),
         'next_match_round': preferred_next.get('round') if isinstance(preferred_next, dict) else '',
         'next_match_date': preferred_next.get('date') if isinstance(preferred_next, dict) else '',
