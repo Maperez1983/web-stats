@@ -17602,10 +17602,12 @@ def analysis_page(request):
     rival_name = selected_team.name if selected_team else (home_rival_name or auto_team_name)
     rival_full_name, rival_crest_url = _resolve_rival_identity(rival_name, preferred_opponent=preferred_opponent)
     rival_meta = team_lookup.get(_normalize_team_lookup_key(rival_name), {})
+    rival_team_code = str((preferred_opponent.get('team_code') if isinstance(preferred_opponent, dict) else '') or rival_meta.get('team_code') or '').strip()
     extracted = {
         'source_priority': 'Universo RFAF > RFAF > La Preferente',
         'rival_name': rival_full_name,
         'rival_crest_url': _absolute_universo_url(rival_crest_url or rival_meta.get('crest_url')),
+        'rival_team_code': rival_team_code,
         'standings_count': len(standings),
         'next_match_round': preferred_next.get('round') if isinstance(preferred_next, dict) else '',
         'next_match_date': preferred_next.get('date') if isinstance(preferred_next, dict) else '',
@@ -17722,6 +17724,193 @@ def analysis_page(request):
             'manual_report_status_choices': RivalAnalysisReport.STATUS_CHOICES,
         },
     )
+
+
+@login_required
+def analysis_rival_form_api(request):
+    """
+    Devuelve forma reciente del rival (últimos partidos) usando Universo RFAF si está configurado.
+    Se usa por AJAX para no ralentizar el render inicial de la página de análisis.
+    """
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return JsonResponse({'ok': False, 'error': 'Módulo análisis no disponible.'}, status=403)
+
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
+
+    rival_name = str(request.GET.get('rival') or '').strip()
+    team_code = str(request.GET.get('team_code') or '').strip()
+    max_matches = _parse_int(request.GET.get('limit')) or 5
+    max_matches = max(3, min(max_matches, 8))
+
+    competition_context = (
+        WorkspaceCompetitionContext.objects
+        .filter(Q(team=primary_team) | Q(workspace__primary_team=primary_team))
+        .select_related('workspace', 'team', 'group')
+        .first()
+    )
+    competition_context = _ensure_universo_context_binding(competition_context, primary_team)
+    if not competition_context or str(getattr(competition_context, 'provider', '') or '').strip() != WorkspaceCompetitionContext.PROVIDER_UNIVERSO:
+        return JsonResponse({'ok': True, 'available': False, 'matches': [], 'summary': {}})
+
+    group_key = str(getattr(competition_context, 'external_group_key', '') or '').strip()
+    if not group_key:
+        group_key = str(getattr(getattr(primary_team, 'group', None), 'external_id', '') or '').strip()
+    if not group_key:
+        return JsonResponse({'ok': True, 'available': False, 'matches': [], 'summary': {}})
+
+    rival_name = rival_name or _payload_opponent_name(load_preferred_next_match_payload(primary_team=primary_team) or {}) or ''
+    if not rival_name:
+        return JsonResponse({'ok': True, 'available': False, 'matches': [], 'summary': {}})
+
+    rival_keys = _expand_team_lookup_variants(rival_name)
+    cache_key = f'analysis:rival_form:{group_key}:{normalize_label(rival_name)}:{team_code}:{max_matches}'
+    cached = cache.get(cache_key)
+    if isinstance(cached, dict) and isinstance(cached.get('matches'), list):
+        return JsonResponse({'ok': True, 'available': True, **cached})
+
+    current = _fetch_universo_live_results(group_key)
+    if not current:
+        return JsonResponse({'ok': True, 'available': False, 'matches': [], 'summary': {}})
+
+    rounds = []
+    current_round = str(current.get('jornada') or '').strip()
+    if current_round:
+        rounds.append(current_round)
+    for bucket in current.get('listado_jornadas') or []:
+        if not isinstance(bucket, dict):
+            continue
+        for row in bucket.get('jornadas') or []:
+            if not isinstance(row, dict):
+                continue
+            round_id = str(row.get('codjornada') or '').strip()
+            if round_id and round_id not in rounds:
+                rounds.append(round_id)
+
+    numeric_rounds = [rid for rid in rounds if str(rid).isdigit()]
+    if numeric_rounds:
+        ordered = sorted({rid for rid in numeric_rounds}, key=lambda value: int(value), reverse=True)
+        if current_round.isdigit() and current_round in ordered:
+            start_index = ordered.index(current_round)
+        else:
+            start_index = 0
+        rounds_to_check = ordered[start_index:start_index + 12]
+    else:
+        rounds_to_check = list(reversed(rounds[:12]))
+
+    def _row_involves_rival(row):
+        home_code = str(row.get('CodEquipo_local') or '').strip()
+        away_code = str(row.get('CodEquipo_visitante') or '').strip()
+        if team_code:
+            return team_code == home_code or team_code == away_code
+        home_name = str(row.get('Nombre_equipo_local') or '').strip()
+        away_name = str(row.get('Nombre_equipo_visitante') or '').strip()
+        home_keys = _expand_team_lookup_variants(home_name)
+        away_keys = _expand_team_lookup_variants(away_name)
+        return bool(rival_keys & home_keys) or bool(rival_keys & away_keys)
+
+    def _match_payload_from_row(row, fallback_round=''):
+        if not _row_involves_rival(row):
+            return None
+        home_name = str(row.get('Nombre_equipo_local') or '').strip()
+        away_name = str(row.get('Nombre_equipo_visitante') or '').strip()
+        home_code = str(row.get('CodEquipo_local') or '').strip()
+        away_code = str(row.get('CodEquipo_visitante') or '').strip()
+        is_home = False
+        opponent = ''
+        if team_code and team_code == home_code:
+            is_home = True
+            opponent = away_name
+        elif team_code and team_code == away_code:
+            is_home = False
+            opponent = home_name
+        else:
+            home_keys = _expand_team_lookup_variants(home_name)
+            away_keys = _expand_team_lookup_variants(away_name)
+            if rival_keys & home_keys:
+                is_home = True
+                opponent = away_name
+            else:
+                is_home = False
+                opponent = home_name
+
+        gf_home = _parse_int(row.get('Goles_casa'))
+        gf_away = _parse_int(row.get('Goles_visitante'))
+        if gf_home is None or gf_away is None:
+            return None
+        gf = gf_home if is_home else gf_away
+        ga = gf_away if is_home else gf_home
+        result = 'E'
+        if gf > ga:
+            result = 'V'
+        elif gf < ga:
+            result = 'D'
+
+        raw_date = str(row.get('fecha') or '').strip()
+        date_iso = ''
+        if raw_date:
+            for fmt in ('%d/%m/%Y', '%d-%m-%Y', '%Y-%m-%d'):
+                try:
+                    date_iso = datetime.strptime(raw_date, fmt).date().isoformat()
+                    break
+                except ValueError:
+                    continue
+        return {
+            'round': str(row.get('nombre_jornada') or row.get('jornada') or fallback_round or '').strip(),
+            'date': date_iso,
+            'home': bool(is_home),
+            'opponent': opponent,
+            'gf': int(gf),
+            'ga': int(ga),
+            'result': result,
+        }
+
+    matches = []
+    for rid in rounds_to_check:
+        payload = current if rid == current_round else _fetch_universo_live_results(group_key, rid)
+        if not payload:
+            continue
+        fallback_round = str(payload.get('nombre_jornada') or payload.get('jornada') or rid).strip()
+        for row in payload.get('partidos') or []:
+            if not isinstance(row, dict):
+                continue
+            match_payload = _match_payload_from_row(row, fallback_round=fallback_round)
+            if match_payload:
+                matches.append(match_payload)
+        if len(matches) >= (max_matches * 2):
+            break
+
+    # Ordena por fecha desc (cuando está), y recorta.
+    def _sort_key(item):
+        d = _parse_payload_date(item.get('date'))
+        return (d or date(1900, 1, 1), item.get('round') or '')
+
+    matches.sort(key=_sort_key, reverse=True)
+    matches = matches[:max_matches]
+
+    summary = {'points': 0, 'w': 0, 'd': 0, 'l': 0, 'gf': 0, 'ga': 0}
+    for item in matches:
+        gf = int(item.get('gf') or 0)
+        ga = int(item.get('ga') or 0)
+        summary['gf'] += gf
+        summary['ga'] += ga
+        if item.get('result') == 'V':
+            summary['w'] += 1
+            summary['points'] += 3
+        elif item.get('result') == 'E':
+            summary['d'] += 1
+            summary['points'] += 1
+        else:
+            summary['l'] += 1
+
+    payload_out = {'matches': matches, 'summary': summary}
+    cache.set(cache_key, payload_out, 60 * 30)
+    return JsonResponse({'ok': True, 'available': True, **payload_out})
 
 
 @login_required

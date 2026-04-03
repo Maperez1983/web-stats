@@ -561,6 +561,13 @@
         </div>
         {% if roster %}
         <div class="grid">
+          <div class="item">
+            <h3>Forma reciente</h3>
+            <p class="meta" id="rival-form-summary">Cargando…</p>
+            <ul class="list" id="rival-form-list">
+              <li><span class="meta">Cargando resultados…</span></li>
+            </ul>
+          </div>
           <div class="item item-wide">
             <h3>11 probable</h3>
             <div class="lineup-meta">
@@ -614,5 +621,63 @@
         {% endif %}
       </article>
     </div>
+    <script>
+      (function () {
+        const rosterExists = {{ roster|yesno:"true,false" }};
+        if (!rosterExists) return;
+        const list = document.getElementById('rival-form-list');
+        const summary = document.getElementById('rival-form-summary');
+        const teamId = String('{{ team_id|default:"" }}');
+        const rivalName = String('{{ extracted.rival_name|default:"" }}');
+        const teamCode = String('{{ extracted.rival_team_code|default:"" }}');
+        const url = new URL("{% url 'analysis-rival-form-api' %}", window.location.origin);
+        if (rivalName) url.searchParams.set('rival', rivalName);
+        if (teamCode) url.searchParams.set('team_code', teamCode);
+        url.searchParams.set('limit', '5');
+
+        const render = (data) => {
+          if (!list || !summary) return;
+          const matches = Array.isArray(data?.matches) ? data.matches : [];
+          const s = data?.summary || {};
+          const points = Number(s.points || 0);
+          const w = Number(s.w || 0);
+          const d = Number(s.d || 0);
+          const l = Number(s.l || 0);
+          const gf = Number(s.gf || 0);
+          const ga = Number(s.ga || 0);
+          summary.textContent = matches.length
+            ? `Últimos ${matches.length}: ${points} pts · ${w}V ${d}E ${l}D · ${gf}-${ga}`
+            : 'Sin datos recientes disponibles.';
+
+          list.textContent = '';
+          if (!matches.length) {
+            const li = document.createElement('li');
+            li.innerHTML = '<span class="meta">No hay partidos recientes (o Universo no está configurado).</span>';
+            list.appendChild(li);
+            return;
+          }
+          matches.forEach((m) => {
+            const li = document.createElement('li');
+            const result = String(m.result || '');
+            const badge = result === 'V' ? 'V' : (result === 'E' ? 'E' : 'D');
+            const date = String(m.date || '').replaceAll('-', '/');
+            const opponent = String(m.opponent || 'Rival');
+            li.innerHTML = `<strong>${badge}</strong> <span class="meta">· ${m.gf}-${m.ga} · ${opponent} · ${date || (m.round || '')}</span>`;
+            list.appendChild(li);
+          });
+        };
+
+        fetch(url.toString(), { credentials: 'same-origin' })
+          .then((resp) => resp.json().then((d) => ({ ok: resp.ok, d })))
+          .then(({ ok, d }) => {
+            if (!ok || d?.ok === false) throw new Error(d?.error || 'No se pudo cargar la forma.');
+            render(d);
+          })
+          .catch(() => {
+            if (summary) summary.textContent = 'No se pudo cargar la forma reciente.';
+            if (list) list.innerHTML = '<li><span class="meta">Revisa la configuración de Universo.</span></li>';
+          });
+      })();
+    </script>
   </body>
 </html>

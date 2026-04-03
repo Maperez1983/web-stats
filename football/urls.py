@@ -24,6 +24,7 @@ urlpatterns = [
     path('api/share/convocation-pdf/create/', views.share_convocation_pdf_create, name='share-convocation-pdf-create'),
     path('api/share/revoke/<str:token>/', views.share_link_revoke, name='share-link-revoke'),
     path('api/system/diagnostics/', views.system_diagnostics, name='system-diagnostics'),
+    path('api/analysis/rival-form/', views.analysis_rival_form_api, name='analysis-rival-form-api'),
     path('coach/', views.coach_overview_page, name='coach-detail'),
     path('player/<int:player_id>/', views.player_detail_page, name='player-detail'),
     path('player/<int:player_id>/photo/', views.player_photo_file, name='player-photo-file'),
