@@ -523,13 +523,6 @@ def find_preferente_team_url(team_name: str) -> str:
     query = str(team_name or '').strip()
     if not query:
         return ''
-    q = quote_plus(query)
-    search_urls = [
-        f'{PREFERENTE_BASE_URL}buscar.php?buscar={q}',
-        f'{PREFERENTE_BASE_URL}buscador.php?buscar={q}',
-        f'{PREFERENTE_BASE_URL}index.php?buscar={q}',
-        f'{PREFERENTE_BASE_URL}search.php?q={q}',
-    ]
 
     def _norm(text: str) -> str:
         return re.sub(r'[^a-z0-9]+', '', normalize_player_name(text or ''))
@@ -575,32 +568,84 @@ def find_preferente_team_url(team_name: str) -> str:
         candidates.sort(key=lambda item: item[0], reverse=True)
         return [url for _, url in candidates[:10]]
 
-    # 1) Busca en páginas de búsqueda.
+    def _open_and_validate(session: requests.Session, url: str) -> bool:
+        try:
+            page = session.get(url, headers=_preferente_headers(PREFERENTE_BASE_URL), timeout=18)
+        except Exception:
+            return False
+        html = getattr(page, 'text', '') or ''
+        return 'tablePlantilla' in html
+
+    # 1) Buscador oficial (select2) vía JSON: json/buscaEquipos.php?q=...
+    # Es la forma más estable de localizar el IDequipo y construir /?IDequipo=...
+    if len(query) >= 3:
+        session = requests.Session()
+        try:
+            session.get(PREFERENTE_BASE_URL, headers=_preferente_headers(PREFERENTE_BASE_URL), timeout=10)
+        except Exception:
+            pass
+        try:
+            response = session.get(
+                urljoin(PREFERENTE_BASE_URL, 'json/buscaEquipos.php'),
+                params={'q': query},
+                headers=_preferente_headers(PREFERENTE_BASE_URL),
+                timeout=18,
+            )
+            data = response.json() if response.ok else {}
+            results = data.get('results') if isinstance(data, dict) else None
+            if isinstance(results, list):
+                scored = []
+                for item in results[:20]:
+                    if not isinstance(item, dict):
+                        continue
+                    team_id = str(item.get('id') or '').strip()
+                    if not team_id.isdigit():
+                        continue
+                    label = (item.get('nombre') or item.get('text') or '').strip()
+                    score = _score_candidate(label, team_id)
+                    candidate_url = f'{PREFERENTE_BASE_URL}?IDequipo={team_id}'
+                    scored.append((score, candidate_url))
+                scored.sort(key=lambda row: row[0], reverse=True)
+                for _, candidate in scored[:10]:
+                    if _open_and_validate(session, candidate):
+                        return candidate
+        except Exception:
+            pass
+
+    # 2) Fallback HTML: extrae enlaces a páginas "equipo" cuando existan.
+    # (Mantiene compatibilidad si LaPreferente cambia el buscador.)
+    q = quote_plus(query)
+    search_urls = [
+        f'{PREFERENTE_BASE_URL}?buscar={q}',
+        f'{PREFERENTE_BASE_URL}buscador.html?buscar={q}',
+    ]
+    session = requests.Session()
+    try:
+        session.get(PREFERENTE_BASE_URL, headers=_preferente_headers(PREFERENTE_BASE_URL), timeout=10)
+    except Exception:
+        pass
     for url in search_urls:
         try:
-            response = _fetch_preferente_response(url, timeout=18)
+            response = session.get(url, headers=_preferente_headers(PREFERENTE_BASE_URL), timeout=18)
         except Exception:
             continue
-        if not getattr(response, 'text', ''):
+        html = getattr(response, 'text', '') or ''
+        if not html:
             continue
-        for candidate in _extract_candidates(response.text):
-            try:
-                page = _fetch_preferente_response(candidate, timeout=18)
-            except Exception:
-                continue
-            html = page.text or ''
-            if 'tablePlantilla' in html:
+        for candidate in _extract_candidates(html):
+            if _open_and_validate(session, candidate):
                 return candidate
 
     # 2) Fallback: si el equipo ya viene con enlace incrustado en el nombre (p.ej. pegado).
     maybe_url = str(team_name or '').strip()
     if maybe_url.startswith('http://') or maybe_url.startswith('https://'):
+        session = requests.Session()
         try:
-            page = _fetch_preferente_response(maybe_url, timeout=18)
-            if 'tablePlantilla' in (page.text or ''):
-                return maybe_url
+            session.get(PREFERENTE_BASE_URL, headers=_preferente_headers(PREFERENTE_BASE_URL), timeout=10)
         except Exception:
             pass
+        if _open_and_validate(session, maybe_url):
+            return maybe_url
     return ''
 
 
