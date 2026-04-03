@@ -373,15 +373,19 @@ def parse_preferente_roster(html: str) -> list[dict]:
         return []
     soup = BeautifulSoup(html, 'html.parser')
     tables = []
-    for candidate in soup.find_all('table'):
-        header = candidate.find('tr')
-        if not header:
-            continue
-        header_text = ' '.join(
-            cell.get_text(' ', strip=True).lower() for cell in header.find_all(['th', 'td'])
-        )
-        if 'jugador' in header_text and 'min' in header_text:
-            tables.append(candidate)
+    direct = soup.find('table', id='tablePlantilla')
+    if direct is not None:
+        tables = [direct]
+    else:
+        for candidate in soup.find_all('table'):
+            header = candidate.find('tr')
+            if not header:
+                continue
+            header_text = ' '.join(
+                cell.get_text(' ', strip=True).lower() for cell in header.find_all(['th', 'td'])
+            )
+            if 'jugador' in header_text and 'min' in header_text:
+                tables.append(candidate)
     if not tables:
         return parse_preferente_roster_text(html)
     roster = []
