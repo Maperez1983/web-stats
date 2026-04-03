@@ -3546,17 +3546,35 @@ def _fetch_universo_access_token_via_login() -> tuple[str, float, str]:
     url = 'https://www.universorfaf.es/api/login'
     headers = {
         'Accept': 'application/json',
-        'User-Agent': '2j-football-intelligence/1.0',
+        'User-Agent': (
+            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 '
+            '(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+        ),
+        'Origin': 'https://www.universorfaf.es',
+        'Referer': 'https://www.universorfaf.es/login',
     }
+    # Universo usa FormData() en frontend -> multipart/form-data.
+    # Si enviamos x-www-form-urlencoded, a veces no devuelve token.
+    response = None
     try:
         response = requests.post(
             url,
             headers=headers,
-            data={'email': username, 'password': password},
+            files={'email': (None, username), 'password': (None, password)},
             timeout=UNIVERSO_API_TIMEOUT_SECONDS,
         )
     except Exception:
-        return '', 0.0, 'Error de red al hacer login'
+        response = None
+    if response is None:
+        try:
+            response = requests.post(
+                url,
+                headers=headers,
+                data={'email': username, 'password': password},
+                timeout=UNIVERSO_API_TIMEOUT_SECONDS,
+            )
+        except Exception:
+            return '', 0.0, 'Error de red al hacer login'
     if not getattr(response, 'ok', False):
         try:
             details = response.json() if response.headers.get('content-type', '').startswith('application/json') else response.text
