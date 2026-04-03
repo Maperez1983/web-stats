@@ -188,6 +188,32 @@ class WorkspaceCompetitionSnapshot(models.Model):
         return f'Snapshot · {self.workspace.name}'
 
 
+class TeamRosterSnapshot(models.Model):
+    PROVIDER_UNIVERSO = 'universo_rfaf'
+    PROVIDER_PREFERENTE = 'lapreferente'
+    PROVIDER_CHOICES = [
+        (PROVIDER_UNIVERSO, 'Universo RFAF'),
+        (PROVIDER_PREFERENTE, 'La Preferente'),
+    ]
+
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='roster_snapshots')
+    provider = models.CharField(max_length=32, choices=PROVIDER_CHOICES, default=PROVIDER_UNIVERSO)
+    roster_payload = models.JSONField(default=list, blank=True)
+    source_url = models.URLField(blank=True)
+    error = models.CharField(max_length=240, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('team', 'provider')
+        ordering = ['-updated_at']
+        verbose_name = 'Snapshot plantilla (equipo)'
+        verbose_name_plural = 'Snapshots plantilla (equipos)'
+
+    def __str__(self):
+        return f'Plantilla · {self.team.name} · {self.get_provider_display()}'
+
+
 class Player(models.Model):
     team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='players')
     # Vínculo explícito con el usuario del jugador para evitar ambigüedades al resolver

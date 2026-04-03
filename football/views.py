@@ -117,6 +117,7 @@ from football.models import (
     TaskStudioTask,
     WorkspaceCompetitionContext,
     WorkspaceCompetitionSnapshot,
+    TeamRosterSnapshot,
 )
 from football.event_taxonomy import (
     DRIBBLE_KEYWORDS,
@@ -17519,6 +17520,7 @@ def analysis_page(request):
     insights = {}
     formation = 'Auto'
     error = ''
+    roster_source = ''
     auto_loaded = False
     auto_team_name = ''
     video_error = ''
@@ -17669,8 +17671,30 @@ def analysis_page(request):
                 team_url = team.preferente_url or ''
         if form_action == 'analyze':
             try:
+                if not raw_text and team and not team_url:
+                    # Si existe plantilla en caché (por sincronización previa), usarla y evitar llamadas externas.
+                    try:
+                        cache_days = max(1, int(os.getenv('RIVAL_ROSTER_CACHE_DAYS', '14') or '14'))
+                    except Exception:
+                        cache_days = 14
+                    threshold = timezone.now() - timedelta(days=cache_days)
+                    snapshot = (
+                        TeamRosterSnapshot.objects.filter(team=team)
+                        .order_by('-updated_at', '-id')
+                        .first()
+                    )
+                    if (
+                        snapshot
+                        and snapshot.updated_at
+                        and snapshot.updated_at >= threshold
+                        and isinstance(snapshot.roster_payload, list)
+                        and snapshot.roster_payload
+                    ):
+                        roster = snapshot.roster_payload
+                        roster_source = f'cache:{snapshot.provider}'
                 if raw_text:
                     roster = parse_preferente_roster(raw_text)
+                    roster_source = 'manual:raw_text'
                 else:
                     universo_team_code = ''
                     if _looks_like_universo_url(team_url):
@@ -17680,6 +17704,7 @@ def analysis_page(request):
                     if universo_team_code:
                         try:
                             roster = fetch_universo_team_roster(universo_team_code)
+                            roster_source = 'universo:live'
                             if team and team.external_id != universo_team_code:
                                 team.external_id = universo_team_code
                                 team.save(update_fields=['external_id'])
@@ -17700,6 +17725,7 @@ def analysis_page(request):
                                     roster = fetch_preferente_team_roster(candidate_url)
                                     if roster:
                                         team_url = candidate_url
+                                        roster_source = 'lapreferente:live'
                                         error = ''
                                 except Exception:
                                     pass
@@ -17720,6 +17746,8 @@ def analysis_page(request):
                             team.save(update_fields=['preferente_url'])
                         if team_url:
                             roster = fetch_preferente_team_roster(team_url)
+                            if roster:
+                                roster_source = 'lapreferente:live'
 
                 if not raw_text and not roster and not team_url:
                     error = 'No se ha encontrado la plantilla del rival. Pega la URL de Universo RFAF/LaPreferente o el HTML/texto.'
@@ -17735,6 +17763,30 @@ def analysis_page(request):
 
                 if not roster and not error:
                     error = 'No se han encontrado jugadores en la plantilla.'
+
+                # Persistimos caché de plantilla para que el flujo de partido no dependa de peticiones externas.
+                if team and roster and not error:
+                    try:
+                        provider = TeamRosterSnapshot.PROVIDER_PREFERENTE
+                        source_url = team_url
+                        if roster_source.startswith('universo'):
+                            provider = TeamRosterSnapshot.PROVIDER_UNIVERSO
+                            source_url = (
+                                team_url
+                                if _looks_like_universo_url(team_url)
+                                else f'https://www.universorfaf.es/team/{str(team.external_id or "").strip()}'
+                            )
+                        TeamRosterSnapshot.objects.update_or_create(
+                            team=team,
+                            provider=provider,
+                            defaults={
+                                'roster_payload': roster,
+                                'source_url': str(source_url or '').strip(),
+                                'error': '',
+                            },
+                        )
+                    except Exception:
+                        pass
             except Exception as exc:
                 logger.exception('Error al analizar rival.')
                 if isinstance(exc, ValueError) and str(exc):
@@ -17824,6 +17876,7 @@ def analysis_page(request):
         'rival_crest_url': _absolute_universo_url(rival_crest_url or rival_meta.get('crest_url')),
         'rival_team_code': rival_team_code,
         'universo_session': universo_session_label,
+        'roster_source': roster_source,
         'standings_count': len(standings),
         'next_match_round': preferred_next.get('round') if isinstance(preferred_next, dict) else '',
         'next_match_date': preferred_next.get('date') if isinstance(preferred_next, dict) else '',
