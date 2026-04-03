@@ -5,10 +5,20 @@ export DEBUG="${DEBUG:-true}"
 export SECRET_KEY="${SECRET_KEY:-build-secret-key}"
 
 # Utilidades del sistema para renderizar previsualizaciones de PDF (pdftoppm).
-# Render (Ubuntu/Debian) permite apt-get durante build.
-if command -v apt-get >/dev/null 2>&1; then
-  apt-get update
-  apt-get install -y poppler-utils
+# En algunos entornos (Render), esto puede requerir permisos de root. No bloqueamos el deploy si falla:
+# el sistema hace fallback (previews sin recorte múltiple / o usando imágenes embebidas).
+if [ "${INSTALL_POPPLER_UTILS:-true}" = "true" ] && command -v apt-get >/dev/null 2>&1; then
+  echo "Intentando instalar poppler-utils (pdftoppm/pdftotext)..."
+  if [ "$(id -u)" -eq 0 ]; then
+    apt-get update || true
+    apt-get install -y poppler-utils || true
+  elif command -v sudo >/dev/null 2>&1; then
+    sudo -n apt-get update || true
+    sudo -n apt-get install -y poppler-utils || true
+  else
+    apt-get update || true
+    apt-get install -y poppler-utils || true
+  fi
 fi
 
 python -m pip install --upgrade pip
