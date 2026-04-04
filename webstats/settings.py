@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 from pathlib import Path
 import os
+from urllib.parse import urlparse
 import dj_database_url
 from django.core.exceptions import ImproperlyConfigured
 
@@ -49,7 +50,35 @@ if not SECRET_KEY:
     else:
         raise ImproperlyConfigured('SECRET_KEY es obligatorio cuando DEBUG=False')
 
-ALLOWED_HOSTS = [host.strip() for host in os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if host.strip()]
+def _normalize_allowed_host(raw: str) -> str:
+    host = str(raw or '').strip()
+    if not host:
+        return ''
+    # Permite formatos accidentales en variables de entorno: `https://example.com`, `example.com/`,
+    # o `example.com:443`. Django necesita solo host (y opcional wildcard con punto inicial).
+    wildcard = False
+    if host.startswith('*.'):
+        wildcard = True
+        host = host[2:]
+    if host.startswith('.'):
+        wildcard = True
+        host = host.lstrip('.')
+    if host.startswith('http://') or host.startswith('https://'):
+        parsed = urlparse(host)
+        host = parsed.netloc or parsed.path
+    host = host.strip().strip('/')
+    if ':' in host:
+        host = host.split(':', 1)[0].strip()
+    if not host:
+        return ''
+    return f'.{host}' if wildcard else host
+
+
+ALLOWED_HOSTS = [
+    _normalize_allowed_host(host)
+    for host in os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+]
+ALLOWED_HOSTS = [host for host in ALLOWED_HOSTS if host]
 if not DEBUG and '*' in ALLOWED_HOSTS:
     raise ImproperlyConfigured('ALLOWED_HOSTS no puede contener "*" cuando DEBUG=False')
 
@@ -72,6 +101,24 @@ for _raw_origin in os.getenv('CSRF_TRUSTED_ORIGINS', '').split(','):
     _normalized = _normalize_csrf_origin(_raw_origin)
     if _normalized:
         CSRF_TRUSTED_ORIGINS.append(_normalized)
+
+# Si el usuario ha configurado CSRF_TRUSTED_ORIGINS pero se ha olvidado de ALLOWED_HOSTS (o lo ha puesto
+# con esquema), añadimos automáticamente esos hosts para evitar 400 (DisallowedHost).
+for _origin in list(CSRF_TRUSTED_ORIGINS):
+    try:
+        parsed = urlparse(_origin)
+        origin_host = parsed.netloc.strip()
+    except Exception:
+        origin_host = ''
+    if not origin_host:
+        continue
+    # Wildcard: https://*.example.com -> .example.com
+    if origin_host.startswith('*.'):
+        normalized = _normalize_allowed_host('.' + origin_host[2:])
+    else:
+        normalized = _normalize_allowed_host(origin_host)
+    if normalized and normalized not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(normalized)
 
 RENDER_HOSTNAME = os.getenv('RENDER_EXTERNAL_HOSTNAME')
 if RENDER_HOSTNAME:
