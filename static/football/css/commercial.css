@@ -26,6 +26,23 @@ body.prod-commercial {
   background-attachment: fixed;
 }
 
+/* Mobile/performance:
+   - `background-attachment: fixed` y `backdrop-filter` pueden ir a tirones en iOS/Android.
+   - En pantallas táctiles priorizamos fluidez y batería. */
+@media (hover: none), (pointer: coarse), (max-width: 820px) {
+  body.prod-commercial {
+    background-attachment: scroll;
+  }
+
+  body.prod-commercial .topbar,
+  body.prod-commercial .hero,
+  body.prod-commercial .panel,
+  body.prod-commercial .card,
+  body.prod-commercial .product-card {
+    backdrop-filter: none;
+  }
+}
+
 body.prod-commercial :focus-visible {
   outline: 2px solid rgba(244, 180, 0, 0.65);
   outline-offset: 3px;

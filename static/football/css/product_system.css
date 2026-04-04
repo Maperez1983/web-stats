@@ -36,6 +36,26 @@ body {
   font-family: var(--prod-font-ui);
 }
 
+/* iOS/Android: evitar scroll horizontal accidental y mejorar viewport dinámico. */
+body {
+  overflow-x: hidden;
+}
+
+@supports (min-height: 100dvh) {
+  body {
+    min-height: 100dvh;
+  }
+}
+
+@supports (padding: env(safe-area-inset-top)) {
+  :root {
+    --safe-top: env(safe-area-inset-top);
+    --safe-right: env(safe-area-inset-right);
+    --safe-bottom: env(safe-area-inset-bottom);
+    --safe-left: env(safe-area-inset-left);
+  }
+}
+
 img,
 svg,
 video,
@@ -52,6 +72,53 @@ canvas {
   max-width: 1280px;
   margin: 0 auto;
   padding: 1.25rem;
+}
+
+@supports (padding: env(safe-area-inset-left)) {
+  .product-page {
+    padding-top: calc(1.25rem + var(--safe-top, 0px));
+    padding-right: calc(1.25rem + var(--safe-right, 0px));
+    padding-bottom: calc(1.25rem + var(--safe-bottom, 0px));
+    padding-left: calc(1.25rem + var(--safe-left, 0px));
+  }
+}
+
+@media (max-width: 820px) {
+  .product-page {
+    padding: 0.9rem;
+  }
+
+  @supports (padding: env(safe-area-inset-left)) {
+    .product-page {
+      padding-top: calc(0.9rem + var(--safe-top, 0px));
+      padding-right: calc(0.9rem + var(--safe-right, 0px));
+      padding-bottom: calc(0.9rem + var(--safe-bottom, 0px));
+      padding-left: calc(0.9rem + var(--safe-left, 0px));
+    }
+  }
+
+  /* iOS: inputs con font-size < 16px hacen zoom al tocar. */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  /* Mejor respuesta táctil (reduce el “delay” y doble-tap accidental). */
+  a,
+  button,
+  [role="button"] {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .product-title-stack h1 {
+    font-size: 1.18rem;
+  }
+
+  .product-title-stack p {
+    font-size: 0.95rem;
+  }
 }
 
 .product-topbar {

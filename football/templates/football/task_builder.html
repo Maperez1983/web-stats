@@ -3,7 +3,7 @@
 <html lang="es">
   <head>
 	    <meta charset="UTF-8" />
-	    <meta name="viewport" content="width=device-width,initial-scale=1" />
+		    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
 	    <title>{% if task %}Editar tarea{% else %}Crear tarea{% endif %} · {{ scope_title }}</title>
 	    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
 	    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}" />
@@ -865,13 +865,13 @@
         overflow: hidden;
         border-radius: 18px;
       }
-      .pitch-layout {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) 380px;
-        grid-template-areas: "main side";
-        gap: 1rem;
-        align-items: start;
-      }
+	      .pitch-layout {
+	        display: grid;
+	        grid-template-columns: minmax(0, 1fr) 380px;
+	        grid-template-areas: "main side";
+	        gap: 1rem;
+	        align-items: start;
+	      }
       .pitch-main,
       .pitch-side {
         min-width: 0;
@@ -886,21 +886,21 @@
         overflow: auto;
         padding-right: 2px;
       }
-      @media (max-width: 1160px) {
-        .pitch-layout {
-          grid-template-columns: 1fr;
-          grid-template-areas:
-            "side"
-            "main";
-        }
-        .pitch-side {
-          position: relative;
-          top: auto;
-          max-height: none;
-          overflow: visible;
-          padding-right: 0;
-        }
-      }
+	      @media (max-width: 1160px) {
+	        .pitch-layout {
+	          grid-template-columns: 1fr;
+	          grid-template-areas:
+	            "main"
+	            "side";
+	        }
+	        .pitch-side {
+	          position: relative;
+	          top: auto;
+	          max-height: none;
+	          overflow: visible;
+	          padding-right: 0;
+	        }
+	      }
       .pitch-viewport.is-hand,
       .pitch-viewport.is-hand * {
         cursor: grab;
