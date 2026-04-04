@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Sesión · {{ session.focus }}</title>
+    <style>
+      @page {
+        size: A4 landscape;
+        margin: 10mm;
+      }
+      body {
+        font-family: "Segoe UI", Arial, sans-serif;
+        font-size: 10.5px;
+        color: #0f172a;
+        background: #ffffff;
+      }
+      .sheet {
+        border: 1px solid #6b7280;
+        background: #ffffff;
+      }
+      .head {
+        padding: 10px 12px 8px;
+        display: flex;
+        gap: 12px;
+        align-items: stretch;
+      }
+      .badge {
+        background: #c00000;
+        color: #ffffff;
+        font-weight: 900;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        padding: 10px 14px;
+        border-radius: 12px;
+        min-width: 150px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 6px 16px rgba(15, 23, 42, 0.16);
+      }
+      .meta {
+        flex: 1;
+        border: 1px solid #6b7280;
+        background: #f3f4f6;
+        border-radius: 12px;
+        padding: 10px 12px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .logo {
+        width: 44px;
+        height: 44px;
+        border-radius: 999px;
+        background: #ffffff;
+        border: 1px solid rgba(15, 23, 42, 0.12);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        flex: 0 0 auto;
+      }
+      .logo img {
+        width: 36px;
+        height: 36px;
+        object-fit: contain;
+        display: block;
+      }
+      .k {
+        font-size: 9px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: #64748b;
+        font-weight: 900;
+      }
+      .v {
+        margin-top: 2px;
+        font-size: 14px;
+        font-weight: 900;
+      }
+      .sub {
+        margin-top: 3px;
+        color: #475569;
+        font-size: 10px;
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: 300px 1fr;
+        gap: 12px;
+        padding: 0 12px 12px;
+      }
+      .panel {
+        border: 1px solid #6b7280;
+        border-radius: 14px;
+        overflow: hidden;
+        background: #f8fafc;
+      }
+      .panel-head {
+        background: #e5e7eb;
+        padding: 7px 10px;
+        font-size: 10px;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+      }
+      .panel-body {
+        padding: 10px;
+        line-height: 1.45;
+        white-space: pre-line;
+      }
+      .facts {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .fact {
+        border: 1px solid rgba(107, 114, 128, 0.7);
+        border-radius: 12px;
+        background: #ffffff;
+        padding: 9px 10px;
+      }
+      .fact .k { font-size: 8.5px; }
+      .fact .v { font-size: 12px; margin-top: 3px; font-weight: 800; }
+      .tasks {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .task {
+        border: 1px solid #6b7280;
+        border-radius: 14px;
+        overflow: hidden;
+        background: #ffffff;
+        min-height: 190px;
+      }
+      .task-head {
+        background: #c00000;
+        color: #ffffff;
+        padding: 7px 10px;
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        align-items: baseline;
+      }
+      .task-head strong {
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        font-size: 10px;
+      }
+      .task-head span {
+        font-size: 10px;
+        opacity: 0.92;
+      }
+      .task-body {
+        padding: 9px 10px 10px;
+      }
+      .task-title {
+        font-weight: 900;
+        font-size: 12.5px;
+        margin-bottom: 6px;
+      }
+      .task-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      .cell {
+        border: 1px solid #d1d5db;
+        border-radius: 12px;
+        padding: 7px 8px;
+        background: #f8fafc;
+      }
+      .cell .k { font-size: 8px; }
+      .cell .val { margin-top: 3px; color: #0f172a; font-size: 10px; line-height: 1.35; }
+      .cell-wide {
+        grid-column: 1 / -1;
+      }
+      .footer {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 8px 12px;
+        border-top: 1px solid #d1d5db;
+        color: #64748b;
+        font-size: 9px;
+      }
+    </style>
+  </head>
+  <body>
+    <section class="sheet">
+      <div class="head">
+        <div class="badge">Sesión</div>
+        <div class="meta">
+          <div style="display:flex; gap:10px; align-items:center;">
+            <div class="logo">{% if logo_url %}<img src="{{ logo_url }}" alt="Escudo {{ team_name }}" />{% endif %}</div>
+            <div>
+              <div class="k">Sesión</div>
+              <div class="v">{{ session.focus }}</div>
+              <div class="sub">{{ team_name }} · {{ coach_name }}</div>
+            </div>
+          </div>
+          <div style="text-align:right;">
+            <div class="k">Fecha</div>
+            <div class="v">{{ session.session_date|date:"d/m/Y" }}{% if session.start_time %} · {{ session.start_time|time:"H:i" }}{% endif %}</div>
+            <div class="sub">Microciclo: {{ microcycle.title }}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="layout">
+        <div>
+          <div class="panel" style="margin-bottom:10px;">
+            <div class="panel-head">Datos</div>
+            <div class="panel-body">
+              <div class="facts">
+                <div class="fact">
+                  <div class="k">Microciclo</div>
+                  <div class="v">{{ microcycle.title }}</div>
+                </div>
+                <div class="fact">
+                  <div class="k">Intensidad</div>
+                  <div class="v">{{ intensity_label }}</div>
+                </div>
+                <div class="fact">
+                  <div class="k">Duración</div>
+                  <div class="v">{{ session.duration_minutes }} min</div>
+                </div>
+                <div class="fact">
+                  <div class="k">Tareas</div>
+                  <div class="v">{{ tasks_count }} · {{ task_minutes_total }}'</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel" style="margin-bottom:10px;">
+            <div class="panel-head">Contenido / explicación</div>
+            <div class="panel-body">{% if session.content %}{{ session.content }}{% else %}-{% endif %}</div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head">Observaciones</div>
+            <div class="panel-body">-</div>
+          </div>
+        </div>
+
+        <div>
+          <div class="tasks">
+            {% for sheet in task_sheets|slice:":4" %}
+            <div class="task">
+              <div class="task-head">
+                <strong>Tarea {{ forloop.counter }}</strong>
+                <span>{{ sheet.block_label }} · {{ sheet.minutes }} min</span>
+              </div>
+              <div class="task-body">
+                <div class="task-title">{{ sheet.title }}</div>
+                <div class="task-grid">
+                  <div class="cell">
+                    <div class="k">Tipo de tarea</div>
+                    <div class="val">{{ sheet.type_label|default:"-" }}</div>
+                  </div>
+                  <div class="cell">
+                    <div class="k">Estructura</div>
+                    <div class="val">{{ sheet.structure_label|default:"-" }}</div>
+                  </div>
+                  <div class="cell cell-wide">
+                    <div class="k">Contenidos</div>
+                    <div class="val">{{ sheet.contents_label|default:"-" }}</div>
+                  </div>
+                  <div class="cell cell-wide">
+                    <div class="k">Desarrollo</div>
+                    <div class="val">
+                      {% if sheet.focus %}{{ sheet.focus }}{% elif sheet.description %}{{ sheet.description }}{% else %}-{% endif %}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+            {% if task_sheets|length < 1 %}
+            <div class="panel">
+              <div class="panel-head">Tareas</div>
+              <div class="panel-body">No hay tareas aún en esta sesión.</div>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div class="footer">
+        <div>2J Studio · Sesión</div>
+        <div>Generado {{ generated_at|date:"d/m/Y H:i" }}</div>
+      </div>
+    </section>
+  </body>
+</html>
+

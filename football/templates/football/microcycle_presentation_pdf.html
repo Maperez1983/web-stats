@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Microciclo · {{ microcycle.title }}</title>
+    <style>
+      @page {
+        size: A4 landscape;
+        margin: 10mm;
+      }
+      body {
+        font-family: "Segoe UI", Arial, sans-serif;
+        font-size: 10.5px;
+        color: #0f172a;
+        background: #ffffff;
+      }
+      .sheet {
+        border: 1px solid #6b7280;
+        background: #ffffff;
+      }
+      .top {
+        display: flex;
+        gap: 10px;
+        align-items: stretch;
+        padding: 10px 12px 8px;
+      }
+      .badge {
+        background: #c00000;
+        color: #ffffff;
+        font-weight: 900;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        padding: 10px 14px;
+        border-radius: 12px;
+        min-width: 150px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 6px 16px rgba(15, 23, 42, 0.16);
+      }
+      .top-box {
+        flex: 1;
+        border: 1px solid #6b7280;
+        background: #f3f4f6;
+        border-radius: 12px;
+        padding: 10px 12px;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .top-k {
+        font-size: 9px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: #64748b;
+        font-weight: 800;
+      }
+      .top-v {
+        font-size: 13px;
+        font-weight: 800;
+        color: #0f172a;
+        margin-top: 2px;
+      }
+      .logo {
+        width: 44px;
+        height: 44px;
+        border-radius: 999px;
+        background: #ffffff;
+        border: 1px solid rgba(15, 23, 42, 0.12);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        flex: 0 0 auto;
+      }
+      .logo img {
+        width: 36px;
+        height: 36px;
+        object-fit: contain;
+        display: block;
+      }
+      .grid {
+        padding: 0 12px 12px;
+      }
+      .week {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 8px;
+        margin-top: 4px;
+      }
+      .day {
+        border: 1px solid #6b7280;
+        background: #f3f4f6;
+        border-radius: 14px;
+        overflow: hidden;
+        min-height: 112px;
+      }
+      .day-head {
+        background: rgba(15, 23, 42, 0.88);
+        color: #ffffff;
+        padding: 6px 8px;
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .day-name {
+        font-weight: 900;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        font-size: 9px;
+      }
+      .day-date {
+        font-size: 9px;
+        opacity: 0.9;
+      }
+      .day-body {
+        padding: 8px 9px 9px;
+      }
+      .session-item + .session-item {
+        margin-top: 6px;
+        padding-top: 6px;
+        border-top: 1px dashed rgba(107, 114, 128, 0.55);
+      }
+      .session-title {
+        font-weight: 900;
+        font-size: 11px;
+      }
+      .session-meta {
+        margin-top: 2px;
+        color: #475569;
+        font-size: 9.5px;
+      }
+      .obj-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 10px;
+        margin-top: 10px;
+      }
+      .obj {
+        border: 1px solid #6b7280;
+        border-radius: 14px;
+        overflow: hidden;
+      }
+      .obj-head {
+        background: #e5e7eb;
+        padding: 7px 10px;
+        font-size: 10px;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: #0f172a;
+      }
+      .obj-body {
+        padding: 9px 10px 10px;
+        background: #f8fafc;
+        line-height: 1.45;
+        white-space: pre-line;
+      }
+      .obj-wide {
+        margin-top: 10px;
+        border: 1px solid #6b7280;
+        border-radius: 14px;
+        overflow: hidden;
+      }
+      .footer {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 8px 12px;
+        border-top: 1px solid #d1d5db;
+        color: #64748b;
+        font-size: 9px;
+      }
+      .page-break {
+        page-break-after: always;
+      }
+      .meta-line {
+        color: #475569;
+        font-size: 10px;
+        margin-top: 3px;
+      }
+    </style>
+  </head>
+  <body>
+    <section class="sheet page-break">
+      <div class="top">
+        <div class="badge">Semana</div>
+        <div class="top-box" style="min-width:320px;">
+          <div style="display:flex; gap:10px; align-items:center;">
+            <div class="logo">
+              {% if logo_url %}<img src="{{ logo_url }}" alt="Escudo {{ team_name }}" />{% endif %}
+            </div>
+            <div>
+              <div class="top-k">Microciclo</div>
+              <div class="top-v">{{ microcycle.title }}</div>
+              <div class="meta-line">{{ team_name }} · {{ coach_name }}</div>
+            </div>
+          </div>
+          <div style="text-align:right;">
+            <div class="top-k">Fechas</div>
+            <div class="top-v">{{ microcycle.week_start|date:"d/m/Y" }} → {{ microcycle.week_end|date:"d/m/Y" }}</div>
+            {% if match_record and match_record.opponent_name %}
+            <div class="meta-line">Partido: {{ match_record.opponent_name }}{% if match_record.match_date %} · {{ match_record.match_date|date:"d/m" }}{% endif %}{% if match_record.match_time %} · {{ match_record.match_time|time:"H:i" }}{% endif %}</div>
+            {% else %}
+            <div class="meta-line">Partido: Rival por confirmar</div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="week">
+          {% for slot in week_slots %}
+          <div class="day">
+            <div class="day-head">
+              <span class="day-name">{{ slot.label }}</span>
+              <span class="day-date">{{ slot.date|date:"d/m" }}</span>
+            </div>
+            <div class="day-body">
+              {% if slot.sessions %}
+                {% for slot_session in slot.sessions %}
+                <div class="session-item">
+                  <div class="session-title">{{ slot_session.obj.focus }}</div>
+                  <div class="session-meta">
+                    {% if slot_session.obj.start_time %}{{ slot_session.obj.start_time|time:"H:i" }} · {% endif %}
+                    {{ slot_session.obj.duration_minutes }}' · {{ slot_session.obj.get_intensity_display }}
+                  </div>
+                </div>
+                {% endfor %}
+              {% else %}
+                <div class="session-meta">Sin sesión planificada.</div>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+
+        <div class="obj-grid">
+          <div class="obj">
+            <div class="obj-head">Objetivos ataque</div>
+            <div class="obj-body">{{ plan_fields.attack|default:"-" }}</div>
+          </div>
+          <div class="obj">
+            <div class="obj-head">Objetivos defensa</div>
+            <div class="obj-body">{{ plan_fields.defense|default:"-" }}</div>
+          </div>
+          <div class="obj">
+            <div class="obj-head">Objetivos ABP</div>
+            <div class="obj-body">{{ plan_fields.set_pieces|default:"-" }}</div>
+          </div>
+        </div>
+
+        <div class="obj-wide">
+          <div class="obj-head">Observaciones rival</div>
+          <div class="obj-body">{{ plan_fields.rival_notes|default:"-" }}</div>
+        </div>
+      </div>
+
+      <div class="footer">
+        <div>2J Studio · Microciclo</div>
+        <div>Generado {{ generated_at|date:"d/m/Y H:i" }}</div>
+      </div>
+    </section>
+
+    <!-- Ficha 2 (réplica de la primera, preparada para imprimir/compartir como hoja extra) -->
+    <section class="sheet">
+      <div class="top">
+        <div class="badge">Semana</div>
+        <div class="top-box" style="min-width:320px;">
+          <div style="display:flex; gap:10px; align-items:center;">
+            <div class="logo">
+              {% if logo_url %}<img src="{{ logo_url }}" alt="Escudo {{ team_name }}" />{% endif %}
+            </div>
+            <div>
+              <div class="top-k">Microciclo</div>
+              <div class="top-v">{{ microcycle.title }}</div>
+              <div class="meta-line">{{ team_name }} · {{ coach_name }}</div>
+            </div>
+          </div>
+          <div style="text-align:right;">
+            <div class="top-k">Fechas</div>
+            <div class="top-v">{{ microcycle.week_start|date:"d/m/Y" }} → {{ microcycle.week_end|date:"d/m/Y" }}</div>
+            <div class="meta-line">Ficha 2 (duplicada)</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="week">
+          {% for slot in week_slots %}
+          <div class="day">
+            <div class="day-head">
+              <span class="day-name">{{ slot.label }}</span>
+              <span class="day-date">{{ slot.date|date:"d/m" }}</span>
+            </div>
+            <div class="day-body">
+              {% if slot.sessions %}
+                {% for slot_session in slot.sessions %}
+                <div class="session-item">
+                  <div class="session-title">{{ slot_session.obj.focus }}</div>
+                  <div class="session-meta">
+                    {% if slot_session.obj.start_time %}{{ slot_session.obj.start_time|time:"H:i" }} · {% endif %}
+                    {{ slot_session.obj.duration_minutes }}' · {{ slot_session.obj.get_intensity_display }}
+                  </div>
+                </div>
+                {% endfor %}
+              {% else %}
+                <div class="session-meta">Sin sesión planificada.</div>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+
+        <div class="obj-grid">
+          <div class="obj">
+            <div class="obj-head">Objetivos ataque</div>
+            <div class="obj-body">{{ plan_fields.attack|default:"-" }}</div>
+          </div>
+          <div class="obj">
+            <div class="obj-head">Objetivos defensa</div>
+            <div class="obj-body">{{ plan_fields.defense|default:"-" }}</div>
+          </div>
+          <div class="obj">
+            <div class="obj-head">Objetivos ABP</div>
+            <div class="obj-body">{{ plan_fields.set_pieces|default:"-" }}</div>
+          </div>
+        </div>
+
+        <div class="obj-wide">
+          <div class="obj-head">Observaciones rival</div>
+          <div class="obj-body">{{ plan_fields.rival_notes|default:"-" }}</div>
+        </div>
+      </div>
+
+      <div class="footer">
+        <div>2J Studio · Microciclo</div>
+        <div>Generado {{ generated_at|date:"d/m/Y H:i" }}</div>
+      </div>
+    </section>
+  </body>
+</html>
+

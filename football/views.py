@@ -9423,6 +9423,91 @@ def session_plan_pdf(request, session_id):
 
 
 @login_required
+def microcycle_presentation_pdf(request, microcycle_id):
+    if not _can_access_sessions_workspace(request.user):
+        return HttpResponse('No tienes permisos para acceder a sesiones.', status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        raise Http404('Equipo principal no configurado')
+    microcycle = TrainingMicrocycle.objects.filter(id=microcycle_id, team=primary_team).first()
+    if not microcycle:
+        raise Http404('Microciclo no encontrado')
+    sessions = list(
+        TrainingSession.objects
+        .filter(microcycle=microcycle)
+        .prefetch_related('tasks')
+        .order_by('session_date', 'start_time', 'order', 'id')
+    )
+    session_rows = []
+    for item in sessions:
+        try:
+            tasks_count = item.tasks.filter(deleted_at__isnull=True).count()
+        except Exception:
+            tasks_count = 0
+        session_rows.append({'obj': item, 'tasks_count': tasks_count})
+    week_slots = _build_microcycle_week_slots(microcycle, session_rows)
+    plan_fields = _parse_microcycle_plan_fields(getattr(microcycle, 'notes', ''))
+
+    match_record = (
+        ConvocationRecord.objects
+        .filter(team=primary_team, match_date__gte=microcycle.week_start, match_date__lte=microcycle.week_end)
+        .order_by('-created_at')
+        .first()
+    )
+    if not match_record:
+        match_record = ConvocationRecord.objects.filter(team=primary_team, is_current=True).order_by('-created_at').first()
+
+    coach_name = (
+        request.user.get_full_name().strip()
+        if hasattr(request.user, 'get_full_name') and request.user.get_full_name().strip()
+        else getattr(request.user, 'username', '') or 'Entrenador'
+    )
+    context = {
+        'team_name': primary_team.name,
+        'microcycle': microcycle,
+        'week_slots': week_slots,
+        'plan_fields': plan_fields,
+        'match_record': match_record,
+        'coach_name': coach_name,
+        'logo_url': resolve_team_crest_url(request, primary_team, sync=True),
+        'brand_mark_url': request.build_absolute_uri(static('football/images/2j-mark.svg')),
+        'generated_at': timezone.localtime(),
+    }
+    html = render_to_string('football/microcycle_presentation_pdf.html', context)
+    filename = slugify(f'microciclo-{microcycle.title}') or f'microciclo-{microcycle.id}'
+    return _build_pdf_response_or_html_fallback(request, html, filename)
+
+
+@login_required
+def session_presentation_pdf(request, session_id):
+    if not _can_access_sessions_workspace(request.user):
+        return HttpResponse('No tienes permisos para acceder a sesiones.', status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        raise Http404('Equipo principal no configurado')
+    session = (
+        TrainingSession.objects
+        .select_related('microcycle__team')
+        .prefetch_related('tasks')
+        .filter(id=session_id, microcycle__team=primary_team)
+        .first()
+    )
+    if not session:
+        raise Http404('Sesión no encontrada')
+    team = session.microcycle.team
+    context = _build_session_pdf_context(request, team, session, pdf_style='club')
+    html = render_to_string('football/session_presentation_pdf.html', context)
+    filename = slugify(f'sesion-presentacion-{session.session_date}-{session.focus}') or f'sesion-presentacion-{session.id}'
+    return _build_pdf_response_or_html_fallback(request, html, filename)
+
+
+@login_required
 def session_task_pdf(request, task_id):
     if not _can_access_sessions_workspace(request.user):
         return HttpResponse('No tienes permisos para acceder a sesiones.', status=403)
