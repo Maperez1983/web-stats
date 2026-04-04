@@ -3,7 +3,7 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <title>2J Player · Inicio</title>
+    <title>Segunda Jugada · 2J Player</title>
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
     <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}" />
@@ -125,12 +125,12 @@
     <div class="product-page product-shell">
       <header class="product-topbar" style="margin-bottom:1rem;">
         <div class="headline product-title-stack">
-          <a class="product-brand-strip" href="{% if home_url %}{{ home_url }}{% elif workspace_entry_url %}{{ workspace_entry_url }}{% else %}{% url 'dashboard-home' %}{% endif %}" style="margin-bottom:0.4rem; text-decoration:none; color:inherit;">
-            <div class="product-brand-strip-copy">
-              <strong>2J Player</strong>
-              <span>Football Intelligence · Seguimiento del jugador</span>
-            </div>
-          </a>
+	          <a class="product-brand-strip" href="{% if home_url %}{{ home_url }}{% elif workspace_entry_url %}{{ workspace_entry_url }}{% else %}{% url 'dashboard-home' %}{% endif %}" style="margin-bottom:0.4rem; text-decoration:none; color:inherit;">
+	            <div class="product-brand-strip-copy">
+	              <strong>Segunda Jugada</strong>
+	              <span>2J Player · Football Intelligence</span>
+	            </div>
+	          </a>
           {% include 'football/includes/dragon_nav.html' with hide_product_shortcuts=True hide_dragon_logo=False %}
           <p>Modo actual <span class="product-chip role">{{ current_role_label }}</span></p>
           <h1>Inicio jugador</h1>

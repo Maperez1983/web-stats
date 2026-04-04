@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-    <title>2J Player · Dashboard jugadores</title>
+    <title>Segunda Jugada · 2J Player</title>
     <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}" />
     {% include 'football/pwa_head.html' %}
@@ -291,10 +291,10 @@
       <div class="product-topbar player-dash" style="display:grid;grid-template-columns:1fr auto;align-items:start;margin-bottom:1rem;">
         <div class="headline product-title-stack">
           <a class="product-brand-strip" href="{% if home_url %}{{ home_url }}{% elif workspace_entry_url %}{{ workspace_entry_url }}{% else %}{% url 'dashboard-home' %}{% endif %}" style="margin-bottom:0.4rem; text-decoration:none; color:inherit;">
-            <div class="product-brand-strip-copy">
-              <strong>2J Player</strong>
-              <span>Football Intelligence · Vista de rendimiento</span>
-            </div>
+	            <div class="product-brand-strip-copy">
+	              <strong>Segunda Jugada</strong>
+	              <span>2J Player · Football Intelligence</span>
+	            </div>
           </a>
           {% include 'football/includes/dragon_nav.html' with hide_product_shortcuts=True hide_dragon_logo=False %}
           <p>Dashboard jugadores · {{ team_name }}</p>

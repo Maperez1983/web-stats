@@ -26,9 +26,9 @@ def pwa_manifest(request: HttpRequest) -> HttpResponse:
     """
     build = _build_id()
     manifest = {
-        "name": "2J Platform",
+        "name": "Segunda Jugada",
         "short_name": "2J",
-        "description": "2J Football Intelligence · Tareas, sesiones y análisis.",
+        "description": "Segunda Jugada · 2J Football Intelligence · Tareas, sesiones y análisis.",
         "start_url": "/",
         "scope": "/",
         "display": "standalone",
@@ -36,6 +36,7 @@ def pwa_manifest(request: HttpRequest) -> HttpResponse:
         "background_color": "#08111d",
         "theme_color": "#08111d",
         "icons": [
+            {"src": f"/static/football/pwa/icons/icon-180.png?v={build}", "sizes": "180x180", "type": "image/png"},
             {"src": f"/static/football/pwa/icons/icon-192.png?v={build}", "sizes": "192x192", "type": "image/png"},
             {"src": f"/static/football/pwa/icons/icon-512.png?v={build}", "sizes": "512x512", "type": "image/png"},
         ],
@@ -160,7 +161,7 @@ def pwa_offline(request: HttpRequest) -> HttpResponse:
 <html lang="es">
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<title>Sin conexión · 2J</title>
+<title>Sin conexión · Segunda Jugada</title>
 <style>
   body {{
     margin: 0;
@@ -191,4 +192,3 @@ def pwa_offline(request: HttpRequest) -> HttpResponse:
     response = HttpResponse(html, content_type="text/html; charset=utf-8")
     add_never_cache_headers(response)
     return response
-

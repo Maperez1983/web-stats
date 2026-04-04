@@ -4,7 +4,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-    <title>2J Studio</title>
+    <title>Segunda Jugada · 2J Studio</title>
     <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     {% include 'football/pwa_head.html' %}
@@ -66,7 +66,8 @@
           <div class="brand-head" style="margin-bottom:.15rem;">
             <img src="{% static 'football/images/2j-mark.svg' %}" alt="2J Football Intelligence" />
           </div>
-          <h1 class="product-title-stack" style="margin:.25rem 0 0; font-size:1.2rem; letter-spacing:.14em; text-transform:uppercase; color:var(--ink);">2J Studio</h1>
+	          <h1 class="product-title-stack" style="margin:.25rem 0 0; font-size:1.2rem; letter-spacing:.14em; text-transform:uppercase; color:var(--ink);">2J Studio</h1>
+	          <p class="muted" style="margin:.25rem 0 0; letter-spacing:.08em; text-transform:uppercase;">Segunda Jugada · Football Intelligence</p>
           <p class="muted" style="margin:.35rem 0 0;">
             {% if browse_all %}Vista global de administrador.{% else %}Espacio privado de creación de tareas{% endif %}
             · {{ target_user.get_username }}

@@ -3,7 +3,7 @@
 <html lang="es">
   <head>
     <meta charset="utf-8" />
-    <title>2J Player · {{ player.name }}</title>
+    <title>Segunda Jugada · 2J Player · {{ player.name }}</title>
     <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}" />
     <style>
@@ -360,10 +360,10 @@
   <body class="prod-commercial">
     <div class="container">
       <a class="product-brand-strip" href="{% if home_url %}{{ home_url }}{% elif workspace_entry_url %}{{ workspace_entry_url }}{% else %}{% url 'dashboard-home' %}{% endif %}" style="margin-bottom:0.55rem; text-decoration:none; color:inherit;">
-        <div class="product-brand-strip-copy">
-          <strong>2J Player</strong>
-          <span>Football Intelligence · Ficha individual</span>
-        </div>
+	        <div class="product-brand-strip-copy">
+	          <strong>Segunda Jugada</strong>
+	          <span>2J Player · Football Intelligence</span>
+	        </div>
       </a>
       {% include 'football/includes/dragon_nav.html' with hide_product_shortcuts=True hide_dragon_logo=False %}
       <header>

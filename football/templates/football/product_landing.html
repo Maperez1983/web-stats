@@ -4,7 +4,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-    <title>2J Football Intelligence</title>
+	    <title>Segunda Jugada · 2J Football Intelligence</title>
     <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     {% include 'football/pwa_head.html' %}
@@ -468,13 +468,13 @@
   <body class="prod-commercial">
     <main class="page">
       <header class="topbar">
-        <div class="brand">
-          <img src="{% static 'football/images/2j-mark.svg' %}" alt="2J Football Intelligence" />
-          <div class="brand-copy">
-            <strong>2J</strong>
-            <span>{{ brand_descriptor }}</span>
-          </div>
-        </div>
+	        <div class="brand">
+	          <img src="{% static 'football/images/2j-mark.svg' %}" alt="2J Football Intelligence" />
+	          <div class="brand-copy">
+	            <strong>Segunda Jugada</strong>
+	            <span>2J · {{ brand_descriptor }}</span>
+	          </div>
+	        </div>
         <div class="top-actions">
           <a class="button" href="{% url 'login' %}">Acceso clientes</a>
           <a class="button primary" href="{% url 'login' %}">Entrar a la plataforma</a>
@@ -485,7 +485,7 @@
 	        <div>
 	          <span class="eyebrow">Football Intelligence</span>
 	          <h1>Football Intelligence para entrenadores.</h1>
-	          <p>2J transforma lo que ocurre en el juego en decisiones útiles: toma de datos en vivo, análisis y un creador de tareas profesional dentro de una estructura modular.</p>
+		          <p>Segunda Jugada (2J) transforma lo que ocurre en el juego en decisiones útiles: toma de datos en vivo, análisis y un creador de tareas profesional dentro de una estructura modular.</p>
           <div class="hero-visual">
             <div class="shot-browser">
               <div class="shot-dots"><span></span><span></span><span></span></div>
