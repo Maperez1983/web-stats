@@ -863,28 +863,34 @@
 			        const htmlField = form.querySelector(`[name="${CSS.escape(htmlName)}"]`);
 			        if (!area || !plainField || !htmlField) return;
 
-			        // Fuerza alineación a la izquierda y evita estilos heredados/inline que pueden
-			        // acabar centrando el texto (sobre todo al rehidratar HTML guardado).
-			        const forceLeftAlignment = () => {
-			          try {
-			            area.style.setProperty('text-align', 'left', 'important');
-			            area.style.setProperty('display', 'block');
-			            area.style.setProperty('justify-content', 'flex-start');
-			            area.style.setProperty('align-items', 'stretch');
-			          } catch (error) { /* ignore */ }
-			          try {
-			            const nodes = area.querySelectorAll('[style], [align]');
-			            nodes.forEach((node) => {
-			              try { node.removeAttribute('align'); } catch (error) { /* ignore */ }
-			              try { node.style.setProperty('text-align', 'left', 'important'); } catch (error) { /* ignore */ }
-			              try { node.style.removeProperty('justify-content'); } catch (error) { /* ignore */ }
-			              try { node.style.removeProperty('align-items'); } catch (error) { /* ignore */ }
-			            });
-			          } catch (error) { /* ignore */ }
-			          // Safari/iOS: puede mantener el estado de justificación. Forzamos left para el bloque actual.
-			          try { document.execCommand('justifyLeft', false, null); } catch (error) { /* ignore */ }
-			        };
-			        forceLeftAlignment();
+				        // Fuerza alineación a la izquierda y evita estilos heredados/inline que pueden
+				        // acabar centrando el texto (sobre todo al rehidratar HTML guardado).
+				        //
+				        // Importante (rendimiento): el "deep cleanup" (querySelectorAll + execCommand)
+				        // es caro y NO debe ejecutarse en cada tecla, porque genera delay al escribir.
+				        const forceLeftAlignment = (deep = false) => {
+				          // Fast path: asegura el estilo base del editor (casi gratis).
+				          try {
+				            area.style.setProperty('text-align', 'left', 'important');
+				            area.style.setProperty('display', 'block');
+				            area.style.setProperty('justify-content', 'flex-start');
+				            area.style.setProperty('align-items', 'stretch');
+				          } catch (error) { /* ignore */ }
+				          if (!deep) return;
+				          // Slow path: limpia nodos con estilos heredados / alineación inline.
+				          try {
+				            const nodes = area.querySelectorAll('[style], [align]');
+				            nodes.forEach((node) => {
+				              try { node.removeAttribute('align'); } catch (error) { /* ignore */ }
+				              try { node.style.setProperty('text-align', 'left', 'important'); } catch (error) { /* ignore */ }
+				              try { node.style.removeProperty('justify-content'); } catch (error) { /* ignore */ }
+				              try { node.style.removeProperty('align-items'); } catch (error) { /* ignore */ }
+				            });
+				          } catch (error) { /* ignore */ }
+				          // Safari/iOS: puede mantener el estado de justificación. Forzamos left para el bloque actual.
+				          try { document.execCommand('justifyLeft', false, null); } catch (error) { /* ignore */ }
+				        };
+				        forceLeftAlignment(true);
 
 		        const normalizePlain = (value) => String(value || '')
 		          .replace(/\u00a0/g, ' ')
@@ -892,65 +898,75 @@
 		          .replace(/\n{3,}/g, '\n\n')
 		          .trim();
 
-			        const sync = () => {
-			          // Mantén siempre left antes de serializar (evita que se "cuelen" estilos centrados).
-			          forceLeftAlignment();
-			          htmlField.value = String(area.innerHTML || '').trim();
-			          plainField.value = normalizePlain(area.innerText || area.textContent || '');
-			          plainField.dispatchEvent(new Event('input', { bubbles: true }));
-			        };
-			        syncFns.push(sync);
+				        let richSyncTimer = null;
+				        const syncFields = () => {
+				          htmlField.value = String(area.innerHTML || '').trim();
+				          plainField.value = normalizePlain(area.innerText || area.textContent || '');
+				        };
+				        const scheduleSyncFields = () => {
+				          window.clearTimeout(richSyncTimer);
+				          // Debounce suave: reduce lecturas de innerText/innerHTML por tecla.
+				          richSyncTimer = window.setTimeout(syncFields, 120);
+				        };
+				        const syncDeep = () => {
+				          window.clearTimeout(richSyncTimer);
+				          // Solo en acciones "puntuales" (blur/toolbar), hacemos limpieza profunda.
+				          forceLeftAlignment(true);
+				          syncFields();
+				        };
+				        syncFns.push(syncDeep);
 
-			        area.addEventListener('input', sync);
-			        area.addEventListener('focus', () => {
-			          forceLeftAlignment();
-			        });
-			        area.addEventListener('blur', () => {
-			          forceLeftAlignment();
-			          sync();
-			        });
-		        area.addEventListener('paste', (event) => {
-		          const text = event.clipboardData?.getData('text/plain');
-		          if (typeof text !== 'string') return;
-		          event.preventDefault();
-	          try {
-	            document.execCommand('insertText', false, text);
-	          } catch (error) {
-	            // fallback
-	            const selection = window.getSelection ? window.getSelection() : null;
-	            if (!selection || selection.rangeCount <= 0) return;
-	            const range = selection.getRangeAt(0);
-	            range.deleteContents();
-	            range.insertNode(document.createTextNode(text));
-	          }
-	          sync();
-	        });
+				        area.addEventListener('input', scheduleSyncFields);
+				        area.addEventListener('focus', () => {
+				          forceLeftAlignment(false);
+				        });
+				        area.addEventListener('blur', () => {
+				          syncDeep();
+				        });
+			        area.addEventListener('paste', (event) => {
+			          const text = event.clipboardData?.getData('text/plain');
+			          if (typeof text !== 'string') return;
+			          event.preventDefault();
+		          try {
+		            document.execCommand('insertText', false, text);
+		          } catch (error) {
+		            // fallback
+		            const selection = window.getSelection ? window.getSelection() : null;
+		            if (!selection || selection.rangeCount <= 0) return;
+		            const range = selection.getRangeAt(0);
+		            range.deleteContents();
+		            range.insertNode(document.createTextNode(text));
+		          }
+		          // Pegado es texto plano, no hace falta limpieza profunda aquí.
+		          forceLeftAlignment(false);
+		          window.clearTimeout(richSyncTimer);
+		          syncFields();
+		        });
 
-	        toolbar?.addEventListener('click', (event) => {
-	          const btn = event.target.closest('button[data-rich-cmd]');
-	          if (!btn) return;
+		        toolbar?.addEventListener('click', (event) => {
+		          const btn = event.target.closest('button[data-rich-cmd]');
+		          if (!btn) return;
 	          event.preventDefault();
 	          const cmd = safeText(btn.dataset.richCmd);
 	          if (!cmd) return;
 	          area.focus();
-	          if (cmd === 'upper' || cmd === 'lower') {
-	            const did = applyCaseToSelection(cmd);
-	            if (!did) setStatus('Selecciona texto para cambiar mayúsculas/minúsculas.', true);
-	            sync();
-	            return;
-	          }
-	          try {
-	            document.execCommand(cmd, false, null);
-	          } catch (error) {
-	            // ignore
-	          }
-	          sync();
-	        });
+		          if (cmd === 'upper' || cmd === 'lower') {
+		            const did = applyCaseToSelection(cmd);
+		            if (!did) setStatus('Selecciona texto para cambiar mayúsculas/minúsculas.', true);
+		            syncDeep();
+		            return;
+		          }
+		          try {
+		            document.execCommand(cmd, false, null);
+		          } catch (error) {
+		            // ignore
+		          }
+		          syncDeep();
+		        });
 
-		        // Inicializa hidden fields al cargar (para el caso de que vengan con HTML).
-		        forceLeftAlignment();
-		        sync();
-		      });
+			        // Inicializa hidden fields al cargar (para el caso de que vengan con HTML).
+			        syncDeep();
+			      });
 	      syncRichEditorsNow = () => {
 	        syncFns.forEach((fn) => {
 	          try { fn(); } catch (error) { /* ignore */ }
