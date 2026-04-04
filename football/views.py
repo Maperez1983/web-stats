@@ -1000,25 +1000,24 @@ def pdf_graphic_asset_upload(request):
     saved = []
     skipped = 0
     errors = 0
-    for uploaded in files[:40]:
-        raw_name = str(getattr(uploaded, 'name', '') or '').rsplit('/', 1)[-1]
-        raw_name = raw_name[:220]
-        try:
-            data = uploaded.read() or b''
-        except Exception:
-            data = b''
+
+    def _already_exists(sha256_value):
+        qs = PdfGraphicAsset.objects.filter(sha256=sha256_value)
+        if team:
+            qs = qs.filter(team=team)
+        if owner:
+            qs = qs.filter(owner=owner)
+        return qs.exists()
+
+    def _store_asset(*, data, title_hint='', ext_hint='png'):
+        nonlocal skipped, errors, saved
         if not data:
             errors += 1
-            continue
+            return
         sha = hashlib.sha256(data).hexdigest()
-        exists_qs = PdfGraphicAsset.objects.filter(sha256=sha)
-        if team:
-            exists_qs = exists_qs.filter(team=team)
-        if owner:
-            exists_qs = exists_qs.filter(owner=owner)
-        if exists_qs.exists():
+        if _already_exists(sha):
             skipped += 1
-            continue
+            return
         width = None
         height = None
         if Image is not None:
@@ -1032,16 +1031,18 @@ def pdf_graphic_asset_upload(request):
             except Exception:
                 width = None
                 height = None
-        ext = Path(raw_name).suffix.lower().lstrip('.')
-        if ext not in {'png', 'jpg', 'jpeg', 'webp'}:
+        ext = str(ext_hint or 'png').lower().lstrip('.')
+        if ext == 'jpeg':
+            ext = 'jpg'
+        if ext not in {'png', 'jpg', 'webp', 'gif'}:
             ext = 'png'
-        filename = f'asset-{sha[:16]}.{ "jpg" if ext == "jpeg" else ext }'
+        filename = f'asset-{sha[:16]}.{ext}'
         try:
             obj = PdfGraphicAsset(
                 team=team,
                 owner=owner,
                 sha256=sha,
-                title=(Path(raw_name).stem or '')[:160],
+                title=str(title_hint or '').strip()[:160],
                 width=width,
                 height=height,
                 source_pdf_name='',
@@ -1059,6 +1060,84 @@ def pdf_graphic_asset_upload(request):
             )
         except Exception:
             errors += 1
+
+    def _convert_to_png_if_needed(data, ext):
+        if not data:
+            return b'', 'png'
+        normalized = str(ext or '').lower().lstrip('.')
+        if normalized in {'png', 'jpg', 'jpeg', 'webp'}:
+            return data, ('jpg' if normalized == 'jpeg' else normalized)
+        # TIFF y GIF: convertimos a PNG (mejor compatibilidad en Fabric/canvas).
+        if normalized in {'tif', 'tiff', 'gif'}:
+            if Image is None:
+                return b'', 'png'
+            try:
+                with Image.open(io.BytesIO(data)) as img:
+                    img.load()
+                    if getattr(img, 'is_animated', False):
+                        try:
+                            img.seek(0)
+                        except Exception:
+                            pass
+                    rgba = img.convert('RGBA')
+                    out = io.BytesIO()
+                    rgba.save(out, format='PNG', optimize=True)
+                    return out.getvalue(), 'png'
+            except Exception:
+                return b'', 'png'
+        return b'', 'png'
+
+    def _extract_from_pptx(pptx_bytes):
+        nonlocal skipped
+        if not pptx_bytes:
+            return
+        try:
+            with zipfile.ZipFile(io.BytesIO(pptx_bytes)) as zf:
+                for info in zf.infolist():
+                    name = str(info.filename or '')
+                    if not name.startswith('ppt/media/'):
+                        continue
+                    base = name.rsplit('/', 1)[-1]
+                    ext = Path(base).suffix.lower().lstrip('.')
+                    # EMF/WMF no se pueden rasterizar sin herramientas externas.
+                    if ext in {'emf', 'wmf'}:
+                        skipped += 1
+                        continue
+                    try:
+                        raw = zf.read(info) or b''
+                    except Exception:
+                        raw = b''
+                    if not raw:
+                        continue
+                    data, out_ext = _convert_to_png_if_needed(raw, ext)
+                    if not data:
+                        continue
+                    title_hint = Path(base).stem
+                    _store_asset(data=data, title_hint=title_hint, ext_hint=out_ext)
+        except Exception:
+            return
+
+    for uploaded in files[:40]:
+        raw_name = str(getattr(uploaded, 'name', '') or '').rsplit('/', 1)[-1]
+        raw_name = raw_name[:220]
+        suffix = Path(raw_name).suffix.lower()
+        try:
+            data = uploaded.read() or b''
+        except Exception:
+            data = b''
+        if not data:
+            errors += 1
+            continue
+        if suffix == '.pptx':
+            _extract_from_pptx(data)
+            continue
+        ext = suffix.lstrip('.')
+        data2, out_ext = _convert_to_png_if_needed(data, ext)
+        if not data2:
+            errors += 1
+            continue
+        _store_asset(data=data2, title_hint=Path(raw_name).stem, ext_hint=out_ext)
+
     return JsonResponse({'ok': True, 'saved': saved, 'skipped': skipped, 'errors': errors})
 
 
