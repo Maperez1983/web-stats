@@ -1288,7 +1288,7 @@
             </label>
             <label style="display:flex; gap:10px; align-items:center; margin-top:6px;">
               <input type="checkbox" name="pdf_recreate_board" value="1" checked />
-              <span>Recrear pizarra desde el gráfico del PDF (beta)</span>
+              <span>Usar el gráfico del PDF como fondo editable (recomendado)</span>
             </label>
             <div style="display:flex; align-items:flex-end;">
               <button type="submit" class="primary">Subir PDF a biblioteca</button>
@@ -1999,6 +1999,17 @@
                   <input type="hidden" name="task_id" value="{{ t.id }}" />
                   <button type="submit" class="secondary">Autocorregir</button>
                 </form>
+                {% if t.is_imported %}
+                <form method="post" style="margin:0;">
+                  {% csrf_token %}
+                  <input type="hidden" name="planner_action" value="pdf_board_background" />
+                  <input type="hidden" name="planner_tab" value="library" />
+                  <input type="hidden" name="library_view" value="{{ library_view }}" />
+                  <input type="hidden" name="library_key" value="{{ library_key }}" />
+                  <input type="hidden" name="task_id" value="{{ t.id }}" />
+                  <button type="submit" class="secondary">Usar gráfico PDF</button>
+                </form>
+                {% endif %}
                 {% endif %}
                 <form method="post" style="margin:0;" onsubmit="return confirm('¿Enviar esta tarea a la papelera? (Se puede restaurar)');">
                   {% csrf_token %}

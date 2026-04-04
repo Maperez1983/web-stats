@@ -22,6 +22,7 @@ from pathlib import Path
 import unicodedata
 import re
 from types import SimpleNamespace
+from urllib.parse import quote
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
@@ -11294,20 +11295,71 @@ def _maybe_recreate_board_from_preview_bytes(task, preview_bytes):
         return False
     try:
         portrait = False
+        img_w = 0
+        img_h = 0
         try:
             with Image.open(io.BytesIO(preview_bytes)) as im:
-                portrait = bool(im.height > im.width)
+                img_w = int(getattr(im, 'width', 0) or 0)
+                img_h = int(getattr(im, 'height', 0) or 0)
+                portrait = bool(img_h > img_w) if img_w and img_h else False
         except Exception:
             portrait = False
+
+        # En lugar de "reconstruir" chapas/flechas/textos (muy propenso a errores),
+        # colocamos el gráfico original del PDF como fondo dentro del canvas.
+        # Así la representación es 1:1 con el PDF, y encima se pueden añadir/editar elementos del sistema.
         world_w = 684 if portrait else 1054
         world_h = 1054 if portrait else 684
-        recreated = _recreate_canvas_state_from_preview_image_bytes(
-            preview_bytes,
-            canvas_width=world_w,
-            canvas_height=world_h,
-        )
-        if not recreated or not isinstance(recreated.get('objects'), list) or not recreated.get('objects'):
+        if img_w <= 0 or img_h <= 0:
+            img_w = world_w
+            img_h = world_h
+        scale = min(float(world_w) / float(img_w or 1), float(world_h) / float(img_h or 1))
+        try:
+            scale = float(scale)
+        except Exception:
+            scale = 1.0
+        scale = max(0.05, min(scale, 4.0))
+
+        # Usamos el endpoint interno (misma origin) para evitar problemas CORS/taint al exportar PNG.
+        preview_src = ''
+        try:
+            preview_src = reverse('session-task-preview-file', args=[task.id])
+            preview_name = str(getattr(getattr(task, 'task_preview_image', None), 'name', '') or '').strip()
+            if preview_name:
+                preview_src = f'{preview_src}?v={quote(preview_name)}'
+        except Exception:
+            preview_src = ''
+        if not preview_src:
             return False
+
+        recreated = {
+            'version': '5.3.0',
+            'objects': [
+                {
+                    'type': 'image',
+                    'left': int(round(world_w / 2)),
+                    'top': int(round(world_h / 2)),
+                    'originX': 'center',
+                    'originY': 'center',
+                    'scaleX': scale,
+                    'scaleY': scale,
+                    'angle': 0,
+                    'opacity': 1,
+                    'src': preview_src,
+                    'selectable': False,
+                    'evented': False,
+                    'hasControls': False,
+                    'hasBorders': False,
+                    'objectCaching': False,
+                    'data': {
+                        'kind': 'pdf-background',
+                        'base': True,
+                        'locked': True,
+                        'source': 'pdf_preview',
+                    },
+                }
+            ],
+        }
         layout = task.tactical_layout if isinstance(getattr(task, 'tactical_layout', None), dict) else {}
         meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
         meta = dict(meta)
@@ -11321,10 +11373,6 @@ def _maybe_recreate_board_from_preview_bytes(task, preview_bytes):
         layout['meta'] = meta
         task.tactical_layout = layout
         task.save(update_fields=['tactical_layout'])
-        try:
-            _maybe_render_task_preview_server_side(task, force=True)
-        except Exception:
-            pass
         return True
     except Exception:
         return False
@@ -15156,6 +15204,39 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 if _task_preview_needs_refresh(target_task):
                     _ensure_library_task_preview(target_task, force=True, prefer_render=True)
                 feedback = 'Tarea autocorregida.' if fixed else 'No se detectaron cambios para autocorregir.'
+
+            elif planner_action == 'pdf_board_background':
+                task_id = _parse_int(request.POST.get('task_id'))
+                target_task = (
+                    SessionTask.objects
+                    .select_related('session__microcycle')
+                    .filter(id=task_id, session__microcycle__team=primary_team, deleted_at__isnull=True)
+                    .first()
+                )
+                if not target_task:
+                    raise ValueError('Tarea no encontrada.')
+                if _task_scope_for_item(target_task) != scope_key:
+                    raise ValueError('La tarea seleccionada no pertenece a este espacio.')
+                if not _is_imported_task(target_task):
+                    raise ValueError('Esta acción está pensada para tareas importadas desde PDF.')
+                if not target_task.task_preview_image and target_task.task_pdf:
+                    _ensure_task_preview_image(target_task)
+                if not target_task.task_preview_image:
+                    raise ValueError('No hay imagen previa guardada para usar como fondo.')
+                try:
+                    target_task.task_preview_image.open('rb')
+                    preview_bytes = target_task.task_preview_image.read() or b''
+                except Exception:
+                    preview_bytes = b''
+                try:
+                    target_task.task_preview_image.close()
+                except Exception:
+                    pass
+                if not preview_bytes:
+                    raise ValueError('No se pudo leer la imagen previa.')
+                if not _maybe_recreate_board_from_preview_bytes(target_task, preview_bytes):
+                    raise ValueError('No se pudo preparar la pizarra usando el gráfico del PDF.')
+                feedback = 'Pizarra actualizada usando el gráfico original del PDF (sin transformar iconos).'
 
             elif planner_action == 'delete_library_task':
                 task_id = _parse_int(request.POST.get('task_id'))
