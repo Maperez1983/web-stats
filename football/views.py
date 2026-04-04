@@ -34,7 +34,7 @@ from django.contrib.auth.hashers import make_password, check_password
 from django.core.cache import cache
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.base import ContentFile
-from django.core.files.storage import default_storage
+from django.core.files.storage import FileSystemStorage, default_storage, storages
 from django.db import connections
 from django.db import transaction
 from django.db.models import Count, Max, Q
@@ -816,6 +816,12 @@ def save_player_photo(player, uploaded_photo):
     target_name = storage_candidates[0]
     content = uploaded_photo
     try:
+        # `default_storage` puede quedar cacheado en tests; `storages['default']` respeta overrides.
+        storage = storages['default']
+        # `FileSystemStorage` se instancia con MEDIA_ROOT. Para respetar override_settings en tests,
+        # lo re-instanciamos siempre con los settings actuales.
+        if isinstance(storage, FileSystemStorage):
+            storage = FileSystemStorage(location=getattr(settings, 'MEDIA_ROOT', None), base_url=getattr(settings, 'MEDIA_URL', '/media/'))
         if hasattr(uploaded_photo, 'seek'):
             uploaded_photo.seek(0)
         if Image is not None:
@@ -838,11 +844,11 @@ def save_player_photo(player, uploaded_photo):
                 uploaded_photo.seek(0)
         for candidate in storage_candidates:
             try:
-                if default_storage.exists(candidate):
-                    default_storage.delete(candidate)
+                if storage.exists(candidate):
+                    storage.delete(candidate)
             except Exception:
                 logger.exception('No se pudo limpiar una foto previa del jugador %s', player.id)
-        saved_name = default_storage.save(target_name, content)
+        saved_name = storage.save(target_name, content)
         try:
             player.photo_updated_at = timezone.now()
             player.save(update_fields=['photo_updated_at'])
@@ -873,10 +879,13 @@ def player_photo_file(request, player_id):
     forbidden = _forbid_if_no_player_access(request.user, player, primary_team=primary_team)
     if forbidden:
         return forbidden
+    storage = storages['default']
+    if isinstance(storage, FileSystemStorage):
+        storage = FileSystemStorage(location=getattr(settings, 'MEDIA_ROOT', None), base_url=getattr(settings, 'MEDIA_URL', '/media/'))
     storage_name = ''
     for candidate in _player_photo_storage_candidates(player):
         try:
-            if default_storage.exists(candidate):
+            if storage.exists(candidate):
                 storage_name = candidate
                 break
         except Exception:
@@ -884,7 +893,7 @@ def player_photo_file(request, player_id):
     if not storage_name:
         raise Http404('Foto no disponible')
     try:
-        file_field = default_storage.open(storage_name, 'rb')
+        file_field = storage.open(storage_name, 'rb')
     except Exception:
         return HttpResponse('No se pudo abrir la foto del jugador.', status=500)
     extension = Path(storage_name).suffix.lower()
@@ -1529,7 +1538,12 @@ def _get_primary_team_for_request(request):
     if workspace and workspace.kind == Workspace.KIND_CLUB and workspace.primary_team_id:
         return workspace.primary_team
     if request and getattr(request, 'user', None) and request.user.is_authenticated and not _can_access_platform(request.user):
-        if _get_user_role(request.user) == AppUserRole.ROLE_PLAYER:
+        role = _get_user_role(request.user)
+        if role == AppUserRole.ROLE_PLAYER:
+            return Team.objects.filter(is_primary=True).first()
+        # En modo monocliente (sin workspace) los roles técnicos deben poder seguir operando
+        # sobre el club principal para evitar 404/403 en flujos críticos.
+        if role in TECHNICAL_ROLES or role is None:
             return Team.objects.filter(is_primary=True).first()
         return None
     return Team.objects.filter(is_primary=True).first()
@@ -2724,16 +2738,23 @@ def _forbid_if_workspace_module_disabled(request, module_key, label='módulo'):
     workspace = _get_active_workspace(request)
     if not workspace:
         if request and getattr(request, 'user', None) and request.user.is_authenticated and not _can_access_platform(request.user):
-            # Para uso "monocliente" (sin workspaces configurados), permitimos dashboard/jugadores.
-            if module_key in {'players', 'dashboard'}:
-                return None
-            return HttpResponse('No tienes un workspace de club asignado.', status=403)
+            # Para uso "monocliente" (sin workspaces configurados), permitimos a roles técnicos
+            # navegar módulos del club sin forzar un Workspace explícito.
+            role = _get_user_role(request.user)
+            if role == AppUserRole.ROLE_PLAYER:
+                if module_key in {'players', 'dashboard'}:
+                    return None
+                return HttpResponse('No tienes un workspace de club asignado.', status=403)
+            return None
         return None
     if workspace.kind != Workspace.KIND_CLUB:
         if request and getattr(request, 'user', None) and request.user.is_authenticated and not _can_access_platform(request.user):
-            if module_key in {'players', 'dashboard'}:
-                return None
-            return HttpResponse('El workspace activo no es de tipo club.', status=403)
+            role = _get_user_role(request.user)
+            if role == AppUserRole.ROLE_PLAYER:
+                if module_key in {'players', 'dashboard'}:
+                    return None
+                return HttpResponse('El workspace activo no es de tipo club.', status=403)
+            return None
         return None
     if _workspace_has_module_for_user(workspace, module_key, user=request.user if request else None):
         return None
@@ -5064,10 +5085,16 @@ def dashboard_data(request):
     return response
 
 
-@login_required
 @ensure_csrf_cookie
 def dashboard_page(request):
-    current_role = _get_user_role(request.user) or AppUserRole.ROLE_PLAYER
+    if not request.user.is_authenticated:
+        # Dominio público: la home funciona como landing comercial cuando no hay sesión.
+        return product_landing_page(request)
+    current_role = _get_user_role(request.user)
+    # Compatibilidad: usuarios legacy sin AppUserRole no deben caer como "player" por defecto,
+    # porque suelen ser internos (staff) y eso rompe el acceso a la plataforma.
+    if current_role is None:
+        current_role = AppUserRole.ROLE_COACH
     if current_role == AppUserRole.ROLE_PLAYER:
         primary_team = _get_primary_team_for_request(request)
         current_player = _resolve_player_for_user(request.user, primary_team)
@@ -13821,6 +13848,11 @@ def _persist_detected_resources_library(task_items, scope_key='coach'):
                         current['category'] = category
                     meta_by_key[key] = current
 
+        # Si no hay materiales detectados, no sobrescribimos el catálogo existente.
+        # Esto evita que una importación “sin pizarra/materiales” borre recursos ya detectados.
+        if not counters:
+            return
+
         existing = {}
         if TASK_RESOURCE_LIBRARY_PATH.exists():
             try:
@@ -13833,20 +13865,33 @@ def _persist_detected_resources_library(task_items, scope_key='coach'):
         if not isinstance(resources_by_scope, dict):
             resources_by_scope = {}
 
-        scope_items = []
+        # Merge: mantenemos recursos previos y actualizamos/añadimos los nuevos detectados.
+        merged_by_key = {}
+        try:
+            prior_items = resources_by_scope.get(str(scope_key)) or []
+            if isinstance(prior_items, list):
+                for item in prior_items:
+                    if not isinstance(item, dict):
+                        continue
+                    prior_key = str(item.get('key') or '').strip().lower()
+                    if not prior_key:
+                        continue
+                    merged_by_key[prior_key] = dict(item)
+        except Exception:
+            merged_by_key = {}
+
         for key, count in counters.most_common():
             item_meta = meta_by_key.get(key, {})
-            scope_items.append(
-                {
-                    'key': key,
-                    'label': item_meta.get('label') or '',
-                    'title': item_meta.get('title') or item_meta.get('label') or key,
-                    'kind': item_meta.get('kind') or '',
-                    'category': item_meta.get('category') or '',
-                    'count': int(count),
-                }
-            )
-        resources_by_scope[str(scope_key)] = scope_items
+            merged = merged_by_key.get(key, {})
+            merged['key'] = key
+            merged['label'] = item_meta.get('label') or merged.get('label') or ''
+            merged['title'] = item_meta.get('title') or item_meta.get('label') or merged.get('title') or merged.get('label') or key
+            merged['kind'] = item_meta.get('kind') or merged.get('kind') or ''
+            merged['category'] = item_meta.get('category') or merged.get('category') or ''
+            merged['count'] = int(count)
+            merged_by_key[key] = merged
+
+        resources_by_scope[str(scope_key)] = list(merged_by_key.values())
         payload = {
             'generated_at': timezone.now().isoformat(),
             'resources_by_scope': resources_by_scope,
@@ -17796,6 +17841,13 @@ def task_studio_task_preview_file(request, task_id):
     forbidden = _forbid_if_task_studio_module_disabled(request, task.owner, 'task_studio_tasks', label='tareas Task Studio')
     if forbidden:
         return forbidden
+    # Refresca previews de baja calidad (en 2º plano) para que las cards se vean nítidas.
+    try:
+        if _task_preview_needs_refresh(task):
+            _ensure_library_task_preview(task, force=True, prefer_render=True)
+    except Exception:
+        pass
+
     file_field = task.task_preview_image
     try:
         file_field.open('rb')
@@ -18148,6 +18200,12 @@ def session_task_preview_file(request, task_id):
     if not task.task_preview_image:
         if not _ensure_library_task_preview(task):
             raise Http404('Imagen de tarea no disponible')
+    # Refresca previews de baja calidad (una vez cada varias horas) para mantener nitidez en cards/PDF.
+    try:
+        if _task_preview_needs_refresh(task):
+            _ensure_library_task_preview(task, force=True, prefer_render=True)
+    except Exception:
+        pass
     file_field = task.task_preview_image
     try:
         file_field.open('rb')

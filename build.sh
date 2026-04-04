@@ -9,6 +9,9 @@ export SECRET_KEY="${SECRET_KEY:-build-secret-key}"
 # el sistema hace fallback (previews sin recorte múltiple / o usando imágenes embebidas).
 if [ "${INSTALL_POPPLER_UTILS:-true}" = "true" ] && command -v apt-get >/dev/null 2>&1; then
   echo "Intentando instalar poppler-utils (pdftoppm/pdftotext)..."
+  # En algunos entornos (Render), el FS de apt puede ser read-only y `apt-get` puede devolver
+  # errores que no queremos que corten el build. Desactivamos `errexit` temporalmente.
+  set +o errexit
   if [ "$(id -u)" -eq 0 ]; then
     apt-get update || true
     apt-get install -y poppler-utils || true
@@ -19,6 +22,7 @@ if [ "${INSTALL_POPPLER_UTILS:-true}" = "true" ] && command -v apt-get >/dev/nul
     apt-get update || true
     apt-get install -y poppler-utils || true
   fi
+  set -o errexit
 fi
 
 python -m pip install --upgrade pip

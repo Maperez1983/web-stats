@@ -584,7 +584,7 @@
               </article>
               <article class="info-item">
                 <span class="info-label">Peso base</span>
-                <span class="info-value">{% if player.weight_kg %}{{ player.weight_kg }} kg{% else %}--{% endif %}</span>
+                <span class="info-value">{% if player.weight_kg %}{{ player.weight_kg|floatformat:2 }} kg{% else %}--{% endif %}</span>
               </article>
               <article class="info-item">
                 <span class="info-label">Estado</span>

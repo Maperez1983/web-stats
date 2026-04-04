@@ -1472,6 +1472,20 @@
           </section>
           {% endif %}
 
+          {% if coach_general_stats %}
+          <section class="summary-card">
+            <h3>Resumen de temporada</h3>
+            <div class="overview-summary is-compact" style="margin-top:0.75rem;">
+              {% for item in coach_general_stats %}
+              <article class="overview-item">
+                <div class="label">{{ item.label }}</div>
+                <div class="value">{{ item.value }}</div>
+              </article>
+              {% endfor %}
+            </div>
+          </section>
+          {% endif %}
+
           {% if coach_selected_match and coach_match_view %}
             <section class="summary-layout">
               <section class="summary-card">
