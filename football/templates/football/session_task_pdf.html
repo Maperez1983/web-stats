@@ -298,6 +298,9 @@
         gap: 10px;
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
+      .sequence-frames.is-storyboard .mini-field {
+        height: 172px;
+      }
       .sequence-frame {
         border: 1px solid #cbd5e1;
         border-radius: 6px;
@@ -738,14 +741,14 @@
         </div>
 
         {% if animation_frames %}
-        <div style="margin-top:12px;" class="uefa-section">Secuencia animada</div>
+        <div style="margin-top:12px;" class="uefa-section">{% if multi_board_enabled %}Multipizarra{% else %}Secuencia animada{% endif %}</div>
         <div class="uefa-box">
-          <div class="sequence-frames">
+          <div class="sequence-frames {% if multi_board_enabled %}is-storyboard{% endif %}">
             {% for frame in animation_frame_cards %}
             <div class="sequence-frame">
               <div class="sequence-frame-head">
-                <strong>Paso {{ forloop.counter }} · {{ frame.title }}</strong>
-                <span>Duración estimada: {{ frame.duration }} s</span>
+                <strong>{% if multi_board_enabled %}Escena{% else %}Paso{% endif %} {{ forloop.counter }} · {{ frame.title }}</strong>
+                {% if not multi_board_enabled %}<span>Duración estimada: {{ frame.duration }} s</span>{% endif %}
               </div>
               <div class="mini-field">
                 <span class="mid-line"></span>

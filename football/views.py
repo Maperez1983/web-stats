@@ -8970,6 +8970,7 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
         return ' '.join(normalized.split()).title()
 
     meta = _normalize_task_pdf_meta(tactical_layout.get('meta') if isinstance(tactical_layout, dict) else {})
+    multi_board_enabled = bool(meta.get('multi_board') or meta.get('multi_board_enabled') or False)
     analysis_meta = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
     task_sheet = analysis_meta.get('task_sheet') if isinstance(analysis_meta.get('task_sheet'), dict) else {}
     description_text = str(task_sheet.get('description') or '').strip()
@@ -9071,6 +9072,7 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
         'organization_rich_html': rich_organization,
         'tokens': _build_task_pdf_tokens(request, tactical_layout),
         'task_meta': meta,
+        'multi_board_enabled': multi_board_enabled,
         'strategy_label': strategy_label or '-',
         'space_label': space_label or '-',
         'dimensions_label': dimensions_text or '-',
@@ -16276,6 +16278,7 @@ def _task_builder_initial_values(task):
         canvas_state['timeline'] = timeline
         canvas_state['active_step_index'] = 0
     return {
+        'multi_board_enabled': bool(meta.get('multi_board') or meta.get('multi_board_enabled') or False),
         'target_session_id': str(getattr(task, 'session_id', '') or ''),
         'title': str(getattr(task, 'title', '') or ''),
         'block': str(getattr(task, 'block', '') or SessionTask.BLOCK_MAIN_1),
@@ -16411,6 +16414,7 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
     selected_tactical_intent = (raw_tactical_intent or '').strip() if raw_tactical_intent is not None else str(existing_meta.get('tactical_intent') or '')
     raw_template_key = request.POST.get('draw_task_template')
     template_key = (raw_template_key or 'none').strip() if raw_template_key is not None else str(existing_meta.get('template_key') or 'none')
+    multi_board_enabled = str(request.POST.get('draw_task_multi_board') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
     pitch_preset = (request.POST.get('draw_task_pitch_preset') or 'full_pitch').strip()
     raw_pitch_orientation = request.POST.get('draw_task_pitch_orientation')
     pitch_orientation = (raw_pitch_orientation or '').strip().lower() if raw_pitch_orientation is not None else str(existing_meta.get('pitch_orientation') or 'landscape')
@@ -16568,6 +16572,7 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
             'pitch_preset': pitch_preset,
             'pitch_orientation': pitch_orientation,
             'pitch_zoom': pitch_zoom,
+            'multi_board': bool(multi_board_enabled),
             'game_phase': selected_phase,
             'methodology': selected_methodology,
             'complexity': selected_complexity,
