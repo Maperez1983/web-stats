@@ -1,8 +1,12 @@
 from django.urls import path
 
 from . import views
+from . import pwa as pwa_views
 
 urlpatterns = [
+    path('manifest.webmanifest', pwa_views.pwa_manifest, name='pwa-manifest'),
+    path('sw.js', pwa_views.pwa_service_worker, name='pwa-sw'),
+    path('offline/', pwa_views.pwa_offline, name='pwa-offline'),
     path('2j/', views.product_landing_page, name='product-landing'),
     path('team/<int:team_id>/crest.svg', views.team_crest_svg, name='team-crest-svg'),
     path('', views.dashboard_page, name='dashboard-home'),
