@@ -14352,6 +14352,7 @@ def _sessions_tab_from_action(action):
         'split_existing_library_pdfs',
         'analyze_library_pdf',
         'auto_fix_task_text',
+        'duplicate_library_task',
         'delete_library_task',
         'restore_library_task',
         'purge_library_task',
@@ -15755,6 +15756,25 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 )
                 _update_library_task_from_post(target_task, request.POST, scope_key=scope_key)
                 feedback = 'Tarea actualizada correctamente.'
+
+            elif planner_action == 'duplicate_library_task':
+                task_id = _parse_int(request.POST.get('task_id'))
+                target_task = (
+                    SessionTask.objects
+                    .select_related('session__microcycle')
+                    .filter(id=task_id, session__microcycle__team=primary_team, deleted_at__isnull=True)
+                    .first()
+                )
+                if not target_task:
+                    raise ValueError('Tarea no encontrada.')
+                if _task_scope_for_item(target_task) != scope_key:
+                    raise ValueError('La tarea seleccionada no pertenece a este espacio.')
+                duplicated_task = _clone_session_task_to_session(
+                    target_task,
+                    target_task.session,
+                    note=f'Duplicada desde tarea #{target_task.id}',
+                )
+                feedback = f'Tarea duplicada en biblioteca: {duplicated_task.title}.'
 
             elif planner_action == 'create_task_from_analysis':
                 source_task_id = _parse_int(request.POST.get('source_task_id'))

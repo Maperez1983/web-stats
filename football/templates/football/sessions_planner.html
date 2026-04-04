@@ -2019,11 +2019,20 @@
                   <button type="submit" class="secondary">Usar gráfico PDF</button>
                 </form>
                 {% endif %}
-                {% endif %}
-                <form method="post" style="margin:0;" onsubmit="return confirm('¿Enviar esta tarea a la papelera? (Se puede restaurar)');">
-                  {% csrf_token %}
-                  <input type="hidden" name="planner_action" value="delete_library_task" />
-                  <input type="hidden" name="planner_tab" value="library" />
+	                {% endif %}
+	                <form method="post" style="margin:0;">
+	                  {% csrf_token %}
+	                  <input type="hidden" name="planner_action" value="duplicate_library_task" />
+	                  <input type="hidden" name="planner_tab" value="library" />
+	                  <input type="hidden" name="library_view" value="{{ library_view }}" />
+	                  <input type="hidden" name="library_key" value="{{ library_key }}" />
+	                  <input type="hidden" name="task_id" value="{{ t.id }}" />
+	                  <button type="submit" class="secondary">Duplicar</button>
+	                </form>
+	                <form method="post" style="margin:0;" onsubmit="return confirm('¿Enviar esta tarea a la papelera? (Se puede restaurar)');">
+	                  {% csrf_token %}
+	                  <input type="hidden" name="planner_action" value="delete_library_task" />
+	                  <input type="hidden" name="planner_tab" value="library" />
                   <input type="hidden" name="library_view" value="{{ library_view }}" />
                   <input type="hidden" name="library_key" value="{{ library_key }}" />
                   <input type="hidden" name="task_id" value="{{ t.id }}" />
