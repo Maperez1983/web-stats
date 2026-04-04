@@ -53,11 +53,25 @@ ALLOWED_HOSTS = [host.strip() for host in os.getenv('ALLOWED_HOSTS', 'localhost,
 if not DEBUG and '*' in ALLOWED_HOSTS:
     raise ImproperlyConfigured('ALLOWED_HOSTS no puede contener "*" cuando DEBUG=False')
 
-CSRF_TRUSTED_ORIGINS = [
-    origin.strip()
-    for origin in os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',')
-    if origin.strip()
-]
+def _normalize_csrf_origin(raw: str) -> str:
+    origin = str(raw or '').strip()
+    if not origin:
+        return ''
+    # Django 4+ exige esquema (https:// o http://).
+    if origin.startswith('http://') or origin.startswith('https://'):
+        return origin
+    # Compat: si alguien pasa un host suelto (p.ej. "example.com") lo convertimos a https://example.com.
+    # Si pasa formato tipo ".example.com" lo tratamos como wildcard.
+    if origin.startswith('.'):
+        return f'https://*.{origin.lstrip(".")}'
+    return f'https://{origin}'
+
+
+CSRF_TRUSTED_ORIGINS = []
+for _raw_origin in os.getenv('CSRF_TRUSTED_ORIGINS', '').split(','):
+    _normalized = _normalize_csrf_origin(_raw_origin)
+    if _normalized:
+        CSRF_TRUSTED_ORIGINS.append(_normalized)
 
 RENDER_HOSTNAME = os.getenv('RENDER_EXTERNAL_HOSTNAME')
 if RENDER_HOSTNAME:
@@ -69,10 +83,12 @@ if RENDER_HOSTNAME:
 
 # En despliegues con dominio personalizado, el Origin/Referer puede no coincidir con RENDER_EXTERNAL_HOSTNAME.
 # Para evitar 403 por CSRF al guardar tareas/acciones, añadimos automáticamente los hosts permitidos como orígenes confiables.
-for _host in list(ALLOWED_HOSTS):
-    _host = str(_host or '').strip()
-    if not _host or _host == '*' or _host.startswith('.'):
-        _host = _host.lstrip('.')
+for _host_raw in list(ALLOWED_HOSTS):
+    _host_raw = str(_host_raw or '').strip()
+    if not _host_raw or _host_raw == '*':
+        continue
+    _is_wildcard = _host_raw.startswith('.')
+    _host = _host_raw.lstrip('.')
     if not _host or _host in {'localhost', '127.0.0.1'}:
         continue
     # Por seguridad la app debería ir en HTTPS, pero incluimos HTTP por si hay redirección/proxy intermedio.
@@ -80,6 +96,10 @@ for _host in list(ALLOWED_HOSTS):
         _origin = f'{_scheme}://{_host}'
         if _origin not in CSRF_TRUSTED_ORIGINS:
             CSRF_TRUSTED_ORIGINS.append(_origin)
+        if _is_wildcard:
+            _wild = f'{_scheme}://*.{_host}'
+            if _wild not in CSRF_TRUSTED_ORIGINS:
+                CSRF_TRUSTED_ORIGINS.append(_wild)
 
 
 # Application definition
