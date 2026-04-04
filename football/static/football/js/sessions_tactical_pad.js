@@ -4827,32 +4827,37 @@
 		      }
 		      pitchImage.src = blobUrl;
 		    });
-    const applyLivePreview = (dataUrl) => {
-      if (!livePreviewImg || !livePreviewPlaceholder) return;
-      if (!dataUrl) {
-        livePreviewImg.hidden = true;
-        livePreviewPlaceholder.hidden = false;
-        return;
-      }
-      livePreviewImg.src = dataUrl;
-      livePreviewImg.hidden = false;
-      livePreviewPlaceholder.hidden = true;
-    };
-	    const refreshLivePreview = () => {
-	      if (exportInFlight) return;
-	      window.clearTimeout(previewRefreshTimer);
-	      previewRefreshTimer = window.setTimeout(async () => {
-	        if (previewBuildInFlight) return;
-        previewBuildInFlight = true;
-        try {
-          const dataUrl = await buildPreviewData();
-          if (previewInput) previewInput.value = dataUrl;
-          applyLivePreview(dataUrl);
-        } finally {
-          previewBuildInFlight = false;
-        }
-      }, 650);
-    };
+	    const applyLivePreview = (dataUrl) => {
+	      if (!livePreviewImg || !livePreviewPlaceholder) return;
+	      if (!dataUrl) {
+	        livePreviewImg.hidden = true;
+	        livePreviewPlaceholder.hidden = false;
+	        return;
+	      }
+	      livePreviewImg.src = dataUrl;
+	      livePreviewImg.hidden = false;
+	      livePreviewPlaceholder.hidden = true;
+	    };
+		    const refreshLivePreview = () => {
+		      if (exportInFlight) return;
+		      window.clearTimeout(previewRefreshTimer);
+		      // Importante (rendimiento): `canvas.toDataURL()` puede ser costoso, sobre todo si
+		      // hay imágenes grandes en la pizarra. Lo movemos a "tiempo ocioso" para que no
+		      // meta tirones mientras el usuario sigue editando.
+		      previewRefreshTimer = window.setTimeout(() => {
+		        runWhenIdle(async () => {
+		          if (previewBuildInFlight) return;
+		          previewBuildInFlight = true;
+		          try {
+		            const dataUrl = await buildPreviewData();
+		            if (previewInput) previewInput.value = dataUrl;
+		            applyLivePreview(dataUrl);
+		          } finally {
+		            previewBuildInFlight = false;
+		          }
+		        }, 1800);
+		      }, 950);
+	    };
 
     const activateSidePane = (key) => {
       sideTabs.forEach((tab) => {
