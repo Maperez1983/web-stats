@@ -1170,6 +1170,32 @@
 	          });
 	        }
 	      }
+
+		      // Líneas/flechas: evita que al escalar se engorde el trazo (Fabric por defecto escala strokeWidth).
+		      // Flechas: además, evita que la punta (triángulo) se haga enorme al escalar el grupo.
+		      const applyStrokeUniformRecursively = (obj) => {
+		        if (!obj) return;
+		        try {
+		          if (obj.strokeWidth !== undefined) obj.strokeUniform = true;
+		        } catch (error) { /* ignore */ }
+		        if (Array.isArray(obj._objects)) obj._objects.forEach(applyStrokeUniformRecursively);
+		      };
+		      const normalizeArrowHead = (group) => {
+		        if (!group || !Array.isArray(group._objects)) return;
+		        const sx = Number(group.scaleX) || 1;
+		        const sy = Number(group.scaleY) || 1;
+		        const tri = group._objects.find((child) => child && child.type === 'triangle');
+		        if (!tri) return;
+		        // Cancelamos la escala del grupo para que la punta mantenga tamaño constante.
+		        // Esto se guarda en JSON y corrige flechas antiguas que ya estaban “gordas”.
+		        try { tri.set({ scaleX: sx ? (1 / sx) : 1, scaleY: sy ? (1 / sy) : 1 }); } catch (error) { /* ignore */ }
+		      };
+		      if (kind && (kind.startsWith('line') || kind.startsWith('arrow') || kind.startsWith('shape') || kind === 'zone')) {
+		        applyStrokeUniformRecursively(object);
+		      }
+		      if (kind && kind.startsWith('arrow')) {
+		        normalizeArrowHead(object);
+		      }
 		      object.set({
 		        hasControls: !locked,
 		        hasBorders: true,
@@ -5761,6 +5787,25 @@
 		      const snapped = Math.round(raw / step) * step;
 		      try { target.rotate(snapped); } catch (error) { /* ignore */ }
 		      try { target.setCoords(); } catch (error) { /* ignore */ }
+		    });
+
+		    // Flechas: al escalar, mantenemos la punta constante y el trazo con `strokeUniform`.
+		    canvas.on('object:scaling', (opt) => {
+		      const target = opt?.target;
+		      if (!target) return;
+		      const kind = safeText(target?.data?.kind);
+		      if (!kind || !kind.startsWith('arrow')) return;
+		      if (!Array.isArray(target._objects)) return;
+		      const sx = Number(target.scaleX) || 1;
+		      const sy = Number(target.scaleY) || 1;
+		      const tri = target._objects.find((child) => child && child.type === 'triangle');
+		      if (tri) {
+		        try { tri.set({ scaleX: sx ? (1 / sx) : 1, scaleY: sy ? (1 / sy) : 1 }); } catch (error) { /* ignore */ }
+		      }
+		      target._objects.forEach((child) => {
+		        if (!child) return;
+		        try { if (child.strokeWidth !== undefined) child.strokeUniform = true; } catch (e) { /* ignore */ }
+		      });
 		    });
 	  };
 })();
