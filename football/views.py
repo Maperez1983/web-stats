@@ -960,6 +960,108 @@ def pdf_graphic_asset_file(request, asset_id):
     return response
 
 
+@csrf_exempt
+@login_required
+@require_POST
+def pdf_graphic_asset_upload(request):
+    """
+    Sube iconos al catálogo de recursos para la pizarra.
+
+    - coach/club: se guardan por Team (primary_team).
+    - task_studio: se guardan por owner (usuario del estudio).
+    """
+    scope_key = str(request.POST.get('scope_key') or '').strip().lower() or 'coach'
+    files = list(request.FILES.getlist('assets'))
+    if not files:
+        return JsonResponse({'ok': False, 'error': 'Selecciona al menos un archivo.'}, status=400)
+
+    team = None
+    owner = None
+    if scope_key == 'task_studio':
+        forbidden = _forbid_if_no_task_studio_access(request.user)
+        if forbidden:
+            return forbidden
+        target_user = _task_studio_target_user(request)
+        forbidden = _forbid_if_task_studio_module_disabled(request.user, target_user, 'task_studio_tasks', label='tareas Task Studio')
+        if forbidden:
+            return forbidden
+        owner = target_user
+    else:
+        if not _can_access_sessions_workspace(request.user):
+            return JsonResponse({'ok': False, 'error': 'No tienes permisos.'}, status=403)
+        forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+        if forbidden:
+            return forbidden
+        primary_team = _get_primary_team_for_request(request)
+        if not primary_team:
+            return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
+        team = primary_team
+
+    saved = []
+    skipped = 0
+    errors = 0
+    for uploaded in files[:40]:
+        raw_name = str(getattr(uploaded, 'name', '') or '').rsplit('/', 1)[-1]
+        raw_name = raw_name[:220]
+        try:
+            data = uploaded.read() or b''
+        except Exception:
+            data = b''
+        if not data:
+            errors += 1
+            continue
+        sha = hashlib.sha256(data).hexdigest()
+        exists_qs = PdfGraphicAsset.objects.filter(sha256=sha)
+        if team:
+            exists_qs = exists_qs.filter(team=team)
+        if owner:
+            exists_qs = exists_qs.filter(owner=owner)
+        if exists_qs.exists():
+            skipped += 1
+            continue
+        width = None
+        height = None
+        if Image is not None:
+            try:
+                with Image.open(io.BytesIO(data)) as img:
+                    img.load()
+                    w, h = img.size
+                    if w and h:
+                        width = int(w)
+                        height = int(h)
+            except Exception:
+                width = None
+                height = None
+        ext = Path(raw_name).suffix.lower().lstrip('.')
+        if ext not in {'png', 'jpg', 'jpeg', 'webp'}:
+            ext = 'png'
+        filename = f'asset-{sha[:16]}.{ "jpg" if ext == "jpeg" else ext }'
+        try:
+            obj = PdfGraphicAsset(
+                team=team,
+                owner=owner,
+                sha256=sha,
+                title=(Path(raw_name).stem or '')[:160],
+                width=width,
+                height=height,
+                source_pdf_name='',
+            )
+            obj.file.save(filename, ContentFile(data), save=False)
+            obj.save()
+            saved.append(
+                {
+                    'id': int(obj.id),
+                    'title': str(obj.title or '').strip(),
+                    'url': reverse('pdf-graphic-asset-file', args=[obj.id]),
+                    'width': int(obj.width or 0),
+                    'height': int(obj.height or 0),
+                }
+            )
+        except Exception:
+            errors += 1
+    return JsonResponse({'ok': True, 'saved': saved, 'skipped': skipped, 'errors': errors})
+
+
 def resolve_player_photo_url(request, player):
     resolved_storage_name = ''
     for storage_name in _player_photo_storage_candidates(player):
@@ -10640,6 +10742,7 @@ def _extract_pdf_graphic_assets_from_pdf(pdf_file, max_assets=60):
                 continue
             seen.add(sha)
             ext = str(getattr(image, 'name', 'img.bin') or 'img.bin').rsplit('.', 1)[-1].lower()
+            name_hint = str(getattr(image, 'name', '') or '').rsplit('/', 1)[-1]
             if ext not in {'png', 'jpg', 'jpeg', 'webp'}:
                 ext = 'png'
             metrics = _analyze_preview_image_bytes(raw)
@@ -10665,6 +10768,7 @@ def _extract_pdf_graphic_assets_from_pdf(pdf_file, max_assets=60):
                     'sha256': sha,
                     'raw': raw,
                     'ext': ext,
+                    'name_hint': name_hint,
                     'page_idx': page_idx,
                     'seq': seq,
                     'width': int(metrics.get('width') or 0) if metrics else 0,
@@ -10695,6 +10799,7 @@ def _save_pdf_graphic_assets_to_library(*, team=None, owner=None, pdf_file=None,
         if not sha:
             continue
         ext = str(item.get('ext') or 'png').lower().strip() or 'png'
+        name_hint = str(item.get('name_hint') or '').strip()
         raw = item.get('raw') or b''
         if not raw:
             continue
@@ -10704,6 +10809,7 @@ def _save_pdf_graphic_assets_to_library(*, team=None, owner=None, pdf_file=None,
                 team=team,
                 owner=owner,
                 sha256=sha,
+                title=(Path(name_hint).stem if name_hint else '')[:160],
                 source_pdf_name=str(source_pdf_name or '')[:220],
                 width=int(item.get('width') or 0) or None,
                 height=int(item.get('height') or 0) or None,

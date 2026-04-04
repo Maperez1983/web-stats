@@ -1005,6 +1005,79 @@
 	    };
 	    pdfAssetMeta.forEach((meta) => ensurePdfAssetLoaded(meta.id));
 
+	    const assetUploadInput = document.getElementById('tpad-pdf-assets-upload');
+	    const assetUploadUrl = safeText(window.TPAD_PDF_ASSET_UPLOAD_URL);
+	    const scopeKey = safeText(window.TPAD_SCOPE_KEY, 'coach');
+	    const csrfToken = form.querySelector('input[name="csrfmiddlewaretoken"]')?.value || '';
+	    const appendPdfAssetButton = (asset) => {
+	      const tools = document.getElementById('task-pdf-assets-tools');
+	      if (!tools) return;
+	      const id = normalizePdfAssetId(asset?.id);
+	      const url = safeText(asset?.url);
+	      if (!id || !url) return;
+	      // Si había placeholder de "Aún no hay iconos", quítalo.
+	      Array.from(tools.querySelectorAll('span.meta')).forEach((node) => node.remove());
+	      const btn = document.createElement('button');
+	      btn.type = 'button';
+	      btn.className = 'pdf-asset-btn';
+	      btn.dataset.add = `pdf_asset:${id}`;
+	      btn.setAttribute('aria-label', `Recurso ${id}`);
+	      btn.title = safeText(asset?.title || '');
+	      const img = document.createElement('img');
+	      img.src = url;
+	      img.alt = '';
+	      img.loading = 'lazy';
+	      btn.appendChild(img);
+	      tools.appendChild(btn);
+	      // Habilita drag&drop como resto de recursos.
+	      try {
+	        registerDraggableButton(btn, () => ({ kind: safeText(btn.dataset.add) }));
+	      } catch (error) { /* ignore */ }
+	    };
+
+	    assetUploadInput?.addEventListener('change', async () => {
+	      const files = Array.from(assetUploadInput.files || []);
+	      if (!files.length) return;
+	      if (!assetUploadUrl) {
+	        setStatus('No se pudo subir: falta URL de subida.', true);
+	        return;
+	      }
+	      try {
+	        setStatus('Subiendo iconos…');
+	        const data = new FormData();
+	        data.append('scope_key', scopeKey);
+	        files.slice(0, 40).forEach((file) => data.append('assets', file));
+	        const resp = await fetch(assetUploadUrl, {
+	          method: 'POST',
+	          headers: csrfToken ? { 'X-CSRFToken': csrfToken } : undefined,
+	          credentials: 'same-origin',
+	          body: data,
+	        });
+	        const payload = await resp.json().catch(() => ({}));
+	        if (!resp.ok || !payload?.ok) throw new Error(payload?.error || 'No se pudo subir.');
+	        const list = Array.isArray(payload.saved) ? payload.saved : [];
+	        list.forEach((asset) => {
+	          const id = normalizePdfAssetId(asset?.id);
+	          if (!id) return;
+	          pdfAssetMeta.set(id, {
+	            id,
+	            title: safeText(asset?.title),
+	            url: safeText(asset?.url),
+	            width: Number(asset?.width) || 0,
+	            height: Number(asset?.height) || 0,
+	          });
+	          ensurePdfAssetLoaded(id);
+	          appendPdfAssetButton(asset);
+	        });
+	        const msg = list.length ? `Iconos añadidos: ${list.length}.` : 'No había iconos nuevos (ya existían).';
+	        setStatus(msg);
+	      } catch (error) {
+	        setStatus(error?.message || 'Error al subir iconos.', true);
+	      } finally {
+	        try { assetUploadInput.value = ''; } catch (e) { /* ignore */ }
+	      }
+	    });
+
 		    const canvas = new fabric.Canvas(canvasEl, {
 		      preserveObjectStacking: true,
 		      selection: true,

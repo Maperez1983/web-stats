@@ -26,6 +26,7 @@ urlpatterns = [
     path('api/share/revoke/<str:token>/', views.share_link_revoke, name='share-link-revoke'),
     path('api/system/diagnostics/', views.system_diagnostics, name='system-diagnostics'),
     path('api/analysis/rival-form/', views.analysis_rival_form_api, name='analysis-rival-form-api'),
+    path('api/pdf-assets/upload/', views.pdf_graphic_asset_upload, name='pdf-graphic-asset-upload'),
     path('coach/', views.coach_overview_page, name='coach-detail'),
     path('player/<int:player_id>/', views.player_detail_page, name='player-detail'),
     path('player/<int:player_id>/photo/', views.player_photo_file, name='player-photo-file'),

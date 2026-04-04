@@ -226,6 +226,9 @@
 	        background: rgba(255,255,255,0.06);
 	        border: 1px solid rgba(255,255,255,0.10);
 	      }
+	      .pdf-assets-strip span.meta {
+	        padding: 0.35rem 0.2rem;
+	      }
       .resource-strip button[data-add],
       .player-bank button.player-token-bank {
         cursor: grab;
@@ -1861,7 +1864,7 @@
 		                      <button type="button" class="resource-tab" data-resource="trazos">Trazos y flechas</button>
 		                      <button type="button" class="resource-tab" data-resource="figuras">Figuras geométricas</button>
 		                      <button type="button" class="resource-tab" data-resource="emoji">Recursos emoji</button>
-		                      {% if pdf_assets %}<button type="button" class="resource-tab" data-resource="pdf">Recursos PDF</button>{% endif %}
+		                      <button type="button" class="resource-tab" data-resource="pdf">Recursos (iconos)</button>
 		                    </div>
 	                  </details>
 	                  <div class="resource-select" aria-label="Selector rápido de recursos">
@@ -1873,7 +1876,7 @@
 		                        <option value="trazos">Trazos y flechas</option>
 		                        <option value="figuras">Figuras geométricas</option>
 		                        <option value="emoji">Recursos emoji</option>
-		                        {% if pdf_assets %}<option value="pdf">Recursos PDF</option>{% endif %}
+		                        <option value="pdf">Recursos (iconos)</option>
 		                      </select>
 	                    </label>
 	                  </div>
@@ -2116,28 +2119,36 @@
                 </div>
 	                  <div data-inspector-slot="emoji"></div>
 	                </div>
-	                {% if pdf_assets %}
 	                <div class="resource-panel" data-panel="pdf" hidden>
-	                  <h3 class="tool-group-title" style="margin-top:0.85rem;">Recursos PDF</h3>
-	                  <p class="meta" style="margin-top:0;">Imágenes extraídas de PDFs importados.</p>
+	                  <h3 class="tool-group-title" style="margin-top:0.85rem;">Recursos (iconos)</h3>
+	                  <p class="meta" style="margin-top:0;">Catálogo de iconos para reutilizar en cualquier tarea. Puedes añadir iconos (PNG/JPG/WebP) y quedarán guardados.</p>
+	                  <div class="resource-strip" style="flex-wrap:wrap; gap:0.5rem; align-items:center;">
+	                    <label class="button" style="display:inline-flex; align-items:center; gap:0.5rem; cursor:pointer;">
+	                      <span>+ Añadir iconos</span>
+	                      <input id="tpad-pdf-assets-upload" type="file" accept="image/*" multiple style="display:none;" />
+	                    </label>
+	                  </div>
 	                  <div class="resource-strip pdf-assets-strip" id="task-pdf-assets-tools">
-	                    {% for item in pdf_assets %}
-	                      {% if item.file %}
-	                      <button
-	                        type="button"
-	                        class="pdf-asset-btn"
-	                        data-add="pdf_asset:{{ item.id }}"
-	                        aria-label="Recurso PDF {{ item.id }}"
-	                        title="{{ item.source_pdf_name|default:'' }}"
-	                      >
-	                        <img src="{% url 'pdf-graphic-asset-file' item.id %}" alt="" loading="lazy" />
-	                      </button>
-	                      {% endif %}
-	                    {% endfor %}
+	                    {% if pdf_assets %}
+	                      {% for item in pdf_assets %}
+	                        {% if item.file %}
+	                        <button
+	                          type="button"
+	                          class="pdf-asset-btn"
+	                          data-add="pdf_asset:{{ item.id }}"
+	                          aria-label="Recurso {{ item.id }}"
+	                          title="{{ item.title|default:item.source_pdf_name|default:'' }}"
+	                        >
+	                          <img src="{% url 'pdf-graphic-asset-file' item.id %}" alt="" loading="lazy" />
+	                        </button>
+	                        {% endif %}
+	                      {% endfor %}
+	                    {% else %}
+	                      <span class="meta" style="opacity:0.9;">Aún no hay iconos en el catálogo.</span>
+	                    {% endif %}
 	                  </div>
 	                  <div data-inspector-slot="pdf"></div>
 	                </div>
-	                {% endif %}
 	              </div>
 
               <div class="pitch-main">
@@ -2649,6 +2660,8 @@
 		    <script>
 		      window.addEventListener('DOMContentLoaded', () => {
 		        window.TPAD_PDF_ASSETS = {{ pdf_assets_json|default:'[]'|safe }};
+		        window.TPAD_PDF_ASSET_UPLOAD_URL = "{% url 'pdf-graphic-asset-upload' %}";
+		        window.TPAD_SCOPE_KEY = "{{ scope_key|default:'coach' }}";
 		        // Selector de dispositivo (solo UI): auto/desktop/tablet.
 		        const deviceKey = 'webstats:tpad:device';
 		        const deviceButtons = Array.from(document.querySelectorAll('[data-device-mode]'));
