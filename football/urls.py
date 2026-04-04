@@ -15,6 +15,7 @@ urlpatterns = [
     path('api/dashboard/', views.dashboard_data, name='dashboard-data'),
     path('api/dashboard/refresh/', views.refresh_scraping, name='dashboard-refresh'),
     path('media/home-carousel/<int:image_id>/', views.home_carousel_image_file, name='home-carousel-image-file'),
+    path('media/pdf-assets/<int:asset_id>/', views.pdf_graphic_asset_file, name='pdf-graphic-asset-file'),
     path('players/', views.player_dashboard_page, name='player-dashboard'),
     path('admin-tools/', views.admin_page, name='admin-page'),
     path('invitation/<str:token>/', views.invitation_accept_page, name='user-invite-accept'),

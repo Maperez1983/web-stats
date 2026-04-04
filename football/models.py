@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Q
 from django.utils import timezone
 from django.contrib.auth.models import User
 import secrets
@@ -628,6 +629,44 @@ class SessionTask(models.Model):
 
     def __str__(self):
         return f'{self.session} · {self.title}'
+
+
+class PdfGraphicAsset(models.Model):
+    """
+    Recursos gráficos extraídos de PDFs importados (imágenes embebidas).
+
+    Se guardan por equipo (coach/club) o por usuario (Task Studio) para
+    reutilizarlos en la pizarra sin depender de URLs externas (evita canvas tainting).
+    """
+
+    team = models.ForeignKey('Team', null=True, blank=True, on_delete=models.CASCADE, related_name='pdf_graphic_assets')
+    owner = models.ForeignKey(User, null=True, blank=True, on_delete=models.CASCADE, related_name='pdf_graphic_assets')
+    title = models.CharField(max_length=160, blank=True)
+    sha256 = models.CharField(max_length=64, db_index=True)
+    file = models.ImageField(upload_to='pdf-graphic-assets/')
+    width = models.PositiveIntegerField(null=True, blank=True)
+    height = models.PositiveIntegerField(null=True, blank=True)
+    source_pdf_name = models.CharField(max_length=220, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['team', 'sha256'],
+                condition=Q(team__isnull=False),
+                name='uniq_pdf_asset_team_sha256',
+            ),
+            models.UniqueConstraint(
+                fields=['owner', 'sha256'],
+                condition=Q(owner__isnull=False),
+                name='uniq_pdf_asset_owner_sha256',
+            ),
+        ]
+
+    def __str__(self):
+        scope = self.team.name if self.team_id else (self.owner.username if self.owner_id else 'global')
+        return self.title or f'PDF asset {self.id} · {scope}'
 
 
 class DataImportLog(models.Model):

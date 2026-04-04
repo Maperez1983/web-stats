@@ -201,13 +201,31 @@
         align-items: center;
         gap: 0.5rem;
       }
-      .resource-strip button svg {
-        width: 18px;
-        height: 18px;
-        fill: currentColor;
-        opacity: 0.92;
-        flex: 0 0 auto;
-      }
+	      .resource-strip button svg {
+	        width: 18px;
+	        height: 18px;
+	        fill: currentColor;
+	        opacity: 0.92;
+	        flex: 0 0 auto;
+	      }
+	      .pdf-assets-strip {
+	        flex-wrap: wrap;
+	        gap: 0.5rem;
+	      }
+	      .pdf-assets-strip .pdf-asset-btn {
+	        padding: 0.35rem;
+	        width: 62px;
+	        height: 62px;
+	        justify-content: center;
+	      }
+	      .pdf-assets-strip .pdf-asset-btn img {
+	        width: 48px;
+	        height: 48px;
+	        object-fit: contain;
+	        border-radius: 10px;
+	        background: rgba(255,255,255,0.06);
+	        border: 1px solid rgba(255,255,255,0.10);
+	      }
       .resource-strip button[data-add],
       .player-bank button.player-token-bank {
         cursor: grab;
@@ -1838,23 +1856,25 @@
                       <span>Recursos</span>
                       <span class="current" id="task-resource-summary-label">Selecciona…</span>
                     </summary>
-	                    <div class="resource-tabs">
-	                      <button type="button" class="resource-tab" data-resource="base">Recursos base</button>
-	                      <button type="button" class="resource-tab" data-resource="trazos">Trazos y flechas</button>
-	                      <button type="button" class="resource-tab" data-resource="figuras">Figuras geométricas</button>
-	                      <button type="button" class="resource-tab" data-resource="emoji">Recursos emoji</button>
-	                    </div>
+		                    <div class="resource-tabs">
+		                      <button type="button" class="resource-tab" data-resource="base">Recursos base</button>
+		                      <button type="button" class="resource-tab" data-resource="trazos">Trazos y flechas</button>
+		                      <button type="button" class="resource-tab" data-resource="figuras">Figuras geométricas</button>
+		                      <button type="button" class="resource-tab" data-resource="emoji">Recursos emoji</button>
+		                      {% if pdf_assets %}<button type="button" class="resource-tab" data-resource="pdf">Recursos PDF</button>{% endif %}
+		                    </div>
 	                  </details>
 	                  <div class="resource-select" aria-label="Selector rápido de recursos">
 	                    <label>
 	                      Panel
-	                      <select id="task-resource-select">
-	                        <option value="">—</option>
-	                        <option value="base">Recursos base</option>
-	                        <option value="trazos">Trazos y flechas</option>
-	                        <option value="figuras">Figuras geométricas</option>
-	                        <option value="emoji">Recursos emoji</option>
-	                      </select>
+		                      <select id="task-resource-select">
+		                        <option value="">—</option>
+		                        <option value="base">Recursos base</option>
+		                        <option value="trazos">Trazos y flechas</option>
+		                        <option value="figuras">Figuras geométricas</option>
+		                        <option value="emoji">Recursos emoji</option>
+		                        {% if pdf_assets %}<option value="pdf">Recursos PDF</option>{% endif %}
+		                      </select>
 	                    </label>
 	                  </div>
 			                  <div class="command-bar" id="task-command-bar" aria-label="Comandos rápidos">
@@ -2094,9 +2114,31 @@
                   <button type="button" data-add="emoji_whistle">📣 Silbato</button>
                   <button type="button" data-add="emoji_stopwatch">⏱️ Crono</button>
                 </div>
-                  <div data-inspector-slot="emoji"></div>
-                </div>
-              </div>
+	                  <div data-inspector-slot="emoji"></div>
+	                </div>
+	                {% if pdf_assets %}
+	                <div class="resource-panel" data-panel="pdf" hidden>
+	                  <h3 class="tool-group-title" style="margin-top:0.85rem;">Recursos PDF</h3>
+	                  <p class="meta" style="margin-top:0;">Imágenes extraídas de PDFs importados.</p>
+	                  <div class="resource-strip pdf-assets-strip" id="task-pdf-assets-tools">
+	                    {% for item in pdf_assets %}
+	                      {% if item.file %}
+	                      <button
+	                        type="button"
+	                        class="pdf-asset-btn"
+	                        data-add="pdf_asset:{{ item.id }}"
+	                        aria-label="Recurso PDF {{ item.id }}"
+	                        title="{{ item.source_pdf_name|default:'' }}"
+	                      >
+	                        <img src="{% url 'pdf-graphic-asset-file' item.id %}" alt="" loading="lazy" />
+	                      </button>
+	                      {% endif %}
+	                    {% endfor %}
+	                  </div>
+	                  <div data-inspector-slot="pdf"></div>
+	                </div>
+	                {% endif %}
+	              </div>
 
               <div class="pitch-main">
 	              <div class="pitch-viewport" id="task-pitch-viewport">
@@ -2604,11 +2646,12 @@
     {{ tactical_player_catalog|json_script:"tpad-players-catalog" }}
     <script src="{% static 'vendor/fabric.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
     <script src="{% static 'football/js/sessions_tactical_pad.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
-	    <script>
-	      window.addEventListener('DOMContentLoaded', () => {
-	        // Selector de dispositivo (solo UI): auto/desktop/tablet.
-	        const deviceKey = 'webstats:tpad:device';
-	        const deviceButtons = Array.from(document.querySelectorAll('[data-device-mode]'));
+		    <script>
+		      window.addEventListener('DOMContentLoaded', () => {
+		        window.TPAD_PDF_ASSETS = {{ pdf_assets_json|default:'[]'|safe }};
+		        // Selector de dispositivo (solo UI): auto/desktop/tablet.
+		        const deviceKey = 'webstats:tpad:device';
+		        const deviceButtons = Array.from(document.querySelectorAll('[data-device-mode]'));
 	        const normalizeDevice = (value) => {
 	          const v = String(value || '').trim().toLowerCase();
 	          if (v === 'desktop' || v === 'tablet') return v;

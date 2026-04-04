@@ -14,6 +14,7 @@ import uuid
 import tempfile
 import shutil
 import math
+import hashlib
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, time, date
 from html.parser import HTMLParser
@@ -94,6 +95,7 @@ from football.models import (
     PlayerPhysicalMetric,
     PlayerStatistic,
     SessionTask,
+    PdfGraphicAsset,
     ScrapeSource,
     Season,
     Team,
@@ -921,6 +923,40 @@ def home_carousel_image_file(request, image_id):
     response = FileResponse(file_field, content_type=content_type)
     response['Content-Disposition'] = f'inline; filename="{Path(file_field.name).name}"'
     response['Cache-Control'] = 'private, max-age=900'
+    return response
+
+
+@login_required
+def pdf_graphic_asset_file(request, asset_id):
+    asset = PdfGraphicAsset.objects.select_related('team', 'owner').filter(id=asset_id).first()
+    if not asset or not getattr(asset, 'file', None):
+        raise Http404('Recurso no disponible')
+    # Permisos por alcance: equipo (coach/club) o owner (Task Studio).
+    if asset.team_id:
+        primary_team = _get_primary_team_for_request(request)
+        if not primary_team or int(primary_team.id) != int(asset.team_id):
+            return HttpResponse('No tienes permisos para acceder a este recurso.', status=403)
+    elif asset.owner_id:
+        if int(getattr(request.user, 'id', 0) or 0) != int(asset.owner_id) and not _is_admin_user(request.user):
+            return HttpResponse('No tienes permisos para acceder a este recurso.', status=403)
+    else:
+        return HttpResponse('No tienes permisos para acceder a este recurso.', status=403)
+    try:
+        asset.file.open('rb')
+    except Exception:
+        return HttpResponse('No se pudo abrir el recurso.', status=500)
+    extension = Path(asset.file.name).suffix.lower()
+    content_type = {
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.webp': 'image/webp',
+        '.gif': 'image/gif',
+        '.svg': 'image/svg+xml',
+    }.get(extension, 'application/octet-stream')
+    response = FileResponse(asset.file, content_type=content_type)
+    response['Content-Disposition'] = f'inline; filename="{Path(asset.file.name).name}"'
+    response['Cache-Control'] = 'private, max-age=86400'
     return response
 
 
@@ -10567,6 +10603,131 @@ def _extract_preview_image_from_pdf(pdf_file, prefer_render=False):
     return payloads[0] if payloads else None
 
 
+def _extract_pdf_graphic_assets_from_pdf(pdf_file, max_assets=60):
+    """
+    Extrae imágenes embebidas en un PDF (no renderiza páginas).
+
+    Útil para "rescatar" iconos (balones, conos, etc.) de PDFs de terceros y
+    reutilizarlos como recursos de pizarra dentro del sistema.
+    """
+    if PdfReader is None or pdf_file is None:
+        return []
+    try:
+        limit = max(1, min(int(max_assets or 1), 240))
+    except Exception:
+        limit = 60
+    if hasattr(pdf_file, 'seek'):
+        try:
+            pdf_file.seek(0)
+        except Exception:
+            pass
+    try:
+        reader = PdfReader(pdf_file)
+    except Exception:
+        return []
+    seen = set()
+    assets = []
+    seq = 0
+    for page_idx, page in enumerate(reader.pages):
+        images = getattr(page, 'images', []) or []
+        for image in images:
+            seq += 1
+            raw = getattr(image, 'data', b'') or b''
+            if not raw or len(raw) < 512:
+                continue
+            sha = hashlib.sha256(raw).hexdigest()
+            if sha in seen:
+                continue
+            seen.add(sha)
+            ext = str(getattr(image, 'name', 'img.bin') or 'img.bin').rsplit('.', 1)[-1].lower()
+            if ext not in {'png', 'jpg', 'jpeg', 'webp'}:
+                ext = 'png'
+            metrics = _analyze_preview_image_bytes(raw)
+            if metrics:
+                w = int(metrics.get('width') or 0)
+                h = int(metrics.get('height') or 0)
+                area = int(metrics.get('area') or 0)
+                green_ratio = float(metrics.get('green_ratio') or 0.0)
+                white_ratio = float(metrics.get('white_ratio') or 0.0)
+                if w <= 0 or h <= 0:
+                    continue
+                # Evita miniaturas demasiado pequeñas (ruido) y fondos gigantes del campo/tabla.
+                if area < 18 * 18:
+                    continue
+                if max(w, h) > 1200 or area > (1200 * 1200):
+                    continue
+                # Muchos PDFs embeben el fondo del campo (muy verde). Lo excluimos para que la
+                # librería no se llene de "pitch".
+                if green_ratio > 0.22 and area > (520 * 380) and white_ratio < 0.55:
+                    continue
+            assets.append(
+                {
+                    'sha256': sha,
+                    'raw': raw,
+                    'ext': ext,
+                    'page_idx': page_idx,
+                    'seq': seq,
+                    'width': int(metrics.get('width') or 0) if metrics else 0,
+                    'height': int(metrics.get('height') or 0) if metrics else 0,
+                }
+            )
+            if len(assets) >= limit:
+                return assets
+    return assets
+
+
+def _save_pdf_graphic_assets_to_library(*, team=None, owner=None, pdf_file=None, source_pdf_name='', max_assets=60):
+    """
+    Persiste assets en PdfGraphicAsset con deduplicación por sha256 (por team u owner).
+    """
+    if not pdf_file:
+        return {'saved': 0, 'skipped': 0, 'errors': 0}
+    if not team and not owner:
+        return {'saved': 0, 'skipped': 0, 'errors': 0}
+    extracted = _extract_pdf_graphic_assets_from_pdf(pdf_file, max_assets=max_assets)
+    if not extracted:
+        return {'saved': 0, 'skipped': 0, 'errors': 0}
+    saved = 0
+    skipped = 0
+    errors = 0
+    for item in extracted:
+        sha = str(item.get('sha256') or '').strip()
+        if not sha:
+            continue
+        ext = str(item.get('ext') or 'png').lower().strip() or 'png'
+        raw = item.get('raw') or b''
+        if not raw:
+            continue
+        filename = f'pdf-asset-{sha[:16]}.{ext if ext != "jpeg" else "jpg"}'
+        try:
+            obj = PdfGraphicAsset(
+                team=team,
+                owner=owner,
+                sha256=sha,
+                source_pdf_name=str(source_pdf_name or '')[:220],
+                width=int(item.get('width') or 0) or None,
+                height=int(item.get('height') or 0) or None,
+            )
+            obj.file.save(filename, ContentFile(raw), save=False)
+            obj.save()
+            saved += 1
+        except Exception:
+            # Normalmente será duplicado por constraint (o storage), lo tratamos como skip.
+            try:
+                existing = PdfGraphicAsset.objects.filter(sha256=sha)
+                if team:
+                    existing = existing.filter(team=team)
+                if owner:
+                    existing = existing.filter(owner=owner)
+                if existing.exists():
+                    skipped += 1
+                    continue
+            except Exception:
+                pass
+            errors += 1
+    return {'saved': saved, 'skipped': skipped, 'errors': errors}
+
+
 def _recreate_canvas_state_from_preview_image_bytes(raw_bytes, canvas_width=1054, canvas_height=684):
     """
     Intenta reconstruir una pizarra editable a partir de una imagen raster (extraída del PDF).
@@ -14160,6 +14321,18 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                         max_images=max(1, len(parsed_tasks)),
                         prefer_render=recreate_board,
                     )
+                    # Extra: rescata imágenes embebidas en el PDF como recursos reutilizables
+                    # (balones, conos, etc.). No afecta a la tarea en sí si falla.
+                    try:
+                        _save_pdf_graphic_assets_to_library(
+                            team=primary_team,
+                            owner=None,
+                            pdf_file=pdf_file,
+                            source_pdf_name=raw_name,
+                            max_assets=80,
+                        )
+                    except Exception:
+                        pass
 
                     first = parsed_tasks[0]
                     first_analysis = first.get('analysis') or {}
@@ -16531,6 +16704,25 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
         .filter(team=primary_team, is_active=True)
         .order_by('number', 'name')[:60]
     )
+    pdf_assets = list(
+        PdfGraphicAsset.objects
+        .filter(team=primary_team)
+        .order_by('-created_at', '-id')[:60]
+    )
+    pdf_assets_json = json.dumps(
+        [
+            {
+                'id': int(item.id),
+                'title': str(item.title or '').strip(),
+                'url': reverse('pdf-graphic-asset-file', args=[item.id]),
+                'width': int(item.width or 0),
+                'height': int(item.height or 0),
+            }
+            for item in pdf_assets
+            if getattr(item, 'file', None)
+        ],
+        ensure_ascii=False,
+    )
     return render(
         request,
         'football/task_builder.html',
@@ -16554,6 +16746,8 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             'task_coordination_choices': TASK_COORDINATION_CHOICES,
             'tactical_player_catalog': player_catalog,
             'available_players': available_players,
+            'pdf_assets': pdf_assets,
+            'pdf_assets_json': pdf_assets_json,
             'initial': initial,
             'back_url': reverse(_sessions_scope_route_name(scope_key)),
             'back_label': 'Volver a sesiones',
@@ -17105,6 +17299,25 @@ def task_studio_task_builder_page(request, task_id=None):
         .filter(owner=target_user, is_active=True)
         .order_by('number', 'name')[:60]
     )
+    pdf_assets = list(
+        PdfGraphicAsset.objects
+        .filter(owner=target_user)
+        .order_by('-created_at', '-id')[:60]
+    )
+    pdf_assets_json = json.dumps(
+        [
+            {
+                'id': int(item.id),
+                'title': str(item.title or '').strip(),
+                'url': reverse('pdf-graphic-asset-file', args=[item.id]),
+                'width': int(item.width or 0),
+                'height': int(item.height or 0),
+            }
+            for item in pdf_assets
+            if getattr(item, 'file', None)
+        ],
+        ensure_ascii=False,
+    )
     query_suffix = _task_studio_query_suffix(target_user, request.user)
     return render(
         request,
@@ -17131,6 +17344,8 @@ def task_studio_task_builder_page(request, task_id=None):
             'task_coordination_choices': TASK_COORDINATION_CHOICES,
             'tactical_player_catalog': player_catalog,
             'available_players': available_players,
+            'pdf_assets': pdf_assets,
+            'pdf_assets_json': pdf_assets_json,
             'initial': initial,
             'back_url': reverse('task-studio-home') + query_suffix,
             'back_label': 'Volver al estudio',

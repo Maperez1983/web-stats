@@ -956,6 +956,55 @@
     }
     if (!Array.isArray(players)) players = [];
 
+	    // Assets extraídos de PDFs (misma origin vía endpoint Django).
+	    let pdfAssets = [];
+	    try {
+	      const raw = window.TPAD_PDF_ASSETS;
+	      pdfAssets = Array.isArray(raw) ? raw : [];
+	    } catch (error) {
+	      pdfAssets = [];
+	    }
+	    const pdfAssetMeta = new Map();
+	    const pdfAssetImages = new Map();
+	    const pdfAssetLoading = new Set();
+	    const pdfAssetPendingRefresh = new Set();
+	    const normalizePdfAssetId = (value) => String(value ?? '').trim();
+	    pdfAssets.forEach((item) => {
+	      const id = normalizePdfAssetId(item?.id);
+	      if (!id) return;
+	      pdfAssetMeta.set(id, {
+	        id,
+	        title: safeText(item?.title),
+	        url: safeText(item?.url),
+	        width: Number(item?.width) || 0,
+	        height: Number(item?.height) || 0,
+	      });
+	    });
+	    const ensurePdfAssetLoaded = (assetId) => {
+	      const id = normalizePdfAssetId(assetId);
+	      if (!id || pdfAssetImages.has(id) || pdfAssetLoading.has(id)) return;
+	      const meta = pdfAssetMeta.get(id);
+	      const url = safeText(meta?.url);
+	      if (!url) return;
+	      pdfAssetLoading.add(id);
+	      try {
+	        const img = new Image();
+	        try { img.crossOrigin = 'anonymous'; } catch (e) { /* ignore */ }
+	        img.onload = () => {
+	          pdfAssetImages.set(id, img);
+	          pdfAssetLoading.delete(id);
+	          pdfAssetPendingRefresh.add(id);
+	        };
+	        img.onerror = () => {
+	          pdfAssetLoading.delete(id);
+	        };
+	        img.src = url;
+	      } catch (error) {
+	        pdfAssetLoading.delete(id);
+	      }
+	    };
+	    pdfAssetMeta.forEach((meta) => ensurePdfAssetLoaded(meta.id));
+
 		    const canvas = new fabric.Canvas(canvasEl, {
 		      preserveObjectStacking: true,
 		      selection: true,
@@ -3226,25 +3275,127 @@
 	      return factory(left, top);
 	    };
 
-		    const addObject = (object) => {
-		      if (!object) return;
-		      // Figuras de fondo: al crearlas queremos permitir edición inmediata (mover/escala).
-		      // Luego se desactiva automáticamente al seleccionar otra cosa o con Escape.
-		      if (isBackgroundShape(object)) {
-		        object.data = object.data || {};
-		        object.data.background_edit = true;
-		      }
-		      normalizeEditableObject(object);
-		      canvas.add(object);
-	      if (isBackgroundShape(object)) canvas.sendToBack(object);
-	      canvas.setActiveObject(object);
-	      canvas.requestRenderAll();
-	      pushHistory();
-	      syncInspector();
-		      if (isBackgroundShape(object)) {
-		        setStatus('Fondo añadido en modo edición. Ajusta tamaño/posición y pulsa Esc (o selecciona otro elemento) para volver a modo “pasar a través”.');
-		      }
-		    };
+			    const addObject = (object) => {
+			      if (!object) return;
+			      // Figuras de fondo: al crearlas queremos permitir edición inmediata (mover/escala).
+			      // Luego se desactiva automáticamente al seleccionar otra cosa o con Escape.
+			      if (isBackgroundShape(object)) {
+			        object.data = object.data || {};
+			        object.data.background_edit = true;
+			      }
+			      normalizeEditableObject(object);
+			      canvas.add(object);
+		      if (isBackgroundShape(object)) canvas.sendToBack(object);
+		      canvas.setActiveObject(object);
+		      canvas.requestRenderAll();
+		      pushHistory();
+		      syncInspector();
+			      if (isBackgroundShape(object)) {
+			        setStatus('Fondo añadido en modo edición. Ajusta tamaño/posición y pulsa Esc (o selecciona otro elemento) para volver a modo “pasar a través”.');
+			      }
+			    };
+
+			    const buildPdfAssetObject = (assetId, left, top, options = {}) => {
+			      const id = normalizePdfAssetId(assetId);
+			      const img = pdfAssetImages.get(id);
+			      const meta = pdfAssetMeta.get(id);
+			      const desired = clamp(Number(options.desiredSize) || 56, 28, 180);
+			      if (img && (img.naturalWidth || img.width)) {
+			        const naturalW = Number(img.naturalWidth || img.width || 1);
+			        const naturalH = Number(img.naturalHeight || img.height || 1);
+			        const baseScale = desired / Math.max(1, Math.max(naturalW, naturalH));
+			        const imageObj = new fabric.Image(img, {
+			          left,
+			          top,
+			          originX: 'center',
+			          originY: 'center',
+			          scaleX: baseScale,
+			          scaleY: baseScale,
+			          data: { kind: 'pdf_asset', asset_id: id, title: safeText(meta?.title) },
+			        });
+			        try { imageObj.objectCaching = false; } catch (e) { /* ignore */ }
+			        try { imageObj.noScaleCache = true; } catch (e) { /* ignore */ }
+			        return imageObj;
+			      }
+			      // Placeholder: se reemplaza cuando la imagen termine de cargar.
+			      ensurePdfAssetLoaded(id);
+			      const box = new fabric.Rect({
+			        left: 0,
+			        top: 0,
+			        originX: 'center',
+			        originY: 'center',
+			        width: desired,
+			        height: desired,
+			        rx: 10,
+			        ry: 10,
+			        fill: 'rgba(255,255,255,0.08)',
+			        stroke: 'rgba(34,211,238,0.50)',
+			        strokeWidth: 2,
+			      });
+			      const label = new fabric.Text('PDF', {
+			        left: 0,
+			        top: 0,
+			        originX: 'center',
+			        originY: 'center',
+			        fontSize: 14,
+			        fontWeight: '800',
+			        fill: 'rgba(226,232,240,0.9)',
+			      });
+			      const group = new fabric.Group([box, label], {
+			        left,
+			        top,
+			        originX: 'center',
+			        originY: 'center',
+			        data: { kind: 'pdf_asset', asset_id: id, placeholder: true, desiredSize: desired, title: safeText(meta?.title) },
+			      });
+			      try { group.objectCaching = false; } catch (e) { /* ignore */ }
+			      try { group.noScaleCache = true; } catch (e) { /* ignore */ }
+			      return group;
+			    };
+
+			    const replacePdfAssetPlaceholders = (assetId) => {
+			      const id = normalizePdfAssetId(assetId);
+			      const img = pdfAssetImages.get(id);
+			      if (!img) return;
+			      const objects = canvas.getObjects().slice();
+			      objects.forEach((obj) => {
+			        if (!obj || !obj.data) return;
+			        if (safeText(obj.data.kind) !== 'pdf_asset') return;
+			        if (safeText(obj.data.asset_id) !== id) return;
+			        if (!obj.data.placeholder) return;
+			        const center = obj.getCenterPoint();
+			        const desired = clamp(Number(obj.data.desiredSize) || 56, 28, 180);
+			        const naturalW = Number(img.naturalWidth || img.width || 1);
+			        const naturalH = Number(img.naturalHeight || img.height || 1);
+			        const baseScale = desired / Math.max(1, Math.max(naturalW, naturalH));
+			        const next = new fabric.Image(img, {
+			          left: center.x,
+			          top: center.y,
+			          originX: 'center',
+			          originY: 'center',
+			          angle: Number(obj.angle) || 0,
+			          scaleX: baseScale * (Number(obj.scaleX) || 1),
+			          scaleY: baseScale * (Number(obj.scaleY) || 1),
+			          data: { kind: 'pdf_asset', asset_id: id, title: safeText(obj.data.title) },
+			        });
+			        try { next.objectCaching = false; } catch (e) { /* ignore */ }
+			        try { next.noScaleCache = true; } catch (e) { /* ignore */ }
+			        normalizeEditableObject(next);
+			        canvas.remove(obj);
+			        canvas.add(next);
+			      });
+			      canvas.requestRenderAll();
+			    };
+			    const flushPdfAssetPendingRefresh = () => {
+			      if (!pdfAssetPendingRefresh.size) return;
+			      const ids = Array.from(pdfAssetPendingRefresh);
+			      pdfAssetPendingRefresh.clear();
+			      ids.forEach((id) => {
+			        try { replacePdfAssetPlaceholders(id); } catch (error) { /* ignore */ }
+			      });
+			    };
+			    // Revisa en background por si las imágenes terminan de cargar después de añadirlas.
+			    try { window.setInterval(flushPdfAssetPendingRefresh, 650); } catch (e) { /* ignore */ }
 	    const snapPointToCenters = (point, target, threshold = 10) => {
 	      const baseX = Number(point?.x) || 0;
 	      const baseY = Number(point?.y) || 0;
@@ -3710,12 +3861,17 @@
 	      return group;
 	    };
 
-	    const simpleFactory = (kind) => {
-      if (kind === 'ball') {
-        return (left, top) => new fabric.Circle({
-          left, top, originX: 'center', originY: 'center',
-          radius: 10, fill: '#ffffff', stroke: '#0f172a', strokeWidth: 2,
-          data: { kind: 'ball', color: '#ffffff' },
+		    const simpleFactory = (kind) => {
+	      const normalized = safeText(kind);
+	      if (normalized.startsWith('pdf_asset:')) {
+	        const assetId = normalized.split(':')[1] || '';
+	        return (left, top) => buildPdfAssetObject(assetId, left, top);
+	      }
+	      if (kind === 'ball') {
+	        return (left, top) => new fabric.Circle({
+	          left, top, originX: 'center', originY: 'center',
+	          radius: 10, fill: '#ffffff', stroke: '#0f172a', strokeWidth: 2,
+	          data: { kind: 'ball', color: '#ffffff' },
         });
       }
       if (kind === 'cone') {
@@ -5148,32 +5304,50 @@
       return false;
     };
 
-	    toolStrip?.addEventListener('click', (event) => {
-	      const button = event.target.closest('button');
-	      if (!button) return;
-      const action = safeText(button.dataset.action);
-      const add = safeText(button.dataset.add);
-	      if (action && handleCanvasAction(action)) return;
-	      if (!add) return;
-	      Array.from(toolStrip.querySelectorAll('[data-add]')).forEach((item) => item.classList.remove('is-active'));
-	      button.classList.add('is-active');
+		    toolStrip?.addEventListener('click', (event) => {
+		      const button = event.target.closest('button');
+		      if (!button) return;
+	      const action = safeText(button.dataset.action);
+	      const add = safeText(button.dataset.add);
+		      if (action && handleCanvasAction(action)) return;
+		      if (!add) return;
+		      if (add.startsWith('pdf_asset:')) {
+		        const assetId = add.split(':')[1] || '';
+		        const meta = pdfAssetMeta.get(normalizePdfAssetId(assetId));
+		        const label = meta?.title ? `el recurso PDF “${safeText(meta.title)}”` : 'un recurso PDF';
+		        Array.from(toolStrip.querySelectorAll('[data-add]')).forEach((item) => item.classList.remove('is-active'));
+		        button.classList.add('is-active');
+		        activateFactory((left, top) => buildPdfAssetObject(assetId, left, top), label, add);
+		        return;
+		      }
+		      Array.from(toolStrip.querySelectorAll('[data-add]')).forEach((item) => item.classList.remove('is-active'));
+		      button.classList.add('is-active');
+			      if (add === 'player_local') activateFactory(playerTokenFactory('player_local', null), 'un jugador local', 'player_local');
+			      else if (add === 'player_rival') activateFactory(playerTokenFactory('player_rival', null), 'un jugador rival', 'player_rival');
+			      else if (add === 'player_away') activateFactory(playerTokenFactory('player_away', null), 'un jugador con segunda equipación', 'player_away');
+			      else if (add === 'goalkeeper_local') activateFactory(playerTokenFactory('goalkeeper_local', null), 'un portero', 'goalkeeper_local');
+			      else activateFactory(simpleFactory(add), RESOURCE_LABELS[add] || add, add);
+			    });
+
+		    libraryPane?.addEventListener('click', (event) => {
+		      const button = event.target.closest('button[data-add]');
+		      if (!button) return;
+		      const add = safeText(button.dataset.add);
+		      if (!add) return;
+		      if (add.startsWith('pdf_asset:')) {
+		        const assetId = add.split(':')[1] || '';
+		        const meta = pdfAssetMeta.get(normalizePdfAssetId(assetId));
+		        const label = meta?.title ? `el recurso PDF “${safeText(meta.title)}”` : 'un recurso PDF';
+		        Array.from(libraryPane.querySelectorAll('button[data-add]')).forEach((item) => item.classList.remove('is-active'));
+		        button.classList.add('is-active');
+		        activateFactory((left, top) => buildPdfAssetObject(assetId, left, top), label, add);
+		        return;
+		      }
+		      Array.from(libraryPane.querySelectorAll('button[data-add]')).forEach((item) => item.classList.remove('is-active'));
+		      button.classList.add('is-active');
 		      if (add === 'player_local') activateFactory(playerTokenFactory('player_local', null), 'un jugador local', 'player_local');
 		      else if (add === 'player_rival') activateFactory(playerTokenFactory('player_rival', null), 'un jugador rival', 'player_rival');
 		      else if (add === 'player_away') activateFactory(playerTokenFactory('player_away', null), 'un jugador con segunda equipación', 'player_away');
-		      else if (add === 'goalkeeper_local') activateFactory(playerTokenFactory('goalkeeper_local', null), 'un portero', 'goalkeeper_local');
-		      else activateFactory(simpleFactory(add), RESOURCE_LABELS[add] || add, add);
-		    });
-
-	    libraryPane?.addEventListener('click', (event) => {
-	      const button = event.target.closest('button[data-add]');
-	      if (!button) return;
-	      const add = safeText(button.dataset.add);
-	      if (!add) return;
-	      Array.from(libraryPane.querySelectorAll('button[data-add]')).forEach((item) => item.classList.remove('is-active'));
-	      button.classList.add('is-active');
-	      if (add === 'player_local') activateFactory(playerTokenFactory('player_local', null), 'un jugador local', 'player_local');
-	      else if (add === 'player_rival') activateFactory(playerTokenFactory('player_rival', null), 'un jugador rival', 'player_rival');
-	      else if (add === 'player_away') activateFactory(playerTokenFactory('player_away', null), 'un jugador con segunda equipación', 'player_away');
 	      else if (add === 'goalkeeper_local') activateFactory(playerTokenFactory('goalkeeper_local', null), 'un portero', 'goalkeeper_local');
 	      else activateFactory(simpleFactory(add), RESOURCE_LABELS[add] || add, add);
 	    });
