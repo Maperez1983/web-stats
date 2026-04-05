@@ -536,6 +536,17 @@
         text-transform: uppercase;
         cursor: pointer;
       }
+      .field-header-actions {
+        display: flex;
+        gap: 0.45rem;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        align-items: center;
+      }
+      .zone-overlay-toggle.finalize-top {
+        border-color: rgba(250, 204, 21, 0.55);
+        background: linear-gradient(135deg, rgba(250, 204, 21, 0.22), rgba(249, 115, 22, 0.18));
+      }
       .zone-overlay-toggle[data-state='visible'] {
         background: rgba(250, 204, 21, 0.15);
       }
@@ -1681,7 +1692,10 @@
                 <span>{{ team_name }} · Registro táctil de partido</span>
               </div>
             </div>
-            <button type="button" id="zone-overlay-toggle" class="zone-overlay-toggle">Ver zonas</button>
+            <div class="field-header-actions">
+              <button type="button" id="zone-overlay-toggle" class="zone-overlay-toggle">Ver zonas</button>
+              <button type="button" id="match-finalize-btn-top" class="zone-overlay-toggle finalize-top">Guardar partido</button>
+            </div>
           </div>
           <nav class="match-stage-tabs" aria-label="Fases del registro">
             <button type="button" class="match-stage-tab" data-stage-tab="pre">Prepartido</button>
@@ -2269,7 +2283,10 @@
       const matchInfoEditBtn = document.getElementById('match-info-edit-btn');
       const matchInfoSaveBtn = document.getElementById('match-info-save-btn');
       const matchInfoResetBtn = document.getElementById('match-info-reset-btn');
-      const matchFinalizeBtn = document.getElementById('match-finalize-btn');
+      const matchFinalizeBtn = [
+        document.getElementById('match-finalize-btn'),
+        document.getElementById('match-finalize-btn-top'),
+      ].filter(Boolean);
       const rivalToggleBtn = matchInfoCard?.querySelector('.rival-toggle') || null;
       const rivalDropdown = matchInfoCard?.querySelector('[data-rival-dropdown]') || null;
       const rivalOptions = matchInfoCard?.querySelectorAll('.rival-option') || [];

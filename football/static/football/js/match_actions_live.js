@@ -55,6 +55,16 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     onSummaryChange,
   } = options || {};
 
+  const matchFinalizeButtons = (() => {
+    if (!matchFinalizeBtn) return [];
+    if (Array.isArray(matchFinalizeBtn)) return matchFinalizeBtn.filter(Boolean);
+    // NodeList / HTMLCollection
+    if (typeof matchFinalizeBtn.length === 'number' && typeof matchFinalizeBtn.item === 'function') {
+      return Array.from(matchFinalizeBtn).filter(Boolean);
+    }
+    return [matchFinalizeBtn].filter(Boolean);
+  })();
+
   const quickCounters = {
     amarilla: document.getElementById('yellow-count'),
     roja: document.getElementById('red-count'),
@@ -506,8 +516,9 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     });
   }
 
-  if (matchFinalizeBtn) {
-    matchFinalizeBtn.addEventListener('click', async () => {
+  const bindFinalizeHandler = (button) => {
+    if (!button) return;
+    button.addEventListener('click', async () => {
       Object.assign(matchInfoState, collectMatchInfoPayload());
       try {
         const response = await fetch(finalizeUrl, {
@@ -530,7 +541,8 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
         showPageStatus('Error al guardar el partido.', 'danger', 5200);
       }
     });
-  }
+  };
+  matchFinalizeButtons.forEach(bindFinalizeHandler);
 
   const showZoneLabel = (zoneMatch, x, y) => {
     if (!zoneMatch) {
