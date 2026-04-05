@@ -703,10 +703,78 @@
         max-height: min(68vh, 640px);
         overflow: auto;
       }
-      .scenarios-popover-body .meta {
-        margin: 0 0 0.6rem;
-        opacity: 0.9;
-      }
+	      .scenarios-popover-body .meta {
+	        margin: 0 0 0.6rem;
+	        opacity: 0.9;
+	      }
+	      .sim-popover {
+	        position: absolute;
+	        top: calc(100% + 10px);
+	        right: 0;
+	        width: min(420px, 92vw);
+	        border-radius: 14px;
+	        border: 1px solid rgba(255,255,255,0.14);
+	        background: rgba(2, 6, 23, 0.92);
+	        backdrop-filter: blur(12px);
+	        z-index: 64;
+	        box-shadow: 0 18px 44px rgba(0,0,0,0.38);
+	        overflow: hidden;
+	      }
+	      .sim-popover[hidden] {
+	        display: none !important;
+	      }
+	      .sim-popover-head {
+	        display: flex;
+	        align-items: center;
+	        justify-content: space-between;
+	        gap: 0.6rem;
+	        padding: 10px 12px;
+	        border-bottom: 1px solid rgba(255,255,255,0.10);
+	      }
+	      .sim-popover-head h4 {
+	        margin: 0;
+	        font-size: 0.78rem;
+	        letter-spacing: 0.14em;
+	        text-transform: uppercase;
+	        color: rgba(226,232,240,0.92);
+	      }
+	      .sim-popover-close {
+	        width: 42px;
+	        height: 38px;
+	        border-radius: 999px;
+	        border: 1px solid rgba(255,255,255,0.14);
+	        background: rgba(255,255,255,0.05);
+	        color: rgba(248,250,252,0.9);
+	        font-weight: 900;
+	        cursor: pointer;
+	      }
+	      .sim-popover-body {
+	        padding: 10px 12px 12px;
+	        max-height: min(62vh, 520px);
+	        overflow: auto;
+	      }
+	      .sim-popover-body .meta {
+	        margin: 0 0 0.75rem;
+	        opacity: 0.9;
+	      }
+	      .sim-controls {
+	        display: flex;
+	        flex-wrap: wrap;
+	        gap: 0.6rem;
+	        align-items: center;
+	        justify-content: space-between;
+	      }
+	      .icon-btn.is-simulating {
+	        background: rgba(244,180,0,0.12);
+	        border-color: rgba(244,180,0,0.42);
+	        color: rgba(255,237,213,0.95);
+	      }
+	      body.is-simulating .resource-summary .current::after {
+	        content: " · simulando";
+	        color: rgba(250, 204, 21, 0.95);
+	        font-weight: 900;
+	        letter-spacing: 0.06em;
+	      }
       .scenarios-controls {
         display: flex;
         flex-wrap: wrap;
@@ -2047,12 +2115,15 @@
 	                    <button type="button" class="icon-btn" id="task-layers-btn" title="Capas" aria-label="Capas">
 	                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 2 7l10 5 10-5-10-5Zm0 8L2 5v2l10 5 10-5V5l-10 5Zm0 4L2 9v2l10 5 10-5V9l-10 5Zm0 4L2 13v2l10 5 10-5v-2l-10 5Z"/></svg>
 	                    </button>
-	                    <button type="button" class="icon-btn" id="task-scenarios-btn" title="Escenarios" aria-label="Escenarios">
-	                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v1h2v2h-2v2h2v2h-2v2h2v2h-2v1a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6Zm2 0v12h10V6H6Z"/></svg>
-	                    </button>
-	                    <button type="button" class="icon-btn" id="task-command-more" title="Más acciones" aria-label="Más acciones">
-	                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 14a2 2 0 1 1 0-4 2 2 0 0 1 0 4Zm6 0a2 2 0 1 1 0-4 2 2 0 0 1 0 4Zm6 0a2 2 0 1 1 0-4 2 2 0 0 1 0 4Z"/></svg>
-	                    </button>
+				                    <button type="button" class="icon-btn" id="task-scenarios-btn" title="Escenarios" aria-label="Escenarios">
+				                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v1h2v2h-2v2h2v2h-2v2h2v2h-2v1a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6Zm2 0v12h10V6H6Z"/></svg>
+				                    </button>
+				                    <button type="button" class="icon-btn" id="task-sim-btn" title="Simular (no guarda)" aria-label="Simular">
+				                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7v10l10-5-10-5Z"/></svg>
+				                    </button>
+				                    <button type="button" class="icon-btn" id="task-command-more" title="Más acciones" aria-label="Más acciones">
+				                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 14a2 2 0 1 1 0-4 2 2 0 0 1 0 4Zm6 0a2 2 0 1 1 0-4 2 2 0 0 1 0 4Zm6 0a2 2 0 1 1 0-4 2 2 0 0 1 0 4Z"/></svg>
+				                    </button>
 			                    <div class="command-menu" id="task-command-menu" hidden>
 		                      <button type="button" data-command="align_x">Alinear centro X <span class="shortcut">⌘/Ctrl</span></button>
 		                      <button type="button" data-command="align_y">Alinear centro Y <span class="shortcut">⌘/Ctrl</span></button>
@@ -2103,13 +2174,26 @@
 			                            <input type="number" id="task-scenario-duration-pop" min="1" max="20" step="1" value="3" />
 			                          </label>
 			                        </div>
-			                        <div class="timeline-list" id="task-timeline-list-popover"></div>
-			                      </div>
-			                    </div>
-			                    <div class="pattern-popover" id="task-pattern-popover" hidden>
-			                      <div class="pattern-head">
-			                        <h4 id="task-pattern-title">Patrón</h4>
-			                        <button type="button" class="pattern-close" id="task-pattern-close" aria-label="Cerrar">×</button>
+				                        <div class="timeline-list" id="task-timeline-list-popover"></div>
+				                      </div>
+				                    </div>
+				                    <div class="sim-popover" id="task-sim-popover" hidden>
+				                      <div class="sim-popover-head">
+				                        <h4>Simulador</h4>
+				                        <button type="button" class="sim-popover-close" id="task-sim-close" aria-label="Cerrar">×</button>
+				                      </div>
+				                      <div class="sim-popover-body">
+				                        <p class="meta">Modo simulación: mueve chapas/recursos para explicar una táctica. No se guardan cambios hasta que salgas del simulador.</p>
+				                        <div class="sim-controls">
+				                          <button type="button" class="button primary" id="task-sim-toggle">Entrar en simulación</button>
+				                          <button type="button" class="button" id="task-sim-reset" hidden>Resetear</button>
+				                        </div>
+				                      </div>
+				                    </div>
+				                    <div class="pattern-popover" id="task-pattern-popover" hidden>
+				                      <div class="pattern-head">
+				                        <h4 id="task-pattern-title">Patrón</h4>
+				                        <button type="button" class="pattern-close" id="task-pattern-close" aria-label="Cerrar">×</button>
 			                      </div>
 			                      <div class="pattern-fields" id="task-pattern-fields-line">
 			                        <div class="pattern-field">

@@ -623,11 +623,16 @@
 		    const tokenMetaRow = document.getElementById('task-token-meta');
 		    const tokenNameInput = document.getElementById('task-token-name');
 		    const tokenNumberInput = document.getElementById('task-token-number');
-		    const commandBar = document.getElementById('task-command-bar');
-		    const commandMoreBtn = document.getElementById('task-command-more');
-		    const commandMenu = document.getElementById('task-command-menu');
-		    const patternPopover = document.getElementById('task-pattern-popover');
-		    const patternCloseBtn = document.getElementById('task-pattern-close');
+			    const commandBar = document.getElementById('task-command-bar');
+			    const commandMoreBtn = document.getElementById('task-command-more');
+			    const commandMenu = document.getElementById('task-command-menu');
+			    const simBtn = document.getElementById('task-sim-btn');
+			    const simPopover = document.getElementById('task-sim-popover');
+			    const simCloseBtn = document.getElementById('task-sim-close');
+			    const simToggleBtn = document.getElementById('task-sim-toggle');
+			    const simResetBtn = document.getElementById('task-sim-reset');
+			    const patternPopover = document.getElementById('task-pattern-popover');
+			    const patternCloseBtn = document.getElementById('task-pattern-close');
 		    const layersBtn = document.getElementById('task-layers-btn');
 		    const layersPopover = document.getElementById('task-layers-popover');
 		    const layersCloseBtn = document.getElementById('task-layers-close');
@@ -1209,13 +1214,15 @@
 		    };
 	    syncGridUi({ silent: true });
 
-		    let history = [];
-	      let historyIndex = -1;
-			    let pendingFactory = null;
-			    let pendingKind = '';
-			    const lastPlacedByKind = new Map();
-			    let clipboardObject = null;
-			    let pasteOffset = 0;
+			    let history = [];
+		      let historyIndex = -1;
+				    let pendingFactory = null;
+				    let pendingKind = '';
+				    let isSimulating = false;
+				    let simulationBaselineSnapshot = null;
+				    const lastPlacedByKind = new Map();
+				    let clipboardObject = null;
+				    let pasteOffset = 0;
 			    let layerUidCounter = 1;
 			    const DRAG_MIME = 'application/x-webstats-tactical-resource';
 		    let previewRefreshTimer = null;
@@ -2497,19 +2504,84 @@
 		        try { renderLayers(); } catch (error) { /* ignore */ }
 		      }
 		    };
-		    const setScenariosPopoverOpen = (open) => {
-		      if (!scenariosPopover) return;
-		      scenariosPopover.hidden = !open;
-		      if (open) {
-		        try { renderTimeline(); } catch (error) { /* ignore */ }
-		        try { syncStepInputs(); } catch (error) { /* ignore */ }
-		      }
-		    };
-		    const handleOutsideFloatingMenus = (event) => {
-		      const target = event?.target;
-		      if (commandMenu && !commandMenu.hidden) {
-		        const inside = resolveClosest(target, '#task-command-bar') || resolveClosest(target, '#task-command-menu');
-		        if (!inside) setCommandMenuOpen(false);
+			    const setScenariosPopoverOpen = (open) => {
+			      if (!scenariosPopover) return;
+			      scenariosPopover.hidden = !open;
+			      if (open) {
+			        try { renderTimeline(); } catch (error) { /* ignore */ }
+			        try { syncStepInputs(); } catch (error) { /* ignore */ }
+			      }
+			    };
+			    const syncSimUi = () => {
+			      document.body.classList.toggle('is-simulating', !!isSimulating);
+			      simBtn?.classList.toggle('is-simulating', !!isSimulating);
+			      if (simToggleBtn) {
+			        simToggleBtn.textContent = isSimulating ? 'Salir de simulación' : 'Entrar en simulación';
+			        simToggleBtn.classList.toggle('danger', !!isSimulating);
+			        simToggleBtn.classList.toggle('primary', !isSimulating);
+			      }
+			      if (simResetBtn) simResetBtn.hidden = !isSimulating;
+			    };
+			    const setSimPopoverOpen = (open) => {
+			      if (!simPopover) return;
+			      simPopover.hidden = !open;
+			      if (open) syncSimUi();
+			    };
+				    const restoreSimulationBaseline = () => {
+				      if (!simulationBaselineSnapshot) return;
+				      let parsed = null;
+				      try { parsed = JSON.parse(simulationBaselineSnapshot); } catch (error) { parsed = null; }
+				      if (!parsed) return;
+				      const { w, h } = worldSize();
+				      applySerializedState(parsed, { sourceWidth: Math.round(w || 0), sourceHeight: Math.round(h || 0) });
+				    };
+				    const setSimulationUiLocked = (locked) => {
+				      const setDisabled = (node) => {
+				        if (!node) return;
+				        if ('disabled' in node) node.disabled = !!locked;
+				        try { node.classList.toggle('is-disabled', !!locked); } catch (error) { /* ignore */ }
+				      };
+				      [presetSelect, surfaceTrigger, orientationToggle, zoomOutButton, zoomInButton, zoomResetButton, stageSizeDownButton, stageSizeUpButton, stageSizeFitButton, pitchFormatInput]
+				        .forEach(setDisabled);
+				      try { (presetButtons || []).forEach(setDisabled); } catch (error) { /* ignore */ }
+				      try { if (pitchResizeHandle) pitchResizeHandle.style.pointerEvents = locked ? 'none' : ''; } catch (error) { /* ignore */ }
+				      try { if (surfaceMenu) surfaceMenu.style.pointerEvents = locked ? 'none' : ''; } catch (error) { /* ignore */ }
+				      try { if (surfacePicker) surfacePicker.style.pointerEvents = locked ? 'none' : ''; } catch (error) { /* ignore */ }
+				      try {
+				        Array.from(toolStrip?.querySelectorAll('button') || []).forEach((btn) => { btn.disabled = !!locked; });
+				        Array.from(playerBank?.querySelectorAll('button') || []).forEach((btn) => { btn.disabled = !!locked; });
+				        Array.from(libraryPane?.querySelectorAll('button') || []).forEach((btn) => { btn.disabled = !!locked; });
+				      } catch (error) { /* ignore */ }
+				      try { if (locked && resourceDetails) resourceDetails.open = false; } catch (error) { /* ignore */ }
+				    };
+				    const enterSimulation = () => {
+				      if (isSimulating) return;
+				      try { simulationBaselineSnapshot = JSON.stringify(serializeState()); } catch (error) { simulationBaselineSnapshot = null; }
+				      clearPendingPlacement();
+				      isSimulating = true;
+				      setSimulationUiLocked(true);
+				      syncSimUi();
+				      setStatus('Modo simulación activado. Mueve elementos: no se guardan cambios.');
+				    };
+				    const exitSimulation = () => {
+				      if (!isSimulating) return;
+				      isSimulating = false;
+				      setSimulationUiLocked(false);
+				      syncSimUi();
+				      restoreSimulationBaseline();
+				      simulationBaselineSnapshot = null;
+				      setStatus('Simulación finalizada. Volviste al editor.');
+				    };
+			    const resetSimulation = () => {
+			      if (!isSimulating) return;
+			      restoreSimulationBaseline();
+			      setStatus('Simulación reseteada.');
+			    };
+			    const handleOutsideFloatingMenus = (event) => {
+			      const target = event?.target;
+			      if (commandMenu && !commandMenu.hidden) {
+			        const inside = resolveClosest(target, '#task-command-bar') || resolveClosest(target, '#task-command-menu');
+			        if (!inside) setCommandMenuOpen(false);
 		      }
 		      if (patternPopover && !patternPopover.hidden) {
 		        const inside = resolveClosest(target, '#task-command-bar') || resolveClosest(target, '#task-pattern-popover');
@@ -2519,24 +2591,29 @@
 		        const inside = resolveClosest(target, '#task-command-bar') || resolveClosest(target, '#task-layers-popover');
 		        if (!inside) setLayersPopoverOpen(false);
 		      }
-		      if (scenariosPopover && !scenariosPopover.hidden) {
-		        const inside = resolveClosest(target, '#task-command-bar') || resolveClosest(target, '#task-scenarios-popover');
-		        if (!inside) setScenariosPopoverOpen(false);
-		      }
-		    };
+			      if (scenariosPopover && !scenariosPopover.hidden) {
+			        const inside = resolveClosest(target, '#task-command-bar') || resolveClosest(target, '#task-scenarios-popover');
+			        if (!inside) setScenariosPopoverOpen(false);
+			      }
+			      if (simPopover && !simPopover.hidden) {
+			        const inside = resolveClosest(target, '#task-command-bar') || resolveClosest(target, '#task-sim-popover');
+			        if (!inside) setSimPopoverOpen(false);
+			      }
+			    };
 		    // Cerrar menús aunque Fabric/otros handlers hagan stopPropagation.
 		    // Usamos eventos en fase de captura para que no se queden "pegados" tapando el campo (Safari/iPad incluido).
 		    window.addEventListener('pointerdown', handleOutsideFloatingMenus, true);
 		    window.addEventListener('mousedown', handleOutsideFloatingMenus, true);
 		    window.addEventListener('touchstart', handleOutsideFloatingMenus, true);
-		    window.addEventListener('keydown', (event) => {
-		      const key = String(event?.key || '').toLowerCase();
-		      if (key !== 'escape') return;
-		      if (commandMenu && !commandMenu.hidden) setCommandMenuOpen(false);
-		      if (patternPopover && !patternPopover.hidden) closePatternPopover();
-		      if (layersPopover && !layersPopover.hidden) setLayersPopoverOpen(false);
-		      if (scenariosPopover && !scenariosPopover.hidden) setScenariosPopoverOpen(false);
-		    }, true);
+			    window.addEventListener('keydown', (event) => {
+			      const key = String(event?.key || '').toLowerCase();
+			      if (key !== 'escape') return;
+			      if (commandMenu && !commandMenu.hidden) setCommandMenuOpen(false);
+			      if (patternPopover && !patternPopover.hidden) closePatternPopover();
+			      if (layersPopover && !layersPopover.hidden) setLayersPopoverOpen(false);
+			      if (scenariosPopover && !scenariosPopover.hidden) setScenariosPopoverOpen(false);
+			      if (simPopover && !simPopover.hidden) setSimPopoverOpen(false);
+			    }, true);
 
 		    layersBtn?.addEventListener('click', (event) => {
 		      event.preventDefault();
@@ -2558,12 +2635,36 @@
 		      try { setLayersPopoverOpen(false); } catch (error) { /* ignore */ }
 		      setScenariosPopoverOpen(!!scenariosPopover?.hidden);
 		    });
-		    scenariosCloseBtn?.addEventListener('click', (event) => {
-		      event.preventDefault();
-		      setScenariosPopoverOpen(false);
-		    });
+			    scenariosCloseBtn?.addEventListener('click', (event) => {
+			      event.preventDefault();
+			      setScenariosPopoverOpen(false);
+			    });
 
-		    const findObjectByLayerUid = (uid) => (canvas.getObjects() || []).find((obj) => safeText(obj?.data?.layer_uid) === safeText(uid));
+			    simBtn?.addEventListener('click', (event) => {
+			      event.preventDefault();
+			      // Cierra otros overlays para no apilar menús.
+			      try { setCommandMenuOpen(false); } catch (error) { /* ignore */ }
+			      try { closePatternPopover(); } catch (error) { /* ignore */ }
+			      try { setLayersPopoverOpen(false); } catch (error) { /* ignore */ }
+			      try { setScenariosPopoverOpen(false); } catch (error) { /* ignore */ }
+			      setSimPopoverOpen(!!simPopover?.hidden);
+			    });
+			    simCloseBtn?.addEventListener('click', (event) => {
+			      event.preventDefault();
+			      setSimPopoverOpen(false);
+			    });
+			    simToggleBtn?.addEventListener('click', (event) => {
+			      event.preventDefault();
+			      if (isSimulating) exitSimulation();
+			      else enterSimulation();
+			      syncSimUi();
+			    });
+			    simResetBtn?.addEventListener('click', (event) => {
+			      event.preventDefault();
+			      resetSimulation();
+			    });
+
+			    const findObjectByLayerUid = (uid) => (canvas.getObjects() || []).find((obj) => safeText(obj?.data?.layer_uid) === safeText(uid));
 		    const commitLayerChange = (message) => {
 		      canvas.requestRenderAll();
 		      persistActiveStepSnapshot();
@@ -2853,14 +2954,15 @@
       timeline[activeStepIndex].title = safeText(stepTitleInput?.value, `Paso ${activeStepIndex + 1}`);
       timeline[activeStepIndex].duration = clamp(Number(stepDurationInput?.value) || 3, 1, 20);
     };
-	    const persistActiveStepSnapshot = () => {
-	      if (activeStepIndex < 0 || !timeline[activeStepIndex]) return;
-	      persistActiveStepMeta();
-	      timeline[activeStepIndex].canvas_state = serializeCanvasOnly();
-	      const { w, h } = worldSize();
-	      timeline[activeStepIndex].canvas_width = Math.round(w || 0);
-	      timeline[activeStepIndex].canvas_height = Math.round(h || 0);
-	    };
+		    const persistActiveStepSnapshot = () => {
+		      if (isSimulating) return;
+		      if (activeStepIndex < 0 || !timeline[activeStepIndex]) return;
+		      persistActiveStepMeta();
+		      timeline[activeStepIndex].canvas_state = serializeCanvasOnly();
+		      const { w, h } = worldSize();
+		      timeline[activeStepIndex].canvas_width = Math.round(w || 0);
+		      timeline[activeStepIndex].canvas_height = Math.round(h || 0);
+		    };
     const syncStepInputs = () => {
       const active = activeStepIndex >= 0 ? timeline[activeStepIndex] : null;
       [stepTitleInput, stepDurationInput, duplicateStepButton, removeStepButton, playStepButton].forEach((node) => {
@@ -3061,12 +3163,13 @@
         if (options.pushHistory) pushHistory();
       }, { sourceWidth, sourceHeight });
     };
-    const pushHistory = () => {
-      const snapshot = JSON.stringify(serializeState());
-      if (historyIndex >= 0 && history[historyIndex] === snapshot) return;
-      if (historyIndex >= 0 && historyIndex < history.length - 1) {
-        history = history.slice(0, historyIndex + 1);
-      }
+	    const pushHistory = () => {
+	      if (isSimulating) return;
+	      const snapshot = JSON.stringify(serializeState());
+	      if (historyIndex >= 0 && history[historyIndex] === snapshot) return;
+	      if (historyIndex >= 0 && historyIndex < history.length - 1) {
+	        history = history.slice(0, historyIndex + 1);
+	      }
       history.push(snapshot);
       historyIndex = history.length - 1;
       if (history.length > 60) {
@@ -3675,14 +3778,18 @@
       if (payload.kind === 'goalkeeper_local') return { factory: playerTokenFactory('goalkeeper_local', null), label: 'un portero' };
       return { factory: simpleFactory(payload.kind), label: RESOURCE_LABELS[payload.kind] || payload.kind };
     };
-    const addPayloadAtPointer = (payload, pointer) => {
-      const resolved = createFactoryFromPayload(payload);
-      if (!resolved?.factory) return false;
-      addObject(objectAtPointer(resolved.factory, pointer));
-      clearPendingPlacement();
-      setStatus(`${resolved.label} colocado.`);
-      return true;
-    };
+	    const addPayloadAtPointer = (payload, pointer) => {
+	      if (isSimulating) {
+	        setStatus('Modo simulación: no se pueden añadir recursos. Sal del simulador para editar.', true);
+	        return false;
+	      }
+	      const resolved = createFactoryFromPayload(payload);
+	      if (!resolved?.factory) return false;
+	      addObject(objectAtPointer(resolved.factory, pointer));
+	      clearPendingPlacement();
+	      setStatus(`${resolved.label} colocado.`);
+	      return true;
+	    };
     const registerDraggableButton = (button, payloadBuilder) => {
       if (!button) return;
       button.draggable = true;
@@ -4445,13 +4552,18 @@
       return null;
     };
 
-	    const activateFactory = (factory, label, kind = '') => {
-	      pendingFactory = factory;
-	      pendingKind = safeText(kind || '');
-	      Array.from(toolStrip?.querySelectorAll('[data-add]') || []).forEach((button) => button.classList.remove('is-active'));
-	      Array.from(playerBank?.querySelectorAll('button') || []).forEach((button) => button.classList.remove('is-active'));
-	      setStatus(`Haz clic en el campo para colocar ${label}. (Shift: varios · Cmd/Ctrl: alinear por centro)`);
-	    };
+		    const activateFactory = (factory, label, kind = '') => {
+		      if (isSimulating) {
+		        clearPendingPlacement();
+		        setStatus('Modo simulación: no se pueden añadir recursos. Sal del simulador para editar.', true);
+		        return;
+		      }
+		      pendingFactory = factory;
+		      pendingKind = safeText(kind || '');
+		      Array.from(toolStrip?.querySelectorAll('[data-add]') || []).forEach((button) => button.classList.remove('is-active'));
+		      Array.from(playerBank?.querySelectorAll('button') || []).forEach((button) => button.classList.remove('is-active'));
+		      setStatus(`Haz clic en el campo para colocar ${label}. (Shift: varios · Cmd/Ctrl: alinear por centro)`);
+		    };
 
 		    const restoreState = () => {
 	      let parsed = { version: '5.3.0', objects: [] };
@@ -5200,11 +5312,11 @@
         // ignore (quota / privacy mode)
       }
     };
-    const scheduleDraftSave = (reason) => {
-      if (!canUseStorage || !draftKey || saveSuccess) return;
-      window.clearTimeout(draftSaveTimer);
-      draftSaveTimer = window.setTimeout(() => persistDraftNow(reason || 'auto'), 900);
-    };
+	    const scheduleDraftSave = (reason) => {
+	      if (!canUseStorage || !draftKey || saveSuccess || isSimulating) return;
+	      window.clearTimeout(draftSaveTimer);
+	      draftSaveTimer = window.setTimeout(() => persistDraftNow(reason || 'auto'), 900);
+	    };
 
     if (canUseStorage && draftKey && !saveSuccess) {
       form.addEventListener('input', () => scheduleDraftSave('input'));
@@ -6411,14 +6523,20 @@
 		    let isSubmitting = false;
 			    form.addEventListener('submit', async (event) => {
 	      // Segunda pasada: dejamos que el navegador envíe el POST (evita bucles con requestSubmit()).
-	      if (form.dataset.previewReady === '1') {
-	        form.dataset.previewReady = '';
-	        return;
-	      }
-	      if (isSubmitting) return;
-		      event.preventDefault();
-	      try { syncRichEditorsNow(); } catch (error) { /* ignore */ }
-		      try { persistDraftNow('submit'); } catch (error) { /* ignore */ }
+		      if (form.dataset.previewReady === '1') {
+		        form.dataset.previewReady = '';
+		        return;
+		      }
+		      if (isSubmitting) return;
+		      if (isSimulating) {
+		        event.preventDefault();
+		        setStatus('Modo simulación: sal del simulador para guardar la tarea.', true);
+		        try { window.alert('Estás en modo simulación. Sal del simulador para poder guardar la tarea.'); } catch (error) { /* ignore */ }
+		        return;
+		      }
+			      event.preventDefault();
+		      try { syncRichEditorsNow(); } catch (error) { /* ignore */ }
+			      try { persistDraftNow('submit'); } catch (error) { /* ignore */ }
 	      if (pingKeepalive) {
 	        const ok = await pingKeepalive();
 	        if (!ok) {
