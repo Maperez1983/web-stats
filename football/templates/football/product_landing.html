@@ -30,7 +30,7 @@
           linear-gradient(180deg, #050c17, #08111d 52%, #091321);
       }
       .page { max-width: 1200px; margin: 0 auto; padding: 1.2rem; }
-      .topbar, .hero, .proof-grid, .tracks, .plans, .demo-strip, .cta-band, .capture-grid { display: grid; gap: 1rem; }
+      .topbar, .hero, .proof-grid, .cta-band, .capture-grid { display: grid; gap: 1rem; }
       .topbar {
         grid-template-columns: 1fr auto;
         align-items: center;
@@ -155,14 +155,14 @@
       }
       .hero-shot {
         position: relative;
-        min-height: 330px;
-        background: linear-gradient(180deg, rgba(8, 17, 29, 0.08), rgba(8, 17, 29, 0.82));
+        min-height: 360px;
+        background: rgba(6, 12, 22, 0.92);
       }
       .hero-shot img {
-        position: absolute;
-        inset: 0;
         width: 100%;
         height: 100%;
+        min-height: 360px;
+        display: block;
         object-fit: cover;
         object-position: center top;
       }
@@ -175,65 +175,21 @@
         mix-blend-mode: multiply;
         pointer-events: none;
       }
-      .hero-shot-overlay {
-        position: absolute;
-        inset: auto 1rem 1rem 1rem;
-        display: grid;
-        grid-template-columns: 1.1fr 0.9fr;
-        gap: .9rem;
-        align-items: end;
+      .hero-shot-caption {
+        padding: .85rem 1rem 1rem;
+        border-top: 1px solid rgba(255,255,255,.08);
+        background: rgba(255,255,255,.03);
       }
-      .hero-shot-panel,
-      .mini-shot-card {
-        border: 1px solid rgba(145, 161, 185, 0.18);
-        border-radius: 18px;
-        background: rgba(8, 17, 29, 0.84);
-        backdrop-filter: blur(10px);
-      }
-      .hero-shot-panel {
-        padding: 1rem;
-      }
-      .hero-shot-panel strong {
+      .hero-shot-caption strong {
         display: block;
-        font-size: 1.24rem;
+        font-size: 1.05rem;
         color: #f8fafc;
       }
-      .hero-shot-panel span {
+      .hero-shot-caption span {
         display: block;
-        margin-top: .28rem;
+        margin-top: .25rem;
         color: #cbd5e1;
-      }
-      .hero-shot-panel small {
-        display: inline-flex;
-        margin-top: .65rem;
-        padding: .28rem .55rem;
-        border-radius: 999px;
-        background: rgba(244, 180, 0, 0.1);
-        border: 1px solid rgba(244, 180, 0, 0.18);
-        color: #fff0b3;
-        letter-spacing: .08em;
-        text-transform: uppercase;
-      }
-      .hero-shot-kpis {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: .6rem;
-      }
-      .hero-shot-kpis .mini-shot-card {
-        padding: .75rem;
-      }
-      .hero-shot-kpis .mini-shot-card span {
-        display: block;
-        font-size: .68rem;
-        color: #9fb0c7;
-        text-transform: uppercase;
-        letter-spacing: .08em;
-      }
-      .hero-shot-kpis .mini-shot-card strong {
-        display: block;
-        margin-top: .2rem;
-        font-size: 1.15rem;
-        color: #f8fafc;
+        line-height: 1.45;
       }
       .capture-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -342,70 +298,6 @@
         text-transform: uppercase;
         color: #d7f5d9;
       }
-      .tracks {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-      }
-      .plans {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        margin-top: 1rem;
-      }
-      .track-card {
-        padding: 1.15rem;
-      }
-      .track-card small {
-        display: inline-flex;
-        margin-bottom: .65rem;
-        padding: .28rem .56rem;
-        border-radius: 999px;
-        background: rgba(255,255,255,.06);
-        color: #dbe3ee;
-        letter-spacing: .08em;
-        text-transform: uppercase;
-      }
-      .track-card h2 {
-        margin: 0 0 .4rem;
-        font-size: 1.4rem;
-      }
-      .track-card p {
-        margin: 0;
-        color: var(--slate);
-        line-height: 1.6;
-      }
-      .plan-card {
-        border-radius: 22px;
-        border: 1px solid var(--line);
-        background: var(--panel-soft);
-        padding: 1.15rem;
-      }
-      .plan-card.featured {
-        border-color: rgba(244, 180, 0, 0.42);
-        box-shadow: inset 0 0 0 1px rgba(244, 180, 0, 0.12);
-      }
-      .plan-card small {
-        display: inline-flex;
-        margin-bottom: .65rem;
-        padding: .26rem .55rem;
-        border-radius: 999px;
-        background: rgba(255,255,255,.06);
-        color: #dbe3ee;
-        letter-spacing: .08em;
-        text-transform: uppercase;
-      }
-      .plan-card h3 {
-        margin: 0 0 .35rem;
-        font-size: 1.3rem;
-      }
-      .plan-card p {
-        margin: 0;
-        color: var(--slate);
-        line-height: 1.55;
-      }
-      .plan-list {
-        margin: .9rem 0 0;
-        padding-left: 1rem;
-        color: #dbe3ee;
-        line-height: 1.8;
-      }
       .proof-list {
         margin: 0;
         padding-left: 1rem;
@@ -418,31 +310,6 @@
         grid-template-columns: 1fr auto;
         align-items: center;
       }
-      .demo-strip {
-        margin-top: 1rem;
-        grid-template-columns: 1.15fr .85fr;
-      }
-      .demo-card {
-        border-radius: 22px;
-        border: 1px solid var(--line);
-        background: var(--panel-soft);
-        padding: 1.15rem;
-      }
-      .demo-card h3 {
-        margin: 0 0 .35rem;
-        font-size: 1.28rem;
-      }
-      .demo-card p {
-        margin: 0;
-        color: var(--slate);
-        line-height: 1.55;
-      }
-      .demo-list {
-        margin: .85rem 0 0;
-        padding-left: 1rem;
-        color: #dbe3ee;
-        line-height: 1.8;
-      }
       .cta-band h3 {
         margin: 0 0 .2rem;
         font-size: 1.3rem;
@@ -452,14 +319,8 @@
         color: var(--slate);
       }
       @media (max-width: 960px) {
-        .hero, .proof-grid, .tracks, .plans, .demo-strip, .cta-band, .topbar, .capture-grid {
+        .hero, .proof-grid, .cta-band, .topbar, .capture-grid {
           grid-template-columns: 1fr;
-        }
-        .hero-shot-overlay {
-          grid-template-columns: 1fr;
-        }
-        .hero-shot-kpis {
-          grid-template-columns: 1fr 1fr 1fr;
         }
         .top-actions { justify-content: start; }
       }
@@ -484,8 +345,8 @@
 	      <section class="hero">
 	        <div>
 	          <span class="eyebrow">Football Intelligence</span>
-	          <h1>Football Intelligence para entrenadores.</h1>
-		          <p>Segunda Jugada (2J) transforma lo que ocurre en el juego en decisiones útiles: toma de datos en vivo, análisis y un creador de tareas profesional dentro de una estructura modular.</p>
+	          <h1>La plataforma para registrar, entrenar y organizar tu club.</h1>
+		          <p>Segunda Jugada (2J) convierte el partido y el entrenamiento en un flujo de trabajo real: tareas y sesiones, documentos listos para compartir y módulos por cliente/espacio.</p>
           <div class="hero-visual">
             <div class="shot-browser">
               <div class="shot-dots"><span></span><span></span><span></span></div>
@@ -493,26 +354,9 @@
             </div>
             <div class="hero-shot">
               <img src="{% static 'football/images/marketing/club-home.png' %}" alt="2J Club screenshot" loading="lazy" />
-              <div class="hero-shot-overlay">
-                <div class="hero-shot-panel">
-                  <strong>2J Club</strong>
-                  <span>Home del cliente con equipo, clasificación, próximo rival y contexto competitivo.</span>
-                  <small>Cliente · Club</small>
-                </div>
-                <div class="hero-shot-kpis">
-                  <article class="mini-shot-card">
-                    <span>Puesto</span>
-                    <strong>5</strong>
-                  </article>
-                  <article class="mini-shot-card">
-                    <span>Puntos</span>
-                    <strong>42</strong>
-                  </article>
-                  <article class="mini-shot-card">
-                    <span>Partidos</span>
-                    <strong>24</strong>
-                  </article>
-                </div>
+              <div class="hero-shot-caption">
+                <strong>2J Club</strong>
+                <span>Portada del cliente con equipo, clasificación, próximo rival y contexto competitivo.</span>
               </div>
             </div>
           </div>
@@ -548,7 +392,7 @@
       </section>
 
       <h2 class="section-title">Productos</h2>
-      <section class="capture-grid">
+      <section class="capture-grid" aria-label="Capturas de producto">
         <article class="capture-card">
           <div class="shot-browser">
             <div class="shot-dots"><span></span><span></span><span></span></div>
@@ -589,49 +433,6 @@
           </div>
         </article>
       </section>
-      <section class="tracks">
-        {% for track in product_tracks %}
-        <article class="track-card">
-          <small>{{ track.eyebrow }}</small>
-          <h2>{{ track.name }}</h2>
-          <p>{{ track.description }}</p>
-        </article>
-        {% endfor %}
-      </section>
-
-      <h2 class="section-title">Planes</h2>
-      <section class="plans">
-        <article class="plan-card">
-          <small>Base</small>
-          <h3>2J Live</h3>
-          <p>Para cuerpos técnicos que necesitan registrar el partido y salir con estadísticas útiles de forma inmediata.</p>
-          <ul class="plan-list">
-            <li>Registro de acciones en iPad</li>
-            <li>Resumen postpartido</li>
-            <li>KPIs y cronología</li>
-          </ul>
-        </article>
-        <article class="plan-card featured">
-          <small>Pro</small>
-          <h3>2J Studio</h3>
-          <p>Para entrenadores que quieren diseñar tareas, sesiones y documentos con una biblioteca operativa propia.</p>
-          <ul class="plan-list">
-            <li>Creador de tareas</li>
-            <li>Sesiones y microciclos</li>
-            <li>PDF UEFA y Club</li>
-          </ul>
-        </article>
-        <article class="plan-card">
-          <small>Club</small>
-          <h3>2J Club</h3>
-          <p>Para clientes que necesitan una estructura completa de trabajo: partido, entrenamiento, jugadores y cuerpo técnico.</p>
-          <ul class="plan-list">
-            <li>Módulos por cliente</li>
-            <li>Workspaces y accesos</li>
-            <li>Operativa diaria del club</li>
-          </ul>
-        </article>
-      </section>
 
       <h2 class="section-title">Ventaja</h2>
       <section class="hero-panel">
@@ -640,28 +441,6 @@
           <li>{{ point }}</li>
           {% endfor %}
         </ul>
-      </section>
-
-      <h2 class="section-title">Demo y contacto</h2>
-      <section class="demo-strip">
-        <article class="demo-card">
-          <h3>Qué enseñar en una demo</h3>
-          <p>La demostración comercial buena de 2J no enseña todas las pantallas; enseña un flujo cerrado de valor.</p>
-          <ul class="demo-list">
-            <li>2J Live: registrar el partido y cerrar con resumen.</li>
-            <li>2J Studio: diseñar una tarea y generar PDF UEFA/Club.</li>
-            <li>2J Club: ver cómo todo encaja en el cliente y sus módulos.</li>
-          </ul>
-        </article>
-        <article class="demo-card">
-          <h3>Siguiente CTA comercial</h3>
-          <p>Cuando quieras sacar la marca fuera del sistema, este bloque debería enlazar a agenda de demo, formulario comercial o contacto directo.</p>
-          <ul class="demo-list">
-            <li>CTA 1: Solicitar demo.</li>
-            <li>CTA 2: Ver entorno de ejemplo.</li>
-            <li>CTA 3: Hablar con el equipo.</li>
-          </ul>
-        </article>
       </section>
 
       <section class="cta-band">

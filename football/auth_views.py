@@ -81,7 +81,10 @@ class RoleAwareLoginView(auth_views.LoginView):
     def dispatch(self, request, *args, **kwargs):
         # Producto: `segundajugada.es` es solo landing. El login debe vivir en `app.*`.
         host = _request_host(request)
-        landing_hosts = _split_csv(os.getenv("LANDING_HOSTS") or "segundajugada.es,www.segundajugada.es")
+        landing_hosts = _split_csv(
+            os.getenv("LANDING_HOSTS")
+            or "segundajugada.es,www.segundajugada.es,segundajugada.com,www.segundajugada.com"
+        )
         if host in landing_hosts:
             app_base = _resolve_app_base_url(request)
             next_url = str(request.GET.get("next") or "").strip()

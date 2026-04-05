@@ -5104,12 +5104,12 @@ def dashboard_page(request):
     host = str(request.get_host() or '').split(':', 1)[0].strip().lower()
     app_hosts = [
         h.strip().lower()
-        for h in (os.getenv('APP_HOSTS') or 'app.segundajugada.es').split(',')
+        for h in (os.getenv('APP_HOSTS') or 'app.segundajugada.es,app.segundajugada.com').split(',')
         if h.strip()
     ]
     landing_hosts = [
         h.strip().lower()
-        for h in (os.getenv('LANDING_HOSTS') or 'segundajugada.es,www.segundajugada.es').split(',')
+        for h in (os.getenv('LANDING_HOSTS') or 'segundajugada.es,www.segundajugada.es,segundajugada.com,www.segundajugada.com').split(',')
         if h.strip()
     ]
     # Separación de dominios:
