@@ -3040,6 +3040,35 @@ class MatchActionWorkflowTests(TestCase):
         )
         self.assertTrue(MatchEvent.objects.filter(id=final_event.id).exists())
 
+    def test_match_actions_page_defaults_to_match_with_pending_live_events(self):
+        other_rival = Team.objects.create(name='Rival Futuro', slug='rival-futuro', group=self.team.group)
+        future_match = Match.objects.create(
+            season=self.match.season,
+            group=self.match.group,
+            home_team=self.team,
+            away_team=other_rival,
+            round='25',
+            date=date(2026, 4, 20),
+        )
+        MatchEvent.objects.create(
+            match=self.match,
+            player=self.player,
+            event_type='Pase',
+            result='OK',
+            zone='Medio Centro',
+            tercio='Construcción',
+            minute=5,
+            period=1,
+            system='touch-field',
+            source_file='registro-acciones',
+        )
+        self.assertGreater(future_match.date, self.match.date)
+
+        response = self.client.get(reverse('match-action-page'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context.get('selected_match_id'), self.match.id)
+
 
 class PlayerDashboardViewTests(TestCase):
     def setUp(self):

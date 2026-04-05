@@ -188,6 +188,7 @@ from football.query_helpers import (
     get_active_match,
     get_current_convocation,
     get_current_convocation_record,
+    get_latest_live_match,
     get_latest_pizarra_match,
     get_previous_match,
     get_requested_match,
@@ -7943,7 +7944,11 @@ def match_action_page(request):
     if not primary_team:
         raise Http404('Equipo principal no configurado')
     requested_match = get_requested_match(request, primary_team)
-    active_match = requested_match or get_active_match(primary_team)
+    if requested_match:
+        active_match = requested_match
+    else:
+        # Si hay registro en vivo pendiente, prioriza ese partido para evitar "pérdidas" al refrescar.
+        active_match = get_latest_live_match(primary_team) or get_active_match(primary_team)
     convocation_record = get_current_convocation_record(
         primary_team,
         match=active_match,

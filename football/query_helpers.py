@@ -201,6 +201,22 @@ def get_latest_pizarra_match(primary_team):
         .first()
     )
 
+def get_latest_live_match(primary_team):
+    """
+    Match más reciente con acciones *pendientes* del registro en vivo (touch-field).
+    Útil para que al refrescar (iPad) el sistema vuelva al partido que se estaba registrando,
+    aunque el "próximo partido" según calendario sea otro (partidos aplazados).
+    """
+    if not primary_team:
+        return None
+    return (
+        _team_match_queryset(primary_team)
+        .filter(events__source_file='registro-acciones', events__system='touch-field')
+        .annotate(last_event_at=Max('events__created_at'))
+        .order_by('-last_event_at', '-id')
+        .first()
+    )
+
 
 def get_previous_match(primary_team, reference_match=None):
     if not primary_team:
