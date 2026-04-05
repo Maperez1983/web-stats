@@ -77,6 +77,44 @@
         gap: 0.75rem;
         flex-wrap: wrap;
       }
+      .pre-lineup-panel {
+        flex: 1;
+        min-width: 260px;
+      }
+      .pre-lineup-chips {
+        margin-top: 0.5rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+      }
+      .pre-lineup-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.25rem 0.55rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.04);
+        font-size: 0.72rem;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        color: rgba(248, 250, 252, 0.92);
+      }
+      .pre-lineup-chip strong {
+        font-weight: 800;
+        letter-spacing: 0.08em;
+      }
+      .pre-lineup-empty {
+        color: rgba(226, 232, 240, 0.7);
+        font-size: 0.78rem;
+      }
+      .pre-lineup-note {
+        margin-top: 0.55rem;
+        font-size: 0.7rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.6);
+      }
       .status-card {
         flex: 1;
         border-radius: 14px;
@@ -1817,25 +1855,38 @@
                   <button type="submit">Cargar</button>
                 </form>
             </div>
-            <div class="match-status-panels">
+            <div class="pre-lineup-panel">
               <article class="status-card">
-                <h5>Tarjetas</h5>
-                  <p>Amarillas · <span class="status-value" id="status-yellow-count">0</span></p>
-                  <p>Rojas · <span class="status-value" id="status-red-count">0</span></p>
-                </article>
-                <article class="status-card">
-                  <h5>Sustituciones</h5>
-                  <p>Realizadas · <span class="status-value" id="status-subs-used-count">0</span></p>
-                  <p>Disponibles · <span class="status-value" id="status-subs-left-count">5</span></p>
+                <h5>Once inicial</h5>
+                <p><span class="status-value" id="pre-lineup-count">0/11</span></p>
+                <div class="pre-lineup-chips" id="pre-lineup-chips">
+                  <span class="pre-lineup-empty">Arrastra titulares desde la convocatoria o usa “Cuerpo técnico → Partidos → 11 inicial”.</span>
+                </div>
+                <p class="pre-lineup-note">Se sincroniza con el 11 inicial del partido.</p>
+              </article>
+            </div>
+          {% endif %}
+          </section>
+          <section class="match-stage-panel is-active" data-stage-panel="live">
+          <div class="match-status-panels">
+            <article class="status-card">
+              <h5>Tarjetas</h5>
+                <p>Amarillas · <span class="status-value" id="status-yellow-count">0</span></p>
+                <p>Rojas · <span class="status-value" id="status-red-count">0</span></p>
               </article>
               <article class="status-card">
-                <h5>Córners</h5>
-                <p>A favor · <span class="status-value" id="status-corner-for-count">0</span></p>
-                <p>En contra · <span class="status-value" id="status-corner-against-count">0</span></p>
+                <h5>Sustituciones</h5>
+                <p>Realizadas · <span class="status-value" id="status-subs-used-count">0</span></p>
+                <p>Disponibles · <span class="status-value" id="status-subs-left-count">5</span></p>
             </article>
-            </div>
-            <div class="quick-action-columns">
-              <div class="quick-action-column">
+            <article class="status-card">
+              <h5>Córners</h5>
+              <p>A favor · <span class="status-value" id="status-corner-for-count">0</span></p>
+              <p>En contra · <span class="status-value" id="status-corner-against-count">0</span></p>
+            </article>
+          </div>
+          <div class="quick-action-columns">
+            <div class="quick-action-column">
               <div class="quick-action-card">
                 <div class="quick-action-header">
                   <span>Tarjetas</span>
@@ -1947,12 +1998,7 @@
                 <div class="quick-history" id="corner-against-history" title="Pulsa para ver todas"></div>
               </div>
             </div>
-            </div>
           </div>
-          </div>
-          {% endif %}
-          </section>
-          <section class="match-stage-panel is-active" data-stage-panel="live">
           <div class="field-wrapper">
             <div class="touch-field" id="touch-field">
             <div class="field-surface" id="field-surface">
@@ -2347,6 +2393,8 @@
         },
       };
       const lineupStatusMsg = document.getElementById('lineup-status-msg');
+      const preLineupCountEl = document.getElementById('pre-lineup-count');
+      const preLineupChipsEl = document.getElementById('pre-lineup-chips');
       const lineupAutoPickBtn = document.getElementById('lineup-auto-pick-btn');
       const lineupFillBenchBtn = document.getElementById('lineup-fill-bench-btn');
       const lineupClearBtn = document.getElementById('lineup-clear-btn');
@@ -2759,6 +2807,30 @@
           }
         });
       };
+      const renderPreLineupSummary = () => {
+        if (!preLineupCountEl || !preLineupChipsEl) return;
+        const starters = lineupState.starters || [];
+        preLineupCountEl.textContent = `${starters.length}/11`;
+        preLineupChipsEl.innerHTML = '';
+        if (!starters.length) {
+          const empty = document.createElement('span');
+          empty.className = 'pre-lineup-empty';
+          empty.textContent = 'Arrastra titulares desde la convocatoria o usa “Cuerpo técnico → Partidos → 11 inicial”.';
+          preLineupChipsEl.appendChild(empty);
+          return;
+        }
+        starters.slice(0, 11).forEach((player) => {
+          const chip = document.createElement('span');
+          chip.className = 'pre-lineup-chip';
+          const number = document.createElement('strong');
+          number.textContent = `#${player.number || '--'}`;
+          const name = document.createElement('span');
+          name.textContent = String(player.name || 'JUGADOR').toUpperCase();
+          chip.appendChild(number);
+          chip.appendChild(name);
+          preLineupChipsEl.appendChild(chip);
+        });
+      };
       const renderLineup = () => {
         Object.keys(lineupSections).forEach(renderLineupSection);
         refreshLineupCounts();
@@ -2781,6 +2853,7 @@
         }
         updateLineupInput();
         refreshCardAssignments();
+        renderPreLineupSummary();
         if (typeof updateCloseSummary === 'function') {
           updateCloseSummary();
         }
