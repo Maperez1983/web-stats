@@ -4,8 +4,8 @@
   <head>
     <meta charset="utf-8" />
     <title>Segunda Jugada · 2J Player · {{ player.name }}</title>
-    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
-    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}" />
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     <style>
       body { font-family: 'Avenir Next', 'Inter', sans-serif; background:
         radial-gradient(circle at top, rgba(244,180,0,.1), transparent 24%),

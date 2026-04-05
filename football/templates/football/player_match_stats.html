@@ -4,8 +4,8 @@
   <head>
     <meta charset="utf-8" />
     <title>{{ player.name }} · {{ match.opponent }}</title>
-    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
-    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}" />
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     <style>
       :root {
         --bg: #f4f7fb;
