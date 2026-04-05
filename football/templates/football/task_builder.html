@@ -2045,13 +2045,15 @@
       </div>
       {% endif %}
 
-      <form
-        method="post"
-        id="task-builder-form"
-        data-pdf-preview-url="{{ pdf_preview_url|default:'' }}"
-        data-keepalive-url="{% url 'session-keepalive' %}"
-        data-save-success="{% if feedback %}1{% else %}0{% endif %}"
-        data-draft-key="webstats:tpad:draft:{{ scope_key }}:{% if task %}{{ task.id }}{% else %}new{% endif %}:{% firstof request.GET.workspace '' %}"
+	      <form
+	        method="post"
+	        id="task-builder-form"
+	        data-scope-key="{{ scope_key }}"
+	        data-task-id="{% if task %}{{ task.id }}{% endif %}"
+	        data-pdf-preview-url="{{ pdf_preview_url|default:'' }}"
+	        data-keepalive-url="{% url 'session-keepalive' %}"
+	        data-save-success="{% if feedback %}1{% else %}0{% endif %}"
+	        data-draft-key="webstats:tpad:draft:{{ scope_key }}:{% if task %}{{ task.id }}{% else %}new{% endif %}:{% firstof request.GET.workspace '' %}"
         data-draft-new-key="webstats:tpad:draft:{{ scope_key }}:new:{% firstof request.GET.workspace '' %}"
       >
 	        {% csrf_token %}
@@ -2293,19 +2295,20 @@
 				                      </div>
 				                      <div class="sim-popover-body">
 				                        <p class="meta">Modo simulación: mueve chapas/recursos para explicar una táctica. No se guardan cambios hasta que salgas del simulador.</p>
-				                        <div class="sim-controls">
-				                          <button type="button" class="button primary" id="task-sim-toggle">Entrar en simulación</button>
-				                          <button type="button" class="button" id="task-sim-reset" hidden>Resetear</button>
-				                          <button type="button" class="button" id="task-sim-capture" hidden>Capturar paso</button>
-				                          <button type="button" class="button" id="task-sim-play" hidden>Reproducir</button>
-				                          <button type="button" class="button danger" id="task-sim-remove" hidden>Eliminar paso</button>
-				                          <button type="button" class="button" id="task-sim-duplicate" hidden>Duplicar paso</button>
-				                          <button type="button" class="button" id="task-sim-prev" hidden>Anterior</button>
-				                          <button type="button" class="button" id="task-sim-next" hidden>Siguiente</button>
-				                          <button type="button" class="button" id="task-sim-share" hidden>Copiar enlace</button>
-				                          <button type="button" class="button" id="task-sim-export-step" hidden>PNG paso</button>
-				                          <button type="button" class="button" id="task-sim-export-all" hidden>PNG pasos</button>
-				                        </div>
+					                        <div class="sim-controls">
+					                          <button type="button" class="button primary" id="task-sim-toggle">Entrar en simulación</button>
+					                          <button type="button" class="button" id="task-sim-reset" hidden>Resetear</button>
+					                          <button type="button" class="button" id="task-sim-capture" hidden>Capturar paso</button>
+					                          <button type="button" class="button" id="task-sim-play" hidden>Reproducir</button>
+					                          <button type="button" class="button danger" id="task-sim-remove" hidden>Eliminar paso</button>
+					                          <button type="button" class="button" id="task-sim-duplicate" hidden>Duplicar paso</button>
+					                          <button type="button" class="button" id="task-sim-prev" hidden>Anterior</button>
+					                          <button type="button" class="button" id="task-sim-next" hidden>Siguiente</button>
+					                          <button type="button" class="button" id="task-sim-to-scenarios" hidden>Crear escenarios</button>
+					                          <button type="button" class="button" id="task-sim-share" hidden>Copiar enlace</button>
+					                          <button type="button" class="button" id="task-sim-export-step" hidden>PNG paso</button>
+					                          <button type="button" class="button" id="task-sim-export-all" hidden>PNG pasos</button>
+					                        </div>
 				                        <div class="sim-options">
 				                          <label class="sim-check">
 				                            <input type="checkbox" id="task-sim-autocapture" />

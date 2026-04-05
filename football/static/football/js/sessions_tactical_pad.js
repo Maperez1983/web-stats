@@ -640,6 +640,7 @@
 			    const simShareBtn = document.getElementById('task-sim-share');
 			    const simExportStepBtn = document.getElementById('task-sim-export-step');
 			    const simExportAllBtn = document.getElementById('task-sim-export-all');
+			    const simToScenariosBtn = document.getElementById('task-sim-to-scenarios');
 			    const simShareUrlInput = document.getElementById('task-sim-share-url');
 			    const simAutoCaptureInput = document.getElementById('task-sim-autocapture');
 			    const simTrajectoriesInput = document.getElementById('task-sim-trajectories');
@@ -720,16 +721,20 @@
         return new URLSearchParams();
       }
     })();
-    const canUseStorage = (() => {
-      try {
-        const probeKey = '__tpad_storage_probe__';
-        window.localStorage.setItem(probeKey, '1');
-        window.localStorage.removeItem(probeKey);
-        return true;
-      } catch (error) {
-        return false;
-      }
-    })();
+	    const canUseStorage = (() => {
+	      try {
+	        const probeKey = '__tpad_storage_probe__';
+	        window.localStorage.setItem(probeKey, '1');
+	        window.localStorage.removeItem(probeKey);
+	        return true;
+	      } catch (error) {
+	        return false;
+	      }
+	    })();
+	    const simStorageKey = (() => {
+	      const base = safeText(draftKey) || safeText(draftNewKey) || 'webstats:tpad:draft:unknown';
+	      return `${base}:simsteps_v1`;
+	    })();
     const setDraftAlert = (message) => {
       if (!draftAlert) return;
       const text = safeText(message);
@@ -741,17 +746,18 @@
       draftAlert.hidden = !text;
     };
 
-    const clearDraftKeys = () => {
-      if (!canUseStorage) return;
-      const keys = new Set([draftKey, draftNewKey].map((k) => safeText(k)).filter(Boolean));
-      keys.forEach((key) => {
-        try {
-          window.localStorage.removeItem(key);
-        } catch (error) {
-          // ignore
-        }
-      });
-    };
+	    const clearDraftKeys = () => {
+	      if (!canUseStorage) return;
+	      const keys = new Set([draftKey, draftNewKey].map((k) => safeText(k)).filter(Boolean));
+	      keys.forEach((key) => {
+	        try {
+	          window.localStorage.removeItem(key);
+	        } catch (error) {
+	          // ignore
+	        }
+	      });
+	      try { window.localStorage.removeItem(simStorageKey); } catch (error) { /* ignore */ }
+	    };
     const readDraft = (key) => {
       if (!canUseStorage) return null;
       const safeKey = safeText(key);
@@ -1240,11 +1246,11 @@
 					    let pendingKind = '';
 					    let isSimulating = false;
 					    let simulationBaselineSnapshot = null;
-					    let simulationSteps = [];
-					    let simulationActiveIndex = -1;
-					    let simulationPlaying = false;
-					    let simulationPlayTimer = null;
-					    let simulationAnimToken = 0;
+						    let simulationSteps = [];
+						    let simulationActiveIndex = -1;
+						    let simulationPlaying = false;
+						    let simulationPlayTimer = null;
+						    let simulationAnimToken = 0;
 					    let simulationAnimFrame = null;
 					    let simulationAutoCapture = false;
 					    let simulationSpeed = 1.0;
@@ -1252,10 +1258,14 @@
 					    let simulationMagnets = true;
 					    let simulationGuides = true;
 					    let simulationCollision = false;
-					    let simulationTrajectories = true;
-					    let simGuideX = null;
-					    let simGuideY = null;
-					    let simMoveOverlays = [];
+						    let simulationTrajectories = true;
+						    // Persistencia (fase 9): guardamos los pasos del simulador junto a la tarea
+						    // sin mezclarlos con el historial/undo del editor.
+						    let simulationSavedSteps = [];
+						    let simulationSavedUpdatedAt = 0;
+						    let simGuideX = null;
+						    let simGuideY = null;
+						    let simMoveOverlays = [];
 					    const lastPlacedByKind = new Map();
 				    let clipboardObject = null;
 				    let pasteOffset = 0;
@@ -2564,6 +2574,7 @@
 						      if (simPrevBtn) simPrevBtn.hidden = !isSimulating;
 						      if (simNextBtn) simNextBtn.hidden = !isSimulating;
 						      if (simDuplicateBtn) simDuplicateBtn.hidden = !isSimulating;
+						      if (simToScenariosBtn) simToScenariosBtn.hidden = !isSimulating;
 						      if (simShareBtn) simShareBtn.hidden = !isSimulating;
 						      if (simExportStepBtn) simExportStepBtn.hidden = !isSimulating;
 						      if (simExportAllBtn) simExportAllBtn.hidden = !isSimulating;
@@ -3112,13 +3123,33 @@
 				      simulationTrajectories = true;
 				      isSimulating = true;
 				      setSimulationUiLocked(true);
-				      seedSimulationStepsFromCurrent();
+				      if (Array.isArray(simulationSavedSteps) && simulationSavedSteps.length) {
+				        stopSimulationPlayback();
+				        let cloned = [];
+				        try { cloned = JSON.parse(JSON.stringify(simulationSavedSteps)); } catch (error) { cloned = simulationSavedSteps.slice(); }
+				        simulationSteps = cloned;
+				        simulationActiveIndex = clamp(0, 0, Math.max(0, simulationSteps.length - 1));
+				        renderSimulationSteps();
+				        void selectSimulationStep(simulationActiveIndex);
+				      } else {
+				        seedSimulationStepsFromCurrent();
+				      }
 				      syncSimUi();
-				      setStatus('Modo simulación activado. Mueve elementos: no se guardan cambios.');
+				      setStatus(simulationSavedSteps.length ? 'Modo simulación activado (rehidratado). Mueve elementos: no se guardan cambios.' : 'Modo simulación activado. Mueve elementos: no se guardan cambios.');
 				    };
 				    const exitSimulation = () => {
 				      if (!isSimulating) return;
 				      stopSimulationPlayback();
+				      // Persiste los pasos capturados para guardarlos con la tarea (fase 9).
+				      try {
+				        if (Array.isArray(simulationSteps) && simulationSteps.length) {
+				          simulationSavedSteps = JSON.parse(JSON.stringify(simulationSteps));
+				          simulationSavedUpdatedAt = Date.now();
+				          try {
+				            if (canUseStorage) window.localStorage.setItem(simStorageKey, JSON.stringify({ v: 1, updated_at: new Date().toISOString(), steps: simulationSavedSteps }));
+				          } catch (err) { /* ignore */ }
+				        }
+				      } catch (error) { /* ignore */ }
 				      isSimulating = false;
 				      setSimulationUiLocked(false);
 				      syncSimUi();
@@ -3133,16 +3164,20 @@
 				      simulationGuides = true;
 				      simulationCollision = false;
 				      simulationTrajectories = true;
+				      try { scheduleDraftSave('simulation-exit'); } catch (error) { /* ignore */ }
 				      setStatus('Simulación finalizada. Volviste al editor.');
 				    };
-					    const resetSimulation = () => {
-					      if (!isSimulating) return;
-					      stopSimulationPlayback();
-					      clearSimGuides();
-					      restoreSimulationBaseline();
-					      seedSimulationStepsFromCurrent();
-					      setStatus('Simulación reseteada.');
-					    };
+						    const resetSimulation = () => {
+						      if (!isSimulating) return;
+						      stopSimulationPlayback();
+						      clearSimGuides();
+						      simulationSavedSteps = [];
+						      simulationSavedUpdatedAt = Date.now();
+						      try { if (canUseStorage) window.localStorage.removeItem(simStorageKey); } catch (error) { /* ignore */ }
+						      restoreSimulationBaseline();
+						      seedSimulationStepsFromCurrent();
+						      setStatus('Simulación reseteada.');
+						    };
 			    const handleOutsideFloatingMenus = (event) => {
 			      const target = event?.target;
 			      if (commandMenu && !commandMenu.hidden) {
@@ -5241,18 +5276,71 @@
 		      setStatus(`Haz clic en el campo para colocar ${label}. (Shift: varios · Cmd/Ctrl: alinear por centro)`);
 		    };
 
-		    const restoreState = () => {
-	      let parsed = { version: '5.3.0', objects: [] };
-      try {
-        parsed = JSON.parse(stateInput?.value || '{"version":"5.3.0","objects":[]}');
-      } catch (error) {
-        parsed = { version: '5.3.0', objects: [] };
-      }
-	      const sourceWidth = Number.parseInt(String(widthInput?.value || ''), 10) || 0;
-	      const sourceHeight = Number.parseInt(String(heightInput?.value || ''), 10) || 0;
-	      applySerializedState(parsed, { pushHistory: true, sourceWidth, sourceHeight });
-	      schedulePlayerBankUpdate();
-		    };
+			    const restoreState = () => {
+		      let parsed = { version: '5.3.0', objects: [] };
+	      try {
+	        parsed = JSON.parse(stateInput?.value || '{"version":"5.3.0","objects":[]}');
+	      } catch (error) {
+	        parsed = { version: '5.3.0', objects: [] };
+	      }
+		      // Fase 9: rehidrata simulación guardada (si existe) desde el canvas_state.
+		      const normalizeSimulationSteps = (raw) => {
+		        if (!Array.isArray(raw)) return [];
+		        return raw
+		          .map((step, index) => {
+		            if (!step || typeof step !== 'object') return null;
+		            const state = step.canvas_state;
+		            if (!state || typeof state !== 'object') return null;
+		            const title = safeText(step.title, `Paso ${index + 1}`);
+		            const duration = clamp(Number(step.duration) || 3, 1, 20);
+		            const width = parseIntSafe(step.canvas_width) || 0;
+		            const height = parseIntSafe(step.canvas_height) || 0;
+		            const moves = Array.isArray(step.moves) ? step.moves.slice(0, 80) : [];
+		            return {
+		              title,
+		              duration,
+		              canvas_state: sanitizeLoadedState(state),
+		              canvas_width: width,
+		              canvas_height: height,
+		              moves,
+		            };
+		          })
+		          .filter(Boolean)
+		          .slice(0, 24);
+		      };
+		      try {
+		        const saved = parsed && typeof parsed === 'object' ? parsed.simulation : null;
+		        const steps = saved && typeof saved === 'object' ? saved.steps : null;
+		        const normalized = normalizeSimulationSteps(steps);
+		        if (normalized.length) {
+		          simulationSavedSteps = normalized;
+		          simulationSavedUpdatedAt = Date.now();
+		          // Espejo local (por si el usuario todavía no guarda la tarea).
+		          try {
+		            if (canUseStorage) window.localStorage.setItem(simStorageKey, JSON.stringify({ v: 1, updated_at: new Date().toISOString(), steps: normalized }));
+		          } catch (err) { /* ignore */ }
+		        } else {
+		          // Fallback: si no viene en canvas_state, intenta restaurar desde localStorage.
+		          try {
+		            if (canUseStorage) {
+		              const raw = safeText(window.localStorage.getItem(simStorageKey));
+		              const parsedStore = raw ? JSON.parse(raw) : null;
+		              const storedSteps = parsedStore && typeof parsedStore === 'object' ? parsedStore.steps : null;
+		              const restored = normalizeSimulationSteps(storedSteps);
+		              if (restored.length) {
+		                simulationSavedSteps = restored;
+		                simulationSavedUpdatedAt = Date.now();
+		              }
+		            }
+		          } catch (err) { /* ignore */ }
+		        }
+		      } catch (error) { /* ignore */ }
+
+		      const sourceWidth = Number.parseInt(String(widthInput?.value || ''), 10) || 0;
+		      const sourceHeight = Number.parseInt(String(heightInput?.value || ''), 10) || 0;
+		      applySerializedState(parsed, { pushHistory: true, sourceWidth, sourceHeight });
+		      schedulePlayerBankUpdate();
+			    };
 
 		    const isGoalkeeperPlayer = (player) => {
 		      const pos = safeText(player?.position, '').toLowerCase();
@@ -5793,7 +5881,7 @@
       return Array.from(ids).sort((a, b) => a - b);
     };
 
-    const syncAssignedPlayersHidden = (state) => {
+	    const syncAssignedPlayersHidden = (state) => {
       if (!assignedHidden) return;
       assignedHidden.innerHTML = '';
       const ids = extractAssignedPlayerIdsFromState(state);
@@ -5821,14 +5909,29 @@
         const extra = Math.max(0, ids.length - chunks.length);
         assignedSummary.textContent = extra ? `${chunks.join(', ')} y ${extra} más.` : chunks.join(', ');
       }
-    };
-		    const syncHiddenBuilderFields = async (options = {}) => {
-		      try { syncRichEditorsNow(); } catch (error) { /* ignore */ }
-		      if (legacyPlayersInput && playerCountInput) legacyPlayersInput.value = playerCountInput.value || '';
-		      if (useViewportMapping) syncWorldFromInputs();
-		      const stateObj = serializeState();
-		      syncAssignedPlayersHidden(stateObj);
-		      if (stateInput) stateInput.value = JSON.stringify(stateObj);
+	    };
+			    const syncHiddenBuilderFields = async (options = {}) => {
+			      try { syncRichEditorsNow(); } catch (error) { /* ignore */ }
+			      if (legacyPlayersInput && playerCountInput) legacyPlayersInput.value = playerCountInput.value || '';
+			      if (useViewportMapping) syncWorldFromInputs();
+			      const buildCanvasStateForSave = () => {
+			        const state = serializeState();
+			        try {
+			          if (Array.isArray(simulationSavedSteps) && simulationSavedSteps.length) {
+			            state.simulation = {
+			              v: 1,
+			              updated_at: simulationSavedUpdatedAt ? new Date(simulationSavedUpdatedAt).toISOString() : '',
+			              steps: simulationSavedSteps,
+			            };
+			          } else {
+			            delete state.simulation;
+			          }
+			        } catch (error) { /* ignore */ }
+			        return state;
+			      };
+			      const stateObj = buildCanvasStateForSave();
+			      syncAssignedPlayersHidden(stateObj);
+			      if (stateInput) stateInput.value = JSON.stringify(stateObj);
 		      if (widthInput || heightInput) {
 		        if (!useViewportMapping) {
 		          worldWidth = Math.round(canvas.getWidth() || 0);
@@ -6259,13 +6362,21 @@
 	      setStatus('PNG descargado.');
 	    };
 
-	    const exportStateJson = () => {
-	      const title = fileSafeSlug(form.querySelector('[name="draw_task_title"]')?.value);
-	      const payload = serializeState();
-	      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
-	      downloadBlob(blob, `${title}.json`);
-	      setStatus('JSON descargado.');
-	    };
+		    const exportStateJson = () => {
+		      const title = fileSafeSlug(form.querySelector('[name="draw_task_title"]')?.value);
+		      const payload = (() => {
+		        const base = serializeState();
+		        try {
+		          if (Array.isArray(simulationSavedSteps) && simulationSavedSteps.length) {
+		            base.simulation = { v: 1, updated_at: simulationSavedUpdatedAt ? new Date(simulationSavedUpdatedAt).toISOString() : '', steps: simulationSavedSteps };
+		          }
+		        } catch (error) { /* ignore */ }
+		        return base;
+		      })();
+		      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
+		      downloadBlob(blob, `${title}.json`);
+		      setStatus('JSON descargado.');
+		    };
 	    canvas.on('selection:created', syncInspector);
 	    canvas.on('selection:updated', syncInspector);
 	    canvas.on('selection:cleared', syncInspector);
@@ -7076,7 +7187,7 @@
 		      }
 		    };
 
-		    const shareSimulationLink = async () => {
+			    const shareSimulationLink = async () => {
 		      if (!isSimulating) return;
 		      const shareUrl = safeText(simShareUrlInput?.value);
 		      if (!shareUrl) {
@@ -7089,14 +7200,19 @@
 		      }
 		      if (exportInFlight) return;
 		      exportInFlight = true;
-		      stopSimulationPlayback();
-		      try {
-		        const password = window.prompt('Contraseña (opcional, deja vacío si no quieres):', '') || '';
-		        const payload = {
-		          title: safeText(form.querySelector('[name="draw_task_title"]')?.value, 'Simulación'),
-		          pitch_svg: buildPitchSvgMarkupForShare(),
-		          steps: simulationSteps,
-		        };
+			      stopSimulationPlayback();
+			      try {
+			        const password = window.prompt('Contraseña (opcional, deja vacío si no quieres):', '') || '';
+			        const taskId = parseIntSafe(form?.dataset?.taskId) || 0;
+			        const scopeKey = safeText(form?.dataset?.scopeKey);
+			        const taskKind = scopeKey === 'task_studio' ? 'task_studio' : 'session';
+			        const payload = {
+			          title: safeText(form.querySelector('[name="draw_task_title"]')?.value, 'Simulación'),
+			          pitch_svg: buildPitchSvgMarkupForShare(),
+			          steps: simulationSteps,
+			          task_kind: taskId ? taskKind : '',
+			          task_id: taskId || 0,
+			        };
 		        const jsonPayload = JSON.stringify(payload);
 		        if (jsonPayload.length > 1_200_000) {
 		          setStatus('La simulación es demasiado grande para compartir (reduce pasos).', true);
@@ -7122,8 +7238,47 @@
 		        setStatus(error?.message || 'Error al crear enlace.', true);
 		      } finally {
 		        exportInFlight = false;
-		      }
-		    };
+			      }
+			    };
+
+			    const convertSimulationToScenarios = async () => {
+			      if (!isSimulating) return;
+			      if (!simulationSteps.length) {
+			        setStatus('No hay pasos en el simulador.', true);
+			        return;
+			      }
+			      if (simulationPlaying) stopSimulationPlayback();
+			      const willReplace = !!timeline.length;
+			      if (willReplace) {
+			        const ok = window.confirm('Ya hay escenarios (multipizarra). ¿Quieres reemplazarlos por los pasos del simulador?');
+			        if (!ok) return;
+			      }
+			      let stepsCopy = [];
+			      try { stepsCopy = JSON.parse(JSON.stringify(simulationSteps)); } catch (error) { stepsCopy = simulationSteps.slice(); }
+			      // Sal del simulador primero, para que el cambio persista (exitSimulation restaura el baseline).
+			      exitSimulation();
+			      await sleep(50);
+			      // Convertimos (máx 16) para no saturar la multipizarra/PDF.
+			      const limit = Math.min(16, stepsCopy.length);
+			      const nextTimeline = stepsCopy.slice(0, limit).map((step, index) => ({
+			        title: safeText(step?.title, `Escenario ${index + 1}`),
+			        duration: clamp(Number(step?.duration) || 3, 1, 20),
+			        canvas_state: sanitizeLoadedState(step?.canvas_state),
+			        canvas_width: parseIntSafe(step?.canvas_width) || 0,
+			        canvas_height: parseIntSafe(step?.canvas_height) || 0,
+			      }));
+			      timeline = nextTimeline;
+			      activeStepIndex = timeline.length ? 0 : -1;
+			      try {
+			        if (timeline.length) {
+			          await loadCanvasSnapshotAsync(timeline[0].canvas_state, { sourceWidth: timeline[0].canvas_width, sourceHeight: timeline[0].canvas_height });
+			        }
+			      } catch (error) { /* ignore */ }
+			      renderTimeline();
+			      try { pushHistory(); } catch (error) { /* ignore */ }
+			      try { refreshLivePreview(); } catch (error) { /* ignore */ }
+			      setStatus('Multipizarra creada desde el simulador.');
+			    };
 
 		    simExportStepBtn?.addEventListener('click', (event) => {
 		      event.preventDefault();
@@ -7133,10 +7288,14 @@
 		      event.preventDefault();
 		      void exportSimulationAllStepsPng();
 		    });
-		    simShareBtn?.addEventListener('click', (event) => {
-		      event.preventDefault();
-		      void shareSimulationLink();
-		    });
+			    simShareBtn?.addEventListener('click', (event) => {
+			      event.preventDefault();
+			      void shareSimulationLink();
+			    });
+			    simToScenariosBtn?.addEventListener('click', (event) => {
+			      event.preventDefault();
+			      void convertSimulationToScenarios();
+			    });
 
 	    presetButtons.forEach((button) => {
 	      button.addEventListener('click', () => {
