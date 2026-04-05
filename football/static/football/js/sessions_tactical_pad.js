@@ -634,7 +634,14 @@
 			    const simCaptureBtn = document.getElementById('task-sim-capture');
 			    const simPlayBtn = document.getElementById('task-sim-play');
 			    const simRemoveBtn = document.getElementById('task-sim-remove');
+			    const simPrevBtn = document.getElementById('task-sim-prev');
+			    const simNextBtn = document.getElementById('task-sim-next');
+			    const simAutoCaptureInput = document.getElementById('task-sim-autocapture');
+			    const simSpeedSelect = document.getElementById('task-sim-speed');
 			    const simStepsList = document.getElementById('task-sim-steps');
+			    const simMetaPanel = document.getElementById('task-sim-meta');
+			    const simStepTitleInput = document.getElementById('task-sim-step-title');
+			    const simStepDurationInput = document.getElementById('task-sim-step-duration');
 			    const patternPopover = document.getElementById('task-pattern-popover');
 			    const patternCloseBtn = document.getElementById('task-pattern-close');
 		    const layersBtn = document.getElementById('task-layers-btn');
@@ -1230,6 +1237,9 @@
 					    let simulationPlayTimer = null;
 					    let simulationAnimToken = 0;
 					    let simulationAnimFrame = null;
+					    let simulationAutoCapture = false;
+					    let simulationSpeed = 1.0;
+					    let simulationLastAutoCaptureAt = 0;
 					    const lastPlacedByKind = new Map();
 				    let clipboardObject = null;
 				    let pasteOffset = 0;
@@ -2522,21 +2532,26 @@
 			        try { syncStepInputs(); } catch (error) { /* ignore */ }
 			      }
 			    };
-				    const syncSimUi = () => {
-				      document.body.classList.toggle('is-simulating', !!isSimulating);
-				      simBtn?.classList.toggle('is-simulating', !!isSimulating);
+					    const syncSimUi = () => {
+					      document.body.classList.toggle('is-simulating', !!isSimulating);
+					      simBtn?.classList.toggle('is-simulating', !!isSimulating);
 				      if (simToggleBtn) {
 				        simToggleBtn.textContent = isSimulating ? 'Salir de simulación' : 'Entrar en simulación';
 				        simToggleBtn.classList.toggle('danger', !!isSimulating);
 				        simToggleBtn.classList.toggle('primary', !isSimulating);
 				      }
-				      if (simResetBtn) simResetBtn.hidden = !isSimulating;
-				      if (simCaptureBtn) simCaptureBtn.hidden = !isSimulating;
-				      if (simPlayBtn) simPlayBtn.hidden = !isSimulating;
-				      if (simRemoveBtn) simRemoveBtn.hidden = !isSimulating;
-				      if (simStepsList) simStepsList.hidden = !isSimulating;
-				      if (simPlayBtn) simPlayBtn.textContent = simulationPlaying ? 'Parar' : 'Reproducir';
-				    };
+					      if (simResetBtn) simResetBtn.hidden = !isSimulating;
+					      if (simCaptureBtn) simCaptureBtn.hidden = !isSimulating;
+					      if (simPlayBtn) simPlayBtn.hidden = !isSimulating;
+					      if (simRemoveBtn) simRemoveBtn.hidden = !isSimulating;
+					      if (simStepsList) simStepsList.hidden = !isSimulating;
+					      if (simPrevBtn) simPrevBtn.hidden = !isSimulating;
+					      if (simNextBtn) simNextBtn.hidden = !isSimulating;
+					      if (simMetaPanel) simMetaPanel.hidden = !isSimulating;
+					      if (simAutoCaptureInput) simAutoCaptureInput.checked = !!simulationAutoCapture;
+					      if (simSpeedSelect) simSpeedSelect.value = String(simulationSpeed);
+					      if (simPlayBtn) simPlayBtn.textContent = simulationPlaying ? 'Parar' : 'Reproducir';
+					    };
 			    const setSimPopoverOpen = (open) => {
 			      if (!simPopover) return;
 			      simPopover.hidden = !open;
@@ -2588,6 +2603,8 @@
 				      simStepsList.innerHTML = '';
 				      if (!simulationSteps.length) {
 				        simStepsList.innerHTML = '<div class="timeline-empty">Todavía no hay pasos. Pulsa “Capturar paso”.</div>';
+				        if (simStepTitleInput) simStepTitleInput.value = '';
+				        if (simStepDurationInput) simStepDurationInput.value = '3';
 				        return;
 				      }
 				      simulationSteps.forEach((step, index) => {
@@ -2606,6 +2623,11 @@
 				        `;
 				        simStepsList.appendChild(button);
 				      });
+				      const active = simulationSteps[simulationActiveIndex] || null;
+				      if (active) {
+				        if (simStepTitleInput) simStepTitleInput.value = safeText(active.title, `Paso ${simulationActiveIndex + 1}`);
+				        if (simStepDurationInput) simStepDurationInput.value = String(clamp(Number(active.duration) || 3, 1, 20));
+				      }
 				    };
 				    const seedSimulationStepsFromCurrent = () => {
 				      const { w, h } = worldSize();
@@ -2769,10 +2791,12 @@
 				      const advance = async () => {
 				        if (!simulationPlaying) return;
 				        const duration = clamp(Number(simulationSteps[cursor]?.duration) || 3, 1, 20);
-				        const transitionMs = clamp(Math.round(duration * 1000 * 0.35), 220, 900);
+				        const speed = clamp(Number(simulationSpeed) || 1, 0.25, 3);
+				        const scaledDuration = Math.max(0.25, duration / speed);
+				        const transitionMs = clamp(Math.round(scaledDuration * 1000 * 0.35), 220, 900);
 				        await transitionToSimulationStep(cursor, { keepPlaying: true, transitionMs });
 				        if (!simulationPlaying) return;
-				        const holdMs = Math.max(120, Math.round(duration * 1000 - transitionMs));
+				        const holdMs = Math.max(120, Math.round(scaledDuration * 1000 - transitionMs));
 				        simulationPlayTimer = window.setTimeout(() => {
 				          cursor = (cursor + 1) % simulationSteps.length;
 				          void advance();
@@ -2805,29 +2829,34 @@
 					      } catch (error) { /* ignore */ }
 					      try { if (locked && resourceDetails) resourceDetails.open = false; } catch (error) { /* ignore */ }
 					    };
-					    const enterSimulation = () => {
-					      if (isSimulating) return;
-					      try { simulationBaselineSnapshot = JSON.stringify(serializeState()); } catch (error) { simulationBaselineSnapshot = null; }
-					      clearPendingPlacement();
-					      stopSimulationPlayback();
-					      isSimulating = true;
-					      setSimulationUiLocked(true);
-					      seedSimulationStepsFromCurrent();
-					      syncSimUi();
-					      setStatus('Modo simulación activado. Mueve elementos: no se guardan cambios.');
-					    };
-					    const exitSimulation = () => {
-					      if (!isSimulating) return;
-					      stopSimulationPlayback();
-					      isSimulating = false;
-					      setSimulationUiLocked(false);
-					      syncSimUi();
-					      restoreSimulationBaseline();
-					      simulationBaselineSnapshot = null;
-					      simulationSteps = [];
-					      simulationActiveIndex = -1;
-					      setStatus('Simulación finalizada. Volviste al editor.');
-					    };
+				    const enterSimulation = () => {
+				      if (isSimulating) return;
+				      try { simulationBaselineSnapshot = JSON.stringify(serializeState()); } catch (error) { simulationBaselineSnapshot = null; }
+				      clearPendingPlacement();
+				      stopSimulationPlayback();
+				      simulationAutoCapture = true;
+				      simulationSpeed = 1.0;
+				      simulationLastAutoCaptureAt = 0;
+				      isSimulating = true;
+				      setSimulationUiLocked(true);
+				      seedSimulationStepsFromCurrent();
+				      syncSimUi();
+				      setStatus('Modo simulación activado. Mueve elementos: no se guardan cambios.');
+				    };
+				    const exitSimulation = () => {
+				      if (!isSimulating) return;
+				      stopSimulationPlayback();
+				      isSimulating = false;
+				      setSimulationUiLocked(false);
+				      syncSimUi();
+				      restoreSimulationBaseline();
+				      simulationBaselineSnapshot = null;
+				      simulationSteps = [];
+				      simulationActiveIndex = -1;
+				      simulationAutoCapture = false;
+				      simulationSpeed = 1.0;
+				      setStatus('Simulación finalizada. Volviste al editor.');
+				    };
 					    const resetSimulation = () => {
 					      if (!isSimulating) return;
 					      stopSimulationPlayback();
@@ -2932,6 +2961,42 @@
 			    simRemoveBtn?.addEventListener('click', (event) => {
 			      event.preventDefault();
 			      removeSimulationStep();
+			    });
+			    simPrevBtn?.addEventListener('click', (event) => {
+			      event.preventDefault();
+			      const idx = clamp(simulationActiveIndex - 1, 0, Math.max(0, simulationSteps.length - 1));
+			      void selectSimulationStep(idx);
+			    });
+			    simNextBtn?.addEventListener('click', (event) => {
+			      event.preventDefault();
+			      const idx = clamp(simulationActiveIndex + 1, 0, Math.max(0, simulationSteps.length - 1));
+			      void selectSimulationStep(idx);
+			    });
+			    simAutoCaptureInput?.addEventListener('change', () => {
+			      simulationAutoCapture = !!simAutoCaptureInput.checked;
+			      setStatus(simulationAutoCapture ? 'Auto-captura activada.' : 'Auto-captura desactivada.');
+			    });
+			    simSpeedSelect?.addEventListener('change', () => {
+			      const val = Number(simSpeedSelect.value);
+			      simulationSpeed = Number.isFinite(val) ? clamp(val, 0.5, 2) : 1.0;
+			      setStatus(`Velocidad: ${simulationSpeed}×.`);
+			    });
+			    const syncSimulationMetaFromInputs = () => {
+			      const step = simulationSteps[simulationActiveIndex];
+			      if (!step) return;
+			      step.title = safeText(simStepTitleInput?.value, step.title || `Paso ${simulationActiveIndex + 1}`);
+			      step.duration = clamp(Number(simStepDurationInput?.value) || step.duration || 3, 1, 20);
+			      renderSimulationSteps();
+			    };
+			    simStepTitleInput?.addEventListener('input', () => {
+			      if (!isSimulating) return;
+			      if (simulationPlaying) return;
+			      syncSimulationMetaFromInputs();
+			    });
+			    simStepDurationInput?.addEventListener('change', () => {
+			      if (!isSimulating) return;
+			      if (simulationPlaying) return;
+			      syncSimulationMetaFromInputs();
 			    });
 			    simStepsList?.addEventListener('click', (event) => {
 			      const btn = event.target.closest('button[data-sim-step-index]');
@@ -5690,16 +5755,26 @@
     // El submit real se gestiona al final del fichero (unificado con el sync de campos ocultos + preview HD).
     // Aquí solo mantenemos pingKeepalive para reutilizarlo en ese handler.
 
-		    canvas.on('object:modified', () => {
-		      if (canvas.__loading) return;
-		      persistActiveStepSnapshot();
-		      pushHistory();
-		      syncInspector();
-		      renderLayers();
-		      refreshLivePreview();
-		      schedulePlayerBankUpdate();
-		      scheduleDraftSave('canvas');
-		    });
+			    canvas.on('object:modified', () => {
+			      if (canvas.__loading) return;
+			      if (isSimulating) {
+			        if (simulationAutoCapture && !simulationPlaying) {
+			          const now = Date.now();
+			          if (now - simulationLastAutoCaptureAt >= 450) {
+			            simulationLastAutoCaptureAt = now;
+			            captureSimulationStep();
+			          }
+			        }
+			        return;
+			      }
+			      persistActiveStepSnapshot();
+			      pushHistory();
+			      syncInspector();
+			      renderLayers();
+			      refreshLivePreview();
+			      schedulePlayerBankUpdate();
+			      scheduleDraftSave('canvas');
+			    });
 		    canvas.on('object:added', () => {
 		      if (!canvas.__loading) {
 		        persistActiveStepSnapshot();

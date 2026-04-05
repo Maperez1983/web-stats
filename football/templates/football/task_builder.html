@@ -769,6 +769,75 @@
 	        display: grid;
 	        gap: 0.5rem;
 	      }
+	      .sim-meta {
+	        margin-top: 0.75rem;
+	        display: grid;
+	        grid-template-columns: minmax(0, 1fr) 120px;
+	        gap: 0.55rem;
+	        align-items: end;
+	      }
+	      .sim-meta label {
+	        display: grid;
+	        gap: 6px;
+	        font-size: 0.72rem;
+	        letter-spacing: 0.14em;
+	        text-transform: uppercase;
+	        color: rgba(226,232,240,0.82);
+	        font-weight: 900;
+	      }
+	      .sim-meta input,
+	      .sim-meta select {
+	        border-radius: 12px;
+	        border: 1px solid rgba(255,255,255,0.14);
+	        background: rgba(255,255,255,0.05);
+	        color: rgba(248,250,252,0.92);
+	        padding: 10px 12px;
+	        font: inherit;
+	        font-weight: 800;
+	        letter-spacing: 0.02em;
+	        text-transform: none;
+	      }
+	      .sim-options {
+	        margin-top: 0.7rem;
+	        display: flex;
+	        flex-wrap: wrap;
+	        gap: 0.7rem;
+	        align-items: center;
+	        justify-content: space-between;
+	      }
+	      .sim-check {
+	        display: inline-flex;
+	        gap: 10px;
+	        align-items: center;
+	        font-weight: 900;
+	        letter-spacing: 0.06em;
+	        text-transform: uppercase;
+	        font-size: 0.72rem;
+	        color: rgba(226,232,240,0.92);
+	      }
+	      .sim-check input {
+	        width: 18px;
+	        height: 18px;
+	      }
+	      .sim-options label {
+	        display: inline-flex;
+	        gap: 10px;
+	        align-items: center;
+	        font-weight: 900;
+	        letter-spacing: 0.06em;
+	        text-transform: uppercase;
+	        font-size: 0.72rem;
+	        color: rgba(226,232,240,0.92);
+	      }
+	      .sim-options select {
+	        border-radius: 999px;
+	        border: 1px solid rgba(255,255,255,0.14);
+	        background: rgba(255,255,255,0.05);
+	        color: rgba(248,250,252,0.92);
+	        padding: 10px 12px;
+	        font: inherit;
+	        font-weight: 900;
+	      }
 	      .sim-step {
 	        width: 100%;
 	        display: flex;
@@ -2229,8 +2298,35 @@
 				                          <button type="button" class="button" id="task-sim-capture" hidden>Capturar paso</button>
 				                          <button type="button" class="button" id="task-sim-play" hidden>Reproducir</button>
 				                          <button type="button" class="button danger" id="task-sim-remove" hidden>Eliminar paso</button>
+				                          <button type="button" class="button" id="task-sim-prev" hidden>Anterior</button>
+				                          <button type="button" class="button" id="task-sim-next" hidden>Siguiente</button>
+				                        </div>
+				                        <div class="sim-options">
+				                          <label class="sim-check">
+				                            <input type="checkbox" id="task-sim-autocapture" />
+				                            Auto-capturar al mover
+				                          </label>
+				                          <label>
+				                            Velocidad
+				                            <select id="task-sim-speed">
+				                              <option value="0.5">0.5×</option>
+				                              <option value="1" selected>1×</option>
+				                              <option value="1.5">1.5×</option>
+				                              <option value="2">2×</option>
+				                            </select>
+				                          </label>
 				                        </div>
 				                        <div class="sim-steps" id="task-sim-steps" hidden></div>
+				                        <div class="sim-meta" id="task-sim-meta" hidden>
+				                          <label>
+				                            Título del paso
+				                            <input type="text" id="task-sim-step-title" placeholder="Ej.: Salida de balón" />
+				                          </label>
+				                          <label>
+				                            Seg
+				                            <input type="number" id="task-sim-step-duration" min="1" max="20" step="1" value="3" />
+				                          </label>
+				                        </div>
 				                      </div>
 				                    </div>
 				                    <div class="pattern-popover" id="task-pattern-popover" hidden>
