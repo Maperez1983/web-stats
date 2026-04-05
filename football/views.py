@@ -8321,14 +8321,8 @@ def finalize_match_actions(request):
     )
     if not pending_events:
         return JsonResponse({'saved': True, 'updated': 0, 'match_id': match.id})
-    # Limpiar tarjetas y sustituciones anteriores
-    MatchEvent.objects.filter(
-        match=match,
-        system='touch-field-final',
-        source_file='registro-acciones',
-    ).filter(
-        Q(event_type__icontains='tarjeta') | Q(event_type__icontains='sustitucion') | Q(event_type__icontains='sustitución') | Q(event_type__icontains='cambio'),
-    ).delete()
+    # No borrar acciones finalizadas previamente. Solo consolidar las nuevas acciones pendientes.
+    # La deduplicación por firma/ventana temporal ya evita dobles clicks.
 
     # Evita consolidar duplicados por doble click/reintento de red en pocos segundos.
     # Importante: no eliminar acciones reales repetidas a lo largo del partido.

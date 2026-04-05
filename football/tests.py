@@ -2999,6 +2999,50 @@ class MatchActionWorkflowTests(TestCase):
             2,
         )
 
+    def test_finalize_does_not_delete_previous_final_cards_or_subs(self):
+        MatchEvent.objects.create(
+            match=self.match,
+            player=self.player,
+            event_type='Tarjeta Amarilla',
+            result='Amarilla',
+            zone='Tarjeta Amarilla',
+            tercio='',
+            minute=10,
+            period=1,
+            system='touch-field-final',
+            source_file='registro-acciones',
+        )
+        pending = MatchEvent.objects.create(
+            match=self.match,
+            player=self.player,
+            event_type='Pase',
+            result='OK',
+            zone='Medio Centro',
+            tercio='Construcción',
+            minute=12,
+            period=1,
+            system='touch-field',
+            source_file='registro-acciones',
+        )
+
+        response = self.client.post(
+            reverse('match-action-finalize'),
+            data=json.dumps({'match_info': {'match_id': self.match.id}}),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(
+            MatchEvent.objects.filter(
+                match=self.match,
+                system='touch-field-final',
+                source_file='registro-acciones',
+                event_type__icontains='tarjeta',
+            ).exists()
+        )
+        pending.refresh_from_db()
+        self.assertEqual(pending.system, 'touch-field-final')
+
     def test_reset_only_clears_pending_live_events(self):
         MatchEvent.objects.create(
             match=self.match,
