@@ -637,6 +637,10 @@
 			    const simPrevBtn = document.getElementById('task-sim-prev');
 			    const simNextBtn = document.getElementById('task-sim-next');
 			    const simDuplicateBtn = document.getElementById('task-sim-duplicate');
+			    const simShareBtn = document.getElementById('task-sim-share');
+			    const simExportStepBtn = document.getElementById('task-sim-export-step');
+			    const simExportAllBtn = document.getElementById('task-sim-export-all');
+			    const simShareUrlInput = document.getElementById('task-sim-share-url');
 			    const simAutoCaptureInput = document.getElementById('task-sim-autocapture');
 			    const simTrajectoriesInput = document.getElementById('task-sim-trajectories');
 			    const simMagnetsInput = document.getElementById('task-sim-magnets');
@@ -2557,12 +2561,15 @@
 					      if (simPlayBtn) simPlayBtn.hidden = !isSimulating;
 					      if (simRemoveBtn) simRemoveBtn.hidden = !isSimulating;
 					      if (simStepsList) simStepsList.hidden = !isSimulating;
-					      if (simPrevBtn) simPrevBtn.hidden = !isSimulating;
-					      if (simNextBtn) simNextBtn.hidden = !isSimulating;
-					      if (simDuplicateBtn) simDuplicateBtn.hidden = !isSimulating;
-					      if (simMetaPanel) simMetaPanel.hidden = !isSimulating;
-					      if (simAutoCaptureInput) simAutoCaptureInput.checked = !!simulationAutoCapture;
-					      if (simTrajectoriesInput) simTrajectoriesInput.checked = !!simulationTrajectories;
+						      if (simPrevBtn) simPrevBtn.hidden = !isSimulating;
+						      if (simNextBtn) simNextBtn.hidden = !isSimulating;
+						      if (simDuplicateBtn) simDuplicateBtn.hidden = !isSimulating;
+						      if (simShareBtn) simShareBtn.hidden = !isSimulating;
+						      if (simExportStepBtn) simExportStepBtn.hidden = !isSimulating;
+						      if (simExportAllBtn) simExportAllBtn.hidden = !isSimulating;
+						      if (simMetaPanel) simMetaPanel.hidden = !isSimulating;
+						      if (simAutoCaptureInput) simAutoCaptureInput.checked = !!simulationAutoCapture;
+						      if (simTrajectoriesInput) simTrajectoriesInput.checked = !!simulationTrajectories;
 					      if (simMagnetsInput) simMagnetsInput.checked = !!simulationMagnets;
 					      if (simGuidesInput) simGuidesInput.checked = !!simulationGuides;
 					      if (simCollisionInput) simCollisionInput.checked = !!simulationCollision;
@@ -6210,13 +6217,25 @@
 	      }, 2_500);
 	    };
 
-	    const canvasToBlob = (c, type = 'image/png', quality = 0.92) => new Promise((resolve) => {
-	      try {
-	        c.toBlob((blob) => resolve(blob), type, quality);
-	      } catch (error) {
-	        resolve(null);
-	      }
-	    });
+		    const canvasToBlob = (c, type = 'image/png', quality = 0.92) => new Promise((resolve) => {
+		      try {
+		        c.toBlob((blob) => resolve(blob), type, quality);
+		      } catch (error) {
+		        resolve(null);
+		      }
+		    });
+
+		    const dataUrlToBlob = async (dataUrl) => {
+		      const url = safeText(dataUrl);
+		      if (!url.startsWith('data:')) return null;
+		      try {
+		        const resp = await fetch(url);
+		        if (!resp.ok) return null;
+		        return await resp.blob();
+		      } catch (error) {
+		        return null;
+		      }
+		    };
 
 	    const fileSafeSlug = (value) => safeText(value || '')
 	      .toLowerCase()
@@ -6953,11 +6972,11 @@
 	      stopPlayback(true);
 	      exportStateJson();
 	    });
-	    exportStepsBtn?.addEventListener('click', async () => {
-	      if (exportInFlight) return;
-	      exportInFlight = true;
-	      stopPlayback(true);
-	      const saved = serializeState();
+		    exportStepsBtn?.addEventListener('click', async () => {
+		      if (exportInFlight) return;
+		      exportInFlight = true;
+		      stopPlayback(true);
+		      const saved = serializeState();
 	      try {
 	        persistActiveStepSnapshot();
 	        if (!timeline.length) {
@@ -6981,13 +7000,147 @@
 	      } finally {
 	        applySerializedState(saved);
 	        exportInFlight = false;
-	        refreshLivePreview();
-	      }
-	    });
+		        refreshLivePreview();
+		      }
+		    });
 
-    presetButtons.forEach((button) => {
-      button.addEventListener('click', () => {
-        setPreset(button.dataset.preset || 'full_pitch');
+		    const buildPitchSvgMarkupForShare = () => {
+		      try {
+		        const clone = svgSurface.cloneNode(true);
+		        clone.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+		        const { w, h } = worldSize();
+		        const outW = Math.max(320, Math.round(w || canvas.getWidth() || 0));
+		        const outH = Math.max(180, Math.round(h || canvas.getHeight() || 0));
+		        clone.setAttribute('width', String(outW));
+		        clone.setAttribute('height', String(outH));
+		        return new XMLSerializer().serializeToString(clone);
+		      } catch (error) {
+		        try {
+		          return new XMLSerializer().serializeToString(svgSurface);
+		        } catch (err) {
+		          return '';
+		        }
+		      }
+		    };
+
+		    const exportSimulationCurrentStepPng = async () => {
+		      if (!isSimulating) return;
+		      if (exportInFlight) return;
+		      exportInFlight = true;
+		      stopSimulationPlayback();
+		      try {
+		        const title = fileSafeSlug(form.querySelector('[name="draw_task_title"]')?.value);
+		        const stepTitle = safeText(simulationSteps[simulationActiveIndex]?.title, `paso_${simulationActiveIndex + 1}`);
+		        setStatus('Generando PNG del paso…');
+		        const dataUrl = await buildPreviewData({ maxWidth: 1600, mime: 'image/png', quality: 0.92 });
+		        const blob = await dataUrlToBlob(dataUrl);
+		        if (!blob) {
+		          setStatus('No se pudo generar el PNG del paso.', true);
+		          return;
+		        }
+		        downloadBlob(blob, `${title}_sim_${String(simulationActiveIndex + 1).padStart(2, '0')}_${fileSafeSlug(stepTitle)}.png`);
+		        setStatus('PNG del paso descargado.');
+		      } finally {
+		        exportInFlight = false;
+		      }
+		    };
+
+		    const exportSimulationAllStepsPng = async () => {
+		      if (!isSimulating) return;
+		      if (exportInFlight) return;
+		      exportInFlight = true;
+		      stopSimulationPlayback();
+		      const startIndex = clamp(simulationActiveIndex, 0, Math.max(0, simulationSteps.length - 1));
+		      try {
+		        if (!simulationSteps.length) {
+		          setStatus('No hay pasos para exportar.', true);
+		          return;
+		        }
+		        const title = fileSafeSlug(form.querySelector('[name="draw_task_title"]')?.value);
+		        for (let i = 0; i < simulationSteps.length; i += 1) {
+		          const step = simulationSteps[i];
+		          setStatus(`Exportando PNG ${i + 1}/${simulationSteps.length}…`);
+		          await selectSimulationStep(i);
+		          const stepTitle = safeText(step?.title, `paso_${i + 1}`);
+		          const dataUrl = await buildPreviewData({ maxWidth: 1600, mime: 'image/png', quality: 0.92 });
+		          const blob = await dataUrlToBlob(dataUrl);
+		          if (blob) {
+		            downloadBlob(blob, `${title}_sim_${String(i + 1).padStart(2, '0')}_${fileSafeSlug(stepTitle)}.png`);
+		          }
+		          await sleep(240);
+		        }
+		        setStatus('Exportación de pasos completada.');
+		      } finally {
+		        try { await selectSimulationStep(startIndex); } catch (error) { /* ignore */ }
+		        exportInFlight = false;
+		      }
+		    };
+
+		    const shareSimulationLink = async () => {
+		      if (!isSimulating) return;
+		      const shareUrl = safeText(simShareUrlInput?.value);
+		      if (!shareUrl) {
+		        setStatus('Compartir simulación no disponible.', true);
+		        return;
+		      }
+		      if (!simulationSteps.length) {
+		        setStatus('No hay pasos de simulación para compartir.', true);
+		        return;
+		      }
+		      if (exportInFlight) return;
+		      exportInFlight = true;
+		      stopSimulationPlayback();
+		      try {
+		        const password = window.prompt('Contraseña (opcional, deja vacío si no quieres):', '') || '';
+		        const payload = {
+		          title: safeText(form.querySelector('[name="draw_task_title"]')?.value, 'Simulación'),
+		          pitch_svg: buildPitchSvgMarkupForShare(),
+		          steps: simulationSteps,
+		        };
+		        const jsonPayload = JSON.stringify(payload);
+		        if (jsonPayload.length > 1_200_000) {
+		          setStatus('La simulación es demasiado grande para compartir (reduce pasos).', true);
+		          return;
+		        }
+		        const body = new URLSearchParams();
+		        body.set('payload', jsonPayload);
+		        body.set('valid_days', '30');
+		        if (password) body.set('password', password);
+		        const csrf = form.querySelector('input[name="csrfmiddlewaretoken"]')?.value || '';
+		        const resp = await fetch(shareUrl, {
+		          method: 'POST',
+		          headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': csrf },
+		          credentials: 'same-origin',
+		          body: body.toString(),
+		        });
+		        const data = await resp.json().catch(() => ({}));
+		        if (!resp.ok || !data?.url) throw new Error(data?.error || 'No se pudo crear el enlace.');
+		        try { await navigator.clipboard?.writeText(data.url); } catch (e) { /* ignore */ }
+		        window.prompt('Enlace público (copiado si el navegador lo permite):', data.url);
+		        setStatus('Enlace de simulación generado.');
+		      } catch (error) {
+		        setStatus(error?.message || 'Error al crear enlace.', true);
+		      } finally {
+		        exportInFlight = false;
+		      }
+		    };
+
+		    simExportStepBtn?.addEventListener('click', (event) => {
+		      event.preventDefault();
+		      void exportSimulationCurrentStepPng();
+		    });
+		    simExportAllBtn?.addEventListener('click', (event) => {
+		      event.preventDefault();
+		      void exportSimulationAllStepsPng();
+		    });
+		    simShareBtn?.addEventListener('click', (event) => {
+		      event.preventDefault();
+		      void shareSimulationLink();
+		    });
+
+	    presetButtons.forEach((button) => {
+	      button.addEventListener('click', () => {
+	        setPreset(button.dataset.preset || 'full_pitch');
         setSurfaceMenuOpen(false);
       });
     });

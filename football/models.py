@@ -878,9 +878,11 @@ class UserInvitation(models.Model):
 class ShareLink(models.Model):
     KIND_TASK_PDF = 'task_pdf'
     KIND_CONVOCATION_PDF = 'convocation_pdf'
+    KIND_TASK_SIMULATION = 'task_simulation'
     KIND_CHOICES = [
         (KIND_TASK_PDF, 'PDF de tarea'),
         (KIND_CONVOCATION_PDF, 'PDF de convocatoria'),
+        (KIND_TASK_SIMULATION, 'Simulación de tarea'),
     ]
 
     token = models.CharField(max_length=120, unique=True, db_index=True)

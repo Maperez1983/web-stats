@@ -1,0 +1,170 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <title>{% firstof payload.title "Simulación" %} · 2J</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background:
+          radial-gradient(circle at 10% 0%, rgba(244, 180, 0, 0.12), transparent 40%),
+          radial-gradient(circle at 90% 10%, rgba(47, 125, 50, 0.14), transparent 44%),
+          #07101d;
+        color: #e7ebf3;
+        font-family: "Avenir Next", "Inter", system-ui, sans-serif;
+      }
+      .page {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 1.15rem;
+        display: grid;
+        gap: 1rem;
+      }
+      header h1 {
+        margin: 0;
+        font-size: 1.15rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      header p {
+        margin: 0.35rem 0 0;
+        color: rgba(226, 232, 240, 0.72);
+      }
+      .card {
+        background: rgba(12, 20, 34, 0.92);
+        border: 1px solid rgba(145, 161, 185, 0.18);
+        border-radius: 22px;
+        padding: 1rem;
+        box-shadow: 0 22px 52px rgba(0, 0, 0, 0.28);
+      }
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 0.85rem;
+      }
+      .controls .buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem;
+        align-items: center;
+      }
+      button {
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: rgba(255, 255, 255, 0.06);
+        color: #f3f7ff;
+        padding: 0.72rem 0.98rem;
+        font-weight: 900;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        font-size: 0.72rem;
+        cursor: pointer;
+      }
+      button.primary {
+        background: linear-gradient(135deg, #22d3ee, #67e8f9);
+        border: none;
+        color: #03253c;
+      }
+      button.danger {
+        background: rgba(127, 29, 29, 0.22);
+        border-color: rgba(248, 113, 113, 0.4);
+        color: #fecaca;
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .status {
+        color: rgba(226, 232, 240, 0.72);
+        font-weight: 700;
+      }
+      .canvas-wrap {
+        width: 100%;
+        overflow: hidden;
+        border-radius: 18px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(0, 0, 0, 0.2);
+        display: grid;
+        place-items: center;
+      }
+      .canvas-wrap canvas {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+      .steps {
+        margin-top: 0.9rem;
+        display: grid;
+        gap: 0.45rem;
+      }
+      .steps button {
+        width: 100%;
+        text-align: left;
+        justify-content: space-between;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        background: rgba(255,255,255,0.03);
+        border-color: rgba(148,163,184,0.16);
+        padding: 0.7rem 0.85rem;
+        text-transform: none;
+        letter-spacing: 0.02em;
+        font-weight: 800;
+      }
+      .steps button.is-active {
+        background: rgba(34,211,238,0.10);
+        border-color: rgba(34,211,238,0.35);
+        color: #cffafe;
+      }
+      .steps small {
+        color: rgba(226, 232, 240, 0.7);
+        font-weight: 700;
+      }
+      .meta {
+        margin-top: 0.4rem;
+        color: rgba(148, 163, 184, 0.95);
+        font-size: 0.85rem;
+      }
+    </style>
+  </head>
+  <body class="prod-commercial">
+    <main class="page">
+      <header>
+        <h1>{% firstof payload.title "Simulación" %}</h1>
+        <p>Reproducción de pasos (enlace compartido).</p>
+        {% if expires_at %}
+        <div class="meta">Caduca: {{ expires_at|date:"d/m/Y H:i" }}</div>
+        {% endif %}
+      </header>
+      <section class="card">
+        <div class="controls">
+          <div class="buttons">
+            <button type="button" id="sim-prev">Anterior</button>
+            <button type="button" class="primary" id="sim-play">Reproducir</button>
+            <button type="button" id="sim-next">Siguiente</button>
+            <button type="button" class="danger" id="sim-stop" hidden>Parar</button>
+          </div>
+          <div class="status" id="sim-status">Listo.</div>
+        </div>
+        <div class="canvas-wrap">
+          <canvas id="sim-share-canvas"></canvas>
+        </div>
+        <div class="steps" id="sim-steps"></div>
+      </section>
+    </main>
+
+    {{ payload|json_script:"sim-share-payload" }}
+    <script src="{% static 'vendor/fabric.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+    <script src="{% static 'football/js/task_simulation_share.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+  </body>
+</html>
+

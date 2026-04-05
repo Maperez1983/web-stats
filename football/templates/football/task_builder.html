@@ -2054,9 +2054,10 @@
         data-draft-key="webstats:tpad:draft:{{ scope_key }}:{% if task %}{{ task.id }}{% else %}new{% endif %}:{% firstof request.GET.workspace '' %}"
         data-draft-new-key="webstats:tpad:draft:{{ scope_key }}:new:{% firstof request.GET.workspace '' %}"
       >
-        {% csrf_token %}
-        <input type="hidden" name="planner_action" value="create_draw_task" />
-        <input type="hidden" name="draw_canvas_state" id="draw-canvas-state" value="{{ initial.canvas_state|escape }}" />
+	        {% csrf_token %}
+	        <input type="hidden" id="task-sim-share-url" value="{% url 'share-task-simulation-create' %}" />
+	        <input type="hidden" name="planner_action" value="create_draw_task" />
+	        <input type="hidden" name="draw_canvas_state" id="draw-canvas-state" value="{{ initial.canvas_state|escape }}" />
 	        <input type="hidden" name="draw_canvas_width" id="draw-canvas-width" value="{{ initial.canvas_width }}" />
 	        <input type="hidden" name="draw_canvas_height" id="draw-canvas-height" value="{{ initial.canvas_height }}" />
 	        <input type="hidden" name="draw_canvas_preview_data" id="draw-canvas-preview-data" />
@@ -2301,6 +2302,9 @@
 				                          <button type="button" class="button" id="task-sim-duplicate" hidden>Duplicar paso</button>
 				                          <button type="button" class="button" id="task-sim-prev" hidden>Anterior</button>
 				                          <button type="button" class="button" id="task-sim-next" hidden>Siguiente</button>
+				                          <button type="button" class="button" id="task-sim-share" hidden>Copiar enlace</button>
+				                          <button type="button" class="button" id="task-sim-export-step" hidden>PNG paso</button>
+				                          <button type="button" class="button" id="task-sim-export-all" hidden>PNG pasos</button>
 				                        </div>
 				                        <div class="sim-options">
 				                          <label class="sim-check">

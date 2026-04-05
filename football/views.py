@@ -7149,6 +7149,92 @@ def share_task_pdf_create(request):
 
 @login_required
 @require_POST
+def share_task_simulation_create(request):
+    """
+    Crea un enlace público (token) para abrir una simulación (pasos) sin login.
+    El payload se genera en cliente (Task Builder) y se guarda en ShareLink.payload.
+    """
+    validity_days = _parse_int(request.POST.get('valid_days')) or 14
+    validity_days = max(1, min(validity_days, 60))
+    password = (request.POST.get('password') or '').strip()
+    raw = (request.POST.get('payload') or '').strip()
+    try:
+        payload = json.loads(raw) if raw else {}
+    except Exception:
+        return JsonResponse({'error': 'Payload no válido.'}, status=400)
+    if not isinstance(payload, dict):
+        return JsonResponse({'error': 'Payload no válido.'}, status=400)
+
+    title = str(payload.get('title') or '').strip()[:180] or 'Simulación'
+    steps = payload.get('steps')
+    pitch_svg = str(payload.get('pitch_svg') or '').strip()
+    task_kind = str(payload.get('task_kind') or '').strip().lower()
+    task_id = _parse_int(payload.get('task_id'))
+
+    if not isinstance(steps, list) or not steps:
+        return JsonResponse({'error': 'No hay pasos de simulación.'}, status=400)
+    if len(steps) > 40:
+        steps = steps[:40]
+    if pitch_svg and len(pitch_svg) > 420_000:
+        return JsonResponse({'error': 'La simulación es demasiado grande para compartir.'}, status=413)
+
+    cleaned_steps = []
+    for index, step in enumerate(steps):
+        if not isinstance(step, dict):
+            continue
+        state = step.get('canvas_state')
+        if not isinstance(state, dict):
+            continue
+        duration = _parse_int(step.get('duration')) or 3
+        cleaned_steps.append({
+            'title': str(step.get('title') or f'Paso {index + 1}')[:120],
+            'duration': max(1, min(duration, 20)),
+            'canvas_state': state,
+            'canvas_width': _parse_int(step.get('canvas_width')) or 0,
+            'canvas_height': _parse_int(step.get('canvas_height')) or 0,
+            'moves': step.get('moves') if isinstance(step.get('moves'), list) else [],
+        })
+    if not cleaned_steps:
+        return JsonResponse({'error': 'No se pudieron leer los pasos de simulación.'}, status=400)
+
+    # Si viene asociada a una tarea concreta, invalida enlaces previos de esa tarea.
+    if task_kind in {'session', 'task_studio'} and task_id:
+        ShareLink.objects.filter(
+            is_active=True,
+            kind=ShareLink.KIND_TASK_SIMULATION,
+            payload__task_kind=task_kind,
+            payload__task_id=int(task_id),
+        ).update(is_active=False)
+
+    link = ShareLink.objects.create(
+        token=ShareLink.generate_token(),
+        kind=ShareLink.KIND_TASK_SIMULATION,
+        payload={
+            'title': title,
+            'pitch_svg': pitch_svg,
+            'steps': cleaned_steps,
+            'task_kind': task_kind,
+            'task_id': int(task_id) if task_id else None,
+        },
+        password_hash=make_password(password) if password else '',
+        expires_at=timezone.now() + timedelta(days=validity_days),
+        created_by=request.user.get_username() if request.user.is_authenticated else '',
+        created_by_user=request.user if request.user.is_authenticated else None,
+        is_active=True,
+    )
+    url = request.build_absolute_uri(reverse('share-task-simulation', args=[link.token]))
+    _audit(
+        request,
+        'share_link_create',
+        workspace=_get_active_workspace(request),
+        message='Enlace de simulación creado',
+        payload={'kind': 'task_simulation', 'task_kind': task_kind, 'task_id': task_id, 'expires_days': validity_days, 'password': bool(password)},
+    )
+    return JsonResponse({'ok': True, 'url': url, 'expires_at': link.expires_at})
+
+
+@login_required
+@require_POST
 def share_convocation_pdf_create(request):
     """
     Crea un enlace público (token) para abrir/descargar el PDF de convocatoria sin login.
@@ -7361,6 +7447,47 @@ def share_convocation_pdf_page(request, token):
         pass
     # En enlace público preferimos inline para que abra directo en móvil/desktop.
     return _build_pdf_response_or_html_fallback(request, html, filename, inline=True, force_pdf=True)
+
+
+def share_task_simulation_page(request, token):
+    """
+    Endpoint público para reproducir una simulación (pasos) compartida por token.
+    """
+    token = str(token or '').strip()
+    link = ShareLink.objects.filter(token=token, is_active=True, kind=ShareLink.KIND_TASK_SIMULATION).first()
+    now = timezone.now()
+    if not link or not link.can_be_used(now=now):
+        raise Http404('Enlace no disponible')
+    if (link.password_hash or '').strip():
+        if request.method != 'POST':
+            return render(
+                request,
+                'football/share_link_gate.html',
+                {'error': '', 'expires_at': link.expires_at},
+                status=200,
+            )
+        supplied = (request.POST.get('password') or '').strip()
+        if not supplied or not check_password(supplied, link.password_hash):
+            return render(
+                request,
+                'football/share_link_gate.html',
+                {'error': 'Contraseña incorrecta.', 'expires_at': link.expires_at},
+                status=403,
+            )
+    payload = link.payload if isinstance(link.payload, dict) else {}
+    try:
+        ShareLink.objects.filter(id=link.id).update(access_count=(link.access_count or 0) + 1, last_accessed_at=timezone.now())
+    except Exception:
+        pass
+    return render(
+        request,
+        'football/task_simulation_share.html',
+        {
+            'payload': payload,
+            'expires_at': link.expires_at,
+        },
+        status=200,
+    )
 
 
 def share_task_pdf_page(request, token):
