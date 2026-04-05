@@ -657,6 +657,106 @@
         margin: 0 0 0.6rem;
         opacity: 0.9;
       }
+      .scenarios-popover {
+        position: absolute;
+        top: calc(100% + 10px);
+        right: 0;
+        width: min(520px, 92vw);
+        border-radius: 14px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(2, 6, 23, 0.92);
+        backdrop-filter: blur(12px);
+        z-index: 63;
+        box-shadow: 0 18px 44px rgba(0,0,0,0.38);
+        overflow: hidden;
+      }
+      .scenarios-popover[hidden] {
+        display: none !important;
+      }
+      .scenarios-popover-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.6rem;
+        padding: 10px 12px;
+        border-bottom: 1px solid rgba(255,255,255,0.10);
+      }
+      .scenarios-popover-head h4 {
+        margin: 0;
+        font-size: 0.78rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: rgba(226,232,240,0.92);
+      }
+      .scenarios-popover-close {
+        width: 42px;
+        height: 38px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(255,255,255,0.05);
+        color: rgba(248,250,252,0.9);
+        font-weight: 900;
+        cursor: pointer;
+      }
+      .scenarios-popover-body {
+        padding: 10px 12px 12px;
+        max-height: min(68vh, 640px);
+        overflow: auto;
+      }
+      .scenarios-popover-body .meta {
+        margin: 0 0 0.6rem;
+        opacity: 0.9;
+      }
+      .scenarios-controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 0.75rem;
+      }
+      .scenarios-controls .button {
+        padding: 0.55rem 0.8rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(255,255,255,0.05);
+        color: rgba(248,250,252,0.92);
+        font-weight: 900;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        font-size: 0.72rem;
+        cursor: pointer;
+      }
+      .scenarios-controls .button.danger {
+        border-color: rgba(239,68,68,0.35);
+        background: rgba(239,68,68,0.08);
+        color: rgba(252,165,165,0.95);
+      }
+      .scenarios-fields {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 140px;
+        gap: 0.55rem;
+        margin-bottom: 0.75rem;
+      }
+      .scenarios-fields label {
+        display: grid;
+        gap: 0.35rem;
+        font-size: 0.72rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: rgba(226,232,240,0.72);
+      }
+      .scenarios-fields input {
+        width: 100%;
+        padding: 0.62rem 0.75rem;
+        border-radius: 14px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(255,255,255,0.04);
+        color: #f8fafc;
+      }
+      .scenarios-fields input[type="number"] {
+        text-align: center;
+      }
       .pattern-popover {
         position: absolute;
         top: calc(100% + 10px);
@@ -1947,6 +2047,9 @@
 	                    <button type="button" class="icon-btn" id="task-layers-btn" title="Capas" aria-label="Capas">
 	                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 2 7l10 5 10-5-10-5Zm0 8L2 5v2l10 5 10-5V5l-10 5Zm0 4L2 9v2l10 5 10-5V9l-10 5Zm0 4L2 13v2l10 5 10-5v-2l-10 5Z"/></svg>
 	                    </button>
+	                    <button type="button" class="icon-btn" id="task-scenarios-btn" title="Escenarios" aria-label="Escenarios">
+	                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v1h2v2h-2v2h2v2h-2v2h2v2h-2v1a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6Zm2 0v12h10V6H6Z"/></svg>
+	                    </button>
 	                    <button type="button" class="icon-btn" id="task-command-more" title="Más acciones" aria-label="Más acciones">
 	                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 14a2 2 0 1 1 0-4 2 2 0 0 1 0 4Zm6 0a2 2 0 1 1 0-4 2 2 0 0 1 0 4Zm6 0a2 2 0 1 1 0-4 2 2 0 0 1 0 4Z"/></svg>
 	                    </button>
@@ -1976,6 +2079,31 @@
 			                      <div class="layers-popover-body">
 			                        <p class="meta">Reordena qué va arriba/abajo, oculta y bloquea. Doble click para renombrar.</p>
 			                        <div class="layers-list" id="task-layers-list-popover"></div>
+			                      </div>
+			                    </div>
+			                    <div class="scenarios-popover" id="task-scenarios-popover" hidden>
+			                      <div class="scenarios-popover-head">
+			                        <h4>Escenarios (multipizarra)</h4>
+			                        <button type="button" class="scenarios-popover-close" id="task-scenarios-close" aria-label="Cerrar">×</button>
+			                      </div>
+			                      <div class="scenarios-popover-body">
+			                        <p class="meta">Guarda varios escenarios dentro de una misma tarea. Cada escenario mantiene su propia pizarra.</p>
+			                        <div class="scenarios-controls">
+			                          <button type="button" class="button" id="task-scenario-add">+ Escenario</button>
+			                          <button type="button" class="button" id="task-scenario-duplicate">Duplicar</button>
+			                          <button type="button" class="button danger" id="task-scenario-remove">Eliminar</button>
+			                        </div>
+			                        <div class="scenarios-fields" aria-label="Datos del escenario activo">
+			                          <label>
+			                            Título
+			                            <input type="text" id="task-scenario-title-pop" placeholder="Ej.: Escenario 1" />
+			                          </label>
+			                          <label>
+			                            Seg (opcional)
+			                            <input type="number" id="task-scenario-duration-pop" min="1" max="20" step="1" value="3" />
+			                          </label>
+			                        </div>
+			                        <div class="timeline-list" id="task-timeline-list-popover"></div>
 			                      </div>
 			                    </div>
 			                    <div class="pattern-popover" id="task-pattern-popover" hidden>
@@ -2264,7 +2392,7 @@
 			              <div class="side-tabs" id="task-side-tabs" role="tablist" aria-label="Panel de tarea">
 			                <button type="button" class="side-tab is-active" data-pane="ficha" role="tab" aria-selected="true">Ficha</button>
 			                <button type="button" class="side-tab" data-pane="avanzado" role="tab" aria-selected="false">Avanzado</button>
-			                <button type="button" class="side-tab" data-pane="animacion" role="tab" aria-selected="false">Escenas</button>
+			                <button type="button" class="side-tab" data-pane="animacion" role="tab" aria-selected="false">Escenarios</button>
 			                <button type="button" class="side-tab" data-pane="biblioteca" role="tab" aria-selected="false">Biblioteca</button>
 			                <button type="button" class="side-tab" data-pane="capas" role="tab" aria-selected="false">Capas</button>
 			                <button type="button" class="side-tab" data-pane="exportar" role="tab" aria-selected="false">Exportar</button>
@@ -2432,7 +2560,7 @@
 		                      Multipizarra (varios escenarios)
 		                    </label>
 		                    <div style="margin-top:0.35rem; opacity:0.9;">
-		                      Si lo activas, puedes guardar varias escenas dentro de una misma tarea (panel “Escenas”) y aparecerán en el PDF de la tarea.
+		                      Si lo activas, puedes guardar varios escenarios dentro de una misma tarea (panel “Escenarios”) y aparecerán en el PDF de la tarea.
 		                    </div>
 		                  </div>
 		                  <div class="compact-grid">
@@ -2601,7 +2729,7 @@
               <div class="section">
                 <h3>Jugadores detectados</h3>
                 <div class="assigned-summary" id="task-assigned-summary">
-                  Se rellenan automáticamente según las chapas usadas en la pizarra (y en los pasos de animación).
+                  Se rellenan automáticamente según las chapas usadas en la pizarra (y en los escenarios multipizarra).
                 </div>
               </div>
               </div>
@@ -2610,23 +2738,23 @@
 	                <div class="section">
 	                  <div class="timeline-head">
 	                  <div>
-	                    <h3>Escenas (multipizarra)</h3>
-	                    <p>Opcional. Crea varias pizarras dentro de la misma tarea (Escena 1, 2, 3...).</p>
+	                    <h3>Escenarios (multipizarra)</h3>
+	                    <p>Opcional. Crea varias pizarras dentro de la misma tarea (Escenario 1, 2, 3...).</p>
 	                  </div>
 	                  <div class="timeline-toolbar">
-	                    <button type="button" id="task-step-add">Añadir escena</button>
-	                    <button type="button" id="task-step-duplicate">Duplicar escena</button>
-	                    <button type="button" id="task-step-remove">Eliminar escena</button>
-	                    <button type="button" id="task-step-play">Reproducir</button>
+	                    <button type="button" id="task-step-add">Añadir escenario</button>
+	                    <button type="button" id="task-step-duplicate">Duplicar escenario</button>
+	                    <button type="button" id="task-step-remove">Eliminar escenario</button>
+	                    <button type="button" id="task-step-play" title="Pasa por escenarios como previsualización.">Previsualizar</button>
 	                  </div>
 	                </div>
 	                <div class="meta" style="margin-top:0.55rem;">
-	                  Activa “Multipizarra” en Ajustes avanzados para que estas escenas se incluyan en el PDF.
+	                  Activa “Multipizarra” en Ajustes avanzados para que estos escenarios se incluyan en el PDF.
 	                </div>
 	                <div class="timeline-list" id="task-timeline-list"></div>
 	                <div class="compact-grid" style="margin-top:0.8rem;">
 	                  <label>
-	                    Nombre de la escena
+	                    Nombre del escenario
 	                    <input type="text" id="task-step-title" maxlength="80" placeholder="Ej: Inicio de la acción" />
 	                  </label>
 	                  <label>

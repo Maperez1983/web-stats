@@ -631,6 +631,14 @@
 		    const layersBtn = document.getElementById('task-layers-btn');
 		    const layersPopover = document.getElementById('task-layers-popover');
 		    const layersCloseBtn = document.getElementById('task-layers-close');
+		    const scenariosBtn = document.getElementById('task-scenarios-btn');
+		    const scenariosPopover = document.getElementById('task-scenarios-popover');
+		    const scenariosCloseBtn = document.getElementById('task-scenarios-close');
+		    const scenarioAddBtn = document.getElementById('task-scenario-add');
+		    const scenarioDuplicateBtn = document.getElementById('task-scenario-duplicate');
+		    const scenarioRemoveBtn = document.getElementById('task-scenario-remove');
+		    const scenarioTitleInput = document.getElementById('task-scenario-title-pop');
+		    const scenarioDurationInput = document.getElementById('task-scenario-duration-pop');
 		    const patternTitle = document.getElementById('task-pattern-title');
 		    const patternFieldsLine = document.getElementById('task-pattern-fields-line');
 		    const patternFieldsGrid = document.getElementById('task-pattern-fields-grid');
@@ -648,6 +656,7 @@
 		    const layersList = document.getElementById('task-layers-list');
 		    const layersListPopover = document.getElementById('task-layers-list-popover');
 		    const timelineList = document.getElementById('task-timeline-list');
+		    const timelineListPopover = document.getElementById('task-timeline-list-popover');
 	    const stepTitleInput = document.getElementById('task-step-title');
 	    const stepDurationInput = document.getElementById('task-step-duration');
     const addStepButton = document.getElementById('task-step-add');
@@ -2488,6 +2497,14 @@
 		        try { renderLayers(); } catch (error) { /* ignore */ }
 		      }
 		    };
+		    const setScenariosPopoverOpen = (open) => {
+		      if (!scenariosPopover) return;
+		      scenariosPopover.hidden = !open;
+		      if (open) {
+		        try { renderTimeline(); } catch (error) { /* ignore */ }
+		        try { syncStepInputs(); } catch (error) { /* ignore */ }
+		      }
+		    };
 		    const handleOutsideFloatingMenus = (event) => {
 		      const target = event?.target;
 		      if (commandMenu && !commandMenu.hidden) {
@@ -2502,6 +2519,10 @@
 		        const inside = resolveClosest(target, '#task-command-bar') || resolveClosest(target, '#task-layers-popover');
 		        if (!inside) setLayersPopoverOpen(false);
 		      }
+		      if (scenariosPopover && !scenariosPopover.hidden) {
+		        const inside = resolveClosest(target, '#task-command-bar') || resolveClosest(target, '#task-scenarios-popover');
+		        if (!inside) setScenariosPopoverOpen(false);
+		      }
 		    };
 		    // Cerrar menús aunque Fabric/otros handlers hagan stopPropagation.
 		    // Usamos eventos en fase de captura para que no se queden "pegados" tapando el campo (Safari/iPad incluido).
@@ -2514,6 +2535,7 @@
 		      if (commandMenu && !commandMenu.hidden) setCommandMenuOpen(false);
 		      if (patternPopover && !patternPopover.hidden) closePatternPopover();
 		      if (layersPopover && !layersPopover.hidden) setLayersPopoverOpen(false);
+		      if (scenariosPopover && !scenariosPopover.hidden) setScenariosPopoverOpen(false);
 		    }, true);
 
 		    layersBtn?.addEventListener('click', (event) => {
@@ -2526,6 +2548,19 @@
 		    layersCloseBtn?.addEventListener('click', (event) => {
 		      event.preventDefault();
 		      setLayersPopoverOpen(false);
+		    });
+
+		    scenariosBtn?.addEventListener('click', (event) => {
+		      event.preventDefault();
+		      // Cierra otros overlays para no apilar menús.
+		      try { setCommandMenuOpen(false); } catch (error) { /* ignore */ }
+		      try { closePatternPopover(); } catch (error) { /* ignore */ }
+		      try { setLayersPopoverOpen(false); } catch (error) { /* ignore */ }
+		      setScenariosPopoverOpen(!!scenariosPopover?.hidden);
+		    });
+		    scenariosCloseBtn?.addEventListener('click', (event) => {
+		      event.preventDefault();
+		      setScenariosPopoverOpen(false);
 		    });
 
 		    const findObjectByLayerUid = (uid) => (canvas.getObjects() || []).find((obj) => safeText(obj?.data?.layer_uid) === safeText(uid));
@@ -2836,32 +2871,53 @@
       if (!active) {
         if (stepTitleInput) stepTitleInput.value = '';
         if (stepDurationInput) stepDurationInput.value = '3';
+        if (scenarioTitleInput) {
+          scenarioTitleInput.value = '';
+          scenarioTitleInput.disabled = true;
+        }
+        if (scenarioDurationInput) {
+          scenarioDurationInput.value = '3';
+          scenarioDurationInput.disabled = true;
+        }
         return;
       }
       if (stepTitleInput) stepTitleInput.value = active.title || `Paso ${activeStepIndex + 1}`;
       if (stepDurationInput) stepDurationInput.value = String(active.duration || 3);
+      if (scenarioTitleInput) {
+        scenarioTitleInput.disabled = false;
+        scenarioTitleInput.value = active.title || `Escenario ${activeStepIndex + 1}`;
+      }
+      if (scenarioDurationInput) {
+        scenarioDurationInput.disabled = false;
+        scenarioDurationInput.value = String(active.duration || 3);
+      }
     };
     const renderTimeline = () => {
-      if (!timelineList) return;
+      const targets = [timelineList, timelineListPopover].filter(Boolean);
+      if (!targets.length) return;
       if (!timeline.length) {
-        timelineList.innerHTML = '<div class="timeline-empty">Todavía no hay pasos. Diseña la salida inicial y pulsa "Añadir paso".</div>';
+        targets.forEach((node) => {
+          node.innerHTML = '<div class="timeline-empty">Todavía no hay escenarios. Diseña el primer escenario y pulsa “+ Escenario”.</div>';
+        });
         syncStepInputs();
         return;
       }
-      timelineList.innerHTML = '';
+      targets.forEach((node) => { node.innerHTML = ''; });
       timeline.forEach((step, index) => {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = `timeline-step${index === activeStepIndex ? ' is-active' : ''}`;
-        button.dataset.stepIndex = String(index);
-        button.innerHTML = `
-          <div>
-            <strong>${step.title || `Paso ${index + 1}`}</strong>
-            <span>${step.duration || 3} s · escena ${index + 1}</span>
-          </div>
-          <span>${index === activeStepIndex ? 'Editando' : 'Abrir'}</span>
-        `;
-        timelineList.appendChild(button);
+        targets.forEach((node) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = `timeline-step${index === activeStepIndex ? ' is-active' : ''}`;
+          button.dataset.stepIndex = String(index);
+          button.innerHTML = `
+            <div>
+              <strong>${step.title || `Escenario ${index + 1}`}</strong>
+              <span>${step.duration || 3} s · escenario ${index + 1}</span>
+            </div>
+            <span>${index === activeStepIndex ? 'Editando' : 'Abrir'}</span>
+          `;
+          node.appendChild(button);
+        });
       });
       syncStepInputs();
     };
@@ -5518,18 +5574,24 @@
       addPayloadAtPointer(payload, pointerFromStageEvent(event));
     });
 
-    timelineList?.addEventListener('click', (event) => {
-      const button = event.target.closest('button[data-step-index]');
-      if (!button) return;
-      selectTimelineStep(Number(button.dataset.stepIndex));
+    [timelineList, timelineListPopover].filter(Boolean).forEach((listEl) => {
+      listEl.addEventListener('click', (event) => {
+        const button = event.target.closest('button[data-step-index]');
+        if (!button) return;
+        selectTimelineStep(Number(button.dataset.stepIndex));
+      });
     });
     addStepButton?.addEventListener('click', () => addTimelineStep(false));
     duplicateStepButton?.addEventListener('click', () => addTimelineStep(true));
     removeStepButton?.addEventListener('click', removeTimelineStep);
     playStepButton?.addEventListener('click', playTimeline);
+    scenarioAddBtn?.addEventListener('click', () => addTimelineStep(false));
+    scenarioDuplicateBtn?.addEventListener('click', () => addTimelineStep(true));
+    scenarioRemoveBtn?.addEventListener('click', removeTimelineStep);
     stepTitleInput?.addEventListener('input', () => {
       if (activeStepIndex < 0 || !timeline[activeStepIndex]) return;
       timeline[activeStepIndex].title = safeText(stepTitleInput.value, `Paso ${activeStepIndex + 1}`);
+      if (scenarioTitleInput) scenarioTitleInput.value = timeline[activeStepIndex].title || '';
       renderTimeline();
     });
     stepTitleInput?.addEventListener('change', () => {
@@ -5537,14 +5599,39 @@
       timeline[activeStepIndex].title = safeText(stepTitleInput.value, `Paso ${activeStepIndex + 1}`);
       pushHistory();
     });
+    scenarioTitleInput?.addEventListener('input', () => {
+      if (activeStepIndex < 0 || !timeline[activeStepIndex]) return;
+      timeline[activeStepIndex].title = safeText(scenarioTitleInput.value, `Escenario ${activeStepIndex + 1}`);
+      if (stepTitleInput) stepTitleInput.value = timeline[activeStepIndex].title || '';
+      renderTimeline();
+    });
+    scenarioTitleInput?.addEventListener('change', () => {
+      if (activeStepIndex < 0 || !timeline[activeStepIndex]) return;
+      timeline[activeStepIndex].title = safeText(scenarioTitleInput.value, `Escenario ${activeStepIndex + 1}`);
+      if (stepTitleInput) stepTitleInput.value = timeline[activeStepIndex].title || '';
+      pushHistory();
+    });
     stepDurationInput?.addEventListener('input', () => {
       if (activeStepIndex < 0 || !timeline[activeStepIndex]) return;
       timeline[activeStepIndex].duration = clamp(Number(stepDurationInput.value) || 3, 1, 20);
+      if (scenarioDurationInput) scenarioDurationInput.value = String(timeline[activeStepIndex].duration || 3);
       renderTimeline();
     });
     stepDurationInput?.addEventListener('change', () => {
       if (activeStepIndex < 0 || !timeline[activeStepIndex]) return;
       timeline[activeStepIndex].duration = clamp(Number(stepDurationInput.value) || 3, 1, 20);
+      pushHistory();
+    });
+    scenarioDurationInput?.addEventListener('input', () => {
+      if (activeStepIndex < 0 || !timeline[activeStepIndex]) return;
+      timeline[activeStepIndex].duration = clamp(Number(scenarioDurationInput.value) || 3, 1, 20);
+      if (stepDurationInput) stepDurationInput.value = String(timeline[activeStepIndex].duration || 3);
+      renderTimeline();
+    });
+    scenarioDurationInput?.addEventListener('change', () => {
+      if (activeStepIndex < 0 || !timeline[activeStepIndex]) return;
+      timeline[activeStepIndex].duration = clamp(Number(scenarioDurationInput.value) || 3, 1, 20);
+      if (stepDurationInput) stepDurationInput.value = String(timeline[activeStepIndex].duration || 3);
       pushHistory();
     });
 
