@@ -636,7 +636,9 @@
 			    const simRemoveBtn = document.getElementById('task-sim-remove');
 			    const simPrevBtn = document.getElementById('task-sim-prev');
 			    const simNextBtn = document.getElementById('task-sim-next');
+			    const simDuplicateBtn = document.getElementById('task-sim-duplicate');
 			    const simAutoCaptureInput = document.getElementById('task-sim-autocapture');
+			    const simTrajectoriesInput = document.getElementById('task-sim-trajectories');
 			    const simMagnetsInput = document.getElementById('task-sim-magnets');
 			    const simGuidesInput = document.getElementById('task-sim-guides');
 			    const simCollisionInput = document.getElementById('task-sim-collision');
@@ -1246,8 +1248,10 @@
 					    let simulationMagnets = true;
 					    let simulationGuides = true;
 					    let simulationCollision = false;
+					    let simulationTrajectories = true;
 					    let simGuideX = null;
 					    let simGuideY = null;
+					    let simMoveOverlays = [];
 					    const lastPlacedByKind = new Map();
 				    let clipboardObject = null;
 				    let pasteOffset = 0;
@@ -2555,8 +2559,10 @@
 					      if (simStepsList) simStepsList.hidden = !isSimulating;
 					      if (simPrevBtn) simPrevBtn.hidden = !isSimulating;
 					      if (simNextBtn) simNextBtn.hidden = !isSimulating;
+					      if (simDuplicateBtn) simDuplicateBtn.hidden = !isSimulating;
 					      if (simMetaPanel) simMetaPanel.hidden = !isSimulating;
 					      if (simAutoCaptureInput) simAutoCaptureInput.checked = !!simulationAutoCapture;
+					      if (simTrajectoriesInput) simTrajectoriesInput.checked = !!simulationTrajectories;
 					      if (simMagnetsInput) simMagnetsInput.checked = !!simulationMagnets;
 					      if (simGuidesInput) simGuidesInput.checked = !!simulationGuides;
 					      if (simCollisionInput) simCollisionInput.checked = !!simulationCollision;
@@ -2585,6 +2591,7 @@
 				        try { window.cancelAnimationFrame(simulationAnimFrame); } catch (error) { /* ignore */ }
 				        simulationAnimFrame = null;
 				      }
+				      clearSimMoveOverlays();
 				      syncSimUi();
 				    };
 				    const ensureLayerUidsOnCanvas = () => {
@@ -2604,6 +2611,14 @@
 				      try { if (simGuideY) canvas.remove(simGuideY); } catch (e) { /* ignore */ }
 				      simGuideX = null;
 				      simGuideY = null;
+				    };
+				    const clearSimMoveOverlays = () => {
+				      try {
+				        (simMoveOverlays || []).forEach((obj) => {
+				          try { canvas.remove(obj); } catch (e) { /* ignore */ }
+				        });
+				      } catch (error) { /* ignore */ }
+				      simMoveOverlays = [];
 				    };
 				    const hideSimGuides = () => {
 				      if (simGuideX) simGuideX.visible = false;
@@ -2689,6 +2704,103 @@
 				      const nextY = clamp(baseY + pushY * scale, rA, Math.max(rA, h - rA));
 				      return { x: nextX, y: nextY };
 				    };
+				    const extractTokenPositionsFromState = (canvasState) => {
+				      const out = new Map();
+				      const state = sanitizeLoadedState(canvasState);
+				      const objects = Array.isArray(state.objects) ? state.objects : [];
+				      objects.forEach((obj) => {
+				        if (safeText(obj?.data?.kind) !== 'token') return;
+				        const uid = safeText(obj?.data?.layer_uid);
+				        if (!uid) return;
+				        const left = Number(obj.left);
+				        const top = Number(obj.top);
+				        if (!Number.isFinite(left) || !Number.isFinite(top)) return;
+				        out.set(uid, { x: left, y: top, angle: Number(obj.angle) || 0 });
+				      });
+				      return out;
+				    };
+				    const computeMovesBetweenStates = (fromState, toState) => {
+				      const from = extractTokenPositionsFromState(fromState);
+				      const to = extractTokenPositionsFromState(toState);
+				      const moves = [];
+				      to.forEach((end, uid) => {
+				        const start = from.get(uid);
+				        if (!start) return;
+				        const dx = (end.x || 0) - (start.x || 0);
+				        const dy = (end.y || 0) - (start.y || 0);
+				        const dist = Math.hypot(dx, dy) || 0;
+				        if (dist < 10) return;
+				        moves.push({ uid, from: { x: start.x, y: start.y }, to: { x: end.x, y: end.y } });
+				      });
+				      return moves;
+				    };
+				    const addSimMoveArrow = (from, to) => {
+				      const x1 = Number(from?.x) || 0;
+				      const y1 = Number(from?.y) || 0;
+				      const x2 = Number(to?.x) || 0;
+				      const y2 = Number(to?.y) || 0;
+				      const dx = x2 - x1;
+				      const dy = y2 - y1;
+				      const len = Math.hypot(dx, dy) || 0;
+				      if (len < 8) return null;
+				      const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+				      const head = 14;
+				      const line = new fabric.Line([0, 0, Math.max(6, len - head), 0], {
+				        stroke: 'rgba(250,204,21,0.9)',
+				        strokeWidth: 4,
+				        strokeDashArray: [10, 8],
+				        strokeLineCap: 'round',
+				        selectable: false,
+				        evented: false,
+				        excludeFromExport: true,
+				        data: { base: true, kind: 'sim-move-line' },
+				      });
+				      try { line.strokeUniform = true; } catch (e) { /* ignore */ }
+				      const tri = new fabric.Triangle({
+				        width: head,
+				        height: head,
+				        fill: 'rgba(250,204,21,0.9)',
+				        left: Math.max(6, len - head),
+				        top: 0,
+				        originX: 'center',
+				        originY: 'center',
+				        angle: 90,
+				        selectable: false,
+				        evented: false,
+				        excludeFromExport: true,
+				        data: { base: true, kind: 'sim-move-head' },
+				      });
+				      const group = new fabric.Group([line, tri], {
+				        left: x1,
+				        top: y1,
+				        originX: 'left',
+				        originY: 'center',
+				        angle,
+				        selectable: false,
+				        evented: false,
+				        excludeFromExport: true,
+				        opacity: 0.92,
+				        data: { base: true, kind: 'sim-move' },
+				      });
+				      try { group.objectCaching = false; } catch (e) { /* ignore */ }
+				      try { group.noScaleCache = true; } catch (e) { /* ignore */ }
+				      canvas.add(group);
+				      try { canvas.sendToBack(group); } catch (e) { /* ignore */ }
+				      return group;
+				    };
+				    const renderSimMovesForStep = (step, options = {}) => {
+				      clearSimMoveOverlays();
+				      if (!isSimulating || !simulationTrajectories) return;
+				      const moves = Array.isArray(step?.moves) ? step.moves : [];
+				      if (!moves.length) return;
+				      moves.slice(0, 60).forEach((move) => {
+				        const arrow = addSimMoveArrow(move.from, move.to);
+				        if (arrow) simMoveOverlays.push(arrow);
+				      });
+				      if (options.render !== false) {
+				        try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+				      }
+				    };
 				    const lerp = (a, b, t) => (Number(a) || 0) + ((Number(b) || 0) - (Number(a) || 0)) * t;
 				    const easeInOut = (t) => (t < 0.5 ? (2 * t * t) : (1 - Math.pow(-2 * t + 2, 2) / 2));
 				    const lerpAngle = (a, b, t) => {
@@ -2713,6 +2825,7 @@
 				        button.type = 'button';
 				        button.className = `sim-step${index === simulationActiveIndex ? ' is-active' : ''}`;
 				        button.dataset.simStepIndex = String(index);
+				        button.draggable = true;
 				        const title = safeText(step?.title, `Paso ${index + 1}`);
 				        const duration = clamp(Number(step?.duration) || 3, 1, 20);
 				        button.innerHTML = `
@@ -2739,6 +2852,7 @@
 				        canvas_state: serializeCanvasOnly(),
 				        canvas_width: Math.round(w || 0),
 				        canvas_height: Math.round(h || 0),
+				        moves: [],
 				      }];
 				      simulationActiveIndex = 0;
 				      renderSimulationSteps();
@@ -2759,6 +2873,7 @@
 				      try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
 				      try { syncInspector(); } catch (e) { /* ignore */ }
 				      try { renderLayers(); } catch (e) { /* ignore */ }
+				      clearSimMoveOverlays();
 				      renderSimulationSteps();
 				    };
 				    const transitionToSimulationStep = async (index, options = {}) => {
@@ -2852,12 +2967,17 @@
 				      const { w, h } = worldSize();
 				      ensureLayerUidsOnCanvas();
 				      const index = simulationSteps.length + 1;
+				      const prev = simulationSteps.length ? simulationSteps[simulationSteps.length - 1] : null;
+				      const prevState = prev?.canvas_state || null;
+				      const nextState = serializeCanvasOnly();
+				      const moves = prevState ? computeMovesBetweenStates(prevState, nextState) : [];
 				      simulationSteps.push({
 				        title: `Paso ${index}`,
 				        duration: 3,
-				        canvas_state: serializeCanvasOnly(),
+				        canvas_state: nextState,
 				        canvas_width: Math.round(w || 0),
 				        canvas_height: Math.round(h || 0),
+				        moves,
 				      });
 				      simulationActiveIndex = simulationSteps.length - 1;
 				      renderSimulationSteps();
@@ -2877,6 +2997,44 @@
 				      void selectSimulationStep(simulationActiveIndex);
 				      setStatus('Paso eliminado.');
 				    };
+				    const duplicateSimulationStep = () => {
+				      if (!isSimulating) return;
+				      const step = simulationSteps[simulationActiveIndex];
+				      if (!step) return;
+				      stopSimulationPlayback();
+				      let clonedState = null;
+				      try { clonedState = JSON.parse(JSON.stringify(step.canvas_state)); } catch (e) { clonedState = sanitizeLoadedState(step.canvas_state); }
+				      const moves = Array.isArray(step.moves) ? JSON.parse(JSON.stringify(step.moves)) : [];
+				      const clone = {
+				        title: `${safeText(step.title, `Paso ${simulationActiveIndex + 1}`)} copia`,
+				        duration: clamp(Number(step.duration) || 3, 1, 20),
+				        canvas_state: clonedState,
+				        canvas_width: parseIntSafe(step.canvas_width) || 0,
+				        canvas_height: parseIntSafe(step.canvas_height) || 0,
+				        moves,
+				      };
+				      const insertAt = clamp(simulationActiveIndex + 1, 0, simulationSteps.length);
+				      simulationSteps.splice(insertAt, 0, clone);
+				      simulationActiveIndex = insertAt;
+				      renderSimulationSteps();
+				      void selectSimulationStep(simulationActiveIndex);
+				      setStatus('Paso duplicado.');
+				    };
+				    const reorderSimulationSteps = (fromIndex, toIndex) => {
+				      const from = Number(fromIndex);
+				      const to = Number(toIndex);
+				      if (!Number.isFinite(from) || !Number.isFinite(to)) return;
+				      if (from === to) return;
+				      if (from < 0 || from >= simulationSteps.length) return;
+				      if (to < 0 || to >= simulationSteps.length) return;
+				      const [moved] = simulationSteps.splice(from, 1);
+				      simulationSteps.splice(to, 0, moved);
+				      if (simulationActiveIndex === from) simulationActiveIndex = to;
+				      else if (simulationActiveIndex > from && simulationActiveIndex <= to) simulationActiveIndex -= 1;
+				      else if (simulationActiveIndex < from && simulationActiveIndex >= to) simulationActiveIndex += 1;
+				      renderSimulationSteps();
+				      setStatus('Pasos reordenados.');
+				    };
 				    const playSimulationSteps = async () => {
 				      if (!isSimulating) return;
 				      if (!simulationSteps.length) return;
@@ -2891,6 +3049,7 @@
 				      let cursor = startIndex;
 				      const advance = async () => {
 				        if (!simulationPlaying) return;
+				        try { renderSimMovesForStep(simulationSteps[cursor]); } catch (e) { /* ignore */ }
 				        const duration = clamp(Number(simulationSteps[cursor]?.duration) || 3, 1, 20);
 				        const speed = clamp(Number(simulationSpeed) || 1, 0.25, 3);
 				        const scaledDuration = Math.max(0.25, duration / speed);
@@ -2899,6 +3058,7 @@
 				        if (!simulationPlaying) return;
 				        const holdMs = Math.max(120, Math.round(scaledDuration * 1000 - transitionMs));
 				        simulationPlayTimer = window.setTimeout(() => {
+				          clearSimMoveOverlays();
 				          cursor = (cursor + 1) % simulationSteps.length;
 				          void advance();
 				        }, holdMs);
@@ -2942,6 +3102,7 @@
 				      simulationMagnets = true;
 				      simulationGuides = true;
 				      simulationCollision = false;
+				      simulationTrajectories = true;
 				      isSimulating = true;
 				      setSimulationUiLocked(true);
 				      seedSimulationStepsFromCurrent();
@@ -2964,6 +3125,7 @@
 				      simulationMagnets = true;
 				      simulationGuides = true;
 				      simulationCollision = false;
+				      simulationTrajectories = true;
 				      setStatus('Simulación finalizada. Volviste al editor.');
 				    };
 					    const resetSimulation = () => {
@@ -3072,6 +3234,10 @@
 			      event.preventDefault();
 			      removeSimulationStep();
 			    });
+			    simDuplicateBtn?.addEventListener('click', (event) => {
+			      event.preventDefault();
+			      duplicateSimulationStep();
+			    });
 			    simPrevBtn?.addEventListener('click', (event) => {
 			      event.preventDefault();
 			      const idx = clamp(simulationActiveIndex - 1, 0, Math.max(0, simulationSteps.length - 1));
@@ -3103,6 +3269,11 @@
 			      simulationCollision = !!simCollisionInput.checked;
 			      setStatus(simulationCollision ? 'Colisión suave activada.' : 'Colisión suave desactivada.');
 			    });
+			    simTrajectoriesInput?.addEventListener('change', () => {
+			      simulationTrajectories = !!simTrajectoriesInput.checked;
+			      if (!simulationTrajectories) clearSimMoveOverlays();
+			      setStatus(simulationTrajectories ? 'Trayectorias activadas.' : 'Trayectorias desactivadas.');
+			    });
 			    simSpeedSelect?.addEventListener('change', () => {
 			      const val = Number(simSpeedSelect.value);
 			      simulationSpeed = Number.isFinite(val) ? clamp(val, 0.5, 2) : 1.0;
@@ -3131,6 +3302,35 @@
 			      const idx = Number(btn.dataset.simStepIndex);
 			      if (!Number.isFinite(idx)) return;
 			      void selectSimulationStep(idx);
+			    });
+			    simStepsList?.addEventListener('dragstart', (event) => {
+			      const btn = event.target.closest('button[data-sim-step-index]');
+			      if (!btn) return;
+			      const idx = safeText(btn.dataset.simStepIndex);
+			      event.dataTransfer?.setData('text/plain', idx);
+			      if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+			      btn.classList.add('is-dragging');
+			    });
+			    simStepsList?.addEventListener('dragend', (event) => {
+			      const btn = event.target.closest('button[data-sim-step-index]');
+			      if (!btn) return;
+			      btn.classList.remove('is-dragging');
+			    });
+			    simStepsList?.addEventListener('dragover', (event) => {
+			      if (!event.dataTransfer) return;
+			      event.preventDefault();
+			      event.dataTransfer.dropEffect = 'move';
+			    });
+			    simStepsList?.addEventListener('drop', (event) => {
+			      event.preventDefault();
+			      const raw = safeText(event.dataTransfer?.getData('text/plain'));
+			      const from = Number(raw);
+			      if (!Number.isFinite(from)) return;
+			      const targetBtn = event.target.closest('button[data-sim-step-index]');
+			      if (!targetBtn) return;
+			      const to = Number(safeText(targetBtn.dataset.simStepIndex));
+			      if (!Number.isFinite(to)) return;
+			      reorderSimulationSteps(from, to);
 			    });
 
 			    const findObjectByLayerUid = (uid) => (canvas.getObjects() || []).find((obj) => safeText(obj?.data?.layer_uid) === safeText(uid));
