@@ -764,6 +764,45 @@
 	        align-items: center;
 	        justify-content: space-between;
 	      }
+	      .sim-steps {
+	        margin-top: 0.75rem;
+	        display: grid;
+	        gap: 0.5rem;
+	      }
+	      .sim-step {
+	        width: 100%;
+	        display: flex;
+	        align-items: center;
+	        justify-content: space-between;
+	        gap: 10px;
+	        padding: 10px 12px;
+	        border-radius: 12px;
+	        border: 1px solid rgba(255,255,255,0.10);
+	        background: rgba(255,255,255,0.04);
+	        color: rgba(248,250,252,0.92);
+	        font-weight: 800;
+	        letter-spacing: 0.02em;
+	        text-transform: none;
+	        cursor: pointer;
+	      }
+	      .sim-step:hover {
+	        background: rgba(255,255,255,0.07);
+	      }
+	      .sim-step.is-active {
+	        border-color: rgba(250, 204, 21, 0.42);
+	        background: rgba(250, 204, 21, 0.10);
+	      }
+	      .sim-step strong {
+	        display: block;
+	        font-size: 0.86rem;
+	        letter-spacing: 0.02em;
+	      }
+	      .sim-step span {
+	        font-size: 0.72rem;
+	        letter-spacing: 0.10em;
+	        opacity: 0.75;
+	        text-transform: uppercase;
+	      }
 	      .icon-btn.is-simulating {
 	        background: rgba(244,180,0,0.12);
 	        border-color: rgba(244,180,0,0.42);
@@ -2187,7 +2226,11 @@
 				                        <div class="sim-controls">
 				                          <button type="button" class="button primary" id="task-sim-toggle">Entrar en simulación</button>
 				                          <button type="button" class="button" id="task-sim-reset" hidden>Resetear</button>
+				                          <button type="button" class="button" id="task-sim-capture" hidden>Capturar paso</button>
+				                          <button type="button" class="button" id="task-sim-play" hidden>Reproducir</button>
+				                          <button type="button" class="button danger" id="task-sim-remove" hidden>Eliminar paso</button>
 				                        </div>
+				                        <div class="sim-steps" id="task-sim-steps" hidden></div>
 				                      </div>
 				                    </div>
 				                    <div class="pattern-popover" id="task-pattern-popover" hidden>

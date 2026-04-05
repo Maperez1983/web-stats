@@ -631,6 +631,10 @@
 			    const simCloseBtn = document.getElementById('task-sim-close');
 			    const simToggleBtn = document.getElementById('task-sim-toggle');
 			    const simResetBtn = document.getElementById('task-sim-reset');
+			    const simCaptureBtn = document.getElementById('task-sim-capture');
+			    const simPlayBtn = document.getElementById('task-sim-play');
+			    const simRemoveBtn = document.getElementById('task-sim-remove');
+			    const simStepsList = document.getElementById('task-sim-steps');
 			    const patternPopover = document.getElementById('task-pattern-popover');
 			    const patternCloseBtn = document.getElementById('task-pattern-close');
 		    const layersBtn = document.getElementById('task-layers-btn');
@@ -1216,11 +1220,15 @@
 
 			    let history = [];
 		      let historyIndex = -1;
-				    let pendingFactory = null;
-				    let pendingKind = '';
-				    let isSimulating = false;
-				    let simulationBaselineSnapshot = null;
-				    const lastPlacedByKind = new Map();
+					    let pendingFactory = null;
+					    let pendingKind = '';
+					    let isSimulating = false;
+					    let simulationBaselineSnapshot = null;
+					    let simulationSteps = [];
+					    let simulationActiveIndex = -1;
+					    let simulationPlaying = false;
+					    let simulationPlayTimer = null;
+					    const lastPlacedByKind = new Map();
 				    let clipboardObject = null;
 				    let pasteOffset = 0;
 			    let layerUidCounter = 1;
@@ -2512,16 +2520,21 @@
 			        try { syncStepInputs(); } catch (error) { /* ignore */ }
 			      }
 			    };
-			    const syncSimUi = () => {
-			      document.body.classList.toggle('is-simulating', !!isSimulating);
-			      simBtn?.classList.toggle('is-simulating', !!isSimulating);
-			      if (simToggleBtn) {
-			        simToggleBtn.textContent = isSimulating ? 'Salir de simulación' : 'Entrar en simulación';
-			        simToggleBtn.classList.toggle('danger', !!isSimulating);
-			        simToggleBtn.classList.toggle('primary', !isSimulating);
-			      }
-			      if (simResetBtn) simResetBtn.hidden = !isSimulating;
-			    };
+				    const syncSimUi = () => {
+				      document.body.classList.toggle('is-simulating', !!isSimulating);
+				      simBtn?.classList.toggle('is-simulating', !!isSimulating);
+				      if (simToggleBtn) {
+				        simToggleBtn.textContent = isSimulating ? 'Salir de simulación' : 'Entrar en simulación';
+				        simToggleBtn.classList.toggle('danger', !!isSimulating);
+				        simToggleBtn.classList.toggle('primary', !isSimulating);
+				      }
+				      if (simResetBtn) simResetBtn.hidden = !isSimulating;
+				      if (simCaptureBtn) simCaptureBtn.hidden = !isSimulating;
+				      if (simPlayBtn) simPlayBtn.hidden = !isSimulating;
+				      if (simRemoveBtn) simRemoveBtn.hidden = !isSimulating;
+				      if (simStepsList) simStepsList.hidden = !isSimulating;
+				      if (simPlayBtn) simPlayBtn.textContent = simulationPlaying ? 'Parar' : 'Reproducir';
+				    };
 			    const setSimPopoverOpen = (open) => {
 			      if (!simPopover) return;
 			      simPopover.hidden = !open;
@@ -2535,10 +2548,125 @@
 				      const { w, h } = worldSize();
 				      applySerializedState(parsed, { sourceWidth: Math.round(w || 0), sourceHeight: Math.round(h || 0) });
 				    };
-				    const setSimulationUiLocked = (locked) => {
-				      const setDisabled = (node) => {
-				        if (!node) return;
-				        if ('disabled' in node) node.disabled = !!locked;
+				    const stopSimulationPlayback = () => {
+				      simulationPlaying = false;
+				      if (simulationPlayTimer) window.clearTimeout(simulationPlayTimer);
+				      simulationPlayTimer = null;
+				      syncSimUi();
+				    };
+				    const renderSimulationSteps = () => {
+				      if (!simStepsList) return;
+				      simStepsList.innerHTML = '';
+				      if (!simulationSteps.length) {
+				        simStepsList.innerHTML = '<div class="timeline-empty">Todavía no hay pasos. Pulsa “Capturar paso”.</div>';
+				        return;
+				      }
+				      simulationSteps.forEach((step, index) => {
+				        const button = document.createElement('button');
+				        button.type = 'button';
+				        button.className = `sim-step${index === simulationActiveIndex ? ' is-active' : ''}`;
+				        button.dataset.simStepIndex = String(index);
+				        const title = safeText(step?.title, `Paso ${index + 1}`);
+				        const duration = clamp(Number(step?.duration) || 3, 1, 20);
+				        button.innerHTML = `
+				          <div>
+				            <strong>${title}</strong>
+				            <span>${duration}s · paso ${index + 1}</span>
+				          </div>
+				          <span>${index === simulationActiveIndex ? 'Viendo' : 'Abrir'}</span>
+				        `;
+				        simStepsList.appendChild(button);
+				      });
+				    };
+				    const seedSimulationStepsFromCurrent = () => {
+				      const { w, h } = worldSize();
+				      simulationSteps = [{
+				        title: 'Inicio',
+				        duration: 3,
+				        canvas_state: serializeCanvasOnly(),
+				        canvas_width: Math.round(w || 0),
+				        canvas_height: Math.round(h || 0),
+				      }];
+				      simulationActiveIndex = 0;
+				      renderSimulationSteps();
+				    };
+				    const selectSimulationStep = async (index, options = {}) => {
+				      const idx = clamp(Number(index) || 0, 0, Math.max(0, simulationSteps.length - 1));
+				      const step = simulationSteps[idx];
+				      if (!step) return;
+				      if (!options.keepPlaying) stopSimulationPlayback();
+				      simulationActiveIndex = idx;
+				      const sourceWidth = parseIntSafe(step.canvas_width) || 0;
+				      const sourceHeight = parseIntSafe(step.canvas_height) || 0;
+				      if (typeof loadCanvasSnapshotAsync === 'function') {
+				        await loadCanvasSnapshotAsync(step.canvas_state, { sourceWidth, sourceHeight });
+				      } else {
+				        loadCanvasSnapshot(step.canvas_state, null, { sourceWidth, sourceHeight });
+				      }
+				      try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+				      try { syncInspector(); } catch (e) { /* ignore */ }
+				      try { renderLayers(); } catch (e) { /* ignore */ }
+				      renderSimulationSteps();
+				    };
+				    const captureSimulationStep = () => {
+				      if (!isSimulating) return;
+				      stopSimulationPlayback();
+				      const { w, h } = worldSize();
+				      const index = simulationSteps.length + 1;
+				      simulationSteps.push({
+				        title: `Paso ${index}`,
+				        duration: 3,
+				        canvas_state: serializeCanvasOnly(),
+				        canvas_width: Math.round(w || 0),
+				        canvas_height: Math.round(h || 0),
+				      });
+				      simulationActiveIndex = simulationSteps.length - 1;
+				      renderSimulationSteps();
+				      setStatus('Paso capturado.');
+				    };
+				    const removeSimulationStep = () => {
+				      if (!isSimulating) return;
+				      if (simulationSteps.length <= 1) {
+				        setStatus('No se puede eliminar el paso inicial.', true);
+				        return;
+				      }
+				      stopSimulationPlayback();
+				      const idx = clamp(simulationActiveIndex, 0, simulationSteps.length - 1);
+				      simulationSteps.splice(idx, 1);
+				      simulationActiveIndex = clamp(idx - 1, 0, simulationSteps.length - 1);
+				      renderSimulationSteps();
+				      void selectSimulationStep(simulationActiveIndex);
+				      setStatus('Paso eliminado.');
+				    };
+				    const playSimulationSteps = async () => {
+				      if (!isSimulating) return;
+				      if (!simulationSteps.length) return;
+				      if (simulationPlaying) {
+				        stopSimulationPlayback();
+				        setStatus('Reproducción detenida.');
+				        return;
+				      }
+				      simulationPlaying = true;
+				      syncSimUi();
+				      const startIndex = clamp(simulationActiveIndex, 0, simulationSteps.length - 1);
+				      let cursor = startIndex;
+				      const advance = async () => {
+				        if (!simulationPlaying) return;
+				        await selectSimulationStep(cursor, { keepPlaying: true });
+				        if (!simulationPlaying) return;
+				        const duration = clamp(Number(simulationSteps[cursor]?.duration) || 3, 1, 20);
+				        simulationPlayTimer = window.setTimeout(() => {
+				          cursor = (cursor + 1) % simulationSteps.length;
+				          void advance();
+				        }, Math.round(duration * 1000));
+				      };
+				      setStatus('Reproduciendo pasos…');
+				      void advance();
+				    };
+					    const setSimulationUiLocked = (locked) => {
+					      const setDisabled = (node) => {
+					        if (!node) return;
+					        if ('disabled' in node) node.disabled = !!locked;
 				        try { node.classList.toggle('is-disabled', !!locked); } catch (error) { /* ignore */ }
 				      };
 				      [presetSelect, surfaceTrigger, orientationToggle, zoomOutButton, zoomInButton, zoomResetButton, stageSizeDownButton, stageSizeUpButton, stageSizeFitButton, pitchFormatInput]
@@ -2546,37 +2674,49 @@
 				      try { (presetButtons || []).forEach(setDisabled); } catch (error) { /* ignore */ }
 				      try { if (pitchResizeHandle) pitchResizeHandle.style.pointerEvents = locked ? 'none' : ''; } catch (error) { /* ignore */ }
 				      try { if (surfaceMenu) surfaceMenu.style.pointerEvents = locked ? 'none' : ''; } catch (error) { /* ignore */ }
-				      try { if (surfacePicker) surfacePicker.style.pointerEvents = locked ? 'none' : ''; } catch (error) { /* ignore */ }
-				      try {
-				        Array.from(toolStrip?.querySelectorAll('button') || []).forEach((btn) => { btn.disabled = !!locked; });
-				        Array.from(playerBank?.querySelectorAll('button') || []).forEach((btn) => { btn.disabled = !!locked; });
-				        Array.from(libraryPane?.querySelectorAll('button') || []).forEach((btn) => { btn.disabled = !!locked; });
-				      } catch (error) { /* ignore */ }
-				      try { if (locked && resourceDetails) resourceDetails.open = false; } catch (error) { /* ignore */ }
-				    };
-				    const enterSimulation = () => {
-				      if (isSimulating) return;
-				      try { simulationBaselineSnapshot = JSON.stringify(serializeState()); } catch (error) { simulationBaselineSnapshot = null; }
-				      clearPendingPlacement();
-				      isSimulating = true;
-				      setSimulationUiLocked(true);
-				      syncSimUi();
-				      setStatus('Modo simulación activado. Mueve elementos: no se guardan cambios.');
-				    };
-				    const exitSimulation = () => {
-				      if (!isSimulating) return;
-				      isSimulating = false;
-				      setSimulationUiLocked(false);
-				      syncSimUi();
-				      restoreSimulationBaseline();
-				      simulationBaselineSnapshot = null;
-				      setStatus('Simulación finalizada. Volviste al editor.');
-				    };
-			    const resetSimulation = () => {
-			      if (!isSimulating) return;
-			      restoreSimulationBaseline();
-			      setStatus('Simulación reseteada.');
-			    };
+					      try { if (surfacePicker) surfacePicker.style.pointerEvents = locked ? 'none' : ''; } catch (error) { /* ignore */ }
+					      try {
+					        Array.from(toolStrip?.querySelectorAll('button') || []).forEach((btn) => { btn.disabled = !!locked; });
+					        Array.from(playerBank?.querySelectorAll('button') || []).forEach((btn) => { btn.disabled = !!locked; });
+					        Array.from(libraryPane?.querySelectorAll('button') || []).forEach((btn) => { btn.disabled = !!locked; });
+					      } catch (error) { /* ignore */ }
+					      try {
+					        [exportPngBtn, exportPngHdBtn, exportJsonBtn, exportStepsBtn].forEach(setDisabled);
+					        Array.from(document.querySelectorAll('[data-print-style]')).forEach(setDisabled);
+					        Array.from(form.querySelectorAll('button[type=\"submit\"], input[type=\"submit\"]')).forEach(setDisabled);
+					      } catch (error) { /* ignore */ }
+					      try { if (locked && resourceDetails) resourceDetails.open = false; } catch (error) { /* ignore */ }
+					    };
+					    const enterSimulation = () => {
+					      if (isSimulating) return;
+					      try { simulationBaselineSnapshot = JSON.stringify(serializeState()); } catch (error) { simulationBaselineSnapshot = null; }
+					      clearPendingPlacement();
+					      stopSimulationPlayback();
+					      isSimulating = true;
+					      setSimulationUiLocked(true);
+					      seedSimulationStepsFromCurrent();
+					      syncSimUi();
+					      setStatus('Modo simulación activado. Mueve elementos: no se guardan cambios.');
+					    };
+					    const exitSimulation = () => {
+					      if (!isSimulating) return;
+					      stopSimulationPlayback();
+					      isSimulating = false;
+					      setSimulationUiLocked(false);
+					      syncSimUi();
+					      restoreSimulationBaseline();
+					      simulationBaselineSnapshot = null;
+					      simulationSteps = [];
+					      simulationActiveIndex = -1;
+					      setStatus('Simulación finalizada. Volviste al editor.');
+					    };
+					    const resetSimulation = () => {
+					      if (!isSimulating) return;
+					      stopSimulationPlayback();
+					      restoreSimulationBaseline();
+					      seedSimulationStepsFromCurrent();
+					      setStatus('Simulación reseteada.');
+					    };
 			    const handleOutsideFloatingMenus = (event) => {
 			      const target = event?.target;
 			      if (commandMenu && !commandMenu.hidden) {
@@ -2662,6 +2802,25 @@
 			    simResetBtn?.addEventListener('click', (event) => {
 			      event.preventDefault();
 			      resetSimulation();
+			    });
+			    simCaptureBtn?.addEventListener('click', (event) => {
+			      event.preventDefault();
+			      captureSimulationStep();
+			    });
+			    simPlayBtn?.addEventListener('click', (event) => {
+			      event.preventDefault();
+			      void playSimulationSteps();
+			    });
+			    simRemoveBtn?.addEventListener('click', (event) => {
+			      event.preventDefault();
+			      removeSimulationStep();
+			    });
+			    simStepsList?.addEventListener('click', (event) => {
+			      const btn = event.target.closest('button[data-sim-step-index]');
+			      if (!btn) return;
+			      const idx = Number(btn.dataset.simStepIndex);
+			      if (!Number.isFinite(idx)) return;
+			      void selectSimulationStep(idx);
 			    });
 
 			    const findObjectByLayerUid = (uid) => (canvas.getObjects() || []).find((obj) => safeText(obj?.data?.layer_uid) === safeText(uid));
@@ -5061,12 +5220,12 @@
 	      livePreviewImg.hidden = false;
 	      livePreviewPlaceholder.hidden = true;
 	    };
-		    const refreshLivePreview = () => {
-		      if (exportInFlight) return;
-		      window.clearTimeout(previewRefreshTimer);
-		      // Importante (rendimiento): `canvas.toDataURL()` puede ser costoso, sobre todo si
-		      // hay imágenes grandes en la pizarra. Lo movemos a "tiempo ocioso" para que no
-		      // meta tirones mientras el usuario sigue editando.
+			    const refreshLivePreview = () => {
+			      if (exportInFlight || isSimulating) return;
+			      window.clearTimeout(previewRefreshTimer);
+			      // Importante (rendimiento): `canvas.toDataURL()` puede ser costoso, sobre todo si
+			      // hay imágenes grandes en la pizarra. Lo movemos a "tiempo ocioso" para que no
+			      // meta tirones mientras el usuario sigue editando.
 		      previewRefreshTimer = window.setTimeout(() => {
 		        runWhenIdle(async () => {
 		          if (previewBuildInFlight) return;
