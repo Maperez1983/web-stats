@@ -2457,15 +2457,23 @@
           duels: 0,
           duelsWon: 0,
         };
+        let subEntries = 0;
+        let subExits = 0;
         liveEventStore.forEach((eventData) => {
           const summary = summarizeLiveEvent(eventData);
           if (summary.shot) totals.shots += 1;
           if (summary.pass) totals.passes += 1;
           if (summary.card) totals.cards += 1;
-          if (summary.sub) totals.subs += 1;
+          if (summary.sub) {
+            const resultText = String(eventData?.result || '').toLowerCase();
+            if (resultText.includes('salida')) subExits += 1;
+            else if (resultText.includes('entrada')) subEntries += 1;
+            else subEntries += 1;
+          }
           if (summary.duel) totals.duels += 1;
           if (summary.duelWon) totals.duelsWon += 1;
         });
+        totals.subs = Math.max(subEntries, subExits);
         const minutes = Math.max(1, elapsedRef.value / 60);
         const pace = totals.actions / minutes;
         const possessionApprox = totals.actions
@@ -3108,6 +3116,7 @@
         historyList,
         liveEventStore,
         refreshLiveStatsHud,
+        persistentClockEl,
         persistentYellowEl,
         persistentRedEl,
         persistentSubsUsedEl,

@@ -10,6 +10,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     historyList,
     liveEventStore,
     refreshLiveStatsHud,
+    persistentClockEl,
     persistentYellowEl,
     persistentRedEl,
     persistentSubsUsedEl,
@@ -65,6 +66,20 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     return [matchFinalizeBtn].filter(Boolean);
   })();
 
+  const computeSubstitutionsCount = () => {
+    const rows = quickHistoryState?.subs || [];
+    let entries = 0;
+    let exits = 0;
+    let other = 0;
+    rows.forEach((row) => {
+      const text = String(row || '').toLowerCase();
+      if (text.includes('entrada')) entries += 1;
+      else if (text.includes('salida')) exits += 1;
+      else other += 1;
+    });
+    return Math.max(entries + other, exits);
+  };
+
   const quickCounters = {
     amarilla: document.getElementById('yellow-count'),
     roja: document.getElementById('red-count'),
@@ -117,6 +132,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
   };
 
   const refreshStatusCounters = () => {
+    quickStats.subs = computeSubstitutionsCount();
     if (statusCounters.amarilla) statusCounters.amarilla.textContent = quickStats.amarilla;
     if (persistentYellowEl) persistentYellowEl.textContent = quickStats.amarilla;
     if (statusCounters.roja) statusCounters.roja.textContent = quickStats.roja;
@@ -126,6 +142,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     if (statusCounters.subsLeft) statusCounters.subsLeft.textContent = Math.max(0, MAX_SUBSTITUTIONS - quickStats.subs);
     if (statusCounters.cornerFor) statusCounters.cornerFor.textContent = quickStats.corner_for;
     if (statusCounters.cornerAgainst) statusCounters.cornerAgainst.textContent = quickStats.corner_against;
+    if (quickCounters.subs) quickCounters.subs.textContent = String(quickStats.subs);
     emitSummaryChange();
   };
 
@@ -185,9 +202,11 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
         : dropKey === 'corner_against'
         ? 'corner_against'
         : 'subs';
-    quickStats[counterKey] += 1;
-    const counterEl = quickCounters[counterKey];
-    if (counterEl) counterEl.textContent = quickStats[counterKey];
+    if (counterKey !== 'subs') {
+      quickStats[counterKey] += 1;
+      const counterEl = quickCounters[counterKey];
+      if (counterEl) counterEl.textContent = quickStats[counterKey];
+    }
     refreshStatusCounters();
   };
 
@@ -251,8 +270,8 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     const initialSubHistory = JSON.parse(document.getElementById('substitution-history-data')?.textContent || '[]');
     if (Array.isArray(initialSubHistory) && initialSubHistory.length) {
       quickHistoryState.subs = initialSubHistory.map((value) => String(value || '').trim()).filter(Boolean);
-      if (quickCounters.subs) quickCounters.subs.textContent = quickHistoryState.subs.length;
-      quickStats.subs = quickHistoryState.subs.length;
+      quickStats.subs = computeSubstitutionsCount();
+      if (quickCounters.subs) quickCounters.subs.textContent = String(quickStats.subs);
       renderQuickHistoryPreview('subs');
       refreshStatusCounters();
     }
@@ -272,6 +291,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
   const getCurrentMatchMinute = () => Math.floor(elapsedRef.value / 60);
   const updateClockDisplay = () => {
     if (matchClockDisplay) matchClockDisplay.textContent = formatClock(elapsedRef.value);
+    if (persistentClockEl) persistentClockEl.textContent = formatClock(elapsedRef.value);
     syncAutoFields();
     refreshLiveStatsHud();
     emitSummaryChange();
