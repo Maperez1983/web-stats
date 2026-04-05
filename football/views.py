@@ -5087,8 +5087,30 @@ def dashboard_data(request):
 
 @ensure_csrf_cookie
 def dashboard_page(request):
+    host = str(request.get_host() or '').split(':', 1)[0].strip().lower()
+    app_hosts = [
+        h.strip().lower()
+        for h in (os.getenv('APP_HOSTS') or 'app.segundajugada.es').split(',')
+        if h.strip()
+    ]
+    landing_hosts = [
+        h.strip().lower()
+        for h in (os.getenv('LANDING_HOSTS') or 'segundajugada.es,www.segundajugada.es').split(',')
+        if h.strip()
+    ]
+    # Separación de dominios:
+    # - `segundajugada.es` muestra siempre la landing (aunque haya sesión iniciada)
+    # - `app.segundajugada.es` entra a la app (si no hay sesión, manda al login)
+    if host in landing_hosts:
+        return product_landing_page(request)
     if not request.user.is_authenticated:
-        # Dominio público: la home funciona como landing comercial cuando no hay sesión.
+        if host in app_hosts or host.startswith('app.'):
+            login_url = reverse('login')
+            next_path = request.get_full_path() or '/'
+            if next_path and next_path != '/':
+                return redirect(f'{login_url}?next={quote(next_path)}')
+            return redirect(login_url)
+        # Dominio público (o Render): la home funciona como landing comercial cuando no hay sesión.
         return product_landing_page(request)
     current_role = _get_user_role(request.user)
     # Compatibilidad: usuarios legacy sin AppUserRole no deben caer como "player" por defecto,
