@@ -225,7 +225,13 @@ def get_previous_match(primary_team, reference_match=None):
 
 
 def confirmed_events_queryset():
-    return MatchEvent.objects.exclude(system='touch-field')
+    # "touch-field" son eventos provisionales creados desde el registro en vivo.
+    # En la práctica el usuario espera que cuenten ya en los KPI (y se deduplican al guardar),
+    # así que los incluimos SOLO si vienen del registro de acciones.
+    return MatchEvent.objects.filter(
+        Q(system='touch-field', source_file='registro-acciones')
+        | ~Q(system='touch-field')
+    )
 
 
 def get_sanctioned_player_ids_from_previous_round(primary_team, reference_match=None):

@@ -18653,15 +18653,16 @@ def analysis_page(request):
                 team_url = team.preferente_url or ''
         if form_action == 'analyze':
             try:
-                if not raw_text and team and not team_url:
-                    # Si existe plantilla en caché (por sincronización previa), usarla y evitar llamadas externas.
+                def _load_cached_roster(candidate_team):
+                    if not candidate_team:
+                        return None, ''
                     try:
                         cache_days = max(1, int(os.getenv('RIVAL_ROSTER_CACHE_DAYS', '14') or '14'))
                     except Exception:
                         cache_days = 14
                     threshold = timezone.now() - timedelta(days=cache_days)
                     snapshot = (
-                        TeamRosterSnapshot.objects.filter(team=team)
+                        TeamRosterSnapshot.objects.filter(team=candidate_team)
                         .order_by('-updated_at', '-id')
                         .first()
                     )
@@ -18672,8 +18673,15 @@ def analysis_page(request):
                         and isinstance(snapshot.roster_payload, list)
                         and snapshot.roster_payload
                     ):
-                        roster = snapshot.roster_payload
-                        roster_source = f'cache:{snapshot.provider}'
+                        return snapshot.roster_payload, f'cache:{snapshot.provider}'
+                    return None, ''
+
+                if not raw_text and team and not team_url:
+                    # Si existe plantilla en caché (por sincronización previa), usarla y evitar llamadas externas.
+                    cached_roster, cached_source = _load_cached_roster(team)
+                    if cached_roster:
+                        roster = cached_roster
+                        roster_source = cached_source
                 if raw_text:
                     roster = parse_preferente_roster(raw_text)
                     roster_source = 'manual:raw_text'
@@ -18730,6 +18738,16 @@ def analysis_page(request):
                             roster = fetch_preferente_team_roster(team_url)
                             if roster:
                                 roster_source = 'lapreferente:live'
+
+                # Si el fetch externo falla (403, token, etc.), intenta siempre usar la caché del equipo.
+                if not raw_text and team and not roster:
+                    cached_roster, cached_source = _load_cached_roster(team)
+                    if cached_roster:
+                        roster = cached_roster
+                        roster_source = cached_source
+                        # Si veníamos de un fallo externo, dejamos el error como aviso suave.
+                        if error:
+                            error = f'{error} (usando plantilla en caché)'
 
                 if not raw_text and not roster and not team_url:
                     error = 'No se ha encontrado la plantilla del rival. Pega la URL de Universo RFAF/LaPreferente o el HTML/texto.'
@@ -18789,7 +18807,35 @@ def analysis_page(request):
             team_id = str(auto_team.id)
             auto_team_name = auto_team.name
             team_url = (auto_team.preferente_url or '').strip()
-            if not team_url and str(getattr(auto_team, 'external_id', '') or '').strip().isdigit():
+            # Prioriza siempre la caché de plantilla si existe (evita 403/bloqueos externos).
+            try:
+                cache_days = max(1, int(os.getenv('RIVAL_ROSTER_CACHE_DAYS', '14') or '14'))
+            except Exception:
+                cache_days = 14
+            try:
+                threshold = timezone.now() - timedelta(days=cache_days)
+                snapshot = (
+                    TeamRosterSnapshot.objects.filter(team=auto_team)
+                    .order_by('-updated_at', '-id')
+                    .first()
+                )
+                if (
+                    snapshot
+                    and snapshot.updated_at
+                    and snapshot.updated_at >= threshold
+                    and isinstance(snapshot.roster_payload, list)
+                    and snapshot.roster_payload
+                ):
+                    roster = snapshot.roster_payload
+                    roster_source = f'cache:{snapshot.provider}'
+                    probable_eleven = compute_probable_eleven(roster)
+                    insights = build_rival_insights(roster)
+                    formation = compute_formation(probable_eleven)
+                    lineup = assign_lineup_slots(probable_eleven, formation)
+                    auto_loaded = True
+            except Exception:
+                pass
+            if not roster and not team_url and str(getattr(auto_team, 'external_id', '') or '').strip().isdigit():
                 try:
                     roster = fetch_universo_team_roster(str(auto_team.external_id or '').strip())
                     probable_eleven = compute_probable_eleven(roster)
@@ -18810,7 +18856,7 @@ def analysis_page(request):
                         auto_team.save(update_fields=['preferente_url'])
                     except Exception:
                         pass
-            if team_url:
+            if team_url and not roster:
                 try:
                     roster = fetch_preferente_team_roster(team_url)
                     probable_eleven = compute_probable_eleven(roster)
