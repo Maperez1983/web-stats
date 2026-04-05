@@ -628,6 +628,9 @@
 		    const commandMenu = document.getElementById('task-command-menu');
 		    const patternPopover = document.getElementById('task-pattern-popover');
 		    const patternCloseBtn = document.getElementById('task-pattern-close');
+		    const layersBtn = document.getElementById('task-layers-btn');
+		    const layersPopover = document.getElementById('task-layers-popover');
+		    const layersCloseBtn = document.getElementById('task-layers-close');
 		    const patternTitle = document.getElementById('task-pattern-title');
 		    const patternFieldsLine = document.getElementById('task-pattern-fields-line');
 		    const patternFieldsGrid = document.getElementById('task-pattern-fields-grid');
@@ -643,6 +646,7 @@
 		    const patternApplyBtn = document.getElementById('task-pattern-apply');
 		    const patternCancelBtn = document.getElementById('task-pattern-cancel');
 		    const layersList = document.getElementById('task-layers-list');
+		    const layersListPopover = document.getElementById('task-layers-list-popover');
 		    const timelineList = document.getElementById('task-timeline-list');
 	    const stepTitleInput = document.getElementById('task-step-title');
 	    const stepDurationInput = document.getElementById('task-step-duration');
@@ -1752,7 +1756,8 @@
 	      return RESOURCE_LABELS[kind] || 'el elemento';
 	    };
 	    const renderLayers = () => {
-	      if (!layersList) return;
+	      const layerTargets = [layersList, layersListPopover].filter(Boolean);
+	      if (!layerTargets.length) return;
 	      const objects = (canvas.getObjects() || []).filter((obj) => obj && !obj?.data?.base);
 	      const used = new Set();
 	      objects.forEach((obj) => {
@@ -1772,70 +1777,74 @@
 	      })();
 	      const activeUids = new Set(activeObjects.map((obj) => safeText(obj?.data?.layer_uid)).filter(Boolean));
 
-	      layersList.textContent = '';
 	      const ordered = objects.slice().reverse();
-	      ordered.forEach((obj) => {
-	        const uid = safeText(obj?.data?.layer_uid);
-	        const kind = safeText(obj?.data?.kind);
-	        const locked = !!obj?.data?.locked;
-	        const visible = obj?.visible !== false;
+	      const renderInto = (container) => {
+	        if (!container) return;
+	        container.textContent = '';
+	        ordered.forEach((obj) => {
+	          const uid = safeText(obj?.data?.layer_uid);
+	          const kind = safeText(obj?.data?.kind);
+	          const locked = !!obj?.data?.locked;
+	          const visible = obj?.visible !== false;
 
-		        let title = objectLabel(obj);
-		        let subtitle = '';
-		        if (kind === 'token') {
-		          const tokenKind = safeText(obj?.data?.token_kind).replace(/-/g, '_');
-		          title = RESOURCE_LABELS[tokenKind] || 'Jugador';
-		          subtitle = safeText(obj?.data?.playerName);
-		        } else if (kind === 'text' && typeof obj.text === 'string') {
-		          title = obj.text.trim().slice(0, 40) || 'Texto';
-		        }
-		        const customName = safeText(obj?.data?.layer_name);
-		        if (customName) {
-		          subtitle = subtitle ? `${subtitle} · ${title}` : title;
-		          title = customName;
-		        }
-	        const flags = [];
-	        if (!visible) flags.push('Oculto');
-	        if (locked) flags.push('Bloqueado');
-	        if (flags.length) {
-	          subtitle = subtitle ? `${subtitle} · ${flags.join(' · ')}` : flags.join(' · ');
-	        }
+	          let title = objectLabel(obj);
+	          let subtitle = '';
+	          if (kind === 'token') {
+	            const tokenKind = safeText(obj?.data?.token_kind).replace(/-/g, '_');
+	            title = RESOURCE_LABELS[tokenKind] || 'Jugador';
+	            subtitle = safeText(obj?.data?.playerName);
+	          } else if (kind === 'text' && typeof obj.text === 'string') {
+	            title = obj.text.trim().slice(0, 40) || 'Texto';
+	          }
+	          const customName = safeText(obj?.data?.layer_name);
+	          if (customName) {
+	            subtitle = subtitle ? `${subtitle} · ${title}` : title;
+	            title = customName;
+	          }
+	          const flags = [];
+	          if (!visible) flags.push('Oculto');
+	          if (locked) flags.push('Bloqueado');
+	          if (flags.length) {
+	            subtitle = subtitle ? `${subtitle} · ${flags.join(' · ')}` : flags.join(' · ');
+	          }
 
-	        const row = document.createElement('div');
-	        row.className = 'layer-row';
-	        if (uid && activeUids.has(uid)) row.classList.add('is-active');
-	        row.dataset.layerUid = uid;
+	          const row = document.createElement('div');
+	          row.className = 'layer-row';
+	          if (uid && activeUids.has(uid)) row.classList.add('is-active');
+	          row.dataset.layerUid = uid;
 
-	        const titleBox = document.createElement('div');
-	        titleBox.className = 'layer-title';
-	        const strong = document.createElement('strong');
-	        strong.textContent = title;
-	        titleBox.appendChild(strong);
-	        const small = document.createElement('small');
-	        small.textContent = subtitle || (RESOURCE_LABELS[safeText(kind).replace(/-/g, '_')] || safeText(kind));
-	        titleBox.appendChild(small);
-	        row.appendChild(titleBox);
+	          const titleBox = document.createElement('div');
+	          titleBox.className = 'layer-title';
+	          const strong = document.createElement('strong');
+	          strong.textContent = title;
+	          titleBox.appendChild(strong);
+	          const small = document.createElement('small');
+	          small.textContent = subtitle || (RESOURCE_LABELS[safeText(kind).replace(/-/g, '_')] || safeText(kind));
+	          titleBox.appendChild(small);
+	          row.appendChild(titleBox);
 
-	        const actions = document.createElement('div');
-	        actions.className = 'layer-actions';
-	        const mkBtn = (action, label, aria) => {
-	          const btn = document.createElement('button');
-	          btn.type = 'button';
-	          btn.dataset.layerAction = action;
-	          btn.dataset.layerUid = uid;
-	          btn.textContent = label;
-	          btn.title = aria;
-	          btn.setAttribute('aria-label', aria);
-	          return btn;
-	        };
-	        actions.appendChild(mkBtn('up', '↑', 'Subir capa'));
-	        actions.appendChild(mkBtn('down', '↓', 'Bajar capa'));
-	        actions.appendChild(mkBtn('visible', visible ? '👁' : '🙈', visible ? 'Ocultar' : 'Mostrar'));
-	        actions.appendChild(mkBtn('lock', locked ? '🔒' : '🔓', locked ? 'Desbloquear' : 'Bloquear'));
-	        row.appendChild(actions);
+	          const actions = document.createElement('div');
+	          actions.className = 'layer-actions';
+	          const mkBtn = (action, label, aria) => {
+	            const btn = document.createElement('button');
+	            btn.type = 'button';
+	            btn.dataset.layerAction = action;
+	            btn.dataset.layerUid = uid;
+	            btn.textContent = label;
+	            btn.title = aria;
+	            btn.setAttribute('aria-label', aria);
+	            return btn;
+	          };
+	          actions.appendChild(mkBtn('up', '↑', 'Subir capa'));
+	          actions.appendChild(mkBtn('down', '↓', 'Bajar capa'));
+	          actions.appendChild(mkBtn('visible', visible ? '👁' : '🙈', visible ? 'Ocultar' : 'Mostrar'));
+	          actions.appendChild(mkBtn('lock', locked ? '🔒' : '🔓', locked ? 'Desbloquear' : 'Bloquear'));
+	          row.appendChild(actions);
 
-	        layersList.appendChild(row);
-	      });
+	          container.appendChild(row);
+	        });
+	      };
+	      layerTargets.forEach(renderInto);
 	    };
 	    const syncInspector = () => {
 	      if (!selectionToolbar || !selectionSummary || !scaleXInput || !scaleYInput || !rotationInput || !colorInput) return;
@@ -2471,6 +2480,14 @@
 		      if (!element || typeof element.closest !== 'function') return null;
 		      return element.closest(selector);
 		    };
+		    const setLayersPopoverOpen = (open) => {
+		      if (!layersPopover) return;
+		      layersPopover.hidden = !open;
+		      if (open) {
+		        // Asegura que el contenido está actualizado al abrir.
+		        try { renderLayers(); } catch (error) { /* ignore */ }
+		      }
+		    };
 		    const handleOutsideFloatingMenus = (event) => {
 		      const target = event?.target;
 		      if (commandMenu && !commandMenu.hidden) {
@@ -2480,6 +2497,10 @@
 		      if (patternPopover && !patternPopover.hidden) {
 		        const inside = resolveClosest(target, '#task-command-bar') || resolveClosest(target, '#task-pattern-popover');
 		        if (!inside) closePatternPopover();
+		      }
+		      if (layersPopover && !layersPopover.hidden) {
+		        const inside = resolveClosest(target, '#task-command-bar') || resolveClosest(target, '#task-layers-popover');
+		        if (!inside) setLayersPopoverOpen(false);
 		      }
 		    };
 		    // Cerrar menús aunque Fabric/otros handlers hagan stopPropagation.
@@ -2492,7 +2513,20 @@
 		      if (key !== 'escape') return;
 		      if (commandMenu && !commandMenu.hidden) setCommandMenuOpen(false);
 		      if (patternPopover && !patternPopover.hidden) closePatternPopover();
+		      if (layersPopover && !layersPopover.hidden) setLayersPopoverOpen(false);
 		    }, true);
+
+		    layersBtn?.addEventListener('click', (event) => {
+		      event.preventDefault();
+		      // Cierra otros overlays para no apilar menús.
+		      try { setCommandMenuOpen(false); } catch (error) { /* ignore */ }
+		      try { closePatternPopover(); } catch (error) { /* ignore */ }
+		      setLayersPopoverOpen(!!layersPopover?.hidden);
+		    });
+		    layersCloseBtn?.addEventListener('click', (event) => {
+		      event.preventDefault();
+		      setLayersPopoverOpen(false);
+		    });
 
 		    const findObjectByLayerUid = (uid) => (canvas.getObjects() || []).find((obj) => safeText(obj?.data?.layer_uid) === safeText(uid));
 		    const commitLayerChange = (message) => {
@@ -2504,87 +2538,92 @@
 		      renderLayers();
 		      if (message) setStatus(message);
 		    };
-		    layersList?.addEventListener('click', (event) => {
-		      const actionBtn = event.target.closest('button[data-layer-action]');
-		      const targetUid = safeText(actionBtn?.dataset?.layerUid || event.target.closest('.layer-row')?.dataset?.layerUid);
-		      if (!targetUid) return;
-		      const obj = findObjectByLayerUid(targetUid);
-		      if (!obj) {
-		        renderLayers();
-		        return;
-		      }
-
-			      if (!actionBtn) {
-			        if (obj.visible === false) {
-			          obj.visible = true;
-			          canvas.setActiveObject(obj);
-			          commitLayerChange('Elemento mostrado.');
-			          return;
-			        }
-			        // Si es una figura de fondo, al seleccionarla desde "Capas" permitimos edición temporal.
-			        if (isBackgroundShape(obj)) {
-			          disableBackgroundEditExcept(obj);
-			          setBackgroundEditMode(obj, true, { force: true });
-			        } else {
-			          disableBackgroundEditExcept(null);
-			        }
-			        canvas.setActiveObject(obj);
-			        canvas.requestRenderAll();
-			        syncInspector();
-			        renderLayers();
-			        if (isBackgroundShape(obj)) setStatus('Fondo en modo edición (desde Capas). Pulsa Esc para volver a modo “pasar a través”.');
-			        return;
-			      }
-
-		      const action = safeText(actionBtn.dataset.layerAction);
-		      if (!action) return;
-		      if (action === 'up') {
-		        canvas.bringForward(obj);
-		        commitLayerChange('Capa subida.');
-		        return;
-		      }
-		      if (action === 'down') {
-		        canvas.sendBackwards(obj);
-		        commitLayerChange('Capa bajada.');
-		        return;
-		      }
-		      if (action === 'visible') {
-		        const next = obj.visible === false;
-		        obj.visible = next;
-		        if (!next) {
-		          const active = canvas.getActiveObject();
-		          if (active === obj) canvas.discardActiveObject();
+		    const bindLayersList = (listEl) => {
+		      if (!listEl) return;
+		      listEl.addEventListener('click', (event) => {
+		        const actionBtn = event.target.closest('button[data-layer-action]');
+		        const targetUid = safeText(actionBtn?.dataset?.layerUid || event.target.closest('.layer-row')?.dataset?.layerUid);
+		        if (!targetUid) return;
+		        const obj = findObjectByLayerUid(targetUid);
+		        if (!obj) {
+		          renderLayers();
+		          return;
 		        }
-		        commitLayerChange(next ? 'Elemento mostrado.' : 'Elemento oculto.');
-		        return;
-		      }
-			      if (action === 'lock') {
-			        obj.data = obj.data || {};
-			        obj.data.locked = !obj.data.locked;
-			        if (obj.data.locked) obj.data.background_edit = false;
-			        normalizeEditableObject(obj);
-			        obj.setCoords();
-			        commitLayerChange(obj.data.locked ? 'Elemento bloqueado.' : 'Elemento desbloqueado.');
-			      }
-		    });
-		    layersList?.addEventListener('dblclick', (event) => {
-		      const targetUid = safeText(event.target.closest('.layer-row')?.dataset?.layerUid);
-		      if (!targetUid) return;
-		      const obj = findObjectByLayerUid(targetUid);
-		      if (!obj) return;
-		      obj.data = obj.data || {};
-		      const current = safeText(obj.data.layer_name) || objectLabel(obj);
-		      const next = window.prompt('Nombre de capa:', current);
-		      if (next === null) return;
-		      const cleaned = safeText(next).slice(0, 60);
-		      if (!cleaned) {
-		        delete obj.data.layer_name;
-		        commitLayerChange('Nombre eliminado.');
-		        return;
-		      }
-		      obj.data.layer_name = cleaned;
-		      commitLayerChange('Nombre actualizado.');
-		    });
+
+		        if (!actionBtn) {
+		          if (obj.visible === false) {
+		            obj.visible = true;
+		            canvas.setActiveObject(obj);
+		            commitLayerChange('Elemento mostrado.');
+		            return;
+		          }
+		          // Si es una figura de fondo, al seleccionarla desde "Capas" permitimos edición temporal.
+		          if (isBackgroundShape(obj)) {
+		            disableBackgroundEditExcept(obj);
+		            setBackgroundEditMode(obj, true, { force: true });
+		          } else {
+		            disableBackgroundEditExcept(null);
+		          }
+		          canvas.setActiveObject(obj);
+		          canvas.requestRenderAll();
+		          syncInspector();
+		          renderLayers();
+		          if (isBackgroundShape(obj)) setStatus('Fondo en modo edición (desde Capas). Pulsa Esc para volver a modo “pasar a través”.');
+		          return;
+		        }
+
+		        const action = safeText(actionBtn.dataset.layerAction);
+		        if (!action) return;
+		        if (action === 'up') {
+		          canvas.bringForward(obj);
+		          commitLayerChange('Capa subida.');
+		          return;
+		        }
+		        if (action === 'down') {
+		          canvas.sendBackwards(obj);
+		          commitLayerChange('Capa bajada.');
+		          return;
+		        }
+		        if (action === 'visible') {
+		          const next = obj.visible === false;
+		          obj.visible = next;
+		          if (!next) {
+		            const active = canvas.getActiveObject();
+		            if (active === obj) canvas.discardActiveObject();
+		          }
+		          commitLayerChange(next ? 'Elemento mostrado.' : 'Elemento oculto.');
+		          return;
+		        }
+		        if (action === 'lock') {
+		          obj.data = obj.data || {};
+		          obj.data.locked = !obj.data.locked;
+		          if (obj.data.locked) obj.data.background_edit = false;
+		          normalizeEditableObject(obj);
+		          obj.setCoords();
+		          commitLayerChange(obj.data.locked ? 'Elemento bloqueado.' : 'Elemento desbloqueado.');
+		        }
+		      });
+		      listEl.addEventListener('dblclick', (event) => {
+		        const targetUid = safeText(event.target.closest('.layer-row')?.dataset?.layerUid);
+		        if (!targetUid) return;
+		        const obj = findObjectByLayerUid(targetUid);
+		        if (!obj) return;
+		        obj.data = obj.data || {};
+		        const current = safeText(obj.data.layer_name) || objectLabel(obj);
+		        const next = window.prompt('Nombre de capa:', current);
+		        if (next === null) return;
+		        const cleaned = safeText(next).slice(0, 60);
+		        if (!cleaned) {
+		          delete obj.data.layer_name;
+		          commitLayerChange('Nombre eliminado.');
+		          return;
+		        }
+		        obj.data.layer_name = cleaned;
+		        commitLayerChange('Nombre actualizado.');
+		      });
+		    };
+		    bindLayersList(layersList);
+		    bindLayersList(layersListPopover);
 
 		    const fitCanvas = (preserveObjects = false) => {
 		      const previousWidth = canvas.getWidth() || 0;
