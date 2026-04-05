@@ -637,6 +637,9 @@
 			    const simPrevBtn = document.getElementById('task-sim-prev');
 			    const simNextBtn = document.getElementById('task-sim-next');
 			    const simAutoCaptureInput = document.getElementById('task-sim-autocapture');
+			    const simMagnetsInput = document.getElementById('task-sim-magnets');
+			    const simGuidesInput = document.getElementById('task-sim-guides');
+			    const simCollisionInput = document.getElementById('task-sim-collision');
 			    const simSpeedSelect = document.getElementById('task-sim-speed');
 			    const simStepsList = document.getElementById('task-sim-steps');
 			    const simMetaPanel = document.getElementById('task-sim-meta');
@@ -1240,6 +1243,11 @@
 					    let simulationAutoCapture = false;
 					    let simulationSpeed = 1.0;
 					    let simulationLastAutoCaptureAt = 0;
+					    let simulationMagnets = true;
+					    let simulationGuides = true;
+					    let simulationCollision = false;
+					    let simGuideX = null;
+					    let simGuideY = null;
 					    const lastPlacedByKind = new Map();
 				    let clipboardObject = null;
 				    let pasteOffset = 0;
@@ -2549,6 +2557,9 @@
 					      if (simNextBtn) simNextBtn.hidden = !isSimulating;
 					      if (simMetaPanel) simMetaPanel.hidden = !isSimulating;
 					      if (simAutoCaptureInput) simAutoCaptureInput.checked = !!simulationAutoCapture;
+					      if (simMagnetsInput) simMagnetsInput.checked = !!simulationMagnets;
+					      if (simGuidesInput) simGuidesInput.checked = !!simulationGuides;
+					      if (simCollisionInput) simCollisionInput.checked = !!simulationCollision;
 					      if (simSpeedSelect) simSpeedSelect.value = String(simulationSpeed);
 					      if (simPlayBtn) simPlayBtn.textContent = simulationPlaying ? 'Parar' : 'Reproducir';
 					    };
@@ -2587,6 +2598,96 @@
 				        }
 				        used.add(safeText(obj?.data?.layer_uid));
 				      });
+				    };
+				    const clearSimGuides = () => {
+				      try { if (simGuideX) canvas.remove(simGuideX); } catch (e) { /* ignore */ }
+				      try { if (simGuideY) canvas.remove(simGuideY); } catch (e) { /* ignore */ }
+				      simGuideX = null;
+				      simGuideY = null;
+				    };
+				    const hideSimGuides = () => {
+				      if (simGuideX) simGuideX.visible = false;
+				      if (simGuideY) simGuideY.visible = false;
+				    };
+				    const ensureSimGuide = (axis) => {
+				      const kind = axis === 'x' ? 'sim-guide-x' : 'sim-guide-y';
+				      const line = new fabric.Line([0, 0, 10, 10], {
+				        stroke: 'rgba(250,204,21,0.82)',
+				        strokeWidth: 2,
+				        strokeDashArray: [10, 8],
+				        selectable: false,
+				        evented: false,
+				        excludeFromExport: true,
+				        opacity: 0.95,
+				        visible: false,
+				        data: { base: true, kind },
+				      });
+				      try { line.strokeUniform = true; } catch (e) { /* ignore */ }
+				      canvas.add(line);
+				      try { canvas.sendToBack(line); } catch (e) { /* ignore */ }
+				      return line;
+				    };
+				    const updateSimGuides = (snapInfo, options = {}) => {
+				      if (!isSimulating || !simulationGuides) {
+				        hideSimGuides();
+				        return;
+				      }
+				      const { w, h } = worldSize();
+				      const showX = !!(snapInfo?.snappedX);
+				      const showY = !!(snapInfo?.snappedY);
+				      if (showX) {
+				        if (!simGuideX) simGuideX = ensureSimGuide('x');
+				        const x = Number(snapInfo?.x) || 0;
+				        simGuideX.set({ x1: x, y1: 0, x2: x, y2: h, visible: true });
+				      } else if (simGuideX) {
+				        simGuideX.visible = false;
+				      }
+				      if (showY) {
+				        if (!simGuideY) simGuideY = ensureSimGuide('y');
+				        const y = Number(snapInfo?.y) || 0;
+				        simGuideY.set({ x1: 0, y1: y, x2: w, y2: y, visible: true });
+				      } else if (simGuideY) {
+				        simGuideY.visible = false;
+				      }
+				      if (options.render !== false) {
+				        try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+				      }
+				    };
+				    const resolveSoftCollision = (target, desiredCenter) => {
+				      if (!isSimulating || !simulationCollision) return desiredCenter;
+				      if (!target || safeText(target?.data?.kind) !== 'token') return desiredCenter;
+				      if (target.type === 'activeSelection') return desiredCenter;
+				      const tokens = (canvas.getObjects?.() || [])
+				        .filter((obj) => obj && obj !== target && safeText(obj?.data?.kind) === 'token' && obj.visible !== false);
+				      if (!tokens.length) return desiredCenter;
+				      const baseX = Number(desiredCenter?.x) || 0;
+				      const baseY = Number(desiredCenter?.y) || 0;
+				      const rA = Math.max(Number(target.getScaledWidth?.() || 0), Number(target.getScaledHeight?.() || 0)) / 2 || 26;
+				      let pushX = 0;
+				      let pushY = 0;
+				      tokens.forEach((other) => {
+				        if (!other?.getCenterPoint) return;
+				        const c = other.getCenterPoint();
+				        const rB = Math.max(Number(other.getScaledWidth?.() || 0), Number(other.getScaledHeight?.() || 0)) / 2 || 26;
+				        const minDist = rA + rB + 4;
+				        const dx = baseX - (Number(c.x) || 0);
+				        const dy = baseY - (Number(c.y) || 0);
+				        const dist = Math.hypot(dx, dy) || 0;
+				        if (dist >= minDist) return;
+				        const overlap = minDist - Math.max(1, dist);
+				        const nx = dist ? (dx / dist) : 1;
+				        const ny = dist ? (dy / dist) : 0;
+				        pushX += nx * overlap;
+				        pushY += ny * overlap;
+				      });
+				      const mag = Math.hypot(pushX, pushY) || 0;
+				      if (mag < 0.5) return desiredCenter;
+				      const cap = 26;
+				      const scale = mag > cap ? (cap / mag) : 1;
+				      const { w, h } = worldSize();
+				      const nextX = clamp(baseX + pushX * scale, rA, Math.max(rA, w - rA));
+				      const nextY = clamp(baseY + pushY * scale, rA, Math.max(rA, h - rA));
+				      return { x: nextX, y: nextY };
 				    };
 				    const lerp = (a, b, t) => (Number(a) || 0) + ((Number(b) || 0) - (Number(a) || 0)) * t;
 				    const easeInOut = (t) => (t < 0.5 ? (2 * t * t) : (1 - Math.pow(-2 * t + 2, 2) / 2));
@@ -2834,9 +2935,13 @@
 				      try { simulationBaselineSnapshot = JSON.stringify(serializeState()); } catch (error) { simulationBaselineSnapshot = null; }
 				      clearPendingPlacement();
 				      stopSimulationPlayback();
+				      clearSimGuides();
 				      simulationAutoCapture = true;
 				      simulationSpeed = 1.0;
 				      simulationLastAutoCaptureAt = 0;
+				      simulationMagnets = true;
+				      simulationGuides = true;
+				      simulationCollision = false;
 				      isSimulating = true;
 				      setSimulationUiLocked(true);
 				      seedSimulationStepsFromCurrent();
@@ -2849,17 +2954,22 @@
 				      isSimulating = false;
 				      setSimulationUiLocked(false);
 				      syncSimUi();
+				      clearSimGuides();
 				      restoreSimulationBaseline();
 				      simulationBaselineSnapshot = null;
 				      simulationSteps = [];
 				      simulationActiveIndex = -1;
 				      simulationAutoCapture = false;
 				      simulationSpeed = 1.0;
+				      simulationMagnets = true;
+				      simulationGuides = true;
+				      simulationCollision = false;
 				      setStatus('Simulación finalizada. Volviste al editor.');
 				    };
 					    const resetSimulation = () => {
 					      if (!isSimulating) return;
 					      stopSimulationPlayback();
+					      clearSimGuides();
 					      restoreSimulationBaseline();
 					      seedSimulationStepsFromCurrent();
 					      setStatus('Simulación reseteada.');
@@ -2975,6 +3085,23 @@
 			    simAutoCaptureInput?.addEventListener('change', () => {
 			      simulationAutoCapture = !!simAutoCaptureInput.checked;
 			      setStatus(simulationAutoCapture ? 'Auto-captura activada.' : 'Auto-captura desactivada.');
+			    });
+			    simMagnetsInput?.addEventListener('change', () => {
+			      simulationMagnets = !!simMagnetsInput.checked;
+			      updateSimGuides(null);
+			      setStatus(simulationMagnets ? 'Imanes activados.' : 'Imanes desactivados.');
+			    });
+			    simGuidesInput?.addEventListener('change', () => {
+			      simulationGuides = !!simGuidesInput.checked;
+			      if (!simulationGuides) {
+			        hideSimGuides();
+			        try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+			      }
+			      setStatus(simulationGuides ? 'Guías activadas.' : 'Guías desactivadas.');
+			    });
+			    simCollisionInput?.addEventListener('change', () => {
+			      simulationCollision = !!simCollisionInput.checked;
+			      setStatus(simulationCollision ? 'Colisión suave activada.' : 'Colisión suave desactivada.');
 			    });
 			    simSpeedSelect?.addEventListener('change', () => {
 			      const val = Number(simSpeedSelect.value);
@@ -5758,6 +5885,7 @@
 			    canvas.on('object:modified', () => {
 			      if (canvas.__loading) return;
 			      if (isSimulating) {
+			        hideSimGuides();
 			        if (simulationAutoCapture && !simulationPlaying) {
 			          const now = Date.now();
 			          if (now - simulationLastAutoCaptureAt >= 450) {
@@ -5795,29 +5923,47 @@
 		      schedulePlayerBankUpdate();
 		      scheduleDraftSave('canvas');
 		    });
-			    canvas.on('object:moving', (event) => {
-		      const target = event?.target;
-		      const rawEvent = event?.e;
-		      if (!target || !rawEvent) return;
-		      const targetCenter = target.getCenterPoint();
-		      const isMod = !!(rawEvent.ctrlKey || rawEvent.metaKey);
-		      const snapGrid = shouldSnapToGridForEvent(rawEvent);
-		      let next = { x: targetCenter.x, y: targetCenter.y };
-		      let didSnap = false;
-		      if (isMod) {
-		        const snapped = snapPointToCenters(next, target, 10);
-		        if (snapped.snappedX || snapped.snappedY) {
-		          next = { x: snapped.x, y: snapped.y };
-		          didSnap = true;
-		        }
-		      } else if (snapGrid) {
-		        next = snapPointToGrid(next);
-		        didSnap = true;
-		      }
-		      if (!didSnap) return;
-		      target.setPositionByOrigin(new fabric.Point(next.x, next.y), 'center', 'center');
-		      target.setCoords();
-		    });
+				    canvas.on('object:moving', (event) => {
+			      const target = event?.target;
+			      const rawEvent = event?.e;
+			      if (!target || !rawEvent) return;
+			      const targetCenter = target.getCenterPoint();
+			      const isMod = !!(rawEvent.ctrlKey || rawEvent.metaKey);
+			      const useMagnets = isMod || (isSimulating && simulationMagnets);
+			      const snapGrid = shouldSnapToGridForEvent(rawEvent);
+			      let next = { x: targetCenter.x, y: targetCenter.y };
+			      let didMove = false;
+			      let snapInfo = null;
+			      if (useMagnets) {
+			        const snapped = snapPointToCenters(next, target, 10);
+			        snapInfo = snapped;
+			        if (snapped.snappedX || snapped.snappedY) {
+			          next = { x: snapped.x, y: snapped.y };
+			          didMove = true;
+			        }
+			      } else if (snapGrid) {
+			        next = snapPointToGrid(next);
+			        didMove = true;
+			      }
+
+			      if (isSimulating) {
+			        if (simulationGuides) updateSimGuides(snapInfo);
+			        else hideSimGuides();
+			        const collided = resolveSoftCollision(target, next);
+			        if (Math.abs((collided.x || 0) - (next.x || 0)) > 0.5 || Math.abs((collided.y || 0) - (next.y || 0)) > 0.5) {
+			          next = collided;
+			          didMove = true;
+			        }
+			        if (!didMove) return;
+			        target.setPositionByOrigin(new fabric.Point(next.x, next.y), 'center', 'center');
+			        target.setCoords();
+			        return;
+			      }
+
+			      if (!didMove) return;
+			      target.setPositionByOrigin(new fabric.Point(next.x, next.y), 'center', 'center');
+			      target.setCoords();
+			    });
 
 	    const buildCompositeCanvas = async (options = {}) => {
 	      const sourceWidth = Math.round(canvas.getWidth());
