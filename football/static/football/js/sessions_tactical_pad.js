@@ -1228,6 +1228,8 @@
 					    let simulationActiveIndex = -1;
 					    let simulationPlaying = false;
 					    let simulationPlayTimer = null;
+					    let simulationAnimToken = 0;
+					    let simulationAnimFrame = null;
 					    const lastPlacedByKind = new Map();
 				    let clipboardObject = null;
 				    let pasteOffset = 0;
@@ -2552,7 +2554,34 @@
 				      simulationPlaying = false;
 				      if (simulationPlayTimer) window.clearTimeout(simulationPlayTimer);
 				      simulationPlayTimer = null;
+				      simulationAnimToken += 1;
+				      if (simulationAnimFrame) {
+				        try { window.cancelAnimationFrame(simulationAnimFrame); } catch (error) { /* ignore */ }
+				        simulationAnimFrame = null;
+				      }
 				      syncSimUi();
+				    };
+				    const ensureLayerUidsOnCanvas = () => {
+				      const objects = (canvas.getObjects?.() || []).filter((obj) => obj && !(obj?.data?.base));
+				      const used = new Set();
+				      objects.forEach((obj) => {
+				        obj.data = obj.data || {};
+				        const current = safeText(obj?.data?.layer_uid);
+				        if (!current || used.has(current)) {
+				          obj.data.layer_uid = `layer_${Date.now()}_${layerUidCounter++}`;
+				        }
+				        used.add(safeText(obj?.data?.layer_uid));
+				      });
+				    };
+				    const lerp = (a, b, t) => (Number(a) || 0) + ((Number(b) || 0) - (Number(a) || 0)) * t;
+				    const easeInOut = (t) => (t < 0.5 ? (2 * t * t) : (1 - Math.pow(-2 * t + 2, 2) / 2));
+				    const lerpAngle = (a, b, t) => {
+				      const from = Number(a) || 0;
+				      let to = Number(b) || 0;
+				      let delta = ((to - from + 540) % 360) - 180;
+				      if (!Number.isFinite(delta)) delta = to - from;
+				      to = from + delta;
+				      return from + (to - from) * t;
 				    };
 				    const renderSimulationSteps = () => {
 				      if (!simStepsList) return;
@@ -2580,6 +2609,7 @@
 				    };
 				    const seedSimulationStepsFromCurrent = () => {
 				      const { w, h } = worldSize();
+				      ensureLayerUidsOnCanvas();
 				      simulationSteps = [{
 				        title: 'Inicio',
 				        duration: 3,
@@ -2608,10 +2638,96 @@
 				      try { renderLayers(); } catch (e) { /* ignore */ }
 				      renderSimulationSteps();
 				    };
+				    const transitionToSimulationStep = async (index, options = {}) => {
+				      const idx = clamp(Number(index) || 0, 0, Math.max(0, simulationSteps.length - 1));
+				      const step = simulationSteps[idx];
+				      if (!step) return false;
+				      if (!options.keepPlaying) stopSimulationPlayback();
+
+				      ensureLayerUidsOnCanvas();
+				      const endState = sanitizeLoadedState(step.canvas_state);
+				      const endObjects = Array.isArray(endState.objects) ? endState.objects : [];
+				      const endMap = new Map();
+				      endObjects.forEach((obj) => {
+				        const uid = safeText(obj?.data?.layer_uid);
+				        if (uid) endMap.set(uid, obj);
+				      });
+				      const liveObjects = (canvas.getObjects?.() || []).filter((obj) => obj && !(obj?.data?.base));
+				      const animTargets = [];
+				      liveObjects.forEach((obj) => {
+				        const uid = safeText(obj?.data?.layer_uid);
+				        if (!uid) return;
+				        const endObj = endMap.get(uid);
+				        if (!endObj) return;
+				        animTargets.push({
+				          obj,
+				          start: {
+				            left: Number(obj.left) || 0,
+				            top: Number(obj.top) || 0,
+				            angle: Number(obj.angle) || 0,
+				            scaleX: Number(obj.scaleX) || 1,
+				            scaleY: Number(obj.scaleY) || 1,
+				            opacity: obj.opacity == null ? 1 : Number(obj.opacity),
+				          },
+				          end: {
+				            left: Number(endObj.left) || 0,
+				            top: Number(endObj.top) || 0,
+				            angle: Number(endObj.angle) || 0,
+				            scaleX: clampScale(Number(endObj.scaleX) || 1),
+				            scaleY: clampScale(Number(endObj.scaleY) || 1),
+				            opacity: endObj.opacity == null ? 1 : Number(endObj.opacity),
+				          },
+				        });
+				      });
+
+				      // Si no hay nada que animar, salta directo.
+				      if (!animTargets.length) {
+				        await selectSimulationStep(idx, { keepPlaying: !!options.keepPlaying });
+				        return true;
+				      }
+
+				      const transitionMs = clamp(Number(options.transitionMs) || 650, 180, 1200);
+				      const token = (simulationAnimToken += 1);
+				      const startTs = (window.performance?.now?.() || Date.now());
+
+				      return await new Promise((resolve) => {
+				        const tick = (nowRaw) => {
+				          const now = Number(nowRaw) || (window.performance?.now?.() || Date.now());
+				          if (!isSimulating) return resolve(false);
+				          if (simulationAnimToken !== token) return resolve(false);
+				          if (options.keepPlaying && !simulationPlaying) return resolve(false);
+				          const t = clamp((now - startTs) / Math.max(1, transitionMs), 0, 1);
+				          const eased = easeInOut(t);
+				          animTargets.forEach(({ obj, start, end }) => {
+				            try {
+				              obj.set({
+				                left: lerp(start.left, end.left, eased),
+				                top: lerp(start.top, end.top, eased),
+				                angle: lerpAngle(start.angle, end.angle, eased),
+				                scaleX: lerp(start.scaleX, end.scaleX, eased),
+				                scaleY: lerp(start.scaleY, end.scaleY, eased),
+				                opacity: lerp(start.opacity, end.opacity, eased),
+				              });
+				              obj.setCoords();
+				            } catch (error) { /* ignore */ }
+				          });
+				          try { canvas.requestRenderAll(); } catch (error) { /* ignore */ }
+				          if (t < 1) {
+				            simulationAnimFrame = window.requestAnimationFrame(tick);
+				            return;
+				          }
+				          simulationAnimFrame = null;
+				          // Asegura estado exacto al final de la transición.
+				          void selectSimulationStep(idx, { keepPlaying: !!options.keepPlaying }).finally(() => resolve(true));
+				        };
+				        simulationAnimFrame = window.requestAnimationFrame(tick);
+				      });
+				    };
 				    const captureSimulationStep = () => {
 				      if (!isSimulating) return;
 				      stopSimulationPlayback();
 				      const { w, h } = worldSize();
+				      ensureLayerUidsOnCanvas();
 				      const index = simulationSteps.length + 1;
 				      simulationSteps.push({
 				        title: `Paso ${index}`,
@@ -2652,13 +2768,15 @@
 				      let cursor = startIndex;
 				      const advance = async () => {
 				        if (!simulationPlaying) return;
-				        await selectSimulationStep(cursor, { keepPlaying: true });
-				        if (!simulationPlaying) return;
 				        const duration = clamp(Number(simulationSteps[cursor]?.duration) || 3, 1, 20);
+				        const transitionMs = clamp(Math.round(duration * 1000 * 0.35), 220, 900);
+				        await transitionToSimulationStep(cursor, { keepPlaying: true, transitionMs });
+				        if (!simulationPlaying) return;
+				        const holdMs = Math.max(120, Math.round(duration * 1000 - transitionMs));
 				        simulationPlayTimer = window.setTimeout(() => {
 				          cursor = (cursor + 1) % simulationSteps.length;
 				          void advance();
-				        }, Math.round(duration * 1000));
+				        }, holdMs);
 				      };
 				      setStatus('Reproduciendo pasos…');
 				      void advance();
@@ -5769,12 +5887,16 @@
 	      if (!isShift) clearPendingPlacement();
 	      setStatus(isShift ? 'Elemento colocado. Sigue colocando (Shift activo).' : 'Elemento colocado.');
 	    });
-    canvas.on('mouse:down', (event) => {
-      const e = event?.e;
-      if (backgroundPickMode && e && !pendingFactory) {
-        const candidate = pickBackgroundFromEvent(e);
-        backgroundPickMode = false;
-        if (candidate) {
+	    canvas.on('mouse:down', (event) => {
+	      const e = event?.e;
+	      if (isSimulating && simulationPlaying) {
+	        stopSimulationPlayback();
+	        setStatus('Reproducción detenida (interacción).');
+	      }
+	      if (backgroundPickMode && e && !pendingFactory) {
+	        const candidate = pickBackgroundFromEvent(e);
+	        backgroundPickMode = false;
+	        if (candidate) {
           setBackgroundEditMode(candidate, true, { force: true });
           canvas.setActiveObject(candidate);
           canvas.requestRenderAll();
