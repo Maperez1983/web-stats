@@ -4378,6 +4378,18 @@
 		    };
 
 		    // Plantilla: ocultar jugadores ya usados (para no duplicar chapas).
+		    const collectPlayerIdsFromFabricObjects = (objects, outSet) => {
+		      const list = Array.isArray(objects) ? objects : [];
+		      list.forEach((obj) => {
+		        if (!obj) return;
+		        const kind = safeText(obj?.data?.kind);
+		        if (kind === 'token') {
+		          const pid = Number.parseInt(String(obj?.data?.playerId || ''), 10);
+		          if (Number.isFinite(pid) && pid > 0) outSet.add(String(pid));
+		        }
+		        // Nota: no es necesario bajar a hijos del group; el `playerId` vive en el group.
+		      });
+		    };
 		    const collectPlayerIdsFromCanvasState = (canvasState, outSet) => {
 		      if (!canvasState || typeof canvasState !== 'object') return;
 		      const objects = Array.isArray(canvasState.objects) ? canvasState.objects : [];
@@ -4389,9 +4401,13 @@
 		    };
 		    const computeUsedPlayerIds = () => {
 		      const used = new Set();
-		      try { persistActiveStepSnapshot(); } catch (error) { /* ignore */ }
-		      try { collectPlayerIdsFromCanvasState(serializeCanvasOnly(), used); } catch (error) { /* ignore */ }
+		      // Preferimos leer del canvas en vivo: es más fiable que la serialización y
+		      // reacciona instantáneamente a "añadir/quitar" chapas.
+		      try { collectPlayerIdsFromFabricObjects(canvas.getObjects?.() || [], used); } catch (error) { /* ignore */ }
+		      // Compatibilidad: además, incorporamos lo que esté en las escenas/timeline para no permitir duplicados entre pasos.
 		      try {
+		        try { persistActiveStepSnapshot(); } catch (error) { /* ignore */ }
+		        try { collectPlayerIdsFromCanvasState(serializeCanvasOnly(), used); } catch (error) { /* ignore */ }
 		        (Array.isArray(timeline) ? timeline : []).forEach((step) => collectPlayerIdsFromCanvasState(step?.canvas_state, used));
 		      } catch (error) { /* ignore */ }
 		      return used;
