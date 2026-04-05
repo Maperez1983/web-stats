@@ -778,11 +778,25 @@ def _build_public_media_url(request, raw_url):
 
 
 def product_landing_page(request):
+    app_base = str(os.getenv('APP_PUBLIC_BASE_URL') or '').strip().rstrip('/')
+    if not app_base:
+        try:
+            host = str(request.get_host() or '').split(':', 1)[0].strip().lower()
+        except Exception:
+            host = ''
+        if host.startswith('app.'):
+            app_base = f'https://{host}'
+        else:
+            if host.startswith('www.'):
+                host = host[4:]
+            app_base = f'https://app.{host}' if host else 'https://app.segundajugada.es'
+    app_login_url = f'{app_base}/login/'
     return render(
         request,
         'football/product_landing.html',
         {
             'brand_descriptor': 'Football Intelligence',
+            'app_login_url': app_login_url,
             'product_tracks': [
                 {
                     'name': '2J Live',

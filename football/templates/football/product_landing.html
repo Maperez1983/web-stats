@@ -476,8 +476,8 @@
 	          </div>
 	        </div>
         <div class="top-actions">
-          <a class="button" href="{% url 'login' %}">Acceso clientes</a>
-          <a class="button primary" href="{% url 'login' %}">Entrar a la plataforma</a>
+          <a class="button" href="{{ app_login_url }}">Acceso clientes</a>
+          <a class="button primary" href="{{ app_login_url }}">Entrar a la plataforma</a>
         </div>
       </header>
 
@@ -669,7 +669,7 @@
           <h3>2J Football Intelligence</h3>
           <p>La plataforma para registrar, analizar, entrenar y organizar el trabajo del club.</p>
         </div>
-        <a class="button primary" href="{% url 'login' %}">Entrar</a>
+        <a class="button primary" href="{{ app_login_url }}">Entrar</a>
       </section>
     </main>
   </body>
