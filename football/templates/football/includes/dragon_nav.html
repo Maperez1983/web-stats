@@ -17,7 +17,7 @@
   {% if workspace_module_access.coach_overview|default:True %}
   <a href="{% url 'coach-cards' %}">Cuerpo técnico</a>
   {% endif %}
-  {% if can_manage_workspace %}
+  {% if can_manage_workspace or is_admin_user %}
   <a href="{% url 'admin-page' %}?tab=teams">Admin</a>
   {% endif %}
 </nav>

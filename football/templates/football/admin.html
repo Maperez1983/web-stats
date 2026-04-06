@@ -199,7 +199,7 @@
 
       <nav class="admin-tabs">
         <a class="admin-tab {% if active_tab == 'roster' %}is-active{% endif %}" href="{% url 'admin-page' %}?tab=roster">Plantilla</a>
-        {% if can_manage_workspace %}
+        {% if can_manage_workspace or is_admin_user %}
         <a class="admin-tab {% if active_tab == 'teams' %}is-active{% endif %}" href="{% url 'admin-page' %}?tab=teams">Categorías</a>
         {% endif %}
         <a class="admin-tab" href="{% url 'platform-overview' %}#home-global">Fotos Home</a>

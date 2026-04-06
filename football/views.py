@@ -6677,6 +6677,14 @@ def admin_page(request):
     workspace = _get_active_workspace(request)
     current_role = AppUserRole.objects.filter(user=request.user).values_list('role', flat=True).first()
     is_admin_user = bool(request.user.is_staff or current_role == AppUserRole.ROLE_ADMIN)
+    # Platform admins pueden entrar sin workspace activo; si hay un único club, lo usamos como fallback.
+    if not workspace and primary_team:
+        try:
+            workspace = Workspace.objects.filter(kind=Workspace.KIND_CLUB, is_active=True, primary_team=primary_team).first()
+            if workspace and hasattr(request, 'session'):
+                request.session['active_workspace_id'] = workspace.id
+        except Exception:
+            workspace = workspace
     can_manage_workspace = bool(_can_manage_workspace(request.user, workspace)) if workspace else False
     roster_message = ''
     roster_error = ''

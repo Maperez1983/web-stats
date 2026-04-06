@@ -50,6 +50,26 @@ def workspace_access(request):
         return {}
 
     workspace = _get_active_workspace(request)
+    # Platform admins: si no hay workspace activo (por diseño), pero el sistema solo tiene
+    # un cliente club, lo fijamos para que la navegación (Admin/Categorías) sea consistente.
+    if not workspace:
+        try:
+            is_admin_user = bool(_is_admin_user(request.user))
+        except Exception:
+            is_admin_user = False
+        if is_admin_user:
+            try:
+                club_ws = list(
+                    Workspace.objects
+                    .filter(kind=Workspace.KIND_CLUB, is_active=True)
+                    .order_by('id')[:2]
+                )
+                if len(club_ws) == 1:
+                    workspace = club_ws[0]
+                    if request and hasattr(request, 'session'):
+                        request.session['active_workspace_id'] = workspace.id
+            except Exception:
+                pass
     active_team = _get_active_team_for_request(request)
     badge = _build_active_workspace_badge(request)
     entry_url = _workspace_entry_url(workspace, user=request.user) if workspace else ''
