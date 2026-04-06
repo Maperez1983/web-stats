@@ -2397,6 +2397,12 @@ def _competition_payload_for_team(workspace, primary_team):
                 context = snapshot.context if snapshot and snapshot.context_id else context
 
     provider_key = str(getattr(context, 'provider', '') or '').strip().lower()
+    same_context_team = False
+    try:
+        if workspace and workspace.kind == Workspace.KIND_CLUB and primary_team and workspace.primary_team_id:
+            same_context_team = int(workspace.primary_team_id) == int(primary_team.id)
+    except Exception:
+        same_context_team = False
     standings_payload = _resolve_standings_for_team(
         primary_team,
         snapshot=load_universo_snapshot(),
@@ -2405,14 +2411,16 @@ def _competition_payload_for_team(workspace, primary_team):
     next_match_payload = {}
     if primary_team and getattr(primary_team, 'group', None):
         next_match_payload = (
-            load_preferred_next_match_payload(primary_team=primary_team, competition_context=context)
+            load_preferred_next_match_payload(primary_team=primary_team, competition_context=context if same_context_team else None)
             or load_preferred_next_match_payload(primary_team=primary_team)
             or get_next_match(primary_team, primary_team.group)
             or {}
         )
     normalized_next_match_payload = normalize_next_match_payload(next_match_payload) if next_match_payload else {}
     # Si el provider es Universo y tenemos snapshot, preferimos su payload (más rico) cuando exista.
-    if provider_key == WorkspaceCompetitionContext.PROVIDER_UNIVERSO and snapshot:
+    # Importante: solo aplicamos snapshot del workspace cuando corresponde al equipo principal del cliente,
+    # para no "mezclar" Senior con otras categorías (F7/F11).
+    if provider_key == WorkspaceCompetitionContext.PROVIDER_UNIVERSO and snapshot and same_context_team:
         if isinstance(snapshot.standings_payload, list) and snapshot.standings_payload:
             standings_payload = snapshot.standings_payload
         if isinstance(snapshot.next_match_payload, dict) and _next_match_payload_is_reliable(snapshot.next_match_payload):
