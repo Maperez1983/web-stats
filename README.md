@@ -88,7 +88,30 @@ Algunos modulos avanzados requieren dependencias del sistema:
 
 - `weasyprint`: generacion de PDFs
 - `pytesseract`: OCR
-- `playwright`: login/captura browser para Universo RFAF
+- `playwright`: login/captura browser para Universo RFAF (opcional si usas token)
+
+## Plantillas de rivales (precarga para análisis)
+
+Para que el análisis/previa de partido no dependa de peticiones externas (403, bloqueos, etc.), puedes **precargar** las plantillas de todos los equipos de la liga en la BD (tabla `TeamRosterSnapshot`).
+
+Recomendado: usar token de Universo RFAF:
+
+```
+export RFAF_ACCESS_TOKEN="..."
+python3 manage.py sync_rival_rosters --provider universo_rfaf --group-id 45030656 --force
+```
+
+Si quieres hacerlo en local y luego cargarlo en servidor/otra BD, usa `--dump-file` y después `--load-file`:
+
+```
+# 1) Descargar y guardar a JSON (solo local)
+python3 manage.py sync_rival_rosters --provider universo_rfaf --group-id 45030656 --force --dump-file data/output/rosters_universo.json
+
+# 2) Cargar en la BD objetivo sin peticiones externas
+python3 manage.py sync_rival_rosters --provider universo_rfaf --load-file data/output/rosters_universo.json --force
+```
+
+Nota: para que el paso 2 actualice la BD de Render desde tu máquina, ejecuta el comando con `DATABASE_URL` apuntando a esa BD.
 
 Además, Playwright se puede usar para generar previews HD (WYSIWYG) del editor táctico:
 
