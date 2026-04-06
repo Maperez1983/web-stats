@@ -1,0 +1,362 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Rival · Convocatoria y 11 · {{ team_name }}</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      body {
+        margin: 0;
+        font-family: 'Inter', system-ui, sans-serif;
+        background: linear-gradient(180deg, #020617 0%, #050f1f 100%);
+        color: #f8fafc;
+      }
+      .page {
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 1.3rem;
+      }
+      .top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+      }
+      .top-brand {
+        display: flex;
+        align-items: center;
+        gap: 0.85rem;
+        min-width: 260px;
+      }
+      .top-brand img {
+        width: 56px;
+        height: 56px;
+        border-radius: 16px;
+        object-fit: contain;
+        background: rgba(255, 255, 255, 0.92);
+        padding: 0.3rem;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+      }
+      .top h1 {
+        margin: 0;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        font-size: 1.05rem;
+      }
+      .muted {
+        color: rgba(226, 232, 240, 0.72);
+        font-size: 0.9rem;
+      }
+      .layout {
+        margin-top: 1rem;
+        display: grid;
+        grid-template-columns: 360px minmax(0, 1fr);
+        gap: 1rem;
+      }
+      @media (max-width: 980px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+      }
+      .panel {
+        border-radius: 16px;
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        background: rgba(15, 23, 42, 0.85);
+        padding: 0.95rem;
+      }
+      .panel h3 {
+        margin: 0 0 0.65rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        font-size: 0.82rem;
+      }
+      .control {
+        display: grid;
+        gap: 0.35rem;
+        margin-bottom: 0.75rem;
+      }
+      label {
+        font-size: 0.75rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.68);
+      }
+      select, input[type="text"], textarea {
+        width: 100%;
+        padding: 0.7rem 0.85rem;
+        border-radius: 12px;
+        border: 1px solid rgba(148, 163, 184, 0.3);
+        background: rgba(2, 6, 23, 0.55);
+        color: #e2e8f0;
+        font-size: 0.95rem;
+      }
+      .pill-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+      }
+      .pill {
+        border-radius: 999px;
+        padding: 0.35rem 0.7rem;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        background: rgba(2, 6, 23, 0.35);
+        color: rgba(226, 232, 240, 0.85);
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+      }
+      .pill strong { color: #facc15; }
+      .notice {
+        border-radius: 14px;
+        border: 1px solid rgba(148, 163, 184, 0.24);
+        padding: 0.65rem 0.8rem;
+        margin-top: 0.65rem;
+      }
+      .notice.ok {
+        background: rgba(34, 197, 94, 0.12);
+        border-color: rgba(34, 197, 94, 0.25);
+        color: rgba(187, 247, 208, 0.95);
+      }
+      .notice.error {
+        background: rgba(239, 68, 68, 0.12);
+        border-color: rgba(239, 68, 68, 0.25);
+        color: rgba(254, 202, 202, 0.95);
+      }
+      .button {
+        border-radius: 999px;
+        padding: 0.75rem 1.2rem;
+        border: none;
+        background: linear-gradient(135deg, #facc15, #f97316);
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
+      .button.ghost {
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        color: #f8fafc;
+      }
+      .actions {
+        display: flex;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        margin-top: 0.85rem;
+      }
+      .table-wrap {
+        overflow: auto;
+        max-height: 78vh;
+        border-radius: 16px;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        background: rgba(2, 6, 23, 0.36);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 640px;
+      }
+      th, td {
+        padding: 0.65rem 0.7rem;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+        vertical-align: middle;
+        text-align: left;
+      }
+      th {
+        font-size: 0.72rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.68);
+        background: rgba(15, 23, 42, 0.65);
+        position: sticky;
+        top: 0;
+        z-index: 1;
+      }
+      .name {
+        font-weight: 800;
+        letter-spacing: 0.02em;
+      }
+      .small {
+        font-size: 0.85rem;
+        color: rgba(226, 232, 240, 0.72);
+      }
+      .check {
+        transform: scale(1.25);
+      }
+    </style>
+  </head>
+  <body class="prod-commercial">
+    <div class="page product-shell">
+      {% include 'football/includes/dragon_nav.html' %}
+      <div class="top">
+        <div class="top-brand">
+          <img src="{{ team_crest_url }}" alt="Escudo {{ team_name }}" />
+          <div>
+            <h1>Rival · Convocatoria y 11</h1>
+            <div class="muted">Partido activo: {{ match.round|default:"-" }}{% if match.date %} · {{ match.date|date:"d/m/Y" }}{% endif %}</div>
+          </div>
+        </div>
+        <div class="actions">
+          <a class="button ghost" href="{% url 'coach-cards' %}?area=match">Volver</a>
+          <a class="button ghost" href="{% url 'match-action-page' %}{% if match %}?match_id={{ match.id }}{% endif %}">Registro</a>
+          <a class="button ghost" href="{% url 'match-report-pdf' %}?match_id={{ match.id }}" target="_blank" rel="noopener">Acta PDF</a>
+        </div>
+      </div>
+
+      <div class="layout">
+        <form class="panel" method="post">
+          {% csrf_token %}
+          <input type="hidden" name="match_id" value="{{ match.id }}" />
+          <h3>Fuente y rival</h3>
+          <div class="control">
+            <label for="provider">Fuente plantilla</label>
+            <select id="provider" name="provider">
+              {% for item in providers %}
+              <option value="{{ item.value }}" {% if item.value == provider %}selected{% endif %}>{{ item.label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="control">
+            <label for="rival">Rival</label>
+            <select id="rival" name="rival_team_id">
+              <option value="">Selecciona un rival</option>
+              {% for t in rivals %}
+              <option value="{{ t.id }}" {% if selected_rival and t.id == selected_rival.id %}selected{% endif %}>{{ t.display_name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="pill-row">
+            <div class="pill">Convocados: <strong id="convokedCount">{{ selected_convoked_count }}</strong></div>
+            <div class="pill">Titulares: <strong id="starterCount">{{ selected_starters_count }}</strong>/11</div>
+            {% if snapshot %}
+            <div class="pill">Actualizado: <strong>{{ snapshot.updated_at|date:"d/m/Y H:i" }}</strong></div>
+            {% endif %}
+          </div>
+
+          {% if message %}
+          <div class="notice ok">{{ message }}</div>
+          {% endif %}
+          {% if error %}
+          <div class="notice error">{{ error }}</div>
+          {% endif %}
+
+          <div class="actions">
+            <button type="submit" name="action" value="save" class="button">Guardar</button>
+          </div>
+
+          <p class="muted" style="margin:.85rem 0 0; font-size:.85rem;">
+            Marca <strong>Titular</strong> y automáticamente quedará <strong>Convocado</strong>. Máximo 11 titulares.
+          </p>
+        </form>
+
+        <div class="panel">
+          <h3>Plantilla</h3>
+          {% if not selected_rival %}
+            <p class="muted">Selecciona un rival para ver su plantilla.</p>
+          {% elif not roster_rows %}
+            <p class="muted">
+              No hay plantilla guardada para este rival/fuente. Ejecuta en local:
+              <code>python manage.py sync_rival_rosters --provider universo_rfaf --group-id 45030656 --limit 16 --force</code>
+            </p>
+          {% else %}
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:90px;">Dorsal</th>
+                  <th>Jugador</th>
+                  <th style="width:180px;">Posición</th>
+                  <th style="width:120px;">Convocado</th>
+                  <th style="width:110px;">Titular</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for p in roster_rows %}
+                <tr>
+                  <td class="name">#{{ p.number|default:"--" }}</td>
+                  <td>
+                    <div class="name">{{ p.name }}</div>
+                    <div class="small">{{ p.code }}</div>
+                  </td>
+                  <td class="small">{{ p.position|default:"" }}</td>
+                  <td>
+                    <input class="check js-convoked" type="checkbox" name="convoked_codes" value="{{ p.code }}" {% if p.is_convoked %}checked{% endif %} />
+                  </td>
+                  <td>
+                    <input class="check js-starter" type="checkbox" name="starter_codes" value="{{ p.code }}" {% if p.is_starter %}checked{% endif %} />
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        const provider = document.getElementById('provider');
+        const rival = document.getElementById('rival');
+        const matchId = {{ match.id|default:"null" }};
+        const updateHref = () => {
+          const params = new URLSearchParams();
+          if (matchId) params.set('match_id', String(matchId));
+          if (provider && provider.value) params.set('provider', provider.value);
+          if (rival && rival.value) params.set('rival_team_id', rival.value);
+          const target = `${window.location.pathname}?${params.toString()}`;
+          window.location.href = target;
+        };
+        if (provider) provider.addEventListener('change', updateHref);
+        if (rival) rival.addEventListener('change', updateHref);
+
+        const convokedBoxes = Array.from(document.querySelectorAll('.js-convoked'));
+        const starterBoxes = Array.from(document.querySelectorAll('.js-starter'));
+        const convokedCount = document.getElementById('convokedCount');
+        const starterCount = document.getElementById('starterCount');
+
+        const recompute = () => {
+          const convoked = convokedBoxes.filter((b) => b.checked).length;
+          const starters = starterBoxes.filter((b) => b.checked).length;
+          if (convokedCount) convokedCount.textContent = String(convoked);
+          if (starterCount) starterCount.textContent = String(starters);
+        };
+
+        const enforceStarterLimit = (changed) => {
+          const starters = starterBoxes.filter((b) => b.checked);
+          if (starters.length <= 11) return;
+          if (changed) changed.checked = false;
+        };
+
+        starterBoxes.forEach((box) => {
+          box.addEventListener('change', () => {
+            const code = box.value;
+            const convoked = convokedBoxes.find((b) => b.value === code);
+            if (box.checked && convoked) convoked.checked = true;
+            enforceStarterLimit(box);
+            recompute();
+          });
+        });
+        convokedBoxes.forEach((box) => {
+          box.addEventListener('change', () => {
+            const code = box.value;
+            const starter = starterBoxes.find((b) => b.value === code);
+            if (!box.checked && starter) starter.checked = false;
+            recompute();
+          });
+        });
+
+        recompute();
+      })();
+    </script>
+  </body>
+</html>
+

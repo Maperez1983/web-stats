@@ -52,6 +52,7 @@ urlpatterns = [
     path('convocatoria/save/', views.save_convocation, name='convocation-save'),
     path('convocatoria/pdf/', views.convocation_pdf, name='convocation-pdf'),
     path('coach/cards/', views.coach_cards_page, name='coach-cards'),
+    path('coach/rival/', views.coach_rival_page, name='coach-rival'),
     path('coach/plantilla/', views.coach_roster_page, name='coach-roster'),
     path('coach/roles/entrenador/', views.coach_role_trainer_page, name='coach-role-trainer'),
     path('coach/roles/porteros/', views.coach_role_goalkeeper_page, name='coach-role-goalkeeper'),

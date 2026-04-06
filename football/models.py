@@ -370,6 +370,54 @@ class ConvocationRecord(models.Model):
             self.save(update_fields=['is_current'])
 
 
+class RivalConvocationRecord(models.Model):
+    """
+    Convocatoria/Alineación del rival asociada a un partido concreto.
+
+    - Se alimenta desde TeamRosterSnapshot (Universo/Preferente) y se guarda en JSON para poder
+      generar el acta aunque la fuente externa no esté disponible.
+    - No enlaza a Player (nuestros jugadores) porque son rivales externos.
+    """
+
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='rival_convocations')
+    match = models.ForeignKey(
+        'Match',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='rival_convocations',
+    )
+    rival_team = models.ForeignKey(
+        Team,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='as_rival_convocations',
+    )
+    provider = models.CharField(
+        max_length=32,
+        choices=TeamRosterSnapshot.PROVIDER_CHOICES,
+        default=TeamRosterSnapshot.PROVIDER_UNIVERSO,
+    )
+    # Lista de jugadores convocados (dicts con {code,name,number,position}).
+    convocation_data = models.JSONField(default=list, blank=True)
+    # Alineación (dict con starters/bench, mismos dicts que convocation_data).
+    lineup_data = models.JSONField(default=dict, blank=True)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('team', 'match')
+        ordering = ['-updated_at', '-id']
+        verbose_name = 'Convocatoria rival'
+        verbose_name_plural = 'Convocatorias rival'
+
+    def __str__(self):
+        base = self.rival_team.display_name if self.rival_team else 'Rival'
+        return f'{base} · {self.match_id or "sin partido"}'
+
+
 class Match(models.Model):
     season = models.ForeignKey(Season, on_delete=models.CASCADE, related_name='matches')
     group = models.ForeignKey(Group, on_delete=models.SET_NULL, null=True, blank=True, related_name='matches')

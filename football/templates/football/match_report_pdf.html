@@ -283,6 +283,44 @@
             </div>
           </section>
 
+          {% if opponent_starters or opponent_bench %}
+          <section class="card">
+            <h2>Once rival</h2>
+            <div class="rows">
+              {% if opponent_starters %}
+              {% for p in opponent_starters %}
+              <div class="row">
+                <div class="who">
+                  <strong>#{{ p.number|default:"--" }} {{ p.name|default:"-"|upper }}</strong>
+                </div>
+                <div class="badge muted">{{ p.position|default:"" }}</div>
+              </div>
+              {% endfor %}
+              {% else %}
+              <div class="row"><span class="muted">Sin once rival definido.</span></div>
+              {% endif %}
+            </div>
+          </section>
+
+          <section class="card">
+            <h2>Suplentes rival</h2>
+            <div class="rows">
+              {% if opponent_bench %}
+              {% for p in opponent_bench %}
+              <div class="row">
+                <div class="who">
+                  <strong>#{{ p.number|default:"--" }} {{ p.name|default:"-"|upper }}</strong>
+                </div>
+                <div class="badge muted">{{ p.position|default:"" }}</div>
+              </div>
+              {% endfor %}
+              {% else %}
+              <div class="row"><span class="muted">Sin suplentes rival registrados.</span></div>
+              {% endif %}
+            </div>
+          </section>
+          {% endif %}
+
           <section class="card" style="grid-column: 1 / -1;">
             <h2>Cambios</h2>
             <div class="list">

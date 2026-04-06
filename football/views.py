@@ -106,6 +106,7 @@ from football.models import (
     TrainingMicrocycle,
     TrainingSession,
     ConvocationRecord,
+    RivalConvocationRecord,
     HomeCarouselImage,
     AnalystVideoFolder,
     RivalVideo,
@@ -8468,6 +8469,15 @@ def match_report_pdf(request):
         return HttpResponse('No tienes acceso a este partido.', status=403)
 
     opponent_team = match.away_team if match.home_team_id == primary_team.id else match.home_team
+    # Si existe preparación explícita del rival, úsala como fuente de verdad (partidos aplazados / sin rival).
+    rival_record = (
+        RivalConvocationRecord.objects
+        .filter(team=primary_team, match=match)
+        .select_related('rival_team')
+        .first()
+    )
+    if rival_record and rival_record.rival_team:
+        opponent_team = rival_record.rival_team
     opponent_name = (opponent_team.display_name if opponent_team else '').strip() or 'Rival'
     team_name = primary_team.display_name
 
@@ -8660,6 +8670,33 @@ def match_report_pdf(request):
     except Exception:
         opponent_roster = []
 
+    opponent_lineup = {'starters': [], 'bench': []}
+    if rival_record and isinstance(rival_record.lineup_data, dict):
+        starters_payload = rival_record.lineup_data.get('starters') or []
+        bench_payload = rival_record.lineup_data.get('bench') or []
+        if isinstance(starters_payload, list):
+            for row in starters_payload[:18]:
+                if not isinstance(row, dict):
+                    continue
+                opponent_lineup['starters'].append(
+                    {
+                        'number': row.get('number') or row.get('dorsal') or row.get('shirt_number'),
+                        'name': row.get('name') or row.get('player') or row.get('full_name'),
+                        'position': row.get('position') or row.get('pos') or '',
+                    }
+                )
+        if isinstance(bench_payload, list):
+            for row in bench_payload[:28]:
+                if not isinstance(row, dict):
+                    continue
+                opponent_lineup['bench'].append(
+                    {
+                        'number': row.get('number') or row.get('dorsal') or row.get('shirt_number'),
+                        'name': row.get('name') or row.get('player') or row.get('full_name'),
+                        'position': row.get('position') or row.get('pos') or '',
+                    }
+                )
+
     competition_label = ''
     try:
         competition_label = match.group.season.competition.name if match.group and match.group.season and match.group.season.competition else ''
@@ -8708,6 +8745,8 @@ def match_report_pdf(request):
         'bench': bench,
         'substitutions': substitutions,
         'cards': cards,
+        'opponent_starters': opponent_lineup.get('starters') or [],
+        'opponent_bench': opponent_lineup.get('bench') or [],
         'opponent_roster': opponent_roster,
         'team_photo_url': team_photo.get('url') or request.build_absolute_uri(static('football/images/team-01.jpg')),
         'team_photo_data_uri': team_photo.get('data_uri') or '',
@@ -10250,6 +10289,7 @@ def coach_cards_page(request):
             'items': [
                 {'label': 'Convocatoria', 'link': 'convocation'},
                 {'label': '11 inicial', 'link': 'initial-eleven'},
+                {'label': 'Rival (convocatoria)', 'link': 'coach-rival'},
                 {'label': 'Registro de acciones', 'link': 'match-action-page'},
             ],
         },
@@ -11108,6 +11148,184 @@ def initial_eleven_page(request):
             'lineup_seed_json': json.dumps(lineup_seed, ensure_ascii=False),
             'has_pending_convocation': has_pending_convocation,
             'has_pending_lineup': has_pending_lineup,
+        },
+    )
+
+
+@login_required
+def coach_rival_page(request):
+    """
+    Preparación rápida del rival (plantilla + convocatoria + 11 inicial) para el partido activo.
+
+    - Lee la plantilla desde TeamRosterSnapshot (sin depender de scraping en vivo).
+    - Guarda la selección en RivalConvocationRecord para reutilizarla en acta/cierre.
+    """
+    if not _can_edit_match_actions(request.user):
+        return HttpResponse('Solo el cuerpo técnico puede preparar el rival.', status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'match_actions', label='rival')
+    if forbidden:
+        return forbidden
+
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        raise Http404('Equipo principal no configurado')
+
+    match = get_requested_match(request, primary_team) or get_latest_live_match(primary_team) or get_active_match(primary_team)
+    if not match:
+        return HttpResponse('No hay partido activo. Crea/selecciona un partido antes de preparar el rival.', status=400)
+
+    provider = (request.GET.get('provider') or request.POST.get('provider') or TeamRosterSnapshot.PROVIDER_UNIVERSO).strip()
+    if provider not in {TeamRosterSnapshot.PROVIDER_UNIVERSO, TeamRosterSnapshot.PROVIDER_PREFERENTE}:
+        provider = TeamRosterSnapshot.PROVIDER_UNIVERSO
+
+    # Lista de rivales (por defecto el grupo del equipo principal, si existe).
+    rivals_qs = Team.objects.filter(is_primary=False)
+    if primary_team.group_id:
+        rivals_qs = rivals_qs.filter(group_id=primary_team.group_id)
+    rivals = list(rivals_qs.order_by('name'))
+
+    selected_rival_id = _parse_int(request.GET.get('rival_team_id') or request.POST.get('rival_team_id'))
+    rival_record = RivalConvocationRecord.objects.filter(team=primary_team, match=match).select_related('rival_team').first()
+    if not selected_rival_id and rival_record and rival_record.rival_team_id:
+        selected_rival_id = rival_record.rival_team_id
+    if not selected_rival_id:
+        opponent_team = match.away_team if match.home_team_id == primary_team.id else match.home_team
+        if opponent_team and opponent_team.id != primary_team.id:
+            selected_rival_id = opponent_team.id
+
+    selected_rival = Team.objects.filter(id=selected_rival_id).first() if selected_rival_id else None
+    if selected_rival and selected_rival.is_primary:
+        selected_rival = None
+
+    message = ''
+    error = ''
+
+    snapshot = None
+    roster_payload = []
+    if selected_rival:
+        snapshot = (
+            TeamRosterSnapshot.objects
+            .filter(team=selected_rival, provider=provider)
+            .order_by('-updated_at')
+            .first()
+        )
+        if snapshot and isinstance(snapshot.roster_payload, list):
+            roster_payload = snapshot.roster_payload
+
+    # Map por código (Universo -> code). Si no hay code, usamos índice estable.
+    roster_map = {}
+    normalized_rows = []
+    for idx, row in enumerate(roster_payload):
+        if not isinstance(row, dict):
+            continue
+        name = (row.get('name') or row.get('player') or row.get('full_name') or '').strip()
+        if not name:
+            continue
+        code = str(row.get('code') or row.get('player_code') or row.get('id') or '').strip()
+        if not code:
+            code = f'row-{idx}'
+        number = row.get('number') or row.get('dorsal') or row.get('shirt_number') or ''
+        try:
+            number_int = int(str(number).strip() or 0)
+        except Exception:
+            number_int = 0
+        position = (row.get('position') or row.get('pos') or '').strip()
+        entry = {
+            'code': code,
+            'name': name,
+            'number': number_int if number_int else None,
+            'position': position,
+        }
+        roster_map[code] = entry
+        normalized_rows.append(entry)
+
+    if request.method == 'POST' and (request.POST.get('action') or '').strip() == 'save':
+        if not selected_rival:
+            error = 'Selecciona un rival.'
+        elif not roster_map:
+            error = 'No hay plantilla cargada para este rival. Ejecuta el sync de plantillas.'
+        else:
+            convoked_codes = {str(v).strip() for v in request.POST.getlist('convoked_codes') if str(v).strip()}
+            starter_codes = [str(v).strip() for v in request.POST.getlist('starter_codes') if str(v).strip()]
+            # Titular implica convocado.
+            convoked_codes.update(starter_codes)
+            # Filtra solo códigos válidos.
+            convoked_codes = {code for code in convoked_codes if code in roster_map}
+            starter_codes = [code for code in starter_codes if code in roster_map]
+            # Máx 11 titulares.
+            if len(starter_codes) > 11:
+                starter_codes = starter_codes[:11]
+
+            convoked_rows = [roster_map[code] for code in convoked_codes]
+            convoked_rows.sort(key=lambda item: ((item.get('number') or 999), (item.get('name') or '').lower()))
+            starter_rows = [roster_map[code] for code in starter_codes]
+            starter_rows.sort(key=lambda item: ((item.get('number') or 999), (item.get('name') or '').lower()))
+            starter_codes_set = {row['code'] for row in starter_rows}
+            bench_rows = [row for row in convoked_rows if row['code'] not in starter_codes_set]
+
+            lineup_data = {'starters': starter_rows, 'bench': bench_rows}
+            try:
+                RivalConvocationRecord.objects.update_or_create(
+                    team=primary_team,
+                    match=match,
+                    defaults={
+                        'rival_team': selected_rival,
+                        'provider': provider,
+                        'convocation_data': convoked_rows,
+                        'lineup_data': lineup_data,
+                    },
+                )
+                message = 'Convocatoria/Alineación del rival guardada.'
+                # refresca record para pintar estado
+                rival_record = RivalConvocationRecord.objects.filter(team=primary_team, match=match).select_related('rival_team').first()
+            except Exception:
+                error = 'No se pudo guardar la preparación del rival.'
+
+    # Estado seleccionado (pre-check) desde DB.
+    selected_convoked = set()
+    selected_starters = set()
+    if rival_record and isinstance(rival_record.convocation_data, list):
+        for row in rival_record.convocation_data:
+            if isinstance(row, dict) and row.get('code'):
+                selected_convoked.add(str(row.get('code')))
+    if rival_record and isinstance(rival_record.lineup_data, dict):
+        for row in (rival_record.lineup_data.get('starters') or []):
+            if isinstance(row, dict) and row.get('code'):
+                selected_starters.add(str(row.get('code')))
+
+    roster_rows = []
+    for row in normalized_rows:
+        code = row['code']
+        roster_rows.append(
+            {
+                **row,
+                'is_convoked': code in selected_convoked,
+                'is_starter': code in selected_starters,
+            }
+        )
+    roster_rows.sort(key=lambda item: ((item.get('number') or 999), (item.get('name') or '').lower()))
+
+    team_crest_url = resolve_team_crest_url(request, primary_team, sync=True)
+    return render(
+        request,
+        'football/coach_rival_prep.html',
+        {
+            'team_name': primary_team.display_name,
+            'team_crest_url': team_crest_url,
+            'match': match,
+            'provider': provider,
+            'providers': [
+                {'value': TeamRosterSnapshot.PROVIDER_UNIVERSO, 'label': 'Universo RFAF'},
+                {'value': TeamRosterSnapshot.PROVIDER_PREFERENTE, 'label': 'La Preferente'},
+            ],
+            'rivals': rivals,
+            'selected_rival': selected_rival,
+            'snapshot': snapshot,
+            'roster_rows': roster_rows,
+            'selected_convoked_count': len(selected_convoked),
+            'selected_starters_count': len(selected_starters),
+            'message': message,
+            'error': error,
         },
     )
 
@@ -19197,6 +19415,24 @@ def analysis_page(request):
                     'pero no tiene URL de La Preferente ni código RFAF (Universo) guardado.'
                 )
     selected_team = Team.objects.filter(id=_parse_int(team_id)).first() if team_id else None
+    # Fallback: si hay plantilla cacheada en BD, úsala antes que scraping en vivo (403 frecuentes).
+    if selected_team and not roster:
+        try:
+            snapshot = (
+                TeamRosterSnapshot.objects
+                .filter(team=selected_team)
+                .order_by('-updated_at')
+                .first()
+            )
+            if snapshot and isinstance(snapshot.roster_payload, list) and snapshot.roster_payload:
+                roster = snapshot.roster_payload
+                roster_source = f'Snapshot · {snapshot.get_provider_display()}'
+                probable_eleven = compute_probable_eleven(roster)
+                insights = build_rival_insights(roster)
+                formation = compute_formation(probable_eleven) if probable_eleven else formation
+                lineup = assign_lineup_slots(probable_eleven, formation) if probable_eleven else lineup
+        except Exception:
+            pass
     selected_folder_id = _parse_int(request.GET.get('folder')) or _parse_int(request.POST.get('selected_folder_id'))
     universe = load_universo_snapshot() or {}
     standings = universe.get('standings') or []
