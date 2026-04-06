@@ -16710,19 +16710,27 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     if planning_session_ids:
         planning_tasks = list(
             SessionTask.objects
+            .select_related('session__microcycle')
             .filter(session_id__in=planning_session_ids, deleted_at__isnull=True)
             .order_by('session_id', 'order', 'id')
         )
         for item in planning_tasks:
+            # En el área de "coach" se muestra el plan completo. En áreas específicas (porteros/prep. física)
+            # filtramos para evitar mezclar tareas de otros responsables.
+            if scope_key != 'coach' and _task_scope_for_item(item) != scope_key:
+                continue
             planning_tasks_by_session[int(item.session_id)].append(item)
     planning_deleted_tasks_by_session = defaultdict(list)
     if planning_session_ids:
         deleted_tasks = list(
             SessionTask.objects
+            .select_related('session__microcycle')
             .filter(session_id__in=planning_session_ids, deleted_at__isnull=False)
             .order_by('session_id', '-deleted_at', '-id')
         )
         for item in deleted_tasks:
+            if scope_key != 'coach' and _task_scope_for_item(item) != scope_key:
+                continue
             planning_deleted_tasks_by_session[int(item.session_id)].append(item)
     sessions_count_map = defaultdict(int)
     tasks_count_by_session = defaultdict(int)
@@ -16736,27 +16744,16 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         session_minutes_by_microcycle[int(session_item.microcycle_id)] += int(session_item.duration_minutes or 0)
         intensity_by_microcycle[int(session_item.microcycle_id)][str(session_item.intensity or '')] += 1
         sessions_by_microcycle[int(session_item.microcycle_id)].append(session_item)
-    if planner_tables_ready:
-        session_task_counts = (
-            SessionTask.objects
-            .filter(session__microcycle__team=primary_team, deleted_at__isnull=True)
-            .values('session_id')
-            .annotate(total=Count('id'))
-        )
-        for row in session_task_counts:
-            key = _parse_int(row.get('session_id'))
-            if key:
-                tasks_count_by_session[int(key)] = int(row.get('total') or 0)
-        task_counts = (
-            SessionTask.objects
-            .filter(session__microcycle__team=primary_team, deleted_at__isnull=True)
-            .values('session__microcycle_id')
-            .annotate(total=Count('id'))
-        )
-        for row in task_counts:
-            key = _parse_int(row.get('session__microcycle_id'))
-            if key:
-                tasks_count_map[int(key)] = int(row.get('total') or 0)
+    # Conteos: solo se necesitan en Planificación. Además, al filtrar por scope (porteros/fitness)
+    # conviene calcularlos a partir de lo que ya hemos cargado para que coincidan con lo visible.
+    if planner_tables_ready and active_tab == 'planning':
+        for session_id, session_tasks in planning_tasks_by_session.items():
+            tasks_count_by_session[int(session_id)] = len(session_tasks)
+        for micro_id, session_items in sessions_by_microcycle.items():
+            total = 0
+            for session_item in session_items:
+                total += len(planning_tasks_by_session.get(int(session_item.id), []))
+            tasks_count_map[int(micro_id)] = total
     microcycle_rows = []
     for micro in planning_microcycles:
         plan_fields = _parse_microcycle_plan_fields(getattr(micro, 'notes', ''))
