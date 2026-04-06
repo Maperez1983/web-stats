@@ -8,7 +8,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 from django.utils.text import slugify
 
-from football.models import Team, TeamRosterSnapshot
+from football.models import Team, TeamRosterSnapshot, TeamStanding, Group, Season, Competition
 from football.services import fetch_preferente_team_roster, find_preferente_team_url
 
 
@@ -43,9 +43,20 @@ class Command(BaseCommand):
             help='ID del grupo en Universo RFAF (solo si provider=universo_rfaf).',
         )
         parser.add_argument(
+            '--home-team-id',
+            type=int,
+            default=int(os.getenv('RIVAL_ROSTER_HOME_TEAM_ID', '0') or '0'),
+            help='ID del equipo propio (categoría) cuyo grupo se usa como contexto.',
+        )
+        parser.add_argument(
             '--include-primary',
             action='store_true',
             help='Incluye el equipo principal en la sincronización (por defecto se omite).',
+        )
+        parser.add_argument(
+            '--update-standings',
+            action='store_true',
+            help='Actualiza TeamStanding con la clasificación descargada (recomendado).',
         )
         parser.add_argument('--force', action='store_true', help='Fuerza refresco incluso si la caché es reciente.')
         parser.add_argument(
@@ -74,10 +85,16 @@ class Command(BaseCommand):
         max_age_days = max(1, int(options.get('max_age_days') or 14))
         threshold = timezone.now() - timedelta(days=max_age_days)
         include_primary = bool(options.get('include_primary'))
+        update_standings = bool(options.get('update_standings'))
+        home_team_id = int(options.get('home_team_id') or 0)
         dump_file = str(options.get('dump_file') or '').strip()
         load_file = str(options.get('load_file') or '').strip()
 
-        primary_team = Team.objects.filter(is_primary=True).select_related('group').first()
+        primary_team = None
+        if home_team_id:
+            primary_team = Team.objects.filter(id=home_team_id).select_related('group', 'group__season', 'group__season__competition').first()
+        if not primary_team:
+            primary_team = Team.objects.filter(is_primary=True).select_related('group', 'group__season', 'group__season__competition').first()
         group = primary_team.group if primary_team else None
 
         processed = 0
@@ -99,7 +116,45 @@ class Command(BaseCommand):
                 return False
             if not team_obj:
                 return True
+            if primary_team and int(team_obj.id) == int(primary_team.id):
+                return True
             return bool(getattr(team_obj, 'is_primary', False))
+
+        def _ensure_group_season():
+            # Para poder guardar TeamStanding, necesitamos season+competition.
+            nonlocal group
+            if not group:
+                return None, None, None
+            season = getattr(group, 'season', None)
+            competition = getattr(season, 'competition', None) if season else None
+            if season and competition:
+                return competition, season, group
+            # Backfill mínimo: crea competition/season dummy si faltan.
+            competition, _ = Competition.objects.get_or_create(
+                name='Liga (sin nombre)',
+                region='',
+                defaults={'slug': slugify('liga-sin-nombre') or 'liga'},
+            )
+            season_name = f'{timezone.localdate().year}/{timezone.localdate().year + 1}' if timezone.localdate().month >= 7 else f'{timezone.localdate().year - 1}/{timezone.localdate().year}'
+            season, _ = Season.objects.get_or_create(
+                competition=competition,
+                name=season_name,
+                defaults={'is_current': True},
+            )
+            group.season = season
+            group.save(update_fields=['season'])
+            return competition, season, group
+
+        def _update_group_external_id(value):
+            if not group or not value:
+                return
+            if str(getattr(group, 'external_id', '') or '').strip() == str(value).strip():
+                return
+            # Solo actualizamos si está vacío (o si parece ser otro id de Universo).
+            existing = str(getattr(group, 'external_id', '') or '').strip()
+            if not existing:
+                group.external_id = str(value).strip()
+                group.save(update_fields=['external_id'])
 
         def _write_dump():
             if not dump_payload or not dump_file:
@@ -185,6 +240,7 @@ class Command(BaseCommand):
                 raise CommandError(
                     'Falta group-id para Universo RFAF. Pasa --group-id o configura Group.external_id.'
                 )
+            _update_group_external_id(group_id)
 
             # Import tardío para evitar cargar `football.views` en cada comando.
             from football.views import _fetch_universo_live_classification, fetch_universo_team_roster
@@ -197,6 +253,75 @@ class Command(BaseCommand):
                     'Comprueba que `RFAF_USER`/`RFAF_PASS` sean correctos o define `RFAF_ACCESS_TOKEN`. '
                     'Puedes ejecutar: `python manage.py universo_rfaf_diagnostics --group-id <id>`'
                 )
+            if update_standings:
+                competition, season, group_for_standings = _ensure_group_season()
+                if season and group_for_standings:
+                    updated_team_ids = set()
+                    def _safe_int(value, default=0):
+                        try:
+                            return int(str(value).strip())
+                        except Exception:
+                            return default
+                    for idx, row in enumerate(rows, start=1):
+                        if not isinstance(row, dict):
+                            continue
+                        team_code = str(row.get('codequipo') or row.get('cod_equipo') or '').strip()
+                        team_name = str(row.get('nombre') or row.get('team') or '').strip()
+                        if not team_name:
+                            continue
+                        team = None
+                        if team_code:
+                            team = Team.objects.filter(external_id=team_code).first()
+                        if not team and primary_team:
+                            # Si el nombre coincide con nuestro equipo, reutilizamos la instancia.
+                            if str(primary_team.name or '').strip().lower() == team_name.strip().lower():
+                                team = primary_team
+                        if not team:
+                            team = Team.objects.filter(group=group_for_standings, name__iexact=team_name).first()
+                        if not team:
+                            team = Team.objects.create(
+                                name=team_name,
+                                slug=_unique_team_slug(team_name),
+                                short_name=team_name[:60],
+                                group=group_for_standings,
+                                external_id=team_code or '',
+                            )
+                        changed_fields = []
+                        if team_code and str(getattr(team, 'external_id', '') or '').strip() != team_code:
+                            team.external_id = team_code
+                            changed_fields.append('external_id')
+                        if getattr(team, 'group_id', None) != getattr(group_for_standings, 'id', None):
+                            team.group = group_for_standings
+                            changed_fields.append('group')
+                        if team_name and team.name != team_name:
+                            team.name = team_name
+                            changed_fields.append('name')
+                        if changed_fields:
+                            team.save(update_fields=changed_fields)
+                        updated_team_ids.add(int(team.id))
+                        gf = _safe_int(row.get('goles_a_favor') or row.get('goals_for') or row.get('gf'), default=0)
+                        ga = _safe_int(row.get('goles_en_contra') or row.get('goals_against') or row.get('gc'), default=0)
+                        gd_raw = row.get('diferencia_goles') or row.get('goal_difference') or row.get('dg')
+                        gd = _safe_int(gd_raw, default=(gf - ga))
+                        TeamStanding.objects.update_or_create(
+                            season=season,
+                            group=group_for_standings,
+                            team=team,
+                            defaults={
+                                'position': _safe_int(row.get('posicion') or row.get('position'), default=idx),
+                                'played': _safe_int(row.get('jugados') or row.get('played') or row.get('pj'), default=0),
+                                'wins': _safe_int(row.get('ganados') or row.get('wins') or row.get('pg'), default=0),
+                                'draws': _safe_int(row.get('empatados') or row.get('draws') or row.get('pe'), default=0),
+                                'losses': _safe_int(row.get('perdidos') or row.get('losses') or row.get('pp'), default=0),
+                                'goals_for': gf,
+                                'goals_against': ga,
+                                'goal_difference': gd,
+                                'points': _safe_int(row.get('puntos') or row.get('points') or row.get('pt') or row.get('pts'), default=0),
+                                'last_updated': timezone.now(),
+                            },
+                        )
+                    if updated_team_ids:
+                        TeamStanding.objects.filter(group=group_for_standings).exclude(team_id__in=updated_team_ids).delete()
 
             for row in rows:
                 if limit and processed >= limit:
