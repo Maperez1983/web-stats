@@ -26,9 +26,26 @@ class GroupAdmin(admin.ModelAdmin):
 
 @admin.register(models.Team)
 class TeamAdmin(admin.ModelAdmin):
-    list_display = ('name', 'group', 'is_primary', 'city')
-    list_filter = ('group', 'is_primary')
+    list_display = ('name', 'category', 'game_format', 'group', 'is_primary', 'city')
+    list_filter = ('game_format', 'group', 'is_primary')
+    search_fields = ('name', 'short_name', 'slug', 'category')
     prepopulated_fields = {'slug': ('name',)}
+
+
+class WorkspaceTeamInline(admin.TabularInline):
+    model = models.WorkspaceTeam
+    extra = 0
+    autocomplete_fields = ('team',)
+    fields = ('team', 'is_default')
+
+
+@admin.register(models.Workspace)
+class WorkspaceAdmin(admin.ModelAdmin):
+    list_display = ('name', 'kind', 'slug', 'is_active', 'primary_team', 'owner_user')
+    list_filter = ('kind', 'is_active')
+    search_fields = ('name', 'slug')
+    autocomplete_fields = ('primary_team', 'owner_user')
+    inlines = (WorkspaceTeamInline,)
 
 
 @admin.register(models.Player)

@@ -73,6 +73,23 @@ class Team(models.Model):
     crest_url = models.URLField(blank=True, help_text='URL sincronizada del escudo del equipo')
     crest_image = models.ImageField(upload_to='team-crests/', null=True, blank=True)
     is_primary = models.BooleanField(default=False, help_text='Marcar si es el equipo de Benagalbón')
+    category = models.CharField(
+        max_length=24,
+        blank=True,
+        help_text='Categoría del club (ej. Prebenjamín, Cadete, Senior). Solo se usa para equipos propios.',
+    )
+    GAME_FORMAT_F7 = 'f7'
+    GAME_FORMAT_F11 = 'f11'
+    GAME_FORMAT_CHOICES = [
+        (GAME_FORMAT_F7, 'Fútbol 7'),
+        (GAME_FORMAT_F11, 'Fútbol 11'),
+    ]
+    game_format = models.CharField(
+        max_length=8,
+        choices=GAME_FORMAT_CHOICES,
+        default=GAME_FORMAT_F11,
+        help_text='Formato de juego (afecta a convocatorias, 11/7 inicial y registro en vivo).',
+    )
 
     @property
     def display_name(self):
@@ -120,6 +137,29 @@ class Workspace(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class WorkspaceTeam(models.Model):
+    """
+    Vínculo entre un cliente (workspace club) y sus equipos/categorías.
+
+    - Permite tener Senior, Prebenjamín, etc. dentro del mismo cliente.
+    - El selector de equipo activo usa esta tabla para validar el cambio.
+    """
+
+    workspace = models.ForeignKey(Workspace, on_delete=models.CASCADE, related_name='teams')
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='workspace_links')
+    is_default = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-is_default', 'id']
+        unique_together = ('workspace', 'team')
+        verbose_name = 'Equipo del workspace'
+        verbose_name_plural = 'Equipos del workspace'
+
+    def __str__(self):
+        return f'{self.workspace.name} · {self.team.display_name}'
 
 
 class WorkspaceCompetitionContext(models.Model):

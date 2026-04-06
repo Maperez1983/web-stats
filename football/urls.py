@@ -11,6 +11,7 @@ urlpatterns = [
     path('team/<int:team_id>/crest.svg', views.team_crest_svg, name='team-crest-svg'),
     path('', views.dashboard_page, name='dashboard-home'),
     path('api/session/keepalive/', views.session_keepalive, name='session-keepalive'),
+    path('api/workspace/active-team/', views.workspace_set_active_team, name='workspace-active-team'),
     path('platform/', views.platform_overview_page, name='platform-overview'),
     path('platform/clear/', views.platform_workspace_clear_page, name='platform-workspace-clear'),
     path('platform/workspaces/<int:workspace_id>/', views.platform_workspace_detail_page, name='platform-workspace-detail'),

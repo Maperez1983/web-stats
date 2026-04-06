@@ -1055,7 +1055,7 @@ class PlatformWorkspaceTests(TestCase):
             season=alt_season,
             group=alt_group,
             round='J26',
-            date=date(2026, 4, 5),
+            date=timezone.localdate() + timedelta(days=2),
             location='Campo Cliente 2',
             home_team=alt_team,
             away_team=alt_rival,

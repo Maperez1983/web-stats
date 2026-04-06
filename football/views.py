@@ -102,6 +102,7 @@ from football.models import (
     TeamStatistic,
     TeamStanding,
     Workspace,
+    WorkspaceTeam,
     WorkspaceMembership,
     TrainingMicrocycle,
     TrainingSession,
@@ -267,6 +268,38 @@ def session_keepalive(request):
     response = JsonResponse({'ok': True})
     response['Cache-Control'] = 'no-store'
     return response
+
+
+@login_required
+@require_POST
+def workspace_set_active_team(request):
+    """
+    Cambia el equipo/categoría activo del workspace club (persistido en sesión).
+
+    Importante:
+    - No modifica `workspace.primary_team` (equipo "principal" legacy del cliente).
+    - Valida que el equipo pertenezca al workspace mediante WorkspaceTeam.
+    """
+    workspace = _get_active_workspace(request)
+    next_url = (request.POST.get('next') or '').strip() or request.META.get('HTTP_REFERER') or reverse('dashboard-home')
+    if not workspace or workspace.kind != Workspace.KIND_CLUB:
+        return redirect(next_url)
+
+    team_id = _parse_int(request.POST.get('team_id') or request.POST.get('team') or request.POST.get('active_team_id'))
+    if not team_id:
+        return redirect(next_url)
+
+    links = _workspace_team_links(workspace)
+    allowed_team_ids = {int(link.team_id) for link in links if getattr(link, 'team_id', None)}
+    if int(team_id) not in allowed_team_ids:
+        return redirect(next_url)
+
+    mapping = request.session.get('active_team_by_workspace')
+    if not isinstance(mapping, dict):
+        mapping = {}
+    mapping[str(workspace.id)] = int(team_id)
+    request.session['active_team_by_workspace'] = mapping
+    return redirect(next_url)
 
 
 @login_required
@@ -1587,27 +1620,96 @@ def _get_active_workspace(request):
     return None
 
 
-def _get_primary_team_for_request(request):
+def _workspace_team_links(workspace):
+    if not workspace or workspace.kind != Workspace.KIND_CLUB:
+        return []
+    try:
+        links = list(
+            WorkspaceTeam.objects.filter(workspace=workspace)
+            .select_related('team')
+            .order_by('-is_default', 'team__name', 'id')
+        )
+    except Exception:
+        links = []
+    # Backfill defensivo: si existe primary_team pero no hay vínculo creado (migración no aplicada),
+    # lo creamos sin tocar nada más.
+    if not links and getattr(workspace, 'primary_team_id', None):
+        try:
+            WorkspaceTeam.objects.get_or_create(
+                workspace_id=workspace.id,
+                team_id=workspace.primary_team_id,
+                defaults={'is_default': True},
+            )
+            links = list(
+                WorkspaceTeam.objects.filter(workspace=workspace)
+                .select_related('team')
+                .order_by('-is_default', 'team__name', 'id')
+            )
+        except Exception:
+            links = []
+    return links
+
+
+def _get_active_team_for_request(request):
+    """
+    Resuelve el equipo/categoría activo para el workspace actual.
+
+    - Por defecto: workspace.primary_team (comportamiento legacy).
+    - Si el workspace tiene varias categorías (WorkspaceTeam), se puede cambiar el equipo activo
+      en sesión sin afectar al equipo "principal" del cliente.
+    """
     workspace = _get_active_workspace(request)
-    if workspace and workspace.kind == Workspace.KIND_CLUB and workspace.primary_team_id:
-        return workspace.primary_team
+    if workspace and workspace.kind == Workspace.KIND_CLUB:
+        links = _workspace_team_links(workspace)
+        team_lookup = {int(link.team_id): link.team for link in links if getattr(link, 'team_id', None)}
+        desired_team_id = _parse_int(request.GET.get('team'))
+        mapping = request.session.get('active_team_by_workspace') if request and hasattr(request, 'session') else None
+        if not desired_team_id and isinstance(mapping, dict):
+            desired_team_id = _parse_int(mapping.get(str(workspace.id)) or mapping.get(workspace.id))
+
+        if desired_team_id and int(desired_team_id) in team_lookup:
+            # Permite fijar desde querystring (solo si es válido).
+            if request and request.GET.get('team') and hasattr(request, 'session'):
+                try:
+                    if not isinstance(mapping, dict):
+                        mapping = {}
+                    mapping[str(workspace.id)] = int(desired_team_id)
+                    request.session['active_team_by_workspace'] = mapping
+                except Exception:
+                    pass
+            return team_lookup[int(desired_team_id)]
+
+        # Fallback: default del workspace, si existe.
+        default_link = next((link for link in links if getattr(link, 'is_default', False)), None)
+        if default_link and getattr(default_link, 'team', None):
+            return default_link.team
+
+        # Fallback: primary_team legacy.
+        if getattr(workspace, 'primary_team_id', None):
+            return workspace.primary_team
+
+        # Fallback: primer vínculo si existe.
+        first_link = links[0].team if links else None
+        if first_link:
+            return first_link
+
+    # Modo sin workspace / usuario no plataforma: mantenemos el fallback histórico.
     if request and getattr(request, 'user', None) and request.user.is_authenticated and not _can_access_platform(request.user):
         role = _get_user_role(request.user)
         if role == AppUserRole.ROLE_PLAYER:
             return Team.objects.filter(is_primary=True).first()
-        # En modo monocliente (sin workspace) los roles técnicos deben poder seguir operando
-        # sobre el club principal para evitar 404/403 en flujos críticos.
         if role in TECHNICAL_ROLES or role is None:
             return Team.objects.filter(is_primary=True).first()
         return None
     return Team.objects.filter(is_primary=True).first()
 
 
+def _get_primary_team_for_request(request):
+    return _get_active_team_for_request(request)
+
+
 def _get_player_team_for_request(request):
-    workspace = _get_active_workspace(request)
-    if workspace and workspace.kind == Workspace.KIND_CLUB and workspace.primary_team_id:
-        return workspace.primary_team
-    return Team.objects.filter(is_primary=True).first()
+    return _get_active_team_for_request(request)
 
 
 def _build_active_workspace_badge(request):
@@ -1615,8 +1717,12 @@ def _build_active_workspace_badge(request):
     if not workspace:
         return None
     subtitle = ''
-    if workspace.kind == Workspace.KIND_CLUB and workspace.primary_team_id:
-        subtitle = workspace.primary_team.display_name or workspace.primary_team.name
+    if workspace.kind == Workspace.KIND_CLUB:
+        active_team = _get_active_team_for_request(request)
+        if active_team:
+            subtitle = active_team.display_name or active_team.name
+        elif workspace.primary_team_id:
+            subtitle = workspace.primary_team.display_name or workspace.primary_team.name
     elif workspace.kind == Workspace.KIND_TASK_STUDIO and workspace.owner_user_id:
         subtitle = workspace.owner_user.get_username()
     return {
@@ -2277,11 +2383,14 @@ def _competition_payload_for_team(workspace, primary_team):
     context = None
     snapshot = None
     if workspace and workspace.kind == Workspace.KIND_CLUB:
+        context_team = workspace.primary_team or primary_team
         snapshot = WorkspaceCompetitionSnapshot.objects.filter(workspace=workspace).select_related('context').first()
         if snapshot and snapshot.context_id:
             context = snapshot.context
-        elif primary_team:
-            context = _bootstrap_workspace_competition_context(workspace, primary_team=primary_team)
+        elif context_team:
+            # Importante: el contexto competitivo es una propiedad del "equipo principal" del cliente.
+            # En modo multicategoría, cambiar de categoría no debe sobrescribir el binding del contexto.
+            context = _bootstrap_workspace_competition_context(workspace, primary_team=context_team)
             if context and context.is_auto_sync_enabled:
                 _sync_workspace_competition_context(workspace)
                 snapshot = WorkspaceCompetitionSnapshot.objects.filter(workspace=workspace).select_related('context').first()
@@ -5978,6 +6087,17 @@ def platform_workspace_detail_page(request, workspace_id):
                 if workspace.kind == Workspace.KIND_CLUB:
                     workspace.primary_team = Team.objects.filter(id=team_id).first() if team_id else None
                 workspace.save(update_fields=['name', 'owner_user', 'notes', 'is_active', 'primary_team', 'updated_at'])
+                if workspace.kind == Workspace.KIND_CLUB and workspace.primary_team_id:
+                    # Backfill seguro: garantiza que el equipo principal esté vinculado al workspace.
+                    WorkspaceTeam.objects.get_or_create(
+                        workspace_id=workspace.id,
+                        team_id=workspace.primary_team_id,
+                        defaults={'is_default': True},
+                    )
+                    if not WorkspaceTeam.objects.filter(workspace_id=workspace.id, is_default=True).exists():
+                        first_link = WorkspaceTeam.objects.filter(workspace_id=workspace.id).order_by('id').first()
+                        if first_link:
+                            WorkspaceTeam.objects.filter(id=first_link.id).update(is_default=True)
                 if owner_user:
                     WorkspaceMembership.objects.update_or_create(
                         workspace=workspace,
@@ -7913,6 +8033,19 @@ def incident_page(request):
 
 
 def _normalize_lineup_payload(payload, allowed_players):
+    return _normalize_lineup_payload_with_limit(payload, allowed_players, starters_limit=11)
+
+
+def _required_starters_for_team(team):
+    try:
+        if team and str(getattr(team, 'game_format', '') or '').strip().lower() == Team.GAME_FORMAT_F7:
+            return 7
+    except Exception:
+        pass
+    return 11
+
+
+def _normalize_lineup_payload_with_limit(payload, allowed_players, *, starters_limit=11):
     allowed = {str(player.id): player for player in (allowed_players or [])}
     base = {'starters': [], 'bench': []}
     if not isinstance(payload, dict):
@@ -7948,28 +8081,39 @@ def _normalize_lineup_payload(payload, allowed_players):
             seen.add(pid)
             deduped.append(row)
         base[section] = deduped
-    if len(base['starters']) > 11:
-        overflow = base['starters'][11:]
-        base['starters'] = base['starters'][:11]
+    starters_limit = int(starters_limit or 11)
+    if starters_limit <= 0:
+        starters_limit = 11
+    if len(base['starters']) > starters_limit:
+        overflow = base['starters'][starters_limit:]
+        base['starters'] = base['starters'][:starters_limit]
         base['bench'].extend(overflow)
     return base
 
 
 def _build_default_lineup_payload(convocation_players):
+    return _build_default_lineup_payload_with_limit(convocation_players, starters_limit=11)
+
+
+def _build_default_lineup_payload_with_limit(convocation_players, *, starters_limit=11):
     if not convocation_players:
         return {'starters': [], 'bench': []}
     sorted_players = sorted(
         convocation_players,
         key=lambda p: ((p.number if p.number is not None else 999), (p.name or '').lower()),
     )
-    starters = sorted_players[:11]
-    bench = sorted_players[11:]
-    return _normalize_lineup_payload(
+    starters_limit = int(starters_limit or 11)
+    if starters_limit <= 0:
+        starters_limit = 11
+    starters = sorted_players[:starters_limit]
+    bench = sorted_players[starters_limit:]
+    return _normalize_lineup_payload_with_limit(
         {
             'starters': [{'id': str(p.id)} for p in starters],
             'bench': [{'id': str(p.id)} for p in bench],
         },
         convocation_players,
+        starters_limit=starters_limit,
     )
 
 
@@ -7983,6 +8127,7 @@ def match_action_page(request):
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         raise Http404('Equipo principal no configurado')
+    starters_limit = _required_starters_for_team(primary_team)
     requested_match = get_requested_match(request, primary_team)
     if requested_match:
         active_match = requested_match
@@ -8001,11 +8146,18 @@ def match_action_page(request):
     initial_lineup_payload = {'starters': [], 'bench': []}
     if convocation_record:
         stored_lineup = convocation_record.lineup_data if isinstance(convocation_record.lineup_data, dict) else {}
-        normalized_stored = _normalize_lineup_payload(stored_lineup, convocation_players)
+        normalized_stored = _normalize_lineup_payload_with_limit(
+            stored_lineup,
+            convocation_players,
+            starters_limit=starters_limit,
+        )
         if normalized_stored['starters'] or normalized_stored['bench']:
             initial_lineup_payload = normalized_stored
         else:
-            initial_lineup_payload = _build_default_lineup_payload(convocation_players)
+            initial_lineup_payload = _build_default_lineup_payload_with_limit(
+                convocation_players,
+                starters_limit=starters_limit,
+            )
             convocation_record.lineup_data = initial_lineup_payload
             convocation_record.save(update_fields=['lineup_data'])
     message = None
@@ -8269,6 +8421,7 @@ def save_match_lineup(request):
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         return JsonResponse({'error': 'Equipo principal no configurado'}, status=400)
+    starters_limit = _required_starters_for_team(primary_team)
     requested_match = get_requested_match(request, primary_team)
     target_match = requested_match or get_active_match(primary_team)
     convocation_record = get_current_convocation_record(
@@ -8285,7 +8438,7 @@ def save_match_lineup(request):
         return JsonResponse({'error': 'Payload inválido'}, status=400)
     lineup = payload.get('lineup')
     allowed_players = list(convocation_record.players.all())
-    normalized = _normalize_lineup_payload(lineup, allowed_players)
+    normalized = _normalize_lineup_payload_with_limit(lineup, allowed_players, starters_limit=starters_limit)
     convocation_record.lineup_data = normalized
     convocation_record.save(update_fields=['lineup_data'])
     _invalidate_team_dashboard_caches(primary_team)
@@ -8295,7 +8448,7 @@ def save_match_lineup(request):
             'saved': True,
             'starters': starters_count,
             'bench': len(normalized['bench']),
-            'pending_lineup': starters_count < 11,
+            'pending_lineup': starters_count < starters_limit,
         }
     )
 
@@ -8480,6 +8633,7 @@ def match_report_pdf(request):
         opponent_team = rival_record.rival_team
     opponent_name = (opponent_team.display_name if opponent_team else '').strip() or 'Rival'
     team_name = primary_team.display_name
+    starters_limit = _required_starters_for_team(primary_team)
 
     convocation_record = get_current_convocation_record(primary_team, match=match, fallback_to_latest=True)
     convocation_players = []
@@ -8490,9 +8644,13 @@ def match_report_pdf(request):
 
     lineup_payload = {'starters': [], 'bench': []}
     if convocation_record and isinstance(convocation_record.lineup_data, dict):
-        lineup_payload = _normalize_lineup_payload(convocation_record.lineup_data, convocation_players)
+        lineup_payload = _normalize_lineup_payload_with_limit(
+            convocation_record.lineup_data,
+            convocation_players,
+            starters_limit=starters_limit,
+        )
     if not lineup_payload['starters'] and convocation_players:
-        lineup_payload = _build_default_lineup_payload(convocation_players)
+        lineup_payload = _build_default_lineup_payload_with_limit(convocation_players, starters_limit=starters_limit)
 
     static_base_dir = Path(settings.BASE_DIR) / 'static'
     avatar_static_path = static_base_dir / 'football' / 'images' / 'player-avatar.svg'
@@ -11168,6 +11326,7 @@ def initial_eleven_page(request):
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         raise Http404('Equipo principal no configurado')
+    starters_limit = _required_starters_for_team(primary_team)
     convocation_record = get_current_convocation_record(
         primary_team,
         match=get_active_match(primary_team),
@@ -11182,7 +11341,7 @@ def initial_eleven_page(request):
     has_pending_convocation = bool(convocation_record and not convocation_players)
     if convocation_record:
         stored = convocation_record.lineup_data if isinstance(convocation_record.lineup_data, dict) else {}
-        normalized = _normalize_lineup_payload(stored, convocation_players)
+        normalized = _normalize_lineup_payload_with_limit(stored, convocation_players, starters_limit=starters_limit)
         if normalized['starters'] or normalized['bench']:
             lineup_seed = normalized
         else:
@@ -11193,6 +11352,7 @@ def initial_eleven_page(request):
         'football/coach_initial_eleven.html',
         {
             'team_name': primary_team.display_name,
+            'starters_limit': starters_limit,
             'team_crest_url': resolve_team_crest_url(request, primary_team, sync=True),
             'rival_crest_url': _absolute_universo_url(
                 _resolve_rival_identity(
@@ -11236,6 +11396,16 @@ def coach_rival_page(request):
 
     # Lista de rivales (por defecto el grupo del equipo principal, si existe).
     rivals_qs = Team.objects.filter(is_primary=False)
+    try:
+        workspace = _get_active_workspace(request)
+        if workspace and workspace.kind == Workspace.KIND_CLUB:
+            workspace_team_ids = set(
+                WorkspaceTeam.objects.filter(workspace=workspace).values_list('team_id', flat=True)
+            )
+            if workspace_team_ids:
+                rivals_qs = rivals_qs.exclude(id__in=workspace_team_ids)
+    except Exception:
+        pass
     if primary_team.group_id:
         rivals_qs = rivals_qs.filter(group_id=primary_team.group_id)
     rivals = list(rivals_qs.order_by('name'))
@@ -11301,6 +11471,7 @@ def coach_rival_page(request):
         elif not roster_map:
             error = 'No hay plantilla cargada para este rival. Ejecuta el sync de plantillas.'
         else:
+            starters_limit = _required_starters_for_team(primary_team)
             convoked_codes = {str(v).strip() for v in request.POST.getlist('convoked_codes') if str(v).strip()}
             starter_codes = [str(v).strip() for v in request.POST.getlist('starter_codes') if str(v).strip()]
             # Titular implica convocado.
@@ -11308,9 +11479,9 @@ def coach_rival_page(request):
             # Filtra solo códigos válidos.
             convoked_codes = {code for code in convoked_codes if code in roster_map}
             starter_codes = [code for code in starter_codes if code in roster_map]
-            # Máx 11 titulares.
-            if len(starter_codes) > 11:
-                starter_codes = starter_codes[:11]
+            # Máx titulares según formato (F7/F11).
+            if len(starter_codes) > starters_limit:
+                starter_codes = starter_codes[:starters_limit]
 
             convoked_rows = [roster_map[code] for code in convoked_codes]
             convoked_rows.sort(key=lambda item: ((item.get('number') or 999), (item.get('name') or '').lower()))
@@ -19229,7 +19400,18 @@ def analysis_page(request):
     home_rival_name = _payload_opponent_name(preferred_next)
     if home_rival_name:
         home_rival_key = normalize_label(home_rival_name)
-        guessed_team = Team.objects.filter(is_primary=False).order_by('name').filter(name__icontains=home_rival_name[:12]).first()
+        guessed_qs = Team.objects.filter(is_primary=False)
+        try:
+            workspace = _get_active_workspace(request)
+            if workspace and workspace.kind == Workspace.KIND_CLUB:
+                workspace_team_ids = set(
+                    WorkspaceTeam.objects.filter(workspace=workspace).values_list('team_id', flat=True)
+                )
+                if workspace_team_ids:
+                    guessed_qs = guessed_qs.exclude(id__in=workspace_team_ids)
+        except Exception:
+            pass
+        guessed_team = guessed_qs.order_by('name').filter(name__icontains=home_rival_name[:12]).first()
         if guessed_team and not team_id:
             team_id = str(guessed_team.id)
     if request.method == 'POST':
@@ -21774,7 +21956,11 @@ def compute_player_dashboard(primary_team, force_refresh=False):
         if record.match_id in lineup_by_match:
             continue
         allowed = list(record.players.all())
-        normalized = _normalize_lineup_payload(record.lineup_data if isinstance(record.lineup_data, dict) else {}, allowed)
+        normalized = _normalize_lineup_payload_with_limit(
+            record.lineup_data if isinstance(record.lineup_data, dict) else {},
+            allowed,
+            starters_limit=_required_starters_for_team(primary_team),
+        )
         lineup_by_match[record.match_id] = normalized
     match_end_minutes = {}
     player_match_timeline = {}

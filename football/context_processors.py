@@ -33,6 +33,8 @@ def workspace_access(request):
         # Import perezoso para evitar dependencias circulares en import-time.
         from football.views import (  # noqa: WPS433 (lazy import)
             _get_active_workspace,
+            _get_active_team_for_request,
+            _workspace_team_links,
             _build_active_workspace_badge,
             _workspace_entry_url,
             _workspace_default_modules,
@@ -46,6 +48,7 @@ def workspace_access(request):
         return {}
 
     workspace = _get_active_workspace(request)
+    active_team = _get_active_team_for_request(request)
     badge = _build_active_workspace_badge(request)
     entry_url = _workspace_entry_url(workspace, user=request.user) if workspace else ''
 
@@ -58,8 +61,36 @@ def workspace_access(request):
     except Exception:
         module_access = {}
 
+    team_options = []
+    try:
+        if workspace and workspace.kind == Workspace.KIND_CLUB:
+            links = _workspace_team_links(workspace)
+            for link in links:
+                team = getattr(link, 'team', None)
+                if not team:
+                    continue
+                category = str(getattr(team, 'category', '') or '').strip()
+                name = str(getattr(team, 'display_name', '') or getattr(team, 'name', '') or '').strip()
+                label = f'{category} · {name}' if category else name
+                team_options.append(
+                    {
+                        'id': int(team.id),
+                        'label': label,
+                        'category': category,
+                        'name': name,
+                        'game_format': str(getattr(team, 'game_format', '') or '').strip(),
+                        'game_format_label': str(getattr(team, 'get_game_format_display', lambda: '')() or '').strip(),
+                        'is_default': bool(getattr(link, 'is_default', False)),
+                    }
+                )
+    except Exception:
+        team_options = []
+
     return {
         'active_workspace': badge,
         'workspace_entry_url': entry_url,
         'workspace_module_access': module_access,
+        'active_team': active_team,
+        'active_team_options': team_options,
+        'active_team_current_path': request.get_full_path() if request else '',
     }

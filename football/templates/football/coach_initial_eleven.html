@@ -3,7 +3,7 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <title>11 Inicial · {{ team_name }}</title>
+    <title>Alineación inicial · {{ team_name }}</title>
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
     <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
@@ -286,7 +286,7 @@
         <div class="top-brand">
           <img src="{{ team_crest_url|default_if_none:'' }}" alt="Escudo {{ team_name }}" />
           <div>
-            <h1>11 inicial · {{ team_name }}</h1>
+            <h1>Alineación inicial · {{ team_name }}</h1>
             {% if convocation_record %}
             <p style="margin:0.3rem 0 0;color:rgba(186,230,253,0.85);display:flex;align-items:center;gap:0.45rem;">
               {% if rival_crest_url %}
@@ -303,9 +303,9 @@
         <aside class="panel">
           <h3>Convocados</h3>
           {% if has_pending_convocation %}
-          <p class="helper-note">Próximo partido guardado. Falta cerrar la convocatoria para poder construir el 11 inicial.</p>
+          <p class="helper-note">Próximo partido guardado. Falta cerrar la convocatoria para poder construir la alineación inicial.</p>
           {% elif has_pending_lineup %}
-          <p class="helper-note">Convocatoria cerrada, pero el 11 sigue pendiente. Puedes construirlo manualmente o usar el autocompletado como base.</p>
+          <p class="helper-note">Convocatoria cerrada, pero la alineación sigue pendiente. Puedes construirla manualmente o usar el autocompletado como base.</p>
           {% endif %}
           <div class="players" id="player-list">
             {% for player in convocation_players %}
@@ -328,13 +328,13 @@
           <div class="toolbar">
             <button type="button" id="auto-fill-btn" {% if has_pending_convocation %}class="is-disabled"{% endif %}>Auto completar</button>
             <button type="button" id="clear-btn">Limpiar</button>
-            <button type="button" class="primary {% if has_pending_convocation %}is-disabled{% endif %}" id="save-btn">Guardar 11</button>
+            <button type="button" class="primary {% if has_pending_convocation %}is-disabled{% endif %}" id="save-btn">Guardar</button>
           </div>
           <p class="status {% if has_pending_convocation or has_pending_lineup %}warn{% endif %}" id="status-msg">
             {% if has_pending_convocation %}
-              Convocatoria pendiente. El 11 inicial se activará cuando haya jugadores convocados.
+              Convocatoria pendiente. La alineación inicial se activará cuando haya jugadores convocados.
             {% elif has_pending_lineup %}
-              11 inicial pendiente. Faltan titulares por definir.
+              Alineación pendiente. Faltan titulares por definir.
             {% else %}
               Selecciona convocados y se colocan en campo automáticamente.
             {% endif %}
@@ -360,7 +360,8 @@
         || document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('csrftoken='))?.split('=')[1]
         || '';
 
-      const slots = [
+      const STARTERS_REQUIRED = Number('{{ starters_limit|default:11 }}') || 11;
+      const slotsF11 = [
         { key: 'gk', label: 'POR', x: 50, y: 90, role: 'gk' },
         { key: 'lb', label: 'LI', x: 18, y: 74, role: 'def' },
         { key: 'lcb', label: 'DFC', x: 37, y: 76, role: 'def' },
@@ -373,6 +374,16 @@
         { key: 'st', label: 'DC', x: 50, y: 24, role: 'fwd' },
         { key: 'rw', label: 'ED', x: 76, y: 34, role: 'fwd' },
       ];
+      const slotsF7 = [
+        { key: 'gk', label: 'POR', x: 50, y: 88, role: 'gk' },
+        { key: 'ld', label: 'LD', x: 80, y: 68, role: 'def' },
+        { key: 'dfc', label: 'DFC', x: 50, y: 70, role: 'def' },
+        { key: 'li', label: 'LI', x: 20, y: 68, role: 'def' },
+        { key: 'mc1', label: 'MC', x: 34, y: 46, role: 'mid' },
+        { key: 'mc2', label: 'MC', x: 66, y: 46, role: 'mid' },
+        { key: 'dc', label: 'DC', x: 50, y: 22, role: 'fwd' },
+      ];
+      const slots = STARTERS_REQUIRED <= 7 ? slotsF7 : slotsF11;
 
       let lineupState = { starters: [], bench: [] };
       const avatarFallback = '{% static "football/images/player-avatar.svg" %}';
@@ -432,13 +443,13 @@
           }
           field.appendChild(box);
         });
-        const missing = Math.max(0, 11 - lineupState.starters.length);
+        const missing = Math.max(0, STARTERS_REQUIRED - lineupState.starters.length);
         if (hasPendingConvocation) {
-          statusMsg.textContent = 'Convocatoria pendiente. El 11 inicial se activará cuando haya jugadores convocados.';
+          statusMsg.textContent = 'Convocatoria pendiente. La alineación inicial se activará cuando haya jugadores convocados.';
           statusMsg.classList.add('warn');
           statusMsg.classList.remove('ok');
         } else {
-          statusMsg.textContent = missing ? `Faltan ${missing} jugadores para completar el 11.` : '11 inicial completo.';
+          statusMsg.textContent = missing ? `Faltan ${missing} jugadores para completar la alineación.` : 'Alineación inicial completa.';
           statusMsg.classList.toggle('warn', missing > 0);
           statusMsg.classList.toggle('ok', missing === 0);
         }
@@ -495,11 +506,11 @@
         consume('fwd', 3);
         const remaining = [...groups.def, ...groups.mid, ...groups.fwd, ...groups.other];
         remaining.sort((a, b) => numberValue(a) - numberValue(b));
-        while (starters.length < 11 && remaining.length) {
+        while (starters.length < STARTERS_REQUIRED && remaining.length) {
           starters.push(remaining.shift());
         }
         return {
-          starters: starters.slice(0, 11),
+          starters: starters.slice(0, STARTERS_REQUIRED),
           bench: [...remaining, ...groups.gk].slice(0),
         };
       };
@@ -564,22 +575,22 @@
           });
           const data = await response.json();
           if (!response.ok) {
-            statusMsg.textContent = data.error || 'No se pudo guardar el 11.';
+            statusMsg.textContent = data.error || 'No se pudo guardar la alineación.';
             statusMsg.classList.add('warn');
             statusMsg.classList.remove('ok');
             return;
           }
           if (data.pending_lineup) {
-            statusMsg.textContent = `11 pendiente (${data.starters}/11) · Suplentes: ${data.bench}.`;
+            statusMsg.textContent = `Alineación pendiente (${data.starters}/${STARTERS_REQUIRED}) · Suplentes: ${data.bench}.`;
             statusMsg.classList.add('warn');
             statusMsg.classList.remove('ok');
           } else {
-            statusMsg.textContent = `11 guardado (${data.starters}/11) · Suplentes: ${data.bench}.`;
+            statusMsg.textContent = `Alineación guardada (${data.starters}/${STARTERS_REQUIRED}) · Suplentes: ${data.bench}.`;
             statusMsg.classList.remove('warn');
             statusMsg.classList.add('ok');
           }
         } catch (err) {
-          statusMsg.textContent = 'Error guardando el 11 inicial.';
+          statusMsg.textContent = 'Error guardando la alineación inicial.';
           statusMsg.classList.add('warn');
           statusMsg.classList.remove('ok');
         }
