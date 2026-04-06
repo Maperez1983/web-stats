@@ -4,7 +4,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-    <title>Operativa cliente</title>
+    <title>Admin · Cliente</title>
     <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     {% include 'football/pwa_head.html' %}
@@ -193,7 +193,7 @@
           <a class="module-tab" href="{% url 'coach-detail' %}">Cuerpo técnico</a>
           <a class="module-tab" href="{% url 'player-dashboard' %}">Jugadores</a>
           <a class="module-tab" href="{% url 'match-action-page' %}">Registro</a>
-          <a class="module-tab is-active" href="{% url 'admin-page' %}">Operativa</a>
+          <a class="module-tab is-active" href="{% url 'admin-page' %}">Admin</a>
         </nav>
       </header>
 
