@@ -257,8 +257,8 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
   const classifyCounterDropKey = ({ action = '', result = '' }) => {
     const actionText = String(action || '').toLowerCase();
     const resultText = String(result || '').toLowerCase();
-    if (actionText.includes('amarilla') || resultText.includes('amarilla')) return 'amarilla';
     if (actionText.includes('roja') || resultText.includes('roja')) return 'roja';
+    if (actionText.includes('amarilla') || resultText.includes('amarilla')) return 'amarilla';
     if (actionText.includes('saque de esquina a favor') || actionText.includes('corner a favor') || resultText.includes('a favor')) return 'corner_for';
     if (actionText.includes('saque de esquina en contra') || actionText.includes('corner en contra') || resultText.includes('en contra')) return 'corner_against';
     if (actionText.includes('sustituci') || actionText.includes('cambio') || resultText.includes('entrada') || resultText.includes('salida')) {
@@ -455,6 +455,9 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     if (event_id && historyList.querySelector(`[data-event-id="${event_id}"]`)) return false;
     const item = document.createElement('article');
     item.className = 'history-item';
+    if (player?.id) {
+      item.dataset.playerId = String(player.id);
+    }
     const numericMinute = Number(minute);
     const minuteLabel = Number.isFinite(numericMinute) ? `${numericMinute}'` : "Ahora'";
     item.innerHTML = `
