@@ -72,6 +72,8 @@ class Team(models.Model):
     preferente_url = models.URLField(blank=True, help_text='URL del equipo en LaPreferente')
     crest_url = models.URLField(blank=True, help_text='URL sincronizada del escudo del equipo')
     crest_image = models.ImageField(upload_to='team-crests/', null=True, blank=True)
+    cover_image = models.ImageField(upload_to='team-covers/', null=True, blank=True)
+    cover_updated_at = models.DateTimeField(null=True, blank=True)
     is_primary = models.BooleanField(default=False, help_text='Marcar si es el equipo de Benagalbón')
     category = models.CharField(
         max_length=24,

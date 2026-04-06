@@ -1347,6 +1347,25 @@ def resolve_team_photo_for_pdf(request):
     source_path = default_path
     source_url = fallback_url
 
+    primary_team = None
+    try:
+        primary_team = _get_primary_team_for_request(request)
+    except Exception:
+        primary_team = None
+    if primary_team and getattr(primary_team, 'cover_image', None):
+        try:
+            source_url = request.build_absolute_uri(primary_team.cover_image.url)
+            if getattr(primary_team.cover_image, 'path', None):
+                source_path = Path(primary_team.cover_image.path)
+        except Exception:
+            source_path = default_path
+            source_url = fallback_url
+        data_uri = _image_file_as_small_data_uri(source_path) or fallback_data_uri
+        return {
+            'url': source_url or fallback_url,
+            'data_uri': data_uri or '',
+        }
+
     carousel_cover = (
         HomeCarouselImage.objects
         .filter(is_active=True)
@@ -5204,7 +5223,32 @@ def dashboard_data(request):
 
     group = primary_team.group
     if not group:
-        return JsonResponse({'error': 'El equipo principal no está asignado a ningún grupo'}, status=400)
+        # En multicategoría, una categoría puede existir sin grupo todavía.
+        # Devolvemos payload vacío para que la UI no se rompa y el admin pueda completar la configuración.
+        player_cards = compute_player_cards(primary_team)
+        payload = {
+            'team': {
+                'name': primary_team.name,
+                'group': '',
+                'competition': '',
+                'season': '',
+                'corporate_line': '',
+                'crest_url': resolve_team_crest_url(request, primary_team, sync=True),
+            },
+            'standings': [],
+            'next_match': None,
+            'standings_meta': {
+                'provider': '',
+                'last_updated': '',
+                'group': '',
+                'season': '',
+            },
+            'team_metrics': {},
+            'player_metrics': [],
+            'player_cards': player_cards,
+            'player_cards_scope': {'type': 'global', 'label': 'Jugador · datos La Preferente'},
+        }
+        return JsonResponse(payload)
 
     force_fresh = str(request.GET.get('fresh') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
     cache_key = _dashboard_cache_key(primary_team.id)
@@ -5379,6 +5423,23 @@ def dashboard_page(request):
     dashboard_pending_cards = []
     dashboard_recent_activity = []
     primary_team = _get_primary_team_for_request(request)
+    if primary_team and getattr(primary_team, 'cover_image', None):
+        try:
+            cover_url = str(primary_team.cover_image.url or '').strip()
+            version = ''
+            try:
+                updated_at = getattr(primary_team, 'cover_updated_at', None)
+                if updated_at:
+                    version = str(int(updated_at.timestamp()))
+            except Exception:
+                version = ''
+            if version and cover_url:
+                joiner = '&' if '?' in cover_url else '?'
+                cover_url = f'{cover_url}{joiner}v={version}'
+            if cover_url:
+                hero_image_candidates = [cover_url] + list(hero_image_candidates or [])
+        except Exception:
+            pass
     if primary_team and current_role not in {AppUserRole.ROLE_TASK_STUDIO, AppUserRole.ROLE_GUEST}:
         focus_by_role = {
             AppUserRole.ROLE_COACH: [
@@ -7010,24 +7071,59 @@ def admin_page(request):
                             except Exception:
                                 group_external_id = str(group_external_id or '').strip()[:80]
                         update_fields = []
+                        uploaded_cover = None
+                        try:
+                            uploaded_cover = request.FILES.get('cover_image')
+                        except Exception:
+                            uploaded_cover = None
                         if category != str(getattr(team_obj, 'category', '') or '').strip():
                             team_obj.category = category
                             update_fields.append('category')
                         if game_format in {Team.GAME_FORMAT_F7, Team.GAME_FORMAT_F11} and game_format != team_obj.game_format:
                             team_obj.game_format = game_format
                             update_fields.append('game_format')
+                        if uploaded_cover:
+                            try:
+                                existing_cover = getattr(team_obj, 'cover_image', None)
+                                if existing_cover:
+                                    existing_cover.delete(save=False)
+                            except Exception:
+                                pass
+                            team_obj.cover_image = uploaded_cover
+                            try:
+                                team_obj.cover_updated_at = timezone.now()
+                                update_fields.append('cover_updated_at')
+                            except Exception:
+                                pass
+                            update_fields.append('cover_image')
                         # Si el usuario define (o corrige) la liga/grupo, re-vinculamos el team a un Group propio.
                         should_rebind_group = bool(competition_name or season_name or group_name or group_external_id or universo_url)
                         if should_rebind_group:
-                            # Defaults si faltan (pero evitando heredar del Senior cuando hay group_external_id).
-                            if not season_name and getattr(getattr(team_obj.group, 'season', None), 'name', None):
-                                season_name = str(team_obj.group.season.name or '').strip()[:80]
-                            if not group_name and getattr(team_obj.group, 'name', None):
-                                group_name = str(team_obj.group.name or '').strip()[:80]
-                            if group_external_id and not competition_name:
-                                competition_name = 'Universo RFAF'
-                            if not competition_name and getattr(getattr(getattr(team_obj.group, 'season', None), 'competition', None), 'name', None):
-                                competition_name = str(team_obj.group.season.competition.name or '').strip()[:150]
+                            # Defaults si faltan:
+                            # - Si se está usando Universo (group_external_id/url), NO heredamos valores del grupo previo
+                            #   (evita que Prebenjamín quede "enganchado" a Senior).
+                            # - En caso contrario, mantenemos el fallback legacy al grupo actual.
+                            is_universo_binding = bool(group_external_id or universo_url)
+                            if is_universo_binding:
+                                if group_external_id and not group_name:
+                                    group_name = f'Grupo {group_external_id}'[:80]
+                                if not group_name:
+                                    group_name = 'Grupo 1'
+                                if not competition_name:
+                                    competition_name = 'Universo RFAF'
+                                if not season_name:
+                                    try:
+                                        if workspace and getattr(getattr(getattr(workspace, 'primary_team', None), 'group', None), 'season', None):
+                                            season_name = str(workspace.primary_team.group.season.name or '').strip()[:80]
+                                    except Exception:
+                                        season_name = ''
+                            else:
+                                if not season_name and getattr(getattr(team_obj.group, 'season', None), 'name', None):
+                                    season_name = str(team_obj.group.season.name or '').strip()[:80]
+                                if not group_name and getattr(team_obj.group, 'name', None):
+                                    group_name = str(team_obj.group.name or '').strip()[:80]
+                                if not competition_name and getattr(getattr(getattr(team_obj.group, 'season', None), 'competition', None), 'name', None):
+                                    competition_name = str(team_obj.group.season.competition.name or '').strip()[:150]
                             competition_name = competition_name or 'Liga'
                             season_name = season_name or f'{timezone.localdate().year}/{timezone.localdate().year + 1}'
                             group_name = group_name or 'Grupo 1'
@@ -7063,8 +7159,23 @@ def admin_page(request):
                             if target_group and team_obj.group_id != target_group.id:
                                 team_obj.group = target_group
                                 update_fields.append('group')
+                        group_changed = 'group' in update_fields
                         if update_fields:
                             team_obj.save(update_fields=update_fields)
+                        if group_changed:
+                            # Si cambia el group, borramos snapshot/contexto previo para forzar resync
+                            # y evitar mezclar clasificaciones entre categorías.
+                            try:
+                                WorkspaceCompetitionSnapshot.objects.filter(context__workspace=workspace, context__team=team_obj).delete()
+                            except Exception:
+                                pass
+                            try:
+                                WorkspaceCompetitionContext.objects.filter(workspace=workspace, team=team_obj).update(
+                                    sync_status=WorkspaceCompetitionContext.STATUS_PENDING,
+                                    sync_error='',
+                                )
+                            except Exception:
+                                pass
                         # Invalidar cachés del equipo por si cambia su contexto o se corrige la clasificación.
                         try:
                             _invalidate_team_dashboard_caches(team_obj)
@@ -7097,51 +7208,58 @@ def admin_page(request):
                             except Exception:
                                 group_external_id = str(group_external_id or '').strip()[:80]
 
-                        # Defaults razonables si el usuario no rellena estos campos.
-                        if group_external_id and not competition_name:
-                            competition_name = 'Universo RFAF'
-                        if not competition_name and primary_team and getattr(getattr(getattr(primary_team, 'group', None), 'season', None), 'competition', None) and not group_external_id:
-                            competition_name = str(primary_team.group.season.competition.name or '').strip()[:150]
-                        if not season_name and primary_team and getattr(getattr(primary_team, 'group', None), 'season', None):
-                            season_name = str(primary_team.group.season.name or '').strip()[:80]
-                        if not group_name and primary_team and getattr(primary_team, 'group', None) and not group_external_id:
-                            group_name = str(primary_team.group.name or '').strip()[:80]
-                        competition_name = competition_name or 'Liga'
-                        season_name = season_name or f'{timezone.localdate().year}/{timezone.localdate().year + 1}'
-                        group_name = group_name or 'Grupo 1'
-
-                        comp_slug = slugify(competition_name)[:150] or 'liga'
-                        competition_obj, _ = Competition.objects.get_or_create(
-                            name=competition_name,
-                            region='',
-                            defaults={'slug': comp_slug},
-                        )
-                        season_obj, _ = Season.objects.get_or_create(
-                            competition=competition_obj,
-                            name=season_name,
-                            defaults={'is_current': True},
+                        # No heredamos liga/grupo del Senior por defecto.
+                        # Si no hay datos de contexto competitivo, creamos la categoría sin `group`
+                        # y el usuario puede configurarlo después.
+                        has_competition_context = bool(
+                            competition_name
+                            or season_name
+                            or group_name
+                            or group_external_id
+                            or universo_url
                         )
                         group_obj = None
-                        if group_external_id:
-                            group_obj = Group.objects.filter(season=season_obj, external_id=group_external_id).first()
-                        if not group_obj and not group_external_id:
-                            group_obj = Group.objects.filter(season=season_obj, name__iexact=group_name).first()
-                        if not group_obj:
-                            group_slug = _unique_group_slug(
-                                season_obj,
-                                f'{group_name}-{group_external_id}' if group_external_id else group_name,
+                        if has_competition_context:
+                            # Defaults razonables si el usuario no rellena estos campos.
+                            if group_external_id and not group_name:
+                                group_name = f'Grupo {group_external_id}'[:80]
+                            if group_external_id and not competition_name:
+                                competition_name = 'Universo RFAF'
+                            competition_name = (competition_name or 'Liga')[:150]
+                            season_name = (season_name or f'{timezone.localdate().year}/{timezone.localdate().year + 1}')[:80]
+                            group_name = (group_name or 'Grupo 1')[:80]
+
+                            comp_slug = slugify(competition_name)[:150] or 'liga'
+                            competition_obj, _ = Competition.objects.get_or_create(
+                                name=competition_name,
+                                region='',
+                                defaults={'slug': comp_slug},
                             )
-                            group_defaults = {'name': group_name}
+                            season_obj, _ = Season.objects.get_or_create(
+                                competition=competition_obj,
+                                name=season_name,
+                                defaults={'is_current': True},
+                            )
                             if group_external_id:
-                                group_defaults['external_id'] = group_external_id
-                            group_obj, _ = Group.objects.get_or_create(
-                                season=season_obj,
-                                slug=group_slug,
-                                defaults=group_defaults,
-                            )
-                        if group_external_id and group_obj and not str(getattr(group_obj, 'external_id', '') or '').strip():
-                            group_obj.external_id = group_external_id
-                            group_obj.save(update_fields=['external_id'])
+                                group_obj = Group.objects.filter(season=season_obj, external_id=group_external_id).first()
+                            if not group_obj and not group_external_id:
+                                group_obj = Group.objects.filter(season=season_obj, name__iexact=group_name).first()
+                            if not group_obj:
+                                group_slug = _unique_group_slug(
+                                    season_obj,
+                                    f'{group_name}-{group_external_id}' if group_external_id else group_name,
+                                )
+                                group_defaults = {'name': group_name}
+                                if group_external_id:
+                                    group_defaults['external_id'] = group_external_id
+                                group_obj, _ = Group.objects.get_or_create(
+                                    season=season_obj,
+                                    slug=group_slug,
+                                    defaults=group_defaults,
+                                )
+                            if group_external_id and group_obj and not str(getattr(group_obj, 'external_id', '') or '').strip():
+                                group_obj.external_id = group_external_id
+                                group_obj.save(update_fields=['external_id'])
 
                         base_slug = _unique_team_slug(f'{team_base_name} {category}')
                         team_obj = Team.objects.create(
@@ -8263,6 +8381,7 @@ def coach_overview_page(request):
     if forbidden:
         return forbidden
     sources = list(ScrapeSource.objects.filter(is_active=True))
+    workspace = _get_active_workspace(request)
     primary_team = _get_primary_team_for_request(request)
     technical_roles = {
         AppUserRole.ROLE_COACH,
@@ -8273,7 +8392,67 @@ def coach_overview_page(request):
     }
     role_labels = dict(AppUserRole.ROLE_CHOICES)
     role_labels[AppUserRole.ROLE_GOALKEEPER] = 'Preparador de porteros'
-    role_rows = list(AppUserRole.objects.select_related('user').filter(role__in=technical_roles))
+    # Staff visible se restringe a la categoría activa del cliente.
+    default_team_id = (
+        WorkspaceTeam.objects
+        .filter(workspace=workspace, is_default=True)
+        .values_list('team_id', flat=True)
+        .first()
+        if workspace and workspace.kind == Workspace.KIND_CLUB
+        else None
+    )
+    membership_rows = []
+    if workspace:
+        try:
+            membership_rows = list(
+                WorkspaceMembership.objects
+                .filter(workspace=workspace, user__is_active=True)
+                .values_list('user_id', 'role')
+            )
+        except Exception:
+            membership_rows = []
+        try:
+            owner_id = int(getattr(workspace, 'owner_user_id', 0) or 0)
+            if owner_id and all(int(uid or 0) != owner_id for uid, _ in membership_rows):
+                membership_rows.append((owner_id, WorkspaceMembership.ROLE_OWNER))
+        except Exception:
+            pass
+    member_user_ids = {int(uid) for uid, _ in membership_rows if uid}
+    membership_role_by_user_id = {int(uid): role for uid, role in membership_rows if uid}
+    access_rows = (
+        list(
+            WorkspaceTeamAccess.objects
+            .filter(workspace=workspace, user_id__in=member_user_ids)
+            .values_list('user_id', 'team_id')
+        )
+        if workspace and member_user_ids
+        else []
+    )
+    users_with_any_access = {int(uid) for uid, _ in access_rows if uid}
+    allowed_for_team = {
+        int(uid)
+        for uid, tid in access_rows
+        if uid and primary_team and int(tid or 0) == int(getattr(primary_team, 'id', 0) or 0)
+    }
+    allowed_staff_ids = set()
+    for user_id in member_user_ids:
+        role = membership_role_by_user_id.get(int(user_id)) or ''
+        if role in {WorkspaceMembership.ROLE_OWNER, WorkspaceMembership.ROLE_ADMIN}:
+            allowed_staff_ids.add(int(user_id))
+            continue
+        if int(user_id) in users_with_any_access:
+            if int(user_id) in allowed_for_team:
+                allowed_staff_ids.add(int(user_id))
+            continue
+        if primary_team and default_team_id and int(default_team_id) == int(getattr(primary_team, 'id', 0) or 0):
+            allowed_staff_ids.add(int(user_id))
+
+    role_rows = list(
+        AppUserRole.objects
+        .select_related('user')
+        .filter(role__in=technical_roles, user__is_active=True)
+        .filter(user_id__in=allowed_staff_ids) if allowed_staff_ids else AppUserRole.objects.none()
+    )
     technical_members = []
     technical_members_lower = set()
     for role_row in role_rows:
@@ -8291,7 +8470,6 @@ def coach_overview_page(request):
         technical_members = ['Sin miembros técnicos configurados en Admin']
     weekly_brief = _build_weekly_staff_brief_context(primary_team)
     rival_summary = _build_coach_rival_summary(primary_team)
-    workspace = _get_active_workspace(request)
     competition_payload = _competition_payload_for_team(workspace, primary_team)
     standings = competition_payload.get('standings') or []
     convocation_next = _build_next_match_from_convocation(primary_team)
@@ -8308,8 +8486,25 @@ def coach_overview_page(request):
         next_match_date = parsed_next_match_date.strftime('%d/%m/%Y')
     elif isinstance(next_match, dict):
         next_match_date = str(next_match.get('date') or '').strip()
-    hero_items = list(HomeCarouselImage.objects.filter(is_active=True).order_by('order', '-created_at', '-id'))
-    hero_image_url = hero_items[0].image.url if hero_items and getattr(hero_items[0], 'image', None) else ''
+    hero_image_url = ''
+    if primary_team and getattr(primary_team, 'cover_image', None):
+        try:
+            hero_image_url = str(primary_team.cover_image.url or '').strip()
+            version = ''
+            try:
+                updated_at = getattr(primary_team, 'cover_updated_at', None)
+                if updated_at:
+                    version = str(int(updated_at.timestamp()))
+            except Exception:
+                version = ''
+            if version and hero_image_url:
+                joiner = '&' if '?' in hero_image_url else '?'
+                hero_image_url = f'{hero_image_url}{joiner}v={version}'
+        except Exception:
+            hero_image_url = ''
+    if not hero_image_url:
+        hero_items = list(HomeCarouselImage.objects.filter(is_active=True).order_by('order', '-created_at', '-id'))
+        hero_image_url = hero_items[0].image.url if hero_items and getattr(hero_items[0], 'image', None) else ''
     team_name_folded = (primary_team.name or '').strip().lower() if primary_team else ''
     highlighted_standing = None
     for row in standings:
@@ -10880,13 +11075,82 @@ def coach_cards_page(request):
     if forbidden:
         return forbidden
     role_labels = dict(AppUserRole.ROLE_CHOICES)
+    workspace = _get_active_workspace(request)
+    primary_team = _get_primary_team_for_request(request)
     technical_roles = {
         AppUserRole.ROLE_COACH,
         AppUserRole.ROLE_GOALKEEPER,
         AppUserRole.ROLE_FITNESS,
         AppUserRole.ROLE_ANALYST,
     }
-    role_rows = list(AppUserRole.objects.select_related('user').filter(role__in=technical_roles))
+
+    def _team_default_id(ws):
+        if not ws:
+            return None
+        default_link = (
+            WorkspaceTeam.objects
+            .filter(workspace=ws, is_default=True)
+            .values_list('team_id', flat=True)
+            .first()
+        )
+        return int(default_link) if default_link else None
+
+    def _team_staff_user_ids(ws, team):
+        if not ws or ws.kind != Workspace.KIND_CLUB:
+            return set()
+        default_team_id = _team_default_id(ws)
+        team_id = int(getattr(team, 'id', 0) or 0)
+        memberships = []
+        try:
+            memberships = list(
+                WorkspaceMembership.objects
+                .select_related('user')
+                .filter(workspace=ws, user__is_active=True)
+                .only('user_id', 'role')
+            )
+        except Exception:
+            memberships = []
+        try:
+            owner_id = int(getattr(ws, 'owner_user_id', 0) or 0)
+            if owner_id and all(int(getattr(m, 'user_id', 0) or 0) != owner_id for m in memberships):
+                owner_membership = WorkspaceMembership(workspace=ws, user_id=owner_id, role=WorkspaceMembership.ROLE_OWNER)
+                memberships.append(owner_membership)
+        except Exception:
+            pass
+        if not memberships:
+            return set()
+        membership_role_by_user_id = {m.user_id: m.role for m in memberships if m.user_id}
+        member_user_ids = set(membership_role_by_user_id.keys())
+        access_rows = list(
+            WorkspaceTeamAccess.objects
+            .filter(workspace=ws, user_id__in=member_user_ids)
+            .values_list('user_id', 'team_id')
+        )
+        users_with_any_access = {int(uid) for uid, _ in access_rows if uid}
+        allowed_for_team = {int(uid) for uid, tid in access_rows if uid and int(tid or 0) == team_id}
+        allowed = set()
+        for user_id in member_user_ids:
+            role = membership_role_by_user_id.get(user_id) or ''
+            if role in {WorkspaceMembership.ROLE_OWNER, WorkspaceMembership.ROLE_ADMIN}:
+                allowed.add(int(user_id))
+                continue
+            # Si el usuario tiene accesos explícitos, solo vale si tiene el del team activo.
+            if int(user_id) in users_with_any_access:
+                if int(user_id) in allowed_for_team:
+                    allowed.add(int(user_id))
+                continue
+            # Si no tiene accesos explícitos, lo limitamos a la categoría predeterminada.
+            if default_team_id and int(default_team_id) == team_id:
+                allowed.add(int(user_id))
+        return allowed
+
+    allowed_staff_ids = _team_staff_user_ids(workspace, primary_team) if primary_team else set()
+    role_rows = list(
+        AppUserRole.objects
+        .select_related('user')
+        .filter(role__in=technical_roles, user__is_active=True)
+        .filter(user_id__in=allowed_staff_ids) if allowed_staff_ids else AppUserRole.objects.none()
+    )
     members_by_role = {key: [] for key in technical_roles}
     for role_row in role_rows:
         if not role_row.user.is_active:
@@ -20953,7 +21217,15 @@ def player_detail_page(request, player_id):
         importance_score = float(stats_source.get('importance_score') or 0)
         influence_score = float(stats_source.get('influence_score') or 0)
 
-        standings_rows = _resolve_standings_for_team(primary_team, snapshot=load_universo_snapshot())
+        standings_rows = []
+        try:
+            ws = _get_active_workspace(request)
+            competition_payload = _competition_payload_for_team(ws, primary_team) if ws else {}
+            standings_rows = competition_payload.get('standings') if isinstance(competition_payload, dict) else []
+        except Exception:
+            standings_rows = []
+        if not standings_rows:
+            standings_rows = _resolve_standings_for_team(primary_team, snapshot=load_universo_snapshot())
         team_points = 0
         team_rank = 0
         team_key = _normalize_team_lookup_key(primary_team.name)

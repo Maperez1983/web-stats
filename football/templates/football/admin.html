@@ -414,7 +414,7 @@
               <span class="badge-active on" style="display:inline-block;margin-top:0.35rem;">Predeterminada</span>
               {% endif %}
             </div>
-            <form method="post" class="form-inline" style="display:grid;gap:0.35rem;justify-items:end;">
+            <form method="post" enctype="multipart/form-data" class="form-inline" style="display:grid;gap:0.35rem;justify-items:end;">
               {% csrf_token %}
               <input type="hidden" name="active_tab" value="teams" />
               <input type="hidden" name="workspace_team_id" value="{{ link.id }}" />
@@ -449,6 +449,10 @@
               <label style="width:100%;">
                 <span>Universo RFAF (URL)</span>
                 <input type="text" name="universo_url" placeholder="Pega la URL (results/team) para autocompletar el ID de grupo" />
+              </label>
+              <label style="width:100%;">
+                <span>Portada (imagen)</span>
+                <input type="file" name="cover_image" accept="image/*" />
               </label>
               <div style="display:flex;gap:0.4rem;justify-content:flex-end;width:100%;flex-wrap:wrap;">
                 <button class="pill-button icon-action" type="submit" title="Guardar" aria-label="Guardar">💾</button>
