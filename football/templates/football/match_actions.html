@@ -1602,6 +1602,81 @@
         font-weight: 700;
         color: #f8fafc;
       }
+      .player-quick-block {
+        margin-top: 0.55rem;
+        padding-top: 0.55rem;
+        border-top: 1px solid rgba(125, 211, 252, 0.18);
+        display: none;
+        flex-direction: column;
+        gap: 0.4rem;
+      }
+      .player-quick-block.is-visible {
+        display: flex;
+      }
+      .player-quick-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+      }
+      .player-quick-name {
+        flex: 1;
+        text-align: right;
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(248, 250, 252, 0.95);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .player-quick-clear {
+        width: 28px;
+        height: 28px;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        background: rgba(15, 23, 42, 0.55);
+        color: rgba(226, 232, 240, 0.85);
+        cursor: pointer;
+        font-weight: 800;
+        line-height: 1;
+      }
+      .player-quick-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.4rem;
+      }
+      .player-quick-btn {
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 12px;
+        padding: 0.55rem 0.6rem;
+        background: rgba(255, 255, 255, 0.05);
+        cursor: pointer;
+        color: rgba(248, 250, 252, 0.92);
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-size: 0.68rem;
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        gap: 0.4rem;
+      }
+      .player-quick-btn[data-quick-card='amarilla'] {
+        border-color: rgba(250, 204, 21, 0.35);
+        background: rgba(250, 204, 21, 0.08);
+      }
+      .player-quick-btn[data-quick-card='roja'] {
+        border-color: rgba(248, 113, 113, 0.4);
+        background: rgba(248, 113, 113, 0.1);
+      }
+      .player-quick-hint {
+        font-size: 0.62rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(186, 230, 253, 0.65);
+      }
       @media (max-width: 1100px) {
         .action-screen {
           grid-template-columns: 1fr;
@@ -2285,6 +2360,18 @@
           <span class="label">Stats live</span>
           <span class="value"><span id="persistent-actions">0</span> acc · <span id="persistent-possession">50%</span></span>
         </div>
+        <div class="player-quick-block" id="player-quick-block" aria-live="polite">
+          <div class="player-quick-head">
+            <span class="label">Jugador</span>
+            <span class="player-quick-name" id="player-quick-name">—</span>
+            <button type="button" class="player-quick-clear" id="player-quick-clear" aria-label="Quitar selección">×</button>
+          </div>
+          <div class="player-quick-actions">
+            <button type="button" class="player-quick-btn" data-quick-card="amarilla" title="Registrar amarilla">🟨 Amarilla</button>
+            <button type="button" class="player-quick-btn" data-quick-card="roja" title="Registrar roja">🟥 Roja</button>
+          </div>
+          <div class="player-quick-hint">Toca una ficha para activar.</div>
+        </div>
       </section>
     </div>
     <div class="quick-history-modal" id="quick-history-modal" aria-hidden="true">
@@ -2437,12 +2524,16 @@
       let lastSavedLineupSnapshot = '';
       let lineupPersistDisabled = false;
 
-      const persistentClockEl = document.getElementById('persistent-clock');
-      const persistentYellowEl = document.getElementById('persistent-yellow');
-      const persistentRedEl = document.getElementById('persistent-red');
-      const persistentSubsUsedEl = document.getElementById('persistent-subs-used');
-      const persistentActionsEl = document.getElementById('persistent-actions');
-      const persistentPossessionEl = document.getElementById('persistent-possession');
+	      const persistentClockEl = document.getElementById('persistent-clock');
+	      const persistentYellowEl = document.getElementById('persistent-yellow');
+	      const persistentRedEl = document.getElementById('persistent-red');
+	      const persistentSubsUsedEl = document.getElementById('persistent-subs-used');
+	      const persistentActionsEl = document.getElementById('persistent-actions');
+	      const persistentPossessionEl = document.getElementById('persistent-possession');
+	      const playerQuickBlock = document.getElementById('player-quick-block');
+	      const playerQuickNameEl = document.getElementById('player-quick-name');
+	      const playerQuickClearBtn = document.getElementById('player-quick-clear');
+	      const playerQuickButtons = document.querySelectorAll('[data-quick-card]');
 
       const liveStatsHud = document.getElementById('live-stats-hud');
       const liveStatsToggle = document.getElementById('live-stats-toggle');
@@ -2461,10 +2552,11 @@
       let showPageStatus;
       let setMatchInfoEditing;
       let collectMatchInfoPayload;
-      let renderMatchInfoState;
-      let showQuickHistoryModal;
-      let hideQuickHistoryModal;
-      let updateCloseSummary;
+	      let renderMatchInfoState;
+	      let showQuickHistoryModal;
+	      let hideQuickHistoryModal;
+	      let updateCloseSummary;
+	      let updatePlayerQuickPanel = () => {};
       const containsText = (value, terms) => {
         const txt = String(value || '').toLowerCase();
         if (!txt) return false;
@@ -2703,26 +2795,30 @@
         }, 450);
       };
       let selectedPlayerId = null;
-      const clearPlayerSelection = () => {
-        selectedPlayerId = null;
-        if (playerInput) {
-          playerInput.value = '';
-        }
-        document.querySelectorAll('.lineup-chip.selected').forEach((chip) => chip.classList.remove('selected'));
-        convocationCards.forEach((card) => card.classList.remove('selected'));
-      };
-      const selectPlayer = (playerId) => {
-        selectedPlayerId = playerId;
-        if (playerInput) {
-          playerInput.value = playerId;
-        }
+	      const clearPlayerSelection = () => {
+	        selectedPlayerId = null;
+	        if (playerInput) {
+	          playerInput.value = '';
+	        }
+	        document.querySelectorAll('.lineup-chip.selected').forEach((chip) => chip.classList.remove('selected'));
+	        convocationCards.forEach((card) => card.classList.remove('selected'));
+	        if (playerQuickBlock) {
+	          playerQuickBlock.classList.remove('is-visible');
+	        }
+	      };
+	      const selectPlayer = (playerId) => {
+	        selectedPlayerId = playerId;
+	        if (playerInput) {
+	          playerInput.value = playerId;
+	        }
         document.querySelectorAll('.lineup-chip').forEach((chip) => {
           chip.classList.toggle('selected', chip.dataset.playerId === playerId);
         });
-        convocationCards.forEach((card) => {
-          card.classList.toggle('selected', card.dataset.playerId === playerId);
-        });
-      };
+	        convocationCards.forEach((card) => {
+	          card.classList.toggle('selected', card.dataset.playerId === playerId);
+	        });
+	        updatePlayerQuickPanel();
+	      };
       const createLineupChip = (player, sectionKey) => {
         const span = document.createElement('span');
         span.className = 'lineup-name lineup-chip';
@@ -2958,6 +3054,39 @@
 	        }
 	      };
 	      let activeStage = document.querySelector('[data-stage-tab].is-active')?.dataset.stageTab || 'live';
+	      const findPlayerPayload = (playerId) => {
+	        const id = String(playerId || '').trim();
+	        if (!id) return null;
+	        const card = Array.from(convocationCards).find((item) => String(item.dataset.playerId) === id);
+	        if (card) {
+	          return {
+	            id: card.dataset.playerId,
+	            name: card.dataset.playerName || '',
+	            number: card.dataset.playerNumber || '',
+	            photo: card.dataset.playerPhoto || '',
+	            position: card.dataset.playerPosition || '',
+	          };
+	        }
+	        const fallback = [...(lineupState.starters || []), ...(lineupState.bench || [])].find(
+	          (entry) => String(entry.id) === id,
+	        );
+	        return fallback || null;
+	      };
+	      updatePlayerQuickPanel = () => {
+	        if (!playerQuickBlock) return;
+	        const shouldShow = activeStage === 'live' && Boolean(selectedPlayerId);
+	        playerQuickBlock.classList.toggle('is-visible', shouldShow);
+	        if (!shouldShow) return;
+	        const payload = findPlayerPayload(selectedPlayerId);
+	        const number = payload?.number ? `#${payload.number}` : '#--';
+	        const name = String(payload?.name || 'Jugador').toUpperCase();
+	        if (playerQuickNameEl) {
+	          playerQuickNameEl.textContent = `${number} ${name}`;
+	        }
+	      };
+	      if (playerQuickClearBtn) {
+	        playerQuickClearBtn.addEventListener('click', () => clearPlayerSelection());
+	      }
 	      const onLineupCrossMove = (fromSection, toSection, player) => {
 	        if (activeStage !== 'live') return;
 	        if (!fromSection || fromSection === toSection) return;
@@ -3235,6 +3364,7 @@
 	        stagePanels.forEach((panel) => {
 	          panel.classList.toggle('is-active', panel.dataset.stagePanel === stage);
 	        });
+	        updatePlayerQuickPanel();
 	      };
       stageTabs.forEach((tab) => {
         tab.addEventListener('click', () => activateStage(tab.dataset.stageTab));
@@ -3252,7 +3382,7 @@
           requestAnimationFrame(() => updateCloseSummary({ matchInfo: { ...matchInfoState } }));
         });
       }
-      const liveController = window.initMatchActionsLive({
+	      const liveController = window.initMatchActionsLive({
         quickHistoryState,
         quickHistoryModal,
         quickHistoryModalList,
@@ -3305,9 +3435,66 @@
         selectPlayer,
         registerLiveEvent,
         removeLiveEvent,
-        onSummaryChange: updateCloseSummary,
-      });
-      updateCloseSummary();
-    </script>
+	        onSummaryChange: updateCloseSummary,
+	      });
+	      playerQuickButtons.forEach((btn) => {
+	        btn.addEventListener('click', async () => {
+	          if (activeStage !== 'live') {
+	            showPageStatus('Las tarjetas se registran en vivo.', 'warning', 3200);
+	            return;
+	          }
+	          if (!selectedPlayerId) {
+	            showPageStatus('Selecciona primero un jugador.', 'warning', 3200);
+	            return;
+	          }
+	          const player = findPlayerPayload(selectedPlayerId);
+	          if (!player?.id) {
+	            showPageStatus('Jugador inválido.', 'warning', 3200);
+	            return;
+	          }
+	          const key = btn.dataset.quickCard;
+	          const config =
+	            key === 'amarilla'
+	              ? {
+	                  eventType: 'Tarjeta Amarilla',
+	                  zoneLabel: 'Tarjeta Amarilla',
+	                  result: 'Amarilla',
+	                  dropKey: 'amarilla',
+	                }
+	              : {
+	                  eventType: 'Tarjeta Roja',
+	                  zoneLabel: 'Tarjeta Roja',
+	                  result: 'Roja',
+	                  dropKey: 'roja',
+	                };
+	          try {
+	            showPageStatus(`Registrando ${config.result.toLowerCase()}...`, 'info', 1600);
+	            const data = await liveController?.registerQuickDropAction?.({
+	              player,
+	              eventType: config.eventType,
+	              zoneLabel: config.zoneLabel,
+	              result: config.result,
+	              dropKey: config.dropKey,
+	              teamOnly: false,
+	              minuteOverride: getCurrentMatchMinute(),
+	            });
+	            if (!data) {
+	              showPageStatus('No se pudo registrar la tarjeta.', 'warning', 4200);
+	              return;
+	            }
+	            showPageStatus(
+	              `Tarjeta ${config.result.toLowerCase()} registrada${data.duplicate ? ' (duplicado detectado)' : ''}.`,
+	              data.duplicate ? 'warning' : 'success',
+	              2600,
+	            );
+	          } catch (err) {
+	            console.error(err);
+	            showPageStatus('Error registrando tarjeta.', 'warning', 4200);
+	          }
+	        });
+	      });
+	      updateCloseSummary();
+	      updatePlayerQuickPanel();
+	    </script>
   </body>
 </html>
