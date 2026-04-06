@@ -158,7 +158,42 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     if (!container) return;
     container.innerHTML = '';
     const entries = quickHistoryState[historyKey] || [];
-    entries.slice(-3).forEach((text) => {
+    const parseHistoryEntry = (text) => {
+      const raw = String(text || '').trim();
+      if (!raw) return null;
+      const parts = raw.split('·').map((part) => part.trim()).filter(Boolean);
+      if (parts.length < 2) return null;
+      const name = parts[0] || '';
+      const minutePart = parts[1] || '';
+      const minute = parseInt(minutePart.replace(/[^\d]/g, ''), 10);
+      const label = parts.slice(2).join(' · ').trim();
+      if (!Number.isFinite(minute)) return null;
+      return { name, minute, label: label || '' };
+    };
+    const groupSubstitutionEntries = (rows) => {
+      const parsed = rows.map(parseHistoryEntry).filter(Boolean);
+      if (!parsed.length) return rows;
+      const groups = new Map();
+      parsed.forEach((item) => {
+        const key = String(item.minute);
+        const existing = groups.get(key) || { minute: item.minute, inName: '', outName: '' };
+        const label = String(item.label || '').toLowerCase();
+        if (label.includes('salida')) existing.outName = existing.outName || item.name;
+        else if (label.includes('entrada')) existing.inName = existing.inName || item.name;
+        groups.set(key, existing);
+      });
+      const grouped = Array.from(groups.values())
+        .sort((a, b) => a.minute - b.minute)
+        .map((g) => {
+          if (g.inName && g.outName) return `${g.minute}' · SALE ${g.outName} · ENTRA ${g.inName}`.toUpperCase();
+          if (g.outName) return `${g.minute}' · SALE ${g.outName}`.toUpperCase();
+          if (g.inName) return `${g.minute}' · ENTRA ${g.inName}`.toUpperCase();
+          return `${g.minute}' · SUSTITUCIÓN`.toUpperCase();
+        });
+      return grouped.length ? grouped : rows;
+    };
+    const displayEntries = historyKey === 'subs' ? groupSubstitutionEntries(entries) : entries;
+    displayEntries.slice(-3).forEach((text) => {
       const entry = document.createElement('span');
       entry.textContent = text;
       container.appendChild(entry);
@@ -674,6 +709,59 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     }
   });
 
+  const postQuickDropAction = async ({ player = null, eventType, zoneLabel, result, dropKey, teamOnly = false, minuteOverride = null }) => {
+    const isTeamOnly = Boolean(teamOnly);
+    if (!eventType) {
+      showPageStatus('Acción rápida inválida.', 'warning', 3200);
+      return null;
+    }
+    if (!isTeamOnly && !player?.id) {
+      showPageStatus('Selecciona un jugador convocado.', 'warning', 3600);
+      return null;
+    }
+    const minute = Number.isFinite(minuteOverride) ? minuteOverride : Math.floor(elapsedRef.value / 60);
+    const formData = new FormData();
+    if (!isTeamOnly && player?.id) formData.set('player', player.id);
+    formData.set('action_type', eventType);
+    formData.set('result', result || '');
+    formData.set('minute', minute);
+    formData.set('zone', zoneLabel || '');
+    formData.set('tercio', '');
+    formData.set('observation', '');
+    if (currentMatchId) formData.set('match_id', currentMatchId);
+    try {
+      const response = await fetch(submitUrl, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'X-CSRFToken': csrfToken, Accept: 'application/json' },
+        body: formData,
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        showPageStatus(data.error || 'No se pudo registrar la acción rápida.', 'danger', 5200);
+        return null;
+      }
+      const inserted = appendHistoryEntry({
+        minute: data.minute || 'Ahora',
+        player: data.player,
+        action: data.action,
+        zone: data.zone,
+        result: data.result,
+        event_id: data.id,
+      });
+      if (!inserted) return data;
+      incrementQuickCounter(dropKey);
+      appendQuickHistory(dropKey, data.player?.name || 'Equipo', data.minute || minute, result || data.result || data.action);
+      if (!isTeamOnly && player?.id) selectPlayer(player.id);
+      emitSummaryChange();
+      return data;
+    } catch (err) {
+      console.error(err);
+      showPageStatus('Error al registrar la acción rápida.', 'danger', 5200);
+      return null;
+    }
+  };
+
   const quickDropTargets = document.querySelectorAll('.quick-drop');
   quickDropTargets.forEach((dropTarget) => {
     dropTarget.addEventListener('dragover', (event) => {
@@ -698,41 +786,15 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
           teamOnly: dropTarget.dataset.teamOnly || '',
         };
         const isTeamOnly = String(config.teamOnly || '').toLowerCase() === 'true';
-        if (!isTeamOnly && !player?.id) return;
-        const minute = Math.floor(elapsedRef.value / 60);
-        const formData = new FormData();
-        if (!isTeamOnly && player?.id) formData.set('player', player.id);
-        formData.set('action_type', config.eventType);
-        formData.set('result', config.result || '');
-        formData.set('minute', minute);
-        formData.set('zone', config.zoneLabel || '');
-        formData.set('tercio', '');
-        formData.set('observation', '');
-        if (currentMatchId) formData.set('match_id', currentMatchId);
-        const response = await fetch(submitUrl, {
-          method: 'POST',
-          credentials: 'same-origin',
-          headers: { 'X-CSRFToken': csrfToken, Accept: 'application/json' },
-          body: formData,
+        const data = await postQuickDropAction({
+          player,
+          eventType: config.eventType,
+          zoneLabel: config.zoneLabel,
+          result: config.result,
+          dropKey: config.dropKey,
+          teamOnly: isTeamOnly,
         });
-        const data = await response.json();
-        if (!response.ok) {
-          showPageStatus(data.error || 'No se pudo registrar la acción rápida.', 'danger', 5200);
-          return;
-        }
-        const inserted = appendHistoryEntry({
-          minute: data.minute || 'Ahora',
-          player: data.player,
-          action: data.action,
-          zone: data.zone,
-          result: data.result,
-          event_id: data.id,
-        });
-        if (!inserted) return;
-        incrementQuickCounter(config.dropKey);
-        appendQuickHistory(config.dropKey, data.player?.name || 'Equipo', data.minute || minute, config.result);
-        if (!isTeamOnly && player?.id) selectPlayer(player.id);
-        emitSummaryChange();
+        if (!data) return;
         showPageStatus(`Acción rápida registrada${data.duplicate ? ' (duplicado detectado)' : ''}.`, data.duplicate ? 'warning' : 'success', 2600);
       } catch (err) {
         console.error(err);
@@ -741,39 +803,16 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     });
     dropTarget.addEventListener('click', async () => {
       if (String(dropTarget.dataset.teamOnly || '').toLowerCase() !== 'true') return;
-      const minute = Math.floor(elapsedRef.value / 60);
-      const formData = new FormData();
-      formData.set('action_type', dropTarget.dataset.eventType);
-      formData.set('result', dropTarget.dataset.result || '');
-      formData.set('minute', minute);
-      formData.set('zone', dropTarget.dataset.zoneLabel || '');
-      formData.set('tercio', '');
-      formData.set('observation', '');
-      if (currentMatchId) formData.set('match_id', currentMatchId);
       try {
-        const response = await fetch(submitUrl, {
-          method: 'POST',
-          credentials: 'same-origin',
-          headers: { 'X-CSRFToken': csrfToken, Accept: 'application/json' },
-          body: formData,
+        const data = await postQuickDropAction({
+          player: null,
+          eventType: dropTarget.dataset.eventType,
+          zoneLabel: dropTarget.dataset.zoneLabel,
+          result: dropTarget.dataset.result || '',
+          dropKey: dropTarget.dataset.dropKey,
+          teamOnly: true,
         });
-        const data = await response.json();
-        if (!response.ok) {
-          showPageStatus(data.error || 'No se pudo registrar la acción rápida.', 'danger', 5200);
-          return;
-        }
-        const inserted = appendHistoryEntry({
-          minute: data.minute || 'Ahora',
-          player: data.player,
-          action: data.action,
-          zone: data.zone,
-          result: data.result,
-          event_id: data.id,
-        });
-        if (!inserted) return;
-        incrementQuickCounter(dropTarget.dataset.dropKey);
-        appendQuickHistory(dropTarget.dataset.dropKey, data.player?.name || 'Equipo', data.minute || minute, dropTarget.dataset.result);
-        emitSummaryChange();
+        if (!data) return;
         showPageStatus(`Acción rápida registrada${data.duplicate ? ' (duplicado detectado)' : ''}.`, data.duplicate ? 'warning' : 'success', 2600);
       } catch (err) {
         console.error(err);
@@ -786,5 +825,30 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     clearRegisterHistoryUI,
     resetRegisterHudState,
     resetClock,
+    registerQuickDropAction: postQuickDropAction,
+    registerSubstitutionPair: async ({ outPlayer = null, inPlayer = null, minute = null } = {}) => {
+      if (!outPlayer?.id || !inPlayer?.id) return false;
+      const safeMinute = Number.isFinite(minute) ? minute : Math.floor(elapsedRef.value / 60);
+      const exitData = await postQuickDropAction({
+        player: outPlayer,
+        eventType: 'Sustitución',
+        zoneLabel: 'Sustitución Saliente',
+        result: 'Salida',
+        dropKey: 'bajada',
+        teamOnly: false,
+        minuteOverride: safeMinute,
+      });
+      if (!exitData) return false;
+      const entryData = await postQuickDropAction({
+        player: inPlayer,
+        eventType: 'Sustitución',
+        zoneLabel: 'Sustitución Entrante',
+        result: 'Entrada',
+        dropKey: 'subida',
+        teamOnly: false,
+        minuteOverride: safeMinute,
+      });
+      return Boolean(entryData);
+    },
   };
 };

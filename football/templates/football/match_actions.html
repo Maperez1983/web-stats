@@ -2891,35 +2891,108 @@
         renderMatchInfoState(matchInfoState);
       }
 
-      const removeLineupEntry = (playerId) => {
-        let changed = false;
-        Object.keys(lineupState).forEach((sectionKey) => {
-          const originalLength = lineupState[sectionKey].length;
-          lineupState[sectionKey] = lineupState[sectionKey].filter((entry) => entry.id !== playerId);
-          if (lineupState[sectionKey].length !== originalLength) {
-            changed = true;
-          }
-        });
-        if (selectedPlayerId === playerId) {
-          clearPlayerSelection();
-        }
-        if (changed) {
-          renderLineup();
-        }
-      };
-      const addPlayerToSection = (sectionKey, player) => {
-        const section = lineupSections[sectionKey];
-        if (!section || !player?.id) {
-          return;
-        }
-        if (section.limit && lineupState[sectionKey].length >= section.limit) {
-          return;
-        }
-        removeLineupEntry(player.id);
-        lineupState[sectionKey].push(player);
-        renderLineup();
-        selectPlayer(player.id);
-      };
+	      const removeLineupEntry = (playerId) => {
+	        let changed = false;
+	        Object.keys(lineupState).forEach((sectionKey) => {
+	          const originalLength = lineupState[sectionKey].length;
+	          lineupState[sectionKey] = lineupState[sectionKey].filter((entry) => entry.id !== playerId);
+	          if (lineupState[sectionKey].length !== originalLength) {
+	            changed = true;
+	          }
+	        });
+	        if (selectedPlayerId === playerId) {
+	          clearPlayerSelection();
+	        }
+	        if (changed) {
+	          renderLineup();
+	        }
+	      };
+	      const findPlayerSection = (playerId) => {
+	        if (!playerId) return null;
+	        const id = String(playerId);
+	        return (
+	          Object.keys(lineupState).find((sectionKey) =>
+	            (lineupState[sectionKey] || []).some((entry) => String(entry.id) === id),
+	          ) || null
+	        );
+	      };
+	      const pendingSubstitution = {
+	        outPlayer: null,
+	        inPlayer: null,
+	        minute: null,
+	      };
+	      const clearPendingSubstitution = () => {
+	        pendingSubstitution.outPlayer = null;
+	        pendingSubstitution.inPlayer = null;
+	        pendingSubstitution.minute = null;
+	      };
+	      const commitPendingSubstitution = async () => {
+	        if (!pendingSubstitution.outPlayer?.id || !pendingSubstitution.inPlayer?.id) return;
+	        if (String(pendingSubstitution.outPlayer.id) === String(pendingSubstitution.inPlayer.id)) {
+	          clearPendingSubstitution();
+	          return;
+	        }
+	        const minute = Number.isFinite(pendingSubstitution.minute)
+	          ? pendingSubstitution.minute
+	          : getCurrentMatchMinute();
+	        try {
+	          showPageStatus(`Registrando cambio (${minute}')...`, 'info', 1800);
+	          const ok = await liveController?.registerSubstitutionPair?.({
+	            outPlayer: pendingSubstitution.outPlayer,
+	            inPlayer: pendingSubstitution.inPlayer,
+	            minute,
+	          });
+	          if (!ok) {
+	            showPageStatus('No se pudo registrar el cambio. Usa la tarjeta de Sustituciones.', 'warning', 5200);
+	            return;
+	          }
+	          showPageStatus(
+	            `Cambio registrado · ${pendingSubstitution.outPlayer.name || 'Sale'} → ${pendingSubstitution.inPlayer.name || 'Entra'} · ${minute}'`,
+	            'success',
+	            3200,
+	          );
+	          clearPendingSubstitution();
+	        } catch (err) {
+	          console.error(err);
+	          showPageStatus('Error registrando el cambio por arrastre.', 'warning', 5200);
+	        }
+	      };
+	      let activeStage = document.querySelector('[data-stage-tab].is-active')?.dataset.stageTab || 'live';
+	      const onLineupCrossMove = (fromSection, toSection, player) => {
+	        if (activeStage !== 'live') return;
+	        if (!fromSection || fromSection === toSection) return;
+	        const safeMinute = getCurrentMatchMinute();
+	        if (!Number.isFinite(pendingSubstitution.minute)) {
+	          pendingSubstitution.minute = safeMinute;
+	        }
+	        if (fromSection === 'starters' && toSection === 'bench') {
+	          pendingSubstitution.outPlayer = player;
+	          showPageStatus(`Cambio: SALE ${String(player.name || 'Jugador').toUpperCase()} · ahora arrastra el ENTRANTE al once.`, 'info', 3600);
+	        } else if (fromSection === 'bench' && toSection === 'starters') {
+	          pendingSubstitution.inPlayer = player;
+	          showPageStatus(`Cambio: ENTRA ${String(player.name || 'Jugador').toUpperCase()} · completa la SALIDA si falta.`, 'info', 3600);
+	        } else {
+	          return;
+	        }
+	        if (pendingSubstitution.outPlayer?.id && pendingSubstitution.inPlayer?.id) {
+	          void commitPendingSubstitution();
+	        }
+	      };
+	      const addPlayerToSection = (sectionKey, player) => {
+	        const section = lineupSections[sectionKey];
+	        if (!section || !player?.id) {
+	          return;
+	        }
+	        if (section.limit && lineupState[sectionKey].length >= section.limit) {
+	          return;
+	        }
+	        const previousSection = findPlayerSection(player.id);
+	        removeLineupEntry(player.id);
+	        lineupState[sectionKey].push(player);
+	        renderLineup();
+	        selectPlayer(player.id);
+	        onLineupCrossMove(previousSection, sectionKey, player);
+	      };
       const normalizePositionText = (value) => String(value || '').trim().toLowerCase();
       const playerPositionRank = (player) => {
         const pos = normalizePositionText(player.position || '');
@@ -3154,14 +3227,15 @@
           });
         }
       };
-      const activateStage = (stage) => {
-        stageTabs.forEach((tab) => {
-          tab.classList.toggle('is-active', tab.dataset.stageTab === stage);
-        });
-        stagePanels.forEach((panel) => {
-          panel.classList.toggle('is-active', panel.dataset.stagePanel === stage);
-        });
-      };
+	      const activateStage = (stage) => {
+	        activeStage = stage;
+	        stageTabs.forEach((tab) => {
+	          tab.classList.toggle('is-active', tab.dataset.stageTab === stage);
+	        });
+	        stagePanels.forEach((panel) => {
+	          panel.classList.toggle('is-active', panel.dataset.stagePanel === stage);
+	        });
+	      };
       stageTabs.forEach((tab) => {
         tab.addEventListener('click', () => activateStage(tab.dataset.stageTab));
       });

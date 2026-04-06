@@ -87,9 +87,43 @@ window.initMatchActionsChrome = function initMatchActionsChrome(options) {
       showPageStatus(`No se pudo abrir el visor de ${title.toLowerCase()}.`, 'warning');
       return;
     }
-    quickHistoryModalTitle.textContent = `${title} · ${entries.length}`;
+    const parseEntry = (text) => {
+      const raw = String(text || '').trim();
+      if (!raw) return null;
+      const parts = raw.split('·').map((part) => part.trim()).filter(Boolean);
+      if (parts.length < 2) return null;
+      const name = parts[0] || '';
+      const minutePart = parts[1] || '';
+      const minute = parseInt(minutePart.replace(/[^\d]/g, ''), 10);
+      const label = parts.slice(2).join(' · ').trim();
+      if (!Number.isFinite(minute)) return null;
+      return { name, minute, label: label || '' };
+    };
+    const groupSubs = (rows) => {
+      const parsed = rows.map(parseEntry).filter(Boolean);
+      if (!parsed.length) return rows;
+      const groups = new Map();
+      parsed.forEach((item) => {
+        const key = String(item.minute);
+        const existing = groups.get(key) || { minute: item.minute, inName: '', outName: '' };
+        const label = String(item.label || '').toLowerCase();
+        if (label.includes('salida')) existing.outName = existing.outName || item.name;
+        else if (label.includes('entrada')) existing.inName = existing.inName || item.name;
+        groups.set(key, existing);
+      });
+      return Array.from(groups.values())
+        .sort((a, b) => a.minute - b.minute)
+        .map((g) => {
+          if (g.inName && g.outName) return `${g.minute}' · Sale ${g.outName} · Entra ${g.inName}`;
+          if (g.outName) return `${g.minute}' · Sale ${g.outName}`;
+          if (g.inName) return `${g.minute}' · Entra ${g.inName}`;
+          return `${g.minute}' · Sustitución`;
+        });
+    };
+    const displayEntries = historyKey === 'subs' ? groupSubs(entries) : entries;
+    quickHistoryModalTitle.textContent = `${title} · ${displayEntries.length}`;
     quickHistoryModalList.innerHTML = '';
-    entries.forEach((entryText) => {
+    displayEntries.forEach((entryText) => {
       const li = document.createElement('li');
       li.textContent = entryText;
       quickHistoryModalList.appendChild(li);
