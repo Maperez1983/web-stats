@@ -434,6 +434,22 @@
                 <span>ID grupo</span>
                 <input type="text" name="group_external_id" value="{{ link.team.group.external_id|default:'' }}" placeholder="Ej. 48199749" />
               </label>
+              <label style="width:100%;">
+                <span>Competición</span>
+                <input type="text" name="competition_name" value="{% if link.team.group and link.team.group.season and link.team.group.season.competition %}{{ link.team.group.season.competition.name }}{% endif %}" placeholder="Ej. División de Honor Andaluza" />
+              </label>
+              <label style="width:100%;">
+                <span>Temporada</span>
+                <input type="text" name="season_name" value="{% if link.team.group and link.team.group.season %}{{ link.team.group.season.name }}{% endif %}" placeholder="Ej. 2025/2026" />
+              </label>
+              <label style="width:100%;">
+                <span>Grupo</span>
+                <input type="text" name="group_name" value="{% if link.team.group %}{{ link.team.group.name }}{% endif %}" placeholder="Ej. Grupo 1" />
+              </label>
+              <label style="width:100%;">
+                <span>Universo RFAF (URL)</span>
+                <input type="text" name="universo_url" placeholder="Pega la URL (results/team) para autocompletar el ID de grupo" />
+              </label>
               <div style="display:flex;gap:0.4rem;justify-content:flex-end;width:100%;flex-wrap:wrap;">
                 <button class="pill-button icon-action" type="submit" title="Guardar" aria-label="Guardar">💾</button>
               </div>

@@ -814,7 +814,14 @@ def resolve_player_photo_static_path(player):
         file_path = players_dir / filename
         if file_path.exists():
             return f'football/images/players/{filename}'
-    if number_value != '':
+    # Fallback por dorsal (wildcard) SOLO para el equipo principal legacy.
+    # En multicategoría (Prebenjamín/Senior), el dorsal se repite y este fallback mezclaba fotos
+    # entre equipos. Para categorías no-primary, preferimos mostrar avatar antes que foto errónea.
+    try:
+        is_primary_team = bool(getattr(getattr(player, 'team', None), 'is_primary', False))
+    except Exception:
+        is_primary_team = False
+    if is_primary_team and number_value != '':
         wildcard_patterns = [
             f'*-n{number_value}-final.*',
             f'*-n{number_value}-cut.*',
@@ -940,6 +947,10 @@ def save_player_photo(player, uploaded_photo):
         try:
             player.photo_updated_at = timezone.now()
             player.save(update_fields=['photo_updated_at'])
+        except Exception:
+            pass
+        try:
+            _invalidate_team_dashboard_caches(getattr(player, 'team', None))
         except Exception:
             pass
         try:
@@ -1856,12 +1867,14 @@ def _bootstrap_workspace_competition_context(
     if not workspace or workspace.kind != Workspace.KIND_CLUB:
         return None
     primary_team = primary_team or workspace.primary_team
+    if not primary_team:
+        return None
     group = getattr(primary_team, 'group', None)
     season = getattr(group, 'season', None)
     context, _ = WorkspaceCompetitionContext.objects.get_or_create(
         workspace=workspace,
+        team=primary_team,
         defaults={
-            'team': primary_team,
             'group': group,
             'season': season,
             'provider': provider or WorkspaceCompetitionContext.PROVIDER_MANUAL,
@@ -1873,9 +1886,7 @@ def _bootstrap_workspace_competition_context(
         },
     )
     changed = False
-    if context.team_id != getattr(primary_team, 'id', None):
-        context.team = primary_team
-        changed = True
+    # Nota: context ya está vinculado a `primary_team` por la clave (workspace, team).
     if context.group_id != getattr(group, 'id', None):
         context.group = group
         changed = True
@@ -2364,10 +2375,10 @@ def _search_workspace_competition_candidates(provider, *, team_query='', competi
     return candidates
 
 
-def _sync_workspace_competition_context(workspace):
+def _sync_workspace_competition_context(workspace, primary_team=None):
     if not workspace or workspace.kind != Workspace.KIND_CLUB:
         return None, 'Este cliente no admite contexto competitivo.'
-    primary_team = workspace.primary_team
+    primary_team = primary_team or workspace.primary_team
     context = _bootstrap_workspace_competition_context(workspace, primary_team=primary_team)
     if not context:
         return None, 'No se pudo preparar el contexto competitivo.'
@@ -2403,9 +2414,12 @@ def _sync_workspace_competition_context(workspace):
     )
     schedule_payload = _build_workspace_schedule_payload(primary_team)
     snapshot, _ = WorkspaceCompetitionSnapshot.objects.get_or_create(
-        workspace=workspace,
-        defaults={'context': context},
+        context=context,
+        defaults={'workspace': workspace},
     )
+    # `workspace` en snapshot es redundante, pero lo mantenemos para trazabilidad.
+    if snapshot.workspace_id != getattr(workspace, 'id', None):
+        snapshot.workspace = workspace
     snapshot.context = context
     snapshot.standings_payload = standings_payload or []
     snapshot.next_match_payload = next_match_payload or {}
@@ -2414,7 +2428,6 @@ def _sync_workspace_competition_context(workspace):
     if primary_team:
         _invalidate_team_dashboard_caches(primary_team)
 
-    context.team = primary_team
     context.group = primary_team.group
     context.season = getattr(primary_team.group, 'season', None)
     context.last_sync_at = timezone.now()
@@ -2422,7 +2435,7 @@ def _sync_workspace_competition_context(workspace):
     context.sync_error = ''
     if not context.external_team_name:
         context.external_team_name = str(primary_team.name or '').strip()
-    context.save(update_fields=['team', 'group', 'season', 'last_sync_at', 'sync_status', 'sync_error', 'external_team_name', 'updated_at'])
+    context.save(update_fields=['group', 'season', 'last_sync_at', 'sync_status', 'sync_error', 'external_team_name', 'updated_at'])
     return context, ''
 
 
@@ -2430,26 +2443,26 @@ def _competition_payload_for_team(workspace, primary_team):
     context = None
     snapshot = None
     if workspace and workspace.kind == Workspace.KIND_CLUB:
-        context_team = workspace.primary_team or primary_team
-        snapshot = WorkspaceCompetitionSnapshot.objects.filter(workspace=workspace).select_related('context').first()
-        if snapshot and snapshot.context_id:
-            context = snapshot.context
-        elif context_team:
-            # Importante: el contexto competitivo es una propiedad del "equipo principal" del cliente.
-            # En modo multicategoría, cambiar de categoría no debe sobrescribir el binding del contexto.
-            context = _bootstrap_workspace_competition_context(workspace, primary_team=context_team)
-            if context and context.is_auto_sync_enabled:
-                _sync_workspace_competition_context(workspace)
-                snapshot = WorkspaceCompetitionSnapshot.objects.filter(workspace=workspace).select_related('context').first()
-                context = snapshot.context if snapshot and snapshot.context_id else context
+        if primary_team:
+            # Contexto competitivo por equipo/categoría (evita mezclar Senior con Prebenjamín).
+            context = _bootstrap_workspace_competition_context(workspace, primary_team=primary_team)
+            if context:
+                snapshot = (
+                    WorkspaceCompetitionSnapshot.objects
+                    .filter(context=context)
+                    .select_related('context')
+                    .first()
+                )
+                if context.is_auto_sync_enabled and not snapshot:
+                    _sync_workspace_competition_context(workspace, primary_team=primary_team)
+                    snapshot = (
+                        WorkspaceCompetitionSnapshot.objects
+                        .filter(context=context)
+                        .select_related('context')
+                        .first()
+                    )
 
     provider_key = str(getattr(context, 'provider', '') or '').strip().lower()
-    same_context_team = False
-    try:
-        if workspace and workspace.kind == Workspace.KIND_CLUB and primary_team and workspace.primary_team_id:
-            same_context_team = int(workspace.primary_team_id) == int(primary_team.id)
-    except Exception:
-        same_context_team = False
     standings_payload = _resolve_standings_for_team(
         primary_team,
         snapshot=load_universo_snapshot(),
@@ -2458,16 +2471,14 @@ def _competition_payload_for_team(workspace, primary_team):
     next_match_payload = {}
     if primary_team and getattr(primary_team, 'group', None):
         next_match_payload = (
-            load_preferred_next_match_payload(primary_team=primary_team, competition_context=context if same_context_team else None)
+            load_preferred_next_match_payload(primary_team=primary_team, competition_context=context)
             or load_preferred_next_match_payload(primary_team=primary_team)
             or get_next_match(primary_team, primary_team.group)
             or {}
         )
     normalized_next_match_payload = normalize_next_match_payload(next_match_payload) if next_match_payload else {}
     # Si el provider es Universo y tenemos snapshot, preferimos su payload (más rico) cuando exista.
-    # Importante: solo aplicamos snapshot del workspace cuando corresponde al equipo principal del cliente,
-    # para no "mezclar" Senior con otras categorías (F7/F11).
-    if provider_key == WorkspaceCompetitionContext.PROVIDER_UNIVERSO and snapshot and same_context_team:
+    if provider_key == WorkspaceCompetitionContext.PROVIDER_UNIVERSO and snapshot:
         if isinstance(snapshot.standings_payload, list) and snapshot.standings_payload:
             standings_payload = snapshot.standings_payload
         if isinstance(snapshot.next_match_payload, dict) and _next_match_payload_is_reliable(snapshot.next_match_payload):
@@ -4844,13 +4855,11 @@ def load_preferred_next_match_payload(primary_team=None, competition_context=Non
     if _next_match_payload_is_reliable(provider_next):
         return provider_next
     try:
-        ws = getattr(competition_context, 'workspace', None)
-        if ws and getattr(ws, 'id', None):
-            snapshot = WorkspaceCompetitionSnapshot.objects.filter(workspace=ws).first()
-            if snapshot and isinstance(snapshot.next_match_payload, dict):
-                snapshot_next = normalize_next_match_payload(dict(snapshot.next_match_payload))
-                if _next_match_payload_is_reliable(snapshot_next):
-                    return snapshot_next
+        snapshot = getattr(competition_context, 'snapshot', None)
+        if snapshot and isinstance(snapshot.next_match_payload, dict):
+            snapshot_next = normalize_next_match_payload(dict(snapshot.next_match_payload))
+            if _next_match_payload_is_reliable(snapshot_next):
+                return snapshot_next
     except Exception:
         pass
     snapshot = load_universo_snapshot()
@@ -5230,7 +5239,8 @@ def dashboard_data(request):
 
     workspace = _get_active_workspace(request)
     competition_payload = _competition_payload_for_team(workspace, primary_team)
-    provider_key = str(getattr(getattr(workspace, 'competition_context', None), 'provider', '') or '').strip().lower()
+    context = _bootstrap_workspace_competition_context(workspace, primary_team=primary_team) if workspace else None
+    provider_key = str(getattr(context, 'provider', '') or '').strip().lower()
     standings_group = _latest_standings_group_for_team(primary_team) or primary_team.group
     standings_last_updated = _team_standings_last_updated(standings_group)
     standings = _enrich_standings_rows_with_crests(competition_payload.get('standings') or [])
@@ -5663,7 +5673,7 @@ def platform_overview_page(request):
                         auto_sync_enabled=competition_auto_sync,
                     )
                     if competition_auto_sync:
-                        _sync_workspace_competition_context(workspace)
+                        _sync_workspace_competition_context(workspace, primary_team=primary_workspace_team)
                     if seed_demo_data and workspace.primary_team_id:
                         _bootstrap_demo_club_workspace(workspace)
                 if owner_user:
@@ -6092,7 +6102,7 @@ def platform_overview_page(request):
 def platform_workspace_detail_page(request, workspace_id):
     workspace = (
         Workspace.objects
-        .select_related('owner_user', 'primary_team', 'competition_context', 'competition_snapshot')
+        .select_related('owner_user', 'primary_team')
         .annotate(member_count=Count('memberships', distinct=True))
         .filter(id=workspace_id)
         .first()
@@ -6251,7 +6261,7 @@ def platform_workspace_detail_page(request, workspace_id):
             if workspace.kind != Workspace.KIND_CLUB:
                 error = 'Solo los clientes club se pueden sincronizar.'
             else:
-                _, sync_error = _sync_workspace_competition_context(workspace)
+                _, sync_error = _sync_workspace_competition_context(workspace, primary_team=workspace.primary_team)
                 if sync_error:
                     error = sync_error
                 else:
@@ -6334,7 +6344,7 @@ def platform_workspace_detail_page(request, workspace_id):
                         external_team_name=external_team_name,
                         auto_sync_enabled=auto_sync_enabled,
                     )
-                    _, sync_error = _sync_workspace_competition_context(workspace)
+                    _, sync_error = _sync_workspace_competition_context(workspace, primary_team=candidate_team)
                     if sync_error:
                         error = sync_error
                     else:
@@ -6548,29 +6558,33 @@ def platform_workspace_detail_page(request, workspace_id):
             allowed = ws_enabled and (is_privileged or (raw_access.get(key, True) is not False))
             rows.append({'key': key, 'label': label, 'workspace_enabled': ws_enabled, 'allowed': allowed})
         membership.access_module_rows = rows
-    competition_context = getattr(workspace, 'competition_context', None)
-    competition_snapshot = getattr(workspace, 'competition_snapshot', None)
+    competition_context = None
+    competition_snapshot = None
     competition_summary = None
     if workspace.kind == Workspace.KIND_CLUB:
         if not competition_search_results:
             competition_search_inputs = {
-                'provider': getattr(competition_context, 'provider', WorkspaceCompetitionContext.PROVIDER_MANUAL) if competition_context else WorkspaceCompetitionContext.PROVIDER_MANUAL,
+                'provider': WorkspaceCompetitionContext.PROVIDER_MANUAL,
                 'team_query': str(getattr(workspace.primary_team, 'name', '') or '').strip(),
                 'competition_query': str(getattr(getattr(getattr(getattr(workspace.primary_team, 'group', None), 'season', None), 'competition', None), 'name', '') or '').strip(),
                 'group_query': str(getattr(getattr(workspace.primary_team, 'group', None), 'name', '') or '').strip(),
             }
-        competition_context = competition_context or _bootstrap_workspace_competition_context(workspace, primary_team=workspace.primary_team)
-        if competition_context and competition_context.is_auto_sync_enabled and not competition_snapshot:
-            _sync_workspace_competition_context(workspace)
-            workspace = (
-                Workspace.objects
-                .select_related('owner_user', 'primary_team', 'competition_context', 'competition_snapshot')
-                .annotate(member_count=Count('memberships', distinct=True))
-                .filter(id=workspace_id)
+        if workspace.primary_team_id:
+            competition_context = _bootstrap_workspace_competition_context(workspace, primary_team=workspace.primary_team)
+        if competition_context:
+            competition_search_inputs['provider'] = getattr(competition_context, 'provider', WorkspaceCompetitionContext.PROVIDER_MANUAL)
+            competition_snapshot = (
+                WorkspaceCompetitionSnapshot.objects
+                .filter(context=competition_context)
                 .first()
             )
-            competition_context = getattr(workspace, 'competition_context', None)
-            competition_snapshot = getattr(workspace, 'competition_snapshot', None)
+            if competition_context.is_auto_sync_enabled and not competition_snapshot:
+                _sync_workspace_competition_context(workspace, primary_team=workspace.primary_team)
+                competition_snapshot = (
+                    WorkspaceCompetitionSnapshot.objects
+                    .filter(context=competition_context)
+                    .first()
+                )
         snapshot_standings = competition_snapshot.standings_payload if competition_snapshot and isinstance(competition_snapshot.standings_payload, list) else []
         snapshot_next = competition_snapshot.next_match_payload if competition_snapshot and isinstance(competition_snapshot.next_match_payload, dict) else {}
         competition_summary = {
@@ -6984,6 +6998,17 @@ def admin_page(request):
                         category = str(request.POST.get('category') or '').strip()[:24]
                         game_format = str(request.POST.get('game_format') or Team.GAME_FORMAT_F11).strip().lower()
                         group_external_id = str(request.POST.get('group_external_id') or '').strip()[:80]
+                        competition_name = str(request.POST.get('competition_name') or '').strip()[:150]
+                        season_name = str(request.POST.get('season_name') or '').strip()[:80]
+                        group_name = str(request.POST.get('group_name') or '').strip()[:80]
+                        universo_url = str(request.POST.get('universo_url') or '').strip()
+                        if universo_url and not group_external_id:
+                            try:
+                                parsed = urlparse(universo_url)
+                                qs = parse_qs(parsed.query or '')
+                                group_external_id = str((qs.get('group') or [''])[0] or '').strip()[:80]
+                            except Exception:
+                                group_external_id = str(group_external_id or '').strip()[:80]
                         update_fields = []
                         if category != str(getattr(team_obj, 'category', '') or '').strip():
                             team_obj.category = category
@@ -6991,15 +7016,60 @@ def admin_page(request):
                         if game_format in {Team.GAME_FORMAT_F7, Team.GAME_FORMAT_F11} and game_format != team_obj.game_format:
                             team_obj.game_format = game_format
                             update_fields.append('game_format')
+                        # Si el usuario define (o corrige) la liga/grupo, re-vinculamos el team a un Group propio.
+                        should_rebind_group = bool(competition_name or season_name or group_name or group_external_id or universo_url)
+                        if should_rebind_group:
+                            # Defaults si faltan (pero evitando heredar del Senior cuando hay group_external_id).
+                            if not season_name and getattr(getattr(team_obj.group, 'season', None), 'name', None):
+                                season_name = str(team_obj.group.season.name or '').strip()[:80]
+                            if not group_name and getattr(team_obj.group, 'name', None):
+                                group_name = str(team_obj.group.name or '').strip()[:80]
+                            if group_external_id and not competition_name:
+                                competition_name = 'Universo RFAF'
+                            if not competition_name and getattr(getattr(getattr(team_obj.group, 'season', None), 'competition', None), 'name', None):
+                                competition_name = str(team_obj.group.season.competition.name or '').strip()[:150]
+                            competition_name = competition_name or 'Liga'
+                            season_name = season_name or f'{timezone.localdate().year}/{timezone.localdate().year + 1}'
+                            group_name = group_name or 'Grupo 1'
+                            comp_slug = slugify(competition_name)[:150] or 'liga'
+                            competition_obj, _ = Competition.objects.get_or_create(
+                                name=competition_name,
+                                region='',
+                                defaults={'slug': comp_slug},
+                            )
+                            season_obj, _ = Season.objects.get_or_create(
+                                competition=competition_obj,
+                                name=season_name,
+                                defaults={'is_current': True},
+                            )
+                            target_group = None
+                            if group_external_id:
+                                target_group = Group.objects.filter(season=season_obj, external_id=group_external_id).first()
+                            if not target_group:
+                                target_group = Group.objects.filter(season=season_obj, name__iexact=group_name).first() if not group_external_id else None
+                            if not target_group:
+                                group_slug = _unique_group_slug(season_obj, f'{group_name}-{group_external_id}' if group_external_id else group_name)
+                                group_defaults = {'name': group_name}
+                                if group_external_id:
+                                    group_defaults['external_id'] = group_external_id
+                                target_group, _ = Group.objects.get_or_create(
+                                    season=season_obj,
+                                    slug=group_slug,
+                                    defaults=group_defaults,
+                                )
+                            if group_external_id and target_group and str(getattr(target_group, 'external_id', '') or '').strip() != group_external_id:
+                                target_group.external_id = group_external_id
+                                target_group.save(update_fields=['external_id'])
+                            if target_group and team_obj.group_id != target_group.id:
+                                team_obj.group = target_group
+                                update_fields.append('group')
                         if update_fields:
                             team_obj.save(update_fields=update_fields)
-                        if group_external_id and team_obj.group_id and (str(getattr(team_obj.group, 'external_id', '') or '').strip() != group_external_id):
-                            try:
-                                grp = team_obj.group
-                                grp.external_id = group_external_id
-                                grp.save(update_fields=['external_id'])
-                            except Exception:
-                                pass
+                        # Invalidar cachés del equipo por si cambia su contexto o se corrige la clasificación.
+                        try:
+                            _invalidate_team_dashboard_caches(team_obj)
+                        except Exception:
+                            pass
                         teams_message = 'Categoría actualizada.'
                     else:  # team_create
                         category = str(request.POST.get('category') or '').strip()
@@ -7028,11 +7098,13 @@ def admin_page(request):
                                 group_external_id = str(group_external_id or '').strip()[:80]
 
                         # Defaults razonables si el usuario no rellena estos campos.
-                        if not competition_name and primary_team and getattr(getattr(getattr(primary_team, 'group', None), 'season', None), 'competition', None):
+                        if group_external_id and not competition_name:
+                            competition_name = 'Universo RFAF'
+                        if not competition_name and primary_team and getattr(getattr(getattr(primary_team, 'group', None), 'season', None), 'competition', None) and not group_external_id:
                             competition_name = str(primary_team.group.season.competition.name or '').strip()[:150]
                         if not season_name and primary_team and getattr(getattr(primary_team, 'group', None), 'season', None):
                             season_name = str(primary_team.group.season.name or '').strip()[:80]
-                        if not group_name and primary_team and getattr(primary_team, 'group', None):
+                        if not group_name and primary_team and getattr(primary_team, 'group', None) and not group_external_id:
                             group_name = str(primary_team.group.name or '').strip()[:80]
                         competition_name = competition_name or 'Liga'
                         season_name = season_name or f'{timezone.localdate().year}/{timezone.localdate().year + 1}'
@@ -7049,9 +7121,16 @@ def admin_page(request):
                             name=season_name,
                             defaults={'is_current': True},
                         )
-                        group_obj = Group.objects.filter(season=season_obj, name__iexact=group_name).first()
+                        group_obj = None
+                        if group_external_id:
+                            group_obj = Group.objects.filter(season=season_obj, external_id=group_external_id).first()
+                        if not group_obj and not group_external_id:
+                            group_obj = Group.objects.filter(season=season_obj, name__iexact=group_name).first()
                         if not group_obj:
-                            group_slug = _unique_group_slug(season_obj, group_name)
+                            group_slug = _unique_group_slug(
+                                season_obj,
+                                f'{group_name}-{group_external_id}' if group_external_id else group_name,
+                            )
                             group_defaults = {'name': group_name}
                             if group_external_id:
                                 group_defaults['external_id'] = group_external_id
@@ -9252,10 +9331,13 @@ def convocation_page(request):
     all_players = list(Player.objects.filter(team=primary_team, is_active=True).order_by('name'))
     for player in all_players:
         player.photo_url = resolve_player_photo_url(request, player)
-    roster_cache = get_roster_stats_cache()
+    # La caché de La Preferente es legacy y solo aplica al equipo principal.
+    # En multicategoría, evitar mezclar stats base entre equipos.
+    roster_cache = get_roster_stats_cache() if bool(getattr(primary_team, 'is_primary', False)) else {}
     manual_overrides = get_manual_player_base_overrides(primary_team)
     universo_snapshot = load_universo_snapshot() or {}
-    universo_players = universo_snapshot.get('players') if isinstance(universo_snapshot, dict) else []
+    can_use_universo = _universo_snapshot_supports_team(universo_snapshot, primary_team)
+    universo_players = (universo_snapshot.get('players') if isinstance(universo_snapshot, dict) else []) if can_use_universo else []
     universo_map = {}
     universo_by_number = {}
     if isinstance(universo_players, list):
@@ -9263,8 +9345,16 @@ def convocation_page(request):
             if not isinstance(item, dict):
                 continue
             team_name = str(item.get('team') or '').strip().lower()
-            if team_name and 'benagalbon' not in team_name:
-                continue
+            # Universo snapshot puede incluir múltiples equipos/competiciones.
+            # Intentamos aproximar por el nombre del equipo activo; si no hay match, mantenemos el legacy Benagalbón.
+            if team_name:
+                normalized_team_name = normalize_label(team_name)
+                active_team_name = normalize_label(getattr(primary_team, 'name', '') or '')
+                active_team_short = normalize_label(getattr(primary_team, 'short_name', '') or '')
+                if active_team_name and active_team_name not in normalized_team_name and normalized_team_name not in active_team_name:
+                    if active_team_short and active_team_short not in normalized_team_name and normalized_team_name not in active_team_short:
+                        if 'benagalbon' not in normalized_team_name:
+                            continue
             name = str(item.get('name') or '').strip()
             if not name:
                 continue
@@ -20490,7 +20580,7 @@ def manual_player_stats_page(request):
 
         rows = []
         try:
-            roster_cache = get_roster_stats_cache()
+            roster_cache = get_roster_stats_cache() if bool(getattr(primary_team, 'is_primary', False)) else {}
         except Exception:
             logger.exception('No se pudo cargar la cache de plantilla para estadísticas manuales')
             roster_cache = {}
@@ -21282,8 +21372,8 @@ def refresh_scraping(request):
         _invalidate_team_dashboard_caches(primary_team)
         try:
             workspace = _get_active_workspace(request)
-            if workspace and workspace.kind == Workspace.KIND_CLUB and int(getattr(workspace, 'primary_team_id', 0) or 0) == int(primary_team.id):
-                _sync_workspace_competition_context(workspace)
+            if workspace and workspace.kind == Workspace.KIND_CLUB:
+                _sync_workspace_competition_context(workspace, primary_team=primary_team)
             # Persistimos el próximo partido en BD para que no dependa del filesystem (Render / múltiples instancias).
             if isinstance(next_match_payload, dict) and _next_match_payload_is_reliable(next_match_payload):
                 try:
@@ -21295,14 +21385,19 @@ def refresh_scraping(request):
                     club_ws = (
                         Workspace.objects
                         .filter(kind=Workspace.KIND_CLUB, is_active=True, primary_team=primary_team)
-                        .select_related('competition_context')
                         .first()
                     )
                 if club_ws:
-                    snapshot, _ = WorkspaceCompetitionSnapshot.objects.get_or_create(workspace=club_ws)
-                    snapshot.context = getattr(club_ws, 'competition_context', None)
-                    snapshot.next_match_payload = normalize_next_match_payload(dict(next_match_payload))
-                    snapshot.save(update_fields=['context', 'next_match_payload', 'updated_at'])
+                    context = _bootstrap_workspace_competition_context(club_ws, primary_team=primary_team)
+                    if context:
+                        snapshot, _ = WorkspaceCompetitionSnapshot.objects.get_or_create(
+                            context=context,
+                            defaults={'workspace': club_ws},
+                        )
+                        if snapshot.workspace_id != club_ws.id:
+                            snapshot.workspace = club_ws
+                        snapshot.next_match_payload = normalize_next_match_payload(dict(next_match_payload))
+                        snapshot.save(update_fields=['workspace', 'next_match_payload', 'updated_at'])
         except Exception:
             pass
     latest_updated = _team_standings_last_updated(primary_team.group) if primary_team and getattr(primary_team, 'group', None) else None
@@ -22220,10 +22315,13 @@ def compute_player_dashboard(primary_team, force_refresh=False):
         primary_team,
         reference_match=active_match,
     )
-    roster_cache = get_roster_stats_cache()
+    # La caché de La Preferente es legacy y solo aplica al equipo principal.
+    # En multicategoría, evitar mezclar stats base entre equipos.
+    roster_cache = get_roster_stats_cache() if bool(getattr(primary_team, 'is_primary', False)) else {}
     manual_overrides = get_manual_player_base_overrides(primary_team)
     universo_snapshot = load_universo_snapshot() or {}
-    universo_players = universo_snapshot.get('players') if isinstance(universo_snapshot, dict) else []
+    can_use_universo = _universo_snapshot_supports_team(universo_snapshot, primary_team)
+    universo_players = (universo_snapshot.get('players') if isinstance(universo_snapshot, dict) else []) if can_use_universo else []
     universo_map = {}
     universo_by_number = {}
     if isinstance(universo_players, list):
@@ -22231,8 +22329,14 @@ def compute_player_dashboard(primary_team, force_refresh=False):
             if not isinstance(item, dict):
                 continue
             team_name = str(item.get('team') or '').strip().lower()
-            if team_name and 'benagalbon' not in team_name:
-                continue
+            if team_name:
+                normalized_team_name = normalize_label(team_name)
+                active_team_name = normalize_label(getattr(primary_team, 'name', '') or '')
+                active_team_short = normalize_label(getattr(primary_team, 'short_name', '') or '')
+                if active_team_name and active_team_name not in normalized_team_name and normalized_team_name not in active_team_name:
+                    if active_team_short and active_team_short not in normalized_team_name and normalized_team_name not in active_team_short:
+                        if 'benagalbon' not in normalized_team_name:
+                            continue
             name = str(item.get('name') or '').strip()
             if not name:
                 continue

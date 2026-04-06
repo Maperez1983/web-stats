@@ -965,8 +965,8 @@ class PlatformWorkspaceTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         workspace = Workspace.objects.get(name='Cliente con contexto')
-        context = WorkspaceCompetitionContext.objects.get(workspace=workspace)
-        snapshot = WorkspaceCompetitionSnapshot.objects.get(workspace=workspace)
+        context = WorkspaceCompetitionContext.objects.get(workspace=workspace, team=self.alt_team)
+        snapshot = WorkspaceCompetitionSnapshot.objects.get(context=context)
         self.assertEqual(context.team_id, self.alt_team.id)
         self.assertEqual(context.group_id, self.alt_team.group_id)
         self.assertEqual(context.external_group_key, 'grupo-plataforma')
@@ -1332,7 +1332,7 @@ class PlatformWorkspaceTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        context = WorkspaceCompetitionContext.objects.get(workspace=workspace)
+        context = WorkspaceCompetitionContext.objects.get(workspace=workspace, team=self.alt_team)
         self.assertEqual(context.provider, WorkspaceCompetitionContext.PROVIDER_RFAF)
         self.assertEqual(context.external_team_key, 'rfaf:cliente-alternativo')
 
@@ -1343,7 +1343,7 @@ class PlatformWorkspaceTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         context.refresh_from_db()
-        snapshot = WorkspaceCompetitionSnapshot.objects.get(workspace=workspace)
+        snapshot = WorkspaceCompetitionSnapshot.objects.get(context=context)
         self.assertEqual(context.sync_status, WorkspaceCompetitionContext.STATUS_READY)
         self.assertEqual(snapshot.next_match_payload.get('round'), 'J28')
         self.assertEqual(snapshot.standings_payload[0].get('team'), self.alt_team.name.upper())
@@ -1500,8 +1500,8 @@ class PlatformWorkspaceTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         workspace.refresh_from_db()
-        context = WorkspaceCompetitionContext.objects.get(workspace=workspace)
-        snapshot = WorkspaceCompetitionSnapshot.objects.get(workspace=workspace)
+        context = WorkspaceCompetitionContext.objects.get(workspace=workspace, team=self.alt_team)
+        snapshot = WorkspaceCompetitionSnapshot.objects.get(context=context)
         self.assertEqual(workspace.primary_team_id, self.alt_team.id)
         self.assertEqual(context.team_id, self.alt_team.id)
         self.assertEqual(context.sync_status, WorkspaceCompetitionContext.STATUS_READY)
@@ -1605,8 +1605,8 @@ class PlatformWorkspaceTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         workspace.refresh_from_db()
-        context = WorkspaceCompetitionContext.objects.get(workspace=workspace)
-        snapshot = WorkspaceCompetitionSnapshot.objects.get(workspace=workspace)
+        context = WorkspaceCompetitionContext.objects.get(workspace=workspace, team=workspace.primary_team)
+        snapshot = WorkspaceCompetitionSnapshot.objects.get(context=context)
         self.assertEqual(workspace.primary_team.name, 'Club Universo Demo')
         self.assertEqual(context.provider, WorkspaceCompetitionContext.PROVIDER_UNIVERSO)
         self.assertEqual(context.external_group_key, '45030656')

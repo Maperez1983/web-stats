@@ -207,7 +207,7 @@ class WorkspaceCompetitionContext(models.Model):
         (STATUS_ERROR, 'Error'),
     ]
 
-    workspace = models.OneToOneField(Workspace, on_delete=models.CASCADE, related_name='competition_context')
+    workspace = models.ForeignKey(Workspace, on_delete=models.CASCADE, related_name='competition_contexts')
     team = models.ForeignKey(Team, on_delete=models.SET_NULL, null=True, blank=True, related_name='competition_contexts')
     group = models.ForeignKey(Group, on_delete=models.SET_NULL, null=True, blank=True, related_name='competition_contexts')
     season = models.ForeignKey(Season, on_delete=models.SET_NULL, null=True, blank=True, related_name='competition_contexts')
@@ -227,19 +227,26 @@ class WorkspaceCompetitionContext(models.Model):
         ordering = ['workspace__name']
         verbose_name = 'Contexto competitivo'
         verbose_name_plural = 'Contextos competitivos'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['workspace', 'team'],
+                condition=Q(team__isnull=False),
+                name='uniq_workspace_team_competition_context',
+            )
+        ]
 
     def __str__(self):
         return f'{self.workspace.name} · {self.get_provider_display()}'
 
 
 class WorkspaceCompetitionSnapshot(models.Model):
-    workspace = models.OneToOneField(Workspace, on_delete=models.CASCADE, related_name='competition_snapshot')
-    context = models.ForeignKey(
+    workspace = models.ForeignKey(Workspace, on_delete=models.CASCADE, related_name='competition_snapshots')
+    context = models.OneToOneField(
         WorkspaceCompetitionContext,
-        on_delete=models.SET_NULL,
+        on_delete=models.CASCADE,
         null=True,
         blank=True,
-        related_name='snapshots',
+        related_name='snapshot',
     )
     standings_payload = models.JSONField(default=list, blank=True)
     next_match_payload = models.JSONField(default=dict, blank=True)
