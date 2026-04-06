@@ -234,13 +234,17 @@
         <div class="section-title {% if pdf_style == 'club' %}club{% else %}uefa{% endif %}">
           Contenido / explicación
         </div>
-        <div class="box {% if pdf_style != 'club' %}uefa-copy{% endif %}" style="margin-bottom:12px; line-height:1.5;">
-          {% if session.content %}
-          {{ session.content|linebreaksbr }}
-          {% else %}
-          -
-          {% endif %}
-        </div>
+	        <div class="box {% if pdf_style != 'club' %}uefa-copy{% endif %}" style="margin-bottom:12px; line-height:1.5;">
+	          {% if session_notes or session_plan_fields.warmup or session_plan_fields.activation or session_plan_fields.main or session_plan_fields.cooldown %}
+	            {% if session_plan_fields.warmup %}<p><strong>Calentamiento:</strong><br />{{ session_plan_fields.warmup|linebreaksbr }}</p>{% endif %}
+	            {% if session_plan_fields.activation %}<p><strong>Activación:</strong><br />{{ session_plan_fields.activation|linebreaksbr }}</p>{% endif %}
+	            {% if session_plan_fields.main %}<p><strong>Parte principal:</strong><br />{{ session_plan_fields.main|linebreaksbr }}</p>{% endif %}
+	            {% if session_plan_fields.cooldown %}<p><strong>Vuelta a la calma:</strong><br />{{ session_plan_fields.cooldown|linebreaksbr }}</p>{% endif %}
+	            {% if session_notes %}<p><strong>Notas:</strong><br />{{ session_notes|linebreaksbr }}</p>{% endif %}
+	          {% else %}
+	          -
+	          {% endif %}
+	        </div>
 
         <div class="section-title {% if pdf_style == 'club' %}club{% else %}uefa{% endif %}">
           Tareas de la sesión

@@ -3444,7 +3444,7 @@ def _build_team_pending_cards(primary_team, weekly_brief=None):
         add_card(
             'Sesiones sin tareas',
             'Hay sesiones creadas, pero todavía no tienen tareas asociadas.',
-            reverse('sessions') + '?tab=planning',
+            reverse('sessions') + '?tab=microcycles',
             'Completar sesiones',
         )
 
@@ -9810,6 +9810,7 @@ def _build_task_draft_pdf_context(request, primary_team, pdf_style='uefa'):
 def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
     tasks = list(session.tasks.filter(deleted_at__isnull=True).order_by('order', 'id'))
     total_task_minutes = sum(int(getattr(task, 'duration_minutes', 0) or 0) for task in tasks)
+    session_plan_fields = _parse_session_plan_fields(getattr(session, 'content', ''))
     coach_name = (
         request.user.get_full_name().strip()
         if hasattr(request.user, 'get_full_name') and request.user.get_full_name().strip()
@@ -9823,6 +9824,8 @@ def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
         'team_name': team.name,
         'session': session,
         'microcycle': session.microcycle,
+        'session_plan_fields': session_plan_fields,
+        'session_notes': str(session_plan_fields.get('notes') or '').strip(),
         'tasks': tasks,
         'task_sheets': [_build_session_task_sheet(task) for task in tasks],
         'tasks_count': len(tasks),
@@ -9837,6 +9840,59 @@ def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
         'intensity_label': dict(TrainingSession.INTENSITY_CHOICES).get(session.intensity, session.intensity or '-'),
         'status_label': dict(TrainingSession.STATUS_CHOICES).get(session.status, session.status or '-'),
     }
+
+
+def _parse_session_plan_fields(raw_content):
+    content = str(raw_content or '')
+    defaults = {
+        'warmup': '',
+        'activation': '',
+        'main': '',
+        'cooldown': '',
+        'notes': content.strip(),
+    }
+    if not content.strip():
+        return defaults
+    marker = '[2J_SESSION]'
+    if marker not in content:
+        return defaults
+    _, payload = content.split(marker, 1)
+    parsed = defaults.copy()
+    parsed.update({'warmup': '', 'activation': '', 'main': '', 'cooldown': '', 'notes': ''})
+    current_key = None
+    free_lines = []
+    allowed_keys = {'warmup', 'activation', 'main', 'cooldown', 'notes'}
+    for raw_line in payload.splitlines():
+        line = raw_line.rstrip()
+        if not line.strip():
+            if current_key:
+                parsed[current_key] = (parsed.get(current_key, '') + '\n').strip('\n')
+            continue
+        if ':' in line:
+            key, value = line.split(':', 1)
+            normalized = key.strip().lower()
+            if normalized in allowed_keys:
+                current_key = normalized
+                parsed[current_key] = value.strip()
+                continue
+        if current_key:
+            parsed[current_key] = '\n'.join(filter(None, [parsed.get(current_key, '').strip(), line.strip()])).strip()
+        else:
+            free_lines.append(line.strip())
+    if free_lines and not parsed.get('notes'):
+        parsed['notes'] = '\n'.join(free_lines).strip()
+    return parsed
+
+
+def _serialize_session_plan_fields(fields):
+    keys = ['warmup', 'activation', 'main', 'cooldown', 'notes']
+    clean = {key: str((fields or {}).get(key) or '').strip() for key in keys}
+    if not any(clean.values()):
+        return ''
+    lines = ['[2J_SESSION]']
+    for key in keys:
+        lines.append(f'{key}:{clean[key]}')
+    return '\n'.join(lines).strip()
 
 
 def _parse_microcycle_plan_fields(raw_notes):
@@ -15076,9 +15132,11 @@ def _maybe_render_task_preview_server_side(task, *, force=False):
 def _sessions_tab_from_action(action):
     action_key = str(action or '').strip()
     if action_key == 'library_upload_pdf':
-        return 'import'
+        return 'library'
     if action_key in {'bulk_create_tasks', 'create_draw_task'}:
-        return 'create'
+        return 'library'
+    if action_key in {'update_session_sections'}:
+        return 'sessions'
     if action_key in {
         'create_microcycle_plan',
         'create_session_plan',
@@ -15094,7 +15152,7 @@ def _sessions_tab_from_action(action):
         'restore_session_task',
         'purge_session_task',
     }:
-        return 'planning'
+        return 'microcycles'
     if action_key in {
         'analyze_all_library_pdfs',
         'split_existing_library_pdfs',
@@ -15249,7 +15307,8 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     error = ''
     analysis = None
     analysis_task = None
-    active_tab = 'library'
+    active_tab = 'sessions'
+    allowed_tabs = {'sessions', 'microcycles', 'library'}
     allowed_library_views = {'overview', 'phase', 'type', 'players', 'duration', 'quality', 'date'}
     library_view = str(request.GET.get('library_view') or request.POST.get('library_view') or 'overview').strip().lower()
     if library_view not in allowed_library_views:
@@ -15268,13 +15327,20 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
 
     all_sessions = []
 
+    def _normalize_tab(value):
+        tab = str(value or '').strip().lower()
+        if tab in allowed_tabs:
+            return tab
+        if tab in {'planning', 'planificacion', 'planificación'}:
+            return 'microcycles'
+        if tab in {'import', 'create'}:
+            return 'library'
+        return ''
+
     if request.method == 'POST' and planner_tables_ready:
         planner_action = (request.POST.get('planner_action') or '').strip()
-        posted_tab = (request.POST.get('planner_tab') or '').strip()
-        if posted_tab in {'import', 'create', 'library', 'planning'}:
-            active_tab = posted_tab
-        else:
-            active_tab = _sessions_tab_from_action(planner_action)
+        posted_tab = _normalize_tab(request.POST.get('planner_tab') or '')
+        active_tab = posted_tab or _sessions_tab_from_action(planner_action) or active_tab
         try:
             if planner_action == 'library_upload_pdf':
                 title = _sanitize_task_text((request.POST.get('pdf_task_title') or '').strip(), multiline=False, max_len=160)
@@ -15615,7 +15681,8 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 status = str(request.POST.get('plan_session_status') or TrainingSession.STATUS_PLANNED).strip()
                 if status not in {item[0] for item in TrainingSession.STATUS_CHOICES}:
                     status = TrainingSession.STATUS_PLANNED
-                content = str(request.POST.get('plan_session_content') or '').strip()
+                notes_text = str(request.POST.get('plan_session_content') or '').strip()
+                content = _serialize_session_plan_fields({'notes': notes_text})
                 duplicate_exists = TrainingSession.objects.filter(
                     microcycle=microcycle,
                     session_date=session_date,
@@ -15705,7 +15772,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 status = str(request.POST.get('edit_session_status') or TrainingSession.STATUS_PLANNED).strip()
                 if status not in {item[0] for item in TrainingSession.STATUS_CHOICES}:
                     status = TrainingSession.STATUS_PLANNED
-                content = str(request.POST.get('edit_session_content') or '').strip()
+                notes_text = str(request.POST.get('edit_session_content') or '').strip()
                 duplicate_exists = (
                     TrainingSession.objects
                     .filter(microcycle=microcycle, session_date=session_date, focus__iexact=focus)
@@ -15722,10 +15789,34 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 session_obj.duration_minutes = duration_minutes
                 session_obj.intensity = intensity
                 session_obj.focus = focus
-                session_obj.content = content
+                existing_sections = _parse_session_plan_fields(getattr(session_obj, 'content', ''))
+                existing_sections['notes'] = notes_text
+                session_obj.content = _serialize_session_plan_fields(existing_sections)
                 session_obj.status = status
                 session_obj.save()
                 feedback = f'Sesión actualizada: {focus}.'
+
+            elif planner_action == 'update_session_sections':
+                session_id = _parse_int(request.POST.get('sections_session_id') or request.POST.get('edit_session_id'))
+                if not session_id:
+                    raise ValueError('No se pudo identificar la sesión.')
+                session_obj = (
+                    TrainingSession.objects
+                    .select_related('microcycle')
+                    .filter(id=session_id, microcycle__team=primary_team)
+                    .first()
+                )
+                if not session_obj:
+                    raise ValueError('Sesión no encontrada.')
+                existing_sections = _parse_session_plan_fields(getattr(session_obj, 'content', ''))
+                for key in ['warmup', 'activation', 'main', 'cooldown']:
+                    posted = request.POST.get(f'section_{key}')
+                    if posted is None:
+                        continue
+                    existing_sections[key] = str(posted or '').strip()
+                session_obj.content = _serialize_session_plan_fields(existing_sections)
+                session_obj.save(update_fields=['content'])
+                feedback = 'Secciones de sesión guardadas.'
 
             elif planner_action == 'delete_session_plan':
                 session_id = _parse_int(request.POST.get('delete_session_id'))
@@ -15779,6 +15870,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             elif planner_action == 'copy_library_task_to_session':
                 source_task_id = _parse_int(request.POST.get('source_task_id'))
                 target_session_id = _parse_int(request.POST.get('target_session_id'))
+                target_block = (request.POST.get('target_block') or '').strip()
                 source_task = (
                     SessionTask.objects
                     .select_related('session__microcycle')
@@ -15800,6 +15892,9 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     target_session,
                     note=f'Copiada desde biblioteca (tarea #{source_task.id})',
                 )
+                if target_block and target_block in {choice[0] for choice in SessionTask.BLOCK_CHOICES}:
+                    copied.block = target_block
+                    copied.save(update_fields=['block'])
                 feedback = f'Tarea copiada a sesión: {copied.title}.'
 
             elif planner_action == 'move_session_task':
@@ -16598,8 +16693,8 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         except Exception:
             error = 'No se pudo completar la operación. Revisa los datos e inténtalo de nuevo.'
     elif request.method == 'GET':
-        requested_tab = (request.GET.get('tab') or '').strip()
-        if requested_tab in {'import', 'create', 'library', 'planning'}:
+        requested_tab = _normalize_tab(request.GET.get('tab') or '')
+        if requested_tab:
             active_tab = requested_tab
 
     all_sessions = list(
@@ -16691,8 +16786,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
 
     planning_microcycles = []
     planning_sessions = []
-    planning_session_items = []
-    if planner_tables_ready and active_tab == 'planning':
+    if planner_tables_ready and active_tab in {'microcycles', 'sessions'}:
         planning_microcycles = list(
             TrainingMicrocycle.objects
             .filter(team=primary_team)
@@ -16704,10 +16798,88 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             .filter(microcycle__team=primary_team)
             .order_by('-microcycle__week_start', 'session_date', 'start_time', 'order', 'id')
         )
-        planning_sessions = list(planning_session_qs[:200])
+        planning_sessions = list(planning_session_qs[:220])
+
+    # Pestaña Sesiones: trabajamos sobre una única sesión seleccionada.
+    selected_session = None
+    selected_session_plan_fields = {'warmup': '', 'activation': '', 'main': '', 'cooldown': '', 'notes': ''}
+    selected_session_tasks = []
+    selected_session_task_sections = []
+    selected_session_id = None
+    if planner_tables_ready and active_tab == 'sessions':
+        selected_session_id = _parse_int(request.GET.get('session_id') or request.POST.get('selected_session_id'))
+        session_qs = (
+            TrainingSession.objects
+            .select_related('microcycle')
+            .filter(microcycle__team=primary_team)
+        )
+        if selected_session_id:
+            selected_session = session_qs.filter(id=selected_session_id).first()
+        if not selected_session:
+            today = timezone.localdate()
+            selected_session = (
+                session_qs.filter(session_date__gte=today).order_by('session_date', 'start_time', 'order', 'id').first()
+                or session_qs.order_by('-session_date', '-id').first()
+            )
+        if selected_session:
+            selected_session_id = int(selected_session.id)
+            selected_session_plan_fields = _parse_session_plan_fields(getattr(selected_session, 'content', ''))
+            selected_session_tasks = list(
+                SessionTask.objects
+                .select_related('session__microcycle')
+                .filter(session_id=selected_session_id, deleted_at__isnull=True)
+                .order_by('order', 'id')
+            )
+            if scope_key != 'coach':
+                selected_session_tasks = [item for item in selected_session_tasks if _task_scope_for_item(item) == scope_key]
+
+            selected_task_sheets = [_build_session_task_sheet(task_obj) for task_obj in selected_session_tasks]
+            selected_session_task_sections = [
+                {
+                    'key': 'warmup',
+                    'label': 'Calentamiento',
+                    'block_keys': [SessionTask.BLOCK_CONDITIONING],
+                    'notes_key': 'warmup',
+                },
+                {
+                    'key': 'activation',
+                    'label': 'Activación',
+                    'block_keys': [SessionTask.BLOCK_ACTIVATION],
+                    'notes_key': 'activation',
+                },
+                {
+                    'key': 'main',
+                    'label': 'Principal',
+                    'block_keys': [SessionTask.BLOCK_MAIN_1, SessionTask.BLOCK_MAIN_2, SessionTask.BLOCK_SET_PIECES],
+                    'notes_key': 'main',
+                },
+                {
+                    'key': 'cooldown',
+                    'label': 'Vuelta a la calma',
+                    'block_keys': [SessionTask.BLOCK_RECOVERY],
+                    'notes_key': 'cooldown',
+                },
+            ]
+            for section in selected_session_task_sections:
+                section_tasks = []
+                for idx, task_obj in enumerate(selected_session_tasks):
+                    if str(getattr(task_obj, 'block', '') or '') in set(section['block_keys']):
+                        is_imported_task = _is_imported_task(task_obj)
+                        section_tasks.append(
+                            {
+                                'obj': task_obj,
+                                'sheet': selected_task_sheets[idx],
+                                'is_imported_task': is_imported_task,
+                                'is_editable_task': not is_imported_task,
+                            }
+                        )
+                section['task_rows'] = section_tasks
+
+    # Pestaña Microciclos: cargamos el plan semanal completo.
     planning_session_ids = [int(item.id) for item in planning_sessions if getattr(item, 'id', None)]
     planning_tasks_by_session = defaultdict(list)
-    if planning_session_ids:
+    planning_deleted_tasks_by_session = defaultdict(list)
+    if planner_tables_ready and active_tab == 'microcycles' and planning_session_ids:
         planning_tasks = list(
             SessionTask.objects
             .select_related('session__microcycle')
@@ -16715,13 +16887,9 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             .order_by('session_id', 'order', 'id')
         )
         for item in planning_tasks:
-            # En el área de "coach" se muestra el plan completo. En áreas específicas (porteros/prep. física)
-            # filtramos para evitar mezclar tareas de otros responsables.
             if scope_key != 'coach' and _task_scope_for_item(item) != scope_key:
                 continue
             planning_tasks_by_session[int(item.session_id)].append(item)
-    planning_deleted_tasks_by_session = defaultdict(list)
-    if planning_session_ids:
         deleted_tasks = list(
             SessionTask.objects
             .select_related('session__microcycle')
@@ -16732,21 +16900,22 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             if scope_key != 'coach' and _task_scope_for_item(item) != scope_key:
                 continue
             planning_deleted_tasks_by_session[int(item.session_id)].append(item)
-    sessions_count_map = defaultdict(int)
-    tasks_count_by_session = defaultdict(int)
-    tasks_count_map = defaultdict(int)
-    session_minutes_by_microcycle = defaultdict(int)
-    task_minutes_by_microcycle = defaultdict(int)
-    intensity_by_microcycle = defaultdict(Counter)
-    sessions_by_microcycle = defaultdict(list)
-    for session_item in planning_sessions:
-        sessions_count_map[int(session_item.microcycle_id)] += 1
-        session_minutes_by_microcycle[int(session_item.microcycle_id)] += int(session_item.duration_minutes or 0)
-        intensity_by_microcycle[int(session_item.microcycle_id)][str(session_item.intensity or '')] += 1
-        sessions_by_microcycle[int(session_item.microcycle_id)].append(session_item)
-    # Conteos: solo se necesitan en Planificación. Además, al filtrar por scope (porteros/fitness)
-    # conviene calcularlos a partir de lo que ya hemos cargado para que coincidan con lo visible.
-    if planner_tables_ready and active_tab == 'planning':
+
+    microcycle_rows = []
+    planning_session_items = []
+    if planner_tables_ready and active_tab == 'microcycles':
+        sessions_count_map = defaultdict(int)
+        tasks_count_by_session = defaultdict(int)
+        tasks_count_map = defaultdict(int)
+        session_minutes_by_microcycle = defaultdict(int)
+        task_minutes_by_microcycle = defaultdict(int)
+        intensity_by_microcycle = defaultdict(Counter)
+        sessions_by_microcycle = defaultdict(list)
+        for session_item in planning_sessions:
+            sessions_count_map[int(session_item.microcycle_id)] += 1
+            session_minutes_by_microcycle[int(session_item.microcycle_id)] += int(session_item.duration_minutes or 0)
+            intensity_by_microcycle[int(session_item.microcycle_id)][str(session_item.intensity or '')] += 1
+            sessions_by_microcycle[int(session_item.microcycle_id)].append(session_item)
         for session_id, session_tasks in planning_tasks_by_session.items():
             tasks_count_by_session[int(session_id)] = len(session_tasks)
         for micro_id, session_items in sessions_by_microcycle.items():
@@ -16754,76 +16923,80 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             for session_item in session_items:
                 total += len(planning_tasks_by_session.get(int(session_item.id), []))
             tasks_count_map[int(micro_id)] = total
-    microcycle_rows = []
-    for micro in planning_microcycles:
-        plan_fields = _parse_microcycle_plan_fields(getattr(micro, 'notes', ''))
-        session_rows = []
-        for session_item in sessions_by_microcycle.get(int(micro.id), []):
-            session_tasks = planning_tasks_by_session.get(int(session_item.id), [])
-            deleted_session_tasks = planning_deleted_tasks_by_session.get(int(session_item.id), [])
-            task_minutes_total = sum(int(getattr(task_obj, 'duration_minutes', 0) or 0) for task_obj in session_tasks)
-            task_sheets = [_build_session_task_sheet(task_obj) for task_obj in session_tasks]
-            task_rows = []
-            for index, task_obj in enumerate(session_tasks):
-                is_imported_task = _is_imported_task(task_obj)
-                task_rows.append(
+        for micro in planning_microcycles:
+            plan_fields = _parse_microcycle_plan_fields(getattr(micro, 'notes', ''))
+            session_rows = []
+            for session_item in sessions_by_microcycle.get(int(micro.id), []):
+                session_tasks = planning_tasks_by_session.get(int(session_item.id), [])
+                deleted_session_tasks = planning_deleted_tasks_by_session.get(int(session_item.id), [])
+                task_minutes_total = sum(int(getattr(task_obj, 'duration_minutes', 0) or 0) for task_obj in session_tasks)
+                task_sheets = [_build_session_task_sheet(task_obj) for task_obj in session_tasks]
+                task_rows = []
+                for index, task_obj in enumerate(session_tasks):
+                    is_imported_task = _is_imported_task(task_obj)
+                    task_rows.append(
+                        {
+                            'obj': task_obj,
+                            'sheet': task_sheets[index],
+                            'is_imported_task': is_imported_task,
+                            'is_editable_task': not is_imported_task,
+                        }
+                    )
+                session_rows.append(
                     {
-                        'obj': task_obj,
-                        'sheet': task_sheets[index],
-                        'is_imported_task': is_imported_task,
-                        'is_editable_task': not is_imported_task,
+                        'obj': session_item,
+                        'plan_fields': _parse_session_plan_fields(getattr(session_item, 'content', '')),
+                        'tasks_count': tasks_count_by_session.get(int(session_item.id), 0),
+                        'task_minutes_total': task_minutes_total,
+                        'tasks': session_tasks,
+                        'task_sheets': task_sheets,
+                        'task_rows': task_rows,
+                        'deleted_tasks': deleted_session_tasks,
                     }
                 )
-            session_rows.append(
+                task_minutes_by_microcycle[int(micro.id)] += task_minutes_total
+            week_slots = _build_microcycle_week_slots(micro, session_rows)
+            microcycle_rows.append(
                 {
-                    'obj': session_item,
-                    'tasks_count': tasks_count_by_session.get(int(session_item.id), 0),
-                    'task_minutes_total': task_minutes_total,
-                    'tasks': session_tasks,
-                    'task_sheets': task_sheets,
-                    'task_rows': task_rows,
-                    'deleted_tasks': deleted_session_tasks,
+                    'obj': micro,
+                    'plan_fields': plan_fields,
+                    'week_slots': week_slots,
+                    'sessions_count': sessions_count_map.get(int(micro.id), 0),
+                    'tasks_count': tasks_count_map.get(int(micro.id), 0),
+                    'session_minutes_total': session_minutes_by_microcycle.get(int(micro.id), 0),
+                    'task_minutes_total': task_minutes_by_microcycle.get(int(micro.id), 0),
+                    'intensity_summary': [
+                        {
+                            'key': key,
+                            'label': dict(TrainingSession.INTENSITY_CHOICES).get(key, key or '-'),
+                            'count': count,
+                        }
+                        for key, count in intensity_by_microcycle.get(int(micro.id), Counter()).items()
+                        if count
+                    ],
+                    'sessions': session_rows,
                 }
             )
-            task_minutes_by_microcycle[int(micro.id)] += task_minutes_total
-        week_slots = _build_microcycle_week_slots(micro, session_rows)
-        microcycle_rows.append(
+
+    # Selectores (se usan también desde Biblioteca al copiar tareas a sesiones)
+    if planner_tables_ready:
+        planning_session_items = [
             {
-                'obj': micro,
-                'plan_fields': plan_fields,
-                'week_slots': week_slots,
-                'sessions_count': sessions_count_map.get(int(micro.id), 0),
-                'tasks_count': tasks_count_map.get(int(micro.id), 0),
-                'session_minutes_total': session_minutes_by_microcycle.get(int(micro.id), 0),
-                'task_minutes_total': task_minutes_by_microcycle.get(int(micro.id), 0),
-                'intensity_summary': [
-                    {
-                        'key': key,
-                        'label': dict(TrainingSession.INTENSITY_CHOICES).get(key, key or '-'),
-                        'count': count,
-                    }
-                    for key, count in intensity_by_microcycle.get(int(micro.id), Counter()).items()
-                    if count
-                ],
-                'sessions': session_rows,
+                'id': int(session.id),
+                'label': f"{session.session_date:%d/%m/%Y}"
+                + (f" · {session.start_time:%H:%M}" if session.start_time else '')
+                + f" · {session.focus}",
             }
-        )
-    planning_session_items = [
-        {
-            'id': int(session.id),
-            'label': f"{session.session_date:%d/%m/%Y}"
-            + (f" · {session.start_time:%H:%M}" if session.start_time else '')
-            + f" · {session.focus}",
-        }
-        for session in (planning_sessions or all_sessions)
-    ]
+            for session in (planning_sessions or all_sessions)
+        ]
+
     planning_task_source_options = []
-    if planner_tables_ready and active_tab == 'planning':
+    if planner_tables_ready and active_tab in {'microcycles', 'sessions'}:
         source_task_candidates = list(
             SessionTask.objects
             .select_related('session__microcycle')
             .filter(session__microcycle__team=primary_team, deleted_at__isnull=True)
-            .order_by('-id')[:120]
+            .order_by('-id')[:140]
         )
         for task_item in source_task_candidates:
             if _task_scope_for_item(task_item) != scope_key:
@@ -16908,6 +17081,10 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             'planning_sessions': planning_sessions,
             'planning_session_items': planning_session_items,
             'planning_task_source_options': planning_task_source_options,
+            'selected_session': selected_session,
+            'selected_session_id': selected_session_id,
+            'selected_session_plan_fields': selected_session_plan_fields,
+            'selected_session_task_sections': selected_session_task_sections,
             'microcycle_status_choices': TrainingMicrocycle.STATUS_CHOICES,
             'session_intensity_choices': TrainingSession.INTENSITY_CHOICES,
             'session_status_choices': TrainingSession.STATUS_CHOICES,

@@ -3,7 +3,7 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <title>{{ scope_title|default:"Sesiones" }} · Carga y Analisis PDF</title>
+	    <title>{{ scope_title|default:"Sesiones" }} · Planificación</title>
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
     <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
@@ -1212,11 +1212,11 @@
   <body class="prod-commercial">
     <main class="page product-shell">
       {% include 'football/includes/dragon_nav.html' %}
-      <div class="top">
-        <h1>{{ scope_title|default:"Sesiones" }} · Carga de PDFs y Editor de Tareas</h1>
-        <a href="{% url 'coach-detail' %}" class="button">Volver</a>
-      </div>
-      <p class="meta" style="margin-top:-0.35rem; margin-bottom:0.9rem;">Espacio activo: <strong>{{ scope_title|default:"Sesiones" }}</strong> <span class="product-chip role">Biblioteca + Planificación</span></p>
+	      <div class="top">
+	        <h1>{{ scope_title|default:"Sesiones" }} · Planificación</h1>
+	        <a href="{% url 'coach-detail' %}" class="button">Volver</a>
+	      </div>
+	      <p class="meta" style="margin-top:-0.35rem; margin-bottom:0.9rem;">Espacio activo: <strong>{{ scope_title|default:"Sesiones" }}</strong> <span class="product-chip role">Sesiones · Microciclos · Biblioteca</span></p>
 
       {% if feedback %}<div class="alert ok">{{ feedback }}</div>{% endif %}
       {% if error %}<div class="alert err">{{ error }}</div>{% endif %}
@@ -1225,102 +1225,147 @@
       <div class="panel"><p class="empty">El módulo no está listo por migraciones pendientes.</p></div>
       {% else %}
 
-      <section class="hero-grid">
-        <article class="hero-panel">
-          <div class="product-kicker">Entrenamiento</div>
-          <h2>{{ scope_title|default:"Sesiones" }}</h2>
-          <p>La experiencia queda dividida entre biblioteca de tareas reutilizable y planificación semanal por microciclos y sesiones.</p>
-          <div class="summary-grid">
-            <div class="summary-card"><span>Biblioteca</span><strong>{{ planner_summary.library_tasks }}</strong></div>
-            <div class="summary-card"><span>Filtradas</span><strong>{{ planner_summary.filtered_tasks }}</strong></div>
-            <div class="summary-card"><span>Microciclos</span><strong>{{ planner_summary.microcycles }}</strong></div>
-            <div class="summary-card"><span>Sesiones</span><strong>{{ planner_summary.sessions }}</strong></div>
-            <div class="summary-card"><span>Tareas fuente</span><strong>{{ planner_summary.task_sources }}</strong></div>
-          </div>
-        </article>
-        <article class="hero-panel">
-          <div class="product-kicker">Foco actual</div>
-          <h2>Qué revisar ahora</h2>
-          <div class="focus-list">
-            {% for item in planner_focus_items %}
-            <div class="focus-item">{{ item }}</div>
-            {% endfor %}
-          </div>
-        </article>
-      </section>
+	      <section class="panel">
+	        <h2>Planificación</h2>
+	        <p class="meta" style="margin-top:0;">Menos ruido: separa edición de sesión, microciclo semanal y biblioteca reutilizable.</p>
+	      </section>
 
-	      <div class="tabs">
-	        <a class="tab-link {% if active_tab == 'import' %}is-active{% endif %}" href="?tab=import">Importar tarea</a>
-	        <a class="tab-link {% if active_tab == 'create' %}is-active{% endif %}" href="?tab=create">Crear tarea</a>
-	        <a class="tab-link {% if active_tab == 'planning' %}is-active{% endif %}" href="?tab=planning">Planificación</a>
-	        <a class="tab-link {% if active_tab == 'library' %}is-active{% endif %}" href="?tab=library">Biblioteca de tareas</a>
+		      <div class="tabs">
+		        <a class="tab-link {% if active_tab == 'sessions' %}is-active{% endif %}" href="?tab=sessions">Sesiones</a>
+		        <a class="tab-link {% if active_tab == 'microcycles' %}is-active{% endif %}" href="?tab=microcycles">Microciclos</a>
+		        <a class="tab-link {% if active_tab == 'library' %}is-active{% endif %}" href="?tab=library">Biblioteca</a>
+		      </div>
+
+	      <div class="tab-panel {% if active_tab == 'sessions' %}is-active{% endif %}" data-tab="sessions">
+	        <section class="panel">
+	          <h2>Sesiones · Estructura por bloques</h2>
+	          <div class="editor-grid">
+	            <div class="editor-box">
+	              <h3>Sesión activa</h3>
+	              <form method="get" class="grid">
+	                <label style="grid-column:1/-1;">
+	                  Seleccionar sesión
+	                  <select name="session_id">
+	                    {% for item in planning_session_items %}
+	                    <option value="{{ item.id }}" {% if item.id == selected_session_id %}selected{% endif %}>{{ item.label }}</option>
+	                    {% endfor %}
+	                  </select>
+	                </label>
+	                <div style="display:flex; align-items:flex-end; gap:0.6rem;">
+	                  <button type="submit" class="secondary">Cargar</button>
+	                  {% if selected_session %}
+	                  <a class="button" href="{% url 'session-plan-pdf' selected_session.id %}?style=club">PDF sesión</a>
+	                  {% endif %}
+	                </div>
+	              </form>
+	              {% if selected_session %}
+	              <p class="meta" style="margin:0.65rem 0 0;">
+	                Microciclo: <strong>{{ selected_session.microcycle.week_start|date:"d/m" }}-{{ selected_session.microcycle.week_end|date:"d/m" }}</strong> · {{ selected_session.microcycle.title }}
+	              </p>
+	              {% endif %}
+	            </div>
+
+	            <div class="editor-box">
+	              <h3>Textos de sesión</h3>
+	              {% if selected_session %}
+	              <form method="post" class="grid">
+	                {% csrf_token %}
+	                <input type="hidden" name="planner_action" value="update_session_sections" />
+	                <input type="hidden" name="planner_tab" value="sessions" />
+	                <input type="hidden" name="sections_session_id" value="{{ selected_session.id }}" />
+	                <label style="grid-column:1/-1;">
+	                  Calentamiento (opcional)
+	                  <textarea name="section_warmup" placeholder="Explica el calentamiento...">{{ selected_session_plan_fields.warmup|default:'' }}</textarea>
+	                </label>
+	                <label style="grid-column:1/-1;">
+	                  Activación (opcional)
+	                  <textarea name="section_activation" placeholder="Indicaciones de activación...">{{ selected_session_plan_fields.activation|default:'' }}</textarea>
+	                </label>
+	                <label style="grid-column:1/-1;">
+	                  Parte principal (opcional)
+	                  <textarea name="section_main" placeholder="Puntos clave de la parte principal...">{{ selected_session_plan_fields.main|default:'' }}</textarea>
+	                </label>
+	                <label style="grid-column:1/-1;">
+	                  Vuelta a la calma (opcional)
+	                  <textarea name="section_cooldown" placeholder="Vuelta a la calma y recuperación...">{{ selected_session_plan_fields.cooldown|default:'' }}</textarea>
+	                </label>
+	                <div><button type="submit" class="primary">Guardar textos</button></div>
+	              </form>
+	              {% else %}
+	              <p class="empty">No hay sesiones creadas todavía. Crea una en la pestaña Microciclos.</p>
+	              {% endif %}
+	            </div>
+	          </div>
+	        </section>
+
+	        {% if selected_session %}
+	        <section class="panel">
+	          <h2>Tareas por bloque</h2>
+	          <div class="editor-grid">
+	            {% for section in selected_session_task_sections %}
+	            <div class="editor-box">
+	              <h3>{{ section.label }}</h3>
+	              <form method="post" class="grid" style="margin-bottom:0.6rem;">
+	                {% csrf_token %}
+	                <input type="hidden" name="planner_action" value="copy_library_task_to_session" />
+	                <input type="hidden" name="planner_tab" value="sessions" />
+	                <input type="hidden" name="target_session_id" value="{{ selected_session.id }}" />
+	                {% if section.block_keys|length == 1 %}
+	                <input type="hidden" name="target_block" value="{{ section.block_keys.0 }}" />
+	                {% else %}
+	                <label>
+	                  Bloque destino
+	                  <select name="target_block">
+	                    {% for value, label in task_blocks %}
+	                      {% if value in section.block_keys %}
+	                      <option value="{{ value }}">{{ label }}</option>
+	                      {% endif %}
+	                    {% endfor %}
+	                  </select>
+	                </label>
+	                {% endif %}
+	                <label style="grid-column:1/-1;">
+	                  Añadir desde biblioteca
+	                  <select name="source_task_id" required>
+	                    <option value="">Seleccionar tarea</option>
+	                    {% for opt in planning_task_source_options %}
+	                    <option value="{{ opt.id }}">{{ opt.title }} · {{ opt.block_label }} · {{ opt.minutes }}'</option>
+	                    {% endfor %}
+	                  </select>
+	                </label>
+	                <div style="display:flex; align-items:flex-end; gap:0.6rem;">
+	                  <button type="submit" class="secondary">Añadir</button>
+	                  <a class="button" href="{% url task_builder_route_name %}">Crear tarea</a>
+	                </div>
+	              </form>
+
+	              {% if section.task_rows %}
+	              <div class="task-list">
+	                {% for row in section.task_rows %}
+	                <a class="task task-clickable" href="{% url 'session-task-detail' row.obj.id %}">
+	                  {% if row.obj.task_preview_image %}
+	                  <div class="task-media"><img src="{{ row.obj.task_preview_image.url }}" alt="Representación gráfica" loading="lazy" /></div>
+	                  {% else %}
+	                  <div class="task-media-fallback">Sin representación<br />{{ row.sheet.block_label }}</div>
+	                  {% endif %}
+	                  <div class="task-body">
+	                    <h3>{{ row.sheet.title }}</h3>
+	                    <p class="meta">{{ row.sheet.block_label }} · {{ row.sheet.minutes }}'</p>
+	                  </div>
+	                </a>
+	                {% endfor %}
+	              </div>
+	              {% else %}
+	              <p class="empty">Sin tareas en este bloque.</p>
+	              {% endif %}
+	            </div>
+	            {% endfor %}
+	          </div>
+	        </section>
+	        {% endif %}
 	      </div>
 
-      <div class="tab-panel {% if active_tab == 'import' %}is-active{% endif %}" data-tab="import">
-        <section class="panel">
-          <h2>Importar tarea desde PDF</h2>
-          <form method="post" enctype="multipart/form-data" class="grid">
-            {% csrf_token %}
-            <input type="hidden" name="planner_action" value="library_upload_pdf" />
-            <input type="hidden" name="planner_tab" value="import" />
-            <label>
-              Nombre tarea
-              <input type="text" name="pdf_task_title" maxlength="160" placeholder="Ej: Activacion coordinativa" required />
-            </label>
-            <label>
-              Bloque
-              <select name="pdf_task_block">
-                {% for value, label in task_blocks %}
-                <option value="{{ value }}">{{ label }}</option>
-                {% endfor %}
-              </select>
-            </label>
-            <label>
-              Minutos
-              <input type="number" name="pdf_task_minutes" min="5" max="90" value="15" />
-            </label>
-            <label>
-              Objetivo (opcional)
-              <input type="text" name="pdf_task_objective" maxlength="180" placeholder="Objetivo breve" />
-            </label>
-            <label>
-              Archivos PDF
-              <input type="file" name="library_task_pdf" accept="application/pdf" multiple required />
-            </label>
-            <label style="display:flex; gap:10px; align-items:center; margin-top:6px;">
-              <input type="checkbox" name="pdf_recreate_board" value="1" checked />
-              <span>Usar el gráfico del PDF como fondo editable (recomendado)</span>
-            </label>
-            <div style="display:flex; align-items:flex-end;">
-              <button type="submit" class="primary">Subir PDF a biblioteca</button>
-            </div>
-          </form>
-        </section>
-      </div>
-
-      <div class="tab-panel {% if active_tab == 'create' %}is-active{% endif %}" data-tab="create">
-        <section class="panel">
-          <h2>Crear tarea</h2>
-          <p class="meta" style="margin-top:0;">La creación ya no se hace dentro de este tablero. Se abre en un editor dedicado, con pizarra propia, asignación de jugadores del sistema, ficha técnica completa y salida a PDF.</p>
-          <div class="folder-grid" style="margin-top:0.95rem;">
-            <a class="folder-card" href="{% url task_builder_route_name %}">
-              <strong>Editor visual dedicado</strong>
-              <span>Campo, material, chapas reales, objetivos, consignas y normas</span>
-            </a>
-            <a class="folder-card" href="?tab=planning">
-              <strong>Ir a planificación</strong>
-              <span>Construye sesiones y microciclos a partir de las tareas guardadas</span>
-            </a>
-            <a class="folder-card" href="?tab=library">
-              <strong>Biblioteca de tareas</strong>
-              <span>Consulta, filtra, clona o lleva tareas al plan semanal</span>
-            </a>
-          </div>
-        </section>
-
-      </div>
-
-      <div class="tab-panel {% if active_tab == 'planning' %}is-active{% endif %}" data-tab="planning">
+	      <div class="tab-panel {% if active_tab == 'microcycles' %}is-active{% endif %}" data-tab="microcycles">
         <section class="panel">
           <h2>Planificación · Microciclos y Sesiones</h2>
           <div class="grid">
@@ -1329,7 +1374,7 @@
               <form method="post" class="grid">
                 {% csrf_token %}
                 <input type="hidden" name="planner_action" value="create_microcycle_plan" />
-                <input type="hidden" name="planner_tab" value="planning" />
+	                <input type="hidden" name="planner_tab" value="microcycles" />
                 <label>
                   Título
                   <input type="text" name="plan_microcycle_title" maxlength="140" placeholder="Ej: MD-4 a MD+1" required />
@@ -1383,7 +1428,7 @@
               <form method="post" class="grid">
                 {% csrf_token %}
                 <input type="hidden" name="planner_action" value="create_session_plan" />
-                <input type="hidden" name="planner_tab" value="planning" />
+	                <input type="hidden" name="planner_tab" value="microcycles" />
                 <label>
                   Microciclo
                   <select name="plan_microcycle_id" required>
@@ -1425,10 +1470,10 @@
                     {% endfor %}
                   </select>
                 </label>
-                <label style="grid-column:1/-1;">
-                  Contenido
-                  <textarea name="plan_session_content" placeholder="Contenido planificado de sesión"></textarea>
-                </label>
+	                <label style="grid-column:1/-1;">
+	                  Notas (opcional)
+	                  <textarea name="plan_session_content" placeholder="Notas generales de la sesión (sin pizarra)"></textarea>
+	                </label>
                 <label style="grid-column:1/-1;">
                   Tareas iniciales
                   <div class="task-pick-grid">
@@ -1532,7 +1577,7 @@
                     <form method="post" class="grid" style="margin-top:0.7rem;">
                       {% csrf_token %}
                       <input type="hidden" name="planner_action" value="update_microcycle_plan" />
-                      <input type="hidden" name="planner_tab" value="planning" />
+	                      <input type="hidden" name="planner_tab" value="microcycles" />
                       <input type="hidden" name="edit_microcycle_id" value="{{ row.obj.id }}" />
                       <label>
                         Título
@@ -1586,7 +1631,7 @@
                     <form method="post" class="grid" style="margin-top:0.7rem;">
                       {% csrf_token %}
                       <input type="hidden" name="planner_action" value="clone_microcycle_plan" />
-                      <input type="hidden" name="planner_tab" value="planning" />
+	                      <input type="hidden" name="planner_tab" value="microcycles" />
                       <input type="hidden" name="source_microcycle_id" value="{{ row.obj.id }}" />
                       <label>
                         Nuevo inicio
@@ -1621,8 +1666,8 @@
                       <span class="session-chip">Min tareas · {{ session.task_minutes_total }}'</span>
                       <span class="session-chip">Orden · {{ session.obj.order }}</span>
                     </div>
-                    {% if session.obj.content %}
-                    <p class="meta" style="margin-top:0.55rem;">{{ session.obj.content }}</p>
+                    {% if session.plan_fields.notes %}
+                    <p class="meta" style="margin-top:0.55rem;">{{ session.plan_fields.notes }}</p>
                     {% endif %}
                     {% if session.tasks %}
                     <div class="session-sheet-stack">
@@ -1677,7 +1722,7 @@
 	                          <form method="post" style="margin:0;">
 	                            {% csrf_token %}
 	                            <input type="hidden" name="planner_action" value="move_session_task" />
-	                            <input type="hidden" name="planner_tab" value="planning" />
+	                            <input type="hidden" name="planner_tab" value="microcycles" />
                             <input type="hidden" name="task_id" value="{{ task_row.obj.id }}" />
                             <input type="hidden" name="move_direction" value="up" />
                             <button type="submit" class="secondary">↑</button>
@@ -1685,7 +1730,7 @@
                           <form method="post" style="margin:0;">
                             {% csrf_token %}
                             <input type="hidden" name="planner_action" value="move_session_task" />
-                            <input type="hidden" name="planner_tab" value="planning" />
+                            <input type="hidden" name="planner_tab" value="microcycles" />
                             <input type="hidden" name="task_id" value="{{ task_row.obj.id }}" />
                             <input type="hidden" name="move_direction" value="down" />
                             <button type="submit" class="secondary">↓</button>
@@ -1693,14 +1738,14 @@
                           <form method="post" style="margin:0;">
                             {% csrf_token %}
                             <input type="hidden" name="planner_action" value="duplicate_session_task" />
-                            <input type="hidden" name="planner_tab" value="planning" />
+                            <input type="hidden" name="planner_tab" value="microcycles" />
                             <input type="hidden" name="task_id" value="{{ task_row.obj.id }}" />
                             <button type="submit" class="secondary">Duplicar</button>
                           </form>
                           <form method="post" style="margin:0;" onsubmit="return confirm('¿Enviar esta tarea a la papelera? (Se puede restaurar)');">
                             {% csrf_token %}
                             <input type="hidden" name="planner_action" value="delete_session_task" />
-                            <input type="hidden" name="planner_tab" value="planning" />
+                            <input type="hidden" name="planner_tab" value="microcycles" />
                             <input type="hidden" name="task_id" value="{{ task_row.obj.id }}" />
                             <button type="submit" class="danger">Papelera</button>
                           </form>
@@ -1726,14 +1771,14 @@
                           <form method="post" style="margin:0;">
                             {% csrf_token %}
                             <input type="hidden" name="planner_action" value="restore_session_task" />
-                            <input type="hidden" name="planner_tab" value="planning" />
+                            <input type="hidden" name="planner_tab" value="microcycles" />
                             <input type="hidden" name="task_id" value="{{ trash_task.id }}" />
                             <button type="submit" class="secondary">Restaurar</button>
                           </form>
                           <form method="post" style="margin:0;" onsubmit="return confirm('Se eliminará definitivamente (no se puede deshacer). ¿Continuar?');">
                             {% csrf_token %}
                             <input type="hidden" name="planner_action" value="purge_session_task" />
-                            <input type="hidden" name="planner_tab" value="planning" />
+                            <input type="hidden" name="planner_tab" value="microcycles" />
                             <input type="hidden" name="task_id" value="{{ trash_task.id }}" />
                             <button type="submit" class="danger">Eliminar definitivo</button>
                           </form>
@@ -1750,7 +1795,7 @@
                         <form method="post" class="grid" style="margin-top:0.7rem;">
                           {% csrf_token %}
                           <input type="hidden" name="planner_action" value="update_session_plan" />
-                          <input type="hidden" name="planner_tab" value="planning" />
+                          <input type="hidden" name="planner_tab" value="microcycles" />
                           <input type="hidden" name="edit_session_id" value="{{ session.obj.id }}" />
                           <label>
                             Microciclo
@@ -1794,7 +1839,7 @@
                           </label>
                           <label style="grid-column:1/-1;">
                             Contenido
-                            <textarea name="edit_session_content">{{ session.obj.content|default:'' }}</textarea>
+	                            <textarea name="edit_session_content">{{ session.plan_fields.notes|default:'' }}</textarea>
                           </label>
                           <div><button type="submit" class="primary">Guardar cambios</button></div>
                         </form>
@@ -1804,7 +1849,7 @@
                         <form method="post" class="grid" style="margin-top:0.7rem;">
                           {% csrf_token %}
                           <input type="hidden" name="planner_action" value="duplicate_session_plan" />
-                          <input type="hidden" name="planner_tab" value="planning" />
+                          <input type="hidden" name="planner_tab" value="microcycles" />
                           <input type="hidden" name="source_session_id" value="{{ session.obj.id }}" />
                           <label>
                             Microciclo destino
@@ -1828,7 +1873,7 @@
                       <form method="post">
                         {% csrf_token %}
                         <input type="hidden" name="planner_action" value="delete_session_plan" />
-                        <input type="hidden" name="planner_tab" value="planning" />
+                        <input type="hidden" name="planner_tab" value="microcycles" />
                         <input type="hidden" name="delete_session_id" value="{{ session.obj.id }}" />
                         <button type="submit" class="danger">Eliminar</button>
                       </form>
@@ -1849,10 +1894,68 @@
         </section>
       </div>
 
-      <div class="tab-panel {% if active_tab == 'library' %}is-active{% endif %}" data-tab="library">
-      <section class="panel">
-        <h2>Biblioteca de tareas</h2>
-        <p class="meta" style="margin-top:0;">Vista de resultados del importador PDF con el máximo de información detectada automáticamente.</p>
+	      <div class="tab-panel {% if active_tab == 'library' %}is-active{% endif %}" data-tab="library">
+	      <section class="panel">
+	        <h2>Acciones rápidas</h2>
+	        <div class="folder-grid" style="margin-top:0.75rem;">
+	          <a class="folder-card" href="{% url task_builder_route_name %}">
+	            <strong>Crear tarea</strong>
+	            <span>Editor visual dedicado · pizarra + ficha técnica + PDF</span>
+	          </a>
+	          <a class="folder-card" href="?tab=microcycles">
+	            <strong>Ir a microciclos</strong>
+	            <span>Semana, sesiones y distribución de tareas</span>
+	          </a>
+	          <a class="folder-card" href="?tab=sessions">
+	            <strong>Editar sesión</strong>
+	            <span>Textos por bloques y tareas del día</span>
+	          </a>
+	        </div>
+	        <details style="margin-top:0.85rem;">
+	          <summary>Importar tareas desde PDF</summary>
+	          <div style="margin-top:0.75rem;">
+	            <form method="post" enctype="multipart/form-data" class="grid">
+	              {% csrf_token %}
+	              <input type="hidden" name="planner_action" value="library_upload_pdf" />
+	              <input type="hidden" name="planner_tab" value="library" />
+	              <label>
+	                Nombre tarea
+	                <input type="text" name="pdf_task_title" maxlength="160" placeholder="Ej: Activación coordinativa" required />
+	              </label>
+	              <label>
+	                Bloque
+	                <select name="pdf_task_block">
+	                  {% for value, label in task_blocks %}
+	                  <option value="{{ value }}">{{ label }}</option>
+	                  {% endfor %}
+	                </select>
+	              </label>
+	              <label>
+	                Minutos
+	                <input type="number" name="pdf_task_minutes" min="5" max="90" value="15" />
+	              </label>
+	              <label>
+	                Objetivo (opcional)
+	                <input type="text" name="pdf_task_objective" maxlength="180" placeholder="Objetivo breve" />
+	              </label>
+	              <label>
+	                Archivos PDF
+	                <input type="file" name="library_task_pdf" accept="application/pdf" multiple required />
+	              </label>
+	              <label style="display:flex; gap:10px; align-items:center; margin-top:6px;">
+	                <input type="checkbox" name="pdf_recreate_board" value="1" checked />
+	                <span>Usar el gráfico del PDF como fondo editable (recomendado)</span>
+	              </label>
+	              <div style="display:flex; align-items:flex-end;">
+	                <button type="submit" class="primary">Subir PDFs</button>
+	              </div>
+	            </form>
+	          </div>
+	        </details>
+	      </section>
+	      <section class="panel">
+	        <h2>Biblioteca de tareas</h2>
+	        <p class="meta" style="margin-top:0;">Vista de resultados del importador PDF con el máximo de información detectada automáticamente.</p>
         <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin-bottom:0.6rem;">
           <a class="tab-link {% if library_view == 'overview' %}is-active{% endif %}" href="?tab=library&library_view=overview">Todas</a>
           <a class="tab-link {% if library_view == 'phase' %}is-active{% endif %}" href="?tab=library&library_view=phase">Por fase</a>
