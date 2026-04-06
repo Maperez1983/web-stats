@@ -84,7 +84,8 @@
       }
       input[type="text"],
       input[type="number"],
-      input[type="file"] {
+      input[type="file"],
+      select {
         width: 100%;
         border-radius: 0.55rem;
         border: 1px solid var(--line);
@@ -455,6 +456,62 @@
               </form>
             </div>
             {% endif %}
+
+            <div style="margin-top:0.75rem;border-top:1px solid rgba(121,170,230,0.22);padding-top:0.75rem;">
+              <h3 style="margin:0 0 0.55rem;font-size:0.85rem;letter-spacing:0.08em;text-transform:uppercase;color:rgba(203,213,225,0.82);">Accesos</h3>
+              <form method="post" class="roster-form" style="grid-template-columns: minmax(180px, 1fr) auto auto; gap:0.5rem;">
+                {% csrf_token %}
+                <input type="hidden" name="form_action" value="team_access_add" />
+                <input type="hidden" name="active_tab" value="teams" />
+                <input type="hidden" name="workspace_team_id" value="{{ link.id }}" />
+                <label style="margin:0;">
+                  <span>Usuario</span>
+                  <select name="user_id" required>
+                    <option value="" selected disabled>Selecciona un usuario…</option>
+                    {% for member in workspace_members %}
+                      <option value="{{ member.user.id }}">{{ member.user.username }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label style="margin:0;align-self:end;">
+                  <span>Default</span>
+                  <input type="checkbox" name="set_default" />
+                </label>
+                <button class="pill-button" type="submit" style="align-self:end;">Asignar</button>
+              </form>
+              <div class="roster-list" style="margin-top:0.55rem;">
+                  {% if link.access_rows %}
+                    {% for access in link.access_rows %}
+                    <article class="roster-item" style="grid-template-columns: minmax(0, 1fr) auto auto; padding:0.45rem;">
+                      <div>
+                        <strong>{{ access.user.username }}</strong>
+                        {% if access.is_default %}
+                        <div style="opacity:.75;color:#bbf7d0;">Predeterminada del usuario</div>
+                        {% endif %}
+                      </div>
+                      <form method="post" class="form-inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="form_action" value="team_access_set_default" />
+                        <input type="hidden" name="active_tab" value="teams" />
+                        <input type="hidden" name="workspace_team_id" value="{{ link.id }}" />
+                        <input type="hidden" name="user_id" value="{{ access.user.id }}" />
+                        <button class="pill-button icon-action" type="submit" title="Default" aria-label="Default">⭐</button>
+                      </form>
+                      <form method="post" class="form-inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="form_action" value="team_access_remove" />
+                        <input type="hidden" name="active_tab" value="teams" />
+                        <input type="hidden" name="workspace_team_id" value="{{ link.id }}" />
+                        <input type="hidden" name="user_id" value="{{ access.user.id }}" />
+                        <button class="button-danger icon-action" type="submit" title="Quitar" aria-label="Quitar">🗑️</button>
+                      </form>
+                    </article>
+                    {% endfor %}
+                  {% else %}
+                    <p style="margin:0;color:rgba(205,225,255,0.82);">Sin accesos asignados (los no-admin verán la categoría predeterminada).</p>
+                  {% endif %}
+              </div>
+            </div>
           </article>
           {% empty %}
           <p style="margin:0.55rem 0;color:rgba(205,225,255,0.82);">No hay categorías configuradas.</p>

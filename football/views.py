@@ -103,6 +103,7 @@ from football.models import (
     TeamStanding,
     Workspace,
     WorkspaceTeam,
+    WorkspaceTeamAccess,
     WorkspaceMembership,
     TrainingMicrocycle,
     TrainingSession,
@@ -289,7 +290,7 @@ def workspace_set_active_team(request):
     if not team_id:
         return redirect(next_url)
 
-    links = _workspace_team_links(workspace)
+    links = _workspace_team_links_for_user(workspace, request.user)
     allowed_team_ids = {int(link.team_id) for link in links if getattr(link, 'team_id', None)}
     if int(team_id) not in allowed_team_ids:
         return redirect(next_url)
@@ -1650,6 +1651,38 @@ def _workspace_team_links(workspace):
     return links
 
 
+def _workspace_team_links_for_user(workspace, user):
+    """
+    Devuelve los vínculos (WorkspaceTeam) visibles para el usuario dentro del cliente.
+
+    - Owner/Admin (workspace) y admin de plataforma: ven todas las categorías.
+    - Miembros normales: si tienen accesos explícitos (WorkspaceTeamAccess) se restringe a ellos.
+      Si no tienen accesos, se restringe a la categoría predeterminada del cliente.
+    """
+    links = _workspace_team_links(workspace)
+    if not links or not workspace or workspace.kind != Workspace.KIND_CLUB:
+        return links
+    if not user or not getattr(user, 'is_authenticated', False):
+        return []
+    if _can_manage_workspace(user, workspace):
+        return links
+    try:
+        access_rows = list(
+            WorkspaceTeamAccess.objects
+            .filter(workspace=workspace, user=user)
+            .values_list('team_id', 'is_default')
+        )
+    except Exception:
+        access_rows = []
+    if access_rows:
+        allowed_team_ids = {int(team_id) for (team_id, _) in access_rows if team_id}
+        return [link for link in links if int(getattr(link, 'team_id', 0) or 0) in allowed_team_ids]
+    default_link = next((link for link in links if getattr(link, 'is_default', False)), None)
+    if default_link:
+        return [default_link]
+    return links[:1]
+
+
 def _get_active_team_for_request(request):
     """
     Resuelve el equipo/categoría activo para el workspace actual.
@@ -1660,7 +1693,7 @@ def _get_active_team_for_request(request):
     """
     workspace = _get_active_workspace(request)
     if workspace and workspace.kind == Workspace.KIND_CLUB:
-        links = _workspace_team_links(workspace)
+        links = _workspace_team_links_for_user(workspace, request.user)
         team_lookup = {int(link.team_id): link.team for link in links if getattr(link, 'team_id', None)}
         desired_team_id = _parse_int(request.GET.get('team'))
         mapping = request.session.get('active_team_by_workspace') if request and hasattr(request, 'session') else None
@@ -1678,6 +1711,20 @@ def _get_active_team_for_request(request):
                 except Exception:
                     pass
             return team_lookup[int(desired_team_id)]
+
+        # Fallback: default por usuario (si hay acceso marcado como default).
+        try:
+            if request and getattr(request, 'user', None) and request.user.is_authenticated and workspace:
+                preferred_team_id = (
+                    WorkspaceTeamAccess.objects
+                    .filter(workspace=workspace, user=request.user, is_default=True)
+                    .values_list('team_id', flat=True)
+                    .first()
+                )
+                if preferred_team_id and int(preferred_team_id) in team_lookup:
+                    return team_lookup[int(preferred_team_id)]
+        except Exception:
+            pass
 
         # Fallback: default del workspace, si existe.
         default_link = next((link for link in links if getattr(link, 'is_default', False)), None)
@@ -7052,6 +7099,65 @@ def admin_page(request):
                     teams_error = str(exc)
                 except Exception:
                     teams_error = 'No se pudo guardar la categoría.'
+        elif form_action in {'team_access_add', 'team_access_remove', 'team_access_set_default'}:
+            active_tab = 'teams'
+            if not workspace or workspace.kind != Workspace.KIND_CLUB:
+                teams_error = 'No hay cliente club activo.'
+            elif not can_manage_workspace:
+                teams_error = 'No tienes permisos para gestionar este cliente.'
+            else:
+                link_id = _parse_int(request.POST.get('workspace_team_id'))
+                target_user_id = _parse_int(request.POST.get('user_id'))
+                link = (
+                    WorkspaceTeam.objects
+                    .filter(id=link_id, workspace=workspace)
+                    .select_related('team')
+                    .first()
+                    if link_id else None
+                )
+                try:
+                    if not link or not link.team:
+                        raise ValueError('Categoría no válida.')
+                    target_user = User.objects.filter(id=target_user_id).first() if target_user_id else None
+                    if not target_user:
+                        raise ValueError('Usuario no válido.')
+                    if not WorkspaceMembership.objects.filter(workspace=workspace, user=target_user).exists() and int(getattr(workspace, 'owner_user_id', 0) or 0) != int(target_user.id):
+                        raise ValueError('Ese usuario no pertenece al cliente.')
+
+                    if form_action == 'team_access_remove':
+                        WorkspaceTeamAccess.objects.filter(workspace=workspace, team=link.team, user=target_user).delete()
+                        teams_message = 'Acceso eliminado.'
+                    elif form_action == 'team_access_set_default':
+                        # Un usuario puede tener varias categorías; solo una default.
+                        WorkspaceTeamAccess.objects.filter(workspace=workspace, user=target_user, is_default=True).update(is_default=False)
+                        obj, _ = WorkspaceTeamAccess.objects.get_or_create(
+                            workspace=workspace,
+                            team=link.team,
+                            user=target_user,
+                            defaults={'is_default': True},
+                        )
+                        if not obj.is_default:
+                            obj.is_default = True
+                            obj.save(update_fields=['is_default'])
+                        teams_message = 'Categoría predeterminada del usuario actualizada.'
+                    else:  # team_access_add
+                        set_as_default = str(request.POST.get('set_default') or '').lower() in {'1', 'true', 'on', 'yes'}
+                        if set_as_default:
+                            WorkspaceTeamAccess.objects.filter(workspace=workspace, user=target_user, is_default=True).update(is_default=False)
+                        obj, created = WorkspaceTeamAccess.objects.get_or_create(
+                            workspace=workspace,
+                            team=link.team,
+                            user=target_user,
+                            defaults={'is_default': bool(set_as_default)},
+                        )
+                        if not created and set_as_default and not obj.is_default:
+                            obj.is_default = True
+                            obj.save(update_fields=['is_default'])
+                        teams_message = 'Acceso asignado.'
+                except ValueError as exc:
+                    teams_error = str(exc)
+                except Exception:
+                    teams_error = 'No se pudo gestionar el acceso.'
         elif form_action in {'admin_match_save', 'admin_action_bulk_add'}:
             active_tab = 'actions'
             if not is_admin_user:
@@ -7182,8 +7288,35 @@ def admin_page(request):
     admin_zone_choices = []
 
     workspace_team_links = []
+    workspace_members = []
+    workspace_team_access_map = {}
     if active_tab == 'teams' and workspace and workspace.kind == Workspace.KIND_CLUB:
         workspace_team_links = _workspace_team_links(workspace)
+        try:
+            workspace_members = list(
+                WorkspaceMembership.objects
+                .select_related('user')
+                .filter(workspace=workspace)
+                .order_by('user__username')
+            )
+        except Exception:
+            workspace_members = []
+        try:
+            access_rows = list(
+                WorkspaceTeamAccess.objects
+                .filter(workspace=workspace)
+                .select_related('user', 'team')
+            )
+        except Exception:
+            access_rows = []
+        for row in access_rows:
+            workspace_team_access_map.setdefault(int(row.team_id), []).append(row)
+        for link in workspace_team_links:
+            team_id = int(getattr(link, 'team_id', 0) or 0)
+            try:
+                link.access_rows = workspace_team_access_map.get(team_id, [])
+            except Exception:
+                link.access_rows = []
 
     if active_tab == 'roster':
         roster_players = (
@@ -7259,6 +7392,9 @@ def admin_page(request):
             'workspace_team_links': workspace_team_links,
             'teams_message': teams_message,
             'teams_error': teams_error,
+            'workspace_members': workspace_members,
+            # (debug/plantilla) el acceso ya va anexado en cada link.access_rows
+            'workspace_team_access_map': workspace_team_access_map,
             'admin_matches': admin_matches,
             'selected_admin_match': selected_admin_match,
             'admin_players': admin_players,

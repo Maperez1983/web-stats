@@ -162,6 +162,32 @@ class WorkspaceTeam(models.Model):
         return f'{self.workspace.name} · {self.team.display_name}'
 
 
+class WorkspaceTeamAccess(models.Model):
+    """
+    Acceso por categoría/equipo dentro de un cliente (workspace club).
+
+    Objetivo:
+    - Un entrenador del Prebenjamín sólo ve datos/tareas/plantilla del Prebenjamín.
+    - Senior idem.
+    - Admin/propietario del cliente puede ver todas las categorías.
+    """
+
+    workspace = models.ForeignKey(Workspace, on_delete=models.CASCADE, related_name='team_accesses')
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='workspace_team_accesses')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='workspace_team_accesses')
+    is_default = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['workspace__name', 'user__username', '-is_default', 'id']
+        unique_together = ('workspace', 'team', 'user')
+        verbose_name = 'Acceso por categoría'
+        verbose_name_plural = 'Accesos por categorías'
+
+    def __str__(self):
+        return f'{self.workspace.name} · {self.team.display_name} · {self.user.username}'
+
+
 class WorkspaceCompetitionContext(models.Model):
     PROVIDER_MANUAL = 'manual'
     PROVIDER_RFAF = 'rfaf'

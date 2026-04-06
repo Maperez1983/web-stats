@@ -35,6 +35,7 @@ def workspace_access(request):
             _get_active_workspace,
             _get_active_team_for_request,
             _workspace_team_links,
+            _workspace_team_links_for_user,
             _build_active_workspace_badge,
             _workspace_entry_url,
             _workspace_default_modules,
@@ -94,7 +95,7 @@ def workspace_access(request):
     team_options = []
     try:
         if workspace and workspace.kind == Workspace.KIND_CLUB:
-            links = _workspace_team_links(workspace)
+            links = _workspace_team_links_for_user(workspace, request.user)
             for link in links:
                 team = getattr(link, 'team', None)
                 if not team:
