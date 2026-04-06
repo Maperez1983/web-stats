@@ -60,6 +60,8 @@
         justify-content: center;
         overflow: hidden;
         flex: 0 0 auto;
+        text-decoration: none;
+        color: inherit;
       }
       .logo img {
         width: 36px;
@@ -193,7 +195,7 @@
         <div class="badge">Sesión</div>
         <div class="meta">
           <div style="display:flex; gap:10px; align-items:center;">
-            <div class="logo">{% if logo_url %}<img src="{{ logo_url }}" alt="Escudo {{ team_name }}" />{% endif %}</div>
+            <a class="logo" href="{{ pdf_return_url|default:platform_url }}">{% if logo_url %}<img src="{{ logo_url }}" alt="Escudo {{ team_name }}" />{% endif %}</a>
             <div>
               <div class="k">Sesión</div>
               <div class="v">{{ session.focus }}</div>
@@ -295,4 +297,3 @@
     </section>
   </body>
 </html>
-

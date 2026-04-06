@@ -47,6 +47,7 @@ urlpatterns = [
     path('registro-acciones/eliminar/', views.delete_match_action, name='match-action-delete'),
     path('registro-acciones/finalizar/', views.finalize_match_actions, name='match-action-finalize'),
     path('registro-acciones/reiniciar/', views.reset_match_action_register, name='match-action-reset'),
+    path('registro-acciones/acta/', views.match_report_pdf, name='match-report-pdf'),
     path('convocatoria/', views.convocation_page, name='convocation'),
     path('convocatoria/save/', views.save_convocation, name='convocation-save'),
     path('convocatoria/pdf/', views.convocation_pdf, name='convocation-pdf'),

@@ -154,13 +154,15 @@
   </head>
   <body>
     <section class="sheet {% if pdf_style != 'club' %}uefa-sheet{% endif %}">
-      {% if pdf_style == 'club' %}
-      <div class="club-head">
-        <table style="width:100%; border-collapse:collapse;">
-          <tr>
-            <td style="width:74px; vertical-align:top;">
-              <img src="{{ logo_url }}" alt="Escudo {{ team_name }}" style="width:62px; height:62px; object-fit:contain; border-radius:999px; background:#ffffff; padding:4px; border:1px solid rgba(15,23,42,0.12);" />
-            </td>
+	      {% if pdf_style == 'club' %}
+	      <div class="club-head">
+	        <table style="width:100%; border-collapse:collapse;">
+	          <tr>
+	            <td style="width:74px; vertical-align:top;">
+	              <a href="{{ pdf_return_url|default:platform_url }}" style="text-decoration:none; color:inherit;">
+	                <img src="{{ logo_url }}" alt="Escudo {{ team_name }}" style="width:62px; height:62px; object-fit:contain; border-radius:999px; background:#ffffff; padding:4px; border:1px solid rgba(15,23,42,0.12);" />
+	              </a>
+	            </td>
             <td style="vertical-align:top;">
               <div style="font-size:9px; letter-spacing:0.18em; text-transform:uppercase; opacity:0.8;">Planificación de sesión</div>
               <div style="font-size:25px; font-weight:800; line-height:1.1; margin-top:4px;">{{ session.focus }}</div>
@@ -176,14 +178,16 @@
         </table>
       </div>
       {% else %}
-      <div class="uefa-head">
-        <table style="width:100%; border-collapse:collapse;">
-          <tr>
-            <td style="width:52px; vertical-align:middle;">
-                <div style="width:34px; height:34px; border-radius:50%; background:#ffffff; overflow:hidden; display:flex; align-items:center; justify-content:center;">
-                  <img src="{{ logo_url }}" alt="RFEF / UEFA" style="width:28px; height:28px; object-fit:contain; display:block;" />
-                </div>
-            </td>
+	      <div class="uefa-head">
+	        <table style="width:100%; border-collapse:collapse;">
+	          <tr>
+	            <td style="width:52px; vertical-align:middle;">
+	                <a href="{{ pdf_return_url|default:platform_url }}" style="text-decoration:none; color:inherit;">
+	                  <div style="width:34px; height:34px; border-radius:50%; background:#ffffff; overflow:hidden; display:flex; align-items:center; justify-content:center;">
+	                    <img src="{{ logo_url }}" alt="RFEF / UEFA" style="width:28px; height:28px; object-fit:contain; display:block;" />
+	                  </div>
+	                </a>
+	            </td>
             <td style="vertical-align:middle;">
               <div style="font-size:24px; font-weight:800; letter-spacing:0.04em; text-transform:uppercase;">Entrega Sesión</div>
             </td>
@@ -303,21 +307,21 @@
         </div>
       </div>
 
-      <div class="footer">
-        <table style="width:100%; border-collapse:collapse;">
-          <tr>
-            <td style="vertical-align:middle;">
-              <div style="display:inline-flex; align-items:center; gap:8px;">
-                <img src="{{ brand_mark_url }}" alt="2J Football Intelligence" style="width:54px; height:auto; object-fit:contain;" />
-                {% if club_logo_url %}
-                <img src="{{ club_logo_url }}" alt="Escudo {{ team_name }}" style="width:30px; height:30px; object-fit:contain; border-radius:999px; background:#fff; padding:2px; border:1px solid rgba(11,18,32,0.08);" />
-                {% endif %}
-                <div>
-                  <div style="font-size:9px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:#0b1220;">Segunda Jugada</div>
-                  <div style="font-size:8.5px;">2J Football Intelligence</div>
-                </div>
-              </div>
-            </td>
+	      <div class="footer">
+	        <table style="width:100%; border-collapse:collapse;">
+	          <tr>
+	            <td style="vertical-align:middle;">
+	              <a href="{{ pdf_return_url|default:platform_url }}" style="display:inline-flex; align-items:center; gap:8px; text-decoration:none; color:inherit;">
+	                <img src="{{ brand_mark_url }}" alt="2J Football Intelligence" style="width:54px; height:auto; object-fit:contain;" />
+	                {% if club_logo_url %}
+	                <img src="{{ club_logo_url }}" alt="Escudo {{ team_name }}" style="width:30px; height:30px; object-fit:contain; border-radius:999px; background:#fff; padding:2px; border:1px solid rgba(11,18,32,0.08);" />
+	                {% endif %}
+	                <div>
+	                  <div style="font-size:9px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:#0b1220;">Segunda Jugada</div>
+	                  <div style="font-size:8.5px;">2J Football Intelligence</div>
+	                </div>
+	              </a>
+	            </td>
             <td style="text-align:right; vertical-align:middle;">
               {% if pdf_style == 'club' %}Formato Club{% else %}Formato UEFA{% endif %} · {{ team_name }} · {{ coach_name }} · Generado {{ generated_at|date:"d/m/Y H:i" }}
             </td>

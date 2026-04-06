@@ -573,6 +573,10 @@
         letter-spacing: 0.25em;
         text-transform: uppercase;
         cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
       }
       .field-header-actions {
         display: flex;
@@ -956,6 +960,20 @@
         text-transform: uppercase;
         cursor: pointer;
       }
+      .closure-actions a {
+        border: none;
+        border-radius: 999px;
+        padding: 0.9rem 1.2rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.45rem;
+      }
       .closure-actions .save {
         background: linear-gradient(135deg, #facc15, #f97316);
         color: #0f172a;
@@ -964,6 +982,11 @@
         background: rgba(127, 29, 29, 0.55);
         color: #fee2e2;
         border: 1px solid rgba(248, 113, 113, 0.2);
+      }
+      .closure-actions .pdf {
+        background: rgba(56, 189, 248, 0.14);
+        border: 1px solid rgba(56, 189, 248, 0.35);
+        color: rgba(226, 232, 240, 0.95);
       }
       .field-clock {
         display: flex;
@@ -2321,6 +2344,17 @@
               </article>
               <div class="closure-actions">
                 <button type="button" class="save" id="match-finalize-btn">Guardar partido</button>
+                {% if match_info %}
+                <a
+                  class="pdf"
+                  href="{% url 'match-report-pdf' %}?match_id={{ match_info.match_id }}"
+                  target="_blank"
+                  rel="noopener"
+                  title="Descargar acta PDF"
+                >
+                  Acta PDF
+                </a>
+                {% endif %}
                 <button type="button" class="reset" id="match-reset-btn">Reiniciar registro</button>
                 <button type="button" class="toolbar-pill" data-stage-jump="live">Volver al directo</button>
               </div>

@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Acta · {{ team_name }} · {{ opponent_name }}</title>
+    <style>
+      @page { size: A4; margin: 8mm; }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Inter", system-ui, -apple-system, Segoe UI, Arial, sans-serif;
+        color: #0b1220;
+        background: #ffffff;
+      }
+      .sheet {
+        width: 194mm;
+        min-height: 281mm;
+        margin: 0 auto;
+        border: 1px solid rgba(15, 23, 42, 0.12);
+      }
+      .header {
+        background: #b91c1c;
+        color: #ffffff;
+        padding: 10px 12px;
+      }
+      .header-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        text-decoration: none;
+        color: inherit;
+      }
+      .brand img {
+        display: block;
+        width: 44px;
+        height: auto;
+        object-fit: contain;
+      }
+      .brand .team-logo {
+        width: 28px;
+        height: 28px;
+        border-radius: 999px;
+        background: #ffffff;
+        padding: 2px;
+      }
+      .brand-copy {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .brand-copy strong {
+        font-size: 11px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .brand-copy span {
+        font-size: 9.5px;
+        opacity: 0.92;
+      }
+      .title {
+        text-align: right;
+      }
+      .title h1 {
+        margin: 0;
+        font-size: 16px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .title p {
+        margin: 2px 0 0;
+        font-size: 10px;
+        opacity: 0.95;
+      }
+      .meta {
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        border-radius: 12px;
+        padding: 8px 10px;
+        margin-top: 10px;
+        display: grid;
+        grid-template-columns: 1.1fr 0.9fr;
+        gap: 10px;
+      }
+      .meta strong {
+        font-size: 12px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .meta span {
+        display: block;
+        margin-top: 2px;
+        font-size: 10px;
+        opacity: 0.95;
+      }
+      .body {
+        padding: 12px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      .card {
+        border: 1px solid rgba(15, 23, 42, 0.12);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      .card h2 {
+        margin: 0;
+        padding: 8px 10px;
+        font-size: 11px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        background: rgba(185, 28, 28, 0.08);
+        border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+      }
+      .rows {
+        padding: 8px 10px;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 6px 0;
+        border-bottom: 1px dashed rgba(15, 23, 42, 0.08);
+      }
+      .row:last-child { border-bottom: none; }
+      .who {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+      }
+      .who img {
+        width: 22px;
+        height: 22px;
+        border-radius: 999px;
+        object-fit: cover;
+        border: 1px solid rgba(15, 23, 42, 0.12);
+        background: #f8fafc;
+      }
+      .who strong {
+        font-size: 10px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .badge {
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        opacity: 0.9;
+        white-space: nowrap;
+      }
+      .list {
+        padding: 8px 10px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 10px;
+      }
+      th, td {
+        text-align: left;
+        padding: 6px 6px;
+        border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+        vertical-align: top;
+      }
+      th {
+        font-size: 9px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: rgba(15, 23, 42, 0.75);
+        background: rgba(2, 6, 23, 0.03);
+      }
+      .muted { color: rgba(15, 23, 42, 0.7); }
+      .team-photo {
+        margin-top: 12px;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid rgba(15, 23, 42, 0.12);
+        height: 150px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f8fafc;
+      }
+      .team-photo img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .footer {
+        border-top: 1px solid rgba(15, 23, 42, 0.1);
+        padding: 8px 12px;
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        font-size: 9px;
+        color: rgba(15, 23, 42, 0.65);
+      }
+    </style>
+  </head>
+  <body>
+    <section class="sheet">
+      <header class="header">
+        <div class="header-top">
+          <a class="brand" href="{{ pdf_return_url|default:platform_url }}">
+            <img src="{{ brand_mark_url }}" alt="2J" />
+            <img src="{{ team_crest_src }}" class="team-logo" alt="Escudo {{ team_name }}" />
+            <div class="brand-copy">
+              <strong>Segunda Jugada</strong>
+              <span>2J Live · Acta de partido</span>
+            </div>
+          </a>
+          <div class="title">
+            <h1>Acta de partido</h1>
+            <p>{{ team_name }} vs {{ opponent_name }}</p>
+          </div>
+        </div>
+        <div class="meta">
+          <div>
+            <strong>{{ competition_label }}</strong>
+            <span>{{ round_label }}</span>
+            <span>{{ match_datetime_label }}</span>
+            <span>{{ location_label }}</span>
+          </div>
+          <div>
+            <strong>Resumen</strong>
+            <span>{{ summary_actions }} acciones · {{ summary_subs }} cambios</span>
+            <span>{{ summary_yellow }} amarillas · {{ summary_red }} rojas</span>
+            <span>{{ summary_corners_for }} córners a favor · {{ summary_corners_against }} en contra</span>
+          </div>
+        </div>
+      </header>
+      <main class="body">
+        <div class="grid">
+          <section class="card">
+            <h2>Once inicial</h2>
+            <div class="rows">
+              {% if starters %}
+              {% for p in starters %}
+              <div class="row">
+                <div class="who">
+                  <img src="{{ p.photo_src|default:avatar_src }}" alt="{{ p.name }}" />
+                  <strong>#{{ p.number|default:"--" }} {{ p.name }}</strong>
+                </div>
+                <div class="badge muted">{{ p.position|default:"" }}</div>
+              </div>
+              {% endfor %}
+              {% else %}
+              <div class="row"><span class="muted">Sin once inicial definido.</span></div>
+              {% endif %}
+            </div>
+          </section>
+
+          <section class="card">
+            <h2>Suplentes</h2>
+            <div class="rows">
+              {% if bench %}
+              {% for p in bench %}
+              <div class="row">
+                <div class="who">
+                  <img src="{{ p.photo_src|default:avatar_src }}" alt="{{ p.name }}" />
+                  <strong>#{{ p.number|default:"--" }} {{ p.name }}</strong>
+                </div>
+                <div class="badge muted">{{ p.position|default:"" }}</div>
+              </div>
+              {% endfor %}
+              {% else %}
+              <div class="row"><span class="muted">Sin suplentes registrados.</span></div>
+              {% endif %}
+            </div>
+          </section>
+
+          <section class="card" style="grid-column: 1 / -1;">
+            <h2>Cambios</h2>
+            <div class="list">
+              <table>
+                <thead>
+                  <tr>
+                    <th style="width:70px;">Min</th>
+                    <th>Sale</th>
+                    <th>Entra</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% if substitutions %}
+                  {% for sub in substitutions %}
+                  <tr>
+                    <td><strong>{{ sub.minute|default:"--" }}'</strong></td>
+                    <td>{{ sub.out_label|default:"-" }}</td>
+                    <td>{{ sub.in_label|default:"-" }}</td>
+                  </tr>
+                  {% endfor %}
+                  {% else %}
+                  <tr><td colspan="3" class="muted">Sin cambios registrados.</td></tr>
+                  {% endif %}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="card" style="grid-column: 1 / -1;">
+            <h2>Tarjetas</h2>
+            <div class="list">
+              <table>
+                <thead>
+                  <tr>
+                    <th style="width:70px;">Min</th>
+                    <th style="width:90px;">Tipo</th>
+                    <th>Jugador</th>
+                    <th>Motivo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% if cards %}
+                  {% for c in cards %}
+                  <tr>
+                    <td><strong>{{ c.minute|default:"--" }}'</strong></td>
+                    <td>{{ c.kind }}</td>
+                    <td>{{ c.player_label }}</td>
+                    <td>{{ c.reason|default:"-" }}</td>
+                  </tr>
+                  {% endfor %}
+                  {% else %}
+                  <tr><td colspan="4" class="muted">Sin tarjetas registradas.</td></tr>
+                  {% endif %}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          {% if opponent_roster %}
+          <section class="card" style="grid-column: 1 / -1;">
+            <h2>Plantilla rival (referencia)</h2>
+            <div class="list">
+              <table>
+                <thead>
+                  <tr>
+                    <th style="width:70px;">Dorsal</th>
+                    <th>Jugador</th>
+                    <th style="width:140px;">Posición</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for r in opponent_roster %}
+                  <tr>
+                    <td><strong>{{ r.number|default:"--" }}</strong></td>
+                    <td>{{ r.name|default:"-" }}</td>
+                    <td class="muted">{{ r.position|default:"" }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </section>
+          {% endif %}
+        </div>
+
+        <div class="team-photo">
+          <img src="{% if team_photo_data_uri %}{{ team_photo_data_uri }}{% else %}{{ team_photo_url }}{% endif %}" alt="Foto del equipo" />
+        </div>
+      </main>
+      <footer class="footer">
+        <div>2J Live · Acta generada {{ generated_at|date:"d/m/Y H:i" }}</div>
+        <div>{{ team_name }}</div>
+      </footer>
+    </section>
+  </body>
+</html>

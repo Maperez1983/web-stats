@@ -628,27 +628,27 @@
         {% endif %}
       </div>
 
-      <div class="footer" style="background:#f8fafc;">
-        <table style="width:100%; border-collapse:collapse;">
-          <tr>
-            <td style="vertical-align:middle;">
-              <div style="display:inline-flex; align-items:center; gap:8px;">
-                <img src="{{ brand_mark_url }}" alt="2J Football Intelligence" style="width:54px; height:auto; object-fit:contain;" />
-                {% if club_logo_url %}
-                <img src="{{ club_logo_url }}" alt="Escudo {{ team_name }}" style="width:30px; height:30px; object-fit:contain; border-radius:999px; background:#fff; padding:2px; border:1px solid rgba(11,18,32,0.08);" />
-                {% endif %}
-                <div>
-                  <div style="font-size:9px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:#0b1220;">Segunda Jugada</div>
-                  <div style="font-size:8.5px;">2J Club · Football Intelligence</div>
-                </div>
-              </div>
-            </td>
-            <td style="text-align:right; vertical-align:middle;">
-              Formato Club · {{ team_name }} · {{ coach_name }} · Generado {{ generated_at|date:"d/m/Y H:i" }}
-            </td>
-          </tr>
-        </table>
-      </div>
+	      <div class="footer" style="background:#f8fafc;">
+	        <table style="width:100%; border-collapse:collapse;">
+	          <tr>
+	            <td style="vertical-align:middle;">
+	              <a href="{{ pdf_return_url|default:platform_url }}" style="display:inline-flex; align-items:center; gap:8px; text-decoration:none; color:inherit;">
+	                <img src="{{ brand_mark_url }}" alt="2J Football Intelligence" style="width:54px; height:auto; object-fit:contain;" />
+	                {% if club_logo_url %}
+	                <img src="{{ club_logo_url }}" alt="Escudo {{ team_name }}" style="width:30px; height:30px; object-fit:contain; border-radius:999px; background:#fff; padding:2px; border:1px solid rgba(11,18,32,0.08);" />
+	                {% endif %}
+	                <div>
+	                  <div style="font-size:9px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:#0b1220;">Segunda Jugada</div>
+	                  <div style="font-size:8.5px;">2J Club · Football Intelligence</div>
+	                </div>
+	              </a>
+	            </td>
+	            <td style="text-align:right; vertical-align:middle;">
+	              Formato Club · {{ team_name }} · {{ coach_name }} · Generado {{ generated_at|date:"d/m/Y H:i" }}
+	            </td>
+	          </tr>
+	        </table>
+	      </div>
     </section>
     {% else %}
     <section class="sheet uefa-sheet">
@@ -821,27 +821,27 @@
         </div>
       </div>
 
-      <div class="footer" style="background:#ffffff;">
-        <table style="width:100%; border-collapse:collapse;">
-          <tr>
-            <td style="vertical-align:middle;">
-              <div style="display:inline-flex; align-items:center; gap:8px;">
-                <img src="{{ brand_mark_url }}" alt="2J Football Intelligence" style="width:54px; height:auto; object-fit:contain;" />
-                {% if club_logo_url %}
-                <img src="{{ club_logo_url }}" alt="Escudo {{ team_name }}" style="width:30px; height:30px; object-fit:contain; border-radius:999px; background:#fff; padding:2px; border:1px solid rgba(11,18,32,0.08);" />
-                {% endif %}
-                <div>
-                  <div style="font-size:9px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:#0b1220;">Segunda Jugada</div>
-                  <div style="font-size:8.5px;">2J Studio · Football Intelligence</div>
-                </div>
-              </div>
-            </td>
-            <td style="text-align:right; vertical-align:middle;">
-              Formato UEFA · {{ team_name }} · {{ coach_name }} · Generado {{ generated_at|date:"d/m/Y H:i" }}
-            </td>
-          </tr>
-        </table>
-      </div>
+	      <div class="footer" style="background:#ffffff;">
+	        <table style="width:100%; border-collapse:collapse;">
+	          <tr>
+	            <td style="vertical-align:middle;">
+	              <a href="{{ pdf_return_url|default:platform_url }}" style="display:inline-flex; align-items:center; gap:8px; text-decoration:none; color:inherit;">
+	                <img src="{{ brand_mark_url }}" alt="2J Football Intelligence" style="width:54px; height:auto; object-fit:contain;" />
+	                {% if club_logo_url %}
+	                <img src="{{ club_logo_url }}" alt="Escudo {{ team_name }}" style="width:30px; height:30px; object-fit:contain; border-radius:999px; background:#fff; padding:2px; border:1px solid rgba(11,18,32,0.08);" />
+	                {% endif %}
+	                <div>
+	                  <div style="font-size:9px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:#0b1220;">Segunda Jugada</div>
+	                  <div style="font-size:8.5px;">2J Studio · Football Intelligence</div>
+	                </div>
+	              </a>
+	            </td>
+	            <td style="text-align:right; vertical-align:middle;">
+	              Formato UEFA · {{ team_name }} · {{ coach_name }} · Generado {{ generated_at|date:"d/m/Y H:i" }}
+	            </td>
+	          </tr>
+	        </table>
+	      </div>
     </section>
     {% endif %}
   </body>

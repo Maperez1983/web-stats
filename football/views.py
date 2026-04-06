@@ -23,7 +23,7 @@ from pathlib import Path
 import unicodedata
 import re
 from types import SimpleNamespace
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
@@ -687,6 +687,44 @@ def _build_pdf_response_or_html_fallback(request, html: str, filename: str, *, i
         if force_pdf:
             return HttpResponse('No se pudo generar el PDF.', status=503)
         return HttpResponse(html, content_type='text/html; charset=utf-8')
+
+
+def _build_pdf_nav_urls(request):
+    """
+    URLs de navegación para PDFs:
+    - platform_url: fallback estable (plataforma) cuando no hay referer.
+    - pdf_return_url: mejor esfuerzo para volver "atrás" desde el visor PDF.
+    """
+    platform_path = reverse('platform-overview')
+    try:
+        platform_url = request.build_absolute_uri(platform_path)
+    except Exception:
+        platform_url = platform_path
+
+    raw_return = (request.GET.get('return') or '').strip() or (request.META.get('HTTP_REFERER') or '').strip()
+    if not raw_return:
+        return {'platform_url': platform_url, 'pdf_return_url': platform_url}
+
+    # Permite rutas relativas del mismo dominio.
+    if raw_return.startswith('/'):
+        try:
+            return_url = request.build_absolute_uri(raw_return)
+        except Exception:
+            return_url = raw_return
+        return {'platform_url': platform_url, 'pdf_return_url': return_url}
+
+    parsed = urlparse(raw_return)
+    if parsed.scheme in {'http', 'https'}:
+        try:
+            current_host = (request.get_host() or '').split(':', 1)[0].lower()
+            target_host = (parsed.netloc or '').split(':', 1)[0].lower()
+            if current_host and target_host and current_host != target_host:
+                return {'platform_url': platform_url, 'pdf_return_url': platform_url}
+        except Exception:
+            return {'platform_url': platform_url, 'pdf_return_url': platform_url}
+        return {'platform_url': platform_url, 'pdf_return_url': raw_return}
+
+    return {'platform_url': platform_url, 'pdf_return_url': platform_url}
 
 
 def resolve_player_photo_static_path(player):
@@ -7412,6 +7450,7 @@ def share_convocation_pdf_page(request, token):
         date_human = f'{weekday} {convocation_record.match_date.day} {month}'
 
     context = {
+        **_build_pdf_nav_urls(request),
         'team_name': primary_team.display_name,
         'team_full_name': primary_team.name,
         'round_label': convocation_record.round or 'Jornada por confirmar',
@@ -8402,6 +8441,284 @@ def reset_match_action_register(request):
 
 
 @login_required
+def match_report_pdf(request):
+    if not _can_edit_match_actions(request.user):
+        return HttpResponse('Solo el cuerpo técnico puede descargar el acta del partido.', status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'match_actions', label='registro de acciones')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        raise Http404('Equipo principal no configurado')
+
+    match_id = _parse_int(request.GET.get('match_id'))
+    match = None
+    if match_id:
+        match = (
+            Match.objects
+            .select_related('group__season__competition', 'home_team', 'away_team')
+            .filter(id=match_id)
+            .first()
+        )
+    if not match:
+        match = get_latest_live_match(primary_team) or get_active_match(primary_team)
+    if not match:
+        return HttpResponse('No hay partido activo para generar el acta.', status=400)
+    if primary_team.id not in {match.home_team_id, match.away_team_id}:
+        return HttpResponse('No tienes acceso a este partido.', status=403)
+
+    opponent_team = match.away_team if match.home_team_id == primary_team.id else match.home_team
+    opponent_name = (opponent_team.display_name if opponent_team else '').strip() or 'Rival'
+    team_name = primary_team.display_name
+
+    convocation_record = get_current_convocation_record(primary_team, match=match, fallback_to_latest=True)
+    convocation_players = []
+    if convocation_record:
+        convocation_players = list(convocation_record.players.order_by('number', 'name'))
+    if not convocation_players:
+        convocation_players = list(Player.objects.filter(team=primary_team, is_active=True).order_by('number', 'name'))
+
+    lineup_payload = {'starters': [], 'bench': []}
+    if convocation_record and isinstance(convocation_record.lineup_data, dict):
+        lineup_payload = _normalize_lineup_payload(convocation_record.lineup_data, convocation_players)
+    if not lineup_payload['starters'] and convocation_players:
+        lineup_payload = _build_default_lineup_payload(convocation_players)
+
+    static_base_dir = Path(settings.BASE_DIR) / 'static'
+    avatar_static_path = static_base_dir / 'football' / 'images' / 'player-avatar.svg'
+    avatar_data_uri = _file_as_data_uri(avatar_static_path)
+    include_player_photos = str(os.getenv('MATCH_REPORT_PDF_PLAYER_PHOTOS', '1')).strip().lower() in {'1', 'true', 'yes', 'on'}
+
+    def _storage_photo_data_uri(player_obj):
+        if not player_obj or not include_player_photos:
+            return ''
+        storage = storages['default']
+        if isinstance(storage, FileSystemStorage):
+            storage = FileSystemStorage(
+                location=getattr(settings, 'MEDIA_ROOT', None),
+                base_url=getattr(settings, 'MEDIA_URL', '/media/'),
+            )
+        for candidate in _player_photo_storage_candidates(player_obj):
+            try:
+                if not storage.exists(candidate):
+                    continue
+            except Exception:
+                continue
+            try:
+                with storage.open(candidate, 'rb') as fp:
+                    raw_bytes = fp.read()
+                if not raw_bytes:
+                    continue
+                if Image is None:
+                    encoded = base64.b64encode(raw_bytes).decode('ascii')
+                    mime_type = mimetypes.guess_type(candidate)[0] or 'image/png'
+                    return f'data:{mime_type};base64,{encoded}'
+                with Image.open(io.BytesIO(raw_bytes)) as img:
+                    normalized = img.convert('RGB')
+                    normalized.thumbnail((220, 220))
+                    buffer = io.BytesIO()
+                    normalized.save(buffer, format='JPEG', optimize=True, quality=70)
+                encoded = base64.b64encode(buffer.getvalue()).decode('ascii')
+                return f'data:image/jpeg;base64,{encoded}'
+            except Exception:
+                continue
+        return ''
+
+    def _player_photo_src(player_obj):
+        if not include_player_photos:
+            return avatar_data_uri or request.build_absolute_uri(static('football/images/player-avatar.svg'))
+        player_static_rel = resolve_player_photo_static_path(player_obj)
+        if player_static_rel:
+            player_data_uri = _image_file_as_small_data_uri(
+                static_base_dir / player_static_rel,
+                max_width=220,
+                max_height=220,
+                quality=65,
+            )
+            if player_data_uri:
+                return player_data_uri
+            return request.build_absolute_uri(static(player_static_rel))
+        storage_data_uri = _storage_photo_data_uri(player_obj)
+        if storage_data_uri:
+            return storage_data_uri
+        return avatar_data_uri or request.build_absolute_uri(static('football/images/player-avatar.svg'))
+
+    allowed_by_id = {str(p.id): p for p in convocation_players}
+
+    def _row_to_pdf_player(row):
+        pid = str(row.get('id') or '').strip()
+        player_obj = allowed_by_id.get(pid)
+        name = (row.get('name') or (player_obj.name if player_obj else '') or '').strip()
+        number = row.get('number') if row.get('number') is not None else (player_obj.number if player_obj else None)
+        position = (row.get('position') or (player_obj.position if player_obj else '') or '').strip()
+        return {
+            'id': pid,
+            'name': name,
+            'number': number,
+            'position': position,
+            'photo_src': _player_photo_src(player_obj) if player_obj else '',
+        }
+
+    starters = [_row_to_pdf_player(row) for row in lineup_payload.get('starters') or []]
+    bench = [_row_to_pdf_player(row) for row in lineup_payload.get('bench') or []]
+
+    events = list(
+        MatchEvent.objects
+        .filter(match=match, source_file='registro-acciones')
+        .select_related('player')
+        .order_by('created_at', 'id')
+    )
+
+    yellow_events = [e for e in events if is_yellow_card_event(e.event_type, e.result, e.zone)]
+    red_events = [e for e in events if is_red_card_event(e.event_type, e.result, e.zone)]
+
+    def _player_label(player_obj):
+        if not player_obj:
+            return '-'
+        number = player_obj.number if player_obj.number is not None else '--'
+        return f'#{number} {(player_obj.name or "").strip()}'.strip()
+
+    cards = []
+    for event in events:
+        if not (is_yellow_card_event(event.event_type, event.result, event.zone) or is_red_card_event(event.event_type, event.result, event.zone)):
+            continue
+        kind = 'Roja' if is_red_card_event(event.event_type, event.result, event.zone) else 'Amarilla'
+        cards.append(
+            {
+                'minute': event.minute,
+                'kind': kind,
+                'player_label': _player_label(event.player).upper() if event.player else '-',
+                'reason': (event.observation or '').strip(),
+            }
+        )
+
+    subs_by_minute = defaultdict(lambda: {'out': [], 'in': []})
+    for event in events:
+        if not (
+            is_substitution_event(event.event_type, event.zone)
+            or is_substitution_entry(event.event_type, event.result, event.zone)
+            or is_substitution_exit(event.event_type, event.result, event.zone)
+        ):
+            continue
+        minute_key = event.minute if event.minute is not None else -1
+        if is_substitution_exit(event.event_type, event.result, event.zone) or str(event.result or '').strip().lower().startswith('sal'):
+            subs_by_minute[minute_key]['out'].append(_player_label(event.player).upper() if event.player else '-')
+        elif is_substitution_entry(event.event_type, event.result, event.zone) or str(event.result or '').strip().lower().startswith('ent'):
+            subs_by_minute[minute_key]['in'].append(_player_label(event.player).upper() if event.player else '-')
+        else:
+            # Si no hay result, intenta usar zone como pista.
+            zone_lower = str(event.zone or '').lower()
+            if 'sal' in zone_lower:
+                subs_by_minute[minute_key]['out'].append(_player_label(event.player).upper() if event.player else '-')
+            else:
+                subs_by_minute[minute_key]['in'].append(_player_label(event.player).upper() if event.player else '-')
+
+    substitutions = []
+    for minute_key in sorted(subs_by_minute.keys()):
+        outs = subs_by_minute[minute_key]['out']
+        ins = subs_by_minute[minute_key]['in']
+        pairs = max(len(outs), len(ins), 1)
+        for idx in range(pairs):
+            substitutions.append(
+                {
+                    'minute': None if minute_key == -1 else minute_key,
+                    'out_label': outs[idx] if idx < len(outs) else '-',
+                    'in_label': ins[idx] if idx < len(ins) else '-',
+                }
+            )
+
+    corner_for = 0
+    corner_against = 0
+    for event in events:
+        text = f"{event.event_type} {event.result}".lower()
+        if 'corner' not in text and 'esquina' not in text:
+            continue
+        if 'en contra' in text or 'contra' in text:
+            corner_against += 1
+        elif 'a favor' in text or 'favor' in text:
+            corner_for += 1
+
+    opponent_roster = []
+    try:
+        snapshot = (
+            TeamRosterSnapshot.objects
+            .filter(team=opponent_team)
+            .order_by('-updated_at')
+            .first()
+        )
+        payload = snapshot.roster_payload if snapshot and isinstance(snapshot.roster_payload, list) else []
+        for row in payload[:40]:
+            if not isinstance(row, dict):
+                continue
+            opponent_roster.append(
+                {
+                    'number': row.get('number') or row.get('dorsal') or row.get('shirt_number'),
+                    'name': row.get('name') or row.get('player') or row.get('full_name'),
+                    'position': row.get('position') or row.get('pos') or '',
+                }
+            )
+    except Exception:
+        opponent_roster = []
+
+    competition_label = ''
+    try:
+        competition_label = match.group.season.competition.name if match.group and match.group.season and match.group.season.competition else ''
+    except Exception:
+        competition_label = ''
+    if not competition_label:
+        competition_label = 'Partido'
+
+    round_label = (match.round or '').strip() or (convocation_record.round if convocation_record else '') or 'Jornada por confirmar'
+    match_date = match.date
+    if not match_date and convocation_record and convocation_record.match_date:
+        match_date = convocation_record.match_date
+    match_time = match.kickoff_time
+    if not match_time and convocation_record and convocation_record.match_time:
+        match_time = convocation_record.match_time
+    match_datetime_label = '--'
+    if match_date:
+        match_datetime_label = match_date.strftime('%d/%m/%Y')
+    if match_time:
+        match_datetime_label = f'{match_datetime_label} · {match_time.strftime("%H:%M")}' if match_datetime_label != '--' else match_time.strftime('%H:%M')
+
+    location_label = (match.location or '').strip() or (convocation_record.location if convocation_record else '') or 'Campo por confirmar'
+
+    team_photo = resolve_team_photo_for_pdf(request)
+    crest_src = resolve_team_crest_url(request, primary_team, sync=True) or request.build_absolute_uri(static('football/images/cdb-logo.png'))
+    nav_urls = _build_pdf_nav_urls(request)
+
+    context = {
+        **nav_urls,
+        'team_name': team_name,
+        'opponent_name': opponent_name,
+        'team_crest_src': crest_src,
+        'brand_mark_url': request.build_absolute_uri(static('football/images/2j-mark.svg')),
+        'avatar_src': avatar_data_uri or request.build_absolute_uri(static('football/images/player-avatar.svg')),
+        'competition_label': competition_label,
+        'round_label': round_label,
+        'match_datetime_label': match_datetime_label,
+        'location_label': location_label,
+        'summary_actions': len(events),
+        'summary_subs': sum(max(len(v['out']), len(v['in']), 1) for v in subs_by_minute.values()) if subs_by_minute else 0,
+        'summary_yellow': len(yellow_events),
+        'summary_red': len(red_events),
+        'summary_corners_for': corner_for,
+        'summary_corners_against': corner_against,
+        'starters': starters,
+        'bench': bench,
+        'substitutions': substitutions,
+        'cards': cards,
+        'opponent_roster': opponent_roster,
+        'team_photo_url': team_photo.get('url') or request.build_absolute_uri(static('football/images/team-01.jpg')),
+        'team_photo_data_uri': team_photo.get('data_uri') or '',
+        'generated_at': timezone.localtime(),
+    }
+    html = render_to_string('football/match_report_pdf.html', context)
+    filename = slugify(f'acta-{team_name}-{opponent_name}-{match.date or timezone.localdate()}') or f'acta-{match.id}'
+    return _build_pdf_response_or_html_fallback(request, html, filename, inline=True)
+
+
+@login_required
 @ensure_csrf_cookie
 def convocation_page(request):
     forbidden = _forbid_if_workspace_module_disabled(request, 'convocation', label='convocatoria')
@@ -8835,6 +9152,7 @@ def convocation_pdf(request):
         rival_crest_src = ''
 
     context = {
+        **_build_pdf_nav_urls(request),
         'team_name': primary_team.display_name,
         'team_full_name': primary_team.name,
         'round_label': convocation_record.round or 'Jornada por confirmar',
@@ -9244,6 +9562,7 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
     pdf_text_heavy = copy_len >= 700
     pdf_text_superheavy = copy_len >= 1300
     return {
+        **_build_pdf_nav_urls(request),
         'team_name': team.name,
         'task': task,
         'session': session,
@@ -9461,6 +9780,7 @@ def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
     club_logo_url = resolve_team_crest_url(request, primary_club_team, sync=True) if primary_club_team else ''
     logo_path = 'football/images/uefa-badge.svg' if pdf_style == 'uefa' else 'football/images/cdb-logo.png'
     return {
+        **_build_pdf_nav_urls(request),
         'team_name': team.name,
         'session': session,
         'microcycle': session.microcycle,
@@ -9657,6 +9977,7 @@ def microcycle_presentation_pdf(request, microcycle_id):
         else getattr(request.user, 'username', '') or 'Entrenador'
     )
     context = {
+        **_build_pdf_nav_urls(request),
         'team_name': primary_team.name,
         'microcycle': microcycle,
         'week_slots': week_slots,
@@ -19737,6 +20058,7 @@ def player_pdf(request, player_id):
     html = render_to_string(
         'football/player_pdf.html',
         {
+            **_build_pdf_nav_urls(request),
             'player': player,
             'stats': detail,
             'club_logo_url': resolve_team_crest_url(request, primary_team, sync=True),

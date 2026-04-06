@@ -73,6 +73,8 @@
         justify-content: center;
         overflow: hidden;
         flex: 0 0 auto;
+        text-decoration: none;
+        color: inherit;
       }
       .logo img {
         width: 36px;
@@ -189,9 +191,9 @@
         <div class="badge">Semana</div>
         <div class="top-box" style="min-width:320px;">
           <div style="display:flex; gap:10px; align-items:center;">
-            <div class="logo">
+            <a class="logo" href="{{ pdf_return_url|default:platform_url }}">
               {% if logo_url %}<img src="{{ logo_url }}" alt="Escudo {{ team_name }}" />{% endif %}
-            </div>
+            </a>
             <div>
               <div class="top-k">Microciclo</div>
               <div class="top-v">{{ microcycle.title }}</div>
@@ -270,9 +272,9 @@
         <div class="badge">Semana</div>
         <div class="top-box" style="min-width:320px;">
           <div style="display:flex; gap:10px; align-items:center;">
-            <div class="logo">
+            <a class="logo" href="{{ pdf_return_url|default:platform_url }}">
               {% if logo_url %}<img src="{{ logo_url }}" alt="Escudo {{ team_name }}" />{% endif %}
-            </div>
+            </a>
             <div>
               <div class="top-k">Microciclo</div>
               <div class="top-v">{{ microcycle.title }}</div>
@@ -342,4 +344,3 @@
     </section>
   </body>
 </html>
-

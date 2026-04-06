@@ -224,6 +224,8 @@
         display: inline-flex;
         align-items: center;
         gap: 8px;
+        text-decoration: none;
+        color: inherit;
       }
       .brand-lockup img {
         object-fit: contain;
@@ -320,14 +322,14 @@
 	          </section>
 
           <footer class="brand-footer">
-            <div class="brand-lockup">
+            <a class="brand-lockup" href="{{ pdf_return_url|default:platform_url }}">
               <img src="{{ brand_mark_url }}" alt="2J Football Intelligence" style="width:46px;height:auto;" />
               <img src="{{ logo_src }}" alt="{{ team_full_name }}" style="width:28px;height:28px;border-radius:999px;background:#fff;padding:2px;border:1px solid rgba(15,79,71,0.16);" />
               <div class="brand-copy">
                 <strong>Segunda Jugada</strong>
                 <span>{{ team_full_name }}</span>
               </div>
-            </div>
+            </a>
             <div class="brand-note">Convocatoria oficial · {{ round_label }}</div>
           </footer>
         </main>

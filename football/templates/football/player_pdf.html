@@ -31,6 +31,8 @@
         display: inline-flex;
         align-items: center;
         gap: 0.7rem;
+        text-decoration: none;
+        color: inherit;
       }
       .brand-lockup img {
         object-fit: contain;
@@ -183,7 +185,7 @@
     <div class="page">
       <div class="header">
         <div>
-          <div class="brand-lockup">
+          <a class="brand-lockup" href="{{ pdf_return_url|default:platform_url }}">
             <img src="{{ brand_mark_url }}" alt="2J Football Intelligence" style="width:48px;height:auto;" />
             {% if club_logo_url %}
             <img src="{{ club_logo_url }}" alt="Escudo {{ player.team.display_name }}" style="width:30px;height:30px;border-radius:999px;background:#fff;padding:2px;border:1px solid rgba(148,163,184,0.22);" />
@@ -192,7 +194,7 @@
               <strong>Segunda Jugada</strong>
               <span>2J Player · Football Intelligence</span>
             </div>
-          </div>
+          </a>
           <p style="margin:0.6rem 0 0;color:#94a3b8;">Jugador · {{ player.team.display_name }}</p>
           <h1>{{ player.name }}</h1>
         </div>
@@ -309,7 +311,7 @@
         </table>
       </div>
       <div class="footer">
-        <div class="brand-lockup">
+        <a class="brand-lockup" href="{{ pdf_return_url|default:platform_url }}">
           <img src="{{ brand_mark_url }}" alt="2J Football Intelligence" style="width:42px;height:auto;" />
           {% if club_logo_url %}
           <img src="{{ club_logo_url }}" alt="Escudo {{ player.team.display_name }}" style="width:26px;height:26px;border-radius:999px;background:#fff;padding:2px;border:1px solid rgba(148,163,184,0.22);" />
@@ -318,7 +320,7 @@
             <strong>Segunda Jugada</strong>
             <span>{{ player.team.display_name }}</span>
           </div>
-        </div>
+        </a>
         <div class="footer-note">Ficha individual · {{ player.name }}</div>
       </div>
     </div>
