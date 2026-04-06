@@ -23,7 +23,7 @@ from pathlib import Path
 import unicodedata
 import re
 from types import SimpleNamespace
-from urllib.parse import quote, urlparse
+from urllib.parse import quote, urlparse, parse_qs
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
@@ -6674,17 +6674,21 @@ def _handle_home_carousel_post(request):
 @ensure_csrf_cookie
 def admin_page(request):
     primary_team = _get_primary_team_for_request(request)
+    workspace = _get_active_workspace(request)
     current_role = AppUserRole.objects.filter(user=request.user).values_list('role', flat=True).first()
     is_admin_user = bool(request.user.is_staff or current_role == AppUserRole.ROLE_ADMIN)
+    can_manage_workspace = bool(_can_manage_workspace(request.user, workspace)) if workspace else False
     roster_message = ''
     roster_error = ''
     actions_message = ''
     actions_error = ''
+    teams_message = ''
+    teams_error = ''
     active_tab = (request.GET.get('tab') or request.POST.get('active_tab') or 'roster').strip().lower()
     if active_tab in {'carousel', 'users'}:
         target_anchor = '#home-global' if active_tab == 'carousel' else '#usuarios-club'
         return redirect(f"{reverse('platform-overview')}{target_anchor}")
-    if active_tab not in {'roster', 'actions'}:
+    if active_tab not in {'roster', 'actions', 'teams'}:
         active_tab = 'roster'
 
     if request.method == 'POST':
@@ -6880,6 +6884,166 @@ def admin_page(request):
                 roster_error = str(exc)
             except Exception:
                 roster_error = 'No se pudo guardar la plantilla.'
+        elif form_action in {'team_create', 'team_update', 'team_set_default', 'team_unlink'}:
+            active_tab = 'teams'
+            if not workspace or workspace.kind != Workspace.KIND_CLUB:
+                teams_error = 'No hay cliente club activo.'
+            elif not can_manage_workspace:
+                teams_error = 'No tienes permisos para gestionar este cliente.'
+            else:
+                def _unique_group_slug(season_obj, base_value):
+                    base_slug = slugify(base_value)[:80] or 'grupo'
+                    candidate = base_slug
+                    suffix = 2
+                    while Group.objects.filter(season=season_obj, slug=candidate).exists():
+                        candidate = f'{base_slug}-{suffix}'
+                        suffix += 1
+                    return candidate
+
+                try:
+                    if form_action == 'team_set_default':
+                        link_id = _parse_int(request.POST.get('workspace_team_id'))
+                        link = WorkspaceTeam.objects.filter(id=link_id, workspace=workspace).first() if link_id else None
+                        if not link:
+                            raise ValueError('Categoría no válida.')
+                        WorkspaceTeam.objects.filter(workspace=workspace, is_default=True).exclude(id=link.id).update(is_default=False)
+                        if not link.is_default:
+                            link.is_default = True
+                            link.save(update_fields=['is_default'])
+                        teams_message = 'Categoría predeterminada actualizada.'
+                    elif form_action == 'team_unlink':
+                        link_id = _parse_int(request.POST.get('workspace_team_id'))
+                        link = WorkspaceTeam.objects.filter(id=link_id, workspace=workspace).select_related('team').first() if link_id else None
+                        if not link:
+                            raise ValueError('Categoría no válida.')
+                        if link.is_default:
+                            raise ValueError('No puedes eliminar la categoría predeterminada. Elige otra antes.')
+                        link.delete()
+                        teams_message = 'Categoría desvinculada del cliente.'
+                    elif form_action == 'team_update':
+                        link_id = _parse_int(request.POST.get('workspace_team_id'))
+                        link = WorkspaceTeam.objects.filter(id=link_id, workspace=workspace).select_related('team').first() if link_id else None
+                        if not link or not link.team:
+                            raise ValueError('Categoría no válida.')
+                        team_obj = link.team
+                        category = str(request.POST.get('category') or '').strip()[:24]
+                        game_format = str(request.POST.get('game_format') or Team.GAME_FORMAT_F11).strip().lower()
+                        group_external_id = str(request.POST.get('group_external_id') or '').strip()[:80]
+                        update_fields = []
+                        if category != str(getattr(team_obj, 'category', '') or '').strip():
+                            team_obj.category = category
+                            update_fields.append('category')
+                        if game_format in {Team.GAME_FORMAT_F7, Team.GAME_FORMAT_F11} and game_format != team_obj.game_format:
+                            team_obj.game_format = game_format
+                            update_fields.append('game_format')
+                        if update_fields:
+                            team_obj.save(update_fields=update_fields)
+                        if group_external_id and team_obj.group_id and (str(getattr(team_obj.group, 'external_id', '') or '').strip() != group_external_id):
+                            try:
+                                grp = team_obj.group
+                                grp.external_id = group_external_id
+                                grp.save(update_fields=['external_id'])
+                            except Exception:
+                                pass
+                        teams_message = 'Categoría actualizada.'
+                    else:  # team_create
+                        category = str(request.POST.get('category') or '').strip()
+                        if not category:
+                            raise ValueError('La categoría es obligatoria (ej. Prebenjamín, Cadete, Senior).')
+                        category = category[:24]
+                        game_format = str(request.POST.get('game_format') or Team.GAME_FORMAT_F11).strip().lower()
+                        if game_format not in {Team.GAME_FORMAT_F7, Team.GAME_FORMAT_F11}:
+                            game_format = Team.GAME_FORMAT_F11
+                        team_base_name = str(request.POST.get('team_name') or '').strip()[:150]
+                        if not team_base_name and workspace.primary_team_id:
+                            team_base_name = str(getattr(workspace.primary_team, 'name', '') or '').strip()[:150]
+                        if not team_base_name:
+                            raise ValueError('El nombre del club/equipo es obligatorio.')
+                        competition_name = str(request.POST.get('competition_name') or '').strip()[:150]
+                        season_name = str(request.POST.get('season_name') or '').strip()[:80]
+                        group_name = str(request.POST.get('group_name') or '').strip()[:80]
+                        group_external_id = str(request.POST.get('group_external_id') or '').strip()[:80]
+                        universo_url = str(request.POST.get('universo_url') or '').strip()
+                        if universo_url and not group_external_id:
+                            try:
+                                parsed = urlparse(universo_url)
+                                qs = parse_qs(parsed.query or '')
+                                group_external_id = str((qs.get('group') or [''])[0] or '').strip()[:80]
+                            except Exception:
+                                group_external_id = str(group_external_id or '').strip()[:80]
+
+                        # Defaults razonables si el usuario no rellena estos campos.
+                        if not competition_name and primary_team and getattr(getattr(getattr(primary_team, 'group', None), 'season', None), 'competition', None):
+                            competition_name = str(primary_team.group.season.competition.name or '').strip()[:150]
+                        if not season_name and primary_team and getattr(getattr(primary_team, 'group', None), 'season', None):
+                            season_name = str(primary_team.group.season.name or '').strip()[:80]
+                        if not group_name and primary_team and getattr(primary_team, 'group', None):
+                            group_name = str(primary_team.group.name or '').strip()[:80]
+                        competition_name = competition_name or 'Liga'
+                        season_name = season_name or f'{timezone.localdate().year}/{timezone.localdate().year + 1}'
+                        group_name = group_name or 'Grupo 1'
+
+                        comp_slug = slugify(competition_name)[:150] or 'liga'
+                        competition_obj, _ = Competition.objects.get_or_create(
+                            name=competition_name,
+                            region='',
+                            defaults={'slug': comp_slug},
+                        )
+                        season_obj, _ = Season.objects.get_or_create(
+                            competition=competition_obj,
+                            name=season_name,
+                            defaults={'is_current': True},
+                        )
+                        group_obj = Group.objects.filter(season=season_obj, name__iexact=group_name).first()
+                        if not group_obj:
+                            group_slug = _unique_group_slug(season_obj, group_name)
+                            group_defaults = {'name': group_name}
+                            if group_external_id:
+                                group_defaults['external_id'] = group_external_id
+                            group_obj, _ = Group.objects.get_or_create(
+                                season=season_obj,
+                                slug=group_slug,
+                                defaults=group_defaults,
+                            )
+                        if group_external_id and group_obj and not str(getattr(group_obj, 'external_id', '') or '').strip():
+                            group_obj.external_id = group_external_id
+                            group_obj.save(update_fields=['external_id'])
+
+                        base_slug = _unique_team_slug(f'{team_base_name} {category}')
+                        team_obj = Team.objects.create(
+                            name=team_base_name,
+                            slug=base_slug,
+                            short_name=str(team_base_name)[:60],
+                            group=group_obj,
+                            is_primary=False,
+                            category=category,
+                            game_format=game_format,
+                        )
+                        # Comparte escudo con el equipo principal del cliente (si existe).
+                        try:
+                            if workspace.primary_team_id and workspace.primary_team:
+                                if workspace.primary_team.crest_image and not team_obj.crest_image:
+                                    team_obj.crest_image = workspace.primary_team.crest_image
+                                    team_obj.save(update_fields=['crest_image'])
+                                elif workspace.primary_team.crest_url and not team_obj.crest_url:
+                                    team_obj.crest_url = workspace.primary_team.crest_url
+                                    team_obj.save(update_fields=['crest_url'])
+                        except Exception:
+                            pass
+
+                        link, created = WorkspaceTeam.objects.get_or_create(
+                            workspace=workspace,
+                            team=team_obj,
+                            defaults={'is_default': False},
+                        )
+                        if not WorkspaceTeam.objects.filter(workspace=workspace, is_default=True).exists():
+                            link.is_default = True
+                            link.save(update_fields=['is_default'])
+                        teams_message = 'Categoría creada.'
+                except ValueError as exc:
+                    teams_error = str(exc)
+                except Exception:
+                    teams_error = 'No se pudo guardar la categoría.'
         elif form_action in {'admin_match_save', 'admin_action_bulk_add'}:
             active_tab = 'actions'
             if not is_admin_user:
@@ -7009,6 +7173,10 @@ def admin_page(request):
     admin_result_choices = []
     admin_zone_choices = []
 
+    workspace_team_links = []
+    if active_tab == 'teams' and workspace and workspace.kind == Workspace.KIND_CLUB:
+        workspace_team_links = _workspace_team_links(workspace)
+
     if active_tab == 'roster':
         roster_players = (
             list(Player.objects.filter(team=primary_team).order_by('-is_active', 'number', 'name'))
@@ -7071,6 +7239,8 @@ def admin_page(request):
         request,
         'football/admin.html',
         {
+            'workspace': workspace,
+            'can_manage_workspace': can_manage_workspace,
             'roster_players': roster_players,
             'roster_message': roster_message,
             'roster_error': roster_error,
@@ -7078,6 +7248,9 @@ def admin_page(request):
             'team_name': primary_team.display_name if primary_team else '',
             'primary_team_id': primary_team.id if primary_team else None,
             'is_admin_user': is_admin_user,
+            'workspace_team_links': workspace_team_links,
+            'teams_message': teams_message,
+            'teams_error': teams_error,
             'admin_matches': admin_matches,
             'selected_admin_match': selected_admin_match,
             'admin_players': admin_players,

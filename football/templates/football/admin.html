@@ -199,6 +199,9 @@
 
       <nav class="admin-tabs">
         <a class="admin-tab {% if active_tab == 'roster' %}is-active{% endif %}" href="{% url 'admin-page' %}?tab=roster">Plantilla</a>
+        {% if can_manage_workspace %}
+        <a class="admin-tab {% if active_tab == 'teams' %}is-active{% endif %}" href="{% url 'admin-page' %}?tab=teams">Categorías</a>
+        {% endif %}
         <a class="admin-tab" href="{% url 'platform-overview' %}#home-global">Fotos Home</a>
         <a class="admin-tab" href="{% url 'platform-overview' %}#usuarios-club">Usuarios y Roles</a>
         {% if is_admin_user %}
@@ -334,7 +337,129 @@
           </label>
           <button class="pill-button" type="submit">Añadir acciones</button>
         </form>
+      {% endif %}
+      </section>
+      {% elif active_tab == 'teams' %}
+      <section class="block roster-manager">
+        <h2>Categorías · {{ active_workspace.name|default:"Cliente" }}</h2>
+        <p style="margin:0.25rem 0 0;color:rgba(203,213,225,0.78);">
+          Crea y configura categorías (F7/F11) dentro del mismo cliente. El escudo se hereda del equipo principal.
+        </p>
+        {% if teams_message %}
+        <p style="color:#86efac;">{{ teams_message }}</p>
         {% endif %}
+        {% if teams_error %}
+        <p style="color:#fecaca;">{{ teams_error }}</p>
+        {% endif %}
+
+        {% if can_manage_workspace %}
+        <form method="post" class="roster-form" style="margin-top:0.9rem;">
+          {% csrf_token %}
+          <input type="hidden" name="form_action" value="team_create" />
+          <input type="hidden" name="active_tab" value="teams" />
+          <label>
+            <span>Categoría</span>
+            <input type="text" name="category" placeholder="Ej. Prebenjamín" required />
+          </label>
+          <label>
+            <span>Formato</span>
+            <select name="game_format">
+              <option value="f11">Fútbol 11</option>
+              <option value="f7">Fútbol 7</option>
+            </select>
+          </label>
+          <label>
+            <span>Nombre club</span>
+            <input type="text" name="team_name" placeholder="Ej. BENAGALBÓN C.D." value="{{ team_name|default:'' }}" />
+          </label>
+          <label>
+            <span>Competición</span>
+            <input type="text" name="competition_name" placeholder="Ej. División de Honor Andaluza" />
+          </label>
+          <label>
+            <span>Temporada</span>
+            <input type="text" name="season_name" placeholder="Ej. 2025/2026" />
+          </label>
+          <label>
+            <span>Grupo</span>
+            <input type="text" name="group_name" placeholder="Ej. Grupo 1" />
+          </label>
+          <label style="grid-column:1 / -1;">
+            <span>Universo RFAF (URL o ID de grupo)</span>
+            <input type="text" name="universo_url" placeholder="Pega la URL (results/team) para autocompletar el ID de grupo" />
+            <small style="display:block;opacity:.75;margin-top:.25rem;">
+              Si ya sabes el ID del grupo, puedes pegarlo en el campo <code>ID de grupo</code> de abajo.
+            </small>
+          </label>
+          <label>
+            <span>ID de grupo</span>
+            <input type="text" name="group_external_id" placeholder="Ej. 48199749" />
+          </label>
+          <button class="pill-button" type="submit">Crear categoría</button>
+        </form>
+        {% endif %}
+
+        <div class="roster-list" style="margin-top:0.9rem;">
+          {% for link in workspace_team_links %}
+          <article class="roster-item">
+            <div>
+              <strong>{{ link.team.category|default:"(Sin categoría)" }} · {{ link.team.display_name|default:link.team.name }}</strong>
+              <div style="opacity:.75;">
+                {{ link.team.get_game_format_display|default:"" }}
+                {% if link.team.group %} · {{ link.team.group.season.competition.name }} · {{ link.team.group.season.name }} · {{ link.team.group.name }}{% endif %}
+                {% if link.team.group.external_id %} · ID grupo: {{ link.team.group.external_id }}{% endif %}
+              </div>
+              {% if link.is_default %}
+              <span class="badge-active on" style="display:inline-block;margin-top:0.35rem;">Predeterminada</span>
+              {% endif %}
+            </div>
+            <form method="post" class="form-inline" style="display:grid;gap:0.35rem;justify-items:end;">
+              {% csrf_token %}
+              <input type="hidden" name="active_tab" value="teams" />
+              <input type="hidden" name="workspace_team_id" value="{{ link.id }}" />
+              <input type="hidden" name="form_action" value="team_update" />
+              <label style="width:100%;">
+                <span>Categoría</span>
+                <input type="text" name="category" value="{{ link.team.category }}" />
+              </label>
+              <label style="width:100%;">
+                <span>Formato</span>
+                <select name="game_format">
+                  <option value="f11" {% if link.team.game_format == 'f11' %}selected{% endif %}>Fútbol 11</option>
+                  <option value="f7" {% if link.team.game_format == 'f7' %}selected{% endif %}>Fútbol 7</option>
+                </select>
+              </label>
+              <label style="width:100%;">
+                <span>ID grupo</span>
+                <input type="text" name="group_external_id" value="{{ link.team.group.external_id|default:'' }}" placeholder="Ej. 48199749" />
+              </label>
+              <div style="display:flex;gap:0.4rem;justify-content:flex-end;width:100%;flex-wrap:wrap;">
+                <button class="pill-button icon-action" type="submit" title="Guardar" aria-label="Guardar">💾</button>
+              </div>
+            </form>
+            {% if not link.is_default %}
+            <div style="display:flex;gap:0.4rem;justify-content:flex-end;flex-wrap:wrap;">
+              <form method="post" class="form-inline">
+                {% csrf_token %}
+                <input type="hidden" name="form_action" value="team_set_default" />
+                <input type="hidden" name="active_tab" value="teams" />
+                <input type="hidden" name="workspace_team_id" value="{{ link.id }}" />
+                <button class="pill-button" type="submit">Hacer predeterminada</button>
+              </form>
+              <form method="post" class="form-inline">
+                {% csrf_token %}
+                <input type="hidden" name="form_action" value="team_unlink" />
+                <input type="hidden" name="active_tab" value="teams" />
+                <input type="hidden" name="workspace_team_id" value="{{ link.id }}" />
+                <button class="button-danger" type="submit">Quitar</button>
+              </form>
+            </div>
+            {% endif %}
+          </article>
+          {% empty %}
+          <p style="margin:0.55rem 0;color:rgba(205,225,255,0.82);">No hay categorías configuradas.</p>
+          {% endfor %}
+        </div>
       </section>
       {% else %}
       <section class="block roster-manager" id="roster-manager">

@@ -17,6 +17,9 @@
   {% if workspace_module_access.coach_overview|default:True %}
   <a href="{% url 'coach-cards' %}">Cuerpo técnico</a>
   {% endif %}
+  {% if can_manage_workspace %}
+  <a href="{% url 'admin-page' %}?tab=teams">Operativa</a>
+  {% endif %}
 </nav>
 {% endif %}
 {% if active_team_options and active_team_options|length > 1 %}

@@ -39,6 +39,8 @@ def workspace_access(request):
             _workspace_entry_url,
             _workspace_default_modules,
             _workspace_has_module_for_user,
+            _can_manage_workspace,
+            _is_admin_user,
         )
         from football.models import Workspace  # noqa: WPS433 (lazy import)
     except Exception:
@@ -51,6 +53,14 @@ def workspace_access(request):
     active_team = _get_active_team_for_request(request)
     badge = _build_active_workspace_badge(request)
     entry_url = _workspace_entry_url(workspace, user=request.user) if workspace else ''
+    can_manage = False
+    is_admin = False
+    try:
+        can_manage = bool(_can_manage_workspace(request.user, workspace)) if workspace else False
+        is_admin = bool(_is_admin_user(request.user))
+    except Exception:
+        can_manage = False
+        is_admin = False
 
     module_access = {}
     try:
@@ -93,4 +103,6 @@ def workspace_access(request):
         'active_team': active_team,
         'active_team_options': team_options,
         'active_team_current_path': request.get_full_path() if request else '',
+        'can_manage_workspace': can_manage,
+        'is_admin_user': is_admin,
     }
