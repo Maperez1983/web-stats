@@ -2266,13 +2266,22 @@ def _find_universo_next_match_for_context(context, primary_team):
     if not team_keys:
         return {}
 
+    def _first(row, *keys):
+        for key in keys:
+            if not key:
+                continue
+            value = row.get(key)
+            if value not in (None, ''):
+                return value
+        return ''
+
     def _payload_from_row(row, fallback_date='', fallback_round=''):
-        home_name = str(row.get('Nombre_equipo_local') or '').strip()
-        away_name = str(row.get('Nombre_equipo_visitante') or '').strip()
+        home_name = str(_first(row, 'Nombre_equipo_local', 'nombre_equipo_local', 'equipo_local', 'local') or '').strip()
+        away_name = str(_first(row, 'Nombre_equipo_visitante', 'nombre_equipo_visitante', 'equipo_visitante', 'visitante', 'away') or '').strip()
         home_keys = _expand_team_lookup_variants(home_name)
         away_keys = _expand_team_lookup_variants(away_name)
-        home_code = str(row.get('CodEquipo_local') or '').strip().lower()
-        away_code = str(row.get('CodEquipo_visitante') or '').strip().lower()
+        home_code = str(_first(row, 'CodEquipo_local', 'cod_equipo_local', 'CodEquipoLocal', 'code_local') or '').strip().lower()
+        away_code = str(_first(row, 'CodEquipo_visitante', 'cod_equipo_visitante', 'CodEquipoVisitante', 'code_away') or '').strip().lower()
         if home_code:
             home_keys.add(home_code)
         if away_code:
@@ -2280,16 +2289,21 @@ def _find_universo_next_match_for_context(context, primary_team):
         if team_keys & home_keys:
             opponent_name = away_name
             home_flag = True
-            crest_url = _absolute_universo_url(row.get('url_img_visitante'))
-            team_code = str(row.get('CodEquipo_visitante') or '').strip()
+            crest_url = _absolute_universo_url(_first(row, 'url_img_visitante', 'url_img_visit', 'escudo_visitante', 'crest_away'))
+            team_code = str(_first(row, 'CodEquipo_visitante', 'cod_equipo_visitante', 'code_away') or '').strip()
         elif team_keys & away_keys:
             opponent_name = home_name
             home_flag = False
-            crest_url = _absolute_universo_url(row.get('url_img_local'))
-            team_code = str(row.get('CodEquipo_local') or '').strip()
+            crest_url = _absolute_universo_url(_first(row, 'url_img_local', 'url_img_loc', 'escudo_local', 'crest_home'))
+            team_code = str(_first(row, 'CodEquipo_local', 'cod_equipo_local', 'code_local') or '').strip()
         else:
             return {}
-        raw_date = str(row.get('fecha') or fallback_date or '').strip()
+        raw_date = str(_first(row, 'fecha', 'Fecha', 'date', 'fecha_partido', 'fechaPartido') or fallback_date or '').strip()
+        # Normaliza: si viene con hora o ISO, nos quedamos con la parte de fecha.
+        if 'T' in raw_date:
+            raw_date = raw_date.split('T', 1)[0].strip()
+        if ' ' in raw_date:
+            raw_date = raw_date.split(' ', 1)[0].strip()
         date_iso = None
         if raw_date:
             for fmt in ('%d/%m/%Y', '%d-%m-%Y', '%Y-%m-%d'):
@@ -2298,12 +2312,19 @@ def _find_universo_next_match_for_context(context, primary_team):
                     break
                 except ValueError:
                     continue
+            if not date_iso:
+                for fmt in ('%Y/%m/%d',):
+                    try:
+                        date_iso = datetime.strptime(raw_date, fmt).date().isoformat()
+                        break
+                    except ValueError:
+                        continue
         return normalize_next_match_payload(
             {
-                'round': str(row.get('nombre_jornada') or row.get('jornada') or fallback_round or '').strip(),
+                'round': str(_first(row, 'nombre_jornada', 'NombreJornada', 'jornada', 'round') or fallback_round or '').strip(),
                 'date': date_iso,
-                'time': str(row.get('hora') or '').strip(),
-                'location': str(row.get('campojuego') or '').strip(),
+                'time': str(_first(row, 'hora', 'Hora', 'time', 'horario') or '').strip(),
+                'location': str(_first(row, 'campojuego', 'CampoJuego', 'campo', 'location') or '').strip(),
                 'opponent': {
                     'name': opponent_name or 'Rival por confirmar',
                     'full_name': opponent_name or 'Rival por confirmar',
@@ -4429,10 +4450,28 @@ def _fetch_universo_live_groups(competition_id):
 
 
 def _fetch_universo_live_classification(group_id):
+    group_id = str(group_id or '').strip()
+    if not group_id:
+        return {}
     payload = _universo_api_post(
         'competition/get-classification',
-        {'id_group': str(group_id or '').strip()},
+        {'id_group': group_id},
     )
+    if isinstance(payload, dict) and payload.get('clasificacion'):
+        return payload
+    # En algunas competiciones (sobre todo base), el endpoint requiere `id_round`.
+    try:
+        results = _fetch_universo_live_results(group_id)
+    except Exception:
+        results = {}
+    round_id = str((results or {}).get('jornada') or '').strip()
+    if round_id:
+        payload = _universo_api_post(
+            'competition/get-classification',
+            {'id_group': group_id, 'id_round': round_id},
+        )
+        if isinstance(payload, dict) and payload.get('clasificacion'):
+            return payload
     return payload if isinstance(payload, dict) else {}
 
 
