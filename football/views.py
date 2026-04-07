@@ -7331,22 +7331,12 @@ def admin_page(request):
                                             resolved_competition = str(live.get('competicion') or '').strip()
                                             resolved_group = str(live.get('grupo') or '').strip()
                                             universo_competition_key = str(live.get('codigo_competicion') or '').strip()
+                                            # Si Universo nos devuelve valores, los usamos SIEMPRE como fuente de verdad.
+                                            # Esto evita que se queden los del Senior por venir precargados en el form.
                                             if resolved_competition:
-                                                current_comp = ''
-                                                try:
-                                                    current_comp = str(getattr(getattr(getattr(team_obj.group, 'season', None), 'competition', None), 'name', '') or '').strip()
-                                                except Exception:
-                                                    current_comp = ''
-                                                if not competition_name or (current_comp and competition_name == current_comp):
-                                                    competition_name = resolved_competition[:150]
+                                                competition_name = resolved_competition[:150]
                                             if resolved_group:
-                                                current_group = ''
-                                                try:
-                                                    current_group = str(getattr(team_obj.group, 'name', '') or '').strip()
-                                                except Exception:
-                                                    current_group = ''
-                                                if not group_name or (current_group and group_name == current_group):
-                                                    group_name = resolved_group[:80]
+                                                group_name = resolved_group[:80]
                                     except Exception:
                                         pass
                                 if group_external_id and not group_name:
@@ -7482,9 +7472,10 @@ def admin_page(request):
                                     universo_competition_key = str(live.get('codigo_competicion') or '').strip()
                                     resolved_competition = str(live.get('competicion') or '').strip()
                                     resolved_group = str(live.get('grupo') or '').strip()
-                                    if resolved_competition and not competition_name:
+                                    # En creación, si Universo devuelve valores, los usamos como fuente de verdad.
+                                    if resolved_competition:
                                         competition_name = resolved_competition[:150]
-                                    if resolved_group and not group_name:
+                                    if resolved_group:
                                         group_name = resolved_group[:80]
                             except Exception:
                                 pass
