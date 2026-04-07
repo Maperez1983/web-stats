@@ -309,7 +309,11 @@
 	            <span>2J Club · Football Intelligence</span>
 	          </div>
 	        </div>
-        <a class="product-pill-cta" style="padding:0.68rem 1rem;" href="{% url 'dashboard-home' %}">Volver al inicio</a>
+        {% if can_access_platform %}
+        <a class="product-pill-cta" style="padding:0.68rem 1rem;" href="{% url 'platform-overview' %}">Ir a plataforma</a>
+        {% else %}
+        <a class="product-pill-cta" style="padding:0.68rem 1rem;" href="{% url 'dashboard-home' %}">Volver al panel</a>
+        {% endif %}
       </header>
 
       <article class="hero">

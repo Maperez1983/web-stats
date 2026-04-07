@@ -3039,6 +3039,8 @@ def _workspace_entry_url(workspace, *, user=None):
             if _workspace_has_module_for_user(workspace, module_key, user=user):
                 return f'{url}?user={owner_id}' if owner_id else url
         return reverse('platform-workspace-detail', args=[workspace.id])
+    # Entrada por defecto al club: la Portada (dashboard). "Cuerpo técnico" es un área,
+    # no el home principal, para evitar que existan "dos home" según el contexto.
     candidates = [
         ('dashboard', reverse('dashboard-home')),
         ('coach_overview', reverse('coach-detail')),
@@ -8535,6 +8537,7 @@ def coach_overview_page(request):
     }
     role_labels = dict(AppUserRole.ROLE_CHOICES)
     role_labels[AppUserRole.ROLE_GOALKEEPER] = 'Preparador de porteros'
+    can_access_platform = _can_access_platform(request.user)
     # Staff visible se restringe a la categoría activa del cliente.
     default_team_id = (
         WorkspaceTeam.objects
@@ -8754,6 +8757,7 @@ def coach_overview_page(request):
             'pending_items': pending_items,
             'pending_cards': pending_cards,
             'recent_activity': recent_activity,
+            'can_access_platform': can_access_platform,
         },
     )
 
