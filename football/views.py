@@ -4439,6 +4439,67 @@ def _universo_payload_matches_category(live_payload: dict, category: str) -> boo
     return any(hint in combined for hint in hints)
 
 
+def _universo_extract_ids_from_html(html: str) -> dict:
+    """
+    Extrae IDs de Universo RFAF embebidos en HTML (páginas públicas).
+
+    Universo suele incrustar estado de selección en variables JSON/NUXT (p.ej. selectedGroupId,
+    selectedCompetitionId, etc.). Este extractor permite resolver el "ID real" que utiliza la API
+    aunque la URL pública use otros IDs.
+    """
+    parsed = {'group_id': '', 'competition_id': '', 'season_id': '', 'delegation_id': ''}
+    text = str(html or '')
+    if not text:
+        return parsed
+
+    def _pick(pattern: str) -> str:
+        try:
+            match = re.search(pattern, text, flags=re.IGNORECASE)
+        except Exception:
+            match = None
+        return str(match.group(1) or '').strip() if match else ''
+
+    # Patrones "tolerantes" para distintas serializaciones.
+    parsed['group_id'] = _pick(r'selectedGroupId[^0-9]{0,12}(\d{5,})')
+    parsed['competition_id'] = _pick(r'selectedCompetitionId[^0-9]{0,12}(\d{5,})')
+    parsed['season_id'] = _pick(r'selectedSeasonId[^0-9]{0,12}(\d{1,4})')
+    parsed['delegation_id'] = _pick(r'selectedDelegationId[^0-9]{0,12}(\d{1,4})')
+
+    # Fallbacks: a veces los IDs van sin el prefijo "selected".
+    if not parsed['group_id']:
+        parsed['group_id'] = _pick(r'groupId[^0-9]{0,12}(\d{5,})')
+    if not parsed['competition_id']:
+        parsed['competition_id'] = _pick(r'competitionId[^0-9]{0,12}(\d{5,})')
+    if not parsed['season_id']:
+        parsed['season_id'] = _pick(r'seasonId[^0-9]{0,12}(\d{1,4})')
+    if not parsed['delegation_id']:
+        parsed['delegation_id'] = _pick(r'delegationId[^0-9]{0,12}(\d{1,4})')
+
+    return parsed
+
+
+def _universo_fetch_public_html(universo_url: str) -> str:
+    if requests is None:
+        return ''
+    raw = str(universo_url or '').strip()
+    if not raw or not raw.startswith('http'):
+        return ''
+    try:
+        response = requests.get(
+            raw,
+            headers={
+                'User-Agent': '2j-football-intelligence/1.0',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            },
+            timeout=UNIVERSO_API_TIMEOUT_SECONDS,
+        )
+    except Exception:
+        return ''
+    if not getattr(response, 'ok', False):
+        return ''
+    return str(getattr(response, 'text', '') or '')
+
+
 def _universo_extract_ids_from_url(universo_url: str) -> dict:
     """
     Extrae IDs típicos de URLs de Universo RFAF:
@@ -4462,6 +4523,26 @@ def _universo_extract_ids_from_url(universo_url: str) -> dict:
             parsed['competition_id'] = str(match.group(1) or '').strip()
     except Exception:
         return parsed
+
+    # Universo a veces usa IDs distintos en URL pública vs API. Si es una URL "pública"
+    # conocida (results / team), intentamos extraer los IDs reales desde el HTML.
+    try:
+        host = str(getattr(url, 'netloc', '') or '').strip().lower()
+        is_universo = 'universorfaf.es' in host
+        is_public_page = any(
+            needle in str(getattr(url, 'path', '') or '')
+            for needle in ('/competitions/results/', '/team/', '/teams/')
+        )
+        if is_universo and is_public_page:
+            html = _universo_fetch_public_html(raw)
+            ids = _universo_extract_ids_from_html(html) if html else {}
+            if isinstance(ids, dict):
+                for key in ('group_id', 'competition_id', 'season_id', 'delegation_id'):
+                    value = str(ids.get(key) or '').strip()
+                    if value:
+                        parsed[key] = value
+    except Exception:
+        pass
     return parsed
 
 
@@ -4473,6 +4554,7 @@ def _universo_find_group_for_team_from_url(*, universo_url: str, category: str, 
     """
     result: dict = {'group_id': '', 'competition_code': '', 'competition_name': '', 'group_name': '', 'live': {}}
     hints = _universo_extract_ids_from_url(universo_url)
+    group_id_hint = str(hints.get('group_id') or '').strip()
     competition_id = str(hints.get('competition_id') or '').strip()
     season_id = str(hints.get('season_id') or '').strip()
     delegation_id = str(hints.get('delegation_id') or '').strip()
@@ -4495,6 +4577,15 @@ def _universo_find_group_for_team_from_url(*, universo_url: str, category: str, 
             'group_name': group_name,
             'live': live,
         }
+
+    # 0) Si ya tenemos `group_id` (resuelto desde HTML/URL), probamos directamente.
+    if group_id_hint:
+        try:
+            live = _fetch_universo_live_classification(group_id_hint)
+        except Exception:
+            live = {}
+        if _accept_live(live):
+            return _build(live, group_id_hint)
 
     # 1) Si tenemos `competition_id`, intentamos descubrir el group correcto desde ahí.
     if competition_id:
