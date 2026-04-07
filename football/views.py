@@ -7176,6 +7176,27 @@ def admin_page(request):
                                 )
                             except Exception:
                                 pass
+                        # Si el admin está vinculando un ID de grupo de Universo RFAF, forzamos el
+                        # contexto competitivo del equipo a Universo y guardamos el group_key.
+                        universo_group_id = str(group_external_id or '').strip()
+                        if universo_group_id:
+                            try:
+                                contexto = _bootstrap_workspace_competition_context(
+                                    workspace,
+                                    primary_team=team_obj,
+                                    provider=WorkspaceCompetitionContext.PROVIDER_UNIVERSO,
+                                    external_group_key=universo_group_id,
+                                    external_team_name=str(getattr(team_obj, 'name', '') or '').strip(),
+                                    auto_sync_enabled=True,
+                                )
+                                if contexto:
+                                    # Forzamos un refresh limpio para evitar que se quede la clasificación del Senior.
+                                    WorkspaceCompetitionSnapshot.objects.filter(context=contexto).delete()
+                                    contexto.sync_status = WorkspaceCompetitionContext.STATUS_PENDING
+                                    contexto.sync_error = ''
+                                    contexto.save(update_fields=['sync_status', 'sync_error', 'updated_at'])
+                            except Exception:
+                                pass
                         # Invalidar cachés del equipo por si cambia su contexto o se corrige la clasificación.
                         try:
                             _invalidate_team_dashboard_caches(team_obj)
@@ -7271,6 +7292,20 @@ def admin_page(request):
                             category=category,
                             game_format=game_format,
                         )
+                        # Si se proporciona ID de grupo de Universo, dejamos preparado el contexto competitivo por equipo.
+                        universo_group_id = str(group_external_id or '').strip()
+                        if universo_group_id:
+                            try:
+                                _bootstrap_workspace_competition_context(
+                                    workspace,
+                                    primary_team=team_obj,
+                                    provider=WorkspaceCompetitionContext.PROVIDER_UNIVERSO,
+                                    external_group_key=universo_group_id,
+                                    external_team_name=str(getattr(team_obj, 'name', '') or '').strip(),
+                                    auto_sync_enabled=True,
+                                )
+                            except Exception:
+                                pass
                         # Comparte escudo con el equipo principal del cliente (si existe).
                         try:
                             if workspace.primary_team_id and workspace.primary_team:
