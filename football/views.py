@@ -2023,12 +2023,25 @@ def _expand_team_lookup_variants(raw_value):
     if not base_key:
         return set()
     variants = {base_key}
+
+    # Variante sin sufijos comunes de equipo ("a", "b", "c") que aparecen en base.
+    # Ej: "benagalboncda" -> "benagalboncd"
+    variants.add(re.sub(r"[\"']?[a-d][\"']?$", "", base_key))
+
+    # Variante sin etiquetas CD/CF/UD/FC en extremos.
     trimmed = re.sub(r'^(cd|cf|ud|fc)+', '', base_key)
     trimmed = re.sub(r'(cd|cf|ud|fc)+$', '', trimmed)
     if trimmed:
         variants.add(trimmed)
         variants.add(f'cd{trimmed}')
         variants.add(f'{trimmed}cd')
+
+    # Variante "club-only": elimina apariciones internas (p.ej. "benagalboncd" -> "benagalbon").
+    club_only = re.sub(r'(cd|cf|ud|fc)+', '', base_key)
+    if club_only:
+        variants.add(club_only)
+        variants.add(re.sub(r"[\"']?[a-d][\"']?$", "", club_only))
+
     return {variant for variant in variants if variant}
 
 
@@ -2585,6 +2598,39 @@ def _competition_payload_for_team(workspace, primary_team):
                     )
 
     provider_key = str(getattr(context, 'provider', '') or '').strip().lower()
+    # Auto-reparación: si el contexto es Universo y hay snapshot viejo/incompleto (o falta external_team_key),
+    # forzamos un refresh con throttle para que el "próximo rival" no se quede vacío.
+    if (
+        provider_key == WorkspaceCompetitionContext.PROVIDER_UNIVERSO
+        and context
+        and context.is_auto_sync_enabled
+        and primary_team
+        and workspace
+        and workspace.kind == Workspace.KIND_CLUB
+    ):
+        try:
+            has_standings = bool(snapshot and isinstance(snapshot.standings_payload, list) and snapshot.standings_payload)
+            has_next = bool(snapshot and isinstance(snapshot.next_match_payload, dict) and _next_match_payload_is_reliable(snapshot.next_match_payload))
+            has_team_key = bool(str(getattr(context, 'external_team_key', '') or '').strip())
+            needs_refresh = (not snapshot) or (not has_standings) or (not has_team_key) or (not has_next)
+            if needs_refresh:
+                last_sync = getattr(context, 'last_sync_at', None) or (getattr(snapshot, 'updated_at', None) if snapshot else None)
+                allow_refresh = True
+                if last_sync:
+                    try:
+                        allow_refresh = (timezone.now() - last_sync).total_seconds() > 600
+                    except Exception:
+                        allow_refresh = True
+                if allow_refresh:
+                    _sync_workspace_competition_context(workspace, primary_team=primary_team)
+                    snapshot = (
+                        WorkspaceCompetitionSnapshot.objects
+                        .filter(context=context)
+                        .select_related('context')
+                        .first()
+                    )
+        except Exception:
+            pass
     standings_payload = _resolve_standings_for_team(
         primary_team,
         snapshot=load_universo_snapshot(),
@@ -22765,6 +22811,48 @@ def _ensure_universo_group_models_from_live(*, group_key, live_payload, primary_
         ctx_updates.append('external_competition_key')
     if ctx_updates:
         context.save(update_fields=ctx_updates + ['updated_at'])
+
+    # Extra: intenta fijar `external_team_key`/`external_team_name` del contexto a partir de la
+    # clasificación. Esto es clave para detectar el próximo rival cuando el nombre del club
+    # cambia entre categorías (p.ej. "BENAGALBON C.D. 'A'").
+    try:
+        classification_rows = live_payload.get('clasificacion') if isinstance(live_payload, dict) else None
+        if isinstance(classification_rows, list) and classification_rows:
+            candidate_keys = set()
+            for raw_value in (
+                getattr(primary_team, 'name', ''),
+                getattr(primary_team, 'display_name', ''),
+                getattr(primary_team, 'short_name', ''),
+                getattr(primary_team, 'slug', ''),
+                getattr(context, 'external_team_name', ''),
+            ):
+                candidate_keys.update(_expand_team_lookup_variants(raw_value))
+            resolved_team_name = ''
+            resolved_team_key = ''
+            for row in classification_rows:
+                if not isinstance(row, dict):
+                    continue
+                row_team_name = str(row.get('nombre') or row.get('team') or row.get('NombreEquipo') or '').strip()
+                row_team_key = str(row.get('codequipo') or row.get('cod_equipo') or row.get('CodEquipo') or '').strip()
+                row_keys = _expand_team_lookup_variants(row_team_name)
+                if row_team_key:
+                    row_keys.update(_expand_team_lookup_variants(row_team_key.lower()))
+                    row_keys.add(str(row_team_key).strip().lower())
+                if candidate_keys & row_keys:
+                    resolved_team_name = row_team_name
+                    resolved_team_key = row_team_key
+                    break
+            ctx_updates = []
+            if resolved_team_name and str(getattr(context, 'external_team_name', '') or '').strip() != resolved_team_name:
+                context.external_team_name = resolved_team_name
+                ctx_updates.append('external_team_name')
+            if resolved_team_key and str(getattr(context, 'external_team_key', '') or '').strip() != resolved_team_key:
+                context.external_team_key = resolved_team_key
+                ctx_updates.append('external_team_key')
+            if ctx_updates:
+                context.save(update_fields=ctx_updates + ['updated_at'])
+    except Exception:
+        pass
 
 
 def _ensure_platform_team(team_name, *, region=''):
