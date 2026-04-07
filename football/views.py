@@ -4322,27 +4322,61 @@ def fetch_universo_team_roster(team_code: str) -> list[dict]:
 
 def _fetch_universo_live_seasons():
     payload = _universo_api_post('competition/get-seassons')
-    return [row for row in (payload.get('temporadas') or []) if isinstance(row, dict)]
+    rows = payload.get('temporadas') if isinstance(payload, dict) else None
+    if not isinstance(rows, list) or not rows:
+        # Variantes observadas en algunos entornos.
+        payload = _universo_api_post('competition/get-seasons')
+        rows = payload.get('temporadas') if isinstance(payload, dict) else None
+    return [row for row in (rows or []) if isinstance(row, dict)]
 
 
 def _fetch_universo_live_delegations():
     payload = _universo_api_post('competition/get-delegations')
-    return [row for row in (payload.get('delegaciones') or []) if isinstance(row, dict)]
+    rows = payload.get('delegaciones') if isinstance(payload, dict) else None
+    if not isinstance(rows, list) or not rows:
+        payload = _universo_api_post('competition/get-delegation')
+        rows = payload.get('delegaciones') if isinstance(payload, dict) else None
+    return [row for row in (rows or []) if isinstance(row, dict)]
 
 
 def _fetch_universo_live_competitions(delegation_id, season_id):
-    payload = _universo_api_post(
-        'competition/get-competitions',
-        {'id_delegacion': str(delegation_id or '').strip(), 'id_season': str(season_id or '').strip()},
-    )
+    delegation_id = str(delegation_id or '').strip()
+    season_id = str(season_id or '').strip()
+    if not delegation_id or not season_id:
+        return []
+    attempts = [
+        {'id_delegacion': delegation_id, 'id_season': season_id},
+        # Variantes que aparecen en algunos payloads/capturas.
+        {'cod_delegacion': delegation_id, 'cod_temporada': season_id},
+        {'id_delegacion': delegation_id, 'cod_temporada': season_id},
+        {'cod_delegacion': delegation_id, 'id_season': season_id},
+        {'id_delegation': delegation_id, 'id_season': season_id},
+        {'id_delegation': delegation_id, 'season_id': season_id},
+    ]
+    payload = {}
+    for data in attempts:
+        payload = _universo_api_post('competition/get-competitions', data)
+        if isinstance(payload, dict) and payload.get('competiciones'):
+            break
     return [row for row in (payload.get('competiciones') or []) if isinstance(row, dict)]
 
 
 def _fetch_universo_live_groups(competition_id):
-    payload = _universo_api_post(
-        'competition/get-groups',
-        {'id_competition': str(competition_id or '').strip()},
-    )
+    competition_id = str(competition_id or '').strip()
+    if not competition_id:
+        return []
+    attempts = [
+        {'id_competition': competition_id},
+        {'id_competicion': competition_id},
+        {'cod_competicion': competition_id},
+        {'codigo_competicion': competition_id},
+        {'competition_id': competition_id},
+    ]
+    payload = {}
+    for data in attempts:
+        payload = _universo_api_post('competition/get-groups', data)
+        if isinstance(payload, dict) and payload.get('grupos'):
+            break
     return [row for row in (payload.get('grupos') or []) if isinstance(row, dict)]
 
 

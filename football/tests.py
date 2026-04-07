@@ -2693,6 +2693,31 @@ class AdminTeamsUniversoAutodetectTests(TestCase):
         self.assertEqual(ctx.external_group_key, '47051884')
 
 
+class UniversoApiFallbackParamTests(TestCase):
+    @patch('football.views._universo_api_post')
+    def test_fetch_universo_competitions_tries_fallback_params(self, mock_post):
+        # Primera respuesta vacía, segunda con competiciones.
+        mock_post.side_effect = [
+            {},
+            {'competiciones': [{'codigo': '123', 'nombre': 'Liga Prebenjamín'}]},
+        ]
+        items = football_views._fetch_universo_live_competitions('8', '21')
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0].get('codigo'), '123')
+        self.assertGreaterEqual(mock_post.call_count, 2)
+
+    @patch('football.views._universo_api_post')
+    def test_fetch_universo_groups_tries_fallback_params(self, mock_post):
+        mock_post.side_effect = [
+            {},
+            {'grupos': [{'codigo': '777', 'nombre': 'Grupo 1'}]},
+        ]
+        items = football_views._fetch_universo_live_groups('44788590')
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0].get('codigo'), '777')
+        self.assertGreaterEqual(mock_post.call_count, 2)
+
+
 class TeamDisplayNameTests(TestCase):
     def test_display_name_prefers_short_name(self):
         competition = Competition.objects.create(name='Liga Display', slug='liga-display', region='Andalucia')
