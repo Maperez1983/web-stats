@@ -414,8 +414,22 @@
           <article class="roster-item">
             <div>
               <strong>{{ link.team.category|default:"(Sin categoría)" }} · {{ link.team.display_name|default:link.team.name }}</strong>
-              <div style="opacity:.75;">
-                ID equipo: {{ link.team.id }}
+              <div style="opacity:1;color:rgba(226,232,240,0.92);">
+                <span style="display:inline-flex;gap:0.45rem;flex-wrap:wrap;">
+                  <span style="background:rgba(255,255,255,0.05);border:1px solid rgba(160,180,215,0.16);border-radius:999px;padding:0.18rem 0.55rem;">
+                    ID equipo: <strong style="color:#fff;">{{ link.team.id }}</strong>
+                  </span>
+                  {% if link.competition_context and link.competition_context.external_group_key %}
+                  <span style="background:rgba(244,180,0,0.12);border:1px solid rgba(244,180,0,0.28);border-radius:999px;padding:0.18rem 0.55rem;color:#ffecc4;">
+                    Universo ID grupo: <strong style="color:#fff;">{{ link.competition_context.external_group_key }}</strong>
+                  </span>
+                  {% endif %}
+                  {% if link.team.group and link.team.group.external_id %}
+                  <span style="background:rgba(255,255,255,0.05);border:1px solid rgba(160,180,215,0.16);border-radius:999px;padding:0.18rem 0.55rem;">
+                    BD ID grupo: <strong style="color:#fff;">{{ link.team.group.external_id }}</strong>
+                  </span>
+                  {% endif %}
+                </span>
                 {{ link.team.get_game_format_display|default:"" }}
                 {% if link.team.group %} · {{ link.team.group.season.competition.name }} · {{ link.team.group.season.name }} · {{ link.team.group.name }}{% endif %}
                 {% if link.team.group.external_id %} · ID grupo: {{ link.team.group.external_id }}{% endif %}

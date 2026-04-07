@@ -2428,11 +2428,23 @@ def _sync_workspace_competition_context(workspace, primary_team=None):
     if getattr(primary_team, 'group_id', None):
         for team in Team.objects.filter(group=primary_team.group).only('id', 'name', 'short_name', 'external_id', 'crest_url', 'crest_image', 'is_primary'):
             _sync_team_crest_from_sources(team)
-    standings_payload = _resolve_standings_for_team(
-        primary_team,
-        snapshot=load_universo_snapshot(),
-        provider=getattr(context, 'provider', None),
-    )
+    standings_payload = []
+    provider_key = str(getattr(context, 'provider', '') or '').strip().lower()
+    if provider_key == WorkspaceCompetitionContext.PROVIDER_UNIVERSO:
+        group_key = str(getattr(context, 'external_group_key', '') or '').strip() or str(getattr(getattr(primary_team, 'group', None), 'external_id', '') or '').strip()
+        if group_key:
+            try:
+                live_classification = _fetch_universo_live_classification(group_key)
+                if isinstance(live_classification, dict) and live_classification.get('clasificacion'):
+                    standings_payload = _serialize_universo_live_classification(live_classification)
+            except Exception:
+                standings_payload = []
+    if not standings_payload:
+        standings_payload = _resolve_standings_for_team(
+            primary_team,
+            snapshot=load_universo_snapshot(),
+            provider=getattr(context, 'provider', None),
+        )
     convocation_next = _build_next_match_from_convocation(primary_team)
     provider_next = _find_universo_next_match_for_context(context, primary_team)
     preferred_next = load_preferred_next_match_payload(primary_team=primary_team, competition_context=context)
@@ -4814,11 +4826,15 @@ def _resolve_standings_for_team(primary_team, snapshot=None, provider=None):
                 return universo_rows
         return serialize_standings(primary_team.group)
     # Manual/RFAF: prioriza siempre la BD (lo que importa el script de federación).
+    # Importante: evitamos el fallback al snapshot global porque puede mezclar categorías
+    # (ej. Senior vs Prebenjamín con mismo nombre de club).
     group_for_db = _latest_standings_group_for_team(primary_team) or primary_team.group
     db_rows = serialize_standings(group_for_db)
     if db_rows:
         return db_rows
-    if _universo_snapshot_supports_team(snapshot, primary_team):
+    # Compatibilidad: el equipo principal puede seguir usando el snapshot global como
+    # fallback si no hay clasificación en BD (por ejemplo en instalaciones recién montadas).
+    if bool(getattr(primary_team, 'is_primary', False)) and _universo_snapshot_supports_team(snapshot, primary_team):
         universo_rows = _serialize_universo_standings(snapshot)
         if universo_rows:
             return universo_rows
@@ -4886,6 +4902,11 @@ def load_preferred_next_match_payload(primary_team=None, competition_context=Non
         .first()
         if primary_team else None
     )
+    provider_key = str(getattr(competition_context, 'provider', '') or '').strip().lower() if competition_context else ''
+    # Si el contexto existe pero NO es Universo, evitamos usar snapshots/cachés globales
+    # (puede mezclar categorías con mismo nombre de club).
+    if provider_key and provider_key != WorkspaceCompetitionContext.PROVIDER_UNIVERSO:
+        return None
     competition_context = _ensure_universo_context_binding(competition_context, primary_team)
     provider_next = _find_universo_next_match_for_context(competition_context, primary_team)
     if _next_match_payload_is_reliable(provider_next):
@@ -5187,6 +5208,66 @@ def _safe_int(value, default=0):
         return int(str(value).strip())
     except Exception:
         return default
+
+
+def _serialize_universo_live_classification(payload):
+    """
+    Normaliza el JSON de `competition/get-classification` (Universo RFAF) al formato
+    de standings que usa el dashboard.
+
+    Universo puede variar los nombres de las claves; soportamos varias.
+    """
+    if not isinstance(payload, dict):
+        return []
+    rows = payload.get('clasificacion') or payload.get('rows')
+    if not isinstance(rows, list):
+        return []
+    crest_lookup = _build_team_crest_lookup()
+    normalized = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        team = str(
+            row.get('nombre')
+            or row.get('Nombre_equipo')
+            or row.get('equipo')
+            or row.get('team')
+            or ''
+        ).strip()
+        if not team:
+            continue
+        team_code = str(row.get('codequipo') or row.get('CodEquipo') or row.get('team_code') or '').strip()
+        crest_url = str(
+            row.get('url_img')
+            or row.get('url_escudo')
+            or row.get('escudo')
+            or row.get('crest_url')
+            or ''
+        ).strip()
+        crest_url = _sanitize_universo_external_image(_absolute_universo_url(crest_url)) if crest_url else ''
+        gf = _safe_int(row.get('gf') or row.get('goles_favor') or row.get('goals_for') or row.get('favor') or row.get('golesFavor'))
+        ga = _safe_int(row.get('gc') or row.get('goles_contra') or row.get('goals_against') or row.get('contra') or row.get('golesContra'))
+        gd = row.get('dg') or row.get('dif') or row.get('goal_difference') or row.get('diferencia') or row.get('diferencia_goles')
+        if gd in (None, ''):
+            gd = gf - ga
+        normalized.append(
+            {
+                'rank': _safe_int(row.get('posicion') or row.get('pos') or row.get('position') or row.get('rank'), default=0),
+                'team': team.strip().upper(),
+                'full_name': team,
+                'crest_url': crest_url or crest_lookup.get(_normalize_team_lookup_key(team)) or '',
+                'team_code': team_code,
+                'played': _safe_int(row.get('pj') or row.get('jugados') or row.get('played')),
+                'wins': _safe_int(row.get('pg') or row.get('ganados') or row.get('wins')),
+                'draws': _safe_int(row.get('pe') or row.get('empatados') or row.get('draws')),
+                'losses': _safe_int(row.get('pp') or row.get('perdidos') or row.get('losses')),
+                'goals_for': gf,
+                'goals_against': ga,
+                'goal_difference': _safe_int(gd),
+                'points': _safe_int(row.get('puntos') or row.get('pts') or row.get('points')),
+            }
+        )
+    return sorted(normalized, key=lambda x: (x['rank'] <= 0, x['rank'], -x['points'], x['full_name']))
 
 
 def _serialize_universo_standings(snapshot):
@@ -7204,6 +7285,7 @@ def admin_page(request):
                                 group_external_id = str((qs.get('group') or [''])[0] or '').strip()[:80]
                             except Exception:
                                 group_external_id = str(group_external_id or '').strip()[:80]
+                        universo_competition_key = ''
                         update_fields = []
                         uploaded_cover = None
                         try:
@@ -7239,6 +7321,34 @@ def admin_page(request):
                             # - En caso contrario, mantenemos el fallback legacy al grupo actual.
                             is_universo_binding = bool(group_external_id or universo_url)
                             if is_universo_binding:
+                                # Autocompletar desde Universo para evitar errores típicos:
+                                # el formulario viene precargado con la competición/grupo del Senior y,
+                                # si el admin solo pega el ID del grupo, acaba mezclando categorías.
+                                if group_external_id:
+                                    try:
+                                        live = _fetch_universo_live_classification(group_external_id)
+                                        if isinstance(live, dict):
+                                            resolved_competition = str(live.get('competicion') or '').strip()
+                                            resolved_group = str(live.get('grupo') or '').strip()
+                                            universo_competition_key = str(live.get('codigo_competicion') or '').strip()
+                                            if resolved_competition:
+                                                current_comp = ''
+                                                try:
+                                                    current_comp = str(getattr(getattr(getattr(team_obj.group, 'season', None), 'competition', None), 'name', '') or '').strip()
+                                                except Exception:
+                                                    current_comp = ''
+                                                if not competition_name or (current_comp and competition_name == current_comp):
+                                                    competition_name = resolved_competition[:150]
+                                            if resolved_group:
+                                                current_group = ''
+                                                try:
+                                                    current_group = str(getattr(team_obj.group, 'name', '') or '').strip()
+                                                except Exception:
+                                                    current_group = ''
+                                                if not group_name or (current_group and group_name == current_group):
+                                                    group_name = resolved_group[:80]
+                                    except Exception:
+                                        pass
                                 if group_external_id and not group_name:
                                     group_name = f'Grupo {group_external_id}'[:80]
                                 if not group_name:
@@ -7319,6 +7429,7 @@ def admin_page(request):
                                     workspace,
                                     primary_team=team_obj,
                                     provider=WorkspaceCompetitionContext.PROVIDER_UNIVERSO,
+                                    external_competition_key=universo_competition_key or None,
                                     external_group_key=universo_group_id,
                                     external_team_name=str(getattr(team_obj, 'name', '') or '').strip(),
                                     auto_sync_enabled=True,
@@ -7362,6 +7473,21 @@ def admin_page(request):
                                 group_external_id = str((qs.get('group') or [''])[0] or '').strip()[:80]
                             except Exception:
                                 group_external_id = str(group_external_id or '').strip()[:80]
+                        universo_competition_key = ''
+                        if group_external_id:
+                            # Autocompletar nombres desde Universo si el token está disponible.
+                            try:
+                                live = _fetch_universo_live_classification(group_external_id)
+                                if isinstance(live, dict):
+                                    universo_competition_key = str(live.get('codigo_competicion') or '').strip()
+                                    resolved_competition = str(live.get('competicion') or '').strip()
+                                    resolved_group = str(live.get('grupo') or '').strip()
+                                    if resolved_competition and not competition_name:
+                                        competition_name = resolved_competition[:150]
+                                    if resolved_group and not group_name:
+                                        group_name = resolved_group[:80]
+                            except Exception:
+                                pass
 
                         # No heredamos liga/grupo del Senior por defecto.
                         # Si no hay datos de contexto competitivo, creamos la categoría sin `group`
@@ -7434,6 +7560,7 @@ def admin_page(request):
                                     workspace,
                                     primary_team=team_obj,
                                     provider=WorkspaceCompetitionContext.PROVIDER_UNIVERSO,
+                                    external_competition_key=universo_competition_key or None,
                                     external_group_key=universo_group_id,
                                     external_team_name=str(getattr(team_obj, 'name', '') or '').strip(),
                                     auto_sync_enabled=True,
@@ -7659,6 +7786,34 @@ def admin_page(request):
     team_warnings = []
     if active_tab == 'teams' and workspace and workspace.kind == Workspace.KIND_CLUB:
         workspace_team_links = _workspace_team_links(workspace)
+        # Contexto competitivo por categoría para mostrar IDs externos (p.ej. Universo group id)
+        # y detectar mezclas Senior/Prebenjamín.
+        competition_context_map = {}
+        try:
+            team_ids = [
+                int(getattr(link, 'team_id', 0) or 0)
+                for link in workspace_team_links
+                if getattr(link, 'team_id', None)
+            ]
+            if team_ids:
+                contexts = list(
+                    WorkspaceCompetitionContext.objects
+                    .filter(workspace=workspace, team_id__in=team_ids)
+                    .select_related('group', 'season')
+                )
+                competition_context_map = {
+                    int(getattr(ctx, 'team_id', 0) or 0): ctx
+                    for ctx in contexts
+                    if getattr(ctx, 'team_id', None)
+                }
+        except Exception:
+            competition_context_map = {}
+        for link in workspace_team_links:
+            try:
+                team_id = int(getattr(link, 'team_id', 0) or 0)
+                link.competition_context = competition_context_map.get(team_id)
+            except Exception:
+                link.competition_context = None
         try:
             workspace_members = list(
                 WorkspaceMembership.objects
@@ -7696,8 +7851,14 @@ def admin_page(request):
                 team_id_val = int(getattr(team, 'id', 0) or 0)
                 team_id_map.setdefault(team_id_val, []).append(link)
                 group = getattr(team, 'group', None)
+                # Prioridad: external_group_key del contexto competitivo (Universo) > group.external_id > group.id
                 group_key = ''
-                if group:
+                try:
+                    ctx = getattr(link, 'competition_context', None)
+                    group_key = str(getattr(ctx, 'external_group_key', '') or '').strip()
+                except Exception:
+                    group_key = ''
+                if not group_key and group:
                     group_key = str(getattr(group, 'external_id', '') or getattr(group, 'id', '') or '').strip()
                 if group_key:
                     group_key_map.setdefault(group_key, []).append(link)
