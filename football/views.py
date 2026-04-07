@@ -4583,9 +4583,26 @@ def _universo_payload_matches_category(live_payload: dict, category: str) -> boo
         return True
     if not isinstance(live_payload, dict):
         return False
-    comp = normalize_label(live_payload.get('competicion') or '')
-    group = normalize_label(live_payload.get('grupo') or '')
-    combined = f'{comp} {group}'.strip()
+    # Universo no siempre devuelve la categoría explícita en `competicion`/`grupo` (sobre todo en base).
+    # Metemos más campos para aumentar recall sin depender de un único nombre.
+    candidates = []
+    for key in (
+        'competicion',
+        'competition',
+        'competition_name',
+        'NombreCategoria',
+        'categoria',
+        'category',
+        'tipo_competicion',
+        'tipoCompeticion',
+        'grupo',
+        'group',
+        'group_name',
+    ):
+        value = live_payload.get(key)
+        if value:
+            candidates.append(str(value))
+    combined = normalize_label(' '.join(candidates))
     return any(hint in combined for hint in hints)
 
 
@@ -4708,8 +4725,27 @@ def _universo_find_group_for_team_from_url(*, universo_url: str, category: str, 
     competition_id = str(hints.get('competition_id') or '').strip()
     season_id = str(hints.get('season_id') or '').strip()
     delegation_id = str(hints.get('delegation_id') or '').strip()
+    normalized_team = normalize_label(team_name or '')
 
     remaining = max(10, int(max_calls or 60))
+
+    def _payload_contains_team(live: dict) -> bool:
+        if not normalized_team:
+            return True
+        if not isinstance(live, dict):
+            return False
+        rows = live.get('clasificacion')
+        if not isinstance(rows, list) or not rows:
+            return False
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            name = normalize_label(row.get('nombre') or row.get('equipo') or row.get('team') or '')
+            if not name:
+                continue
+            if normalized_team in name or name in normalized_team:
+                return True
+        return False
 
     def _accept_live(live: dict) -> bool:
         if not isinstance(live, dict) or not live.get('clasificacion'):
@@ -4729,6 +4765,8 @@ def _universo_find_group_for_team_from_url(*, universo_url: str, category: str, 
         }
 
     # 0) Si ya tenemos `group_id` (resuelto desde HTML/URL), probamos directamente.
+    # Si NO cuadra por categoría pero contiene el equipo, lo guardamos como fallback (último recurso).
+    fallback_candidate = None
     if group_id_hint:
         try:
             live = _fetch_universo_live_classification(group_id_hint)
@@ -4736,6 +4774,8 @@ def _universo_find_group_for_team_from_url(*, universo_url: str, category: str, 
             live = {}
         if _accept_live(live):
             return _build(live, group_id_hint)
+        if _payload_contains_team(live):
+            fallback_candidate = _build(live, group_id_hint)
 
     # 1) Si tenemos `competition_id`, intentamos descubrir el group correcto desde ahí.
     if competition_id:
@@ -4753,7 +4793,7 @@ def _universo_find_group_for_team_from_url(*, universo_url: str, category: str, 
 
     # 2) Fallback: delegación+temporada -> competiciones -> grupos -> clasificación
     if not (delegation_id and season_id):
-        return result
+        return fallback_candidate or result
 
     hints_tokens = _universo_category_hints(category)
     normalized_team = normalize_label(team_name or '')
@@ -4788,7 +4828,7 @@ def _universo_find_group_for_team_from_url(*, universo_url: str, category: str, 
                     continue
             return _build(live, group_id)
 
-    return result
+    return fallback_candidate or result
 
 
 def _parse_capture_form_payload(raw_payload):
@@ -7712,14 +7752,22 @@ def admin_page(request):
                         universo_competition_key = ''
                         # Si se pega URL de Universo, intentamos resolver el grupo correcto (evita mezclar categorías).
                         if universo_url:
-                            # 1) Fallback mínimo: querystring ?group=
-                            if not group_external_id:
-                                try:
-                                    parsed = urlparse(universo_url)
-                                    qs = parse_qs(parsed.query or '')
-                                    group_external_id = str((qs.get('group') or [''])[0] or '').strip()[:80]
-                                except Exception:
-                                    group_external_id = str(group_external_id or '').strip()[:80]
+                            # 1) Fallback mínimo: querystring (?group=, ?competition=, etc.).
+                            try:
+                                parsed = urlparse(universo_url)
+                                qs = parse_qs(parsed.query or '')
+                                url_group = str((qs.get('group') or [''])[0] or '').strip()
+                                url_comp = str((qs.get('competition') or [''])[0] or '').strip()
+                                # Resultados: el ID de competición a veces viene en el path.
+                                match = re.search(r'/competitions/(?:results|classification)/(\d+)', parsed.path or '')
+                                if match and not url_comp:
+                                    url_comp = str(match.group(1) or '').strip()
+                                if url_group:
+                                    group_external_id = url_group[:80]
+                                if url_comp and not universo_competition_key:
+                                    universo_competition_key = url_comp
+                            except Exception:
+                                pass
                             # 2) Autodetección: usa competition/delegation/season de la URL para buscar un grupo
                             # cuya clasificación corresponda a la categoría (prebenjamín, etc).
                             try:
@@ -7779,6 +7827,7 @@ def admin_page(request):
                                 # si el admin solo pega el ID del grupo, acaba mezclando categorías.
                                 if group_external_id:
                                     try:
+                                        resolved_from_url = False
                                         live = _fetch_universo_live_classification(group_external_id)
                                         if isinstance(live, dict):
                                             # Si el grupo no corresponde a la categoría (p.ej. Prebenjamín),
@@ -7795,14 +7844,20 @@ def admin_page(request):
                                                 if isinstance(resolved, dict) and resolved.get('group_id'):
                                                     group_external_id = str(resolved.get('group_id') or '').strip()[:80]
                                                     live = _fetch_universo_live_classification(group_external_id)
+                                                    resolved_from_url = True
                                             resolved_competition = str(live.get('competicion') or '').strip()
                                             resolved_group = str(live.get('grupo') or '').strip()
                                             universo_competition_key = str(live.get('codigo_competicion') or '').strip()
                                             # Si Universo nos devuelve valores, los usamos SIEMPRE como fuente de verdad.
                                             # Esto evita que se queden los del Senior por venir precargados en el form.
-                                            if resolved_competition:
+                                            # Guardrail: si no se pudo resolver y sigue sin cuadrar por categoría,
+                                            # no pisamos los campos del formulario (evita mezclar Senior/Prebenjamín).
+                                            allow_override = True
+                                            if universo_url and not resolved_from_url and not _universo_payload_matches_category(live, category):
+                                                allow_override = False
+                                            if allow_override and resolved_competition:
                                                 competition_name = resolved_competition[:150]
-                                            if resolved_group:
+                                            if allow_override and resolved_group:
                                                 group_name = resolved_group[:80]
                                     except Exception:
                                         pass
@@ -7939,14 +7994,21 @@ def admin_page(request):
                         universo_url = str(request.POST.get('universo_url') or '').strip()
                         universo_competition_key = ''
                         if universo_url:
-                            # 1) Fallback mínimo: querystring ?group=
-                            if not group_external_id:
-                                try:
-                                    parsed = urlparse(universo_url)
-                                    qs = parse_qs(parsed.query or '')
-                                    group_external_id = str((qs.get('group') or [''])[0] or '').strip()[:80]
-                                except Exception:
-                                    group_external_id = str(group_external_id or '').strip()[:80]
+                            # 1) Fallback mínimo: querystring (?group=, ?competition=, etc.).
+                            try:
+                                parsed = urlparse(universo_url)
+                                qs = parse_qs(parsed.query or '')
+                                url_group = str((qs.get('group') or [''])[0] or '').strip()
+                                url_comp = str((qs.get('competition') or [''])[0] or '').strip()
+                                match = re.search(r'/competitions/(?:results|classification)/(\d+)', parsed.path or '')
+                                if match and not url_comp:
+                                    url_comp = str(match.group(1) or '').strip()
+                                if url_group:
+                                    group_external_id = url_group[:80]
+                                if url_comp and not universo_competition_key:
+                                    universo_competition_key = url_comp
+                            except Exception:
+                                pass
                             # 2) Autodetección por categoría desde la URL (competition/delegation/season)
                             try:
                                 resolved = _universo_find_group_for_team_from_url(
@@ -7968,6 +8030,7 @@ def admin_page(request):
                         if group_external_id:
                             # Autocompletar nombres desde Universo si el token está disponible.
                             try:
+                                resolved_from_url = False
                                 live = _fetch_universo_live_classification(group_external_id)
                                 if isinstance(live, dict):
                                     # Si el grupo no corresponde a la categoría, intentamos resolverlo desde la URL.
@@ -7983,13 +8046,17 @@ def admin_page(request):
                                         if isinstance(resolved, dict) and resolved.get('group_id'):
                                             group_external_id = str(resolved.get('group_id') or '').strip()[:80]
                                             live = _fetch_universo_live_classification(group_external_id)
+                                            resolved_from_url = True
                                     universo_competition_key = str(live.get('codigo_competicion') or '').strip()
                                     resolved_competition = str(live.get('competicion') or '').strip()
                                     resolved_group = str(live.get('grupo') or '').strip()
                                     # En creación, si Universo devuelve valores, los usamos como fuente de verdad.
-                                    if resolved_competition:
+                                    allow_override = True
+                                    if universo_url and not resolved_from_url and not _universo_payload_matches_category(live, category):
+                                        allow_override = False
+                                    if allow_override and resolved_competition:
                                         competition_name = resolved_competition[:150]
-                                    if resolved_group:
+                                    if allow_override and resolved_group:
                                         group_name = resolved_group[:80]
                             except Exception:
                                 pass
