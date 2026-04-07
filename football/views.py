@@ -5389,6 +5389,12 @@ def dashboard_page(request):
     # porque suelen ser internos (staff) y eso rompe el acceso a la plataforma.
     if current_role is None:
         current_role = AppUserRole.ROLE_COACH
+    # Product rule: si el usuario tiene acceso a Platform, la entrada por defecto en app.*
+    # debe ser Platform (para elegir cliente/contexto). Se puede forzar el home club con `?home=club`.
+    if _can_access_platform(request.user) and (host in app_hosts or host.startswith('app.')):
+        forced_home = str(request.GET.get('home') or '').strip().lower()
+        if forced_home != 'club':
+            return redirect('platform-overview')
     if current_role == AppUserRole.ROLE_PLAYER:
         primary_team = _get_primary_team_for_request(request)
         current_player = _resolve_player_for_user(request.user, primary_team)
@@ -5604,6 +5610,11 @@ def platform_overview_page(request):
     users_subtab = str(request.GET.get('subtab') or 'list').strip().lower()
     if users_subtab not in {'list', 'create'}:
         users_subtab = 'list'
+    users_query = _sanitize_task_text((request.GET.get('q') or '').strip(), multiline=False, max_len=120)
+    users_page_number = _parse_int(request.GET.get('page')) or 1
+    if users_page_number < 1:
+        users_page_number = 1
+    edit_user_id = _parse_int(request.GET.get('edit')) if active_tab == 'users' and users_subtab == 'list' else None
 
     feedback = str(request.session.pop('platform_feedback', '') or '')
     error = ''
@@ -5629,6 +5640,7 @@ def platform_overview_page(request):
         'seed_demo_data': False,
         'initial_admin_usernames': '',
         'initial_member_usernames': '',
+        'module_preset': 'complete',
         'modules': _workspace_default_modules(Workspace.KIND_CLUB),
         'module_keys': [item['key'] for item in _workspace_module_catalog(Workspace.KIND_CLUB)],
         'deliverable_keys': _workspace_selected_deliverable_keys(
@@ -5676,17 +5688,29 @@ def platform_overview_page(request):
             if competition_provider not in valid_providers:
                 competition_provider = WorkspaceCompetitionContext.PROVIDER_MANUAL
             module_catalog = _workspace_module_catalog(workspace_kind)
-            selected_modules = {
-                item['key']: str(request.POST.get(f"module_{item['key']}") or '').lower() in {'1', 'true', 'on', 'yes'}
-                for item in module_catalog
-            }
-            selected_deliverables = {
-                _workspace_deliverable_flag(item['key'], deliverable['key']): (
-                    str(request.POST.get(f"deliverable_{item['key']}__{deliverable['key']}") or '').lower() in {'1', 'true', 'on', 'yes'}
-                )
-                for item in module_catalog
-                for deliverable in item.get('deliverables', []) or []
-            }
+            module_preset = str(request.POST.get('module_preset') or '').strip().lower()
+            if module_preset not in {'basic', 'complete', 'custom'}:
+                module_preset = 'custom'
+            if module_preset in {'basic', 'complete'}:
+                if module_preset == 'basic':
+                    defaults = _workspace_default_modules(workspace_kind)
+                    default_keys = set(_workspace_selected_module_keys(workspace_kind, defaults))
+                    selected_modules = {item['key']: item['key'] in default_keys for item in module_catalog}
+                else:
+                    selected_modules = {item['key']: True for item in module_catalog}
+                selected_deliverables = {}
+            else:
+                selected_modules = {
+                    item['key']: str(request.POST.get(f"module_{item['key']}") or '').lower() in {'1', 'true', 'on', 'yes'}
+                    for item in module_catalog
+                }
+                selected_deliverables = {
+                    _workspace_deliverable_flag(item['key'], deliverable['key']): (
+                        str(request.POST.get(f"deliverable_{item['key']}__{deliverable['key']}") or '').lower() in {'1', 'true', 'on', 'yes'}
+                    )
+                    for item in module_catalog
+                    for deliverable in item.get('deliverables', []) or []
+                }
             if not any(selected_modules.values()):
                 selected_modules = {item['key']: True for item in module_catalog}
             expanded_modules = _expand_workspace_module_selection(workspace_kind, selected_modules, selected_deliverables)
@@ -5706,6 +5730,7 @@ def platform_overview_page(request):
                 'seed_demo_data': seed_demo_data,
                 'initial_admin_usernames': initial_admin_usernames,
                 'initial_member_usernames': initial_member_usernames,
+                'module_preset': module_preset,
                 'modules': expanded_modules,
                 'module_keys': [key for key, enabled in selected_modules.items() if enabled],
                 'deliverable_keys': [key for key, enabled in selected_deliverables.items() if enabled],
@@ -5794,6 +5819,7 @@ def platform_overview_page(request):
                     'seed_demo_data': False,
                     'initial_admin_usernames': '',
                     'initial_member_usernames': '',
+                    'module_preset': 'complete',
                     'modules': _workspace_default_modules(Workspace.KIND_CLUB),
                     'module_keys': [item['key'] for item in _workspace_module_catalog(Workspace.KIND_CLUB)],
                     'deliverable_keys': _workspace_selected_deliverable_keys(
@@ -5981,33 +6007,8 @@ def platform_overview_page(request):
             if _handle_home_carousel_post(request):
                 carousel_message = 'Cambios guardados en Home global.'
 
-    workspaces = list(
-        Workspace.objects
-        .select_related('owner_user', 'primary_team')
-        .annotate(member_count=Count('memberships', distinct=True))
-        .order_by('kind', 'name', 'id')
-    )
-    for workspace in workspaces:
-        workspace.task_count = TaskStudioTask.objects.filter(workspace=workspace).count()
-        workspace.profile_count = TaskStudioProfile.objects.filter(workspace=workspace).count()
-        workspace.active_module_count = len(_workspace_selected_module_keys(workspace.kind, _workspace_enabled_modules(workspace)))
-    primary_workspace = next((workspace for workspace in workspaces if workspace.kind == Workspace.KIND_CLUB and workspace.primary_team_id), None)
-    club_workspaces = [workspace for workspace in workspaces if workspace.kind == Workspace.KIND_CLUB]
-    studio_workspaces = [workspace for workspace in workspaces if workspace.kind == Workspace.KIND_TASK_STUDIO and workspace.owner_user_id]
-    workspace_users = list(
-        WorkspaceMembership.objects
-        .select_related('workspace', 'user')
-        .filter(workspace__kind=Workspace.KIND_CLUB)
-        .order_by('workspace__name', 'role', 'user__username')[:200]
-    )
-    platform_users = list(User.objects.order_by('username')[:220])
-    carousel_images = list(HomeCarouselImage.objects.order_by('order', '-created_at', '-id')[:24])
-    role_map = {item.user_id: item.role for item in AppUserRole.objects.select_related('user')}
-    role_labels = dict(AppUserRole.ROLE_CHOICES)
-    membership_counts = {
-        row['user_id']: row['count']
-        for row in WorkspaceMembership.objects.values('user_id').annotate(count=Count('id'))
-    }
+    club_workspace_count = Workspace.objects.filter(kind=Workspace.KIND_CLUB).count()
+    studio_workspace_count = Workspace.objects.filter(kind=Workspace.KIND_TASK_STUDIO, owner_user__isnull=False).count()
     linked_club_user_count = (
         WorkspaceMembership.objects
         .filter(workspace__kind=Workspace.KIND_CLUB)
@@ -6015,15 +6016,21 @@ def platform_overview_page(request):
         .distinct()
         .count()
     )
-    for item in platform_users:
-        role_value = role_map.get(item.id, AppUserRole.ROLE_PLAYER)
-        item.role_value = role_value
-        item.role_label = role_labels.get(role_value, 'Jugador')
-        item.full_name_display = item.get_full_name().strip() or item.username
-        item.workspace_count = int(membership_counts.get(item.id, 0) or 0)
-    club_workspaces_without_team = sum(1 for workspace in club_workspaces if not workspace.primary_team_id)
-    club_workspaces_without_members = sum(1 for workspace in club_workspaces if int(workspace.member_count or 0) <= 0)
-    studio_workspaces_without_tasks = sum(1 for workspace in studio_workspaces if int(workspace.task_count or 0) <= 0)
+    club_workspaces_without_team = Workspace.objects.filter(kind=Workspace.KIND_CLUB, primary_team__isnull=True).count()
+    club_workspaces_without_members = (
+        Workspace.objects
+        .filter(kind=Workspace.KIND_CLUB)
+        .annotate(member_count=Count('memberships', distinct=True))
+        .filter(member_count__lte=0)
+        .count()
+    )
+    studio_workspaces_without_tasks = (
+        Workspace.objects
+        .filter(kind=Workspace.KIND_TASK_STUDIO, owner_user__isnull=False)
+        .annotate(task_count=Count('task_studio_tasks', distinct=True))
+        .filter(task_count__lte=0)
+        .count()
+    )
     platform_attention_items = []
     if club_workspaces_without_team:
         platform_attention_items.append(f'{club_workspaces_without_team} cliente(s) club sin equipo principal vinculado.')
@@ -6034,104 +6041,185 @@ def platform_overview_page(request):
     if not platform_attention_items:
         platform_attention_items.append('La matriz no tiene alertas críticas de configuración.')
 
+    # Carga condicional: sólo traemos datos pesados para la pestaña actual.
+    club_workspaces = []
+    studio_workspaces = []
+    primary_workspace = None
+    workspace_users = []
+    platform_users = []
+    platform_users_total = 0
+    platform_users_has_next = False
+    teams = []
+    carousel_images = []
     recent_documents = []
-    search_query = _sanitize_task_text((request.GET.get('q') or '').strip(), multiline=False, max_len=120)
-    search_results = []
-    if search_query:
-        q = search_query
-        session_hits = list(
+    recent_audit_events = []
+
+    if active_tab in {'clients', 'task-studio'}:
+        workspaces_qs = (
+            Workspace.objects
+            .select_related('owner_user', 'primary_team')
+            .annotate(member_count=Count('memberships', distinct=True))
+        )
+        if active_tab == 'clients':
+            club_workspaces = list(
+                workspaces_qs
+                .filter(kind=Workspace.KIND_CLUB)
+                .order_by('name', 'id')
+            )
+            for workspace in club_workspaces:
+                workspace.active_module_count = len(
+                    _workspace_selected_module_keys(workspace.kind, _workspace_enabled_modules(workspace))
+                )
+            primary_workspace = next(
+                (workspace for workspace in club_workspaces if workspace.primary_team_id),
+                None,
+            )
+        else:
+            studio_workspaces = list(
+                workspaces_qs
+                .filter(kind=Workspace.KIND_TASK_STUDIO, owner_user__isnull=False)
+                .annotate(task_count=Count('task_studio_tasks', distinct=True))
+                .annotate(profile_count=Count('task_studio_profiles', distinct=True))
+                .order_by('name', 'id')
+            )
+            for workspace in studio_workspaces:
+                workspace.active_module_count = len(
+                    _workspace_selected_module_keys(workspace.kind, _workspace_enabled_modules(workspace))
+                )
+
+    if active_tab == 'workspace-create':
+        teams = list(Team.objects.order_by('name')[:250])
+
+    if active_tab == 'users' and users_subtab == 'list':
+        workspace_users = list(
+            WorkspaceMembership.objects
+            .select_related('workspace', 'user')
+            .filter(workspace__kind=Workspace.KIND_CLUB)
+            .order_by('workspace__name', 'role', 'user__username')[:200]
+        )
+        user_qs = User.objects.order_by('username')
+        if users_query:
+            q = users_query
+            user_qs = user_qs.filter(
+                Q(username__icontains=q)
+                | Q(email__icontains=q)
+                | Q(first_name__icontains=q)
+                | Q(last_name__icontains=q)
+            )
+        platform_users_total = user_qs.count()
+        page_size = 50
+        offset = (users_page_number - 1) * page_size
+        users_slice = list(user_qs[offset: offset + page_size + 1])
+        platform_users_has_next = len(users_slice) > page_size
+        platform_users = users_slice[:page_size]
+        user_ids = [item.id for item in platform_users]
+        role_map = {
+            item.user_id: item.role
+            for item in AppUserRole.objects.filter(user_id__in=user_ids)
+        }
+        role_labels = dict(AppUserRole.ROLE_CHOICES)
+        membership_counts = {
+            row['user_id']: row['count']
+            for row in (
+                WorkspaceMembership.objects
+                .filter(user_id__in=user_ids)
+                .values('user_id')
+                .annotate(count=Count('id'))
+            )
+        }
+        for item in platform_users:
+            role_value = role_map.get(item.id, AppUserRole.ROLE_PLAYER)
+            item.role_value = role_value
+            item.role_label = role_labels.get(role_value, 'Jugador')
+            item.full_name_display = item.get_full_name().strip() or item.username
+            item.workspace_count = int(membership_counts.get(item.id, 0) or 0)
+        if edit_user_id:
+            edit_user_obj = next((u for u in platform_users if u.id == edit_user_id), None) or User.objects.filter(id=edit_user_id).first()
+        else:
+            edit_user_obj = None
+        if edit_user_obj:
+            try:
+                role_value = AppUserRole.objects.filter(user=edit_user_obj).values_list('role', flat=True).first() or AppUserRole.ROLE_PLAYER
+            except Exception:
+                role_value = AppUserRole.ROLE_PLAYER
+            edit_user_obj.role_value = role_value
+            edit_user_obj.role_label = role_labels.get(role_value, 'Jugador')
+            edit_user_obj.full_name_display = edit_user_obj.get_full_name().strip() or edit_user_obj.username
+            try:
+                edit_user_obj.workspace_count = int(
+                    WorkspaceMembership.objects.filter(user=edit_user_obj).count()
+                )
+            except Exception:
+                edit_user_obj.workspace_count = 0
+    else:
+        edit_user_obj = None
+
+    if active_tab == 'home-global':
+        carousel_images = list(HomeCarouselImage.objects.order_by('order', '-created_at', '-id')[:24])
+
+    if active_tab == 'documents':
+        recent_documents = []
+        recent_session_tasks = list(
             SessionTask.objects
             .select_related('session__microcycle__team')
-            .filter(title__icontains=q)
-            .order_by('-created_at', '-id')[:20]
+            .order_by('-created_at', '-id')[:6]
         )
-        for item in session_hits:
-            search_results.append(
+        recent_sessions = list(
+            TrainingSession.objects
+            .select_related('microcycle__team')
+            .order_by('-created_at', '-id')[:5]
+        )
+        recent_studio_tasks = list(
+            TaskStudioTask.objects
+            .select_related('owner', 'workspace')
+            .order_by('-updated_at', '-id')[:6]
+        )
+        for item in recent_session_tasks:
+            recent_documents.append(
                 {
                     'type': 'Tarea club',
                     'title': str(item.title or 'Tarea').strip() or 'Tarea',
+                    'source': str(getattr(item.session.microcycle.team, 'display_name', '') or getattr(item.session.microcycle.team, 'name', '')).strip() or 'Club',
                     'meta': f"{item.session.session_date:%d/%m/%Y} · {item.get_block_display()} · {item.duration_minutes or 0} min",
-                    'url': reverse('sessions-task-edit', args=[item.id]),
+                    'uefa_url': reverse('session-task-pdf', args=[item.id]),
+                    'club_url': f"{reverse('session-task-pdf', args=[item.id])}?style=club",
+                    'created_at': item.created_at,
                 }
             )
-        studio_hits = list(
-            TaskStudioTask.objects
-            .select_related('owner')
-            .filter(title__icontains=q)
-            .order_by('-updated_at', '-id')[:20]
-        )
-        for item in studio_hits:
-            search_results.append(
+        for item in recent_sessions:
+            recent_documents.append(
+                {
+                    'type': 'Sesión',
+                    'title': str(item.focus or 'Sesión').strip() or 'Sesión',
+                    'source': str(getattr(item.microcycle.team, 'display_name', '') or getattr(item.microcycle.team, 'name', '')).strip() or 'Club',
+                    'meta': f"{item.session_date:%d/%m/%Y} · {item.duration_minutes or 0} min",
+                    'uefa_url': reverse('session-plan-pdf', args=[item.id]),
+                    'club_url': f"{reverse('session-plan-pdf', args=[item.id])}?style=club",
+                    'created_at': item.created_at,
+                }
+            )
+        for item in recent_studio_tasks:
+            recent_documents.append(
                 {
                     'type': 'Task Studio',
                     'title': str(item.title or 'Tarea').strip() or 'Tarea',
-                    'meta': f"{item.owner.get_username()} · {item.updated_at:%d/%m/%Y}",
-                    'url': f"{reverse('task-studio-task-edit', args=[item.id])}?user={item.owner_id}",
+                    'source': str(item.owner.get_full_name() or item.owner.get_username()).strip() or item.owner.get_username(),
+                    'meta': f"{item.updated_at:%d/%m/%Y} · {item.get_block_display()} · {item.duration_minutes or 0} min",
+                    'uefa_url': reverse('task-studio-task-pdf', args=[item.id]),
+                    'club_url': f"{reverse('task-studio-task-pdf', args=[item.id])}?style=club",
+                    'created_at': item.updated_at,
                 }
             )
-        search_results = search_results[:30]
-    recent_session_tasks = list(
-        SessionTask.objects
-        .select_related('session__microcycle__team')
-        .order_by('-created_at', '-id')[:6]
-    )
-    recent_sessions = list(
-        TrainingSession.objects
-        .select_related('microcycle__team')
-        .order_by('-created_at', '-id')[:5]
-    )
-    recent_studio_tasks = list(
-        TaskStudioTask.objects
-        .select_related('owner', 'workspace')
-        .order_by('-updated_at', '-id')[:6]
-    )
-    for item in recent_session_tasks:
-        recent_documents.append(
-            {
-                'type': 'Tarea club',
-                'title': str(item.title or 'Tarea').strip() or 'Tarea',
-                'source': str(getattr(item.session.microcycle.team, 'display_name', '') or getattr(item.session.microcycle.team, 'name', '')).strip() or 'Club',
-                'meta': f"{item.session.session_date:%d/%m/%Y} · {item.get_block_display()} · {item.duration_minutes or 0} min",
-                'uefa_url': reverse('session-task-pdf', args=[item.id]),
-                'club_url': f"{reverse('session-task-pdf', args=[item.id])}?style=club",
-                'created_at': item.created_at,
-            }
+        recent_documents = sorted(
+            recent_documents,
+            key=lambda item: item.get('created_at') or timezone.now(),
+            reverse=True,
+        )[:14]
+        recent_audit_events = list(
+            AuditEvent.objects
+            .select_related('workspace', 'actor_user')
+            .order_by('-created_at', '-id')[:24]
         )
-    for item in recent_sessions:
-        recent_documents.append(
-            {
-                'type': 'Sesión',
-                'title': str(item.focus or 'Sesión').strip() or 'Sesión',
-                'source': str(getattr(item.microcycle.team, 'display_name', '') or getattr(item.microcycle.team, 'name', '')).strip() or 'Club',
-                'meta': f"{item.session_date:%d/%m/%Y} · {item.duration_minutes or 0} min",
-                'uefa_url': reverse('session-plan-pdf', args=[item.id]),
-                'club_url': f"{reverse('session-plan-pdf', args=[item.id])}?style=club",
-                'created_at': item.created_at,
-            }
-        )
-    for item in recent_studio_tasks:
-        recent_documents.append(
-            {
-                'type': 'Task Studio',
-                'title': str(item.title or 'Tarea').strip() or 'Tarea',
-                'source': str(item.owner.get_full_name() or item.owner.get_username()).strip() or item.owner.get_username(),
-                'meta': f"{item.updated_at:%d/%m/%Y} · {item.get_block_display()} · {item.duration_minutes or 0} min",
-                'uefa_url': reverse('task-studio-task-pdf', args=[item.id]),
-                'club_url': f"{reverse('task-studio-task-pdf', args=[item.id])}?style=club",
-                'created_at': item.updated_at,
-            }
-        )
-    recent_documents = sorted(
-        recent_documents,
-        key=lambda item: item.get('created_at') or timezone.now(),
-        reverse=True,
-    )[:14]
-
-    recent_audit_events = list(
-        AuditEvent.objects
-        .select_related('workspace', 'actor_user')
-        .order_by('-created_at', '-id')[:24]
-    )
 
     return render(
         request,
@@ -6143,14 +6231,20 @@ def platform_overview_page(request):
             'user_error': user_error,
             'invitation_links': invitation_links,
             'carousel_message': carousel_message,
-            'workspaces': workspaces,
+            'club_workspace_count': club_workspace_count,
+            'studio_workspace_count': studio_workspace_count,
             'primary_workspace': primary_workspace,
             'club_workspaces': club_workspaces,
             'studio_workspaces': studio_workspaces,
             'workspace_users': workspace_users,
             'platform_users': platform_users,
+            'platform_users_total': platform_users_total,
+            'platform_users_has_next': platform_users_has_next,
+            'platform_users_page': users_page_number,
+            'platform_users_query': users_query,
+            'edit_user': edit_user_obj,
             'carousel_images': carousel_images,
-            'teams': list(Team.objects.order_by('name')[:200]),
+            'teams': teams,
             'workspace_kind_choices': Workspace.KIND_CHOICES,
             'workspace_module_catalog_club': _workspace_module_catalog_for_template(Workspace.KIND_CLUB),
             'workspace_module_catalog_task_studio': _workspace_module_catalog_for_template(Workspace.KIND_TASK_STUDIO),
@@ -6162,15 +6256,13 @@ def platform_overview_page(request):
             'active_tab': active_tab,
             'users_subtab': users_subtab,
             'linked_club_user_count': linked_club_user_count,
-            'platform_user_count': len(platform_users),
+            'platform_user_count': platform_users_total or 0,
             'club_workspaces_without_team': club_workspaces_without_team,
             'club_workspaces_without_members': club_workspaces_without_members,
             'studio_workspaces_without_tasks': studio_workspaces_without_tasks,
             'platform_attention_items': platform_attention_items,
             'recent_documents': recent_documents,
             'recent_audit_events': recent_audit_events,
-            'search_query': search_query,
-            'search_results': search_results,
         },
     )
 

@@ -832,11 +832,11 @@
           <div class="hero-stats">
             <div class="hero-stat">
               <span>Clientes club</span>
-              <strong>{{ club_workspaces|length }}</strong>
+              <strong>{{ club_workspace_count }}</strong>
             </div>
             <div class="hero-stat">
               <span>Task Studio</span>
-              <strong>{{ studio_workspaces|length }}</strong>
+              <strong>{{ studio_workspace_count }}</strong>
             </div>
             <div class="hero-stat">
               <span>Usuarios vinculados</span>
@@ -1028,6 +1028,60 @@
             <button class="submit-btn" type="submit">Crear usuario global</button>
           </form>
           {% else %}
+          <form method="get" class="fieldset" style="margin-top:1rem;">
+            <input type="hidden" name="tab" value="users" />
+            <input type="hidden" name="subtab" value="list" />
+            <h3>Buscar usuarios</h3>
+            <div class="inline-grid">
+              <div class="field">
+                <label for="platform_users_q">Búsqueda</label>
+                <input id="platform_users_q" type="text" name="q" value="{{ platform_users_query }}" placeholder="usuario, email o nombre" />
+              </div>
+              <div class="field" style="display:flex; align-items:flex-end;">
+                <button class="submit-btn" type="submit">Buscar</button>
+              </div>
+            </div>
+            <p style="margin:0.5rem 0 0; color:#9aa8bf;">{{ platform_users_total }} usuario(s) · página {{ platform_users_page }}</p>
+          </form>
+
+          {% if edit_user %}
+          <form class="fieldset" method="post" style="margin-top:1rem;">
+            {% csrf_token %}
+            <input type="hidden" name="form_action" value="platform_user_update" />
+            <input type="hidden" name="user_id" value="{{ edit_user.id }}" />
+            <h3>Editar usuario: {{ edit_user.username }}</h3>
+            <div class="inline-grid">
+              <div class="field">
+                <label>Nombre completo</label>
+                <input type="text" name="full_name" value="{{ edit_user.get_full_name }}" />
+              </div>
+              <div class="field">
+                <label>Email</label>
+                <input type="text" name="email" value="{{ edit_user.email }}" />
+              </div>
+              <div class="field">
+                <label>Rol global</label>
+                <select name="role">
+                  {% for value, label in role_choices %}
+                  <option value="{{ value }}" {% if edit_user.role_value == value %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="field">
+                <label>Nueva contraseña</label>
+                <input type="password" name="password" placeholder="Solo si quieres cambiarla" />
+              </div>
+              <div class="field is-checkbox">
+                <label><input type="checkbox" name="is_active" {% if edit_user.is_active %}checked{% endif %} /> Usuario activo</label>
+              </div>
+            </div>
+            <button class="submit-btn" type="submit">Guardar cambios</button>
+            <div style="margin-top:0.6rem;">
+              <a class="link-btn" href="{% url 'platform-overview' %}?tab=users&subtab=list{% if platform_users_query %}&q={{ platform_users_query|urlencode }}{% endif %}&page={{ platform_users_page }}">Cerrar editor</a>
+            </div>
+          </form>
+          {% endif %}
+
           <div class="simple-list" style="margin-top:1rem;">
             {% for item in platform_users %}
             <article class="user-card">
@@ -1039,6 +1093,7 @@
                 <div class="user-card-meta">
                   <span class="user-pill">{{ item.workspace_count }} espacios</span>
                   <span class="user-pill {% if item.is_active %}ok{% else %}warn{% endif %}">{% if item.is_active %}Activo{% else %}Inactivo{% endif %}</span>
+                  <a class="link-btn" href="{% url 'platform-overview' %}?tab=users&subtab=list{% if platform_users_query %}&q={{ platform_users_query|urlencode }}{% endif %}&page={{ platform_users_page }}&edit={{ item.id }}#usuarios-club">Editar</a>
                   {% if item.role_value == 'task_studio' or item.role_value == 'guest' %}
                   <a class="link-btn" href="{% url 'task-studio-home' %}?user={{ item.id }}">Task Studio</a>
                   {% endif %}
@@ -1051,85 +1106,39 @@
                   </form>
                 </div>
               </header>
-
-              <form method="post" class="workspace-form">
-                {% csrf_token %}
-                <input type="hidden" name="form_action" value="platform_user_update" />
-                <input type="hidden" name="user_id" value="{{ item.id }}" />
-                <div class="edit-grid">
-                  <div class="field">
-                    <label>Nombre completo</label>
-                    <input type="text" name="full_name" value="{{ item.get_full_name }}" />
-                  </div>
-                  <div class="field">
-                    <label>Email</label>
-                    <input type="text" name="email" value="{{ item.email }}" />
-                  </div>
-                  <div class="field">
-                    <label>Rol global</label>
-                    <select name="role">
-                      {% for value, label in role_choices %}
-                      <option value="{{ value }}" {% if item.role_value == value %}selected{% endif %}>{{ label }}</option>
-                      {% endfor %}
-                    </select>
-                  </div>
-                  <div class="field">
-                    <label>Nueva contraseña</label>
-                    <input type="password" name="password" placeholder="Solo si quieres cambiarla" />
-                  </div>
-                  <div class="field is-checkbox">
-                    <label><input type="checkbox" name="is_active" {% if item.is_active %}checked{% endif %} /> Usuario activo</label>
-                  </div>
-                </div>
-                <div class="actions-row">
-                  <button class="link-btn" type="submit">Guardar usuario</button>
-                </div>
-              </form>
-
               <div class="actions-row">
                 <form method="post">
                   {% csrf_token %}
                   <input type="hidden" name="form_action" value="platform_user_toggle_active" />
                   <input type="hidden" name="user_id" value="{{ item.id }}" />
-                  <button class="link-btn" type="submit">{% if item.is_active %}Desactivar usuario{% else %}Activar usuario{% endif %}</button>
+                  <button class="link-btn" type="submit">{% if item.is_active %}Desactivar{% else %}Activar{% endif %}</button>
                 </form>
                 <form method="post" onsubmit="return confirm('Se eliminará este usuario del sistema.');">
                   {% csrf_token %}
                   <input type="hidden" name="form_action" value="platform_user_delete" />
                   <input type="hidden" name="user_id" value="{{ item.id }}" />
-                  <button class="danger-btn" type="submit">Eliminar usuario</button>
+                  <button class="danger-btn" type="submit">Eliminar</button>
                 </form>
               </div>
             </article>
             {% empty %}
-            <div class="user-row">
-              <div>Sin usuarios globales todavía.</div>
-            </div>
+            <article class="user-card">
+              <strong>No hay usuarios</strong>
+              <div class="user-card-sub">Prueba a borrar el filtro o crea el usuario desde “Crear usuario”.</div>
+            </article>
             {% endfor %}
           </div>
-          <div class="section-shell stack-section" style="margin-top:1rem;">
-            <div class="section-head">
-              <div>
-                <div class="section-kicker">Vínculos activos</div>
-                <h2>Usuarios vinculados</h2>
-                <p>Relación rápida de usuarios asignados a clientes club para revisar responsables y reparto de roles.</p>
-              </div>
-              <div class="count-pill">{{ linked_club_user_count }}</div>
+
+          <div class="actions-row" style="margin-top:1rem; justify-content:space-between;">
+            <div>
+              {% if platform_users_page|add:'-1' > 0 %}
+              <a class="link-btn" href="{% url 'platform-overview' %}?tab=users&subtab=list{% if platform_users_query %}&q={{ platform_users_query|urlencode }}{% endif %}&page={{ platform_users_page|add:'-1' }}">← Anterior</a>
+              {% endif %}
             </div>
-            <div class="simple-list">
-              {% for membership in workspace_users %}
-              <div class="user-row">
-                <div>
-                  <strong>{{ membership.user.username }}</strong>
-                  <div style="color:#9aa8bf;">{{ membership.workspace.name }}</div>
-                </div>
-                <div>{{ membership.get_role_display }}</div>
-              </div>
-              {% empty %}
-              <div class="user-row">
-                <div>Sin usuarios vinculados a workspaces todavía.</div>
-              </div>
-              {% endfor %}
+            <div>
+              {% if platform_users_has_next %}
+              <a class="link-btn" href="{% url 'platform-overview' %}?tab=users&subtab=list{% if platform_users_query %}&q={{ platform_users_query|urlencode }}{% endif %}&page={{ platform_users_page|add:'1' }}">Siguiente →</a>
+              {% endif %}
             </div>
           </div>
           {% endif %}
@@ -1407,9 +1416,9 @@
               </div>
             </div>
 
-            <div class="fieldset">
-              <h3>Contexto competitivo</h3>
-              <p>Vincula el cliente a su competición para que la home pueda pintar clasificación y próximo rival en su propio espacio.</p>
+            <details class="fieldset" style="margin-top:1rem;">
+              <summary style="cursor:pointer; font-weight:800;">Contexto competitivo (opcional)</summary>
+              <p style="margin-top:0.75rem;">Vincula el cliente a su competición para que la home pueda pintar clasificación y próximo rival en su propio espacio.</p>
               <div class="inline-grid">
                 <div class="field">
                   <label for="competition_provider">Proveedor</label>
@@ -1421,15 +1430,15 @@
                 </div>
                 <div class="field">
                   <label for="external_competition_key">Clave competición externa</label>
-                  <input id="external_competition_key" name="external_competition_key" type="text" value="{{ workspace_form.external_competition_key }}" placeholder="Ej. rfaf:1-andaluza-malaga-g2" />
+                  <input id="external_competition_key" name="external_competition_key" type="text" value="{{ workspace_form.external_competition_key }}" placeholder="Ej. universo_rfaf:competition=45030612" />
                 </div>
                 <div class="field">
                   <label for="external_group_key">Clave grupo externa</label>
-                  <input id="external_group_key" name="external_group_key" type="text" value="{{ workspace_form.external_group_key }}" placeholder="Ej. grupo-2" />
+                  <input id="external_group_key" name="external_group_key" type="text" value="{{ workspace_form.external_group_key }}" placeholder="Ej. group=45030656" />
                 </div>
                 <div class="field">
                   <label for="external_team_key">Clave equipo externa</label>
-                  <input id="external_team_key" name="external_team_key" type="text" value="{{ workspace_form.external_team_key }}" placeholder="Ej. benagalbon" />
+                  <input id="external_team_key" name="external_team_key" type="text" value="{{ workspace_form.external_team_key }}" placeholder="Ej. team=500315" />
                 </div>
                 <div class="field">
                   <label for="external_team_name">Nombre oficial externo</label>
@@ -1439,71 +1448,88 @@
                   <label><input type="checkbox" name="competition_auto_sync" {% if workspace_form.competition_auto_sync %}checked{% endif %} /> Sincronizar automáticamente al crear el cliente</label>
                 </div>
               </div>
-            </div>
+            </details>
 
-            <div class="fieldset">
-              <h3>Módulos</h3>
-              <p>Plataforma gobierna qué entra en cada cliente. Activa aquí lo que deba quedar operativo desde el primer minuto.</p>
-              <div class="kind-modules" data-kind="club">
-                <div class="checkbox-grid">
-                  {% for module in workspace_module_catalog_club %}
-                  <label class="checkbox-card">
-                    <input type="checkbox" name="module_{{ module.key }}" data-module-toggle {% if module.key in workspace_form.module_keys %}checked{% endif %} />
-                    <span class="checkbox-content">
-                      <strong>{{ module.label }}</strong>
-                      <small>{{ module.description }}</small>
-                      <span class="module-meta-line">
-                        <span class="mini-pill">{{ module.deliverable_count }} entregables</span>
-                      </span>
-                      {% if module.deliverables %}
-                      <span class="deliverable-list">
-                        {% for deliverable in module.deliverables %}
-                        <span class="deliverable-item">
-                          <input type="checkbox" name="deliverable_{{ module.key }}__{{ deliverable.key }}" data-deliverable-toggle {% if deliverable.flag_key in workspace_form.deliverable_keys %}checked{% endif %} />
-                          <span>
-                            <strong>{{ deliverable.label }}</strong>
-                            <small>{{ deliverable.description }}</small>
-                          </span>
-                        </span>
-                        {% endfor %}
-                      </span>
-                      {% endif %}
-                    </span>
-                  </label>
-                  {% endfor %}
+            <details class="fieldset" style="margin-top:1rem;" open>
+              <summary style="cursor:pointer; font-weight:800;">Módulos y entregables</summary>
+              <p style="margin-top:0.75rem;">Elige una configuración rápida o personaliza módulo por módulo.</p>
+              <div class="inline-grid">
+                <div class="field">
+                  <label for="module_preset">Preset</label>
+                  <select id="module_preset" name="module_preset">
+                    <option value="basic" {% if workspace_form.module_preset == 'basic' %}selected{% endif %}>Básico (recomendado)</option>
+                    <option value="complete" {% if workspace_form.module_preset == 'complete' or not workspace_form.module_preset %}selected{% endif %}>Completo</option>
+                    <option value="custom" {% if workspace_form.module_preset == 'custom' %}selected{% endif %}>Personalizado</option>
+                  </select>
+                </div>
+                <div class="field" style="display:flex; align-items:flex-end;">
+                  <div style="color:#9aa8bf; font-weight:700;">
+                    En Básico/Completo no hace falta tocar los checks.
+                  </div>
                 </div>
               </div>
-
-              <div class="kind-modules" data-kind="task_studio">
-                <div class="checkbox-grid">
-                  {% for module in workspace_module_catalog_task_studio %}
-                  <label class="checkbox-card">
-                    <input type="checkbox" name="module_{{ module.key }}" data-module-toggle {% if module.key in workspace_form.module_keys %}checked{% endif %} />
-                    <span class="checkbox-content">
-                      <strong>{{ module.label }}</strong>
-                      <small>{{ module.description }}</small>
-                      <span class="module-meta-line">
-                        <span class="mini-pill">{{ module.deliverable_count }} entregables</span>
-                      </span>
-                      {% if module.deliverables %}
-                      <span class="deliverable-list">
-                        {% for deliverable in module.deliverables %}
-                        <span class="deliverable-item">
-                          <input type="checkbox" name="deliverable_{{ module.key }}__{{ deliverable.key }}" data-deliverable-toggle {% if deliverable.flag_key in workspace_form.deliverable_keys %}checked{% endif %} />
-                          <span>
-                            <strong>{{ deliverable.label }}</strong>
-                            <small>{{ deliverable.description }}</small>
-                          </span>
+              <div data-modules-advanced style="margin-top:0.9rem;">
+                <div class="kind-modules" data-kind="club">
+                  <div class="checkbox-grid">
+                    {% for module in workspace_module_catalog_club %}
+                    <label class="checkbox-card">
+                      <input type="checkbox" name="module_{{ module.key }}" data-module-toggle {% if module.key in workspace_form.module_keys %}checked{% endif %} />
+                      <span class="checkbox-content">
+                        <strong>{{ module.label }}</strong>
+                        <small>{{ module.description }}</small>
+                        <span class="module-meta-line">
+                          <span class="mini-pill">{{ module.deliverable_count }} entregables</span>
                         </span>
-                        {% endfor %}
+                        {% if module.deliverables %}
+                        <span class="deliverable-list">
+                          {% for deliverable in module.deliverables %}
+                          <span class="deliverable-item">
+                            <input type="checkbox" name="deliverable_{{ module.key }}__{{ deliverable.key }}" data-deliverable-toggle {% if deliverable.flag_key in workspace_form.deliverable_keys %}checked{% endif %} />
+                            <span>
+                              <strong>{{ deliverable.label }}</strong>
+                              <small>{{ deliverable.description }}</small>
+                            </span>
+                          </span>
+                          {% endfor %}
+                        </span>
+                        {% endif %}
                       </span>
-                      {% endif %}
-                    </span>
-                  </label>
-                  {% endfor %}
+                    </label>
+                    {% endfor %}
+                  </div>
+                </div>
+
+                <div class="kind-modules" data-kind="task_studio">
+                  <div class="checkbox-grid">
+                    {% for module in workspace_module_catalog_task_studio %}
+                    <label class="checkbox-card">
+                      <input type="checkbox" name="module_{{ module.key }}" data-module-toggle {% if module.key in workspace_form.module_keys %}checked{% endif %} />
+                      <span class="checkbox-content">
+                        <strong>{{ module.label }}</strong>
+                        <small>{{ module.description }}</small>
+                        <span class="module-meta-line">
+                          <span class="mini-pill">{{ module.deliverable_count }} entregables</span>
+                        </span>
+                        {% if module.deliverables %}
+                        <span class="deliverable-list">
+                          {% for deliverable in module.deliverables %}
+                          <span class="deliverable-item">
+                            <input type="checkbox" name="deliverable_{{ module.key }}__{{ deliverable.key }}" data-deliverable-toggle {% if deliverable.flag_key in workspace_form.deliverable_keys %}checked{% endif %} />
+                            <span>
+                              <strong>{{ deliverable.label }}</strong>
+                              <small>{{ deliverable.description }}</small>
+                            </span>
+                          </span>
+                          {% endfor %}
+                        </span>
+                        {% endif %}
+                      </span>
+                    </label>
+                    {% endfor %}
+                  </div>
                 </div>
               </div>
-            </div>
+            </details>
             <button class="submit-btn" type="submit">Crear cliente</button>
           </form>
         </div>
@@ -1513,6 +1539,8 @@
     <script>
       (function () {
         const kindSelect = document.getElementById('workspace_kind');
+        const modulePreset = document.getElementById('module_preset');
+        const advancedBlock = document.querySelector('[data-modules-advanced]');
         const moduleBlocks = Array.from(document.querySelectorAll('.kind-modules'));
         if (!kindSelect || !moduleBlocks.length) return;
 
@@ -1554,13 +1582,36 @@
           });
         }
 
+        function syncPreset() {
+          if (!modulePreset) return;
+          const presetValue = (modulePreset.value || 'complete').toLowerCase();
+          const allowCustom = presetValue === 'custom';
+          if (advancedBlock) {
+            advancedBlock.style.opacity = allowCustom ? '1' : '0.55';
+          }
+          moduleBlocks.forEach((block) => {
+            const isActive = block.dataset.kind === (kindSelect.value || 'club');
+            block.querySelectorAll('input[type="checkbox"]').forEach((input) => {
+              if (input.name && input.name.startsWith('module_')) {
+                input.disabled = !isActive || !allowCustom;
+              }
+              if (input.name && input.name.startsWith('deliverable_')) {
+                input.disabled = !isActive || !allowCustom;
+              }
+            });
+          });
+          syncDeliverableState();
+        }
+
         kindSelect.addEventListener('change', syncModuleBlocks);
+        if (modulePreset) modulePreset.addEventListener('change', syncPreset);
         moduleBlocks.forEach((block) => {
           block.querySelectorAll('[data-module-toggle]').forEach((toggle) => {
             toggle.addEventListener('change', syncDeliverableState);
           });
         });
         syncModuleBlocks();
+        syncPreset();
       })();
     </script>
   </body>
