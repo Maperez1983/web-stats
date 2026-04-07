@@ -472,7 +472,7 @@
               </label>
               <label style="width:100%;">
                 <span>Universo RFAF (URL)</span>
-                <input type="text" name="universo_url" placeholder="Pega la URL (results/team) para autocompletar el ID de grupo" />
+                <input type="text" name="universo_url" placeholder="Pega la URL (results/team) para autocompletar el ID de grupo" value="{% if link.competition_context %}{{ link.competition_context.external_source_url|default:'' }}{% endif %}" />
               </label>
               <label style="width:100%;">
                 <span>Portada (imagen)</span>

@@ -218,6 +218,7 @@ class WorkspaceCompetitionContext(models.Model):
     external_group_key = models.CharField(max_length=140, blank=True)
     external_team_key = models.CharField(max_length=140, blank=True)
     external_team_name = models.CharField(max_length=160, blank=True)
+    external_source_url = models.URLField(blank=True, help_text='URL pública (Universo/Preferente/etc.) para revalidar el contexto.')
     is_auto_sync_enabled = models.BooleanField(default=True)
     last_sync_at = models.DateTimeField(null=True, blank=True)
     sync_status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=STATUS_PENDING)

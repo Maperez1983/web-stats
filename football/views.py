@@ -1035,6 +1035,44 @@ def home_carousel_image_file(request, image_id):
 
 
 @login_required
+def team_cover_image_file(request, team_id):
+    team = Team.objects.filter(id=team_id).first()
+    if not team or not getattr(team, 'cover_image', None):
+        raise Http404('Imagen no disponible')
+
+    workspace = _get_active_workspace(request)
+    if workspace and workspace.kind == Workspace.KIND_CLUB:
+        if not WorkspaceTeam.objects.filter(workspace=workspace, team=team).exists():
+            return HttpResponse('No tienes permisos para acceder a esta portada.', status=403)
+        if not _can_manage_workspace(request.user, workspace):
+            active_team = _get_active_team_for_request(request)
+            if not active_team or int(active_team.id) != int(team.id):
+                return HttpResponse('No tienes permisos para acceder a esta portada.', status=403)
+    else:
+        # Modo sin workspace: sólo admin o equipo primario.
+        if not _is_admin_user(request.user) and not getattr(team, 'is_primary', False):
+            return HttpResponse('No tienes permisos para acceder a esta portada.', status=403)
+
+    file_field = team.cover_image
+    try:
+        file_field.open('rb')
+    except Exception:
+        return HttpResponse('No se pudo abrir la imagen.', status=500)
+    extension = Path(file_field.name).suffix.lower()
+    content_type = {
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.webp': 'image/webp',
+        '.gif': 'image/gif',
+    }.get(extension, 'application/octet-stream')
+    response = FileResponse(file_field, content_type=content_type)
+    response['Content-Disposition'] = f'inline; filename="{Path(file_field.name).name}"'
+    response['Cache-Control'] = 'private, max-age=3600'
+    return response
+
+
+@login_required
 def pdf_graphic_asset_file(request, asset_id):
     asset = PdfGraphicAsset.objects.select_related('team', 'owner').filter(id=asset_id).first()
     if not asset or not getattr(asset, 'file', None):
@@ -1896,6 +1934,7 @@ def _bootstrap_workspace_competition_context(
     external_group_key=None,
     external_team_key=None,
     external_team_name=None,
+    external_source_url=None,
     auto_sync_enabled=None,
 ):
     if not workspace or workspace.kind != Workspace.KIND_CLUB:
@@ -1916,6 +1955,7 @@ def _bootstrap_workspace_competition_context(
             'external_group_key': external_group_key or '',
             'external_team_key': external_team_key or '',
             'external_team_name': external_team_name or str(getattr(primary_team, 'name', '') or '').strip(),
+            'external_source_url': external_source_url or '',
             'is_auto_sync_enabled': True if auto_sync_enabled is None else bool(auto_sync_enabled),
         },
     )
@@ -1938,6 +1978,9 @@ def _bootstrap_workspace_competition_context(
         changed = True
     if external_team_key is not None and context.external_team_key != (external_team_key or ''):
         context.external_team_key = external_team_key or ''
+        changed = True
+    if external_source_url is not None and getattr(context, 'external_source_url', '') != (external_source_url or ''):
+        context.external_source_url = external_source_url or ''
         changed = True
     desired_external_team_name = context.external_team_name
     if external_team_name is not None:
@@ -2436,14 +2479,19 @@ def _sync_workspace_competition_context(workspace, primary_team=None):
             try:
                 live_classification = _fetch_universo_live_classification(group_key)
                 if isinstance(live_classification, dict) and live_classification.get('clasificacion'):
-                    # Asegurar que Competition/Season/Group en BD reflejan la competición real del grupo.
-                    _ensure_universo_group_models_from_live(
-                        group_key=group_key,
-                        live_payload=live_classification,
-                        primary_team=primary_team,
-                        context=context,
-                    )
-                    standings_payload = _serialize_universo_live_classification(live_classification)
+                    # Guardrail: si la categoría no coincide, no aceptamos la clasificación (evita mezclar Senior/Prebenjamín).
+                    team_category = str(getattr(primary_team, 'category', '') or '').strip()
+                    if team_category and not _universo_payload_matches_category(live_classification, team_category):
+                        live_classification = {}
+                    else:
+                        # Asegurar que Competition/Season/Group en BD reflejan la competición real del grupo.
+                        _ensure_universo_group_models_from_live(
+                            group_key=group_key,
+                            live_payload=live_classification,
+                            primary_team=primary_team,
+                            context=context,
+                        )
+                        standings_payload = _serialize_universo_live_classification(live_classification)
             except Exception:
                 standings_payload = []
     if not standings_payload:
@@ -5815,19 +5863,11 @@ def dashboard_page(request):
     primary_team = _get_primary_team_for_request(request)
     if primary_team and getattr(primary_team, 'cover_image', None):
         try:
-            cover_url = str(primary_team.cover_image.url or '').strip()
-            version = ''
-            try:
-                updated_at = getattr(primary_team, 'cover_updated_at', None)
-                if updated_at:
-                    version = str(int(updated_at.timestamp()))
-            except Exception:
-                version = ''
-            if version and cover_url:
-                joiner = '&' if '?' in cover_url else '?'
-                cover_url = f'{cover_url}{joiner}v={version}'
-            if cover_url:
-                hero_image_candidates = [cover_url] + list(hero_image_candidates or [])
+            # Servimos la portada a través de la app para evitar 403 de S3 cuando el bucket no es público.
+            updated_at = getattr(primary_team, 'cover_updated_at', None)
+            version = str(int(updated_at.timestamp())) if updated_at else str(int(timezone.now().timestamp()))
+            cover_url = f'{reverse("team-cover-image-file", args=[primary_team.id])}?v={version}'
+            hero_image_candidates = [cover_url] + list(hero_image_candidates or [])
         except Exception:
             pass
     if primary_team and current_role not in {AppUserRole.ROLE_TASK_STUDIO, AppUserRole.ROLE_GUEST}:
@@ -7744,6 +7784,7 @@ def admin_page(request):
                                     external_competition_key=universo_competition_key or None,
                                     external_group_key=universo_group_id,
                                     external_team_name=str(getattr(team_obj, 'name', '') or '').strip(),
+                                    external_source_url=universo_url or None,
                                     auto_sync_enabled=True,
                                 )
                                 if contexto:
@@ -7752,6 +7793,19 @@ def admin_page(request):
                                     contexto.sync_status = WorkspaceCompetitionContext.STATUS_PENDING
                                     contexto.sync_error = ''
                                     contexto.save(update_fields=['sync_status', 'sync_error', 'updated_at'])
+                            except Exception:
+                                pass
+                        elif universo_url:
+                            # Aunque no tengamos ID de grupo, persistimos la URL para que quede guardada en Admin.
+                            try:
+                                contexto = _bootstrap_workspace_competition_context(
+                                    workspace,
+                                    primary_team=team_obj,
+                                    external_source_url=universo_url,
+                                )
+                                if contexto:
+                                    contexto.external_source_url = universo_url
+                                    contexto.save(update_fields=['external_source_url', 'updated_at'])
                             except Exception:
                                 pass
                         # Invalidar cachés del equipo por si cambia su contexto o se corrige la clasificación.
@@ -7909,7 +7963,17 @@ def admin_page(request):
                                     external_competition_key=universo_competition_key or None,
                                     external_group_key=universo_group_id,
                                     external_team_name=str(getattr(team_obj, 'name', '') or '').strip(),
+                                    external_source_url=universo_url or None,
                                     auto_sync_enabled=True,
+                                )
+                            except Exception:
+                                pass
+                        elif universo_url:
+                            try:
+                                _bootstrap_workspace_competition_context(
+                                    workspace,
+                                    primary_team=team_obj,
+                                    external_source_url=universo_url,
                                 )
                             except Exception:
                                 pass
