@@ -2609,6 +2609,90 @@ class AdminPlatformRedirectTests(TestCase):
         self.assertRedirects(response, f"{reverse('platform-overview')}#home-global")
 
 
+class AdminTeamsUniversoAutodetectTests(TestCase):
+    def setUp(self):
+        user_model = get_user_model()
+        self.admin_user = user_model.objects.create_user(
+            username='admin-teams',
+            email='admin-teams@example.com',
+            password='pass-1234',
+            is_staff=True,
+        )
+        AppUserRole.objects.create(user=self.admin_user, role=AppUserRole.ROLE_ADMIN)
+        competition = Competition.objects.create(name='Liga Base', slug='liga-base', region='Andalucia')
+        season = Season.objects.create(competition=competition, name='2025/2026', is_current=True)
+        group = Group.objects.create(season=season, name='Grupo Base', slug='grupo-base', external_id='45030656')
+        self.team = Team.objects.create(name='BENAGALBON C.D.', slug='benagalbon-base', group=group, is_primary=True)
+        self.workspace = Workspace.objects.create(
+            name='Benagalbón',
+            slug='benagalbon-ws',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.team,
+            owner_user=self.admin_user,
+            enabled_modules={'dashboard': True},
+            is_active=True,
+        )
+        WorkspaceMembership.objects.get_or_create(
+            workspace=self.workspace,
+            user=self.admin_user,
+            defaults={'role': WorkspaceMembership.ROLE_OWNER},
+        )
+
+    @patch('football.views._fetch_universo_live_groups')
+    @patch('football.views._fetch_universo_live_classification')
+    def test_team_create_uses_universo_url_to_autodetect_group_by_category(self, mock_classification, mock_groups):
+        # URL de resultados: simula que el querystring group apunta a una liga equivocada,
+        # pero el competition_id contiene los grupos correctos para la categoría.
+        universo_url = 'https://www.universorfaf.es/competitions/results/48199732?group=48199749&season=21&delegation=8'
+
+        def classification_side_effect(group_id):
+            group_id = str(group_id or '').strip()
+            if group_id == '48199749':
+                return {
+                    'competicion': 'COPA FED 3 ANDALUZA',
+                    'grupo': 'Grupo 2',
+                    'codigo_competicion': '45030612',
+                    'clasificacion': [{'nombre': 'BENAGALBON C.D.'}],
+                }
+            if group_id == '47051884':
+                return {
+                    'competicion': '3ª Andaluza Prebenjamín (Málaga)',
+                    'grupo': 'Grupo 1',
+                    'codigo_competicion': '44788590',
+                    'clasificacion': [{'nombre': 'BENAGALBON C.D.'}],
+                }
+            return {}
+
+        mock_groups.return_value = [{'codigo': '47051884', 'nombre': 'Grupo 1'}]
+        mock_classification.side_effect = classification_side_effect
+
+        self.client.force_login(self.admin_user)
+        response = self.client.post(
+            reverse('admin-page'),
+            {
+                'form_action': 'team_create',
+                'active_tab': 'teams',
+                'category': 'Prebenjamín',
+                'game_format': 'f7',
+                'team_name': 'BENAGALBON C.D.',
+                'universo_url': universo_url,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Categoría creada')
+        created = Team.objects.filter(is_primary=False, category__iexact='Prebenjamín').order_by('-id').first()
+        self.assertIsNotNone(created)
+        self.assertIsNotNone(created.group)
+        # Debe haber detectado el grupo "47051884" (el que corresponde a Prebenjamín)
+        self.assertEqual(created.group.external_id, '47051884')
+        self.assertIn('prebenjam', (created.group.season.competition.name or '').lower())
+        ctx = WorkspaceCompetitionContext.objects.filter(workspace=self.workspace, team=created).first()
+        self.assertIsNotNone(ctx)
+        self.assertEqual(ctx.provider, WorkspaceCompetitionContext.PROVIDER_UNIVERSO)
+        self.assertEqual(ctx.external_group_key, '47051884')
+
+
 class TeamDisplayNameTests(TestCase):
     def test_display_name_prefers_short_name(self):
         competition = Competition.objects.create(name='Liga Display', slug='liga-display', region='Andalucia')

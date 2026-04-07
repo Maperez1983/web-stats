@@ -4362,6 +4362,160 @@ def _fetch_universo_live_results(group_id, round_id=''):
     return payload if isinstance(payload, dict) else {}
 
 
+def _universo_category_hints(category: str) -> list[str]:
+    """
+    Devuelve tokens (normalizados) para validar que una competición/grupo corresponde
+    a una categoría del club (Prebenjamín, Cadete, Senior, etc).
+    """
+    raw = normalize_label(category or '')
+    if not raw:
+        return []
+    mapping = [
+        ('prebenjamin', 'prebenjam'),
+        ('pre-benjamin', 'prebenjam'),
+        ('benjamin', 'benjam'),
+        ('alevin', 'alevin'),
+        ('infantil', 'infantil'),
+        ('cadete', 'cadete'),
+        ('juvenil', 'juvenil'),
+        ('senior', 'senior'),
+        ('sénior', 'senior'),
+    ]
+    hints = []
+    for needle, token in mapping:
+        if needle in raw and token not in hints:
+            hints.append(token)
+    # Fallback: primer término útil
+    if not hints:
+        first = raw.split(' ', 1)[0].strip()
+        if first and len(first) >= 4:
+            hints.append(first)
+    return hints
+
+
+def _universo_payload_matches_category(live_payload: dict, category: str) -> bool:
+    hints = _universo_category_hints(category)
+    if not hints:
+        return True
+    if not isinstance(live_payload, dict):
+        return False
+    comp = normalize_label(live_payload.get('competicion') or '')
+    group = normalize_label(live_payload.get('grupo') or '')
+    combined = f'{comp} {group}'.strip()
+    return any(hint in combined for hint in hints)
+
+
+def _universo_extract_ids_from_url(universo_url: str) -> dict:
+    """
+    Extrae IDs típicos de URLs de Universo RFAF:
+    - /team/<id>?competition=<id>&group=<id>&season=<id>
+    - /competitions/results/<competition_id>?group=<id>&season=<id>&delegation=<id>
+    """
+    parsed = {'group_id': '', 'competition_id': '', 'season_id': '', 'delegation_id': ''}
+    raw = str(universo_url or '').strip()
+    if not raw:
+        return parsed
+    try:
+        url = urlparse(raw)
+        qs = parse_qs(url.query or '')
+        parsed['group_id'] = str((qs.get('group') or [''])[0] or '').strip()
+        parsed['competition_id'] = str((qs.get('competition') or [''])[0] or '').strip()
+        parsed['season_id'] = str((qs.get('season') or [''])[0] or '').strip()
+        parsed['delegation_id'] = str((qs.get('delegation') or [''])[0] or '').strip()
+        # Resultados: a veces el ID relevante va en el path.
+        match = re.search(r'/competitions/results/(\d+)', url.path or '')
+        if match and not parsed['competition_id']:
+            parsed['competition_id'] = str(match.group(1) or '').strip()
+    except Exception:
+        return parsed
+    return parsed
+
+
+def _universo_find_group_for_team_from_url(*, universo_url: str, category: str, team_name: str, max_calls: int = 60) -> dict:
+    """
+    Intenta encontrar el ID de grupo correcto a partir de una URL de Universo, usando:
+    - `competition_id` del path/query -> listar grupos y validar por `get-classification`
+    - Si falla, usa `season_id` + `delegation_id` para buscar competiciones de la categoría
+    """
+    result: dict = {'group_id': '', 'competition_code': '', 'competition_name': '', 'group_name': '', 'live': {}}
+    hints = _universo_extract_ids_from_url(universo_url)
+    competition_id = str(hints.get('competition_id') or '').strip()
+    season_id = str(hints.get('season_id') or '').strip()
+    delegation_id = str(hints.get('delegation_id') or '').strip()
+
+    remaining = max(10, int(max_calls or 60))
+
+    def _accept_live(live: dict) -> bool:
+        if not isinstance(live, dict) or not live.get('clasificacion'):
+            return False
+        return _universo_payload_matches_category(live, category)
+
+    def _build(live: dict, group_id: str) -> dict:
+        comp_name = str(live.get('competicion') or '').strip()
+        group_name = str(live.get('grupo') or '').strip()
+        comp_code = str(live.get('codigo_competicion') or '').strip()
+        return {
+            'group_id': str(group_id or '').strip(),
+            'competition_code': comp_code,
+            'competition_name': comp_name,
+            'group_name': group_name,
+            'live': live,
+        }
+
+    # 1) Si tenemos `competition_id`, intentamos descubrir el group correcto desde ahí.
+    if competition_id:
+        groups = _fetch_universo_live_groups(competition_id)
+        for row in groups or []:
+            if remaining <= 0:
+                break
+            group_id = str(row.get('codigo') or row.get('code') or '').strip()
+            if not group_id:
+                continue
+            remaining -= 1
+            live = _fetch_universo_live_classification(group_id)
+            if _accept_live(live):
+                return _build(live, group_id)
+
+    # 2) Fallback: delegación+temporada -> competiciones -> grupos -> clasificación
+    if not (delegation_id and season_id):
+        return result
+
+    hints_tokens = _universo_category_hints(category)
+    normalized_team = normalize_label(team_name or '')
+    competitions = _fetch_universo_live_competitions(delegation_id, season_id)
+    for comp in competitions or []:
+        if remaining <= 0:
+            break
+        comp_code = str(comp.get('codigo') or comp.get('code') or '').strip()
+        comp_name = str(comp.get('nombre') or comp.get('name') or '').strip()
+        comp_cat = str(comp.get('NombreCategoria') or comp.get('category_name') or '').strip()
+        combined = normalize_label(f'{comp_name} {comp_cat}')
+        if hints_tokens and not any(token in combined for token in hints_tokens):
+            continue
+        groups = _fetch_universo_live_groups(comp_code)
+        for group in groups or []:
+            if remaining <= 0:
+                break
+            group_id = str(group.get('codigo') or group.get('code') or '').strip()
+            if not group_id:
+                continue
+            remaining -= 1
+            live = _fetch_universo_live_classification(group_id)
+            if not isinstance(live, dict) or not live.get('clasificacion'):
+                continue
+            # Preferimos match por categoría; si no hay hints, al menos buscamos el club.
+            if hints_tokens and not _universo_payload_matches_category(live, category):
+                continue
+            if normalized_team:
+                team_names = [normalize_label(row.get('nombre') or '') for row in (live.get('clasificacion') or []) if isinstance(row, dict)]
+                if not any(normalized_team and normalized_team in t for t in team_names if t):
+                    # No coincide el club en la clasificación.
+                    continue
+            return _build(live, group_id)
+
+    return result
+
+
 def _parse_capture_form_payload(raw_payload):
     parsed = {}
     raw_text = str(raw_payload or '')
@@ -7285,14 +7439,36 @@ def admin_page(request):
                         season_name = str(request.POST.get('season_name') or '').strip()[:80]
                         group_name = str(request.POST.get('group_name') or '').strip()[:80]
                         universo_url = str(request.POST.get('universo_url') or '').strip()
-                        if universo_url and not group_external_id:
-                            try:
-                                parsed = urlparse(universo_url)
-                                qs = parse_qs(parsed.query or '')
-                                group_external_id = str((qs.get('group') or [''])[0] or '').strip()[:80]
-                            except Exception:
-                                group_external_id = str(group_external_id or '').strip()[:80]
                         universo_competition_key = ''
+                        # Si se pega URL de Universo, intentamos resolver el grupo correcto (evita mezclar categorías).
+                        if universo_url:
+                            # 1) Fallback mínimo: querystring ?group=
+                            if not group_external_id:
+                                try:
+                                    parsed = urlparse(universo_url)
+                                    qs = parse_qs(parsed.query or '')
+                                    group_external_id = str((qs.get('group') or [''])[0] or '').strip()[:80]
+                                except Exception:
+                                    group_external_id = str(group_external_id or '').strip()[:80]
+                            # 2) Autodetección: usa competition/delegation/season de la URL para buscar un grupo
+                            # cuya clasificación corresponda a la categoría (prebenjamín, etc).
+                            try:
+                                resolved = _universo_find_group_for_team_from_url(
+                                    universo_url=universo_url,
+                                    category=category,
+                                    team_name=str(getattr(team_obj, 'name', '') or '').strip(),
+                                )
+                            except Exception:
+                                resolved = {}
+                            if isinstance(resolved, dict) and resolved.get('group_id'):
+                                group_external_id = str(resolved.get('group_id') or '').strip()[:80]
+                                resolved_competition = str(resolved.get('competition_name') or '').strip()
+                                resolved_group = str(resolved.get('group_name') or '').strip()
+                                universo_competition_key = str(resolved.get('competition_code') or '').strip()
+                                if resolved_competition:
+                                    competition_name = resolved_competition[:150]
+                                if resolved_group:
+                                    group_name = resolved_group[:80]
                         update_fields = []
                         uploaded_cover = None
                         try:
@@ -7335,6 +7511,20 @@ def admin_page(request):
                                     try:
                                         live = _fetch_universo_live_classification(group_external_id)
                                         if isinstance(live, dict):
+                                            # Si el grupo no corresponde a la categoría (p.ej. Prebenjamín),
+                                            # intentamos resolverlo desde la URL si está disponible.
+                                            if universo_url and not _universo_payload_matches_category(live, category):
+                                                try:
+                                                    resolved = _universo_find_group_for_team_from_url(
+                                                        universo_url=universo_url,
+                                                        category=category,
+                                                        team_name=str(getattr(team_obj, 'name', '') or '').strip(),
+                                                    )
+                                                except Exception:
+                                                    resolved = {}
+                                                if isinstance(resolved, dict) and resolved.get('group_id'):
+                                                    group_external_id = str(resolved.get('group_id') or '').strip()[:80]
+                                                    live = _fetch_universo_live_classification(group_external_id)
                                             resolved_competition = str(live.get('competicion') or '').strip()
                                             resolved_group = str(live.get('grupo') or '').strip()
                                             universo_competition_key = str(live.get('codigo_competicion') or '').strip()
@@ -7463,19 +7653,52 @@ def admin_page(request):
                         group_name = str(request.POST.get('group_name') or '').strip()[:80]
                         group_external_id = str(request.POST.get('group_external_id') or '').strip()[:80]
                         universo_url = str(request.POST.get('universo_url') or '').strip()
-                        if universo_url and not group_external_id:
-                            try:
-                                parsed = urlparse(universo_url)
-                                qs = parse_qs(parsed.query or '')
-                                group_external_id = str((qs.get('group') or [''])[0] or '').strip()[:80]
-                            except Exception:
-                                group_external_id = str(group_external_id or '').strip()[:80]
                         universo_competition_key = ''
+                        if universo_url:
+                            # 1) Fallback mínimo: querystring ?group=
+                            if not group_external_id:
+                                try:
+                                    parsed = urlparse(universo_url)
+                                    qs = parse_qs(parsed.query or '')
+                                    group_external_id = str((qs.get('group') or [''])[0] or '').strip()[:80]
+                                except Exception:
+                                    group_external_id = str(group_external_id or '').strip()[:80]
+                            # 2) Autodetección por categoría desde la URL (competition/delegation/season)
+                            try:
+                                resolved = _universo_find_group_for_team_from_url(
+                                    universo_url=universo_url,
+                                    category=category,
+                                    team_name=team_base_name,
+                                )
+                            except Exception:
+                                resolved = {}
+                            if isinstance(resolved, dict) and resolved.get('group_id'):
+                                group_external_id = str(resolved.get('group_id') or '').strip()[:80]
+                                resolved_competition = str(resolved.get('competition_name') or '').strip()
+                                resolved_group = str(resolved.get('group_name') or '').strip()
+                                universo_competition_key = str(resolved.get('competition_code') or '').strip()
+                                if resolved_competition:
+                                    competition_name = resolved_competition[:150]
+                                if resolved_group:
+                                    group_name = resolved_group[:80]
                         if group_external_id:
                             # Autocompletar nombres desde Universo si el token está disponible.
                             try:
                                 live = _fetch_universo_live_classification(group_external_id)
                                 if isinstance(live, dict):
+                                    # Si el grupo no corresponde a la categoría, intentamos resolverlo desde la URL.
+                                    if universo_url and not _universo_payload_matches_category(live, category):
+                                        try:
+                                            resolved = _universo_find_group_for_team_from_url(
+                                                universo_url=universo_url,
+                                                category=category,
+                                                team_name=team_base_name,
+                                            )
+                                        except Exception:
+                                            resolved = {}
+                                        if isinstance(resolved, dict) and resolved.get('group_id'):
+                                            group_external_id = str(resolved.get('group_id') or '').strip()[:80]
+                                            live = _fetch_universo_live_classification(group_external_id)
                                     universo_competition_key = str(live.get('codigo_competicion') or '').strip()
                                     resolved_competition = str(live.get('competicion') or '').strip()
                                     resolved_group = str(live.get('grupo') or '').strip()
