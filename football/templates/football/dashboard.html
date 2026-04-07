@@ -538,16 +538,38 @@
     <script>
       const heroElement = document.getElementById('team-hero');
       const managedHeroImages = JSON.parse(document.getElementById('hero-images-json')?.textContent || '[]');
-      const heroFallbackCandidates = [
-        '{% static "football/images/team-01.jpg" %}',
-        '{% static "football/campo-futbol.jpg" %}',
-      ];
-      let standingsExpanded = false;
+	      const heroFallbackCandidates = [
+	        '{% static "football/images/team-01.jpg" %}',
+	        '{% static "football/campo-futbol.jpg" %}',
+	      ];
+        const activeWorkspaceId = String('{{ active_workspace.id|default:"" }}').trim();
+        const activeTeamId = String('{{ active_team.id|default:"" }}').trim();
+	      let standingsExpanded = false;
 
-      function preloadImage(src) {
-        return new Promise((resolve) => {
-          const img = new Image();
-          img.onload = () => resolve(src);
+        function buildDashboardUrl({ fresh = false } = {}) {
+          const params = new URLSearchParams();
+          if (activeWorkspaceId) params.set('workspace', activeWorkspaceId);
+          if (activeTeamId) params.set('team', activeTeamId);
+          if (fresh) {
+            params.set('fresh', '1');
+            params.set('ts', String(Date.now()));
+          }
+          const qs = params.toString();
+          return `/api/dashboard/${qs ? `?${qs}` : ''}`;
+        }
+
+        function buildDashboardRefreshUrl() {
+          const params = new URLSearchParams();
+          if (activeWorkspaceId) params.set('workspace', activeWorkspaceId);
+          if (activeTeamId) params.set('team', activeTeamId);
+          const qs = params.toString();
+          return `/api/dashboard/refresh/${qs ? `?${qs}` : ''}`;
+        }
+
+	      function preloadImage(src) {
+	        return new Promise((resolve) => {
+	          const img = new Image();
+	          img.onload = () => resolve(src);
           img.onerror = () => resolve(null);
           img.src = src;
         });
@@ -571,11 +593,11 @@
         }
       }
 
-      async function renderDashboard() {
-        try {
-          const response = await fetch('/api/dashboard/');
-          if (!response.ok) throw new Error('No se pudo cargar la dashboard');
-          const payload = await response.json();
+	      async function renderDashboard() {
+	        try {
+	          const response = await fetch(buildDashboardUrl());
+	          if (!response.ok) throw new Error('No se pudo cargar la dashboard');
+	          const payload = await response.json();
 
           if (payload.team && payload.team.name) {
             const heroName = document.getElementById('hero-team-name');
@@ -681,9 +703,9 @@
         `;
       }
 
-      const refreshBtn = document.getElementById('standings-refresh');
-      if (refreshBtn) {
-        refreshBtn.addEventListener('click', async () => {
+	      const refreshBtn = document.getElementById('standings-refresh');
+	      if (refreshBtn) {
+	        refreshBtn.addEventListener('click', async () => {
           refreshBtn.disabled = true;
           refreshBtn.textContent = 'Actualizando…';
           try {
@@ -699,21 +721,21 @@
             const csrf =
               readCookie('webstats_csrftoken') ||
               readCookie('csrftoken');
-            const resp = await fetch('/api/dashboard/refresh/', {
-              method: 'POST',
-              credentials: 'same-origin',
-              headers: csrf ? { 'X-CSRFToken': csrf } : {},
-            });
+	            const resp = await fetch(buildDashboardRefreshUrl(), {
+	              method: 'POST',
+	              credentials: 'same-origin',
+	              headers: csrf ? { 'X-CSRFToken': csrf } : {},
+	            });
             const rawText = await resp.text();
             let data = {};
             try { data = JSON.parse(rawText || '{}'); } catch (error) { data = {}; }
             if (!resp.ok) throw new Error(data.message || rawText || `No se pudo actualizar (HTTP ${resp.status}).`);
-            // Evita caché en despliegues con múltiples instancias: fuerza recomputar.
-            try {
-              const response = await fetch(`/api/dashboard/?fresh=1&ts=${Date.now()}`, { credentials: 'same-origin' });
-              if (!response.ok) throw new Error('No se pudo recargar la dashboard');
-              const payload = await response.json();
-              renderStandings(payload.standings, payload.team);
+	            // Evita caché en despliegues con múltiples instancias: fuerza recomputar.
+	            try {
+	              const response = await fetch(buildDashboardUrl({ fresh: true }), { credentials: 'same-origin' });
+	              if (!response.ok) throw new Error('No se pudo recargar la dashboard');
+	              const payload = await response.json();
+	              renderStandings(payload.standings, payload.team);
               renderNextMatch(payload.next_match, payload.standings);
               const meta = payload.standings_meta || {};
               const metaEl = document.getElementById('standings-meta');

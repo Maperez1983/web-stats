@@ -1607,6 +1607,21 @@ def _get_active_workspace(request):
             return workspace
         request.session.pop('active_workspace_id', None)
     if _can_access_platform(request.user):
+        # En modo plataforma, si no hay contexto seleccionado devolvemos None.
+        # Excepción: si el sistema solo tiene 1 club activo, fijamos ese contexto para que
+        # Dashboard/API no caigan en el "equipo primario global" y no se mezclen categorías.
+        try:
+            club_ws = list(
+                Workspace.objects
+                .filter(kind=Workspace.KIND_CLUB, is_active=True)
+                .order_by('id')[:2]
+            )
+            if len(club_ws) == 1:
+                workspace = club_ws[0]
+                request.session['active_workspace_id'] = workspace.id
+                return workspace
+        except Exception:
+            pass
         return None
 
     # Modo monocliente: si el sistema sólo tiene un club activo, damos acceso de lectura a roles
