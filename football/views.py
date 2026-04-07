@@ -5575,6 +5575,22 @@ def _split_full_name(value):
         return parts[0], ''
     return parts[0], ' '.join(parts[1:])
 
+def _sanitize_username(value, *, max_len=150):
+    """
+    Sanitiza usernames sin aplicar "polish" lingüístico.
+
+    Importante: `_sanitize_task_text()` inserta espacios tras puntuación como ".", lo que rompe
+    usernames tipo `a.diaz`. Aquí eliminamos todos los espacios y normalizamos a lower.
+    """
+    raw = str(value or '').strip()
+    if not raw:
+        return ''
+    raw = re.sub(r'\s+', '', raw)
+    raw = raw.lower()
+    if max_len:
+        raw = raw[:int(max_len)]
+    return raw
+
 
 @login_required
 @login_required
@@ -5641,7 +5657,7 @@ def platform_overview_page(request):
             active_tab = 'workspace-create'
             workspace_name = _sanitize_task_text((request.POST.get('workspace_name') or '').strip(), multiline=False, max_len=160)
             workspace_kind = str(request.POST.get('workspace_kind') or Workspace.KIND_CLUB).strip()
-            owner_username = _sanitize_task_text((request.POST.get('owner_username') or '').strip(), multiline=False, max_len=150).lower()
+            owner_username = _sanitize_username(request.POST.get('owner_username'), max_len=150)
             team_id = _parse_int(request.POST.get('team_id'))
             team_new_name = _sanitize_task_text((request.POST.get('team_new_name') or '').strip(), multiline=False, max_len=150)
             workspace_notes = _sanitize_task_text((request.POST.get('workspace_notes') or '').strip(), multiline=True, max_len=1200)
@@ -6189,7 +6205,7 @@ def platform_workspace_detail_page(request, workspace_id):
             error = 'No tienes permisos para modificar este workspace.'
         elif form_action == 'update_workspace_identity':
             workspace_name = _sanitize_task_text((request.POST.get('workspace_name') or '').strip(), multiline=False, max_len=160)
-            owner_username = _sanitize_task_text((request.POST.get('owner_username') or '').strip(), multiline=False, max_len=150).lower()
+            owner_username = _sanitize_username(request.POST.get('owner_username'), max_len=150)
             workspace_notes = _sanitize_task_text((request.POST.get('workspace_notes') or '').strip(), multiline=True, max_len=1200)
             team_id = _parse_int(request.POST.get('team_id'))
             is_active = str(request.POST.get('workspace_is_active') or '').lower() in {'1', 'true', 'on', 'yes'}
@@ -6411,7 +6427,7 @@ def platform_workspace_detail_page(request, workspace_id):
                     else:
                         feedback = f'Cliente vinculado a {candidate_team.name} y sincronizado.'
         elif form_action == 'add_member':
-            username = _sanitize_task_text((request.POST.get('member_username') or '').strip(), multiline=False, max_len=150)
+            username = _sanitize_username(request.POST.get('member_username'), max_len=150)
             member_role = str(request.POST.get('member_role') or WorkspaceMembership.ROLE_MEMBER).strip()
             target_user = User.objects.filter(username__iexact=username).first() if username else None
             if not target_user:
@@ -6434,7 +6450,7 @@ def platform_workspace_detail_page(request, workspace_id):
                 )
         elif form_action == 'invite_member':
             # Invitación + alta opcional de usuario (para que pueda poner su contraseña).
-            username = _sanitize_task_text((request.POST.get('invite_username') or '').strip(), multiline=False, max_len=150)
+            username = _sanitize_username(request.POST.get('invite_username'), max_len=150)
             full_name = _sanitize_task_text((request.POST.get('invite_full_name') or '').strip(), multiline=False, max_len=150)
             email = re.sub(r'\s+', '', str(request.POST.get('invite_email') or '').strip()).lower()[:190]
             app_role = str(request.POST.get('invite_app_role') or AppUserRole.ROLE_GUEST).strip()
