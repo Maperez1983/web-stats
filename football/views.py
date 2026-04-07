@@ -4511,6 +4511,23 @@ def _fetch_universo_live_classification(group_id):
     except Exception:
         results = {}
     round_id = str((results or {}).get('jornada') or '').strip()
+    if not round_id:
+        # Fallback: en algunas respuestas `jornada` viene vacío pero se listan jornadas disponibles.
+        try:
+            for bucket in (results or {}).get('listado_jornadas') or []:
+                if not isinstance(bucket, dict):
+                    continue
+                for row in bucket.get('jornadas') or []:
+                    if not isinstance(row, dict):
+                        continue
+                    rid = str(row.get('codjornada') or row.get('codigo') or '').strip()
+                    if rid:
+                        round_id = rid
+                        break
+                if round_id:
+                    break
+        except Exception:
+            round_id = round_id
     if round_id:
         payload = _universo_api_post(
             'competition/get-classification',
