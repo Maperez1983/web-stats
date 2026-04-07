@@ -40,6 +40,7 @@ def workspace_access(request):
             _workspace_entry_url,
             _workspace_default_modules,
             _workspace_has_module_for_user,
+            _can_access_platform,
             _can_manage_workspace,
             _is_admin_user,
         )
@@ -74,6 +75,13 @@ def workspace_access(request):
     active_team = _get_active_team_for_request(request)
     badge = _build_active_workspace_badge(request)
     entry_url = _workspace_entry_url(workspace, user=request.user) if workspace else ''
+    try:
+        from django.urls import reverse  # noqa: WPS433 (lazy import)
+        club_dashboard_url = reverse('dashboard-home')
+        if _can_access_platform(request.user):
+            club_dashboard_url = f'{club_dashboard_url}?home=club'
+    except Exception:
+        club_dashboard_url = ''
     can_manage = False
     is_admin = False
     try:
@@ -120,6 +128,7 @@ def workspace_access(request):
     return {
         'active_workspace': badge,
         'workspace_entry_url': entry_url,
+        'club_dashboard_url': club_dashboard_url,
         'workspace_module_access': module_access,
         'active_team': active_team,
         'active_team_options': team_options,

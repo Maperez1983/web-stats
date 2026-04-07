@@ -9,7 +9,7 @@
 {% if not hide_product_shortcuts %}
 <nav class="product-nav-shortcuts" aria-label="Accesos rápidos">
   {% if workspace_module_access.dashboard|default:True %}
-  <a href="{% url 'dashboard-home' %}">Portada</a>
+  <a href="{% if club_dashboard_url %}{{ club_dashboard_url }}{% else %}{% url 'dashboard-home' %}{% endif %}">Portada</a>
   {% endif %}
   {% if workspace_module_access.players|default:True %}
   <a href="{% url 'player-dashboard' %}">Jugadores</a>

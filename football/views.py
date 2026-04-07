@@ -6850,7 +6850,16 @@ def platform_workspace_enter_page(request, workspace_id):
     if not _can_view_workspace(request.user, workspace):
         return HttpResponse('No tienes permisos para acceder a este workspace.', status=403)
     request.session['active_workspace_id'] = workspace.id
-    return redirect(_workspace_entry_url(workspace, user=request.user))
+    target_url = _workspace_entry_url(workspace, user=request.user)
+    # En `app.*`, usuarios con acceso a Platform redirigen por defecto a Platform desde `/`.
+    # Al entrar explícitamente en un cliente desde Platform, forzamos la home del club.
+    try:
+        dashboard_url = reverse('dashboard-home')
+        if _can_access_platform(request.user) and str(target_url).split('?', 1)[0] == dashboard_url:
+            target_url = f'{dashboard_url}?home=club'
+    except Exception:
+        pass
+    return redirect(target_url)
 
 
 @login_required

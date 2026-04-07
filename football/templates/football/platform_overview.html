@@ -818,7 +818,11 @@
             </div>
             <div class="hero-links">
               <a class="primary-link" href="{% url 'platform-overview' %}?tab=workspace-create">Crear cliente</a>
-              <a href="{% url 'dashboard-home' %}">Volver al dashboard</a>
+              {% if active_workspace and club_dashboard_url %}
+              <a href="{{ club_dashboard_url }}">Volver al club</a>
+              {% else %}
+              <a href="{% url 'platform-overview' %}">Volver a plataforma</a>
+              {% endif %}
               {% if active_workspace %}
               <a href="{% url 'platform-workspace-clear' %}">Salir del contexto</a>
               {% endif %}
