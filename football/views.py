@@ -5154,6 +5154,9 @@ def _resolve_standings_for_team(primary_team, snapshot=None, provider=None):
     snapshot = snapshot if snapshot is not None else load_universo_snapshot()
     provider_key = str(provider or '').strip().lower()
     if provider_key == WorkspaceCompetitionContext.PROVIDER_UNIVERSO:
+        # Evita mezclar categorías: para equipos NO primarios, no usamos el snapshot global como fallback.
+        if not bool(getattr(primary_team, 'is_primary', False)):
+            return serialize_standings(primary_team.group)
         if _universo_snapshot_supports_team(snapshot, primary_team):
             universo_rows = _serialize_universo_standings(snapshot)
             if universo_rows:
