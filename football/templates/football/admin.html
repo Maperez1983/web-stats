@@ -346,6 +346,15 @@
         <p style="margin:0.25rem 0 0;color:rgba(203,213,225,0.78);">
           Crea y configura categorías (F7/F11) dentro del mismo cliente. El escudo se hereda del equipo principal.
         </p>
+        {% if team_warnings %}
+          <div style="margin-top:0.85rem;display:grid;gap:0.45rem;">
+            {% for warn in team_warnings %}
+              <div style="border-radius:14px;padding:0.7rem 0.85rem;background:rgba(244,180,0,0.10);border:1px solid rgba(244,180,0,0.26);color:#ffecc4;font-weight:700;">
+                {{ warn }}
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
         {% if teams_message %}
         <p style="color:#86efac;">{{ teams_message }}</p>
         {% endif %}
@@ -406,6 +415,7 @@
             <div>
               <strong>{{ link.team.category|default:"(Sin categoría)" }} · {{ link.team.display_name|default:link.team.name }}</strong>
               <div style="opacity:.75;">
+                ID equipo: {{ link.team.id }}
                 {{ link.team.get_game_format_display|default:"" }}
                 {% if link.team.group %} · {{ link.team.group.season.competition.name }} · {{ link.team.group.season.name }} · {{ link.team.group.name }}{% endif %}
                 {% if link.team.group.external_id %} · ID grupo: {{ link.team.group.external_id }}{% endif %}

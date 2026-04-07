@@ -7656,6 +7656,7 @@ def admin_page(request):
     workspace_team_links = []
     workspace_members = []
     workspace_team_access_map = {}
+    team_warnings = []
     if active_tab == 'teams' and workspace and workspace.kind == Workspace.KIND_CLUB:
         workspace_team_links = _workspace_team_links(workspace)
         try:
@@ -7683,6 +7684,51 @@ def admin_page(request):
                 link.access_rows = workspace_team_access_map.get(team_id, [])
             except Exception:
                 link.access_rows = []
+        # Diagnóstico: detectar categorías que comparten el mismo grupo/competición
+        # (suele indicar que se ha clonado Senior y se ha dejado el grupo heredado).
+        try:
+            group_key_map = {}
+            team_id_map = {}
+            for link in workspace_team_links:
+                team = getattr(link, 'team', None)
+                if not team:
+                    continue
+                team_id_val = int(getattr(team, 'id', 0) or 0)
+                team_id_map.setdefault(team_id_val, []).append(link)
+                group = getattr(team, 'group', None)
+                group_key = ''
+                if group:
+                    group_key = str(getattr(group, 'external_id', '') or getattr(group, 'id', '') or '').strip()
+                if group_key:
+                    group_key_map.setdefault(group_key, []).append(link)
+            dup_group = {k: v for (k, v) in group_key_map.items() if len(v) > 1}
+            dup_team = {k: v for (k, v) in team_id_map.items() if len(v) > 1}
+            if dup_group:
+                for key, links in dup_group.items():
+                    labels = []
+                    for item in links:
+                        t = getattr(item, 'team', None)
+                        if not t:
+                            continue
+                        labels.append(f"{str(getattr(t, 'category', '') or '').strip() or 'Sin categoría'}")
+                    team_warnings.append(
+                        f"Hay categorías que comparten el mismo grupo ({key}): {', '.join(sorted(set(labels)))}. "
+                        "Cada categoría debe tener su propio grupo/competición para no mezclar home, clasificación y rival."
+                    )
+            if dup_team:
+                for team_id_val, links in dup_team.items():
+                    labels = []
+                    for item in links:
+                        t = getattr(item, 'team', None)
+                        if not t:
+                            continue
+                        labels.append(f"{str(getattr(t, 'category', '') or '').strip() or 'Sin categoría'}")
+                    team_warnings.append(
+                        f"Hay categorías que apuntan al mismo equipo (Team ID {team_id_val}): {', '.join(sorted(set(labels)))}. "
+                        "Eso provoca que se mezclen jugadores/fotos y la home."
+                    )
+        except Exception:
+            team_warnings = []
 
     if active_tab == 'roster':
         roster_players = (
@@ -7761,6 +7807,7 @@ def admin_page(request):
             'workspace_members': workspace_members,
             # (debug/plantilla) el acceso ya va anexado en cada link.access_rows
             'workspace_team_access_map': workspace_team_access_map,
+            'team_warnings': team_warnings,
             'admin_matches': admin_matches,
             'selected_admin_match': selected_admin_match,
             'admin_players': admin_players,
