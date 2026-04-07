@@ -2436,6 +2436,13 @@ def _sync_workspace_competition_context(workspace, primary_team=None):
             try:
                 live_classification = _fetch_universo_live_classification(group_key)
                 if isinstance(live_classification, dict) and live_classification.get('clasificacion'):
+                    # Asegurar que Competition/Season/Group en BD reflejan la competición real del grupo.
+                    _ensure_universo_group_models_from_live(
+                        group_key=group_key,
+                        live_payload=live_classification,
+                        primary_team=primary_team,
+                        context=context,
+                    )
                     standings_payload = _serialize_universo_live_classification(live_classification)
             except Exception:
                 standings_payload = []
@@ -22222,6 +22229,88 @@ def _unique_team_slug(base_name):
         slug = f'{base_slug}-{suffix}'
         suffix += 1
     return slug
+
+
+def _unique_group_slug_for_season(season_obj, base_value):
+    base_slug = slugify(str(base_value or '').strip())[:80] or 'grupo'
+    candidate = base_slug
+    suffix = 2
+    while Group.objects.filter(season=season_obj, slug=candidate).exists():
+        candidate = f'{base_slug}-{suffix}'
+        suffix += 1
+    return candidate
+
+
+def _ensure_universo_group_models_from_live(*, group_key, live_payload, primary_team, context):
+    """
+    Garantiza que el Team y su Contexto competitivo apunten a un Group/Season/Competition
+    coherentes con los datos devueltos por Universo.
+
+    Esto evita mezclar categorías cuando:
+    - El formulario venía precargado con la competición/grupo del Senior.
+    - Solo se introdujo el `ID de grupo` de Universo.
+    """
+    if not group_key or not isinstance(live_payload, dict) or not primary_team or not context:
+        return
+    competition_name = str(live_payload.get('competicion') or '').strip()
+    group_name = str(live_payload.get('grupo') or '').strip()
+    competition_code = str(live_payload.get('codigo_competicion') or '').strip()
+    if not competition_name:
+        return
+    # Temporada: intentamos mantener la del equipo si existe.
+    season_name = ''
+    try:
+        season_name = str(getattr(getattr(getattr(primary_team, 'group', None), 'season', None), 'name', '') or '').strip()
+    except Exception:
+        season_name = ''
+    season_name = (season_name or '2025/2026')[:80]
+
+    comp_slug_source = f'universo-{competition_code}-{competition_name}' if competition_code else competition_name
+    comp_slug = slugify(comp_slug_source)[:150] or slugify(competition_name)[:150] or 'universo'
+    competition_obj, _ = Competition.objects.get_or_create(
+        name=competition_name[:150],
+        region='',
+        defaults={'slug': comp_slug},
+    )
+    season_obj, _ = Season.objects.get_or_create(
+        competition=competition_obj,
+        name=season_name,
+        defaults={'is_current': True},
+    )
+    group_obj = Group.objects.filter(season=season_obj, external_id=str(group_key).strip()).first()
+    if not group_obj:
+        group_slug = _unique_group_slug_for_season(season_obj, group_name or f'grupo-{group_key}')
+        group_obj = Group.objects.create(
+            season=season_obj,
+            name=(group_name or f'Grupo {group_key}')[:80],
+            slug=group_slug,
+            external_id=str(group_key).strip()[:80],
+        )
+    else:
+        update_fields = []
+        if group_name and str(getattr(group_obj, 'name', '') or '').strip() != group_name:
+            group_obj.name = group_name[:80]
+            update_fields.append('name')
+        if update_fields:
+            group_obj.save(update_fields=update_fields)
+
+    # Re-vincular el equipo si estaba colgado de otro Group/Competition.
+    if getattr(primary_team, 'group_id', None) != getattr(group_obj, 'id', None):
+        primary_team.group = group_obj
+        primary_team.save(update_fields=['group'])
+
+    ctx_updates = []
+    if getattr(context, 'group_id', None) != getattr(group_obj, 'id', None):
+        context.group = group_obj
+        ctx_updates.append('group')
+    if getattr(context, 'season_id', None) != getattr(season_obj, 'id', None):
+        context.season = season_obj
+        ctx_updates.append('season')
+    if competition_code and str(getattr(context, 'external_competition_key', '') or '').strip() != competition_code:
+        context.external_competition_key = competition_code
+        ctx_updates.append('external_competition_key')
+    if ctx_updates:
+        context.save(update_fields=ctx_updates + ['updated_at'])
 
 
 def _ensure_platform_team(team_name, *, region=''):
