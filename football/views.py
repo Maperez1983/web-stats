@@ -13388,17 +13388,27 @@ def coach_abp_board_page(request):
     )
 
 
+@login_required
 def coach_roster_page(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
     forbidden = _forbid_if_workspace_module_disabled(request, 'players', label='plantilla técnica')
     if forbidden:
         return forbidden
+    workspace = _get_active_workspace(request)
+    if not workspace or getattr(workspace, 'kind', None) != Workspace.KIND_CLUB:
+        return HttpResponse('Selecciona un club (workspace) antes de editar la plantilla.', status=400)
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         raise Http404('Equipo principal no configurado')
 
+    can_edit = bool(_can_manage_workspace(request.user, workspace) or _can_access_platform(request.user) or _is_admin_user(request.user))
     message = ''
     error = ''
     if request.method == 'POST':
+        if not can_edit:
+            return HttpResponse('No tienes permisos para editar la plantilla.', status=403)
         action = (request.POST.get('action') or 'add').strip()
         player_id = _parse_int(request.POST.get('player_id'))
         name = (request.POST.get('name') or '').strip()

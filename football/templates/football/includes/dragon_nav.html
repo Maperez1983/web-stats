@@ -18,7 +18,11 @@
   <a href="{% if club_dashboard_url %}{{ club_dashboard_url }}{% else %}{% url 'dashboard-home' %}{% endif %}">Portada</a>
   {% endif %}
   {% if workspace_module_access.players|default:True %}
+  {% if can_manage_workspace or is_admin_user %}
+  <a href="{% url 'coach-roster' %}">Jugadores</a>
+  {% else %}
   <a href="{% url 'player-dashboard' %}">Jugadores</a>
+  {% endif %}
   {% endif %}
   {% if workspace_module_access.coach_overview|default:True %}
   <a href="{% url 'coach-cards' %}">Cuerpo técnico</a>

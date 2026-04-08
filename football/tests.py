@@ -91,6 +91,12 @@ class WriteEndpointAuthTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn('/login/', response['Location'])
 
+    def test_coach_roster_requires_login(self):
+        response = self.client.get(reverse('coach-roster'), secure=True)
+        # Puede devolver 301 -> https o 302 -> login según settings.
+        self.assertIn(response.status_code, {301, 302})
+        self.assertIn('/login/', response['Location'])
+
     def test_product_landing_is_public(self):
         response = self.client.get(reverse('product-landing'))
         self.assertEqual(response.status_code, 200)
