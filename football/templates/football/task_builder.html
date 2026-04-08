@@ -2194,27 +2194,25 @@
                       <span>Recursos</span>
                       <span class="current" id="task-resource-summary-label">Selecciona…</span>
                     </summary>
-		                    <div class="resource-tabs">
-		                      <button type="button" class="resource-tab" data-resource="base">Recursos base</button>
-		                      <button type="button" class="resource-tab" data-resource="trazos">Trazos y flechas</button>
-		                      <button type="button" class="resource-tab" data-resource="figuras">Figuras geométricas</button>
-		                      <button type="button" class="resource-tab" data-resource="emoji">Recursos emoji</button>
-		                      <button type="button" class="resource-tab" data-resource="pdf">Recursos (iconos)</button>
-		                    </div>
-	                  </details>
-	                  <div class="resource-select" aria-label="Selector rápido de recursos">
-	                    <label>
-	                      Panel
+			                    <div class="resource-tabs">
+			                      <button type="button" class="resource-tab" data-resource="base">Recursos base</button>
+			                      <button type="button" class="resource-tab" data-resource="trazos">Trazos y flechas</button>
+			                      <button type="button" class="resource-tab" data-resource="figuras">Figuras geométricas</button>
+			                      <button type="button" class="resource-tab" data-resource="emoji">Recursos emoji</button>
+			                    </div>
+		                  </details>
+		                  <div class="resource-select" aria-label="Selector rápido de recursos">
+		                    <label>
+		                      Panel
 		                      <select id="task-resource-select">
 		                        <option value="">—</option>
-		                        <option value="base">Recursos base</option>
-		                        <option value="trazos">Trazos y flechas</option>
-		                        <option value="figuras">Figuras geométricas</option>
-		                        <option value="emoji">Recursos emoji</option>
-		                        <option value="pdf">Recursos (iconos)</option>
-		                      </select>
-	                    </label>
-	                  </div>
+			                        <option value="base">Recursos base</option>
+			                        <option value="trazos">Trazos y flechas</option>
+			                        <option value="figuras">Figuras geométricas</option>
+			                        <option value="emoji">Recursos emoji</option>
+			                      </select>
+		                    </label>
+		                  </div>
 			                  <div class="command-bar" id="task-command-bar" aria-label="Comandos rápidos">
 	                    <button type="button" class="icon-btn" data-action="undo" title="Deshacer" aria-label="Deshacer">
 	                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7V4L2 9l5 5v-3h7a4 4 0 1 1 0 8H9v2h5a6 6 0 1 0 0-12H7Z"/></svg>
@@ -2574,39 +2572,9 @@
                 </div>
 	                  <div data-inspector-slot="emoji"></div>
 	                </div>
-	                <div class="resource-panel" data-panel="pdf" hidden>
-	                  <h3 class="tool-group-title" style="margin-top:0.85rem;">Recursos (iconos)</h3>
-	                  <p class="meta" style="margin-top:0;">Catálogo de iconos para reutilizar en cualquier tarea. Puedes añadir iconos (PNG/JPG/WebP) y quedarán guardados.</p>
-	                  <div class="resource-strip" style="flex-wrap:wrap; gap:0.5rem; align-items:center;">
-	                    <label class="button" style="display:inline-flex; align-items:center; gap:0.5rem; cursor:pointer;">
-	                      <span>+ Añadir iconos</span>
-	                      <input id="tpad-pdf-assets-upload" type="file" accept="image/*,.pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation" multiple style="display:none;" />
-	                    </label>
-	                  </div>
-	                  <div class="resource-strip pdf-assets-strip" id="task-pdf-assets-tools">
-	                    {% if pdf_assets %}
-	                      {% for item in pdf_assets %}
-	                        {% if item.file %}
-	                        <button
-	                          type="button"
-	                          class="pdf-asset-btn"
-	                          data-add="pdf_asset:{{ item.id }}"
-	                          aria-label="Recurso {{ item.id }}"
-	                          title="{{ item.title|default:item.source_pdf_name|default:'' }}"
-	                        >
-	                          <img src="{% url 'pdf-graphic-asset-file' item.id %}" alt="" loading="lazy" />
-	                        </button>
-	                        {% endif %}
-	                      {% endfor %}
-	                    {% else %}
-	                      <span class="meta" style="opacity:0.9;">Aún no hay iconos en el catálogo.</span>
-	                    {% endif %}
-	                  </div>
-	                  <div data-inspector-slot="pdf"></div>
-	                </div>
-	              </div>
+		              </div>
 
-              <div class="pitch-main">
+	              <div class="pitch-main">
 	              <div class="pitch-viewport" id="task-pitch-viewport">
 	                <div class="pitch-stage" id="task-pitch-stage">
 	                  <svg id="task-pitch-surface" viewBox="-2 -2 1054 684" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
@@ -3124,15 +3092,12 @@
     {{ tactical_player_catalog|json_script:"tpad-players-catalog" }}
     <script src="{% static 'vendor/fabric.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
     <script src="{% static 'football/js/sessions_tactical_pad.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
-		    <script>
-		      window.addEventListener('DOMContentLoaded', () => {
-		        window.TPAD_PDF_ASSETS = {{ pdf_assets_json|default:'[]'|safe }};
-		        window.TPAD_PDF_ASSET_UPLOAD_URL = "{% url 'pdf-graphic-asset-upload' %}";
-		        window.TPAD_SCOPE_KEY = "{{ scope_key|default:'coach' }}";
-		        // Selector de dispositivo (solo UI): auto/desktop/tablet.
-		        const deviceKey = 'webstats:tpad:device';
-		        const deviceButtons = Array.from(document.querySelectorAll('[data-device-mode]'));
-	        const normalizeDevice = (value) => {
+			    <script>
+			      window.addEventListener('DOMContentLoaded', () => {
+			        // Selector de dispositivo (solo UI): auto/desktop/tablet.
+			        const deviceKey = 'webstats:tpad:device';
+			        const deviceButtons = Array.from(document.querySelectorAll('[data-device-mode]'));
+		        const normalizeDevice = (value) => {
 	          const v = String(value || '').trim().toLowerCase();
 	          if (v === 'desktop' || v === 'tablet') return v;
 	          return 'auto';

@@ -1114,35 +1114,21 @@
     }
     if (!Array.isArray(players)) players = [];
 
-	    // Assets extraídos de PDFs (misma origin vía endpoint Django).
-	    let pdfAssets = [];
-	    try {
-	      const raw = window.TPAD_PDF_ASSETS;
-	      pdfAssets = Array.isArray(raw) ? raw : [];
-	    } catch (error) {
-	      pdfAssets = [];
-	    }
-	    const pdfAssetMeta = new Map();
+	    // Assets extraídos de PDFs importados. El catálogo de iconos se ha eliminado,
+	    // pero seguimos renderizando cualquier `pdf_asset:<id>` existente en tareas previas.
 	    const pdfAssetImages = new Map();
 	    const pdfAssetLoading = new Set();
 	    const pdfAssetPendingRefresh = new Set();
 	    const normalizePdfAssetId = (value) => String(value ?? '').trim();
-	    pdfAssets.forEach((item) => {
-	      const id = normalizePdfAssetId(item?.id);
-	      if (!id) return;
-	      pdfAssetMeta.set(id, {
-	        id,
-	        title: safeText(item?.title),
-	        url: safeText(item?.url),
-	        width: Number(item?.width) || 0,
-	        height: Number(item?.height) || 0,
-	      });
-	    });
+	    const buildPdfAssetUrl = (assetId) => {
+	      const id = normalizePdfAssetId(assetId);
+	      if (!id) return '';
+	      return `/media/pdf-assets/${encodeURIComponent(id)}/`;
+	    };
 	    const ensurePdfAssetLoaded = (assetId) => {
 	      const id = normalizePdfAssetId(assetId);
 	      if (!id || pdfAssetImages.has(id) || pdfAssetLoading.has(id)) return;
-	      const meta = pdfAssetMeta.get(id);
-	      const url = safeText(meta?.url);
+	      const url = buildPdfAssetUrl(id);
 	      if (!url) return;
 	      pdfAssetLoading.add(id);
 	      try {
@@ -1161,80 +1147,6 @@
 	        pdfAssetLoading.delete(id);
 	      }
 	    };
-	    pdfAssetMeta.forEach((meta) => ensurePdfAssetLoaded(meta.id));
-
-	    const assetUploadInput = document.getElementById('tpad-pdf-assets-upload');
-	    const assetUploadUrl = safeText(window.TPAD_PDF_ASSET_UPLOAD_URL);
-	    const scopeKey = safeText(window.TPAD_SCOPE_KEY, 'coach');
-	    const csrfToken = form.querySelector('input[name="csrfmiddlewaretoken"]')?.value || '';
-	    const appendPdfAssetButton = (asset) => {
-	      const tools = document.getElementById('task-pdf-assets-tools');
-	      if (!tools) return;
-	      const id = normalizePdfAssetId(asset?.id);
-	      const url = safeText(asset?.url);
-	      if (!id || !url) return;
-	      // Si había placeholder de "Aún no hay iconos", quítalo.
-	      Array.from(tools.querySelectorAll('span.meta')).forEach((node) => node.remove());
-	      const btn = document.createElement('button');
-	      btn.type = 'button';
-	      btn.className = 'pdf-asset-btn';
-	      btn.dataset.add = `pdf_asset:${id}`;
-	      btn.setAttribute('aria-label', `Recurso ${id}`);
-	      btn.title = safeText(asset?.title || '');
-	      const img = document.createElement('img');
-	      img.src = url;
-	      img.alt = '';
-	      img.loading = 'lazy';
-	      btn.appendChild(img);
-	      tools.appendChild(btn);
-	      // Habilita drag&drop como resto de recursos.
-	      try {
-	        registerDraggableButton(btn, () => ({ kind: safeText(btn.dataset.add) }));
-	      } catch (error) { /* ignore */ }
-	    };
-
-	    assetUploadInput?.addEventListener('change', async () => {
-	      const files = Array.from(assetUploadInput.files || []);
-	      if (!files.length) return;
-	      if (!assetUploadUrl) {
-	        setStatus('No se pudo subir: falta URL de subida.', true);
-	        return;
-	      }
-	      try {
-	        setStatus('Subiendo iconos…');
-	        const data = new FormData();
-	        data.append('scope_key', scopeKey);
-	        files.slice(0, 40).forEach((file) => data.append('assets', file));
-	        const resp = await fetch(assetUploadUrl, {
-	          method: 'POST',
-	          headers: csrfToken ? { 'X-CSRFToken': csrfToken } : undefined,
-	          credentials: 'same-origin',
-	          body: data,
-	        });
-	        const payload = await resp.json().catch(() => ({}));
-	        if (!resp.ok || !payload?.ok) throw new Error(payload?.error || 'No se pudo subir.');
-	        const list = Array.isArray(payload.saved) ? payload.saved : [];
-	        list.forEach((asset) => {
-	          const id = normalizePdfAssetId(asset?.id);
-	          if (!id) return;
-	          pdfAssetMeta.set(id, {
-	            id,
-	            title: safeText(asset?.title),
-	            url: safeText(asset?.url),
-	            width: Number(asset?.width) || 0,
-	            height: Number(asset?.height) || 0,
-	          });
-	          ensurePdfAssetLoaded(id);
-	          appendPdfAssetButton(asset);
-	        });
-	        const msg = list.length ? `Iconos añadidos: ${list.length}.` : 'No había iconos nuevos (ya existían).';
-	        setStatus(msg);
-	      } catch (error) {
-	        setStatus(error?.message || 'Error al subir iconos.', true);
-	      } finally {
-	        try { assetUploadInput.value = ''; } catch (e) { /* ignore */ }
-	      }
-	    });
 
 		    const canvas = new fabric.Canvas(canvasEl, {
 		      preserveObjectStacking: true,
@@ -4414,28 +4326,28 @@
 			      }
 			    };
 
-			    const buildPdfAssetObject = (assetId, left, top, options = {}) => {
-			      const id = normalizePdfAssetId(assetId);
-			      const img = pdfAssetImages.get(id);
-			      const meta = pdfAssetMeta.get(id);
-			      const desired = clamp(Number(options.desiredSize) || 56, 28, 180);
-			      if (img && (img.naturalWidth || img.width)) {
-			        const naturalW = Number(img.naturalWidth || img.width || 1);
-			        const naturalH = Number(img.naturalHeight || img.height || 1);
-			        const baseScale = desired / Math.max(1, Math.max(naturalW, naturalH));
-			        const imageObj = new fabric.Image(img, {
-			          left,
-			          top,
-			          originX: 'center',
-			          originY: 'center',
-			          scaleX: baseScale,
-			          scaleY: baseScale,
-			          data: { kind: 'pdf_asset', asset_id: id, title: safeText(meta?.title) },
-			        });
-			        try { imageObj.objectCaching = false; } catch (e) { /* ignore */ }
-			        try { imageObj.noScaleCache = true; } catch (e) { /* ignore */ }
-			        return imageObj;
-			      }
+				    const buildPdfAssetObject = (assetId, left, top, options = {}) => {
+				      const id = normalizePdfAssetId(assetId);
+				      const img = pdfAssetImages.get(id);
+				      const title = safeText(options?.title);
+				      const desired = clamp(Number(options.desiredSize) || 56, 28, 180);
+				      if (img && (img.naturalWidth || img.width)) {
+				        const naturalW = Number(img.naturalWidth || img.width || 1);
+				        const naturalH = Number(img.naturalHeight || img.height || 1);
+				        const baseScale = desired / Math.max(1, Math.max(naturalW, naturalH));
+				        const imageObj = new fabric.Image(img, {
+				          left,
+				          top,
+				          originX: 'center',
+				          originY: 'center',
+				          scaleX: baseScale,
+				          scaleY: baseScale,
+				          data: { kind: 'pdf_asset', asset_id: id, title },
+				        });
+				        try { imageObj.objectCaching = false; } catch (e) { /* ignore */ }
+				        try { imageObj.noScaleCache = true; } catch (e) { /* ignore */ }
+				        return imageObj;
+				      }
 			      // Placeholder: se reemplaza cuando la imagen termine de cargar.
 			      ensurePdfAssetLoaded(id);
 			      const box = new fabric.Rect({
@@ -4460,13 +4372,13 @@
 			        fontWeight: '800',
 			        fill: 'rgba(226,232,240,0.9)',
 			      });
-			      const group = new fabric.Group([box, label], {
-			        left,
-			        top,
-			        originX: 'center',
-			        originY: 'center',
-			        data: { kind: 'pdf_asset', asset_id: id, placeholder: true, desiredSize: desired, title: safeText(meta?.title) },
-			      });
+				      const group = new fabric.Group([box, label], {
+				        left,
+				        top,
+				        originX: 'center',
+				        originY: 'center',
+				        data: { kind: 'pdf_asset', asset_id: id, placeholder: true, desiredSize: desired, title },
+				      });
 			      try { group.objectCaching = false; } catch (e) { /* ignore */ }
 			      try { group.noScaleCache = true; } catch (e) { /* ignore */ }
 			      return group;
@@ -6848,16 +6760,15 @@
 	      const action = safeText(button.dataset.action);
 	      const add = safeText(button.dataset.add);
 		      if (action && handleCanvasAction(action)) return;
-		      if (!add) return;
-		      if (add.startsWith('pdf_asset:')) {
-		        const assetId = add.split(':')[1] || '';
-		        const meta = pdfAssetMeta.get(normalizePdfAssetId(assetId));
-		        const label = meta?.title ? `el recurso PDF “${safeText(meta.title)}”` : 'un recurso PDF';
-		        Array.from(toolStrip.querySelectorAll('[data-add]')).forEach((item) => item.classList.remove('is-active'));
-		        button.classList.add('is-active');
-		        activateFactory((left, top) => buildPdfAssetObject(assetId, left, top), label, add);
-		        return;
-		      }
+			      if (!add) return;
+			      if (add.startsWith('pdf_asset:')) {
+			        const assetId = add.split(':')[1] || '';
+			        const label = 'un recurso gráfico';
+			        Array.from(toolStrip.querySelectorAll('[data-add]')).forEach((item) => item.classList.remove('is-active'));
+			        button.classList.add('is-active');
+			        activateFactory((left, top) => buildPdfAssetObject(assetId, left, top), label, add);
+			        return;
+			      }
 		      Array.from(toolStrip.querySelectorAll('[data-add]')).forEach((item) => item.classList.remove('is-active'));
 		      button.classList.add('is-active');
 			      if (add === 'player_local') activateFactory(playerTokenFactory('player_local', null), 'un jugador local', 'player_local');
@@ -6870,17 +6781,16 @@
 		    libraryPane?.addEventListener('click', (event) => {
 		      const button = event.target.closest('button[data-add]');
 		      if (!button) return;
-		      const add = safeText(button.dataset.add);
-		      if (!add) return;
-		      if (add.startsWith('pdf_asset:')) {
-		        const assetId = add.split(':')[1] || '';
-		        const meta = pdfAssetMeta.get(normalizePdfAssetId(assetId));
-		        const label = meta?.title ? `el recurso PDF “${safeText(meta.title)}”` : 'un recurso PDF';
-		        Array.from(libraryPane.querySelectorAll('button[data-add]')).forEach((item) => item.classList.remove('is-active'));
-		        button.classList.add('is-active');
-		        activateFactory((left, top) => buildPdfAssetObject(assetId, left, top), label, add);
-		        return;
-		      }
+			      const add = safeText(button.dataset.add);
+			      if (!add) return;
+			      if (add.startsWith('pdf_asset:')) {
+			        const assetId = add.split(':')[1] || '';
+			        const label = 'un recurso gráfico';
+			        Array.from(libraryPane.querySelectorAll('button[data-add]')).forEach((item) => item.classList.remove('is-active'));
+			        button.classList.add('is-active');
+			        activateFactory((left, top) => buildPdfAssetObject(assetId, left, top), label, add);
+			        return;
+			      }
 		      Array.from(libraryPane.querySelectorAll('button[data-add]')).forEach((item) => item.classList.remove('is-active'));
 		      button.classList.add('is-active');
 		      if (add === 'player_local') activateFactory(playerTokenFactory('player_local', null), 'un jugador local', 'player_local');
