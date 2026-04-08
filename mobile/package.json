@@ -14,7 +14,8 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^6.0.0",
-    "@capacitor/ios": "^6.0.0"
+    "@capacitor/ios": "^6.0.0",
+    "typescript": "^5.6.3"
   },
   "scripts": {
     "add:ios": "npx cap add ios",
