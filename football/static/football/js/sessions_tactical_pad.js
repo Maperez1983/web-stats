@@ -179,13 +179,73 @@
     return `${raw.slice(0, 15).trim()}…`;
   };
 
-  const buildPitchSvg = (presetKey, orientationKey = 'landscape') => {
-    const preset = String(presetKey || 'full_pitch').trim();
-    const orientation = safeText(orientationKey, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
-    // Lienzo con proporción real 105x68 (escalado) y un pequeño "bleed" para que el trazo
-    // del borde no se recorte incluso con overflow hidden.
-    const stageW = orientation === 'portrait' ? 680 : 1050;
-    const stageH = orientation === 'portrait' ? 1050 : 680;
+	  const __grassTextureCache = new Map();
+	  const __buildGrassTextureDataUrl = (styleKey) => {
+	    const style = safeText(styleKey, 'classic');
+	    if (style !== 'realistic') return '';
+	    if (__grassTextureCache.has(style)) return __grassTextureCache.get(style);
+	    try {
+	      const size = 256;
+	      const canvas = document.createElement('canvas');
+	      canvas.width = size;
+	      canvas.height = size;
+	      const ctx = canvas.getContext('2d');
+	      if (!ctx) return '';
+	      ctx.fillStyle = '#4f7f3a';
+	      ctx.fillRect(0, 0, size, size);
+
+	      // Base noise: tiny pixels.
+	      for (let i = 0; i < 9000; i += 1) {
+	        const x = (Math.random() * size) | 0;
+	        const y = (Math.random() * size) | 0;
+	        const g = 110 + ((Math.random() * 70) | 0);
+	        const a = 0.08 + (Math.random() * 0.12);
+	        ctx.fillStyle = `rgba(0, ${g}, 0, ${a})`;
+	        ctx.fillRect(x, y, 2, 2);
+	      }
+
+	      // Subtle blades / streaks.
+	      ctx.globalAlpha = 0.12;
+	      for (let i = 0; i < 220; i += 1) {
+	        const x = Math.random() * size;
+	        const y = Math.random() * size;
+	        const len = 12 + Math.random() * 44;
+	        const angle = (-Math.PI / 3) + (Math.random() * (Math.PI / 5));
+	        const x2 = x + Math.cos(angle) * len;
+	        const y2 = y + Math.sin(angle) * len;
+	        ctx.lineWidth = 1 + Math.random() * 2;
+	        const c = 120 + ((Math.random() * 60) | 0);
+	        ctx.strokeStyle = `rgb(${30}, ${c}, ${30})`;
+	        ctx.beginPath();
+	        ctx.moveTo(x, y);
+	        ctx.lineTo(x2, y2);
+	        ctx.stroke();
+	      }
+	      ctx.globalAlpha = 1;
+
+	      // Soft vignette (makes it feel less flat when scaled).
+	      const grad = ctx.createRadialGradient(size / 2, size / 2, size / 4, size / 2, size / 2, size * 0.9);
+	      grad.addColorStop(0, 'rgba(255,255,255,0)');
+	      grad.addColorStop(1, 'rgba(0,0,0,0.18)');
+	      ctx.fillStyle = grad;
+	      ctx.fillRect(0, 0, size, size);
+
+	      const dataUrl = canvas.toDataURL('image/png');
+	      __grassTextureCache.set(style, dataUrl);
+	      return dataUrl;
+	    } catch (error) {
+	      return '';
+	    }
+	  };
+
+	  const buildPitchSvg = (presetKey, orientationKey = 'landscape', grassStyleKey = 'classic') => {
+	    const preset = String(presetKey || 'full_pitch').trim();
+	    const orientation = safeText(orientationKey, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
+	    const grassStyle = safeText(grassStyleKey, 'classic') === 'realistic' ? 'realistic' : 'classic';
+	    // Lienzo con proporción real 105x68 (escalado) y un pequeño "bleed" para que el trazo
+	    // del borde no se recorte incluso con overflow hidden.
+	    const stageW = orientation === 'portrait' ? 680 : 1050;
+	    const stageH = orientation === 'portrait' ? 1050 : 680;
     const bleed = 2;
     const drawW = 1100;
     const drawH = 748;
@@ -197,12 +257,36 @@
     // priorizar llenar el viewport y minimizar esos márgenes.
     root.setAttribute('preserveAspectRatio', orientation === 'portrait' ? 'xMidYMid slice' : 'xMidYMid meet');
 
-    const defs = createSvgNode(doc, 'defs');
-    const gradient = createSvgNode(doc, 'linearGradient', { id: 'pitch-bg', x1: '0%', y1: '0%', x2: '0%', y2: '100%' });
-    gradient.appendChild(createSvgNode(doc, 'stop', { offset: '0%', 'stop-color': '#5f8f42' }));
-    gradient.appendChild(createSvgNode(doc, 'stop', { offset: '100%', 'stop-color': '#557f3c' }));
-    defs.appendChild(gradient);
-    root.appendChild(defs);
+	    const defs = createSvgNode(doc, 'defs');
+	    const gradient = createSvgNode(doc, 'linearGradient', { id: 'pitch-bg', x1: '0%', y1: '0%', x2: '0%', y2: '100%' });
+	    gradient.appendChild(createSvgNode(doc, 'stop', { offset: '0%', 'stop-color': '#5f8f42' }));
+	    gradient.appendChild(createSvgNode(doc, 'stop', { offset: '100%', 'stop-color': '#557f3c' }));
+	    defs.appendChild(gradient);
+
+	    let grassFillId = 'pitch-bg';
+	    if (grassStyle === 'realistic') {
+	      const dataUrl = __buildGrassTextureDataUrl('realistic');
+	      if (dataUrl) {
+	        grassFillId = 'pitch-grass-img';
+	        const pattern = createSvgNode(doc, 'pattern', {
+	          id: grassFillId,
+	          patternUnits: 'userSpaceOnUse',
+	          width: 220,
+	          height: 220,
+	        });
+	        const image = createSvgNode(doc, 'image', {
+	          href: dataUrl,
+	          x: 0,
+	          y: 0,
+	          width: 220,
+	          height: 220,
+	          preserveAspectRatio: 'xMidYMid slice',
+	        });
+	        pattern.appendChild(image);
+	        defs.appendChild(pattern);
+	      }
+	    }
+	    root.appendChild(defs);
 
     // Fondo:
     // - Para "campo completo" y "F7 sobre F11" rellenamos toda la superficie para que el césped no
@@ -212,7 +296,7 @@
     //   (en editor se verá el fondo del panel; en PDF quedará blanco).
     // En el editor rellenamos el exterior con césped para que no parezca que hay “huecos” alrededor.
     // El recorte para PDF/cards ya se hace al exportar la preview (data-pitch-box).
-    const fillOutside = 'url(#pitch-bg)';
+    const fillOutside = `url(#${grassFillId})`;
     root.appendChild(createSvgNode(doc, 'rect', {
       x: -bleed,
       y: -bleed,
@@ -275,7 +359,7 @@
         y,
         width,
         height,
-        fill: 'url(#pitch-bg)',
+        fill: `url(#${grassFillId})`,
         stroke: line,
         'stroke-width': lineWidth,
       }));
@@ -286,7 +370,7 @@
           y,
           width: stripeW + 1,
           height,
-          fill: index % 2 === 0 ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
+          fill: index % 2 === 0 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
           stroke: 'none',
         }));
       }
@@ -582,8 +666,11 @@
 	    const surfaceTriggerLabel = document.getElementById('surface-trigger-label');
 	    const pitchResizeHandle = document.getElementById('pitch-resize-handle');
     const orientationInput = document.getElementById('draw-task-pitch-orientation');
+    const grassStyleInput = document.getElementById('draw-task-pitch-grass-style');
     const orientationToggle = document.getElementById('pitch-orientation-toggle');
     const orientationLabel = document.getElementById('pitch-orientation-label');
+    const grassToggle = document.getElementById('pitch-grass-toggle');
+    const grassLabel = document.getElementById('pitch-grass-label');
     const viewportEl = document.getElementById('task-pitch-viewport');
     const zoomInput = document.getElementById('draw-task-pitch-zoom');
 	    const zoomOutButton = document.getElementById('pitch-zoom-out');
@@ -1274,14 +1361,25 @@
 		    let previewRefreshTimer = null;
 	    let previewBuildInFlight = false;
 	    let exportInFlight = false;
-    let surfacesRendered = false;
-    let timeline = [];
-    let activeStepIndex = -1;
-    let playbackTimer = null;
-    let playbackRestoreState = null;
-		    let pitchOrientation = safeText(orientationInput?.value, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
-			    let pitchZoom = Number.parseFloat(String(zoomInput?.value || '').trim());
-			    let zoomTouched = false;
+		    let surfacesRendered = false;
+ 	    let timeline = [];
+ 	    let activeStepIndex = -1;
+ 	    let playbackTimer = null;
+ 	    let playbackRestoreState = null;
+ 			    let pitchOrientation = safeText(orientationInput?.value, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
+			    const GRASS_STYLE_LABEL = {
+			      classic: 'Clásico',
+			      realistic: 'Realista',
+			    };
+			    let pitchGrassStyle = safeText(grassStyleInput?.value, 'classic').toLowerCase();
+			    if (!['classic', 'realistic'].includes(pitchGrassStyle)) pitchGrassStyle = 'classic';
+			    const syncGrassUi = () => {
+			      if (grassStyleInput) grassStyleInput.value = pitchGrassStyle;
+			      if (grassLabel) grassLabel.textContent = GRASS_STYLE_LABEL[pitchGrassStyle] || 'Clásico';
+			    };
+			    syncGrassUi();
+				    let pitchZoom = Number.parseFloat(String(zoomInput?.value || '').trim());
+				    let zoomTouched = false;
 		    // Tamaño del stage (solo UI): ajusta cuánto ocupa el campo en pantalla, sin tocar posiciones.
 		    const STAGE_SIZE_KEY_PORTRAIT = 'tpad_stage_size_portrait_v1';
 		    const STAGE_SIZE_KEY_LANDSCAPE = 'tpad_stage_size_landscape_v1';
@@ -3090,7 +3188,7 @@
 					        if ('disabled' in node) node.disabled = !!locked;
 				        try { node.classList.toggle('is-disabled', !!locked); } catch (error) { /* ignore */ }
 				      };
-				      [presetSelect, surfaceTrigger, orientationToggle, zoomOutButton, zoomInButton, zoomResetButton, stageSizeDownButton, stageSizeUpButton, stageSizeFitButton, pitchFormatInput]
+				      [presetSelect, surfaceTrigger, orientationToggle, grassToggle, zoomOutButton, zoomInButton, zoomResetButton, stageSizeDownButton, stageSizeUpButton, stageSizeFitButton, pitchFormatInput]
 				        .forEach(setDisabled);
 				      try { (presetButtons || []).forEach(setDisabled); } catch (error) { /* ignore */ }
 				      try { if (pitchResizeHandle) pitchResizeHandle.style.pointerEvents = locked ? 'none' : ''; } catch (error) { /* ignore */ }
@@ -3622,12 +3720,12 @@
 		      try {
 		        window.requestAnimationFrame(() => {
 		          try { fitCanvas(true); } catch (error) { /* ignore */ }
-		          try { applyPitchSurface(presetSelect.value || 'full_pitch', pitchOrientation); } catch (error) { /* ignore */ }
+			          try { applyPitchSurface(presetSelect.value || 'full_pitch', pitchOrientation, pitchGrassStyle); } catch (error) { /* ignore */ }
 		          try { canvas.calcOffset(); } catch (error) { /* ignore */ }
 		        });
 		      } catch (error) {
 		        try { fitCanvas(true); } catch (e) { /* ignore */ }
-		        try { applyPitchSurface(presetSelect.value || 'full_pitch', pitchOrientation); } catch (e) { /* ignore */ }
+			        try { applyPitchSurface(presetSelect.value || 'full_pitch', pitchOrientation, pitchGrassStyle); } catch (e) { /* ignore */ }
 		        try { canvas.calcOffset(); } catch (e) { /* ignore */ }
 		      }
 		    };
@@ -4011,9 +4109,9 @@
 	      }, ['data']);
 	    };
 
-		    const applyPitchSurface = (presetValue, orientationValue) => {
+		    const applyPitchSurface = (presetValue, orientationValue, grassStyleValue) => {
 		      // Evita SVG anidados (innerHTML con <svg> completo) que luego rompen la previsualización y el PDF.
-		      const markup = buildPitchSvg(presetValue, orientationValue);
+		      const markup = buildPitchSvg(presetValue, orientationValue, grassStyleValue);
 		      const syncStageAspectFromSvg = () => {
 		        try {
 		          const viewBoxRaw = safeText(svgSurface.getAttribute('viewBox'));
@@ -4104,7 +4202,7 @@
       if (pitchFormatInput && PITCH_FORMAT_BY_PRESET[preset]) pitchFormatInput.value = PITCH_FORMAT_BY_PRESET[preset];
       presetButtons.forEach((button) => button.classList.toggle('is-active', safeText(button.dataset.preset) === preset));
       if (surfaceTriggerLabel) surfaceTriggerLabel.textContent = PRESET_LABEL[preset] || 'Campo completo';
-      applyPitchSurface(preset, pitchOrientation);
+	      applyPitchSurface(preset, pitchOrientation, pitchGrassStyle);
       // Al cambiar de superficie cambia el aspect-ratio del stage. Si no reajustamos el canvas,
       // los punteros quedan desincronizados y “parece” que las chapas no se dibujan (se colocan fuera de vista).
       try {
@@ -7303,12 +7401,19 @@
         setSurfaceMenuOpen(false);
       });
     });
-    presetSelect.addEventListener('change', () => setPreset(presetSelect.value || 'full_pitch'));
-    orientationToggle?.addEventListener('click', () => {
-      applyPitchOrientation(pitchOrientation === 'portrait' ? 'landscape' : 'portrait', { preserveObjects: true, pushHistory: true });
-    });
-	    zoomOutButton?.addEventListener('click', () => applyPitchZoom(pitchZoom - 0.08));
-	    zoomInButton?.addEventListener('click', () => applyPitchZoom(pitchZoom + 0.08));
+	    presetSelect.addEventListener('change', () => setPreset(presetSelect.value || 'full_pitch'));
+	    orientationToggle?.addEventListener('click', () => {
+	      applyPitchOrientation(pitchOrientation === 'portrait' ? 'landscape' : 'portrait', { preserveObjects: true, pushHistory: true });
+	    });
+	    grassToggle?.addEventListener('click', () => {
+	      pitchGrassStyle = pitchGrassStyle === 'realistic' ? 'classic' : 'realistic';
+	      syncGrassUi();
+	      try { applyPitchSurface(presetSelect.value || 'full_pitch', pitchOrientation, pitchGrassStyle); } catch (e) { /* ignore */ }
+	      refreshLivePreview();
+	      setStatus(`Césped: ${GRASS_STYLE_LABEL[pitchGrassStyle] || pitchGrassStyle}.`);
+	    });
+		    zoomOutButton?.addEventListener('click', () => applyPitchZoom(pitchZoom - 0.08));
+		    zoomInButton?.addEventListener('click', () => applyPitchZoom(pitchZoom + 0.08));
 		    zoomResetButton?.addEventListener('click', () => {
 		      zoomTouched = false;
 		      applyPitchZoom(1.0, { silent: true });
@@ -7512,7 +7617,7 @@
 		        try { refreshLivePreview(); } catch (e) { /* ignore */ }
 		      }
 		      // El SVG del césped depende del preset/orientación, lo reinyectamos por seguridad sin tocar objetos.
-		      try { applyPitchSurface(baseline.preset, baseline.orientation); } catch (e) { /* ignore */ }
+		      try { applyPitchSurface(baseline.preset, baseline.orientation, pitchGrassStyle); } catch (e) { /* ignore */ }
 		      try { syncZoomUi(); } catch (e) { /* ignore */ }
 		    };
 		    const scheduleResize = () => {

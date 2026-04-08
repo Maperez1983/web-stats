@@ -11505,6 +11505,9 @@ def _build_task_draft_pdf_context(request, primary_team, pdf_style='uefa'):
         try:
             pitch_preset = (request.POST.get('draw_task_pitch_preset') or 'full_pitch').strip()
             pitch_orientation = (request.POST.get('draw_task_pitch_orientation') or 'landscape').strip().lower()
+            pitch_grass_style = (request.POST.get('draw_task_pitch_grass_style') or 'classic').strip().lower()
+            if pitch_grass_style not in {'classic', 'realistic'}:
+                pitch_grass_style = 'classic'
             try:
                 pitch_zoom = float(str(request.POST.get('draw_task_pitch_zoom') or '1.0').strip())
             except Exception:
@@ -11515,6 +11518,7 @@ def _build_task_draft_pdf_context(request, primary_team, pdf_style='uefa'):
                 canvas_state=canvas_state,
                 pitch_preset=pitch_preset,
                 pitch_orientation="portrait" if pitch_orientation == "portrait" else "landscape",
+                pitch_grass_style=pitch_grass_style,
                 pitch_zoom=pitch_zoom,
                 world_width=canvas_width,
                 world_height=canvas_height,
@@ -16910,6 +16914,9 @@ def _maybe_render_task_preview_server_side(task, *, force=False):
     world_h = _parse_int(graphic.get("canvas_height")) or 720
     pitch_preset = str(meta.get("pitch_preset") or "full_pitch").strip() or "full_pitch"
     pitch_orientation = str(meta.get("pitch_orientation") or "landscape").strip().lower()
+    pitch_grass_style = str(meta.get("pitch_grass_style") or "classic").strip().lower()
+    if pitch_grass_style not in {"classic", "realistic"}:
+        pitch_grass_style = "classic"
     pitch_zoom = meta.get("pitch_zoom") or 1.0
     try:
         pitch_zoom = float(pitch_zoom)
@@ -16919,6 +16926,7 @@ def _maybe_render_task_preview_server_side(task, *, force=False):
         canvas_state=canvas_state,
         pitch_preset=pitch_preset,
         pitch_orientation="portrait" if pitch_orientation == "portrait" else "landscape",
+        pitch_grass_style=pitch_grass_style,
         pitch_zoom=pitch_zoom,
         world_width=world_w,
         world_height=world_h,
@@ -19051,6 +19059,7 @@ def _task_builder_initial_values(task):
         'pitch_preset': str(meta.get('pitch_preset') or 'full_pitch'),
         'pitch_orientation': str(meta.get('pitch_orientation') or 'landscape'),
         'pitch_zoom': str(meta.get('pitch_zoom') or '1.00'),
+        'pitch_grass_style': str(meta.get('pitch_grass_style') or 'classic'),
         'series': str(meta.get('series') or ''),
         'repetitions': str(meta.get('repetitions') or ''),
         'player_count': str(meta.get('player_count') or ''),
@@ -19149,6 +19158,8 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
     pitch_preset = (request.POST.get('draw_task_pitch_preset') or 'full_pitch').strip()
     raw_pitch_orientation = request.POST.get('draw_task_pitch_orientation')
     pitch_orientation = (raw_pitch_orientation or '').strip().lower() if raw_pitch_orientation is not None else str(existing_meta.get('pitch_orientation') or 'landscape')
+    raw_pitch_grass_style = request.POST.get('draw_task_pitch_grass_style')
+    pitch_grass_style = (raw_pitch_grass_style or '').strip().lower() if raw_pitch_grass_style is not None else str(existing_meta.get('pitch_grass_style') or 'classic')
     raw_pitch_zoom = request.POST.get('draw_task_pitch_zoom')
     pitch_zoom = None
     if raw_pitch_zoom is None:
@@ -19259,6 +19270,8 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
         pitch_preset = 'full_pitch'
     if pitch_orientation not in {'landscape', 'portrait'}:
         pitch_orientation = 'landscape'
+    if pitch_grass_style not in {'classic', 'realistic'}:
+        pitch_grass_style = 'classic'
     try:
         pitch_zoom = float(pitch_zoom or 1.0)
     except Exception:
@@ -19303,6 +19316,7 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
             'pitch_preset': pitch_preset,
             'pitch_orientation': pitch_orientation,
             'pitch_zoom': pitch_zoom,
+            'pitch_grass_style': pitch_grass_style,
             'multi_board': bool(multi_board_enabled),
             'game_phase': selected_phase,
             'methodology': selected_methodology,
@@ -19977,6 +19991,9 @@ def _build_task_studio_draft_pdf_context(request, owner, pdf_style='uefa'):
         try:
             pitch_preset = (request.POST.get('draw_task_pitch_preset') or 'full_pitch').strip()
             pitch_orientation = (request.POST.get('draw_task_pitch_orientation') or 'landscape').strip().lower()
+            pitch_grass_style = (request.POST.get('draw_task_pitch_grass_style') or 'classic').strip().lower()
+            if pitch_grass_style not in {'classic', 'realistic'}:
+                pitch_grass_style = 'classic'
             try:
                 pitch_zoom = float(str(request.POST.get('draw_task_pitch_zoom') or '1.0').strip())
             except Exception:
@@ -19987,6 +20004,7 @@ def _build_task_studio_draft_pdf_context(request, owner, pdf_style='uefa'):
                 canvas_state=canvas_state,
                 pitch_preset=pitch_preset,
                 pitch_orientation="portrait" if pitch_orientation == "portrait" else "landscape",
+                pitch_grass_style=pitch_grass_style,
                 pitch_zoom=pitch_zoom,
                 world_width=canvas_width,
                 world_height=canvas_height,

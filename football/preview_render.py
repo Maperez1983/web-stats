@@ -158,6 +158,7 @@ def render_task_preview_png(
     canvas_state: dict,
     pitch_preset: str = "full_pitch",
     pitch_orientation: str = "landscape",
+    pitch_grass_style: str = "classic",
     pitch_zoom: float = 1.0,
     world_width: int = 1280,
     world_height: int = 720,
@@ -175,6 +176,9 @@ def render_task_preview_png(
 
     orientation = "portrait" if str(pitch_orientation).strip().lower() == "portrait" else "landscape"
     preset = str(pitch_preset or "full_pitch").strip() or "full_pitch"
+    grass_style = str(pitch_grass_style or "classic").strip().lower()
+    if grass_style not in {"classic", "realistic"}:
+        grass_style = "classic"
     try:
         zoom = float(pitch_zoom or 1.0)
     except Exception:
@@ -249,13 +253,14 @@ def render_task_preview_png(
   </div>
 
   <script>
-    window.__TPAD_RENDER__ = {json.dumps({
-        "preset": preset,
-        "orientation": orientation,
-        "zoom": zoom,
-        "world": {"w": world_width, "h": world_height},
-        "state": safe_state,
-    }, ensure_ascii=False)};
+	    window.__TPAD_RENDER__ = {json.dumps({
+	        "preset": preset,
+	        "orientation": orientation,
+	        "grass_style": grass_style,
+	        "zoom": zoom,
+	        "world": {"w": world_width, "h": world_height},
+	        "state": safe_state,
+	    }, ensure_ascii=False)};
   </script>
 </body>
 </html>
@@ -266,8 +271,21 @@ def render_task_preview_png(
     pitch_snippet = ""
     try:
         lines = js_path.read_text(encoding="utf-8").splitlines()
-        # Lines 2..555 (1-based in editor) => indexes 1..554 (0-based).
-        snippet_lines = lines[1:555]
+        # Extraemos el builder del césped/campo desde el principio del archivo hasta antes del init del editor.
+        # Evita depender de offsets fijos (el fichero crece a menudo con nuevas funciones).
+        end = None
+        for idx, line in enumerate(lines):
+            if "window.initSessionsTacticalPad" in line:
+                end = idx
+                break
+        if end is None:
+            end = min(len(lines), 900)
+        start = 0
+        # El fichero está envuelto en una IIFE: evitamos incluir la línea de apertura
+        # para no dejar llaves sin cerrar en este snippet.
+        if lines and lines[0].lstrip().startswith("(function"):
+            start = 1
+        snippet_lines = lines[start:end]
         pitch_snippet = "\n".join(snippet_lines) + "\nwindow.__buildPitchSvg = buildPitchSvg;"
     except Exception:
         pitch_snippet = ""
@@ -295,22 +313,23 @@ def render_task_preview_png(
             content="""
               (async () => {
                 const cfg = window.__TPAD_RENDER__ || {};
-                const preset = String(cfg.preset || 'full_pitch');
-                const orientation = String(cfg.orientation || 'landscape') === 'portrait' ? 'portrait' : 'landscape';
-                const zoom = Number(cfg.zoom || 1);
-                const world = cfg.world || {};
-                const state = cfg.state || {};
+	                const preset = String(cfg.preset || 'full_pitch');
+	                const orientation = String(cfg.orientation || 'landscape') === 'portrait' ? 'portrait' : 'landscape';
+	                const grassStyle = String(cfg.grass_style || 'classic') === 'realistic' ? 'realistic' : 'classic';
+	                const zoom = Number(cfg.zoom || 1);
+	                const world = cfg.world || {};
+	                const state = cfg.state || {};
 
                 const stage = document.getElementById('stage');
                 const pitch = document.getElementById('pitch');
                 const canvasEl = document.getElementById('c');
 
-                try {
-                  const svgMarkup = (window.__buildPitchSvg ? window.__buildPitchSvg(preset, orientation) : '');
-                  pitch.innerHTML = svgMarkup || '';
-                } catch (e) {
-                  pitch.innerHTML = '';
-                }
+	                try {
+	                  const svgMarkup = (window.__buildPitchSvg ? window.__buildPitchSvg(preset, orientation, grassStyle) : '');
+	                  pitch.innerHTML = svgMarkup || '';
+	                } catch (e) {
+	                  pitch.innerHTML = '';
+	                }
 
                 const rect = stage.getBoundingClientRect();
                 const width = Math.max(320, Math.round(rect.width || 1280));

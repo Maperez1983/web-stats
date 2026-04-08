@@ -2065,8 +2065,9 @@
 	        <input type="hidden" name="draw_canvas_preview_data" id="draw-canvas-preview-data" />
 	        <input type="hidden" name="draw_canvas_timeline_previews" id="draw-canvas-timeline-previews" />
 	        <input type="hidden" name="draw_task_pitch_orientation" id="draw-task-pitch-orientation" value="{{ initial.pitch_orientation|default:'landscape' }}" />
-        <input type="hidden" name="draw_task_pitch_zoom" id="draw-task-pitch-zoom" value="{{ initial.pitch_zoom|default:'1.00' }}" />
-        <div id="assigned-players-hidden" style="display:none;"></div>
+	        <input type="hidden" name="draw_task_pitch_zoom" id="draw-task-pitch-zoom" value="{{ initial.pitch_zoom|default:'1.00' }}" />
+	        <input type="hidden" name="draw_task_pitch_grass_style" id="draw-task-pitch-grass-style" value="{{ initial.pitch_grass_style|default:'classic' }}" />
+	        <div id="assigned-players-hidden" style="display:none;"></div>
 
         <div class="task-mode-tabs" id="task-mode-tabs" role="tablist" aria-label="Vista de edición">
           <button type="button" class="is-active" data-task-mode="board" role="tab" aria-selected="true">Pizarra</button>
@@ -2147,16 +2148,20 @@
                       </button>
                     </div>
                   </div>
-                  <button type="button" class="surface-trigger" id="pitch-orientation-toggle">
-                    <span>Orientación</span>
-                    <span class="current" id="pitch-orientation-label">{% if initial.pitch_orientation == 'portrait' %}Vertical{% else %}Horizontal{% endif %}</span>
-                  </button>
-	                  <div class="pitch-zoom">
-	                    <button type="button" id="pitch-zoom-out" title="Alejar">-</button>
-	                    <span class="zoom-readout" id="pitch-zoom-label">100%</span>
-	                    <button type="button" id="pitch-zoom-in" title="Acercar">+</button>
-	                    <button type="button" id="pitch-zoom-reset" title="Reset">↺</button>
-	                  </div>
+	                  <button type="button" class="surface-trigger" id="pitch-orientation-toggle">
+	                    <span>Orientación</span>
+	                    <span class="current" id="pitch-orientation-label">{% if initial.pitch_orientation == 'portrait' %}Vertical{% else %}Horizontal{% endif %}</span>
+	                  </button>
+	                  <button type="button" class="surface-trigger" id="pitch-grass-toggle">
+	                    <span>Césped</span>
+	                    <span class="current" id="pitch-grass-label">{% if initial.pitch_grass_style == 'realistic' %}Realista{% else %}Clásico{% endif %}</span>
+	                  </button>
+		                  <div class="pitch-zoom">
+		                    <button type="button" id="pitch-zoom-out" title="Alejar">-</button>
+		                    <span class="zoom-readout" id="pitch-zoom-label">100%</span>
+		                    <button type="button" id="pitch-zoom-in" title="Acercar">+</button>
+		                    <button type="button" id="pitch-zoom-reset" title="Reset">↺</button>
+		                  </div>
 	                  <div class="pitch-size" title="Tamaño del campo en pantalla">
 	                    <button type="button" id="pitch-size-down" title="Campo más pequeño">-</button>
 	                    <span class="zoom-readout" id="pitch-size-label">Campo</span>
