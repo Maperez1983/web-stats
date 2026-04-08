@@ -306,6 +306,25 @@ def workspace_set_active_team(request):
 
 @login_required
 @require_POST
+def workspace_set_active_workspace(request):
+    """
+    Fija el workspace activo en sesión para usuarios no-Platform (y también Platform).
+    Esto evita mezclar datos (p.ej. caer al equipo global Benagalbón cuando no hay contexto).
+    """
+    desired_id = _parse_int(request.POST.get('workspace_id') or request.POST.get('workspace') or 0)
+    next_url = (request.POST.get('next') or '').strip() or request.META.get('HTTP_REFERER') or reverse('dashboard-home')
+    if not desired_id:
+        return redirect(next_url)
+    available = _available_workspaces_for_user(request.user)
+    workspace = available.filter(id=desired_id, is_active=True).first()
+    if not workspace:
+        return redirect(next_url)
+    request.session['active_workspace_id'] = workspace.id
+    return redirect(next_url)
+
+
+@login_required
+@require_POST
 def workspace_sync_competition_api(request):
     """
     Sincroniza el contexto competitivo del workspace club actual (owner/admin).

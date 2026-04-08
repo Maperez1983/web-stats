@@ -41,6 +41,7 @@ def workspace_access(request):
             _workspace_default_modules,
             _workspace_has_module_for_user,
             _can_access_platform,
+            _available_workspaces_for_user,
             _can_manage_workspace,
             _is_admin_user,
         )
@@ -125,6 +126,21 @@ def workspace_access(request):
     except Exception:
         team_options = []
 
+    workspace_options = []
+    try:
+        candidates = list(_available_workspaces_for_user(request.user).order_by('kind', 'name', 'id')[:12])
+        for ws in candidates:
+            workspace_options.append(
+                {
+                    'id': int(ws.id),
+                    'label': str(getattr(ws, 'name', '') or f'Workspace {ws.id}').strip(),
+                    'kind': str(getattr(ws, 'kind', '') or '').strip(),
+                    'kind_label': str(getattr(ws, 'get_kind_display', lambda: '')() or '').strip(),
+                }
+            )
+    except Exception:
+        workspace_options = []
+
     return {
         'active_workspace': badge,
         'workspace_entry_url': entry_url,
@@ -132,6 +148,7 @@ def workspace_access(request):
         'workspace_module_access': module_access,
         'active_team': active_team,
         'active_team_options': team_options,
+        'active_workspace_options': workspace_options,
         'active_team_current_path': request.get_full_path() if request else '',
         'can_manage_workspace': can_manage,
         'is_admin_user': is_admin,
