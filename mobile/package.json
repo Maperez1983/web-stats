@@ -1,0 +1,25 @@
+{
+  "name": "segundajugada-app",
+  "private": true,
+  "version": "0.1.0",
+  "dependencies": {
+    "@capacitor/app": "^6.0.0",
+    "@capacitor/core": "^6.0.0",
+    "@capacitor/device": "^6.0.0",
+    "@capacitor/haptics": "^6.0.0",
+    "@capacitor/keyboard": "^6.0.0",
+    "@capacitor/network": "^6.0.0",
+    "@capacitor/status-bar": "^6.0.0",
+    "@capacitor/splash-screen": "^6.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.0.0",
+    "@capacitor/ios": "^6.0.0"
+  },
+  "scripts": {
+    "add:ios": "npx cap add ios",
+    "sync:ios": "npx cap sync ios",
+    "open:ios": "npx cap open ios",
+    "doctor": "npx cap doctor"
+  }
+}

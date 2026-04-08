@@ -104,6 +104,183 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     corner_against: 0,
   };
   const undoLastActionBtn = document.getElementById('undo-last-action-btn');
+  const offlineQueueBadge = document.getElementById('offline-queue-badge');
+  const offlineQueueSyncBtn = document.getElementById('offline-queue-sync');
+  const OFFLINE_ID_PREFIX = 'offline:';
+  const offlineQueueKey = (() => {
+    const mid = String(currentMatchId || '').trim() || 'unknown';
+    return `webstats:live:queue:v1:${mid}`;
+  })();
+  const canUseStorage = (() => {
+    try {
+      const probeKey = '__live_queue_probe__';
+      window.localStorage.setItem(probeKey, '1');
+      window.localStorage.removeItem(probeKey);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  })();
+  const safeParseJson = (raw, fallback) => {
+    try {
+      return JSON.parse(String(raw || ''));
+    } catch (error) {
+      return fallback;
+    }
+  };
+  const readOfflineQueue = () => {
+    if (!canUseStorage) return [];
+    try {
+      const raw = window.localStorage.getItem(offlineQueueKey) || '';
+      const list = safeParseJson(raw, []);
+      return Array.isArray(list) ? list : [];
+    } catch (error) {
+      return [];
+    }
+  };
+  const writeOfflineQueue = (list) => {
+    if (!canUseStorage) return;
+    try {
+      window.localStorage.setItem(offlineQueueKey, JSON.stringify(Array.isArray(list) ? list : []));
+    } catch (error) {
+      // ignore quota errors
+    }
+  };
+  const updateOfflineQueueUi = () => {
+    const list = readOfflineQueue();
+    const count = list.length;
+    if (offlineQueueBadge) {
+      offlineQueueBadge.hidden = count <= 0;
+      offlineQueueBadge.textContent = count > 0 ? `Offline: ${count}` : '';
+    }
+    if (offlineQueueSyncBtn) {
+      offlineQueueSyncBtn.hidden = count <= 0;
+    }
+  };
+  const makeOfflineId = () => `${OFFLINE_ID_PREFIX}${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  const isOfflineId = (value) => String(value || '').startsWith(OFFLINE_ID_PREFIX);
+  const serializeFormData = (formData) => {
+    const out = {};
+    try {
+      formData.forEach((value, key) => {
+        if (value instanceof File) return;
+        if (String(key) === 'csrfmiddlewaretoken') return;
+        out[String(key)] = String(value);
+      });
+    } catch (error) {
+      // ignore
+    }
+    return out;
+  };
+  const enqueueOfflineAction = ({ offlineId, fields }) => {
+    const list = readOfflineQueue();
+    list.push({
+      v: 1,
+      kind: 'action',
+      offline_id: String(offlineId || ''),
+      created_at: new Date().toISOString(),
+      fields: fields && typeof fields === 'object' ? fields : {},
+    });
+    writeOfflineQueue(list);
+    updateOfflineQueueUi();
+  };
+  const removeOfflineQueuedById = (offlineId) => {
+    const id = String(offlineId || '');
+    if (!id) return;
+    const next = readOfflineQueue().filter((item) => String(item?.offline_id || '') !== id);
+    writeOfflineQueue(next);
+    updateOfflineQueueUi();
+  };
+  const replaceOfflineHistoryId = ({ offlineId, serverId }) => {
+    const oldId = String(offlineId || '');
+    const newId = String(serverId || '');
+    if (!oldId || !newId) return;
+    const article = historyList?.querySelector(`[data-event-id="${CSS.escape(oldId)}"]`);
+    if (article) {
+      article.dataset.eventId = newId;
+      article.classList.remove('is-offline-pending');
+      article.querySelector('.pending-pill')?.remove();
+    }
+    try {
+      let action = '';
+      let zone = '';
+      let result = '';
+      if (article) {
+        const text = article.querySelector('.hist-text')?.textContent || '';
+        const parts = text.split('·').map((part) => part.trim());
+        action = parts[0] || '';
+        zone = parts[1] || '';
+        result = parts[2] || '';
+      }
+      removeLiveEvent(oldId);
+      registerLiveEvent({ id: newId, action, zone, result });
+    } catch (error) {
+      // ignore
+    }
+  };
+  let flushOfflineInFlight = false;
+  const flushOfflineQueue = async ({ limit = 20 } = {}) => {
+    if (flushOfflineInFlight) return;
+    if (!navigator.onLine) {
+      updateOfflineQueueUi();
+      return;
+    }
+    const list = readOfflineQueue();
+    if (!list.length) {
+      updateOfflineQueueUi();
+      return;
+    }
+    flushOfflineInFlight = true;
+    try {
+      let processed = 0;
+      for (const item of list.slice(0, limit)) {
+        if (!item || item.kind !== 'action') continue;
+        const fields = item.fields && typeof item.fields === 'object' ? item.fields : {};
+        const offlineId = String(item.offline_id || '');
+        if (!offlineId) continue;
+        const formData = new FormData();
+        Object.entries(fields).forEach(([key, value]) => {
+          if (value == null) return;
+          formData.set(String(key), String(value));
+        });
+        // Siempre fuerza match_id en el envío.
+        if (currentMatchId) formData.set('match_id', currentMatchId);
+        try {
+          const response = await fetch(submitUrl, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'X-CSRFToken': csrfToken, Accept: 'application/json' },
+            body: formData,
+          });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            // Si la sesión caducó, paramos: no queremos perder cola.
+            if (response.status === 401 || response.status === 403) {
+              showPageStatus('Sesión caducada. Inicia sesión y pulsa “Sincronizar”.', 'warning', 7000);
+              break;
+            }
+            showPageStatus(data.error || 'No se pudo sincronizar una acción offline.', 'danger', 5200);
+            break;
+          }
+          // Actualiza el placeholder en historial y el store.
+          if (data?.id) replaceOfflineHistoryId({ offlineId, serverId: data.id });
+          removeOfflineQueuedById(offlineId);
+          processed += 1;
+        } catch (error) {
+          // Problema de red: paramos y dejamos cola intacta.
+          break;
+        }
+      }
+      if (processed) showPageStatus(`Sincronizadas: ${processed}.`, 'success', 2600);
+    } finally {
+      flushOfflineInFlight = false;
+      updateOfflineQueueUi();
+    }
+  };
+  updateOfflineQueueUi();
+  offlineQueueSyncBtn?.addEventListener('click', () => flushOfflineQueue());
+  window.addEventListener('online', () => flushOfflineQueue({ limit: 50 }));
+  try { window.setInterval(() => flushOfflineQueue({ limit: 10 }), 15_000); } catch (error) { /* ignore */ }
   const emitSummaryChange = () => {
     if (typeof onSummaryChange !== 'function') return;
     onSummaryChange({
@@ -450,11 +627,12 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     });
   });
 
-  const appendHistoryEntry = ({ minute, player, action, zone, result, event_id }) => {
+  const appendHistoryEntry = ({ minute, player, action, zone, result, event_id, pending = false }) => {
     if (!historyList) return false;
     if (event_id && historyList.querySelector(`[data-event-id="${event_id}"]`)) return false;
     const item = document.createElement('article');
     item.className = 'history-item';
+    if (pending) item.classList.add('is-offline-pending');
     if (player?.id) {
       item.dataset.playerId = String(player.id);
     }
@@ -462,6 +640,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     const minuteLabel = Number.isFinite(numericMinute) ? `${numericMinute}'` : "Ahora'";
     item.innerHTML = `
       <span class="hist-minute">${minuteLabel}</span>
+      ${pending ? `<span class="pending-pill">PENDIENTE</span>` : ''}
       <strong>#${player.number || '--'} ${(player.name || 'JUGADOR').toUpperCase()}</strong>
       <p class="hist-text">${action} · ${zone || '-'} · ${result || ''}</p>
       <button type="button" class="history-delete" aria-label="Eliminar acción">🗑</button>
@@ -485,6 +664,14 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     const article = button.closest('[data-event-id]');
     const eventId = article?.dataset?.eventId;
     if (!eventId) return;
+    if (isOfflineId(eventId)) {
+      article.remove();
+      removeLiveEvent(eventId);
+      removeOfflineQueuedById(eventId);
+      showPageStatus('Acción offline eliminada.', 'success', 2600);
+      emitSummaryChange();
+      return;
+    }
     try {
       const response = await fetch(deleteUrl, {
         method: 'POST',
@@ -510,6 +697,14 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
   const deleteHistoryArticle = async (article, successMessage = 'Última acción deshecha.') => {
     const eventId = article?.dataset?.eventId;
     if (!eventId) return false;
+    if (isOfflineId(eventId)) {
+      article.remove();
+      removeLiveEvent(eventId);
+      removeOfflineQueuedById(eventId);
+      showPageStatus(successMessage, 'success', 2600);
+      emitSummaryChange();
+      return true;
+    }
     try {
       const response = await fetch(deleteUrl, {
         method: 'POST',
@@ -668,17 +863,18 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     if (isTeamOnlyAction) payload.delete('player');
     try {
       actionSubmitInFlight = true;
+      if (!navigator.onLine) throw new Error('offline');
       const response = await fetch(submitUrl, {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'X-CSRFToken': csrfToken, Accept: 'application/json' },
-        body: payload,
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        showPageStatus(data.error || 'No se pudo guardar la acción.', 'danger', 5200);
-        return;
-      }
+	      method: 'POST',
+	      credentials: 'same-origin',
+	      headers: { 'X-CSRFToken': csrfToken, Accept: 'application/json' },
+	      body: payload,
+	    });
+	    const data = await response.json().catch(() => ({}));
+	    if (!response.ok) {
+	      showPageStatus(data.error || 'No se pudo guardar la acción.', 'danger', 5200);
+	      return;
+	    }
       const inserted = appendHistoryEntry({
         minute: data.minute || 'Ahora',
         player: data.player,
@@ -705,6 +901,25 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       emitSummaryChange();
       showPageStatus(`Acción registrada${data.duplicate ? ' (duplicado detectado)' : ''}.`, data.duplicate ? 'warning' : 'success', 2600);
     } catch (err) {
+      if (!navigator.onLine || String(err?.message || '').toLowerCase().includes('offline')) {
+        const offlineId = makeOfflineId();
+        const fields = serializeFormData(payload);
+        enqueueOfflineAction({ offlineId, fields });
+        appendHistoryEntry({
+          minute: payload.get('minute') || Math.floor(elapsedRef.value / 60),
+          player: isTeamOnlyAction ? null : { id: playerInput.value, name: (playerInput.selectedOptions?.[0]?.textContent || 'Jugador'), number: '' },
+          action: payload.get('action_type') || currentAction || 'Acción',
+          zone: payload.get('zone') || zoneInput.value || '',
+          result: payload.get('result') || '',
+          event_id: offlineId,
+          pending: true,
+        });
+        hidePopup();
+        showPageStatus('Sin conexión: acción guardada en el dispositivo. Se sincronizará al volver la red.', 'warning', 5200);
+        emitSummaryChange();
+        updateOfflineQueueUi();
+        return;
+      }
       console.error(err);
       showPageStatus('Error al guardar la acción en el servidor.', 'danger', 5200);
     } finally {
@@ -733,17 +948,18 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     formData.set('observation', '');
     if (currentMatchId) formData.set('match_id', currentMatchId);
     try {
+      if (!navigator.onLine) throw new Error('offline');
       const response = await fetch(submitUrl, {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'X-CSRFToken': csrfToken, Accept: 'application/json' },
-        body: formData,
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        showPageStatus(data.error || 'No se pudo registrar la acción rápida.', 'danger', 5200);
-        return null;
-      }
+	      method: 'POST',
+	      credentials: 'same-origin',
+	      headers: { 'X-CSRFToken': csrfToken, Accept: 'application/json' },
+	      body: formData,
+	    });
+	    const data = await response.json().catch(() => ({}));
+	    if (!response.ok) {
+	      showPageStatus(data.error || 'No se pudo registrar la acción rápida.', 'danger', 5200);
+	      return null;
+	    }
       const inserted = appendHistoryEntry({
         minute: data.minute || 'Ahora',
         player: data.player,
@@ -759,6 +975,26 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       emitSummaryChange();
       return data;
     } catch (err) {
+      if (!navigator.onLine || String(err?.message || '').toLowerCase().includes('offline')) {
+        const offlineId = makeOfflineId();
+        const fields = serializeFormData(formData);
+        enqueueOfflineAction({ offlineId, fields });
+        appendHistoryEntry({
+          minute: minute,
+          player: isTeamOnly ? null : { id: player?.id, name: player?.name || 'Jugador', number: player?.number || '' },
+          action: eventType,
+          zone: zoneLabel || '',
+          result: result || '',
+          event_id: offlineId,
+          pending: true,
+        });
+        incrementQuickCounter(dropKey);
+        appendQuickHistory(dropKey, player?.name || 'Equipo', minute, result || eventType);
+        emitSummaryChange();
+        showPageStatus('Sin conexión: acción guardada en el dispositivo. Se sincronizará al volver la red.', 'warning', 5200);
+        updateOfflineQueueUi();
+        return { offline: true, id: offlineId };
+      }
       console.error(err);
       showPageStatus('Error al registrar la acción rápida.', 'danger', 5200);
       return null;

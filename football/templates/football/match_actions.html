@@ -77,7 +77,7 @@
         gap: 0.75rem;
         flex-wrap: wrap;
       }
-      .pre-lineup-panel {
+	      .pre-lineup-panel {
         flex: 1;
         min-width: 260px;
       }
@@ -1885,17 +1885,19 @@
             <button type="button" class="match-stage-tab is-active" data-stage-tab="live">En vivo</button>
             <button type="button" class="match-stage-tab" data-stage-tab="close">Cierre</button>
           </nav>
-          <div class="clock-card">
-            <div class="clock-card-inner">
-              <div class="position-fixed-clock" style="display: flex; align-items: center; gap: 8px;">
-  <span id="match-clock-display" style="font-size: 2.2rem; font-weight: 700;">00:00</span>
-  <button type="button" id="field-clock-toggle" aria-label="Arrancar cronómetro" style="font-size: 1.5rem; padding: 6px 12px; border-radius: 9999px; border: none; cursor: pointer;">►</button>
-  <button type="button" id="field-clock-reset" aria-label="Reiniciar cronómetro" style="font-size: 1rem; padding: 6px 12px; border-radius: 9999px; border: none; cursor: pointer; background: #ef4444; color: #ffffff; font-weight: 700;">Reset</button>
-  <button type="button" id="change-half-btn" aria-label="Cambiar de parte" style="font-size: 1rem; padding: 6px 12px; border-radius: 9999px; border: none; cursor: pointer; background: #facc15; color: #0f172a; font-weight: 600;">1ª Parte</button>
-</div>
-              <p class="clock-note">Cronómetro en vivo · se registra el minuto en cada acción</p>
-            </div>
-          </div>
+	          <div class="clock-card">
+	            <div class="clock-card-inner">
+	              <div class="position-fixed-clock" style="display: flex; align-items: center; gap: 8px;">
+	  <span id="match-clock-display" style="font-size: 2.2rem; font-weight: 700;">00:00</span>
+	  <button type="button" id="field-clock-toggle" aria-label="Arrancar cronómetro" style="font-size: 1.5rem; padding: 6px 12px; border-radius: 9999px; border: none; cursor: pointer;">►</button>
+	  <button type="button" id="field-clock-reset" aria-label="Reiniciar cronómetro" style="font-size: 1rem; padding: 6px 12px; border-radius: 9999px; border: none; cursor: pointer; background: #ef4444; color: #ffffff; font-weight: 700;">Reset</button>
+	  <button type="button" id="change-half-btn" aria-label="Cambiar de parte" style="font-size: 1rem; padding: 6px 12px; border-radius: 9999px; border: none; cursor: pointer; background: #facc15; color: #0f172a; font-weight: 600;">1ª Parte</button>
+	  <span id="offline-queue-badge" class="offline-queue-badge" hidden aria-live="polite"></span>
+	  <button type="button" id="offline-queue-sync" class="offline-queue-sync" hidden>Sincronizar</button>
+	</div>
+	              <p class="clock-note">Cronómetro en vivo · se registra el minuto en cada acción</p>
+	            </div>
+	          </div>
           <section class="match-stage-panel" data-stage-panel="pre">
           {% if match_info %}
           <div class="match-header-panels">
@@ -3240,6 +3242,44 @@
 		      };
 	      if (playerQuickClearBtn) {
 	        playerQuickClearBtn.addEventListener('click', () => clearPlayerSelection());
+	      }
+	      .offline-queue-badge {
+	        display: inline-flex;
+	        align-items: center;
+	        gap: 0.45rem;
+	        padding: 6px 10px;
+	        border-radius: 999px;
+	        font-weight: 700;
+	        font-size: 0.9rem;
+	        background: rgba(245, 158, 11, 0.16);
+	        border: 1px solid rgba(245, 158, 11, 0.35);
+	        color: rgba(255, 251, 235, 0.96);
+	      }
+	      .offline-queue-sync {
+	        padding: 6px 10px;
+	        border-radius: 999px;
+	        font-weight: 800;
+	        font-size: 0.9rem;
+	        cursor: pointer;
+	        border: 1px solid rgba(34, 211, 238, 0.35);
+	        background: rgba(34, 211, 238, 0.12);
+	        color: rgba(224, 242, 254, 0.95);
+	      }
+	      .history-item.is-offline-pending {
+	        outline: 2px solid rgba(245, 158, 11, 0.35);
+	        outline-offset: 2px;
+	      }
+	      .history-item .pending-pill {
+	        display: inline-flex;
+	        margin-left: 8px;
+	        padding: 2px 8px;
+	        border-radius: 999px;
+	        font-size: 0.75rem;
+	        font-weight: 800;
+	        letter-spacing: 0.04em;
+	        background: rgba(245, 158, 11, 0.18);
+	        border: 1px solid rgba(245, 158, 11, 0.35);
+	        color: rgba(255, 251, 235, 0.96);
 	      }
 		      const onLineupCrossMove = (fromSection, toSection, player) => {
 		        if (activeStage !== 'live') return;
