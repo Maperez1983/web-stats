@@ -545,12 +545,15 @@
 
     {{ hero_image_candidates|json_script:"hero-images-json" }}
     <script>
+      const demoMode = {% if demo_mode %}true{% else %}false{% endif %};
       const heroElement = document.getElementById('team-hero');
       const managedHeroImages = JSON.parse(document.getElementById('hero-images-json')?.textContent || '[]');
-	      const heroFallbackCandidates = [
-	        '{% static "football/images/team-01.jpg" %}',
-	        '{% static "football/campo-futbol.jpg" %}',
-	      ];
+	      const heroFallbackCandidates = demoMode
+          ? []
+          : [
+	            '{% static "football/images/team-01.jpg" %}',
+	            '{% static "football/campo-futbol.jpg" %}',
+	          ];
         const activeWorkspaceId = String('{{ active_workspace.id|default:"" }}').trim();
         const activeTeamId = String('{{ active_team.id|default:"" }}').trim();
 	      let standingsExpanded = false;
@@ -590,6 +593,9 @@
       }
 
       async function initHeroImage() {
+        if (demoMode) {
+          return;
+        }
         const candidates = [...(managedHeroImages || []), ...heroFallbackCandidates]
           .map((src) => String(src || '').trim())
           .filter(Boolean);
@@ -632,6 +638,11 @@
           document.getElementById('standings').textContent = 'Error al cargar';
         }
       }
+
+      if (!demoMode) {
+        initHeroImage();
+      }
+      renderDashboard();
 
       function renderStandings(standings, team) {
         const container = document.getElementById('standings');
@@ -846,9 +857,6 @@
           renderDashboard();
         });
       }
-
-      initHeroImage();
-      renderDashboard();
     </script>
   </body>
 </html>
