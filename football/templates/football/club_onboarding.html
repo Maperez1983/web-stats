@@ -1,0 +1,192 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Onboarding · 2J Club</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <style>
+      :root {
+        --deep: #050913;
+        --panel: rgba(7, 16, 30, 0.82);
+        --line: rgba(255, 255, 255, 0.16);
+        --ink: #eef2ff;
+        --muted: rgba(226, 232, 240, 0.76);
+        --amber: #f4b400;
+        --pitch: #2f7d32;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        color: var(--ink);
+        font-family: "Avenir Next", "Segoe UI", sans-serif;
+        background:
+          radial-gradient(circle at 10% -10%, rgba(70, 211, 255, 0.18), transparent 40%),
+          radial-gradient(circle at 90% 0%, rgba(255, 191, 69, 0.15), transparent 35%),
+          linear-gradient(180deg, #03070f 0%, #081120 55%, #0a1427 100%);
+        padding: 1rem;
+      }
+      .page {
+        max-width: 900px;
+        margin: 0 auto;
+      }
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        background: var(--panel);
+        padding: 1rem;
+        backdrop-filter: blur(4px);
+      }
+      h1 {
+        margin: 0;
+        font-size: 1.1rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      p { margin: 0.4rem 0; color: var(--muted); }
+      .grid {
+        margin-top: 1rem;
+        display: grid;
+        gap: 0.9rem;
+        grid-template-columns: 1fr 1fr;
+      }
+      @media (max-width: 740px) {
+        .grid { grid-template-columns: 1fr; }
+      }
+      label {
+        display: block;
+        margin: 0.1rem 0 0.35rem;
+        font-size: 0.75rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(245, 247, 250, 0.84);
+      }
+      input, select {
+        width: 100%;
+        border-radius: 12px;
+        border: 1px solid rgba(244, 180, 0, 0.18);
+        background: rgba(18, 28, 48, 0.72);
+        color: var(--ink);
+        padding: 0.65rem 0.7rem;
+      }
+      .actions {
+        margin-top: 1rem;
+        display: flex;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+      }
+      .btn {
+        border: none;
+        border-radius: 999px;
+        padding: 0.7rem 1rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
+      .btn-primary {
+        background: linear-gradient(135deg, var(--amber), var(--pitch));
+        color: #081320;
+      }
+      .btn-ghost {
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--ink);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .notice {
+        margin-top: 0.75rem;
+        border-radius: 14px;
+        padding: 0.75rem 0.85rem;
+        border: 1px solid rgba(244, 180, 0, 0.22);
+        background: rgba(244, 180, 0, 0.08);
+      }
+      .error {
+        border-color: rgba(248, 113, 113, 0.4);
+        background: rgba(127, 29, 29, 0.35);
+      }
+      .meta {
+        margin-top: 0.6rem;
+        font-size: 0.86rem;
+      }
+      .meta code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        background: rgba(0, 0, 0, 0.24);
+        padding: 0.1rem 0.35rem;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div class="card">
+        <h1>Onboarding del club</h1>
+        <p>Conecta tu competición (Universo RFAF) para poder pintar Home con datos reales.</p>
+
+        {% if error %}
+        <div class="notice error"><strong>Error:</strong> {{ error }}</div>
+        {% endif %}
+        {% if success %}
+        <div class="notice"><strong>OK:</strong> {{ success }}</div>
+        {% endif %}
+
+        <div class="meta">
+          <div>Workspace activo: <code>{{ workspace.slug }}</code></div>
+          {% if competition_context %}
+          <div style="margin-top:0.3rem;">
+            Estado sync: <code>{{ competition_context.sync_status }}</code>
+            {% if competition_context.last_sync_at %}· último: <code>{{ competition_context.last_sync_at|date:"d/m/Y H:i" }}</code>{% endif %}
+          </div>
+          {% endif %}
+        </div>
+
+        <form method="post" style="margin-top:1rem;">
+          {% csrf_token %}
+          <div class="grid">
+            <div>
+              <label for="id_workspace_name">Nombre del club</label>
+              <input id="id_workspace_name" type="text" name="workspace_name" value="{{ form.workspace_name|default:'' }}" required />
+            </div>
+            <div>
+              <label for="id_team_name">Nombre del equipo</label>
+              <input id="id_team_name" type="text" name="team_name" value="{{ form.team_name|default:'' }}" required />
+            </div>
+            <div>
+              <label for="id_provider">Proveedor</label>
+              <select id="id_provider" name="provider">
+                {% for key, label in provider_choices %}
+                <option value="{{ key }}" {% if form.provider == key %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label for="id_group_key">ID de grupo (Universo)</label>
+              <input id="id_group_key" type="text" name="external_group_key" value="{{ form.external_group_key|default:'' }}" placeholder="Ej: 45030656" />
+            </div>
+            <div style="grid-column: 1 / -1;">
+              <label for="id_team_url">URL de equipo (Universo, opcional)</label>
+              <input id="id_team_url" type="url" name="external_source_url" value="{{ form.external_source_url|default:'' }}" placeholder="https://www.universorfaf.es/team/..." />
+            </div>
+          </div>
+
+          <div class="actions">
+            <button class="btn btn-primary" type="submit" name="action" value="save_and_sync">Guardar y sincronizar</button>
+            <button class="btn btn-ghost" type="submit" name="action" value="save">Guardar</button>
+            <a class="btn btn-ghost" href="{% url 'dashboard-home' %}">Volver a Home</a>
+          </div>
+        </form>
+
+        <div class="notice" style="margin-top:1rem;">
+          <strong>Nota:</strong> si no tienes token/sesión activa de Universo en el servidor, la sincronización puede fallar.
+          En ese caso, se queda como <code>error</code> y puedes reintentar más tarde.
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
+

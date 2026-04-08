@@ -305,6 +305,43 @@ def workspace_set_active_team(request):
 
 
 @login_required
+@require_POST
+def workspace_sync_competition_api(request):
+    """
+    Sincroniza el contexto competitivo del workspace club actual (owner/admin).
+    Útil para onboarding/autoservicio sin depender de Platform.
+    """
+    workspace = _get_active_workspace(request)
+    if not workspace or workspace.kind != Workspace.KIND_CLUB:
+        return JsonResponse({'status': 'error', 'message': 'No hay workspace club activo.'}, status=400)
+    if not _can_manage_workspace(request.user, workspace):
+        return JsonResponse({'status': 'error', 'message': 'No autorizado.'}, status=403)
+    primary_team = _get_active_team_for_request(request) or getattr(workspace, 'primary_team', None)
+    if not primary_team:
+        return JsonResponse({'status': 'error', 'message': 'No hay equipo configurado.'}, status=400)
+
+    lock_key = f'workspace_sync_lock:{workspace.id}:{primary_team.id}'
+    if not cache.add(lock_key, '1', timeout=180):
+        return JsonResponse({'status': 'error', 'message': 'Ya hay una sincronización en curso.'}, status=429)
+    try:
+        context, sync_error = _sync_workspace_competition_context(workspace, primary_team=primary_team)
+        if sync_error:
+            return JsonResponse({'status': 'error', 'message': sync_error}, status=500)
+        return JsonResponse(
+            {
+                'status': 'success',
+                'message': 'Sincronización completada.',
+                'sync_status': str(getattr(context, 'sync_status', '') or '').strip(),
+                'last_sync_at': getattr(context, 'last_sync_at', None).isoformat() if getattr(context, 'last_sync_at', None) else '',
+            }
+        )
+    except Exception as exc:
+        return JsonResponse({'status': 'error', 'message': str(exc) or 'No se pudo sincronizar.'}, status=500)
+    finally:
+        cache.delete(lock_key)
+
+
+@login_required
 def system_diagnostics(request):
     """Diagnóstico (solo admin) para comprobar persistencia en Render.
 
@@ -1824,6 +1861,10 @@ def _get_active_team_for_request(request):
         if first_link:
             return first_link
 
+        # Workspace club sin equipo configurado: NO caer al "equipo primario global" porque
+        # mezcla datos entre clientes. El dashboard debe entrar en modo onboarding/demo.
+        return None
+
     # Modo sin workspace / usuario no plataforma: mantenemos el fallback histórico.
     if request and getattr(request, 'user', None) and request.user.is_authenticated and not _can_access_platform(request.user):
         role = _get_user_role(request.user)
@@ -2494,20 +2535,44 @@ def _sync_workspace_competition_context(workspace, primary_team=None):
     context = _bootstrap_workspace_competition_context(workspace, primary_team=primary_team)
     if not context:
         return None, 'No se pudo preparar el contexto competitivo.'
-    if not primary_team or not getattr(primary_team, 'group', None):
+    if not primary_team:
         context.sync_status = WorkspaceCompetitionContext.STATUS_ERROR
-        context.sync_error = 'El cliente no tiene equipo o grupo vinculado.'
+        context.sync_error = 'El cliente no tiene equipo vinculado.'
         context.last_sync_at = timezone.now()
         context.save(update_fields=['sync_status', 'sync_error', 'last_sync_at', 'updated_at'])
         return context, context.sync_error
 
     context = _ensure_universo_context_binding(context, primary_team)
     _sync_team_crest_from_sources(primary_team)
+    provider_key = str(getattr(context, 'provider', '') or '').strip().lower()
+    # Universo: permitir sincronizar aunque el Team todavía no tenga Group en BD.
+    # Usamos `external_group_key` para traer clasificación y crear Competition/Season/Group.
+    if provider_key == WorkspaceCompetitionContext.PROVIDER_UNIVERSO and not getattr(primary_team, 'group', None):
+        group_key = str(getattr(context, 'external_group_key', '') or '').strip()
+        if group_key:
+            try:
+                live_classification = _fetch_universo_live_classification(group_key)
+                if isinstance(live_classification, dict) and live_classification.get('clasificacion'):
+                    _ensure_universo_group_models_from_live(
+                        group_key=group_key,
+                        live_payload=live_classification,
+                        primary_team=primary_team,
+                        context=context,
+                    )
+            except Exception:
+                pass
+
+    if not getattr(primary_team, 'group', None):
+        context.sync_status = WorkspaceCompetitionContext.STATUS_ERROR
+        context.sync_error = 'El cliente no tiene grupo/competición vinculada.'
+        context.last_sync_at = timezone.now()
+        context.save(update_fields=['sync_status', 'sync_error', 'last_sync_at', 'updated_at'])
+        return context, context.sync_error
+
     if getattr(primary_team, 'group_id', None):
         for team in Team.objects.filter(group=primary_team.group).only('id', 'name', 'short_name', 'external_id', 'crest_url', 'crest_image', 'is_primary'):
             _sync_team_crest_from_sources(team)
     standings_payload = []
-    provider_key = str(getattr(context, 'provider', '') or '').strip().lower()
     if provider_key == WorkspaceCompetitionContext.PROVIDER_UNIVERSO:
         group_key = str(getattr(context, 'external_group_key', '') or '').strip() or str(getattr(getattr(primary_team, 'group', None), 'external_id', '') or '').strip()
         if group_key:
@@ -3154,6 +3219,13 @@ def _forbid_if_workspace_module_disabled(request, module_key, label='módulo'):
                 return HttpResponse('El workspace activo no es de tipo club.', status=403)
             return None
         return None
+    # Guardrail producto: un club sin equipo principal no puede navegar módulos "reales".
+    # Permitimos dashboard para onboarding, pero bloqueamos el resto hasta que se configure.
+    try:
+        if module_key != 'dashboard' and _workspace_needs_setup(workspace) and request and getattr(request, 'user', None) and request.user.is_authenticated and not _can_access_platform(request.user):
+            return HttpResponse('Este club todavía no tiene equipo/configuración. Completa el onboarding primero.', status=403)
+    except Exception:
+        pass
     if _workspace_has_module_for_user(workspace, module_key, user=request.user if request else None):
         return None
     return HttpResponse(f'El {label} no está activo en el workspace actual.', status=403)
@@ -5808,6 +5880,37 @@ def _is_demo_mode_for_request(request) -> bool:
     return bool(membership and membership.role == WorkspaceMembership.ROLE_VIEWER)
 
 
+def _workspace_needs_setup(workspace) -> bool:
+    """
+    Un workspace club "sin configurar" es aquel que no tiene equipo principal ni vínculos
+    a equipos/categorías. En ese caso, la app debe mostrar datos simulados y guiar a onboarding
+    (evita pintar datos del club global por defecto).
+    """
+    if not workspace or getattr(workspace, 'kind', None) != Workspace.KIND_CLUB:
+        return False
+    if getattr(workspace, 'primary_team_id', None):
+        return False
+    return not WorkspaceTeam.objects.filter(workspace=workspace).exists()
+
+
+def _build_setup_dashboard_payload(request, workspace):
+    payload = _build_demo_dashboard_payload(request)
+    if not isinstance(payload, dict):
+        payload = {}
+    workspace_name = str(getattr(workspace, 'name', '') or '').strip() or 'Tu club'
+    team_payload = payload.get('team') if isinstance(payload.get('team'), dict) else {}
+    team_payload = dict(team_payload)
+    team_payload['name'] = workspace_name
+    team_payload['corporate_line'] = 'Configura tu club · Datos simulados'
+    payload['team'] = team_payload
+    payload['setup_required'] = True
+    try:
+        payload['setup_url'] = reverse('club-onboarding')
+    except Exception:
+        payload['setup_url'] = '/onboarding/'
+    return payload
+
+
 def _build_demo_dashboard_payload(request):
     today = timezone.localdate()
     user_id = int(getattr(getattr(request, 'user', None), 'id', 0) or 0)
@@ -5925,6 +6028,11 @@ def dashboard_data(request):
         pass
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
+        # Workspace sin configurar: devolvemos datos simulados (avatar + clasificación random)
+        # y permitimos que la UI guíe al onboarding.
+        workspace = _get_active_workspace(request)
+        if workspace and _workspace_needs_setup(workspace):
+            return JsonResponse(_build_setup_dashboard_payload(request, workspace))
         return JsonResponse({'error': 'No hay equipo principal configurado'}, status=400)
 
     group = primary_team.group
@@ -6131,12 +6239,24 @@ def dashboard_page(request):
     workspace_links = _workspace_links_for_user(request.user)
     active_workspace = _build_active_workspace_badge(request)
     demo_mode = False
+    setup_mode = False
+    setup_workspace_name = ''
     try:
         demo_mode = _is_demo_mode_for_request(request)
     except Exception:
         demo_mode = False
+    try:
+        setup_mode = bool(active_workspace_obj and _workspace_needs_setup(active_workspace_obj))
+        if setup_mode:
+            setup_workspace_name = str(getattr(active_workspace_obj, 'name', '') or '').strip()
+    except Exception:
+        setup_mode = False
+        setup_workspace_name = ''
     if demo_mode:
         # Demo comercial: no usamos fotos reales ni carrusel.
+        hero_image_candidates = []
+    if setup_mode:
+        # Onboarding: tampoco usar fotos reales (evita mostrar Benagalbón por defecto).
         hero_image_candidates = []
     dashboard_focus_items = []
     dashboard_pending_items = []
@@ -6265,6 +6385,8 @@ def dashboard_page(request):
             'scrape_sources': sources,
             'hero_image_candidates': hero_image_candidates,
             'demo_mode': demo_mode,
+            'setup_mode': setup_mode,
+            'setup_workspace_name': setup_workspace_name,
             'current_role': current_role,
             'current_role_label': role_labels.get(current_role, 'Jugador'),
             'can_access_admin': can_access_admin,
@@ -6276,6 +6398,240 @@ def dashboard_page(request):
             'dashboard_pending_items': dashboard_pending_items,
             'dashboard_pending_cards': dashboard_pending_cards,
             'dashboard_recent_activity': dashboard_recent_activity,
+        },
+    )
+
+
+def _public_signup_enabled() -> bool:
+    return str(os.getenv('ENABLE_PUBLIC_SIGNUP', '0') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+
+
+def _redirect_to_app_host_if_landing(request, *, path: str):
+    host = str(getattr(request, 'get_host', lambda: '')() or '').split(':', 1)[0].strip().lower()
+    landing_hosts = [
+        h.strip().lower()
+        for h in (os.getenv('LANDING_HOSTS') or 'segundajugada.es,www.segundajugada.es,segundajugada.com,www.segundajugada.com').split(',')
+        if h.strip()
+    ]
+    if host not in landing_hosts:
+        return None
+    target_host = host[4:] if host.startswith('www.') else host
+    app_url = f'https://app.{target_host}'
+    return redirect(f'{app_url}{path}')
+
+
+def public_signup_page(request):
+    if not _public_signup_enabled():
+        raise Http404('Signup deshabilitado')
+    if request and getattr(request, 'user', None) and request.user.is_authenticated:
+        return redirect('dashboard-home')
+    redirect_response = _redirect_to_app_host_if_landing(request, path='/signup/')
+    if redirect_response:
+        return redirect_response
+
+    error = ''
+    form = {
+        'club_name': (request.POST.get('club_name') or '').strip() if request.method == 'POST' else '',
+        'email': (request.POST.get('email') or '').strip().lower() if request.method == 'POST' else '',
+    }
+    if request.method == 'POST':
+        club_name = _sanitize_task_text((request.POST.get('club_name') or '').strip(), multiline=False, max_len=160)
+        email = re.sub(r'\s+', '', str(request.POST.get('email') or '').strip()).lower()[:190]
+        password = (request.POST.get('password') or '').strip()
+        password_confirm = (request.POST.get('password_confirm') or '').strip()
+        try:
+            if not club_name:
+                raise ValueError('El nombre del club es obligatorio.')
+            if not email or '@' not in email:
+                raise ValueError('Email inválido.')
+            if not password or len(password) < 6:
+                raise ValueError('La contraseña debe tener al menos 6 caracteres.')
+            if password != password_confirm:
+                raise ValueError('Las contraseñas no coinciden.')
+            validate_password(password)
+            username_seed = email.split('@', 1)[0]
+            username = slugify(username_seed or '').replace('-', '.').strip('.')[:150] or 'club'
+            base = username
+            suffix = 2
+            while User.objects.filter(username__iexact=username).exists():
+                username = f'{base}{suffix}'
+                suffix += 1
+            with transaction.atomic():
+                user = User.objects.create_user(
+                    username=username,
+                    email=email,
+                    password=password,
+                    is_active=True,
+                )
+                AppUserRole.objects.update_or_create(user=user, defaults={'role': AppUserRole.ROLE_COACH})
+                modules = _workspace_default_modules(Workspace.KIND_CLUB)
+                enabled_modules = {key: (key == 'dashboard') for key in modules.keys()}
+                workspace = Workspace.objects.create(
+                    name=club_name,
+                    slug=_unique_workspace_slug(club_name),
+                    kind=Workspace.KIND_CLUB,
+                    owner_user=user,
+                    enabled_modules=enabled_modules,
+                    is_active=True,
+                )
+                WorkspaceMembership.objects.update_or_create(
+                    workspace=workspace,
+                    user=user,
+                    defaults={'role': WorkspaceMembership.ROLE_OWNER},
+                )
+            try:
+                backend = settings.AUTHENTICATION_BACKENDS[0] if getattr(settings, 'AUTHENTICATION_BACKENDS', None) else None
+                if backend:
+                    auth_login(request, user, backend=backend)
+                else:
+                    auth_login(request, user)
+            except Exception:
+                pass
+            try:
+                request.session['active_workspace_id'] = workspace.id
+            except Exception:
+                pass
+            return redirect('club-onboarding')
+        except ValueError as exc:
+            error = str(exc)
+        except DjangoValidationError as exc:
+            error = ' '.join(exc.messages) or 'Datos inválidos.'
+        except Exception:
+            error = 'No se pudo crear la cuenta.'
+
+    return render(
+        request,
+        'registration/signup.html',
+        {
+            'error': error,
+            'form': form,
+        },
+    )
+
+
+@login_required
+def club_onboarding_page(request):
+    redirect_response = _redirect_to_app_host_if_landing(request, path='/onboarding/')
+    if redirect_response:
+        return redirect_response
+    workspace = _get_active_workspace(request)
+    if not workspace or workspace.kind != Workspace.KIND_CLUB:
+        return HttpResponse('No hay un workspace club activo.', status=400)
+    if not _can_manage_workspace(request.user, workspace):
+        return HttpResponse('No tienes permisos para configurar este workspace.', status=403)
+
+    primary_team = getattr(workspace, 'primary_team', None)
+    competition_context = None
+    if primary_team:
+        competition_context = _bootstrap_workspace_competition_context(workspace, primary_team=primary_team)
+
+    error = ''
+    success = ''
+    form = {
+        'workspace_name': str(getattr(workspace, 'name', '') or '').strip(),
+        'team_name': str(getattr(primary_team, 'name', '') or '').strip() if primary_team else str(getattr(workspace, 'name', '') or '').strip(),
+        'provider': str(getattr(competition_context, 'provider', '') or WorkspaceCompetitionContext.PROVIDER_UNIVERSO).strip() if competition_context else WorkspaceCompetitionContext.PROVIDER_UNIVERSO,
+        'external_group_key': str(getattr(competition_context, 'external_group_key', '') or '').strip() if competition_context else '',
+        'external_source_url': str(getattr(competition_context, 'external_source_url', '') or '').strip() if competition_context else '',
+    }
+    if request.method == 'POST':
+        action = str(request.POST.get('action') or 'save_and_sync').strip().lower()
+        workspace_name = _sanitize_task_text((request.POST.get('workspace_name') or '').strip(), multiline=False, max_len=160)
+        team_name = _sanitize_task_text((request.POST.get('team_name') or '').strip(), multiline=False, max_len=150)
+        provider = str(request.POST.get('provider') or WorkspaceCompetitionContext.PROVIDER_UNIVERSO).strip()
+        external_group_key = str(request.POST.get('external_group_key') or '').strip()
+        external_source_url = str(request.POST.get('external_source_url') or '').strip()
+        form.update(
+            {
+                'workspace_name': workspace_name,
+                'team_name': team_name,
+                'provider': provider,
+                'external_group_key': external_group_key,
+                'external_source_url': external_source_url,
+            }
+        )
+        try:
+            if not workspace_name:
+                raise ValueError('El nombre del club es obligatorio.')
+            if not team_name:
+                raise ValueError('El nombre del equipo es obligatorio.')
+            if provider not in {choice[0] for choice in WorkspaceCompetitionContext.PROVIDER_CHOICES}:
+                provider = WorkspaceCompetitionContext.PROVIDER_UNIVERSO
+            with transaction.atomic():
+                if str(getattr(workspace, 'name', '') or '').strip() != workspace_name:
+                    workspace.name = workspace_name
+                    workspace.save(update_fields=['name', 'updated_at'])
+                primary_team = getattr(workspace, 'primary_team', None)
+                if not primary_team:
+                    primary_team = Team.objects.create(
+                        name=team_name,
+                        slug=_unique_team_slug(team_name),
+                        short_name=team_name[:60],
+                        is_primary=False,
+                    )
+                    workspace.primary_team = primary_team
+                    workspace.save(update_fields=['primary_team', 'updated_at'])
+                elif str(getattr(primary_team, 'name', '') or '').strip() != team_name:
+                    primary_team.name = team_name
+                    primary_team.short_name = team_name[:60]
+                    primary_team.save(update_fields=['name', 'short_name'])
+
+                WorkspaceTeam.objects.get_or_create(
+                    workspace=workspace,
+                    team=primary_team,
+                    defaults={'is_default': True},
+                )
+                WorkspaceTeamAccess.objects.update_or_create(
+                    workspace=workspace,
+                    team=primary_team,
+                    user=request.user,
+                    defaults={'is_default': True},
+                )
+
+                external_team_key = ''
+                if provider == WorkspaceCompetitionContext.PROVIDER_UNIVERSO and external_source_url:
+                    external_team_key = _parse_universo_team_code_from_url(external_source_url)
+
+                competition_context = _bootstrap_workspace_competition_context(
+                    workspace,
+                    primary_team=primary_team,
+                    provider=provider,
+                    external_group_key=external_group_key,
+                    external_team_key=external_team_key,
+                    external_team_name=str(team_name or '').strip(),
+                    external_source_url=external_source_url,
+                    auto_sync_enabled=True,
+                )
+                if competition_context:
+                    competition_context.sync_status = WorkspaceCompetitionContext.STATUS_PENDING
+                    competition_context.sync_error = ''
+                    competition_context.save(update_fields=['sync_status', 'sync_error', 'updated_at'])
+
+            if action == 'save_and_sync':
+                synced_context, sync_error = _sync_workspace_competition_context(workspace, primary_team=primary_team)
+                competition_context = synced_context or competition_context
+                if sync_error:
+                    raise ValueError(sync_error)
+                success = 'Configuración guardada y sincronización completada.'
+            else:
+                success = 'Configuración guardada.'
+        except ValueError as exc:
+            error = str(exc)
+        except Exception:
+            error = 'No se pudo completar el onboarding.'
+
+    if primary_team and not competition_context:
+        competition_context = _bootstrap_workspace_competition_context(workspace, primary_team=primary_team)
+    return render(
+        request,
+        'football/club_onboarding.html',
+        {
+            'workspace': workspace,
+            'competition_context': competition_context,
+            'provider_choices': WorkspaceCompetitionContext.PROVIDER_CHOICES,
+            'form': form,
+            'error': error,
+            'success': success,
         },
     )
 

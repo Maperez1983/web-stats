@@ -94,7 +94,7 @@
         border: 1px solid var(--line);
         background:
           linear-gradient(180deg, rgba(1, 7, 17, 0.26), rgba(3, 9, 19, 0.88)),
-          {% if demo_mode %}
+          {% if demo_mode or setup_mode %}
           linear-gradient(135deg, rgba(70, 211, 255, 0.12), rgba(244, 180, 0, 0.10));
           {% else %}
           var(--hero-image, url('{% static "football/campo-futbol.jpg" %}')) center/cover no-repeat;
@@ -229,6 +229,28 @@
 
       .main-grid.single-column {
         grid-template-columns: 1fr;
+      }
+
+      .setup-banner {
+        margin-top: 1rem;
+        border-radius: 18px;
+        border: 1px solid rgba(244, 180, 0, 0.28);
+        background: rgba(244, 180, 0, 0.08);
+        padding: 0.9rem 1rem;
+        color: rgba(245, 247, 250, 0.96);
+      }
+      .setup-banner a {
+        color: #081320;
+        background: linear-gradient(135deg, var(--amber), var(--cyan));
+        padding: 0.5rem 0.85rem;
+        border-radius: 999px;
+        text-decoration: none;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        display: inline-flex;
+        margin-top: 0.55rem;
       }
 
       .block {
@@ -495,10 +517,18 @@
               <img
                 id="hero-team-crest"
                 class="team-photo-crest"
-                src="{% if demo_mode %}{% static 'football/images/player-avatar.svg' %}{% else %}{% static 'football/images/cdb-logo.png' %}{% endif %}"
+                src="{% if demo_mode or setup_mode %}{% static 'football/images/player-avatar.svg' %}{% else %}{% static 'football/images/cdb-logo.png' %}{% endif %}"
                 alt="Escudo del equipo"
               />
-              <h2 id="hero-team-name">{% if demo_mode %}Equipo Demo{% else %}C.D. Benagalbón{% endif %}</h2>
+              <h2 id="hero-team-name">
+                {% if demo_mode %}
+                  Equipo Demo
+                {% elif setup_mode %}
+                  {{ setup_workspace_name|default:"Tu club" }}
+                {% else %}
+                  C.D. Benagalbón
+                {% endif %}
+              </h2>
             </div>
             <p id="hero-competition-line">Competición por definir</p>
             <p id="hero-rank-line">Puesto -</p>
@@ -528,6 +558,8 @@
         </aside>
       </section>
 
+      <section id="setup-banner" class="setup-banner" hidden></section>
+
       <section class="main-grid single-column">
         <article class="block standings" id="standings-block">
           <div class="standings-header">
@@ -546,6 +578,7 @@
     {{ hero_image_candidates|json_script:"hero-images-json" }}
     <script>
       const demoMode = {% if demo_mode %}true{% else %}false{% endif %};
+      const setupMode = {% if setup_mode %}true{% else %}false{% endif %};
       const heroElement = document.getElementById('team-hero');
       const managedHeroImages = JSON.parse(document.getElementById('hero-images-json')?.textContent || '[]');
 	      const heroFallbackCandidates = demoMode
@@ -593,7 +626,7 @@
       }
 
       async function initHeroImage() {
-        if (demoMode) {
+        if (demoMode || setupMode) {
           return;
         }
         const candidates = [...(managedHeroImages || []), ...heroFallbackCandidates]
@@ -613,6 +646,23 @@
 	          const response = await fetch(buildDashboardUrl());
 	          if (!response.ok) throw new Error('No se pudo cargar la dashboard');
 	          const payload = await response.json();
+
+          const setupBanner = document.getElementById('setup-banner');
+          if (setupBanner) {
+            const setupRequired = Boolean(payload && payload.setup_required);
+            if (setupRequired) {
+              const url = String(payload.setup_url || '/onboarding/').trim() || '/onboarding/';
+              setupBanner.hidden = false;
+              setupBanner.innerHTML = `
+                <div><strong>Este club todavía no está configurado.</strong></div>
+                <div style="margin-top:0.25rem; opacity:0.92;">Ahora mismo ves datos simulados (avatar, clasificación y rival ficticios).</div>
+                <a href="${url}">Configurar</a>
+              `;
+            } else {
+              setupBanner.hidden = true;
+              setupBanner.innerHTML = '';
+            }
+          }
 
           if (payload.team && payload.team.name) {
             const heroName = document.getElementById('hero-team-name');
@@ -639,7 +689,7 @@
         }
       }
 
-      if (!demoMode) {
+      if (!demoMode && !setupMode) {
         initHeroImage();
       }
       renderDashboard();

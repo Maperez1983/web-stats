@@ -115,6 +115,119 @@ class LoginNextRedirectTests(TestCase):
         self.assertEqual(response['Location'], reverse('dashboard-home'))
 
 
+class DashboardSetupModeTests(TestCase):
+    def setUp(self):
+        self.primary_global_team = Team.objects.create(
+            name='C.D. Benagalbón',
+            slug='cdb-benagalbon',
+            short_name='Benagalbón',
+            is_primary=True,
+        )
+        self.user = get_user_model().objects.create_user(
+            username='client-owner',
+            email='client-owner@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_COACH)
+        self.workspace = Workspace.objects.create(
+            name='PRUEBA',
+            slug='prueba',
+            kind=Workspace.KIND_CLUB,
+            is_active=True,
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.user,
+            role=WorkspaceMembership.ROLE_OWNER,
+        )
+
+    def test_dashboard_data_returns_setup_payload_for_unconfigured_workspace(self):
+        self.client.force_login(self.user)
+        response = self.client.get(f"{reverse('dashboard-data')}?workspace={self.workspace.id}", secure=True)
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload.get('setup_required'))
+        self.assertEqual(payload.get('team', {}).get('name'), 'PRUEBA')
+        self.assertIn('player-avatar.svg', payload.get('team', {}).get('crest_url', ''))
+        self.assertNotEqual(payload.get('team', {}).get('name'), self.primary_global_team.name)
+
+
+class UniversoSyncWithoutGroupTests(TestCase):
+    @patch('football.views._sync_team_crest_from_sources')
+    @patch('football.views._find_universo_next_match_for_context', return_value={})
+    @patch('football.views._fetch_universo_live_classification')
+    def test_universo_sync_creates_group_when_team_has_none(self, mock_fetch, _mock_next, _mock_crest):
+        user = get_user_model().objects.create_user(
+            username='universo-owner',
+            email='universo-owner@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=user, role=AppUserRole.ROLE_COACH)
+        team = Team.objects.create(
+            name='Equipo Demo',
+            slug='equipo-demo',
+            short_name='Equipo Demo',
+            is_primary=False,
+        )
+        workspace = Workspace.objects.create(
+            name='Club Demo',
+            slug='club-demo',
+            kind=Workspace.KIND_CLUB,
+            primary_team=team,
+            owner_user=user,
+            is_active=True,
+        )
+        WorkspaceMembership.objects.create(workspace=workspace, user=user, role=WorkspaceMembership.ROLE_OWNER)
+        WorkspaceCompetitionContext.objects.create(
+            workspace=workspace,
+            team=team,
+            provider=WorkspaceCompetitionContext.PROVIDER_UNIVERSO,
+            external_group_key='45030656',
+            external_team_name=team.name,
+            is_auto_sync_enabled=True,
+        )
+        mock_fetch.return_value = {
+            'competicion': 'División Demo',
+            'grupo': 'Grupo Demo',
+            'codigo_competicion': '99999',
+            'clasificacion': [
+                {
+                    'nombre': 'Equipo Demo',
+                    'posicion': 1,
+                    'pj': 10,
+                    'pg': 8,
+                    'pe': 1,
+                    'pp': 1,
+                    'gf': 22,
+                    'gc': 9,
+                    'pt': 25,
+                    'codequipo': '111',
+                    'url_img': '',
+                },
+                {
+                    'nombre': 'Rival Demo',
+                    'posicion': 2,
+                    'pj': 10,
+                    'pg': 7,
+                    'pe': 2,
+                    'pp': 1,
+                    'gf': 18,
+                    'gc': 10,
+                    'pt': 23,
+                    'codequipo': '222',
+                    'url_img': '',
+                },
+            ],
+        }
+
+        ctx, error = football_views._sync_workspace_competition_context(workspace, primary_team=team)
+
+        self.assertEqual(error, '')
+        team.refresh_from_db()
+        self.assertIsNotNone(team.group_id)
+        self.assertIsNotNone(ctx)
+        self.assertEqual(ctx.sync_status, WorkspaceCompetitionContext.STATUS_READY)
+
 class PlayerUserLinkTests(TestCase):
     def test_resolve_player_uses_explicit_user_link(self):
         team = Team.objects.create(name='Equipo', slug='equipo', short_name='Equipo', is_primary=True)

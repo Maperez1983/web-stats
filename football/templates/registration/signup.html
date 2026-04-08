@@ -4,7 +4,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Acceso · 2J Football Intelligence</title>
+    <title>Crear cuenta · 2J Football Intelligence</title>
     <style>
       :root {
         --bg: #08111d;
@@ -31,7 +31,7 @@
           linear-gradient(180deg, #060d18, #08111d 56%, #050a13);
       }
       .card {
-        width: min(420px, 100%);
+        width: min(460px, 100%);
         border: 1px solid var(--line);
         border-radius: 22px;
         background: var(--panel);
@@ -88,23 +88,6 @@
         color: var(--text);
         padding: 0.62rem 0.65rem;
       }
-      .password-wrap {
-        display: flex;
-        gap: 0.4rem;
-        align-items: center;
-      }
-      .password-wrap input {
-        flex: 1;
-      }
-      .icon-btn {
-        border: 1px solid var(--line);
-        background: rgba(255, 255, 255, 0.05);
-        color: var(--text);
-        border-radius: 10px;
-        min-width: 40px;
-        height: 40px;
-        cursor: pointer;
-      }
       .pill-button {
         width: 100%;
         margin-top: 0.95rem;
@@ -150,42 +133,33 @@
         <img src="{% static 'football/images/2j-mark.svg' %}" alt="2J Football Intelligence" />
         <div>
           <div class="brand-badge">2J Football Intelligence</div>
-          <h1>Acceso 2J</h1>
-          <p>Football Intelligence</p>
+          <h1>Crear cuenta</h1>
+          <p>Acceso de club (beta)</p>
         </div>
       </div>
 
-      {% if form.errors %}
-      <p class="error">Credenciales inválidas o usuario sin permisos de acceso.</p>
+      {% if error %}
+      <p class="error">{{ error }}</p>
       {% endif %}
 
       <form method="post">
         {% csrf_token %}
-        <label for="id_username">Usuario</label>
-        <input id="id_username" type="text" name="username" required autocomplete="username" />
+        <label for="id_club_name">Nombre del club</label>
+        <input id="id_club_name" type="text" name="club_name" required value="{{ form.club_name|default:'' }}" autocomplete="organization" />
+
+        <label for="id_email">Email</label>
+        <input id="id_email" type="email" name="email" required value="{{ form.email|default:'' }}" autocomplete="email" />
 
         <label for="id_password">Contraseña</label>
-        <div class="password-wrap">
-          <input id="id_password" type="password" name="password" required autocomplete="current-password" />
-          <button type="button" class="icon-btn" data-toggle-password="#id_password" aria-label="Mostrar u ocultar contraseña" title="Mostrar / ocultar">👁</button>
-        </div>
-        <button class="pill-button" type="submit">Entrar</button>
-        {% if public_signup_enabled %}
-        <a class="ghost-link" href="{% url 'signup' %}">Crear cuenta</a>
-        {% endif %}
-        <a class="ghost-link" href="{% url 'product-landing' %}">Conocer 2J</a>
+        <input id="id_password" type="password" name="password" required autocomplete="new-password" />
+
+        <label for="id_password_confirm">Repite contraseña</label>
+        <input id="id_password_confirm" type="password" name="password_confirm" required autocomplete="new-password" />
+
+        <button class="pill-button" type="submit">Crear</button>
+        <a class="ghost-link" href="{% url 'login' %}">Ya tengo cuenta</a>
       </form>
     </main>
-
-    <script>
-      document.querySelectorAll('[data-toggle-password]').forEach((button) => {
-        button.addEventListener('click', () => {
-          const selector = button.getAttribute('data-toggle-password');
-          const input = selector ? document.querySelector(selector) : null;
-          if (!input) return;
-          input.type = input.type === 'password' ? 'text' : 'password';
-        });
-      });
-    </script>
   </body>
 </html>
+

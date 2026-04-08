@@ -78,6 +78,12 @@ class RoleAwareLoginView(auth_views.LoginView):
 
     template_name = "registration/login.html"
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        public_signup_enabled = str(os.getenv("ENABLE_PUBLIC_SIGNUP", "0") or "").strip().lower() in {"1", "true", "yes", "on"}
+        context["public_signup_enabled"] = public_signup_enabled
+        return context
+
     def dispatch(self, request, *args, **kwargs):
         # Producto: `segundajugada.es` es solo landing. El login debe vivir en `app.*`.
         host = _request_host(request)
