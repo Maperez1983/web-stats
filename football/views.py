@@ -1688,6 +1688,17 @@ def _available_workspaces_for_user(user):
     return qs.filter(Q(memberships__user=user) | Q(owner_user=user)).distinct()
 
 
+def _single_club_fallback_enabled() -> bool:
+    """
+    Modo legacy (monoclub): permite auto-asignar el único club y caer al Team.is_primary.
+
+    Importante para producto comercial/multicliente:
+    - Por defecto debe estar desactivado para evitar que un usuario nuevo "herede" datos de otro club.
+    - Activarlo explícitamente solo en entornos internos/demo legacy.
+    """
+    return str(os.getenv('ALLOW_SINGLE_CLUB_FALLBACK', '0') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+
+
 def _get_active_workspace(request):
     if not request or not getattr(request, 'user', None) or not request.user.is_authenticated:
         return None
@@ -1705,59 +1716,59 @@ def _get_active_workspace(request):
         # En modo plataforma, si no hay contexto seleccionado devolvemos None.
         # Excepción: si el sistema solo tiene 1 club activo, fijamos ese contexto para que
         # Dashboard/API no caigan en el "equipo primario global" y no se mezclen categorías.
-        try:
-            club_ws = list(
-                Workspace.objects
-                .filter(kind=Workspace.KIND_CLUB, is_active=True)
-                .order_by('id')[:2]
-            )
-            if len(club_ws) == 1:
-                workspace = club_ws[0]
-                request.session['active_workspace_id'] = workspace.id
-                return workspace
-        except Exception:
-            pass
+        if _single_club_fallback_enabled():
+            try:
+                club_ws = list(
+                    Workspace.objects
+                    .filter(kind=Workspace.KIND_CLUB, is_active=True)
+                    .order_by('id')[:2]
+                )
+                if len(club_ws) == 1:
+                    workspace = club_ws[0]
+                    request.session['active_workspace_id'] = workspace.id
+                    return workspace
+            except Exception:
+                pass
         return None
 
-    # Modo monocliente: si el sistema sólo tiene un club activo, damos acceso de lectura a roles
-    # internos (incluyendo Task Studio) aunque su primer workspace sea privado. Esto permite que
-    # usuarios "task" puedan navegar módulos de partido (convocatoria/11/acciones) cuando se ha
-    # decidido habilitarlo para demos.
-    try:
-        role = _get_user_role(request.user)
-        if role and role != AppUserRole.ROLE_PLAYER:
-            club_ws = list(Workspace.objects.filter(kind=Workspace.KIND_CLUB, is_active=True).order_by('id')[:2])
-            if len(club_ws) == 1:
-                club = club_ws[0]
-                if not WorkspaceMembership.objects.filter(workspace=club, user=request.user).exists() and int(getattr(club, 'owner_user_id', 0) or 0) != int(request.user.id):
-                    WorkspaceMembership.objects.get_or_create(
-                        workspace=club,
-                        user=request.user,
-                        defaults={'role': WorkspaceMembership.ROLE_VIEWER},
-                    )
-    except Exception:
-        pass
+    # Producto comercial: nunca auto-asignar un club a un usuario sin haberlo creado/seleccionado.
+    # El comportamiento legacy monoclub se mantiene sólo si se habilita explícitamente.
+    if _single_club_fallback_enabled():
+        try:
+            role = _get_user_role(request.user)
+            if role and role != AppUserRole.ROLE_PLAYER:
+                club_ws = list(Workspace.objects.filter(kind=Workspace.KIND_CLUB, is_active=True).order_by('id')[:2])
+                if len(club_ws) == 1:
+                    club = club_ws[0]
+                    if not WorkspaceMembership.objects.filter(workspace=club, user=request.user).exists() and int(getattr(club, 'owner_user_id', 0) or 0) != int(request.user.id):
+                        WorkspaceMembership.objects.get_or_create(
+                            workspace=club,
+                            user=request.user,
+                            defaults={'role': WorkspaceMembership.ROLE_VIEWER},
+                        )
+        except Exception:
+            pass
     fallback_workspace = available_qs.order_by('kind', 'name', 'id').first()
     if fallback_workspace:
         request.session['active_workspace_id'] = fallback_workspace.id
         return fallback_workspace
-    # Reparación segura: si el usuario no tiene ningún workspace asignado pero el sistema sólo tiene
-    # un workspace de club activo, lo asignamos automáticamente. Esto evita 403 en entornos de un solo club.
-    role = _get_user_role(request.user)
-    if role in {AppUserRole.ROLE_PLAYER, AppUserRole.ROLE_COACH, AppUserRole.ROLE_FITNESS, AppUserRole.ROLE_GOALKEEPER, AppUserRole.ROLE_ANALYST}:
-        club_ws = list(Workspace.objects.filter(kind=Workspace.KIND_CLUB, is_active=True).order_by('id')[:2])
-        if len(club_ws) == 1:
-            workspace = club_ws[0]
-            try:
-                WorkspaceMembership.objects.get_or_create(
-                    workspace=workspace,
-                    user=request.user,
-                    defaults={'role': WorkspaceMembership.ROLE_MEMBER},
-                )
-            except Exception:
-                pass
-            request.session['active_workspace_id'] = workspace.id
-            return workspace
+    # Producto comercial: no auto-crear membresía ni asignar un club "por defecto".
+    if _single_club_fallback_enabled():
+        role = _get_user_role(request.user)
+        if role in {AppUserRole.ROLE_PLAYER, AppUserRole.ROLE_COACH, AppUserRole.ROLE_FITNESS, AppUserRole.ROLE_GOALKEEPER, AppUserRole.ROLE_ANALYST}:
+            club_ws = list(Workspace.objects.filter(kind=Workspace.KIND_CLUB, is_active=True).order_by('id')[:2])
+            if len(club_ws) == 1:
+                workspace = club_ws[0]
+                try:
+                    WorkspaceMembership.objects.get_or_create(
+                        workspace=workspace,
+                        user=request.user,
+                        defaults={'role': WorkspaceMembership.ROLE_MEMBER},
+                    )
+                except Exception:
+                    pass
+                request.session['active_workspace_id'] = workspace.id
+                return workspace
     return None
 
 
@@ -1886,13 +1897,16 @@ def _get_active_team_for_request(request):
 
     # Modo sin workspace / usuario no plataforma: mantenemos el fallback histórico.
     if request and getattr(request, 'user', None) and request.user.is_authenticated and not _can_access_platform(request.user):
-        role = _get_user_role(request.user)
-        if role == AppUserRole.ROLE_PLAYER:
-            return Team.objects.filter(is_primary=True).first()
-        if role in TECHNICAL_ROLES or role is None:
-            return Team.objects.filter(is_primary=True).first()
+        # Producto comercial: si no hay workspace activo, NO devolvemos el equipo global.
+        # El usuario debe crear/seleccionar su club desde onboarding.
+        if _single_club_fallback_enabled():
+            role = _get_user_role(request.user)
+            if role == AppUserRole.ROLE_PLAYER:
+                return Team.objects.filter(is_primary=True).first()
+            if role in TECHNICAL_ROLES or role is None:
+                return Team.objects.filter(is_primary=True).first()
         return None
-    return Team.objects.filter(is_primary=True).first()
+    return Team.objects.filter(is_primary=True).first() if _single_club_fallback_enabled() else None
 
 
 def _get_primary_team_for_request(request):
@@ -3308,6 +3322,12 @@ def _workspace_membership_for_user(workspace, user):
 def _can_view_workspace(user, workspace):
     if _can_access_platform(user):
         return True
+    if workspace and user and getattr(user, 'is_authenticated', False):
+        try:
+            if int(getattr(workspace, 'owner_user_id', 0) or 0) == int(getattr(user, 'id', 0) or 0):
+                return True
+        except Exception:
+            pass
     membership = _workspace_membership_for_user(workspace, user)
     return bool(membership)
 
@@ -3315,6 +3335,12 @@ def _can_view_workspace(user, workspace):
 def _can_manage_workspace(user, workspace):
     if _can_access_platform(user):
         return True
+    if workspace and user and getattr(user, 'is_authenticated', False):
+        try:
+            if int(getattr(workspace, 'owner_user_id', 0) or 0) == int(getattr(user, 'id', 0) or 0):
+                return True
+        except Exception:
+            pass
     membership = _workspace_membership_for_user(workspace, user)
     return bool(membership and membership.role in {WorkspaceMembership.ROLE_OWNER, WorkspaceMembership.ROLE_ADMIN})
 
@@ -5930,6 +5956,23 @@ def _build_setup_dashboard_payload(request, workspace):
     return payload
 
 
+def _build_first_run_dashboard_payload(request):
+    payload = _build_demo_dashboard_payload(request)
+    if not isinstance(payload, dict):
+        payload = {}
+    team_payload = payload.get('team') if isinstance(payload.get('team'), dict) else {}
+    team_payload = dict(team_payload)
+    team_payload['name'] = 'Tu club'
+    team_payload['corporate_line'] = 'Primer arranque · Crea tu club'
+    payload['team'] = team_payload
+    payload['setup_required'] = True
+    try:
+        payload['setup_url'] = reverse('club-onboarding')
+    except Exception:
+        payload['setup_url'] = '/onboarding/'
+    return payload
+
+
 def _build_demo_dashboard_payload(request):
     today = timezone.localdate()
     user_id = int(getattr(getattr(request, 'user', None), 'id', 0) or 0)
@@ -6050,6 +6093,8 @@ def dashboard_data(request):
         # Workspace sin configurar: devolvemos datos simulados (avatar + clasificación random)
         # y permitimos que la UI guíe al onboarding.
         workspace = _get_active_workspace(request)
+        if not workspace and request and getattr(request, 'user', None) and request.user.is_authenticated and not _can_access_platform(request.user):
+            return JsonResponse(_build_first_run_dashboard_payload(request))
         if workspace and _workspace_needs_setup(workspace):
             return JsonResponse(_build_setup_dashboard_payload(request, workspace))
         return JsonResponse({'error': 'No hay equipo principal configurado'}, status=400)
@@ -6235,6 +6280,13 @@ def dashboard_page(request):
             return redirect('player-detail', player_id=current_player.id)
         return redirect('player-dashboard')
     active_workspace_obj = _get_active_workspace(request)
+    # Producto comercial: si el usuario tiene sesión pero no tiene club/workspace aún,
+    # lo llevamos directamente a onboarding (creación del club desde la app).
+    if request.user.is_authenticated and not _can_access_platform(request.user) and not active_workspace_obj:
+        try:
+            return redirect('club-onboarding')
+        except Exception:
+            return redirect('/onboarding/')
     if current_role in {AppUserRole.ROLE_TASK_STUDIO, AppUserRole.ROLE_GUEST} and _can_access_task_studio(request.user):
         if active_workspace_obj and active_workspace_obj.kind == Workspace.KIND_CLUB and _has_club_workspace_access(request.user):
             pass
@@ -6484,7 +6536,9 @@ def public_signup_page(request):
                 )
                 AppUserRole.objects.update_or_create(user=user, defaults={'role': AppUserRole.ROLE_COACH})
                 modules = _workspace_default_modules(Workspace.KIND_CLUB)
-                enabled_modules = {key: (key == 'dashboard') for key in modules.keys()}
+                # Producto comercial: el cliente ve todos los módulos desde el día 0 (vacíos),
+                # y construye su club desde la app.
+                enabled_modules = {key: True for key in modules.keys()}
                 workspace = Workspace.objects.create(
                     name=club_name,
                     slug=_unique_workspace_slug(club_name),
@@ -6534,12 +6588,15 @@ def club_onboarding_page(request):
     if redirect_response:
         return redirect_response
     workspace = _get_active_workspace(request)
-    if not workspace or workspace.kind != Workspace.KIND_CLUB:
-        return HttpResponse('No hay un workspace club activo.', status=400)
-    if not _can_manage_workspace(request.user, workspace):
+    if not workspace:
+        # Primer arranque: crear el club desde la app (sin Platform).
+        workspace = None
+    elif workspace.kind != Workspace.KIND_CLUB:
+        return HttpResponse('El workspace activo no es de tipo club.', status=400)
+    if workspace and not _can_manage_workspace(request.user, workspace):
         return HttpResponse('No tienes permisos para configurar este workspace.', status=403)
 
-    primary_team = getattr(workspace, 'primary_team', None)
+    primary_team = getattr(workspace, 'primary_team', None) if workspace else None
     competition_context = None
     if primary_team:
         competition_context = _bootstrap_workspace_competition_context(workspace, primary_team=primary_team)
@@ -6547,8 +6604,8 @@ def club_onboarding_page(request):
     error = ''
     success = ''
     form = {
-        'workspace_name': str(getattr(workspace, 'name', '') or '').strip(),
-        'team_name': str(getattr(primary_team, 'name', '') or '').strip() if primary_team else str(getattr(workspace, 'name', '') or '').strip(),
+        'workspace_name': str(getattr(workspace, 'name', '') or '').strip() if workspace else '',
+        'team_name': str(getattr(primary_team, 'name', '') or '').strip() if primary_team else (str(getattr(workspace, 'name', '') or '').strip() if workspace else ''),
         'provider': str(getattr(competition_context, 'provider', '') or WorkspaceCompetitionContext.PROVIDER_UNIVERSO).strip() if competition_context else WorkspaceCompetitionContext.PROVIDER_UNIVERSO,
         'external_group_key': str(getattr(competition_context, 'external_group_key', '') or '').strip() if competition_context else '',
         'external_source_url': str(getattr(competition_context, 'external_source_url', '') or '').strip() if competition_context else '',
@@ -6577,6 +6634,26 @@ def club_onboarding_page(request):
             if provider not in {choice[0] for choice in WorkspaceCompetitionContext.PROVIDER_CHOICES}:
                 provider = WorkspaceCompetitionContext.PROVIDER_UNIVERSO
             with transaction.atomic():
+                if not workspace:
+                    # Crear el club desde la app: owner + membresía owner + módulos completos.
+                    enabled_modules = _workspace_default_modules(Workspace.KIND_CLUB)
+                    workspace = Workspace.objects.create(
+                        name=workspace_name,
+                        slug=_unique_workspace_slug(workspace_name),
+                        kind=Workspace.KIND_CLUB,
+                        owner_user=request.user,
+                        enabled_modules={key: True for key in enabled_modules.keys()},
+                        is_active=True,
+                    )
+                    WorkspaceMembership.objects.update_or_create(
+                        workspace=workspace,
+                        user=request.user,
+                        defaults={'role': WorkspaceMembership.ROLE_OWNER},
+                    )
+                    try:
+                        request.session['active_workspace_id'] = workspace.id
+                    except Exception:
+                        pass
                 if str(getattr(workspace, 'name', '') or '').strip() != workspace_name:
                     workspace.name = workspace_name
                     workspace.save(update_fields=['name', 'updated_at'])
@@ -6639,13 +6716,13 @@ def club_onboarding_page(request):
         except Exception:
             error = 'No se pudo completar el onboarding.'
 
-    if primary_team and not competition_context:
+    if workspace and primary_team and not competition_context:
         competition_context = _bootstrap_workspace_competition_context(workspace, primary_team=primary_team)
     return render(
         request,
         'football/club_onboarding.html',
         {
-            'workspace': workspace,
+            'workspace': workspace or SimpleNamespace(slug='(nuevo)'),
             'competition_context': competition_context,
             'provider_choices': WorkspaceCompetitionContext.PROVIDER_CHOICES,
             'form': form,

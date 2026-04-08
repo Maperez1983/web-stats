@@ -158,6 +158,36 @@ class DashboardSetupModeTests(TestCase):
         self.assertNotEqual(payload.get('team', {}).get('name'), self.primary_global_team.name)
 
 
+class CommercialIsolationTests(TestCase):
+    def test_user_without_workspace_does_not_fall_back_to_global_team(self):
+        Team.objects.create(name='GLOBAL', slug='global', short_name='GLOBAL', is_primary=True)
+        user = get_user_model().objects.create_user(username='new-user', password='pass-1234')
+        AppUserRole.objects.create(user=user, role=AppUserRole.ROLE_COACH)
+        self.client.force_login(user)
+
+        response = self.client.get(reverse('dashboard-data'), secure=True)
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload.get('setup_required'))
+        self.assertIn('/onboarding/', payload.get('setup_url', ''))
+        self.assertNotEqual(payload.get('team', {}).get('name'), 'GLOBAL')
+
+
+class WorkspaceOwnerPermissionTests(TestCase):
+    def test_owner_user_can_manage_workspace_without_membership_row(self):
+        user = get_user_model().objects.create_user(username='owner-no-membership', password='pass-1234')
+        AppUserRole.objects.create(user=user, role=AppUserRole.ROLE_COACH)
+        workspace = Workspace.objects.create(
+            name='Club',
+            slug='club',
+            kind=Workspace.KIND_CLUB,
+            owner_user=user,
+            is_active=True,
+        )
+        self.assertTrue(football_views._can_manage_workspace(user, workspace))
+        self.assertTrue(football_views._can_view_workspace(user, workspace))
+
 class UniversoSyncWithoutGroupTests(TestCase):
     @patch('football.views._sync_team_crest_from_sources')
     @patch('football.views._find_universo_next_match_for_context', return_value={})
