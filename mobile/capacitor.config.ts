@@ -9,10 +9,17 @@ const config: CapacitorConfig = {
     url: "https://app.segundajugada.es",
     cleartext: false,
   },
+  plugins: {
+    SplashScreen: {
+      // Evita que se auto-oculte “por timeout” antes de que cargue la web remota.
+      // La ocultamos nosotros al terminar de cargar (ver MainViewController en iOS).
+      launchShowDuration: 30000,
+      launchAutoHide: false,
+    },
+  },
   ios: {
     contentInset: "automatic",
   },
 };
 
 export default config;
-

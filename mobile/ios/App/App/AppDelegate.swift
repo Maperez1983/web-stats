@@ -1,5 +1,6 @@
 import UIKit
 import Capacitor
+import WebKit
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -62,5 +63,120 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {
         _ = ApplicationDelegateProxy.shared.application(UIApplication.shared, continue: userActivity, restorationHandler: { _ in })
+    }
+}
+
+@objc(MainViewController)
+class MainViewController: CAPBridgeViewController {
+    override func capacitorDidLoad() {
+        super.capacitorDidLoad()
+
+        // Algunas webs remotas incluyen `@capacitor/core` (web) y pisan `window.Capacitor`.
+        // En iOS nativo, Capacitor añade `triggerEvent` desde `native-bridge.js`; si se pierde,
+        // el bridge puede intentar lanzar eventos y provocar errores de JS eval.
+        let triggerEventPolyfill = """
+        (function() {
+          var win = window;
+          var cap = (win.Capacitor = win.Capacitor || {});
+          cap.Plugins = cap.Plugins || {};
+
+          if (typeof cap.createEvent !== 'function') {
+            cap.createEvent = function(eventName, eventData) {
+              var doc = win.document;
+              if (!doc) { return null; }
+              var ev = doc.createEvent('Events');
+              ev.initEvent(eventName, false, false);
+              if (eventData && typeof eventData === 'object') {
+                for (var key in eventData) {
+                  if (Object.prototype.hasOwnProperty.call(eventData, key)) {
+                    ev[key] = eventData[key];
+                  }
+                }
+              }
+              return ev;
+            };
+          }
+
+          if (typeof cap.triggerEvent !== 'function') {
+            cap.triggerEvent = function(eventName, target, eventData) {
+              var doc = win.document;
+              eventData = eventData || {};
+              var ev = cap.createEvent(eventName, eventData);
+              if (!ev) { return false; }
+              if (target === 'document' && doc && doc.dispatchEvent) {
+                return doc.dispatchEvent(ev);
+              }
+              if (target === 'window' && win.dispatchEvent) {
+                return win.dispatchEvent(ev);
+              }
+              if (doc && doc.querySelector) {
+                var targetEl = doc.querySelector(target);
+                if (targetEl) { return targetEl.dispatchEvent(ev); }
+              }
+              return false;
+            };
+          }
+        })();
+        """
+        let polyfillScript = WKUserScript(source: triggerEventPolyfill, injectionTime: .atDocumentStart, forMainFrameOnly: true)
+        webView?.configuration.userContentController.addUserScript(polyfillScript)
+
+        // Muchos sitios usan `target="_blank"`/`window.open()` para navegación (o popups OAuth).
+        // En WKWebView eso suele crear un "popup" que Capacitor redirige fuera, y a veces parece que "no hace nada".
+        // Forzamos que, como mínimo, las aperturas sin URL (about:blank) y las del mismo dominio naveguen en la misma WebView.
+        let sameWindowOpen = """
+        (function() {
+          var win = window;
+          var originalOpen = win.open;
+          function resolve(url) {
+            try { return new URL(url, win.location.href); } catch (e) { return null; }
+          }
+          win.open = function(url, target, features) {
+            try {
+              if (!url || url === 'about:blank') {
+                return win;
+              }
+              var resolved = resolve(url);
+              if (resolved && resolved.origin === win.location.origin) {
+                win.location.href = resolved.href;
+                return win;
+              }
+            } catch (e) {}
+            return originalOpen ? originalOpen.call(win, url, target, features) : null;
+          };
+        })();
+        """
+        let sameWindowOpenScript = WKUserScript(source: sameWindowOpen, injectionTime: .atDocumentStart, forMainFrameOnly: true)
+        webView?.configuration.userContentController.addUserScript(sameWindowOpenScript)
+
+        // La web cargada por `server.url` no siempre puede (o quiere) llamar a SplashScreen.hide().
+        // Inyectamos un script que lo intenta al terminar de cargar el documento para evitar el warning:
+        // "SplashScreen was automatically hidden after default timeout".
+        let source = """
+        (function() {
+          var tries = 0;
+          var maxTries = 600;
+          function tryHide() {
+            try {
+              var splash = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.SplashScreen;
+              if (splash && typeof splash.hide === 'function') {
+                splash.hide();
+                return true;
+              }
+            } catch (e) {}
+            return false;
+          }
+          if (tryHide()) { return; }
+          var timer = setInterval(function() {
+            tries++;
+            if (tryHide() || tries >= maxTries) {
+              clearInterval(timer);
+            }
+          }, 50);
+        })();
+        """
+
+        let script = WKUserScript(source: source, injectionTime: .atDocumentEnd, forMainFrameOnly: true)
+        webView?.configuration.userContentController.addUserScript(script)
     }
 }

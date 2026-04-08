@@ -6,6 +6,12 @@
 	  </a>
 </div>
 {% endif %}
+{% if request.user.is_authenticated %}
+<form class="logout-form" method="post" action="{% url 'logout' %}">
+  {% csrf_token %}
+  <button class="logout-btn" type="submit" title="Cerrar sesión">Salir</button>
+</form>
+{% endif %}
 {% if not hide_product_shortcuts %}
 <nav class="product-nav-shortcuts" aria-label="Accesos rápidos">
   {% if workspace_module_access.dashboard|default:True %}
@@ -46,6 +52,29 @@
   align-items: center;
   justify-content: center;
   box-shadow: 0 18px 36px rgba(2, 6, 23, 0.45);
+}
+.logout-form {
+  margin-top: 0.4rem;
+  display: flex;
+  justify-content: center;
+}
+.logout-btn {
+  appearance: none;
+  cursor: pointer;
+  border: 1px solid rgba(244, 180, 0, 0.18);
+  border-radius: 999px;
+  padding: 0.32rem 0.8rem;
+  background: rgba(15, 23, 42, 0.65);
+  color: rgba(245, 247, 250, 0.92);
+  font-size: 0.7rem;
+  line-height: 1.15;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 800;
+}
+.logout-btn:hover {
+  border-color: rgba(244, 180, 0, 0.5);
+  color: #fff9e8;
 }
 .dragon-link {
   display: flex;
