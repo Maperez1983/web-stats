@@ -15,6 +15,7 @@ import tempfile
 import shutil
 import math
 import hashlib
+import random
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, time, date
 from html.parser import HTMLParser
@@ -5788,12 +5789,140 @@ def _serialize_universo_standings(snapshot):
     return sorted(normalized, key=lambda x: (x['rank'] <= 0, x['rank'], -x['points'], x['full_name']))
 
 
+def _is_demo_mode_for_request(request) -> bool:
+    if not request or not getattr(request, 'user', None) or not request.user.is_authenticated:
+        return False
+    if _can_access_platform(request.user):
+        return False
+    role = _get_user_role(request.user)
+    if role != AppUserRole.ROLE_GUEST:
+        return False
+    workspace = _get_active_workspace(request)
+    if not workspace or workspace.kind != Workspace.KIND_CLUB:
+        return False
+    membership = (
+        WorkspaceMembership.objects
+        .filter(workspace=workspace, user=request.user)
+        .first()
+    )
+    return bool(membership and membership.role == WorkspaceMembership.ROLE_VIEWER)
+
+
+def _build_demo_dashboard_payload(request):
+    today = timezone.localdate()
+    user_id = int(getattr(getattr(request, 'user', None), 'id', 0) or 0)
+    seed = f"demo:{user_id}:{today.isoformat()}"
+    rng = random.Random(seed)
+
+    team_name = "Equipo Demo"
+    crest_url = static("football/images/player-avatar.svg")
+
+    team_names = [
+        team_name,
+        "Atlético Costa",
+        "Unión Sierra",
+        "Sporting Bahía",
+        "Racing Valle",
+        "Deportivo Centro",
+        "CF Horizonte",
+        "CD Marina",
+        "Inter Sur",
+        "Olympic Norte",
+        "Real Puente",
+        "Academia 12",
+        "Juventud Atlético",
+        "Stadium FC",
+        "Villa United",
+        "Puerto FC",
+    ]
+    rng.shuffle(team_names)
+    if team_name not in team_names:
+        team_names[0] = team_name
+
+    rows = []
+    for name in team_names:
+        played = rng.randint(18, 28)
+        wins = rng.randint(0, max(0, played - 2))
+        draws = rng.randint(0, max(0, played - wins))
+        losses = max(0, played - wins - draws)
+        points = wins * 3 + draws
+        goal_difference = rng.randint(-18, 24)
+        rows.append(
+            {
+                "team": name,
+                "full_name": name,
+                "played": played,
+                "wins": wins,
+                "draws": draws,
+                "losses": losses,
+                "points": points,
+                "goal_difference": goal_difference,
+                "crest_url": crest_url,
+            }
+        )
+
+    rows.sort(key=lambda r: (int(r.get("points") or 0), int(r.get("goal_difference") or 0)), reverse=True)
+    standings = []
+    for idx, row in enumerate(rows, start=1):
+        row = dict(row)
+        row["rank"] = idx
+        standings.append(row)
+
+    opponents = [row["full_name"] for row in standings if row.get("full_name") != team_name]
+    opponent = rng.choice(opponents) if opponents else "Rival Demo"
+
+    weekday = today.weekday()  # Monday=0
+    days_until_sat = (5 - weekday) % 7
+    if days_until_sat == 0:
+        days_until_sat = 7
+    match_date = today + timedelta(days=days_until_sat)
+
+    next_match = {
+        "status": "next",
+        "opponent": {"full_name": opponent, "crest_url": crest_url},
+        "date": match_date.isoformat(),
+        "time": rng.choice(["10:00", "11:30", "12:00", "17:00", "18:30", "19:00"]),
+        "round": str(rng.randint(1, 30)),
+        "location": rng.choice(["Campo Municipal", "Ciudad Deportiva", "Estadio Principal"]),
+    }
+
+    return {
+        "team": {
+            "name": team_name,
+            "group": "Liga Demo · Grupo A",
+            "competition": "Liga Demo",
+            "season": str(today.year),
+            "corporate_line": "Demo comercial · Datos simulados",
+            "crest_url": crest_url,
+        },
+        "standings": standings,
+        "next_match": next_match,
+        "standings_meta": {
+            "provider": "demo",
+            "last_updated": today.strftime("%d/%m/%Y"),
+            "group": "Liga Demo",
+            "season": str(today.year),
+        },
+        "team_metrics": {},
+        "player_metrics": [],
+        "player_cards": [],
+        "player_cards_scope": {"type": "demo", "label": "Demo"},
+    }
+
+
 @login_required
 def dashboard_data(request):
     """Devuelve los datos principales que alimentarán la home cuerpo técnico/jugador."""
     forbidden = _forbid_if_workspace_module_disabled(request, 'dashboard', label='dashboard')
     if forbidden:
         return forbidden
+    # Demo comercial: para usuarios "invitado" con rol viewer en un workspace club,
+    # devolvemos datos simulados (sin foto/escudo real, clasificación y próximo rival ficticios).
+    try:
+        if _is_demo_mode_for_request(request):
+            return JsonResponse(_build_demo_dashboard_payload(request))
+    except Exception:
+        pass
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         return JsonResponse({'error': 'No hay equipo principal configurado'}, status=400)
@@ -6001,6 +6130,14 @@ def dashboard_page(request):
     can_access_platform = _can_access_platform(request.user)
     workspace_links = _workspace_links_for_user(request.user)
     active_workspace = _build_active_workspace_badge(request)
+    demo_mode = False
+    try:
+        demo_mode = _is_demo_mode_for_request(request)
+    except Exception:
+        demo_mode = False
+    if demo_mode:
+        # Demo comercial: no usamos fotos reales ni carrusel.
+        hero_image_candidates = []
     dashboard_focus_items = []
     dashboard_pending_items = []
     dashboard_pending_cards = []
@@ -6012,7 +6149,8 @@ def dashboard_page(request):
             updated_at = getattr(primary_team, 'cover_updated_at', None)
             version = str(int(updated_at.timestamp())) if updated_at else str(int(timezone.now().timestamp()))
             cover_url = f'{reverse("team-cover-image-file", args=[primary_team.id])}?v={version}'
-            hero_image_candidates = [cover_url] + list(hero_image_candidates or [])
+            if not demo_mode:
+                hero_image_candidates = [cover_url] + list(hero_image_candidates or [])
         except Exception:
             pass
     if primary_team and current_role not in {AppUserRole.ROLE_TASK_STUDIO, AppUserRole.ROLE_GUEST}:
@@ -6126,6 +6264,7 @@ def dashboard_page(request):
         {
             'scrape_sources': sources,
             'hero_image_candidates': hero_image_candidates,
+            'demo_mode': demo_mode,
             'current_role': current_role,
             'current_role_label': role_labels.get(current_role, 'Jugador'),
             'can_access_admin': can_access_admin,

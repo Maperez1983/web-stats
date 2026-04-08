@@ -94,7 +94,11 @@
         border: 1px solid var(--line);
         background:
           linear-gradient(180deg, rgba(1, 7, 17, 0.26), rgba(3, 9, 19, 0.88)),
+          {% if demo_mode %}
+          linear-gradient(135deg, rgba(70, 211, 255, 0.12), rgba(244, 180, 0, 0.10));
+          {% else %}
           var(--hero-image, url('{% static "football/campo-futbol.jpg" %}')) center/cover no-repeat;
+          {% endif %}
         box-shadow: 0 28px 55px rgba(0, 0, 0, 0.4);
         display: flex;
         align-items: end;
@@ -488,8 +492,13 @@
         <article class="team-photo" id="team-hero">
           <div class="team-photo-content">
             <div class="team-photo-header">
-              <img id="hero-team-crest" class="team-photo-crest" src="{% static 'football/images/cdb-logo.png' %}" alt="Escudo del equipo" />
-              <h2 id="hero-team-name">C.D. Benagalbón</h2>
+              <img
+                id="hero-team-crest"
+                class="team-photo-crest"
+                src="{% if demo_mode %}{% static 'football/images/player-avatar.svg' %}{% else %}{% static 'football/images/cdb-logo.png' %}{% endif %}"
+                alt="Escudo del equipo"
+              />
+              <h2 id="hero-team-name">{% if demo_mode %}Equipo Demo{% else %}C.D. Benagalbón{% endif %}</h2>
             </div>
             <p id="hero-competition-line">Competición por definir</p>
             <p id="hero-rank-line">Puesto -</p>
