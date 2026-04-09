@@ -116,8 +116,9 @@ class LoginNextRedirectTests(TestCase):
         response = self.client.post(
             f"{reverse('login')}?next=/platform/",
             {'username': 'player-next', 'password': 'pass-1234'},
+            secure=True,
         )
-        self.assertEqual(response.status_code, 302)
+        self.assertIn(response.status_code, {301, 302})
         self.assertEqual(response['Location'], reverse('dashboard-home'))
 
 

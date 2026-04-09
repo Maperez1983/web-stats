@@ -272,6 +272,34 @@ def session_keepalive(request):
     return response
 
 
+def public_build_info(request):
+    """
+    Endpoint público para verificar qué versión está desplegada (sin exponer secretos).
+
+    Útil para depurar caches en Safari/iOS WebView/Service Worker y confirmar el commit en Render.
+    """
+    build_id = (
+        os.getenv('RENDER_GIT_COMMIT')
+        or os.getenv('RENDER_DEPLOY_ID')
+        or os.getenv('SOURCE_VERSION')
+        or os.getenv('GIT_SHA')
+        or ''
+    ).strip()
+    return JsonResponse(
+        {
+            'ok': True,
+            'build': {
+                'id': build_id,
+                'has_build_id': bool(build_id),
+            },
+            'flags': {
+                'enable_public_signup': str(os.getenv('ENABLE_PUBLIC_SIGNUP', '0') or '').strip().lower() in {'1', 'true', 'yes', 'on'},
+                'allow_single_club_fallback': str(os.getenv('ALLOW_SINGLE_CLUB_FALLBACK', '0') or '').strip().lower() in {'1', 'true', 'yes', 'on'},
+            },
+        }
+    )
+
+
 @login_required
 @require_POST
 def workspace_set_active_team(request):

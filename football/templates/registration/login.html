@@ -175,6 +175,10 @@
         {% endif %}
         <a class="ghost-link" href="{% url 'product-landing' %}">Conocer 2J</a>
       </form>
+
+      <p style="margin-top:0.9rem;color:rgba(145,161,185,0.8);font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;">
+        Build: {{ static_build_id|default:"local" }}
+      </p>
     </main>
 
     <script>
