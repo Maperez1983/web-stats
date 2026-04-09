@@ -1,0 +1,115 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Suscripción · {{ workspace.name }}</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      body {
+        margin: 0;
+        font-family: "Inter", "Segoe UI", sans-serif;
+        background: linear-gradient(180deg, #020617 0%, #07162f 100%);
+        color: #e2e8f0;
+      }
+      .page {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 1.3rem;
+      }
+      h1 {
+        margin: 0;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+        font-size: 1.3rem;
+      }
+      .panel {
+        margin-top: 1rem;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(15, 23, 42, 0.92);
+        padding: 1rem;
+      }
+      .kpi {
+        display: grid;
+        gap: 0.35rem;
+        margin-top: 0.7rem;
+      }
+      .badge {
+        display: inline-block;
+        border-radius: 999px;
+        padding: 0.15rem 0.55rem;
+        font-size: 0.75rem;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+      }
+      .ok { color: #86efac; }
+      .warn { color: #fde68a; }
+      .err { color: #fca5a5; }
+      .cta {
+        margin-top: 1rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+      }
+      .btn {
+        text-decoration: none;
+        border-radius: 999px;
+        padding: 0.7rem 1rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        border: 1px solid rgba(244, 180, 0, 0.2);
+        background: rgba(2, 6, 23, 0.55);
+        color: #e2e8f0;
+      }
+      .btn.primary {
+        border: none;
+        background: linear-gradient(135deg, #f4b400, #2f7d32);
+        color: #081320;
+      }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        background: rgba(0, 0, 0, 0.25);
+        padding: 0.1rem 0.35rem;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+      }
+    </style>
+  </head>
+  <body class="prod-commercial">
+    <main class="page">
+      {% include 'football/includes/dragon_nav.html' %}
+      <section class="panel">
+        <h1>Suscripción · {{ workspace.name }}</h1>
+        <div class="kpi">
+          <div>
+            Estado:
+            {% if subscription_status == 'active' %}
+              <span class="badge ok">Activa</span>
+            {% elif subscription_status == 'trial' %}
+              <span class="badge warn">Prueba</span>
+            {% else %}
+              <span class="badge err">Bloqueada</span>
+            {% endif %}
+          </div>
+          {% if trial_expires_at %}
+          <div>Trial hasta: <code>{{ trial_expires_at|date:"d/m/Y H:i" }}</code>{% if trial_days_left != None %} · quedan <code>{{ trial_days_left }}</code> días{% endif %}</div>
+          {% endif %}
+        </div>
+
+        <div class="cta">
+          <a class="btn primary" href="{% url 'product-landing' %}">Contratar</a>
+          <a class="btn" href="{% url 'dashboard-home' %}">Volver</a>
+        </div>
+
+        <p style="margin-top:1rem;color:rgba(148,163,184,0.9);">
+          Nota: esta pantalla es el placeholder comercial. Aquí conectaremos Stripe / método de pago y gestión de plan.
+        </p>
+      </section>
+    </main>
+  </body>
+</html>
+

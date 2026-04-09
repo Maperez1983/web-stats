@@ -127,6 +127,13 @@ class Workspace(models.Model):
         related_name='owned_workspaces',
     )
     enabled_modules = models.JSONField(default=dict, blank=True)
+    trial_expires_at = models.DateTimeField(null=True, blank=True)
+    subscription_status = models.CharField(
+        max_length=24,
+        default='trial',
+        help_text='trial|active|past_due|canceled|expired',
+    )
+    plan_key = models.CharField(max_length=40, blank=True, help_text='Identificador interno del plan (ej: basic, pro).')
     is_active = models.BooleanField(default=True)
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

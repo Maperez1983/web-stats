@@ -189,6 +189,27 @@ class WorkspaceOwnerPermissionTests(TestCase):
         self.assertTrue(football_views._can_manage_workspace(user, workspace))
         self.assertTrue(football_views._can_view_workspace(user, workspace))
 
+
+class TrialPaywallTests(TestCase):
+    def test_trial_expired_redirects_to_billing_for_html_pages(self):
+        user = get_user_model().objects.create_user(username='trial-owner', password='pass-1234')
+        AppUserRole.objects.create(user=user, role=AppUserRole.ROLE_COACH)
+        workspace = Workspace.objects.create(
+            name='Club Trial',
+            slug='club-trial',
+            kind=Workspace.KIND_CLUB,
+            owner_user=user,
+            enabled_modules={'players': True, 'dashboard': True},
+            subscription_status='trial',
+            trial_expires_at=timezone.now() - timedelta(days=1),
+            is_active=True,
+        )
+        WorkspaceMembership.objects.create(workspace=workspace, user=user, role=WorkspaceMembership.ROLE_OWNER)
+        self.client.force_login(user)
+        response = self.client.get(f"{reverse('coach-roster')}?workspace={workspace.id}", secure=True, HTTP_ACCEPT='text/html')
+        self.assertIn(response.status_code, {301, 302})
+        self.assertIn('/billing/', response['Location'])
+
 class UniversoSyncWithoutGroupTests(TestCase):
     @patch('football.views._sync_team_crest_from_sources')
     @patch('football.views._find_universo_next_match_for_context', return_value={})

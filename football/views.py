@@ -301,6 +301,37 @@ def public_build_info(request):
 
 
 @login_required
+def billing_page(request):
+    workspace = _get_active_workspace(request)
+    if not workspace or getattr(workspace, 'kind', None) != Workspace.KIND_CLUB:
+        return HttpResponse('Selecciona un club (workspace) para ver la suscripción.', status=400)
+    if not _can_manage_workspace(request.user, workspace) and not _can_access_platform(request.user):
+        return HttpResponse('No tienes permisos para gestionar la suscripción.', status=403)
+
+    expires_at = getattr(workspace, 'trial_expires_at', None)
+    now = timezone.now()
+    days_left = None
+    if expires_at:
+        try:
+            days_left = max(0, int((expires_at - now).total_seconds() // 86400))
+        except Exception:
+            days_left = None
+    status = str(getattr(workspace, 'subscription_status', '') or '').strip().lower() or 'trial'
+    if status == 'trial' and expires_at and expires_at <= now:
+        status = 'expired'
+    return render(
+        request,
+        'football/billing.html',
+        {
+            'workspace': workspace,
+            'subscription_status': status,
+            'trial_expires_at': expires_at,
+            'trial_days_left': days_left,
+        },
+    )
+
+
+@login_required
 @require_POST
 def workspace_set_active_team(request):
     """
@@ -1725,6 +1756,70 @@ def _single_club_fallback_enabled() -> bool:
     - Activarlo explícitamente solo en entornos internos/demo legacy.
     """
     return str(os.getenv('ALLOW_SINGLE_CLUB_FALLBACK', '0') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+
+
+def _trial_days_default() -> int:
+    try:
+        value = int(str(os.getenv('TRIAL_DAYS', '7') or '7').strip())
+    except Exception:
+        value = 7
+    return max(1, min(value, 30))
+
+
+def _workspace_trial_expires_at_default():
+    return timezone.now() + timedelta(days=_trial_days_default())
+
+
+def _workspace_is_subscription_active(workspace) -> bool:
+    if not workspace:
+        return False
+    status = str(getattr(workspace, 'subscription_status', '') or '').strip().lower()
+    return status in {'active'}
+
+
+def _workspace_is_trial_active(workspace) -> bool:
+    if not workspace:
+        return False
+    status = str(getattr(workspace, 'subscription_status', '') or '').strip().lower()
+    if status not in {'trial'}:
+        return False
+    expires_at = getattr(workspace, 'trial_expires_at', None)
+    if not expires_at:
+        return True
+    try:
+        return expires_at > timezone.now()
+    except Exception:
+        return False
+
+
+def _workspace_requires_subscription(workspace) -> bool:
+    if not workspace or getattr(workspace, 'kind', None) != Workspace.KIND_CLUB:
+        return False
+    if _workspace_is_subscription_active(workspace):
+        return False
+    status = str(getattr(workspace, 'subscription_status', '') or '').strip().lower()
+    # Si no hay estado, lo tratamos como trial activo por compatibilidad.
+    if not status:
+        return False
+    if status == 'trial':
+        # Trial caducado => requiere suscripción.
+        return not _workspace_is_trial_active(workspace)
+    if _workspace_is_trial_active(workspace):
+        return False
+    return status in {'expired', 'past_due', 'canceled'}
+
+
+def _paywall_response(request, *, workspace=None):
+    try:
+        url = reverse('billing')
+        if workspace and getattr(workspace, 'id', None):
+            url = f'{url}?workspace={workspace.id}'
+    except Exception:
+        url = '/billing/'
+    return HttpResponse(
+        f'Periodo de prueba finalizado. Activa la suscripción para continuar. {url}',
+        status=402,
+    )
 
 
 def _get_active_workspace(request):
@@ -3271,6 +3366,30 @@ def _forbid_if_workspace_module_disabled(request, module_key, label='módulo'):
                 return HttpResponse('No tienes un workspace de club asignado.', status=403)
             return None
         return None
+    # Paywall comercial por expiración de prueba/suscripción.
+    try:
+        if (
+            request
+            and getattr(request, 'user', None)
+            and request.user.is_authenticated
+            and not _can_access_platform(request.user)
+            and module_key not in {'dashboard', 'billing'}
+            and _workspace_requires_subscription(workspace)
+        ):
+            # UX: en páginas HTML, redirigimos a la pantalla de suscripción.
+            try:
+                accept = str(request.META.get('HTTP_ACCEPT') or '')
+            except Exception:
+                accept = ''
+            if request.method == 'GET' and 'text/html' in accept:
+                try:
+                    billing_url = reverse('billing')
+                    return redirect(f'{billing_url}?next={quote(request.get_full_path() or "/")}')
+                except Exception:
+                    return redirect('/billing/')
+            return _paywall_response(request, workspace=workspace)
+    except Exception:
+        pass
     if workspace.kind != Workspace.KIND_CLUB:
         if request and getattr(request, 'user', None) and request.user.is_authenticated and not _can_access_platform(request.user):
             role = _get_user_role(request.user)
@@ -6573,6 +6692,8 @@ def public_signup_page(request):
                     kind=Workspace.KIND_CLUB,
                     owner_user=user,
                     enabled_modules=enabled_modules,
+                    subscription_status='trial',
+                    trial_expires_at=_workspace_trial_expires_at_default(),
                     is_active=True,
                 )
                 WorkspaceMembership.objects.update_or_create(
@@ -6671,6 +6792,8 @@ def club_onboarding_page(request):
                         kind=Workspace.KIND_CLUB,
                         owner_user=request.user,
                         enabled_modules={key: True for key in enabled_modules.keys()},
+                        subscription_status='trial',
+                        trial_expires_at=_workspace_trial_expires_at_default(),
                         is_active=True,
                     )
                     WorkspaceMembership.objects.update_or_create(
@@ -6685,6 +6808,15 @@ def club_onboarding_page(request):
                 if str(getattr(workspace, 'name', '') or '').strip() != workspace_name:
                     workspace.name = workspace_name
                     workspace.save(update_fields=['name', 'updated_at'])
+                # Backfill: si venía de un workspace antiguo sin trial, lo inicializamos.
+                try:
+                    if not getattr(workspace, 'trial_expires_at', None):
+                        workspace.trial_expires_at = _workspace_trial_expires_at_default()
+                    if not str(getattr(workspace, 'subscription_status', '') or '').strip():
+                        workspace.subscription_status = 'trial'
+                    workspace.save(update_fields=['trial_expires_at', 'subscription_status', 'updated_at'])
+                except Exception:
+                    pass
                 primary_team = getattr(workspace, 'primary_team', None)
                 if not primary_team:
                     primary_team = Team.objects.create(

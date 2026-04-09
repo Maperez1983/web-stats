@@ -30,6 +30,9 @@
   {% if can_manage_workspace and active_workspace and active_workspace.kind == 'club' %}
   <a href="{% url 'club-onboarding' %}">Configurar</a>
   {% endif %}
+  {% if can_manage_workspace and active_workspace and active_workspace.kind == 'club' %}
+  <a href="{% url 'billing' %}">Suscripción</a>
+  {% endif %}
   {% if can_manage_workspace or is_admin_user %}
   <a href="{% url 'admin-page' %}?tab=teams">Admin</a>
   {% endif %}

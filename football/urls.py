@@ -14,6 +14,7 @@ urlpatterns = [
     path('', views.dashboard_page, name='dashboard-home'),
     path('api/session/keepalive/', views.session_keepalive, name='session-keepalive'),
     path('api/build/', views.public_build_info, name='public-build-info'),
+    path('billing/', views.billing_page, name='billing'),
     path('api/workspace/active/', views.workspace_set_active_workspace, name='workspace-active'),
     path('api/workspace/active-team/', views.workspace_set_active_team, name='workspace-active-team'),
     path('api/workspace/sync/', views.workspace_sync_competition_api, name='workspace-sync-competition'),
