@@ -1028,7 +1028,25 @@
                   {% endfor %}
                 </select>
               </div>
+              <div class="field">
+                <label for="platform_user_assign_workspace">Club (opcional)</label>
+                <select id="platform_user_assign_workspace" name="assign_workspace_id">
+                  <option value="" {% if not user_form.assign_workspace_id %}selected{% endif %}>— Sin asignar —</option>
+                  {% for ws in assignable_club_workspaces %}
+                  <option value="{{ ws.id }}" {% if user_form.assign_workspace_id == ws.id|stringformat:"s" %}selected{% endif %}>{{ ws.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="field">
+                <label for="platform_user_assign_member_role">Rol en el club</label>
+                <select id="platform_user_assign_member_role" name="assign_member_role">
+                  {% for value, label in workspace_member_role_choices %}
+                  <option value="{{ value }}" {% if user_form.assign_member_role == value %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
             </div>
+            <p style="margin-top:0.5rem;color:#9aa8bf;">Si este usuario va a <strong>gestionar</strong> el club, usa <strong>Administrador</strong> u <strong>Owner</strong>. La plantilla se configura dentro del club (p. ej. “Coach → Plantilla”).</p>
             <button class="submit-btn" type="submit">Crear usuario global</button>
           </form>
           {% else %}

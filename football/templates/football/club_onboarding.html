@@ -133,6 +133,15 @@
         {% endif %}
         {% if success %}
         <div class="notice"><strong>OK:</strong> {{ success }}</div>
+        {% if workspace.id %}
+        <div class="actions" style="margin-top:0.85rem;">
+          <a class="btn btn-ghost" href="{% url 'coach-roster' %}">Ir a Plantilla</a>
+          <a class="btn btn-ghost" href="{% url 'platform-workspace-detail' workspace.id %}">Usuarios y roles</a>
+        </div>
+        {% endif %}
+        {% if auto_notice %}
+        <div class="notice" style="margin-top:0.6rem;"><strong>Auto:</strong> {{ auto_notice }}</div>
+        {% endif %}
         {% endif %}
 
         <div class="meta">
@@ -145,7 +154,7 @@
           {% endif %}
         </div>
 
-        <form method="post" style="margin-top:1rem;">
+        <form method="post" enctype="multipart/form-data" style="margin-top:1rem;">
           {% csrf_token %}
           <div class="grid">
             <div>
@@ -167,26 +176,88 @@
             <div>
               <label for="id_group_key">ID de grupo (Universo)</label>
               <input id="id_group_key" type="text" name="external_group_key" value="{{ form.external_group_key|default:'' }}" placeholder="Ej: 45030656" />
+              <p style="margin:0.35rem 0 0;color:rgba(226,232,240,0.76);">Si lo dejas en blanco, intentamos buscar el equipo en Universo por nombre (y te pedimos elegir si hay varias coincidencias).</p>
             </div>
             <div style="grid-column: 1 / -1;">
               <label for="id_team_url">URL de equipo (Universo, opcional)</label>
               <input id="id_team_url" type="url" name="external_source_url" value="{{ form.external_source_url|default:'' }}" placeholder="https://www.universorfaf.es/team/..." />
+            </div>
+            <div style="grid-column: 1 / -1;">
+              <label for="id_preferente_url">URL del equipo en LaPreferente (opcional, recomendado si no hay token de Universo)</label>
+              <input id="id_preferente_url" type="url" name="preferente_url" value="{{ form.preferente_url|default:'' }}" placeholder="https://www.lapreferente.com/?IDequipo=..." />
+              <p style="margin:0.35rem 0 0;color:rgba(226,232,240,0.76);">Si lo dejas en blanco, intentamos localizarla automáticamente por el nombre del equipo.</p>
+            </div>
+            <div style="grid-column: 1 / -1;">
+              <label for="id_roster_excel">Importar plantilla (Excel, opcional)</label>
+              <input id="id_roster_excel" type="file" name="roster_excel" accept=".xlsx,.xlsm,.xls" />
+              <p style="margin:0.35rem 0 0;color:rgba(226,232,240,0.76);">Columnas recomendadas: <code>nombre</code>, <code>dorsal</code>, <code>posicion</code>.</p>
+            </div>
+            <div class="field is-checkbox" style="grid-column: 1 / -1;">
+              <label><input type="checkbox" name="replace_roster" {% if form.replace_roster %}checked{% endif %} /> Reemplazar plantilla (desactiva jugadores que no estén en el Excel/roster importado)</label>
             </div>
           </div>
 
           <div class="actions">
             <button class="btn btn-primary" type="submit" name="action" value="save_and_sync">Guardar y sincronizar</button>
             <button class="btn btn-ghost" type="submit" name="action" value="save">Guardar</button>
+            <button class="btn btn-ghost" type="submit" name="action" value="search_universo">Buscar en Universo</button>
+            <button class="btn btn-ghost" type="submit" name="action" value="import_roster">Importar plantilla</button>
+            <button class="btn btn-ghost" type="submit" name="action" value="seed_demo">Cargar datos demo</button>
             <a class="btn btn-ghost" href="{% url 'dashboard-home' %}">Volver a Home</a>
           </div>
         </form>
+
+        {% if universo_candidates %}
+        <div class="notice" style="margin-top:0.9rem;">
+          <strong>Universo:</strong> selecciona el equipo correcto para autocompletar el ID de grupo y el código de equipo.
+        </div>
+        <div class="card" style="margin-top:0.8rem;">
+          {% for item in universo_candidates %}
+          <form method="post" style="margin-top:{% if forloop.first %}0{% else %}0.65rem{% endif %};">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="apply_universo_candidate" />
+            <input type="hidden" name="workspace_name" value="{{ form.workspace_name|default:'' }}" />
+            <input type="hidden" name="team_name" value="{{ form.team_name|default:'' }}" />
+            <input type="hidden" name="provider" value="universo_rfaf" />
+            <input type="hidden" name="external_group_key" value="{{ form.external_group_key|default:'' }}" />
+            <input type="hidden" name="external_source_url" value="{{ form.external_source_url|default:'' }}" />
+            <input type="hidden" name="preferente_url" value="{{ form.preferente_url|default:'' }}" />
+            <input type="hidden" name="replace_roster" value="{% if form.replace_roster %}on{% endif %}" />
+
+            <input type="hidden" name="candidate_external_competition_key" value="{{ item.external_competition_key|default:'' }}" />
+            <input type="hidden" name="candidate_external_group_key" value="{{ item.external_group_key|default:'' }}" />
+            <input type="hidden" name="candidate_external_team_key" value="{{ item.external_team_key|default:'' }}" />
+            <input type="hidden" name="candidate_external_team_name" value="{{ item.external_team_name|default:'' }}" />
+            <input type="hidden" name="candidate_competition_name" value="{{ item.competition_name|default:'' }}" />
+            <input type="hidden" name="candidate_group_name" value="{{ item.group_name|default:'' }}" />
+            <input type="hidden" name="candidate_season_name" value="{{ item.season_name|default:'' }}" />
+
+            <div style="display:flex;justify-content:space-between;gap:0.75rem;align-items:center;flex-wrap:wrap;">
+              <div>
+                <div style="font-weight:800;">{{ item.team_name }}</div>
+                <div style="color:rgba(226,232,240,0.76);font-size:0.9rem;">
+                  {{ item.competition_name }} · {{ item.group_name }}
+                </div>
+                <div style="margin-top:0.25rem;color:rgba(226,232,240,0.76);font-size:0.85rem;">
+                  <code>{{ item.external_group_key }}</code> · <code>{{ item.external_team_key }}</code>
+                </div>
+              </div>
+              <button class="btn btn-primary" type="submit">Usar</button>
+            </div>
+          </form>
+          {% endfor %}
+        </div>
+        {% endif %}
 
         <div class="notice" style="margin-top:1rem;">
           <strong>Nota:</strong> si no tienes token/sesión activa de Universo en el servidor, la sincronización puede fallar.
           En ese caso, se queda como <code>error</code> y puedes reintentar más tarde.
         </div>
+        <div class="notice" style="margin-top:0.75rem;">
+          <strong>Tip:</strong> “Cargar datos demo” crea una plantilla, un partido, sesiones y estadísticas para que puedas ver toda la app funcionando.
+          Luego puedes sustituirlo por tu competición real con “Guardar y sincronizar”.
+        </div>
       </div>
     </div>
   </body>
 </html>
-

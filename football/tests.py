@@ -881,6 +881,43 @@ class PlatformWorkspaceTests(TestCase):
         self.assertTrue(Workspace.objects.filter(owner_user=created_user, kind=Workspace.KIND_TASK_STUDIO).exists())
         self.assertContains(response, 'Usuario creado en Plataforma')
 
+    def test_platform_overview_can_create_global_user_and_assign_to_club(self):
+        self.client.force_login(self.admin_user)
+
+        club_workspace = Workspace.objects.create(
+            name='Club asignación',
+            slug='club-asignacion',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.alt_team,
+            owner_user=self.workspace_manager,
+        )
+
+        response = self.client.post(
+            reverse('platform-overview'),
+            {
+                'form_action': 'platform_user_create',
+                'full_name': 'Entrenador Club',
+                'username': 'club-demo',
+                'email': 'club-demo@example.com',
+                'password': 'pass-1234',
+                'role': AppUserRole.ROLE_COACH,
+                'assign_workspace_id': club_workspace.id,
+                'assign_member_role': WorkspaceMembership.ROLE_ADMIN,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        created_user = get_user_model().objects.get(username='club-demo')
+        self.assertEqual(created_user.app_role.role, AppUserRole.ROLE_COACH)
+        self.assertTrue(
+            WorkspaceMembership.objects.filter(
+                workspace=club_workspace,
+                user=created_user,
+                role=WorkspaceMembership.ROLE_ADMIN,
+            ).exists()
+        )
+        self.assertContains(response, 'Asignado a')
+
     def test_platform_overview_can_update_global_user(self):
         self.client.force_login(self.admin_user)
 
@@ -4869,3 +4906,89 @@ class TaskBuilderUiVisibilityTests(TestCase):
         self.assertIn('id="task-pattern-popover" hidden', html)
         self.assertIn('.command-menu[hidden]', html)
         self.assertIn('.pattern-popover[hidden]', html)
+
+
+class ClubOnboardingImportTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username='onboarding-user',
+            email='onboarding-user@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_COACH)
+
+    def test_club_onboarding_can_import_roster_from_excel(self):
+        from io import BytesIO
+
+        try:
+            from openpyxl import Workbook
+        except Exception as exc:  # pragma: no cover
+            self.fail(f'openpyxl no disponible en tests: {exc}')
+
+        wb = Workbook()
+        ws = wb.active
+        ws.append(['nombre', 'dorsal', 'posicion'])
+        ws.append(['Jugador Excel 1', 1, 'DEF'])
+        ws.append(['Jugador Excel 2', 9, 'DEL'])
+        buf = BytesIO()
+        wb.save(buf)
+
+        upload = SimpleUploadedFile(
+            'plantilla.xlsx',
+            buf.getvalue(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse('club-onboarding'),
+            {
+                'action': 'import_roster',
+                'workspace_name': 'Club Excel',
+                'team_name': 'Equipo Excel',
+                'provider': WorkspaceCompetitionContext.PROVIDER_UNIVERSO,
+                'external_group_key': '',
+                'external_source_url': '',
+                'preferente_url': '',
+                'replace_roster': 'on',
+                'roster_excel': upload,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        team = Team.objects.get(name='Equipo Excel')
+        self.assertEqual(Player.objects.filter(team=team, is_active=True).count(), 2)
+        self.assertTrue(Workspace.objects.filter(name='Club Excel', primary_team=team).exists())
+
+    def test_universo_search_finds_benagalbon_alevin_variant(self):
+        candidates = football_views._search_universo_competition_candidates(team_query='Alevin A Benagalbon')
+        self.assertTrue(candidates)
+        top = candidates[0]
+        self.assertTrue(str(top.get('external_group_key') or '').strip())
+        self.assertTrue(str(top.get('external_team_key') or '').strip())
+
+    def test_universo_candidate_binds_group_without_live_token(self):
+        team = Team.objects.create(name='Alevin A Benagalbón', slug='alevin-a-benagalbon')
+        workspace = Workspace.objects.create(name='Club', slug='club', kind=Workspace.KIND_CLUB, primary_team=team, owner_user=self.user)
+        context = WorkspaceCompetitionContext.objects.create(
+            workspace=workspace,
+            team=team,
+            provider=WorkspaceCompetitionContext.PROVIDER_UNIVERSO,
+            external_group_key='45030656',
+            external_team_key='834315',
+            external_team_name='BENAGALBON C.D.',
+        )
+        football_views._ensure_universo_group_models_from_candidate(
+            group_key='45030656',
+            competition_name='1ª Andaluza Alevín',
+            group_name='Grupo 2',
+            season_name='2025/2026',
+            competition_code='',
+            primary_team=team,
+            context=context,
+        )
+        team.refresh_from_db()
+        context.refresh_from_db()
+        self.assertIsNotNone(team.group_id)
+        self.assertEqual(team.group.external_id, '45030656')
+        self.assertEqual(context.group_id, team.group_id)

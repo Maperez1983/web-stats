@@ -2715,12 +2715,37 @@ def _sync_workspace_competition_context(workspace, primary_team=None):
                         primary_team=primary_team,
                         context=context,
                     )
+                else:
+                    # Fallback sin red: usa el catálogo local (universo-rfaf-capture.json) si existe.
+                    catalog = _build_universo_competition_catalog()
+                    groups = catalog.get('groups') or {}
+                    competitions = catalog.get('competitions') or {}
+                    found = None
+                    for (comp_code, grp_code), meta in groups.items():
+                        if str(grp_code or '').strip() == str(group_key).strip():
+                            found = (str(comp_code or '').strip(), meta)
+                            break
+                    comp_code = str(found[0] or '').strip() if found else ''
+                    group_meta = found[1] if found else {}
+                    comp_meta = competitions.get(comp_code) or {}
+                    _ensure_universo_group_models_from_candidate(
+                        group_key=group_key,
+                        competition_name=str(comp_meta.get('name') or '').strip(),
+                        group_name=str(group_meta.get('group_name') or group_meta.get('name') or '').strip(),
+                        season_name=str(comp_meta.get('season_name') or '').strip(),
+                        competition_code=comp_code,
+                        primary_team=primary_team,
+                        context=context,
+                    )
             except Exception:
                 pass
 
     if not getattr(primary_team, 'group', None):
         context.sync_status = WorkspaceCompetitionContext.STATUS_ERROR
-        context.sync_error = 'El cliente no tiene grupo/competición vinculada.'
+        if provider_key == WorkspaceCompetitionContext.PROVIDER_UNIVERSO and not str(getattr(context, 'external_group_key', '') or '').strip():
+            context.sync_error = 'Falta el ID de grupo de Universo. Indícalo o usa “Buscar en Universo”.'
+        else:
+            context.sync_error = 'El cliente no tiene grupo/competición vinculada.'
         context.last_sync_at = timezone.now()
         context.save(update_fields=['sync_status', 'sync_error', 'last_sync_at', 'updated_at'])
         return context, context.sync_error
@@ -5208,6 +5233,45 @@ def _search_universo_competition_candidates(*, team_query='', competition_query=
     competition_query = str(competition_query or '').strip()
     group_query = str(group_query or '').strip()
     normalized_team_query = normalize_label(team_query)
+
+    def _team_query_variants(normalized: str) -> list[str]:
+        text = str(normalized or '').strip()
+        if not text:
+            return []
+        tokens = [t for t in text.split() if t]
+        category_tokens = {
+            'prebenjamin',
+            'prebenjam',
+            'benjamin',
+            'benjam',
+            'alevin',
+            'infantil',
+            'cadete',
+            'juvenil',
+            'senior',
+        }
+        stripped = [t for t in tokens if t not in category_tokens]
+        stripped_no_single = [t for t in stripped if len(t) > 1]
+        variants = []
+        for candidate in (text, ' '.join(stripped).strip(), ' '.join(stripped_no_single).strip()):
+            if candidate and candidate not in variants:
+                variants.append(candidate)
+        return variants
+
+    def _matches_team_query(team_name: str) -> bool:
+        if not normalized_team_query:
+            return True
+        normalized_team_name = normalize_label(team_name)
+        for variant in _team_query_variants(normalized_team_query):
+            if variant and variant in normalized_team_name:
+                return True
+        # Fallback: solape de tokens (permite "Alevín A Benagalbón" vs "BENAGALBON C.D. 'A'")
+        query_tokens = [t for t in normalized_team_query.split() if t]
+        name_tokens = [t for t in normalized_team_name.split() if t]
+        overlap = set(query_tokens).intersection(name_tokens)
+        if len(overlap) >= 2 and any(len(tok) >= 4 for tok in overlap):
+            return True
+        return False
     normalized_comp_query = normalize_label(competition_query)
     normalized_group_query = normalize_label(group_query)
     live_candidates = []
@@ -5244,11 +5308,13 @@ def _search_universo_competition_candidates(*, team_query='', competition_query=
                         if not team_name:
                             continue
                         normalized_team_name = normalize_label(team_name)
-                        if normalized_team_query and normalized_team_query not in normalized_team_name:
+                        if normalized_team_query and not _matches_team_query(team_name):
                             continue
                         score = 0
                         if normalized_team_query:
-                            score += 60 if normalized_team_query == normalized_team_name else 30
+                            variants = _team_query_variants(normalized_team_query)
+                            best_variant = variants[0] if variants else normalized_team_query
+                            score += 60 if best_variant == normalized_team_name else 30
                         if normalized_group_query:
                             score += 25 if normalized_group_query == normalize_label(group_name) else 12
                         if normalized_comp_query:
@@ -5296,11 +5362,13 @@ def _search_universo_competition_candidates(*, team_query='', competition_query=
             if not team_name:
                 continue
             normalized_team_name = normalize_label(team_name)
-            if normalized_team_query and normalized_team_query not in normalized_team_name:
+            if normalized_team_query and not _matches_team_query(team_name):
                 continue
             score = 0
             if normalized_team_query:
-                score += 60 if normalized_team_query == normalized_team_name else 30
+                variants = _team_query_variants(normalized_team_query)
+                best_variant = variants[0] if variants else normalized_team_query
+                score += 60 if best_variant == normalized_team_name else 30
             if normalized_group_query:
                 score += 25 if normalized_group_query == normalize_label(group_name) else 12
             if normalized_comp_query:
@@ -6752,27 +6820,35 @@ def club_onboarding_page(request):
 
     error = ''
     success = ''
+    universo_candidates = []
+    auto_notice_parts = []
     form = {
         'workspace_name': str(getattr(workspace, 'name', '') or '').strip() if workspace else '',
         'team_name': str(getattr(primary_team, 'name', '') or '').strip() if primary_team else (str(getattr(workspace, 'name', '') or '').strip() if workspace else ''),
+        'preferente_url': str(getattr(primary_team, 'preferente_url', '') or '').strip() if primary_team else '',
         'provider': str(getattr(competition_context, 'provider', '') or WorkspaceCompetitionContext.PROVIDER_UNIVERSO).strip() if competition_context else WorkspaceCompetitionContext.PROVIDER_UNIVERSO,
         'external_group_key': str(getattr(competition_context, 'external_group_key', '') or '').strip() if competition_context else '',
         'external_source_url': str(getattr(competition_context, 'external_source_url', '') or '').strip() if competition_context else '',
+        'replace_roster': False,
     }
     if request.method == 'POST':
         action = str(request.POST.get('action') or 'save_and_sync').strip().lower()
         workspace_name = _sanitize_task_text((request.POST.get('workspace_name') or '').strip(), multiline=False, max_len=160)
         team_name = _sanitize_task_text((request.POST.get('team_name') or '').strip(), multiline=False, max_len=150)
+        preferente_url = str(request.POST.get('preferente_url') or '').strip()[:600]
         provider = str(request.POST.get('provider') or WorkspaceCompetitionContext.PROVIDER_UNIVERSO).strip()
         external_group_key = str(request.POST.get('external_group_key') or '').strip()
         external_source_url = str(request.POST.get('external_source_url') or '').strip()
+        replace_roster = str(request.POST.get('replace_roster') or '').lower() in {'1', 'true', 'on', 'yes'}
         form.update(
             {
                 'workspace_name': workspace_name,
                 'team_name': team_name,
+                'preferente_url': preferente_url,
                 'provider': provider,
                 'external_group_key': external_group_key,
                 'external_source_url': external_source_url,
+                'replace_roster': replace_roster,
             }
         )
         try:
@@ -6832,6 +6908,10 @@ def club_onboarding_page(request):
                     primary_team.short_name = team_name[:60]
                     primary_team.save(update_fields=['name', 'short_name'])
 
+                if preferente_url and preferente_url != str(getattr(primary_team, 'preferente_url', '') or '').strip():
+                    primary_team.preferente_url = preferente_url
+                    primary_team.save(update_fields=['preferente_url'])
+
                 WorkspaceTeam.objects.get_or_create(
                     workspace=workspace,
                     team=primary_team,
@@ -6863,12 +6943,327 @@ def club_onboarding_page(request):
                     competition_context.sync_error = ''
                     competition_context.save(update_fields=['sync_status', 'sync_error', 'updated_at'])
 
-            if action == 'save_and_sync':
+            # Autodetección "best effort" para reducir fricción:
+            # - Si no se pegó URL de LaPreferente, intenta encontrarla por nombre.
+            # - Si Universo tiene group_id pero falta external_team_key, intenta resolverlo desde la clasificación live.
+            try:
+                if primary_team and not str(getattr(primary_team, 'preferente_url', '') or '').strip():
+                    guessed_url = find_preferente_team_url(str(getattr(primary_team, 'name', '') or team_name).strip())
+                    if guessed_url:
+                        primary_team.preferente_url = guessed_url
+                        primary_team.save(update_fields=['preferente_url'])
+                        form['preferente_url'] = guessed_url
+                        auto_notice_parts.append('LaPreferente detectado automáticamente.')
+            except Exception:
+                pass
+            try:
+                group_key = str(external_group_key or '').strip()
+                if (
+                    competition_context
+                    and provider == WorkspaceCompetitionContext.PROVIDER_UNIVERSO
+                    and group_key
+                    and not str(getattr(competition_context, 'external_team_key', '') or '').strip()
+                ):
+                    live = _fetch_universo_live_classification(group_key)
+                    rows = _serialize_universo_live_classification(live) if isinstance(live, dict) else []
+                    desired = _normalize_team_lookup_key(str(team_name or primary_team.name or '').strip())
+                    best_code = ''
+                    best_name = ''
+                    if desired:
+                        for row in rows:
+                            if not isinstance(row, dict):
+                                continue
+                            candidate_name = str(row.get('full_name') or row.get('team') or '').strip()
+                            candidate_code = str(row.get('team_code') or '').strip()
+                            if not candidate_name or not candidate_code:
+                                continue
+                            cand_key = _normalize_team_lookup_key(candidate_name)
+                            if cand_key == desired or (desired in cand_key) or (cand_key in desired):
+                                best_code = candidate_code
+                                best_name = candidate_name
+                                break
+                    if best_code:
+                        competition_context.external_team_key = best_code
+                        if best_name and not str(getattr(competition_context, 'external_team_name', '') or '').strip():
+                            competition_context.external_team_name = best_name
+                        competition_context.save(update_fields=['external_team_key', 'external_team_name', 'updated_at'])
+                        auto_notice_parts.append('Código de equipo de Universo detectado automáticamente.')
+            except Exception:
+                pass
+
+            # Auto-búsqueda Universo por nombre (sin pegar URLs/códigos).
+            # Solo autoseleccionamos cuando hay UNA coincidencia clara; si hay varias, mostramos listado.
+            if (
+                provider == WorkspaceCompetitionContext.PROVIDER_UNIVERSO
+                and action in {'save_and_sync', 'import_roster', 'save'}
+                and not str(external_group_key or '').strip()
+                and not str(external_source_url or '').strip()
+                and competition_context
+                and not str(getattr(competition_context, 'external_group_key', '') or '').strip()
+            ):
+                try:
+                    candidates = _search_universo_competition_candidates(team_query=team_name)
+                except Exception:
+                    candidates = []
+                if len(candidates) == 1 and isinstance(candidates[0], dict):
+                    item = candidates[0]
+                    candidate_group_key = str(item.get('external_group_key') or '').strip()
+                    candidate_competition_key = str(item.get('external_competition_key') or '').strip()
+                    candidate_team_key = str(item.get('external_team_key') or '').strip()
+                    candidate_team_name = str(item.get('external_team_name') or item.get('team_name') or '').strip()
+                    if candidate_group_key and candidate_team_key:
+                        competition_context = _bootstrap_workspace_competition_context(
+                            workspace,
+                            primary_team=primary_team,
+                            provider=WorkspaceCompetitionContext.PROVIDER_UNIVERSO,
+                            external_competition_key=candidate_competition_key,
+                            external_group_key=candidate_group_key,
+                            external_team_key=candidate_team_key,
+                            external_team_name=candidate_team_name or team_name,
+                            external_source_url=form.get('external_source_url') or '',
+                            auto_sync_enabled=True,
+                        )
+                        _ensure_universo_group_models_from_candidate(
+                            group_key=candidate_group_key,
+                            competition_name=str(item.get('competition_name') or '').strip(),
+                            group_name=str(item.get('group_name') or '').strip(),
+                            season_name=str(item.get('season_name') or '').strip(),
+                            competition_code=candidate_competition_key,
+                            primary_team=primary_team,
+                            context=competition_context,
+                        )
+                        external_group_key = candidate_group_key
+                        form['external_group_key'] = candidate_group_key
+                        auto_notice_parts.append(f'Universo detectado automáticamente: {candidate_team_name or team_name}.')
+                elif candidates:
+                    universo_candidates = candidates
+                    raise ValueError('Hay varias coincidencias en Universo. Selecciona una en la lista de abajo y vuelve a sincronizar/importar.')
+
+            def _import_players_from_roster_rows(team_obj, roster_rows: list[dict], *, replace_existing: bool):
+                if not team_obj:
+                    return 0, 0, 0
+                created_count = 0
+                updated_count = 0
+                kept_names = set()
+                for row in roster_rows:
+                    if not isinstance(row, dict):
+                        continue
+                    name = str(row.get('name') or '').strip()
+                    if not name:
+                        continue
+                    if len(name) > 120:
+                        name = name[:120].rstrip()
+                    number_val = row.get('number')
+                    if number_val is None:
+                        number_val = row.get('dorsal')
+                    try:
+                        number_val = int(str(number_val).strip()) if str(number_val).strip() else None
+                    except Exception:
+                        number_val = None
+                    position = str(row.get('position') or '').strip()[:60]
+                    kept_names.add(name.lower())
+                    obj, was_created = Player.objects.update_or_create(
+                        team=team_obj,
+                        name=name,
+                        defaults={
+                            'number': number_val,
+                            'position': position,
+                            'is_active': True,
+                        },
+                    )
+                    if was_created:
+                        created_count += 1
+                    else:
+                        updated_count += 1
+                deactivated = 0
+                if replace_existing and kept_names:
+                    for player_obj in Player.objects.filter(team=team_obj, is_active=True).only('id', 'name'):
+                        if str(getattr(player_obj, 'name', '') or '').strip().lower() not in kept_names:
+                            Player.objects.filter(id=player_obj.id).update(is_active=False)
+                            deactivated += 1
+                return created_count, updated_count, deactivated
+
+            def _parse_roster_excel(uploaded_file) -> list[dict]:
+                if not uploaded_file:
+                    return []
+                try:
+                    raw = uploaded_file.read()
+                finally:
+                    try:
+                        uploaded_file.seek(0)
+                    except Exception:
+                        pass
+                if not raw:
+                    return []
+                try:
+                    from openpyxl import load_workbook
+                except Exception as exc:
+                    raise ValueError('No se pudo cargar openpyxl para leer el Excel.') from exc
+                workbook = load_workbook(filename=io.BytesIO(raw), data_only=True)
+                sheet = workbook.active
+                rows = list(sheet.iter_rows(values_only=True))
+                if not rows:
+                    return []
+                header = [str(cell or '').strip().lower() for cell in rows[0]]
+                header_map = {}
+                for idx, key in enumerate(header):
+                    normalized = re.sub(r'[^a-z0-9]+', '_', key).strip('_')
+                    if normalized:
+                        header_map[normalized] = idx
+
+                def _find_col(candidates):
+                    for cand in candidates:
+                        if cand in header_map:
+                            return header_map[cand]
+                    return None
+
+                idx_name = _find_col(['name', 'nombre', 'jugador', 'player'])
+                idx_number = _find_col(['dorsal', 'numero', 'n', 'number'])
+                idx_position = _find_col(['posicion', 'posición', 'position', 'rol', 'puesto'])
+                if idx_name is None:
+                    raise ValueError('El Excel debe tener una columna de nombre (name/nombre/jugador).')
+                parsed_rows: list[dict] = []
+                for row in rows[1:]:
+                    if not row or all(cell is None or str(cell).strip() == '' for cell in row):
+                        continue
+                    name = str(row[idx_name] or '').strip()
+                    if not name:
+                        continue
+                    number_val = row[idx_number] if idx_number is not None and idx_number < len(row) else None
+                    position = row[idx_position] if idx_position is not None and idx_position < len(row) else ''
+                    parsed_rows.append(
+                        {
+                            'name': name,
+                            'number': number_val,
+                            'position': str(position or '').strip(),
+                        }
+                    )
+                    if len(parsed_rows) >= 80:
+                        break
+                return parsed_rows
+
+            if action == 'search_universo':
+                # No requiere guardar nada; solo devuelve candidatos para seleccionar.
+                # Si no hay token de Universo, la función usa el catálogo local (si existe).
+                universo_candidates = _search_universo_competition_candidates(team_query=team_name)
+                if universo_candidates:
+                    success = f'Se encontraron {len(universo_candidates)} coincidencias en Universo.'
+                else:
+                    error = 'No se encontraron coincidencias en Universo con ese nombre.'
+            elif action == 'apply_universo_candidate':
+                candidate_group_key = str(request.POST.get('candidate_external_group_key') or '').strip()
+                candidate_competition_key = str(request.POST.get('candidate_external_competition_key') or '').strip()
+                candidate_team_key = str(request.POST.get('candidate_external_team_key') or '').strip()
+                candidate_team_name = _sanitize_task_text((request.POST.get('candidate_external_team_name') or '').strip(), multiline=False, max_len=160)
+                candidate_competition_name = _sanitize_task_text((request.POST.get('candidate_competition_name') or '').strip(), multiline=False, max_len=150)
+                candidate_group_name = _sanitize_task_text((request.POST.get('candidate_group_name') or '').strip(), multiline=False, max_len=80)
+                candidate_season_name = _sanitize_task_text((request.POST.get('candidate_season_name') or '').strip(), multiline=False, max_len=80)
+                if not (candidate_group_key and candidate_team_key):
+                    raise ValueError('Candidato inválido (faltan claves de grupo/equipo).')
+                competition_context = _bootstrap_workspace_competition_context(
+                    workspace,
+                    primary_team=primary_team,
+                    provider=WorkspaceCompetitionContext.PROVIDER_UNIVERSO,
+                    external_competition_key=candidate_competition_key,
+                    external_group_key=candidate_group_key,
+                    external_team_key=candidate_team_key,
+                    external_team_name=candidate_team_name or team_name,
+                    external_source_url=form.get('external_source_url') or '',
+                    auto_sync_enabled=True,
+                )
+                _ensure_universo_group_models_from_candidate(
+                    group_key=candidate_group_key,
+                    competition_name=candidate_competition_name,
+                    group_name=candidate_group_name,
+                    season_name=candidate_season_name,
+                    competition_code=candidate_competition_key,
+                    primary_team=primary_team,
+                    context=competition_context,
+                )
+                form['provider'] = WorkspaceCompetitionContext.PROVIDER_UNIVERSO
+                form['external_group_key'] = candidate_group_key
+                success = f'Equipo de Universo seleccionado: {candidate_team_name or team_name}.'
+            elif action == 'save_and_sync':
                 synced_context, sync_error = _sync_workspace_competition_context(workspace, primary_team=primary_team)
                 competition_context = synced_context or competition_context
                 if sync_error:
                     raise ValueError(sync_error)
                 success = 'Configuración guardada y sincronización completada.'
+            elif action == 'import_roster':
+                uploaded_excel = request.FILES.get('roster_excel')
+                if uploaded_excel:
+                    roster_rows = _parse_roster_excel(uploaded_excel)
+                    created_players, updated_players, deactivated = _import_players_from_roster_rows(
+                        primary_team,
+                        roster_rows,
+                        replace_existing=replace_roster,
+                    )
+                    success = (
+                        'Plantilla importada desde Excel. '
+                        f'Creados: {created_players}, actualizados: {updated_players}'
+                        + (f', desactivados: {deactivated}.' if deactivated else '.')
+                    )
+                else:
+                    roster_provider = None
+                    roster_rows = []
+                    roster_source_url = ''
+                    roster_error = ''
+                    team_code = str(getattr(competition_context, 'external_team_key', '') or '').strip() if competition_context else ''
+                    if provider == WorkspaceCompetitionContext.PROVIDER_UNIVERSO and team_code:
+                        try:
+                            roster_rows = fetch_universo_team_roster(team_code)
+                            roster_provider = TeamRosterSnapshot.PROVIDER_UNIVERSO
+                        except Exception as exc:
+                            roster_error = str(exc) or 'No se pudo consultar la plantilla en Universo.'
+                    if not roster_rows:
+                        team_url = str(getattr(primary_team, 'preferente_url', '') or '').strip()
+                        if not team_url:
+                            team_url = find_preferente_team_url(primary_team.name)
+                            if team_url:
+                                primary_team.preferente_url = team_url
+                                primary_team.save(update_fields=['preferente_url'])
+                        if team_url:
+                            roster_source_url = team_url
+                            try:
+                                roster_rows = fetch_preferente_team_roster(team_url)
+                                roster_provider = TeamRosterSnapshot.PROVIDER_PREFERENTE
+                            except Exception as exc:
+                                roster_error = str(exc) or 'No se pudo consultar La Preferente.'
+                    if not roster_rows:
+                        if roster_error:
+                            raise ValueError(roster_error)
+                        raise ValueError('No se pudo importar la plantilla: falta Excel, código de Universo o URL de La Preferente.')
+                    created_players, updated_players, deactivated = _import_players_from_roster_rows(
+                        primary_team,
+                        roster_rows,
+                        replace_existing=replace_roster,
+                    )
+                    if roster_provider:
+                        TeamRosterSnapshot.objects.update_or_create(
+                            team=primary_team,
+                            provider=roster_provider,
+                            defaults={
+                                'roster_payload': roster_rows,
+                                'source_url': roster_source_url,
+                                'error': '',
+                            },
+                        )
+                    success = (
+                        'Plantilla importada. '
+                        f'Creados: {created_players}, actualizados: {updated_players}'
+                        + (f', desactivados: {deactivated}.' if deactivated else '.')
+                    )
+            elif action == 'seed_demo':
+                created = _bootstrap_demo_club_workspace(workspace)
+                success = (
+                    'Datos demo cargados. '
+                    f"Jugadores: {created.get('players', 0)}, "
+                    f"partidos: {created.get('matches', 0)}, "
+                    f"eventos: {created.get('events', 0)}, "
+                    f"sesiones: {created.get('sessions', 0)}, "
+                    f"tareas: {created.get('tasks', 0)}, "
+                    f"estadísticas: {created.get('stats', 0)}."
+                )
             else:
                 success = 'Configuración guardada.'
         except ValueError as exc:
@@ -6885,6 +7280,8 @@ def club_onboarding_page(request):
             'workspace': workspace or SimpleNamespace(slug='(nuevo)'),
             'competition_context': competition_context,
             'provider_choices': WorkspaceCompetitionContext.PROVIDER_CHOICES,
+            'universo_candidates': universo_candidates,
+            'auto_notice': ' '.join([part for part in auto_notice_parts if part]).strip(),
             'form': form,
             'error': error,
             'success': success,
@@ -6976,6 +7373,8 @@ def platform_overview_page(request):
         'username': '',
         'email': '',
         'role': AppUserRole.ROLE_PLAYER,
+        'assign_workspace_id': '',
+        'assign_member_role': WorkspaceMembership.ROLE_MEMBER,
     }
     if primary_team:
         _ensure_club_workspace(primary_team)
@@ -7162,14 +7561,20 @@ def platform_overview_page(request):
             email = re.sub(r'\s+', '', str(request.POST.get('email') or '').strip()).lower()[:190]
             password = (request.POST.get('password') or '').strip()
             role_value = str(request.POST.get('role') or AppUserRole.ROLE_PLAYER).strip()
+            assign_workspace_id = _parse_int(request.POST.get('assign_workspace_id'))
+            assign_member_role = str(request.POST.get('assign_member_role') or WorkspaceMembership.ROLE_MEMBER).strip()
             role_choices = {choice[0] for choice in AppUserRole.ROLE_CHOICES}
             if role_value not in role_choices:
                 role_value = AppUserRole.ROLE_PLAYER
+            if assign_member_role not in {choice[0] for choice in WorkspaceMembership.ROLE_CHOICES}:
+                assign_member_role = WorkspaceMembership.ROLE_MEMBER
             user_form = {
                 'full_name': full_name,
                 'username': username,
                 'email': email,
                 'role': role_value,
+                'assign_workspace_id': str(assign_workspace_id or ''),
+                'assign_member_role': assign_member_role,
             }
             try:
                 if not username:
@@ -7192,12 +7597,27 @@ def platform_overview_page(request):
                 AppUserRole.objects.update_or_create(user=user, defaults={'role': role_value})
                 if role_value == AppUserRole.ROLE_TASK_STUDIO:
                     _ensure_task_studio_workspace(user)
-                user_message = f'Usuario creado en Plataforma: {username}.'
+                assigned_workspace = None
+                if assign_workspace_id:
+                    assigned_workspace = Workspace.objects.filter(id=assign_workspace_id, is_active=True).first()
+                    if not assigned_workspace:
+                        raise ValueError('Workspace no encontrado para asignación.')
+                    WorkspaceMembership.objects.update_or_create(
+                        workspace=assigned_workspace,
+                        user=user,
+                        defaults={'role': assign_member_role},
+                    )
+                if assigned_workspace:
+                    user_message = f'Usuario creado en Plataforma: {username}. Asignado a {assigned_workspace.name}.'
+                else:
+                    user_message = f'Usuario creado en Plataforma: {username}.'
                 user_form = {
                     'full_name': '',
                     'username': '',
                     'email': '',
                     'role': AppUserRole.ROLE_PLAYER,
+                    'assign_workspace_id': '',
+                    'assign_member_role': WorkspaceMembership.ROLE_MEMBER,
                 }
             except ValueError as exc:
                 user_error = str(exc)
@@ -7541,6 +7961,15 @@ def platform_overview_page(request):
             .order_by('-created_at', '-id')[:24]
         )
 
+    assignable_club_workspaces = []
+    if active_tab == 'users' and users_subtab == 'create':
+        assignable_club_workspaces = list(
+            Workspace.objects
+            .filter(kind=Workspace.KIND_CLUB, is_active=True)
+            .order_by('name', 'id')
+            .only('id', 'name')[:250]
+        )
+
     return render(
         request,
         'football/platform_overview.html',
@@ -7572,6 +8001,8 @@ def platform_overview_page(request):
             'competition_provider_choices': WorkspaceCompetitionContext.PROVIDER_CHOICES,
             'user_form': user_form,
             'role_choices': AppUserRole.ROLE_CHOICES,
+            'workspace_member_role_choices': WorkspaceMembership.ROLE_CHOICES,
+            'assignable_club_workspaces': assignable_club_workspaces,
             'active_workspace': active_workspace,
             'active_tab': active_tab,
             'users_subtab': users_subtab,
@@ -23716,6 +24147,57 @@ def _ensure_universo_group_models_from_live(*, group_key, live_payload, primary_
                 context.save(update_fields=ctx_updates + ['updated_at'])
     except Exception:
         pass
+
+
+def _ensure_universo_group_models_from_candidate(*, group_key: str, competition_name: str = '', group_name: str = '', season_name: str = '', competition_code: str = '', primary_team=None, context=None):
+    """
+    Variante "sin red" para vincular Group/Season/Competition cuando no podemos consultar el live de Universo.
+    """
+    if not group_key or not primary_team or not context:
+        return
+    competition_name = str(competition_name or '').strip() or 'Universo RFAF'
+    group_name = str(group_name or '').strip() or f'Grupo {group_key}'
+    season_name = (str(season_name or '').strip() or '2025/2026')[:80]
+    competition_code = str(competition_code or '').strip()
+
+    comp_slug_source = f'universo-{competition_code}-{competition_name}' if competition_code else competition_name
+    comp_slug = slugify(comp_slug_source)[:150] or slugify(competition_name)[:150] or 'universo'
+    competition_obj, _ = Competition.objects.get_or_create(
+        name=competition_name[:150],
+        region='',
+        defaults={'slug': comp_slug},
+    )
+    season_obj, _ = Season.objects.get_or_create(
+        competition=competition_obj,
+        name=season_name,
+        defaults={'is_current': True},
+    )
+    group_obj = Group.objects.filter(season=season_obj, external_id=str(group_key).strip()).first()
+    if not group_obj:
+        group_slug = _unique_group_slug_for_season(season_obj, group_name or f'grupo-{group_key}')
+        group_obj = Group.objects.create(
+            season=season_obj,
+            name=group_name[:80],
+            slug=group_slug,
+            external_id=str(group_key).strip()[:80],
+        )
+
+    if getattr(primary_team, 'group_id', None) != getattr(group_obj, 'id', None):
+        primary_team.group = group_obj
+        primary_team.save(update_fields=['group'])
+
+    ctx_updates = []
+    if getattr(context, 'group_id', None) != getattr(group_obj, 'id', None):
+        context.group = group_obj
+        ctx_updates.append('group')
+    if getattr(context, 'season_id', None) != getattr(season_obj, 'id', None):
+        context.season = season_obj
+        ctx_updates.append('season')
+    if competition_code and str(getattr(context, 'external_competition_key', '') or '').strip() != competition_code:
+        context.external_competition_key = competition_code
+        ctx_updates.append('external_competition_key')
+    if ctx_updates:
+        context.save(update_fields=ctx_updates + ['updated_at'])
 
 
 def _ensure_platform_team(team_name, *, region=''):
