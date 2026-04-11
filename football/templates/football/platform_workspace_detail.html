@@ -411,11 +411,11 @@
         </div>
       </div>
       <section class="hero">
-        <div class="hero-top">
-          <div>
-            <div class="chip">{{ workspace.get_kind_display }}</div>
-            <h1 style="margin-top:0.55rem;">{{ workspace.name }}</h1>
-            <p>Ficha de gobierno del cliente. Aquí defines quién entra y qué módulos y entregables tiene activos este espacio; la operativa diaria se realiza dentro del propio cliente.</p>
+	        <div class="hero-top">
+	          <div>
+	            <div class="chip">{{ workspace.get_kind_display }}</div>
+	            <h1 style="margin-top:0.55rem;">{{ workspace.name }}</h1>
+	            <p>Ficha de gobierno del club. Aquí defines quién entra y qué módulos y entregables tiene activos este espacio; la operativa diaria se realiza dentro del propio club.</p>
             <div class="hero-subline">
               <span class="sub-chip">Slug · {{ workspace.slug }}</span>
               <span class="sub-chip">{% if workspace.owner_user %}Propietario · {{ workspace.owner_user.username }}{% else %}Sin propietario{% endif %}</span>
@@ -425,29 +425,29 @@
               {% endif %}
             </div>
           </div>
-        </div>
-        {% if active_workspace and active_workspace.id == workspace.id %}
-        <div class="active-banner">Este cliente ya es el contexto activo del sistema.</div>
-        {% endif %}
-        <div class="hero-links">
-          <a class="primary-link" href="{% url 'platform-workspace-enter' workspace.id %}">Entrar en cliente</a>
-          <a href="{% url 'platform-overview' %}">Volver a plataforma</a>
-          {% if can_manage_workspace and workspace.kind == 'club' %}
+	        </div>
+	        {% if active_workspace and active_workspace.id == workspace.id %}
+	        <div class="active-banner">Este club ya es el contexto activo del sistema.</div>
+	        {% endif %}
+	        <div class="hero-links">
+	          <a class="primary-link" href="{% url 'platform-workspace-enter' workspace.id %}">Entrar en club</a>
+	          <a href="{% url 'platform-overview' %}">Volver a plataforma</a>
+	          {% if can_manage_workspace and workspace.kind == 'club' %}
           <form method="post" onsubmit="return confirm('Se generarán jugadores, partido, eventos y estadísticas de ejemplo.');">
             {% csrf_token %}
             <input type="hidden" name="form_action" value="bootstrap_demo_data" />
             <button class="inline-btn" type="submit">Generar datos demo</button>
           </form>
-          <details style="display:inline-block;">
-            <summary class="inline-btn danger" style="cursor:pointer;">Eliminar cliente</summary>
-            <div style="margin-top:0.6rem; padding:0.75rem; border-radius:12px; border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.04); min-width:min(460px, 92vw);">
-              <p style="margin:0 0 0.55rem; color:#ffb7b7; font-weight:800;">
-                Acción irreversible. Solo borra el workspace (cliente). Los equipos/jugadores quedan en BBDD.
-              </p>
-              <form method="post" action="{% url 'platform-workspace-delete' workspace.id %}" onsubmit="return confirm('¿Eliminar definitivamente este cliente?');" class="inline-form">
-                {% csrf_token %}
-                <input type="text" name="confirm_slug" placeholder="Escribe el slug: {{ workspace.slug }}" required />
-                <input type="text" name="confirm_phrase" placeholder="Escribe: ELIMINAR" required />
+	          <details style="display:inline-block;">
+	            <summary class="inline-btn danger" style="cursor:pointer;">Eliminar club</summary>
+	            <div style="margin-top:0.6rem; padding:0.75rem; border-radius:12px; border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.04); min-width:min(460px, 92vw);">
+	              <p style="margin:0 0 0.55rem; color:#ffb7b7; font-weight:800;">
+	                Acción irreversible. Solo borra el workspace (club). Los equipos/jugadores quedan en BBDD.
+	              </p>
+	              <form method="post" action="{% url 'platform-workspace-delete' workspace.id %}" onsubmit="return confirm('¿Eliminar definitivamente este club?');" class="inline-form">
+	                {% csrf_token %}
+	                <input type="text" name="confirm_slug" placeholder="Escribe el slug: {{ workspace.slug }}" required />
+	                <input type="text" name="confirm_phrase" placeholder="Escribe: ELIMINAR" required />
                 <button class="inline-btn danger" type="submit">Eliminar definitivamente</button>
               </form>
             </div>
@@ -469,27 +469,27 @@
         {% if error %}
         <div class="message error">{{ error }}</div>
         {% endif %}
-      </section>
+	      </section>
 
-      <nav class="subnav" aria-label="Secciones del cliente">
-        <a href="#workspace-resumen">Resumen</a>
-        {% if workspace.kind == 'club' %}
-        <a href="#workspace-competition">Competición</a>
+	      <nav class="subnav" aria-label="Secciones del club">
+	        <a href="#workspace-resumen">Resumen</a>
+	        {% if workspace.kind == 'club' %}
+	        <a href="#workspace-competition">Competición</a>
         {% endif %}
         <a href="#workspace-miembros">Miembros</a>
         <a href="#workspace-modulos">Módulos</a>
       </nav>
 
       <section class="grid">
-        <article class="panel">
-          <div class="summary-note">
-            Este panel gobierna el cliente. La operación diaria de jugadores, tareas o sesiones se ejecuta dentro del propio espacio, no desde aquí.
-          </div>
+	        <article class="panel">
+	          <div class="summary-note">
+	            Este panel gobierna el club. La operación diaria de jugadores, tareas o sesiones se ejecuta dentro del propio espacio, no desde aquí.
+	          </div>
           {% if can_manage_workspace %}
-          <div class="section-shell panel-block">
-            <div class="section-kicker">Configuración</div>
-            <h2>Ajustes del cliente</h2>
-            <p>Edita la identidad, el responsable principal y el estado operativo de este espacio.</p>
+	          <div class="section-shell panel-block">
+	            <div class="section-kicker">Configuración</div>
+	            <h2>Ajustes del club</h2>
+	            <p>Edita la identidad, el responsable principal y el estado operativo de este espacio.</p>
             <form method="post" class="workspace-form" style="margin-top:1rem;">
               {% csrf_token %}
               <input type="hidden" name="form_action" value="update_workspace_identity" />
@@ -513,9 +513,9 @@
                   </select>
                 </div>
                 {% endif %}
-                <div class="field">
-                  <label><input type="checkbox" name="workspace_is_active" {% if workspace.is_active %}checked{% endif %} /> Cliente activo</label>
-                </div>
+	                <div class="field">
+	                  <label><input type="checkbox" name="workspace_is_active" {% if workspace.is_active %}checked{% endif %} /> Club activo</label>
+	                </div>
               </div>
               <div class="field" style="margin-top:0.8rem;">
                 <label for="workspace_notes">Notas</label>

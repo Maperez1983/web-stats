@@ -806,33 +806,33 @@
       <section class="hero">
         <div class="hero-copy">
           <div class="hero-topline">
-            <div class="hero-title-block">
-              <div class="product-kicker">2J Platform</div>
-              <h1>Clientes, usuarios y entregables</h1>
-              <p>Plataforma es el centro de gobierno del sistema: aquí das de alta clientes, asignas usuarios y decides qué módulos y entregables puede usar cada espacio. El trabajo diario se hace dentro de cada cliente.</p>
-            </div>
-            <div class="hero-links">
-              <a class="primary-link" href="{% url 'platform-overview' %}?tab=workspace-create">Crear cliente</a>
-              {% if active_workspace and club_dashboard_url %}
-              <a href="{{ club_dashboard_url }}">Volver al club</a>
-              {% else %}
-              <a href="{% url 'platform-overview' %}">Volver a plataforma</a>
+	            <div class="hero-title-block">
+	              <div class="product-kicker">2J Platform</div>
+	              <h1>Clubes, usuarios y entregables</h1>
+	              <p>Plataforma es el centro de gobierno del sistema: aquí das de alta clubes, asignas usuarios y decides qué módulos y entregables puede usar cada espacio. El trabajo diario se hace dentro de cada club.</p>
+	            </div>
+	            <div class="hero-links">
+	              <a class="primary-link" href="{% url 'platform-overview' %}?tab=workspace-create">Crear club</a>
+	              {% if active_workspace and club_dashboard_url %}
+	              <a href="{{ club_dashboard_url }}">Volver al club</a>
+	              {% else %}
+	              <a href="{% url 'platform-overview' %}">Volver a plataforma</a>
               {% endif %}
               {% if active_workspace %}
               <a href="{% url 'platform-workspace-clear' %}">Salir del contexto</a>
               {% endif %}
             </div>
           </div>
-          {% if active_workspace %}
-          <div class="message ok" style="margin-top:0.9rem; display:inline-block;">
-            Cliente activo: <strong>{{ active_workspace.name }}</strong> · {{ active_workspace.kind_label }}
-          </div>
-          {% endif %}
-          <div class="hero-stats">
-            <div class="hero-stat">
-              <span>Clientes club</span>
-              <strong>{{ club_workspace_count }}</strong>
-            </div>
+	          {% if active_workspace %}
+	          <div class="message ok" style="margin-top:0.9rem; display:inline-block;">
+	            Club activo: <strong>{{ active_workspace.name }}</strong> · {{ active_workspace.kind_label }}
+	          </div>
+	          {% endif %}
+	          <div class="hero-stats">
+	            <div class="hero-stat">
+	              <span>Clubes</span>
+	              <strong>{{ club_workspace_count }}</strong>
+	            </div>
             <div class="hero-stat">
               <span>Usuarios vinculados</span>
               <strong>{{ linked_club_user_count }}</strong>
@@ -842,15 +842,15 @@
               <strong>{% if active_workspace %}Activo{% else %}Global{% endif %}</strong>
             </div>
           </div>
-          <div class="quick-grid">
-            <a class="quick-card" href="{% url 'platform-overview' %}?tab=clients">
-              <strong>Clientes</strong>
-              <span>Consulta cada cliente, su estado operativo y entra a supervisarlo.</span>
-            </a>
-            <a class="quick-card" href="{% url 'platform-overview' %}?tab=users&subtab=list">
-              <strong>Usuarios</strong>
-              <span>Alta global, invitaciones y relación real de usuarios con cada cliente.</span>
-            </a>
+	          <div class="quick-grid">
+	            <a class="quick-card" href="{% url 'platform-overview' %}?tab=clients">
+	              <strong>Clubes</strong>
+	              <span>Consulta cada club, su estado operativo y entra a supervisarlo.</span>
+	            </a>
+	            <a class="quick-card" href="{% url 'platform-overview' %}?tab=users&subtab=list">
+	              <strong>Usuarios</strong>
+	              <span>Alta global, invitaciones y relación real de usuarios con cada club.</span>
+	            </a>
             <a class="quick-card" href="{% url 'platform-overview' %}?tab=documents">
               <strong>Documentos</strong>
               <span>Revisa salidas PDF recientes de club y sesiones.</span>
@@ -867,17 +867,17 @@
         </div>
       </section>
 
-      <nav class="subnav" aria-label="Secciones plataforma">
-        <a class="{% if active_tab == 'clients' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=clients">Clientes</a>
-        <a class="{% if active_tab == 'users' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=users&subtab=list">Usuarios</a>
-        <a class="{% if active_tab == 'documents' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=documents">Documentos</a>
-        <a class="{% if active_tab == 'home-global' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=home-global">Home global</a>
-        <a class="{% if active_tab == 'workspace-create' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=workspace-create">Crear cliente</a>
-      </nav>
-      <section class="panel" style="margin-top:1rem;">
-        <div class="governance-note">
-          Plataforma gobierna clientes, accesos y entregables. El trabajo diario no se hace aquí: se hace dentro de cada cliente.
-        </div>
+	      <nav class="subnav" aria-label="Secciones plataforma">
+	        <a class="{% if active_tab == 'clients' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=clients">Clubes</a>
+	        <a class="{% if active_tab == 'users' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=users&subtab=list">Usuarios</a>
+	        <a class="{% if active_tab == 'documents' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=documents">Documentos</a>
+	        <a class="{% if active_tab == 'home-global' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=home-global">Home global</a>
+	        <a class="{% if active_tab == 'workspace-create' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=workspace-create">Crear club</a>
+	      </nav>
+	      <section class="panel" style="margin-top:1rem;">
+	        <div class="governance-note">
+	          Plataforma gobierna clubes, accesos y entregables. El trabajo diario no se hace aquí: se hace dentro de cada club.
+	        </div>
         {% if feedback %}
         <div class="message ok">{{ feedback }}</div>
         {% endif %}
@@ -885,16 +885,16 @@
         <div class="message error">{{ error }}</div>
         {% endif %}
 
-        {% if active_tab == 'clients' %}
-        <div class="section-shell stack-section" id="clientes-club">
-          <div class="section-head">
-            <div>
-              <div class="section-kicker">Clientes club</div>
-              <h2>Clientes</h2>
-              <p>Vista consolidada de clubes, responsables y estado operativo de cada cliente.</p>
-            </div>
-            <div class="count-pill">{{ club_workspaces|length }}</div>
-          </div>
+	        {% if active_tab == 'clients' %}
+	        <div class="section-shell stack-section" id="clientes-club">
+	          <div class="section-head">
+	            <div>
+	              <div class="section-kicker">Clubes</div>
+	              <h2>Clubes</h2>
+	              <p>Vista consolidada de clubes, responsables y estado operativo de cada club.</p>
+	            </div>
+	            <div class="count-pill">{{ club_workspaces|length }}</div>
+	          </div>
           {% if primary_workspace %}
           <div class="actions-row" style="margin-top:1rem;">
             <a class="link-btn" href="{% url 'platform-workspace-detail' primary_workspace.id %}">Ver {{ primary_workspace.name }}</a>
@@ -904,12 +904,12 @@
           <form class="actions-row" method="get" action="{% url 'platform-overview' %}" style="margin-top:0.75rem; gap: 0.6rem; flex-wrap: wrap;">
             <input type="hidden" name="tab" value="clients" />
             <input
-              type="text"
-              name="q_clients"
-              value="{{ clients_query|default:'' }}"
-              placeholder="Buscar cliente/club (nombre, slug, equipo, categoría)…"
-              style="min-width: 260px; flex: 1; max-width: 520px;"
-            />
+	              type="text"
+	              name="q_clients"
+	              value="{{ clients_query|default:'' }}"
+	              placeholder="Buscar club (nombre, slug, equipo, categoría)…"
+	              style="min-width: 260px; flex: 1; max-width: 520px;"
+	            />
             <button type="submit" class="link-btn">Buscar</button>
             {% if clients_query %}
             <a class="link-btn" href="{% url 'platform-overview' %}?tab=clients">Limpiar</a>
@@ -954,10 +954,10 @@
               {% if workspace.notes %}
               <div class="workspace-note">{{ workspace.notes|truncatechars:180 }}</div>
               {% endif %}
-              <div class="actions-row">
-                <a class="link-btn" href="{% url 'platform-workspace-enter' workspace.id %}">Entrar como supervisor</a>
-                <a class="link-btn" href="{% url 'platform-workspace-detail' workspace.id %}">Abrir ficha</a>
-              </div>
+	              <div class="actions-row">
+	                <a class="link-btn" href="{% url 'platform-workspace-enter' workspace.id %}">Entrar</a>
+	                <a class="link-btn" href="{% url 'platform-workspace-detail' workspace.id %}">Abrir ficha</a>
+	              </div>
               {% if workspace.team_links and workspace.team_links|length > 1 %}
               <div class="actions-row" style="margin-top:0.55rem; opacity:0.92;">
                 {% for link in workspace.team_links %}
@@ -968,14 +968,14 @@
               </div>
               {% endif %}
             </article>
-            {% empty %}
-            <article class="workspace-card">
-              <h3>Sin clientes todavía</h3>
-              <p>Crea el primer cliente club desde `Crear cliente`.</p>
-            </article>
-            {% endfor %}
-          </div>
-        </div>
+	            {% empty %}
+	            <article class="workspace-card">
+	              <h3>Sin clubes todavía</h3>
+	              <p>Crea el primer club desde `Crear club`.</p>
+	            </article>
+	            {% endfor %}
+	          </div>
+	        </div>
 
       {% elif active_tab == 'users' %}
         <div class="section-shell stack-section" id="usuarios-club">
@@ -1308,14 +1308,14 @@
         </div>
 
         {% else %}
-        <div class="section-shell stack-section" id="create-workspace">
-          <div class="section-head">
-            <div>
-              <div class="section-kicker">Alta guiada</div>
-              <h2>Crear cliente</h2>
-              <p>Identidad, acceso inicial y entregables activos en una sola ficha de alta.</p>
-            </div>
-          </div>
+	        <div class="section-shell stack-section" id="create-workspace">
+	          <div class="section-head">
+	            <div>
+	              <div class="section-kicker">Alta guiada</div>
+	              <h2>Crear club</h2>
+	              <p>Identidad, acceso inicial y entregables activos en una sola ficha de alta.</p>
+	            </div>
+	          </div>
           <form class="workspace-form" method="post">
             {% csrf_token %}
             <input type="hidden" name="form_action" value="workspace_create" />
@@ -1461,9 +1461,9 @@
                 </div>
               </div>
             </details>
-            <button class="submit-btn" type="submit">Crear cliente</button>
-          </form>
-        </div>
+	            <button class="submit-btn" type="submit">Crear club</button>
+	          </form>
+	        </div>
         {% endif %}
       </section>
     </main>

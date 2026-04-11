@@ -342,10 +342,10 @@
       </section>
       {% elif active_tab == 'teams' %}
 	      <section class="block roster-manager">
-	        <h2>Categorías · {{ active_workspace.name|default:"Cliente" }}</h2>
-	        <p style="margin:0.25rem 0 0;color:rgba(203,213,225,0.78);">
-	          Crea un club independiente por categoría (F7/F11) para no mezclar datos. El escudo se hereda del equipo principal.
-	        </p>
+        <h2>Clubes · {{ active_workspace.name|default:"Club" }}</h2>
+        <p style="margin:0.25rem 0 0;color:rgba(203,213,225,0.78);">
+          Cada equipo se crea como club independiente (F7/F11) para no mezclar datos. El escudo se hereda del equipo principal.
+        </p>
         {% if team_warnings %}
           <div style="margin-top:0.85rem;display:grid;gap:0.45rem;">
             {% for warn in team_warnings %}
@@ -405,8 +405,8 @@
             <span>ID de grupo</span>
             <input type="text" name="group_external_id" placeholder="Ej. 48199749" />
           </label>
-	          <button class="pill-button" type="submit">Crear club</button>
-	        </form>
+          <button class="pill-button" type="submit">Crear club</button>
+        </form>
 	        {% endif %}
 
         <div class="roster-list" style="margin-top:0.9rem;">
@@ -491,7 +491,7 @@
                 <input type="hidden" name="workspace_team_id" value="{{ link.id }}" />
                 <button class="pill-button" type="submit">Hacer predeterminada</button>
               </form>
-              <form method="post" class="form-inline" onsubmit="return confirm('Se creará un club independiente para esta categoría y se desvinculará del cliente actual.');">
+              <form method="post" class="form-inline" onsubmit="return confirm('Se creará un club independiente para esta categoría y se desvinculará del club actual.');">
                 {% csrf_token %}
                 <input type="hidden" name="form_action" value="team_split_workspace" />
                 <input type="hidden" name="active_tab" value="teams" />

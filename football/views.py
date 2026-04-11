@@ -7668,9 +7668,9 @@ def platform_overview_page(request):
     )
     platform_attention_items = []
     if club_workspaces_without_team:
-        platform_attention_items.append(f'{club_workspaces_without_team} cliente(s) club sin equipo principal vinculado.')
+        platform_attention_items.append(f'{club_workspaces_without_team} club(es) sin equipo principal vinculado.')
     if club_workspaces_without_members:
-        platform_attention_items.append(f'{club_workspaces_without_members} cliente(s) club sin miembros asignados.')
+        platform_attention_items.append(f'{club_workspaces_without_members} club(es) sin miembros asignados.')
     if not platform_attention_items:
         platform_attention_items.append('La matriz no tiene alertas críticas de configuración.')
 
@@ -8017,7 +8017,7 @@ def platform_workspace_detail_page(request, workspace_id):
             except ValueError as exc:
                 error = str(exc)
             except Exception:
-                error = 'No se pudo actualizar la configuración del cliente.'
+                error = 'No se pudo actualizar la configuración del club.'
         elif form_action == 'update_modules':
             module_catalog = _workspace_module_catalog(workspace.kind)
             selected_modules = {
@@ -8090,7 +8090,7 @@ def platform_workspace_detail_page(request, workspace_id):
                 else:
                     if workspace.primary_team_id:
                         _invalidate_team_dashboard_caches(workspace.primary_team)
-                    feedback = 'Competición sincronizada para este cliente.'
+                    feedback = 'Competición sincronizada para este club.'
         elif form_action == 'search_competition_context':
             if workspace.kind != Workspace.KIND_CLUB:
                 error = 'Solo los clientes club tienen búsqueda competitiva.'
@@ -8118,7 +8118,7 @@ def platform_workspace_detail_page(request, workspace_id):
                         group_query=competition_search_inputs['group_query'],
                     )
                 if competition_search_results:
-                    feedback = f'Se encontraron {len(competition_search_results)} coincidencias para este cliente.'
+                    feedback = f'Se encontraron {len(competition_search_results)} coincidencias para este club.'
                 else:
                     error = 'No se encontraron coincidencias con los criterios indicados.'
         elif form_action == 'apply_competition_candidate':
@@ -8477,7 +8477,7 @@ def platform_workspace_delete_page(request, workspace_id):
             return redirect('platform-workspace-detail', workspace_id=workspace.id)
         primary_team = workspace.primary_team
         if primary_team and bool(getattr(primary_team, 'is_primary', False)):
-            request.session['platform_error'] = 'No se puede eliminar el cliente principal desde Platform.'
+            request.session['platform_error'] = 'No se puede eliminar el club principal desde Platform.'
             return redirect('platform-workspace-detail', workspace_id=workspace.id)
         workspace.delete()
         if int(request.session.get('active_workspace_id') or 0) == int(workspace_id_value):
@@ -8487,7 +8487,7 @@ def platform_workspace_delete_page(request, workspace_id):
             mapping.pop(str(workspace_id_value), None)
             mapping.pop(workspace_id_value, None)
             request.session['active_team_by_workspace'] = mapping
-        request.session['platform_feedback'] = f'Cliente eliminado: {workspace_name}.'
+        request.session['platform_feedback'] = f'Club eliminado: {workspace_name}.'
         return redirect('platform-overview')
 
     return HttpResponse('Tipo de workspace no eliminable desde esta acción.', status=403)
@@ -8802,7 +8802,7 @@ def admin_page(request):
             if not workspace or workspace.kind != Workspace.KIND_CLUB:
                 teams_error = 'No hay cliente club activo.'
             elif not can_manage_workspace:
-                teams_error = 'No tienes permisos para gestionar este cliente.'
+                teams_error = 'No tienes permisos para gestionar este club.'
             else:
                 def _unique_group_slug(season_obj, base_value):
                     base_slug = slugify(base_value)[:80] or 'grupo'
@@ -8920,7 +8920,7 @@ def admin_page(request):
                         if link.is_default:
                             raise ValueError('No puedes eliminar la categoría predeterminada. Elige otra antes.')
                         link.delete()
-                        teams_message = 'Categoría desvinculada del cliente.'
+                        teams_message = 'Equipo desvinculado del club.'
                     elif form_action == 'team_update':
                         link_id = _parse_int(request.POST.get('workspace_team_id'))
                         link = WorkspaceTeam.objects.filter(id=link_id, workspace=workspace).select_related('team').first() if link_id else None
@@ -9428,7 +9428,7 @@ def admin_page(request):
             if not workspace or workspace.kind != Workspace.KIND_CLUB:
                 teams_error = 'No hay cliente club activo.'
             elif not can_manage_workspace:
-                teams_error = 'No tienes permisos para gestionar este cliente.'
+                teams_error = 'No tienes permisos para gestionar este club.'
             else:
                 link_id = _parse_int(request.POST.get('workspace_team_id'))
                 target_user_id = _parse_int(request.POST.get('user_id'))
