@@ -10700,7 +10700,8 @@ def player_dashboard_page(request):
             refresh_primary_roster_cache(primary_team, force=False)
         except Exception:
             pass
-    player_stats = compute_player_dashboard(primary_team)
+    force_refresh_stats = str(request.GET.get('refresh') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    player_stats = compute_player_dashboard(primary_team, force_refresh=force_refresh_stats)
     team_matches = list(
         _team_match_queryset(primary_team)
         .select_related('home_team', 'away_team')
@@ -23792,7 +23793,8 @@ def player_detail_page(request, player_id):
                 return redirect(f"{reverse('player-detail', args=[player.id])}?tab=communication")
 
         try:
-            matches = compute_player_dashboard(primary_team)
+            force_refresh_stats = str(request.GET.get('refresh') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+            matches = compute_player_dashboard(primary_team, force_refresh=force_refresh_stats)
             stats_error = ''
         except Exception:
             logger.exception('No se pudo recomponer el dashboard del jugador %s', player_id)
@@ -24020,7 +24022,8 @@ def player_pdf(request, player_id):
     forbidden = _forbid_if_no_player_access(request.user, player, primary_team=primary_team)
     if forbidden:
         return forbidden
-    matches = compute_player_dashboard(primary_team)
+    force_refresh_stats = str(request.GET.get('refresh') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    matches = compute_player_dashboard(primary_team, force_refresh=force_refresh_stats)
     detail = next((p for p in matches if p.get('player_id') == player_id), None)
     if not detail:
         raise Http404('Sin datos para generar el PDF')
