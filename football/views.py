@@ -1656,6 +1656,8 @@ def _can_access_coach_workspace(user):
 
 
 def _can_access_task_studio(user):
+    if str(os.getenv('ENABLE_TASK_STUDIO', '1') or '').strip().lower() not in {'1', 'true', 'yes', 'on'}:
+        return False
     if not user or not user.is_authenticated:
         return False
     if _is_admin_user(user):
@@ -7230,14 +7232,17 @@ def _sanitize_username(value, *, max_len=150):
 
 
 @login_required
-@login_required
 def platform_overview_page(request):
     if not _can_access_platform(request.user):
         return HttpResponse('No tienes permisos para acceder a la plataforma.', status=403)
-    valid_tabs = {'clients', 'users', 'task-studio', 'documents', 'workspace-create', 'home-global'}
+    task_studio_enabled = str(os.getenv('ENABLE_TASK_STUDIO', '1') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    valid_tabs = {'clients', 'users', 'documents', 'workspace-create', 'home-global'}
+    if task_studio_enabled:
+        valid_tabs.add('task-studio')
     active_tab = str(request.GET.get('tab') or 'clients').strip().lower()
     if active_tab not in valid_tabs:
         active_tab = 'clients'
+    clients_query = _sanitize_task_text((request.GET.get('q_clients') or '').strip(), multiline=False, max_len=120)
     users_subtab = str(request.GET.get('subtab') or 'list').strip().lower()
     if users_subtab not in {'list', 'create'}:
         users_subtab = 'list'
@@ -7724,6 +7729,15 @@ def platform_overview_page(request):
             .annotate(member_count=Count('memberships', distinct=True))
         )
         if active_tab == 'clients':
+            if clients_query:
+                club_filter = (
+                    Q(name__icontains=clients_query)
+                    | Q(slug__icontains=clients_query)
+                    | Q(primary_team__name__icontains=clients_query)
+                    | Q(primary_team__slug__icontains=clients_query)
+                    | Q(primary_team__category__icontains=clients_query)
+                )
+                workspaces_qs = workspaces_qs.filter(club_filter)
             club_workspaces = list(
                 workspaces_qs
                 .filter(kind=Workspace.KIND_CLUB)
@@ -7945,6 +7959,8 @@ def platform_overview_page(request):
             'platform_users_has_next': platform_users_has_next,
             'platform_users_page': users_page_number,
             'platform_users_query': users_query,
+            'clients_query': clients_query,
+            'task_studio_enabled': task_studio_enabled,
             'edit_user': edit_user_obj,
             'carousel_images': carousel_images,
             'teams': teams,

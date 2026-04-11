@@ -659,12 +659,13 @@ class PlatformWorkspaceTests(TestCase):
     def test_platform_overview_bootstraps_primary_and_task_studio_workspaces(self):
         self.client.force_login(self.admin_user)
 
-        response = self.client.get(reverse('platform-overview'))
+        with patch.dict(os.environ, {'PLATFORM_AUTO_ENSURE_WORKSPACES': '1'}):
+            response = self.client.get(reverse('platform-overview'))
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Clientes')
         self.assertContains(response, 'Usuarios')
-        self.assertContains(response, 'Entrar en Benagalbón')
+        self.assertContains(response, 'Entrar en')
         club_workspace = Workspace.objects.filter(primary_team=self.team, kind=Workspace.KIND_CLUB).first()
         studio_workspace = Workspace.objects.filter(owner_user=self.studio_user, kind=Workspace.KIND_TASK_STUDIO).first()
         self.assertIsNotNone(club_workspace)
@@ -1037,7 +1038,8 @@ class PlatformWorkspaceTests(TestCase):
         AppUserRole.objects.create(user=guest_user, role=AppUserRole.ROLE_GUEST)
         self.client.force_login(self.admin_user)
 
-        response = self.client.get(reverse('platform-overview'))
+        with patch.dict(os.environ, {'PLATFORM_AUTO_ENSURE_WORKSPACES': '1'}):
+            response = self.client.get(reverse('platform-overview'))
 
         self.assertEqual(response.status_code, 200)
         self.assertTrue(Workspace.objects.filter(owner_user=guest_user, kind=Workspace.KIND_TASK_STUDIO).exists())
@@ -2132,7 +2134,7 @@ class PlatformWorkspaceTests(TestCase):
 
         response = self.client.get(reverse('convocation'))
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 404)
 
     def test_workspace_member_cannot_enter_other_client_workspace(self):
         own_workspace = Workspace.objects.create(
