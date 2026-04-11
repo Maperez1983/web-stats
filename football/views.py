@@ -1085,10 +1085,9 @@ def save_player_photo(player, uploaded_photo):
 
 @login_required
 def player_photo_file(request, player_id):
-    primary_team = _get_player_team_for_request(request)
+    primary_team, player = _resolve_player_for_request_scope(request, int(player_id))
     if not primary_team:
         raise Http404('Equipo principal no configurado')
-    player = Player.objects.filter(id=player_id, team=primary_team).first()
     if not player:
         raise Http404('Jugador no encontrado')
     forbidden = _forbid_if_no_player_access(request.user, player, primary_team=primary_team)
@@ -2042,6 +2041,58 @@ def _get_primary_team_for_request(request):
 
 def _get_player_team_for_request(request):
     return _get_active_team_for_request(request)
+
+
+def _allowed_team_ids_for_request(request):
+    """
+    Equipos (Team.id) a los que el usuario puede acceder dentro del workspace club activo.
+
+    Si no hay workspace activo (o no es club), devolvemos set vacío para mantener el comportamiento legacy.
+    """
+    workspace = _get_active_workspace(request)
+    if not workspace or workspace.kind != Workspace.KIND_CLUB:
+        return set()
+    links = _workspace_team_links_for_user(workspace, getattr(request, 'user', None))
+    return {int(getattr(link, 'team_id', 0) or 0) for link in links if getattr(link, 'team_id', None)}
+
+
+def _resolve_player_for_request_scope(request, player_id):
+    """
+    Resuelve (primary_team, player) de forma robusta para navegación desde listados.
+
+    Caso real: en setups multi-equipo, un link a `/player/<id>/` puede llegar sin `?team=`.
+    Si el equipo activo en sesión no coincide, la ficha debe seguir abriendo si el jugador
+    pertenece a un equipo permitido dentro del workspace activo.
+    """
+    primary_team = _get_player_team_for_request(request)
+    allowed_team_ids = _allowed_team_ids_for_request(request)
+    try:
+        if allowed_team_ids and primary_team and int(primary_team.id) not in allowed_team_ids:
+            primary_team = None
+    except Exception:
+        pass
+
+    player = None
+    if primary_team:
+        player = Player.objects.filter(id=player_id, team=primary_team).first()
+    if not player:
+        qs = Player.objects.filter(id=player_id).select_related('team')
+        if allowed_team_ids:
+            qs = qs.filter(team_id__in=allowed_team_ids)
+        player = qs.first()
+        if player and getattr(player, 'team', None):
+            primary_team = player.team
+            workspace = _get_active_workspace(request)
+            if workspace and workspace.kind == Workspace.KIND_CLUB and hasattr(request, 'session'):
+                try:
+                    mapping = request.session.get('active_team_by_workspace')
+                    if not isinstance(mapping, dict):
+                        mapping = {}
+                    mapping[str(workspace.id)] = int(player.team_id)
+                    request.session['active_team_by_workspace'] = mapping
+                except Exception:
+                    pass
+    return primary_team, player
 
 
 def _build_active_workspace_badge(request):
@@ -23128,10 +23179,9 @@ def player_detail_page(request, player_id):
         forbidden = _forbid_if_workspace_module_disabled(request, 'players', label='módulo de jugadores')
         if forbidden:
             return forbidden
-        primary_team = _get_player_team_for_request(request)
+        primary_team, player = _resolve_player_for_request_scope(request, int(player_id))
         if not primary_team:
             return JsonResponse({'error': 'No hay equipo principal configurado'}, status=400)
-        player = Player.objects.filter(id=player_id, team=primary_team).first()
         if not player:
             return JsonResponse({'error': 'Jugador no encontrado'}, status=404)
         forbidden = _forbid_if_no_player_access(request.user, player, primary_team=primary_team)
@@ -23554,10 +23604,9 @@ def player_pdf(request, player_id):
     forbidden = _forbid_if_workspace_module_disabled(request, 'players', label='módulo de jugadores')
     if forbidden:
         return forbidden
-    primary_team = _get_player_team_for_request(request)
+    primary_team, player = _resolve_player_for_request_scope(request, int(player_id))
     if not primary_team:
         raise Http404('Equipo principal no configurado')
-    player = Player.objects.filter(id=player_id, team=primary_team).first()
     if not player:
         raise Http404('Jugador no encontrado')
     forbidden = _forbid_if_no_player_access(request.user, player, primary_team=primary_team)
@@ -23587,10 +23636,9 @@ def player_presentation(request, player_id):
     forbidden = _forbid_if_workspace_module_disabled(request, 'players', label='módulo de jugadores')
     if forbidden:
         return forbidden
-    primary_team = _get_player_team_for_request(request)
+    primary_team, player = _resolve_player_for_request_scope(request, int(player_id))
     if not primary_team:
         raise Http404('Equipo principal no configurado')
-    player = Player.objects.filter(id=player_id, team=primary_team).first()
     if not player:
         raise Http404('Jugador no encontrado')
     forbidden = _forbid_if_no_player_access(request.user, player, primary_team=primary_team)
@@ -23814,10 +23862,9 @@ def player_match_stats_page(request, player_id, match_id):
     forbidden = _forbid_if_workspace_module_disabled(request, 'players', label='estadísticas de jugador')
     if forbidden:
         return forbidden
-    primary_team = _get_player_team_for_request(request)
+    primary_team, player = _resolve_player_for_request_scope(request, int(player_id))
     if not primary_team:
         return JsonResponse({'error': 'No hay equipo principal configurado'}, status=400)
-    player = Player.objects.filter(id=player_id, team=primary_team).first()
     if not player:
         raise Http404('Jugador no encontrado')
     forbidden = _forbid_if_no_player_access(request.user, player, primary_team=primary_team)
