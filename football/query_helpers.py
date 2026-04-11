@@ -87,43 +87,46 @@ def _team_match_queryset(primary_team):
         primary_category = (getattr(primary_team, 'category', '') or '').strip()
         primary_game_format = getattr(primary_team, 'game_format', '') or ''
         primary_group_id = getattr(primary_team, 'group_id', None)
-        for candidate in Team.objects.exclude(id=primary_team.id).only(
-            'id',
-            'name',
-            'category',
-            'game_format',
-            'group_id',
-        ):
-            candidate_category = (getattr(candidate, 'category', '') or '').strip()
-            if (primary_category or candidate_category) and candidate_category != primary_category:
-                # No mezclar categorías distintas (p.ej. Senior vs Prebenjamín) aunque el
-                # nombre del club sea el mismo.
-                continue
-            candidate_game_format = getattr(candidate, 'game_format', '') or ''
-            if primary_game_format and candidate_game_format and candidate_game_format != primary_game_format:
-                # No mezclar equipos de distinto formato (F7 vs F11).
-                continue
-            candidate_group_id = getattr(candidate, 'group_id', None)
-            if primary_group_id or candidate_group_id:
-                # Defensa extra: si cualquiera tiene grupo, exigimos que ambos tengan
-                # el mismo grupo para considerar alias (evita mezclar equipos sin contexto).
-                if not primary_group_id or not candidate_group_id:
+        # Si el equipo no tiene grupo/competición, no intentamos inferir alias por nombre:
+        # es demasiado fácil mezclar categorías/clubes con el mismo nombre (p.ej. "Benagalbón").
+        if primary_group_id:
+            for candidate in Team.objects.exclude(id=primary_team.id).only(
+                'id',
+                'name',
+                'category',
+                'game_format',
+                'group_id',
+            ):
+                candidate_category = (getattr(candidate, 'category', '') or '').strip()
+                if (primary_category or candidate_category) and candidate_category != primary_category:
+                    # No mezclar categorías distintas (p.ej. Senior vs Prebenjamín) aunque el
+                    # nombre del club sea el mismo.
                     continue
-                if candidate_group_id != primary_group_id:
+                candidate_game_format = getattr(candidate, 'game_format', '') or ''
+                if primary_game_format and candidate_game_format and candidate_game_format != primary_game_format:
+                    # No mezclar equipos de distinto formato (F7 vs F11).
                     continue
-            candidate_signature = _team_name_signature(candidate.name)
-            candidate_lookup = _normalize_team_lookup_key(candidate.name)
-            same_signature = candidate_signature == team_signature
-            fuzzy_same_team = bool(
-                primary_lookup
-                and candidate_lookup
-                and (
-                    primary_lookup in candidate_lookup
-                    or candidate_lookup in primary_lookup
+                candidate_group_id = getattr(candidate, 'group_id', None)
+                if primary_group_id or candidate_group_id:
+                    # Defensa extra: si cualquiera tiene grupo, exigimos que ambos tengan
+                    # el mismo grupo para considerar alias (evita mezclar equipos sin contexto).
+                    if not primary_group_id or not candidate_group_id:
+                        continue
+                    if candidate_group_id != primary_group_id:
+                        continue
+                candidate_signature = _team_name_signature(candidate.name)
+                candidate_lookup = _normalize_team_lookup_key(candidate.name)
+                same_signature = candidate_signature == team_signature
+                fuzzy_same_team = bool(
+                    primary_lookup
+                    and candidate_lookup
+                    and (
+                        primary_lookup in candidate_lookup
+                        or candidate_lookup in primary_lookup
+                    )
                 )
-            )
-            if same_signature or fuzzy_same_team:
-                alias_ids.append(candidate.id)
+                if same_signature or fuzzy_same_team:
+                    alias_ids.append(candidate.id)
         cache.set(alias_cache_key, alias_ids, 60 * 15)
     if alias_ids:
         direct_filter = direct_filter | Q(home_team_id__in=alias_ids) | Q(away_team_id__in=alias_ids)

@@ -1719,7 +1719,26 @@ def get_competition_total_rounds(primary_team):
         return 0
     group = primary_team.group
     if not group:
-        return 0
+        # Club sin competición federativa asociada: estimar por el calendario propio del equipo.
+        try:
+            matches = _team_match_queryset(primary_team)
+        except Exception:
+            matches = Match.objects.none()
+        round_numbers = []
+        try:
+            for round_value in matches.values_list('round', flat=True):
+                round_num = extract_round_number(round_value)
+                if round_num is not None:
+                    round_numbers.append(round_num)
+        except Exception:
+            round_numbers = []
+        total_by_rounds = max(round_numbers) if round_numbers else 0
+        try:
+            count_matches = int(matches.count())
+        except Exception:
+            count_matches = 0
+        return max(total_by_rounds, count_matches, 0)
+
     matches = Match.objects.filter(group=group)
     round_numbers = []
     for round_value in matches.values_list('round', flat=True):
