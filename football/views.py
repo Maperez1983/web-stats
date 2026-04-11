@@ -486,9 +486,15 @@ def kpi_audit(request):
         return JsonResponse({'ok': False, 'error': 'No se pudieron calcular KPIs.'}, status=500)
 
     def _recalc_importance(row):
-        availability_pct = float(row.get('availability_pct') or 0)
-        success_volume_pct = float(row.get('success_volume_pct') or 0)
-        return round((availability_pct * 0.6) + (success_volume_pct * 0.4), 1)
+        total_possible = int(row.get('total_possible_minutes') or 0)
+        max_successes = int(row.get('max_successes') or 0)
+        calculated = calculate_importance_score(
+            minutes=int(row.get('minutes') or 0),
+            total_possible_minutes=total_possible,
+            successes=int(row.get('successes') or 0),
+            max_successes=max_successes,
+        )
+        return calculated
 
     issues_total = 0
     audited = []
@@ -506,6 +512,11 @@ def kpi_audit(request):
         influence = float(row.get('influence_score') or 0)
         availability_pct = float(row.get('availability_pct') or 0)
         success_volume_pct = float(row.get('success_volume_pct') or 0)
+        successes = int(row.get('successes') or 0)
+        key_passes_completed = int(row.get('key_passes_completed') or 0)
+        max_decisive_actions_per90 = float(row.get('max_decisive_actions_per90') or 0)
+        successes_per90 = float(row.get('successes_per90') or 0)
+        decisive_actions_per90 = float(row.get('decisive_actions_per90') or 0)
 
         issues = []
         if pt > pj:
@@ -524,8 +535,34 @@ def kpi_audit(request):
             if minutes > hard_cap:
                 issues.append('MINUTOS_EXCESIVOS')
         expected_importance = _recalc_importance(row)
-        if abs(expected_importance - importance) > 0.11:
+        expected_availability = float(expected_importance.get('availability_pct') or 0)
+        expected_success_volume = float(expected_importance.get('success_volume_pct') or 0)
+        expected_importance_score = float(expected_importance.get('importance_score') or 0)
+        if abs(expected_availability - availability_pct) > 0.11:
+            issues.append('AVAILABILITY_MISMATCH')
+        if abs(expected_success_volume - success_volume_pct) > 0.11:
+            issues.append('SUCCESS_VOLUME_MISMATCH')
+        if abs(expected_importance_score - importance) > 0.11:
             issues.append('IMPORTANCIA_MISMATCH')
+
+        expected_influence = calculate_influence_score(
+            minutes=minutes,
+            successes=successes,
+            goals=goals,
+            assists=assists,
+            key_passes_completed=key_passes_completed,
+            max_decisive_actions_per90=max_decisive_actions_per90,
+            normalization_minutes=match_minutes or 90,
+        )
+        expected_successes_per90 = float(expected_influence.get('successes_per90') or 0)
+        expected_decisive_actions_per90 = float(expected_influence.get('decisive_actions_per90') or 0)
+        expected_influence_score = float(expected_influence.get('influence_score') or 0)
+        if abs(expected_successes_per90 - successes_per90) > 0.011:
+            issues.append('SUCCESS_PER90_MISMATCH')
+        if abs(expected_decisive_actions_per90 - decisive_actions_per90) > 0.011:
+            issues.append('DECISIVE_PER90_MISMATCH')
+        if abs(expected_influence_score - influence) > 0.11:
+            issues.append('INFLUENCE_MISMATCH')
         if not (0 <= availability_pct <= 100) or not (0 <= success_volume_pct <= 100):
             issues.append('PCT_FUERA_RANGO')
         if not (0 <= importance <= 100) or not (0 <= influence <= 100) or not (0 <= participation <= 100):
@@ -544,7 +581,7 @@ def kpi_audit(request):
                 'minutes': minutes,
                 'goals': goals,
                 'assists': assists,
-                'successes': int(row.get('successes') or 0),
+                'successes': successes,
                 'total_actions': int(row.get('total_actions') or 0),
                 'success_rate': float(row.get('success_rate') or 0),
                 'competition_total_rounds': total_rounds,
@@ -555,8 +592,8 @@ def kpi_audit(request):
                 'success_volume_pct': success_volume_pct,
                 'importance_score': importance,
                 'influence_score': influence,
-                'successes_per90': float(row.get('successes_per90') or 0),
-                'decisive_actions_per90': float(row.get('decisive_actions_per90') or 0),
+                'successes_per90': successes_per90,
+                'decisive_actions_per90': decisive_actions_per90,
                 'max_successes': int(row.get('max_successes') or 0),
                 'max_decisive_actions_per90': float(row.get('max_decisive_actions_per90') or 0),
                 'totals_locked': bool(row.get('totals_locked')),
