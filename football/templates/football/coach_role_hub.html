@@ -1143,7 +1143,7 @@
                   <div class="coach-player-meta">{{ coach_player_view.meta }}</div>
                 </div>
               </div>
-              <a class="pill-button" style="text-decoration:none;" href="{% url 'player-detail' coach_selected_player_id %}">Ficha completa</a>
+              <a class="pill-button" style="text-decoration:none;" href="{% url 'player-detail' coach_selected_player_id %}{% if active_workspace and active_workspace.id %}?workspace={{ active_workspace.id }}{% if active_team %}&team={{ active_team.id }}{% endif %}{% endif %}">Ficha completa</a>
             </div>
             <div class="overview-rings">
               {% for item in coach_player_view.rings %}
@@ -1544,7 +1544,7 @@
             {% for item in coach_player_cards_all %}
             <a
               class="individual-card{% if coach_selected_player_id == item.id %} is-selected{% endif %}"
-              href="?player={{ item.id }}"
+              href="{% url 'player-detail' item.id %}{% if active_workspace and active_workspace.id %}?workspace={{ active_workspace.id }}{% if active_team %}&team={{ active_team.id }}{% endif %}{% endif %}"
               data-player-card
               data-player-name="{{ item.name|lower }}"
               data-player-number="{{ item.number|default:'' }}"
@@ -1613,7 +1613,7 @@
                     <div class="coach-player-meta">{{ coach_player_view.meta }}</div>
                   </div>
                 </div>
-                <a class="pill-button" style="text-decoration:none;" href="{% url 'player-detail' coach_selected_player_id %}">Ficha completa</a>
+                <a class="pill-button" style="text-decoration:none;" href="{% url 'player-detail' coach_selected_player_id %}{% if active_workspace and active_workspace.id %}?workspace={{ active_workspace.id }}{% if active_team %}&team={{ active_team.id }}{% endif %}{% endif %}">Ficha completa</a>
               </div>
               <div class="overview-rings">
                 {% for item in coach_player_view.rings %}

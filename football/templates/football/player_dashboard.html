@@ -300,9 +300,11 @@
           <p>Dashboard jugadores · {{ team_name }}</p>
           <h1>Vista limpia de rendimiento</h1>
           <p class="mode-note product-inline-note">Perfil activo: <span class="product-chip role">{{ current_role_label }}</span> <span class="product-chip">Fase 4 · Seguimiento Jugadores</span></p>
-          <form method="get" class="toolbar">
-            <select name="match">
-              <option value="">Modo global</option>
+	          <form method="get" class="toolbar">
+	            {% if active_workspace and active_workspace.id %}<input type="hidden" name="workspace" value="{{ active_workspace.id }}" />{% endif %}
+	            {% if active_team %}<input type="hidden" name="team" value="{{ active_team.id }}" />{% endif %}
+	            <select name="match">
+	              <option value="">Modo global</option>
               {% for option in match_options %}
                 <option value="{{ option.id }}" {% if selected_match_id|stringformat:"s" == option.id|stringformat:"s" %}selected{% endif %}>
                   {{ option.label }}
@@ -329,7 +331,7 @@
       <div class="grid" id="playersGrid">
         {% for player in player_stats %}
           <article class="card" data-player-name="{{ player.name|lower }}" data-player="{{ player.player_id }}">
-            <a class="card-link" href="{% url 'player-detail' player.player_id %}">
+	            <a class="card-link" href="{% url 'player-detail' player.player_id %}{% if active_workspace and active_workspace.id %}?workspace={{ active_workspace.id }}{% if active_team %}&team={{ active_team.id }}{% endif %}{% endif %}">
               <div class="head">
                 <div class="head-main">
                   {% if player.photo_url %}
@@ -370,12 +372,12 @@
               </div>
             </a>
 
-            {% if can_preview_player_view %}
-            <div class="card-actions">
-              <a class="primary-link" href="{% url 'player-detail' player.player_id %}">Ficha staff</a>
-              <a class="preview-link" href="{% url 'player-detail' player.player_id %}?preview=player">Vista jugador</a>
-            </div>
-            {% endif %}
+	            {% if can_preview_player_view %}
+	            <div class="card-actions">
+	              <a class="primary-link" href="{% url 'player-detail' player.player_id %}{% if active_workspace and active_workspace.id %}?workspace={{ active_workspace.id }}{% if active_team %}&team={{ active_team.id }}{% endif %}{% endif %}">Ficha staff</a>
+	              <a class="preview-link" href="{% url 'player-detail' player.player_id %}{% if active_workspace and active_workspace.id %}?workspace={{ active_workspace.id }}{% if active_team %}&team={{ active_team.id }}{% endif %}&preview=player{% else %}?preview=player{% endif %}">Vista jugador</a>
+	            </div>
+	            {% endif %}
 
             <details>
               <summary>Ver jornadas</summary>
