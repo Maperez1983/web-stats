@@ -8421,13 +8421,8 @@ def platform_workspace_detail_page(request, workspace_id):
                 .filter(context=competition_context)
                 .first()
             )
-            if competition_context.is_auto_sync_enabled and not competition_snapshot:
-                _sync_workspace_competition_context(workspace, primary_team=workspace.primary_team)
-                competition_snapshot = (
-                    WorkspaceCompetitionSnapshot.objects
-                    .filter(context=competition_context)
-                    .first()
-                )
+            # Importante: no ejecutar sincronizaciones externas en GET (puede bloquear Platform).
+            # La sincronización se ejecuta explícitamente via POST `form_action=sync_competition_context`.
         snapshot_standings = competition_snapshot.standings_payload if competition_snapshot and isinstance(competition_snapshot.standings_payload, list) else []
         snapshot_next = competition_snapshot.next_match_payload if competition_snapshot and isinstance(competition_snapshot.next_match_payload, dict) else {}
         competition_summary = {

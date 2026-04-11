@@ -1556,6 +1556,34 @@ class PlatformWorkspaceTests(TestCase):
         self.assertEqual(snapshot.next_match_payload.get('round'), 'J28')
         self.assertEqual(snapshot.standings_payload[0].get('team'), self.alt_team.name.upper())
 
+    @patch('football.views._sync_workspace_competition_context')
+    def test_workspace_detail_get_does_not_auto_sync_competition_context(self, mock_sync):
+        workspace = Workspace.objects.create(
+            name='Cliente sin snapshot',
+            slug='cliente-sin-snapshot',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.alt_team,
+            owner_user=self.admin_user,
+            enabled_modules={'dashboard': True},
+        )
+        WorkspaceCompetitionContext.objects.create(
+            workspace=workspace,
+            team=self.alt_team,
+            group=self.alt_team.group,
+            season=self.alt_team.group.season,
+            provider=WorkspaceCompetitionContext.PROVIDER_UNIVERSO,
+            external_group_key='45030656',
+            external_team_name=self.alt_team.name,
+            is_auto_sync_enabled=True,
+            sync_status=WorkspaceCompetitionContext.STATUS_PENDING,
+        )
+        self.client.force_login(self.admin_user)
+
+        response = self.client.get(reverse('platform-workspace-detail', args=[workspace.id]))
+
+        self.assertEqual(response.status_code, 200)
+        mock_sync.assert_not_called()
+
     def test_workspace_detail_can_invite_member(self):
         workspace = Workspace.objects.create(
             name='Task Studio invitaciones',
