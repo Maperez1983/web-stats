@@ -1040,6 +1040,7 @@ def _render_pdf_bytes(request, html: str):
             url_fetcher=_safe_url_fetcher,
         ).write_pdf()
     except Exception:
+        logger.exception('WeasyPrint: error generando PDF')
         return None
 
 
@@ -1818,6 +1819,26 @@ def _file_as_data_uri(file_path):
         return f'data:{mime_type};base64,{encoded}'
     except Exception:
         return ''
+
+def _image_bytes_as_small_data_uri(raw_bytes: bytes, *, mime_type: str = 'image/jpeg', max_width=600, max_height=600, quality=75) -> str:
+    if not raw_bytes:
+        return ''
+    if Image is None:
+        encoded = base64.b64encode(raw_bytes).decode('ascii')
+        safe_mime = mime_type or 'image/jpeg'
+        return f'data:{safe_mime};base64,{encoded}'
+    try:
+        with Image.open(io.BytesIO(raw_bytes)) as img:
+            normalized = img.convert('RGB')
+            normalized.thumbnail((int(max_width), int(max_height)))
+            buffer = io.BytesIO()
+            normalized.save(buffer, format='JPEG', optimize=True, quality=int(quality))
+        encoded = base64.b64encode(buffer.getvalue()).decode('ascii')
+        return f'data:image/jpeg;base64,{encoded}'
+    except Exception:
+        encoded = base64.b64encode(raw_bytes).decode('ascii')
+        safe_mime = mime_type or 'image/jpeg'
+        return f'data:{safe_mime};base64,{encoded}'
 
 
 def _image_file_as_small_data_uri(file_path, max_width=1200, max_height=800, quality=72):
@@ -24225,19 +24246,141 @@ def player_pdf(request, player_id):
     detail = next((p for p in matches if p.get('player_id') == player_id), None)
     if not detail:
         raise Http404('Sin datos para generar el PDF')
+
+    static_base_dir = Path(settings.BASE_DIR) / 'static'
+    logo_data_uri = _file_as_data_uri(static_base_dir / 'football' / 'images' / 'cdb-logo.png')
+    avatar_data_uri = _file_as_data_uri(static_base_dir / 'football' / 'images' / 'player-avatar.svg')
+    brand_mark_data_uri = _file_as_data_uri(static_base_dir / 'football' / 'images' / '2j-mark.svg')
+
+    player_photo_src = ''
+    try:
+        # Prefer uploaded photo (media storage)
+        for storage_name in _player_photo_storage_candidates(player):
+            try:
+                if default_storage.exists(storage_name):
+                    with default_storage.open(storage_name, 'rb') as fp:
+                        raw = fp.read() or b''
+                    player_photo_src = _image_bytes_as_small_data_uri(raw, mime_type=mimetypes.guess_type(storage_name)[0] or 'image/jpeg', max_width=520, max_height=520, quality=72)
+                    break
+            except Exception:
+                continue
+    except Exception:
+        player_photo_src = ''
+    if not player_photo_src:
+        player_static_rel = resolve_player_photo_static_path(player)
+        if player_static_rel:
+            player_photo_src = _image_file_as_small_data_uri(static_base_dir / player_static_rel, max_width=520, max_height=520, quality=72)
+    if not player_photo_src:
+        player_photo_src = avatar_data_uri or request.build_absolute_uri(static('football/images/player-avatar.svg'))
+
+    crest_src = ''
+    if getattr(primary_team, 'crest_image', None):
+        try:
+            if getattr(primary_team.crest_image, 'path', None):
+                crest_src = _image_file_as_small_data_uri(Path(primary_team.crest_image.path), max_width=220, max_height=220, quality=75)
+            else:
+                with primary_team.crest_image.open('rb') as fp:
+                    raw = fp.read() or b''
+                crest_src = _image_bytes_as_small_data_uri(raw, mime_type='image/jpeg', max_width=220, max_height=220, quality=75)
+        except Exception:
+            crest_src = ''
+    if not crest_src:
+        crest_src = resolve_team_crest_url(request, primary_team, sync=True) or logo_data_uri or request.build_absolute_uri(static('football/images/cdb-logo.png'))
+
+    license_exists = False
+    try:
+        for storage_name in _player_license_storage_candidates(player):
+            try:
+                if default_storage.exists(storage_name):
+                    license_exists = True
+                    break
+            except Exception:
+                continue
+    except Exception:
+        license_exists = False
+
+    season_label = 'Temporada actual'
+    division_label = primary_team.group.name if primary_team.group else ''
+    try:
+        season = primary_team.group.season if primary_team.group else None
+        if season:
+            if season.start_date and season.end_date:
+                season_label = f'{season.start_date.year}-{season.end_date.year}'
+            elif season.name:
+                season_label = season.name
+    except Exception:
+        pass
+
+    team_points = 0
+    team_rank = 0
+    try:
+        standings_rows = []
+        try:
+            ws = _get_active_workspace(request)
+            competition_payload = _competition_payload_for_team(ws, primary_team, allow_auto_sync=False) if ws else {}
+            standings_rows = competition_payload.get('standings') if isinstance(competition_payload, dict) else []
+        except Exception:
+            standings_rows = []
+        if not standings_rows:
+            standings_rows = _resolve_standings_for_team(primary_team, snapshot=load_universo_snapshot())
+        team_key = _normalize_team_lookup_key(primary_team.name)
+        for row in standings_rows:
+            candidate_key = _normalize_team_lookup_key(row.get('full_name') or row.get('team'))
+            if team_key and candidate_key == team_key:
+                team_points = _parse_int(row.get('points')) or 0
+                team_rank = _parse_int(row.get('rank')) or 0
+                break
+    except Exception:
+        team_points = 0
+        team_rank = 0
+
+    general_kpis = [
+        {'label': 'PJ', 'value': int(detail.get('pj') or 0)},
+        {'label': 'PT', 'value': int(detail.get('pt') or 0)},
+        {'label': 'Min', 'value': int(detail.get('minutes') or 0)},
+        {'label': 'Goles', 'value': int(detail.get('goals') or 0)},
+        {'label': 'Asist', 'value': int(detail.get('assists') or 0)},
+        {'label': 'Amarillas', 'value': int(detail.get('yellow_cards') or 0)},
+        {'label': 'Rojas', 'value': int(detail.get('red_cards') or 0)},
+    ]
+
+    advanced_kpis = [
+        {'label': '% participación', 'value': float(detail.get('participation_pct') or 0)},
+        {'label': 'Importancia', 'value': float(detail.get('importance_score') or 0)},
+        {'label': 'Influencia', 'value': float(detail.get('influence_score') or 0)},
+        {'label': '% éxito', 'value': float(detail.get('success_rate') or 0)},
+        {'label': 'Acciones', 'value': int(detail.get('total_actions') or 0)},
+        {
+            'label': 'Éxitos/partido',
+            'value': round((int(detail.get('successes') or 0) / int(detail.get('pj') or 0)), 2)
+            if int(detail.get('pj') or 0)
+            else 0,
+        },
+        {'label': 'Éxitos/90', 'value': float(detail.get('successes_per90') or 0)},
+        {'label': 'Decisivas/90', 'value': float(detail.get('decisive_actions_per90') or 0)},
+    ]
     html = render_to_string(
         'football/player_pdf.html',
         {
             **_build_pdf_nav_urls(request),
             'player': player,
             'stats': detail,
-            'club_logo_url': resolve_team_crest_url(request, primary_team, sync=True),
-            'brand_mark_url': request.build_absolute_uri(static('football/images/2j-mark.svg')),
+            'primary_team': primary_team,
+            'season_label': season_label,
+            'division_label': division_label,
+            'team_points': team_points,
+            'team_rank': team_rank,
+            'general_kpis': general_kpis,
+            'advanced_kpis': advanced_kpis,
+            'player_photo_src': player_photo_src,
+            'license_exists': license_exists,
+            'crest_src': crest_src,
+            'brand_mark_src': brand_mark_data_uri or request.build_absolute_uri(static('football/images/2j-mark.svg')),
         },
         request=request,
     )
     filename = slugify(player.name or 'jugador')
-    return _build_pdf_response_or_html_fallback(request, html, filename)
+    return _build_pdf_response_or_html_fallback(request, html, filename, inline=True, force_pdf=True)
 
 
 @login_required
