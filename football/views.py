@@ -14087,9 +14087,20 @@ def initial_eleven_page(request):
     forbidden = _forbid_if_workspace_module_disabled(request, 'convocation', label='11 inicial')
     if forbidden:
         return forbidden
+    workspace = _get_active_workspace(request)
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
-        raise Http404('Equipo principal no configurado')
+        # UX: no devolver 404 "Not Found" (parece que la app está rota). Guiar a configuración.
+        try:
+            if workspace and _workspace_needs_setup(workspace):
+                if _can_access_platform(request.user):
+                    return redirect('platform-workspace-detail', workspace_id=workspace.id)
+                return redirect('club-onboarding')
+        except Exception:
+            pass
+        if _can_access_platform(request.user) and workspace:
+            return redirect('platform-workspace-detail', workspace_id=workspace.id)
+        return HttpResponse('Este club no tiene equipo/configuración. Completa el onboarding primero.', status=400)
     starters_limit = _required_starters_for_team(primary_team)
     convocation_record = get_current_convocation_record(
         primary_team,
