@@ -2006,19 +2006,8 @@
           <button type="button" class="button" id="share-pdf-uefa">Compartir PDF UEFA</button>
           <button type="button" class="button" id="share-pdf-club">Compartir PDF Club</button>
           {% endif %}
-          {% if task and scope_key == 'task_studio' %}
-          <form method="post" action="{% url 'task-studio-task-delete' task.id %}{% if query_suffix %}{{ query_suffix }}{% endif %}" onsubmit="return confirm('Se eliminará esta tarea creada.');">
-            {% csrf_token %}
-            <button type="submit" class="button danger">
-              <span class="icon-trash" aria-hidden="true">
-                <svg viewBox="0 0 24 24"><path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm1 6h2v8h-2V9Zm4 0h2v8h-2V9ZM7 9h2v8H7V9Zm-1 12a2 2 0 0 1-2-2V8h16v11a2 2 0 0 1-2 2H6Z"/></svg>
-              </span>
-              Eliminar tarea
-            </button>
-          </form>
-          {% endif %}
-        </div>
-      </div>
+	        </div>
+	      </div>
 
       {% if feedback %}<div class="alert ok">{{ feedback }}</div>{% endif %}
       {% if error %}<div class="alert err">{{ error }}</div>{% endif %}
@@ -2026,28 +2015,9 @@
         <span id="task-builder-draft-text"></span>
         <button type="button" class="button" id="task-builder-draft-clear">Borrar borrador</button>
       </div>
-      {% if scope_key == 'task_studio' and task and can_export_to_club and club_sessions %}
-      <div class="alert" style="display:flex; align-items:center; justify-content:space-between; gap:0.75rem; flex-wrap:wrap;">
-        <div>
-          <strong>Exportar</strong>
-          <span class="meta" style="display:block; margin-top:0.15rem;">Copia esta tarea a una sesión de un cliente Club (para verla en Entrenamiento).</span>
-        </div>
-        <form method="post" action="{% url 'task-studio-task-export' task.id %}" style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
-          {% csrf_token %}
-          <select name="target_session_id" required>
-            <option value="">Selecciona sesión…</option>
-            {% for item in club_sessions %}
-            <option value="{{ item.id }}">{{ item.label }}</option>
-            {% endfor %}
-          </select>
-          <button type="submit" class="button">Copiar a sesión</button>
-        </form>
-      </div>
-      {% endif %}
-
-	      <form
-	        method="post"
-	        id="task-builder-form"
+		      <form
+		        method="post"
+		        id="task-builder-form"
 	        data-scope-key="{{ scope_key }}"
 	        data-task-id="{% if task %}{{ task.id }}{% endif %}"
 	        data-pdf-preview-url="{{ pdf_preview_url|default:'' }}"
@@ -3060,7 +3030,7 @@
 	                      La preview se genera mientras diseñas la tarea.
 	                    </div>
 	                  </div>
-	                  {% if task and task.task_pdf and scope_key != 'task_studio' %}
+		                  {% if task and task.task_pdf %}
 	                  <div style="margin-top:0.75rem; display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
 	                    <button
 	                      type="submit"
@@ -3191,7 +3161,7 @@
         const clubBtn = document.getElementById('share-pdf-club');
         const csrf = document.querySelector('#task-builder-form input[name="csrfmiddlewaretoken"]')?.value || '';
         const taskId = '{{ task.id }}';
-        const taskKind = '{{ scope_key }}' === 'task_studio' ? 'task_studio' : 'session';
+        const taskKind = 'session';
         const createUrl = "{% url 'share-task-pdf-create' %}";
         const run = async (style) => {
           try {

@@ -525,11 +525,6 @@
         color: #9ec0ff;
       }
 
-      .chip.task_studio {
-        background: rgba(63, 174, 124, 0.18);
-        color: #8af0b6;
-      }
-
       .message {
         margin-top: 0.85rem;
         border-radius: 14px;
@@ -839,10 +834,6 @@
               <strong>{{ club_workspace_count }}</strong>
             </div>
             <div class="hero-stat">
-              <span>Task Studio</span>
-              <strong>{{ studio_workspace_count }}</strong>
-            </div>
-            <div class="hero-stat">
               <span>Usuarios vinculados</span>
               <strong>{{ linked_club_user_count }}</strong>
             </div>
@@ -860,13 +851,9 @@
               <strong>Usuarios</strong>
               <span>Alta global, invitaciones y relación real de usuarios con cada cliente.</span>
             </a>
-            <a class="quick-card" href="{% url 'platform-overview' %}?tab=task-studio">
-              <strong>Task Studio</strong>
-              <span>Controla espacios privados, propietarios y actividad del creador de tareas.</span>
-            </a>
             <a class="quick-card" href="{% url 'platform-overview' %}?tab=documents">
               <strong>Documentos</strong>
-              <span>Revisa salidas PDF recientes de club, sesiones y Task Studio.</span>
+              <span>Revisa salidas PDF recientes de club y sesiones.</span>
             </a>
           </div>
           <div class="attention-list">
@@ -883,9 +870,6 @@
       <nav class="subnav" aria-label="Secciones plataforma">
         <a class="{% if active_tab == 'clients' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=clients">Clientes</a>
         <a class="{% if active_tab == 'users' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=users&subtab=list">Usuarios</a>
-        {% if task_studio_enabled %}
-        <a class="{% if active_tab == 'task-studio' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=task-studio">Task Studio</a>
-        {% endif %}
         <a class="{% if active_tab == 'documents' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=documents">Documentos</a>
         <a class="{% if active_tab == 'home-global' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=home-global">Home global</a>
         <a class="{% if active_tab == 'workspace-create' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=workspace-create">Crear cliente</a>
@@ -1141,9 +1125,6 @@
                   <span class="user-pill">{{ item.workspace_count }} espacios</span>
                   <span class="user-pill {% if item.is_active %}ok{% else %}warn{% endif %}">{% if item.is_active %}Activo{% else %}Inactivo{% endif %}</span>
                   <a class="link-btn" href="{% url 'platform-overview' %}?tab=users&subtab=list{% if platform_users_query %}&q={{ platform_users_query|urlencode }}{% endif %}&page={{ platform_users_page }}&edit={{ item.id }}#usuarios-club">Editar</a>
-                  {% if item.role_value == 'task_studio' or item.role_value == 'guest' %}
-                  <a class="link-btn" href="{% url 'task-studio-home' %}?user={{ item.id }}">Task Studio</a>
-                  {% endif %}
                   <form method="post" class="compact-form" style="justify-content:flex-end;">
                     {% csrf_token %}
                     <input type="hidden" name="form_action" value="platform_user_invite_create" />
@@ -1191,80 +1172,13 @@
           {% endif %}
         </div>
 
-        {% elif active_tab == 'task-studio' %}
-        <div class="section-shell stack-section" id="task-studio">
-          <div class="section-head">
-            <div>
-              <div class="section-kicker">Task Studio</div>
-              <h2>Task Studio</h2>
-              <p>Espacios privados de entrenadores y usuarios del creador de tareas, gestionados desde la matriz.</p>
-            </div>
-            <div class="count-pill">{{ studio_workspaces|length }}</div>
-          </div>
-          <div class="workspace-grid-two workspace-list">
-            {% for workspace in studio_workspaces %}
-            <article class="workspace-card">
-              <header>
-                <div>
-                  <div class="chip {{ workspace.kind }}">{{ workspace.get_kind_display }}</div>
-                  <h3>{{ workspace.name }}</h3>
-                  <small>slug: {{ workspace.slug }}</small>
-                </div>
-                <div style="text-align:right;">
-                  {% if workspace.owner_user %}
-                  <div><strong>{{ workspace.owner_user.username }}</strong></div>
-                  <small>Propietario</small>
-                  {% else %}
-                  <small>Sin asignación directa</small>
-                  {% endif %}
-                </div>
-              </header>
-              <div class="workspace-meta">
-                <div class="metric">
-                  <span>Miembros</span>
-                  <strong>{{ workspace.member_count }}</strong>
-                </div>
-                <div class="metric">
-                  <span>Perfiles</span>
-                  <strong>{{ workspace.profile_count }}</strong>
-                </div>
-                <div class="metric">
-                  <span>Tareas</span>
-                  <strong>{{ workspace.task_count }}</strong>
-                </div>
-                <div class="metric">
-                  <span>Estado</span>
-                  <strong>{% if workspace.is_active %}Activo{% else %}Inactivo{% endif %}</strong>
-                </div>
-              </div>
-              {% if workspace.notes %}
-              <div class="workspace-note">{{ workspace.notes|truncatechars:180 }}</div>
-              {% endif %}
-              <div class="actions-row">
-                <a class="link-btn" href="{% url 'platform-workspace-enter' workspace.id %}">Entrar como supervisor</a>
-                <a class="link-btn" href="{% url 'platform-workspace-detail' workspace.id %}">Abrir ficha</a>
-                <form method="post" action="{% url 'platform-workspace-delete' workspace.id %}" onsubmit="return confirm('Se eliminará este Task Studio y sus datos privados.');">
-                  {% csrf_token %}
-                  <button class="danger-btn" type="submit">Eliminar Task Studio</button>
-                </form>
-              </div>
-            </article>
-            {% empty %}
-            <article class="workspace-card">
-              <h3>Sin Task Studio todavía</h3>
-              <p>Los espacios privados aparecerán al crear usuarios de Task Studio o invitado.</p>
-            </article>
-            {% endfor %}
-          </div>
-        </div>
-
         {% elif active_tab == 'documents' %}
         <div class="section-shell stack-section">
           <div class="section-head">
             <div>
               <div class="section-kicker">Centro documental</div>
               <h2>Documentos recientes</h2>
-              <p>Acceso rápido a PDFs recientes de tareas, sesiones y Task Studio sin entrar en cada cliente.</p>
+              <p>Acceso rápido a PDFs recientes de tareas y sesiones sin entrar en cada cliente.</p>
             </div>
             <div class="count-pill">{{ recent_documents|length }}</div>
           </div>
@@ -1519,36 +1433,6 @@
                 <div class="kind-modules" data-kind="club">
                   <div class="checkbox-grid">
                     {% for module in workspace_module_catalog_club %}
-                    <label class="checkbox-card">
-                      <input type="checkbox" name="module_{{ module.key }}" data-module-toggle {% if module.key in workspace_form.module_keys %}checked{% endif %} />
-                      <span class="checkbox-content">
-                        <strong>{{ module.label }}</strong>
-                        <small>{{ module.description }}</small>
-                        <span class="module-meta-line">
-                          <span class="mini-pill">{{ module.deliverable_count }} entregables</span>
-                        </span>
-                        {% if module.deliverables %}
-                        <span class="deliverable-list">
-                          {% for deliverable in module.deliverables %}
-                          <span class="deliverable-item">
-                            <input type="checkbox" name="deliverable_{{ module.key }}__{{ deliverable.key }}" data-deliverable-toggle {% if deliverable.flag_key in workspace_form.deliverable_keys %}checked{% endif %} />
-                            <span>
-                              <strong>{{ deliverable.label }}</strong>
-                              <small>{{ deliverable.description }}</small>
-                            </span>
-                          </span>
-                          {% endfor %}
-                        </span>
-                        {% endif %}
-                      </span>
-                    </label>
-                    {% endfor %}
-                  </div>
-                </div>
-
-                <div class="kind-modules" data-kind="task_studio">
-                  <div class="checkbox-grid">
-                    {% for module in workspace_module_catalog_task_studio %}
                     <label class="checkbox-card">
                       <input type="checkbox" name="module_{{ module.key }}" data-module-toggle {% if module.key in workspace_form.module_keys %}checked{% endif %} />
                       <span class="checkbox-content">

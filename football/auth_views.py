@@ -112,7 +112,7 @@ class RoleAwareLoginView(auth_views.LoginView):
         role = _get_user_role(user) or AppUserRole.ROLE_PLAYER
         if role == AppUserRole.ROLE_PLAYER:
             # Un jugador no debería aterrizar en módulos de staff por `next`.
-            if re.match(r"^/(coach|convocatoria|registro-acciones|incidencias|task-studio)\b", path):
+            if re.match(r"^/(coach|convocatoria|registro-acciones|incidencias)\b", path):
                 return True
             if path.startswith("/player/") or path.startswith("/players/") or path == "/":
                 return False

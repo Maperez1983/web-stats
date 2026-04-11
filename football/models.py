@@ -1079,7 +1079,6 @@ class AppUserRole(models.Model):
     ROLE_CHOICES = [
         (ROLE_PLAYER, 'Jugador'),
         (ROLE_GUEST, 'Invitado'),
-        (ROLE_TASK_STUDIO, 'Task Studio'),
         (ROLE_COACH, 'Entrenador'),
         (ROLE_FITNESS, 'Preparador físico'),
         (ROLE_GOALKEEPER, 'Preparador portero'),

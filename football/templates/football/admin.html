@@ -341,11 +341,11 @@
       {% endif %}
       </section>
       {% elif active_tab == 'teams' %}
-      <section class="block roster-manager">
-        <h2>Categorías · {{ active_workspace.name|default:"Cliente" }}</h2>
-        <p style="margin:0.25rem 0 0;color:rgba(203,213,225,0.78);">
-          Crea y configura categorías (F7/F11) dentro del mismo cliente. El escudo se hereda del equipo principal.
-        </p>
+	      <section class="block roster-manager">
+	        <h2>Categorías · {{ active_workspace.name|default:"Cliente" }}</h2>
+	        <p style="margin:0.25rem 0 0;color:rgba(203,213,225,0.78);">
+	          Crea un club independiente por categoría (F7/F11) para no mezclar datos. El escudo se hereda del equipo principal.
+	        </p>
         {% if team_warnings %}
           <div style="margin-top:0.85rem;display:grid;gap:0.45rem;">
             {% for warn in team_warnings %}
@@ -405,9 +405,9 @@
             <span>ID de grupo</span>
             <input type="text" name="group_external_id" placeholder="Ej. 48199749" />
           </label>
-          <button class="pill-button" type="submit">Crear categoría</button>
-        </form>
-        {% endif %}
+	          <button class="pill-button" type="submit">Crear club</button>
+	        </form>
+	        {% endif %}
 
         <div class="roster-list" style="margin-top:0.9rem;">
           {% for link in workspace_team_links %}

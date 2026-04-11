@@ -453,12 +453,6 @@
             </div>
           </details>
           {% endif %}
-          {% if can_manage_workspace and workspace.kind == 'task_studio' %}
-          <form method="post" action="{% url 'platform-workspace-delete' workspace.id %}" onsubmit="return confirm('Se eliminará este Task Studio y sus datos privados.');">
-            {% csrf_token %}
-            <button class="inline-btn danger" type="submit">Eliminar Task Studio</button>
-          </form>
-          {% endif %}
         </div>
         {% if feedback %}
         <div class="message ok">{{ feedback }}</div>
@@ -540,20 +534,6 @@
                 <span>Miembros</span>
                 <strong>{{ workspace.member_count }}</strong>
               </div>
-              {% if workspace.kind == 'task_studio' %}
-              <div class="metric">
-                <span>Perfiles Task Studio</span>
-                <strong>{{ workspace.profile_count }}</strong>
-              </div>
-              <div class="metric">
-                <span>Tareas</span>
-                <strong>{{ workspace.task_count }}</strong>
-              </div>
-              <div class="metric">
-                <span>Plantilla privada</span>
-                <strong>{{ roster_count }}</strong>
-              </div>
-              {% else %}
               <div class="metric">
                 <span>Jugadores club</span>
                 <strong>{{ club_player_count }}</strong>
@@ -566,7 +546,6 @@
                 <span>Equipo vinculado</span>
                 <strong>{% if workspace.primary_team %}Sí{% else %}No{% endif %}</strong>
               </div>
-              {% endif %}
               <div class="metric">
                 <span>Estado</span>
                 <strong>{% if workspace.is_active %}Activo{% else %}Inactivo{% endif %}</strong>
@@ -755,7 +734,6 @@
                   <option value="preparador_portero">Preparador portero</option>
                   <option value="analista">Analista</option>
                   <option value="jugador">Jugador</option>
-                  <option value="task_studio">Task Studio</option>
                 </select>
                 <select name="invite_member_role" title="Rol en este workspace">
                   {% for role_value, role_label in workspace_role_choices %}
