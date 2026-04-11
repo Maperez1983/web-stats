@@ -958,6 +958,15 @@
                 <a class="link-btn" href="{% url 'platform-workspace-enter' workspace.id %}">Entrar como supervisor</a>
                 <a class="link-btn" href="{% url 'platform-workspace-detail' workspace.id %}">Abrir ficha</a>
               </div>
+              {% if workspace.team_links and workspace.team_links|length > 1 %}
+              <div class="actions-row" style="margin-top:0.55rem; opacity:0.92;">
+                {% for link in workspace.team_links %}
+                <a class="link-btn" href="{% url 'platform-workspace-enter' workspace.id %}?team={{ link.team_id }}">
+                  Entrar · {{ link.label }}
+                </a>
+                {% endfor %}
+              </div>
+              {% endif %}
             </article>
             {% empty %}
             <article class="workspace-card">

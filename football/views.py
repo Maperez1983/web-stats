@@ -7733,6 +7733,37 @@ def platform_overview_page(request):
                 workspace.active_module_count = len(
                     _workspace_selected_module_keys(workspace.kind, _workspace_enabled_modules(workspace))
                 )
+            workspace_ids = [int(ws.id) for ws in club_workspaces if getattr(ws, 'id', None)]
+            team_links_map = {}
+            if workspace_ids:
+                try:
+                    team_links = list(
+                        WorkspaceTeam.objects
+                        .filter(workspace_id__in=workspace_ids)
+                        .select_related('team')
+                        .order_by('workspace_id', '-is_default', 'team__category', 'team__name', 'id')
+                    )
+                except Exception:
+                    team_links = []
+                for link in team_links:
+                    team = getattr(link, 'team', None)
+                    if not team:
+                        continue
+                    category = str(getattr(team, 'category', '') or '').strip()
+                    name = str(getattr(team, 'display_name', '') or getattr(team, 'name', '') or '').strip()
+                    label = category or name or f'Equipo {team.id}'
+                    team_links_map.setdefault(int(link.workspace_id), []).append(
+                        {
+                            'team_id': int(team.id),
+                            'label': label,
+                            'category': category,
+                            'name': name,
+                            'is_default': bool(getattr(link, 'is_default', False)),
+                        }
+                    )
+            for workspace in club_workspaces:
+                workspace.team_links = team_links_map.get(int(workspace.id), [])
+                workspace.team_link_count = len(workspace.team_links or [])
             primary_workspace = next(
                 (workspace for workspace in club_workspaces if workspace.primary_team_id),
                 None,
@@ -8540,6 +8571,19 @@ def platform_workspace_enter_page(request, workspace_id):
     if not _can_view_workspace(request.user, workspace):
         return HttpResponse('No tienes permisos para acceder a este workspace.', status=403)
     request.session['active_workspace_id'] = workspace.id
+    desired_team_id = _parse_int(request.GET.get('team'))
+    if desired_team_id and workspace.kind == Workspace.KIND_CLUB:
+        try:
+            links = _workspace_team_links_for_user(workspace, request.user)
+            allowed_team_ids = {int(getattr(link, 'team_id', 0) or 0) for link in links if getattr(link, 'team_id', None)}
+            if int(desired_team_id) in allowed_team_ids and hasattr(request, 'session'):
+                mapping = request.session.get('active_team_by_workspace')
+                if not isinstance(mapping, dict):
+                    mapping = {}
+                mapping[str(workspace.id)] = int(desired_team_id)
+                request.session['active_team_by_workspace'] = mapping
+        except Exception:
+            pass
     target_url = _workspace_entry_url(workspace, user=request.user)
     # En `app.*`, usuarios con acceso a Platform redirigen por defecto a Platform desde `/`.
     # Al entrar explícitamente en un cliente desde Platform, forzamos la home del club.

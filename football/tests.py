@@ -14,7 +14,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from football.models import AnalystVideoFolder, Competition, ConvocationRecord, Group, Match, MatchEvent, Player, PlayerCommunication, PlayerFine, PlayerStatistic, RivalAnalysisReport, RivalVideo, Season, SessionTask, TaskStudioProfile, TaskStudioRosterPlayer, TaskStudioTask, Team, TeamStanding, TrainingMicrocycle, TrainingSession, UserInvitation, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot, WorkspaceMembership
+from football.models import AnalystVideoFolder, Competition, ConvocationRecord, Group, Match, MatchEvent, Player, PlayerCommunication, PlayerFine, PlayerStatistic, RivalAnalysisReport, RivalVideo, Season, SessionTask, TaskStudioProfile, TaskStudioRosterPlayer, TaskStudioTask, Team, TeamStanding, TrainingMicrocycle, TrainingSession, UserInvitation, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot, WorkspaceMembership, WorkspaceTeam
 from football import views as football_views
 from football.bootstrap import ensure_bootstrap_admin_from_env
 from football.event_taxonomy import (
@@ -1228,6 +1228,56 @@ class PlatformWorkspaceTests(TestCase):
 
         self.assertEqual(self.client.session.get('active_workspace_id'), workspace.id)
         self.assertRedirects(response, f"{reverse('task-studio-home')}?user={self.studio_user.id}")
+
+    def test_platform_overview_shows_team_entry_links_for_multi_team_client(self):
+        workspace = Workspace.objects.create(
+            name='Cliente multi',
+            slug='cliente-multi',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.team,
+        )
+        pre_team = Team.objects.create(
+            name='Benagalbón',
+            slug='benagalbon-pre',
+            short_name='Benagalbón',
+            group=self.team.group,
+            is_primary=False,
+            category='Prebenjamín',
+        )
+        WorkspaceTeam.objects.create(workspace=workspace, team=self.team, is_default=True)
+        WorkspaceTeam.objects.create(workspace=workspace, team=pre_team, is_default=False)
+        self.client.force_login(self.admin_user)
+
+        response = self.client.get(reverse('platform-overview'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Entrar · Prebenjamín')
+        self.assertContains(response, f"{reverse('platform-workspace-enter', args=[workspace.id])}?team={pre_team.id}")
+
+    def test_platform_enter_with_team_sets_active_team_mapping(self):
+        workspace = Workspace.objects.create(
+            name='Cliente multi 2',
+            slug='cliente-multi-2',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.team,
+        )
+        pre_team = Team.objects.create(
+            name='Benagalbón',
+            slug='benagalbon-pre-2',
+            short_name='Benagalbón',
+            group=self.team.group,
+            is_primary=False,
+            category='Prebenjamín',
+        )
+        WorkspaceTeam.objects.create(workspace=workspace, team=self.team, is_default=True)
+        WorkspaceTeam.objects.create(workspace=workspace, team=pre_team, is_default=False)
+        self.client.force_login(self.admin_user)
+
+        response = self.client.get(reverse('platform-workspace-enter', args=[workspace.id]), {'team': pre_team.id})
+
+        self.assertEqual(response.status_code, 302)
+        mapping = self.client.session.get('active_team_by_workspace') or {}
+        self.assertEqual(int(mapping.get(str(workspace.id)) or 0), int(pre_team.id))
 
     def test_dashboard_data_uses_active_club_workspace_team(self):
         workspace = Workspace.objects.create(
