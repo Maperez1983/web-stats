@@ -1019,7 +1019,17 @@
               </div>
               <div class="field">
                 <label for="platform_user_username">Usuario</label>
-                <input id="platform_user_username" type="text" name="username" value="{{ user_form.username }}" required />
+                <input
+                  id="platform_user_username"
+                  type="text"
+                  name="username"
+                  value="{{ user_form.username }}"
+                  required
+                  autocomplete="username"
+                  autocapitalize="none"
+                  autocorrect="off"
+                  spellcheck="false"
+                />
               </div>
               <div class="field">
                 <label for="platform_user_email">Email</label>

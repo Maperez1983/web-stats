@@ -162,7 +162,16 @@
       <form method="post">
         {% csrf_token %}
         <label for="id_username">Usuario</label>
-        <input id="id_username" type="text" name="username" required autocomplete="username" />
+        <input
+          id="id_username"
+          type="text"
+          name="username"
+          required
+          autocomplete="username"
+          autocapitalize="none"
+          autocorrect="off"
+          spellcheck="false"
+        />
 
         <label for="id_password">Contraseña</label>
         <div class="password-wrap">
