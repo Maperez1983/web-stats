@@ -1008,6 +1008,28 @@
         padding: 0.15rem 0.5rem;
         cursor: pointer;
       }
+      .offline-queue-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-weight: 700;
+        font-size: 0.9rem;
+        background: rgba(245, 158, 11, 0.16);
+        border: 1px solid rgba(245, 158, 11, 0.35);
+        color: rgba(255, 251, 235, 0.96);
+      }
+      .offline-queue-sync {
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-weight: 800;
+        font-size: 0.9rem;
+        cursor: pointer;
+        border: 1px solid rgba(34, 211, 238, 0.35);
+        background: rgba(34, 211, 238, 0.12);
+        color: rgba(224, 242, 254, 0.95);
+      }
       .match-db-badge {
         margin: 0;
         font-size: 0.68rem;
@@ -1528,6 +1550,22 @@
         background: rgba(255, 255, 255, 0.02);
         border: 1px solid rgba(255, 255, 255, 0.08);
         position: relative;
+      }
+      .history-item.is-offline-pending {
+        outline: 2px solid rgba(245, 158, 11, 0.35);
+        outline-offset: 2px;
+      }
+      .history-item .pending-pill {
+        display: inline-flex;
+        margin-left: 8px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        background: rgba(245, 158, 11, 0.18);
+        border: 1px solid rgba(245, 158, 11, 0.35);
+        color: rgba(255, 251, 235, 0.96);
       }
       .history-item strong {
         display: block;
@@ -3240,50 +3278,12 @@
 		          renderSubTapSummary();
 		        }
 		      };
-	      if (playerQuickClearBtn) {
-	        playerQuickClearBtn.addEventListener('click', () => clearPlayerSelection());
-	      }
-	      .offline-queue-badge {
-	        display: inline-flex;
-	        align-items: center;
-	        gap: 0.45rem;
-	        padding: 6px 10px;
-	        border-radius: 999px;
-	        font-weight: 700;
-	        font-size: 0.9rem;
-	        background: rgba(245, 158, 11, 0.16);
-	        border: 1px solid rgba(245, 158, 11, 0.35);
-	        color: rgba(255, 251, 235, 0.96);
-	      }
-	      .offline-queue-sync {
-	        padding: 6px 10px;
-	        border-radius: 999px;
-	        font-weight: 800;
-	        font-size: 0.9rem;
-	        cursor: pointer;
-	        border: 1px solid rgba(34, 211, 238, 0.35);
-	        background: rgba(34, 211, 238, 0.12);
-	        color: rgba(224, 242, 254, 0.95);
-	      }
-	      .history-item.is-offline-pending {
-	        outline: 2px solid rgba(245, 158, 11, 0.35);
-	        outline-offset: 2px;
-	      }
-	      .history-item .pending-pill {
-	        display: inline-flex;
-	        margin-left: 8px;
-	        padding: 2px 8px;
-	        border-radius: 999px;
-	        font-size: 0.75rem;
-	        font-weight: 800;
-	        letter-spacing: 0.04em;
-	        background: rgba(245, 158, 11, 0.18);
-	        border: 1px solid rgba(245, 158, 11, 0.35);
-	        color: rgba(255, 251, 235, 0.96);
-	      }
-		      const onLineupCrossMove = (fromSection, toSection, player) => {
-		        if (activeStage !== 'live') return;
-		        if (!fromSection || fromSection === toSection) return;
+		      if (playerQuickClearBtn) {
+		        playerQuickClearBtn.addEventListener('click', () => clearPlayerSelection());
+		      }
+			      const onLineupCrossMove = (fromSection, toSection, player) => {
+			        if (activeStage !== 'live') return;
+			        if (!fromSection || fromSection === toSection) return;
 	        const safeMinute = getCurrentMatchMinute();
 	        if (!Number.isFinite(pendingSubstitution.minute)) {
 	          pendingSubstitution.minute = safeMinute;

@@ -3430,6 +3430,17 @@ class MatchActionWorkflowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context.get('selected_match_id'), self.match.id)
 
+    def test_match_actions_page_does_not_embed_css_inside_script(self):
+        response = self.client.get(reverse('match-action-page'))
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode('utf-8')
+        marker = '.offline-queue-badge {'
+        self.assertIn(marker, content)
+        style_end = content.find('</style>')
+        self.assertNotEqual(style_end, -1)
+        self.assertLess(content.find(marker), style_end)
+        self.assertEqual(content.find(marker, style_end), -1)
+
 
 class PlayerDashboardViewTests(TestCase):
     def setUp(self):
