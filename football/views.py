@@ -11031,6 +11031,9 @@ def match_action_page(request):
     match_info = None
     if active_match:
         opponent = active_match.away_team if active_match.home_team == primary_team else active_match.home_team
+        is_home = active_match.home_team_id == primary_team.id
+        score_for = active_match.home_score if is_home else active_match.away_score
+        score_against = active_match.away_score if is_home else active_match.home_score
         match_info = {
             'match_id': active_match.id,
             'opponent': opponent.name if opponent else '',
@@ -11038,6 +11041,8 @@ def match_action_page(request):
             'round': active_match.round or '',
             'date': active_match.date.strftime('%d/%m/%Y') if active_match.date else None,
             'time': active_match.date.strftime('%H:%M') if active_match.date else '00:00',
+            'score_for': '' if score_for is None else str(score_for),
+            'score_against': '' if score_against is None else str(score_against),
         }
         if official_next:
             official_opponent = _payload_opponent_name(official_next)
@@ -24540,11 +24545,30 @@ def saturday_date(monday_date):
 def _apply_match_info_overrides(match, primary_team, match_info_payload):
     if not match or not isinstance(match_info_payload, dict):
         return
+
+    def _parse_optional_nonnegative_int(value):
+        if value is None:
+            return None
+        if isinstance(value, bool):
+            return None
+        if isinstance(value, int):
+            return value if value >= 0 else None
+        raw = str(value).strip()
+        if not raw:
+            return None
+        try:
+            parsed = int(raw)
+        except (TypeError, ValueError):
+            return None
+        return parsed if parsed >= 0 else None
+
     changed_fields = []
     round_value = (match_info_payload.get('round') or '').strip()
     location_value = (match_info_payload.get('location') or '').strip()
     datetime_value = (match_info_payload.get('datetime') or '').strip()
     opponent_name = (match_info_payload.get('opponent') or '').strip()
+    score_for = _parse_optional_nonnegative_int(match_info_payload.get('score_for'))
+    score_against = _parse_optional_nonnegative_int(match_info_payload.get('score_against'))
 
     if round_value != (match.round or ''):
         match.round = round_value
@@ -24579,6 +24603,26 @@ def _apply_match_info_overrides(match, primary_team, match_info_payload):
             match.home_team = primary_team
             match.away_team = rival_team
             changed_fields.extend(['home_team', 'away_team'])
+
+    # Marcador final (en UI se trabaja como a favor / en contra, relativo al equipo principal).
+    # Ojo: solo tocarlo si el cliente envía los campos (para no borrar valores por caches antiguos).
+    apply_score = ('score_for' in match_info_payload) or ('score_against' in match_info_payload)
+    if primary_team and apply_score:
+        if match.home_team_id == primary_team.id:
+            desired_home = score_for
+            desired_away = score_against
+        elif match.away_team_id == primary_team.id:
+            desired_home = score_against
+            desired_away = score_for
+        else:
+            desired_home = score_for
+            desired_away = score_against
+        if desired_home != match.home_score:
+            match.home_score = desired_home
+            changed_fields.append('home_score')
+        if desired_away != match.away_score:
+            match.away_score = desired_away
+            changed_fields.append('away_score')
 
     if changed_fields:
         match.save(update_fields=list(dict.fromkeys(changed_fields)))

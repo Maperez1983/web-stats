@@ -3545,6 +3545,40 @@ class MatchActionWorkflowTests(TestCase):
         pending.refresh_from_db()
         self.assertEqual(pending.system, 'touch-field-final')
 
+    def test_finalize_can_store_final_score(self):
+        self.assertIsNone(self.match.home_score)
+        self.assertIsNone(self.match.away_score)
+
+        response = self.client.post(
+            reverse('match-action-finalize'),
+            data=json.dumps({'match_info': {'score_for': 2, 'score_against': 1}}),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.match.refresh_from_db()
+        self.assertEqual(self.match.home_score, 2)
+        self.assertEqual(self.match.away_score, 1)
+
+        away_match = Match.objects.create(
+            season=self.match.season,
+            group=self.match.group,
+            home_team=self.rival,
+            away_team=self.team,
+            round='26',
+            date=date(2026, 5, 2),
+        )
+        url = f"{reverse('match-action-finalize')}?match_id={away_match.id}"
+        response = self.client.post(
+            url,
+            data=json.dumps({'match_info': {'score_for': 3, 'score_against': 4}}),
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 200)
+        away_match.refresh_from_db()
+        self.assertEqual(away_match.away_score, 3)
+        self.assertEqual(away_match.home_score, 4)
+
     def test_reset_only_clears_pending_live_events(self):
         MatchEvent.objects.create(
             match=self.match,

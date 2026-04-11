@@ -2022,6 +2022,34 @@
                     placeholder="Jornada o ronda"
                   />
                 </div>
+                <div class="match-info-row" data-field="score_for">
+                  <span>Goles {{ team_name }}</span>
+                  <strong data-display>{{ match_info.score_for|default:"-" }}</strong>
+                  <input
+                    class="match-info-input"
+                    type="number"
+                    inputmode="numeric"
+                    min="0"
+                    step="1"
+                    data-input
+                    value="{{ match_info.score_for|default:''|escape }}"
+                    placeholder="0"
+                  />
+                </div>
+                <div class="match-info-row" data-field="score_against">
+                  <span>Goles rival</span>
+                  <strong data-display>{{ match_info.score_against|default:"-" }}</strong>
+                  <input
+                    class="match-info-input"
+                    type="number"
+                    inputmode="numeric"
+                    min="0"
+                    step="1"
+                    data-input
+                    value="{{ match_info.score_against|default:''|escape }}"
+                    placeholder="0"
+                  />
+                </div>
                 <div class="match-info-actions">
                   <button type="button" id="match-info-edit-btn">Editar</button>
                   <button type="button" id="match-info-save-btn" class="save">Guardar</button>
@@ -2359,6 +2387,7 @@
                   <h4>Partido</h4>
                   <strong id="close-summary-opponent">{{ match_info.opponent|default:"-" }}</strong>
                   <p id="close-summary-meta">{{ match_info.location|default:"-" }} · {% if match_info.date %}{{ match_info.date }} · {{ match_info.time }}{% else %}{{ match_info.time|default:"00:00" }}{% endif %}</p>
+                  <p id="close-summary-score">Marcador final: —</p>
                 </article>
                 <article class="closure-card">
                   <h4>Once inicial</h4>
@@ -2639,6 +2668,8 @@
         location: matchInfoCard?.querySelector('[data-field="location"] [data-input]')?.value || '',
         datetime: matchInfoCard?.querySelector('[data-field="datetime"] [data-input]')?.value || '',
         round: matchInfoCard?.querySelector('[data-field="round"] [data-input]')?.value || '',
+        score_for: matchInfoCard?.querySelector('[data-field="score_for"] [data-input]')?.value || '',
+        score_against: matchInfoCard?.querySelector('[data-field="score_against"] [data-input]')?.value || '',
       };
       const urlWithMatchId = (baseUrl) => {
         if (!currentMatchId) return baseUrl;
@@ -3491,6 +3522,7 @@
       const stageJumpButtons = document.querySelectorAll('[data-stage-jump]');
       const closeSummaryOpponent = document.getElementById('close-summary-opponent');
       const closeSummaryMeta = document.getElementById('close-summary-meta');
+      const closeSummaryScore = document.getElementById('close-summary-score');
       const closeSummaryLineup = document.getElementById('close-summary-lineup');
       const closeSummaryLineupNote = document.getElementById('close-summary-lineup-note');
       const closeSummaryActions = document.getElementById('close-summary-actions');
@@ -3537,6 +3569,15 @@
           ].filter(Boolean);
           closeSummaryMeta.textContent = metaBits.join(' · ');
         }
+        if (closeSummaryScore) {
+          const forValue = String(summaryInfo.score_for || '').trim();
+          const againstValue = String(summaryInfo.score_against || '').trim();
+          if (!forValue && !againstValue) {
+            closeSummaryScore.textContent = 'Marcador final: —';
+          } else {
+            closeSummaryScore.textContent = `Marcador final: ${forValue || '—'} - ${againstValue || '—'}`;
+          }
+        }
         if (closeSummaryLineup) {
           closeSummaryLineup.textContent = `${startersCount}/11`;
         }
@@ -3559,7 +3600,10 @@
         }
         if (closeSummaryAlerts) {
           const alerts = [];
+          const forValue = String(summaryInfo.score_for || '').trim();
+          const againstValue = String(summaryInfo.score_against || '').trim();
           if (!summaryInfo.opponent) alerts.push('Falta definir el rival.');
+          if (!forValue && !againstValue) alerts.push('Falta definir el marcador final.');
           if (startersCount < 11) alerts.push('El once inicial no está completo.');
           if (!(liveSummaryState.actions > 0)) alerts.push('Todavía no hay acciones registradas en vivo.');
           if (!(liveSummaryState.elapsedSeconds > 0)) alerts.push('El cronómetro sigue en cero.');

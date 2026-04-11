@@ -54,6 +54,8 @@ window.initMatchActionsChrome = function initMatchActionsChrome(options) {
       location: matchInfoCard.querySelector('[data-field="location"] [data-input]')?.value?.trim() || '',
       datetime: matchInfoCard.querySelector('[data-field="datetime"] [data-input]')?.value?.trim() || '',
       round: matchInfoCard.querySelector('[data-field="round"] [data-input]')?.value?.trim() || '',
+      score_for: matchInfoCard.querySelector('[data-field="score_for"] [data-input]')?.value?.trim() || '',
+      score_against: matchInfoCard.querySelector('[data-field="score_against"] [data-input]')?.value?.trim() || '',
     };
   };
 
