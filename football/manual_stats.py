@@ -9,6 +9,7 @@ MANUAL_BASE_STAT_NAMES = (
     'manual_pt',
     'manual_minutes',
     'manual_goals',
+    'manual_assists',
     'manual_yellow_cards',
     'manual_red_cards',
 )
@@ -64,6 +65,8 @@ def get_manual_player_base_overrides(primary_team, season=None):
             player_data['minutes'] = value
         elif stat.name == 'manual_goals':
             player_data['goals'] = value
+        elif stat.name == 'manual_assists':
+            player_data['assists'] = value
         elif stat.name == 'manual_yellow_cards':
             player_data['yellow_cards'] = value
         elif stat.name == 'manual_red_cards':

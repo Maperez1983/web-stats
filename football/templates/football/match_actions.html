@@ -3646,11 +3646,12 @@
         });
       }
 	      const liveController = window.initMatchActionsLive({
-        quickHistoryState,
-        quickHistoryModal,
-        quickHistoryModalList,
-        quickHistoryModalTitle,
-        subsHistoryCard,
+	        quickHistoryState,
+	        matchHalfMinutes: Number('{{ match_half_minutes|default:45 }}'),
+	        quickHistoryModal,
+	        quickHistoryModalList,
+	        quickHistoryModalTitle,
+	        subsHistoryCard,
         showQuickHistoryModal,
         hideQuickHistoryModal,
         historyList,

@@ -9644,7 +9644,7 @@ def admin_page(request):
                                 match=match_obj,
                                 player=player_obj,
                                 minute=minute_value,
-                                period=1 if minute_value <= 45 else 2,
+                                period=1 if minute_value <= _half_minutes_for_team(primary_team) else 2,
                                 event_type=action_type,
                                 result=result,
                                 zone=zone,
@@ -10889,6 +10889,35 @@ def _required_starters_for_team(team):
     return 11
 
 
+def _regulation_minutes_for_team(team):
+    """
+    Minutos reglamentarios de partido (sin prórroga) para cálculos de participación e influencia.
+
+    Producto:
+    - F11: 90'
+    - F7 (prebenjamín): 50' (25' por parte)
+    """
+    try:
+        fmt = str(getattr(team, 'game_format', '') or '').strip().lower()
+    except Exception:
+        fmt = ''
+    if fmt == Team.GAME_FORMAT_F7:
+        try:
+            return max(1, int(str(os.getenv('MATCH_MINUTES_F7', '50')).strip() or 50))
+        except Exception:
+            return 50
+    try:
+        return max(1, int(str(os.getenv('MATCH_MINUTES_F11', '90')).strip() or 90))
+    except Exception:
+        return 90
+
+
+def _half_minutes_for_team(team):
+    minutes = _regulation_minutes_for_team(team)
+    # 50' -> 25'; 90' -> 45'
+    return max(1, int(minutes // 2))
+
+
 def _normalize_lineup_payload_with_limit(payload, allowed_players, *, starters_limit=11):
     allowed = {str(player.id): player for player in (allowed_players or [])}
     base = {'starters': [], 'bench': []}
@@ -11165,6 +11194,8 @@ def match_action_page(request):
             'initial_lineup_json': json.dumps(initial_lineup_payload, ensure_ascii=False),
             'match_selector_options': match_selector_options,
             'selected_match_id': selected_match_id,
+            'match_half_minutes': _half_minutes_for_team(primary_team),
+            'match_regulation_minutes': _regulation_minutes_for_team(primary_team),
         },
     )
 
@@ -23117,6 +23148,7 @@ def manual_player_stats_page(request):
                         'manual_pt': _parse_int(request.POST.get(f'pt_{player.id}')) or 0,
                         'manual_minutes': _parse_int(request.POST.get(f'minutes_{player.id}')) or 0,
                         'manual_goals': _parse_int(request.POST.get(f'goals_{player.id}')) or 0,
+                        'manual_assists': _parse_int(request.POST.get(f'assists_{player.id}')) or 0,
                         'manual_yellow_cards': _parse_int(request.POST.get(f'yellow_{player.id}')) or 0,
                         'manual_red_cards': _parse_int(request.POST.get(f'red_{player.id}')) or 0,
                     }
@@ -23147,6 +23179,7 @@ def manual_player_stats_page(request):
                     'pt': manual.get('pt', roster_entry.get('pt', 0)),
                     'minutes': manual.get('minutes', roster_entry.get('minutes', 0)),
                     'goals': manual.get('goals', roster_entry.get('goals', 0)),
+                    'assists': manual.get('assists', roster_entry.get('assists', 0)),
                     'yellow_cards': manual.get('yellow_cards', roster_entry.get('yellow_cards', 0)),
                     'red_cards': manual.get('red_cards', roster_entry.get('red_cards', 0)),
                 }
@@ -23357,6 +23390,7 @@ def player_detail_page(request, player_id):
                         'manual_pt': _parse_int(request.POST.get('manual_pt')) or 0,
                         'manual_minutes': _parse_int(request.POST.get('manual_minutes')) or 0,
                         'manual_goals': _parse_int(request.POST.get('manual_goals')) or 0,
+                        'manual_assists': _parse_int(request.POST.get('manual_assists')) or 0,
                         'manual_yellow_cards': _parse_int(request.POST.get('manual_yellow_cards')) or 0,
                         'manual_red_cards': _parse_int(request.POST.get('manual_red_cards')) or 0,
                     }
@@ -23366,6 +23400,7 @@ def player_detail_page(request, player_id):
                             season=season,
                             values=manual_values,
                         )
+                    _invalidate_team_dashboard_caches(primary_team)
                 return redirect(f"{reverse('player-detail', args=[player.id])}?tab=general")
 
             if form_action == 'physical':
@@ -23488,6 +23523,7 @@ def player_detail_page(request, player_id):
         pt = _to_int_value(stats_source.get('pt'))
         minutes = _to_int_value(stats_source.get('minutes'))
         goals = _to_int_value(stats_source.get('goals'))
+        assists = _to_int_value(stats_source.get('assists'))
         yellow_cards = _to_int_value(stats_source.get('yellow_cards'))
         red_cards = _to_int_value(stats_source.get('red_cards'))
         second_yellow_cards = _to_int_value(stats_source.get('second_yellow_cards'))
@@ -23499,7 +23535,8 @@ def player_detail_page(request, player_id):
         )
         suplente = max(pj - pt, 0)
         goals_per_match = round((goals / pj), 2) if pj else 0
-        max_minutes = pj * 90
+        match_minutes = _regulation_minutes_for_team(primary_team)
+        max_minutes = pj * match_minutes
         minute_ratio = round((minutes / max_minutes) * 100, 1) if max_minutes else 0
         minute_ratio = max(0, min(minute_ratio, 100))
         importance_score = float(stats_source.get('importance_score') or 0)
@@ -23551,6 +23588,7 @@ def player_detail_page(request, player_id):
             {'label': 'Suplente', 'value': suplente, 'pct': round((suplente / pj) * 100, 1) if pj else 0},
             {'label': 'Minutos', 'value': minutes, 'pct': minute_ratio},
             {'label': 'Total goles', 'value': goals, 'pct': round((goals / pj) * 100, 1) if pj else 0},
+            {'label': 'Asistencias', 'value': assists, 'pct': round((assists / pj) * 100, 1) if pj else 0},
             {'label': 'Media goles/partido', 'value': goals_per_match, 'pct': round(min(goals_per_match * 100, 100), 1)},
             {'label': '% participación', 'value': participation_pct, 'pct': participation_pct},
             {'label': 'Importancia', 'value': importance_score, 'pct': importance_score},
@@ -25080,6 +25118,7 @@ def compute_player_dashboard(primary_team, force_refresh=False):
             return cached_rows
     player_stats = {}
     competition_total_rounds = get_competition_total_rounds(primary_team)
+    match_regulation_minutes = _regulation_minutes_for_team(primary_team)
     roster_players = list(Player.objects.filter(team=primary_team))
     player_by_id = {player.id: player for player in roster_players}
     active_injury_ids = get_active_injury_player_ids([player.id for player in roster_players])
@@ -25256,7 +25295,14 @@ def compute_player_dashboard(primary_team, force_refresh=False):
             if universo_entry.get('red_cards') not in (None, '')
             else roster_entry.get('red_cards', 0)
         )
-        base_assists = roster_entry.get('assists', 0)
+        base_assists = (
+            manual_entry.get('assists')
+            if manual_entry.get('assists') is not None
+            else _parse_int(universo_entry.get('assists'))
+            if universo_entry.get('assists') not in (None, '')
+            else roster_entry.get('assists', 0)
+        )
+        assists_locked = 'assists' in manual_entry
         stats = player_stats.setdefault(
             player.id,
             {
@@ -25275,6 +25321,7 @@ def compute_player_dashboard(primary_team, force_refresh=False):
                 'yellow_cards': base_yellow,
                 'red_cards': base_red,
                 'assists': base_assists,
+                'assists_locked': assists_locked,
                 # Only manual-base overrides should lock auto aggregation.
                 'totals_locked': any(
                     key in manual_entry
@@ -25306,7 +25353,7 @@ def compute_player_dashboard(primary_team, force_refresh=False):
             stats['successes'] += 1
         if (not stats['totals_locked']) and is_goal_event(event.event_type, event.result, event.observation):
             stats['goals'] += 1
-        if (not stats['totals_locked']) and is_assist_event(event.event_type, event.result, event.observation):
+        if (not stats['totals_locked']) and (not stats.get('assists_locked')) and is_assist_event(event.event_type, event.result, event.observation):
             stats['assists'] += 1
         if (not stats['totals_locked']) and is_yellow_card_event(event.event_type, event.result, event.zone):
             stats['yellow_cards'] += 1
@@ -25421,7 +25468,7 @@ def compute_player_dashboard(primary_team, force_refresh=False):
             if entry_minute is None:
                 entry_minute = 0
             if match_end <= 0 and player_key in lineup_starters:
-                match_end = 90
+                match_end = match_regulation_minutes
             if exit_minute is None:
                 exit_minute = match_end
             if exit_minute is None:
@@ -25581,9 +25628,9 @@ def compute_player_dashboard(primary_team, force_refresh=False):
         if not starters:
             continue
         match = lineup_matches.get(match_id)
-        match_end = match_end_minutes.get(match_id, 90)
+        match_end = match_end_minutes.get(match_id, match_regulation_minutes)
         if match_end <= 0:
-            match_end = 90
+            match_end = match_regulation_minutes
         for player_id in starters:
             if match_id in processed_lineup_matches[player_id]:
                 continue
@@ -25622,7 +25669,7 @@ def compute_player_dashboard(primary_team, force_refresh=False):
 
     result = []
     today = timezone.localdate()
-    total_possible_minutes = max(0, competition_total_rounds) * 90
+    total_possible_minutes = max(0, competition_total_rounds) * match_regulation_minutes
     max_successes = max((int(stats.get('successes', 0) or 0) for stats in player_stats.values()), default=0)
     max_decisive_actions_per90 = 0.0
     for stats in player_stats.values():
@@ -25638,7 +25685,7 @@ def compute_player_dashboard(primary_team, force_refresh=False):
         )
         max_decisive_actions_per90 = max(
             max_decisive_actions_per90,
-            round((decisive_actions / minutes_value) * 90, 2),
+            round((decisive_actions / minutes_value) * match_regulation_minutes, 2),
         )
     for stats in player_stats.values():
         matches = sorted(
@@ -25771,6 +25818,7 @@ def compute_player_dashboard(primary_team, force_refresh=False):
             assists=merged.get('assists', 0),
             key_passes_completed=merged.get('key_passes_completed', 0),
             max_decisive_actions_per90=max_decisive_actions_per90,
+            normalization_minutes=match_regulation_minutes,
         )
         merged['successes_per90'] = influence['successes_per90']
         merged['decisive_actions_per90'] = influence['decisive_actions_per90']

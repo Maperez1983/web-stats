@@ -1,6 +1,7 @@
 window.initMatchActionsLive = function initMatchActionsLive(options) {
   const {
     quickHistoryState,
+    matchHalfMinutes,
     quickHistoryModal,
     quickHistoryModalList,
     quickHistoryModalTitle,
@@ -495,6 +496,11 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
   let clockInterval = null;
   let clockRunning = false;
   let currentHalf = 1;
+  const halfSeconds = (() => {
+    const value = Number(matchHalfMinutes);
+    if (!Number.isFinite(value) || value <= 0) return 45 * 60;
+    return Math.round(value * 60);
+  })();
   const formatClock = (seconds) => {
     const minutes = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -516,7 +522,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
   };
   const resetClock = ({ keepHalf = false } = {}) => {
     pauseClock();
-    elapsedRef.value = keepHalf && currentHalf === 2 ? 45 * 60 : 0;
+    elapsedRef.value = keepHalf && currentHalf === 2 ? halfSeconds : 0;
     if (!keepHalf) {
       currentHalf = 1;
       if (changeHalfBtn) changeHalfBtn.textContent = '1ª Parte';
@@ -551,7 +557,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       pauseClock();
       if (currentHalf === 1) {
         currentHalf = 2;
-        elapsedRef.value = 45 * 60;
+        elapsedRef.value = halfSeconds;
         changeHalfBtn.textContent = '2ª Parte';
       } else {
         currentHalf = 1;

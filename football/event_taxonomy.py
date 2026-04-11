@@ -458,6 +458,7 @@ def calculate_influence_score(
     assists,
     key_passes_completed,
     max_decisive_actions_per90,
+    normalization_minutes=90,
 ):
     minute_value = max(0, int(minutes or 0))
     successes_value = max(0, int(successes or 0))
@@ -466,9 +467,14 @@ def calculate_influence_score(
     key_passes_value = max(0, int(key_passes_completed or 0))
     max_decisive_actions_per90_value = max(0, float(max_decisive_actions_per90 or 0))
 
-    successes_per90 = round((successes_value / minute_value) * 90, 2) if minute_value else 0
+    try:
+        norm_minutes = max(1, int(normalization_minutes or 90))
+    except Exception:
+        norm_minutes = 90
+
+    successes_per90 = round((successes_value / minute_value) * norm_minutes, 2) if minute_value else 0
     decisive_actions = successes_value + (goals_value * 6) + (assists_value * 4) + (key_passes_value * 2)
-    decisive_actions_per90 = round((decisive_actions / minute_value) * 90, 2) if minute_value else 0
+    decisive_actions_per90 = round((decisive_actions / minute_value) * norm_minutes, 2) if minute_value else 0
     influence_pct = (
         round((decisive_actions_per90 / max_decisive_actions_per90_value) * 100, 1)
         if max_decisive_actions_per90_value
