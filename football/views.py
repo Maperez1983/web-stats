@@ -7290,11 +7290,20 @@ def platform_overview_page(request):
         'assign_workspace_id': '',
         'assign_member_role': WorkspaceMembership.ROLE_MEMBER,
     }
-    if primary_team:
-        _ensure_club_workspace(primary_team)
-    studio_users = User.objects.filter(app_role__role__in=[AppUserRole.ROLE_TASK_STUDIO, AppUserRole.ROLE_GUEST]).distinct()
-    for studio_user in studio_users:
-        _ensure_task_studio_workspace(studio_user)
+    platform_auto_ensure_workspaces = str(os.getenv('PLATFORM_AUTO_ENSURE_WORKSPACES', '0') or '').strip().lower() in {
+        '1',
+        'true',
+        'yes',
+        'on',
+    }
+    # Evitar efectos colaterales en visitas a Platform (entornos de pruebas): por defecto NO creamos
+    # workspaces al entrar en la vista.
+    if platform_auto_ensure_workspaces:
+        if primary_team:
+            _ensure_club_workspace(primary_team)
+        studio_users = User.objects.filter(app_role__role__in=[AppUserRole.ROLE_TASK_STUDIO, AppUserRole.ROLE_GUEST]).distinct()
+        for studio_user in studio_users:
+            _ensure_task_studio_workspace(studio_user)
 
     if request.method == 'POST':
         form_action = (request.POST.get('form_action') or 'workspace_create').strip().lower()
