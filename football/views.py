@@ -5652,6 +5652,11 @@ def _import_universo_competition_candidate(*, competition_key, group_key, team_k
 def _universo_snapshot_supports_team(snapshot, primary_team):
     if not primary_team:
         return True
+    # Snapshot "Universo" es global y normalmente corresponde al equipo principal.
+    # Para evitar mezclar categorías/clubes con el mismo nombre (ej. Benagalbón Senior vs Prebenjamín),
+    # desactivamos su uso en equipos no primarios.
+    if not bool(getattr(primary_team, 'is_primary', False)):
+        return False
     if not isinstance(snapshot, dict):
         return False
     rows = snapshot.get('standings')

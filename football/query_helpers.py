@@ -104,9 +104,13 @@ def _team_match_queryset(primary_team):
                 # No mezclar equipos de distinto formato (F7 vs F11).
                 continue
             candidate_group_id = getattr(candidate, 'group_id', None)
-            if primary_group_id and candidate_group_id and candidate_group_id != primary_group_id:
-                # Defensa extra: si ambos tienen grupo, no mezclar competiciones distintas.
-                continue
+            if primary_group_id or candidate_group_id:
+                # Defensa extra: si cualquiera tiene grupo, exigimos que ambos tengan
+                # el mismo grupo para considerar alias (evita mezclar equipos sin contexto).
+                if not primary_group_id or not candidate_group_id:
+                    continue
+                if candidate_group_id != primary_group_id:
+                    continue
             candidate_signature = _team_name_signature(candidate.name)
             candidate_lookup = _normalize_team_lookup_key(candidate.name)
             same_signature = candidate_signature == team_signature
