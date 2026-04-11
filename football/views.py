@@ -7954,8 +7954,8 @@ def platform_workspace_detail_page(request, workspace_id):
         raise Http404('Workspace no encontrado')
     if not _can_view_workspace(request.user, workspace):
         return HttpResponse('No tienes permisos para acceder a este workspace.', status=403)
-    feedback = ''
-    error = ''
+    feedback = str(request.session.pop('platform_feedback', '') or '')
+    error = str(request.session.pop('platform_error', '') or '')
     can_manage_workspace = _can_manage_workspace(request.user, workspace)
     invite_link = ''
     competition_search_inputs = {
@@ -8512,10 +8512,12 @@ def platform_workspace_delete_page(request, workspace_id):
         confirm_slug = str(request.POST.get('confirm_slug') or '').strip()
         confirm_phrase = str(request.POST.get('confirm_phrase') or '').strip().upper()
         if confirm_slug != str(workspace.slug or '').strip() or confirm_phrase != 'ELIMINAR':
-            return HttpResponse('Confirmación inválida. Escribe el slug y ELIMINAR.', status=400)
+            request.session['platform_error'] = 'Confirmación inválida. Escribe el slug y la palabra ELIMINAR.'
+            return redirect('platform-workspace-detail', workspace_id=workspace.id)
         primary_team = workspace.primary_team
         if primary_team and bool(getattr(primary_team, 'is_primary', False)):
-            return HttpResponse('No se puede eliminar el cliente principal desde Platform.', status=403)
+            request.session['platform_error'] = 'No se puede eliminar el cliente principal desde Platform.'
+            return redirect('platform-workspace-detail', workspace_id=workspace.id)
         workspace.delete()
         if int(request.session.get('active_workspace_id') or 0) == int(workspace_id_value):
             request.session.pop('active_workspace_id', None)

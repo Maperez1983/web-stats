@@ -2216,9 +2216,10 @@ class PlatformWorkspaceTests(TestCase):
         )
         self.client.force_login(self.admin_user)
 
-        response = self.client.post(reverse('platform-workspace-delete', args=[workspace.id]))
+        response = self.client.post(reverse('platform-workspace-delete', args=[workspace.id]), follow=True)
 
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Confirmación inválida')
         self.assertTrue(Workspace.objects.filter(id=workspace.id).exists())
 
     def test_platform_refuses_to_delete_primary_club_workspace(self):
@@ -2233,9 +2234,11 @@ class PlatformWorkspaceTests(TestCase):
         response = self.client.post(
             reverse('platform-workspace-delete', args=[workspace.id]),
             {'confirm_slug': workspace.slug, 'confirm_phrase': 'ELIMINAR'},
+            follow=True,
         )
 
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'No se puede eliminar')
         self.assertTrue(Workspace.objects.filter(id=workspace.id).exists())
 
     def test_platform_can_delete_club_workspace_with_confirmation(self):
