@@ -5,6 +5,7 @@ import re
 from urllib.parse import quote
 
 from django.contrib.auth import views as auth_views
+from django.contrib.auth.forms import AuthenticationForm
 from django.shortcuts import redirect
 from django.urls import reverse
 
@@ -77,6 +78,19 @@ class RoleAwareLoginView(auth_views.LoginView):
     """
 
     template_name = "registration/login.html"
+    authentication_form = None
+
+    # iOS/WKWebView a veces autocapitaliza el primer carácter o añade espacios invisibles.
+    # Normalizamos aquí para que el login sea robusto sin exigir al usuario "teclear perfecto".
+    class LowercaseUsernameAuthenticationForm(AuthenticationForm):
+        def clean_username(self):
+            raw = self.cleaned_data.get("username")
+            if raw is None:
+                return ""
+            value = str(raw).strip()
+            return value.lower()
+
+    authentication_form = LowercaseUsernameAuthenticationForm
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
