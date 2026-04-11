@@ -17,6 +17,9 @@
   {% if workspace_module_access.dashboard|default:True %}
   <a href="{% if club_dashboard_url %}{{ club_dashboard_url }}{% else %}{% url 'dashboard-home' %}{% endif %}">Portada</a>
   {% endif %}
+  {% if workspace_module_access.convocation|default:True %}
+  <a href="{% url 'convocation' %}">Partido</a>
+  {% endif %}
   {% if workspace_module_access.players|default:True %}
   {% if can_manage_workspace or is_admin_user %}
   <a href="{% url 'coach-roster' %}">Jugadores</a>
@@ -24,11 +27,17 @@
   <a href="{% url 'player-dashboard' %}">Jugadores</a>
   {% endif %}
   {% endif %}
+  {% if workspace_module_access.sessions|default:True %}
+  <a href="{% url 'sessions' %}">Entrenos</a>
+  {% endif %}
+  {% if workspace_module_access.match_actions|default:True %}
+  <a href="{% url 'match-action-page' %}">Acciones</a>
+  {% endif %}
   {% if workspace_module_access.coach_overview|default:True %}
   <a href="{% url 'coach-cards' %}">Cuerpo técnico</a>
   {% endif %}
   {% if can_manage_workspace and active_workspace and active_workspace.kind == 'club' %}
-  <a href="{% url 'club-onboarding' %}">Configurar</a>
+  <a href="{% url 'club-onboarding' %}">Ajustes</a>
   {% endif %}
   {% if can_manage_workspace and active_workspace and active_workspace.kind == 'club' %}
   <a href="{% url 'billing' %}">Suscripción</a>

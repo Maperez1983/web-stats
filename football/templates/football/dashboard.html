@@ -193,6 +193,58 @@
       .next-match p {
         margin: 0.25rem 0;
       }
+      .quick-actions {
+        margin-top: 0.85rem;
+        display: grid;
+        gap: 0.65rem;
+      }
+      .quick-actions h4 {
+        margin: 0;
+        font-size: 0.8rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--paper-muted);
+      }
+      .quick-actions-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.55rem;
+      }
+      .quick-action {
+        display: block;
+        text-decoration: none;
+        border-radius: 14px;
+        border: 1px solid var(--paper-line);
+        background: rgba(15, 23, 42, 0.03);
+        padding: 0.7rem 0.75rem;
+        color: var(--paper-ink);
+      }
+      .quick-action strong {
+        display: block;
+        font-size: 0.95rem;
+        letter-spacing: 0.02em;
+      }
+      .quick-action span {
+        display: block;
+        margin-top: 0.2rem;
+        font-size: 0.78rem;
+        color: var(--paper-muted);
+      }
+      .quick-action.is-primary {
+        border-color: rgba(244, 180, 0, 0.55);
+        background: linear-gradient(135deg, rgba(244, 180, 0, 0.12), rgba(47, 125, 50, 0.08));
+      }
+      .quick-action.is-secondary {
+        border-color: rgba(47, 125, 50, 0.38);
+        background: rgba(47, 125, 50, 0.08);
+      }
+      .quick-action.is-muted {
+        opacity: 0.92;
+      }
+      .quick-action.is-disabled {
+        opacity: 0.55;
+        pointer-events: none;
+      }
       .next-match-opponent {
         display: flex;
         align-items: center;
@@ -554,6 +606,66 @@
 
           <div class="next-match" id="next-match">
             <p>Próximo rival pendiente de carga...</p>
+          </div>
+
+          <div class="quick-actions">
+            <h4>Acciones rápidas</h4>
+            <div class="quick-actions-grid">
+              {% if workspace_module_access.convocation|default:True %}
+              <a class="quick-action is-primary" href="{% url 'convocation' %}">
+                <strong>Convocatoria</strong>
+                <span>Prepara partido y lista</span>
+              </a>
+              {% else %}
+              <a class="quick-action is-primary is-disabled" href="#">
+                <strong>Convocatoria</strong>
+                <span>Módulo desactivado</span>
+              </a>
+              {% endif %}
+
+              {% if workspace_module_access.match_actions|default:True %}
+              <a class="quick-action is-secondary" href="{% url 'match-action-page' %}">
+                <strong>Registro acciones</strong>
+                <span>Banquillo · en vivo</span>
+              </a>
+              {% else %}
+              <a class="quick-action is-secondary is-disabled" href="#">
+                <strong>Registro acciones</strong>
+                <span>Módulo desactivado</span>
+              </a>
+              {% endif %}
+
+              <a class="quick-action is-muted" href="{% url 'initial-eleven' %}">
+                <strong>11 inicial</strong>
+                <span>Organiza titulares</span>
+              </a>
+
+              {% if workspace_module_access.players|default:True %}
+              <a class="quick-action is-muted" href="{% if can_manage_workspace or is_admin_user %}{% url 'coach-roster' %}{% else %}{% url 'player-dashboard' %}{% endif %}">
+                <strong>Jugadores</strong>
+                <span>Fichas, licencias, KPIs</span>
+              </a>
+              {% else %}
+              <a class="quick-action is-muted is-disabled" href="#">
+                <strong>Jugadores</strong>
+                <span>Módulo desactivado</span>
+              </a>
+              {% endif %}
+
+              {% if workspace_module_access.sessions|default:True %}
+              <a class="quick-action is-muted" href="{% url 'sessions' %}">
+                <strong>Entrenos</strong>
+                <span>Sesiones y tareas</span>
+              </a>
+              {% endif %}
+
+              {% if can_manage_workspace %}
+              <a class="quick-action is-muted" href="{% url 'club-onboarding' %}">
+                <strong>Ajustes</strong>
+                <span>Club, competición, módulos</span>
+              </a>
+              {% endif %}
+            </div>
           </div>
         </aside>
       </section>
