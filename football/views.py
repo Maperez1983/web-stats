@@ -8488,25 +8488,46 @@ def platform_workspace_delete_page(request, workspace_id):
         raise Http404('Workspace no encontrado')
     if not _can_manage_workspace(request.user, workspace):
         return HttpResponse('No tienes permisos para eliminar este workspace.', status=403)
-    if workspace.kind != Workspace.KIND_TASK_STUDIO:
-        return HttpResponse('Solo se puede eliminar Task Studio desde esta acción.', status=403)
-    owner_user = workspace.owner_user
-    if owner_user:
-        TaskStudioProfile.objects.update_or_create(
-            user=owner_user,
-            defaults={'workspace': None, 'is_enabled': False},
-        )
-    TaskStudioTask.objects.filter(workspace=workspace).delete()
-    TaskStudioRosterPlayer.objects.filter(workspace=workspace).delete()
-    TaskStudioProfile.objects.filter(workspace=workspace).exclude(user=owner_user).delete()
-    WorkspaceMembership.objects.filter(workspace=workspace).delete()
     workspace_name = workspace.name
     workspace_id_value = workspace.id
-    workspace.delete()
-    if int(request.session.get('active_workspace_id') or 0) == int(workspace_id_value):
-        request.session.pop('active_workspace_id', None)
-    request.session['platform_feedback'] = f'Task Studio eliminado: {workspace_name}.'
-    return redirect('platform-overview')
+
+    if workspace.kind == Workspace.KIND_TASK_STUDIO:
+        owner_user = workspace.owner_user
+        if owner_user:
+            TaskStudioProfile.objects.update_or_create(
+                user=owner_user,
+                defaults={'workspace': None, 'is_enabled': False},
+            )
+        TaskStudioTask.objects.filter(workspace=workspace).delete()
+        TaskStudioRosterPlayer.objects.filter(workspace=workspace).delete()
+        TaskStudioProfile.objects.filter(workspace=workspace).exclude(user=owner_user).delete()
+        WorkspaceMembership.objects.filter(workspace=workspace).delete()
+        workspace.delete()
+        if int(request.session.get('active_workspace_id') or 0) == int(workspace_id_value):
+            request.session.pop('active_workspace_id', None)
+        request.session['platform_feedback'] = f'Task Studio eliminado: {workspace_name}.'
+        return redirect('platform-overview')
+
+    if workspace.kind == Workspace.KIND_CLUB:
+        confirm_slug = str(request.POST.get('confirm_slug') or '').strip()
+        confirm_phrase = str(request.POST.get('confirm_phrase') or '').strip().upper()
+        if confirm_slug != str(workspace.slug or '').strip() or confirm_phrase != 'ELIMINAR':
+            return HttpResponse('Confirmación inválida. Escribe el slug y ELIMINAR.', status=400)
+        primary_team = workspace.primary_team
+        if primary_team and bool(getattr(primary_team, 'is_primary', False)):
+            return HttpResponse('No se puede eliminar el cliente principal desde Platform.', status=403)
+        workspace.delete()
+        if int(request.session.get('active_workspace_id') or 0) == int(workspace_id_value):
+            request.session.pop('active_workspace_id', None)
+        mapping = request.session.get('active_team_by_workspace')
+        if isinstance(mapping, dict):
+            mapping.pop(str(workspace_id_value), None)
+            mapping.pop(workspace_id_value, None)
+            request.session['active_team_by_workspace'] = mapping
+        request.session['platform_feedback'] = f'Cliente eliminado: {workspace_name}.'
+        return redirect('platform-overview')
+
+    return HttpResponse('Tipo de workspace no eliminable desde esta acción.', status=403)
 
 
 @login_required

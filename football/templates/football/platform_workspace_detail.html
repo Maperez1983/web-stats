@@ -438,6 +438,20 @@
             <input type="hidden" name="form_action" value="bootstrap_demo_data" />
             <button class="inline-btn" type="submit">Generar datos demo</button>
           </form>
+          <details style="display:inline-block;">
+            <summary class="inline-btn danger" style="cursor:pointer;">Eliminar cliente</summary>
+            <div style="margin-top:0.6rem; padding:0.75rem; border-radius:12px; border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.04); min-width:min(460px, 92vw);">
+              <p style="margin:0 0 0.55rem; color:#ffb7b7; font-weight:800;">
+                Acción irreversible. Solo borra el workspace (cliente). Los equipos/jugadores quedan en BBDD.
+              </p>
+              <form method="post" action="{% url 'platform-workspace-delete' workspace.id %}" onsubmit="return confirm('¿Eliminar definitivamente este cliente?');" class="inline-form">
+                {% csrf_token %}
+                <input type="text" name="confirm_slug" placeholder="Escribe el slug: {{ workspace.slug }}" required />
+                <input type="text" name="confirm_phrase" placeholder="Escribe: ELIMINAR" required />
+                <button class="inline-btn danger" type="submit">Eliminar definitivamente</button>
+              </form>
+            </div>
+          </details>
           {% endif %}
           {% if can_manage_workspace and workspace.kind == 'task_studio' %}
           <form method="post" action="{% url 'platform-workspace-delete' workspace.id %}" onsubmit="return confirm('Se eliminará este Task Studio y sus datos privados.');">

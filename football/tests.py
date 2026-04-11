@@ -2207,6 +2207,61 @@ class PlatformWorkspaceTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertFalse(Workspace.objects.filter(kind=Workspace.KIND_TASK_STUDIO, owner_user=self.studio_user).exists())
 
+    def test_platform_cannot_delete_club_workspace_without_confirmation(self):
+        workspace = Workspace.objects.create(
+            name='Cliente borrable',
+            slug='cliente-borrable',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.alt_team,
+        )
+        self.client.force_login(self.admin_user)
+
+        response = self.client.post(reverse('platform-workspace-delete', args=[workspace.id]))
+
+        self.assertEqual(response.status_code, 400)
+        self.assertTrue(Workspace.objects.filter(id=workspace.id).exists())
+
+    def test_platform_refuses_to_delete_primary_club_workspace(self):
+        workspace = Workspace.objects.create(
+            name='Cliente principal',
+            slug='cliente-principal',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.team,
+        )
+        self.client.force_login(self.admin_user)
+
+        response = self.client.post(
+            reverse('platform-workspace-delete', args=[workspace.id]),
+            {'confirm_slug': workspace.slug, 'confirm_phrase': 'ELIMINAR'},
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(Workspace.objects.filter(id=workspace.id).exists())
+
+    def test_platform_can_delete_club_workspace_with_confirmation(self):
+        workspace = Workspace.objects.create(
+            name='Cliente pruebas',
+            slug='cliente-pruebas',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.alt_team,
+        )
+        self.client.force_login(self.admin_user)
+        session = self.client.session
+        session['active_workspace_id'] = workspace.id
+        session['active_team_by_workspace'] = {str(workspace.id): int(self.alt_team.id)}
+        session.save()
+
+        response = self.client.post(
+            reverse('platform-workspace-delete', args=[workspace.id]),
+            {'confirm_slug': workspace.slug, 'confirm_phrase': 'ELIMINAR'},
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Workspace.objects.filter(id=workspace.id).exists())
+        self.assertNotEqual(int(self.client.session.get('active_workspace_id') or 0), int(workspace.id))
+        self.assertContains(response, 'Cliente eliminado')
+
 
 class QueryHelperTests(TestCase):
     def setUp(self):
