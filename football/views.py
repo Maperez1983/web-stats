@@ -513,10 +513,13 @@ def kpi_audit(request):
         availability_pct = float(row.get('availability_pct') or 0)
         success_volume_pct = float(row.get('success_volume_pct') or 0)
         successes = int(row.get('successes') or 0)
+        matches_payload = row.get('matches') or []
+        matches_count = len(matches_payload) if isinstance(matches_payload, list) else 0
         key_passes_completed = int(row.get('key_passes_completed') or 0)
         max_decisive_actions_per90 = float(row.get('max_decisive_actions_per90') or 0)
         successes_per90 = float(row.get('successes_per90') or 0)
         decisive_actions_per90 = float(row.get('decisive_actions_per90') or 0)
+        totals_locked = bool(row.get('totals_locked'))
 
         issues = []
         if pt > pj:
@@ -529,6 +532,17 @@ def kpi_audit(request):
             expected_participation = round(min((pj / total_rounds) * 100, 100), 1)
             if abs(expected_participation - participation) > 0.11:
                 issues.append('PARTICIPACION_MISMATCH')
+        if not totals_locked:
+            if matches_count != pj:
+                issues.append('PJ_MATCHES_MISMATCH')
+            if pt > matches_count:
+                issues.append('PT_MATCHES_MISMATCH')
+            if pj > 0 and matches_count == 0:
+                issues.append('PJ_SIN_PARTIDOS')
+            # Un jugador puede tener PJ>0 con 0 acciones si fue titular sin registros (alineación).
+            # Lo que no debe ocurrir es PJ>0 con 0 acciones y PT=0 (banquillo sin acciones).
+            if pj > 0 and int(row.get('total_actions') or 0) == 0 and pt == 0:
+                issues.append('PJ_BENCH_WITHOUT_ACTIONS')
         if match_minutes > 0 and pj > 0:
             # Guardrail: margen extra por partidos con añadido / última acción > reglamentario.
             hard_cap = pj * (match_minutes + 30)
@@ -588,6 +602,7 @@ def kpi_audit(request):
                 'match_regulation_minutes': match_minutes,
                 'total_possible_minutes': total_possible,
                 'participation_pct': participation,
+                'matches_count': matches_count,
                 'availability_pct': availability_pct,
                 'success_volume_pct': success_volume_pct,
                 'importance_score': importance,
@@ -25755,6 +25770,7 @@ def compute_player_dashboard(primary_team, force_refresh=False):
         )
         lineup_by_match[record.match_id] = normalized
     match_end_minutes = {}
+    match_end_marker_minutes = {}
     player_match_timeline = {}
     stats_events = (
         MatchEvent.objects
@@ -25982,8 +25998,26 @@ def compute_player_dashboard(primary_team, force_refresh=False):
         ) if match_entry['actions'] else 0
     for event in live_events:
         match = event.match
+        if match:
+            preferred_source = preferred_sources.get(match.id)
+            event_source = (event.source_file or '').strip()
+            event_source_lower = event_source.lower()
+            is_manual_source = event_source_lower == 'admin-manual' or 'manual' in event_source_lower
+            if preferred_source and event_source and event_source != preferred_source and not is_manual_source:
+                # Mantener consistencia entre el cálculo de acciones/KPIs (que filtra por fuente preferida)
+                # y el timeline (minutos/PJ/PT).
+                continue
         if match and event.minute is not None:
             match_end_minutes[match.id] = max(match_end_minutes.get(match.id, 0), event.minute)
+            normalized_type = normalize_label(event.event_type)
+            # Si existe un marcador explícito de fin de partido, respétalo incluso si es < reglamentario
+            # (abandono/suspensión). Si no hay fin explícito, evitamos inferir el fin por "última acción",
+            # porque los registros pueden estar incompletos.
+            if normalized_type in {'fin', 'final'} or normalized_type.startswith('fin '):
+                match_end_marker_minutes[match.id] = max(
+                    match_end_marker_minutes.get(match.id, 0),
+                    int(event.minute or 0),
+                )
         player = event.player
         if not player:
             continue
@@ -26006,6 +26040,7 @@ def compute_player_dashboard(primary_team, force_refresh=False):
             processed_lineup_matches[player_id].add(match_id)
             match_end = match_end_minutes.get(match_id, 0)
             lineup_seed = lineup_by_match.get(match_id) or {}
+            has_lineup = bool((lineup_seed.get('starters') or []) or (lineup_seed.get('bench') or []))
             lineup_starters = {
                 str(item.get('id'))
                 for item in (lineup_seed.get('starters') or [])
@@ -26018,7 +26053,10 @@ def compute_player_dashboard(primary_team, force_refresh=False):
                 entry_minute = 0
             if entry_minute is None:
                 entry_minute = 0
-            if match_end <= 0 and player_key in lineup_starters:
+            has_explicit_end_marker = match_id in match_end_marker_minutes
+            if has_explicit_end_marker:
+                match_end = max(match_end, match_end_marker_minutes.get(match_id, 0))
+            elif has_lineup and (match_end <= 0 or match_end < match_regulation_minutes):
                 match_end = match_regulation_minutes
             if exit_minute is None:
                 exit_minute = match_end
@@ -26180,7 +26218,9 @@ def compute_player_dashboard(primary_team, force_refresh=False):
             continue
         match = lineup_matches.get(match_id)
         match_end = match_end_minutes.get(match_id, match_regulation_minutes)
-        if match_end <= 0:
+        if match_id in match_end_marker_minutes:
+            match_end = max(match_end, match_end_marker_minutes.get(match_id, 0))
+        elif match_end <= 0 or match_end < match_regulation_minutes:
             match_end = match_regulation_minutes
         for player_id in starters:
             if match_id in processed_lineup_matches[player_id]:
