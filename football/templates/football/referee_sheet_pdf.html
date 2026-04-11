@@ -1,0 +1,75 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Ficha árbitro</title>
+    <style>
+      @page { size: A4; margin: 14mm; }
+      * { box-sizing: border-box; }
+      body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; color: #0b1220; }
+      .header { display:flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+      .title { font-size: 18px; font-weight: 800; margin: 0; }
+      .sub { margin: 4px 0 0; font-size: 12px; color: #334155; }
+      .meta { display:grid; gap: 4px; font-size: 12px; color: #0f172a; }
+      .pill { display:inline-block; padding: 2px 8px; border-radius: 999px; background: #e2e8f0; margin-left: 6px; font-size: 11px; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { border: 1px solid #cbd5e1; padding: 7px 8px; font-size: 12px; }
+      th { background: #f1f5f9; text-align: left; }
+      .center { text-align: center; }
+      .muted { color: #475569; font-size: 11px; margin-top: 10px; }
+      .box { display:inline-block; width: 14px; height: 14px; border: 1px solid #334155; border-radius: 3px; vertical-align: -2px; }
+      .checked { background: #0f172a; position: relative; }
+      .checked:after { content: ""; position:absolute; inset: 3px 3px 3px 3px; background: #f8fafc; border-radius: 1px; opacity: 0.08; }
+      .badge { font-weight: 700; }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <div>
+        <p class="title">Ficha de partido · Árbitro</p>
+        <p class="sub">
+          {{ team_name }} vs {{ rival_name }}
+          <span class="pill">{{ round_label }}</span>
+        </p>
+      </div>
+      <div class="meta">
+        <div><span class="badge">Fecha:</span> {{ date_label }}</div>
+        <div><span class="badge">Hora:</span> {{ time_label }}</div>
+        <div><span class="badge">Lugar:</span> {{ location_label }}</div>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th style="width:66px;">Dorsal</th>
+          <th>Jugador</th>
+          <th class="center" style="width:64px;">POR</th>
+          <th class="center" style="width:64px;">CAP</th>
+          <th class="center" style="width:82px;">Licencia</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in players %}
+        <tr>
+          <td>#{{ p.number|default:"--" }}</td>
+          <td>{{ p.name }}</td>
+          <td class="center">
+            <span class="box {% if p.is_goalkeeper %}checked{% endif %}"></span>
+          </td>
+          <td class="center">
+            <span class="box {% if p.is_captain %}checked{% endif %}"></span>
+          </td>
+          <td class="center">
+            {% if p.has_license %}OK{% else %}-{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <p class="muted">Generado: {{ generated_at|date:"d/m/Y H:i" }}</p>
+  </body>
+</html>
+

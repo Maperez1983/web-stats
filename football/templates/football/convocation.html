@@ -373,6 +373,26 @@
         padding: 0.2rem 0.58rem;
         cursor: pointer;
       }
+      .selected-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+      .role-flag {
+        border: 1px solid rgba(56, 189, 248, 0.3);
+        background: rgba(56, 189, 248, 0.08);
+        color: var(--text);
+        border-radius: 999px;
+        padding: 0.2rem 0.55rem;
+        cursor: pointer;
+        font-weight: 800;
+        letter-spacing: 0.03em;
+      }
+      .role-flag.is-active {
+        border-color: rgba(52, 211, 153, 0.7);
+        background: rgba(52, 211, 153, 0.18);
+        color: #bbf7d0;
+      }
       .empty {
         color: var(--muted);
         border: 1px dashed var(--line);
@@ -466,6 +486,7 @@
         <div class="actions">
           <button id="save-convocation" class="button primary" type="button">Guardar convocatoria</button>
           <a href="{% url 'convocation-pdf' %}" class="button {% if not can_generate_convocation_pdf %}is-disabled{% endif %}" id="pdf-convocation">Generar PDF</a>
+          <a href="{% url 'convocation-referee-pdf' %}" class="button {% if not can_generate_convocation_pdf %}is-disabled{% endif %}" id="pdf-referee">Ficha árbitro PDF</a>
           <button id="share-convocation-pdf" class="button {% if not can_generate_convocation_pdf %}is-disabled{% endif %}" type="button">Compartir PDF</button>
           <span id="convocation-message" class="status"></span>
         </div>
@@ -560,6 +581,10 @@
       const matchLocationManual = document.querySelector('#match-location-manual');
 
       const selectedSet = new Set(({{ selected_player_ids_json|safe }} || []).map((item) => String(item)));
+      const initialCaptainId = {{ captain_id_json|safe }};
+      const initialGoalkeeperId = {{ goalkeeper_id_json|safe }};
+      let captainId = initialCaptainId ? String(initialCaptainId) : '';
+      let goalkeeperId = initialGoalkeeperId ? String(initialGoalkeeperId) : '';
       const injuredPlayerIds = new Set(({{ injured_player_ids_json|safe }} || []).map((item) => String(item)));
 
       const getCookie = (name) => {
@@ -600,7 +625,13 @@
         countChip.textContent = `${count} convocados`;
       };
 
+      const normalizeRoles = () => {
+        if (captainId && !selectedSet.has(String(captainId))) captainId = '';
+        if (goalkeeperId && !selectedSet.has(String(goalkeeperId))) goalkeeperId = '';
+      };
+
       const renderSelected = () => {
+        normalizeRoles();
         const selectedPlayers = cards
           .filter((card) => selectedSet.has(String(card.dataset.playerId || '')))
           .map(buildPlayerFromCard)
@@ -624,6 +655,8 @@
         }
 
         selectedPlayers.forEach((player) => {
+          const isCaptain = captainId && String(captainId) === String(player.id);
+          const isGoalkeeper = goalkeeperId && String(goalkeeperId) === String(player.id);
           const li = document.createElement('li');
           li.innerHTML = `
             <div class="selected-main">
@@ -633,7 +666,11 @@
                 <span>${player.position}${player.injured ? ' · Lesión activa' : ''}${player.sanctioned ? ' · Sancionado' : ''}${player.warned ? ' · Apercibido' : ''}</span>
               </div>
             </div>
-            <button class="remove" type="button" data-remove="${player.id}">Quitar</button>
+            <div class="selected-actions">
+              <button class="role-flag ${isGoalkeeper ? 'is-active' : ''}" type="button" data-flag="goalkeeper" data-player="${player.id}" title="Marcar portero">POR</button>
+              <button class="role-flag ${isCaptain ? 'is-active' : ''}" type="button" data-flag="captain" data-player="${player.id}" title="Marcar capitán">CAP</button>
+              <button class="remove" type="button" data-remove="${player.id}">Quitar</button>
+            </div>
           `;
           selectedList.appendChild(li);
         });
@@ -695,6 +732,8 @@
         }
         if (selectedSet.has(id)) {
           selectedSet.delete(id);
+          if (captainId === id) captainId = '';
+          if (goalkeeperId === id) goalkeeperId = '';
         } else {
           selectedSet.add(id);
         }
@@ -870,14 +909,19 @@
       };
 
       const pdfButton = document.querySelector('#pdf-convocation');
+      const refereePdfButton = document.querySelector('#pdf-referee');
       const sharePdfButton = document.querySelector('#share-convocation-pdf');
 
       const updatePdfState = () => {
         const enabled = selectedSet.size > 0;
         pdfButton?.classList.toggle('is-disabled', !enabled);
+        refereePdfButton?.classList.toggle('is-disabled', !enabled);
         sharePdfButton?.classList.toggle('is-disabled', !enabled);
         if (pdfButton) {
           pdfButton.title = enabled ? '' : 'El PDF se activa al guardar una lista con jugadores convocados.';
+        }
+        if (refereePdfButton) {
+          refereePdfButton.title = enabled ? '' : 'El PDF se activa al guardar una lista con jugadores convocados.';
         }
         if (sharePdfButton) {
           sharePdfButton.title = enabled ? '' : 'El enlace se activa al guardar una lista con jugadores convocados.';
@@ -885,8 +929,13 @@
       };
 
       const saveConvocation = async () => {
+        normalizeRoles();
+        const captainInt = captainId ? parseInt(String(captainId), 10) : null;
+        const goalkeeperInt = goalkeeperId ? parseInt(String(goalkeeperId), 10) : null;
         const requestPayload = {
           players: Array.from(selectedSet),
+          captain_id: Number.isFinite(captainInt) ? captainInt : null,
+          goalkeeper_id: Number.isFinite(goalkeeperInt) ? goalkeeperInt : null,
           match_info: {
             opponent: getOpponentValue(),
             round: matchRound?.value || '',
@@ -930,9 +979,22 @@
       selectedList.addEventListener('click', (event) => {
         const target = event.target;
         if (!(target instanceof HTMLElement)) return;
+        const flag = target.dataset.flag;
+        const flagPlayerId = target.dataset.player;
+        if (flag && flagPlayerId) {
+          if (flag === 'captain') {
+            captainId = captainId === String(flagPlayerId) ? '' : String(flagPlayerId);
+          } else if (flag === 'goalkeeper') {
+            goalkeeperId = goalkeeperId === String(flagPlayerId) ? '' : String(flagPlayerId);
+          }
+          renderSelected();
+          return;
+        }
         const removeId = target.dataset.remove;
         if (!removeId) return;
         selectedSet.delete(String(removeId));
+        if (captainId === String(removeId)) captainId = '';
+        if (goalkeeperId === String(removeId)) goalkeeperId = '';
         syncCardStates();
         renderSelected();
       });
@@ -961,12 +1023,15 @@
 
       clearAllBtn?.addEventListener('click', () => {
         selectedSet.clear();
+        captainId = '';
+        goalkeeperId = '';
         syncCardStates();
         renderSelected();
       });
 
       dropInjuredBtn?.addEventListener('click', () => {
         injuredPlayerIds.forEach((id) => selectedSet.delete(String(id)));
+        normalizeRoles();
         syncCardStates();
         renderSelected();
       });

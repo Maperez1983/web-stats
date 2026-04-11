@@ -2426,6 +2426,18 @@ class ConvocationWorkflowTests(TestCase):
         group = Group.objects.create(season=season, name='Grupo Convocatoria', slug='grupo-convocatoria')
         self.team = Team.objects.create(name='Benagalbon', slug='benagalbon-convocatoria', group=group, is_primary=True)
         self.player = Player.objects.create(team=self.team, name='Martinez', position='MC')
+        self.workspace = Workspace.objects.create(
+            name='Workspace Convocatoria',
+            slug='ws-convocatoria',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.team,
+            owner_user=self.user,
+            enabled_modules={'dashboard': True, 'players': True, 'convocation': True},
+        )
+        WorkspaceTeam.objects.create(workspace=self.workspace, team=self.team, is_default=True)
+        session = self.client.session
+        session['active_workspace_id'] = self.workspace.id
+        session.save()
 
     def test_save_convocation_allows_pending_match_without_players(self):
         self.client.force_login(self.user)
@@ -2453,6 +2465,31 @@ class ConvocationWorkflowTests(TestCase):
         record = ConvocationRecord.objects.get(team=self.team, is_current=True)
         self.assertEqual(record.players.count(), 0)
         self.assertEqual(record.opponent_name, 'Alhaurín de la Torre')
+
+    def test_save_convocation_persists_captain_and_goalkeeper(self):
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse('convocation-save'),
+            data=json.dumps(
+                {
+                    'players': [self.player.id],
+                    'captain_id': self.player.id,
+                    'goalkeeper_id': self.player.id,
+                    'match_info': {
+                        'opponent': 'Rival 2',
+                        'round': 'J2',
+                        'date': '2026-01-17',
+                        'time': '10:00',
+                        'location': 'Campo 2',
+                    },
+                }
+            ),
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 200)
+        record = ConvocationRecord.objects.get(team=self.team, is_current=True)
+        self.assertEqual(record.captain_id, self.player.id)
+        self.assertEqual(record.goalkeeper_id, self.player.id)
 
     def test_player_detail_shows_pending_convocation_alert(self):
         self.client.force_login(self.user)
@@ -2914,6 +2951,51 @@ class PlayerDetailStatsFallbackTests(TestCase):
         finally:
             shutil.rmtree(media_root, ignore_errors=True)
 
+        self.assertEqual(response.status_code, 200)
+
+
+    @override_settings(MEDIA_URL='/media-test/')
+    def test_player_detail_profile_upload_stores_license_in_media(self):
+        self.client.force_login(self.user)
+        pdf_bytes = b'%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF\n'
+        upload = SimpleUploadedFile('licencia.pdf', pdf_bytes, content_type='application/pdf')
+        media_root = tempfile.mkdtemp()
+        try:
+            with override_settings(MEDIA_ROOT=media_root):
+                response = self.client.post(
+                    reverse('player-detail', args=[self.player.id]),
+                    {
+                        'form_action': 'profile',
+                        'full_name': 'Jugador Detail',
+                        'nickname': '',
+                        'birth_date': '',
+                        'height_cm': '',
+                        'weight_kg_base': '',
+                        'number': '',
+                        'position': '',
+                        'injury': '',
+                        'injury_type': '',
+                        'injury_zone': '',
+                        'injury_side': '',
+                        'injury_date': '',
+                        'injury_return_date': '',
+                        'injury_notes': '',
+                        'manual_sanction_active': '0',
+                        'manual_sanction_reason': '',
+                        'manual_sanction_until': '',
+                        'injury_record_mode': 'update',
+                        'player_license': upload,
+                    },
+                    follow=True,
+                )
+                stored_path = Path(media_root) / 'player-licenses' / f'player-{self.player.id}.pdf'
+                self.assertTrue(stored_path.exists())
+                self.assertIn(
+                    f'/player/{self.player.id}/license/',
+                    response.context['player_license_url'],
+                )
+        finally:
+            shutil.rmtree(media_root, ignore_errors=True)
         self.assertEqual(response.status_code, 200)
 
 

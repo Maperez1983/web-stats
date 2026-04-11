@@ -441,6 +441,20 @@ class ConvocationRecord(models.Model):
     opponent_name = models.CharField(max_length=150, blank=True)
     lineup_data = models.JSONField(default=dict, blank=True)
     players = models.ManyToManyField(Player, related_name='convocations')
+    captain = models.ForeignKey(
+        Player,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='captain_convocations',
+    )
+    goalkeeper = models.ForeignKey(
+        Player,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='goalkeeper_convocations',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     is_current = models.BooleanField(default=True)
 
@@ -1079,6 +1093,7 @@ class AppUserRole(models.Model):
     ROLE_CHOICES = [
         (ROLE_PLAYER, 'Jugador'),
         (ROLE_GUEST, 'Invitado'),
+        (ROLE_TASK_STUDIO, 'Task Studio'),
         (ROLE_COACH, 'Entrenador'),
         (ROLE_FITNESS, 'Preparador físico'),
         (ROLE_GOALKEEPER, 'Preparador portero'),

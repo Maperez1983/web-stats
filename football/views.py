@@ -56,10 +56,11 @@ from .task_backups import write_task_backup
 from .preview_render import render_task_preview_png
 
 try:
-    from PIL import Image, ImageFilter
+    from PIL import Image, ImageFilter, ImageOps
 except Exception:  # pragma: no cover
     Image = None
     ImageFilter = None
+    ImageOps = None
 
 try:
     import pytesseract
@@ -72,9 +73,10 @@ except Exception:  # pragma: no cover
     weasyprint = None
 
 try:
-    from pypdf import PdfReader
+    from pypdf import PdfReader, PdfWriter
 except Exception:  # pragma: no cover
     PdfReader = None
+    PdfWriter = None
 
 try:
     import requests
@@ -840,6 +842,28 @@ def _build_pdf_response_or_html_fallback(request, html: str, filename: str, *, i
         return HttpResponse(html, content_type='text/html; charset=utf-8')
 
 
+def _render_pdf_bytes(request, html: str):
+    if not weasyprint:
+        return None
+    try:
+        def _safe_url_fetcher(url, timeout=4, ssl_context=None):
+            try:
+                default_fetcher = getattr(weasyprint, 'default_url_fetcher', None)
+                if callable(default_fetcher):
+                    return default_fetcher(url, timeout=timeout, ssl_context=ssl_context)
+            except Exception:
+                pass
+            return {'string': b'', 'mime_type': 'text/plain'}
+
+        return weasyprint.HTML(
+            string=html,
+            base_url=request.build_absolute_uri('/'),
+            url_fetcher=_safe_url_fetcher,
+        ).write_pdf()
+    except Exception:
+        return None
+
+
 def _build_pdf_nav_urls(request):
     """
     URLs de navegación para PDFs:
@@ -960,6 +984,108 @@ def _player_photo_storage_candidates(player):
         f'player-photos/player-{player.id}.jpeg',
         f'player-photos/player-{player.id}.webp',
     ]
+
+
+def _player_license_storage_candidates(player):
+    if not player:
+        return []
+    base_name = f'player-licenses/player-{player.id}'
+    return [
+        f'{base_name}.pdf',
+        f'{base_name}.jpg',
+        f'{base_name}.jpeg',
+        f'{base_name}.png',
+        f'{base_name}.webp',
+    ]
+
+
+def save_player_license(player, uploaded_license):
+    """
+    Guarda una licencia federativa del jugador (PDF o imagen).
+
+    - Usa nombre determinista `player-licenses/player-{id}.*`.
+    - Limpia versiones previas (extensiones distintas).
+    - Normaliza imágenes a JPEG cuando Pillow está disponible.
+    """
+    if not player or not uploaded_license:
+        return ''
+    try:
+        storage = storages['default']
+        if isinstance(storage, FileSystemStorage):
+            storage = FileSystemStorage(location=getattr(settings, 'MEDIA_ROOT', None), base_url=getattr(settings, 'MEDIA_URL', '/media/'))
+
+        raw_name = str(getattr(uploaded_license, 'name', '') or '')
+        extension = Path(raw_name).suffix.lower()
+        content_type = str(getattr(uploaded_license, 'content_type', '') or '').lower()
+        is_pdf = extension == '.pdf' or content_type == 'application/pdf'
+
+        if hasattr(uploaded_license, 'seek'):
+            uploaded_license.seek(0)
+        raw_bytes = uploaded_license.read()
+        if not raw_bytes:
+            return ''
+
+        target_ext = '.pdf' if is_pdf else (extension if extension in {'.jpg', '.jpeg', '.png', '.webp'} else '.jpg')
+        if is_pdf:
+            content = ContentFile(raw_bytes)
+            target_ext = '.pdf'
+        else:
+            if Image is None:
+                if target_ext not in {'.jpg', '.jpeg', '.png', '.webp'}:
+                    return ''
+                content = ContentFile(raw_bytes)
+            else:
+                try:
+                    with Image.open(io.BytesIO(raw_bytes)) as img:
+                        if ImageOps is not None:
+                            try:
+                                img = ImageOps.exif_transpose(img)
+                            except Exception:
+                                pass
+                        if img.mode in ('RGBA', 'LA', 'P'):
+                            converted = img.convert('RGBA')
+                            background = Image.new('RGBA', converted.size, (255, 255, 255, 255))
+                            background.alpha_composite(converted)
+                            normalized = background.convert('RGB')
+                        else:
+                            normalized = img.convert('RGB')
+                        buffer = io.BytesIO()
+                        normalized.save(buffer, format='JPEG', optimize=True, quality=82)
+                        content = ContentFile(buffer.getvalue())
+                        target_ext = '.jpg'
+                except Exception:
+                    return ''
+
+        target_name = f'player-licenses/player-{player.id}{target_ext}'
+        for candidate in _player_license_storage_candidates(player):
+            try:
+                if storage.exists(candidate):
+                    storage.delete(candidate)
+            except Exception:
+                logger.exception('No se pudo limpiar una licencia previa del jugador %s', player.id)
+        return storage.save(target_name, content)
+    except Exception:
+        logger.exception('No se pudo guardar la licencia del jugador %s', getattr(player, 'id', None))
+        return ''
+
+
+def resolve_player_license_url(request, player):
+    if not player:
+        return ''
+    try:
+        storage = storages['default']
+        if isinstance(storage, FileSystemStorage):
+            storage = FileSystemStorage(location=getattr(settings, 'MEDIA_ROOT', None), base_url=getattr(settings, 'MEDIA_URL', '/media/'))
+        for candidate in _player_license_storage_candidates(player):
+            try:
+                if storage.exists(candidate):
+                    url = reverse('player-license-file', args=[player.id])
+                    return request.build_absolute_uri(url) if request is not None else url
+            except Exception:
+                continue
+    except Exception:
+        return ''
+    return ''
 
 
 def _build_public_media_url(request, raw_url):
@@ -1121,6 +1247,47 @@ def player_photo_file(request, player_id):
     response = FileResponse(file_field, content_type=content_type)
     response['Content-Disposition'] = f'inline; filename="{Path(storage_name).name}"'
     # El fichero se sobrescribe con el mismo nombre (player-{id}.png), así que evitamos caché larga.
+    response['Cache-Control'] = 'private, max-age=60'
+    return response
+
+
+@login_required
+def player_license_file(request, player_id):
+    primary_team, player = _resolve_player_for_request_scope(request, int(player_id))
+    if not primary_team:
+        raise Http404('Equipo principal no configurado')
+    if not player:
+        raise Http404('Jugador no encontrado')
+    forbidden = _forbid_if_no_player_access(request.user, player, primary_team=primary_team)
+    if forbidden:
+        return forbidden
+    storage = storages['default']
+    if isinstance(storage, FileSystemStorage):
+        storage = FileSystemStorage(location=getattr(settings, 'MEDIA_ROOT', None), base_url=getattr(settings, 'MEDIA_URL', '/media/'))
+    storage_name = ''
+    for candidate in _player_license_storage_candidates(player):
+        try:
+            if storage.exists(candidate):
+                storage_name = candidate
+                break
+        except Exception:
+            continue
+    if not storage_name:
+        raise Http404('Licencia no disponible')
+    try:
+        file_field = storage.open(storage_name, 'rb')
+    except Exception:
+        return HttpResponse('No se pudo abrir la licencia.', status=500)
+    extension = Path(storage_name).suffix.lower()
+    content_type = {
+        '.pdf': 'application/pdf',
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.webp': 'image/webp',
+    }.get(extension, 'application/octet-stream')
+    response = FileResponse(file_field, content_type=content_type)
+    response['Content-Disposition'] = f'inline; filename="{Path(storage_name).name}"'
     response['Cache-Control'] = 'private, max-age=60'
     return response
 
@@ -11894,6 +12061,8 @@ def convocation_page(request):
     players = filtered_players
     convocation_record = get_current_convocation_record(primary_team)
     selected_player_ids = []
+    captain_id = None
+    goalkeeper_id = None
     if convocation_record:
         available_ids = {player.id for player in players}
         selected_player_ids = [
@@ -11901,6 +12070,10 @@ def convocation_page(request):
             for player_id in convocation_record.players.values_list('id', flat=True)
             if player_id in available_ids
         ]
+        if convocation_record.captain_id in available_ids:
+            captain_id = int(convocation_record.captain_id)
+        if convocation_record.goalkeeper_id in available_ids:
+            goalkeeper_id = int(convocation_record.goalkeeper_id)
 
     next_match_payload = load_preferred_next_match_payload(primary_team=primary_team)
     if not next_match_payload and primary_team.group:
@@ -12003,6 +12176,8 @@ def convocation_page(request):
             'team_crest_url': resolve_team_crest_url(request, primary_team, sync=True),
             'avatar_url': request.build_absolute_uri(static('football/images/player-avatar.svg')),
             'selected_player_ids_json': json.dumps(selected_player_ids),
+            'captain_id_json': json.dumps(captain_id),
+            'goalkeeper_id_json': json.dumps(goalkeeper_id),
             'injured_player_ids_json': json.dumps(
                 [p.id for p in all_players if getattr(p, 'has_active_injury', False)]
             ),
@@ -12033,9 +12208,13 @@ def save_convocation(request):
     if isinstance(payload, dict):
         raw_players = payload.get('players') or payload.get('player_ids') or []
         match_info = payload.get('match_info') if isinstance(payload.get('match_info'), dict) else {}
+        captain_id = _parse_int(payload.get('captain_id'))
+        goalkeeper_id = _parse_int(payload.get('goalkeeper_id'))
     else:
         raw_players = payload
         match_info = {}
+        captain_id = None
+        goalkeeper_id = None
 
     try:
         player_ids = [int(pid) for pid in raw_players if pid]
@@ -12050,6 +12229,7 @@ def save_convocation(request):
     players = Player.objects.filter(team=primary_team, is_active=True, id__in=player_ids)
     blocked_injury_ids = get_active_injury_player_ids(players.values_list('id', flat=True))
     players = players.exclude(id__in=blocked_injury_ids)
+    allowed_player_ids = set(players.values_list('id', flat=True))
     has_match_context = any([round_value, location_value, opponent_value, date_value_raw, time_value_raw])
     if not players.exists() and not has_match_context:
         return JsonResponse({'error': 'Indica al menos los datos del próximo partido o una lista de jugadores.'}, status=400)
@@ -12123,6 +12303,9 @@ def save_convocation(request):
             opponent_name=opponent_value,
         )
         record.players.set(players.distinct())
+        record.captain_id = captain_id if captain_id in allowed_player_ids else None
+        record.goalkeeper_id = goalkeeper_id if goalkeeper_id in allowed_player_ids else None
+        record.save(update_fields=['captain', 'goalkeeper'])
     _invalidate_team_dashboard_caches(primary_team)
     pending = players.count() == 0
     return JsonResponse(
@@ -12272,6 +12455,183 @@ def convocation_pdf(request):
     html = render_to_string('football/convocation_pdf.html', context)
     filename = f'convocatoria-{timezone.localdate().isoformat()}'
     return _build_pdf_response_or_html_fallback(request, html, filename)
+
+
+@login_required
+def convocation_referee_pdf(request):
+    """
+    Genera una ficha para el árbitro:
+    - Portada con lista convocados + capitán/portero.
+    - Una página por jugador con su licencia (imagen) o, si es PDF, la adjunta tras la hoja del jugador.
+    """
+    forbidden = _forbid_if_workspace_module_disabled(request, 'convocation', label='convocatoria')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        raise Http404('Equipo principal no configurado')
+    convocation_record = get_current_convocation_record(primary_team)
+    if not convocation_record:
+        return HttpResponse('No hay convocatoria guardada.', status=400)
+
+    players = list(convocation_record.players.order_by('number', 'name'))
+    if not players:
+        return HttpResponse('No hay jugadores convocados.', status=400)
+
+    if not weasyprint:
+        return HttpResponse('PDF no disponible en este servidor.', status=503)
+    if PdfReader is None or PdfWriter is None:
+        return HttpResponse('Motor PDF no disponible en este servidor.', status=503)
+
+    def _sort_player_key(player):
+        number = player.number if player.number is not None else 999
+        return (number, (player.name or '').lower())
+
+    ordered_players = sorted(players, key=_sort_player_key)
+
+    storage = storages['default']
+    if isinstance(storage, FileSystemStorage):
+        storage = FileSystemStorage(location=getattr(settings, 'MEDIA_ROOT', None), base_url=getattr(settings, 'MEDIA_URL', '/media/'))
+
+    def _find_license_name(player_obj):
+        for candidate in _player_license_storage_candidates(player_obj):
+            try:
+                if storage.exists(candidate):
+                    return candidate
+            except Exception:
+                continue
+        return ''
+
+    def _read_storage_bytes(storage_name):
+        if not storage_name:
+            return b''
+        try:
+            with storage.open(storage_name, 'rb') as fp:
+                return fp.read() or b''
+        except Exception:
+            return b''
+
+    def _license_image_data_uri(storage_name):
+        raw = _read_storage_bytes(storage_name)
+        if not raw:
+            return ''
+        if Image is None:
+            mime_type = mimetypes.guess_type(storage_name)[0] or 'image/jpeg'
+            encoded = base64.b64encode(raw).decode('ascii')
+            return f'data:{mime_type};base64,{encoded}'
+        try:
+            with Image.open(io.BytesIO(raw)) as img:
+                if ImageOps is not None:
+                    try:
+                        img = ImageOps.exif_transpose(img)
+                    except Exception:
+                        pass
+                normalized = img.convert('RGB')
+                normalized.thumbnail((1700, 1200))
+                buffer = io.BytesIO()
+                normalized.save(buffer, format='JPEG', optimize=True, quality=74)
+            encoded = base64.b64encode(buffer.getvalue()).decode('ascii')
+            return f'data:image/jpeg;base64,{encoded}'
+        except Exception:
+            mime_type = mimetypes.guess_type(storage_name)[0] or 'image/jpeg'
+            encoded = base64.b64encode(raw).decode('ascii')
+            return f'data:{mime_type};base64,{encoded}'
+
+    def _append_pdf_bytes(writer, pdf_bytes):
+        if not pdf_bytes:
+            return
+        reader = PdfReader(io.BytesIO(pdf_bytes))
+        for page in reader.pages:
+            writer.add_page(page)
+
+    team_name = primary_team.display_name
+    date_label = convocation_record.match_date.strftime('%d/%m/%Y') if convocation_record.match_date else '--'
+    time_label = convocation_record.match_time.strftime('%H:%M') if convocation_record.match_time else '--:--'
+    location_label = convocation_record.location or (convocation_record.match.location if convocation_record.match else '')
+    rival_label = convocation_record.opponent_name
+    if not rival_label and convocation_record.match:
+        opponent = (
+            convocation_record.match.away_team
+            if convocation_record.match.home_team_id == primary_team.id
+            else convocation_record.match.home_team
+        )
+        rival_label = opponent.name if opponent else ''
+    rival_name = (rival_label or '').strip() or 'Rival por confirmar'
+
+    cover_players = []
+    captain_id = int(convocation_record.captain_id) if convocation_record.captain_id else None
+    goalkeeper_id = int(convocation_record.goalkeeper_id) if convocation_record.goalkeeper_id else None
+    for player in ordered_players:
+        license_name = _find_license_name(player)
+        cover_players.append(
+            {
+                'id': int(player.id),
+                'number': player.number,
+                'name': player.name,
+                'is_captain': bool(captain_id and int(player.id) == captain_id),
+                'is_goalkeeper': bool(goalkeeper_id and int(player.id) == goalkeeper_id),
+                'has_license': bool(license_name),
+            }
+        )
+
+    cover_html = render_to_string(
+        'football/referee_sheet_pdf.html',
+        {
+            **_build_pdf_nav_urls(request),
+            'team_name': team_name,
+            'rival_name': rival_name,
+            'round_label': convocation_record.round or 'Jornada por confirmar',
+            'date_label': date_label,
+            'time_label': time_label,
+            'location_label': location_label or 'Campo por confirmar',
+            'players': cover_players,
+            'generated_at': timezone.localtime(),
+        },
+    )
+    cover_pdf = _render_pdf_bytes(request, cover_html)
+    if not cover_pdf:
+        return HttpResponse('No se pudo generar el PDF.', status=503)
+
+    writer = PdfWriter()
+    _append_pdf_bytes(writer, cover_pdf)
+
+    for player in ordered_players:
+        license_name = _find_license_name(player)
+        license_ext = Path(license_name).suffix.lower() if license_name else ''
+        is_pdf_license = license_ext == '.pdf'
+        license_image_uri = ''
+        if license_name and not is_pdf_license:
+            license_image_uri = _license_image_data_uri(license_name)
+
+        player_page_html = render_to_string(
+            'football/player_license_page_pdf.html',
+            {
+                'team_name': team_name,
+                'player_name': player.name,
+                'player_number': player.number,
+                'is_captain': bool(captain_id and int(player.id) == captain_id),
+                'is_goalkeeper': bool(goalkeeper_id and int(player.id) == goalkeeper_id),
+                'license_image_uri': license_image_uri,
+                'license_is_pdf': bool(is_pdf_license),
+                'license_missing': bool(not license_name),
+            },
+        )
+        player_page_pdf = _render_pdf_bytes(request, player_page_html)
+        if player_page_pdf:
+            _append_pdf_bytes(writer, player_page_pdf)
+
+        if is_pdf_license:
+            pdf_bytes = _read_storage_bytes(license_name)
+            if pdf_bytes:
+                _append_pdf_bytes(writer, pdf_bytes)
+
+    output = io.BytesIO()
+    writer.write(output)
+    pdf_bytes = output.getvalue()
+    response = HttpResponse(pdf_bytes, content_type='application/pdf')
+    filename = slugify(f'ficha-arbitro-{team_name}-{rival_name}-{timezone.localdate().isoformat()}') or f'ficha-arbitro-{convocation_record.id}'
+    response['Content-Disposition'] = f'inline; filename="{filename}.pdf"'
+    return response
 
 
 def _task_pdf_lines(value):
@@ -23281,6 +23641,7 @@ def player_detail_page(request, player_id):
 
             if form_action == 'profile':
                 uploaded_photo = request.FILES.get('player_photo')
+                uploaded_license = request.FILES.get('player_license')
                 number = request.POST.get('number', '').strip()
                 injury_name = request.POST.get('injury', '').strip()
                 injury_type = request.POST.get('injury_type', '').strip()
@@ -23312,6 +23673,8 @@ def player_detail_page(request, player_id):
                 player.save()
                 if uploaded_photo:
                     save_player_photo(player, uploaded_photo)
+                if uploaded_license:
+                    save_player_license(player, uploaded_license)
                 _invalidate_team_dashboard_caches(primary_team)
 
                 active_injury = (
@@ -23474,6 +23837,7 @@ def player_detail_page(request, player_id):
             has_active_injury = is_injury_record_active(latest_injury_record)
         has_manual_sanction = is_manual_sanction_active(player)
         player_photo_url = resolve_player_photo_url(request, player)
+        player_license_url = resolve_player_license_url(request, player)
         convocation_pending = bool(current_convocation and not current_convocation.players.exists())
         fines_summary = {
             'registered_fines': 0,
@@ -23620,6 +23984,7 @@ def player_detail_page(request, player_id):
                 'convocation_pending': convocation_pending,
                 'active_match': active_match,
                 'player_photo_url': player_photo_url,
+                'player_license_url': player_license_url,
                 'general_kpis': general_kpis,
                 'team_points': team_points,
                 'team_rank': team_rank,
