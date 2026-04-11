@@ -8867,7 +8867,7 @@ def admin_page(request):
                 roster_error = str(exc)
             except Exception:
                 roster_error = 'No se pudo guardar la plantilla.'
-        elif form_action in {'team_create', 'team_update', 'team_set_default', 'team_unlink'}:
+        elif form_action in {'team_create', 'team_update', 'team_set_default', 'team_unlink', 'team_split_workspace'}:
             active_tab = 'teams'
             if not workspace or workspace.kind != Workspace.KIND_CLUB:
                 teams_error = 'No hay cliente club activo.'
@@ -8894,6 +8894,94 @@ def admin_page(request):
                             link.is_default = True
                             link.save(update_fields=['is_default'])
                         teams_message = 'Categoría predeterminada actualizada.'
+                    elif form_action == 'team_split_workspace':
+                        link_id = _parse_int(request.POST.get('workspace_team_id'))
+                        link = (
+                            WorkspaceTeam.objects
+                            .filter(id=link_id, workspace=workspace)
+                            .select_related('team')
+                            .first()
+                            if link_id else None
+                        )
+                        if not link or not link.team:
+                            raise ValueError('Categoría no válida.')
+                        if link.is_default:
+                            raise ValueError('No puedes separar la categoría predeterminada. Elige otra antes.')
+                        team_obj = link.team
+                        if Workspace.objects.filter(kind=Workspace.KIND_CLUB, primary_team=team_obj).exists():
+                            raise ValueError('Ese equipo ya está vinculado a otro club. No se puede separar dos veces.')
+
+                        category_label = str(getattr(team_obj, 'category', '') or '').strip() or str(getattr(team_obj, 'display_name', '') or getattr(team_obj, 'name', '') or '').strip()
+                        new_workspace_name = f'{str(getattr(workspace, "name", "") or "").strip()} · {category_label}'.strip(' ·')
+                        new_workspace_name = _sanitize_task_text(new_workspace_name, multiline=False, max_len=160)
+                        if not new_workspace_name:
+                            new_workspace_name = f'Club {team_obj.id}'
+                        new_slug = _unique_workspace_slug(new_workspace_name)
+
+                        with transaction.atomic():
+                            new_workspace = Workspace.objects.create(
+                                name=new_workspace_name,
+                                slug=new_slug,
+                                kind=Workspace.KIND_CLUB,
+                                primary_team=team_obj,
+                                owner_user=workspace.owner_user,
+                                enabled_modules=dict(getattr(workspace, 'enabled_modules', None) or {}),
+                                trial_expires_at=getattr(workspace, 'trial_expires_at', None),
+                                subscription_status=str(getattr(workspace, 'subscription_status', '') or 'trial').strip() or 'trial',
+                                plan_key=str(getattr(workspace, 'plan_key', '') or '').strip(),
+                                is_active=bool(getattr(workspace, 'is_active', True)),
+                                notes=f'Separado automáticamente desde {workspace.name}.',
+                            )
+                            memberships = list(
+                                WorkspaceMembership.objects
+                                .select_related('user')
+                                .filter(workspace=workspace)
+                            )
+                            for membership in memberships:
+                                if not membership.user_id:
+                                    continue
+                                WorkspaceMembership.objects.update_or_create(
+                                    workspace=new_workspace,
+                                    user=membership.user,
+                                    defaults={'role': membership.role},
+                                )
+                            if new_workspace.owner_user_id:
+                                WorkspaceMembership.objects.update_or_create(
+                                    workspace=new_workspace,
+                                    user_id=new_workspace.owner_user_id,
+                                    defaults={'role': WorkspaceMembership.ROLE_OWNER},
+                                )
+
+                            WorkspaceTeam.objects.get_or_create(
+                                workspace=new_workspace,
+                                team=team_obj,
+                                defaults={'is_default': True},
+                            )
+                            if new_workspace.owner_user_id:
+                                WorkspaceTeamAccess.objects.update_or_create(
+                                    workspace=new_workspace,
+                                    team=team_obj,
+                                    user_id=new_workspace.owner_user_id,
+                                    defaults={'is_default': True},
+                                )
+
+                            # Mover contexto/snapshot competitivo de esta categoría al nuevo club (si existe).
+                            try:
+                                ctx = WorkspaceCompetitionContext.objects.filter(workspace=workspace, team=team_obj).first()
+                            except Exception:
+                                ctx = None
+                            if ctx:
+                                ctx.workspace = new_workspace
+                                ctx.save(update_fields=['workspace', 'updated_at'])
+                                snap = getattr(ctx, 'snapshot', None)
+                                if snap:
+                                    snap.workspace = new_workspace
+                                    snap.save(update_fields=['workspace', 'updated_at'])
+
+                            WorkspaceTeamAccess.objects.filter(workspace=workspace, team=team_obj).delete()
+                            link.delete()
+
+                        teams_message = f'Categoría separada como club independiente: {new_workspace.name}.'
                     elif form_action == 'team_unlink':
                         link_id = _parse_int(request.POST.get('workspace_team_id'))
                         link = WorkspaceTeam.objects.filter(id=link_id, workspace=workspace).select_related('team').first() if link_id else None

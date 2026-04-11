@@ -3036,6 +3036,55 @@ class AdminTeamsUniversoAutodetectTests(TestCase):
         self.assertEqual(ctx.provider, WorkspaceCompetitionContext.PROVIDER_UNIVERSO)
         self.assertEqual(ctx.external_group_key, '47051884')
 
+    def test_team_split_workspace_creates_independent_club_and_moves_competition_context(self):
+        pre_team = Team.objects.create(
+            name='BENAGALBON C.D.',
+            slug='benagalbon-pre',
+            group=self.team.group,
+            is_primary=False,
+            category='Prebenjamín',
+            game_format=Team.GAME_FORMAT_F7,
+        )
+        link = WorkspaceTeam.objects.create(workspace=self.workspace, team=pre_team, is_default=False)
+        ctx = WorkspaceCompetitionContext.objects.create(
+            workspace=self.workspace,
+            team=pre_team,
+            group=self.team.group,
+            season=self.team.group.season,
+            provider=WorkspaceCompetitionContext.PROVIDER_UNIVERSO,
+            external_group_key='47051884',
+            external_team_name=pre_team.name,
+            is_auto_sync_enabled=True,
+        )
+        WorkspaceCompetitionSnapshot.objects.create(
+            workspace=self.workspace,
+            context=ctx,
+            standings_payload=[{'position': 1, 'team': 'BENAGALBON', 'played': 1, 'points': 3}],
+            next_match_payload={'round': 'J1', 'status': 'next'},
+        )
+        self.client.force_login(self.admin_user)
+        session = self.client.session
+        session['active_workspace_id'] = self.workspace.id
+        session.save()
+
+        response = self.client.post(
+            reverse('admin-page'),
+            {
+                'form_action': 'team_split_workspace',
+                'active_tab': 'teams',
+                'workspace_team_id': link.id,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        new_ws = Workspace.objects.filter(kind=Workspace.KIND_CLUB, primary_team=pre_team).first()
+        self.assertIsNotNone(new_ws)
+        self.assertFalse(WorkspaceTeam.objects.filter(id=link.id).exists())
+        moved_ctx = WorkspaceCompetitionContext.objects.filter(workspace=new_ws, team=pre_team).first()
+        self.assertIsNotNone(moved_ctx)
+        moved_snap = WorkspaceCompetitionSnapshot.objects.filter(context=moved_ctx, workspace=new_ws).first()
+        self.assertIsNotNone(moved_snap)
+
 
 class UniversoApiFallbackParamTests(TestCase):
     @patch('football.views._universo_api_post')

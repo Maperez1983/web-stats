@@ -491,6 +491,13 @@
                 <input type="hidden" name="workspace_team_id" value="{{ link.id }}" />
                 <button class="pill-button" type="submit">Hacer predeterminada</button>
               </form>
+              <form method="post" class="form-inline" onsubmit="return confirm('Se creará un club independiente para esta categoría y se desvinculará del cliente actual.');">
+                {% csrf_token %}
+                <input type="hidden" name="form_action" value="team_split_workspace" />
+                <input type="hidden" name="active_tab" value="teams" />
+                <input type="hidden" name="workspace_team_id" value="{{ link.id }}" />
+                <button class="pill-button" type="submit">Separar como club</button>
+              </form>
               <form method="post" class="form-inline">
                 {% csrf_token %}
                 <input type="hidden" name="form_action" value="team_unlink" />
