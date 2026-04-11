@@ -39,6 +39,7 @@ urlpatterns = [
     path('api/share/convocation-pdf/create/', views.share_convocation_pdf_create, name='share-convocation-pdf-create'),
     path('api/share/revoke/<str:token>/', views.share_link_revoke, name='share-link-revoke'),
     path('api/system/diagnostics/', views.system_diagnostics, name='system-diagnostics'),
+    path('api/system/healthcheck/', views.system_healthcheck_api, name='system-healthcheck-api'),
     path('api/system/kpi-audit/', views.kpi_audit, name='kpi-audit'),
     path('api/analysis/rival-form/', views.analysis_rival_form_api, name='analysis-rival-form-api'),
     path('api/pdf-assets/upload/', views.pdf_graphic_asset_upload, name='pdf-graphic-asset-upload'),

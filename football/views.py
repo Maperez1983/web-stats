@@ -461,6 +461,38 @@ def system_diagnostics(request):
     )
 
 
+def system_healthcheck_api(request):
+    if not _is_admin_user(request.user):
+        return JsonResponse({'error': 'No autorizado'}, status=403)
+    try:
+        from football.healthchecks import run_system_healthcheck  # lazy import
+    except Exception as exc:
+        return JsonResponse({'ok': False, 'error': f'No se pudo importar healthchecks: {exc}'}, status=500)
+
+    report = run_system_healthcheck()
+    # PDF smoke test (WeasyPrint)
+    pdf_smoke = {'ok': False, 'detail': 'not checked'}
+    if weasyprint:
+        try:
+            html = '<!doctype html><html><meta charset="utf-8"><body><h1>PDF OK</h1><p>Smoke test</p></body></html>'
+            pdf_bytes, error = _render_pdf_bytes_with_error(request, html)
+            if pdf_bytes:
+                pdf_smoke = {'ok': True, 'detail': f'bytes={len(pdf_bytes)}'}
+            else:
+                pdf_smoke = {'ok': False, 'detail': error or 'unknown'}
+        except Exception as exc:  # pragma: no cover
+            pdf_smoke = {'ok': False, 'detail': f'{exc.__class__.__name__}: {exc}'}
+    else:
+        pdf_smoke = {'ok': False, 'detail': 'weasyprint not available'}
+
+    report['pdf_smoke'] = pdf_smoke
+    try:
+        report['weasyprint_version'] = str(getattr(weasyprint, '__version__', '') or '')
+    except Exception:
+        report['weasyprint_version'] = ''
+    return JsonResponse(report)
+
+
 def kpi_audit(request):
     """
     Auditoría rápida (solo admin) de KPIs por jugador.
@@ -1016,7 +1048,11 @@ def _build_pdf_response_or_html_fallback(request, html: str, filename: str, *, i
         response['Content-Disposition'] = f'{disposition}; filename="{filename}.pdf"'
         return response
     except Exception:
+        logger.exception('WeasyPrint: error generando PDF (response)')
         if force_pdf:
+            debug = str(request.GET.get('debug') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+            if debug and _is_admin_user(getattr(request, 'user', None)):
+                return HttpResponse('No se pudo generar el PDF. Revisa /api/system/healthcheck/ para ver el error.', status=503)
             return HttpResponse('No se pudo generar el PDF.', status=503)
         return HttpResponse(html, content_type='text/html; charset=utf-8')
 
@@ -1042,6 +1078,30 @@ def _render_pdf_bytes(request, html: str):
     except Exception:
         logger.exception('WeasyPrint: error generando PDF')
         return None
+
+
+def _render_pdf_bytes_with_error(request, html: str):
+    if not weasyprint:
+        return None, 'weasyprint not available'
+    try:
+        def _safe_url_fetcher(url, timeout=4, ssl_context=None):
+            try:
+                default_fetcher = getattr(weasyprint, 'default_url_fetcher', None)
+                if callable(default_fetcher):
+                    return default_fetcher(url, timeout=timeout, ssl_context=ssl_context)
+            except Exception:
+                pass
+            return {'string': b'', 'mime_type': 'text/plain'}
+
+        pdf_bytes = weasyprint.HTML(
+            string=html,
+            base_url=request.build_absolute_uri('/'),
+            url_fetcher=_safe_url_fetcher,
+        ).write_pdf()
+        return pdf_bytes, ''
+    except Exception as exc:
+        logger.exception('WeasyPrint: error generando PDF (debug)')
+        return None, f'{exc.__class__.__name__}: {exc}'
 
 
 def _build_pdf_nav_urls(request):
@@ -12823,8 +12883,11 @@ def convocation_referee_pdf(request):
             'generated_at': timezone.localtime(),
         },
     )
-    cover_pdf = _render_pdf_bytes(request, cover_html)
+    cover_pdf, cover_err = _render_pdf_bytes_with_error(request, cover_html)
     if not cover_pdf:
+        debug = str(request.GET.get('debug') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+        if debug and _is_admin_user(request.user):
+            return HttpResponse(f'No se pudo generar el PDF. {cover_err}', status=503)
         return HttpResponse('No se pudo generar el PDF.', status=503)
 
     writer = PdfWriter()
@@ -12851,7 +12914,7 @@ def convocation_referee_pdf(request):
                 'license_missing': bool(not license_name),
             },
         )
-        player_page_pdf = _render_pdf_bytes(request, player_page_html)
+        player_page_pdf, _player_err = _render_pdf_bytes_with_error(request, player_page_html)
         if player_page_pdf:
             _append_pdf_bytes(writer, player_page_pdf)
 
