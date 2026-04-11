@@ -175,7 +175,17 @@
 
         <label for="id_password">Contraseña</label>
         <div class="password-wrap">
-          <input id="id_password" type="password" name="password" required autocomplete="current-password" />
+          <input
+            id="id_password"
+            type="password"
+            name="password"
+            required
+            autocomplete="current-password"
+            autocapitalize="none"
+            autocorrect="off"
+            spellcheck="false"
+          />
+          <button type="button" class="icon-btn" data-paste-into="#id_password" aria-label="Pegar contraseña" title="Pegar">📋</button>
           <button type="button" class="icon-btn" data-toggle-password="#id_password" aria-label="Mostrar u ocultar contraseña" title="Mostrar / ocultar">👁</button>
         </div>
         <button class="pill-button" type="submit">Entrar</button>
@@ -197,6 +207,25 @@
           const input = selector ? document.querySelector(selector) : null;
           if (!input) return;
           input.type = input.type === 'password' ? 'text' : 'password';
+        });
+      });
+
+      document.querySelectorAll('[data-paste-into]').forEach((button) => {
+        button.addEventListener('click', async () => {
+          const selector = button.getAttribute('data-paste-into');
+          const input = selector ? document.querySelector(selector) : null;
+          if (!input) return;
+          try {
+            if (navigator.clipboard && navigator.clipboard.readText) {
+              const text = await navigator.clipboard.readText();
+              input.value = text || '';
+              input.focus();
+            } else {
+              alert('Pegar no está disponible en este dispositivo. Mantén pulsado el campo y elige “Pegar”.');
+            }
+          } catch (err) {
+            alert('iOS bloqueó el pegado. Revisa Ajustes > Privacidad y seguridad > Pegar desde otras apps para permitirlo.');
+          }
         });
       });
     </script>
