@@ -1,0 +1,268 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <title>Partido · 2J</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background:
+          radial-gradient(circle at 12% -10%, rgba(70, 211, 255, 0.16), transparent 40%),
+          radial-gradient(circle at 90% 0%, rgba(255, 191, 69, 0.14), transparent 35%),
+          linear-gradient(180deg, #03070f 0%, #081120 55%, #0a1427 100%);
+        color: rgba(245, 247, 250, 0.92);
+        font-family: "Avenir Next", "Segoe UI", sans-serif;
+      }
+      .shell {
+        max-width: 1160px;
+        margin: 0 auto;
+        padding: 1.2rem;
+      }
+      .header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 18px;
+        padding: 0.9rem 1rem;
+        background: rgba(7, 16, 30, 0.82);
+        backdrop-filter: blur(4px);
+      }
+      .header h1 {
+        margin: 0;
+        font-size: 1rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      .header p {
+        margin: 0.35rem 0 0;
+        color: rgba(226, 232, 240, 0.74);
+      }
+      .meta {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin-top: 0.55rem;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        border-radius: 999px;
+        border: 1px solid rgba(244, 180, 0, 0.18);
+        background: rgba(15, 23, 42, 0.55);
+        color: rgba(245, 247, 250, 0.88);
+        padding: 0.35rem 0.7rem;
+        font-size: 0.74rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-weight: 800;
+      }
+      .grid {
+        margin-top: 1rem;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.85rem;
+      }
+      @media (max-width: 860px) {
+        .grid { grid-template-columns: 1fr; }
+      }
+      .card {
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(7, 16, 30, 0.72);
+        box-shadow: 0 20px 44px rgba(0, 0, 0, 0.35);
+        padding: 1rem;
+      }
+      .card h2 {
+        margin: 0;
+        font-size: 0.9rem;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+      .card p {
+        margin: 0.55rem 0 0;
+        color: rgba(226, 232, 240, 0.74);
+      }
+      .status {
+        margin-top: 0.75rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        align-items: center;
+      }
+      .badge {
+        border-radius: 999px;
+        padding: 0.25rem 0.6rem;
+        font-weight: 900;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        font-size: 0.68rem;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: rgba(255, 255, 255, 0.05);
+      }
+      .badge.ok {
+        border-color: rgba(47, 125, 50, 0.48);
+        background: rgba(47, 125, 50, 0.14);
+        color: #d6ffe0;
+      }
+      .badge.warn {
+        border-color: rgba(244, 180, 0, 0.42);
+        background: rgba(244, 180, 0, 0.16);
+        color: #fff3cf;
+      }
+      .actions {
+        margin-top: 0.8rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        border-radius: 999px;
+        padding: 0.55rem 0.85rem;
+        border: 1px solid rgba(244, 180, 0, 0.18);
+        background: rgba(15, 23, 42, 0.62);
+        color: rgba(245, 247, 250, 0.92);
+        font-weight: 900;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+      }
+      .btn.primary {
+        background: linear-gradient(135deg, rgba(244, 180, 0, 0.22), rgba(47, 125, 50, 0.18));
+        border-color: rgba(244, 180, 0, 0.38);
+      }
+      .btn:hover {
+        border-color: rgba(244, 180, 0, 0.5);
+        color: #fff9e8;
+      }
+      .btn[aria-disabled="true"] {
+        opacity: 0.55;
+        pointer-events: none;
+      }
+      .split {
+        margin-top: 0.9rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.12);
+        padding-top: 0.9rem;
+      }
+      .split h3 {
+        margin: 0 0 0.55rem;
+        font-size: 0.75rem;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.72);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      {% include 'football/includes/dragon_nav.html' %}
+
+      <header class="header" style="margin-top: 0.9rem;">
+        <div>
+          <h1>Partido</h1>
+          <p>{{ team_label }}{% if match_label %} · {{ match_label }}{% endif %}</p>
+          <div class="meta">
+            {% if match_date_label %}<span class="pill">{{ match_date_label }}</span>{% endif %}
+            {% if match_location %}<span class="pill">{{ match_location }}</span>{% endif %}
+            {% if match_round %}<span class="pill">{{ match_round }}</span>{% endif %}
+          </div>
+        </div>
+        <div class="actions">
+          <a class="btn" href="{% url 'search-page' %}">Buscar</a>
+          {% if active_match_id %}
+          <a class="btn" href="{% url 'match-stats' active_match_id %}">Ver stats</a>
+          {% endif %}
+        </div>
+      </header>
+
+      <section class="grid" aria-label="Flujo matchday">
+        <article class="card">
+          <h2>1 · Convocar</h2>
+          <p>Elige jugadores, sanciones, portero/capitán y datos del partido.</p>
+          <div class="status">
+            <span class="badge {% if has_convocation %}ok{% else %}warn{% endif %}">
+              {% if has_convocation %}LISTA OK{% else %}PENDIENTE{% endif %}
+            </span>
+            {% if convocation_players_count %}<span class="badge">{{ convocation_players_count }} convocados</span>{% endif %}
+          </div>
+          <div class="actions">
+            <a class="btn primary" href="{% url 'convocation' %}">Abrir convocatoria</a>
+            <a class="btn" href="{% url 'convocation-pdf' %}" {% if not has_convocation %}aria-disabled="true"{% endif %}>PDF lista</a>
+            <a class="btn" href="{% url 'convocation-referee-pdf' %}" {% if not has_convocation %}aria-disabled="true"{% endif %}>PDF árbitro</a>
+          </div>
+        </article>
+
+        <article class="card">
+          <h2>2 · 11 inicial</h2>
+          <p>Define titulares, banquillo y ajustes tácticos previos.</p>
+          <div class="status">
+            <span class="badge {% if has_lineup %}ok{% else %}warn{% endif %}">
+              {% if has_lineup %}LISTO{% else %}PENDIENTE{% endif %}
+            </span>
+          </div>
+          <div class="actions">
+            <a class="btn primary" href="{% url 'initial-eleven' %}">Abrir 11 inicial</a>
+            <a class="btn" href="{% url 'match-action-page' %}">Ir a acciones</a>
+          </div>
+        </article>
+
+        <article class="card">
+          <h2>3 · Acciones</h2>
+          <p>Registra goles, pases, duelos, zonas y sustituciones en vivo.</p>
+          <div class="status">
+            <span class="badge {% if actions_count %}ok{% else %}warn{% endif %}">
+              {% if actions_count %}{{ actions_count }} acciones{% else %}Sin acciones{% endif %}
+            </span>
+          </div>
+          <div class="actions">
+            <a class="btn primary" href="{% url 'match-action-page' %}{% if active_match_id %}?match_id={{ active_match_id }}{% endif %}">Abrir registro</a>
+            <a class="btn" href="{% url 'match-action-page' %}?live=1">Modo vivo</a>
+          </div>
+        </article>
+
+        <article class="card">
+          <h2>4 · Cerrar &amp; PDFs</h2>
+          <p>Genera acta, imprime la ficha y archiva el partido.</p>
+          <div class="status">
+            <span class="badge {% if can_render_pdfs %}ok{% else %}warn{% endif %}">
+              {% if can_render_pdfs %}PDF OK{% else %}PDF con incidencia{% endif %}
+            </span>
+            {% if pdf_smoke_detail %}<span class="badge">{{ pdf_smoke_detail }}</span>{% endif %}
+          </div>
+          <div class="actions">
+            <a class="btn primary" href="{% url 'match-report-pdf' %}" {% if not active_match_id %}aria-disabled="true"{% endif %}>Acta partido</a>
+            {% if is_admin_user %}
+            <a class="btn" href="{% url 'system-healthcheck-api' %}" target="_blank" rel="noreferrer">Healthcheck</a>
+            {% endif %}
+          </div>
+          {% if is_admin_user %}
+          <div class="split">
+            <h3>Operativa admin</h3>
+            <p style="margin:0; color: rgba(226,232,240,0.72);">
+              Si este equipo aparece como “categoría” dentro de otro club, sepáralo en un club independiente desde Admin → Equipos.
+            </p>
+            <div class="actions" style="margin-top:0.7rem;">
+              <a class="btn" href="{% url 'admin-page' %}?tab=teams">Admin · Equipos</a>
+              {% if is_admin_user %}<a class="btn" href="{% url 'platform-overview' %}">Platform</a>{% endif %}
+            </div>
+          </div>
+          {% endif %}
+        </article>
+      </section>
+    </div>
+  </body>
+</html>
+

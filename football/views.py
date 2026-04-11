@@ -26657,3 +26657,193 @@ def compute_player_dashboard(primary_team, force_refresh=False):
     )
     cache.set(cache_key, result, PLAYER_DASHBOARD_CACHE_SECONDS)
     return result
+
+
+@login_required
+def match_hub_page(request):
+    """
+    Hub de matchday: Convocatoria → 11 inicial → Registro acciones → PDFs.
+
+    Objetivo: reducir fricción de navegación sin tocar rutas existentes.
+    """
+    forbidden = _forbid_if_workspace_module_disabled(request, 'convocation', label='partido')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        raise Http404('Equipo no configurado')
+
+    active_match = get_latest_live_match(primary_team) or get_active_match(primary_team)
+    convocation_record = get_current_convocation_record(
+        primary_team,
+        match=active_match,
+        fallback_to_latest=True,
+    ) if active_match else get_current_convocation_record(primary_team)
+    convocation_players_count = 0
+    has_lineup = False
+    if convocation_record:
+        try:
+            convocation_players_count = int(convocation_record.players.count() or 0)
+        except Exception:
+            convocation_players_count = 0
+        stored = convocation_record.lineup_data if isinstance(convocation_record.lineup_data, dict) else {}
+        starters = stored.get('starters') if isinstance(stored, dict) else []
+        has_lineup = bool(starters)
+
+    actions_count = 0
+    if active_match:
+        try:
+            actions_count = (
+                MatchEvent.objects
+                .filter(match=active_match, player__team=primary_team, source_file='registro-acciones')
+                .count()
+            )
+        except Exception:
+            actions_count = 0
+
+    team_label = str(getattr(primary_team, 'display_name', '') or getattr(primary_team, 'name', '') or '').strip() or 'Equipo'
+    match_label = ''
+    match_round = ''
+    match_date_label = ''
+    match_location = ''
+    active_match_id = None
+    if active_match:
+        active_match_id = int(active_match.id)
+        opponent = active_match.away_team if active_match.home_team_id == primary_team.id else active_match.home_team
+        opponent_name = str(getattr(opponent, 'display_name', '') or getattr(opponent, 'name', '') or '').strip()
+        match_label = f'vs {opponent_name}'.strip()
+        match_round = str(active_match.round or '').strip()
+        if active_match.date:
+            match_date_label = active_match.date.strftime('%d/%m/%Y')
+        match_location = str(active_match.location or '').strip()
+        # Prioridad: si hay convocatoria, usa esos datos (más fiables para el usuario).
+        if convocation_record:
+            if convocation_record.opponent_name:
+                match_label = f'vs {convocation_record.opponent_name}'.strip()
+            if convocation_record.round:
+                match_round = convocation_record.round
+            if convocation_record.match_date:
+                match_date_label = convocation_record.match_date.strftime('%d/%m/%Y')
+            if convocation_record.location:
+                match_location = convocation_record.location
+
+    can_render_pdfs = bool(weasyprint)
+    pdf_smoke_detail = ''
+    return render(
+        request,
+        'football/match_hub.html',
+        {
+            'team_label': team_label,
+            'match_label': match_label,
+            'match_round': match_round,
+            'match_date_label': match_date_label,
+            'match_location': match_location,
+            'active_match_id': active_match_id,
+            'has_convocation': bool(convocation_record and convocation_players_count > 0),
+            'convocation_players_count': convocation_players_count,
+            'has_lineup': bool(has_lineup),
+            'actions_count': int(actions_count or 0),
+            'can_render_pdfs': can_render_pdfs,
+            'pdf_smoke_detail': pdf_smoke_detail,
+        },
+    )
+
+
+@login_required
+def search_page(request):
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        raise Http404('Equipo no configurado')
+    team_label = str(getattr(primary_team, 'display_name', '') or getattr(primary_team, 'name', '') or '').strip() or 'Equipo'
+    return render(
+        request,
+        'football/search.html',
+        {
+            'team_label': team_label,
+        },
+    )
+
+
+@login_required
+def search_api(request):
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'Equipo no configurado'}, status=400)
+    q = str(request.GET.get('q') or '').strip()
+    if len(q) < 2:
+        return JsonResponse({'ok': True, 'q': q, 'groups': []})
+
+    player_items = []
+    try:
+        players = (
+            Player.objects
+            .filter(team=primary_team)
+            .filter(Q(name__icontains=q) | Q(full_name__icontains=q) | Q(nickname__icontains=q))
+            .order_by('-is_active', 'number', 'name')[:12]
+        )
+        for player in players:
+            meta_parts = []
+            if player.number:
+                meta_parts.append(f'Dorsal {player.number}')
+            if player.position:
+                meta_parts.append(str(player.position))
+            player_items.append(
+                {
+                    'type': 'player',
+                    'id': str(player.id),
+                    'label': str(player.name or '').strip() or f'Jugador {player.id}',
+                    'meta': ' · '.join(meta_parts),
+                    'url': reverse('player-detail', args=[player.id]),
+                }
+            )
+    except Exception:
+        player_items = []
+
+    match_items = []
+    try:
+        qs = _team_match_queryset(primary_team).filter(
+            Q(round__icontains=q)
+            | Q(location__icontains=q)
+            | Q(home_team__name__icontains=q)
+            | Q(away_team__name__icontains=q)
+        ).select_related('home_team', 'away_team').order_by('-date', '-id')[:16]
+        for match in qs:
+            opponent = match.away_team if match.home_team_id == primary_team.id else match.home_team
+            opponent_name = str(getattr(opponent, 'display_name', '') or getattr(opponent, 'name', '') or '').strip()
+            date_label = match.date.strftime('%d/%m/%Y') if match.date else ''
+            round_label = str(match.round or '').strip()
+            meta = ' · '.join([part for part in [date_label, round_label] if part])
+            match_items.append(
+                {
+                    'type': 'match',
+                    'id': str(match.id),
+                    'label': f'vs {opponent_name}'.strip(),
+                    'meta': meta,
+                    'url': reverse('match-stats', args=[match.id]),
+                }
+            )
+    except Exception:
+        match_items = []
+
+    page_items = [
+        {'type': 'page', 'id': 'match-hub', 'label': 'Partido', 'meta': 'Convocatoria · 11 · acciones · PDFs', 'url': reverse('match-hub')},
+        {'type': 'page', 'id': 'players', 'label': 'Jugadores', 'meta': 'Fichas y KPIs', 'url': reverse('coach-roster') if (_can_manage_workspace(request.user, _get_active_workspace(request)) or _is_admin_user(request.user)) else reverse('player-dashboard')},
+        {'type': 'page', 'id': 'sessions', 'label': 'Entrenos', 'meta': 'Sesiones y tareas', 'url': reverse('sessions')},
+        {'type': 'page', 'id': 'actions', 'label': 'Registro de acciones', 'meta': 'Banquillo · en vivo', 'url': reverse('match-action-page')},
+        {'type': 'page', 'id': 'settings', 'label': 'Ajustes', 'meta': 'Competición y módulos', 'url': reverse('club-onboarding')},
+    ]
+
+    groups = []
+    if player_items:
+        groups.append({'key': 'players', 'label': 'Jugadores', 'items': player_items})
+    if match_items:
+        groups.append({'key': 'matches', 'label': 'Partidos', 'items': match_items})
+    groups.append({'key': 'pages', 'label': 'Atajos', 'items': page_items})
+
+    return JsonResponse(
+        {
+            'ok': True,
+            'q': q,
+            'groups': groups,
+        }
+    )

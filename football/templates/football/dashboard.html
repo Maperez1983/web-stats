@@ -612,13 +612,13 @@
             <h4>Acciones rápidas</h4>
             <div class="quick-actions-grid">
               {% if workspace_module_access.convocation|default:True %}
-              <a class="quick-action is-primary" href="{% url 'convocation' %}">
-                <strong>Convocatoria</strong>
-                <span>Prepara partido y lista</span>
+              <a class="quick-action is-primary" href="{% url 'match-hub' %}">
+                <strong>Partido</strong>
+                <span>Convoca · 11 · acciones · PDFs</span>
               </a>
               {% else %}
               <a class="quick-action is-primary is-disabled" href="#">
-                <strong>Convocatoria</strong>
+                <strong>Partido</strong>
                 <span>Módulo desactivado</span>
               </a>
               {% endif %}

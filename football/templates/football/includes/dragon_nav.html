@@ -18,8 +18,9 @@
   <a href="{% if club_dashboard_url %}{{ club_dashboard_url }}{% else %}{% url 'dashboard-home' %}{% endif %}">Portada</a>
   {% endif %}
   {% if workspace_module_access.convocation|default:True %}
-  <a href="{% url 'convocation' %}">Partido</a>
+  <a href="{% url 'match-hub' %}">Partido</a>
   {% endif %}
+  <a href="{% url 'search-page' %}">Buscar</a>
   {% if workspace_module_access.players|default:True %}
   {% if can_manage_workspace or is_admin_user %}
   <a href="{% url 'coach-roster' %}">Jugadores</a>
@@ -49,6 +50,20 @@
   <a href="{% url 'platform-overview' %}">Platform</a>
   {% endif %}
 </nav>
+{% endif %}
+{% if active_team_options and active_team_options|length > 1 %}
+<form class="team-switcher" method="post" action="{% url 'workspace-active-team' %}">
+  {% csrf_token %}
+  <span class="team-switcher-label">Equipo</span>
+  <select name="team_id" aria-label="Cambiar equipo" onchange="this.form.submit()">
+    {% for opt in active_team_options %}
+    <option value="{{ opt.id }}" {% if active_team and opt.id == active_team.id %}selected{% endif %}>
+      {{ opt.label }}
+    </option>
+    {% endfor %}
+  </select>
+  <input type="hidden" name="next" value="{{ active_team_current_path|default:'' }}" />
+</form>
 {% endif %}
 <style>
 .dragon-nav {

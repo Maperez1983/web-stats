@@ -1,0 +1,361 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <title>Buscar · 2J</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background:
+          radial-gradient(circle at 8% -12%, rgba(244, 180, 0, 0.12), transparent 38%),
+          radial-gradient(circle at 95% 0%, rgba(70, 211, 255, 0.14), transparent 38%),
+          linear-gradient(180deg, #03070f 0%, #081120 55%, #0a1427 100%);
+        color: rgba(245, 247, 250, 0.92);
+        font-family: "Avenir Next", "Segoe UI", sans-serif;
+      }
+      .shell {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 1.2rem;
+      }
+      .panel {
+        margin-top: 0.9rem;
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(7, 16, 30, 0.78);
+        box-shadow: 0 20px 44px rgba(0, 0, 0, 0.35);
+        padding: 1rem;
+      }
+      h1 {
+        margin: 0;
+        font-size: 1rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      p {
+        margin: 0.45rem 0 0;
+        color: rgba(226, 232, 240, 0.74);
+      }
+      .searchbar {
+        margin-top: 0.9rem;
+        display: flex;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .searchbar input {
+        flex: 1;
+        min-width: 240px;
+        border-radius: 999px;
+        padding: 0.65rem 0.95rem;
+        border: 1px solid rgba(244, 180, 0, 0.18);
+        background: rgba(15, 23, 42, 0.55);
+        color: #f8fafc;
+        font-weight: 700;
+        font-size: 0.95rem;
+      }
+      .searchbar input:focus {
+        outline: 2px solid rgba(244, 180, 0, 0.4);
+        outline-offset: 2px;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        border-radius: 999px;
+        padding: 0.55rem 0.85rem;
+        border: 1px solid rgba(244, 180, 0, 0.18);
+        background: rgba(15, 23, 42, 0.62);
+        color: rgba(245, 247, 250, 0.92);
+        font-weight: 900;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+        cursor: pointer;
+      }
+      .btn:hover {
+        border-color: rgba(244, 180, 0, 0.5);
+        color: #fff9e8;
+      }
+      .cols {
+        margin-top: 0.9rem;
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+        gap: 0.85rem;
+      }
+      @media (max-width: 860px) {
+        .cols { grid-template-columns: 1fr; }
+      }
+      .block {
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(15, 23, 42, 0.30);
+        padding: 0.85rem;
+      }
+      .block h2 {
+        margin: 0;
+        font-size: 0.8rem;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.8);
+      }
+      .items {
+        margin-top: 0.55rem;
+        display: grid;
+        gap: 0.45rem;
+      }
+      .item {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.04);
+        padding: 0.55rem 0.65rem;
+      }
+      .item a {
+        text-decoration: none;
+        color: rgba(245, 247, 250, 0.92);
+        font-weight: 800;
+        flex: 1;
+        min-width: 0;
+      }
+      .item small {
+        display: block;
+        color: rgba(226, 232, 240, 0.68);
+        font-weight: 700;
+        margin-top: 0.15rem;
+      }
+      .star {
+        border: 1px solid rgba(244, 180, 0, 0.18);
+        background: rgba(15, 23, 42, 0.6);
+        color: rgba(245, 247, 250, 0.88);
+        border-radius: 999px;
+        padding: 0.25rem 0.5rem;
+        font-weight: 900;
+        cursor: pointer;
+        user-select: none;
+      }
+      .star.is-on {
+        border-color: rgba(244, 180, 0, 0.45);
+        background: rgba(244, 180, 0, 0.16);
+        color: #fff2c6;
+      }
+      .empty {
+        margin-top: 0.55rem;
+        color: rgba(226, 232, 240, 0.68);
+      }
+      .hint {
+        margin-top: 0.7rem;
+        border-radius: 14px;
+        border: 1px dashed rgba(244, 180, 0, 0.24);
+        padding: 0.7rem 0.8rem;
+        background: rgba(244, 180, 0, 0.08);
+        color: rgba(255, 242, 199, 0.92);
+        font-weight: 800;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      {% include 'football/includes/dragon_nav.html' %}
+
+      <section class="panel">
+        <h1>Buscar</h1>
+        <p>{{ team_label }}</p>
+
+        <div class="searchbar">
+          <input id="q" type="search" autocomplete="off" placeholder="Jugador, rival, jornada, ubicación..." />
+          <button class="btn" id="btnSearch" type="button">Buscar</button>
+          <a class="btn" href="{% url 'match-hub' %}">Partido</a>
+        </div>
+
+        <div class="cols">
+          <div class="block">
+            <h2>Resultados</h2>
+            <div id="results" class="items"></div>
+            <div id="resultsEmpty" class="empty" hidden>Escribe para buscar…</div>
+            <div class="hint">
+              Tip: guarda favoritos ⭐ para acceder en 1 click (solo en este dispositivo).
+            </div>
+          </div>
+          <div class="block">
+            <h2>Recientes</h2>
+            <div id="recents" class="items"></div>
+            <div class="empty" id="recentsEmpty" hidden>Sin recientes todavía.</div>
+            <div style="margin-top:0.75rem;">
+              <h2>Favoritos</h2>
+              <div id="favs" class="items"></div>
+              <div class="empty" id="favsEmpty" hidden>Sin favoritos todavía.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      const apiUrl = "{% url 'search-api' %}";
+      const RECENTS_KEY = "sj_recent_items_v1";
+      const FAVS_KEY = "sj_favorite_items_v1";
+      const MAX_RECENTS = 16;
+      const MAX_FAVS = 24;
+
+      const qInput = document.getElementById("q");
+      const btnSearch = document.getElementById("btnSearch");
+      const resultsEl = document.getElementById("results");
+      const resultsEmptyEl = document.getElementById("resultsEmpty");
+      const recentsEl = document.getElementById("recents");
+      const recentsEmptyEl = document.getElementById("recentsEmpty");
+      const favsEl = document.getElementById("favs");
+      const favsEmptyEl = document.getElementById("favsEmpty");
+
+      const readList = (key) => {
+        try {
+          const raw = window.localStorage.getItem(key);
+          const parsed = raw ? JSON.parse(raw) : [];
+          return Array.isArray(parsed) ? parsed : [];
+        } catch (e) {
+          return [];
+        }
+      };
+      const writeList = (key, list) => {
+        try { window.localStorage.setItem(key, JSON.stringify(list || [])); } catch (e) {}
+      };
+
+      const normalizeItem = (item) => {
+        if (!item || typeof item !== "object") return null;
+        const id = String(item.id || "").trim();
+        const type = String(item.type || "").trim();
+        const label = String(item.label || "").trim();
+        const url = String(item.url || "").trim();
+        const meta = String(item.meta || "").trim();
+        if (!type || !label || !url) return null;
+        return { id, type, label, url, meta };
+      };
+
+      const makeKey = (item) => `${item.type}:${item.id || item.url}`;
+
+      const isFav = (item) => {
+        const key = makeKey(item);
+        return readList(FAVS_KEY).some((it) => makeKey(it) === key);
+      };
+
+      const toggleFav = (item) => {
+        const list = readList(FAVS_KEY).map(normalizeItem).filter(Boolean);
+        const key = makeKey(item);
+        const exists = list.some((it) => makeKey(it) === key);
+        const next = exists ? list.filter((it) => makeKey(it) !== key) : [item, ...list];
+        writeList(FAVS_KEY, next.slice(0, MAX_FAVS));
+        renderSidebars();
+      };
+
+      const pushRecent = (item) => {
+        const list = readList(RECENTS_KEY).map(normalizeItem).filter(Boolean);
+        const key = makeKey(item);
+        const next = [item, ...list.filter((it) => makeKey(it) !== key)];
+        writeList(RECENTS_KEY, next.slice(0, MAX_RECENTS));
+        renderSidebars();
+      };
+
+      const renderList = (container, emptyEl, list, { allowStar = true } = {}) => {
+        container.innerHTML = "";
+        const normalized = (list || []).map(normalizeItem).filter(Boolean);
+        emptyEl.hidden = normalized.length > 0;
+        for (const item of normalized) {
+          const row = document.createElement("div");
+          row.className = "item";
+
+          const link = document.createElement("a");
+          link.href = item.url;
+          link.innerHTML = `<div>${escapeHtml(item.label)}</div>${item.meta ? `<small>${escapeHtml(item.meta)}</small>` : ""}`;
+          link.addEventListener("click", () => pushRecent(item), { passive: true });
+
+          row.appendChild(link);
+
+          if (allowStar) {
+            const star = document.createElement("button");
+            star.type = "button";
+            star.className = "star" + (isFav(item) ? " is-on" : "");
+            star.textContent = isFav(item) ? "★" : "☆";
+            star.title = "Favorito";
+            star.addEventListener("click", (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              toggleFav(item);
+            });
+            row.appendChild(star);
+          }
+
+          container.appendChild(row);
+        }
+      };
+
+      const escapeHtml = (value) => {
+        const s = String(value || "");
+        return s.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
+      };
+
+      const renderSidebars = () => {
+        renderList(recentsEl, recentsEmptyEl, readList(RECENTS_KEY), { allowStar: true });
+        renderList(favsEl, favsEmptyEl, readList(FAVS_KEY), { allowStar: true });
+      };
+
+      const renderResults = (payload) => {
+        const items = [];
+        for (const group of (payload?.groups || [])) {
+          for (const item of (group.items || [])) items.push(item);
+        }
+        resultsEmptyEl.hidden = items.length > 0;
+        renderList(resultsEl, resultsEmptyEl, items, { allowStar: true });
+      };
+
+      let activeController = null;
+      const doSearch = async () => {
+        const q = String(qInput.value || "").trim();
+        if (q.length < 2) {
+          resultsEl.innerHTML = "";
+          resultsEmptyEl.hidden = false;
+          return;
+        }
+        if (activeController) activeController.abort();
+        activeController = new AbortController();
+        try {
+          const resp = await fetch(`${apiUrl}?q=${encodeURIComponent(q)}`, {
+            credentials: "same-origin",
+            cache: "no-store",
+            signal: activeController.signal,
+            headers: { "Accept": "application/json" },
+          });
+          const data = await resp.json();
+          renderResults(data);
+        } catch (e) {
+          if (String(e?.name || "") === "AbortError") return;
+          resultsEl.innerHTML = "";
+          resultsEmptyEl.hidden = false;
+        }
+      };
+
+      btnSearch.addEventListener("click", doSearch);
+      qInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") { e.preventDefault(); doSearch(); }
+      });
+      let debounceTimer = null;
+      qInput.addEventListener("input", () => {
+        window.clearTimeout(debounceTimer);
+        debounceTimer = window.setTimeout(doSearch, 220);
+      });
+
+      renderSidebars();
+      resultsEmptyEl.hidden = false;
+      window.setTimeout(() => qInput.focus(), 80);
+    </script>
+  </body>
+</html>
+
