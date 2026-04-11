@@ -14,7 +14,6 @@ from football.models import (
     ConvocationRecord,
     Match,
     MatchEvent,
-    MatchReport,
     Player,
     PlayerInjuryRecord,
     PlayerStatistic,
@@ -78,12 +77,36 @@ def _team_match_queryset(primary_team):
     if not team_signature:
         return Match.objects.filter(direct_filter).select_related('home_team', 'away_team')
 
-    alias_cache_key = f'football:team_alias_ids:{int(primary_team.id)}'
+    # v2: evita reutilizar caches antiguos que mezclaban equipos por reports globales
+    # o por alias demasiado agresivos.
+    alias_cache_key = f'football:v2:team_alias_ids:{int(primary_team.id)}'
     alias_ids = cache.get(alias_cache_key)
     if alias_ids is None:
         alias_ids = []
         primary_lookup = _normalize_team_lookup_key(primary_team.name)
-        for candidate in Team.objects.exclude(id=primary_team.id).only('id', 'name'):
+        primary_category = (getattr(primary_team, 'category', '') or '').strip()
+        primary_game_format = getattr(primary_team, 'game_format', '') or ''
+        primary_group_id = getattr(primary_team, 'group_id', None)
+        for candidate in Team.objects.exclude(id=primary_team.id).only(
+            'id',
+            'name',
+            'category',
+            'game_format',
+            'group_id',
+        ):
+            candidate_category = (getattr(candidate, 'category', '') or '').strip()
+            if (primary_category or candidate_category) and candidate_category != primary_category:
+                # No mezclar categorías distintas (p.ej. Senior vs Prebenjamín) aunque el
+                # nombre del club sea el mismo.
+                continue
+            candidate_game_format = getattr(candidate, 'game_format', '') or ''
+            if primary_game_format and candidate_game_format and candidate_game_format != primary_game_format:
+                # No mezclar equipos de distinto formato (F7 vs F11).
+                continue
+            candidate_group_id = getattr(candidate, 'group_id', None)
+            if primary_group_id and candidate_group_id and candidate_group_id != primary_group_id:
+                # Defensa extra: si ambos tienen grupo, no mezclar competiciones distintas.
+                continue
             candidate_signature = _team_name_signature(candidate.name)
             candidate_lookup = _normalize_team_lookup_key(candidate.name)
             same_signature = candidate_signature == team_signature
@@ -93,7 +116,6 @@ def _team_match_queryset(primary_team):
                 and (
                     primary_lookup in candidate_lookup
                     or candidate_lookup in primary_lookup
-                    or ('benagalbon' in primary_lookup and 'benagalbon' in candidate_lookup)
                 )
             )
             if same_signature or fuzzy_same_team:
@@ -102,13 +124,12 @@ def _team_match_queryset(primary_team):
     if alias_ids:
         direct_filter = direct_filter | Q(home_team_id__in=alias_ids) | Q(away_team_id__in=alias_ids)
 
-    extra_match_cache_key = f'football:team_extra_match_ids:{int(primary_team.id)}'
+    extra_match_cache_key = f'football:v2:team_extra_match_ids:{int(primary_team.id)}'
     cached_extra_ids = cache.get(extra_match_cache_key)
     if isinstance(cached_extra_ids, dict):
         event_match_ids = cached_extra_ids.get('events') or []
         convocation_match_ids = cached_extra_ids.get('convocations') or []
         player_stat_match_ids = cached_extra_ids.get('player_stats') or []
-        report_match_ids = cached_extra_ids.get('reports') or []
     else:
         event_match_ids = list(
             MatchEvent.objects
@@ -128,19 +149,12 @@ def _team_match_queryset(primary_team):
             .values_list('match_id', flat=True)
             .distinct()
         )
-        report_match_ids = list(
-            MatchReport.objects
-            .filter(match_id__isnull=False)
-            .values_list('match_id', flat=True)
-            .distinct()
-        )
         cache.set(
             extra_match_cache_key,
             {
                 'events': event_match_ids,
                 'convocations': convocation_match_ids,
                 'player_stats': player_stat_match_ids,
-                'reports': report_match_ids,
             },
             60 * 5,
         )
@@ -150,8 +164,6 @@ def _team_match_queryset(primary_team):
         direct_filter = direct_filter | Q(id__in=convocation_match_ids)
     if player_stat_match_ids:
         direct_filter = direct_filter | Q(id__in=player_stat_match_ids)
-    if report_match_ids:
-        direct_filter = direct_filter | Q(id__in=report_match_ids)
 
     return Match.objects.filter(direct_filter).select_related('home_team', 'away_team').distinct()
 

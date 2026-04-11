@@ -14,7 +14,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from football.models import AnalystVideoFolder, Competition, ConvocationRecord, Group, Match, MatchEvent, Player, PlayerCommunication, PlayerFine, PlayerStatistic, RivalAnalysisReport, RivalVideo, Season, SessionTask, TaskStudioProfile, TaskStudioRosterPlayer, TaskStudioTask, Team, TeamStanding, TrainingMicrocycle, TrainingSession, UserInvitation, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot, WorkspaceMembership, WorkspaceTeam
+from football.models import AnalystVideoFolder, Competition, ConvocationRecord, Group, Match, MatchEvent, MatchReport, Player, PlayerCommunication, PlayerFine, PlayerStatistic, RivalAnalysisReport, RivalVideo, Season, SessionTask, TaskStudioProfile, TaskStudioRosterPlayer, TaskStudioTask, Team, TeamStanding, TrainingMicrocycle, TrainingSession, UserInvitation, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot, WorkspaceMembership, WorkspaceTeam
 from football import views as football_views
 from football.bootstrap import ensure_bootstrap_admin_from_env
 from football.event_taxonomy import (
@@ -31,7 +31,7 @@ from football.event_taxonomy import (
 )
 from football.healthchecks import run_system_healthcheck
 from football.manual_stats import get_manual_player_base_overrides, save_manual_player_base_overrides, season_display_name
-from football.query_helpers import get_active_injury_player_ids, get_current_convocation_record, is_injury_record_active, is_manual_sanction_active
+from football.query_helpers import _team_match_queryset, get_active_injury_player_ids, get_current_convocation_record, is_injury_record_active, is_manual_sanction_active
 from football.models import AppUserRole
 from football.services import find_roster_entry
 from football.staff_briefing import build_weekly_staff_brief
@@ -173,6 +173,61 @@ class CommercialIsolationTests(TestCase):
         self.assertTrue(payload.get('setup_required'))
         self.assertIn('/onboarding/', payload.get('setup_url', ''))
         self.assertNotEqual(payload.get('team', {}).get('name'), 'GLOBAL')
+
+
+class TeamMatchQuerysetIsolationTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.competition = Competition.objects.create(name='Test Comp', slug='test-comp', region='Test')
+        self.season = Season.objects.create(competition=self.competition, name='2025/2026', is_current=True)
+        self.group = Group.objects.create(season=self.season, name='Grupo', slug='grupo')
+
+        self.team_pre = Team.objects.create(
+            name='Benagalbón',
+            slug='benagalbon-pre',
+            short_name='Benagalbón',
+            category='prebenjamin',
+            game_format=Team.GAME_FORMAT_F7,
+        )
+        self.team_senior = Team.objects.create(
+            name='Benagalbón',
+            slug='benagalbon-senior',
+            short_name='Benagalbón',
+            category='senior',
+            game_format=Team.GAME_FORMAT_F11,
+        )
+        self.rival_a = Team.objects.create(name='Rival A', slug='rival-a', short_name='Rival A')
+        self.rival_b = Team.objects.create(name='Rival B', slug='rival-b', short_name='Rival B')
+        self.other_team = Team.objects.create(name='Otro', slug='otro', short_name='Otro')
+
+        self.match_pre = Match.objects.create(
+            season=self.season,
+            group=self.group,
+            round='1',
+            home_team=self.team_pre,
+            away_team=self.rival_a,
+        )
+        self.match_senior = Match.objects.create(
+            season=self.season,
+            group=self.group,
+            round='2',
+            home_team=self.team_senior,
+            away_team=self.rival_b,
+        )
+        self.match_other = Match.objects.create(
+            season=self.season,
+            group=self.group,
+            round='3',
+            home_team=self.other_team,
+            away_team=self.rival_b,
+        )
+        MatchReport.objects.create(match=self.match_other, source_file='report.pdf')
+
+    def test_team_match_queryset_does_not_mix_categories_or_reports(self):
+        match_ids = {m.id for m in _team_match_queryset(self.team_pre)}
+        self.assertIn(self.match_pre.id, match_ids)
+        self.assertNotIn(self.match_senior.id, match_ids)
+        self.assertNotIn(self.match_other.id, match_ids)
 
 
 class WorkspaceOwnerPermissionTests(TestCase):
