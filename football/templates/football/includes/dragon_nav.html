@@ -38,30 +38,6 @@
   {% endif %}
 </nav>
 {% endif %}
-{% if active_team_options and active_team_options|length > 1 %}
-<form class="team-switcher" method="post" action="{% url 'workspace-active-team' %}">
-  {% csrf_token %}
-  <input type="hidden" name="next" value="{{ active_team_current_path|default:'' }}" />
-  <span class="team-switcher-label">Categoría</span>
-  <select name="team_id" onchange="this.form.submit()" aria-label="Cambiar categoría">
-    {% for opt in active_team_options %}
-      <option value="{{ opt.id }}" {% if active_team and active_team.id == opt.id %}selected{% endif %}>{{ opt.label }}</option>
-    {% endfor %}
-  </select>
-</form>
-{% endif %}
-{% if active_workspace_options and active_workspace_options|length > 1 %}
-<form class="team-switcher" method="post" action="{% url 'workspace-active' %}">
-  {% csrf_token %}
-  <input type="hidden" name="next" value="{{ active_team_current_path|default:'' }}" />
-  <span class="team-switcher-label">Club</span>
-  <select name="workspace_id" onchange="this.form.submit()" aria-label="Cambiar club">
-    {% for opt in active_workspace_options %}
-      <option value="{{ opt.id }}" {% if active_workspace and active_workspace.id == opt.id %}selected{% endif %}>{{ opt.label }}</option>
-    {% endfor %}
-  </select>
-</form>
-{% endif %}
 <style>
 .dragon-nav {
   width: 94px;
