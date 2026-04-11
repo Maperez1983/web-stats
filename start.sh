@@ -7,6 +7,8 @@ set -euo pipefail
 : "${MIGRATE_RETRIES:=15}"
 : "${MIGRATE_RETRY_SLEEP_SECONDS:=2}"
 
+mkdir -p media || true
+
 if [ "${RUN_MIGRATIONS}" = "true" ]; then
   attempt=1
   while true; do
@@ -28,4 +30,3 @@ if [ "${RUN_COLLECTSTATIC}" = "true" ]; then
 fi
 
 exec gunicorn webstats.wsgi:application --bind "0.0.0.0:${PORT}"
-

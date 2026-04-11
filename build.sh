@@ -55,3 +55,6 @@ fi
 
 python manage.py migrate --noinput
 python manage.py collectstatic --noinput
+
+# Render no crea MEDIA_ROOT por defecto; algunas rutas (fotos/licencias) y healthchecks esperan que exista.
+mkdir -p media || true

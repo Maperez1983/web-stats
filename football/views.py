@@ -490,6 +490,12 @@ def system_healthcheck_api(request):
         report['weasyprint_version'] = str(getattr(weasyprint, '__version__', '') or '')
     except Exception:
         report['weasyprint_version'] = ''
+    try:
+        import pydyf  # noqa: WPS433
+
+        report['pydyf_version'] = str(getattr(pydyf, '__version__', '') or '')
+    except Exception:
+        report['pydyf_version'] = ''
     return JsonResponse(report)
 
 
