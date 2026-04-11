@@ -2784,7 +2784,8 @@ def _sync_workspace_competition_context(workspace, primary_team=None):
     convocation_next = _build_next_match_from_convocation(primary_team)
     provider_next = _find_universo_next_match_for_context(context, primary_team)
     preferred_next = load_preferred_next_match_payload(primary_team=primary_team, competition_context=context)
-    local_next = get_next_match(primary_team, primary_team.group)
+    # No hacer scraping/red desde este flujo: puede ejecutarse durante navegación y provocar timeouts.
+    local_next = get_next_match(primary_team, primary_team.group, allow_external_fetch=False)
     if not _next_match_payload_is_reliable(local_next):
         local_next = {}
     next_match_payload = (
@@ -2821,7 +2822,7 @@ def _sync_workspace_competition_context(workspace, primary_team=None):
     return context, ''
 
 
-def _competition_payload_for_team(workspace, primary_team):
+def _competition_payload_for_team(workspace, primary_team, *, allow_auto_sync: bool = False):
     context = None
     snapshot = None
     if workspace and workspace.kind == Workspace.KIND_CLUB:
@@ -2835,7 +2836,9 @@ def _competition_payload_for_team(workspace, primary_team):
                     .select_related('context')
                     .first()
                 )
-                if context.is_auto_sync_enabled and not snapshot:
+                # Importante: evitar sincronizaciones externas (Universo/Preferente) dentro de una petición de UI.
+                # Si se quiere sincronizar, usar el endpoint de refresh (admin) o habilitarlo explícitamente.
+                if allow_auto_sync and context.is_auto_sync_enabled and not snapshot:
                     _sync_workspace_competition_context(workspace, primary_team=primary_team)
                     snapshot = (
                         WorkspaceCompetitionSnapshot.objects
@@ -2848,6 +2851,8 @@ def _competition_payload_for_team(workspace, primary_team):
     # Auto-reparación: si el contexto es Universo y hay snapshot viejo/incompleto (o falta external_team_key),
     # forzamos un refresh con throttle para que el "próximo rival" no se quede vacío.
     if (
+        allow_auto_sync
+        and
         provider_key == WorkspaceCompetitionContext.PROVIDER_UNIVERSO
         and context
         and context.is_auto_sync_enabled
@@ -2888,7 +2893,7 @@ def _competition_payload_for_team(workspace, primary_team):
         next_match_payload = (
             load_preferred_next_match_payload(primary_team=primary_team, competition_context=context)
             or load_preferred_next_match_payload(primary_team=primary_team)
-            or get_next_match(primary_team, primary_team.group)
+            or get_next_match(primary_team, primary_team.group, allow_external_fetch=False)
             or {}
         )
     normalized_next_match_payload = normalize_next_match_payload(next_match_payload) if next_match_payload else {}
@@ -3925,7 +3930,8 @@ def _build_weekly_staff_brief_context(primary_team, player_cards=None):
     )
     next_match_payload = load_preferred_next_match_payload(primary_team=primary_team)
     if not _next_match_payload_is_reliable(next_match_payload) and primary_team.group:
-        local_next_match = get_next_match(primary_team, primary_team.group)
+        # Evitar scraping/red en requests de UI (puede provocar timeouts/502).
+        local_next_match = get_next_match(primary_team, primary_team.group, allow_external_fetch=False)
         if _next_match_payload_is_reliable(local_next_match):
             next_match_payload = local_next_match
     if not _next_match_payload_is_reliable(next_match_payload):
@@ -5799,7 +5805,7 @@ def _build_next_match_from_convocation(primary_team):
 def _build_coach_rival_summary(primary_team):
     next_match_payload = load_preferred_next_match_payload(primary_team=primary_team)
     if not next_match_payload and primary_team and primary_team.group:
-        next_match_payload = get_next_match(primary_team, primary_team.group)
+        next_match_payload = get_next_match(primary_team, primary_team.group, allow_external_fetch=False)
     if not _next_match_payload_is_reliable(next_match_payload):
         convocation_next = _build_next_match_from_convocation(primary_team)
         if _next_match_payload_is_reliable(convocation_next):
@@ -6326,7 +6332,7 @@ def dashboard_data(request):
                 'competition': '',
                 'season': '',
                 'corporate_line': '',
-                'crest_url': resolve_team_crest_url(request, primary_team, sync=True),
+                'crest_url': resolve_team_crest_url(request, primary_team, sync=False),
             },
             'standings': [],
             'next_match': None,
@@ -6355,7 +6361,7 @@ def dashboard_data(request):
                 cached_next = cached_payload.get('next_match')
                 if not _next_match_payload_is_reliable(cached_next):
                     repaired_next = load_preferred_next_match_payload(primary_team=primary_team) or (
-                        get_next_match(primary_team, group) if group else None
+                        get_next_match(primary_team, group, allow_external_fetch=False) if group else None
                     )
                     if _next_match_payload_is_reliable(repaired_next):
                         cached_payload = dict(cached_payload)
@@ -6375,7 +6381,13 @@ def dashboard_data(request):
             pass
 
     workspace = _get_active_workspace(request)
-    competition_payload = _competition_payload_for_team(workspace, primary_team)
+    dashboard_allow_auto_sync = str(os.getenv('DASHBOARD_ALLOW_AUTO_SYNC', '0') or '').strip().lower() in {
+        '1',
+        'true',
+        'yes',
+        'on',
+    }
+    competition_payload = _competition_payload_for_team(workspace, primary_team, allow_auto_sync=dashboard_allow_auto_sync)
     context = _bootstrap_workspace_competition_context(workspace, primary_team=primary_team) if workspace else None
     provider_key = str(getattr(context, 'provider', '') or '').strip().lower()
     standings_group = _latest_standings_group_for_team(primary_team) or primary_team.group
@@ -6384,7 +6396,7 @@ def dashboard_data(request):
     next_match = _enrich_next_match_payload_with_crests(competition_payload.get('next_match') or {}, standings) or {}
     if not next_match:
         next_match = _enrich_next_match_payload_with_crests(
-            load_preferred_next_match_payload(primary_team=primary_team) or get_next_match(primary_team, group),
+            load_preferred_next_match_payload(primary_team=primary_team) or get_next_match(primary_team, group, allow_external_fetch=False),
             standings,
         )
     # Si detectamos un próximo partido fiable, lo persistimos como Match para que nunca dependa de
@@ -6428,7 +6440,7 @@ def dashboard_data(request):
             'competition': competition_name,
             'season': season_name,
             'corporate_line': corporate_line,
-            'crest_url': resolve_team_crest_url(request, primary_team, sync=True),
+            'crest_url': resolve_team_crest_url(request, primary_team, sync=False),
         },
         'standings': standings,
         'next_match': next_match,
@@ -10612,10 +10624,15 @@ def coach_overview_page(request):
         technical_members = ['Sin miembros técnicos configurados en Admin']
     weekly_brief = _build_weekly_staff_brief_context(primary_team)
     rival_summary = _build_coach_rival_summary(primary_team)
-    competition_payload = _competition_payload_for_team(workspace, primary_team)
+    competition_payload = _competition_payload_for_team(workspace, primary_team, allow_auto_sync=False)
     standings = competition_payload.get('standings') or []
     convocation_next = _build_next_match_from_convocation(primary_team)
-    next_match = competition_payload.get('next_match') or load_preferred_next_match_payload(primary_team=primary_team) or (get_next_match(primary_team, primary_team.group) if primary_team and primary_team.group else {}) or {}
+    next_match = (
+        competition_payload.get('next_match')
+        or load_preferred_next_match_payload(primary_team=primary_team)
+        or (get_next_match(primary_team, primary_team.group, allow_external_fetch=False) if primary_team and primary_team.group else {})
+        or {}
+    )
     if _next_match_payload_is_reliable(convocation_next):
         next_match = convocation_next
     if isinstance(weekly_brief, dict):
@@ -11766,7 +11783,7 @@ def convocation_page(request):
 
     next_match_payload = load_preferred_next_match_payload(primary_team=primary_team)
     if not next_match_payload and primary_team.group:
-        next_match_payload = get_next_match(primary_team, primary_team.group)
+        next_match_payload = get_next_match(primary_team, primary_team.group, allow_external_fetch=False)
     if isinstance(next_match_payload, dict) and str(next_match_payload.get('status') or '').lower() != 'next':
         next_match_payload = None
     default_match_info = normalize_next_match_payload(next_match_payload or {}) if next_match_payload else {}
@@ -23391,7 +23408,7 @@ def player_detail_page(request, player_id):
         standings_rows = []
         try:
             ws = _get_active_workspace(request)
-            competition_payload = _competition_payload_for_team(ws, primary_team) if ws else {}
+            competition_payload = _competition_payload_for_team(ws, primary_team, allow_auto_sync=False) if ws else {}
             standings_rows = competition_payload.get('standings') if isinstance(competition_payload, dict) else []
         except Exception:
             standings_rows = []
@@ -23920,7 +23937,7 @@ def serialize_standings(group):
     ]
 
 
-def get_next_match(primary_team, group):
+def get_next_match(primary_team, group, *, allow_external_fetch=None):
     def _pick_undated_next(queryset):
         candidates = list(queryset.filter(date__isnull=True))
         if not candidates:
@@ -23996,8 +24013,10 @@ def get_next_match(primary_team, group):
         if _next_match_payload_is_reliable(payload):
             return payload
 
+    if allow_external_fetch is None:
+        allow_external_fetch = bool(RFAF_LIVE_FETCH_ON_REQUEST)
     # Live scraping on request is expensive; keep it opt-in and only as fallback.
-    if RFAF_LIVE_FETCH_ON_REQUEST:
+    if allow_external_fetch:
         rfaf_next = _fetch_next_from_rfaf()
         if rfaf_next:
             return rfaf_next

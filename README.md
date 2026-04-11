@@ -128,3 +128,5 @@ docker compose up --build
 ```
 
 La app quedara en http://localhost:8000
+
+En despliegues tipo Render/Heroku o Docker puro, usa `./start.sh` como comando de arranque para ejecutar `migrate` antes de levantar Gunicorn.

@@ -16,5 +16,7 @@ COPY . /app/
 
 EXPOSE 8000
 
+RUN chmod +x /app/start.sh
+
 # Render/Heroku-style platforms provide $PORT at runtime. Default to 8000 for local Docker usage.
-CMD ["sh", "-c", "gunicorn webstats.wsgi:application --bind 0.0.0.0:${PORT:-8000}"]
+CMD ["/app/start.sh"]
