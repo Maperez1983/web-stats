@@ -1343,6 +1343,11 @@ def save_player_photo(player, uploaded_photo):
             uploaded_photo.seek(0)
         if Image is not None:
             with Image.open(uploaded_photo) as image:
+                if ImageOps is not None:
+                    try:
+                        image = ImageOps.exif_transpose(image)
+                    except Exception:
+                        pass
                 if image.mode in ('RGBA', 'LA', 'P'):
                     converted = image.convert('RGBA')
                     background = Image.new('RGBA', converted.size, (3, 7, 18, 255))
@@ -1829,6 +1834,11 @@ def _image_bytes_as_small_data_uri(raw_bytes: bytes, *, mime_type: str = 'image/
         return f'data:{safe_mime};base64,{encoded}'
     try:
         with Image.open(io.BytesIO(raw_bytes)) as img:
+            if ImageOps is not None:
+                try:
+                    img = ImageOps.exif_transpose(img)
+                except Exception:
+                    pass
             normalized = img.convert('RGB')
             normalized.thumbnail((int(max_width), int(max_height)))
             buffer = io.BytesIO()
@@ -1850,6 +1860,11 @@ def _image_file_as_small_data_uri(file_path, max_width=1200, max_height=800, qua
         if not path.exists() or not path.is_file():
             return ''
         with Image.open(path) as img:
+            if ImageOps is not None:
+                try:
+                    img = ImageOps.exif_transpose(img)
+                except Exception:
+                    pass
             normalized = img.convert('RGB')
             normalized.thumbnail((int(max_width), int(max_height)))
             buffer = io.BytesIO()
