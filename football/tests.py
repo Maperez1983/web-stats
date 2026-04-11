@@ -3366,6 +3366,58 @@ class EventTaxonomyKpiTests(TestCase):
         self.assertEqual(profile_label, 'Portero')
         self.assertEqual(kpis[0], {'label': 'Paradas', 'value': '7'})
 
+
+class KpiAuditEndpointTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        user_model = get_user_model()
+        self.user = user_model.objects.create_user(
+            username='kpi-audit-admin',
+            email='kpi-audit@example.com',
+            password='pass-1234',
+            is_staff=True,
+        )
+        AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_ADMIN)
+        competition = Competition.objects.create(name='Liga KPI', slug='liga-kpi', region='Test')
+        season = Season.objects.create(competition=competition, name='2025/2026', is_current=True)
+        group = Group.objects.create(season=season, name='Grupo KPI', slug='grupo-kpi')
+        self.team = Team.objects.create(name='Club KPI', slug='club-kpi', group=group, is_primary=True)
+        self.rival = Team.objects.create(name='Rival KPI', slug='rival-kpi', group=group)
+        self.match = Match.objects.create(season=season, group=group, home_team=self.team, away_team=self.rival, round='1')
+        self.player = Player.objects.create(team=self.team, name='Jugador KPI', position='MC', number=8)
+        MatchEvent.objects.create(
+            match=self.match,
+            player=self.player,
+            event_type='Asistencia',
+            result='OK',
+            zone='Ataque Centro',
+            tercio='Ataque',
+            minute=10,
+            period=1,
+            system='touch-field-final',
+            source_file='registro-acciones',
+        )
+
+    def test_kpi_audit_requires_admin(self):
+        user_model = get_user_model()
+        plain_user = user_model.objects.create_user(username='plain', password='pass-1234')
+        self.client.force_login(plain_user)
+        resp = self.client.get(reverse('kpi-audit'))
+        self.assertEqual(resp.status_code, 403)
+
+    def test_kpi_audit_returns_rows_for_team(self):
+        self.client.force_login(self.user)
+        resp = self.client.get(reverse('kpi-audit'), {'team_id': self.team.id, 'refresh': '1'})
+        self.assertEqual(resp.status_code, 200)
+        payload = resp.json()
+        self.assertTrue(payload.get('ok'))
+        self.assertEqual(payload.get('team', {}).get('id'), self.team.id)
+        self.assertGreaterEqual(payload.get('summary', {}).get('players', 0), 1)
+        rows = payload.get('rows') or []
+        self.assertTrue(any(int(r.get('player_id') or 0) == self.player.id for r in rows))
+
+
+class TaxonomyBehaviorTests(TestCase):
     def test_robo_and_duelo_aereo_count_as_duels(self):
         self.assertTrue(classify_duel_event('ROBO', 'GANADO')['is_duel'])
         self.assertTrue(classify_duel_event('ROBO', 'GANADO')['won'])

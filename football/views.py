@@ -460,6 +460,133 @@ def system_diagnostics(request):
         }
     )
 
+
+def kpi_audit(request):
+    """
+    Auditoría rápida (solo admin) de KPIs por jugador.
+
+    Devuelve los valores ya calculados en `compute_player_dashboard()` junto con
+    checks de coherencia (sin exponer secretos).
+    """
+    if not _is_admin_user(request.user):
+        return JsonResponse({'error': 'No autorizado'}, status=403)
+    team_id = _parse_int(request.GET.get('team_id'))
+    force_refresh = str(request.GET.get('refresh') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    if team_id:
+        team = Team.objects.filter(id=team_id).select_related('group', 'group__season').first()
+    else:
+        team = _get_active_team_for_request(request)
+    if not team:
+        return JsonResponse({'ok': False, 'error': 'Equipo no encontrado o no activo.'}, status=400)
+
+    try:
+        rows = compute_player_dashboard(team, force_refresh=force_refresh)
+    except Exception:
+        logger.exception('kpi_audit: no se pudo calcular el dashboard')
+        return JsonResponse({'ok': False, 'error': 'No se pudieron calcular KPIs.'}, status=500)
+
+    def _recalc_importance(row):
+        availability_pct = float(row.get('availability_pct') or 0)
+        success_volume_pct = float(row.get('success_volume_pct') or 0)
+        return round((availability_pct * 0.6) + (success_volume_pct * 0.4), 1)
+
+    issues_total = 0
+    audited = []
+    for row in rows:
+        pj = int(row.get('pj') or 0)
+        pt = int(row.get('pt') or 0)
+        minutes = int(row.get('minutes') or 0)
+        goals = int(row.get('goals') or 0)
+        assists = int(row.get('assists') or 0)
+        total_rounds = int(row.get('competition_total_rounds') or 0)
+        match_minutes = int(row.get('match_regulation_minutes') or 0)
+        total_possible = int(row.get('total_possible_minutes') or 0)
+        participation = float(row.get('participation_pct') or 0)
+        importance = float(row.get('importance_score') or 0)
+        influence = float(row.get('influence_score') or 0)
+        availability_pct = float(row.get('availability_pct') or 0)
+        success_volume_pct = float(row.get('success_volume_pct') or 0)
+
+        issues = []
+        if pt > pj:
+            issues.append('PT>PJ')
+        if pj < 0 or pt < 0 or minutes < 0 or goals < 0 or assists < 0:
+            issues.append('NEGATIVO')
+        if total_rounds < 0 or match_minutes < 0 or total_possible < 0:
+            issues.append('DENOM_NEGATIVO')
+        if total_rounds > 0:
+            expected_participation = round(min((pj / total_rounds) * 100, 100), 1)
+            if abs(expected_participation - participation) > 0.11:
+                issues.append('PARTICIPACION_MISMATCH')
+        if match_minutes > 0 and pj > 0:
+            # Guardrail: margen extra por partidos con añadido / última acción > reglamentario.
+            hard_cap = pj * (match_minutes + 30)
+            if minutes > hard_cap:
+                issues.append('MINUTOS_EXCESIVOS')
+        expected_importance = _recalc_importance(row)
+        if abs(expected_importance - importance) > 0.11:
+            issues.append('IMPORTANCIA_MISMATCH')
+        if not (0 <= availability_pct <= 100) or not (0 <= success_volume_pct <= 100):
+            issues.append('PCT_FUERA_RANGO')
+        if not (0 <= importance <= 100) or not (0 <= influence <= 100) or not (0 <= participation <= 100):
+            issues.append('KPI_FUERA_RANGO')
+
+        if issues:
+            issues_total += len(issues)
+        audited.append(
+            {
+                'player_id': int(row.get('player_id') or 0),
+                'name': row.get('name') or '',
+                'number': row.get('number'),
+                'position': row.get('position') or '',
+                'pj': pj,
+                'pt': pt,
+                'minutes': minutes,
+                'goals': goals,
+                'assists': assists,
+                'successes': int(row.get('successes') or 0),
+                'total_actions': int(row.get('total_actions') or 0),
+                'success_rate': float(row.get('success_rate') or 0),
+                'competition_total_rounds': total_rounds,
+                'match_regulation_minutes': match_minutes,
+                'total_possible_minutes': total_possible,
+                'participation_pct': participation,
+                'availability_pct': availability_pct,
+                'success_volume_pct': success_volume_pct,
+                'importance_score': importance,
+                'influence_score': influence,
+                'successes_per90': float(row.get('successes_per90') or 0),
+                'decisive_actions_per90': float(row.get('decisive_actions_per90') or 0),
+                'max_successes': int(row.get('max_successes') or 0),
+                'max_decisive_actions_per90': float(row.get('max_decisive_actions_per90') or 0),
+                'totals_locked': bool(row.get('totals_locked')),
+                'assists_locked': bool(row.get('assists_locked')),
+                'issues': issues,
+            }
+        )
+
+    return JsonResponse(
+        {
+            'ok': True,
+            'team': {
+                'id': int(team.id),
+                'name': team.display_name,
+                'slug': team.slug,
+                'category': getattr(team, 'category', '') or '',
+                'game_format': getattr(team, 'game_format', '') or '',
+                'group_id': getattr(team, 'group_id', None),
+            },
+            'computed_at': timezone.localtime().isoformat(),
+            'force_refresh': bool(force_refresh),
+            'summary': {
+                'players': len(audited),
+                'issues_total': issues_total,
+                'players_with_issues': sum(1 for r in audited if r['issues']),
+            },
+            'rows': audited,
+        }
+    )
+
 SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "import_from_rfef.py"
 MANAGE_PY_DIR = SCRIPT_PATH.parents[1]
 
@@ -26106,6 +26233,11 @@ def compute_player_dashboard(primary_team, force_refresh=False):
             'matches': matches,
             'match_count': len(matches),
             'competition_total_rounds': competition_total_rounds,
+            # Debug/inspección: inputs base para validar KPIs en producción.
+            'match_regulation_minutes': match_regulation_minutes,
+            'total_possible_minutes': total_possible_minutes,
+            'max_successes': max_successes,
+            'max_decisive_actions_per90': max_decisive_actions_per90,
             'age': stats.get('age') or (roster_entry.get('age') if roster_entry else None),
             'success_rate': round(
                 (stats['successes'] / stats['total_actions']) * 100, 1
