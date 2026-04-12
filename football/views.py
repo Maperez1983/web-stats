@@ -12870,33 +12870,146 @@ def match_report_pdf(request):
     location_label = (match.location or '').strip() or (convocation_record.location if convocation_record else '') or 'Campo por confirmar'
 
     team_photo = resolve_team_photo_for_pdf(request)
-    crest_src = resolve_team_crest_url(request, primary_team, sync=True) or request.build_absolute_uri(static('football/images/cdb-logo.png'))
     nav_urls = _build_pdf_nav_urls(request)
+
+    def _svg_data_uri(svg_text):
+        try:
+            raw = svg_text.encode('utf-8')
+        except Exception:
+            raw = bytes(svg_text or '', 'utf-8', errors='ignore')
+        encoded = base64.b64encode(raw).decode('ascii')
+        return f'data:image/svg+xml;base64,{encoded}'
+
+    def _team_fallback_crest_svg(team_label, hue=142):
+        initials = _team_initials(team_label)
+        svg = f"""<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="hsl({hue}, 70%, 42%)"/>
+      <stop offset="100%" stop-color="hsl({(hue + 35) % 360}, 74%, 36%)"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="160" height="160" rx="32" fill="url(#g)"/>
+  <rect x="10" y="10" width="140" height="140" rx="28" fill="rgba(2, 6, 23, 0.25)" stroke="rgba(255,255,255,0.26)" stroke-width="2"/>
+  <text x="80" y="92" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, Arial" font-size="56" font-weight="800" fill="rgba(255,255,255,0.92)" letter-spacing="2">{html.escape(initials)}</text>
+</svg>"""
+        return _svg_data_uri(svg)
+
+    def _team_crest_data_uri(team_obj, fallback_label=''):
+        if team_obj and getattr(team_obj, 'crest_image', None):
+            try:
+                file_name = str(getattr(team_obj.crest_image, 'name', '') or '')
+                ext = Path(file_name).suffix.lower()
+                mime = {'.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp'}.get(ext, 'image/png')
+                team_obj.crest_image.open('rb')
+                raw = team_obj.crest_image.read() or b''
+                try:
+                    team_obj.crest_image.close()
+                except Exception:
+                    pass
+                if raw:
+                    return _image_bytes_as_small_data_uri(raw_bytes=raw, mime_type=mime, max_width=220, max_height=220, quality=72)
+            except Exception:
+                pass
+        if team_obj and _is_benagalbon_team(team_obj):
+            static_base_dir = Path(settings.BASE_DIR) / 'static'
+            local_primary = static_base_dir / 'football' / 'images' / 'cdb-benagalbon-crest.png'
+            data_uri = _image_file_as_small_data_uri(local_primary, max_width=220, max_height=220, quality=72)
+            if data_uri:
+                return data_uri
+        label = (getattr(team_obj, 'display_name', '') if team_obj else '') or (getattr(team_obj, 'name', '') if team_obj else '') or fallback_label
+        hue = _team_color_seed(team_obj) if team_obj else (sum(ord(ch) for ch in str(label or '')) % 360)
+        return _team_fallback_crest_svg(label or 'Equipo', hue=hue)
+
+    home_team_name = match.home_team.display_name if match.home_team else 'Local'
+    away_team_name = match.away_team.display_name if match.away_team else 'Visitante'
+    if rival_record and rival_record.rival_team and match.home_team_id == primary_team.id:
+        away_team_name = rival_record.rival_team.display_name
+    if rival_record and rival_record.rival_team and match.away_team_id == primary_team.id:
+        home_team_name = rival_record.rival_team.display_name
+
+    home_crest_src = _team_crest_data_uri(match.home_team, fallback_label=home_team_name)
+    away_crest_src = _team_crest_data_uri(match.away_team, fallback_label=away_team_name)
+    # Si hay rival_record, preferimos su escudo cuando exista.
+    if rival_record and rival_record.rival_team:
+        if match.home_team_id == primary_team.id:
+            away_crest_src = _team_crest_data_uri(rival_record.rival_team, fallback_label=away_team_name)
+        elif match.away_team_id == primary_team.id:
+            home_crest_src = _team_crest_data_uri(rival_record.rival_team, fallback_label=home_team_name)
+
+    def _parse_score_from_result(result_value):
+        text = str(result_value or '').strip()
+        if not text:
+            return None, None
+        found = re.findall(r'(\d+)\s*[-:]\s*(\d+)', text)
+        if not found:
+            return None, None
+        try:
+            a, b = found[0]
+            return int(a), int(b)
+        except Exception:
+            return None, None
+
+    home_score = match.home_score
+    away_score = match.away_score
+    if home_score is None or away_score is None:
+        parsed_home, parsed_away = _parse_score_from_result(match.result)
+        home_score = home_score if home_score is not None else parsed_home
+        away_score = away_score if away_score is not None else parsed_away
+
+    # Goles a partir de eventos (solo del equipo con jugadores registrados).
+    goals_for_events = [e for e in events if is_goal_event(e.event_type, e.result, e.observation)]
+    goals_for_count = len(goals_for_events)
+    if primary_team.id == match.home_team_id:
+        inferred_home = goals_for_count
+        inferred_away = None
+    elif primary_team.id == match.away_team_id:
+        inferred_home = None
+        inferred_away = goals_for_count
+    else:
+        inferred_home = None
+        inferred_away = None
+    if home_score is None and inferred_home is not None:
+        home_score = inferred_home
+    if away_score is None and inferred_away is not None:
+        away_score = inferred_away
+
+    scorers = []
+    goals_by_player = defaultdict(list)
+    for ev in goals_for_events:
+        label = _player_label(ev.player).upper() if ev.player else 'EQUIPO'
+        minute_label = ev.minute if ev.minute is not None else None
+        goals_by_player[label].append(minute_label)
+    for player_label, minutes in goals_by_player.items():
+        minutes_sorted = sorted([m for m in minutes if m is not None])
+        minutes_text = ', '.join(f"{m}'" for m in minutes_sorted) if minutes_sorted else ''
+        scorers.append({'player_label': player_label, 'goals': len(minutes), 'minutes_text': minutes_text})
+    scorers.sort(key=lambda row: (-int(row.get('goals') or 0), str(row.get('player_label') or '')))
 
     context = {
         **nav_urls,
         'team_name': team_name,
         'opponent_name': opponent_name,
-        'team_crest_src': crest_src,
-        'brand_mark_url': request.build_absolute_uri(static('football/images/2j-mark.svg')),
         'avatar_src': avatar_data_uri or request.build_absolute_uri(static('football/images/player-avatar.svg')),
         'competition_label': competition_label,
         'round_label': round_label,
         'match_datetime_label': match_datetime_label,
         'location_label': location_label,
+        'home_team_name': home_team_name,
+        'away_team_name': away_team_name,
+        'home_score': home_score,
+        'away_score': away_score,
+        'home_crest_src': home_crest_src,
+        'away_crest_src': away_crest_src,
+        'scorers': scorers,
         'summary_actions': len(events),
         'summary_subs': sum(max(len(v['out']), len(v['in']), 1) for v in subs_by_minute.values()) if subs_by_minute else 0,
         'summary_yellow': len(yellow_events),
         'summary_red': len(red_events),
         'summary_corners_for': corner_for,
         'summary_corners_against': corner_against,
-        'starters': starters,
-        'bench': bench,
         'substitutions': substitutions,
         'cards': cards,
-        'opponent_starters': opponent_lineup.get('starters') or [],
-        'opponent_bench': opponent_lineup.get('bench') or [],
-        'opponent_roster': opponent_roster,
         'team_photo_url': team_photo.get('url') or request.build_absolute_uri(static('football/images/team-01.jpg')),
         'team_photo_data_uri': team_photo.get('data_uri') or '',
         'generated_at': timezone.localtime(),
