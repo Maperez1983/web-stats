@@ -79,6 +79,292 @@ body.prod-commercial .topbar {
   box-shadow: 0 22px 60px rgba(0, 0, 0, 0.32);
 }
 
+/* ------------------------------------------------------------
+   Unified UI Kit (commercial-safe)
+   - High-specificity selectors to override per-template CSS.
+   - Applies only under `body.prod-commercial`.
+   - Goal: consistent buttons/tabs/panels/forms across the product.
+------------------------------------------------------------ */
+
+body.prod-commercial {
+  --ui-radius-xl: var(--prod-radius-lg, 22px);
+  --ui-radius-lg: var(--prod-radius-md, 16px);
+  --ui-radius-md: 14px;
+  --ui-radius-sm: 12px;
+  --ui-shadow-lg: var(--prod-shadow-lg, 0 24px 64px rgba(0, 0, 0, 0.34));
+  --ui-shadow-md: var(--prod-shadow-md, 0 16px 36px rgba(0, 0, 0, 0.24));
+
+  --ui-bg: var(--prod-bg, #08111d);
+  --ui-panel: var(--prod-panel, rgba(14, 23, 39, 0.96));
+  --ui-panel-flat: var(--prod-panel-flat, rgba(14, 23, 39, 0.96));
+  --ui-line: var(--prod-line, rgba(144, 161, 185, 0.22));
+  --ui-line-strong: var(--prod-line-strong, rgba(244, 180, 0, 0.22));
+  --ui-text: var(--prod-text, #f5f7fa);
+  --ui-muted: var(--prod-muted, #91a1b9);
+  --ui-muted-soft: var(--prod-muted-soft, #b0bccd);
+  --ui-accent: var(--prod-secondary, #f4b400);
+  --ui-accent-2: var(--prod-primary, #2f7d32);
+  --ui-danger: var(--prod-danger, #d64545);
+}
+
+body.prod-commercial a {
+  color: inherit;
+}
+
+body.prod-commercial a:hover {
+  color: rgba(255, 242, 199, 0.96);
+}
+
+/* Buttons (supports `.button` and `.btn`). */
+body.prod-commercial .button.button,
+body.prod-commercial .btn.btn,
+body.prod-commercial button.button,
+body.prod-commercial button.btn,
+body.prod-commercial a.button,
+body.prod-commercial a.btn {
+  appearance: none;
+  -webkit-appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.62rem 0.95rem;
+  border-radius: 999px;
+  border: 1px solid var(--ui-line);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ui-text);
+  text-decoration: none;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  box-shadow: 0 0 0 1px rgba(2, 6, 23, 0.18) inset;
+  cursor: pointer;
+  user-select: none;
+}
+
+body.prod-commercial .button.button:hover,
+body.prod-commercial .btn.btn:hover,
+body.prod-commercial button.button:hover,
+body.prod-commercial button.btn:hover,
+body.prod-commercial a.button:hover,
+body.prod-commercial a.btn:hover {
+  border-color: rgba(244, 180, 0, 0.32);
+  background: rgba(255, 255, 255, 0.075);
+  transform: translateY(-1px);
+}
+
+body.prod-commercial .button.button:active,
+body.prod-commercial .btn.btn:active,
+body.prod-commercial button.button:active,
+body.prod-commercial button.btn:active,
+body.prod-commercial a.button:active,
+body.prod-commercial a.btn:active {
+  transform: translateY(0);
+}
+
+body.prod-commercial .button.button:focus-visible,
+body.prod-commercial .btn.btn:focus-visible,
+body.prod-commercial button.button:focus-visible,
+body.prod-commercial button.btn:focus-visible,
+body.prod-commercial a.button:focus-visible,
+body.prod-commercial a.btn:focus-visible {
+  outline: 2px solid rgba(244, 180, 0, 0.55);
+  outline-offset: 3px;
+}
+
+body.prod-commercial .button.primary,
+body.prod-commercial .btn.primary,
+body.prod-commercial .btn-primary,
+body.prod-commercial .button.button.primary,
+body.prod-commercial .btn.btn.primary {
+  border-color: rgba(244, 180, 0, 0.34);
+  background: linear-gradient(135deg, rgba(244, 180, 0, 0.95), rgba(244, 180, 0, 0.78));
+  color: rgba(8, 17, 29, 0.98);
+  box-shadow: 0 12px 32px rgba(244, 180, 0, 0.18);
+}
+
+body.prod-commercial .button.secondary,
+body.prod-commercial .btn.secondary,
+body.prod-commercial .button.button.secondary,
+body.prod-commercial .btn.btn.secondary {
+  border-color: rgba(47, 125, 50, 0.32);
+  background: linear-gradient(135deg, rgba(47, 125, 50, 0.88), rgba(24, 63, 38, 0.84));
+  color: rgba(245, 247, 250, 0.96);
+}
+
+body.prod-commercial .button.danger,
+body.prod-commercial .btn.danger,
+body.prod-commercial button.danger,
+body.prod-commercial .button.button.danger,
+body.prod-commercial .btn.btn.danger {
+  border-color: rgba(248, 113, 113, 0.5);
+  background: rgba(220, 38, 38, 0.18);
+  color: rgba(254, 226, 226, 0.95);
+}
+
+body.prod-commercial .button.ghost,
+body.prod-commercial .btn-ghost,
+body.prod-commercial .button.button.ghost {
+  background: transparent;
+  border-color: rgba(148, 163, 184, 0.24);
+  color: rgba(226, 232, 240, 0.92);
+  box-shadow: none;
+}
+
+body.prod-commercial .button.is-disabled,
+body.prod-commercial .btn.is-disabled,
+body.prod-commercial .button[aria-disabled="true"],
+body.prod-commercial .btn[aria-disabled="true"],
+body.prod-commercial button[disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
+  transform: none;
+}
+
+body.prod-commercial .button.icon-only,
+body.prod-commercial .btn.icon-only,
+body.prod-commercial button.icon-only {
+  padding: 0.68rem 0.8rem;
+  min-width: 3rem;
+}
+
+/* Tabs */
+body.prod-commercial .tabs.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0 0 0.95rem;
+}
+
+body.prod-commercial .tab-link.tab-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.54rem 0.92rem;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(226, 232, 240, 0.92);
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+body.prod-commercial .tab-link.tab-link:hover {
+  border-color: rgba(244, 180, 0, 0.34);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+body.prod-commercial .tab-link.is-active,
+body.prod-commercial .tab-link[aria-current="page"] {
+  border-color: rgba(244, 180, 0, 0.45);
+  background: linear-gradient(135deg, rgba(244, 180, 0, 0.18), rgba(47, 125, 50, 0.1));
+  color: rgba(255, 242, 199, 0.96);
+}
+
+/* Panels / cards */
+body.prod-commercial .panel.panel,
+body.prod-commercial .card.card,
+body.prod-commercial .product-card.product-card {
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius-xl);
+  background: var(--ui-panel);
+}
+
+body.prod-commercial .panel.panel {
+  padding: 1rem;
+  box-shadow: var(--ui-shadow-md);
+}
+
+body.prod-commercial .card.card,
+body.prod-commercial .product-card.product-card {
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+}
+
+/* Alerts */
+body.prod-commercial .alert.alert {
+  border-radius: var(--ui-radius-lg);
+  border: 1px solid var(--ui-line);
+  padding: 0.78rem 0.95rem;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+body.prod-commercial .alert.ok {
+  border-color: rgba(34, 197, 94, 0.42);
+  background: rgba(34, 197, 94, 0.12);
+}
+
+body.prod-commercial .alert.err {
+  border-color: rgba(248, 113, 113, 0.5);
+  background: rgba(220, 38, 38, 0.12);
+}
+
+body.prod-commercial .alert.warn {
+  border-color: rgba(244, 180, 0, 0.38);
+  background: rgba(244, 180, 0, 0.12);
+}
+
+/* Badges */
+body.prod-commercial .badge.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.26rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(15, 23, 42, 0.55);
+  color: rgba(226, 232, 240, 0.92);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* Forms */
+body.prod-commercial input,
+body.prod-commercial select,
+body.prod-commercial textarea {
+  font-family: inherit;
+  color: rgba(245, 247, 250, 0.94);
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 14px;
+}
+
+body.prod-commercial input::placeholder,
+body.prod-commercial textarea::placeholder {
+  color: rgba(148, 163, 184, 0.78);
+}
+
+body.prod-commercial input:focus,
+body.prod-commercial select:focus,
+body.prod-commercial textarea:focus {
+  outline: 2px solid rgba(244, 180, 0, 0.38);
+  outline-offset: 2px;
+  border-color: rgba(244, 180, 0, 0.28);
+}
+
+/* Tables */
+body.prod-commercial table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+body.prod-commercial th,
+body.prod-commercial td {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+body.prod-commercial th {
+  color: rgba(176, 188, 205, 0.9);
+}
+
 @media (prefers-reduced-motion: reduce) {
   body.prod-commercial a,
   body.prod-commercial button {
