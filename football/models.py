@@ -1039,6 +1039,38 @@ class RivalAnalysisReport(models.Model):
         return f'{self.rival_name} · {self.report_title or "Informe"}'
 
 
+class AnalystMatchReport(models.Model):
+    """
+    Repositorio de informes de partido (PDF/JPG/PNG) que sube el analista.
+
+    Se guarda por equipo y se puede vincular opcionalmente a un `Match`.
+    """
+
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='match_reports')
+    match = models.ForeignKey(
+        Match,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='analyst_reports',
+    )
+    title = models.CharField(max_length=180, blank=True)
+    opponent_name = models.CharField(max_length=180, blank=True)
+    match_date = models.CharField(max_length=60, blank=True)
+    notes = models.TextField(blank=True)
+    document = models.FileField(upload_to='match-reports/')
+    created_by = models.CharField(max_length=80, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+        verbose_name = 'Informe de partido (analista)'
+        verbose_name_plural = 'Informes de partido (analista)'
+
+    def __str__(self):
+        return self.title or f'Informe {self.id}'
+
+
 class UserInvitation(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='invitations')
     token = models.CharField(max_length=120, unique=True, db_index=True)

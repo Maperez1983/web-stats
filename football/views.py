@@ -116,6 +116,7 @@ from football.models import (
     AnalystVideoFolder,
     RivalVideo,
     RivalAnalysisReport,
+    AnalystMatchReport,
     AppUserRole,
     UserInvitation,
     ShareLink,
@@ -23613,6 +23614,8 @@ def analysis_page(request):
     folder_message = ''
     manual_report_error = ''
     manual_report_message = ''
+    match_report_error = ''
+    match_report_message = ''
     extracted = {}
     preferred_next = load_preferred_next_match_payload(primary_team=primary_team) or {}
     preferred_opponent = preferred_next.get('opponent') if isinstance(preferred_next, dict) else {}
@@ -23748,6 +23751,64 @@ def analysis_page(request):
                     created_by=(request.user.get_username() if request.user.is_authenticated else ''),
                 )
                 manual_report_message = 'Informe manual guardado correctamente.'
+        elif form_action == 'upload_match_report':
+            if not primary_team:
+                match_report_error = 'No hay equipo principal configurado.'
+            else:
+                match_id_value = _parse_int(request.POST.get('match_report_match_id'))
+                match_obj = None
+                if match_id_value:
+                    match_obj = _team_match_queryset(primary_team).filter(id=match_id_value).first()
+                uploaded = request.FILES.get('match_report_file')
+                if not uploaded:
+                    match_report_error = 'Selecciona un archivo (PDF/JPG/PNG).'
+                else:
+                    title = (request.POST.get('match_report_title') or '').strip()
+                    opponent_name = (request.POST.get('match_report_opponent') or '').strip()
+                    match_date = (request.POST.get('match_report_date') or '').strip()
+                    if match_obj:
+                        try:
+                            opponent_team = (
+                                match_obj.away_team if match_obj.home_team_id == primary_team.id else match_obj.home_team
+                            )
+                            opponent_name = opponent_name or str(getattr(opponent_team, 'display_name', '') or getattr(opponent_team, 'name', '') or '').strip()
+                        except Exception:
+                            opponent_name = opponent_name or ''
+                        try:
+                            if match_obj.date and not match_date:
+                                match_date = match_obj.date.strftime('%d/%m/%Y')
+                        except Exception:
+                            pass
+                        if not title:
+                            round_label = (match_obj.round or '').strip()
+                            title = f'Informe {round_label} vs {opponent_name}'.strip() if round_label or opponent_name else 'Informe de partido'
+                    AnalystMatchReport.objects.create(
+                        team=primary_team,
+                        match=match_obj,
+                        title=title[:180],
+                        opponent_name=opponent_name[:180],
+                        match_date=match_date[:60],
+                        notes=(request.POST.get('match_report_notes') or '').strip(),
+                        document=uploaded,
+                        created_by=(request.user.get_username() if request.user.is_authenticated else ''),
+                    )
+                    match_report_message = 'Informe subido correctamente.'
+        elif form_action == 'delete_match_report':
+            report_id = _parse_int(request.POST.get('match_report_id'))
+            if not primary_team:
+                match_report_error = 'No hay equipo principal configurado.'
+            else:
+                report = AnalystMatchReport.objects.filter(id=report_id, team=primary_team).first() if report_id else None
+                if not report:
+                    match_report_error = 'Informe no encontrado.'
+                else:
+                    try:
+                        if report.document:
+                            report.document.delete(save=False)
+                    except Exception:
+                        pass
+                    report.delete()
+                    match_report_message = 'Informe eliminado.'
         team_url = (request.POST.get('team_url') or '').strip()
         team_id = (request.POST.get('team_id') or '').strip()
         raw_text = (request.POST.get('raw_text') or '').strip()
@@ -24115,6 +24176,34 @@ def analysis_page(request):
         rival_videos_qs = rival_videos_qs.filter(folder_id=selected_folder_id)
     rival_videos = list(rival_videos_qs[:40])
     analyst_players = list(Player.objects.filter(team=primary_team, is_active=True).order_by('number', 'name')) if primary_team else []
+    match_options = []
+    match_reports = []
+    if primary_team:
+        try:
+            matches = list(
+                _team_match_queryset(primary_team)
+                .select_related('home_team', 'away_team')
+                .order_by('-date', '-id')[:40]
+            )
+            for match in matches:
+                opponent = (
+                    match.away_team.display_name
+                    if match.home_team == primary_team and match.away_team
+                    else match.home_team.display_name
+                    if match.away_team == primary_team and match.home_team
+                    else 'Rival desconocido'
+                )
+                parts = [match.round or f'Partido {match.id}', opponent]
+                if match.date:
+                    parts.append(match.date.strftime('%d/%m/%Y'))
+                match_options.append({'id': match.id, 'label': ' · '.join(parts)})
+        except Exception:
+            match_options = []
+        try:
+            reports_qs = AnalystMatchReport.objects.filter(team=primary_team).select_related('match').order_by('-created_at', '-id')
+            match_reports = list(reports_qs[:25])
+        except Exception:
+            match_reports = []
 
     return render(
         request,
@@ -24150,8 +24239,44 @@ def analysis_page(request):
             'manual_report_message': manual_report_message,
             'manual_report_error': manual_report_error,
             'manual_report_status_choices': RivalAnalysisReport.STATUS_CHOICES,
+            'match_options': match_options,
+            'match_reports': match_reports,
+            'match_report_message': match_report_message,
+            'match_report_error': match_report_error,
         },
     )
+
+
+@login_required
+def analysis_match_report_file(request, report_id):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    report = AnalystMatchReport.objects.filter(id=int(report_id)).select_related('team').first()
+    if not report or not primary_team or int(report.team_id) != int(primary_team.id):
+        raise Http404('Informe no disponible')
+    if not report.document:
+        raise Http404('Informe no disponible')
+    try:
+        file_field = report.document.open('rb')
+    except Exception:
+        return HttpResponse('No se pudo abrir el informe.', status=500)
+    extension = Path(str(getattr(report.document, 'name', '') or '')).suffix.lower()
+    content_type = {
+        '.pdf': 'application/pdf',
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.webp': 'image/webp',
+    }.get(extension, 'application/octet-stream')
+    response = FileResponse(file_field, content_type=content_type)
+    response['Content-Disposition'] = f'inline; filename="{Path(str(report.document.name)).name}"'
+    response['Cache-Control'] = 'private, max-age=60'
+    return response
 
 
 @login_required

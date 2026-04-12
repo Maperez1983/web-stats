@@ -249,6 +249,24 @@
       .multi-select {
         min-height: 150px;
       }
+      .report-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.6rem;
+        padding: 0.55rem 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      }
+      .report-row a {
+        color: #fde68a;
+        text-decoration: none;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+      }
+      .report-row a:hover {
+        text-decoration: underline;
+      }
     </style>
   </head>
   <body class="prod-commercial">
@@ -425,6 +443,76 @@
               </ul>
             </div>
             {% endif %}
+          </div>
+          <div class="item item-wide">
+            <h3>Repositorio de informes de partido (archivo)</h3>
+            <p class="meta">Sube PDFs/JPG/PNG del analista para cada partido.</p>
+            <form class="form" method="post" enctype="multipart/form-data" style="margin-top:0.35rem;">
+              {% csrf_token %}
+              <input type="hidden" name="form_action" value="upload_match_report" />
+              <div class="manual-grid">
+                <div class="wide">
+                  <label for="match_report_match_id">Partido (opcional)</label>
+                  <select id="match_report_match_id" name="match_report_match_id">
+                    <option value="">Selecciona un partido</option>
+                    {% for opt in match_options %}
+                    <option value="{{ opt.id }}">{{ opt.label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div>
+                  <label for="match_report_title">Título</label>
+                  <input id="match_report_title" name="match_report_title" type="text" placeholder="Ej. Informe J25" />
+                </div>
+                <div>
+                  <label for="match_report_opponent">Rival (si no hay partido)</label>
+                  <input id="match_report_opponent" name="match_report_opponent" type="text" placeholder="Ej. C.D. Torre del Mar" />
+                </div>
+                <div>
+                  <label for="match_report_date">Fecha (si no hay partido)</label>
+                  <input id="match_report_date" name="match_report_date" type="text" placeholder="dd/mm/aaaa" />
+                </div>
+                <div class="wide">
+                  <label for="match_report_file">Archivo</label>
+                  <input id="match_report_file" name="match_report_file" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp" required />
+                </div>
+                <div class="wide">
+                  <label for="match_report_notes">Notas (opcional)</label>
+                  <textarea id="match_report_notes" name="match_report_notes" placeholder="Resumen, conclusiones, puntos clave..."></textarea>
+                </div>
+              </div>
+              <div class="actions">
+                <button class="button" type="submit">Subir informe</button>
+              </div>
+              {% if match_report_message %}<p class="ok">{{ match_report_message }}</p>{% endif %}
+              {% if match_report_error %}<p class="error">{{ match_report_error }}</p>{% endif %}
+            </form>
+            <div style="margin-top:0.85rem;">
+              {% for report in match_reports %}
+                <div class="report-row">
+                  <div>
+                    <a href="{% url 'analysis-match-report-file' report_id=report.id %}" target="_blank" rel="noopener">
+                      {{ report.title|default:"Informe" }}
+                    </a>
+                    <div class="meta">
+                      {% if report.match %}{{ report.match.round|default:"Partido" }}{% endif %}
+                      {% if report.opponent_name %} · {{ report.opponent_name }}{% endif %}
+                      {% if report.match_date %} · {{ report.match_date }}{% endif %}
+                      · {{ report.created_at|date:"d/m/Y H:i" }}
+                    </div>
+                    {% if report.notes %}<div class="meta" style="margin-top:0.25rem;">{{ report.notes }}</div>{% endif %}
+                  </div>
+                  <form method="post" style="margin:0;">
+                    {% csrf_token %}
+                    <input type="hidden" name="form_action" value="delete_match_report" />
+                    <input type="hidden" name="match_report_id" value="{{ report.id }}" />
+                    <button class="button ghost" type="submit">Eliminar</button>
+                  </form>
+                </div>
+              {% empty %}
+                <p class="meta">Todavía no hay informes subidos.</p>
+              {% endfor %}
+            </div>
           </div>
           <div class="item item-wide">
             <h3>Repositorio vídeos rival</h3>
