@@ -13300,9 +13300,10 @@ def convocation_pdf(request):
 @login_required
 def convocation_referee_pdf(request):
     """
-    Genera una ficha para el árbitro:
-    - Portada con lista convocados + capitán/portero.
-    - Una página por jugador con su licencia (imagen) o, si es PDF, la adjunta tras la hoja del jugador.
+    Genera una ficha para el árbitro.
+
+    Modo actual (producto): una hoja con una cuadrícula de licencias federativas.
+    Compatibilidad: `?mode=full` mantiene el formato antiguo (portada + 1 página por jugador).
     """
     forbidden = _forbid_if_workspace_module_disabled(request, 'convocation', label='convocatoria')
     if forbidden:
@@ -13320,8 +13321,6 @@ def convocation_referee_pdf(request):
 
     if not weasyprint:
         return HttpResponse('PDF no disponible en este servidor.', status=503)
-    if PdfReader is None or PdfWriter is None:
-        return HttpResponse('Motor PDF no disponible en este servidor.', status=503)
 
     def _sort_player_key(player):
         number = player.number if player.number is not None else 999
@@ -13376,6 +13375,44 @@ def convocation_referee_pdf(request):
             mime_type = mimetypes.guess_type(storage_name)[0] or 'image/jpeg'
             encoded = base64.b64encode(raw).decode('ascii')
             return f'data:{mime_type};base64,{encoded}'
+
+    mode = str(request.GET.get('mode') or '').strip().lower()
+    if mode != 'full':
+        # Nuevo modo (una hoja): cuadrícula de licencias.
+        grid_players = []
+        for player in ordered_players:
+            license_name = _find_license_name(player)
+            # Intentamos siempre generar imagen (incluyendo PDF si Pillow lo soporta).
+            license_image_uri = _license_image_data_uri(license_name) if license_name else ''
+            grid_players.append(
+                {
+                    'number': player.number,
+                    'name': player.name,
+                    'license_image_uri': license_image_uri,
+                }
+            )
+        grid_class = 'cols-4' if len(grid_players) > 12 else ''
+        html = render_to_string(
+            'football/referee_licenses_grid_pdf.html',
+            {
+                **_build_pdf_nav_urls(request),
+                'team_name': primary_team.display_name,
+                'rival_name': (convocation_record.opponent_name or '').strip() or 'Rival por confirmar',
+                'round_label': convocation_record.round or 'Jornada por confirmar',
+                'date_label': convocation_record.match_date.strftime('%d/%m/%Y') if convocation_record.match_date else '--',
+                'time_label': convocation_record.match_time.strftime('%H:%M') if convocation_record.match_time else '--:--',
+                'location_label': convocation_record.location or (convocation_record.match.location if convocation_record.match else '') or 'Campo por confirmar',
+                'players': grid_players,
+                'grid_class': grid_class,
+                'generated_at': timezone.localtime(),
+            },
+        )
+        filename = slugify(f'licencias-arbitro-{primary_team.display_name}-{timezone.localdate().isoformat()}') or f'licencias-arbitro-{convocation_record.id}'
+        return _build_pdf_response_or_html_fallback(request, html, filename)
+
+    # Compatibilidad (modo antiguo): cover + 1 página por jugador + adjuntar PDFs.
+    if PdfReader is None or PdfWriter is None:
+        return HttpResponse('Motor PDF no disponible en este servidor.', status=503)
 
     def _append_pdf_bytes(writer, pdf_bytes):
         if not pdf_bytes:

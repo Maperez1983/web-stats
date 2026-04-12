@@ -1,0 +1,133 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Licencias · Árbitro</title>
+    <style>
+      @page { size: A4; margin: 10mm; }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+        color: #0b1220;
+      }
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 10px;
+        margin-bottom: 8mm;
+      }
+      .title {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .sub {
+        margin: 4px 0 0;
+        font-size: 11px;
+        color: #334155;
+      }
+      .meta {
+        font-size: 10px;
+        color: #0f172a;
+        display: grid;
+        gap: 2px;
+        text-align: right;
+      }
+      .grid {
+        display: grid;
+        gap: 6mm;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+      .grid.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      .cell {
+        border: 1px solid #cbd5e1;
+        border-radius: 10px;
+        overflow: hidden;
+        background: #f8fafc;
+        page-break-inside: avoid;
+      }
+      .cell-head {
+        padding: 4px 6px;
+        border-bottom: 1px solid #e2e8f0;
+        background: #f1f5f9;
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: #0f172a;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .cell-body {
+        padding: 4px;
+        height: 56mm;
+        display: table;
+        width: 100%;
+      }
+      .cell-body-inner {
+        display: table-cell;
+        vertical-align: middle;
+        text-align: center;
+      }
+      .cell img {
+        max-width: 100%;
+        max-height: 54mm;
+        width: auto;
+        height: auto;
+        object-fit: contain;
+        background: white;
+        border-radius: 8px;
+      }
+      .missing {
+        font-size: 10px;
+        color: #64748b;
+        padding: 10px;
+      }
+      .footer {
+        margin-top: 6mm;
+        font-size: 9px;
+        color: #64748b;
+        text-align: right;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <div>
+        <p class="title">Licencias federativas · Árbitro</p>
+        <p class="sub">{{ team_name }} vs {{ rival_name }} · {{ round_label }}</p>
+      </div>
+      <div class="meta">
+        <div><strong>Fecha:</strong> {{ date_label }}</div>
+        <div><strong>Hora:</strong> {{ time_label }}</div>
+        <div><strong>Lugar:</strong> {{ location_label }}</div>
+      </div>
+    </div>
+
+    <div class="grid {{ grid_class }}">
+      {% for p in players %}
+        <section class="cell">
+          <div class="cell-head">#{{ p.number|default:"--" }} · {{ p.name }}</div>
+          <div class="cell-body">
+            <div class="cell-body-inner">
+              {% if p.license_image_uri %}
+                <img src="{{ p.license_image_uri }}" alt="Licencia {{ p.name }}" />
+              {% else %}
+                <div class="missing">Licencia no disponible</div>
+              {% endif %}
+            </div>
+          </div>
+        </section>
+      {% endfor %}
+    </div>
+
+    <div class="footer">Generado: {{ generated_at|date:"d/m/Y H:i" }}</div>
+  </body>
+</html>
+

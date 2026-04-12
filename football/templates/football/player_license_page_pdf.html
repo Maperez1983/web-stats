@@ -13,8 +13,9 @@
       .tags { display:flex; gap: 8px; align-items: center; }
       .tag { font-size: 11px; font-weight: 800; border: 1px solid #cbd5e1; padding: 3px 8px; border-radius: 999px; }
       .tag.strong { background: #0ea5e9; border-color: #0ea5e9; color: #041127; }
-      .sheet { border: 1px solid #cbd5e1; border-radius: 12px; padding: 10px; height: 250mm; display:flex; align-items: center; justify-content: center; background: #f8fafc; }
-      .sheet img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 10px; background: white; }
+      .sheet { border: 1px solid #cbd5e1; border-radius: 12px; padding: 10px; min-height: 238mm; background: #f8fafc; display: table; width: 100%; }
+      .sheet-inner { display: table-cell; vertical-align: middle; text-align: center; }
+      .sheet img { max-width: 100%; max-height: 232mm; width: auto; height: auto; object-fit: contain; border-radius: 10px; background: white; }
       .note { color: #475569; font-size: 12px; text-align: center; padding: 14px; }
       .note strong { color: #0b1220; }
     </style>
@@ -36,22 +37,23 @@
     </div>
 
     <div class="sheet">
-      {% if license_image_uri %}
-      <img src="{{ license_image_uri }}" alt="Licencia" />
-      {% else %}
-      <div class="note">
-        {% if license_missing %}
-          <strong>Licencia no subida</strong><br />
-          Sube un PDF/JPG desde la ficha del jugador para adjuntarla aquí.
-        {% elif license_is_pdf %}
-          <strong>Licencia en PDF</strong><br />
-          Se adjunta a continuación.
+      <div class="sheet-inner">
+        {% if license_image_uri %}
+        <img src="{{ license_image_uri }}" alt="Licencia" />
         {% else %}
-          <strong>Licencia no disponible</strong>
+        <div class="note">
+          {% if license_missing %}
+            <strong>Licencia no subida</strong><br />
+            Sube un PDF/JPG desde la ficha del jugador para adjuntarla aquí.
+          {% elif license_is_pdf %}
+            <strong>Licencia en PDF</strong><br />
+            Se adjunta a continuación.
+          {% else %}
+            <strong>Licencia no disponible</strong>
+          {% endif %}
+        </div>
         {% endif %}
       </div>
-      {% endif %}
     </div>
   </body>
 </html>
-
