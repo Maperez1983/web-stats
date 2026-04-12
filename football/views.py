@@ -11294,37 +11294,118 @@ def share_convocation_pdf_page(request, token):
     ordered_players = sorted(players, key=_sort_player_key)
 
     static_base_dir = Path(settings.BASE_DIR) / 'static'
-    logo_static_path = static_base_dir / 'football' / 'images' / 'cdb-logo.png'
-    avatar_static_path = static_base_dir / 'football' / 'images' / 'player-avatar.svg'
-    logo_data_uri = _file_as_data_uri(logo_static_path)
-    avatar_data_uri = _file_as_data_uri(avatar_static_path)
 
-    include_player_photos = str(os.getenv('CONVOCATION_PDF_PLAYER_PHOTOS', '0')).strip().lower() in {'1', 'true', 'yes', 'on'}
+    include_player_photos = str(os.getenv('CONVOCATION_PDF_PLAYER_PHOTOS', '1')).strip().lower() in {
+        '1',
+        'true',
+        'yes',
+        'on',
+    }
 
-    def _player_photo_src(player_obj):
+    storage = storages['default']
+    if isinstance(storage, FileSystemStorage):
+        storage = FileSystemStorage(location=getattr(settings, 'MEDIA_ROOT', None), base_url=getattr(settings, 'MEDIA_URL', '/media/'))
+
+    def _person_initials(label):
+        text = ' '.join(str(label or '').split()).strip()
+        if not text:
+            return '??'
+        tokens = [tok for tok in re.split(r'[^A-Za-zÀ-ÿ0-9]+', text) if tok]
+        if not tokens:
+            return (text[:2] if len(text) >= 2 else text).upper()
+        if len(tokens) == 1:
+            return (tokens[0][:2] if len(tokens[0]) >= 2 else tokens[0]).upper()
+        return (tokens[0][0] + tokens[-1][0]).upper()
+
+    def _svg_data_uri(svg_text):
+        try:
+            raw = svg_text.encode('utf-8')
+        except Exception:
+            raw = bytes(svg_text or '', 'utf-8', errors='ignore')
+        encoded = base64.b64encode(raw).decode('ascii')
+        return f'data:image/svg+xml;base64,{encoded}'
+
+    def _team_fallback_crest_svg(team_label, hue=142):
+        initials = _team_initials(team_label)
+        svg = f"""<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="hsl({hue}, 70%, 42%)"/>
+      <stop offset="100%" stop-color="hsl({(hue + 35) % 360}, 74%, 36%)"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="160" height="160" rx="32" fill="url(#g)"/>
+  <rect x="10" y="10" width="140" height="140" rx="28" fill="rgba(2, 6, 23, 0.25)" stroke="rgba(255,255,255,0.26)" stroke-width="2"/>
+  <text x="80" y="92" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, Arial" font-size="56" font-weight="800" fill="rgba(255,255,255,0.92)" letter-spacing="2">{html.escape(initials)}</text>
+</svg>"""
+        return _svg_data_uri(svg)
+
+    def _team_crest_data_uri(team_obj, fallback_label=''):
+        if team_obj and getattr(team_obj, 'crest_image', None):
+            try:
+                file_name = str(getattr(team_obj.crest_image, 'name', '') or '')
+                ext = Path(file_name).suffix.lower()
+                mime = {'.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp'}.get(ext, 'image/png')
+                team_obj.crest_image.open('rb')
+                raw = team_obj.crest_image.read() or b''
+                try:
+                    team_obj.crest_image.close()
+                except Exception:
+                    pass
+                if raw:
+                    return _image_bytes_as_small_data_uri(raw_bytes=raw, mime_type=mime, max_width=220, max_height=220, quality=72)
+            except Exception:
+                pass
+        if team_obj and _is_benagalbon_team(team_obj):
+            local_primary = static_base_dir / 'football' / 'images' / 'cdb-benagalbon-crest.png'
+            data_uri = _image_file_as_small_data_uri(local_primary, max_width=220, max_height=220, quality=72)
+            if data_uri:
+                return data_uri
+        label = (getattr(team_obj, 'display_name', '') if team_obj else '') or (getattr(team_obj, 'name', '') if team_obj else '') or fallback_label
+        hue = _team_color_seed(team_obj) if team_obj else (sum(ord(ch) for ch in str(label or '')) % 360)
+        return _team_fallback_crest_svg(label or 'Equipo', hue=hue)
+
+    def _read_storage_bytes(storage_name):
+        if not storage_name:
+            return b''
+        try:
+            with storage.open(storage_name, 'rb') as fp:
+                return fp.read() or b''
+        except Exception:
+            return b''
+
+    def _player_photo_data_uri(player_obj):
         if not include_player_photos:
-            if avatar_data_uri:
-                return avatar_data_uri
-            return request.build_absolute_uri(static('football/images/player-avatar.svg'))
+            return ''
+        storage_name = ''
+        for candidate in _player_photo_storage_candidates(player_obj):
+            try:
+                if storage.exists(candidate):
+                    storage_name = candidate
+                    break
+            except Exception:
+                continue
+        if storage_name:
+            ext = Path(storage_name).suffix.lower()
+            mime = {'.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp'}.get(ext, 'image/png')
+            raw = _read_storage_bytes(storage_name)
+            if raw:
+                return _image_bytes_as_small_data_uri(raw_bytes=raw, mime_type=mime, max_width=280, max_height=280, quality=68)
         player_static_rel = resolve_player_photo_static_path(player_obj)
         if player_static_rel:
-            player_data_uri = _image_file_as_small_data_uri(
-                static_base_dir / player_static_rel,
-                max_width=220,
-                max_height=220,
-                quality=65,
-            )
-            if player_data_uri:
-                return player_data_uri
-            return request.build_absolute_uri(static(player_static_rel))
-        if avatar_data_uri:
-            return avatar_data_uri
-        return request.build_absolute_uri(static('football/images/player-avatar.svg'))
+            return _image_file_as_small_data_uri(static_base_dir / player_static_rel, max_width=280, max_height=280, quality=68)
+        return ''
 
-    player_rows = [{'number': player.number, 'name': player.name, 'photo_src': _player_photo_src(player)} for player in ordered_players]
-    midpoint = (len(player_rows) + 1) // 2
-    left_column_players = player_rows[:midpoint]
-    right_column_players = player_rows[midpoint:]
+    player_rows = []
+    for player in ordered_players:
+        player_rows.append(
+            {
+                'number': player.number,
+                'name': player.name,
+                'initials': _person_initials(player.name),
+                'photo_data_uri': _player_photo_data_uri(player),
+            }
+        )
 
     date_label = convocation_record.match_date.strftime('%d/%m/%Y') if convocation_record.match_date else '--'
     time_label = convocation_record.match_time.strftime('%H:%M') if convocation_record.match_time else '--:--'
@@ -11343,49 +11424,72 @@ def share_convocation_pdf_page(request, token):
     preferred_opponent = preferred_next.get('opponent') if isinstance(preferred_next, dict) else None
     rival_full_name, rival_crest_url = _resolve_rival_identity(rival_name, preferred_opponent=preferred_opponent)
     rival_crest_url = _sanitize_universo_external_image(_absolute_universo_url(rival_crest_url))
-    rival_crest_src = str(rival_crest_url or '').strip()
-    if rival_crest_src.startswith('http://') or rival_crest_src.startswith('https://'):
-        rival_crest_src = ''
 
-    round_digits = ''.join(re.findall(r'\d+', convocation_record.round or ''))
-    round_short = f'J{round_digits}' if round_digits else 'J'
-    date_human = date_label
-    if convocation_record.match_date:
-        day_map = ['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB', 'DOM']
-        month_map = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC']
-        weekday = day_map[convocation_record.match_date.weekday()]
-        month = month_map[convocation_record.match_date.month - 1]
-        date_human = f'{weekday} {convocation_record.match_date.day} {month}'
+    opponent_team = None
+    try:
+        if convocation_record.match:
+            is_home = bool(convocation_record.match.home_team_id == primary_team.id)
+            opponent_team = convocation_record.match.away_team if is_home else convocation_record.match.home_team
+    except Exception:
+        opponent_team = None
+
+    team_crest_src = _team_crest_data_uri(primary_team, fallback_label=primary_team.display_name)
+    rival_crest_src = _team_crest_data_uri(opponent_team, fallback_label=rival_full_name or rival_name)
+
+    competition_name = ''
+    season_name = ''
+    group_name = ''
+    try:
+        group = getattr(primary_team, 'group', None)
+        if group and getattr(group, 'season', None) and getattr(group.season, 'competition', None):
+            competition_name = str(group.season.competition.name or '').strip()
+            season_name = str(group.season.name or '').strip()
+            group_name = str(group.name or '').strip()
+    except Exception:
+        competition_name = ''
+        season_name = ''
+        group_name = ''
+
+    team_photo_data_uri = ''
+    try:
+        cover_field = getattr(primary_team, 'cover_image', None)
+        if cover_field:
+            file_name = str(getattr(cover_field, 'name', '') or '')
+            ext = Path(file_name).suffix.lower()
+            mime = {'.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp'}.get(ext, 'image/jpeg')
+            cover_field.open('rb')
+            raw = cover_field.read() or b''
+            try:
+                cover_field.close()
+            except Exception:
+                pass
+            if raw:
+                team_photo_data_uri = _image_bytes_as_small_data_uri(raw_bytes=raw, mime_type=mime, max_width=1400, max_height=900, quality=72)
+    except Exception:
+        team_photo_data_uri = ''
+    if not team_photo_data_uri:
+        default_cover = static_base_dir / 'football' / 'images' / 'team-01.jpg'
+        team_photo_data_uri = _image_file_as_small_data_uri(default_cover, max_width=1400, max_height=900, quality=72)
 
     context = {
         **_build_pdf_nav_urls(request),
         'team_name': primary_team.display_name,
         'team_full_name': primary_team.name,
         'round_label': convocation_record.round or 'Jornada por confirmar',
-        'round_short': round_short,
         'date_label': date_label,
-        'date_human': date_human,
         'time_label': time_label,
         'location_label': location_label or 'Campo por confirmar',
-        'rival_label': rival_name,
         'rival_full_name': rival_full_name,
+        'team_crest_src': team_crest_src,
         'rival_crest_src': rival_crest_src,
         'players': player_rows,
-        'left_column_players': left_column_players,
-        'right_column_players': right_column_players,
-        'coach_name': os.getenv('TEAM_COACH_NAME', 'Aitor Castillo'),
         'club_hashtag': os.getenv('TEAM_HASHTAG', '#VamosVerdes'),
-        'logo_src': resolve_team_crest_url(request, primary_team, sync=True) or logo_data_uri or request.build_absolute_uri(static('football/images/cdb-logo.png')),
-        'brand_mark_url': request.build_absolute_uri(static('football/images/2j-mark.svg')),
-        'avatar_src': avatar_data_uri or request.build_absolute_uri(static('football/images/player-avatar.svg')),
-        'team_photo_url': request.build_absolute_uri(static('football/images/team-01.jpg')),
-        'team_photo_data_uri': '',
-        'coach_photo_url': request.build_absolute_uri(static(os.getenv('TEAM_COACH_PHOTO', 'football/images/team-01.jpg'))),
+        'competition_name': competition_name or 'Competición',
+        'season_name': season_name,
+        'group_name': group_name,
+        'team_photo_data_uri': team_photo_data_uri,
+        'generated_at': timezone.localtime(),
     }
-    team_photo = resolve_team_photo_for_pdf(request)
-    context['team_photo_url'] = team_photo.get('url') or context['team_photo_url']
-    context['coach_photo_url'] = context['team_photo_url']
-    context['team_photo_data_uri'] = team_photo.get('data_uri') or ''
 
     html = render_to_string('football/convocation_pdf.html', context)
     filename = slugify(f'convocatoria-{primary_team.display_name}-{convocation_record.match_date or timezone.localdate()}') or f'convocatoria-{convocation_record.id}'
