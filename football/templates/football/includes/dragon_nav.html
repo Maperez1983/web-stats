@@ -1,7 +1,7 @@
 {% load static %}
 {% if not hide_dragon_logo %}
 <div class="dragon-nav">
-	  <a href="{% if active_team and workspace_entry_url %}{{ workspace_entry_url }}{% elif home_url %}{{ home_url }}{% elif workspace_entry_url %}{{ workspace_entry_url }}{% else %}{% url 'dashboard-home' %}{% endif %}" class="dragon-link" title="Volver al inicio">
+	  <a href="{% if club_dashboard_url %}{{ club_dashboard_url }}{% elif active_team and workspace_entry_url %}{{ workspace_entry_url }}{% elif home_url %}{{ home_url }}{% elif workspace_entry_url %}{{ workspace_entry_url }}{% else %}{% url 'dashboard-home' %}{% endif %}" class="dragon-link" title="Volver al inicio">
 	    <img src="{% static 'football/images/2j-icon.svg' %}" alt="Segunda Jugada · 2J" loading="lazy" />
 	  </a>
 </div>
@@ -27,18 +27,31 @@
   <a href="{% url 'player-dashboard' %}">Jugadores</a>
   {% endif %}
   {% endif %}
-  {% if workspace_module_access.sessions|default:True %}
-  <a href="{% url 'sessions' %}">Entrenos</a>
-  {% endif %}
-  <a href="{% url 'search-page' %}">Buscar</a>
   <details class="nav-more">
     <summary>Más</summary>
     <div class="nav-more-panel">
+      <a href="{% url 'search-page' %}">Buscar</a>
+      {% if active_team_options and active_team_options|length > 1 %}
+      <div class="nav-more-subtitle">Equipo</div>
+      <form class="team-switcher team-switcher--inline" method="post" action="{% url 'workspace-active-team' %}">
+        {% csrf_token %}
+        <select name="team_id" aria-label="Cambiar equipo" onchange="this.form.submit()">
+          {% for opt in active_team_options %}
+          <option value="{{ opt.id }}" {% if active_team and opt.id == active_team.id %}selected{% endif %}>
+            {{ opt.label }}
+          </option>
+          {% endfor %}
+        </select>
+        <input type="hidden" name="next" value="{{ active_team_current_path|default:'' }}" />
+      </form>
+      {% endif %}
+      {% if workspace_module_access.sessions|default:True %}
+      <a href="{% url 'sessions' %}">Entrenos</a>
+      {% endif %}
       {% if workspace_module_access.match_actions|default:True %}
       <a href="{% url 'match-action-page' %}">Acciones</a>
       {% endif %}
       {% if workspace_module_access.coach_overview|default:True %}
-      <a href="{% url 'coach-cards' %}">Cuerpo técnico</a>
       <a href="{% url 'staff-directory' %}">Staff</a>
       {% endif %}
       {% if workspace_module_access.analysis|default:True %}
@@ -57,20 +70,6 @@
     </div>
   </details>
 </nav>
-{% endif %}
-{% if active_team_options and active_team_options|length > 1 %}
-<form class="team-switcher" method="post" action="{% url 'workspace-active-team' %}">
-  {% csrf_token %}
-  <span class="team-switcher-label">Equipo</span>
-  <select name="team_id" aria-label="Cambiar equipo" onchange="this.form.submit()">
-    {% for opt in active_team_options %}
-    <option value="{{ opt.id }}" {% if active_team and opt.id == active_team.id %}selected{% endif %}>
-      {{ opt.label }}
-    </option>
-    {% endfor %}
-  </select>
-  <input type="hidden" name="next" value="{{ active_team_current_path|default:'' }}" />
-</form>
 {% endif %}
 <style>
 .dragon-nav {
@@ -183,6 +182,15 @@
   gap: 0.25rem;
   z-index: 40;
 }
+.nav-more-subtitle {
+  margin-top: 0.15rem;
+  padding: 0.35rem 0.55rem 0.1rem;
+  font-size: 0.64rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-weight: 900;
+  color: rgba(148, 163, 184, 0.95);
+}
 .nav-more-panel a {
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.10);
@@ -197,11 +205,19 @@
   border-color: rgba(244, 180, 0, 0.45);
 }
 .team-switcher {
-  margin-top: 0.55rem;
+  margin-top: 0.25rem;
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
   flex-wrap: wrap;
+}
+.team-switcher--inline {
+  width: 100%;
+  margin: 0;
+  padding: 0.25rem 0.45rem 0.35rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.03);
 }
 .team-switcher-label {
   font-size: 0.7rem;
@@ -211,6 +227,7 @@
   font-weight: 800;
 }
 .team-switcher select {
+  width: 100%;
   border-radius: 999px;
   padding: 0.35rem 0.75rem;
   border: 1px solid rgba(244, 180, 0, 0.18);
