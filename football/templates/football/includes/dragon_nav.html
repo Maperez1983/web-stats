@@ -17,23 +17,45 @@
   {% if workspace_module_access.dashboard|default:True %}
   <a href="{% if club_dashboard_url %}{{ club_dashboard_url }}{% else %}{% url 'dashboard-home' %}{% endif %}">Portada</a>
   {% endif %}
-  {% if workspace_module_access.convocation|default:True %}
-  <a href="{% url 'match-hub' %}">Partido</a>
-  {% endif %}
-  {% if workspace_module_access.players|default:True %}
-  {% if can_manage_workspace or is_admin_user %}
-  <a href="{% url 'coach-roster' %}">Jugadores</a>
-  {% else %}
-  <a href="{% url 'player-dashboard' %}">Jugadores</a>
-  {% endif %}
-  {% endif %}
   {% if workspace_module_access.sessions|default:True %}
   <a href="{% url 'sessions' %}">Entrenos</a>
   {% endif %}
+  {% if workspace_module_access.convocation|default:True %}
+  <a href="{% url 'match-hub' %}">Partido</a>
+  {% endif %}
   <details class="nav-more">
-    <summary>Más</summary>
+    <summary>Menú</summary>
     <div class="nav-more-panel">
       <a href="{% url 'search-page' %}">Buscar</a>
+
+      {% if workspace_module_access.convocation|default:True or workspace_module_access.match_actions|default:True %}
+      <div class="nav-more-subtitle">Partido</div>
+      {% if workspace_module_access.convocation|default:True %}
+      <a href="{% url 'convocation' %}">Convocatoria</a>
+      <a href="{% url 'initial-eleven' %}">11 inicial</a>
+      {% endif %}
+      {% if workspace_module_access.match_actions|default:True %}
+      <a href="{% url 'match-action-page' %}">Registro de acciones</a>
+      {% endif %}
+      {% if workspace_module_access.match_actions|default:True %}
+      <a href="{% url 'match-report-pdf' %}" target="_blank" rel="noreferrer">Ficha final (PDF)</a>
+      {% endif %}
+      {% endif %}
+
+      <div class="nav-more-subtitle">Club</div>
+      {% if workspace_module_access.players|default:True %}
+      {% if can_manage_workspace or is_admin_user %}
+      <a href="{% url 'coach-roster' %}">Jugadores</a>
+      {% else %}
+      <a href="{% url 'player-dashboard' %}">Jugadores</a>
+      {% endif %}
+      {% endif %}
+      {% if workspace_module_access.coach_overview|default:True %}
+      <a href="{% url 'staff-directory' %}">Staff</a>
+      {% endif %}
+      {% if workspace_module_access.analysis|default:True %}
+      <a href="{% url 'analysis' %}">Análisis</a>
+      {% endif %}
       {% if active_team_options and active_team_options|length > 1 %}
       <div class="nav-more-subtitle">Equipo</div>
       <form class="team-switcher team-switcher--inline" method="post" action="{% url 'workspace-active-team' %}">
@@ -48,20 +70,13 @@
         <input type="hidden" name="next" value="{{ active_team_current_path|default:'' }}" />
       </form>
       {% endif %}
-      {% if workspace_module_access.match_actions|default:True %}
-      <a href="{% url 'match-action-page' %}">Acciones</a>
-      {% endif %}
-      {% if workspace_module_access.coach_overview|default:True %}
-      <a href="{% url 'staff-directory' %}">Staff</a>
-      {% endif %}
-      {% if workspace_module_access.analysis|default:True %}
-      <a href="{% url 'analysis' %}">Análisis</a>
-      {% endif %}
       {% if can_manage_workspace and active_workspace and active_workspace.kind == 'club' %}
+      <div class="nav-more-subtitle">Gestión</div>
       <a href="{% url 'club-onboarding' %}">Ajustes</a>
       <a href="{% url 'billing' %}">Suscripción</a>
       {% endif %}
       {% if can_manage_workspace or is_admin_user %}
+      <div class="nav-more-subtitle">Admin</div>
       <a href="{% url 'admin-page' %}?tab=teams">Admin</a>
       {% endif %}
       {% if is_admin_user %}

@@ -116,8 +116,8 @@ body.prod-commercial a:hover {
 }
 
 /* Buttons (supports `.button` and `.btn`). */
-body.prod-commercial .button.button,
-body.prod-commercial .btn.btn,
+body.prod-commercial .button,
+body.prod-commercial .btn,
 body.prod-commercial button.button,
 body.prod-commercial button.btn,
 body.prod-commercial a.button,
@@ -144,8 +144,8 @@ body.prod-commercial a.btn {
   user-select: none;
 }
 
-body.prod-commercial .button.button:hover,
-body.prod-commercial .btn.btn:hover,
+body.prod-commercial .button:hover,
+body.prod-commercial .btn:hover,
 body.prod-commercial button.button:hover,
 body.prod-commercial button.btn:hover,
 body.prod-commercial a.button:hover,
@@ -155,8 +155,8 @@ body.prod-commercial a.btn:hover {
   transform: translateY(-1px);
 }
 
-body.prod-commercial .button.button:active,
-body.prod-commercial .btn.btn:active,
+body.prod-commercial .button:active,
+body.prod-commercial .btn:active,
 body.prod-commercial button.button:active,
 body.prod-commercial button.btn:active,
 body.prod-commercial a.button:active,
@@ -164,8 +164,8 @@ body.prod-commercial a.btn:active {
   transform: translateY(0);
 }
 
-body.prod-commercial .button.button:focus-visible,
-body.prod-commercial .btn.btn:focus-visible,
+body.prod-commercial .button:focus-visible,
+body.prod-commercial .btn:focus-visible,
 body.prod-commercial button.button:focus-visible,
 body.prod-commercial button.btn:focus-visible,
 body.prod-commercial a.button:focus-visible,
@@ -177,8 +177,8 @@ body.prod-commercial a.btn:focus-visible {
 body.prod-commercial .button.primary,
 body.prod-commercial .btn.primary,
 body.prod-commercial .btn-primary,
-body.prod-commercial .button.button.primary,
-body.prod-commercial .btn.btn.primary {
+body.prod-commercial button.primary,
+body.prod-commercial a.primary {
   border-color: rgba(244, 180, 0, 0.34);
   background: linear-gradient(135deg, rgba(244, 180, 0, 0.95), rgba(244, 180, 0, 0.78));
   color: rgba(8, 17, 29, 0.98);
@@ -187,8 +187,8 @@ body.prod-commercial .btn.btn.primary {
 
 body.prod-commercial .button.secondary,
 body.prod-commercial .btn.secondary,
-body.prod-commercial .button.button.secondary,
-body.prod-commercial .btn.btn.secondary {
+body.prod-commercial button.secondary,
+body.prod-commercial a.secondary {
   border-color: rgba(47, 125, 50, 0.32);
   background: linear-gradient(135deg, rgba(47, 125, 50, 0.88), rgba(24, 63, 38, 0.84));
   color: rgba(245, 247, 250, 0.96);
@@ -197,8 +197,7 @@ body.prod-commercial .btn.btn.secondary {
 body.prod-commercial .button.danger,
 body.prod-commercial .btn.danger,
 body.prod-commercial button.danger,
-body.prod-commercial .button.button.danger,
-body.prod-commercial .btn.btn.danger {
+body.prod-commercial a.danger {
   border-color: rgba(248, 113, 113, 0.5);
   background: rgba(220, 38, 38, 0.18);
   color: rgba(254, 226, 226, 0.95);
@@ -206,7 +205,8 @@ body.prod-commercial .btn.btn.danger {
 
 body.prod-commercial .button.ghost,
 body.prod-commercial .btn-ghost,
-body.prod-commercial .button.button.ghost {
+body.prod-commercial a.ghost,
+body.prod-commercial button.ghost {
   background: transparent;
   border-color: rgba(148, 163, 184, 0.24);
   color: rgba(226, 232, 240, 0.92);
@@ -232,14 +232,14 @@ body.prod-commercial button.icon-only {
 }
 
 /* Tabs */
-body.prod-commercial .tabs.tabs {
+body.prod-commercial .tabs {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
   margin: 0 0 0.95rem;
 }
 
-body.prod-commercial .tab-link.tab-link {
+body.prod-commercial .tab-link {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -255,7 +255,7 @@ body.prod-commercial .tab-link.tab-link {
   text-decoration: none;
 }
 
-body.prod-commercial .tab-link.tab-link:hover {
+body.prod-commercial .tab-link:hover {
   border-color: rgba(244, 180, 0, 0.34);
   background: rgba(255, 255, 255, 0.06);
 }
@@ -268,26 +268,26 @@ body.prod-commercial .tab-link[aria-current="page"] {
 }
 
 /* Panels / cards */
-body.prod-commercial .panel.panel,
-body.prod-commercial .card.card,
-body.prod-commercial .product-card.product-card {
+body.prod-commercial .panel,
+body.prod-commercial .card,
+body.prod-commercial .product-card {
   border: 1px solid var(--ui-line);
   border-radius: var(--ui-radius-xl);
   background: var(--ui-panel);
 }
 
-body.prod-commercial .panel.panel {
+body.prod-commercial .panel {
   padding: 1rem;
   box-shadow: var(--ui-shadow-md);
 }
 
-body.prod-commercial .card.card,
-body.prod-commercial .product-card.product-card {
+body.prod-commercial .card,
+body.prod-commercial .product-card {
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
 }
 
 /* Alerts */
-body.prod-commercial .alert.alert {
+body.prod-commercial .alert {
   border-radius: var(--ui-radius-lg);
   border: 1px solid var(--ui-line);
   padding: 0.78rem 0.95rem;
@@ -310,7 +310,7 @@ body.prod-commercial .alert.warn {
 }
 
 /* Badges */
-body.prod-commercial .badge.badge {
+body.prod-commercial .badge {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
