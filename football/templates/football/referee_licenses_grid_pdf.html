@@ -13,53 +13,119 @@
         color: #0b1220;
       }
       .header {
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 12px 14px;
+        background: linear-gradient(180deg, #ffffff, #f8fafc);
+        margin-bottom: 8mm;
+      }
+      .header-top {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
-        gap: 10px;
-        margin-bottom: 8mm;
+        gap: 12px;
       }
-      .brand {
+      .comp {
         display: flex;
-        align-items: flex-start;
+        align-items: center;
         gap: 10px;
+        min-width: 220px;
+      }
+      .comp-badge {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        background: #0f172a;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .comp-text strong {
+        display: block;
+        font-size: 11px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .comp-text span {
+        display: block;
+        font-size: 10px;
+        color: #475569;
+        margin-top: 2px;
+      }
+      .duel {
+        flex: 1;
+        text-align: center;
+      }
+      .duel-row {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 2px;
+      }
+      .team {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        max-width: 240px;
       }
       .crest {
-        width: 44px;
-        height: 44px;
+        width: 34px;
+        height: 34px;
         border-radius: 999px;
         border: 1px solid #cbd5e1;
         background: white;
         object-fit: contain;
-        padding: 4px;
+        padding: 3px;
       }
-      .title {
-        margin: 0;
+      .team-name {
         font-size: 14px;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+      .vs {
+        font-size: 12px;
         font-weight: 900;
         letter-spacing: 0.08em;
         text-transform: uppercase;
-      }
-      .sub {
-        margin: 4px 0 0;
-        font-size: 11px;
         color: #334155;
       }
+      .meta {
+        margin-top: 8px;
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 6px 10px;
+        font-size: 10px;
+        color: #0f172a;
+      }
+      .pill {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 999px;
+        background: #0f172a;
+        color: white;
+        font-weight: 900;
+        letter-spacing: 0.05em;
+      }
       .staff {
-        margin-top: 6px;
+        margin-top: 8px;
         font-size: 10px;
         color: #0f172a;
         display: grid;
         gap: 2px;
-        max-width: 360px;
+        max-width: 520px;
       }
       .staff span { color: #475569; }
-      .meta {
-        font-size: 10px;
+      .title {
+        margin: 10px 0 0;
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
         color: #0f172a;
-        display: grid;
-        gap: 2px;
-        text-align: right;
       }
       .grid {
         display: grid;
@@ -122,27 +188,49 @@
   </head>
   <body>
     <div class="header">
-      <div class="brand">
-        {% if crest_url %}
-        <img class="crest" src="{{ crest_url }}" alt="Escudo" />
-        {% endif %}
-        <div>
-          <p class="title">Licencias federativas · Árbitro</p>
-          <p class="sub"><strong>{{ round_label }}</strong> · {{ home_team_name }} vs {{ away_team_name }}</p>
-          {% if staff_lines %}
-          <div class="staff">
-            {% for line in staff_lines %}
-            <div><strong>{{ line.role }}</strong> <span>·</span> {{ line.name }}</div>
-            {% endfor %}
+      <div class="header-top">
+        <div class="comp">
+          <div class="comp-badge" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M7 4h10v3c0 2.6-2 4.7-4.6 4.95V15h2.2v2H9.4v-2h2.2v-3.05C9 11.7 7 9.6 7 7V4Z" fill="rgba(255,255,255,0.92)"/>
+              <path d="M5 4h2v3c0 1.8-1.2 3.4-3 3.9V8c1.1-.2 1-.9 1-1.9V4Zm14 0h2v2c0 1 0 1.7 1 1.9v2.9c-1.8-.5-3-2.1-3-3.9V4Z" fill="rgba(255,255,255,0.78)"/>
+            </svg>
           </div>
-          {% endif %}
+          <div class="comp-text">
+            <strong>{{ competition_name }}</strong>
+            <span>{% if season_name %}{{ season_name }}{% endif %}{% if group_name %} · {{ group_name }}{% endif %}</span>
+          </div>
+        </div>
+
+        <div class="duel">
+          <div class="duel-row">
+            <div class="team">
+              <img class="crest" src="{{ team_crest_src }}" alt="Escudo {{ home_team_name }}" />
+              <div class="team-name">{{ home_team_name }}</div>
+            </div>
+            <div class="vs">vs</div>
+            <div class="team">
+              <img class="crest" src="{{ rival_crest_src }}" alt="Escudo {{ away_team_name }}" />
+              <div class="team-name">{{ away_team_name }}</div>
+            </div>
+          </div>
+          <div class="meta">
+            <span class="pill">{{ round_label }}</span>
+            <span><strong>{{ date_label }}</strong> · {{ time_label }}</span>
+            <span>{{ location_label }}</span>
+          </div>
         </div>
       </div>
-      <div class="meta">
-        <div><strong>Fecha:</strong> {{ date_label }}</div>
-        <div><strong>Hora:</strong> {{ time_label }}</div>
-        <div><strong>Lugar:</strong> {{ location_label }}</div>
+
+      {% if staff_lines %}
+      <div class="staff">
+        {% for line in staff_lines %}
+        <div><strong>{{ line.role }}</strong> <span>·</span> {{ line.name }}</div>
+        {% endfor %}
       </div>
+      {% endif %}
+
+      <p class="title">Licencias federativas · Árbitro</p>
     </div>
 
     <div class="grid {{ grid_class }}">
