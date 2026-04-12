@@ -955,7 +955,7 @@
               <div class="workspace-note">{{ workspace.notes|truncatechars:180 }}</div>
               {% endif %}
 	              <div class="actions-row">
-	                <a class="link-btn" href="{% url 'platform-workspace-enter' workspace.id %}{% if workspace.team_links and workspace.team_links.0.team_id %}?team={{ workspace.team_links.0.team_id }}{% endif %}">Entrar</a>
+	                <a class="link-btn" href="{% url 'platform-workspace-enter' workspace.id %}">Entrar</a>
 	                <a class="link-btn" href="{% url 'platform-workspace-detail' workspace.id %}">Abrir ficha</a>
 	              </div>
               {% if workspace.team_links %}

@@ -781,7 +781,11 @@
 
           if (payload.team && payload.team.name) {
             const heroName = document.getElementById('hero-team-name');
-            if (heroName) heroName.textContent = payload.team.name;
+            if (heroName) {
+              const baseName = String(payload.team.name || '').trim();
+              const category = String(payload.team.category || '').trim();
+              heroName.textContent = category ? `${baseName} · ${category.toUpperCase()}` : baseName;
+            }
             const heroCrest = document.getElementById('hero-team-crest');
             if (heroCrest && payload.team.crest_url) {
               heroCrest.src = payload.team.crest_url;

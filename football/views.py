@@ -7020,6 +7020,7 @@ def dashboard_data(request):
     payload = {
         'team': {
             'name': primary_team.name,
+            'category': str(getattr(primary_team, 'category', '') or '').strip(),
             'group': group_label,
             'competition': competition_name,
             'season': season_name,
