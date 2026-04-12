@@ -9708,6 +9708,13 @@ def platform_workspace_detail_page(request, workspace_id):
         {'title': 'Entrenamiento', 'description': 'Microciclos, sesiones, tareas, porteros, físico y ABP.', 'url': reverse('sessions')},
         {'title': 'Análisis', 'description': 'Rival, informes, scouting y lectura táctica del cliente seleccionado.', 'url': reverse('analysis')},
     ]
+    workspace_team_links = list(
+        WorkspaceTeam.objects
+        .filter(workspace=workspace)
+        .select_related('team')
+        .order_by('-is_default', 'id')
+    )
+    is_multi_team_workspace = len(workspace_team_links) > 1
     return render(
         request,
         'football/platform_workspace_detail.html',
@@ -9732,6 +9739,8 @@ def platform_workspace_detail_page(request, workspace_id):
             'competition_search_inputs': competition_search_inputs,
             'competition_search_results': competition_search_results,
             'invite_link': invite_link,
+            'workspace_team_links': workspace_team_links,
+            'is_multi_team_workspace': is_multi_team_workspace,
         },
     )
 

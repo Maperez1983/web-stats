@@ -452,6 +452,30 @@
               </form>
             </div>
           </details>
+          {% if is_multi_team_workspace %}
+          <details style="display:inline-block;">
+            <summary class="inline-btn" style="cursor:pointer;">Separar categorías</summary>
+            <div style="margin-top:0.6rem; padding:0.75rem; border-radius:12px; border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.04); min-width:min(540px, 92vw);">
+              <p style="margin:0 0 0.55rem; font-weight:800;">
+                Este club tiene varias categorías/equipos dentro del mismo workspace.
+              </p>
+              <p style="margin:0 0 0.65rem; color:rgba(216,228,248,0.82);">
+                Recomendación comercial: <strong>1 club = 1 equipo</strong>. Esto evita mezclar rivales/estadísticas y simplifica la navegación.
+              </p>
+              <p style="margin:0 0 0.45rem; color:rgba(216,228,248,0.82);">
+                Ejecuta este comando (dry-run primero, luego con <code>--apply</code>):
+              </p>
+              <pre style="margin:0; padding:0.65rem 0.75rem; border-radius:12px; background:rgba(2,6,23,0.55); border:1px solid rgba(255,255,255,0.10); overflow:auto;"><code>DEBUG=true SECRET_KEY=dev \
+python3 manage.py split_workspace_into_clubs --workspace-id {{ workspace.id }}
+
+DEBUG=true SECRET_KEY=dev \
+python3 manage.py split_workspace_into_clubs --workspace-id {{ workspace.id }} --apply</code></pre>
+              <p style="margin:0.65rem 0 0; color:rgba(216,228,248,0.75); font-size:0.85rem;">
+                No borra jugadores/partidos: crea nuevos clubs (workspaces) y mueve accesos/contexto competitivo.
+              </p>
+            </div>
+          </details>
+          {% endif %}
           {% endif %}
         </div>
         {% if feedback %}

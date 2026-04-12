@@ -92,6 +92,17 @@ def workspace_access(request):
         can_manage = False
         is_admin = False
 
+    team_switcher_enabled = False
+    try:
+        raw_flag = str(os.getenv('ENABLE_TEAM_SWITCHER', '0') or '').strip().lower()
+        team_switcher_enabled = raw_flag in {'1', 'true', 'yes', 'on'}
+    except Exception:
+        team_switcher_enabled = False
+    # Producto comercial: por defecto no mostramos selector interno de equipo para no mezclar datos.
+    # Los admins pueden cambiar de club/equipo desde Platform.
+    if is_admin:
+        team_switcher_enabled = bool(team_switcher_enabled)
+
     module_access = {}
     try:
         kind = workspace.kind if workspace else Workspace.KIND_CLUB
@@ -103,7 +114,7 @@ def workspace_access(request):
 
     team_options = []
     try:
-        if workspace and workspace.kind == Workspace.KIND_CLUB:
+        if workspace and workspace.kind == Workspace.KIND_CLUB and team_switcher_enabled:
             links = _workspace_team_links_for_user(workspace, request.user)
             for link in links:
                 team = getattr(link, 'team', None)
@@ -148,6 +159,7 @@ def workspace_access(request):
         'workspace_module_access': module_access,
         'active_team': active_team,
         'active_team_options': team_options,
+        'team_switcher_enabled': bool(team_switcher_enabled),
         'active_workspace_options': workspace_options,
         'active_team_current_path': request.get_full_path() if request else '',
         'can_manage_workspace': can_manage,

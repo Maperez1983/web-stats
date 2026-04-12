@@ -347,12 +347,12 @@ class StaffMember(models.Model):
 
     workspace = models.ForeignKey('Workspace', on_delete=models.CASCADE, related_name='staff_members')
     team = models.ForeignKey('Team', on_delete=models.SET_NULL, null=True, blank=True, related_name='staff_members')
-    user = models.OneToOneField(
+    user = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='staff_profile',
+        related_name='staff_profiles',
     )
     name = models.CharField(max_length=160)
     role_title = models.CharField(max_length=120, blank=True, help_text='Ej. Entrenador, Segundo, Fisio, Delegado')
