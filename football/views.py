@@ -6838,6 +6838,73 @@ def dashboard_data(request):
             return JsonResponse(_build_setup_dashboard_payload(request, workspace))
         return JsonResponse({'error': 'No hay equipo principal configurado'}, status=400)
 
+    workspace = _get_active_workspace(request)
+    # Guardrail UX: evita mostrar rival/clasificación de otra categoría si comparten grupo/competición.
+    # Caso real: Prebenjamín creado clonando Senior y se queda con el mismo Group/Universo ID.
+    try:
+        if workspace and workspace.kind == Workspace.KIND_CLUB and getattr(primary_team, 'group_id', None):
+            group_id = int(primary_team.group_id)
+            links = list(
+                WorkspaceTeam.objects
+                .filter(workspace=workspace)
+                .select_related('team')
+            )
+            conflicts = []
+            for link in links:
+                team = getattr(link, 'team', None)
+                if not team or int(getattr(team, 'id', 0) or 0) == int(primary_team.id):
+                    continue
+                other_group_id = getattr(team, 'group_id', None)
+                if other_group_id and int(other_group_id) == group_id:
+                    conflicts.append(team)
+            if conflicts:
+                category = str(getattr(primary_team, 'category', '') or '').strip()
+                conflict_labels = []
+                for item in conflicts[:3]:
+                    c = str(getattr(item, 'category', '') or '').strip() or 'Sin categoría'
+                    conflict_labels.append(c)
+                conflict_hint = ', '.join(conflict_labels)
+                team_name = str(getattr(primary_team, 'display_name', '') or getattr(primary_team, 'name', '') or '').strip() or 'Equipo'
+                if category and category.lower() not in team_name.lower():
+                    team_name = f'{team_name} · {category}'
+                fix_url = reverse('admin-page') + '?tab=teams'
+                if _can_access_platform(request.user):
+                    # Admin Platform puede preferir arreglarlo desde Platform/club detalle.
+                    fix_url = reverse('admin-page') + '?tab=teams'
+                payload = {
+                    'team': {
+                        'name': primary_team.name,
+                        'group': '',
+                        'competition': '',
+                        'season': '',
+                        'corporate_line': '',
+                        'crest_url': resolve_team_crest_url(request, primary_team, sync=False),
+                    },
+                    'standings': [],
+                    'next_match': None,
+                    'standings_meta': {
+                        'provider': '',
+                        'last_updated': '',
+                        'group': '',
+                        'season': '',
+                    },
+                    'team_metrics': {},
+                    'player_metrics': [],
+                    'player_cards': compute_player_cards(primary_team),
+                    'player_cards_scope': {'type': 'global', 'label': 'Jugador · datos La Preferente'},
+                    'setup_required': True,
+                    'setup_url': fix_url,
+                    'setup_message_title': 'Categoría mezclada con otra competición',
+                    'setup_message_body': (
+                        f'Esta categoría comparte el mismo grupo/competición que otra ({conflict_hint}). '
+                        'Así se mezclan rivales/partidos. Entra en Admin → Categorías y asigna el Universo ID de grupo correcto.'
+                    ),
+                    'setup_action_label': 'Arreglar ahora',
+                }
+                return JsonResponse(payload)
+    except Exception:
+        pass
+
     group = primary_team.group
     if not group:
         # En multicategoría, una categoría puede existir sin grupo todavía.
@@ -6898,7 +6965,6 @@ def dashboard_data(request):
         except Exception:
             pass
 
-    workspace = _get_active_workspace(request)
     dashboard_allow_auto_sync = str(os.getenv('DASHBOARD_ALLOW_AUTO_SYNC', '0') or '').strip().lower() in {
         '1',
         'true',
@@ -26701,7 +26767,10 @@ def match_hub_page(request):
         except Exception:
             actions_count = 0
 
+    category = str(getattr(primary_team, 'category', '') or '').strip()
     team_label = str(getattr(primary_team, 'display_name', '') or getattr(primary_team, 'name', '') or '').strip() or 'Equipo'
+    if category and category.lower() not in team_label.lower():
+        team_label = f'{team_label} · {category}'
     match_label = ''
     match_round = ''
     match_date_label = ''

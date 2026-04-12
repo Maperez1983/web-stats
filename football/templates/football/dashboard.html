@@ -764,11 +764,14 @@
             const setupRequired = Boolean(payload && payload.setup_required);
             if (setupRequired) {
               const url = String(payload.setup_url || '/onboarding/').trim() || '/onboarding/';
+              const title = String(payload.setup_message_title || '').trim();
+              const body = String(payload.setup_message_body || '').trim();
+              const actionLabel = String(payload.setup_action_label || '').trim();
               setupBanner.hidden = false;
               setupBanner.innerHTML = `
-                <div><strong>Este club todavía no está configurado.</strong></div>
-                <div style="margin-top:0.25rem; opacity:0.92;">Ahora mismo ves datos simulados (avatar, clasificación y rival ficticios).</div>
-                <a href="${url}">Configurar</a>
+                <div><strong>${title || 'Este club todavía no está configurado.'}</strong></div>
+                <div style="margin-top:0.25rem; opacity:0.92;">${body || 'Ahora mismo ves datos simulados (avatar, clasificación y rival ficticios).'}</div>
+                <a href="${url}">${actionLabel || 'Configurar'}</a>
               `;
             } else {
               setupBanner.hidden = true;
