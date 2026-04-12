@@ -1,0 +1,261 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <title>{% if mode == 'create' %}Nuevo staff{% else %}{{ member.name }}{% endif %} · 2J</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background:
+          radial-gradient(circle at 12% -10%, rgba(70, 211, 255, 0.15), transparent 40%),
+          radial-gradient(circle at 90% 0%, rgba(255, 191, 69, 0.14), transparent 35%),
+          linear-gradient(180deg, #03070f 0%, #081120 55%, #0a1427 100%);
+        color: rgba(245, 247, 250, 0.92);
+        font-family: "Avenir Next", "Segoe UI", sans-serif;
+      }
+      .shell {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 1.2rem;
+      }
+      .panel {
+        margin-top: 0.9rem;
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(7, 16, 30, 0.78);
+        box-shadow: 0 20px 44px rgba(0, 0, 0, 0.35);
+        padding: 1rem;
+      }
+      h1 {
+        margin: 0;
+        font-size: 1rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      .sub {
+        margin: 0.35rem 0 0;
+        color: rgba(226, 232, 240, 0.74);
+      }
+      .grid {
+        margin-top: 0.9rem;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.75rem;
+      }
+      @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
+      label {
+        display: grid;
+        gap: 0.35rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+        color: rgba(226,232,240,0.76);
+      }
+      input, textarea, select {
+        border-radius: 14px;
+        padding: 0.7rem 0.8rem;
+        border: 1px solid rgba(244, 180, 0, 0.18);
+        background: rgba(15, 23, 42, 0.55);
+        color: #f8fafc;
+        font-weight: 700;
+        font-size: 0.95rem;
+      }
+      textarea { min-height: 120px; resize: vertical; }
+      .row {
+        margin-top: 0.9rem;
+        display: flex;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        border-radius: 999px;
+        padding: 0.55rem 0.85rem;
+        border: 1px solid rgba(244, 180, 0, 0.18);
+        background: rgba(15, 23, 42, 0.62);
+        color: rgba(245, 247, 250, 0.92);
+        font-weight: 900;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+        cursor: pointer;
+      }
+      .btn.primary {
+        background: linear-gradient(135deg, rgba(244, 180, 0, 0.22), rgba(47, 125, 50, 0.18));
+        border-color: rgba(244, 180, 0, 0.38);
+      }
+      .btn.danger {
+        border-color: rgba(248, 113, 113, 0.35);
+        background: rgba(248, 113, 113, 0.10);
+      }
+      .btn:hover {
+        border-color: rgba(244, 180, 0, 0.5);
+        color: #fff9e8;
+      }
+      .btn.danger:hover { border-color: rgba(248, 113, 113, 0.55); color: #ffecec; }
+      .error {
+        margin-top: 0.75rem;
+        border-radius: 14px;
+        padding: 0.75rem 0.85rem;
+        background: rgba(248, 113, 113, 0.12);
+        border: 1px solid rgba(248, 113, 113, 0.26);
+        color: rgba(254, 226, 226, 0.96);
+        font-weight: 900;
+        letter-spacing: 0.02em;
+      }
+      .preview {
+        margin-top: 0.9rem;
+        display: grid;
+        grid-template-columns: 72px 1fr;
+        gap: 0.8rem;
+        align-items: center;
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 16px;
+        background: rgba(255,255,255,0.03);
+        padding: 0.75rem;
+      }
+      .avatar {
+        width: 72px;
+        height: 72px;
+        border-radius: 18px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(255,255,255,0.06);
+        object-fit: cover;
+      }
+      .file-links a {
+        color: rgba(226, 232, 240, 0.9);
+        text-decoration: none;
+        border-bottom: 1px dashed rgba(244, 180, 0, 0.4);
+        font-weight: 900;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      {% include 'football/includes/dragon_nav.html' %}
+
+      <section class="panel">
+        <div class="row" style="margin-top:0;">
+          <div>
+            <h1>{% if mode == 'create' %}Nuevo miembro{% else %}Ficha staff{% endif %}</h1>
+            {% if mode == 'create' %}
+            <p class="sub">{{ team_label }}</p>
+            {% else %}
+            <p class="sub">{{ member.name }}{% if member.role_title %} · {{ member.role_title }}{% endif %}</p>
+            {% endif %}
+          </div>
+          <div style="display:flex; gap:0.55rem; flex-wrap:wrap;">
+            <a class="btn" href="{% url 'staff-directory' %}">Volver</a>
+            {% if mode != 'create' %}
+            <a class="btn" href="{% url 'coach-cards' %}">Áreas</a>
+            {% endif %}
+          </div>
+        </div>
+
+        {% if error %}
+        <div class="error">{{ error }}</div>
+        {% endif %}
+        {% if feedback %}
+        <div style="margin-top:0.75rem;border-radius:14px;padding:0.75rem 0.85rem;background:rgba(47,125,50,0.14);border:1px solid rgba(47,125,50,0.28);color:rgba(214,255,224,0.96);font-weight:900;letter-spacing:0.02em;">
+          {{ feedback }}
+        </div>
+        {% endif %}
+
+        {% if mode != 'create' %}
+        <div class="preview">
+          <img class="avatar" src="{% if photo_url %}{{ photo_url }}{% else %}{% static 'football/images/player-avatar.svg' %}{% endif %}" alt="Foto staff" />
+          <div class="file-links">
+            <div style="font-weight:900; letter-spacing:0.06em; text-transform:uppercase;">
+              {% if member.certification_level %}{{ member.certification_level }}{% else %}Titulación pendiente{% endif %}
+            </div>
+            <div style="margin-top:0.25rem; color: rgba(226,232,240,0.74); font-weight:700;">
+              {% if license_url %}<a href="{{ license_url }}" target="_blank" rel="noreferrer">Ver licencia federativa</a>{% else %}Licencia no subida{% endif %}
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        <form method="post" enctype="multipart/form-data" style="margin-top:0.9rem;">
+          {% csrf_token %}
+          <div class="grid">
+            <label>
+              Nombre
+              <input name="name" value="{% if member %}{{ member.name }}{% endif %}" {% if mode != 'create' and not can_manage_workspace %}readonly{% endif %} required />
+            </label>
+            <label>
+              Rol
+              <input name="role_title" value="{% if member %}{{ member.role_title }}{% endif %}" {% if mode != 'create' and not can_manage_workspace %}readonly{% endif %} placeholder="Entrenador, Delegado..." />
+            </label>
+            <label>
+              Titulación
+              <input name="certification_level" value="{% if member %}{{ member.certification_level }}{% endif %}" {% if mode != 'create' and not can_manage_workspace %}readonly{% endif %} placeholder="UEFA B, CAFYD..." />
+            </label>
+            <label>
+              Ámbito
+              <select name="scope" {% if mode != 'create' and not can_manage_workspace %}disabled{% endif %}>
+                {% if member and member.team %}<option value="team" selected>Solo esta categoría</option>{% else %}<option value="team">Solo esta categoría</option>{% endif %}
+                {% if member and not member.team %}<option value="club" selected>Club completo</option>{% else %}<option value="club">Club completo</option>{% endif %}
+              </select>
+            </label>
+            <label>
+              Teléfono
+              <input name="phone" value="{% if member %}{{ member.phone }}{% endif %}" {% if mode != 'create' and not can_manage_workspace %}readonly{% endif %} />
+            </label>
+            <label>
+              Email
+              <input name="email" value="{% if member %}{{ member.email }}{% endif %}" {% if mode != 'create' and not can_manage_workspace %}readonly{% endif %} />
+            </label>
+            <label style="grid-column: 1 / -1;">
+              Notas
+              <textarea name="notes" {% if mode != 'create' and not can_manage_workspace %}readonly{% endif %}>﻿{% if member %}{{ member.notes }}{% endif %}</textarea>
+            </label>
+            <label>
+              Foto
+              <input type="file" name="photo" accept="image/*" {% if mode != 'create' and not can_manage_workspace %}disabled{% endif %} />
+            </label>
+            <label>
+              Licencia federativa
+              <input type="file" name="federation_license" accept="application/pdf,image/*" {% if mode != 'create' and not can_manage_workspace %}disabled{% endif %} />
+            </label>
+            {% if mode != 'create' %}
+            <label>
+              Activo
+              <select name="is_active" {% if not can_manage_workspace %}disabled{% endif %}>
+                <option value="1" {% if member.is_active %}selected{% endif %}>Sí</option>
+                <option value="0" {% if not member.is_active %}selected{% endif %}>No</option>
+              </select>
+            </label>
+            {% endif %}
+          </div>
+
+          <div class="row">
+            <div style="display:flex; gap:0.55rem; flex-wrap:wrap;">
+              {% if mode == 'create' %}
+              <button class="btn primary" type="submit">Crear</button>
+              {% else %}
+              {% if can_manage_workspace %}
+              <button class="btn primary" type="submit">Guardar</button>
+              {% endif %}
+              {% endif %}
+            </div>
+            {% if mode != 'create' and can_manage_workspace %}
+            <button class="btn danger" type="submit" name="action" value="delete" onclick="return confirm('¿Eliminar este miembro del staff?');">Eliminar</button>
+            {% endif %}
+          </div>
+        </form>
+      </section>
+    </div>
+  </body>
+</html>

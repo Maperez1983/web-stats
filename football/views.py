@@ -127,6 +127,7 @@ from football.models import (
     WorkspaceCompetitionContext,
     WorkspaceCompetitionSnapshot,
     TeamRosterSnapshot,
+    StaffMember,
 )
 from football.event_taxonomy import (
     DRIBBLE_KEYWORDS,
@@ -1539,6 +1540,296 @@ def player_license_file(request, player_id):
     }.get(extension, 'application/octet-stream')
     response = FileResponse(file_field, content_type=content_type)
     response['Content-Disposition'] = f'inline; filename="{Path(storage_name).name}"'
+    response['Cache-Control'] = 'private, max-age=60'
+    return response
+
+
+def _forbid_if_no_staff_access(user):
+    if not user or not user.is_authenticated:
+        return HttpResponse('No autorizado.', status=403)
+    if _get_user_role(user) == AppUserRole.ROLE_PLAYER:
+        return HttpResponse('No tienes permisos para acceder al cuerpo técnico.', status=403)
+    if _can_access_coach_workspace(user):
+        return None
+    return HttpResponse('No tienes permisos para acceder al cuerpo técnico.', status=403)
+
+
+def _staff_scope_label(active_team):
+    if not active_team:
+        return 'Club'
+    category = str(getattr(active_team, 'category', '') or '').strip()
+    base = str(getattr(active_team, 'display_name', '') or getattr(active_team, 'name', '') or '').strip() or 'Equipo'
+    if category and category.lower() not in base.lower():
+        return f'{base} · {category}'
+    return base
+
+
+def _save_staff_photo(staff_member, uploaded_photo):
+    if not staff_member or not uploaded_photo:
+        return False
+    if not Image:
+        staff_member.photo = uploaded_photo
+        staff_member.photo_updated_at = timezone.now()
+        staff_member.save(update_fields=['photo', 'photo_updated_at'])
+        return True
+    try:
+        uploaded_photo.seek(0)
+    except Exception:
+        pass
+    try:
+        image = Image.open(uploaded_photo)
+        if ImageOps:
+            try:
+                image = ImageOps.exif_transpose(image)
+            except Exception:
+                pass
+        image = image.convert('RGB')
+        image.thumbnail((1400, 1400))
+        buffer = io.BytesIO()
+        image.save(buffer, format='JPEG', quality=86, optimize=True)
+        staff_member.photo.save(
+            f'staff-{staff_member.id}.jpg',
+            ContentFile(buffer.getvalue()),
+            save=False,
+        )
+        staff_member.photo_updated_at = timezone.now()
+        staff_member.save(update_fields=['photo', 'photo_updated_at'])
+        return True
+    except Exception:
+        logger.exception('No se pudo guardar la foto del staff %s', staff_member.id)
+        return False
+
+
+@login_required
+def staff_directory_page(request):
+    forbidden = _forbid_if_no_staff_access(request.user)
+    if forbidden:
+        return forbidden
+    workspace = _get_active_workspace(request)
+    if not workspace or workspace.kind != Workspace.KIND_CLUB:
+        raise Http404('Club no configurado')
+    active_team = _get_active_team_for_request(request)
+    can_manage = bool(_can_manage_workspace(request.user, workspace)) if workspace else False
+
+    items = list(
+        StaffMember.objects
+        .filter(workspace=workspace)
+        .select_related('team', 'user')
+        .order_by('-is_active', 'role_title', 'name', '-updated_at', '-id')
+    )
+    scope_items = []
+    for item in items:
+        if item.team_id is None:
+            scope_items.append(item)
+        elif active_team and int(item.team_id) == int(active_team.id):
+            scope_items.append(item)
+    # Si no hay staff para la categoría actual, mostramos el del club igualmente.
+    visible_items = scope_items if scope_items else [it for it in items if it.team_id is None] or items
+
+    for member in visible_items:
+        member.photo_url = ''
+        try:
+            if member.photo:
+                member.photo_url = reverse('staff-member-photo-file', args=[member.id])
+        except Exception:
+            member.photo_url = ''
+    return render(
+        request,
+        'football/staff_directory.html',
+        {
+            'workspace': workspace,
+            'team_label': _staff_scope_label(active_team),
+            'active_team': active_team,
+            'can_manage_workspace': can_manage,
+            'items': visible_items,
+        },
+    )
+
+
+@login_required
+@ensure_csrf_cookie
+def staff_member_create_page(request):
+    forbidden = _forbid_if_no_staff_access(request.user)
+    if forbidden:
+        return forbidden
+    workspace = _get_active_workspace(request)
+    if not workspace or workspace.kind != Workspace.KIND_CLUB:
+        raise Http404('Club no configurado')
+    if not _can_manage_workspace(request.user, workspace):
+        return HttpResponse('No tienes permisos para crear miembros del staff.', status=403)
+    active_team = _get_active_team_for_request(request)
+    error = ''
+    if request.method == 'POST':
+        try:
+            name = str(request.POST.get('name') or '').strip()
+            if not name:
+                raise ValueError('El nombre es obligatorio.')
+            role_title = str(request.POST.get('role_title') or '').strip()[:120]
+            certification_level = str(request.POST.get('certification_level') or '').strip()[:160]
+            phone = str(request.POST.get('phone') or '').strip()[:40]
+            email = str(request.POST.get('email') or '').strip()[:254]
+            notes = str(request.POST.get('notes') or '').strip()
+            scope = str(request.POST.get('scope') or '').strip().lower()
+            team = active_team if scope == 'team' else None
+            member = StaffMember.objects.create(
+                workspace=workspace,
+                team=team,
+                name=name[:160],
+                role_title=role_title,
+                certification_level=certification_level,
+                phone=phone,
+                email=email,
+                notes=notes,
+                is_active=True,
+            )
+            uploaded_photo = request.FILES.get('photo')
+            if uploaded_photo:
+                _save_staff_photo(member, uploaded_photo)
+            uploaded_license = request.FILES.get('federation_license')
+            if uploaded_license:
+                member.federation_license = uploaded_license
+                member.license_updated_at = timezone.now()
+                member.save(update_fields=['federation_license', 'license_updated_at'])
+            return redirect('staff-member-detail', staff_id=member.id)
+        except ValueError as exc:
+            error = str(exc)
+        except Exception:
+            logger.exception('No se pudo crear miembro del staff')
+            error = 'No se pudo crear el miembro del staff.'
+    return render(
+        request,
+        'football/staff_member_form.html',
+        {
+            'mode': 'create',
+            'team_label': _staff_scope_label(active_team),
+            'active_team': active_team,
+            'error': error,
+        },
+    )
+
+
+@login_required
+@ensure_csrf_cookie
+def staff_member_detail_page(request, staff_id):
+    forbidden = _forbid_if_no_staff_access(request.user)
+    if forbidden:
+        return forbidden
+    workspace = _get_active_workspace(request)
+    if not workspace or workspace.kind != Workspace.KIND_CLUB:
+        raise Http404('Club no configurado')
+    member = StaffMember.objects.filter(id=int(staff_id), workspace=workspace).select_related('team', 'user').first()
+    if not member:
+        raise Http404('Miembro del staff no encontrado')
+    can_manage = bool(_can_manage_workspace(request.user, workspace))
+    error = ''
+    feedback = ''
+    if request.method == 'POST':
+        if not can_manage:
+            return HttpResponse('No tienes permisos para editar.', status=403)
+        action = str(request.POST.get('action') or '').strip().lower()
+        if action == 'delete':
+            member.delete()
+            return redirect('staff-directory')
+        try:
+            member.name = str(request.POST.get('name') or '').strip()[:160]
+            if not member.name:
+                raise ValueError('El nombre es obligatorio.')
+            member.role_title = str(request.POST.get('role_title') or '').strip()[:120]
+            member.certification_level = str(request.POST.get('certification_level') or '').strip()[:160]
+            member.phone = str(request.POST.get('phone') or '').strip()[:40]
+            member.email = str(request.POST.get('email') or '').strip()[:254]
+            member.notes = str(request.POST.get('notes') or '').strip()
+            member.is_active = str(request.POST.get('is_active') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+            scope = str(request.POST.get('scope') or '').strip().lower()
+            active_team = _get_active_team_for_request(request)
+            member.team = active_team if scope == 'team' else None
+            member.save()
+            uploaded_photo = request.FILES.get('photo')
+            if uploaded_photo:
+                _save_staff_photo(member, uploaded_photo)
+            uploaded_license = request.FILES.get('federation_license')
+            if uploaded_license:
+                member.federation_license = uploaded_license
+                member.license_updated_at = timezone.now()
+                member.save(update_fields=['federation_license', 'license_updated_at'])
+            feedback = 'Ficha actualizada.'
+        except ValueError as exc:
+            error = str(exc)
+        except Exception:
+            logger.exception('No se pudo actualizar miembro del staff %s', staff_id)
+            error = 'No se pudo guardar la ficha.'
+    photo_url = reverse('staff-member-photo-file', args=[member.id]) if getattr(member, 'photo', None) else ''
+    license_url = reverse('staff-member-license-file', args=[member.id]) if getattr(member, 'federation_license', None) else ''
+    return render(
+        request,
+        'football/staff_member_form.html',
+        {
+            'mode': 'detail',
+            'member': member,
+            'photo_url': photo_url,
+            'license_url': license_url,
+            'can_manage_workspace': can_manage,
+            'error': error,
+            'feedback': feedback,
+        },
+    )
+
+
+@login_required
+def staff_member_photo_file(request, staff_id):
+    forbidden = _forbid_if_no_staff_access(request.user)
+    if forbidden:
+        return forbidden
+    workspace = _get_active_workspace(request)
+    member = StaffMember.objects.filter(id=int(staff_id)).select_related('workspace').first()
+    if not member or not workspace or int(getattr(member, 'workspace_id', 0) or 0) != int(workspace.id):
+        raise Http404('Foto no disponible')
+    if not member.photo:
+        raise Http404('Foto no disponible')
+    try:
+        file_field = member.photo.open('rb')
+    except Exception:
+        return HttpResponse('No se pudo abrir la foto.', status=500)
+    extension = Path(str(getattr(member.photo, 'name', '') or '')).suffix.lower()
+    content_type = {
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.webp': 'image/webp',
+        '.gif': 'image/gif',
+    }.get(extension, 'application/octet-stream')
+    filename = Path(str(getattr(member.photo, 'name', '') or '')).name or f'staff-{member.id}{extension or ".jpg"}'
+    response = FileResponse(file_field, content_type=content_type)
+    response['Content-Disposition'] = f'inline; filename="{filename}"'
+    response['Cache-Control'] = 'private, max-age=60'
+    return response
+
+
+@login_required
+def staff_member_license_file(request, staff_id):
+    forbidden = _forbid_if_no_staff_access(request.user)
+    if forbidden:
+        return forbidden
+    workspace = _get_active_workspace(request)
+    member = StaffMember.objects.filter(id=int(staff_id)).select_related('workspace').first()
+    if not member or not workspace or int(getattr(member, 'workspace_id', 0) or 0) != int(workspace.id):
+        raise Http404('Licencia no disponible')
+    if not member.federation_license:
+        raise Http404('Licencia no disponible')
+    try:
+        file_field = member.federation_license.open('rb')
+    except Exception:
+        return HttpResponse('No se pudo abrir la licencia.', status=500)
+    extension = Path(str(getattr(member.federation_license, 'name', '') or '')).suffix.lower()
+    content_type = {
+        '.pdf': 'application/pdf',
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.webp': 'image/webp',
+    }.get(extension, 'application/octet-stream')
+    response = FileResponse(file_field, content_type=content_type)
+    response['Content-Disposition'] = f'inline; filename="{Path(str(member.federation_license.name)).name}"'
     response['Cache-Control'] = 'private, max-age=60'
     return response
 

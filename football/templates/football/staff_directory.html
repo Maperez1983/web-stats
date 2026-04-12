@@ -1,0 +1,173 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <title>Staff · 2J</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background:
+          radial-gradient(circle at 10% -10%, rgba(70, 211, 255, 0.14), transparent 40%),
+          radial-gradient(circle at 90% 0%, rgba(255, 191, 69, 0.13), transparent 35%),
+          linear-gradient(180deg, #03070f 0%, #081120 55%, #0a1427 100%);
+        color: rgba(245, 247, 250, 0.92);
+        font-family: "Avenir Next", "Segoe UI", sans-serif;
+      }
+      .shell {
+        max-width: 1160px;
+        margin: 0 auto;
+        padding: 1.2rem;
+      }
+      .header {
+        margin-top: 0.9rem;
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 18px;
+        padding: 0.9rem 1rem;
+        background: rgba(7, 16, 30, 0.82);
+        backdrop-filter: blur(4px);
+      }
+      .header h1 {
+        margin: 0;
+        font-size: 1rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      .header p {
+        margin: 0.35rem 0 0;
+        color: rgba(226, 232, 240, 0.74);
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        border-radius: 999px;
+        padding: 0.55rem 0.85rem;
+        border: 1px solid rgba(244, 180, 0, 0.18);
+        background: rgba(15, 23, 42, 0.62);
+        color: rgba(245, 247, 250, 0.92);
+        font-weight: 900;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+      }
+      .btn.primary {
+        background: linear-gradient(135deg, rgba(244, 180, 0, 0.22), rgba(47, 125, 50, 0.18));
+        border-color: rgba(244, 180, 0, 0.38);
+      }
+      .btn:hover {
+        border-color: rgba(244, 180, 0, 0.5);
+        color: #fff9e8;
+      }
+      .grid {
+        margin-top: 1rem;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.85rem;
+      }
+      @media (max-width: 980px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+      @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
+      .card {
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(7, 16, 30, 0.72);
+        box-shadow: 0 20px 44px rgba(0, 0, 0, 0.35);
+        padding: 0.9rem;
+        display: flex;
+        gap: 0.8rem;
+        align-items: center;
+      }
+      .avatar {
+        width: 58px;
+        height: 58px;
+        border-radius: 16px;
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(255,255,255,0.12);
+        object-fit: cover;
+        flex: 0 0 auto;
+      }
+      .card a {
+        text-decoration: none;
+        color: rgba(245,247,250,0.92);
+        font-weight: 900;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .meta {
+        margin-top: 0.15rem;
+        color: rgba(226, 232, 240, 0.74);
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        text-transform: none;
+      }
+      .muted {
+        opacity: 0.65;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+      }
+      .empty {
+        margin-top: 1rem;
+        border-radius: 16px;
+        border: 1px dashed rgba(244, 180, 0, 0.24);
+        background: rgba(244, 180, 0, 0.08);
+        padding: 0.9rem 1rem;
+        color: rgba(255, 242, 199, 0.92);
+        font-weight: 800;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      {% include 'football/includes/dragon_nav.html' %}
+
+      <header class="header">
+        <div>
+          <h1>Staff</h1>
+          <p>{{ team_label }}</p>
+        </div>
+        <div style="display:flex; gap:0.55rem; flex-wrap:wrap;">
+          <a class="btn" href="{% url 'coach-cards' %}">Áreas</a>
+          {% if can_manage_workspace %}
+          <a class="btn primary" href="{% url 'staff-member-create' %}">Añadir</a>
+          {% endif %}
+        </div>
+      </header>
+
+      {% if items %}
+      <section class="grid" aria-label="Miembros del staff">
+        {% for member in items %}
+        <article class="card">
+          <img class="avatar" src="{% if member.photo_url %}{{ member.photo_url }}{% else %}{% static 'football/images/player-avatar.svg' %}{% endif %}" alt="Foto {{ member.name }}" />
+          <div style="min-width:0;">
+            <a href="{% url 'staff-member-detail' member.id %}">{{ member.name }}</a>
+            <div class="meta">
+              {% if member.role_title %}{{ member.role_title }}{% else %}<span class="muted">Staff</span>{% endif %}
+              {% if member.certification_level %} · {{ member.certification_level }}{% endif %}
+            </div>
+            {% if member.team %}<div class="meta">Ámbito: {{ member.team.category|default:member.team.name }}</div>{% endif %}
+          </div>
+        </article>
+        {% endfor %}
+      </section>
+      {% else %}
+      <div class="empty">
+        Aún no hay miembros del staff. {% if can_manage_workspace %}Pulsa “Añadir” para crear la primera ficha.{% endif %}
+      </div>
+      {% endif %}
+    </div>
+  </body>
+</html>
+

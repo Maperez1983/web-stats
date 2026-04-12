@@ -20,7 +20,6 @@
   {% if workspace_module_access.convocation|default:True %}
   <a href="{% url 'match-hub' %}">Partido</a>
   {% endif %}
-  <a href="{% url 'search-page' %}">Buscar</a>
   {% if workspace_module_access.players|default:True %}
   {% if can_manage_workspace or is_admin_user %}
   <a href="{% url 'coach-roster' %}">Jugadores</a>
@@ -31,24 +30,32 @@
   {% if workspace_module_access.sessions|default:True %}
   <a href="{% url 'sessions' %}">Entrenos</a>
   {% endif %}
-  {% if workspace_module_access.match_actions|default:True %}
-  <a href="{% url 'match-action-page' %}">Acciones</a>
-  {% endif %}
-  {% if workspace_module_access.coach_overview|default:True %}
-  <a href="{% url 'coach-cards' %}">Cuerpo técnico</a>
-  {% endif %}
-  {% if can_manage_workspace and active_workspace and active_workspace.kind == 'club' %}
-  <a href="{% url 'club-onboarding' %}">Ajustes</a>
-  {% endif %}
-  {% if can_manage_workspace and active_workspace and active_workspace.kind == 'club' %}
-  <a href="{% url 'billing' %}">Suscripción</a>
-  {% endif %}
-  {% if can_manage_workspace or is_admin_user %}
-  <a href="{% url 'admin-page' %}?tab=teams">Admin</a>
-  {% endif %}
-  {% if is_admin_user %}
-  <a href="{% url 'platform-overview' %}">Platform</a>
-  {% endif %}
+  <a href="{% url 'search-page' %}">Buscar</a>
+  <details class="nav-more">
+    <summary>Más</summary>
+    <div class="nav-more-panel">
+      {% if workspace_module_access.match_actions|default:True %}
+      <a href="{% url 'match-action-page' %}">Acciones</a>
+      {% endif %}
+      {% if workspace_module_access.coach_overview|default:True %}
+      <a href="{% url 'coach-cards' %}">Cuerpo técnico</a>
+      <a href="{% url 'staff-directory' %}">Staff</a>
+      {% endif %}
+      {% if workspace_module_access.analysis|default:True %}
+      <a href="{% url 'analysis' %}">Análisis</a>
+      {% endif %}
+      {% if can_manage_workspace and active_workspace and active_workspace.kind == 'club' %}
+      <a href="{% url 'club-onboarding' %}">Ajustes</a>
+      <a href="{% url 'billing' %}">Suscripción</a>
+      {% endif %}
+      {% if can_manage_workspace or is_admin_user %}
+      <a href="{% url 'admin-page' %}?tab=teams">Admin</a>
+      {% endif %}
+      {% if is_admin_user %}
+      <a href="{% url 'platform-overview' %}">Platform</a>
+      {% endif %}
+    </div>
+  </details>
 </nav>
 {% endif %}
 {% if active_team_options and active_team_options|length > 1 %}
@@ -138,6 +145,57 @@
   border-color: rgba(244, 180, 0, 0.5);
   color: #fff9e8;
 }
+.nav-more {
+  position: relative;
+}
+.nav-more summary {
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+  text-decoration: none;
+  color: #f5f7fa;
+  border: 1px solid rgba(244, 180, 0, 0.18);
+  border-radius: 999px;
+  padding: 0.32rem 0.72rem;
+  font-size: 0.7rem;
+  line-height: 1.15;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+.nav-more summary::-webkit-details-marker { display: none; }
+.nav-more[open] summary {
+  border-color: rgba(244, 180, 0, 0.5);
+  color: #fff9e8;
+}
+.nav-more-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.4rem);
+  min-width: 210px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(7, 16, 30, 0.92);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 22px 52px rgba(0,0,0,0.45);
+  padding: 0.45rem;
+  display: grid;
+  gap: 0.25rem;
+  z-index: 40;
+}
+.nav-more-panel a {
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 0.55rem 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 800;
+  font-size: 0.68rem;
+}
+.nav-more-panel a:hover {
+  border-color: rgba(244, 180, 0, 0.45);
+}
 .team-switcher {
   margin-top: 0.55rem;
   display: inline-flex;
@@ -174,6 +232,11 @@
   }
   .product-nav-shortcuts {
     justify-content: center;
+  }
+  .nav-more-panel {
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
   }
   .team-switcher {
     justify-content: center;

@@ -169,7 +169,10 @@
           <h1>Cuerpo técnico</h1>
           <p style="margin:.5rem 0 0;color:rgba(226,232,240,0.72);">El trabajo del staff se organiza aquí por áreas: estadísticas grupales, partido, entrenamiento y análisis.</p>
         </div>
-        <a class="pill-button" style="border-radius:12px;" href="{% url 'coach-detail' %}">Volver</a>
+        <div style="display:flex; gap:0.6rem; flex-wrap:wrap; justify-content:flex-end;">
+          <a class="pill-button" style="border-radius:12px;" href="{% url 'staff-directory' %}">Staff</a>
+          <a class="pill-button" style="border-radius:12px;" href="{% url 'coach-detail' %}">Volver</a>
+        </div>
       </header>
       <p style="margin:1rem 0 0; color:#bae6fd; font-weight:700;">Miembros técnicos visibles: {{ staff_count }}</p>
       <nav class="area-tabs" aria-label="Áreas del cuerpo técnico">

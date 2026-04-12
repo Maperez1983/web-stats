@@ -337,6 +337,47 @@ class Player(models.Model):
         return f'{self.name} ({self.team.name})'
 
 
+class StaffMember(models.Model):
+    """
+    Miembro del cuerpo técnico por club (workspace) y opcionalmente por categoría/equipo.
+
+    - workspace: club al que pertenece
+    - team: si se deja vacío, se considera staff del club completo
+    """
+
+    workspace = models.ForeignKey('Workspace', on_delete=models.CASCADE, related_name='staff_members')
+    team = models.ForeignKey('Team', on_delete=models.SET_NULL, null=True, blank=True, related_name='staff_members')
+    user = models.OneToOneField(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='staff_profile',
+    )
+    name = models.CharField(max_length=160)
+    role_title = models.CharField(max_length=120, blank=True, help_text='Ej. Entrenador, Segundo, Fisio, Delegado')
+    certification_level = models.CharField(max_length=160, blank=True, help_text='Ej. UEFA B, CAFYD, TAFAD…')
+    phone = models.CharField(max_length=40, blank=True)
+    email = models.EmailField(blank=True)
+    photo = models.ImageField(upload_to='staff/photos/', null=True, blank=True)
+    photo_updated_at = models.DateTimeField(null=True, blank=True)
+    federation_license = models.FileField(upload_to='staff/licenses/', null=True, blank=True, help_text='PDF/JPG/PNG')
+    license_updated_at = models.DateTimeField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-is_active', 'role_title', 'name', '-updated_at', '-id']
+        verbose_name = 'Miembro del staff'
+        verbose_name_plural = 'Miembros del staff'
+
+    def __str__(self):
+        scope = self.workspace.name if self.workspace_id else 'Club'
+        return f'{self.name} · {self.role_title or "Staff"} ({scope})'
+
+
 class PlayerInjuryRecord(models.Model):
     player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='injury_records')
     injury = models.CharField(max_length=180)
