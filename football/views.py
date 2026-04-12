@@ -6844,18 +6844,44 @@ def dashboard_data(request):
     try:
         if workspace and workspace.kind == Workspace.KIND_CLUB and getattr(primary_team, 'group_id', None):
             group_id = int(primary_team.group_id)
+            primary_group_external = str(getattr(getattr(primary_team, 'group', None), 'external_id', '') or '').strip()
+            context_for_team = None
+            try:
+                context_for_team = WorkspaceCompetitionContext.objects.filter(workspace=workspace, team=primary_team).first()
+            except Exception:
+                context_for_team = None
+            primary_context_key = str(getattr(context_for_team, 'external_group_key', '') or '').strip()
+            primary_competition_key = primary_context_key or primary_group_external
             links = list(
                 WorkspaceTeam.objects
                 .filter(workspace=workspace)
                 .select_related('team')
             )
+            other_team_ids = [
+                int(getattr(getattr(link, 'team', None), 'id', 0) or 0)
+                for link in links
+                if getattr(link, 'team_id', None) and int(getattr(link, 'team_id', 0) or 0) != int(primary_team.id)
+            ]
+            context_map = {}
+            if other_team_ids:
+                try:
+                    rows = WorkspaceCompetitionContext.objects.filter(workspace=workspace, team_id__in=other_team_ids)
+                    context_map = {int(row.team_id): row for row in rows if getattr(row, 'team_id', None)}
+                except Exception:
+                    context_map = {}
             conflicts = []
             for link in links:
                 team = getattr(link, 'team', None)
                 if not team or int(getattr(team, 'id', 0) or 0) == int(primary_team.id):
                     continue
                 other_group_id = getattr(team, 'group_id', None)
-                if other_group_id and int(other_group_id) == group_id:
+                other_group_external = str(getattr(getattr(team, 'group', None), 'external_id', '') or '').strip()
+                other_context = context_map.get(int(getattr(team, 'id', 0) or 0))
+                other_context_key = str(getattr(other_context, 'external_group_key', '') or '').strip()
+                other_competition_key = other_context_key or other_group_external
+                group_id_collision = bool(other_group_id and int(other_group_id) == group_id)
+                key_collision = bool(primary_competition_key and other_competition_key and primary_competition_key == other_competition_key)
+                if group_id_collision or key_collision:
                     conflicts.append(team)
             if conflicts:
                 category = str(getattr(primary_team, 'category', '') or '').strip()
@@ -6974,6 +7000,22 @@ def dashboard_data(request):
     competition_payload = _competition_payload_for_team(workspace, primary_team, allow_auto_sync=dashboard_allow_auto_sync)
     context = _bootstrap_workspace_competition_context(workspace, primary_team=primary_team) if workspace else None
     provider_key = str(getattr(context, 'provider', '') or '').strip().lower()
+    # Debug opcional (solo admin): ayuda a detectar mezclas de contexto (Senior vs Prebenjamín).
+    debug_payload = None
+    try:
+        if _is_admin_user(request.user) and str(request.GET.get('debug') or '').strip().lower() in {'1', 'true', 'yes', 'on'}:
+            debug_payload = {
+                'workspace_id': int(getattr(workspace, 'id', 0) or 0) if workspace else None,
+                'team_id': int(primary_team.id),
+                'team_category': str(getattr(primary_team, 'category', '') or '').strip(),
+                'team_group_id': int(getattr(primary_team, 'group_id', 0) or 0) if getattr(primary_team, 'group_id', None) else None,
+                'team_group_external_id': str(getattr(getattr(primary_team, 'group', None), 'external_id', '') or '').strip(),
+                'context_provider': provider_key,
+                'context_external_group_key': str(getattr(context, 'external_group_key', '') or '').strip() if context else '',
+                'context_external_team_key': str(getattr(context, 'external_team_key', '') or '').strip() if context else '',
+            }
+    except Exception:
+        debug_payload = None
     standings_group = _latest_standings_group_for_team(primary_team) or primary_team.group
     standings_last_updated = _team_standings_last_updated(standings_group)
     standings = _enrich_standings_rows_with_crests(competition_payload.get('standings') or [])
@@ -7040,6 +7082,8 @@ def dashboard_data(request):
         'player_cards': player_cards,
         'player_cards_scope': player_cards_scope,
     }
+    if debug_payload:
+        payload['debug'] = debug_payload
     cache.set(cache_key, payload, DASHBOARD_CACHE_SECONDS)
     response = JsonResponse(payload)
     if force_fresh:
