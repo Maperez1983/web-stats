@@ -13350,12 +13350,136 @@ def convocation_referee_pdf(request):
         except Exception:
             return b''
 
+    def _extract_first_image_from_pdf_bytes(pdf_bytes):
+        """
+        Extrae una imagen "preview" de la primera página de un PDF.
+
+        Objetivo: evitar incrustar `data:application/pdf` dentro de `<img>` en WeasyPrint,
+        porque puede escalar/cortar la licencia y producir PDFs ilegibles.
+        """
+        if not pdf_bytes or PdfReader is None:
+            return b''
+        try:
+            reader = PdfReader(io.BytesIO(pdf_bytes))
+            if not getattr(reader, 'pages', None):
+                return b''
+            page = reader.pages[0]
+        except Exception:
+            return b''
+
+        # 1) Si pypdf ofrece API de imágenes, usarla (más robusta entre formatos).
+        try:
+            images = getattr(page, 'images', None)
+            if images:
+                best_score = -1
+                best_data = b''
+                for img in images:
+                    try:
+                        data = getattr(img, 'data', None)
+                        if not data and hasattr(img, 'get_data'):
+                            data = img.get_data()
+                        data = bytes(data) if data else b''
+                        if not data:
+                            continue
+                        width = int(getattr(img, 'width', 0) or 0)
+                        height = int(getattr(img, 'height', 0) or 0)
+                        score = (width * height) if width and height else len(data)
+                        if score > best_score:
+                            best_score = score
+                            best_data = data
+                    except Exception:
+                        continue
+                if best_data:
+                    return best_data
+        except Exception:
+            pass
+
+        # 2) Fallback manual: recorrer XObjects de tipo imagen.
+        try:
+            resources = page.get('/Resources') or {}
+            xobjects = resources.get('/XObject') or {}
+        except Exception:
+            return b''
+
+        best = {'score': -1, 'data': b''}
+
+        def _filter_names(value):
+            if not value:
+                return []
+            if isinstance(value, (list, tuple)):
+                return [str(v) for v in value]
+            return [str(value)]
+
+        def _try_store_candidate(width, height, data):
+            score = (int(width) * int(height)) if width and height else len(data or b'')
+            if score > best['score'] and data:
+                best['score'] = score
+                best['data'] = data
+
+        for _name, xobj_ref in getattr(xobjects, 'items', lambda: [])():
+            try:
+                xobj = xobj_ref.get_object()
+            except Exception:
+                continue
+            try:
+                if str(xobj.get('/Subtype')) != '/Image':
+                    continue
+                width = int(xobj.get('/Width') or 0)
+                height = int(xobj.get('/Height') or 0)
+                filters = _filter_names(xobj.get('/Filter'))
+                data = xobj.get_data() or b''
+                # DCTDecode => JPEG; JPXDecode => JPEG2000.
+                if any('/DCTDecode' in f for f in filters) or any('/JPXDecode' in f for f in filters):
+                    _try_store_candidate(width, height, data)
+                    continue
+                # Intento: a veces get_data() devuelve bytes que Pillow puede abrir (PNG, etc.).
+                if Image is not None:
+                    try:
+                        with Image.open(io.BytesIO(data)) as img:
+                            buffer = io.BytesIO()
+                            img.convert('RGB').save(buffer, format='JPEG', optimize=True, quality=80)
+                        _try_store_candidate(width, height, buffer.getvalue())
+                        continue
+                    except Exception:
+                        pass
+                # Raw bitmap (FlateDecode) => intentamos reconstruir solo en casos simples.
+                if Image is not None and any('/FlateDecode' in f for f in filters):
+                    color_space = str(xobj.get('/ColorSpace') or '')
+                    bits = int(xobj.get('/BitsPerComponent') or 8)
+                    if bits == 8 and width and height:
+                        if color_space == '/DeviceRGB':
+                            mode = 'RGB'
+                        elif color_space == '/DeviceGray':
+                            mode = 'L'
+                        elif color_space == '/DeviceCMYK':
+                            mode = 'CMYK'
+                        else:
+                            mode = ''
+                        if mode:
+                            try:
+                                img = Image.frombytes(mode, (width, height), data)
+                                buffer = io.BytesIO()
+                                img.convert('RGB').save(buffer, format='JPEG', optimize=True, quality=80)
+                                _try_store_candidate(width, height, buffer.getvalue())
+                            except Exception:
+                                pass
+            except Exception:
+                continue
+
+        return best['data'] or b''
+
     def _license_image_data_uri(storage_name):
         raw = _read_storage_bytes(storage_name)
         if not raw:
             return ''
+        ext = Path(storage_name).suffix.lower()
+        if ext == '.pdf':
+            raw = _extract_first_image_from_pdf_bytes(raw)
+            if not raw:
+                # No intentamos incrustar PDFs en <img>: en algunos visores/WeasyPrint escala mal y recorta.
+                return ''
         if Image is None:
-            mime_type = mimetypes.guess_type(storage_name)[0] or 'image/jpeg'
+            mime_type = 'image/jpeg' if ext == '.pdf' else (mimetypes.guess_type(storage_name)[0] or 'image/jpeg')
             encoded = base64.b64encode(raw).decode('ascii')
             return f'data:{mime_type};base64,{encoded}'
         try:
@@ -13366,12 +13490,15 @@ def convocation_referee_pdf(request):
                     except Exception:
                         pass
                 normalized = img.convert('RGB')
-                normalized.thumbnail((1700, 1200))
+                # La cuadrícula imprime pequeño: reducimos resolución para evitar PDFs pesados/timeout.
+                normalized.thumbnail((900, 650))
                 buffer = io.BytesIO()
                 normalized.save(buffer, format='JPEG', optimize=True, quality=74)
             encoded = base64.b64encode(buffer.getvalue()).decode('ascii')
             return f'data:image/jpeg;base64,{encoded}'
         except Exception:
+            if ext == '.pdf':
+                return ''
             mime_type = mimetypes.guess_type(storage_name)[0] or 'image/jpeg'
             encoded = base64.b64encode(raw).decode('ascii')
             return f'data:{mime_type};base64,{encoded}'
