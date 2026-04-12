@@ -9244,6 +9244,44 @@ def platform_workspace_detail_page(request, workspace_id):
         form_action = (request.POST.get('form_action') or '').strip().lower()
         if not can_manage_workspace:
             error = 'No tienes permisos para modificar este workspace.'
+        elif form_action == 'split_workspace_categories':
+            confirm_phrase = str(request.POST.get('confirm_phrase') or '').strip().upper()
+            disable_source = str(request.POST.get('disable_source_workspace') or '').strip().lower() in {'1', 'true', 'on', 'yes'}
+            if confirm_phrase != 'SEPARAR':
+                error = 'Confirmación inválida. Escribe la palabra SEPARAR.'
+            else:
+                try:
+                    from football.workspace_split import (
+                        apply_split_workspace_plan,
+                        build_split_workspace_plan,
+                    )
+
+                    plan_rows = build_split_workspace_plan(workspace)
+                    if not plan_rows:
+                        raise ValueError('Este club no tiene varias categorías que separar.')
+                    created = apply_split_workspace_plan(
+                        workspace,
+                        plan_rows,
+                        disable_source_workspace=disable_source,
+                        include_primary=False,
+                    )
+                    created_ids = [int(ws.id) for ws in created if getattr(ws, 'id', None)]
+                    created_slugs = [str(ws.slug or '').strip() for ws in created if str(getattr(ws, 'slug', '') or '').strip()]
+                    request.session['platform_feedback'] = (
+                        f'Separación completada. Clubs creados: {", ".join(created_slugs) if created_slugs else len(created_ids)}.'
+                    )
+                    _audit(
+                        request,
+                        'workspace_split',
+                        workspace=workspace,
+                        message='Separación de categorías ejecutada',
+                        payload={'created_ids': created_ids, 'created_slugs': created_slugs, 'disable_source': disable_source},
+                    )
+                    return redirect('platform-overview')
+                except ValueError as exc:
+                    error = str(exc)
+                except Exception:
+                    error = 'No se pudo separar el club. Revisa el log.'
         elif form_action == 'update_workspace_identity':
             workspace_name = _sanitize_task_text((request.POST.get('workspace_name') or '').strip(), multiline=False, max_len=160)
             owner_username = _sanitize_username(request.POST.get('owner_username'), max_len=150)

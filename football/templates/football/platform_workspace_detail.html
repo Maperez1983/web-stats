@@ -498,6 +498,26 @@ python3 manage.py split_workspace_into_clubs --workspace-id {{ workspace.id }} -
               <p style="margin:0.65rem 0 0; color:rgba(216,228,248,0.75); font-size:0.85rem;">
                 No borra jugadores/partidos: crea nuevos clubs (workspaces) y mueve accesos/contexto competitivo.
               </p>
+              {% if can_manage_workspace %}
+              <div style="margin-top:0.85rem; border-top:1px solid rgba(255,255,255,0.10); padding-top:0.85rem;">
+                <p style="margin:0 0 0.55rem; color:#ffedcc; font-weight:900;">
+                  Ejecutar desde Platform
+                </p>
+                <form method="post" onsubmit="return confirm('¿Separar definitivamente las categorías en clubs independientes?');" class="inline-form" style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center;">
+                  {% csrf_token %}
+                  <input type="hidden" name="form_action" value="split_workspace_categories" />
+                  <label style="display:flex; gap:0.5rem; align-items:center; color:rgba(216,228,248,0.82);">
+                    <input type="checkbox" name="disable_source_workspace" value="1" />
+                    Desactivar este club origen
+                  </label>
+                  <input type="text" name="confirm_phrase" placeholder="Escribe: SEPARAR" required style="min-width:220px;" />
+                  <button class="inline-btn danger" type="submit">Ejecutar separación</button>
+                </form>
+                <p style="margin:0.55rem 0 0; color:rgba(216,228,248,0.72); font-size:0.85rem;">
+                  Esto mueve el contexto competitivo de cada categoría al nuevo club y clona el staff global.
+                </p>
+              </div>
+              {% endif %}
             </div>
           </details>
           {% endif %}
