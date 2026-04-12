@@ -9715,6 +9715,14 @@ def platform_workspace_detail_page(request, workspace_id):
         .order_by('-is_default', 'id')
     )
     is_multi_team_workspace = len(workspace_team_links) > 1
+    split_plan_rows = []
+    if is_multi_team_workspace:
+        try:
+            from football.workspace_split import build_split_workspace_plan  # lazy import
+
+            split_plan_rows = build_split_workspace_plan(workspace)
+        except Exception:
+            split_plan_rows = []
     return render(
         request,
         'football/platform_workspace_detail.html',
@@ -9741,6 +9749,7 @@ def platform_workspace_detail_page(request, workspace_id):
             'invite_link': invite_link,
             'workspace_team_links': workspace_team_links,
             'is_multi_team_workspace': is_multi_team_workspace,
+            'split_plan_rows': split_plan_rows,
         },
     )
 

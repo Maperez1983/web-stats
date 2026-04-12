@@ -462,6 +462,31 @@
               <p style="margin:0 0 0.65rem; color:rgba(216,228,248,0.82);">
                 Recomendación comercial: <strong>1 club = 1 equipo</strong>. Esto evita mezclar rivales/estadísticas y simplifica la navegación.
               </p>
+              {% if split_plan_rows %}
+              <div style="margin:0 0 0.75rem;">
+                <div style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; font-size:0.78rem; color:rgba(216,228,248,0.92);">
+                  Dry-run (plan)
+                </div>
+                <div style="margin-top:0.45rem; display:grid; gap:0.45rem;">
+                  {% for row in split_plan_rows %}
+                  <div style="border:1px solid rgba(255,255,255,0.10); border-radius:12px; padding:0.6rem 0.7rem; background:rgba(2,6,23,0.35);">
+                    <div style="display:flex; justify-content:space-between; gap:0.6rem; flex-wrap:wrap;">
+                      <div style="font-weight:900;">
+                        {{ row.team_category|default:"Categoría" }} · {{ row.team_name }}
+                      </div>
+                      <div style="color:rgba(216,228,248,0.75); font-size:0.9rem;">
+                        miembros: {{ row.member_user_ids|length }} · staff: {{ row.staff_count }} · contexto: {% if row.has_context %}sí{% else %}no{% endif %}
+                      </div>
+                    </div>
+                    <div style="margin-top:0.35rem; color:rgba(216,228,248,0.82);">
+                      Nuevo club: <strong>{{ row.new_workspace_name }}</strong>
+                      <span style="opacity:0.85;">(slug: {{ row.new_workspace_slug }})</span>
+                    </div>
+                  </div>
+                  {% endfor %}
+                </div>
+              </div>
+              {% endif %}
               <p style="margin:0 0 0.45rem; color:rgba(216,228,248,0.82);">
                 Ejecuta este comando (dry-run primero, luego con <code>--apply</code>):
               </p>
