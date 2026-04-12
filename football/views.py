@@ -495,9 +495,15 @@ def system_healthcheck_api(request):
     try:
         import pydyf  # noqa: WPS433
 
-        report['pydyf_version'] = str(getattr(pydyf, '__version__', '') or '')
+        pydyf_version = str(getattr(pydyf, '__version__', '') or '')
+        report['pydyf_version'] = pydyf_version
+        parts = [int(p) for p in re.findall(r'\d+', pydyf_version)[:3]]
+        while len(parts) < 3:
+            parts.append(0)
+        report['pydyf_ok'] = tuple(parts) >= (0, 11, 0)
     except Exception:
         report['pydyf_version'] = ''
+        report['pydyf_ok'] = False
     return JsonResponse(report)
 
 
@@ -1032,9 +1038,37 @@ def _canonical_action_value(value):
 
 
 def _build_pdf_response_or_html_fallback(request, html: str, filename: str, *, inline: bool = False, force_pdf: bool = False):
+    def _parse_version_tuple(raw_version: str):
+        parts = [int(p) for p in re.findall(r'\d+', str(raw_version or ''))[:3]]
+        while len(parts) < 3:
+            parts.append(0)
+        return tuple(parts)
+
+    def _pydyf_compat_status():
+        """
+        WeasyPrint 57.x requiere pydyf>=0.11.
+
+        Si pydyf es más antiguo, WeasyPrint puede fallar con:
+        `TypeError: PDF.__init__() takes 1 positional argument but 3 were given`.
+        """
+        try:
+            import pydyf  # noqa: WPS433
+
+            version = str(getattr(pydyf, '__version__', '') or '')
+            ok = _parse_version_tuple(version) >= (0, 11, 0)
+            return ok, version or 'unknown'
+        except Exception:
+            return False, 'not installed'
+
     if not weasyprint:
         if force_pdf:
             return HttpResponse('PDF no disponible en este servidor.', status=503)
+        return HttpResponse(html, content_type='text/html; charset=utf-8')
+    pydyf_ok, pydyf_version = _pydyf_compat_status()
+    if not pydyf_ok:
+        message = f'PDF no disponible: servidor desactualizado (pydyf {pydyf_version}).'
+        if force_pdf:
+            return HttpResponse(message, status=503, content_type='text/plain; charset=utf-8')
         return HttpResponse(html, content_type='text/html; charset=utf-8')
     try:
         def _safe_url_fetcher(url, timeout=4, ssl_context=None):
@@ -1066,7 +1100,24 @@ def _build_pdf_response_or_html_fallback(request, html: str, filename: str, *, i
 
 
 def _render_pdf_bytes(request, html: str):
+    def _parse_version_tuple(raw_version: str):
+        parts = [int(p) for p in re.findall(r'\d+', str(raw_version or ''))[:3]]
+        while len(parts) < 3:
+            parts.append(0)
+        return tuple(parts)
+
+    def _pydyf_ok():
+        try:
+            import pydyf  # noqa: WPS433
+
+            version = str(getattr(pydyf, '__version__', '') or '')
+            return _parse_version_tuple(version) >= (0, 11, 0)
+        except Exception:
+            return False
+
     if not weasyprint:
+        return None
+    if not _pydyf_ok():
         return None
     try:
         def _safe_url_fetcher(url, timeout=4, ssl_context=None):
@@ -1089,8 +1140,27 @@ def _render_pdf_bytes(request, html: str):
 
 
 def _render_pdf_bytes_with_error(request, html: str):
+    def _parse_version_tuple(raw_version: str):
+        parts = [int(p) for p in re.findall(r'\d+', str(raw_version or ''))[:3]]
+        while len(parts) < 3:
+            parts.append(0)
+        return tuple(parts)
+
+    def _pydyf_compat_status():
+        try:
+            import pydyf  # noqa: WPS433
+
+            version = str(getattr(pydyf, '__version__', '') or '')
+            ok = _parse_version_tuple(version) >= (0, 11, 0)
+            return ok, version or 'unknown'
+        except Exception:
+            return False, 'not installed'
+
     if not weasyprint:
         return None, 'weasyprint not available'
+    pydyf_ok, pydyf_version = _pydyf_compat_status()
+    if not pydyf_ok:
+        return None, f'pydyf incompatible ({pydyf_version}); requires >= 0.11.0'
     try:
         def _safe_url_fetcher(url, timeout=4, ssl_context=None):
             try:
@@ -1110,6 +1180,32 @@ def _render_pdf_bytes_with_error(request, html: str):
     except Exception as exc:
         logger.exception('WeasyPrint: error generando PDF (debug)')
         return None, f'{exc.__class__.__name__}: {exc}'
+
+
+def pdf_view_guard(view_func):
+    """
+    Guardrail: evita 500 en endpoints de PDF y devuelve un 503 con mensaje estable.
+
+    Motivo: en producción pueden fallar lecturas de media, imágenes externas, o el motor de PDF.
+    El usuario debe ver un error legible y el admin puede activar `?debug=1` para ver el detalle.
+    """
+
+    @wraps(view_func)
+    def _wrapped(request, *args, **kwargs):
+        try:
+            return view_func(request, *args, **kwargs)
+        except Exception as exc:  # pragma: no cover
+            logger.exception('PDF view error: %s', getattr(view_func, '__name__', 'pdf_view'))
+            debug = str(getattr(request, 'GET', {}).get('debug') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+            if debug and _is_admin_user(getattr(request, 'user', None)):
+                return HttpResponse(
+                    f'No se pudo generar el PDF. {exc.__class__.__name__}: {exc}',
+                    status=503,
+                    content_type='text/plain; charset=utf-8',
+                )
+            return HttpResponse('No se pudo generar el PDF.', status=503, content_type='text/plain; charset=utf-8')
+
+    return _wrapped
 
 
 def _build_pdf_nav_urls(request):
@@ -1889,6 +1985,7 @@ def staff_member_cert_file(request, staff_id):
 
 
 @login_required
+@pdf_view_guard
 def staff_member_pdf(request, staff_id):
     forbidden = _forbid_if_no_staff_access(request.user)
     if forbidden:
@@ -8472,6 +8569,33 @@ def club_onboarding_page(request):
 
     if workspace and primary_team and not competition_context:
         competition_context = _bootstrap_workspace_competition_context(workspace, primary_team=primary_team)
+    setup_checklist = []
+    setup_progress = {'required_total': 0, 'required_done': 0}
+    try:
+        if workspace and primary_team:
+            active_match = None
+            try:
+                active_match = get_active_match(primary_team)
+            except Exception:
+                active_match = None
+            convocation_record = None
+            try:
+                convocation_record = get_current_convocation_record(primary_team)
+            except Exception:
+                convocation_record = None
+            setup_checklist = _build_team_setup_checklist(
+                request,
+                workspace,
+                primary_team,
+                match=active_match,
+                convocation_record=convocation_record,
+            )
+            if isinstance(setup_checklist, list) and setup_checklist:
+                required_items = [item for item in setup_checklist if bool(item.get('required'))]
+                setup_progress['required_total'] = len(required_items)
+                setup_progress['required_done'] = len([item for item in required_items if bool(item.get('ok'))])
+    except Exception:
+        setup_checklist = []
     return render(
         request,
         'football/club_onboarding.html',
@@ -8482,6 +8606,8 @@ def club_onboarding_page(request):
             'universo_candidates': universo_candidates,
             'auto_notice': ' '.join([part for part in auto_notice_parts if part]).strip(),
             'form': form,
+            'setup_checklist': setup_checklist or [],
+            'setup_progress': setup_progress,
             'error': error,
             'success': success,
         },
@@ -12875,6 +13001,7 @@ def reset_match_action_register(request):
 
 
 @login_required
+@pdf_view_guard
 def match_report_pdf(request):
     if not _can_edit_match_actions(request.user):
         return HttpResponse('Solo el cuerpo técnico puede descargar el acta del partido.', status=403)
@@ -13667,6 +13794,7 @@ def save_convocation(request):
 
 
 @login_required
+@pdf_view_guard
 def convocation_pdf(request):
     forbidden = _forbid_if_workspace_module_disabled(request, 'convocation', label='convocatoria')
     if forbidden:
@@ -13890,6 +14018,7 @@ def convocation_pdf(request):
 
 
 @login_required
+@pdf_view_guard
 def convocation_referee_pdf(request):
     """
     Genera una ficha para el árbitro.
@@ -15121,6 +15250,7 @@ def _build_session_task_sheet(task):
 
 
 @login_required
+@pdf_view_guard
 def session_plan_pdf(request, session_id):
     if not _can_access_sessions_workspace(request.user):
         return HttpResponse('No tienes permisos para acceder a sesiones.', status=403)
@@ -15147,6 +15277,7 @@ def session_plan_pdf(request, session_id):
 
 
 @login_required
+@pdf_view_guard
 def microcycle_presentation_pdf(request, microcycle_id):
     if not _can_access_sessions_workspace(request.user):
         return HttpResponse('No tienes permisos para acceder a sesiones.', status=403)
@@ -15207,6 +15338,7 @@ def microcycle_presentation_pdf(request, microcycle_id):
 
 
 @login_required
+@pdf_view_guard
 def session_presentation_pdf(request, session_id):
     if not _can_access_sessions_workspace(request.user):
         return HttpResponse('No tienes permisos para acceder a sesiones.', status=403)
@@ -15233,6 +15365,7 @@ def session_presentation_pdf(request, session_id):
 
 
 @login_required
+@pdf_view_guard
 def session_task_pdf(request, task_id):
     if not _can_access_sessions_workspace(request.user):
         return HttpResponse('No tienes permisos para acceder a sesiones.', status=403)
@@ -23996,6 +24129,7 @@ def task_studio_task_preview_file(request, task_id):
 
 
 @login_required
+@pdf_view_guard
 def task_studio_task_pdf(request, task_id):
     forbidden = _forbid_if_no_task_studio_access(request.user)
     if forbidden:
@@ -25856,6 +25990,7 @@ def player_detail_page(request, player_id):
 
 
 @login_required
+@pdf_view_guard
 def player_pdf(request, player_id):
     forbidden = _forbid_if_workspace_module_disabled(request, 'players', label='módulo de jugadores')
     if forbidden:
@@ -26311,14 +26446,16 @@ def refresh_scraping(request):
     finally:
         cache.delete(SCRAPE_LOCK_KEY)
     # Si trabajamos con Universo RFAF, evitamos depender de La Preferente en este flujo.
-    preferente_refresh_enabled = str(
-        os.getenv('PREFERENTE_ROSTER_REFRESH_ENABLED', '0')
-    ).strip().lower() in {'1', 'true', 'yes', 'on'}
-    if preferente_refresh_enabled:
-        roster_ok, roster_message = refresh_primary_roster_cache(primary_team, force=True)
-        roster_status = 'y plantilla actualizada' if roster_ok else f'plantilla no actualizada ({roster_message})'
-    else:
-        roster_status = 'plantilla gestionada por Universo RFAF'
+    roster_status = 'plantilla gestionada por Universo RFAF'
+    try:
+        preferente_refresh_enabled = str(
+            os.getenv('PREFERENTE_ROSTER_REFRESH_ENABLED', '0')
+        ).strip().lower() in {'1', 'true', 'yes', 'on'}
+        if preferente_refresh_enabled:
+            roster_ok, roster_message = refresh_primary_roster_cache(primary_team, force=True)
+            roster_status = 'y plantilla actualizada' if roster_ok else f'plantilla no actualizada ({roster_message})'
+    except Exception as exc:  # pragma: no cover
+        roster_status = f'plantilla no actualizada ({exc})'
     if primary_team:
         _invalidate_team_dashboard_caches(primary_team)
         try:

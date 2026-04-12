@@ -120,6 +120,81 @@
         border-radius: 10px;
         border: 1px solid rgba(255, 255, 255, 0.12);
       }
+      .stepper {
+        margin-top: 0.9rem;
+        border-radius: 16px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(2, 6, 23, 0.25);
+        padding: 0.85rem 0.95rem;
+      }
+      .stepper-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        align-items: baseline;
+        flex-wrap: wrap;
+      }
+      .stepper-title {
+        margin: 0;
+        font-weight: 900;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        font-size: 0.82rem;
+      }
+      .stepper-count {
+        color: rgba(226, 232, 240, 0.86);
+        font-weight: 800;
+      }
+      .steps {
+        margin: 0.65rem 0 0;
+        padding: 0;
+        list-style: none;
+        display: grid;
+        gap: 0.45rem;
+      }
+      .step {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        align-items: center;
+        border-radius: 12px;
+        padding: 0.55rem 0.65rem;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(18, 28, 48, 0.48);
+      }
+      .step strong {
+        font-size: 0.78rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .step .desc {
+        margin-top: 0.15rem;
+        color: rgba(226, 232, 240, 0.72);
+        font-size: 0.88rem;
+        letter-spacing: 0.01em;
+        text-transform: none;
+      }
+      .step .badge {
+        border-radius: 999px;
+        padding: 0.22rem 0.6rem;
+        font-size: 0.7rem;
+        font-weight: 900;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(255,255,255,0.06);
+        color: rgba(226, 232, 240, 0.9);
+        white-space: nowrap;
+      }
+      .badge.ok { border-color: rgba(134, 239, 172, 0.4); color: rgba(134, 239, 172, 0.95); }
+      .badge.todo { border-color: rgba(251, 191, 36, 0.35); color: rgba(251, 191, 36, 0.95); }
+      .badge.optional { border-color: rgba(148, 163, 184, 0.28); color: rgba(148, 163, 184, 0.92); }
+      .step a {
+        color: inherit;
+        text-decoration: none;
+        font-weight: 800;
+      }
+      .step a:hover { text-decoration: underline; }
     </style>
   </head>
   <body class="prod-commercial">
@@ -153,6 +228,39 @@
           </div>
           {% endif %}
         </div>
+
+        {% if setup_checklist %}
+        <section class="stepper" aria-label="Checklist de activación">
+          <div class="stepper-head">
+            <p class="stepper-title">Checklist de activación</p>
+            <p class="stepper-count">Requeridos: {{ setup_progress.required_done }}/{{ setup_progress.required_total }}</p>
+          </div>
+          <ul class="steps">
+            {% for item in setup_checklist %}
+            <li class="step">
+              <div>
+                <strong>{{ item.label }}</strong>
+                <div class="desc">{{ item.description }}</div>
+              </div>
+              <div style="display:flex; gap:0.55rem; align-items:center; flex-wrap:wrap; justify-content:flex-end;">
+                {% if item.ok %}
+                <span class="badge ok">OK</span>
+                {% else %}
+                  {% if item.required %}
+                  <span class="badge todo">Pendiente</span>
+                  {% else %}
+                  <span class="badge optional">Opcional</span>
+                  {% endif %}
+                {% endif %}
+                {% if item.url %}
+                <a class="badge" href="{{ item.url }}">Abrir</a>
+                {% endif %}
+              </div>
+            </li>
+            {% endfor %}
+          </ul>
+        </section>
+        {% endif %}
 
         <form method="post" enctype="multipart/form-data" style="margin-top:1rem;">
           {% csrf_token %}
