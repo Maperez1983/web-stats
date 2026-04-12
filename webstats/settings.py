@@ -181,6 +181,15 @@ SECURE_REFERRER_POLICY = 'same-origin'
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'
 
+# Auth:
+# En iOS (y en general en móviles) es común que el teclado autocapitalice el primer carácter.
+# Para evitar fallos de acceso por mayúsculas/minúsculas en el username, añadimos un backend
+# case-insensitive (sin tocar contraseñas).
+AUTHENTICATION_BACKENDS = [
+    'football.auth_backends.CaseInsensitiveModelBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
+
 # Sesiones (login)
 # - SESSION_COOKIE_AGE: segundos (por defecto Django: 1209600 = 2 semanas)
 # - SESSION_SAVE_EVERY_REQUEST: renueva caducidad en cada request (expiración "deslizante")
@@ -306,6 +315,10 @@ STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+try:
+    os.makedirs(str(MEDIA_ROOT), exist_ok=True)
+except Exception:
+    pass
 
 # Tactical pad: server-side HD preview rendering (Playwright).
 # Disabled by default because it requires browsers and increases CPU usage.

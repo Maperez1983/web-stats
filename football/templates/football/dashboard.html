@@ -304,6 +304,31 @@
         display: inline-flex;
         margin-top: 0.55rem;
       }
+      .setup-checklist {
+        margin: 0.7rem 0 0;
+        padding: 0;
+        list-style: none;
+        display: grid;
+        gap: 0.35rem;
+        font-size: 0.82rem;
+      }
+      .setup-checklist li {
+        display: flex;
+        gap: 0.5rem;
+        align-items: baseline;
+        opacity: 0.92;
+      }
+      .setup-checklist li strong {
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+      }
+      .setup-checklist .done {
+        color: rgba(134, 239, 172, 0.92);
+      }
+      .setup-checklist .todo {
+        color: rgba(254, 202, 202, 0.95);
+      }
 
       .block {
         border-radius: 20px;
@@ -555,7 +580,7 @@
     <div class="page product-shell">
       <header class="topbar">
         <div>
-          {% include 'football/includes/dragon_nav.html' %}
+          {% include 'football/includes/dragon_nav.html' with hide_product_shortcuts=True %}
           <div style="margin-top:0.55rem;">
 	            <h1>Segunda Jugada · 2J Club</h1>
           </div>
@@ -767,10 +792,24 @@
               const title = String(payload.setup_message_title || '').trim();
               const body = String(payload.setup_message_body || '').trim();
               const actionLabel = String(payload.setup_action_label || '').trim();
+              const checklist = Array.isArray(payload?.setup_checklist) ? payload.setup_checklist : [];
+              let checklistHtml = '';
+              if (checklist.length) {
+                const rows = checklist.slice(0, 7).map((item) => {
+                  const ok = Boolean(item && item.ok);
+                  const required = Boolean(item && item.required);
+                  const label = String(item?.label || '').trim();
+                  const cls = ok ? 'done' : 'todo';
+                  const prefix = ok ? '✓' : required ? '•' : '·';
+                  return `<li class="${cls}"><strong>${prefix}</strong><span>${label || 'Paso'}</span></li>`;
+                }).join('');
+                checklistHtml = `<ul class="setup-checklist">${rows}</ul>`;
+              }
               setupBanner.hidden = false;
               setupBanner.innerHTML = `
                 <div><strong>${title || 'Este club todavía no está configurado.'}</strong></div>
                 <div style="margin-top:0.25rem; opacity:0.92;">${body || 'Ahora mismo ves datos simulados (avatar, clasificación y rival ficticios).'}</div>
+                ${checklistHtml}
                 <a href="${url}">${actionLabel || 'Configurar'}</a>
               `;
             } else {

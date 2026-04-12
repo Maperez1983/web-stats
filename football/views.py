@@ -4923,6 +4923,35 @@ def _payload_opponent_name(payload):
     return str(payload.get('rival') or '').strip()
 
 
+def _opponent_in_standings_rows(opponent_name: str, standings_rows) -> bool:
+    """
+    Guardrail anti-mezcla (Senior vs Prebenjamín):
+    Valida si el rival existe en la clasificación visible.
+    """
+    if not opponent_name:
+        return True
+    if not isinstance(standings_rows, list) or not standings_rows:
+        return True
+    opponent_key = _normalize_team_lookup_key(opponent_name)
+    if not opponent_key:
+        return True
+    for row in standings_rows:
+        if not isinstance(row, dict):
+            continue
+        for field in ('full_name', 'team'):
+            candidate = str(row.get(field) or '').strip()
+            if not candidate:
+                continue
+            candidate_key = _normalize_team_lookup_key(candidate)
+            if not candidate_key:
+                continue
+            if candidate_key == opponent_key:
+                return True
+            if opponent_key in candidate_key or candidate_key in opponent_key:
+                return True
+    return False
+
+
 def _build_team_recent_activity(primary_team):
     if not primary_team:
         return []
@@ -7123,6 +7152,147 @@ def _build_setup_dashboard_payload(request, workspace):
     return payload
 
 
+def _build_team_setup_checklist(request, workspace, primary_team, *, match=None, convocation_record=None):
+    """
+    Checklist de activación (producto comercial).
+
+    No persiste estado: se deriva de datos reales. Debe ser estable y barata de calcular.
+    """
+    items = []
+    if not workspace or getattr(workspace, 'kind', None) != Workspace.KIND_CLUB:
+        return items
+
+    # 1) Configurar competición (provider + claves externas + sync OK).
+    context = None
+    try:
+        context = WorkspaceCompetitionContext.objects.filter(workspace=workspace, team=primary_team).first()
+    except Exception:
+        context = None
+    provider = str(getattr(context, 'provider', '') or '').strip()
+    external_group_key = str(getattr(context, 'external_group_key', '') or '').strip()
+    external_team_key = str(getattr(context, 'external_team_key', '') or '').strip()
+    sync_status = str(getattr(context, 'sync_status', '') or '').strip().lower()
+    has_competition = bool(provider and provider != WorkspaceCompetitionContext.PROVIDER_MANUAL and external_group_key and external_team_key and sync_status == WorkspaceCompetitionContext.STATUS_READY)
+    items.append(
+        {
+            'key': 'competition',
+            'label': 'Competición conectada',
+            'ok': has_competition,
+            'required': True,
+            'description': 'Sin esto se mezclan rivales y la home no es fiable.',
+            'url': reverse('club-onboarding'),
+        }
+    )
+
+    # 2) Plantilla (jugadores).
+    players_qs = Player.objects.filter(team=primary_team, is_active=True)
+    players_count = 0
+    try:
+        players_count = int(players_qs.count())
+    except Exception:
+        players_count = 0
+    has_roster = players_count > 0
+    items.append(
+        {
+            'key': 'roster',
+            'label': 'Plantilla importada',
+            'ok': has_roster,
+            'required': True,
+            'description': 'Crea jugadores para poder convocar, registrar acciones y calcular KPIs.',
+            'url': reverse('coach-roster'),
+            'meta': {'count': players_count},
+        }
+    )
+
+    # 3) Staff (cuerpo técnico).
+    staff_count = 0
+    try:
+        staff_count = int(StaffMember.objects.filter(workspace=workspace, is_active=True).count())
+    except Exception:
+        staff_count = 0
+    has_staff = staff_count > 0
+    items.append(
+        {
+            'key': 'staff',
+            'label': 'Staff añadido',
+            'ok': has_staff,
+            'required': False,
+            'description': 'Roles, responsabilidades y licencias del cuerpo técnico.',
+            'url': reverse('staff-directory'),
+            'meta': {'count': staff_count},
+        }
+    )
+
+    # 4) Próximo partido (fixture).
+    has_match = bool(match)
+    items.append(
+        {
+            'key': 'match',
+            'label': 'Partido listo',
+            'ok': has_match,
+            'required': False,
+            'description': 'Selecciona/crea un partido para que convocatoria y registro trabajen sobre una fuente de verdad.',
+            'url': reverse('match-hub'),
+        }
+    )
+
+    # 5) Convocatoria guardada.
+    has_convocation = bool(convocation_record and getattr(convocation_record, 'players', None) and convocation_record.players.exists())
+    items.append(
+        {
+            'key': 'convocation',
+            'label': 'Convocatoria cerrada',
+            'ok': has_convocation,
+            'required': False,
+            'description': 'Lista oficial de convocados para el partido.',
+            'url': reverse('convocation'),
+        }
+    )
+
+    # 6) 11 inicial / titulares (si aplica).
+    starters_required = _required_starters_for_team(primary_team)
+    starters_count = 0
+    try:
+        lineup = convocation_record.lineup_data if convocation_record and isinstance(convocation_record.lineup_data, dict) else {}
+        starters = lineup.get('starters') or []
+        starters_count = len(starters) if isinstance(starters, list) else 0
+    except Exception:
+        starters_count = 0
+    has_lineup = bool(starters_count >= max(starters_required, 1)) if starters_required else bool(starters_count)
+    items.append(
+        {
+            'key': 'lineup',
+            'label': 'Once inicial',
+            'ok': has_lineup,
+            'required': False,
+            'description': 'Organiza titulares para acelerar registro vivo y acta final.',
+            'url': reverse('initial-eleven'),
+            'meta': {'required': starters_required, 'count': starters_count},
+        }
+    )
+
+    # 7) Registro vivo (acciones).
+    actions_count = 0
+    if match:
+        try:
+            actions_count = int(MatchEvent.objects.filter(match=match, source_file='registro-acciones').count())
+        except Exception:
+            actions_count = 0
+    has_actions = actions_count > 0
+    items.append(
+        {
+            'key': 'actions',
+            'label': 'Acciones registradas',
+            'ok': has_actions,
+            'required': False,
+            'description': 'Registrar acciones alimenta la ficha final, KPIs y estadísticas.',
+            'url': reverse('match-action-page') + (f'?match_id={match.id}' if match else ''),
+            'meta': {'count': actions_count},
+        }
+    )
+    return items
+
+
 def _build_first_run_dashboard_payload(request):
     payload = _build_demo_dashboard_payload(request)
     if not isinstance(payload, dict):
@@ -7267,6 +7437,7 @@ def dashboard_data(request):
         return JsonResponse({'error': 'No hay equipo principal configurado'}, status=400)
 
     workspace = _get_active_workspace(request)
+    setup_banner = {}
     # Guardrail UX: evita mostrar rival/clasificación de otra categoría si comparten grupo/competición.
     # Caso real: Prebenjamín creado clonando Senior y se queda con el mismo Group/Universo ID.
     try:
@@ -7464,6 +7635,35 @@ def dashboard_data(request):
     # Product rule: Home prioritizes Convocatoria only when it provides a reliable scheduled match.
     if _next_match_payload_is_reliable(convocation_next_match):
         next_match = _enrich_next_match_payload_with_crests(convocation_next_match, standings)
+    # Guardrail anti-mezcla: si el próximo rival NO viene de convocatoria manual y no existe en la
+    # clasificación visible, evitamos mostrarlo (Senior vs Prebenjamín con IDs cruzados).
+    try:
+        if next_match and provider_key == WorkspaceCompetitionContext.PROVIDER_UNIVERSO and standings:
+            source_key = str((next_match or {}).get('source') or '').strip().lower()
+            opponent_name = _payload_opponent_name(next_match)
+            if source_key not in {'convocation-manual'} and opponent_name and not _opponent_in_standings_rows(opponent_name, standings):
+                next_match = None
+                # Señal UX para que el admin corrija el Universo ID del grupo/competición.
+                fix_url = reverse('club-onboarding')
+                if _can_manage_workspace(request.user, workspace) or _can_access_platform(request.user):
+                    fix_url = reverse('admin-page') + '?tab=teams'
+                debug_payload = dict(debug_payload or {})
+                debug_payload['next_match_guardrail'] = {
+                    'reason': 'opponent_not_in_standings',
+                    'opponent': opponent_name,
+                }
+                setup_banner = {
+                    'setup_required': True,
+                    'setup_url': fix_url,
+                    'setup_message_title': 'Próximo rival no coincide con esta categoría',
+                    'setup_message_body': (
+                    'La app detectó que el rival proviene de una competición/grupo distinto al de la clasificación actual. '
+                    'Revisa el “Universo ID de grupo” del equipo para evitar mezclar datos (Senior vs Prebenjamín).'
+                    ),
+                    'setup_action_label': 'Revisar configuración',
+                }
+    except Exception:
+        pass
     # Evitar mostrar el "último partido" como si fuera el próximo rival.
     if not _next_match_payload_is_reliable(next_match):
         next_match = None
@@ -7510,6 +7710,39 @@ def dashboard_data(request):
         'player_cards': player_cards,
         'player_cards_scope': player_cards_scope,
     }
+    if isinstance(setup_banner, dict) and setup_banner and not payload.get('setup_required'):
+        payload.update(setup_banner)
+    # Checklist de activación (simplifica adopción del producto).
+    try:
+        active_match = get_active_match(primary_team)
+    except Exception:
+        active_match = None
+    try:
+        convocation_record = get_current_convocation_record(primary_team)
+    except Exception:
+        convocation_record = None
+    setup_checklist = _build_team_setup_checklist(
+        request,
+        workspace,
+        primary_team,
+        match=active_match,
+        convocation_record=convocation_record,
+    ) if workspace and workspace.kind == Workspace.KIND_CLUB else []
+    if isinstance(setup_checklist, list) and setup_checklist:
+        payload['setup_checklist'] = setup_checklist
+        try:
+            required_pending = [
+                item for item in setup_checklist
+                if bool(item.get('required')) and not bool(item.get('ok'))
+            ]
+            if required_pending and not payload.get('setup_required'):
+                payload['setup_required'] = True
+                payload['setup_url'] = reverse('club-onboarding')
+                payload['setup_message_title'] = 'Checklist de activación'
+                payload['setup_message_body'] = 'Completa estos pasos para evitar mezclas de datos y activar KPIs/PDFs.'
+                payload['setup_action_label'] = 'Abrir configuración'
+        except Exception:
+            pass
     if debug_payload:
         payload['debug'] = debug_payload
     cache.set(cache_key, payload, DASHBOARD_CACHE_SECONDS)
