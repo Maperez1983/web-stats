@@ -46,6 +46,28 @@
         background: rgba(15, 23, 42, 0.92);
         padding: 1rem;
       }
+      .tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-bottom: 0.9rem;
+      }
+      .tab {
+        text-decoration: none;
+        border-radius: 999px;
+        padding: 0.55rem 0.85rem;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        color: rgba(226, 232, 240, 0.92);
+        font-size: 0.78rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        background: rgba(2, 6, 23, 0.35);
+      }
+      .tab.is-active {
+        border-color: rgba(56, 189, 248, 0.55);
+        box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.18);
+        background: rgba(56, 189, 248, 0.12);
+      }
       .alert {
         margin: 0 0 0.85rem;
         padding: 0.6rem 0.7rem;
@@ -121,8 +143,65 @@
         padding: 0.3rem 0.5rem;
         cursor: pointer;
       }
+      .card-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.9rem;
+      }
+      .player-card {
+        display: grid;
+        grid-template-columns: 64px 1fr;
+        gap: 0.85rem;
+        align-items: center;
+        padding: 0.9rem;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(2, 6, 23, 0.35);
+        text-decoration: none;
+        color: inherit;
+        transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+      }
+      .player-card:hover {
+        transform: translateY(-2px);
+        border-color: rgba(56, 189, 248, 0.45);
+        background: rgba(56, 189, 248, 0.08);
+      }
+      .player-card img {
+        width: 64px;
+        height: 64px;
+        border-radius: 16px;
+        object-fit: cover;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(2, 6, 23, 0.8);
+      }
+      .player-card h3 {
+        margin: 0;
+        font-size: 0.98rem;
+        letter-spacing: 0.04em;
+      }
+      .player-card p {
+        margin: 0.15rem 0 0;
+        color: rgba(148, 163, 184, 0.95);
+        font-size: 0.78rem;
+      }
+      .mini-kpis {
+        margin-top: 0.5rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+      }
+      .mini-kpi {
+        border-radius: 999px;
+        padding: 0.15rem 0.55rem;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        font-size: 0.72rem;
+        color: rgba(226, 232, 240, 0.9);
+      }
       @media (max-width: 900px) {
         form.add {
+          grid-template-columns: 1fr;
+        }
+        .card-grid {
           grid-template-columns: 1fr;
         }
       }
@@ -140,9 +219,34 @@
       </header>
 
       <section class="panel">
+        <nav class="tabs">
+          <a class="tab {% if active_tab == 'stats' %}is-active{% endif %}" href="{{ tab_link_stats }}">Estadísticas</a>
+          <a class="tab {% if active_tab == 'manage' %}is-active{% endif %}" href="{{ tab_link_manage }}">Alta y plantilla</a>
+        </nav>
         {% if message %}<p class="alert ok">{{ message }}</p>{% endif %}
         {% if error %}<p class="alert err">{{ error }}</p>{% endif %}
 
+        {% if active_tab == 'stats' %}
+          <div class="card-grid">
+            {% for card in player_cards %}
+              <a class="player-card" href="{% url 'player-detail' player_id=card.player_id %}{{ tab_link_stats|default:'' }}">
+                <img src="{% if card.photo_url %}{{ card.photo_url }}{% else %}{% static 'football/images/player-avatar.svg' %}{% endif %}" alt="Foto {{ card.name }}" loading="lazy" />
+                <div>
+                  <h3>{{ card.name }}</h3>
+                  <p>{{ card.position|default:"-" }}</p>
+                  <div class="mini-kpis">
+                    <span class="mini-kpi">PJ {{ card.pj|default:0 }}</span>
+                    <span class="mini-kpi">Min {{ card.minutes|default:0 }}</span>
+                    <span class="mini-kpi">G {{ card.goals|default:0 }}</span>
+                    <span class="mini-kpi">% {{ card.success_rate|default:0 }}</span>
+                  </div>
+                </div>
+              </a>
+            {% empty %}
+              <div style="grid-column:1/-1; color:#94a3b8;">No hay jugadores aún. Usa “Alta y plantilla”.</div>
+            {% endfor %}
+          </div>
+        {% else %}
         <form method="post" class="add">
           {% csrf_token %}
           <input type="hidden" name="action" value="add" />
@@ -182,7 +286,7 @@
             {% for player in players %}
             <tr>
               <td>{{ player.number|default:"--" }}</td>
-              <td>{{ player.name }}</td>
+              <td><a style="color:#e2e8f0; text-decoration:none;" href="{% url 'player-detail' player_id=player.id %}">{{ player.name }}</a></td>
               <td>{{ player.position|default:"-" }}</td>
               <td>
                 {% if player.is_active %}
@@ -211,6 +315,7 @@
             {% endfor %}
           </tbody>
         </table>
+        {% endif %}
       </section>
     </main>
   </body>

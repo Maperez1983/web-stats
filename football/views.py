@@ -15431,6 +15431,9 @@ def coach_roster_page(request):
         raise Http404('Equipo principal no configurado')
 
     can_edit = bool(_can_manage_workspace(request.user, workspace) or _can_access_platform(request.user) or _is_admin_user(request.user))
+    active_tab = str(request.GET.get('tab') or '').strip().lower() or 'stats'
+    if active_tab not in {'stats', 'manage'}:
+        active_tab = 'stats'
     message = ''
     error = ''
     if request.method == 'POST':
@@ -15483,12 +15486,27 @@ def coach_roster_page(request):
             error = 'No se pudo guardar el jugador. Revisa los datos.'
 
     players = Player.objects.filter(team=primary_team).order_by('is_active', 'number', 'name')
+    player_cards = []
+    if active_tab == 'stats':
+        try:
+            player_cards = compute_player_cards(primary_team)
+        except Exception:
+            player_cards = []
+    def _tab_link(tab_name):
+        params = request.GET.copy()
+        params['tab'] = tab_name
+        encoded = params.urlencode()
+        return f'?{encoded}' if encoded else ''
     return render(
         request,
         'football/coach_roster.html',
         {
             'team_name': primary_team.display_name,
             'players': players,
+            'player_cards': player_cards,
+            'active_tab': active_tab,
+            'tab_link_stats': _tab_link('stats'),
+            'tab_link_manage': _tab_link('manage'),
             'message': message,
             'error': error,
         },
