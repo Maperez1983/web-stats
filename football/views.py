@@ -13379,6 +13379,37 @@ def convocation_referee_pdf(request):
     mode = str(request.GET.get('mode') or '').strip().lower()
     if mode != 'full':
         # Nuevo modo (una hoja): cuadrícula de licencias.
+        workspace = _get_active_workspace(request)
+        staff_lines = []
+        try:
+            if workspace and workspace.kind == Workspace.KIND_CLUB:
+                staff_qs = (
+                    StaffMember.objects
+                    .filter(workspace=workspace, is_active=True)
+                    .filter(Q(team__isnull=True) | Q(team=primary_team))
+                    .order_by('role_title', 'name', 'id')
+                )
+                for member in list(staff_qs)[:8]:
+                    role_title = str(getattr(member, 'role_title', '') or '').strip() or 'Staff'
+                    staff_lines.append({'role': role_title, 'name': str(member.name or '').strip()})
+        except Exception:
+            staff_lines = []
+
+        home_team_name = primary_team.display_name
+        away_team_name = (convocation_record.opponent_name or '').strip() or 'Rival por confirmar'
+        try:
+            if convocation_record.match:
+                is_home = bool(convocation_record.match.home_team_id == primary_team.id)
+                opponent = (
+                    convocation_record.match.away_team if is_home else convocation_record.match.home_team
+                )
+                opponent_label = str(getattr(opponent, 'display_name', '') or getattr(opponent, 'name', '') or '').strip()
+                if opponent_label:
+                    away_team_name = opponent_label if is_home else home_team_name
+                    home_team_name = home_team_name if is_home else opponent_label
+        except Exception:
+            pass
+
         grid_players = []
         for player in ordered_players:
             license_name = _find_license_name(player)
@@ -13397,13 +13428,16 @@ def convocation_referee_pdf(request):
             {
                 **_build_pdf_nav_urls(request),
                 'team_name': primary_team.display_name,
-                'rival_name': (convocation_record.opponent_name or '').strip() or 'Rival por confirmar',
+                'home_team_name': home_team_name,
+                'away_team_name': away_team_name,
                 'round_label': convocation_record.round or 'Jornada por confirmar',
                 'date_label': convocation_record.match_date.strftime('%d/%m/%Y') if convocation_record.match_date else '--',
                 'time_label': convocation_record.match_time.strftime('%H:%M') if convocation_record.match_time else '--:--',
                 'location_label': convocation_record.location or (convocation_record.match.location if convocation_record.match else '') or 'Campo por confirmar',
                 'players': grid_players,
                 'grid_class': grid_class,
+                'crest_url': resolve_team_crest_url(request, primary_team, sync=True),
+                'staff_lines': staff_lines,
                 'generated_at': timezone.localtime(),
             },
         )

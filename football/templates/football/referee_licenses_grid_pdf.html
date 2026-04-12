@@ -19,6 +19,20 @@
         gap: 10px;
         margin-bottom: 8mm;
       }
+      .brand {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+      }
+      .crest {
+        width: 44px;
+        height: 44px;
+        border-radius: 999px;
+        border: 1px solid #cbd5e1;
+        background: white;
+        object-fit: contain;
+        padding: 4px;
+      }
       .title {
         margin: 0;
         font-size: 14px;
@@ -31,6 +45,15 @@
         font-size: 11px;
         color: #334155;
       }
+      .staff {
+        margin-top: 6px;
+        font-size: 10px;
+        color: #0f172a;
+        display: grid;
+        gap: 2px;
+        max-width: 360px;
+      }
+      .staff span { color: #475569; }
       .meta {
         font-size: 10px;
         color: #0f172a;
@@ -99,9 +122,21 @@
   </head>
   <body>
     <div class="header">
-      <div>
-        <p class="title">Licencias federativas · Árbitro</p>
-        <p class="sub">{{ team_name }} vs {{ rival_name }} · {{ round_label }}</p>
+      <div class="brand">
+        {% if crest_url %}
+        <img class="crest" src="{{ crest_url }}" alt="Escudo" />
+        {% endif %}
+        <div>
+          <p class="title">Licencias federativas · Árbitro</p>
+          <p class="sub"><strong>{{ round_label }}</strong> · {{ home_team_name }} vs {{ away_team_name }}</p>
+          {% if staff_lines %}
+          <div class="staff">
+            {% for line in staff_lines %}
+            <div><strong>{{ line.role }}</strong> <span>·</span> {{ line.name }}</div>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
       </div>
       <div class="meta">
         <div><strong>Fecha:</strong> {{ date_label }}</div>
@@ -130,4 +165,3 @@
     <div class="footer">Generado: {{ generated_at|date:"d/m/Y H:i" }}</div>
   </body>
 </html>
-

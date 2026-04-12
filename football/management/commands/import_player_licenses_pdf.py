@@ -1,255 +1,420 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 import subprocess
 import tempfile
 from dataclasses import dataclass
-from difflib import SequenceMatcher
 from pathlib import Path
 
-from django.core.management.base import BaseCommand, CommandError
-from django.core.files.uploadedfile import SimpleUploadedFile
-from django.utils.text import slugify
+from django.core.files.base import ContentFile
+from django.core.management.base import BaseCommand
 
 from football.models import Player, Team
 from football.views import save_player_license
 
+try:
+    from PIL import Image, ImageOps
+except Exception:  # pragma: no cover
+    Image = None
+    ImageOps = None
 
-def _which(cmd: str) -> bool:
-    return bool(shutil.which(cmd))
-
-
-def _run_capture(args: list[str]) -> str:
-    try:
-        out = subprocess.check_output(args, stderr=subprocess.STDOUT)
-        return out.decode("utf-8", errors="replace")
-    except subprocess.CalledProcessError as exc:
-        raw = (exc.output or b"").decode("utf-8", errors="replace")
-        raise CommandError(f"Error ejecutando: {' '.join(args)}\n{raw}") from exc
+try:
+    import pytesseract
+except Exception:  # pragma: no cover
+    pytesseract = None
 
 
-_FIELD_RE = {
-    "nombre": re.compile(r"^Nombre:\s*(?P<val>.+?)\s*$", re.MULTILINE | re.IGNORECASE),
-    "apellido1": re.compile(r"^Apellido\s*1:\s*(?P<val>.+?)\s*$", re.MULTILINE | re.IGNORECASE),
-    "apellido2": re.compile(r"^Apellido\s*2:\s*(?P<val>.+?)\s*$", re.MULTILINE | re.IGNORECASE),
-    "licencia": re.compile(r"^Código\s+de\s+Licencia:\s*(?P<val>.+?)\s*(Hasta:|$)", re.MULTILINE | re.IGNORECASE),
-    "categoria": re.compile(r"^Categoría:\s*(?P<val>.+?)\s*$", re.MULTILINE | re.IGNORECASE),
-    "club": re.compile(r"^Club:\s*(?P<val>.+?)\s*$", re.MULTILINE | re.IGNORECASE),
-}
+def _normalize_name(value: str) -> str:
+    value = str(value or "").strip().lower()
+    value = re.sub(r"[^\w\sáéíóúüñ]+", " ", value, flags=re.IGNORECASE)
+    value = value.replace("á", "a").replace("é", "e").replace("í", "i").replace("ó", "o").replace("ú", "u")
+    value = value.replace("ü", "u").replace("ñ", "n")
+    value = re.sub(r"\s+", " ", value).strip()
+    return value
 
 
-def _extract_fields(text: str) -> dict:
-    payload: dict[str, str] = {}
-    for key, regex in _FIELD_RE.items():
-        match = regex.search(text or "")
-        if match:
-            payload[key] = str(match.group("val") or "").strip()
-    return payload
+def _tokenize(value: str) -> set[str]:
+    return {token for token in _normalize_name(value).split() if token and token not in {"de", "del", "la", "el"}}
 
 
-def _normalize_person_key(nombre: str, apellido1: str, apellido2: str) -> str:
-    return slugify(" ".join([nombre or "", apellido1 or "", apellido2 or ""]).strip())
+def _extract_license_name(text: str) -> str:
+    text = str(text or "")
+    text = text.replace("\u00a0", " ")
+    # Normaliza saltos
+    compact = re.sub(r"[ \t]+", " ", text)
+
+    def _find(label: str) -> str:
+        match = re.search(rf"{label}\s*:?\s*([A-Za-zÁÉÍÓÚÜÑñ\- ]+)", compact, flags=re.IGNORECASE)
+        return match.group(1).strip() if match else ""
+
+    nombre = _find("Nombre")
+    ap1 = _find("Apellido\\s*1")
+    ap2 = _find("Apellido\\s*2")
+    if nombre and ap1:
+        parts = [nombre, ap1, ap2]
+        return " ".join([part for part in parts if part]).strip()
+
+    # Fallback: detecta líneas tipo "Nombre: X Apellido 1: Y Apellido 2: Z"
+    match = re.search(
+        r"Nombre\s*:?\s*(?P<n>[A-Za-zÁÉÍÓÚÜÑñ\- ]+)\s+Apellido\s*1\s*:?\s*(?P<a1>[A-Za-zÁÉÍÓÚÜÑñ\- ]+)(?:\s+Apellido\s*2\s*:?\s*(?P<a2>[A-Za-zÁÉÍÓÚÜÑñ\- ]+))?",
+        compact,
+        flags=re.IGNORECASE,
+    )
+    if match:
+        parts = [match.group("n"), match.group("a1"), match.group("a2") or ""]
+        return " ".join([part.strip() for part in parts if part and part.strip()]).strip()
+    return ""
 
 
-def _player_keys(player: Player) -> set[str]:
-    keys: set[str] = set()
-    if not player:
-        return keys
-    for raw in [getattr(player, "full_name", ""), getattr(player, "name", "")]:
-        raw = str(raw or "").strip()
-        if raw:
-            keys.add(slugify(raw))
-    return {key for key in keys if key}
-
-
-def _score_match(candidate_key: str, player_keys: set[str]) -> float:
-    if not candidate_key or not player_keys:
-        return 0.0
-    best = 0.0
-    for pk in player_keys:
-        if not pk:
+def _best_player_match(players: list[Player], license_name: str) -> tuple[Player | None, float]:
+    if not license_name:
+        return None, 0.0
+    license_tokens = _tokenize(license_name)
+    if not license_tokens:
+        return None, 0.0
+    best_player = None
+    best_score = 0.0
+    for player in players:
+        player_tokens = _tokenize(player.full_name or player.name)
+        if not player_tokens:
             continue
-        if pk == candidate_key:
-            return 1.0
-        best = max(best, SequenceMatcher(a=candidate_key, b=pk).ratio())
-    return best
+        overlap = len(license_tokens & player_tokens)
+        union = len(license_tokens | player_tokens)
+        score = (overlap / union) if union else 0.0
+        # Boost si coincide nombre + primer apellido
+        if overlap >= 2:
+            score += 0.25
+        if score > best_score:
+            best_score = score
+            best_player = player
+    return best_player, float(best_score)
 
 
-@dataclass(frozen=True)
-class PageMatch:
-    page_index: int
-    person_key: str
-    nombre: str
-    apellido1: str
-    apellido2: str
-    licencia_code: str
-    categoria: str
-    club: str
-    best_player_id: int | None
-    best_player_name: str
-    best_score: float
+def _run(cmd: list[str], *, check: bool = True) -> subprocess.CompletedProcess:
+    return subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=check)
+
+
+def _ensure_tool(tool_name: str) -> str:
+    path = shutil.which(tool_name) or ""
+    if not path:
+        raise RuntimeError(f"Falta dependencia del sistema: `{tool_name}` (instala Poppler / ImageMagick).")
+    return path
+
+
+def _render_page_pngs(pdf_path: str, out_dir: Path, *, dpi: int = 220) -> list[Path]:
+    _ensure_tool("pdftoppm")
+    prefix = out_dir / "page"
+    cmd = ["pdftoppm", "-png", "-r", str(int(dpi)), pdf_path, str(prefix)]
+    _run(cmd)
+    pages = sorted(out_dir.glob("page-*.png"), key=lambda p: int(re.sub(r"\D+", "", p.stem) or "0"))
+    return pages
+
+
+def _pdf_page_text(pdf_path: str, page_num: int) -> str:
+    _ensure_tool("pdftotext")
+    cmd = ["pdftotext", "-f", str(page_num), "-l", str(page_num), "-layout", pdf_path, "-"]
+    proc = _run(cmd, check=False)
+    return (proc.stdout or "").strip()
+
+
+def _ocr_text(image_path: Path) -> str:
+    if pytesseract is None or Image is None:
+        return ""
+    try:
+        img = Image.open(image_path)
+        if ImageOps is not None:
+            try:
+                img = ImageOps.exif_transpose(img)
+            except Exception:
+                pass
+        return str(pytesseract.image_to_string(img, lang="spa") or "").strip()
+    except Exception:
+        return ""
+
+
+def _prepare_license_jpeg(image_path: Path) -> bytes:
+    if Image is None:
+        return image_path.read_bytes()
+    with Image.open(image_path) as img:
+        if ImageOps is not None:
+            try:
+                img = ImageOps.exif_transpose(img)
+            except Exception:
+                pass
+        rgb = img.convert("RGB")
+        # Auto-crop a contenido (reduce márgenes para que la cuadrícula sea más legible).
+        try:
+            gray = ImageOps.grayscale(rgb)
+            inv = ImageOps.invert(gray)
+            bbox = inv.getbbox()
+            if bbox:
+                left, top, right, bottom = bbox
+                pad = 18
+                left = max(0, left - pad)
+                top = max(0, top - pad)
+                right = min(rgb.width, right + pad)
+                bottom = min(rgb.height, bottom + pad)
+                rgb = rgb.crop((left, top, right, bottom))
+        except Exception:
+            pass
+        rgb.thumbnail((1500, 1000))
+        out = ContentFile(b"")
+        # ContentFile doesn't expose buffer, use BytesIO.
+        import io
+
+        buffer = io.BytesIO()
+        rgb.save(buffer, format="JPEG", optimize=True, quality=78)
+        return buffer.getvalue()
+
+
+@dataclass
+class PageResult:
+    page: int
+    card: int
+    extracted_name: str
+    player_id: int | None
+    player_name: str
+    score: float
+    saved_as: str
+    error: str
 
 
 class Command(BaseCommand):
-    help = "Importa licencias federativas desde un PDF multi‑página y las asigna a jugadores por nombre."
+    help = "Importa licencias federativas desde un PDF (una licencia por página) y las asigna a jugadores."
 
     def add_arguments(self, parser):
-        parser.add_argument("--pdf", type=str, required=True, help="Ruta al PDF con licencias (una por página).")
-        parser.add_argument("--team-id", type=int, default=0, help="ID del equipo (recomendado).")
-        parser.add_argument("--team-slug", type=str, default="", help="Slug del equipo (alternativa a --team-id).")
-        parser.add_argument("--min-score", type=float, default=0.82, help="Umbral mínimo de matching (0-1).")
-        parser.add_argument("--apply", action="store_true", help="Aplica cambios y guarda licencias en MEDIA.")
-        parser.add_argument("--dry-run", action="store_true", help="Solo muestra el mapeo propuesto (por defecto).")
-        parser.add_argument("--out-json", type=str, default="", help="Escribe un resumen JSON en esta ruta.")
-        parser.add_argument("--limit", type=int, default=0, help="Procesa solo las primeras N páginas (0=all).")
+        parser.add_argument("--pdf", required=True, help="Ruta local al PDF con carnets (una licencia por página).")
+        parser.add_argument("--team-slug", required=True, help="Slug del equipo (Team.slug).")
+        parser.add_argument("--min-score", type=float, default=0.55, help="Score mínimo para asignar automáticamente.")
+        parser.add_argument("--dry-run", action="store_true", help="No guarda nada, solo muestra el mapeo.")
+        parser.add_argument("--out-json", default="", help="Ruta para guardar el mapping en JSON.")
+        parser.add_argument("--export-dir", default="", help="Directorio para exportar JPGs normalizados (por página/nombre).")
+        parser.add_argument("--dpi", type=int, default=220, help="DPI para rasterizar el PDF.")
+        parser.add_argument(
+            "--split",
+            default="auto",
+            choices=["auto", "off"],
+            help="Detecta y separa múltiples licencias por página (auto recomendado).",
+        )
 
-    def handle(self, *args, **opts):
-        pdf_path = Path(str(opts["pdf"])).expanduser()
-        if not pdf_path.exists() or not pdf_path.is_file():
-            raise CommandError(f"PDF no encontrado: {pdf_path}")
+    def handle(self, *args, **options):
+        pdf_path = str(options["pdf"])
+        team_slug = str(options["team_slug"])
+        min_score = float(options["min_score"] or 0.0)
+        dry_run = bool(options["dry_run"])
+        out_json = str(options.get("out_json") or "").strip()
+        export_dir = str(options.get("export_dir") or "").strip()
+        dpi = int(options.get("dpi") or 220)
+        split_mode = str(options.get("split") or "auto").strip().lower()
 
-        team_id = int(opts.get("team_id") or 0)
-        team_slug = str(opts.get("team_slug") or "").strip()
-        if not team_id and not team_slug:
-            raise CommandError("Indica el equipo con --team-id o --team-slug para evitar asignaciones erróneas.")
+        pdf_file = Path(pdf_path).expanduser()
+        if not pdf_file.exists():
+            raise RuntimeError(f"PDF no encontrado: {pdf_file}")
 
-        team = None
-        if team_id:
-            team = Team.objects.filter(id=team_id).first()
-        if not team and team_slug:
-            team = Team.objects.filter(slug=team_slug).first()
+        team = Team.objects.filter(slug=team_slug).first()
         if not team:
-            raise CommandError("Equipo no encontrado.")
+            raise RuntimeError(f"Team no encontrado con slug={team_slug}")
 
-        players = list(Player.objects.filter(team=team).order_by("name", "id"))
+        players = list(Player.objects.filter(team=team).order_by("id"))
         if not players:
-            raise CommandError("El equipo no tiene jugadores.")
+            raise RuntimeError("No hay jugadores en ese equipo.")
 
-        min_score = float(opts.get("min_score") or 0.82)
-        apply_changes = bool(opts.get("apply"))
-        dry_run = bool(opts.get("dry_run")) or (not apply_changes)
-        limit_pages = int(opts.get("limit") or 0)
+        results: list[PageResult] = []
+        export_root = Path(export_dir).expanduser() if export_dir else None
+        if export_root:
+            export_root.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(prefix="2j-licenses-") as tmp:
+            tmp_dir = Path(tmp)
+            pages = _render_page_pngs(str(pdf_file), tmp_dir, dpi=dpi)
+            if not pages:
+                raise RuntimeError("No se pudieron rasterizar páginas del PDF.")
 
-        if not _which("pdfseparate") or not _which("pdftotext"):
-            raise CommandError("Faltan binarios `pdfseparate`/`pdftotext` (poppler-utils).")
+            for page_idx, img_path in enumerate(pages, start=1):
+                if Image is None:
+                    card_images = [img_path]
+                else:
+                    card_images = []
+                    try:
+                        with Image.open(img_path) as base_img:
+                            if ImageOps is not None:
+                                try:
+                                    base_img = ImageOps.exif_transpose(base_img)
+                                except Exception:
+                                    pass
+                            rgb = base_img.convert("RGB")
+                            if split_mode == "off":
+                                card_images = [rgb]
+                            else:
+                                card_images = _split_vertical_cards(rgb) or [rgb]
+                    except Exception:
+                        card_images = [img_path]
 
-        player_index: list[tuple[Player, set[str]]] = [(p, _player_keys(p)) for p in players]
+                for card_idx, card in enumerate(card_images, start=1):
+                    extracted = ""
+                    error = ""
+                    jpeg_bytes = b""
+                    try:
+                        if isinstance(card, Path):
+                            extracted = _extract_license_name(_pdf_page_text(str(pdf_file), page_idx))
+                            if not extracted:
+                                extracted = _extract_license_name(_ocr_text(card))
+                            jpeg_bytes = _prepare_license_jpeg(card)
+                        else:
+                            extracted = _extract_license_name(_ocr_text_from_pil(card))
+                            jpeg_bytes = _prepare_license_jpeg_from_pil(card)
+                    except Exception as exc:
+                        error = str(exc)
 
-        matches: list[PageMatch] = []
-        errors: list[str] = []
-        assigned = 0
-        skipped = 0
+                    player, score = _best_player_match(players, extracted)
+                    saved_as = ""
+                    if player and score >= min_score and not dry_run and jpeg_bytes:
+                        try:
+                            content = ContentFile(jpeg_bytes)
+                            content.name = f"license-player-{player.id}.jpg"
+                            saved_as = save_player_license(player, content) or ""
+                        except Exception as exc:
+                            error = str(exc)
+                            saved_as = ""
+                    if export_root and jpeg_bytes:
+                        safe_name = re.sub(r"[^a-z0-9]+", "-", _normalize_name(extracted) or "license").strip("-")
+                        filename = f"page-{page_idx:02d}-card-{card_idx:02d}-{safe_name}.jpg"
+                        try:
+                            (export_root / filename).write_bytes(jpeg_bytes)
+                        except Exception as exc:
+                            error = error or str(exc)
 
-        with tempfile.TemporaryDirectory(prefix="licenses-pdf-") as tmpdir:
-            tmpdir_path = Path(tmpdir)
-            pattern = tmpdir_path / "page-%d.pdf"
-            _run_capture(["pdfseparate", str(pdf_path), str(pattern)])
-
-            pages = sorted(tmpdir_path.glob("page-*.pdf"))
-            if limit_pages > 0:
-                pages = pages[: max(0, limit_pages)]
-
-            for idx, page_file in enumerate(pages, start=1):
-                try:
-                    text = _run_capture(["pdftotext", "-f", "1", "-l", "1", str(page_file), "-"])
-                except CommandError as exc:
-                    errors.append(f"page {idx}: pdftotext error: {exc}")
-                    continue
-
-                fields = _extract_fields(text)
-                nombre = fields.get("nombre", "")
-                apellido1 = fields.get("apellido1", "")
-                apellido2 = fields.get("apellido2", "")
-                person_key = _normalize_person_key(nombre, apellido1, apellido2)
-                licencia_code = fields.get("licencia", "")
-                categoria = fields.get("categoria", "")
-                club = fields.get("club", "")
-
-                best_player = None
-                best_score = 0.0
-                for player_obj, keys in player_index:
-                    score = _score_match(person_key, keys)
-                    if score > best_score:
-                        best_score = score
-                        best_player = player_obj
-
-                match = PageMatch(
-                    page_index=idx,
-                    person_key=person_key,
-                    nombre=nombre,
-                    apellido1=apellido1,
-                    apellido2=apellido2,
-                    licencia_code=licencia_code,
-                    categoria=categoria,
-                    club=club,
-                    best_player_id=int(best_player.id) if best_player else None,
-                    best_player_name=str(best_player.name if best_player else ""),
-                    best_score=float(best_score),
-                )
-                matches.append(match)
-
-                if not best_player or best_score < min_score:
-                    skipped += 1
-                    continue
-
-                if dry_run:
-                    continue
-
-                try:
-                    pdf_bytes = page_file.read_bytes()
-                    upload = SimpleUploadedFile(
-                        name=f"licencia-page-{idx}.pdf",
-                        content=pdf_bytes,
-                        content_type="application/pdf",
+                    results.append(
+                        PageResult(
+                            page=page_idx,
+                            card=card_idx,
+                            extracted_name=extracted,
+                            player_id=int(player.id) if player else None,
+                            player_name=str(player.name if player else ""),
+                            score=float(score or 0.0),
+                            saved_as=saved_as,
+                            error=error,
+                        )
                     )
-                    save_player_license(best_player, upload)
-                    assigned += 1
-                except Exception as exc:
-                    errors.append(f"page {idx}: no se pudo guardar licencia para player_id={best_player.id}: {exc}")
 
-        # Summary
-        report = {
-            "ok": True,
-            "pdf": str(pdf_path),
-            "team": {"id": int(team.id), "slug": team.slug, "name": team.display_name},
-            "dry_run": bool(dry_run),
-            "min_score": min_score,
-            "pages_total": len(matches),
-            "assigned": assigned,
-            "skipped": skipped,
-            "errors": errors,
-            "matches": [
-                {
-                    "page": m.page_index,
-                    "nombre": m.nombre,
-                    "apellido1": m.apellido1,
-                    "apellido2": m.apellido2,
-                    "licencia_code": m.licencia_code,
-                    "categoria": m.categoria,
-                    "club": m.club,
-                    "best_player_id": m.best_player_id,
-                    "best_player_name": m.best_player_name,
-                    "best_score": round(m.best_score, 3),
-                }
-                for m in matches
-            ],
-        }
+        payload = [
+            {
+                "page": item.page,
+                "card": item.card,
+                "extracted_name": item.extracted_name,
+                "player_id": item.player_id,
+                "player_name": item.player_name,
+                "score": round(item.score, 4),
+                "saved_as": item.saved_as,
+                "error": item.error,
+            }
+            for item in results
+        ]
+        assigned = sum(1 for item in results if item.player_id and item.score >= min_score and (dry_run or item.saved_as))
+        self.stdout.write(self.style.SUCCESS(f"Procesadas {len(results)} páginas. Asignadas: {assigned}. Dry-run={dry_run}"))
+        for item in results:
+            self.stdout.write(
+                f"- p{item.page:02d}/c{item.card:02d} score={item.score:.2f} player={item.player_name or '-'} name='{item.extracted_name or '-'}' {('saved='+item.saved_as) if item.saved_as else ''} {('ERR='+item.error) if item.error else ''}"
+            )
+        if out_json:
+            Path(out_json).write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+            self.stdout.write(self.style.SUCCESS(f"JSON: {out_json}"))
 
-        if opts.get("out_json"):
-            out_path = Path(str(opts["out_json"])).expanduser()
-            out_path.parent.mkdir(parents=True, exist_ok=True)
-            out_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
 
-        # Console output (compact)
-        self.stdout.write(self.style.SUCCESS(f"Licencias PDF procesadas: pages={len(matches)} team={team.slug} dry_run={dry_run}"))
-        self.stdout.write(f"- assigned={assigned} skipped={skipped} errors={len(errors)} min_score={min_score}")
-        if dry_run:
-            self.stdout.write("Ejemplos de mapeo (top 12):")
-            for m in matches[:12]:
-                self.stdout.write(f"  - p{m.page_index:03d} {m.nombre} {m.apellido1} {m.apellido2} -> {m.best_player_name} ({m.best_score:.2f})")
-        if errors:
-            self.stdout.write(self.style.WARNING("Errores (primeros 8):"))
-            for item in errors[:8]:
-                self.stdout.write(f"  - {item}")
+def _ocr_text_from_pil(img) -> str:
+    if pytesseract is None:
+        return ""
+    try:
+        return str(pytesseract.image_to_string(img, lang="spa") or "").strip()
+    except Exception:
+        return ""
+
+
+def _prepare_license_jpeg_from_pil(img) -> bytes:
+    if Image is None:
+        return b""
+    rgb = img.convert("RGB")
+    try:
+        gray = ImageOps.grayscale(rgb) if ImageOps is not None else None
+        if gray and ImageOps is not None:
+            inv = ImageOps.invert(gray)
+            bbox = inv.getbbox()
+            if bbox:
+                left, top, right, bottom = bbox
+                pad = 18
+                left = max(0, left - pad)
+                top = max(0, top - pad)
+                right = min(rgb.width, right + pad)
+                bottom = min(rgb.height, bottom + pad)
+                rgb = rgb.crop((left, top, right, bottom))
+    except Exception:
+        pass
+    rgb.thumbnail((1500, 1000))
+    import io
+
+    buffer = io.BytesIO()
+    rgb.save(buffer, format="JPEG", optimize=True, quality=78)
+    return buffer.getvalue()
+
+
+def _split_vertical_cards(rgb):
+    """
+    Detecta bloques verticales de contenido (p.ej. 4 licencias apiladas en una página).
+    """
+    if ImageOps is None:
+        return [rgb]
+    w, h = rgb.size
+    gray = ImageOps.grayscale(rgb)
+    inv = ImageOps.invert(gray)
+    # Muestreo rápido: si en una fila hay algún píxel "oscuro" lo consideramos contenido.
+    px = inv.load()
+    step_x = 10 if w > 1200 else 6
+    threshold = 18
+    has = [False] * h
+    for y in range(h):
+        row_has = False
+        for x in range(0, w, step_x):
+            if px[x, y] > threshold:
+                row_has = True
+                break
+        has[y] = row_has
+    segments = []
+    start = None
+    for y, flag in enumerate(has):
+        if flag and start is None:
+            start = y
+        if not flag and start is not None:
+            end = y
+            if end - start > max(160, int(h * 0.12)):
+                segments.append((start, end))
+            start = None
+    if start is not None:
+        end = h
+        if end - start > max(160, int(h * 0.12)):
+            segments.append((start, end))
+
+    # Si no detecta múltiples, devuelve None para no forzar.
+    if len(segments) <= 1:
+        return []
+    cards = []
+    for top, bottom in segments:
+        crop = rgb.crop((0, top, w, bottom))
+        # Recorte horizontal adicional por bbox.
+        try:
+            g2 = ImageOps.grayscale(crop)
+            inv2 = ImageOps.invert(g2)
+            bbox = inv2.getbbox()
+            if bbox:
+                l, t, r, b = bbox
+                pad = 14
+                l = max(0, l - pad)
+                t = max(0, t - pad)
+                r = min(crop.width, r + pad)
+                b = min(crop.height, b + pad)
+                crop = crop.crop((l, t, r, b))
+        except Exception:
+            pass
+        cards.append(crop)
+    return cards
