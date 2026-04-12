@@ -819,6 +819,9 @@
         const refreshBtn = document.getElementById('standings-refresh');
         const competitionLine = document.getElementById('hero-competition-line');
         const rankLine = document.getElementById('hero-rank-line');
+        if (competitionLine) {
+          competitionLine.textContent = team && (team.corporate_line || team.group) ? (team.corporate_line || team.group) : 'Competición por definir';
+        }
         if (!standings || !standings.length) {
           container.innerHTML = '<div class="product-empty">No hay datos de clasificación todavía.</div>';
           if (toggleBtn) toggleBtn.hidden = true;
@@ -834,9 +837,6 @@
         document.getElementById('kpi-rank').textContent = teamRow?.rank ?? '-';
         document.getElementById('kpi-points').textContent = teamRow?.points ?? '-';
         document.getElementById('kpi-played').textContent = teamRow?.played ?? '-';
-        if (competitionLine) {
-          competitionLine.textContent = team && (team.corporate_line || team.group) ? (team.corporate_line || team.group) : 'Competición por definir';
-        }
         if (rankLine) {
           rankLine.textContent = `Puesto ${teamRow?.rank ?? '-'}`;
         }

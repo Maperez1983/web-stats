@@ -25275,12 +25275,32 @@ def refresh_scraping(request):
     if forbidden:
         return JsonResponse({'status': 'error', 'message': 'El dashboard no está activo en el workspace actual.'}, status=403)
     primary_team = _get_primary_team_for_request(request)
+    workspace = _get_active_workspace(request)
+    context = _bootstrap_workspace_competition_context(workspace, primary_team=primary_team) if workspace and primary_team else None
+    provider_key = str(getattr(context, 'provider', '') or '').strip().lower() if context else ''
     refresh_message = ''
     next_match_payload = None
     try:
-        ok, refresh_message, next_match_payload = _refresh_rfaf_standings_inline(allow_fallback=False)
-        if not ok:
-            raise RuntimeError(refresh_message or 'No se pudo actualizar la clasificación.')
+        if provider_key == WorkspaceCompetitionContext.PROVIDER_UNIVERSO and workspace and primary_team:
+            context, err = _sync_workspace_competition_context(workspace, primary_team=primary_team)
+            if err:
+                raise RuntimeError(err)
+            refresh_message = 'Clasificación actualizada (Universo).'
+            try:
+                snapshot = getattr(context, 'snapshot', None) if context else None
+                if snapshot and isinstance(snapshot.next_match_payload, dict):
+                    next_match_payload = dict(snapshot.next_match_payload)
+            except Exception:
+                next_match_payload = None
+        else:
+            # Script RFAF legacy: sólo está preparado para el equipo principal; evita contaminar categorías.
+            if primary_team and not bool(getattr(primary_team, 'is_primary', False)):
+                raise RuntimeError(
+                    'Este equipo no usa el refresco RFAF legacy. Configura “Universo RFAF” en el contexto competitivo del equipo.'
+                )
+            ok, refresh_message, next_match_payload = _refresh_rfaf_standings_inline(allow_fallback=False)
+            if not ok:
+                raise RuntimeError(refresh_message or 'No se pudo actualizar la clasificación.')
     except Exception as exc:
         return JsonResponse({'status': 'error', 'message': str(exc)}, status=500)
     finally:
@@ -25297,11 +25317,20 @@ def refresh_scraping(request):
     if primary_team:
         _invalidate_team_dashboard_caches(primary_team)
         try:
-            workspace = _get_active_workspace(request)
             if workspace and workspace.kind == Workspace.KIND_CLUB:
-                _sync_workspace_competition_context(workspace, primary_team=primary_team)
+                # Mantener snapshot actualizado para el dashboard.
+                if provider_key != WorkspaceCompetitionContext.PROVIDER_UNIVERSO:
+                    _sync_workspace_competition_context(workspace, primary_team=primary_team)
             # Persistimos el próximo partido en BD para que no dependa del filesystem (Render / múltiples instancias).
-            if isinstance(next_match_payload, dict) and _next_match_payload_is_reliable(next_match_payload):
+            should_upsert_next = (
+                isinstance(next_match_payload, dict)
+                and _next_match_payload_is_reliable(next_match_payload)
+                and (
+                    provider_key == WorkspaceCompetitionContext.PROVIDER_UNIVERSO
+                    or bool(getattr(primary_team, 'is_primary', False))
+                )
+            )
+            if should_upsert_next:
                 try:
                     _upsert_match_from_next_match_payload(primary_team, next_match_payload)
                 except Exception:
@@ -25327,6 +25356,13 @@ def refresh_scraping(request):
         except Exception:
             pass
     latest_updated = _team_standings_last_updated(primary_team.group) if primary_team and getattr(primary_team, 'group', None) else None
+    if provider_key == WorkspaceCompetitionContext.PROVIDER_UNIVERSO:
+        try:
+            snapshot = getattr(context, 'snapshot', None) if context else None
+            if snapshot and getattr(snapshot, 'updated_at', None):
+                latest_updated = snapshot.updated_at
+        except Exception:
+            pass
     response = JsonResponse(
         {
             'status': 'success',
@@ -25404,8 +25440,30 @@ def serialize_standings(group):
 
 
 def get_next_match(primary_team, group, *, allow_external_fetch=None):
+    standings_team_ids = set()
+    if group:
+        try:
+            standings_team_ids = set(
+                TeamStanding.objects.filter(group=group).values_list('team_id', flat=True)
+            )
+        except Exception:
+            standings_team_ids = set()
+
+    def _opponent_in_group_standings(match):
+        if not group or not standings_team_ids:
+            return True
+        team_id = getattr(primary_team, 'id', None)
+        if not team_id:
+            return True
+        opponent = match.away_team if match.home_team_id == team_id else match.home_team
+        opponent_id = getattr(opponent, 'id', None)
+        return bool(opponent_id and int(opponent_id) in standings_team_ids)
+
     def _pick_undated_next(queryset):
         candidates = list(queryset.filter(date__isnull=True))
+        if not candidates:
+            return None
+        candidates = [match for match in candidates if _opponent_in_group_standings(match)]
         if not candidates:
             return None
         candidates.sort(
@@ -25465,9 +25523,16 @@ def get_next_match(primary_team, group, *, allow_external_fetch=None):
         if _next_match_payload_is_reliable(normalized_cached_next):
             return normalized_cached_next
 
-    upcoming = scoped_qs.filter(date__gte=today).order_by('date').first()
+    upcoming = None
+    for candidate in scoped_qs.filter(date__gte=today).order_by('date', 'id')[:10]:
+        if _opponent_in_group_standings(candidate):
+            upcoming = candidate
+            break
     if not upcoming:
-        upcoming = all_team_matches_qs.filter(date__gte=today).order_by('date').first()
+        for candidate in all_team_matches_qs.filter(date__gte=today).order_by('date', 'id')[:10]:
+            if _opponent_in_group_standings(candidate):
+                upcoming = candidate
+                break
     if upcoming:
         return build_match_payload(upcoming, primary_team, status='next')
 
@@ -25487,9 +25552,16 @@ def get_next_match(primary_team, group, *, allow_external_fetch=None):
         if rfaf_next:
             return rfaf_next
 
-    latest = scoped_qs.exclude(date__isnull=True).order_by('-date').first()
+    latest = None
+    for candidate in scoped_qs.exclude(date__isnull=True).order_by('-date', '-id')[:10]:
+        if _opponent_in_group_standings(candidate):
+            latest = candidate
+            break
     if not latest:
-        latest = all_team_matches_qs.exclude(date__isnull=True).order_by('-date').first()
+        for candidate in all_team_matches_qs.exclude(date__isnull=True).order_by('-date', '-id')[:10]:
+            if _opponent_in_group_standings(candidate):
+                latest = candidate
+                break
     if not latest:
         latest = scoped_qs.order_by('-id').first()
     if not latest:
