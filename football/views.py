@@ -1666,9 +1666,13 @@ def staff_member_create_page(request):
                 raise ValueError('El nombre es obligatorio.')
             role_title = str(request.POST.get('role_title') or '').strip()[:120]
             certification_level = str(request.POST.get('certification_level') or '').strip()[:160]
+            dni = str(request.POST.get('dni') or '').strip()[:24]
             phone = str(request.POST.get('phone') or '').strip()[:40]
             email = str(request.POST.get('email') or '').strip()[:254]
             notes = str(request.POST.get('notes') or '').strip()
+            federation_license_number = str(request.POST.get('federation_license_number') or '').strip()[:80]
+            federation_license_expires_at = parse_date(str(request.POST.get('federation_license_expires_at') or '').strip()) if request.POST.get('federation_license_expires_at') else None
+            certification_expires_at = parse_date(str(request.POST.get('certification_expires_at') or '').strip()) if request.POST.get('certification_expires_at') else None
             scope = str(request.POST.get('scope') or '').strip().lower()
             team = active_team if scope == 'team' else None
             member = StaffMember.objects.create(
@@ -1677,9 +1681,13 @@ def staff_member_create_page(request):
                 name=name[:160],
                 role_title=role_title,
                 certification_level=certification_level,
+                dni=dni,
                 phone=phone,
                 email=email,
                 notes=notes,
+                federation_license_number=federation_license_number,
+                federation_license_expires_at=federation_license_expires_at,
+                certification_expires_at=certification_expires_at,
                 is_active=True,
             )
             uploaded_photo = request.FILES.get('photo')
@@ -1690,6 +1698,11 @@ def staff_member_create_page(request):
                 member.federation_license = uploaded_license
                 member.license_updated_at = timezone.now()
                 member.save(update_fields=['federation_license', 'license_updated_at'])
+            uploaded_cert = request.FILES.get('certification_document')
+            if uploaded_cert:
+                member.certification_document = uploaded_cert
+                member.certification_updated_at = timezone.now()
+                member.save(update_fields=['certification_document', 'certification_updated_at'])
             return redirect('staff-member-detail', staff_id=member.id)
         except ValueError as exc:
             error = str(exc)
@@ -1736,9 +1749,13 @@ def staff_member_detail_page(request, staff_id):
                 raise ValueError('El nombre es obligatorio.')
             member.role_title = str(request.POST.get('role_title') or '').strip()[:120]
             member.certification_level = str(request.POST.get('certification_level') or '').strip()[:160]
+            member.dni = str(request.POST.get('dni') or '').strip()[:24]
             member.phone = str(request.POST.get('phone') or '').strip()[:40]
             member.email = str(request.POST.get('email') or '').strip()[:254]
             member.notes = str(request.POST.get('notes') or '').strip()
+            member.federation_license_number = str(request.POST.get('federation_license_number') or '').strip()[:80]
+            member.federation_license_expires_at = parse_date(str(request.POST.get('federation_license_expires_at') or '').strip()) if request.POST.get('federation_license_expires_at') else None
+            member.certification_expires_at = parse_date(str(request.POST.get('certification_expires_at') or '').strip()) if request.POST.get('certification_expires_at') else None
             member.is_active = str(request.POST.get('is_active') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
             scope = str(request.POST.get('scope') or '').strip().lower()
             active_team = _get_active_team_for_request(request)
@@ -1752,6 +1769,11 @@ def staff_member_detail_page(request, staff_id):
                 member.federation_license = uploaded_license
                 member.license_updated_at = timezone.now()
                 member.save(update_fields=['federation_license', 'license_updated_at'])
+            uploaded_cert = request.FILES.get('certification_document')
+            if uploaded_cert:
+                member.certification_document = uploaded_cert
+                member.certification_updated_at = timezone.now()
+                member.save(update_fields=['certification_document', 'certification_updated_at'])
             feedback = 'Ficha actualizada.'
         except ValueError as exc:
             error = str(exc)
@@ -1760,6 +1782,7 @@ def staff_member_detail_page(request, staff_id):
             error = 'No se pudo guardar la ficha.'
     photo_url = reverse('staff-member-photo-file', args=[member.id]) if getattr(member, 'photo', None) else ''
     license_url = reverse('staff-member-license-file', args=[member.id]) if getattr(member, 'federation_license', None) else ''
+    cert_url = reverse('staff-member-cert-file', args=[member.id]) if getattr(member, 'certification_document', None) else ''
     return render(
         request,
         'football/staff_member_form.html',
@@ -1768,6 +1791,7 @@ def staff_member_detail_page(request, staff_id):
             'member': member,
             'photo_url': photo_url,
             'license_url': license_url,
+            'cert_url': cert_url,
             'can_manage_workspace': can_manage,
             'error': error,
             'feedback': feedback,
@@ -1832,6 +1856,114 @@ def staff_member_license_file(request, staff_id):
     response['Content-Disposition'] = f'inline; filename="{Path(str(member.federation_license.name)).name}"'
     response['Cache-Control'] = 'private, max-age=60'
     return response
+
+
+@login_required
+def staff_member_cert_file(request, staff_id):
+    forbidden = _forbid_if_no_staff_access(request.user)
+    if forbidden:
+        return forbidden
+    workspace = _get_active_workspace(request)
+    member = StaffMember.objects.filter(id=int(staff_id)).select_related('workspace').first()
+    if not member or not workspace or int(getattr(member, 'workspace_id', 0) or 0) != int(workspace.id):
+        raise Http404('Documento no disponible')
+    if not member.certification_document:
+        raise Http404('Documento no disponible')
+    try:
+        file_field = member.certification_document.open('rb')
+    except Exception:
+        return HttpResponse('No se pudo abrir el documento.', status=500)
+    extension = Path(str(getattr(member.certification_document, 'name', '') or '')).suffix.lower()
+    content_type = {
+        '.pdf': 'application/pdf',
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.webp': 'image/webp',
+    }.get(extension, 'application/octet-stream')
+    response = FileResponse(file_field, content_type=content_type)
+    response['Content-Disposition'] = f'inline; filename="{Path(str(member.certification_document.name)).name}"'
+    response['Cache-Control'] = 'private, max-age=60'
+    return response
+
+
+@login_required
+def staff_member_pdf(request, staff_id):
+    forbidden = _forbid_if_no_staff_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'coach_overview', label='cuerpo técnico')
+    if forbidden:
+        return forbidden
+    workspace = _get_active_workspace(request)
+    if not workspace or workspace.kind != Workspace.KIND_CLUB:
+        raise Http404('Club no configurado')
+    member = StaffMember.objects.filter(id=int(staff_id), workspace=workspace).select_related('team', 'workspace').first()
+    if not member:
+        raise Http404('Miembro del staff no encontrado')
+    active_team = _get_active_team_for_request(request)
+    team_for_pdf = member.team or active_team or getattr(workspace, 'primary_team', None)
+
+    static_base_dir = Path(settings.BASE_DIR) / 'static'
+    avatar_data_uri = _file_as_data_uri(static_base_dir / 'football' / 'images' / 'player-avatar.svg')
+    brand_mark_data_uri = _file_as_data_uri(static_base_dir / 'football' / 'images' / '2j-mark.svg')
+    logo_data_uri = _file_as_data_uri(static_base_dir / 'football' / 'images' / 'cdb-logo.png')
+
+    photo_src = ''
+    try:
+        if getattr(member, 'photo', None):
+            if getattr(member.photo, 'path', None):
+                photo_src = _image_file_as_small_data_uri(Path(member.photo.path), max_width=520, max_height=520, quality=74)
+            else:
+                with member.photo.open('rb') as fp:
+                    raw = fp.read() or b''
+                photo_src = _image_bytes_as_small_data_uri(raw, mime_type='image/jpeg', max_width=520, max_height=520, quality=74)
+    except Exception:
+        photo_src = ''
+    if not photo_src:
+        photo_src = avatar_data_uri or request.build_absolute_uri(static('football/images/player-avatar.svg'))
+
+    crest_src = ''
+    if team_for_pdf and getattr(team_for_pdf, 'crest_image', None):
+        try:
+            if getattr(team_for_pdf.crest_image, 'path', None):
+                crest_src = _image_file_as_small_data_uri(Path(team_for_pdf.crest_image.path), max_width=220, max_height=220, quality=75)
+            else:
+                with team_for_pdf.crest_image.open('rb') as fp:
+                    raw = fp.read() or b''
+                crest_src = _image_bytes_as_small_data_uri(raw, mime_type='image/jpeg', max_width=220, max_height=220, quality=75)
+        except Exception:
+            crest_src = ''
+    if not crest_src and team_for_pdf:
+        crest_src = resolve_team_crest_url(request, team_for_pdf, sync=True) or logo_data_uri
+    if not crest_src:
+        crest_src = logo_data_uri or request.build_absolute_uri(static('football/images/cdb-logo.png'))
+
+    club_name = str(getattr(workspace, 'name', '') or '').strip() or 'Club'
+    category_label = ''
+    try:
+        category_label = str(getattr(team_for_pdf, 'category', '') or '').strip() if team_for_pdf else ''
+    except Exception:
+        category_label = ''
+
+    html = render_to_string(
+        'football/staff_member_pdf.html',
+        {
+            **_build_pdf_nav_urls(request),
+            'workspace': workspace,
+            'club_name': club_name,
+            'category_label': category_label,
+            'team_for_pdf': team_for_pdf,
+            'member': member,
+            'photo_src': photo_src,
+            'crest_src': crest_src,
+            'brand_mark_src': brand_mark_data_uri or request.build_absolute_uri(static('football/images/2j-mark.svg')),
+            'generated_at': timezone.localtime(),
+        },
+        request=request,
+    )
+    filename = slugify(f'staff-{member.name}' or 'staff')
+    return _build_pdf_response_or_html_fallback(request, html, filename, inline=True, force_pdf=True)
 
 
 @login_required
