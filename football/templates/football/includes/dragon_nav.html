@@ -27,6 +27,9 @@
   <a href="{% url 'player-dashboard' %}">Jugadores</a>
   {% endif %}
   {% endif %}
+  {% if workspace_module_access.sessions|default:True %}
+  <a href="{% url 'sessions' %}">Entrenos</a>
+  {% endif %}
   <details class="nav-more">
     <summary>Más</summary>
     <div class="nav-more-panel">
@@ -44,9 +47,6 @@
         </select>
         <input type="hidden" name="next" value="{{ active_team_current_path|default:'' }}" />
       </form>
-      {% endif %}
-      {% if workspace_module_access.sessions|default:True %}
-      <a href="{% url 'sessions' %}">Entrenos</a>
       {% endif %}
       {% if workspace_module_access.match_actions|default:True %}
       <a href="{% url 'match-action-page' %}">Acciones</a>
