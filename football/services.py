@@ -193,6 +193,7 @@ def ensure_league_structure(competition_name, season_name, group_name):
 
 
 def update_team_standings(rows, source_label, source_url, competition_name='División de Honor Andaluza', season_name='2025/2026', group_name='Grupo 2'):
+    allow_single_club_fallback = str(os.getenv('ALLOW_SINGLE_CLUB_FALLBACK', '0') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
     _, season, group = ensure_league_structure(competition_name, season_name, group_name)
     updated_slugs = set()
     for idx, row in enumerate(rows, start=1):
@@ -208,7 +209,9 @@ def update_team_standings(rows, source_label, source_url, competition_name='Divi
         if team.group != group:
             team.group = group
             update_fields.append('group')
-        if 'benagalbon' in _normalize_team_key(team.name):
+        # Legacy monoclub: auto-detectar el equipo principal por nombre.
+        # En modo comercial multi-equipo esto mezcla categorías (Senior vs Prebenjamín).
+        if allow_single_club_fallback and 'benagalbon' in _normalize_team_key(team.name):
             if team.is_primary:
                 Team.objects.exclude(id=team.id).filter(is_primary=True).update(is_primary=False)
             if not team.is_primary:
@@ -258,7 +261,8 @@ def update_team_standings(rows, source_label, source_url, competition_name='Divi
 def _resolve_team_for_standings(team_name: str, group: Group) -> Team:
     team_slug = slugify(team_name)
     normalized_name = _normalize_team_key(team_name)
-    if 'benagalbon' in normalized_name:
+    allow_single_club_fallback = str(os.getenv('ALLOW_SINGLE_CLUB_FALLBACK', '0') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    if allow_single_club_fallback and 'benagalbon' in normalized_name:
         primary_team = Team.objects.filter(is_primary=True).order_by('id').first()
         if primary_team:
             return primary_team

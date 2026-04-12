@@ -6119,6 +6119,10 @@ def _import_universo_competition_candidate(*, competition_key, group_key, team_k
 def _universo_snapshot_supports_team(snapshot, primary_team):
     if not primary_team:
         return True
+    # Producto comercial/multi-equipo: el snapshot "Universo" y el caché global de próximo rival
+    # solo deben usarse en modo legacy monoclub (opt-in). Si no, mezclan Senior/Prebenjamín.
+    if not _single_club_fallback_enabled():
+        return False
     # Snapshot "Universo" es global y normalmente corresponde al equipo principal.
     # Para evitar mezclar categorías/clubes con el mismo nombre (ej. Benagalbón Senior vs Prebenjamín),
     # desactivamos su uso en equipos no primarios.
