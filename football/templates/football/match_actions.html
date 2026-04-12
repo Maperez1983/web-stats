@@ -1896,6 +1896,40 @@
           width: 100%;
         }
       }
+
+      /* --- Commercial UI normalization (keeps live layout, unifies components) --- */
+      body.prod-commercial .button {
+        border: 1px solid var(--prod-line);
+        border-radius: 999px;
+        padding: 0.62rem 0.95rem;
+        background: rgba(255, 255, 255, 0.05);
+        color: rgba(245, 247, 250, 0.94);
+        font-family: var(--prod-font-ui);
+        font-size: 0.78rem;
+        font-weight: 900;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        box-shadow: 0 0 0 1px rgba(2, 6, 23, 0.18) inset;
+      }
+      body.prod-commercial .button:hover {
+        border-color: rgba(244, 180, 0, 0.32);
+        background: rgba(255, 255, 255, 0.075);
+      }
+
+      body.prod-commercial input,
+      body.prod-commercial select,
+      body.prod-commercial textarea {
+        background: rgba(15, 23, 42, 0.55);
+        border-color: rgba(148, 163, 184, 0.22);
+        color: rgba(245, 247, 250, 0.94);
+      }
+      body.prod-commercial input:focus,
+      body.prod-commercial select:focus,
+      body.prod-commercial textarea:focus {
+        outline: 2px solid rgba(244, 180, 0, 0.38);
+        outline-offset: 2px;
+        border-color: rgba(244, 180, 0, 0.28);
+      }
     </style>
   </head>
   <body class="prod-commercial">

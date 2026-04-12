@@ -952,6 +952,26 @@
           grid-template-columns: 1fr;
         }
       }
+
+      /* --- Commercial UI normalization (keeps role hub layout) --- */
+      body.prod-commercial .pill-button {
+        border: 1px solid var(--prod-line);
+        background: rgba(255, 255, 255, 0.05);
+        color: rgba(245, 247, 250, 0.94);
+        font-family: var(--prod-font-ui);
+        font-weight: 900;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      body.prod-commercial .pill-button:hover {
+        border-color: rgba(244, 180, 0, 0.32);
+        background: rgba(255, 255, 255, 0.075);
+      }
+
+      body.prod-commercial .card {
+        border-color: var(--prod-line);
+        background: var(--prod-panel);
+      }
     </style>
   </head>
   <body class="prod-commercial">

@@ -1207,6 +1207,56 @@
           grid-template-columns: 1fr;
         }
       }
+
+      /* --- Commercial UI normalization (keeps layout, unifies components) --- */
+      body.prod-commercial .panel,
+      body.prod-commercial .editor-box,
+      body.prod-commercial .hero-panel,
+      body.prod-commercial .workflow-card,
+      body.prod-commercial .summary-card,
+      body.prod-commercial .focus-item {
+        border-color: var(--prod-line);
+        background: var(--prod-panel);
+      }
+
+      body.prod-commercial .button,
+      body.prod-commercial button,
+      body.prod-commercial a.button,
+      body.prod-commercial a.btn {
+        font-family: var(--prod-font-ui);
+      }
+
+      body.prod-commercial .tabs {
+        gap: 0.5rem;
+      }
+
+      body.prod-commercial .tab-link {
+        border-color: rgba(148, 163, 184, 0.22);
+        background: rgba(255, 255, 255, 0.04);
+        color: rgba(226, 232, 240, 0.92);
+      }
+
+      body.prod-commercial .tab-link.is-active {
+        border-color: rgba(244, 180, 0, 0.45);
+        background: linear-gradient(135deg, rgba(244, 180, 0, 0.18), rgba(47, 125, 50, 0.1));
+        color: #fff2c6;
+      }
+
+      body.prod-commercial input,
+      body.prod-commercial select,
+      body.prod-commercial textarea {
+        background: rgba(15, 23, 42, 0.55);
+        border-color: rgba(148, 163, 184, 0.22);
+        color: rgba(245, 247, 250, 0.94);
+      }
+
+      body.prod-commercial input:focus,
+      body.prod-commercial select:focus,
+      body.prod-commercial textarea:focus {
+        outline: 2px solid rgba(244, 180, 0, 0.38);
+        outline-offset: 2px;
+        border-color: rgba(244, 180, 0, 0.28);
+      }
     </style>
   </head>
   <body class="prod-commercial">
