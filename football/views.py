@@ -28934,6 +28934,43 @@ def compute_player_dashboard(primary_team, force_refresh=False):
     result = []
     today = timezone.localdate()
     total_possible_minutes = max(0, competition_total_rounds) * match_regulation_minutes
+    # Partidos jugados por el equipo en la temporada (para % participación real).
+    team_played_matches = 0
+    try:
+        standing = (
+            TeamStanding.objects
+            .filter(team=primary_team)
+            .order_by('-last_updated', '-played', '-id')
+            .first()
+        )
+        team_played_matches = int(getattr(standing, 'played', 0) or 0) if standing else 0
+    except Exception:
+        team_played_matches = 0
+    if team_played_matches <= 0:
+        # Fallback: inferir por partidos con evidencias (eventos / fin explícito / marcador).
+        played_ids = set()
+        try:
+            played_ids |= {int(mid) for mid in match_end_minutes.keys() if mid}
+        except Exception:
+            pass
+        try:
+            played_ids |= {int(mid) for mid in match_end_marker_minutes.keys() if mid}
+        except Exception:
+            pass
+        try:
+            candidates = list(lineup_by_match.keys())
+            if candidates:
+                played_ids |= set(
+                    Match.objects.filter(id__in=candidates)
+                    .filter(
+                        Q(home_score__isnull=False, away_score__isnull=False)
+                        | (Q(result__isnull=False) & ~Q(result__exact=''))
+                    )
+                    .values_list('id', flat=True)
+                )
+        except Exception:
+            pass
+        team_played_matches = len(played_ids)
     max_successes = max((int(stats.get('successes', 0) or 0) for stats in player_stats.values()), default=0)
     max_decisive_actions_per90 = 0.0
     for stats in player_stats.values():
@@ -29064,7 +29101,14 @@ def compute_player_dashboard(primary_team, force_refresh=False):
             )
         )
         merged['is_apercibido'] = yellow_cards_value in {4, 9, 14}
-        if competition_total_rounds > 0:
+        possible_minutes_played = max(0, int(team_played_matches or 0)) * int(match_regulation_minutes or 0)
+        if possible_minutes_played > 0:
+            merged['participation_pct'] = round(
+                min((int(stats.get('minutes') or 0) / possible_minutes_played) * 100, 100),
+                1,
+            )
+        elif competition_total_rounds > 0:
+            # Fallback legacy: si no sabemos jugados, mantenemos el cálculo por calendario.
             merged['participation_pct'] = round(
                 min((int(stats.get('pj') or 0) / competition_total_rounds) * 100, 100),
                 1,

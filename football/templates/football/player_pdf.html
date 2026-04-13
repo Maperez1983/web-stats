@@ -82,6 +82,11 @@
         letter-spacing: 0.08em;
       }
       .section { margin-top: 14px; }
+      .section, .hero-card, .photo, .card, .bar, .ring, .kpi, table {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+      .page-break { page-break-before: always; break-before: page; }
       .section h2 {
         margin: 0 0 8px;
         font-size: 12px;
@@ -276,6 +281,8 @@
 	        </div>
           </div>
 	      </div>
+
+        <div class="page-break"></div>
 
 	      <div class="section">
 	        <h2>Detalle por partido</h2>
