@@ -464,8 +464,12 @@ def system_diagnostics(request):
 
 
 def system_healthcheck_api(request):
+    # Operativa: permitir a administradores del club (workspace owner/admin) ver el healthcheck,
+    # ya que es imprescindible para depurar PDFs en producción.
     if not _is_admin_user(request.user):
-        return JsonResponse({'error': 'No autorizado'}, status=403)
+        workspace = _get_active_workspace(request)
+        if not (workspace and _can_manage_workspace(request.user, workspace)):
+            return JsonResponse({'error': 'No autorizado'}, status=403)
     try:
         from football.healthchecks import run_system_healthcheck  # lazy import
     except Exception as exc:
@@ -1122,7 +1126,16 @@ def _build_pdf_response_or_html_fallback(request, html: str, filename: str, *, i
         logger.exception('WeasyPrint: error generando PDF (response)')
         if force_pdf:
             debug = str(request.GET.get('debug') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
-            if debug and _is_admin_user(getattr(request, 'user', None)):
+            debug_allowed = False
+            try:
+                user = getattr(request, 'user', None)
+                debug_allowed = bool(_is_admin_user(user))
+                if not debug_allowed:
+                    workspace = _get_active_workspace(request)
+                    debug_allowed = bool(workspace and _can_manage_workspace(user, workspace))
+            except Exception:
+                debug_allowed = False
+            if debug and debug_allowed:
                 return HttpResponse('No se pudo generar el PDF. Revisa /api/system/healthcheck/ para ver el error.', status=503)
             return HttpResponse('No se pudo generar el PDF.', status=503)
         return HttpResponse(html, content_type='text/html; charset=utf-8')
@@ -1247,7 +1260,16 @@ def pdf_view_guard(view_func):
         except Exception as exc:  # pragma: no cover
             logger.exception('PDF view error: %s', getattr(view_func, '__name__', 'pdf_view'))
             debug = str(getattr(request, 'GET', {}).get('debug') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
-            if debug and _is_admin_user(getattr(request, 'user', None)):
+            debug_allowed = False
+            try:
+                user = getattr(request, 'user', None)
+                debug_allowed = bool(_is_admin_user(user))
+                if not debug_allowed:
+                    workspace = _get_active_workspace(request)
+                    debug_allowed = bool(workspace and _can_manage_workspace(user, workspace))
+            except Exception:
+                debug_allowed = False
+            if debug and debug_allowed:
                 return HttpResponse(
                     f'No se pudo generar el PDF. {exc.__class__.__name__}: {exc}',
                     status=503,
