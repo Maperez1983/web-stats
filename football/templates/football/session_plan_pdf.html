@@ -180,6 +180,23 @@
 	        letter-spacing: 0.04em;
 	        text-transform: uppercase;
 	      }
+	      .uefa-logo-wrap {
+	        width: 36px;
+	        height: 36px;
+	        border-radius: 50%;
+	        display: flex;
+	        align-items: center;
+	        justify-content: center;
+	        background: rgba(0,0,0,0.18);
+	        border: 1px solid rgba(255,255,255,0.35);
+	      }
+	      .uefa-logo-wrap img {
+	        width: 28px;
+	        height: 28px;
+	        object-fit: contain;
+	        display: block;
+	        filter: drop-shadow(0 1px 0 rgba(0,0,0,0.2));
+	      }
 	      .uefa-section-head {
 	        margin-top: 10px;
 	        padding: 6px 10px;
@@ -220,8 +237,8 @@
 	        <table style="width:100%; border-collapse:collapse;">
 	          <tr>
 	            <td style="width:56px; vertical-align:middle;">
-	              <div style="width:36px; height:36px; border-radius:50%; background:#fff; display:flex; align-items:center; justify-content:center;">
-	                <img src="{{ logo_url }}" alt="RFEF / UEFA" style="width:28px; height:28px; object-fit:contain; display:block;" />
+	              <div class="uefa-logo-wrap">
+	                <img src="{{ logo_url }}" alt="RFEF / UEFA" />
 	              </div>
 	            </td>
 	            <td style="vertical-align:middle; font-size:20px;">ENTREGA SESIÓN</td>
@@ -317,7 +334,7 @@
 	      </div>
 
 	      <div class="footer">
-	        Formato UEFA · {{ team_name }} · {{ coach_name }} · Generado {{ generated_at|date:"d/m/Y H:i" }}
+	        {{ team_name }} · {{ coach_name }} · Generado {{ generated_at|date:"d/m/Y H:i" }}
 	      </div>
 	    </section>
 	    {% else %}
@@ -336,15 +353,10 @@
               <div style="font-size:25px; font-weight:800; line-height:1.1; margin-top:4px;">{{ session.focus }}</div>
               <div style="font-size:11px; margin-top:6px; opacity:0.88;">{{ team_name }} · {{ coach_name }} · {{ session.session_date|date:"d/m/Y" }}{% if session.start_time %} · {{ session.start_time|time:"H:i" }}{% endif %}</div>
             </td>
-            <td style="width:150px; text-align:right; vertical-align:top;">
-              <div style="display:inline-block; padding:8px 10px; border-radius:14px; background:rgba(255,255,255,0.14); text-align:left;">
-                <div style="font-size:9px; text-transform:uppercase; letter-spacing:0.14em; opacity:0.75;">Formato</div>
-                <div style="font-size:16px; font-weight:800;">Club</div>
-              </div>
-            </td>
-          </tr>
-        </table>
-      </div>
+	            <td style="width:150px; text-align:right; vertical-align:top;"></td>
+	          </tr>
+	        </table>
+	      </div>
       {% else %}
 	      <div class="uefa-head">
 	        <table style="width:100%; border-collapse:collapse;">
@@ -499,11 +511,11 @@
 	                </div>
 	              </a>
 	            </td>
-            <td style="text-align:right; vertical-align:middle;">
-              {% if pdf_style == 'club' %}Formato Club{% else %}Formato UEFA{% endif %} · {{ team_name }} · {{ coach_name }} · Generado {{ generated_at|date:"d/m/Y H:i" }}
-            </td>
-          </tr>
-        </table>
+		            <td style="text-align:right; vertical-align:middle;">
+	              {{ team_name }} · {{ coach_name }} · Generado {{ generated_at|date:"d/m/Y H:i" }}
+	            </td>
+	          </tr>
+	        </table>
 	      </div>
 	    </section>
 	    {% endif %}
