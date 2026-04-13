@@ -229,6 +229,38 @@ class TeamMatchQuerysetIsolationTests(TestCase):
         self.assertNotIn(self.match_senior.id, match_ids)
         self.assertNotIn(self.match_other.id, match_ids)
 
+    def test_compute_player_dashboard_ignores_events_from_other_team_matches(self):
+        player = Player.objects.create(team=self.team_pre, name='Jugador Pre', number=7)
+        # Evento correcto: partido del propio equipo.
+        MatchEvent.objects.create(
+            match=self.match_pre,
+            player=player,
+            minute=3,
+            event_type='pase',
+            zone='Z1',
+            result='ok',
+            system='touch-field',
+            source_file='registro-acciones',
+        )
+        # Evento incorrecto (data sucia): mismo jugador pero asociado a un match de otra categoría.
+        MatchEvent.objects.create(
+            match=self.match_senior,
+            player=player,
+            minute=5,
+            event_type='pase',
+            zone='Z1',
+            result='ok',
+            system='touch-field',
+            source_file='registro-acciones',
+        )
+
+        rows = football_views.compute_player_dashboard(self.team_pre, force_refresh=True)
+        detail = next((row for row in rows if row.get('player_id') == player.id), {})
+        match_ids = {int(item.get('match_id') or 0) for item in (detail.get('matches') or [])}
+
+        self.assertIn(self.match_pre.id, match_ids)
+        self.assertNotIn(self.match_senior.id, match_ids)
+
 
 class WorkspaceOwnerPermissionTests(TestCase):
     def test_owner_user_can_manage_workspace_without_membership_row(self):
@@ -3769,6 +3801,38 @@ class MatchActionWorkflowTests(TestCase):
         away_match.refresh_from_db()
         self.assertEqual(away_match.away_score, 3)
         self.assertEqual(away_match.home_score, 4)
+
+    def test_match_info_save_persists_score_and_convocation_fields(self):
+        self.assertIsNone(self.match.home_score)
+        self.assertIsNone(self.match.away_score)
+        url = f"{reverse('match-info-save')}?match_id={self.match.id}"
+
+        response = self.client.post(
+            url,
+            data=json.dumps(
+                {
+                    'match_info': {
+                        'opponent': 'Rival Acciones',
+                        'location': 'Campo Municipal',
+                        'round': '24',
+                        'datetime': '22/03/2026 · 18:00',
+                        'score_for': 1,
+                        'score_against': 0,
+                    }
+                }
+            ),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.match.refresh_from_db()
+        self.assertEqual(self.match.home_score, 1)
+        self.assertEqual(self.match.away_score, 0)
+        self.convocation.refresh_from_db()
+        self.assertEqual(self.convocation.location, 'Campo Municipal')
+        self.assertEqual(self.convocation.match_date, date(2026, 3, 22))
+        self.assertIsNotNone(self.convocation.match_time)
+        self.assertEqual(self.convocation.match_time.strftime('%H:%M'), '18:00')
 
     def test_reset_only_clears_pending_live_events(self):
         MatchEvent.objects.create(

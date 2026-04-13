@@ -59,6 +59,7 @@ urlpatterns = [
     path('registro-acciones/guardar/', views.register_match_action, name='match-action-record'),
     path('registro-acciones/lineup/save/', views.save_match_lineup, name='match-lineup-save'),
     path('registro-acciones/eliminar/', views.delete_match_action, name='match-action-delete'),
+    path('registro-acciones/partido/guardar/', views.save_match_info, name='match-info-save'),
     path('registro-acciones/finalizar/', views.finalize_match_actions, name='match-action-finalize'),
     path('registro-acciones/reiniciar/', views.reset_match_action_register, name='match-action-reset'),
     path('registro-acciones/acta/', views.match_report_pdf, name='match-report-pdf'),

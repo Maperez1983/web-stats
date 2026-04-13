@@ -47,15 +47,23 @@ def run_system_healthcheck():
     except Exception as exc:
         results['database'] = {'ok': False, 'detail': str(exc)}
 
+    use_s3_media = bool(getattr(settings, 'USE_S3_MEDIA', False))
     expected_paths = {
         'static_root': Path(settings.BASE_DIR) / 'staticfiles',
-        'media_root': Path(settings.MEDIA_ROOT),
         'input_dir': Path(settings.BASE_DIR) / 'data' / 'input',
     }
+    # Si se usa S3 para media, la carpeta local puede no existir (y no es un fallo).
+    if not use_s3_media:
+        expected_paths['media_root'] = Path(settings.MEDIA_ROOT)
     for key, path in expected_paths.items():
         results['paths'][key] = {
             'ok': path.exists(),
             'detail': str(path),
+        }
+    if use_s3_media:
+        results['paths']['media_root'] = {
+            'ok': True,
+            'detail': 'S3 (USE_S3_MEDIA=true)',
         }
 
     overall_ok = (

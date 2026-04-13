@@ -1953,9 +1953,9 @@
             </div>
           </div>
           <nav class="match-stage-tabs" aria-label="Fases del registro">
-            <button type="button" class="match-stage-tab" data-stage-tab="pre">Prepartido</button>
-            <button type="button" class="match-stage-tab is-active" data-stage-tab="live">En vivo</button>
-            <button type="button" class="match-stage-tab" data-stage-tab="close">Cierre</button>
+            <button type="button" class="match-stage-tab {% if default_stage == 'pre' %}is-active{% endif %}" data-stage-tab="pre">Prepartido</button>
+            <button type="button" class="match-stage-tab {% if default_stage == 'live' %}is-active{% endif %}" data-stage-tab="live">En vivo</button>
+            <button type="button" class="match-stage-tab {% if default_stage == 'close' %}is-active{% endif %}" data-stage-tab="close">Cierre</button>
           </nav>
 	          <div class="clock-card">
 	            <div class="clock-card-inner">
@@ -1970,7 +1970,7 @@
 	              <p class="clock-note">Cronómetro en vivo · se registra el minuto en cada acción</p>
 	            </div>
 	          </div>
-          <section class="match-stage-panel" data-stage-panel="pre">
+          <section class="match-stage-panel {% if default_stage == 'pre' %}is-active{% endif %}" data-stage-panel="pre">
           {% if match_info %}
           <div class="match-header-panels">
             <div class="match-info-stack">
@@ -2114,7 +2114,7 @@
             </div>
           {% endif %}
           </section>
-          <section class="match-stage-panel is-active" data-stage-panel="live">
+          <section class="match-stage-panel {% if default_stage == 'live' %}is-active{% endif %}" data-stage-panel="live">
           <div class="match-status-panels">
             <article class="status-card">
               <h5>Tarjetas</h5>
@@ -2410,7 +2410,7 @@
             </div>
           </section>
           </section>
-          <section class="match-stage-panel" data-stage-panel="close">
+          <section class="match-stage-panel {% if default_stage == 'close' %}is-active{% endif %}" data-stage-panel="close">
             <section class="closure-review">
               <article class="register-card">
                 <h3>Cierre del partido</h3>
@@ -2711,6 +2711,7 @@
         return `${baseUrl}${joiner}match_id=${encodeURIComponent(currentMatchId)}`;
       };
       const deleteUrl = urlWithMatchId('{% url "match-action-delete" %}');
+      const matchInfoSaveUrl = urlWithMatchId('{% url "match-info-save" %}');
       const finalizeUrl = urlWithMatchId('{% url "match-action-finalize" %}');
       const resetRegisterUrl = urlWithMatchId('{% url "match-action-reset" %}');
       const lineupSaveUrl = urlWithMatchId('{% url "match-lineup-save" %}');
@@ -2898,11 +2899,31 @@
         });
       }
       if (matchInfoSaveBtn) {
-        matchInfoSaveBtn.addEventListener('click', () => {
+        matchInfoSaveBtn.addEventListener('click', async () => {
           Object.assign(matchInfoState, collectMatchInfoPayload());
           renderMatchInfoState(matchInfoState);
           setMatchInfoEditing(false);
-          showPageStatus('Datos del partido actualizados en pantalla. Se consolidan al guardar partido.', 'success', 3200);
+          try {
+            const response = await fetch(matchInfoSaveUrl, {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,
+                Accept: 'application/json',
+              },
+              body: JSON.stringify({ match_info: matchInfoState }),
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+              showPageStatus(data.error || data.message || 'No se pudo guardar el partido.', 'danger', 5200);
+              return;
+            }
+            showPageStatus('Datos del partido guardados.', 'success', 3200);
+          } catch (err) {
+            console.warn('No se pudo guardar el partido', err);
+            showPageStatus('No se pudo guardar el partido (sin conexión).', 'warning', 5200);
+          }
         });
       }
       const hydrateLineupState = () => {

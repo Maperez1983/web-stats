@@ -6846,6 +6846,13 @@ def load_preferred_next_match_payload(primary_team=None, competition_context=Non
     # (puede mezclar categorías con mismo nombre de club).
     if provider_key and provider_key != WorkspaceCompetitionContext.PROVIDER_UNIVERSO:
         return None
+    # Producto comercial/multi-equipo: si no hay contexto competitivo por equipo, no usar
+    # snapshots/cachés globales salvo en modo legacy monoclub (equipo primario).
+    if not competition_context:
+        if not primary_team:
+            return None
+        if not (_single_club_fallback_enabled() and bool(getattr(primary_team, 'is_primary', False))):
+            return None
     competition_context = _ensure_universo_context_binding(competition_context, primary_team)
     provider_next = _find_universo_next_match_for_context(competition_context, primary_team)
     if _next_match_payload_is_reliable(provider_next):
@@ -6858,8 +6865,9 @@ def load_preferred_next_match_payload(primary_team=None, competition_context=Non
                 return snapshot_next
     except Exception:
         pass
+    # Fallback global sólo en modo legacy monoclub (equipo primario).
     snapshot = load_universo_snapshot()
-    can_use_external = _universo_snapshot_supports_team(snapshot, primary_team) if primary_team else True
+    can_use_external = _universo_snapshot_supports_team(snapshot, primary_team) if primary_team else False
     if can_use_external and isinstance(snapshot, dict) and isinstance(snapshot.get('next_match'), dict):
         snapshot_next = normalize_next_match_payload(snapshot.get('next_match'))
         if _next_match_payload_is_reliable(snapshot_next):
@@ -12657,6 +12665,9 @@ def match_action_page(request):
 
     substitution_history = []
     match_info = None
+    default_stage = str(request.GET.get('stage') or '').strip().lower()
+    if default_stage not in {'pre', 'live', 'close'}:
+        default_stage = ''
     if active_match:
         opponent = active_match.away_team if active_match.home_team == primary_team else active_match.home_team
         is_home = active_match.home_team_id == primary_team.id
@@ -12668,7 +12679,7 @@ def match_action_page(request):
             'location': active_match.location or '',
             'round': active_match.round or '',
             'date': active_match.date.strftime('%d/%m/%Y') if active_match.date else None,
-            'time': active_match.date.strftime('%H:%M') if active_match.date else '00:00',
+            'time': active_match.kickoff_time.strftime('%H:%M') if active_match.kickoff_time else '00:00',
             'score_for': '' if score_for is None else str(score_for),
             'score_against': '' if score_against is None else str(score_against),
         }
@@ -12712,6 +12723,14 @@ def match_action_page(request):
             result_label = (event.result or '').strip() or (event.zone or '').strip() or 'Sustitución'
             player_name = event.player.name if event.player else 'Jugador'
             substitution_history.append(f"{player_name} · {minute_label} · {result_label}".upper())
+        if not default_stage:
+            try:
+                has_any_actions = MatchEvent.objects.filter(match=active_match, source_file='registro-acciones').exists()
+            except Exception:
+                has_any_actions = False
+            default_stage = 'live' if has_any_actions else 'pre'
+    if not default_stage:
+        default_stage = 'pre' if not active_match else 'live'
     universo_lookup = _build_universo_standings_lookup(load_universo_snapshot())
     category_rivals = []
     team_fields = []
@@ -12771,6 +12790,7 @@ def match_action_page(request):
             'selected_match_id': selected_match_id,
             'match_half_minutes': _half_minutes_for_team(primary_team),
             'match_regulation_minutes': _regulation_minutes_for_team(primary_team),
+            'default_stage': default_stage,
         },
     )
 
@@ -13016,6 +13036,83 @@ def finalize_match_actions(request):
             'match_label': str(match),
         }
     )
+
+
+@authenticated_write
+@require_POST
+def save_match_info(request):
+    """
+    Guarda metadatos del partido (rival/campo/jornada/fecha y marcador) sin finalizar el registro.
+
+    Motivo UX: el staff debe poder fijar el marcador final desde "Registro de acciones" aunque no cierre el partido aún.
+    """
+    if not _can_edit_match_actions(request.user):
+        return JsonResponse({'error': 'Solo el cuerpo técnico puede editar estadísticas de partido.'}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'match_actions', label='registro de acciones')
+    if forbidden:
+        return JsonResponse({'error': 'El registro de acciones no está activo en el workspace actual.'}, status=403)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'error': 'Equipo principal no configurado'}, status=400)
+    requested_match = get_requested_match(request, primary_team)
+    match = requested_match or get_latest_live_match(primary_team) or get_active_match(primary_team)
+    if not match:
+        return JsonResponse({'error': 'No hay partido activo para guardar.'}, status=400)
+
+    payload = {}
+    try:
+        if request.body:
+            payload = json.loads(request.body.decode('utf-8'))
+    except Exception:
+        payload = {}
+    match_info = payload.get('match_info') if isinstance(payload, dict) else None
+    if not isinstance(match_info, dict):
+        match_info = payload if isinstance(payload, dict) else {}
+    _apply_match_info_overrides(match, primary_team, match_info)
+
+    # Mantener Convocatoria alineada con los cambios (si existe).
+    try:
+        record = get_current_convocation_record(primary_team, match=match, fallback_to_latest=True)
+    except Exception:
+        record = None
+    if record and isinstance(match_info, dict):
+        try:
+            update_fields = []
+            opponent_name = str(match_info.get('opponent') or '').strip()
+            if opponent_name and record.opponent_name != opponent_name:
+                record.opponent_name = opponent_name
+                update_fields.append('opponent_name')
+            round_value = str(match_info.get('round') or '').strip()
+            if round_value and record.round != round_value:
+                record.round = round_value
+                update_fields.append('round')
+            location_value = str(match_info.get('location') or '').strip()
+            if location_value and record.location != location_value:
+                record.location = location_value
+                update_fields.append('location')
+            datetime_value = str(match_info.get('datetime') or '').strip()
+            match_date = parse_match_date_from_ui(datetime_value)
+            if match_date and record.match_date != match_date:
+                record.match_date = match_date
+                update_fields.append('match_date')
+            if datetime_value:
+                match_time = None
+                try:
+                    time_match = re.search(r'(\d{1,2}:\d{2})', datetime_value)
+                    if time_match:
+                        match_time = datetime.strptime(time_match.group(1), '%H:%M').time()
+                except Exception:
+                    match_time = None
+                if match_time and record.match_time != match_time:
+                    record.match_time = match_time
+                    update_fields.append('match_time')
+            if update_fields:
+                record.save(update_fields=update_fields)
+        except Exception:
+            pass
+
+    _invalidate_team_dashboard_caches(primary_team)
+    return JsonResponse({'saved': True, 'match_id': match.id, 'match_label': str(match)})
 
 
 @authenticated_write
@@ -26544,6 +26641,12 @@ def refresh_scraping(request):
             if not ok:
                 raise RuntimeError(refresh_message or 'No se pudo actualizar la clasificación.')
     except Exception as exc:
+        logger.exception(
+            'refresh_scraping failed (workspace=%s team=%s provider=%s)',
+            getattr(workspace, 'id', None),
+            getattr(primary_team, 'id', None),
+            provider_key,
+        )
         return JsonResponse({'status': 'error', 'message': str(exc)}, status=500)
     finally:
         cache.delete(SCRAPE_LOCK_KEY)
@@ -27390,6 +27493,7 @@ def preferred_event_source_by_match(primary_team):
     team_events = (
         MatchEvent.objects
         .filter(player__team=primary_team)
+        .filter(Q(match__home_team=primary_team) | Q(match__away_team=primary_team))
         .filter(
             Q(source_file='registro-acciones')
             | ~Q(system='touch-field')
@@ -27559,6 +27663,7 @@ def compute_team_metrics(primary_team):
     events = _filter_stats_events(
         confirmed_events_queryset()
         .filter(player__team=primary_team)
+        .filter(Q(match__home_team=primary_team) | Q(match__away_team=primary_team))
         .select_related('match')
         .order_by('match_id', 'minute', 'id'),
         preferred_sources=preferred_sources,
@@ -27856,6 +27961,7 @@ def compute_player_dashboard(primary_team, force_refresh=False):
     stats_events = (
         MatchEvent.objects
         .filter(player__team=primary_team)
+        .filter(Q(match__home_team=primary_team) | Q(match__away_team=primary_team))
         .filter(
             Q(system='touch-field', source_file='registro-acciones')
             | ~Q(system='touch-field')
