@@ -26495,13 +26495,48 @@ def player_pdf(request, player_id):
             standings_rows = []
         if not standings_rows:
             standings_rows = _resolve_standings_for_team(primary_team, snapshot=load_universo_snapshot())
-        team_key = _normalize_team_lookup_key(primary_team.name)
-        for row in standings_rows:
-            candidate_key = _normalize_team_lookup_key(row.get('full_name') or row.get('team'))
-            if team_key and candidate_key == team_key:
-                team_points = _parse_int(row.get('points')) or 0
-                team_rank = _parse_int(row.get('rank')) or 0
+
+        def _team_keys_for_lookup(team_obj):
+            keys = []
+            for raw in [
+                getattr(team_obj, 'name', ''),
+                getattr(team_obj, 'display_name', ''),
+                getattr(team_obj, 'short_name', ''),
+                getattr(team_obj, 'slug', ''),
+            ]:
+                key = _normalize_team_lookup_key(raw)
+                if key and key not in keys:
+                    keys.append(key)
+            return keys
+
+        team_keys = _team_keys_for_lookup(primary_team)
+        best_row = None
+        best_score = -1
+        for row in standings_rows or []:
+            if not isinstance(row, dict):
+                continue
+            candidate_raw = row.get('full_name') or row.get('team') or row.get('name') or ''
+            candidate_key = _normalize_team_lookup_key(candidate_raw)
+            if not candidate_key:
+                continue
+            for key in team_keys:
+                if not key:
+                    continue
+                if candidate_key == key:
+                    best_row = row
+                    best_score = 10_000
+                    break
+                # Match parcial: algunos proveedores añaden sufijos ("C.D.", "'A'", etc.)
+                if key in candidate_key or candidate_key in key:
+                    score = min(len(key), len(candidate_key))
+                    if score > best_score:
+                        best_row = row
+                        best_score = score
+            if best_score >= 10_000:
                 break
+        if best_row:
+            team_points = _parse_int(best_row.get('points')) or 0
+            team_rank = _parse_int(best_row.get('rank')) or 0
     except Exception:
         team_points = 0
         team_rank = 0
@@ -26531,6 +26566,54 @@ def player_pdf(request, player_id):
         {'label': 'Éxitos/90', 'value': float(detail.get('successes_per90') or 0)},
         {'label': 'Decisivas/90', 'value': float(detail.get('decisive_actions_per90') or 0)},
     ]
+
+    # Resumen por partido: separar jugados vs próximos para que no “parezca” que el último rival es la siguiente jornada.
+    today = timezone.localdate()
+    raw_matches = list(detail.get('matches') or []) if isinstance(detail, dict) else []
+
+    def _parse_iso_date(value):
+        if not value:
+            return None
+        try:
+            return datetime.strptime(str(value), '%Y-%m-%d').date()
+        except Exception:
+            return None
+
+    played_matches = []
+    upcoming_matches = []
+    for entry in raw_matches:
+        if not isinstance(entry, dict):
+            continue
+        match_date = _parse_iso_date(entry.get('date'))
+        actions = int(entry.get('actions') or 0)
+        # Heurística robusta:
+        # - Si hay acciones, es jugado (aunque la fecha esté mal o sea None).
+        # - Si hay fecha y es <= hoy, lo tratamos como jugado.
+        # - Si la fecha es futura y no hay acciones, es próximo.
+        if actions > 0 or (match_date and match_date <= today):
+            entry = {**entry, 'date_obj': match_date}
+            played_matches.append(entry)
+        else:
+            entry = {**entry, 'date_obj': match_date}
+            upcoming_matches.append(entry)
+
+    played_matches.sort(key=lambda m: (m.get('date_obj') is None, m.get('date_obj') or date.min), reverse=True)
+    upcoming_matches.sort(key=lambda m: (m.get('date_obj') is None, m.get('date_obj') or date.max))
+    latest_played_match = played_matches[0] if played_matches else None
+    next_scheduled_match = upcoming_matches[0] if upcoming_matches else None
+
+    def _clamp_pct(value):
+        try:
+            return max(0.0, min(float(value or 0), 100.0))
+        except Exception:
+            return 0.0
+
+    visual_kpis = [
+        {'label': 'Participación', 'value': _clamp_pct(detail.get('participation_pct') if isinstance(detail, dict) else 0), 'unit': '%'},
+        {'label': 'Importancia', 'value': _clamp_pct(detail.get('importance_score') if isinstance(detail, dict) else 0), 'unit': ''},
+        {'label': 'Influencia', 'value': _clamp_pct(detail.get('influence_score') if isinstance(detail, dict) else 0), 'unit': ''},
+        {'label': 'Éxito', 'value': _clamp_pct(detail.get('success_rate') if isinstance(detail, dict) else 0), 'unit': '%'},
+    ]
     html = render_to_string(
         'football/player_pdf.html',
         {
@@ -26544,6 +26627,11 @@ def player_pdf(request, player_id):
             'team_rank': team_rank,
             'general_kpis': general_kpis,
             'advanced_kpis': advanced_kpis,
+            'visual_kpis': visual_kpis,
+            'played_matches': played_matches,
+            'upcoming_matches': upcoming_matches,
+            'latest_played_match': latest_played_match,
+            'next_scheduled_match': next_scheduled_match,
             'player_photo_src': player_photo_src,
             'license_exists': license_exists,
             'crest_src': crest_src,

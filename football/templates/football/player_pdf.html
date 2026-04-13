@@ -76,6 +76,7 @@
       }
       .grid-3 { display:grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
       .grid-4 { display:grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+      .grid-2 { display:grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
       .card {
         border: 1px solid #e2e8f0;
         border-radius: 14px;
@@ -92,6 +93,28 @@
       .table { width:100%; border-collapse: collapse; }
       .table th, .table td { border-bottom: 1px solid #e2e8f0; padding: 6px 0; font-size: 12px; }
       .table th { text-align: left; color: #64748b; font-size: 11px; letter-spacing: .10em; text-transform: uppercase; }
+      .table .group-row td {
+        padding: 10px 0 6px;
+        border-bottom: none;
+        color: #0f172a;
+        font-weight: 900;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+        font-size: 10px;
+      }
+      .match-muted { color: #64748b; font-size: 11px; }
+      .bars { display:grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+      .bar {
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 10px;
+        background: #ffffff;
+      }
+      .bar-head { display:flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+      .bar-head .label { font-size: 11px; letter-spacing: .10em; text-transform: uppercase; color: #64748b; font-weight: 900; }
+      .bar-head .value { font-size: 16px; font-weight: 900; color: #0f172a; }
+      .bar-track { margin-top: 8px; height: 10px; border-radius: 999px; background: #e2e8f0; overflow:hidden; }
+      .bar-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, #0f7a35, #22c55e); width: 0%; }
       .small { font-size: 11px; color: #475569; }
       .foot { margin-top: 12px; border-top: 1px solid #e2e8f0; padding-top: 10px; display:flex; justify-content: space-between; align-items: center; }
       .foot .muted { color: #64748b; font-size: 11px; }
@@ -135,23 +158,40 @@
             </div>
           </div>
 
-          <div class="section">
-            <h2>KPIs rendimiento</h2>
-            <div class="grid-4">
-              {% for item in advanced_kpis %}
-                <div class="card">
-                  <div class="kv">
-                    <div class="k">{{ item.label }}</div>
-                    <div class="v">{{ item.value }}</div>
-                  </div>
-                </div>
-              {% endfor %}
-            </div>
-          </div>
+	          <div class="section">
+	            <h2>KPIs rendimiento</h2>
+	            <div class="grid-4">
+	              {% for item in advanced_kpis %}
+	                <div class="card">
+	                  <div class="kv">
+	                    <div class="k">{{ item.label }}</div>
+	                    <div class="v">{{ item.value }}</div>
+	                  </div>
+	                </div>
+	              {% endfor %}
+	            </div>
+	          </div>
 
-          <div class="section">
-            <h2>KPIs específicos</h2>
-            <div class="grid-3">
+	          <div class="section">
+	            <h2>Resumen visual</h2>
+	            <div class="bars">
+	              {% for item in visual_kpis %}
+	              <div class="bar">
+	                <div class="bar-head">
+	                  <div class="label">{{ item.label }}</div>
+	                  <div class="value">{{ item.value }}{{ item.unit }}</div>
+	                </div>
+	                <div class="bar-track">
+	                  <div class="bar-fill" style="width: {{ item.value }}%;"></div>
+	                </div>
+	              </div>
+	              {% endfor %}
+	            </div>
+	          </div>
+
+	          <div class="section">
+	            <h2>KPIs específicos</h2>
+	            <div class="grid-3">
               <div class="card">
                 <div class="kv"><div class="k">Pases</div><div class="v">{{ stats.passes.completed|default:0 }}/{{ stats.passes.attempts|default:0 }}</div></div>
                 <div class="small">Precisión: {{ stats.passes.accuracy|default:0 }}% · Clave: {{ stats.passes.key_completed|default:0 }}</div>
@@ -183,33 +223,74 @@
         </div>
       </div>
 
-      <div class="section">
-        <h2>Detalle por partido</h2>
-        <table class="table">
-          <thead>
-            <tr>
-              <th style="width: 90px;">Jornada</th>
-              <th>Rival</th>
-              <th style="width: 70px;">Acc.</th>
-              <th style="width: 70px;">Éx.</th>
-              <th style="width: 90px;">% Éxito</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for match in stats.matches %}
-            <tr>
-              <td>{{ match.round }}</td>
-              <td>{{ match.opponent }}</td>
-              <td>{{ match.actions }}</td>
-              <td>{{ match.successes }}</td>
-              <td>{{ match.success_rate }}%</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="5">Sin registros por partidos.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
+	      <div class="section">
+	        <h2>Detalle por partido</h2>
+	        <table class="table">
+	          <thead>
+	            <tr>
+	              <th style="width: 90px;">Jornada</th>
+	              <th>Rival</th>
+	              <th style="width: 90px;">Fecha</th>
+	              <th style="width: 70px;">Acc.</th>
+	              <th style="width: 70px;">Éx.</th>
+	              <th style="width: 90px;">% Éxito</th>
+	            </tr>
+	          </thead>
+	          <tbody>
+              {% if latest_played_match %}
+              <tr class="group-row"><td colspan="6">Último partido</td></tr>
+              <tr>
+                <td>{{ latest_played_match.round }}</td>
+                <td>{{ latest_played_match.opponent }}</td>
+                <td class="match-muted">{% if latest_played_match.date_obj %}{{ latest_played_match.date_obj|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+                <td>{{ latest_played_match.actions }}</td>
+                <td>{{ latest_played_match.successes }}</td>
+                <td>{{ latest_played_match.success_rate }}%</td>
+              </tr>
+              {% endif %}
+
+              {% if next_scheduled_match %}
+              <tr class="group-row"><td colspan="6">Próximo partido</td></tr>
+              <tr>
+                <td>{{ next_scheduled_match.round }}</td>
+                <td>{{ next_scheduled_match.opponent }}</td>
+                <td class="match-muted">{% if next_scheduled_match.date_obj %}{{ next_scheduled_match.date_obj|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+                <td>{{ next_scheduled_match.actions }}</td>
+                <td>{{ next_scheduled_match.successes }}</td>
+                <td>{{ next_scheduled_match.success_rate }}%</td>
+              </tr>
+              {% endif %}
+
+              <tr class="group-row"><td colspan="6">Partidos jugados</td></tr>
+	            {% for match in played_matches %}
+	            <tr>
+	              <td>{{ match.round }}</td>
+	              <td>{{ match.opponent }}</td>
+	              <td class="match-muted">{% if match.date_obj %}{{ match.date_obj|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+	              <td>{{ match.actions }}</td>
+	              <td>{{ match.successes }}</td>
+	              <td>{{ match.success_rate }}%</td>
+	            </tr>
+	            {% empty %}
+	            <tr><td colspan="6">Sin registros de partidos jugados.</td></tr>
+	            {% endfor %}
+
+              {% if upcoming_matches %}
+              <tr class="group-row"><td colspan="6">Próximos (sin acciones)</td></tr>
+              {% for match in upcoming_matches %}
+              <tr>
+                <td>{{ match.round }}</td>
+                <td>{{ match.opponent }}</td>
+                <td class="match-muted">{% if match.date_obj %}{{ match.date_obj|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+                <td>{{ match.actions }}</td>
+                <td>{{ match.successes }}</td>
+                <td>{{ match.success_rate }}%</td>
+              </tr>
+              {% endfor %}
+              {% endif %}
+	          </tbody>
+	        </table>
+	      </div>
 
       <div class="foot">
         <div class="brand">
@@ -224,4 +305,3 @@
     </div>
   </body>
 </html>
-
