@@ -314,7 +314,16 @@ STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+
+# Media (uploads)
+# - En Render, el árbol del repo puede ser de solo lectura en runtime. Para evitar 500 al subir/leer
+#   fotos/licencias o al generar PDFs, usamos `/tmp` por defecto si no hay S3.
+# - Si quieres persistencia real, activa `USE_S3_MEDIA=true`.
+_media_root_env = (os.getenv('MEDIA_ROOT') or '').strip()
+if _media_root_env:
+    MEDIA_ROOT = Path(_media_root_env)
+else:
+    MEDIA_ROOT = (BASE_DIR / 'media') if DEBUG else Path('/tmp/webstats-media')
 try:
     os.makedirs(str(MEDIA_ROOT), exist_ok=True)
 except Exception:

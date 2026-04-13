@@ -13253,6 +13253,8 @@ def reset_match_action_register(request):
 
 @login_required
 @pdf_view_guard
+@login_required
+@pdf_view_guard
 def match_report_pdf(request):
     if not _can_edit_match_actions(request.user):
         return HttpResponse('Solo el cuerpo técnico puede descargar el acta del partido.', status=403)
@@ -13683,7 +13685,7 @@ def match_report_pdf(request):
     }
     html = render_to_string('football/match_report_pdf.html', context)
     filename = slugify(f'acta-{team_name}-{opponent_name}-{match.date or timezone.localdate()}') or f'acta-{match.id}'
-    return _build_pdf_response_or_html_fallback(request, html, filename, inline=True)
+    return _build_pdf_response_or_html_fallback(request, html, filename, inline=True, force_pdf=True)
 
 
 @login_required
@@ -14286,7 +14288,7 @@ def convocation_pdf(request):
 
     html = render_to_string('football/convocation_pdf.html', context)
     filename = f'convocatoria-{timezone.localdate().isoformat()}'
-    return _build_pdf_response_or_html_fallback(request, html, filename)
+    return _build_pdf_response_or_html_fallback(request, html, filename, inline=True, force_pdf=True)
 
 
 @login_required
@@ -14636,7 +14638,7 @@ def convocation_referee_pdf(request):
             },
         )
         filename = slugify(f'licencias-arbitro-{primary_team.display_name}-{timezone.localdate().isoformat()}') or f'licencias-arbitro-{convocation_record.id}'
-        return _build_pdf_response_or_html_fallback(request, html, filename)
+        return _build_pdf_response_or_html_fallback(request, html, filename, inline=True, force_pdf=True)
 
     # Compatibilidad (modo antiguo): cover + 1 página por jugador + adjuntar PDFs.
     if PdfReader is None or PdfWriter is None:

@@ -56,6 +56,12 @@ def run_system_healthcheck():
     if not use_s3_media:
         expected_paths['media_root'] = Path(settings.MEDIA_ROOT)
     for key, path in expected_paths.items():
+        # Autorreparación: si media_root no existe, intentamos crearlo (evita 500 en PDFs).
+        if key == 'media_root' and not use_s3_media:
+            try:
+                path.mkdir(parents=True, exist_ok=True)
+            except Exception:
+                pass
         results['paths'][key] = {
             'ok': path.exists(),
             'detail': str(path),

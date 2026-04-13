@@ -7,7 +7,9 @@ set -euo pipefail
 : "${MIGRATE_RETRIES:=15}"
 : "${MIGRATE_RETRY_SLEEP_SECONDS:=2}"
 
-mkdir -p media || true
+# Media root (uploads). In Render the repo path can be read-only at runtime; default to /tmp.
+MEDIA_ROOT_DIR="${MEDIA_ROOT:-media}"
+mkdir -p "${MEDIA_ROOT_DIR}" || true
 
 if [ "${RUN_MIGRATIONS}" = "true" ]; then
   attempt=1
