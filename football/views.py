@@ -1109,6 +1109,19 @@ def _build_pdf_response_or_html_fallback(request, html: str, filename: str, *, i
         response = HttpResponse(pdf_file, content_type='application/pdf')
         disposition = 'inline' if inline else 'attachment'
         response['Content-Disposition'] = f'{disposition}; filename="{filename}.pdf"'
+        # Ayuda a depurar despliegues/cachés (Safari/SW): permite ver el build activo.
+        try:
+            build_id = (
+                os.getenv('RENDER_GIT_COMMIT')
+                or os.getenv('RENDER_DEPLOY_ID')
+                or os.getenv('SOURCE_VERSION')
+                or os.getenv('GIT_SHA')
+                or ''
+            ).strip()
+            if build_id:
+                response['X-2J-Build'] = build_id
+        except Exception:
+            pass
         return response
     logger.exception('WeasyPrint: error generando PDF (response): %s', pdf_error or 'unknown')
     if force_pdf:
@@ -1124,12 +1137,16 @@ def _build_pdf_response_or_html_fallback(request, html: str, filename: str, *, i
             debug_allowed = False
         if debug and debug_allowed:
             detail = (pdf_error or '').strip() or 'unknown'
-            return HttpResponse(
+            resp = HttpResponse(
                 f'No se pudo generar el PDF. {detail}',
                 status=503,
                 content_type='text/plain; charset=utf-8',
             )
-        return HttpResponse('No se pudo generar el PDF.', status=503, content_type='text/plain; charset=utf-8')
+            resp['Cache-Control'] = 'no-store'
+            return resp
+        resp = HttpResponse('No se pudo generar el PDF.', status=503, content_type='text/plain; charset=utf-8')
+        resp['Cache-Control'] = 'no-store'
+        return resp
     return HttpResponse(html, content_type='text/html; charset=utf-8')
 
 
@@ -1262,12 +1279,16 @@ def pdf_view_guard(view_func):
             except Exception:
                 debug_allowed = False
             if debug and debug_allowed:
-                return HttpResponse(
+                resp = HttpResponse(
                     f'No se pudo generar el PDF. {exc.__class__.__name__}: {exc}',
                     status=503,
                     content_type='text/plain; charset=utf-8',
                 )
-            return HttpResponse('No se pudo generar el PDF.', status=503, content_type='text/plain; charset=utf-8')
+                resp['Cache-Control'] = 'no-store'
+                return resp
+            resp = HttpResponse('No se pudo generar el PDF.', status=503, content_type='text/plain; charset=utf-8')
+            resp['Cache-Control'] = 'no-store'
+            return resp
 
     return _wrapped
 
