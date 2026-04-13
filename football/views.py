@@ -26424,26 +26424,42 @@ def player_pdf(request, player_id):
     avatar_data_uri = _file_as_data_uri(static_base_dir / 'football' / 'images' / 'player-avatar.svg')
     brand_mark_data_uri = _file_as_data_uri(static_base_dir / 'football' / 'images' / '2j-mark.svg')
 
+    storage = storages['default']
+    if isinstance(storage, FileSystemStorage):
+        storage = FileSystemStorage(location=getattr(settings, 'MEDIA_ROOT', None), base_url=getattr(settings, 'MEDIA_URL', '/media/'))
+
     player_photo_src = ''
+    player_photo_is_real = False
     try:
         # Prefer uploaded photo (media storage)
         for storage_name in _player_photo_storage_candidates(player):
             try:
-                if default_storage.exists(storage_name):
-                    with default_storage.open(storage_name, 'rb') as fp:
+                if storage.exists(storage_name):
+                    with storage.open(storage_name, 'rb') as fp:
                         raw = fp.read() or b''
-                    player_photo_src = _image_bytes_as_small_data_uri(raw, mime_type=mimetypes.guess_type(storage_name)[0] or 'image/jpeg', max_width=520, max_height=520, quality=72)
-                    break
+                    if raw:
+                        player_photo_src = _image_bytes_as_small_data_uri(
+                            raw_bytes=raw,
+                            mime_type=mimetypes.guess_type(storage_name)[0] or 'image/jpeg',
+                            max_width=520,
+                            max_height=520,
+                            quality=72,
+                        )
+                        player_photo_is_real = True
+                        break
             except Exception:
                 continue
     except Exception:
         player_photo_src = ''
+        player_photo_is_real = False
     if not player_photo_src:
         player_static_rel = resolve_player_photo_static_path(player)
         if player_static_rel:
             player_photo_src = _image_file_as_small_data_uri(static_base_dir / player_static_rel, max_width=520, max_height=520, quality=72)
+            player_photo_is_real = bool(player_photo_src)
     if not player_photo_src:
         player_photo_src = avatar_data_uri or request.build_absolute_uri(static('football/images/player-avatar.svg'))
+        player_photo_is_real = False
 
     crest_src = ''
     if getattr(primary_team, 'crest_image', None):
@@ -26463,7 +26479,7 @@ def player_pdf(request, player_id):
     try:
         for storage_name in _player_license_storage_candidates(player):
             try:
-                if default_storage.exists(storage_name):
+                if storage.exists(storage_name):
                     license_exists = True
                     break
             except Exception:
@@ -26614,6 +26630,15 @@ def player_pdf(request, player_id):
         {'label': 'Influencia', 'value': _clamp_pct(detail.get('influence_score') if isinstance(detail, dict) else 0), 'unit': ''},
         {'label': 'Éxito', 'value': _clamp_pct(detail.get('success_rate') if isinstance(detail, dict) else 0), 'unit': '%'},
     ]
+    player_initials = ''
+    try:
+        parts = [p for p in re.split(r'\\s+', str(player.name or '').strip()) if p]
+        if len(parts) == 1:
+            player_initials = parts[0][:2].upper()
+        elif len(parts) >= 2:
+            player_initials = (parts[0][0] + parts[-1][0]).upper()
+    except Exception:
+        player_initials = ''
     html = render_to_string(
         'football/player_pdf.html',
         {
@@ -26633,6 +26658,8 @@ def player_pdf(request, player_id):
             'latest_played_match': latest_played_match,
             'next_scheduled_match': next_scheduled_match,
             'player_photo_src': player_photo_src,
+            'player_photo_is_real': bool(player_photo_is_real),
+            'player_initials': player_initials or '??',
             'license_exists': license_exists,
             'crest_src': crest_src,
             'brand_mark_src': brand_mark_data_uri or request.build_absolute_uri(static('football/images/2j-mark.svg')),
