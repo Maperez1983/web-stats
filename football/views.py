@@ -14573,10 +14573,23 @@ def convocation_referee_pdf(request):
             return ''
         ext = Path(storage_name).suffix.lower()
         if ext == '.pdf':
-            raw = _extract_first_image_from_pdf_bytes(raw)
-            if not raw:
+            extracted = _extract_first_image_from_pdf_bytes(raw)
+            if not extracted:
                 # No intentamos incrustar PDFs en <img>: en algunos visores/WeasyPrint escala mal y recorta.
+                # En este caso preferimos adjuntar el PDF original como fallback.
                 return ''
+            # Guardrail: algunos PDFs son vectoriales y la única imagen embebida es el escudo/logo
+            # (resultado: se ve “un cuadrado verde” en lugar del carnet). Detectamos imágenes
+            # demasiado pequeñas y forzamos fallback a adjuntar el PDF.
+            if Image is not None:
+                try:
+                    with Image.open(io.BytesIO(extracted)) as probe:
+                        width, height = probe.size
+                    if (width * height) < 140_000:  # ~375x375 => normalmente es un logo, no un carnet.
+                        return ''
+                except Exception:
+                    pass
+            raw = extracted
         if Image is None:
             mime_type = 'image/jpeg' if ext == '.pdf' else (mimetypes.guess_type(storage_name)[0] or 'image/jpeg')
             encoded = base64.b64encode(raw).decode('ascii')
@@ -14705,10 +14718,13 @@ def convocation_referee_pdf(request):
         rival_crest_src = _team_crest_data_uri(opponent_team, fallback_label=away_team_name)
 
         grid_players = []
+        pdf_fallback_players = []
         for player in ordered_players:
             license_name = _find_license_name(player)
             # Intentamos siempre generar imagen (incluyendo PDF si Pillow lo soporta).
             license_image_uri = _license_image_data_uri(license_name) if license_name else ''
+            if license_name and Path(license_name).suffix.lower() == '.pdf' and not license_image_uri:
+                pdf_fallback_players.append({'player': player, 'license_name': license_name})
             grid_players.append(
                 {
                     'number': player.number,
@@ -14742,6 +14758,59 @@ def convocation_referee_pdf(request):
             },
         )
         filename = slugify(f'licencias-arbitro-{primary_team.display_name}-{timezone.localdate().isoformat()}') or f'licencias-arbitro-{convocation_record.id}'
+        # Si hay licencias en PDF no renderizables como imagen, adjuntamos las páginas reales
+        # (mejor multi-página correcto que “carnet mal dibujado”).
+        if pdf_fallback_players and PdfReader is not None and PdfWriter is not None:
+            grid_pdf, grid_err = _render_pdf_bytes_with_error(request, pdf_html)
+            if not grid_pdf:
+                debug = str(request.GET.get('debug') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+                if debug and _is_admin_user(request.user):
+                    return HttpResponse(f'No se pudo generar el PDF. {grid_err}', status=503)
+                return HttpResponse('No se pudo generar el PDF.', status=503)
+
+            def _append_pdf_bytes(writer, pdf_bytes):
+                if not pdf_bytes:
+                    return
+                reader = PdfReader(io.BytesIO(pdf_bytes))
+                for page in reader.pages:
+                    writer.add_page(page)
+
+            writer = PdfWriter()
+            _append_pdf_bytes(writer, grid_pdf)
+            captain_id = int(convocation_record.captain_id) if convocation_record.captain_id else None
+            goalkeeper_id = int(convocation_record.goalkeeper_id) if convocation_record.goalkeeper_id else None
+            for item in pdf_fallback_players:
+                player_obj = item.get('player')
+                license_name = item.get('license_name')
+                if not player_obj or not license_name:
+                    continue
+                # Página informativa (para identificar el carnet que se adjunta).
+                label_html = render_to_string(
+                    'football/player_license_page_pdf.html',
+                    {
+                        'team_name': primary_team.display_name,
+                        'player_name': player_obj.name,
+                        'player_number': player_obj.number,
+                        'is_captain': bool(captain_id and int(player_obj.id) == captain_id),
+                        'is_goalkeeper': bool(goalkeeper_id and int(player_obj.id) == goalkeeper_id),
+                        'license_image_uri': '',
+                        'license_is_pdf': True,
+                        'license_missing': False,
+                    },
+                )
+                label_pdf, _label_err = _render_pdf_bytes_with_error(request, label_html)
+                if label_pdf:
+                    _append_pdf_bytes(writer, label_pdf)
+                pdf_bytes = _read_storage_bytes(license_name)
+                if pdf_bytes:
+                    # Adjuntamos el PDF real (todas sus páginas).
+                    _append_pdf_bytes(writer, pdf_bytes)
+            output = io.BytesIO()
+            writer.write(output)
+            response = HttpResponse(output.getvalue(), content_type='application/pdf')
+            response['Content-Disposition'] = f'inline; filename=\"{filename}.pdf\"'
+            return response
+
         return _build_pdf_response_or_html_fallback(request, pdf_html, filename, inline=True, force_pdf=True)
 
     # Compatibilidad (modo antiguo): cover + 1 página por jugador + adjuntar PDFs.
@@ -26424,31 +26493,44 @@ def player_pdf(request, player_id):
     avatar_data_uri = _file_as_data_uri(static_base_dir / 'football' / 'images' / 'player-avatar.svg')
     brand_mark_data_uri = _file_as_data_uri(static_base_dir / 'football' / 'images' / '2j-mark.svg')
 
-    storage = storages['default']
-    if isinstance(storage, FileSystemStorage):
-        storage = FileSystemStorage(location=getattr(settings, 'MEDIA_ROOT', None), base_url=getattr(settings, 'MEDIA_URL', '/media/'))
-
     player_photo_src = ''
     player_photo_is_real = False
     try:
-        # Prefer uploaded photo (media storage)
-        for storage_name in _player_photo_storage_candidates(player):
-            try:
-                if storage.exists(storage_name):
-                    with storage.open(storage_name, 'rb') as fp:
-                        raw = fp.read() or b''
-                    if raw:
-                        player_photo_src = _image_bytes_as_small_data_uri(
-                            raw_bytes=raw,
-                            mime_type=mimetypes.guess_type(storage_name)[0] or 'image/jpeg',
-                            max_width=520,
-                            max_height=520,
-                            quality=72,
-                        )
-                        player_photo_is_real = True
-                        break
-            except Exception:
-                continue
+        # Prefer uploaded photo (media storage). En algunos despliegues legacy,
+        # `default_storage` y `storages['default']` pueden no apuntar al mismo backend.
+        storages_to_try = []
+        try:
+            candidate_storage = storages['default']
+            if isinstance(candidate_storage, FileSystemStorage):
+                candidate_storage = FileSystemStorage(location=getattr(settings, 'MEDIA_ROOT', None), base_url=getattr(settings, 'MEDIA_URL', '/media/'))
+            storages_to_try.append(candidate_storage)
+        except Exception:
+            storages_to_try = []
+        try:
+            if default_storage not in storages_to_try:
+                storages_to_try.append(default_storage)
+        except Exception:
+            pass
+        for storage in storages_to_try:
+            for storage_name in _player_photo_storage_candidates(player):
+                try:
+                    if storage.exists(storage_name):
+                        with storage.open(storage_name, 'rb') as fp:
+                            raw = fp.read() or b''
+                        if raw:
+                            player_photo_src = _image_bytes_as_small_data_uri(
+                                raw_bytes=raw,
+                                mime_type=mimetypes.guess_type(storage_name)[0] or 'image/jpeg',
+                                max_width=520,
+                                max_height=520,
+                                quality=72,
+                            )
+                            player_photo_is_real = True
+                            break
+                except Exception:
+                    continue
+            if player_photo_src:
+                break
     except Exception:
         player_photo_src = ''
         player_photo_is_real = False
@@ -26602,11 +26684,16 @@ def player_pdf(request, player_id):
             continue
         match_date = _parse_iso_date(entry.get('date'))
         actions = int(entry.get('actions') or 0)
+        has_result = bool(
+            (entry.get('home_score') is not None and entry.get('away_score') is not None)
+            or str(entry.get('result') or '').strip()
+        )
         # Heurística robusta:
         # - Si hay acciones, es jugado (aunque la fecha esté mal o sea None).
+        # - Si hay marcador/resultado, es jugado.
         # - Si hay fecha y es <= hoy, lo tratamos como jugado.
         # - Si la fecha es futura y no hay acciones, es próximo.
-        if actions > 0 or (match_date and match_date <= today):
+        if actions > 0 or has_result or (match_date and match_date <= today):
             entry = {**entry, 'date_obj': match_date}
             played_matches.append(entry)
         else:
@@ -28431,9 +28518,11 @@ def compute_player_dashboard(primary_team, force_refresh=False):
         stats['total_actions'] += 1
         if result_is_success(event.result):
             stats['successes'] += 1
-        if (not stats['totals_locked']) and is_goal_event(event.event_type, event.result, event.observation):
+        is_goal = is_goal_event(event.event_type, event.result, event.observation)
+        is_assist = is_assist_event(event.event_type, event.result, event.observation)
+        if (not stats['totals_locked']) and is_goal:
             stats['goals'] += 1
-        if (not stats['totals_locked']) and (not stats.get('assists_locked')) and is_assist_event(event.event_type, event.result, event.observation):
+        if (not stats['totals_locked']) and (not stats.get('assists_locked')) and is_assist:
             stats['assists'] += 1
         if (not stats['totals_locked']) and is_yellow_card_event(event.event_type, event.result, event.zone):
             stats['yellow_cards'] += 1
@@ -28499,6 +28588,11 @@ def compute_player_dashboard(primary_team, force_refresh=False):
                     if match.away_team == primary_team and match.home_team
                     else 'Rival desconocido'
                 ),
+                'home_score': match.home_score,
+                'away_score': match.away_score,
+                'result': (match.result or '').strip(),
+                'goals': 0,
+                'assists': 0,
                 'actions': 0,
                 'successes': 0,
             },
@@ -28506,6 +28600,10 @@ def compute_player_dashboard(primary_team, force_refresh=False):
         match_entry['actions'] += 1
         if result_is_success(event.result):
             match_entry['successes'] += 1
+        if (not stats['totals_locked']) and is_goal:
+            match_entry['goals'] += 1
+        if (not stats['totals_locked']) and (not stats.get('assists_locked')) and is_assist:
+            match_entry['assists'] += 1
         match_entry['success_rate'] = round(
             (match_entry['successes'] / match_entry['actions']) * 100
         ) if match_entry['actions'] else 0
@@ -28711,6 +28809,11 @@ def compute_player_dashboard(primary_team, force_refresh=False):
                 'date': row.get('match__date').isoformat() if row.get('match__date') else None,
                 'home': is_home,
                 'opponent': opponent,
+                'home_score': None,
+                'away_score': None,
+                'result': '',
+                'goals': 0,
+                'assists': 0,
                 'actions': 0,
                 'successes': 0,
                 'success_rate': 0,
@@ -28735,6 +28838,13 @@ def compute_player_dashboard(primary_team, force_refresh=False):
             match_end = max(match_end, match_end_marker_minutes.get(match_id, 0))
         elif match_end <= 0 or match_end < match_regulation_minutes:
             match_end = match_regulation_minutes
+        match_date = getattr(match, 'date', None) if match else None
+        match_is_played = bool(match_date and match_date <= timezone.localdate()) or bool(
+            (match and match.home_score is not None and match.away_score is not None)
+            or (match and str(match.result or '').strip())
+            or (match_id in match_end_marker_minutes)
+            or (match_id in match_end_minutes)
+        )
         for player_id in starters:
             if match_id in processed_lineup_matches[player_id]:
                 continue
@@ -28744,11 +28854,6 @@ def compute_player_dashboard(primary_team, force_refresh=False):
             if stats.get('totals_locked'):
                 processed_lineup_matches[player_id].add(match_id)
                 continue
-            stats['pt'] += 1
-            stats['pj'] += 1
-            stats['minutes'] += match_end
-            stats['pc'] = max(stats.get('pc', 0), stats['pj'])
-            stats['has_events'] = True
             if match:
                 stats['matches'].setdefault(
                     match_id,
@@ -28764,11 +28869,22 @@ def compute_player_dashboard(primary_team, force_refresh=False):
                             if match.away_team == primary_team and match.home_team
                             else 'Rival desconocido'
                         ),
+                        'home_score': match.home_score,
+                        'away_score': match.away_score,
+                        'result': (match.result or '').strip(),
+                        'goals': 0,
+                        'assists': 0,
                         'actions': 0,
                         'successes': 0,
                         'success_rate': 0,
                     },
                 )
+            if match_is_played:
+                stats['pt'] += 1
+                stats['pj'] += 1
+                stats['minutes'] += match_end
+                stats['pc'] = max(stats.get('pc', 0), stats['pj'])
+                stats['has_events'] = True
             processed_lineup_matches[player_id].add(match_id)
 
     result = []
