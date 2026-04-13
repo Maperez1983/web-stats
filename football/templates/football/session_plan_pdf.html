@@ -161,7 +161,7 @@
 
 	      .task-graphic {
 	        width: 100%;
-	        height: 200px;
+	        height: 240px;
 	        border: 1px solid #d5dde7;
 	        border-radius: 10px;
 	        background: #f8fafc;
@@ -170,12 +170,12 @@
 	        justify-content: center;
 	        overflow: hidden;
 	      }
-	      .task-graphic img {
-	        width: 100%;
-	        height: 100%;
-	        object-fit: contain;
-	        object-position: center center;
-	        display: block;
+	      /* WeasyPrint: `object-fit` con <img> puede recortar según versión;
+	         background-size:contain es más estable. */
+	      .task-graphic.has-bg {
+	        background-position: center center;
+	        background-repeat: no-repeat;
+	        background-size: contain;
 	      }
 	      .task-sheet-card {
 	        page-break-inside: avoid;
@@ -305,13 +305,13 @@
 		          </div>
 
 	          <div class="uefa-section-head">DESCRIPCIÓN GRÁFICA</div>
+	          {% if card.preview_url %}
+	          <div class="task-graphic has-bg" style="height:260px; margin-bottom:10px; background-image:url('{{ card.preview_url }}');"></div>
+	          {% else %}
 	          <div class="task-graphic" style="height:260px; margin-bottom:10px;">
-	            {% if card.preview_url %}
-	              <img src="{{ card.preview_url }}" alt="Representación gráfica" />
-	            {% else %}
-	              <div style="color:#6b7280;">(Sin representación gráfica)</div>
-	            {% endif %}
+	            <div style="color:#6b7280;">(Sin representación gráfica)</div>
 	          </div>
+	          {% endif %}
 
 	          <div class="uefa-section-head">CONSIGNA / EXPLICACIÓN</div>
 	          <div class="uefa-box" style="margin-bottom:10px; white-space:pre-line;">
@@ -457,11 +457,9 @@
 	          <div class="task-sheet-card">
 	            <div class="task-title">Tarea {{ forloop.counter }} · {{ card.sheet.title }}</div>
 	            <div class="task-meta">{{ card.sheet.block_label }} · {{ card.sheet.minutes }} min{% if card.sheet.type_label and card.sheet.type_label != '-' %} · {{ card.sheet.type_label }}{% endif %}</div>
-	            {% if card.preview_url %}
-	            <div class="task-graphic" style="margin-top:8px; margin-bottom:10px;">
-	              <img src="{{ card.preview_url }}" alt="Representación gráfica" />
-	            </div>
-	            {% endif %}
+	              {% if card.preview_url %}
+	              <div class="task-graphic has-bg" style="margin-top:8px; margin-bottom:10px; background-image:url('{{ card.preview_url }}');"></div>
+	              {% endif %}
 	            <table class="task-sheet-grid">
 	              <tr>
 	                <td style="width:50%;">
