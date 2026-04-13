@@ -197,12 +197,13 @@
         grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
         gap: 0.85rem;
       }
-      .task {
-        border-radius: 14px;
-        border: 1px solid rgba(255, 255, 255, 0.14);
-        background: rgba(255, 255, 255, 0.04);
-        overflow: hidden;
-      }
+	      .task {
+	        border-radius: 14px;
+	        border: 1px solid rgba(255, 255, 255, 0.14);
+	        background: rgba(255, 255, 255, 0.04);
+	        overflow: hidden;
+	        position: relative;
+	      }
       .task.task-clickable { cursor: pointer; transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease; }
       .task.task-clickable:hover {
         border-color: rgba(34, 211, 238, 0.62);
@@ -482,14 +483,31 @@
 	        object-fit: contain;
         display: block;
 	      }
-      .task-media-fallback {
+	      .task-media-fallback {
         text-align: center;
         padding: 0 0.8rem;
         letter-spacing: 0.08em;
         text-transform: uppercase;
         font-size: 0.72rem;
         color: rgba(226, 232, 240, 0.84);
-      }
+	      }
+	      .task-trash {
+	        position: absolute;
+	        top: 10px;
+	        right: 10px;
+	        z-index: 2;
+	        border: 1px solid rgba(248, 113, 113, 0.55);
+	        border-radius: 999px;
+	        background: rgba(127, 29, 29, 0.55);
+	        color: #fecaca;
+	        padding: 0.32rem 0.62rem;
+	        letter-spacing: 0.06em;
+	        text-transform: uppercase;
+	        font-size: 0.66rem;
+	        font-weight: 800;
+	        cursor: pointer;
+	      }
+	      .task-trash:hover { border-color: rgba(248, 113, 113, 0.75); background: rgba(127, 29, 29, 0.7); }
       .editor-box.is-drop-target {
         outline: 2px dashed rgba(34, 211, 238, 0.7);
         outline-offset: 4px;
@@ -1432,6 +1450,13 @@
 		            <input type="hidden" name="task_id" value="" />
 		            <input type="hidden" name="target_block" value="" />
 		          </form>
+		          <form id="session-delete-task-form" method="post" style="display:none;">
+		            {% csrf_token %}
+		            <input type="hidden" name="planner_action" value="delete_session_task" />
+		            <input type="hidden" name="planner_tab" value="sessions" />
+		            <input type="hidden" name="selected_session_id" value="{{ selected_session.id }}" />
+		            <input type="hidden" name="task_id" value="" />
+		          </form>
 		          <div class="editor-grid">
 		            {% for section in selected_session_task_sections %}
 		            <div class="editor-box" data-drop-block="{{ section.block_keys.0|default:'' }}">
@@ -1475,6 +1500,7 @@
 			              <div class="task-list">
 			                {% for row in section.task_rows %}
 			                <a class="task task-clickable" href="{% url 'session-task-detail' row.obj.id %}" draggable="true" data-task-id="{{ row.obj.id }}" data-task-block="{{ row.obj.block }}">
+			                  <button type="button" class="task-trash" data-delete-task-id="{{ row.obj.id }}" title="Quitar de la sesión" aria-label="Quitar de la sesión">Papelera</button>
 			                  {% if row.obj.task_preview_image or row.obj.task_pdf %}
 			                  <div class="task-media"><img src="{% url 'session-task-preview-file' row.obj.id %}?v={{ row.obj.id }}" alt="Representación gráfica" loading="lazy" /></div>
 			                  {% else %}
@@ -1497,6 +1523,8 @@
 		        <script>
 		          (function () {
 		            const form = document.getElementById('drag-move-task-form');
+		            const deleteForm = document.getElementById('session-delete-task-form');
+		            const deleteTaskIdInput = deleteForm?.querySelector('input[name="task_id"]');
 		            if (!form) return;
 		            const taskIdInput = form.querySelector('input[name="task_id"]');
 		            const targetBlockInput = form.querySelector('input[name="target_block"]');
@@ -1545,6 +1573,19 @@
 		                form.submit();
 		              });
 		            });
+
+		            document.addEventListener('click', (event) => {
+		              const btn = event.target.closest('button[data-delete-task-id]');
+		              if (!btn) return;
+		              if (!deleteForm || !deleteTaskIdInput) return;
+		              event.preventDefault();
+		              event.stopPropagation();
+		              const taskId = normalize(btn.dataset.deleteTaskId);
+		              if (!taskId) return;
+		              if (!confirm('¿Quitar esta tarea de la sesión? (Se puede restaurar desde la papelera)')) return;
+		              deleteTaskIdInput.value = taskId;
+		              deleteForm.submit();
+		            }, { capture: true });
 		          })();
 		        </script>
 		        {% endif %}
