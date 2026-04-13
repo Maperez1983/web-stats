@@ -4,6 +4,11 @@
     <meta charset="UTF-8" />
     <title>Sesión · {{ session.focus }}</title>
 	    <style>
+      :root {
+        --border: {% if pdf_style == 'club' %}#d5dde7{% else %}#6b7280{% endif %};
+        --border-soft: #e2e8f0;
+        --muted: #64748b;
+      }
       @page {
         size: A4;
         margin: 12mm;
@@ -25,7 +30,7 @@
       }
       .table td,
       .table th {
-        border: 1px solid #6b7280;
+        border: 1px solid var(--border);
         padding: 7px 9px;
         vertical-align: top;
       }
@@ -33,7 +38,7 @@
         font-size: 9px;
         text-transform: uppercase;
         letter-spacing: 0.08em;
-        color: #64748b;
+        color: var(--muted);
       }
       .v {
         margin-top: 3px;
@@ -61,6 +66,8 @@
         font-weight: 800;
         text-transform: uppercase;
         letter-spacing: 0.05em;
+        page-break-after: avoid;
+        break-after: avoid;
       }
       .section-title.uefa {
         background: #d92b30;
@@ -75,7 +82,7 @@
         border-bottom: none;
       }
       .box {
-        border: 1px solid #6b7280;
+        border: 1px solid var(--border);
         padding: 12px;
         background: #ffffff;
       }
@@ -96,7 +103,7 @@
       }
       .session-task-table td,
       .session-task-table th {
-        border: 1px solid #6b7280;
+        border: 1px solid var(--border);
         padding: 7px 9px;
         vertical-align: top;
       }
@@ -109,10 +116,11 @@
         background: #f8fafc;
       }
       .task-sheet-card {
-        border: 1px solid #6b7280;
+        border: 1px solid var(--border);
         background: #fff;
-        padding: 10px;
+        padding: 12px;
         margin-bottom: 10px;
+        border-radius: 10px;
       }
       .task-sheet-card:last-child {
         margin-bottom: 0;
@@ -124,7 +132,7 @@
         margin-top: 6px;
       }
       .task-sheet-grid td {
-        border: 1px solid #d5dde7;
+        border: 1px solid var(--border-soft);
         padding: 6px 7px;
         vertical-align: top;
       }
@@ -153,7 +161,7 @@
 
 	      .task-graphic {
 	        width: 100%;
-	        height: 210px;
+	        height: 200px;
 	        border: 1px solid #d5dde7;
 	        border-radius: 10px;
 	        background: #f8fafc;
@@ -230,6 +238,7 @@
 	        padding: 8px;
 	      }
 	      .uefa-page-break { page-break-before: always; }
+	      .page-break { page-break-before: always; }
 	    </style>
 	  </head>
 	  <body>
@@ -357,7 +366,7 @@
 	          <tr>
 	            <td style="width:74px; vertical-align:top;">
 	              <a href="{{ pdf_return_url|default:platform_url }}" style="text-decoration:none; color:inherit;">
-	                <img src="{{ logo_url }}" alt="Escudo {{ team_name }}" style="width:62px; height:62px; object-fit:contain; border-radius:999px; background:#ffffff; padding:4px; border:1px solid rgba(15,23,42,0.12);" />
+	                <img src="{{ logo_url }}" alt="Escudo {{ team_name }}" style="width:62px; height:62px; object-fit:contain; border-radius:999px; background:rgba(255,255,255,0.92); padding:4px; border:1px solid rgba(15,23,42,0.12); box-shadow:0 1px 0 rgba(0,0,0,0.12);" />
 	              </a>
 	            </td>
             <td style="vertical-align:top;">
@@ -438,74 +447,73 @@
 	          {% endif %}
 	        </div>
 
+	        {% if task_cards %}<div class="page-break"></div>{% endif %}
 	        <div class="section-title {% if pdf_style == 'club' %}club{% else %}uefa{% endif %}">
 	          Tareas de la sesión
 	        </div>
-	        <div class="box">
-	          {% if task_cards %}
-	            {% for card in task_cards %}
-	            <div class="task-sheet-card">
-	              <div class="task-title">Tarea {{ forloop.counter }} · {{ card.sheet.title }}</div>
-	              <div class="task-meta">{{ card.sheet.block_label }} · {{ card.sheet.minutes }} min{% if card.sheet.type_label and card.sheet.type_label != '-' %} · {{ card.sheet.type_label }}{% endif %}</div>
-	              {% if card.preview_url %}
-	              <div class="task-graphic" style="margin-top:8px; margin-bottom:8px;">
-	                <img src="{{ card.preview_url }}" alt="Representación gráfica" />
-	              </div>
-	              {% endif %}
-	              <table class="task-sheet-grid">
-	                <tr>
-	                  <td style="width:50%;">
-	                    <strong>Contenidos</strong>
-	                    {{ card.sheet.contents_label|default:"-" }}
-	                  </td>
-	                  <td style="width:50%;">
-	                    <strong>Estructura</strong>
-	                    {{ card.sheet.structure_label|default:"-" }}
-	                  </td>
-	                </tr>
-	                <tr>
-	                  <td>
-	                    <strong>Jugadores</strong>
-	                    {{ card.sheet.players_label|default:"-" }}
-	                  </td>
-	                  <td>
-	                    <strong>Dimensiones / material</strong>
-	                    {{ card.sheet.dimensions_label|default:"-" }}{% if card.sheet.materials_label and card.sheet.materials_label != '-' %} · {{ card.sheet.materials_label }}{% endif %}
-	                  </td>
-	                </tr>
-	                <tr>
-	                  <td colspan="2">
-	                    <strong>Descripción</strong>
-	                    {{ card.sheet.description|default:"-" }}
-	                  </td>
-	                </tr>
-	                <tr>
-	                  <td>
-	                    <strong>Reglas</strong>
-	                    {{ card.sheet.rules|default:"-" }}
-	                  </td>
-	                  <td>
-	                    <strong>Incidir en</strong>
-	                    {{ card.sheet.focus|default:"-" }}
-	                  </td>
-	                </tr>
-	                <tr>
-	                  <td>
-	                    <strong>Variantes</strong>
-	                    {{ card.sheet.variants|default:"-" }}
-	                  </td>
-	                  <td>
-	                    <strong>Criterio de éxito</strong>
-	                    {{ card.sheet.success|default:"-" }}
-	                  </td>
-	                </tr>
-	              </table>
+	        {% if task_cards %}
+	          {% for card in task_cards %}
+	          <div class="task-sheet-card">
+	            <div class="task-title">Tarea {{ forloop.counter }} · {{ card.sheet.title }}</div>
+	            <div class="task-meta">{{ card.sheet.block_label }} · {{ card.sheet.minutes }} min{% if card.sheet.type_label and card.sheet.type_label != '-' %} · {{ card.sheet.type_label }}{% endif %}</div>
+	            {% if card.preview_url %}
+	            <div class="task-graphic" style="margin-top:8px; margin-bottom:10px;">
+	              <img src="{{ card.preview_url }}" alt="Representación gráfica" />
 	            </div>
-	            {% endfor %}
-	          {% else %}
-	          <div>-</div>
-	          {% endif %}
-	        </div>
+	            {% endif %}
+	            <table class="task-sheet-grid">
+	              <tr>
+	                <td style="width:50%;">
+	                  <strong>Contenidos</strong>
+	                  {{ card.sheet.contents_label|default:"-" }}
+	                </td>
+	                <td style="width:50%;">
+	                  <strong>Estructura</strong>
+	                  {{ card.sheet.structure_label|default:"-" }}
+	                </td>
+	              </tr>
+	              <tr>
+	                <td>
+	                  <strong>Jugadores</strong>
+	                  {{ card.sheet.players_label|default:"-" }}
+	                </td>
+	                <td>
+	                  <strong>Dimensiones / material</strong>
+	                  {{ card.sheet.dimensions_label|default:"-" }}{% if card.sheet.materials_label and card.sheet.materials_label != '-' %} · {{ card.sheet.materials_label }}{% endif %}
+	                </td>
+	              </tr>
+	              <tr>
+	                <td colspan="2">
+	                  <strong>Descripción</strong>
+	                  {{ card.sheet.description|default:"-" }}
+	                </td>
+	              </tr>
+	              <tr>
+	                <td>
+	                  <strong>Reglas</strong>
+	                  {{ card.sheet.rules|default:"-" }}
+	                </td>
+	                <td>
+	                  <strong>Incidir en</strong>
+	                  {{ card.sheet.focus|default:"-" }}
+	                </td>
+	              </tr>
+	              <tr>
+	                <td>
+	                  <strong>Variantes</strong>
+	                  {{ card.sheet.variants|default:"-" }}
+	                </td>
+	                <td>
+	                  <strong>Criterio de éxito</strong>
+	                  {{ card.sheet.success|default:"-" }}
+	                </td>
+	              </tr>
+	            </table>
+	          </div>
+	          {% endfor %}
+	        {% else %}
+	        <div class="box">-</div>
+	        {% endif %}
 	      </div>
 
 	      <div class="footer">

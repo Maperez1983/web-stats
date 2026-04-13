@@ -15562,7 +15562,9 @@ def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
     )
     primary_club_team = _get_primary_team_for_request(request) or Team.objects.filter(is_primary=True).first()
     club_logo_url = resolve_team_crest_url(request, primary_club_team, sync=True) if primary_club_team else ''
-    logo_path = 'football/images/uefa-badge.svg' if pdf_style == 'uefa' else 'football/images/cdb-logo.png'
+    # Para PDF "club" preferimos el escudo real del equipo, no un logo corporativo (normalmente blanco).
+    team_logo_url = resolve_team_crest_url(request, team, sync=True) or ''
+    uefa_badge_url = request.build_absolute_uri(static('football/images/uefa-badge.svg'))
     task_sheets = [_build_session_task_sheet(task) for task in tasks]
 
     def _task_preview_data_url_for_pdf(task):
@@ -15659,7 +15661,7 @@ def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
         'pdf_style': pdf_style,
         'pdf_palette': _team_pdf_palette(team, pdf_style),
         'coach_name': coach_name,
-        'logo_url': request.build_absolute_uri(static(logo_path)),
+        'logo_url': team_logo_url if pdf_style == 'club' else uefa_badge_url,
         'brand_mark_url': request.build_absolute_uri(static('football/images/2j-mark.svg')),
         'club_logo_url': club_logo_url,
         'generated_at': timezone.localtime(),
