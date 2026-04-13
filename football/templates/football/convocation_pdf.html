@@ -116,6 +116,15 @@
         font-weight: 900;
         letter-spacing: 0.05em;
       }
+      .staff {
+        margin-top: 8px;
+        display: grid;
+        gap: 2px;
+        font-size: 10px;
+        color: #0f172a;
+        max-width: 520px;
+      }
+      .staff span { color: #475569; }
       .brand {
         text-align: right;
         min-width: 170px;
@@ -274,6 +283,14 @@
             <span>{{ club_hashtag }}</span>
           </div>
         </div>
+
+        {% if staff_lines %}
+        <div class="staff">
+          {% for line in staff_lines %}
+          <div><strong>{{ line.role }}</strong> <span>·</span> {{ line.name }}</div>
+          {% endfor %}
+        </div>
+        {% endif %}
 
         <div class="section-title">Jugadores convocados</div>
         <div class="players">

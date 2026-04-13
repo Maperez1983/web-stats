@@ -14040,6 +14040,26 @@ def convocation_pdf(request):
         season_name = ''
         group_name = ''
 
+    staff_lines = []
+    try:
+        workspace = _get_active_workspace(request)
+        if workspace and workspace.kind == Workspace.KIND_CLUB:
+            staff_qs = (
+                StaffMember.objects
+                .filter(workspace=workspace, is_active=True)
+                .filter(Q(team__isnull=True) | Q(team=primary_team))
+                .order_by('role_title', 'name', 'id')
+            )
+            for member in staff_qs[:8]:
+                staff_lines.append(
+                    {
+                        'role': (member.role_title or 'Staff').strip()[:60],
+                        'name': (member.name or '').strip()[:80],
+                    }
+                )
+    except Exception:
+        staff_lines = []
+
     context = {
         **_build_pdf_nav_urls(request),
         'team_name': primary_team.display_name,
@@ -14053,6 +14073,7 @@ def convocation_pdf(request):
         'rival_crest_src': rival_crest_src,
         'players': player_rows,
         'coach_name': os.getenv('TEAM_COACH_NAME', 'Aitor Castillo'),
+        'staff_lines': staff_lines,
         'club_hashtag': os.getenv('TEAM_HASHTAG', '#VamosVerdes'),
         'competition_name': competition_name or 'Competición',
         'season_name': season_name,
