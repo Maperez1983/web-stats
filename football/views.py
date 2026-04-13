@@ -1126,15 +1126,9 @@ def _build_pdf_response_or_html_fallback(request, html: str, filename: str, *, i
     logger.exception('WeasyPrint: error generando PDF (response): %s', pdf_error or 'unknown')
     if force_pdf:
         debug = str(request.GET.get('debug') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
-        debug_allowed = False
-        try:
-            user = getattr(request, 'user', None)
-            debug_allowed = bool(_is_admin_user(user))
-            if not debug_allowed:
-                workspace = _get_active_workspace(request)
-                debug_allowed = bool(workspace and _can_manage_workspace(user, workspace))
-        except Exception:
-            debug_allowed = False
+        # Para depurar PDFs en producción: el detalle solo se muestra si el usuario está autenticado.
+        # (Las vistas de PDF ya hacen checks de permisos por módulo/rol).
+        debug_allowed = bool(getattr(getattr(request, 'user', None), 'is_authenticated', False))
         if debug and debug_allowed:
             detail = (pdf_error or '').strip() or 'unknown'
             resp = HttpResponse(
@@ -1269,15 +1263,7 @@ def pdf_view_guard(view_func):
         except Exception as exc:  # pragma: no cover
             logger.exception('PDF view error: %s', getattr(view_func, '__name__', 'pdf_view'))
             debug = str(getattr(request, 'GET', {}).get('debug') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
-            debug_allowed = False
-            try:
-                user = getattr(request, 'user', None)
-                debug_allowed = bool(_is_admin_user(user))
-                if not debug_allowed:
-                    workspace = _get_active_workspace(request)
-                    debug_allowed = bool(workspace and _can_manage_workspace(user, workspace))
-            except Exception:
-                debug_allowed = False
+            debug_allowed = bool(getattr(getattr(request, 'user', None), 'is_authenticated', False))
             if debug and debug_allowed:
                 resp = HttpResponse(
                     f'No se pudo generar el PDF. {exc.__class__.__name__}: {exc}',
