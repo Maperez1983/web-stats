@@ -175,7 +175,12 @@
 	          <h1 class="player-name">{{ player.name }}</h1>
 	          <p class="player-sub">
 	            <span class="pill">#{{ player.number|default:"--" }}</span>
-	            <span class="pill light">{{ player.position|default:stats.dominant_position|default:"Sin posición" }}</span>
+              {% with dom=stats.dominant_position|default:"" staff=player.position|default:"" %}
+	            <span class="pill light">{% if dom %}{{ dom }}{% elif staff %}{{ staff }}{% else %}Sin posición{% endif %}</span>
+              {% if dom and staff and dom != staff %}
+              <span class="pill light">Staff: {{ staff }}</span>
+              {% endif %}
+              {% endwith %}
 	            <span class="pill light">Licencia: {% if license_exists %}OK{% else %}—{% endif %}</span>
 	          </p>
 

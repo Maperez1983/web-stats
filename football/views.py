@@ -26687,6 +26687,7 @@ def player_pdf(request, player_id):
         successes = int(entry.get('successes') or 0)
         goals = int(entry.get('goals') or 0)
         assists = int(entry.get('assists') or 0)
+        played_flag = bool(entry.get('played'))
         has_result = bool(
             (entry.get('home_score') is not None and entry.get('away_score') is not None)
             or str(entry.get('result') or '').strip()
@@ -26694,9 +26695,10 @@ def player_pdf(request, player_id):
         # Heurística robusta:
         # - Jugado si hay actividad (acciones/éxitos) o goles/asistencias por partido.
         # - Jugado si hay marcador/resultado.
+        # - Jugado si el dashboard marcó ese match como disputado (por 11 inicial/convocatoria).
         # Nota: NO usamos "fecha <= hoy" como único criterio, porque hay calendarios que
         # arrastran partidos con fecha pasada pero sin registros (y eso mostraba rivales incorrectos).
-        is_played = bool(actions > 0 or successes > 0 or goals > 0 or assists > 0 or has_result)
+        is_played = bool(played_flag or actions > 0 or successes > 0 or goals > 0 or assists > 0 or has_result)
         entry = {**entry, 'date_obj': match_date}
         if is_played:
             played_matches.append(entry)
@@ -28623,12 +28625,14 @@ def compute_player_dashboard(primary_team, force_refresh=False):
                 'home_score': match.home_score,
                 'away_score': match.away_score,
                 'result': (match.result or '').strip(),
+                'played': False,
                 'goals': 0,
                 'assists': 0,
                 'actions': 0,
                 'successes': 0,
             },
         )
+        match_entry['played'] = True
         match_entry['actions'] += 1
         if result_is_success(event.result):
             match_entry['successes'] += 1
@@ -28844,6 +28848,7 @@ def compute_player_dashboard(primary_team, force_refresh=False):
                 'home_score': None,
                 'away_score': None,
                 'result': '',
+                'played': True,
                 'goals': 0,
                 'assists': 0,
                 'actions': 0,
@@ -28904,6 +28909,7 @@ def compute_player_dashboard(primary_team, force_refresh=False):
                         'home_score': match.home_score,
                         'away_score': match.away_score,
                         'result': (match.result or '').strip(),
+                        'played': False,
                         'goals': 0,
                         'assists': 0,
                         'actions': 0,
@@ -28912,6 +28918,12 @@ def compute_player_dashboard(primary_team, force_refresh=False):
                     },
                 )
             if match_is_played:
+                try:
+                    match_entry = stats['matches'].get(match_id) if isinstance(stats.get('matches'), dict) else None
+                    if match_entry is not None:
+                        match_entry['played'] = True
+                except Exception:
+                    pass
                 stats['pt'] += 1
                 stats['pj'] += 1
                 stats['minutes'] += match_end
