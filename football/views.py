@@ -22675,9 +22675,15 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     'notes_key': 'activation',
                 },
                 {
-                    'key': 'main',
-                    'label': 'Principal',
-                    'block_keys': [SessionTask.BLOCK_MAIN_1, SessionTask.BLOCK_MAIN_2, SessionTask.BLOCK_SET_PIECES],
+                    'key': 'main_1',
+                    'label': 'Principal 1',
+                    'block_keys': [SessionTask.BLOCK_MAIN_1],
+                    'notes_key': 'main',
+                },
+                {
+                    'key': 'main_2',
+                    'label': 'Principal 2',
+                    'block_keys': [SessionTask.BLOCK_MAIN_2, SessionTask.BLOCK_SET_PIECES],
                     'notes_key': 'main',
                 },
                 {
@@ -22879,6 +22885,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         'football/sessions_planner.html',
         {
             'team_name': primary_team.display_name,
+            'primary_team_id': int(primary_team.id),
             'feedback': feedback,
             'error': error,
             'planner_tables_ready': planner_tables_ready,

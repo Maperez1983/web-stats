@@ -1372,14 +1372,23 @@
 	              {% endif %}
 	            </div>
 
-	            <div class="editor-box">
-	              <h3>Textos de sesión</h3>
-	              {% if selected_session %}
-	              <form method="post" class="grid">
-	                {% csrf_token %}
-	                <input type="hidden" name="planner_action" value="update_session_sections" />
-	                <input type="hidden" name="planner_tab" value="sessions" />
-	                <input type="hidden" name="sections_session_id" value="{{ selected_session.id }}" />
+		            <div class="editor-box">
+		              <h3>Textos de sesión</h3>
+		              {% if selected_session %}
+		              <div class="alert" id="session-texts-draft-banner" hidden>
+		                <strong>Borrador encontrado.</strong>
+		                <span style="opacity:0.9;">Se detectó un borrador local sin guardar para esta sesión.</span>
+		                <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.45rem;">
+		                  <button type="button" class="secondary" id="session-texts-draft-restore">Restaurar borrador</button>
+		                  <button type="button" class="danger" id="session-texts-draft-discard">Descartar</button>
+		                </div>
+		              </div>
+		              <p class="meta" id="session-texts-draft-status" style="margin:0.35rem 0 0.6rem;"></p>
+		              <form method="post" class="grid" id="session-texts-form" data-team-id="{{ primary_team_id }}" data-session-id="{{ selected_session.id }}" data-scope-key="{{ scope_key }}">
+		                {% csrf_token %}
+		                <input type="hidden" name="planner_action" value="update_session_sections" />
+		                <input type="hidden" name="planner_tab" value="sessions" />
+		                <input type="hidden" name="sections_session_id" value="{{ selected_session.id }}" />
 	                <label style="grid-column:1/-1;">
 	                  Calentamiento (opcional)
 	                  <textarea name="section_warmup" placeholder="Explica el calentamiento...">{{ selected_session_plan_fields.warmup|default:'' }}</textarea>
@@ -1396,11 +1405,11 @@
 	                  Vuelta a la calma (opcional)
 	                  <textarea name="section_cooldown" placeholder="Vuelta a la calma y recuperación...">{{ selected_session_plan_fields.cooldown|default:'' }}</textarea>
 	                </label>
-	                <div><button type="submit" class="primary">Guardar textos</button></div>
-	              </form>
-	              {% else %}
-	              <p class="empty">No hay sesiones creadas todavía. Crea una en la pestaña Microciclos.</p>
-	              {% endif %}
+		                <div><button type="submit" class="primary">Guardar textos</button></div>
+		              </form>
+		              {% else %}
+		              <p class="empty">No hay sesiones creadas todavía. Crea una en la pestaña Microciclos.</p>
+		              {% endif %}
 	            </div>
 	          </div>
 	        </section>
@@ -1446,16 +1455,16 @@
 	                </div>
 	              </form>
 
-	              {% if section.task_rows %}
-	              <div class="task-list">
-	                {% for row in section.task_rows %}
-	                <a class="task task-clickable" href="{% url 'session-task-detail' row.obj.id %}">
-	                  {% if row.obj.task_preview_image %}
-	                  <div class="task-media"><img src="{{ row.obj.task_preview_image.url }}" alt="Representación gráfica" loading="lazy" /></div>
-	                  {% else %}
-	                  <div class="task-media-fallback">Sin representación<br />{{ row.sheet.block_label }}</div>
-	                  {% endif %}
-	                  <div class="task-body">
+		              {% if section.task_rows %}
+		              <div class="task-list">
+		                {% for row in section.task_rows %}
+		                <a class="task task-clickable" href="{% url 'session-task-detail' row.obj.id %}">
+		                  {% if row.obj.task_preview_image or row.obj.task_pdf %}
+		                  <div class="task-media"><img src="{% url 'session-task-preview-file' row.obj.id %}?v={{ row.obj.id }}" alt="Representación gráfica" loading="lazy" /></div>
+		                  {% else %}
+		                  <div class="task-media-fallback">Sin representación<br />{{ row.sheet.block_label }}</div>
+		                  {% endif %}
+		                  <div class="task-body">
 	                    <h3>{{ row.sheet.title }}</h3>
 	                    <p class="meta">{{ row.sheet.block_label }} · {{ row.sheet.minutes }}'</p>
 	                  </div>
@@ -2240,27 +2249,131 @@
 
       {% endif %}
     </main>
-    <script>
-      (() => {
-        const cards = document.querySelectorAll('.task.task-clickable[data-detail-url]');
-        const isInteractiveTarget = (node) =>
-          !!node.closest('a, button, input, select, textarea, form');
-        if (cards.length) {
-          cards.forEach((card) => {
-            const detailUrl = card.getAttribute('data-detail-url');
-            if (!detailUrl) return;
-            card.addEventListener('click', (event) => {
-              if (isInteractiveTarget(event.target)) return;
-              window.location.href = detailUrl;
-            });
-            card.addEventListener('keydown', (event) => {
-              if (event.key !== 'Enter' && event.key !== ' ') return;
-              event.preventDefault();
-              window.location.href = detailUrl;
-            });
-          });
-        }
-      })();
-    </script>
-  </body>
-</html>
+	    <script>
+	      (() => {
+	        const cards = document.querySelectorAll('.task.task-clickable[data-detail-url]');
+	        const isInteractiveTarget = (node) =>
+	          !!node.closest('a, button, input, select, textarea, form');
+	        if (cards.length) {
+	          cards.forEach((card) => {
+	            const detailUrl = card.getAttribute('data-detail-url');
+	            if (!detailUrl) return;
+	            card.addEventListener('click', (event) => {
+	              if (isInteractiveTarget(event.target)) return;
+	              window.location.href = detailUrl;
+	            });
+	            card.addEventListener('keydown', (event) => {
+	              if (event.key !== 'Enter' && event.key !== ' ') return;
+	              event.preventDefault();
+	              window.location.href = detailUrl;
+	            });
+	          });
+	        }
+	      })();
+	
+	      (() => {
+	        const form = document.getElementById('session-texts-form');
+	        if (!form) return;
+	        let canStore = true;
+	        try {
+	          const testKey = '__ls_test__';
+	          window.localStorage.setItem(testKey, '1');
+	          window.localStorage.removeItem(testKey);
+	        } catch (e) {
+	          canStore = false;
+	        }
+	        if (!canStore) return;
+	
+	        const teamId = String(form.dataset.teamId || '').trim() || 'team';
+	        const sessionId = String(form.dataset.sessionId || '').trim() || 'session';
+	        const scopeKey = String(form.dataset.scopeKey || '').trim() || 'coach';
+	        const storageKey = `webstats:sessions:draft:${teamId}:${sessionId}:${scopeKey}:texts:v1`;
+	
+	        const fieldNames = ['section_warmup', 'section_activation', 'section_main', 'section_cooldown'];
+	        const fields = fieldNames
+	          .map((name) => form.querySelector(`[name="${name}"]`))
+	          .filter(Boolean);
+	        const banner = document.getElementById('session-texts-draft-banner');
+	        const restoreBtn = document.getElementById('session-texts-draft-restore');
+	        const discardBtn = document.getElementById('session-texts-draft-discard');
+	        const statusEl = document.getElementById('session-texts-draft-status');
+	
+	        const readValues = () => {
+	          const out = {};
+	          fieldNames.forEach((name) => {
+	            const el = form.querySelector(`[name="${name}"]`);
+	            out[name] = el ? String(el.value || '') : '';
+	          });
+	          return out;
+	        };
+	        const writeValues = (values) => {
+	          if (!values || typeof values !== 'object') return;
+	          fieldNames.forEach((name) => {
+	            const el = form.querySelector(`[name="${name}"]`);
+	            if (!el) return;
+	            if (values[name] === undefined) return;
+	            el.value = String(values[name] || '');
+	          });
+	        };
+	        const loadDraft = () => {
+	          try {
+	            const raw = window.localStorage.getItem(storageKey);
+	            if (!raw) return null;
+	            const parsed = JSON.parse(raw);
+	            if (!parsed || typeof parsed !== 'object') return null;
+	            if (!parsed.values || typeof parsed.values !== 'object') return null;
+	            return parsed;
+	          } catch (e) {
+	            return null;
+	          }
+	        };
+	        const saveDraft = (values) => {
+	          try {
+	            window.localStorage.setItem(storageKey, JSON.stringify({ ts: Date.now(), values: values || readValues() }));
+	            if (statusEl) statusEl.textContent = 'Borrador guardado.';
+	          } catch (e) {
+	            // ignore
+	          }
+	        };
+	        const clearDraft = () => {
+	          try {
+	            window.localStorage.removeItem(storageKey);
+	          } catch (e) {}
+	        };
+	        const debounce = (fn, ms) => {
+	          let t = null;
+	          return (...args) => {
+	            window.clearTimeout(t);
+	            t = window.setTimeout(() => fn(...args), ms);
+	          };
+	        };
+	
+	        const draft = loadDraft();
+	        if (draft && banner && restoreBtn && discardBtn) {
+	          const current = readValues();
+	          const differs = fieldNames.some((name) => String(draft.values[name] || '') !== String(current[name] || ''));
+	          if (differs) {
+	            banner.hidden = false;
+	            restoreBtn.addEventListener('click', () => {
+	              writeValues(draft.values);
+	              banner.hidden = true;
+	              saveDraft(readValues());
+	            });
+	            discardBtn.addEventListener('click', () => {
+	              clearDraft();
+	              banner.hidden = true;
+	              if (statusEl) statusEl.textContent = '';
+	            });
+	          }
+	        }
+	
+	        const scheduleSave = debounce(() => saveDraft(readValues()), 450);
+	        fields.forEach((el) => el.addEventListener('input', scheduleSave));
+	        form.addEventListener('submit', () => clearDraft());
+	        window.addEventListener('beforeunload', () => {
+	          saveDraft(readValues());
+	        });
+	      })();
+	    </script>
+	  </body>
+	</html>
