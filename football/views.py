@@ -14387,7 +14387,8 @@ def convocation_referee_pdf(request):
                     'license_image_uri': license_image_uri,
                 }
             )
-        grid_class = 'cols-4' if len(grid_players) > 12 else ''
+        grid_class = 'cols-4' if len(grid_players) > 10 else ''
+        dense = bool(len(grid_players) > 16)
         html = render_to_string(
             'football/referee_licenses_grid_pdf.html',
             {
@@ -14406,6 +14407,7 @@ def convocation_referee_pdf(request):
                 'location_label': convocation_record.location or (convocation_record.match.location if convocation_record.match else '') or 'Campo por confirmar',
                 'players': grid_players,
                 'grid_class': grid_class,
+                'dense': dense,
                 'staff_lines': staff_lines,
                 'generated_at': timezone.localtime(),
             },

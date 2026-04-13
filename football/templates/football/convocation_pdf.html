@@ -143,8 +143,9 @@
       }
       .players {
         margin-top: 8px;
-        column-count: 2;
-        column-gap: 12mm;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px 10px;
       }
       .player {
         break-inside: avoid;
@@ -155,7 +156,7 @@
         border: 1px solid #e2e8f0;
         border-radius: 12px;
         background: #ffffff;
-        margin: 0 0 6px;
+        margin: 0;
       }
       .avatar {
         width: 28px;
@@ -182,6 +183,9 @@
         overflow: hidden;
         text-overflow: ellipsis;
         max-width: 250px;
+      }
+      @media print {
+        .players { grid-template-columns: 1fr 1fr; }
       }
       .player-number {
         display: inline-block;

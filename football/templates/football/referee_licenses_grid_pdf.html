@@ -129,10 +129,11 @@
       }
       .grid {
         display: grid;
-        gap: 6mm;
+        gap: 5mm;
         grid-template-columns: repeat(3, minmax(0, 1fr));
       }
       .grid.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      .grid.dense { gap: 4mm; }
       .cell {
         border: 1px solid #cbd5e1;
         border-radius: 10px;
@@ -155,10 +156,11 @@
       }
       .cell-body {
         padding: 4px;
-        height: 56mm;
+        height: 52mm;
         display: table;
         width: 100%;
       }
+      .grid.dense .cell-body { height: 42mm; }
       .cell-body-inner {
         display: table-cell;
         vertical-align: middle;
@@ -166,13 +168,14 @@
       }
       .cell img {
         max-width: 100%;
-        max-height: 54mm;
+        max-height: 50mm;
         width: auto;
         height: auto;
         object-fit: contain;
         background: white;
         border-radius: 8px;
       }
+      .grid.dense .cell img { max-height: 40mm; }
       .missing {
         font-size: 10px;
         color: #64748b;
@@ -233,7 +236,7 @@
       <p class="title">Licencias federativas · Árbitro</p>
     </div>
 
-    <div class="grid {{ grid_class }}">
+    <div class="grid {{ grid_class }} {% if dense %}dense{% endif %}">
       {% for p in players %}
         <section class="cell">
           <div class="cell-head">#{{ p.number|default:"--" }} · {{ p.name }}</div>
