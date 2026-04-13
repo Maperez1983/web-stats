@@ -15569,6 +15569,14 @@ def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
             team_logo_url = _file_field_as_data_url(getattr(team, 'crest_image', None)) or ''
     except Exception:
         team_logo_url = ''
+    if not team_logo_url and _is_benagalbon_team(team):
+        try:
+            crest_path = Path(getattr(settings, 'BASE_DIR', Path.cwd())) / 'static' / 'football' / 'images' / 'cdb-benagalbon-crest.png'
+            raw = crest_path.read_bytes()
+            if raw:
+                team_logo_url = "data:image/png;base64," + base64.b64encode(raw).decode("ascii")
+        except Exception:
+            team_logo_url = ''
     if not team_logo_url:
         try:
             hue = _team_color_seed(team)

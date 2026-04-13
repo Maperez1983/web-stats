@@ -2549,6 +2549,16 @@
 	        const scheduleServerSave = debounce(() => { void saveServer(); }, 1100);
 	        fields.forEach((el) => el.addEventListener('input', scheduleSave));
 	        fields.forEach((el) => el.addEventListener('input', scheduleServerSave));
+	
+	        // Si la sesión ya tiene textos (renderizados desde servidor o restaurados localmente),
+	        // intentamos persistirlos una vez en backend para que el PDF siempre los recoja,
+	        // incluso si el usuario no vuelve a pulsar "Guardar textos".
+	        try {
+	          const hasAnyText = fields.some((el) => String(el.value || '').trim().length > 0);
+	          if (hasAnyText) {
+	            window.setTimeout(() => { void saveServer(); }, 900);
+	          }
+	        } catch (e) {}
 	        form.addEventListener('submit', () => clearDraft());
 	        window.addEventListener('beforeunload', () => {
 	          saveDraft(readValues());
