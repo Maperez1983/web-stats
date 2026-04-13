@@ -21875,6 +21875,35 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     copied.save(update_fields=['block'])
                 feedback = (f'Tarea asignada a sesión: {copied.title}.' if replace_existing else f'Tarea copiada a sesión: {copied.title}.')
 
+            elif planner_action == 'move_task_to_block':
+                task_id = _parse_int(request.POST.get('task_id'))
+                target_block = str(request.POST.get('target_block') or '').strip()
+                target_session_id = _parse_int(request.POST.get('target_session_id'))
+                if not task_id or not target_block:
+                    raise ValueError('No se pudo mover la tarea.')
+                if target_block not in {choice[0] for choice in SessionTask.BLOCK_CHOICES}:
+                    raise ValueError('Bloque destino no válido.')
+                task_obj = (
+                    SessionTask.objects
+                    .select_related('session__microcycle')
+                    .filter(id=task_id, session__microcycle__team=primary_team, deleted_at__isnull=True)
+                    .first()
+                )
+                if not task_obj:
+                    raise ValueError('Tarea no encontrada.')
+                if _task_scope_for_item(task_obj) != scope_key:
+                    raise ValueError('La tarea no pertenece a este espacio.')
+                if target_session_id and int(task_obj.session_id) != int(target_session_id):
+                    raise ValueError('La tarea no pertenece a la sesión activa.')
+                if str(getattr(task_obj, 'block', '') or '') != target_block:
+                    task_obj.block = target_block
+                    task_obj.save(update_fields=['block'])
+                # No tocamos orden aquí: el usuario puede reordenar con ↑ ↓. Solo aseguramos consistencia.
+                _normalize_session_task_orders(task_obj.session)
+                feedback = f'Tarea movida a bloque: {dict(SessionTask.BLOCK_CHOICES).get(target_block, target_block)}.'
+                active_tab = 'sessions'
+                auto_selected_session_id = int(task_obj.session_id)
+
             elif planner_action == 'move_session_task':
                 task_id = _parse_int(request.POST.get('task_id'))
                 direction = str(request.POST.get('move_direction') or '').strip().lower()

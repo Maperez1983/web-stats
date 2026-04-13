@@ -490,6 +490,10 @@
         font-size: 0.72rem;
         color: rgba(226, 232, 240, 0.84);
       }
+      .editor-box.is-drop-target {
+        outline: 2px dashed rgba(34, 211, 238, 0.7);
+        outline-offset: 4px;
+      }
       .task-content {
         padding: 0.75rem;
       }
@@ -1416,13 +1420,22 @@
 	          </div>
 	        </section>
 
-	        {% if selected_session %}
-	        <section class="panel">
-	          <h2>Tareas por bloque</h2>
-	          <div class="editor-grid">
-	            {% for section in selected_session_task_sections %}
-	            <div class="editor-box">
-	              <h3>{{ section.label }}</h3>
+		        {% if selected_session %}
+		        <section class="panel">
+		          <h2>Tareas por bloque</h2>
+		          <form id="drag-move-task-form" method="post" style="display:none;">
+		            {% csrf_token %}
+		            <input type="hidden" name="planner_action" value="move_task_to_block" />
+		            <input type="hidden" name="planner_tab" value="sessions" />
+		            <input type="hidden" name="selected_session_id" value="{{ selected_session.id }}" />
+		            <input type="hidden" name="target_session_id" value="{{ selected_session.id }}" />
+		            <input type="hidden" name="task_id" value="" />
+		            <input type="hidden" name="target_block" value="" />
+		          </form>
+		          <div class="editor-grid">
+		            {% for section in selected_session_task_sections %}
+		            <div class="editor-box" data-drop-block="{{ section.block_keys.0|default:'' }}">
+		              <h3>{{ section.label }}</h3>
 		              <form method="post" class="grid" style="margin-bottom:0.6rem;">
 		                {% csrf_token %}
 		                <input type="hidden" name="planner_action" value="copy_library_task_to_session" />
@@ -1458,14 +1471,14 @@
 		                </div>
 		              </form>
 
-		              {% if section.task_rows %}
-		              <div class="task-list">
-		                {% for row in section.task_rows %}
-		                <a class="task task-clickable" href="{% url 'session-task-detail' row.obj.id %}">
-		                  {% if row.obj.task_preview_image or row.obj.task_pdf %}
-		                  <div class="task-media"><img src="{% url 'session-task-preview-file' row.obj.id %}?v={{ row.obj.id }}" alt="Representación gráfica" loading="lazy" /></div>
-		                  {% else %}
-		                  <div class="task-media-fallback">Sin representación<br />{{ row.sheet.block_label }}</div>
+			              {% if section.task_rows %}
+			              <div class="task-list">
+			                {% for row in section.task_rows %}
+			                <a class="task task-clickable" href="{% url 'session-task-detail' row.obj.id %}" draggable="true" data-task-id="{{ row.obj.id }}" data-task-block="{{ row.obj.block }}">
+			                  {% if row.obj.task_preview_image or row.obj.task_pdf %}
+			                  <div class="task-media"><img src="{% url 'session-task-preview-file' row.obj.id %}?v={{ row.obj.id }}" alt="Representación gráfica" loading="lazy" /></div>
+			                  {% else %}
+			                  <div class="task-media-fallback">Sin representación<br />{{ row.sheet.block_label }}</div>
 		                  {% endif %}
 		                  <div class="task-body">
 	                    <h3>{{ row.sheet.title }}</h3>
@@ -1474,15 +1487,68 @@
 	                </a>
 	                {% endfor %}
 	              </div>
-	              {% else %}
-	              <p class="empty">Sin tareas en este bloque.</p>
-	              {% endif %}
-	            </div>
-	            {% endfor %}
-	          </div>
-	        </section>
-	        {% endif %}
-	      </div>
+			              {% else %}
+			              <p class="empty">Sin tareas en este bloque.</p>
+			              {% endif %}
+		            </div>
+		            {% endfor %}
+		          </div>
+		        </section>
+		        <script>
+		          (function () {
+		            const form = document.getElementById('drag-move-task-form');
+		            if (!form) return;
+		            const taskIdInput = form.querySelector('input[name="task_id"]');
+		            const targetBlockInput = form.querySelector('input[name="target_block"]');
+		            let draggingTaskId = '';
+		            let draggingFromBlock = '';
+		
+		            const dropZones = Array.from(document.querySelectorAll('[data-drop-block]'));
+		            const normalize = (value) => String(value || '').trim();
+		
+		            const clearHighlights = () => {
+		              dropZones.forEach((zone) => zone.classList.remove('is-drop-target'));
+		            };
+		
+		            document.addEventListener('dragstart', (event) => {
+		              const card = event.target.closest('[data-task-id]');
+		              if (!card) return;
+		              draggingTaskId = normalize(card.dataset.taskId);
+		              draggingFromBlock = normalize(card.dataset.taskBlock);
+		              if (!draggingTaskId) return;
+		              try { event.dataTransfer.effectAllowed = 'move'; } catch (e) {}
+		              try { event.dataTransfer.setData('text/plain', draggingTaskId); } catch (e) {}
+		              dropZones.forEach((zone) => zone.classList.add('is-drop-target'));
+		            });
+		
+		            document.addEventListener('dragend', () => {
+		              draggingTaskId = '';
+		              draggingFromBlock = '';
+		              clearHighlights();
+		            });
+		
+		            dropZones.forEach((zone) => {
+		              zone.addEventListener('dragover', (event) => {
+		                if (!draggingTaskId) return;
+		                event.preventDefault();
+		                try { event.dataTransfer.dropEffect = 'move'; } catch (e) {}
+		              });
+		              zone.addEventListener('drop', (event) => {
+		                event.preventDefault();
+		                const targetBlock = normalize(zone.dataset.dropBlock);
+		                const taskId = draggingTaskId || normalize(event.dataTransfer?.getData?.('text/plain'));
+		                if (!taskId || !targetBlock) return;
+		                if (draggingFromBlock && targetBlock === draggingFromBlock) return;
+		                if (taskIdInput) taskIdInput.value = taskId;
+		                if (targetBlockInput) targetBlockInput.value = targetBlock;
+		                clearHighlights();
+		                form.submit();
+		              });
+		            });
+		          })();
+		        </script>
+		        {% endif %}
+		      </div>
 
 	      <div class="tab-panel {% if active_tab == 'microcycles' %}is-active{% endif %}" data-tab="microcycles">
 	        <section class="panel">
