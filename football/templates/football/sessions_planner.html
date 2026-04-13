@@ -500,14 +500,16 @@
 	        border-radius: 999px;
 	        background: rgba(127, 29, 29, 0.55);
 	        color: #fecaca;
-	        padding: 0.32rem 0.62rem;
-	        letter-spacing: 0.06em;
-	        text-transform: uppercase;
-	        font-size: 0.66rem;
-	        font-weight: 800;
+	        width: 34px;
+	        height: 34px;
+	        display: inline-flex;
+	        align-items: center;
+	        justify-content: center;
+	        padding: 0;
 	        cursor: pointer;
 	      }
 	      .task-trash:hover { border-color: rgba(248, 113, 113, 0.75); background: rgba(127, 29, 29, 0.7); }
+	      .task-trash svg { width: 18px; height: 18px; fill: currentColor; display: block; }
       .editor-box.is-drop-target {
         outline: 2px dashed rgba(34, 211, 238, 0.7);
         outline-offset: 4px;
@@ -1500,7 +1502,11 @@
 			              <div class="task-list">
 			                {% for row in section.task_rows %}
 			                <a class="task task-clickable" href="{% url 'session-task-detail' row.obj.id %}" draggable="true" data-task-id="{{ row.obj.id }}" data-task-block="{{ row.obj.block }}">
-			                  <button type="button" class="task-trash" data-delete-task-id="{{ row.obj.id }}" title="Quitar de la sesión" aria-label="Quitar de la sesión">Papelera</button>
+			                  <button type="button" class="task-trash" data-delete-task-id="{{ row.obj.id }}" title="Quitar de la sesión" aria-label="Quitar de la sesión">
+			                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+			                      <path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm1 6h2v9h-2V9Zm4 0h2v9h-2V9ZM7 9h2v9H7V9Zm-1 13h12a2 2 0 0 0 2-2V9H4v11a2 2 0 0 0 2 2Z" />
+			                    </svg>
+			                  </button>
 			                  {% if row.obj.task_preview_image or row.obj.task_pdf %}
 			                  <div class="task-media"><img src="{% url 'session-task-preview-file' row.obj.id %}?v={{ row.obj.id }}" alt="Representación gráfica" loading="lazy" /></div>
 			                  {% else %}
