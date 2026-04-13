@@ -142,7 +142,8 @@
         font-size: 8px;
         letter-spacing: 0.08em;
         text-transform: uppercase;
-        color: #64748b;
+        color: {% if pdf_style == 'club' %}{{ pdf_palette.primary }}{% else %}#64748b{% endif %};
+        font-weight: 800;
       }
       .task-title {
         font-size: 13px;
@@ -161,21 +162,16 @@
 
 	      .task-graphic {
 	        width: 100%;
-	        height: 240px;
-	        border: 1px solid #d5dde7;
-	        border-radius: 10px;
-	        background: #f8fafc;
-	        display: flex;
-	        align-items: center;
-	        justify-content: center;
-	        overflow: hidden;
+	        border: none;
+	        border-radius: 0;
+	        background: transparent;
+	        overflow: visible;
+	        line-height: 0;
 	      }
-	      /* WeasyPrint: `object-fit` con <img> puede recortar según versión;
-	         background-size:contain es más estable. */
-	      .task-graphic.has-bg {
-	        background-position: center center;
-	        background-repeat: no-repeat;
-	        background-size: contain;
+	      .task-graphic img {
+	        width: 100%;
+	        height: auto;
+	        display: block;
 	      }
 	      .task-sheet-card {
 	        page-break-inside: avoid;
@@ -306,9 +302,11 @@
 
 	          <div class="uefa-section-head">DESCRIPCIÓN GRÁFICA</div>
 	          {% if card.preview_url %}
-	          <div class="task-graphic has-bg" style="height:260px; margin-bottom:10px; background-image:url('{{ card.preview_url }}');"></div>
+	          <div class="task-graphic" style="margin-bottom:10px;">
+	            <img src="{{ card.preview_url }}" alt="Representación gráfica" />
+	          </div>
 	          {% else %}
-	          <div class="task-graphic" style="height:260px; margin-bottom:10px;">
+	          <div class="task-graphic" style="margin-bottom:10px; line-height:1.2;">
 	            <div style="color:#6b7280;">(Sin representación gráfica)</div>
 	          </div>
 	          {% endif %}
@@ -367,7 +365,7 @@
 	          <tr>
 	            <td style="width:74px; vertical-align:top;">
 	              <a href="{{ pdf_return_url|default:platform_url }}" style="text-decoration:none; color:inherit;">
-	                <img src="{{ logo_url }}" alt="Escudo {{ team_name }}" style="width:62px; height:62px; object-fit:contain; border-radius:999px; background:rgba(255,255,255,0.92); padding:4px; border:1px solid rgba(15,23,42,0.12); box-shadow:0 1px 0 rgba(0,0,0,0.12);" />
+	                <img src="{{ logo_url }}" alt="Escudo {{ team_name }}" style="width:62px; height:62px; object-fit:contain; border-radius:999px; background:linear-gradient(135deg, rgba(255,255,255,0.92), rgba(11,18,32,0.22)); padding:4px; border:1px solid rgba(15,23,42,0.12); box-shadow:0 1px 0 rgba(0,0,0,0.12);" />
 	              </a>
 	            </td>
             <td style="vertical-align:top;">
@@ -458,7 +456,9 @@
 	            <div class="task-title">Tarea {{ forloop.counter }} · {{ card.sheet.title }}</div>
 	            <div class="task-meta">{{ card.sheet.block_label }} · {{ card.sheet.minutes }} min{% if card.sheet.type_label and card.sheet.type_label != '-' %} · {{ card.sheet.type_label }}{% endif %}</div>
 	              {% if card.preview_url %}
-	              <div class="task-graphic has-bg" style="margin-top:8px; margin-bottom:10px; background-image:url('{{ card.preview_url }}');"></div>
+	              <div class="task-graphic" style="margin-top:8px; margin-bottom:10px;">
+	                <img src="{{ card.preview_url }}" alt="Representación gráfica" />
+	              </div>
 	              {% endif %}
 	            <table class="task-sheet-grid">
 	              <tr>
