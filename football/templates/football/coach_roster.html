@@ -229,7 +229,7 @@
         {% if active_tab == 'stats' %}
           <div class="card-grid">
             {% for card in player_cards %}
-              <a class="player-card" href="{% url 'player-detail' player_id=card.player_id %}{{ tab_link_stats|default:'' }}">
+              <a class="player-card" href="{% url 'player-detail' player_id=card.player_id %}{{ active_team_query|default:'' }}">
                 <img src="{% if card.photo_url %}{{ card.photo_url }}{% else %}{% static 'football/images/player-avatar.svg' %}{% endif %}" alt="Foto {{ card.name }}" loading="lazy" />
                 <div>
                   <h3>{{ card.name }}</h3>

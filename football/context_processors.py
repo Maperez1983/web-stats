@@ -74,6 +74,12 @@ def workspace_access(request):
             except Exception:
                 pass
     active_team = _get_active_team_for_request(request)
+    active_team_query = ''
+    try:
+        if active_team and getattr(active_team, 'id', None):
+            active_team_query = f'?team={int(active_team.id)}'
+    except Exception:
+        active_team_query = ''
     badge = _build_active_workspace_badge(request)
     entry_url = _workspace_entry_url(workspace, user=request.user) if workspace else ''
     try:
@@ -158,6 +164,7 @@ def workspace_access(request):
         'club_dashboard_url': club_dashboard_url,
         'workspace_module_access': module_access,
         'active_team': active_team,
+        'active_team_query': active_team_query,
         'active_team_options': team_options,
         'team_switcher_enabled': bool(team_switcher_enabled),
         'active_workspace_options': workspace_options,
