@@ -1305,10 +1305,11 @@
 		    };
 		    let stageFactorPortrait = readStageFactor(STAGE_SIZE_KEY_PORTRAIT, 0.82);
 		    let stageFactorLandscape = readStageFactor(STAGE_SIZE_KEY_LANDSCAPE, 1.0);
-	    let spacePanArmed = false;
-	    let spacePanning = false;
-	    let spacePanStart = null;
-	    let backgroundPickMode = false;
+		    let spacePanArmed = false;
+		    let spacePanning = false;
+		    let spacePanStart = null;
+		    let backgroundPickMode = false;
+		    let freeDrawMode = false;
 	    const useViewportMapping = (() => {
 	      const flag = safeText(urlParams?.get('tpad_vpt'));
 	      if (flag === '0') return false;
@@ -1321,7 +1322,18 @@
 	    if (!Number.isFinite(pitchZoom)) pitchZoom = 1.0;
 	    pitchZoom = clamp(pitchZoom, 0.8, 1.6);
 
-	    const clampScale = (value) => clamp(Number(value) || 1, 0.4, 2.6);
+		    const clampScale = (value, maxScale = 2.6) => clamp(Number(value) || 1, 0.4, Number(maxScale) || 2.6);
+		    const isLongStrokeObject = (obj) => {
+		      const kind = safeText(obj?.data?.kind).toLowerCase();
+		      if (!kind) return false;
+		      return kind === 'line'
+		        || kind.startsWith('line-')
+		        || kind.startsWith('line_')
+		        || kind === 'arrow'
+		        || kind.startsWith('arrow-')
+		        || kind.startsWith('arrow_');
+		    };
+		    const maxScaleForObject = (obj) => (isLongStrokeObject(obj) ? 12.0 : 2.6);
 	    const worldSize = () => {
 	      const w = Number(worldWidth) || 0;
 	      const h = Number(worldHeight) || 0;
@@ -1922,17 +1934,21 @@
 	      if (!selectionToolbar || !selectionSummary || !scaleXInput || !scaleYInput || !rotationInput || !colorInput) return;
 	      const active = activeInspectableObject();
 	      const enabled = !!active;
-	      if (!enabled) {
-	        selectionToolbar.hidden = true;
-	        selectionToolbar.querySelectorAll('input,button').forEach((node) => { node.disabled = true; });
+		      if (!enabled) {
+		        selectionToolbar.hidden = true;
+		        selectionToolbar.querySelectorAll('input,button').forEach((node) => { node.disabled = true; });
 	        if (tokenMetaRow) tokenMetaRow.hidden = true;
 	        if (tokenSizePresetsRow) tokenSizePresetsRow.hidden = true;
 	        if (scalePresetsRow) scalePresetsRow.hidden = false;
 	        if (tokenNameInput) tokenNameInput.value = '';
 	        if (tokenNumberInput) tokenNumberInput.value = '';
-	        selectionSummary.textContent = 'Selecciona un recurso para ajustarlo.';
-	        scaleXInput.value = '100';
-	        scaleYInput.value = '100';
+		        selectionSummary.textContent = 'Selecciona un recurso para ajustarlo.';
+		        try {
+		          if (scaleXInput) scaleXInput.max = '260';
+		          if (scaleYInput) scaleYInput.max = '260';
+		        } catch (e) { /* ignore */ }
+		        scaleXInput.value = '100';
+		        scaleYInput.value = '100';
 	        rotationInput.value = '0';
 	        colorInput.value = '#22d3ee';
 	        if (strokeWidthRow) strokeWidthRow.hidden = true;
@@ -1940,14 +1956,19 @@
 	        if (strokeWidthInput) strokeWidthInput.value = '3';
 	        return;
 	      }
-      selectionToolbar.hidden = false;
-      const canColor = isColorizableObject(active);
-      selectionToolbar.querySelectorAll('input,button').forEach((node) => { node.disabled = false; });
-      colorInput.disabled = !canColor;
-      selectionToolbar.querySelectorAll('button[data-color]').forEach((node) => { node.disabled = !canColor; });
-      selectionSummary.textContent = `Ajustando ${objectLabel(active)} seleccionado.`;
-      scaleXInput.value = String(Math.round((Number(active.scaleX) || 1) * 100));
-      scaleYInput.value = String(Math.round((Number(active.scaleY) || 1) * 100));
+	      selectionToolbar.hidden = false;
+	      const canColor = isColorizableObject(active);
+	      selectionToolbar.querySelectorAll('input,button').forEach((node) => { node.disabled = false; });
+	      colorInput.disabled = !canColor;
+	      selectionToolbar.querySelectorAll('button[data-color]').forEach((node) => { node.disabled = !canColor; });
+	      selectionSummary.textContent = `Ajustando ${objectLabel(active)} seleccionado.`;
+	      try {
+	        const longStroke = isLongStrokeObject(active);
+	        if (scaleXInput) scaleXInput.max = longStroke ? '1200' : '260';
+	        if (scaleYInput) scaleYInput.max = longStroke ? '520' : '260';
+	      } catch (e) { /* ignore */ }
+	      scaleXInput.value = String(Math.round((Number(active.scaleX) || 1) * 100));
+	      scaleYInput.value = String(Math.round((Number(active.scaleY) || 1) * 100));
       rotationInput.value = String(Math.round(Number(active.angle) || 0));
       colorInput.value = objectPreferredColor(active);
 	      const strokeWidth = getObjectStrokeWidth(active);
@@ -5019,41 +5040,41 @@
 	      if (kind === 'goal_posts') return (left, top) => buildGoalGroup(left, top, 'posts');
 	      if (kind === 'goal_3d') return (left, top) => buildGoalGroup(left, top, '3d');
 	      if (kind === 'goal_mini') return (left, top) => buildGoalGroup(left, top, 'mini', { width: 96, height: 56 });
-	      if (kind === 'line' || kind === 'line_solid') {
-	        return (left, top) => new fabric.Line([-55, 0, 55, 0], {
-	          left, top, originX: 'center', originY: 'center',
-	          stroke: '#f8fafc', strokeWidth: 3, data: { kind: 'line' },
-	        });
-	      }
-	      if (kind === 'line_thick') {
-	        return (left, top) => new fabric.Line([-65, 0, 65, 0], {
-	          left,
-	          top,
-	          originX: 'center',
+		      if (kind === 'line' || kind === 'line_solid') {
+		        return (left, top) => new fabric.Line([-220, 0, 220, 0], {
+		          left, top, originX: 'center', originY: 'center',
+		          stroke: '#f8fafc', strokeWidth: 3, data: { kind: 'line' },
+		        });
+		      }
+		      if (kind === 'line_thick') {
+		        return (left, top) => new fabric.Line([-240, 0, 240, 0], {
+		          left,
+		          top,
+		          originX: 'center',
 	          originY: 'center',
 	          stroke: '#f8fafc',
 	          strokeWidth: 7,
 	          data: { kind: 'line-thick' },
 	        });
+		      }
+		      if (kind === 'line_dash') {
+		        return (left, top) => new fabric.Line([-220, 0, 220, 0], {
+		          left, top, originX: 'center', originY: 'center',
+		          stroke: '#f8fafc', strokeWidth: 3, strokeDashArray: [12, 8], data: { kind: 'line-dash' },
+		        });
+		      }
+		      if (kind === 'line_dot') {
+		        return (left, top) => new fabric.Line([-220, 0, 220, 0], {
+		          left, top, originX: 'center', originY: 'center',
+		          stroke: '#f8fafc', strokeWidth: 3, strokeDashArray: [2, 9], strokeLineCap: 'round', data: { kind: 'line-dot' },
+		        });
+		      }
+	      if (kind === 'line_double') {
+	        return (left, top) => new fabric.Group([
+	          new fabric.Line([-220, -10, 220, -10], { stroke: '#f8fafc', strokeWidth: 3 }),
+	          new fabric.Line([-220, 10, 220, 10], { stroke: '#f8fafc', strokeWidth: 3 }),
+	        ], { left, top, originX: 'center', originY: 'center', data: { kind: 'line-double' } });
 	      }
-	      if (kind === 'line_dash') {
-	        return (left, top) => new fabric.Line([-55, 0, 55, 0], {
-	          left, top, originX: 'center', originY: 'center',
-	          stroke: '#f8fafc', strokeWidth: 3, strokeDashArray: [12, 8], data: { kind: 'line-dash' },
-	        });
-	      }
-	      if (kind === 'line_dot') {
-	        return (left, top) => new fabric.Line([-55, 0, 55, 0], {
-	          left, top, originX: 'center', originY: 'center',
-	          stroke: '#f8fafc', strokeWidth: 3, strokeDashArray: [2, 9], strokeLineCap: 'round', data: { kind: 'line-dot' },
-	        });
-	      }
-      if (kind === 'line_double') {
-        return (left, top) => new fabric.Group([
-          new fabric.Line([-55, -8, 55, -8], { stroke: '#f8fafc', strokeWidth: 3 }),
-          new fabric.Line([-55, 8, 55, 8], { stroke: '#f8fafc', strokeWidth: 3 }),
-        ], { left, top, originX: 'center', originY: 'center', data: { kind: 'line-double' } });
-      }
 	      const buildArrowGroup = (left, top, options = {}) => {
 	        const stroke = safeText(options.stroke, '#22d3ee');
 	        const strokeWidth = clamp(Number(options.strokeWidth) || 4, 2, 18);
@@ -5061,7 +5082,7 @@
 	        const cap = safeText(options.cap, 'round') || 'round';
 	        const headSize = clamp(Number(options.headSize) || (strokeWidth >= 7 ? 28 : 18), 14, 44);
 	        const headOffset = clamp(Number(options.headOffset) || (headSize / 2 + 6), 14, 60);
-	        const baseLen = clamp(Number(options.baseLen) || 90, 60, 160);
+		        const baseLen = clamp(Number(options.baseLen) || 320, 60, 520);
 	        const kind = safeText(options.kind, 'arrow');
 
 	        const line = new fabric.Line([-(baseLen / 2), 0, (baseLen / 2) - (headSize / 2), 0], {
@@ -5456,11 +5477,12 @@
 	        button.appendChild(name);
 	        button.appendChild(disk);
 	        registerDraggableButton(button, () => ({ kind, playerId: String(player.id) }));
-		        button.addEventListener('click', () => {
-		          Array.from(playerBank.querySelectorAll('button')).forEach((item) => item.classList.remove('is-active'));
-		          button.classList.add('is-active');
-		          activateFactory(playerTokenFactory(kind, player), safeText(player.name, 'el jugador'), kind);
-			        });
+			        button.addEventListener('click', () => {
+			          if (freeDrawMode) handleCanvasAction('draw_free');
+			          Array.from(playerBank.querySelectorAll('button')).forEach((item) => item.classList.remove('is-active'));
+			          button.classList.add('is-active');
+			          activateFactory(playerTokenFactory(kind, player), safeText(player.name, 'el jugador'), kind);
+				        });
 		        playerBank.appendChild(button);
 		      });
 		      schedulePlayerBankUpdate();
@@ -6589,31 +6611,37 @@
       pushHistory();
     });
 
-    scaleXInput?.addEventListener('input', () => {
-      applyToActiveFlexibleObject((active) => {
-        active.scaleX = clampScale(Number(scaleXInput.value) / 100);
-      }, 'Longitud actualizada.');
-    });
-    scaleYInput?.addEventListener('input', () => {
-      applyToActiveFlexibleObject((active) => {
-        active.scaleY = clampScale(Number(scaleYInput.value) / 100);
-      }, 'Altura actualizada.');
-    });
+	    scaleXInput?.addEventListener('input', () => {
+	      applyToActiveFlexibleObject((active) => {
+	        active.scaleX = clampScale(Number(scaleXInput.value) / 100, maxScaleForObject(active));
+	      }, 'Longitud actualizada.');
+	    });
+	    scaleYInput?.addEventListener('input', () => {
+	      applyToActiveFlexibleObject((active) => {
+	        active.scaleY = clampScale(Number(scaleYInput.value) / 100, maxScaleForObject(active));
+	      }, 'Altura actualizada.');
+	    });
     rotationInput?.addEventListener('input', () => {
       applyToActiveFlexibleObject((active) => {
         active.rotate(Number(rotationInput.value) || 0);
       }, 'Orientación actualizada.');
     });
-    colorInput?.addEventListener('input', () => {
-      applyToActiveFlexibleObject((active) => {
-        applyObjectColor(active, colorInput.value || '#22d3ee');
-      }, 'Color actualizado.');
-    });
-    strokeWidthInput?.addEventListener('input', () => {
-      applyToActiveFlexibleObject((active) => {
-        applyObjectStrokeWidth(active, Number(strokeWidthInput.value) || 3);
-      }, 'Grosor actualizado.');
-    });
+	    colorInput?.addEventListener('input', () => {
+	      applyToActiveFlexibleObject((active) => {
+	        applyObjectColor(active, colorInput.value || '#22d3ee');
+	      }, 'Color actualizado.');
+	      if (freeDrawMode && canvas && canvas.freeDrawingBrush) {
+	        try { canvas.freeDrawingBrush.color = colorInput.value || '#22d3ee'; } catch (e) { /* ignore */ }
+	      }
+	    });
+	    strokeWidthInput?.addEventListener('input', () => {
+	      applyToActiveFlexibleObject((active) => {
+	        applyObjectStrokeWidth(active, Number(strokeWidthInput.value) || 3);
+	      }, 'Grosor actualizado.');
+	      if (freeDrawMode && canvas && canvas.freeDrawingBrush) {
+	        try { canvas.freeDrawingBrush.width = clamp(Number(strokeWidthInput.value) || 4, 1, 26); } catch (e) { /* ignore */ }
+	      }
+	    });
 		    selectionToolbar?.addEventListener('click', (event) => {
 		      const button = event.target.closest('button');
 		      if (!button) return;
@@ -6640,7 +6668,8 @@
 		      }
 		      const scalePreset = Number(button.dataset.scalePreset);
 		      if (!Number.isNaN(scalePreset) && button.dataset.scalePreset !== undefined) {
-		        const next = clampScale(scalePreset / 100);
+		        const active = activeInspectableObject();
+		        const next = clampScale(scalePreset / 100, maxScaleForObject(active));
 		        if (scaleXInput) scaleXInput.value = String(scalePreset);
 		        if (scaleYInput) scaleYInput.value = String(scalePreset);
 		        applyToActiveFlexibleObject((active) => {
@@ -6682,15 +6711,65 @@
 	      }
     });
 
-    const handleCanvasAction = (action) => {
-      if (action === 'select') {
-        pendingFactory = null;
-        Array.from(toolStrip?.querySelectorAll('[data-add]') || []).forEach((item) => item.classList.remove('is-active'));
-        Array.from(playerBank?.querySelectorAll('button') || []).forEach((item) => item.classList.remove('is-active'));
-        setStatus('Modo selección activo.');
-        return true;
-      }
-      if (action === 'undo') return performUndo();
+	    const handleCanvasAction = (action) => {
+	      const setFreeDrawMode = (enabled) => {
+	        freeDrawMode = !!enabled;
+	        try {
+	          canvas.isDrawingMode = freeDrawMode;
+	          canvas.selection = !freeDrawMode;
+	        } catch (e) { /* ignore */ }
+	        try {
+	          Array.from(document.querySelectorAll('button[data-action="draw_free"]')).forEach((btn) => {
+	            btn.classList.toggle('is-active', freeDrawMode);
+	          });
+	        } catch (e) { /* ignore */ }
+	        if (freeDrawMode) {
+	          try { clearPendingPlacement(); } catch (e) { /* ignore */ }
+	          pendingFactory = null;
+	          backgroundPickMode = false;
+	          try { canvas.discardActiveObject(); } catch (e) { /* ignore */ }
+	          try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+	          try {
+	            const brush = canvas.freeDrawingBrush || new fabric.PencilBrush(canvas);
+	            brush.color = colorInput?.value || '#22d3ee';
+	            brush.width = clamp(Number(strokeWidthInput?.value) || 4, 1, 26);
+	            canvas.freeDrawingBrush = brush;
+	          } catch (e) { /* ignore */ }
+	          // Muestra un mini-inspector para poder cambiar color/grosor sin seleccionar nada.
+	          try {
+	            if (selectionToolbar && selectionSummary) {
+	              selectionToolbar.hidden = false;
+	              selectionToolbar.querySelectorAll('input,button').forEach((node) => { node.disabled = false; });
+	              selectionSummary.textContent = 'Dibujo libre: ajusta color y grosor.';
+	              if (scaleXInput) scaleXInput.disabled = true;
+	              if (scaleYInput) scaleYInput.disabled = true;
+	              if (rotationInput) rotationInput.disabled = true;
+	              if (scalePresetsRow) scalePresetsRow.hidden = true;
+	              if (tokenSizePresetsRow) tokenSizePresetsRow.hidden = true;
+	              if (tokenMetaRow) tokenMetaRow.hidden = true;
+	            }
+	          } catch (e) { /* ignore */ }
+	          if (strokeWidthRow) strokeWidthRow.hidden = false;
+	          if (strokePresetsRow) strokePresetsRow.hidden = false;
+	          setStatus('Dibujo libre activado. Dibuja sobre el campo (pulsa “Dibujo libre” o Esc para salir).');
+	        } else {
+	          try { syncInspector(); } catch (e) { /* ignore */ }
+	          setStatus('Dibujo libre desactivado.');
+	        }
+	      };
+	      if (action === 'select') {
+	        setFreeDrawMode(false);
+	        pendingFactory = null;
+	        Array.from(document.querySelectorAll('.resource-section [data-add]') || []).forEach((item) => item.classList.remove('is-active'));
+	        Array.from(playerBank?.querySelectorAll('button') || []).forEach((item) => item.classList.remove('is-active'));
+	        setStatus('Modo selección activo.');
+	        return true;
+	      }
+	      if (action === 'draw_free') {
+	        setFreeDrawMode(!freeDrawMode);
+	        return true;
+	      }
+	      if (action === 'undo') return performUndo();
 	      if (action === 'redo') return performRedo();
       if (action === 'delete') {
 	        const active = canvas.getActiveObject();
@@ -6754,14 +6833,15 @@
       return false;
     };
 
-		    toolStrip?.addEventListener('click', (event) => {
-		      const button = event.target.closest('button');
-		      if (!button) return;
-	      const action = safeText(button.dataset.action);
-	      const add = safeText(button.dataset.add);
-		      if (action && handleCanvasAction(action)) return;
-			      if (!add) return;
-			      if (add.startsWith('pdf_asset:')) {
+				    toolStrip?.addEventListener('click', (event) => {
+			      const button = event.target.closest('button');
+			      if (!button) return;
+		      const action = safeText(button.dataset.action);
+		      const add = safeText(button.dataset.add);
+			      if (action && handleCanvasAction(action)) return;
+				      if (!add) return;
+				      if (freeDrawMode) handleCanvasAction('draw_free');
+				      if (add.startsWith('pdf_asset:')) {
 			        const assetId = add.split(':')[1] || '';
 			        const label = 'un recurso gráfico';
 			        Array.from(toolStrip.querySelectorAll('[data-add]')).forEach((item) => item.classList.remove('is-active'));
@@ -6775,15 +6855,44 @@
 			      else if (add === 'player_rival') activateFactory(playerTokenFactory('player_rival', null), 'un jugador rival', 'player_rival');
 			      else if (add === 'player_away') activateFactory(playerTokenFactory('player_away', null), 'un jugador con segunda equipación', 'player_away');
 			      else if (add === 'goalkeeper_local') activateFactory(playerTokenFactory('goalkeeper_local', null), 'un portero', 'goalkeeper_local');
-			      else activateFactory(simpleFactory(add), RESOURCE_LABELS[add] || add, add);
-			    });
+				      else activateFactory(simpleFactory(add), RESOURCE_LABELS[add] || add, add);
+				    });
+	
+				    // Clicks en otros paneles de recursos (líneas, figuras, etc.).
+				    // Históricamente solo se atendía `#task-basic-tools`; esto hacía que "líneas" fuese poco usable.
+				    const resourceSection = document.querySelector('.resource-section');
+				    resourceSection?.addEventListener('click', (event) => {
+				      const button = event.target.closest('.resource-panel button');
+				      if (!button) return;
+				      if (button.closest('#task-basic-tools')) return;
+				      if (button.closest('#task-command-bar') || button.closest('#task-command-menu')) return;
+				      if (button.closest('#task-selection-toolbar')) return;
+				      const action = safeText(button.dataset.action);
+				      const add = safeText(button.dataset.add);
+				      if (action && handleCanvasAction(action)) return;
+				      if (!add) return;
+				      if (freeDrawMode) handleCanvasAction('draw_free');
+				      Array.from(document.querySelectorAll('.resource-section [data-add]') || []).forEach((item) => item.classList.remove('is-active'));
+				      button.classList.add('is-active');
+				      if (add.startsWith('pdf_asset:')) {
+				        const assetId = add.split(':')[1] || '';
+				        activateFactory((left, top) => buildPdfAssetObject(assetId, left, top), 'un recurso gráfico', add);
+				        return;
+				      }
+				      if (add === 'player_local') activateFactory(playerTokenFactory('player_local', null), 'un jugador local', 'player_local');
+				      else if (add === 'player_rival') activateFactory(playerTokenFactory('player_rival', null), 'un jugador rival', 'player_rival');
+				      else if (add === 'player_away') activateFactory(playerTokenFactory('player_away', null), 'un jugador con segunda equipación', 'player_away');
+				      else if (add === 'goalkeeper_local') activateFactory(playerTokenFactory('goalkeeper_local', null), 'un portero', 'goalkeeper_local');
+				      else activateFactory(simpleFactory(add), RESOURCE_LABELS[add] || add, add);
+				    });
 
-		    libraryPane?.addEventListener('click', (event) => {
-		      const button = event.target.closest('button[data-add]');
-		      if (!button) return;
-			      const add = safeText(button.dataset.add);
-			      if (!add) return;
-			      if (add.startsWith('pdf_asset:')) {
+			    libraryPane?.addEventListener('click', (event) => {
+			      const button = event.target.closest('button[data-add]');
+			      if (!button) return;
+				      const add = safeText(button.dataset.add);
+				      if (!add) return;
+				      if (freeDrawMode) handleCanvasAction('draw_free');
+				      if (add.startsWith('pdf_asset:')) {
 			        const assetId = add.split(':')[1] || '';
 			        const label = 'un recurso gráfico';
 			        Array.from(libraryPane.querySelectorAll('button[data-add]')).forEach((item) => item.classList.remove('is-active'));
@@ -6808,12 +6917,17 @@
 				      const el = document.activeElement;
 				      const tag = (el && el.tagName) ? el.tagName.toLowerCase() : '';
 				      if (tag === 'input' || tag === 'textarea' || tag === 'select' || (el && el.isContentEditable)) return;
-					      if (key === 'escape') {
-					        if (!commandMenu?.hidden) {
-					          setCommandMenuOpen(false);
-					          event.preventDefault();
-					          return;
-					        }
+						      if (key === 'escape') {
+						        if (freeDrawMode) {
+						          handleCanvasAction('draw_free');
+						          event.preventDefault();
+						          return;
+						        }
+						        if (!commandMenu?.hidden) {
+						          setCommandMenuOpen(false);
+						          event.preventDefault();
+						          return;
+						        }
 					        const active = canvas.getActiveObject();
 					        if (active && isBackgroundShape(active) && active?.data?.background_edit) {
 					          setBackgroundEditMode(active, false, { force: true });
