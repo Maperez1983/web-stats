@@ -44,6 +44,11 @@ class Command(BaseCommand):
             action='store_true',
             help='Aplica cambios reales (sin esto es dry-run).',
         )
+        parser.add_argument(
+            '--allow-merge',
+            action='store_true',
+            help='Permite migrar aunque el partido destino ya tenga eventos (no recomendado).',
+        )
 
     def handle(self, *args, **options):
         team = self._resolve_team(options)
@@ -104,6 +109,11 @@ class Command(BaseCommand):
         if not options.get('apply'):
             self.stdout.write(self.style.WARNING('Dry-run: no se aplicó nada. Usa --apply para ejecutar.'))
             return
+        if to_events_count and not options.get('allow_merge'):
+            raise CommandError(
+                'El partido destino ya tiene eventos. Por seguridad, abortamos la migración. '
+                'Si estás seguro de querer combinar, repite con --allow-merge.'
+            )
 
         with transaction.atomic():
             updated_events = from_events_qs.update(match=to_match)
@@ -215,4 +225,3 @@ class Command(BaseCommand):
             if opponent:
                 record.opponent_name = opponent.display_name or opponent.name or record.opponent_name
         return
-
