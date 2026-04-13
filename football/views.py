@@ -1103,42 +1103,34 @@ def _build_pdf_response_or_html_fallback(request, html: str, filename: str, *, i
         if force_pdf:
             return HttpResponse(message, status=503, content_type='text/plain; charset=utf-8')
         return HttpResponse(html, content_type='text/html; charset=utf-8')
-    try:
-        def _safe_url_fetcher(url, timeout=4, ssl_context=None):
-            try:
-                default_fetcher = getattr(weasyprint, 'default_url_fetcher', None)
-                if callable(default_fetcher):
-                    return default_fetcher(url, timeout=timeout, ssl_context=ssl_context)
-            except Exception:
-                pass
-            return {'string': b'', 'mime_type': 'text/plain'}
-
-        pdf_file = weasyprint.HTML(
-            string=html,
-            base_url=request.build_absolute_uri('/'),
-            url_fetcher=_safe_url_fetcher,
-        ).write_pdf()
+    # Nota: usamos el helper con error para poder mostrar detalle con `?debug=1` a admins del club.
+    pdf_file, pdf_error = _render_pdf_bytes_with_error(request, html)
+    if pdf_file:
         response = HttpResponse(pdf_file, content_type='application/pdf')
         disposition = 'inline' if inline else 'attachment'
         response['Content-Disposition'] = f'{disposition}; filename="{filename}.pdf"'
         return response
-    except Exception:
-        logger.exception('WeasyPrint: error generando PDF (response)')
-        if force_pdf:
-            debug = str(request.GET.get('debug') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    logger.exception('WeasyPrint: error generando PDF (response): %s', pdf_error or 'unknown')
+    if force_pdf:
+        debug = str(request.GET.get('debug') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+        debug_allowed = False
+        try:
+            user = getattr(request, 'user', None)
+            debug_allowed = bool(_is_admin_user(user))
+            if not debug_allowed:
+                workspace = _get_active_workspace(request)
+                debug_allowed = bool(workspace and _can_manage_workspace(user, workspace))
+        except Exception:
             debug_allowed = False
-            try:
-                user = getattr(request, 'user', None)
-                debug_allowed = bool(_is_admin_user(user))
-                if not debug_allowed:
-                    workspace = _get_active_workspace(request)
-                    debug_allowed = bool(workspace and _can_manage_workspace(user, workspace))
-            except Exception:
-                debug_allowed = False
-            if debug and debug_allowed:
-                return HttpResponse('No se pudo generar el PDF. Revisa /api/system/healthcheck/ para ver el error.', status=503)
-            return HttpResponse('No se pudo generar el PDF.', status=503)
-        return HttpResponse(html, content_type='text/html; charset=utf-8')
+        if debug and debug_allowed:
+            detail = (pdf_error or '').strip() or 'unknown'
+            return HttpResponse(
+                f'No se pudo generar el PDF. {detail}',
+                status=503,
+                content_type='text/plain; charset=utf-8',
+            )
+        return HttpResponse('No se pudo generar el PDF.', status=503, content_type='text/plain; charset=utf-8')
+    return HttpResponse(html, content_type='text/html; charset=utf-8')
 
 
 def _render_pdf_bytes(request, html: str):
