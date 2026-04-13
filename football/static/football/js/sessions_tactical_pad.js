@@ -1125,7 +1125,7 @@
 	      if (!id) return '';
 	      return `/media/pdf-assets/${encodeURIComponent(id)}/`;
 	    };
-	    const ensurePdfAssetLoaded = (assetId) => {
+		    const ensurePdfAssetLoaded = (assetId) => {
 	      const id = normalizePdfAssetId(assetId);
 	      if (!id || pdfAssetImages.has(id) || pdfAssetLoading.has(id)) return;
 	      const url = buildPdfAssetUrl(id);
@@ -1236,6 +1236,32 @@
 		        x: clamp(snappedX, 0, boundW),
 		        y: clamp(snappedY, 0, boundH),
 		      };
+		    };
+
+		    // Imágenes por URL (mismo origen) para catálogos estáticos (PPT) u otros recursos internos.
+		    const urlAssetImages = new Map();
+		    const urlAssetLoading = new Set();
+		    const urlAssetPendingRefresh = new Set();
+		    const normalizeUrlAsset = (value) => safeText(value || '');
+		    const ensureUrlAssetLoaded = (url) => {
+		      const key = normalizeUrlAsset(url);
+		      if (!key || urlAssetImages.has(key) || urlAssetLoading.has(key)) return;
+		      urlAssetLoading.add(key);
+		      try {
+		        const img = new Image();
+		        try { img.crossOrigin = 'anonymous'; } catch (e) { /* ignore */ }
+		        img.onload = () => {
+		          urlAssetImages.set(key, img);
+		          urlAssetLoading.delete(key);
+		          urlAssetPendingRefresh.add(key);
+		        };
+		        img.onerror = () => {
+		          urlAssetLoading.delete(key);
+		        };
+		        img.src = key;
+		      } catch (error) {
+		        urlAssetLoading.delete(key);
+		      }
 		    };
 	    syncGridUi({ silent: true });
 
@@ -4347,7 +4373,7 @@
 			      }
 			    };
 
-				    const buildPdfAssetObject = (assetId, left, top, options = {}) => {
+					    const buildPdfAssetObject = (assetId, left, top, options = {}) => {
 				      const id = normalizePdfAssetId(assetId);
 				      const img = pdfAssetImages.get(id);
 				      const title = safeText(options?.title);
@@ -4402,8 +4428,65 @@
 				      });
 			      try { group.objectCaching = false; } catch (e) { /* ignore */ }
 			      try { group.noScaleCache = true; } catch (e) { /* ignore */ }
-			      return group;
-			    };
+				      return group;
+				    };
+
+				    const buildUrlAssetObject = (url, left, top, options = {}) => {
+				      const key = normalizeUrlAsset(url);
+				      const img = urlAssetImages.get(key);
+				      const title = safeText(options?.title);
+				      const desired = clamp(Number(options.desiredSize) || 56, 28, 220);
+				      if (img && (img.naturalWidth || img.width)) {
+				        const naturalW = Number(img.naturalWidth || img.width || 1);
+				        const naturalH = Number(img.naturalHeight || img.height || 1);
+				        const baseScale = desired / Math.max(1, Math.max(naturalW, naturalH));
+				        const imageObj = new fabric.Image(img, {
+				          left,
+				          top,
+				          originX: 'center',
+				          originY: 'center',
+				          scaleX: baseScale,
+				          scaleY: baseScale,
+				          data: { kind: 'url_asset', url: key, title },
+				        });
+				        try { imageObj.objectCaching = false; } catch (e) { /* ignore */ }
+				        try { imageObj.noScaleCache = true; } catch (e) { /* ignore */ }
+				        return imageObj;
+				      }
+				      ensureUrlAssetLoaded(key);
+				      const box = new fabric.Rect({
+				        left: 0,
+				        top: 0,
+				        originX: 'center',
+				        originY: 'center',
+				        width: desired,
+				        height: desired,
+				        rx: 10,
+				        ry: 10,
+				        fill: 'rgba(255,255,255,0.08)',
+				        stroke: 'rgba(244,180,0,0.55)',
+				        strokeWidth: 2,
+				      });
+				      const label = new fabric.Text('IMG', {
+				        left: 0,
+				        top: 0,
+				        originX: 'center',
+				        originY: 'center',
+				        fontSize: 14,
+				        fontWeight: '800',
+				        fill: 'rgba(226,232,240,0.9)',
+				      });
+				      const group = new fabric.Group([box, label], {
+				        left,
+				        top,
+				        originX: 'center',
+				        originY: 'center',
+				        data: { kind: 'url_asset', url: key, placeholder: true, desiredSize: desired, title },
+				      });
+				      try { group.objectCaching = false; } catch (e) { /* ignore */ }
+				      try { group.noScaleCache = true; } catch (e) { /* ignore */ }
+				      return group;
+				    };
 
 			    const replacePdfAssetPlaceholders = (assetId) => {
 			      const id = normalizePdfAssetId(assetId);
@@ -4438,16 +4521,58 @@
 			      });
 			      canvas.requestRenderAll();
 			    };
-			    const flushPdfAssetPendingRefresh = () => {
-			      if (!pdfAssetPendingRefresh.size) return;
-			      const ids = Array.from(pdfAssetPendingRefresh);
-			      pdfAssetPendingRefresh.clear();
-			      ids.forEach((id) => {
-			        try { replacePdfAssetPlaceholders(id); } catch (error) { /* ignore */ }
-			      });
-			    };
-			    // Revisa en background por si las imágenes terminan de cargar después de añadirlas.
-			    try { window.setInterval(flushPdfAssetPendingRefresh, 650); } catch (e) { /* ignore */ }
+				    const flushPdfAssetPendingRefresh = () => {
+				      if (!pdfAssetPendingRefresh.size) return;
+				      const ids = Array.from(pdfAssetPendingRefresh);
+				      pdfAssetPendingRefresh.clear();
+				      ids.forEach((id) => {
+				        try { replacePdfAssetPlaceholders(id); } catch (error) { /* ignore */ }
+				      });
+				    };
+				    const replaceUrlAssetPlaceholders = (url) => {
+				      const key = normalizeUrlAsset(url);
+				      const img = urlAssetImages.get(key);
+				      if (!img) return;
+				      const objects = canvas.getObjects().slice();
+				      objects.forEach((obj) => {
+				        if (!obj || !obj.data) return;
+				        if (safeText(obj.data.kind) !== 'url_asset') return;
+				        if (safeText(obj.data.url) !== key) return;
+				        if (!obj.data.placeholder) return;
+				        const center = obj.getCenterPoint();
+				        const desired = clamp(Number(obj.data.desiredSize) || 56, 28, 220);
+				        const naturalW = Number(img.naturalWidth || img.width || 1);
+				        const naturalH = Number(img.naturalHeight || img.height || 1);
+				        const baseScale = desired / Math.max(1, Math.max(naturalW, naturalH));
+				        const next = new fabric.Image(img, {
+				          left: center.x,
+				          top: center.y,
+				          originX: 'center',
+				          originY: 'center',
+				          angle: Number(obj.angle) || 0,
+				          scaleX: baseScale * (Number(obj.scaleX) || 1),
+				          scaleY: baseScale * (Number(obj.scaleY) || 1),
+				          data: { kind: 'url_asset', url: key, title: safeText(obj.data.title) },
+				        });
+				        try { next.objectCaching = false; } catch (e) { /* ignore */ }
+				        try { next.noScaleCache = true; } catch (e) { /* ignore */ }
+				        normalizeEditableObject(next);
+				        canvas.remove(obj);
+				        canvas.add(next);
+				      });
+				      canvas.requestRenderAll();
+				    };
+				    const flushUrlAssetPendingRefresh = () => {
+				      if (!urlAssetPendingRefresh.size) return;
+				      const urls = Array.from(urlAssetPendingRefresh);
+				      urlAssetPendingRefresh.clear();
+				      urls.forEach((url) => {
+				        try { replaceUrlAssetPlaceholders(url); } catch (error) { /* ignore */ }
+				      });
+				    };
+				    // Revisa en background por si las imágenes terminan de cargar después de añadirlas.
+				    try { window.setInterval(flushPdfAssetPendingRefresh, 650); } catch (e) { /* ignore */ }
+				    try { window.setInterval(flushUrlAssetPendingRefresh, 650); } catch (e) { /* ignore */ }
 	    const snapPointToCenters = (point, target, threshold = 10) => {
 	      const baseX = Number(point?.x) || 0;
 	      const baseY = Number(point?.y) || 0;
@@ -4917,12 +5042,16 @@
 	      return group;
 	    };
 
-		    const simpleFactory = (kind) => {
-	      const normalized = safeText(kind);
-	      if (normalized.startsWith('pdf_asset:')) {
-	        const assetId = normalized.split(':')[1] || '';
-	        return (left, top) => buildPdfAssetObject(assetId, left, top);
-	      }
+			    const simpleFactory = (kind) => {
+		      const normalized = safeText(kind);
+		      if (normalized.startsWith('image_url:')) {
+		        const url = normalized.slice('image_url:'.length);
+		        return (left, top) => buildUrlAssetObject(url, left, top);
+		      }
+		      if (normalized.startsWith('pdf_asset:')) {
+		        const assetId = normalized.split(':')[1] || '';
+		        return (left, top) => buildPdfAssetObject(assetId, left, top);
+		      }
 	      if (kind === 'ball') {
 	        return (left, top) => new fabric.Circle({
 	          left, top, originX: 'center', originY: 'center',
@@ -6838,17 +6967,25 @@
 			      if (!button) return;
 		      const action = safeText(button.dataset.action);
 		      const add = safeText(button.dataset.add);
-			      if (action && handleCanvasAction(action)) return;
-				      if (!add) return;
-				      if (freeDrawMode) handleCanvasAction('draw_free');
-				      if (add.startsWith('pdf_asset:')) {
-			        const assetId = add.split(':')[1] || '';
-			        const label = 'un recurso gráfico';
-			        Array.from(toolStrip.querySelectorAll('[data-add]')).forEach((item) => item.classList.remove('is-active'));
-			        button.classList.add('is-active');
-			        activateFactory((left, top) => buildPdfAssetObject(assetId, left, top), label, add);
-			        return;
-			      }
+					      if (action && handleCanvasAction(action)) return;
+					      if (!add) return;
+					      if (freeDrawMode) handleCanvasAction('draw_free');
+					      if (add.startsWith('image_url:')) {
+				        const url = add.slice('image_url:'.length);
+				        const label = 'una imagen';
+				        Array.from(toolStrip.querySelectorAll('[data-add]')).forEach((item) => item.classList.remove('is-active'));
+				        button.classList.add('is-active');
+				        activateFactory((left, top) => buildUrlAssetObject(url, left, top), label, add);
+				        return;
+				      }
+					      if (add.startsWith('pdf_asset:')) {
+				        const assetId = add.split(':')[1] || '';
+				        const label = 'un recurso gráfico';
+				        Array.from(toolStrip.querySelectorAll('[data-add]')).forEach((item) => item.classList.remove('is-active'));
+				        button.classList.add('is-active');
+				        activateFactory((left, top) => buildPdfAssetObject(assetId, left, top), label, add);
+				        return;
+				      }
 		      Array.from(toolStrip.querySelectorAll('[data-add]')).forEach((item) => item.classList.remove('is-active'));
 		      button.classList.add('is-active');
 			      if (add === 'player_local') activateFactory(playerTokenFactory('player_local', null), 'un jugador local', 'player_local');
@@ -6870,15 +7007,20 @@
 				      const action = safeText(button.dataset.action);
 				      const add = safeText(button.dataset.add);
 				      if (action && handleCanvasAction(action)) return;
-				      if (!add) return;
-				      if (freeDrawMode) handleCanvasAction('draw_free');
-				      Array.from(document.querySelectorAll('.resource-section [data-add]') || []).forEach((item) => item.classList.remove('is-active'));
-				      button.classList.add('is-active');
-				      if (add.startsWith('pdf_asset:')) {
-				        const assetId = add.split(':')[1] || '';
-				        activateFactory((left, top) => buildPdfAssetObject(assetId, left, top), 'un recurso gráfico', add);
-				        return;
-				      }
+					      if (!add) return;
+					      if (freeDrawMode) handleCanvasAction('draw_free');
+					      Array.from(document.querySelectorAll('.resource-section [data-add]') || []).forEach((item) => item.classList.remove('is-active'));
+					      button.classList.add('is-active');
+					      if (add.startsWith('image_url:')) {
+					        const url = add.slice('image_url:'.length);
+					        activateFactory((left, top) => buildUrlAssetObject(url, left, top), 'una imagen', add);
+					        return;
+					      }
+					      if (add.startsWith('pdf_asset:')) {
+					        const assetId = add.split(':')[1] || '';
+					        activateFactory((left, top) => buildPdfAssetObject(assetId, left, top), 'un recurso gráfico', add);
+					        return;
+					      }
 				      if (add === 'player_local') activateFactory(playerTokenFactory('player_local', null), 'un jugador local', 'player_local');
 				      else if (add === 'player_rival') activateFactory(playerTokenFactory('player_rival', null), 'un jugador rival', 'player_rival');
 				      else if (add === 'player_away') activateFactory(playerTokenFactory('player_away', null), 'un jugador con segunda equipación', 'player_away');
@@ -6889,17 +7031,25 @@
 			    libraryPane?.addEventListener('click', (event) => {
 			      const button = event.target.closest('button[data-add]');
 			      if (!button) return;
-				      const add = safeText(button.dataset.add);
-				      if (!add) return;
-				      if (freeDrawMode) handleCanvasAction('draw_free');
-				      if (add.startsWith('pdf_asset:')) {
-			        const assetId = add.split(':')[1] || '';
-			        const label = 'un recurso gráfico';
-			        Array.from(libraryPane.querySelectorAll('button[data-add]')).forEach((item) => item.classList.remove('is-active'));
-			        button.classList.add('is-active');
-			        activateFactory((left, top) => buildPdfAssetObject(assetId, left, top), label, add);
-			        return;
-			      }
+					      const add = safeText(button.dataset.add);
+					      if (!add) return;
+					      if (freeDrawMode) handleCanvasAction('draw_free');
+					      if (add.startsWith('image_url:')) {
+				        const url = add.slice('image_url:'.length);
+				        const label = 'una imagen';
+				        Array.from(libraryPane.querySelectorAll('button[data-add]')).forEach((item) => item.classList.remove('is-active'));
+				        button.classList.add('is-active');
+				        activateFactory((left, top) => buildUrlAssetObject(url, left, top), label, add);
+				        return;
+				      }
+					      if (add.startsWith('pdf_asset:')) {
+				        const assetId = add.split(':')[1] || '';
+				        const label = 'un recurso gráfico';
+				        Array.from(libraryPane.querySelectorAll('button[data-add]')).forEach((item) => item.classList.remove('is-active'));
+				        button.classList.add('is-active');
+				        activateFactory((left, top) => buildPdfAssetObject(assetId, left, top), label, add);
+				        return;
+				      }
 		      Array.from(libraryPane.querySelectorAll('button[data-add]')).forEach((item) => item.classList.remove('is-active'));
 		      button.classList.add('is-active');
 		      if (add === 'player_local') activateFactory(playerTokenFactory('player_local', null), 'un jugador local', 'player_local');

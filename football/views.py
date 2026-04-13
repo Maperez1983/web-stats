@@ -786,6 +786,54 @@ TASK_MATERIAL_LIBRARY = [
     {'label': 'OBJ', 'title': 'Objetivo diana', 'kind': 'target', 'category': 'finalizacion', 'icon': '◎'},
 ]
 TASK_MATERIAL_PPT_DIR = Path(settings.BASE_DIR) / 'static' / 'football' / 'images' / 'task-materials' / 'ppt'
+
+# Sesiones "sueltas" (sin microciclo): internamente viven en un microciclo especial
+# para no romper el modelo actual (TrainingSession -> TrainingMicrocycle).
+# Este microciclo funciona como bandeja de entrada y NO debe mostrarse en la UI de microciclos.
+INBOX_MICROCYCLE_WEEK_START = date(2000, 1, 1)
+INBOX_MICROCYCLE_WEEK_END = date(2099, 12, 31)
+INBOX_MICROCYCLE_TITLE = 'Sesiones sueltas (sin microciclo)'
+
+
+def _is_inbox_microcycle(microcycle):
+    if not microcycle:
+        return False
+    try:
+        return getattr(microcycle, 'week_start', None) == INBOX_MICROCYCLE_WEEK_START
+    except Exception:
+        return False
+
+
+def _get_or_create_inbox_microcycle(team):
+    if not team:
+        return None
+    try:
+        obj = TrainingMicrocycle.objects.filter(team=team, week_start=INBOX_MICROCYCLE_WEEK_START).first()
+        if obj:
+            changed = False
+            if getattr(obj, 'week_end', None) != INBOX_MICROCYCLE_WEEK_END:
+                obj.week_end = INBOX_MICROCYCLE_WEEK_END
+                changed = True
+            if str(getattr(obj, 'title', '') or '').strip() != INBOX_MICROCYCLE_TITLE:
+                obj.title = INBOX_MICROCYCLE_TITLE
+                changed = True
+            if changed:
+                try:
+                    obj.save(update_fields=['title', 'week_end', 'updated_at'])
+                except Exception:
+                    obj.save()
+            return obj
+        return TrainingMicrocycle.objects.create(
+            team=team,
+            title=INBOX_MICROCYCLE_TITLE,
+            objective='',
+            week_start=INBOX_MICROCYCLE_WEEK_START,
+            week_end=INBOX_MICROCYCLE_WEEK_END,
+            status=TrainingMicrocycle.STATUS_DRAFT,
+            notes='(Sistema) Bandeja de sesiones sueltas.',
+        )
+    except Exception:
+        return None
 TASK_SURFACE_CHOICES = [
     ('natural_grass', 'Hierba natural'),
     ('hybrid_grass', 'Hierba híbrida'),
@@ -21474,15 +21522,19 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
 
             elif planner_action == 'create_session_plan':
                 microcycle_id = _parse_int(request.POST.get('plan_microcycle_id'))
-                if not microcycle_id:
-                    raise ValueError('Selecciona microciclo para crear la sesión.')
-                microcycle = (
-                    TrainingMicrocycle.objects
-                    .filter(id=microcycle_id, team=primary_team)
-                    .first()
-                )
-                if not microcycle:
-                    raise ValueError('Microciclo no encontrado para crear la sesión.')
+                microcycle = None
+                if microcycle_id:
+                    microcycle = (
+                        TrainingMicrocycle.objects
+                        .filter(id=microcycle_id, team=primary_team)
+                        .first()
+                    )
+                    if not microcycle:
+                        raise ValueError('Microciclo no encontrado para crear la sesión.')
+                else:
+                    microcycle = _get_or_create_inbox_microcycle(primary_team)
+                    if not microcycle:
+                        raise ValueError('No se pudo preparar la bandeja de sesiones sueltas.')
                 session_date_raw = str(request.POST.get('plan_session_date') or '').strip()
                 focus = str(request.POST.get('plan_session_focus') or '').strip()[:140]
                 if not session_date_raw or not focus:
@@ -21491,8 +21543,9 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     session_date = datetime.strptime(session_date_raw, '%Y-%m-%d').date()
                 except ValueError:
                     raise ValueError('Fecha de sesión no válida.')
-                if session_date < microcycle.week_start or session_date > microcycle.week_end:
-                    raise ValueError('La fecha de la sesión debe estar dentro del microciclo.')
+                if not _is_inbox_microcycle(microcycle):
+                    if session_date < microcycle.week_start or session_date > microcycle.week_end:
+                        raise ValueError('La fecha de la sesión debe estar dentro del microciclo.')
                 start_time_raw = str(request.POST.get('plan_session_start_time') or '').strip()
                 start_time = None
                 if start_time_raw:
@@ -21551,11 +21604,54 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                         )
                         attached_count += 1
                 feedback = (
-                    f'Sesión creada en {microcycle.title}: {focus}.'
+                    f'Sesión creada: {focus}.'
                     if not attached_count
-                    else f'Sesión creada en {microcycle.title}: {focus}. Tareas añadidas: {attached_count}.'
+                    else f'Sesión creada: {focus}. Tareas añadidas: {attached_count}.'
                 )
                 auto_selected_session_id = int(session_obj.id)
+
+            elif planner_action == 'attach_session_to_microcycle':
+                microcycle_id = _parse_int(request.POST.get('attach_microcycle_id'))
+                session_id = _parse_int(request.POST.get('attach_session_id'))
+                if not microcycle_id or not session_id:
+                    raise ValueError('Selecciona microciclo y sesión para vincular.')
+                microcycle = TrainingMicrocycle.objects.filter(id=microcycle_id, team=primary_team).first()
+                if not microcycle or _is_inbox_microcycle(microcycle):
+                    raise ValueError('Microciclo no válido para vincular sesiones.')
+                session_obj = (
+                    TrainingSession.objects
+                    .select_related('microcycle')
+                    .filter(id=session_id, microcycle__team=primary_team)
+                    .first()
+                )
+                if not session_obj:
+                    raise ValueError('Sesión no encontrada.')
+                if session_obj.session_date < microcycle.week_start or session_obj.session_date > microcycle.week_end:
+                    raise ValueError('La fecha de la sesión debe estar dentro del rango del microciclo.')
+                session_obj.microcycle = microcycle
+                session_obj.save(update_fields=['microcycle'])
+                feedback = f'Sesión vinculada a microciclo: {microcycle.title}.'
+                active_tab = 'microcycles'
+
+            elif planner_action == 'detach_session_from_microcycle':
+                session_id = _parse_int(request.POST.get('detach_session_id'))
+                if not session_id:
+                    raise ValueError('No se pudo identificar la sesión.')
+                session_obj = (
+                    TrainingSession.objects
+                    .select_related('microcycle')
+                    .filter(id=session_id, microcycle__team=primary_team)
+                    .first()
+                )
+                if not session_obj:
+                    raise ValueError('Sesión no encontrada.')
+                inbox_microcycle = _get_or_create_inbox_microcycle(primary_team)
+                if not inbox_microcycle:
+                    raise ValueError('No se pudo preparar la bandeja de sesiones sueltas.')
+                session_obj.microcycle = inbox_microcycle
+                session_obj.save(update_fields=['microcycle'])
+                feedback = 'Sesión movida a “Sesiones sueltas”.'
+                active_tab = 'sessions'
 
             elif planner_action == 'update_session_plan':
                 session_id = _parse_int(request.POST.get('edit_session_id'))
@@ -22613,12 +22709,17 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
 
     planning_microcycles = []
     planning_sessions = []
+    inbox_microcycle = None
+    standalone_sessions = []
     if planner_tables_ready and active_tab in {'microcycles', 'sessions'}:
-        planning_microcycles = list(
+        inbox_microcycle = _get_or_create_inbox_microcycle(primary_team)
+        planning_microcycles_qs = (
             TrainingMicrocycle.objects
             .filter(team=primary_team)
-            .order_by('-week_start', '-id')[:24]
+            .exclude(week_start=INBOX_MICROCYCLE_WEEK_START)
+            .order_by('-week_start', '-id')
         )
+        planning_microcycles = list(planning_microcycles_qs[:24])
         planning_session_qs = (
             TrainingSession.objects
             .select_related('microcycle')
@@ -22626,6 +22727,11 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             .order_by('-microcycle__week_start', 'session_date', 'start_time', 'order', 'id')
         )
         planning_sessions = list(planning_session_qs[:220])
+        if inbox_microcycle:
+            standalone_sessions = [
+                item for item in planning_sessions
+                if int(getattr(item, 'microcycle_id', 0) or 0) == int(inbox_microcycle.id)
+            ]
 
     # Pestaña Sesiones: trabajamos sobre una única sesión seleccionada.
     selected_session = None
@@ -22813,13 +22919,20 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
 
     # Selectores (se usan también desde Biblioteca al copiar tareas a sesiones)
     if planner_tables_ready:
+        def _session_label(session):
+            label = f"{session.session_date:%d/%m/%Y}"
+            if session.start_time:
+                label += f" · {session.start_time:%H:%M}"
+            label += f" · {session.focus}"
+            try:
+                if inbox_microcycle and int(getattr(session, 'microcycle_id', 0) or 0) == int(inbox_microcycle.id):
+                    label += " · (suelta)"
+            except Exception:
+                pass
+            return label
+
         planning_session_items = [
-            {
-                'id': int(session.id),
-                'label': f"{session.session_date:%d/%m/%Y}"
-                + (f" · {session.start_time:%H:%M}" if session.start_time else '')
-                + f" · {session.focus}",
-            }
+            {'id': int(session.id), 'label': _session_label(session)}
             for session in (planning_sessions or all_sessions)
         ]
 
@@ -22925,6 +23038,8 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             'session_intensity_choices': TrainingSession.INTENSITY_CHOICES,
             'session_status_choices': TrainingSession.STATUS_CHOICES,
             'planning_microcycles': planning_microcycles,
+            'standalone_sessions': standalone_sessions,
+            'inbox_microcycle_id': (int(inbox_microcycle.id) if inbox_microcycle else None),
             'planner_summary': planner_summary,
             'planner_focus_items': planner_focus_items,
             'task_surface_choices': TASK_SURFACE_CHOICES,
@@ -23786,6 +23901,21 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
         ],
         ensure_ascii=False,
     )
+    ppt_icons = []
+    try:
+        if TASK_MATERIAL_PPT_DIR and TASK_MATERIAL_PPT_DIR.exists():
+            allowed = {'.png', '.jpg', '.jpeg', '.webp', '.gif'}
+            files = [p for p in TASK_MATERIAL_PPT_DIR.iterdir() if p.is_file() and p.suffix.lower() in allowed]
+            files = sorted(files, key=lambda p: p.name.lower())[:90]
+            for p in files:
+                ppt_icons.append(
+                    {
+                        'label': str(p.stem or '').strip()[:80],
+                        'static_path': f'football/images/task-materials/ppt/{p.name}',
+                    }
+                )
+    except Exception:
+        ppt_icons = []
     return render(
         request,
         'football/task_builder.html',
@@ -23811,6 +23941,7 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             'available_players': available_players,
             'pdf_assets': pdf_assets,
             'pdf_assets_json': pdf_assets_json,
+            'ppt_icons': ppt_icons,
             'initial': initial,
             'back_url': reverse(_sessions_scope_route_name(scope_key)),
             'back_label': 'Volver a sesiones',

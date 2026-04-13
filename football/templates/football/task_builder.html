@@ -2522,31 +2522,51 @@
                   </div>
                 </div>
 
-                <div class="resource-panel" data-panel="importados" hidden>
-                  <h3 class="tool-group-title">Importados (PDF/PPT)</h3>
-                  <p class="meta" style="margin:0 0 0.65rem; font-size:0.78rem;">
-                    Recursos extraídos automáticamente al importar tareas desde PDF (Sesiones → Biblioteca).
-                  </p>
-                  <div class="resource-strip pdf-assets-strip">
-                    {% if pdf_assets %}
-                      {% for asset in pdf_assets %}
-                        {% if asset.file %}
-                          <button
-                            type="button"
-                            class="pdf-asset-btn"
-                            data-add="pdf_asset:{{ asset.id }}"
-                            title="{{ asset.title|default:'Recurso importado' }}"
-                            aria-label="{{ asset.title|default:'Recurso importado' }}"
-                          >
-                            <img src="{% url 'pdf-graphic-asset-file' asset.id %}" alt="{{ asset.title|default:'Recurso importado' }}" loading="lazy" />
-                          </button>
-                        {% endif %}
-                      {% endfor %}
-                    {% else %}
-                      <span class="meta">Aún no hay recursos importados para este equipo.</span>
-                    {% endif %}
-                  </div>
-                </div>
+	                <div class="resource-panel" data-panel="importados" hidden>
+	                  <h3 class="tool-group-title">Importados (PDF/PPT)</h3>
+	                  <p class="meta" style="margin:0 0 0.65rem; font-size:0.78rem;">
+	                    Recursos extraídos automáticamente al importar tareas desde PDF (Sesiones → Biblioteca).
+	                  </p>
+	                  {% if not pdf_assets and not ppt_icons %}
+	                    <span class="meta">Aún no hay recursos importados para este equipo.</span>
+	                  {% endif %}
+
+	                  {% if pdf_assets %}
+	                  <div class="meta" style="margin:0.5rem 0 0.35rem;">Recursos extraídos de PDFs</div>
+	                  <div class="resource-strip pdf-assets-strip">
+	                    {% for asset in pdf_assets %}
+	                      {% if asset.file %}
+	                        <button
+	                          type="button"
+	                          class="pdf-asset-btn"
+	                          data-add="pdf_asset:{{ asset.id }}"
+	                          title="{{ asset.title|default:'Recurso importado' }}"
+	                          aria-label="{{ asset.title|default:'Recurso importado' }}"
+	                        >
+	                          <img src="{% url 'pdf-graphic-asset-file' asset.id %}" alt="{{ asset.title|default:'Recurso importado' }}" loading="lazy" />
+	                        </button>
+	                      {% endif %}
+	                    {% endfor %}
+	                  </div>
+	                  {% endif %}
+
+	                  {% if ppt_icons %}
+	                  <div class="meta" style="margin:0.7rem 0 0.35rem;">Iconos (catálogo PPT)</div>
+	                  <div class="resource-strip pdf-assets-strip">
+	                    {% for icon in ppt_icons %}
+	                      <button
+	                        type="button"
+	                        class="pdf-asset-btn"
+	                        data-add="image_url:{% static icon.static_path %}"
+	                        title="{{ icon.label|default:'Icono' }}"
+	                        aria-label="{{ icon.label|default:'Icono' }}"
+	                      >
+	                        <img src="{% static icon.static_path %}" alt="{{ icon.label|default:'Icono' }}" loading="lazy" />
+	                      </button>
+	                    {% endfor %}
+	                  </div>
+	                  {% endif %}
+	                </div>
                 <div class="resource-panel" data-panel="trazos" hidden>
                   <h3 class="tool-group-title" style="margin-top:0.85rem;">Trazos y flechas</h3>
 		                  <div class="resource-strip" id="task-lines-tools">

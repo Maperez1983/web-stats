@@ -1291,22 +1291,21 @@
 		        <section class="panel">
 		          <h2>Sesiones · Estructura por bloques</h2>
 		          <div class="editor-grid">
-		            <div class="editor-box">
-		              <h3>Crear sesión</h3>
-		              {% if planning_microcycles %}
-		              <form method="post" class="grid">
-		                {% csrf_token %}
-		                <input type="hidden" name="planner_action" value="create_session_plan" />
-		                <input type="hidden" name="planner_tab" value="sessions" />
-		                <label>
-		                  Microciclo
-		                  <select name="plan_microcycle_id" required>
-		                    <option value="">Seleccionar</option>
-		                    {% for item in planning_microcycles %}
-		                    <option value="{{ item.id }}" {% if prefill_microcycle_id and item.id == prefill_microcycle_id %}selected{% endif %}>{{ item.week_start|date:"d/m" }}-{{ item.week_end|date:"d/m" }} · {{ item.title }}</option>
-		                    {% endfor %}
-		                  </select>
-		                </label>
+			            <div class="editor-box">
+			              <h3>Crear sesión</h3>
+			              <form method="post" class="grid">
+			                {% csrf_token %}
+			                <input type="hidden" name="planner_action" value="create_session_plan" />
+			                <input type="hidden" name="planner_tab" value="sessions" />
+			                <label>
+			                  Microciclo
+			                  <select name="plan_microcycle_id">
+			                    <option value="">Sin microciclo (sesión suelta)</option>
+			                    {% for item in planning_microcycles %}
+			                    <option value="{{ item.id }}" {% if prefill_microcycle_id and item.id == prefill_microcycle_id %}selected{% endif %}>{{ item.week_start|date:"d/m" }}-{{ item.week_end|date:"d/m" }} · {{ item.title }}</option>
+			                    {% endfor %}
+			                  </select>
+			                </label>
 		                <label>
 		                  Fecha
 		                  <input type="date" name="plan_session_date" required />
@@ -1339,13 +1338,12 @@
 		                  Notas (opcional)
 		                  <textarea name="plan_session_content" placeholder="Notas generales de la sesión (sin pizarra)"></textarea>
 		                </label>
-		                <div><button type="submit" class="primary">Crear sesión</button></div>
-		              </form>
-		              {% else %}
-		              <p class="meta">Para crear una sesión primero crea un microciclo (pestaña Microciclos).</p>
-		              <a class="button" href="?tab=microcycles">Ir a Microciclos</a>
-		              {% endif %}
-		            </div>
+			                <div><button type="submit" class="primary">Crear sesión</button></div>
+			              </form>
+			              <p class="meta" style="margin:0.55rem 0 0;">
+			                Si no eliges microciclo, la sesión queda como <strong>sesión suelta</strong> y podrás vincularla después desde Microciclos.
+			              </p>
+			            </div>
 
 		            <div class="editor-box">
 		              <h3>Sesión activa</h3>
@@ -1365,12 +1363,16 @@
 	                  {% endif %}
 	                </div>
 	              </form>
-	              {% if selected_session %}
-	              <p class="meta" style="margin:0.65rem 0 0;">
-	                Microciclo: <strong>{{ selected_session.microcycle.week_start|date:"d/m" }}-{{ selected_session.microcycle.week_end|date:"d/m" }}</strong> · {{ selected_session.microcycle.title }}
-	              </p>
-	              {% endif %}
-	            </div>
+		              {% if selected_session %}
+		              <p class="meta" style="margin:0.65rem 0 0;">
+		                {% if inbox_microcycle_id and selected_session.microcycle_id == inbox_microcycle_id %}
+		                Tipo: <strong>Sesión suelta</strong> (sin microciclo)
+		                {% else %}
+		                Microciclo: <strong>{{ selected_session.microcycle.week_start|date:"d/m" }}-{{ selected_session.microcycle.week_end|date:"d/m" }}</strong> · {{ selected_session.microcycle.title }}
+		                {% endif %}
+		              </p>
+		              {% endif %}
+			            </div>
 
 		            <div class="editor-box">
 		              <h3>Textos de sesión</h3>
@@ -1539,11 +1541,11 @@
 	              </form>
 	            </div>
 	          </div>
-	          <p class="meta" style="margin-top:0.75rem;">
-	            Las sesiones se crean en la pestaña <strong>Sesiones</strong>. Aquí solo se gestiona el microciclo semanal y la visualización del plan.
-	          </p>
-	          <a class="button" href="?tab=sessions">Ir a Sesiones</a>
-	        </section>
+		          <p class="meta" style="margin-top:0.75rem;">
+		            Flujo recomendado: crea sesiones sueltas (o dentro de un microciclo) en <strong>Sesiones</strong> y luego ordénalas aquí dentro del microciclo semanal.
+		          </p>
+		          <a class="button" href="?tab=sessions">Ir a Sesiones</a>
+		        </section>
 
         <section class="panel">
           <h2>Mapa de planificación</h2>
@@ -1554,11 +1556,32 @@
 		              <div class="task-content">
 		                <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:0.75rem; flex-wrap:wrap;">
 		                  <h3 class="task-title" style="margin:0;">{{ row.obj.title }}</h3>
-		                  <div class="session-chip-row" style="margin-top:0;">
-		                    <a class="button" href="{% url 'microcycle-presentation-pdf' row.obj.id %}" target="_blank" rel="noopener">Presentación (PDF)</a>
-		                    <a class="button secondary" href="?tab=sessions&microcycle_id={{ row.obj.id }}">Crear sesión</a>
-		                  </div>
-		                </div>
+			                  <div class="session-chip-row" style="margin-top:0;">
+			                    <a class="button" href="{% url 'microcycle-presentation-pdf' row.obj.id %}" target="_blank" rel="noopener">Presentación (PDF)</a>
+			                    <a class="button secondary" href="?tab=sessions&microcycle_id={{ row.obj.id }}">Crear sesión</a>
+			                    {% if standalone_sessions %}
+			                    <details class="session-editor" style="margin:0;">
+			                      <summary class="button secondary" style="cursor:pointer;">Añadir sesión existente</summary>
+			                      <form method="post" class="grid" style="margin-top:0.7rem; min-width:280px;">
+			                        {% csrf_token %}
+			                        <input type="hidden" name="planner_action" value="attach_session_to_microcycle" />
+			                        <input type="hidden" name="planner_tab" value="microcycles" />
+			                        <input type="hidden" name="attach_microcycle_id" value="{{ row.obj.id }}" />
+			                        <label style="grid-column:1/-1;">
+			                          Sesión suelta
+			                          <select name="attach_session_id" required>
+			                            <option value="">Seleccionar</option>
+			                            {% for sess in standalone_sessions %}
+			                            <option value="{{ sess.id }}">{{ sess.session_date|date:"d/m/Y" }}{% if sess.start_time %} · {{ sess.start_time|time:"H:i" }}{% endif %} · {{ sess.focus }}</option>
+			                            {% endfor %}
+			                          </select>
+			                        </label>
+			                        <div><button type="submit" class="secondary">Vincular</button></div>
+			                      </form>
+			                    </details>
+			                    {% endif %}
+			                  </div>
+			                </div>
 	                <p class="meta"><strong>{{ row.obj.week_start|date:"d/m/Y" }}</strong> → <strong>{{ row.obj.week_end|date:"d/m/Y" }}</strong> · Estado: {{ row.obj.get_status_display }}</p>
                 <div class="session-chip-row" style="margin-top:0.45rem;">
                   <span class="session-chip">Sesiones · {{ row.sessions_count }}</span>
@@ -1919,12 +1942,19 @@
                           </label>
                           <div><button type="submit" class="secondary">Duplicar sesión con tareas</button></div>
                         </form>
-                      </details>
-                      <form method="post">
-                        {% csrf_token %}
-                        <input type="hidden" name="planner_action" value="delete_session_plan" />
-                        <input type="hidden" name="planner_tab" value="microcycles" />
-                        <input type="hidden" name="delete_session_id" value="{{ session.obj.id }}" />
+	                      </details>
+	                      <form method="post" onsubmit="return confirm('¿Mover esta sesión a “Sesiones sueltas”? (Se podrá vincular de nuevo)');">
+	                        {% csrf_token %}
+	                        <input type="hidden" name="planner_action" value="detach_session_from_microcycle" />
+	                        <input type="hidden" name="planner_tab" value="microcycles" />
+	                        <input type="hidden" name="detach_session_id" value="{{ session.obj.id }}" />
+	                        <button type="submit" class="secondary">Sacar del microciclo</button>
+	                      </form>
+	                      <form method="post">
+	                        {% csrf_token %}
+	                        <input type="hidden" name="planner_action" value="delete_session_plan" />
+	                        <input type="hidden" name="planner_tab" value="microcycles" />
+	                        <input type="hidden" name="delete_session_id" value="{{ session.obj.id }}" />
                         <button type="submit" class="danger">Eliminar</button>
                       </form>
                     </div>
