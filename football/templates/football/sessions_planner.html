@@ -1473,11 +1473,11 @@
 	      </div>
 
 	      <div class="tab-panel {% if active_tab == 'microcycles' %}is-active{% endif %}" data-tab="microcycles">
-        <section class="panel">
-          <h2>Planificación · Microciclos y Sesiones</h2>
-          <div class="grid">
-            <div class="editor-box">
-              <h3>Crear / actualizar microciclo</h3>
+	        <section class="panel">
+	          <h2>Planificación · Microciclos y Sesiones</h2>
+	          <div class="grid">
+	            <div class="editor-box">
+	              <h3>Crear / actualizar microciclo</h3>
               <form method="post" class="grid">
                 {% csrf_token %}
                 <input type="hidden" name="planner_action" value="create_microcycle_plan" />
@@ -1526,82 +1526,15 @@
                   Notas generales
                   <textarea name="plan_microcycle_notes" placeholder="Observaciones internas, carga y mensajes para el staff"></textarea>
                 </label>
-                <div><button type="submit" class="primary">Guardar microciclo</button></div>
-              </form>
-            </div>
-
-            <div class="editor-box">
-              <h3>Crear sesión en microciclo</h3>
-              <form method="post" class="grid">
-                {% csrf_token %}
-                <input type="hidden" name="planner_action" value="create_session_plan" />
-	                <input type="hidden" name="planner_tab" value="microcycles" />
-                <label>
-                  Microciclo
-                  <select name="plan_microcycle_id" required>
-                    <option value="">Seleccionar</option>
-                    {% for item in planning_microcycles %}
-                    <option value="{{ item.id }}">{{ item.week_start|date:"d/m" }}-{{ item.week_end|date:"d/m" }} · {{ item.title }}</option>
-                    {% endfor %}
-                  </select>
-                </label>
-                <label>
-                  Fecha sesión
-                  <input type="date" name="plan_session_date" required />
-                </label>
-                <label>
-                  Hora inicio
-                  <input type="time" name="plan_session_start_time" />
-                </label>
-                <label>
-                  Foco
-                  <input type="text" name="plan_session_focus" maxlength="140" placeholder="Ej: Transición + finalización" required />
-                </label>
-                <label>
-                  Duración (min)
-                  <input type="number" name="plan_session_minutes" min="30" max="180" value="90" />
-                </label>
-                <label>
-                  Intensidad
-                  <select name="plan_session_intensity">
-                    {% for value, label in session_intensity_choices %}
-                    <option value="{{ value }}">{{ label }}</option>
-                    {% endfor %}
-                  </select>
-                </label>
-                <label>
-                  Estado
-                  <select name="plan_session_status">
-                    {% for value, label in session_status_choices %}
-                    <option value="{{ value }}">{{ label }}</option>
-                    {% endfor %}
-                  </select>
-                </label>
-	                <label style="grid-column:1/-1;">
-	                  Notas (opcional)
-	                  <textarea name="plan_session_content" placeholder="Notas generales de la sesión (sin pizarra)"></textarea>
-	                </label>
-                <label style="grid-column:1/-1;">
-                  Tareas iniciales
-                  <div class="task-pick-grid">
-                    {% for item in planning_task_source_options %}
-                    <label class="task-pick-item">
-                      <input type="checkbox" name="plan_session_task_ids" value="{{ item.id }}" />
-                      <span>
-                        <strong>{{ item.title }}</strong>
-                        <small>{{ item.block_label }} · {{ item.minutes }}' · {{ item.session_label }}</small>
-                      </span>
-                    </label>
-                    {% empty %}
-                    <span class="meta" style="margin:0;">Todavía no hay tareas disponibles en el repositorio para este espacio.</span>
-                    {% endfor %}
-                  </div>
-                </label>
-                <div><button type="submit" class="primary">Crear sesión</button></div>
-              </form>
-            </div>
-          </div>
-        </section>
+	                <div><button type="submit" class="primary">Guardar microciclo</button></div>
+	              </form>
+	            </div>
+	          </div>
+	          <p class="meta" style="margin-top:0.75rem;">
+	            Las sesiones se crean en la pestaña <strong>Sesiones</strong>. Aquí solo se gestiona el microciclo semanal y la visualización del plan.
+	          </p>
+	          <a class="button" href="?tab=sessions">Ir a Sesiones</a>
+	        </section>
 
         <section class="panel">
           <h2>Mapa de planificación</h2>
