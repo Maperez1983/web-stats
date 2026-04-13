@@ -2533,7 +2533,7 @@ def _image_file_as_small_data_uri(file_path, max_width=1200, max_height=800, qua
         return _file_as_data_uri(file_path)
 
 
-def resolve_team_photo_for_pdf(request):
+def resolve_team_photo_for_pdf(request, *, team=None):
     default_path = Path(settings.BASE_DIR) / 'static' / 'football' / 'images' / 'team-01.jpg'
     fallback_url = request.build_absolute_uri(static('football/images/team-01.jpg'))
     fallback_data_uri = _image_file_as_small_data_uri(default_path)
@@ -2542,14 +2542,34 @@ def resolve_team_photo_for_pdf(request):
 
     primary_team = None
     try:
-        primary_team = _get_primary_team_for_request(request)
+        primary_team = team or _get_primary_team_for_request(request)
     except Exception:
-        primary_team = None
+        primary_team = team
     if primary_team and getattr(primary_team, 'cover_image', None):
         try:
             source_url = request.build_absolute_uri(primary_team.cover_image.url)
-            if getattr(primary_team.cover_image, 'path', None):
-                source_path = Path(primary_team.cover_image.path)
+            # En producción (S3) `path` puede no existir: leemos bytes del storage para embebido.
+            cover_field = primary_team.cover_image
+            raw = b''
+            try:
+                cover_field.open('rb')
+                raw = cover_field.read() or b''
+            except Exception:
+                raw = b''
+            try:
+                cover_field.close()
+            except Exception:
+                pass
+            if raw:
+                ext = Path(getattr(cover_field, 'name', '') or '').suffix.lower()
+                mime = {'.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp'}.get(ext, 'image/jpeg')
+                data_uri = _image_bytes_as_small_data_uri(raw_bytes=raw, mime_type=mime, max_width=1400, max_height=900, quality=72)
+                return {
+                    'url': source_url or fallback_url,
+                    'data_uri': data_uri or fallback_data_uri or '',
+                }
+            if getattr(cover_field, 'path', None):
+                source_path = Path(cover_field.path)
         except Exception:
             source_path = default_path
             source_url = fallback_url
@@ -2559,27 +2579,7 @@ def resolve_team_photo_for_pdf(request):
             'data_uri': data_uri or '',
         }
 
-    carousel_cover = (
-        HomeCarouselImage.objects
-        .filter(is_active=True)
-        .order_by('order', '-created_at', '-id')
-        .first()
-    )
-    if not carousel_cover:
-        carousel_cover = (
-            HomeCarouselImage.objects
-            .order_by('order', '-created_at', '-id')
-            .first()
-        )
-    if carousel_cover and carousel_cover.image:
-        try:
-            source_url = request.build_absolute_uri(carousel_cover.image.url)
-            if getattr(carousel_cover.image, 'path', None):
-                source_path = Path(carousel_cover.image.path)
-        except Exception:
-            source_path = default_path
-            source_url = fallback_url
-
+    # Producto multi-equipo: evitar imagen global (carousel) como fallback para no mezclar identidades.
     data_uri = _image_file_as_small_data_uri(source_path) or fallback_data_uri
     return {
         'url': source_url or fallback_url,
@@ -13641,7 +13641,7 @@ def match_report_pdf(request):
 
     location_label = (match.location or '').strip() or (convocation_record.location if convocation_record else '') or 'Campo por confirmar'
 
-    team_photo = resolve_team_photo_for_pdf(request)
+    team_photo = resolve_team_photo_for_pdf(request, team=primary_team)
     nav_urls = _build_pdf_nav_urls(request)
 
     def _svg_data_uri(svg_text):
@@ -14174,7 +14174,7 @@ def convocation_pdf(request):
     ordered_players = sorted(players, key=_sort_player_key)
 
     static_base_dir = Path(settings.BASE_DIR) / 'static'
-    team_photo = resolve_team_photo_for_pdf(request)
+    team_photo = resolve_team_photo_for_pdf(request, team=primary_team)
 
     # Fotos en PDF: por defecto ON (las leemos del storage y las embebemos como data-uri, sin requests HTTP).
     include_player_photos = str(os.getenv('CONVOCATION_PDF_PLAYER_PHOTOS', '1')).strip().lower() in {
