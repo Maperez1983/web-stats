@@ -15563,6 +15563,29 @@ def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
     primary_club_team = _get_primary_team_for_request(request) or Team.objects.filter(is_primary=True).first()
     club_logo_url = resolve_team_crest_url(request, primary_club_team, sync=True) if primary_club_team else ''
     logo_path = 'football/images/uefa-badge.svg' if pdf_style == 'uefa' else 'football/images/cdb-logo.png'
+    task_sheets = [_build_session_task_sheet(task) for task in tasks]
+    task_cards = []
+    for idx, task in enumerate(tasks):
+        sheet = task_sheets[idx] if idx < len(task_sheets) else _build_session_task_sheet(task)
+        preview_url = _file_field_as_data_url(task.task_preview_image) if getattr(task, 'task_preview_image', None) else ''
+        task_cards.append(
+            {
+                'task': task,
+                'sheet': sheet,
+                'preview_url': preview_url,
+            }
+        )
+    # Sugerencias para plantilla UEFA (no bloqueante).
+    session_materials_summary = ', '.join(
+        sorted(
+            {
+                str(sheet.get('materials_label') or '').strip()
+                for sheet in task_sheets
+                if str(sheet.get('materials_label') or '').strip() and str(sheet.get('materials_label') or '').strip() != '-'
+            }
+        )
+    )
+    session_objectives_summary = str(session.focus or '').strip()
     return {
         **_build_pdf_nav_urls(request),
         'team_name': team.name,
@@ -15571,7 +15594,8 @@ def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
         'session_plan_fields': session_plan_fields,
         'session_notes': str(session_plan_fields.get('notes') or '').strip(),
         'tasks': tasks,
-        'task_sheets': [_build_session_task_sheet(task) for task in tasks],
+        'task_sheets': task_sheets,
+        'task_cards': task_cards,
         'tasks_count': len(tasks),
         'task_minutes_total': total_task_minutes,
         'pdf_style': pdf_style,
@@ -15583,6 +15607,8 @@ def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
         'generated_at': timezone.localtime(),
         'intensity_label': dict(TrainingSession.INTENSITY_CHOICES).get(session.intensity, session.intensity or '-'),
         'status_label': dict(TrainingSession.STATUS_CHOICES).get(session.status, session.status or '-'),
+        'session_materials_summary': session_materials_summary,
+        'session_objectives_summary': session_objectives_summary,
     }
 
 

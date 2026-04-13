@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <title>Sesión · {{ session.focus }}</title>
-    <style>
+	    <style>
       @page {
         size: A4;
         margin: 12mm;
@@ -144,18 +144,186 @@
         margin-top: 4px;
         color: #475569;
       }
-      .footer {
-        padding: 8px 12px;
-        border-top: 1px solid #d5dde7;
-        font-size: 9px;
-        color: {{ pdf_palette.muted }};
-      }
-    </style>
-  </head>
-  <body>
-    <section class="sheet {% if pdf_style != 'club' %}uefa-sheet{% endif %}">
-	      {% if pdf_style == 'club' %}
-	      <div class="club-head">
+	      .footer {
+	        padding: 8px 12px;
+	        border-top: 1px solid #d5dde7;
+	        font-size: 9px;
+	        color: {{ pdf_palette.muted }};
+	      }
+
+	      .task-graphic {
+	        width: 100%;
+	        height: 210px;
+	        border: 1px solid #d5dde7;
+	        border-radius: 10px;
+	        background: #f8fafc;
+	        display: flex;
+	        align-items: center;
+	        justify-content: center;
+	        overflow: hidden;
+	      }
+	      .task-graphic img {
+	        width: 100%;
+	        height: 100%;
+	        object-fit: contain;
+	        display: block;
+	      }
+	      .task-sheet-card {
+	        page-break-inside: avoid;
+	      }
+
+	      /* UEFA (RFEF) layout, inspirado en plantilla oficial */
+	      .uefa-red { background: #e10613; color:#fff; }
+	      .uefa-bar {
+	        padding: 9px 14px;
+	        font-weight: 800;
+	        letter-spacing: 0.04em;
+	        text-transform: uppercase;
+	      }
+	      .uefa-section-head {
+	        margin-top: 10px;
+	        padding: 6px 10px;
+	        font-size: 10.5px;
+	        font-weight: 800;
+	        letter-spacing: 0.06em;
+	        text-transform: uppercase;
+	        background: #e10613;
+	        color: #fff;
+	      }
+	      .uefa-grid {
+	        width: 100%;
+	        border-collapse: collapse;
+	        table-layout: fixed;
+	      }
+	      .uefa-grid td, .uefa-grid th {
+	        border: 1px solid #1f2937;
+	        padding: 6px 8px;
+	        vertical-align: top;
+	      }
+	      .uefa-grid td.kcell {
+	        width: 30%;
+	        background: #f3f4f6;
+	        font-weight: 700;
+	      }
+	      .uefa-box {
+	        border: 1px solid #1f2937;
+	        min-height: 34px;
+	        padding: 8px;
+	      }
+	      .uefa-page-break { page-break-before: always; }
+	    </style>
+	  </head>
+	  <body>
+	    {% if pdf_style != 'club' %}
+	    <section class="sheet uefa-sheet">
+	      <div class="uefa-bar uefa-red">
+	        <table style="width:100%; border-collapse:collapse;">
+	          <tr>
+	            <td style="width:56px; vertical-align:middle;">
+	              <div style="width:36px; height:36px; border-radius:50%; background:#fff; display:flex; align-items:center; justify-content:center;">
+	                <img src="{{ logo_url }}" alt="RFEF / UEFA" style="width:28px; height:28px; object-fit:contain; display:block;" />
+	              </div>
+	            </td>
+	            <td style="vertical-align:middle; font-size:20px;">ENTREGA SESIÓN</td>
+	          </tr>
+	        </table>
+	      </div>
+
+	      <div style="padding:12px 14px 0;">
+	        <div class="uefa-section-head">DETALLES DE LA SESIÓN</div>
+	        <table class="uefa-grid" style="margin-bottom:10px;">
+	          <tr>
+	            <td class="kcell">Título</td>
+	            <td colspan="3">{{ session.focus }}</td>
+	          </tr>
+	          <tr>
+	            <td class="kcell">Tiempo</td>
+	            <td>{{ session.duration_minutes }}'</td>
+	            <td class="kcell">N jugadores</td>
+	            <td>-</td>
+	          </tr>
+	        </table>
+	        <div class="uefa-box" style="margin-bottom:8px;">
+	          <strong style="display:block; margin-bottom:4px;">Materiales</strong>
+	          {{ session_materials_summary|default:"" }}
+	        </div>
+	        <div class="uefa-box" style="margin-bottom:8px;">
+	          <strong style="display:block; margin-bottom:4px;">Objetivos</strong>
+	          {{ session_objectives_summary|default:"" }}
+	        </div>
+	        <div class="uefa-box" style="margin-bottom:10px;">
+	          <strong style="display:block; margin-bottom:4px;">Lesionados / Ausencias</strong>
+	          {{ session_notes|default:"" }}
+	        </div>
+
+	        <div class="uefa-section-head">TAREAS DE LA SESIÓN</div>
+	        {% if task_cards %}
+	          {% for card in task_cards %}
+	          <div class="{% if not forloop.first %}uefa-page-break{% endif %}"></div>
+	          <div class="uefa-bar uefa-red" style="margin:0 -14px 10px; padding-left:14px; padding-right:14px;">
+	            <table style="width:100%; border-collapse:collapse;">
+	              <tr>
+	                <td style="font-size:16px;">ENTREGA SESIÓN</td>
+	                <td style="text-align:right; font-size:11px; font-weight:700;">{{ session.session_date|date:"d/m/Y" }}{% if session.start_time %} · {{ session.start_time|time:"H:i" }}{% endif %}</td>
+	              </tr>
+	            </table>
+	          </div>
+
+	          <div class="uefa-section-head">DESCRIPCIÓN GRÁFICA</div>
+	          <div class="task-graphic" style="height:260px; margin-bottom:10px;">
+	            {% if card.preview_url %}
+	              <img src="{{ card.preview_url }}" alt="Representación gráfica" />
+	            {% else %}
+	              <div style="color:#6b7280;">(Sin representación gráfica)</div>
+	            {% endif %}
+	          </div>
+
+	          <div class="uefa-section-head">CONSIGNA / EXPLICACIÓN</div>
+	          <div class="uefa-box" style="margin-bottom:10px; white-space:pre-line;">
+	            {% if card.sheet.focus %}{{ card.sheet.focus }}{% elif card.sheet.description %}{{ card.sheet.description }}{% else %}-{% endif %}
+	          </div>
+
+	          <div class="uefa-section-head">DETALLES DEL EJERCICIO</div>
+	          <table class="uefa-grid">
+	            <tr>
+	              <td class="kcell">Título</td>
+	              <td>{{ card.sheet.title }}</td>
+	            </tr>
+	            <tr>
+	              <td class="kcell">Estrategia</td>
+	              <td>{{ card.sheet.type_label|default:"-" }}</td>
+	            </tr>
+	            <tr>
+	              <td class="kcell">Objetivos</td>
+	              <td>{{ card.sheet.contents_label|default:"-" }}</td>
+	            </tr>
+	            <tr>
+	              <td class="kcell">Espacio</td>
+	              <td>{{ card.sheet.dimensions_label|default:"-" }}</td>
+	            </tr>
+	            <tr>
+	              <td class="kcell">Tiempo</td>
+	              <td>{{ card.sheet.minutes }}'</td>
+	            </tr>
+	            <tr>
+	              <td class="kcell">Material</td>
+	              <td>{{ card.sheet.materials_label|default:"-" }}</td>
+	            </tr>
+	          </table>
+	          {% endfor %}
+	        {% else %}
+	          <div class="uefa-box" style="margin-top:10px;">-</div>
+	        {% endif %}
+	      </div>
+
+	      <div class="footer">
+	        Formato UEFA · {{ team_name }} · {{ coach_name }} · Generado {{ generated_at|date:"d/m/Y H:i" }}
+	      </div>
+	    </section>
+	    {% else %}
+	    <section class="sheet {% if pdf_style != 'club' %}uefa-sheet{% endif %}">
+		      {% if pdf_style == 'club' %}
+		      <div class="club-head">
 	        <table style="width:100%; border-collapse:collapse;">
 	          <tr>
 	            <td style="width:74px; vertical-align:top;">
@@ -246,70 +414,75 @@
 	          {% endif %}
 	        </div>
 
-        <div class="section-title {% if pdf_style == 'club' %}club{% else %}uefa{% endif %}">
-          Tareas de la sesión
-        </div>
-        <div class="box">
-          {% if task_sheets %}
-            {% for sheet in task_sheets %}
-            <div class="task-sheet-card">
-              <div class="task-title">Tarea {{ forloop.counter }} · {{ sheet.title }}</div>
-              <div class="task-meta">{{ sheet.block_label }} · {{ sheet.minutes }} min{% if sheet.type_label and sheet.type_label != '-' %} · {{ sheet.type_label }}{% endif %}</div>
-              <table class="task-sheet-grid">
-                <tr>
-                  <td style="width:50%;">
-                    <strong>Contenidos</strong>
-                    {{ sheet.contents_label|default:"-" }}
-                  </td>
-                  <td style="width:50%;">
-                    <strong>Estructura</strong>
-                    {{ sheet.structure_label|default:"-" }}
-                  </td>
-                </tr>
-                <tr>
-                  <td>
-                    <strong>Jugadores</strong>
-                    {{ sheet.players_label|default:"-" }}
-                  </td>
-                  <td>
-                    <strong>Dimensiones / material</strong>
-                    {{ sheet.dimensions_label|default:"-" }}{% if sheet.materials_label and sheet.materials_label != '-' %} · {{ sheet.materials_label }}{% endif %}
-                  </td>
-                </tr>
-                <tr>
-                  <td colspan="2">
-                    <strong>Descripción</strong>
-                    {{ sheet.description|default:"-" }}
-                  </td>
-                </tr>
-                <tr>
-                  <td>
-                    <strong>Reglas</strong>
-                    {{ sheet.rules|default:"-" }}
-                  </td>
-                  <td>
-                    <strong>Incidir en</strong>
-                    {{ sheet.focus|default:"-" }}
-                  </td>
-                </tr>
-                <tr>
-                  <td>
-                    <strong>Variantes</strong>
-                    {{ sheet.variants|default:"-" }}
-                  </td>
-                  <td>
-                    <strong>Criterio de éxito</strong>
-                    {{ sheet.success|default:"-" }}
-                  </td>
-                </tr>
-              </table>
-            </div>
-            {% endfor %}
-          {% else %}
-          <div>-</div>
-          {% endif %}
-        </div>
-      </div>
+	        <div class="section-title {% if pdf_style == 'club' %}club{% else %}uefa{% endif %}">
+	          Tareas de la sesión
+	        </div>
+	        <div class="box">
+	          {% if task_cards %}
+	            {% for card in task_cards %}
+	            <div class="task-sheet-card">
+	              <div class="task-title">Tarea {{ forloop.counter }} · {{ card.sheet.title }}</div>
+	              <div class="task-meta">{{ card.sheet.block_label }} · {{ card.sheet.minutes }} min{% if card.sheet.type_label and card.sheet.type_label != '-' %} · {{ card.sheet.type_label }}{% endif %}</div>
+	              {% if card.preview_url %}
+	              <div class="task-graphic" style="margin-top:8px; margin-bottom:8px;">
+	                <img src="{{ card.preview_url }}" alt="Representación gráfica" />
+	              </div>
+	              {% endif %}
+	              <table class="task-sheet-grid">
+	                <tr>
+	                  <td style="width:50%;">
+	                    <strong>Contenidos</strong>
+	                    {{ card.sheet.contents_label|default:"-" }}
+	                  </td>
+	                  <td style="width:50%;">
+	                    <strong>Estructura</strong>
+	                    {{ card.sheet.structure_label|default:"-" }}
+	                  </td>
+	                </tr>
+	                <tr>
+	                  <td>
+	                    <strong>Jugadores</strong>
+	                    {{ card.sheet.players_label|default:"-" }}
+	                  </td>
+	                  <td>
+	                    <strong>Dimensiones / material</strong>
+	                    {{ card.sheet.dimensions_label|default:"-" }}{% if card.sheet.materials_label and card.sheet.materials_label != '-' %} · {{ card.sheet.materials_label }}{% endif %}
+	                  </td>
+	                </tr>
+	                <tr>
+	                  <td colspan="2">
+	                    <strong>Descripción</strong>
+	                    {{ card.sheet.description|default:"-" }}
+	                  </td>
+	                </tr>
+	                <tr>
+	                  <td>
+	                    <strong>Reglas</strong>
+	                    {{ card.sheet.rules|default:"-" }}
+	                  </td>
+	                  <td>
+	                    <strong>Incidir en</strong>
+	                    {{ card.sheet.focus|default:"-" }}
+	                  </td>
+	                </tr>
+	                <tr>
+	                  <td>
+	                    <strong>Variantes</strong>
+	                    {{ card.sheet.variants|default:"-" }}
+	                  </td>
+	                  <td>
+	                    <strong>Criterio de éxito</strong>
+	                    {{ card.sheet.success|default:"-" }}
+	                  </td>
+	                </tr>
+	              </table>
+	            </div>
+	            {% endfor %}
+	          {% else %}
+	          <div>-</div>
+	          {% endif %}
+	        </div>
+	      </div>
 
 	      <div class="footer">
 	        <table style="width:100%; border-collapse:collapse;">
@@ -331,7 +504,8 @@
             </td>
           </tr>
         </table>
-      </div>
-    </section>
-  </body>
-</html>
+	      </div>
+	    </section>
+	    {% endif %}
+	  </body>
+	</html>
