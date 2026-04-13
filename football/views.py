@@ -26684,26 +26684,39 @@ def player_pdf(request, player_id):
             continue
         match_date = _parse_iso_date(entry.get('date'))
         actions = int(entry.get('actions') or 0)
+        successes = int(entry.get('successes') or 0)
+        goals = int(entry.get('goals') or 0)
+        assists = int(entry.get('assists') or 0)
         has_result = bool(
             (entry.get('home_score') is not None and entry.get('away_score') is not None)
             or str(entry.get('result') or '').strip()
         )
         # Heurística robusta:
-        # - Si hay acciones, es jugado (aunque la fecha esté mal o sea None).
-        # - Si hay marcador/resultado, es jugado.
-        # - Si hay fecha y es <= hoy, lo tratamos como jugado.
-        # - Si la fecha es futura y no hay acciones, es próximo.
-        if actions > 0 or has_result or (match_date and match_date <= today):
-            entry = {**entry, 'date_obj': match_date}
+        # - Jugado si hay actividad (acciones/éxitos) o goles/asistencias por partido.
+        # - Jugado si hay marcador/resultado.
+        # Nota: NO usamos "fecha <= hoy" como único criterio, porque hay calendarios que
+        # arrastran partidos con fecha pasada pero sin registros (y eso mostraba rivales incorrectos).
+        is_played = bool(actions > 0 or successes > 0 or goals > 0 or assists > 0 or has_result)
+        entry = {**entry, 'date_obj': match_date}
+        if is_played:
             played_matches.append(entry)
         else:
-            entry = {**entry, 'date_obj': match_date}
             upcoming_matches.append(entry)
 
-    played_matches.sort(key=lambda m: (m.get('date_obj') is None, m.get('date_obj') or date.min), reverse=True)
+    played_matches.sort(
+        key=lambda m: (
+            int(int(m.get('actions') or 0) > 0),
+            m.get('date_obj') is None,
+            m.get('date_obj') or date.min,
+        ),
+        reverse=True,
+    )
     upcoming_matches.sort(key=lambda m: (m.get('date_obj') is None, m.get('date_obj') or date.max))
     latest_played_match = played_matches[0] if played_matches else None
-    next_scheduled_match = upcoming_matches[0] if upcoming_matches else None
+    next_scheduled_match = None
+    if upcoming_matches:
+        future = [m for m in upcoming_matches if m.get('date_obj') and m.get('date_obj') >= today]
+        next_scheduled_match = future[0] if future else upcoming_matches[0]
 
     def _clamp_pct(value):
         try:
