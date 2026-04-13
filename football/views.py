@@ -29119,12 +29119,40 @@ def match_hub_page(request):
     if not primary_team:
         raise Http404('Equipo no configurado')
 
-    active_match = get_latest_live_match(primary_team) or get_active_match(primary_team)
-    convocation_record = get_current_convocation_record(
-        primary_team,
-        match=active_match,
-        fallback_to_latest=True,
-    ) if active_match else get_current_convocation_record(primary_team)
+    active_match = None
+    requested_match = get_requested_match(request, primary_team)
+    if requested_match:
+        active_match = requested_match
+        if hasattr(request, 'session'):
+            try:
+                mapping = request.session.get('active_match_by_team')
+                if not isinstance(mapping, dict):
+                    mapping = {}
+                mapping[str(primary_team.id)] = int(requested_match.id)
+                request.session['active_match_by_team'] = mapping
+            except Exception:
+                pass
+    if not active_match and hasattr(request, 'session'):
+        try:
+            mapping = request.session.get('active_match_by_team')
+            desired_match_id = _parse_int(mapping.get(str(primary_team.id)) if isinstance(mapping, dict) else None)
+            if desired_match_id:
+                active_match = _team_match_queryset(primary_team).filter(id=desired_match_id).first()
+        except Exception:
+            active_match = None
+    if not active_match:
+        active_match = get_latest_live_match(primary_team) or get_active_match(primary_team)
+    convocation_record = None
+    if active_match:
+        convocation_record = get_current_convocation_record(
+            primary_team,
+            match=active_match,
+            fallback_to_latest=False,
+        )
+    if not convocation_record:
+        # Solo como fallback: última convocatoria del equipo (para que no se pierda el trabajo),
+        # pero NO debe reescribir etiquetas del partido activo si pertenece a otro match.
+        convocation_record = get_current_convocation_record(primary_team)
     convocation_players_count = 0
     has_lineup = False
     if convocation_record:
@@ -29165,8 +29193,8 @@ def match_hub_page(request):
         if active_match.date:
             match_date_label = active_match.date.strftime('%d/%m/%Y')
         match_location = str(active_match.location or '').strip()
-        # Prioridad: si hay convocatoria, usa esos datos (más fiables para el usuario).
-        if convocation_record:
+        # Prioridad: si hay convocatoria vinculada a ESTE partido, usa esos datos (más fiables para el usuario).
+        if convocation_record and convocation_record.match_id and int(convocation_record.match_id) == int(active_match.id):
             if convocation_record.opponent_name:
                 match_label = f'vs {convocation_record.opponent_name}'.strip()
             if convocation_record.round:
@@ -29269,7 +29297,7 @@ def search_api(request):
                     'id': str(match.id),
                     'label': f'vs {opponent_name}'.strip(),
                     'meta': meta,
-                    'url': reverse('match-stats', args=[match.id]),
+                    'url': f"{reverse('match-hub')}?match_id={match.id}",
                 }
             )
     except Exception:
