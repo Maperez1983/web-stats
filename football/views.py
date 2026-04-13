@@ -500,7 +500,8 @@ def system_healthcheck_api(request):
         parts = [int(p) for p in re.findall(r'\d+', pydyf_version)[:3]]
         while len(parts) < 3:
             parts.append(0)
-        report['pydyf_ok'] = tuple(parts) >= (0, 11, 0)
+        parsed = tuple(parts)
+        report['pydyf_ok'] = (parsed >= (0, 10, 0)) and (parsed < (0, 11, 0))
     except Exception:
         report['pydyf_version'] = ''
         report['pydyf_ok'] = False
@@ -1046,16 +1047,17 @@ def _build_pdf_response_or_html_fallback(request, html: str, filename: str, *, i
 
     def _pydyf_compat_status():
         """
-        WeasyPrint 57.x requiere pydyf>=0.11.
+        WeasyPrint 57.x requiere pydyf 0.10.x.
 
-        Si pydyf es más antiguo, WeasyPrint puede fallar con:
+        Si pydyf es 0.11+ (firma PDF() sin args), WeasyPrint 57.x falla con:
         `TypeError: PDF.__init__() takes 1 positional argument but 3 were given`.
         """
         try:
             import pydyf  # noqa: WPS433
 
             version = str(getattr(pydyf, '__version__', '') or '')
-            ok = _parse_version_tuple(version) >= (0, 11, 0)
+            parsed = _parse_version_tuple(version)
+            ok = (0, 10, 0) <= parsed < (0, 11, 0)
             return ok, version or 'unknown'
         except Exception:
             return False, 'not installed'
@@ -1111,7 +1113,8 @@ def _render_pdf_bytes(request, html: str):
             import pydyf  # noqa: WPS433
 
             version = str(getattr(pydyf, '__version__', '') or '')
-            return _parse_version_tuple(version) >= (0, 11, 0)
+            parsed = _parse_version_tuple(version)
+            return (0, 10, 0) <= parsed < (0, 11, 0)
         except Exception:
             return False
 
@@ -1151,7 +1154,8 @@ def _render_pdf_bytes_with_error(request, html: str):
             import pydyf  # noqa: WPS433
 
             version = str(getattr(pydyf, '__version__', '') or '')
-            ok = _parse_version_tuple(version) >= (0, 11, 0)
+            parsed = _parse_version_tuple(version)
+            ok = (0, 10, 0) <= parsed < (0, 11, 0)
             return ok, version or 'unknown'
         except Exception:
             return False, 'not installed'
@@ -1160,7 +1164,7 @@ def _render_pdf_bytes_with_error(request, html: str):
         return None, 'weasyprint not available'
     pydyf_ok, pydyf_version = _pydyf_compat_status()
     if not pydyf_ok:
-        return None, f'pydyf incompatible ({pydyf_version}); requires >= 0.11.0'
+        return None, f'pydyf incompatible ({pydyf_version}); requires 0.10.x for weasyprint 57.x'
     try:
         def _safe_url_fetcher(url, timeout=4, ssl_context=None):
             try:
