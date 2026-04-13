@@ -26000,6 +26000,24 @@ def player_detail_page(request, player_id):
         if not season_label:
             season_label = 'Temporada actual'
 
+        try:
+            match_regulation_minutes = _regulation_minutes_for_team(primary_team)
+        except Exception:
+            match_regulation_minutes = 90
+
+        influence_help = (
+            'Influencia (0–100): acciones decisivas por partido normalizadas por minutos reglamentarios '
+            f'({int(match_regulation_minutes)}\') y comparadas con el máximo del equipo.\n'
+            'Fórmula: decisivas = éxitos + (goles×6) + (asistencias×4) + (pases clave×2); '
+            'decisivas/partido = decisivas/minutos×minutos_reglamentarios; '
+            'influencia = decisivas/partido ÷ max_equipo × 100 (capado 0–100).'
+        )
+        importance_help = (
+            'Importancia (0–100): mezcla de disponibilidad y volumen de éxito.\n'
+            'Disponibilidad = minutos ÷ minutos posibles × 100 (capado 0–100).\n'
+            'Volumen éxito = éxitos ÷ máximo_éxitos_equipo × 100 (capado 0–100).\n'
+            'Importancia = (disponibilidad×0.6) + (volumen×0.4) (capado 0–100).'
+        )
         general_kpis = [
             {'label': 'Partidos', 'value': pj, 'pct': 100 if pj else 0},
             {'label': 'Titular', 'value': pt, 'pct': round((pt / pj) * 100, 1) if pj else 0},
@@ -26009,8 +26027,8 @@ def player_detail_page(request, player_id):
             {'label': 'Asistencias', 'value': assists, 'pct': round((assists / pj) * 100, 1) if pj else 0},
             {'label': 'Media goles/partido', 'value': goals_per_match, 'pct': round(min(goals_per_match * 100, 100), 1)},
             {'label': '% participación', 'value': participation_pct, 'pct': participation_pct},
-            {'label': 'Importancia', 'value': importance_score, 'pct': importance_score},
-            {'label': 'Influencia', 'value': influence_score, 'pct': influence_score},
+            {'label': 'Importancia', 'value': importance_score, 'pct': importance_score, 'help': importance_help},
+            {'label': 'Influencia', 'value': influence_score, 'pct': influence_score, 'help': influence_help},
             {'label': 'Amarillas', 'value': yellow_cards, 'pct': round(min(yellow_cards * 15, 100), 1)},
             {'label': 'Rojas', 'value': red_cards, 'pct': round(min(red_cards * 30, 100), 1)},
             {'label': 'Doble amarilla', 'value': second_yellow_cards, 'pct': round(min(second_yellow_cards * 30, 100), 1)},

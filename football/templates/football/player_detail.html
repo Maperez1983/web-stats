@@ -661,7 +661,7 @@
                 <div class="kpi-ring-chart" style="--pct: {{ item.pct|default:0 }};">
                   <span class="kpi-ring-value">{{ item.value|default:0|floatformat:-2 }}</span>
                 </div>
-                <div class="kpi-ring-label">{{ item.label }}</div>
+                <div class="kpi-ring-label" {% if item.help %}title="{{ item.help }}"{% endif %}>{{ item.label }}</div>
               </article>
             {% endfor %}
           </div>
