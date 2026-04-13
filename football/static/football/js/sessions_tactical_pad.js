@@ -246,7 +246,11 @@
 	    // del borde no se recorte incluso con overflow hidden.
 	    const stageW = orientation === 'portrait' ? 680 : 1050;
 	    const stageH = orientation === 'portrait' ? 1050 : 680;
-    const bleed = 2;
+	    // Bleed suficiente para que:
+	    // - el borde del campo (stroke) no se recorte
+	    // - la "parte posterior" de las porterías (que va fuera de la línea de fondo) se vea
+	    // En campo completo, el goalDepth típico ronda ~22px; dejamos margen generoso.
+	    const bleed = preset === 'full_pitch' ? 30 : 12;
     const drawW = 1100;
     const drawH = 748;
     const doc = document.implementation.createDocument('http://www.w3.org/2000/svg', 'svg', null);

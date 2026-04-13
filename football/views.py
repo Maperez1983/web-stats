@@ -24516,6 +24516,21 @@ def task_studio_task_builder_page(request, task_id=None):
         ],
         ensure_ascii=False,
     )
+    ppt_icons = []
+    try:
+        if TASK_MATERIAL_PPT_DIR and TASK_MATERIAL_PPT_DIR.exists():
+            allowed = {'.png', '.jpg', '.jpeg', '.webp', '.gif'}
+            files = [p for p in TASK_MATERIAL_PPT_DIR.iterdir() if p.is_file() and p.suffix.lower() in allowed]
+            files = sorted(files, key=lambda p: p.name.lower())[:90]
+            for p in files:
+                ppt_icons.append(
+                    {
+                        'label': str(p.stem or '').strip()[:80],
+                        'static_path': f'football/images/task-materials/ppt/{p.name}',
+                    }
+                )
+    except Exception:
+        ppt_icons = []
     query_suffix = _task_studio_query_suffix(target_user, request.user)
     return render(
         request,
@@ -24544,6 +24559,7 @@ def task_studio_task_builder_page(request, task_id=None):
             'available_players': available_players,
             'pdf_assets': pdf_assets,
             'pdf_assets_json': pdf_assets_json,
+            'ppt_icons': ppt_icons,
             'initial': initial,
             'back_url': reverse('task-studio-home') + query_suffix,
             'back_label': 'Volver al estudio',
