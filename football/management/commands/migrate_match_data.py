@@ -109,7 +109,15 @@ class Command(BaseCommand):
         if not options.get('apply'):
             self.stdout.write(self.style.WARNING('Dry-run: no se aplicó nada. Usa --apply para ejecutar.'))
             return
-        if to_events_count and not options.get('allow_merge'):
+        from_counts = summary.get('from') if isinstance(summary, dict) else {}
+        from_total = 0
+        if isinstance(from_counts, dict):
+            try:
+                from_total = sum(int(from_counts.get(key) or 0) for key in from_counts.keys())
+            except Exception:
+                from_total = 0
+        only_updates_from_match = bool((options.get('set_from_date') or '').strip() or (options.get('set_from_round') or '').strip()) and from_total <= 0
+        if to_events_count and not options.get('allow_merge') and not only_updates_from_match:
             raise CommandError(
                 'El partido destino ya tiene eventos. Por seguridad, abortamos la migración. '
                 'Si estás seguro de querer combinar, repite con --allow-merge.'
