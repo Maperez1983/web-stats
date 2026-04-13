@@ -189,12 +189,15 @@
 	        justify-content: center;
 	        background: rgba(0,0,0,0.18);
 	        border: 1px solid rgba(255,255,255,0.35);
+	        line-height: 0;
 	      }
 	      .uefa-logo-wrap img {
 	        width: 28px;
 	        height: 28px;
 	        object-fit: contain;
 	        display: block;
+	        object-position: center;
+	        margin: 0 auto;
 	        filter: drop-shadow(0 1px 0 rgba(0,0,0,0.2));
 	      }
 	      .uefa-section-head {
@@ -218,7 +221,6 @@
 	        vertical-align: top;
 	      }
 	      .uefa-grid td.kcell {
-	        width: 30%;
 	        background: #f3f4f6;
 	        font-weight: 700;
 	      }
@@ -247,12 +249,18 @@
 	      </div>
 
 	      <div style="padding:12px 14px 0;">
-	        <div class="uefa-section-head">DETALLES DE LA SESIÓN</div>
-	        <table class="uefa-grid" style="margin-bottom:10px;">
-	          <tr>
-	            <td class="kcell">Título</td>
-	            <td colspan="3">{{ session.focus }}</td>
-	          </tr>
+		        <div class="uefa-section-head">DETALLES DE LA SESIÓN</div>
+		        <table class="uefa-grid" style="margin-bottom:10px;">
+		          <colgroup>
+		            <col style="width:18%;" />
+		            <col style="width:32%;" />
+		            <col style="width:18%;" />
+		            <col style="width:32%;" />
+		          </colgroup>
+		          <tr>
+		            <td class="kcell">Título</td>
+		            <td colspan="3">{{ session.focus }}</td>
+		          </tr>
 	          <tr>
 	            <td class="kcell">Tiempo</td>
 	            <td>{{ session.duration_minutes }}'</td>
@@ -273,18 +281,18 @@
 	          {{ session_notes|default:"" }}
 	        </div>
 
-	        <div class="uefa-section-head">TAREAS DE LA SESIÓN</div>
-	        {% if task_cards %}
-	          {% for card in task_cards %}
-	          <div class="{% if not forloop.first %}uefa-page-break{% endif %}"></div>
-	          <div class="uefa-bar uefa-red" style="margin:0 -14px 10px; padding-left:14px; padding-right:14px;">
-	            <table style="width:100%; border-collapse:collapse;">
-	              <tr>
-	                <td style="font-size:16px;">ENTREGA SESIÓN</td>
-	                <td style="text-align:right; font-size:11px; font-weight:700;">{{ session.session_date|date:"d/m/Y" }}{% if session.start_time %} · {{ session.start_time|time:"H:i" }}{% endif %}</td>
-	              </tr>
-	            </table>
-	          </div>
+		        <div class="uefa-section-head">TAREAS DE LA SESIÓN</div>
+		        {% if task_cards %}
+		          {% for card in task_cards %}
+		          {% if not forloop.first %}<div class="uefa-page-break"></div>{% endif %}
+		          <div class="uefa-bar uefa-red" style="margin:0 0 10px; border-top:1px solid #1f2937; border-bottom:1px solid #1f2937;">
+		            <table style="width:100%; border-collapse:collapse;">
+		              <tr>
+		                <td style="font-size:16px;">ENTREGA SESIÓN</td>
+		                <td style="text-align:right; font-size:11px; font-weight:700;">{{ session.session_date|date:"d/m/Y" }}{% if session.start_time %} · {{ session.start_time|time:"H:i" }}{% endif %}</td>
+		              </tr>
+		            </table>
+		          </div>
 
 	          <div class="uefa-section-head">DESCRIPCIÓN GRÁFICA</div>
 	          <div class="task-graphic" style="height:260px; margin-bottom:10px;">
@@ -300,12 +308,16 @@
 	            {% if card.sheet.focus %}{{ card.sheet.focus }}{% elif card.sheet.description %}{{ card.sheet.description }}{% else %}-{% endif %}
 	          </div>
 
-	          <div class="uefa-section-head">DETALLES DEL EJERCICIO</div>
-	          <table class="uefa-grid">
-	            <tr>
-	              <td class="kcell">Título</td>
-	              <td>{{ card.sheet.title }}</td>
-	            </tr>
+		          <div class="uefa-section-head">DETALLES DEL EJERCICIO</div>
+		          <table class="uefa-grid">
+		            <colgroup>
+		              <col style="width:22%;" />
+		              <col style="width:78%;" />
+		            </colgroup>
+		            <tr>
+		              <td class="kcell">Título</td>
+		              <td>{{ card.sheet.title }}</td>
+		            </tr>
 	            <tr>
 	              <td class="kcell">Estrategia</td>
 	              <td>{{ card.sheet.type_label|default:"-" }}</td>
