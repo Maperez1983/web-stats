@@ -28364,6 +28364,18 @@ def compute_player_dashboard(primary_team, force_refresh=False):
         photo_path = resolve_player_photo_static_path(player)
         player_photo_url_by_id[player.id] = resolve_player_photo_url(None, player) or (static(photo_path) if photo_path else '')
     preferred_sources = preferred_event_source_by_match(primary_team)
+    convocation_seed_by_match_id = {}
+    try:
+        for record in (
+            ConvocationRecord.objects
+            .filter(team=primary_team, match__isnull=False)
+            .select_related('match')
+            .order_by('match_id', '-created_at', '-id')
+        ):
+            if record.match_id and record.match_id not in convocation_seed_by_match_id:
+                convocation_seed_by_match_id[int(record.match_id)] = record
+    except Exception:
+        convocation_seed_by_match_id = {}
     lineup_by_match = {}
     convocation_qs = (
         ConvocationRecord.objects.filter(team=primary_team, match__isnull=False)
@@ -28587,19 +28599,26 @@ def compute_player_dashboard(primary_team, force_refresh=False):
         if not match:
             continue
         match_key = match.id
+        conv_seed = convocation_seed_by_match_id.get(int(match_key)) if convocation_seed_by_match_id else None
+        conv_round = str(getattr(conv_seed, 'round', '') or '').strip() if conv_seed else ''
+        conv_date = getattr(conv_seed, 'match_date', None) if conv_seed else None
+        conv_opponent = str(getattr(conv_seed, 'opponent_name', '') or '').strip() if conv_seed else ''
         match_entry = stats['matches'].setdefault(
             match_key,
             {
                 'match_id': match.id,
-                'round': match.round or 'Partido sin jornada',
-                'date': match.date.isoformat() if match.date else None,
+                'round': conv_round or match.round or 'Partido sin jornada',
+                'date': (conv_date.isoformat() if conv_date else (match.date.isoformat() if match.date else None)),
                 'home': match.home_team == primary_team,
                 'opponent': (
-                    match.away_team.display_name
-                    if match.home_team == primary_team and match.away_team
-                    else match.home_team.display_name
-                    if match.away_team == primary_team and match.home_team
-                    else 'Rival desconocido'
+                    conv_opponent
+                    or (
+                        match.away_team.display_name
+                        if match.home_team == primary_team and match.away_team
+                        else match.home_team.display_name
+                        if match.away_team == primary_team and match.home_team
+                        else 'Rival desconocido'
+                    )
                 ),
                 'home_score': match.home_score,
                 'away_score': match.away_score,

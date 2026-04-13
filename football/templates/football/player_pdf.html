@@ -175,7 +175,7 @@
 	          <h1 class="player-name">{{ player.name }}</h1>
 	          <p class="player-sub">
 	            <span class="pill">#{{ player.number|default:"--" }}</span>
-	            <span class="pill light">{{ stats.dominant_position|default:player.position|default:"Sin posición" }}</span>
+	            <span class="pill light">{{ player.position|default:stats.dominant_position|default:"Sin posición" }}</span>
 	            <span class="pill light">Licencia: {% if license_exists %}OK{% else %}—{% endif %}</span>
 	          </p>
 
