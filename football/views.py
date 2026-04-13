@@ -24664,6 +24664,14 @@ def analysis_page(request):
     if forbidden:
         return forbidden
     primary_team = _get_primary_team_for_request(request)
+    active_tab = str(request.GET.get('tab') or '').strip().lower() or 'reports'
+    if active_tab not in {'reports', 'videos', 'insights'}:
+        active_tab = 'reports'
+    def _tab_link(tab_name):
+        params = request.GET.copy()
+        params['tab'] = tab_name
+        encoded = params.urlencode()
+        return f'?{encoded}' if encoded else ''
     team_url = (request.GET.get('team_url') or '').strip()
     team_id = (request.GET.get('team_id') or '').strip()
     raw_text = ''
@@ -25281,6 +25289,10 @@ def analysis_page(request):
             'description': 'Indicadores y notas tácticas para el próximo rival.',
             'team_url': team_url,
             'team_id': team_id,
+            'active_tab': active_tab,
+            'tab_link_reports': _tab_link('reports'),
+            'tab_link_videos': _tab_link('videos'),
+            'tab_link_insights': _tab_link('insights'),
             'teams': Team.objects.order_by('name'),
             'raw_text': raw_text,
             'roster': roster,

@@ -42,6 +42,36 @@
         border: 1px solid rgba(255, 255, 255, 0.08);
         box-shadow: 0 25px 60px rgba(0, 0, 0, 0.55);
       }
+      .tab-nav {
+        margin-top: 1rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+      .tab-nav a {
+        text-decoration: none;
+        border-radius: 999px;
+        padding: 0.55rem 0.85rem;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        color: rgba(226, 232, 240, 0.92);
+        font-size: 0.78rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        background: rgba(2, 6, 23, 0.35);
+        font-weight: 800;
+      }
+      .tab-nav a.is-active {
+        border-color: rgba(56, 189, 248, 0.55);
+        box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.18);
+        background: rgba(56, 189, 248, 0.12);
+      }
+      [data-tab] { display: block; }
+      body[data-active-tab="reports"] [data-tab="videos"],
+      body[data-active-tab="reports"] [data-tab="insights"] { display: none; }
+      body[data-active-tab="videos"] [data-tab="reports"],
+      body[data-active-tab="videos"] [data-tab="insights"] { display: none; }
+      body[data-active-tab="insights"] [data-tab="reports"],
+      body[data-active-tab="insights"] [data-tab="videos"] { display: none; }
       .grid {
         display: grid;
         gap: 1rem;
@@ -269,7 +299,7 @@
       }
     </style>
   </head>
-  <body class="prod-commercial">
+  <body class="prod-commercial" data-active-tab="{{ active_tab|default:'reports' }}">
     <div class="page product-shell">
       {% include 'football/includes/dragon_nav.html' %}
       <header>
@@ -281,6 +311,13 @@
       </header>
       <article class="panel">
         <p>{{ description }}</p>
+        <nav class="tab-nav" aria-label="Secciones análisis">
+          <a class="{% if active_tab == 'reports' %}is-active{% endif %}" href="{{ tab_link_reports }}">Informes</a>
+          <a class="{% if active_tab == 'videos' %}is-active{% endif %}" href="{{ tab_link_videos }}">Vídeos</a>
+          <a class="{% if active_tab == 'insights' %}is-active{% endif %}" href="{{ tab_link_insights }}">Insights</a>
+        </nav>
+
+        <div data-tab="reports">
         <form class="form" method="post">
           {% csrf_token %}
           <input type="hidden" name="form_action" value="analyze" />
@@ -514,6 +551,11 @@
               {% endfor %}
             </div>
           </div>
+        </div>
+        </div>
+
+        <div data-tab="videos">
+        <div class="grid" style="margin-top:1rem;">
           <div class="item item-wide">
             <h3>Repositorio vídeos rival</h3>
             <form class="form" method="post" style="margin-top:0.5rem;">
@@ -651,6 +693,9 @@
             </div>
           </div>
         </div>
+        </div>
+
+        <div data-tab="insights">
         {% if roster %}
         <div class="grid">
           <div class="item">
@@ -711,6 +756,7 @@
           </div>
         </div>
         {% endif %}
+        </div>
       </article>
     </div>
     <script>
