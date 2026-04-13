@@ -15564,10 +15564,68 @@ def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
     club_logo_url = resolve_team_crest_url(request, primary_club_team, sync=True) if primary_club_team else ''
     logo_path = 'football/images/uefa-badge.svg' if pdf_style == 'uefa' else 'football/images/cdb-logo.png'
     task_sheets = [_build_session_task_sheet(task) for task in tasks]
+
+    def _task_preview_data_url_for_pdf(task):
+        # 1) Imagen ya guardada.
+        preview = _file_field_as_data_url(getattr(task, 'task_preview_image', None))
+        if preview:
+            return preview
+        layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
+        meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+        graphic = meta.get('graphic_editor') if isinstance(meta.get('graphic_editor'), dict) else {}
+        canvas_state = graphic.get('canvas_state') if isinstance(graphic.get('canvas_state'), dict) else None
+        # 2) Render server-side desde canvas_state (más robusto que depender de ficheros).
+        if canvas_state and isinstance(canvas_state, dict) and canvas_state.get('objects'):
+            try:
+                pitch_preset = str(meta.get('pitch_preset') or 'full_pitch').strip() or 'full_pitch'
+                pitch_orientation = str(meta.get('pitch_orientation') or 'landscape').strip().lower()
+                pitch_grass_style = str(meta.get('pitch_grass_style') or 'classic').strip().lower()
+                if pitch_grass_style not in {'classic', 'realistic'}:
+                    pitch_grass_style = 'classic'
+                try:
+                    pitch_zoom = float(str(meta.get('pitch_zoom') or '1.0').strip())
+                except Exception:
+                    pitch_zoom = 1.0
+                canvas_width = max(320, min(_parse_int(graphic.get('canvas_width')) or 1280, 3840))
+                canvas_height = max(180, min(_parse_int(graphic.get('canvas_height')) or 720, 2160))
+                png_bytes = render_task_preview_png(
+                    canvas_state=canvas_state,
+                    pitch_preset=pitch_preset,
+                    pitch_orientation="portrait" if pitch_orientation == "portrait" else "landscape",
+                    pitch_grass_style=pitch_grass_style,
+                    pitch_zoom=pitch_zoom,
+                    world_width=canvas_width,
+                    world_height=canvas_height,
+                    max_side=2600,
+                )
+                if png_bytes:
+                    return "data:image/png;base64," + base64.b64encode(png_bytes).decode("ascii")
+            except Exception:
+                pass
+        # 3) Fallback: extraer preview del PDF si existe.
+        pdf_field = getattr(task, 'task_pdf', None)
+        if pdf_field:
+            try:
+                payload = _extract_preview_image_from_pdf(pdf_field, prefer_render=True)
+                if payload:
+                    name, content = payload
+                    try:
+                        content.seek(0)
+                    except Exception:
+                        pass
+                    raw = content.read() or b''
+                    if raw:
+                        ext = str(name or '').rsplit('.', 1)[-1].lower()
+                        mime = {'png': 'image/png', 'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'webp': 'image/webp'}.get(ext, 'image/png')
+                        return f"data:{mime};base64," + base64.b64encode(raw).decode("ascii")
+            except Exception:
+                pass
+        return ''
+
     task_cards = []
     for idx, task in enumerate(tasks):
         sheet = task_sheets[idx] if idx < len(task_sheets) else _build_session_task_sheet(task)
-        preview_url = _file_field_as_data_url(task.task_preview_image) if getattr(task, 'task_preview_image', None) else ''
+        preview_url = _task_preview_data_url_for_pdf(task)
         task_cards.append(
             {
                 'task': task,

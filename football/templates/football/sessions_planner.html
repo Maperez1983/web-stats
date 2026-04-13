@@ -1380,13 +1380,14 @@
 	                    {% endfor %}
 	                  </select>
 	                </label>
-	                <div style="display:flex; align-items:flex-end; gap:0.6rem;">
-	                  <button type="submit" class="secondary">Cargar</button>
-	                  {% if selected_session %}
-	                  <a class="button" href="{% url 'session-plan-pdf' selected_session.id %}?style=club">PDF sesión</a>
-	                  {% endif %}
-	                </div>
-	              </form>
+		                <div style="display:flex; align-items:flex-end; gap:0.6rem;">
+		                  <button type="submit" class="secondary">Cargar</button>
+		                  {% if selected_session %}
+		                  <a class="button" href="{% url 'session-plan-pdf' selected_session.id %}?style=uefa">PDF UEFA</a>
+		                  <a class="button secondary" href="{% url 'session-plan-pdf' selected_session.id %}?style=club">PDF Club</a>
+		                  {% endif %}
+		                </div>
+		              </form>
 		              {% if selected_session %}
 		              <p class="meta" style="margin:0.65rem 0 0;">
 		                {% if inbox_microcycle_id and selected_session.microcycle_id == inbox_microcycle_id %}
@@ -1747,7 +1748,8 @@
 	                          {{ slot_session.obj.duration_minutes }}' · {{ slot_session.obj.get_intensity_display }}
 	                        </span>
 	                        <span style="margin-top:4px; display:flex; gap:8px; flex-wrap:wrap;">
-	                          <a class="meta" href="{% url 'session-plan-pdf' slot_session.obj.id %}?style=club" target="_blank" rel="noopener">PDF sesión</a>
+	                          <a class="meta" href="{% url 'session-plan-pdf' slot_session.obj.id %}?style=uefa" target="_blank" rel="noopener">PDF UEFA</a>
+	                          <a class="meta" href="{% url 'session-plan-pdf' slot_session.obj.id %}?style=club" target="_blank" rel="noopener">PDF Club</a>
 	                          <a class="meta" href="{% url 'session-presentation-pdf' slot_session.obj.id %}" target="_blank" rel="noopener">Presentación</a>
 	                        </span>
 	                      </div>
@@ -1976,7 +1978,8 @@
                     {% endif %}
                     <div class="session-actions">
                       <a class="button" href="{% url 'session-plan-pdf' session.obj.id %}" target="_blank" rel="noopener">Imprimir UEFA</a>
-                      <a class="button" href="{% url 'session-plan-pdf' session.obj.id %}?style=club" target="_blank" rel="noopener">Imprimir Club</a>
+                      <a class="button" href="{% url 'session-plan-pdf' session.obj.id %}?style=uefa" target="_blank" rel="noopener">Imprimir UEFA</a>
+                      <a class="button secondary" href="{% url 'session-plan-pdf' session.obj.id %}?style=club" target="_blank" rel="noopener">Imprimir Club</a>
                       <details class="session-editor">
                         <summary>Editar sesión</summary>
                         <form method="post" class="grid" style="margin-top:0.7rem;">
