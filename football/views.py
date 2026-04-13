@@ -21151,6 +21151,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         )
 
     all_sessions = []
+    auto_selected_session_id = None
 
     def _normalize_tab(value):
         tab = str(value or '').strip().lower()
@@ -21554,6 +21555,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     if not attached_count
                     else f'Sesión creada en {microcycle.title}: {focus}. Tareas añadidas: {attached_count}.'
                 )
+                auto_selected_session_id = int(session_obj.id)
 
             elif planner_action == 'update_session_plan':
                 session_id = _parse_int(request.POST.get('edit_session_id'))
@@ -22632,7 +22634,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     selected_session_task_sections = []
     selected_session_id = None
     if planner_tables_ready and active_tab == 'sessions':
-        selected_session_id = _parse_int(request.GET.get('session_id') or request.POST.get('selected_session_id'))
+        selected_session_id = _parse_int(request.GET.get('session_id') or request.POST.get('selected_session_id') or auto_selected_session_id)
         session_qs = (
             TrainingSession.objects
             .select_related('microcycle')

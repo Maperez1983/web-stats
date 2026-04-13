@@ -1287,14 +1287,70 @@
 		        <a class="tab-link" href="{% url task_builder_route_name %}">Crear tarea</a>
 		      </div>
 
-	      <div class="tab-panel {% if active_tab == 'sessions' %}is-active{% endif %}" data-tab="sessions">
-	        <section class="panel">
-	          <h2>Sesiones · Estructura por bloques</h2>
-	          <div class="editor-grid">
-	            <div class="editor-box">
-	              <h3>Sesión activa</h3>
-	              <form method="get" class="grid">
-	                <label style="grid-column:1/-1;">
+		      <div class="tab-panel {% if active_tab == 'sessions' %}is-active{% endif %}" data-tab="sessions">
+		        <section class="panel">
+		          <h2>Sesiones · Estructura por bloques</h2>
+		          <div class="editor-grid">
+		            <div class="editor-box">
+		              <h3>Crear sesión</h3>
+		              {% if planning_microcycles %}
+		              <form method="post" class="grid">
+		                {% csrf_token %}
+		                <input type="hidden" name="planner_action" value="create_session_plan" />
+		                <input type="hidden" name="planner_tab" value="sessions" />
+		                <label>
+		                  Microciclo
+		                  <select name="plan_microcycle_id" required>
+		                    <option value="">Seleccionar</option>
+		                    {% for item in planning_microcycles %}
+		                    <option value="{{ item.id }}">{{ item.week_start|date:"d/m" }}-{{ item.week_end|date:"d/m" }} · {{ item.title }}</option>
+		                    {% endfor %}
+		                  </select>
+		                </label>
+		                <label>
+		                  Fecha
+		                  <input type="date" name="plan_session_date" required />
+		                </label>
+		                <label style="grid-column:1/-1;">
+		                  Foco
+		                  <input type="text" name="plan_session_focus" maxlength="140" placeholder="Ej: Transición + finalización" required />
+		                </label>
+		                <label>
+		                  Duración (min)
+		                  <input type="number" name="plan_session_minutes" min="30" max="180" value="90" />
+		                </label>
+		                <label>
+		                  Intensidad
+		                  <select name="plan_session_intensity">
+		                    {% for value, label in session_intensity_choices %}
+		                    <option value="{{ value }}">{{ label }}</option>
+		                    {% endfor %}
+		                  </select>
+		                </label>
+		                <label>
+		                  Estado
+		                  <select name="plan_session_status">
+		                    {% for value, label in session_status_choices %}
+		                    <option value="{{ value }}">{{ label }}</option>
+		                    {% endfor %}
+		                  </select>
+		                </label>
+		                <label style="grid-column:1/-1;">
+		                  Notas (opcional)
+		                  <textarea name="plan_session_content" placeholder="Notas generales de la sesión (sin pizarra)"></textarea>
+		                </label>
+		                <div><button type="submit" class="primary">Crear sesión</button></div>
+		              </form>
+		              {% else %}
+		              <p class="meta">Para crear una sesión primero crea un microciclo (pestaña Microciclos).</p>
+		              <a class="button" href="?tab=microcycles">Ir a Microciclos</a>
+		              {% endif %}
+		            </div>
+
+		            <div class="editor-box">
+		              <h3>Sesión activa</h3>
+		              <form method="get" class="grid">
+		                <label style="grid-column:1/-1;">
 	                  Seleccionar sesión
 	                  <select name="session_id">
 	                    {% for item in planning_session_items %}
