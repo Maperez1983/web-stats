@@ -21820,6 +21820,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 source_task_id = _parse_int(request.POST.get('source_task_id'))
                 target_session_id = _parse_int(request.POST.get('target_session_id'))
                 target_block = (request.POST.get('target_block') or '').strip()
+                replace_existing = str(request.POST.get('replace_existing') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
                 source_task = (
                     SessionTask.objects
                     .select_related('session__microcycle')
@@ -21836,6 +21837,34 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     raise ValueError('No se pudo copiar: tarea origen o sesión destino no válidas.')
                 if _task_scope_for_item(source_task) != scope_key:
                     raise ValueError('La tarea origen no pertenece a este espacio.')
+
+                # UX: en la vista de sesión (cards por bloque) el usuario "asigna" una tarea al bloque.
+                # Para evitar duplicados (se ve como “aparecen las 2”), permitimos modo reemplazo:
+                # borra (soft-delete) las tareas existentes del mismo bloque antes de clonar.
+                if replace_existing and target_block and target_block in {choice[0] for choice in SessionTask.BLOCK_CHOICES}:
+                    existing = list(
+                        SessionTask.objects
+                        .select_related('session__microcycle')
+                        .filter(session=target_session, block=target_block, deleted_at__isnull=True)
+                        .order_by('-id')[:40]
+                    )
+                    existing = [item for item in existing if _task_scope_for_item(item) == scope_key]
+                    if existing:
+                        for item in existing:
+                            try:
+                                write_task_backup(
+                                    item,
+                                    kind='session_task',
+                                    reason='replace',
+                                    actor_username=(request.user.username if getattr(request, 'user', None) and request.user.is_authenticated else ''),
+                                )
+                            except Exception:
+                                pass
+                            item.deleted_at = timezone.localtime()
+                            item.deleted_by = request.user if getattr(request, 'user', None) and request.user.is_authenticated else None
+                            item.save(update_fields=['deleted_at', 'deleted_by'])
+                        _normalize_session_task_orders(target_session)
+
                 copied = _clone_session_task_to_session(
                     source_task,
                     target_session,
@@ -21844,7 +21873,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 if target_block and target_block in {choice[0] for choice in SessionTask.BLOCK_CHOICES}:
                     copied.block = target_block
                     copied.save(update_fields=['block'])
-                feedback = f'Tarea copiada a sesión: {copied.title}.'
+                feedback = (f'Tarea asignada a sesión: {copied.title}.' if replace_existing else f'Tarea copiada a sesión: {copied.title}.')
 
             elif planner_action == 'move_session_task':
                 task_id = _parse_int(request.POST.get('task_id'))
