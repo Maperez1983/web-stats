@@ -6,29 +6,31 @@
     <style>
       @page { size: A4 portrait; margin: 14mm; }
       * { box-sizing: border-box; }
-      body {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-        background: #ffffff;
-        color: #0b1220;
-        margin: 0;
-        padding: 0;
-      }
-      .top {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 14px;
-        padding: 14px 14px 10px;
-        border-bottom: 1px solid #e2e8f0;
-      }
+	      body {
+	        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+	        background: #f1f5f9;
+	        color: #0b1220;
+	        margin: 0;
+	        padding: 0;
+	      }
+	      .top {
+	        display: flex;
+	        align-items: flex-start;
+	        justify-content: space-between;
+	        gap: 14px;
+	        padding: 14px 14px 10px;
+	        border-bottom: 1px solid rgba(148, 163, 184, 0.35);
+	        background: linear-gradient(135deg, #0b1220 0%, #0f172a 55%, rgba(15, 122, 53, 0.92) 100%);
+	        color: #ffffff;
+	      }
       .brand { display:flex; align-items:center; gap: 10px; }
       .brand img { display:block; object-fit: contain; }
       .brand .meta { line-height: 1.2; }
-      .brand .meta .app { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: #64748b; font-weight: 800; }
-      .brand .meta .team { font-size: 12px; color: #0f172a; font-weight: 700; }
-      .club-meta { text-align: right; font-size: 12px; color: #334155; line-height: 1.35; }
-      .club-meta strong { color: #0f172a; }
-      .content { padding: 14px; }
+	      .brand .meta .app { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: rgba(226, 232, 240, 0.82); font-weight: 900; }
+	      .brand .meta .team { font-size: 12px; color: #ffffff; font-weight: 800; }
+	      .club-meta { text-align: right; font-size: 12px; color: rgba(226, 232, 240, 0.88); line-height: 1.35; }
+	      .club-meta strong { color: #ffffff; }
+	      .content { padding: 14px; }
       .player-hero {
         /* WeasyPrint no soporta CSS Grid de forma fiable: usamos layout tipo tabla. */
         display: table;
@@ -37,12 +39,12 @@
       }
       .hero-left { display: table-cell; width: 68%; vertical-align: top; padding-right: 14px; }
       .hero-right { display: table-cell; width: 32%; vertical-align: top; }
-      .hero-card {
-        border: 1px solid #e2e8f0;
-        border-radius: 14px;
-        padding: 14px;
-        background: #f8fafc;
-      }
+	      .hero-card {
+	        border: 1px solid #e2e8f0;
+	        border-radius: 14px;
+	        padding: 14px;
+	        background: #ffffff;
+	      }
       .player-name { margin: 0; font-size: 22px; font-weight: 900; letter-spacing: -0.01em; }
       .player-sub { margin: 6px 0 0; color: #334155; font-size: 12px; }
       .pill {
@@ -57,17 +59,14 @@
         margin-right: 8px;
       }
       .pill.light { background: #e2e8f0; color: #0f172a; }
-      .photo {
-        border: 1px solid #e2e8f0;
-        border-radius: 14px;
-        overflow: hidden;
-        background: #ffffff;
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        padding: 8px;
-      }
-      .photo img { width: 100%; height: 240px; object-fit: contain; border-radius: 10px; display:block; background:#ffffff; }
+	      .photo {
+	        border: 1px solid #e2e8f0;
+	        border-radius: 14px;
+	        overflow: hidden;
+	        background: #ffffff;
+	        padding: 8px;
+	      }
+	      .photo img { width: 100%; height: 240px; object-fit: cover; object-position: 50% 25%; border-radius: 10px; display:block; background:#ffffff; }
       .photo-fallback {
         width: 100%;
         height: 240px;
@@ -81,12 +80,11 @@
         font-size: 46px;
         letter-spacing: 0.08em;
       }
-      .section { margin-top: 14px; }
-      .section, .hero-card, .photo, .card, .bar, .ring, .kpi, table {
-        break-inside: avoid;
-        page-break-inside: avoid;
-      }
-      .page-break { page-break-before: always; break-before: page; }
+	      .section { margin-top: 14px; }
+	      .hero-card, .photo, .card, .bar, .ring, .kpi, .table tr {
+	        break-inside: avoid;
+	        page-break-inside: avoid;
+	      }
       .section h2 {
         margin: 0 0 8px;
         font-size: 12px;
@@ -97,12 +95,13 @@
       .grid-3 { display:grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
       .grid-4 { display:grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
       .grid-2 { display:grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-      .card {
-        border: 1px solid #e2e8f0;
-        border-radius: 14px;
-        padding: 10px;
-        background: #ffffff;
-      }
+	      .card {
+	        border: 1px solid #e2e8f0;
+	        border-radius: 14px;
+	        padding: 10px;
+	        background: #ffffff;
+	        box-shadow: 0 10px 24px rgba(2, 6, 23, 0.06);
+	      }
       .kv { display:flex; justify-content:space-between; gap: 8px; }
       .kv .k { color: #64748b; font-size: 11px; letter-spacing: .10em; text-transform: uppercase; }
       .kv .v { font-weight: 900; font-size: 18px; color: #0f172a; }
@@ -124,25 +123,27 @@
       }
       .match-muted { color: #64748b; font-size: 11px; }
       .bars { display:grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-      .bar {
-        border: 1px solid #e2e8f0;
-        border-radius: 14px;
-        padding: 10px;
-        background: #ffffff;
-      }
+	      .bar {
+	        border: 1px solid #e2e8f0;
+	        border-radius: 14px;
+	        padding: 10px;
+	        background: #ffffff;
+	        box-shadow: 0 10px 24px rgba(2, 6, 23, 0.06);
+	      }
       .bar-head { display:flex; justify-content: space-between; align-items: baseline; gap: 10px; }
       .bar-head .label { font-size: 11px; letter-spacing: .10em; text-transform: uppercase; color: #64748b; font-weight: 900; }
       .bar-head .value { font-size: 16px; font-weight: 900; color: #0f172a; }
       .bar-track { margin-top: 8px; height: 10px; border-radius: 999px; background: #e2e8f0; overflow:hidden; }
       .bar-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, #0f7a35, #22c55e); width: 0%; }
       .rings { display:grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-      .ring {
-        border: 1px solid #e2e8f0;
-        border-radius: 14px;
-        padding: 10px;
-        background: #ffffff;
-        text-align:center;
-      }
+	      .ring {
+	        border: 1px solid #e2e8f0;
+	        border-radius: 14px;
+	        padding: 10px;
+	        background: #ffffff;
+	        text-align:center;
+	        box-shadow: 0 10px 24px rgba(2, 6, 23, 0.06);
+	      }
       .ring-label {
         margin-top: 6px;
         font-size: 10px;
@@ -272,20 +273,19 @@
 	        </div>
           </div>
 
-          <div class="hero-right">
-	        <div class="photo">
-            <div class="photo-fallback">{{ player_initials }}</div>
-            {% if player_photo_src %}
-	          <img src="{{ player_photo_src }}" alt="Foto jugador" />
-            {% endif %}
-	        </div>
-          </div>
-	      </div>
+	          <div class="hero-right">
+		        <div class="photo">
+              {% if player_photo_is_real and player_photo_src %}
+		          <img src="{{ player_photo_src }}" alt="Foto jugador" />
+              {% else %}
+	            <div class="photo-fallback">{{ player_initials }}</div>
+              {% endif %}
+		        </div>
+	          </div>
+		      </div>
 
-        <div class="page-break"></div>
-
-	      <div class="section">
-	        <h2>Detalle por partido</h2>
+		      <div class="section">
+		        <h2>Detalle por partido</h2>
 	        <table class="table">
 	          <thead>
 	            <tr>
@@ -304,12 +304,14 @@
               <tr>
                 <td>{{ latest_played_match.round }}</td>
                 <td>{{ latest_played_match.opponent }}</td>
-                <td class="match-muted">{% if latest_played_match.date_obj %}{{ latest_played_match.date_obj|date:"d/m/Y" }}{% else %}—{% endif %}</td>
-                <td>
-                  {% if latest_played_match.home_score != None and latest_played_match.away_score != None %}
-                    {% if latest_played_match.home %}{{ latest_played_match.home_score }}{% else %}{{ latest_played_match.away_score }}{% endif %}-{% if latest_played_match.home %}{{ latest_played_match.away_score }}{% else %}{{ latest_played_match.home_score }}{% endif %}
-                  {% else %}—{% endif %}
-                </td>
+	                <td class="match-muted">{% if latest_played_match.date_obj %}{{ latest_played_match.date_obj|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+	                <td>
+	                  {% if latest_played_match.home_score != None and latest_played_match.away_score != None %}
+	                    {% if latest_played_match.home %}{{ latest_played_match.home_score }}{% else %}{{ latest_played_match.away_score }}{% endif %}-{% if latest_played_match.home %}{{ latest_played_match.away_score }}{% else %}{{ latest_played_match.home_score }}{% endif %}
+	                  {% elif latest_played_match.result %}
+	                    {{ latest_played_match.result }}
+	                  {% else %}—{% endif %}
+	                </td>
                 <td>{{ latest_played_match.goals|default:0 }}</td>
                 <td>{{ latest_played_match.assists|default:0 }}</td>
                 <td>{{ latest_played_match.success_rate|default:0 }}%</td>
@@ -321,12 +323,14 @@
               <tr>
                 <td>{{ next_scheduled_match.round }}</td>
                 <td>{{ next_scheduled_match.opponent }}</td>
-                <td class="match-muted">{% if next_scheduled_match.date_obj %}{{ next_scheduled_match.date_obj|date:"d/m/Y" }}{% else %}—{% endif %}</td>
-                <td>
-                  {% if next_scheduled_match.home_score != None and next_scheduled_match.away_score != None %}
-                    {% if next_scheduled_match.home %}{{ next_scheduled_match.home_score }}{% else %}{{ next_scheduled_match.away_score }}{% endif %}-{% if next_scheduled_match.home %}{{ next_scheduled_match.away_score }}{% else %}{{ next_scheduled_match.home_score }}{% endif %}
-                  {% else %}—{% endif %}
-                </td>
+	                <td class="match-muted">{% if next_scheduled_match.date_obj %}{{ next_scheduled_match.date_obj|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+	                <td>
+	                  {% if next_scheduled_match.home_score != None and next_scheduled_match.away_score != None %}
+	                    {% if next_scheduled_match.home %}{{ next_scheduled_match.home_score }}{% else %}{{ next_scheduled_match.away_score }}{% endif %}-{% if next_scheduled_match.home %}{{ next_scheduled_match.away_score }}{% else %}{{ next_scheduled_match.home_score }}{% endif %}
+	                  {% elif next_scheduled_match.result %}
+	                    {{ next_scheduled_match.result }}
+	                  {% else %}—{% endif %}
+	                </td>
                 <td>{{ next_scheduled_match.goals|default:0 }}</td>
                 <td>{{ next_scheduled_match.assists|default:0 }}</td>
                 <td>{{ next_scheduled_match.success_rate|default:0 }}%</td>
@@ -339,12 +343,14 @@
 	            <tr>
 	              <td>{{ match.round }}</td>
 	              <td>{{ match.opponent }}</td>
-	              <td class="match-muted">{% if match.date_obj %}{{ match.date_obj|date:"d/m/Y" }}{% else %}—{% endif %}</td>
-	              <td>
-                  {% if match.home_score != None and match.away_score != None %}
-                    {% if match.home %}{{ match.home_score }}{% else %}{{ match.away_score }}{% endif %}-{% if match.home %}{{ match.away_score }}{% else %}{{ match.home_score }}{% endif %}
-                  {% else %}—{% endif %}
-                </td>
+		              <td class="match-muted">{% if match.date_obj %}{{ match.date_obj|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+		              <td>
+		                  {% if match.home_score != None and match.away_score != None %}
+		                    {% if match.home %}{{ match.home_score }}{% else %}{{ match.away_score }}{% endif %}-{% if match.home %}{{ match.away_score }}{% else %}{{ match.home_score }}{% endif %}
+		                  {% elif match.result %}
+		                    {{ match.result }}
+		                  {% else %}—{% endif %}
+		                </td>
 	              <td>{{ match.goals|default:0 }}</td>
 	              <td>{{ match.assists|default:0 }}</td>
 	              <td>{{ match.success_rate|default:0 }}%</td>

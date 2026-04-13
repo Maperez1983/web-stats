@@ -26482,8 +26482,8 @@ def player_pdf(request, player_id):
     forbidden = _forbid_if_no_player_access(request.user, player, primary_team=primary_team)
     if forbidden:
         return forbidden
-    force_refresh_stats = str(request.GET.get('refresh') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
-    matches = compute_player_dashboard(primary_team, force_refresh=force_refresh_stats)
+    # PDF debe reflejar el estado real del partido/jugador: evitamos caché para no servir datos stale.
+    matches = compute_player_dashboard(primary_team, force_refresh=True)
     detail = next((p for p in matches if p.get('player_id') == player_id), None)
     if not detail:
         raise Http404('Sin datos para generar el PDF')
@@ -28497,6 +28497,10 @@ def compute_player_dashboard(primary_team, force_refresh=False):
             else roster_entry.get('assists', 0)
         )
         assists_locked = 'assists' in manual_entry
+        goals_locked = 'goals' in manual_entry
+        yellow_cards_locked = 'yellow_cards' in manual_entry
+        red_cards_locked = 'red_cards' in manual_entry
+        totals_locked = any(key in manual_entry for key in ('pj', 'pt', 'minutes'))
         stats = player_stats.setdefault(
             player.id,
             {
@@ -28516,11 +28520,11 @@ def compute_player_dashboard(primary_team, force_refresh=False):
                 'red_cards': base_red,
                 'assists': base_assists,
                 'assists_locked': assists_locked,
-                # Only manual-base overrides should lock auto aggregation.
-                'totals_locked': any(
-                    key in manual_entry
-                    for key in ('pj', 'pt', 'minutes', 'goals', 'yellow_cards', 'red_cards')
-                ),
+                'goals_locked': goals_locked,
+                'yellow_cards_locked': yellow_cards_locked,
+                'red_cards_locked': red_cards_locked,
+                # Locks only PJ/PT/minutes aggregation (others have their own lock flags).
+                'totals_locked': totals_locked,
                 'matches': {},
                 'zone_counts': {key: 0 for key in FIELD_ZONE_KEYS},
                 'position_counts': {key: 0 for key in FIELD_ZONE_KEYS},
@@ -28547,13 +28551,13 @@ def compute_player_dashboard(primary_team, force_refresh=False):
             stats['successes'] += 1
         is_goal = is_goal_event(event.event_type, event.result, event.observation)
         is_assist = is_assist_event(event.event_type, event.result, event.observation)
-        if (not stats['totals_locked']) and is_goal:
+        if (not stats.get('goals_locked')) and is_goal:
             stats['goals'] += 1
-        if (not stats['totals_locked']) and (not stats.get('assists_locked')) and is_assist:
+        if (not stats.get('assists_locked')) and is_assist:
             stats['assists'] += 1
-        if (not stats['totals_locked']) and is_yellow_card_event(event.event_type, event.result, event.zone):
+        if (not stats.get('yellow_cards_locked')) and is_yellow_card_event(event.event_type, event.result, event.zone):
             stats['yellow_cards'] += 1
-        if (not stats['totals_locked']) and is_red_card_event(event.event_type, event.result, event.zone):
+        if (not stats.get('red_cards_locked')) and is_red_card_event(event.event_type, event.result, event.zone):
             stats['red_cards'] += 1
         duel_event = classify_duel_event(event.event_type, event.result, event.observation, event.zone)
         if duel_event.get('is_duel'):
@@ -28636,9 +28640,9 @@ def compute_player_dashboard(primary_team, force_refresh=False):
         match_entry['actions'] += 1
         if result_is_success(event.result):
             match_entry['successes'] += 1
-        if (not stats['totals_locked']) and is_goal:
+        if (not stats.get('goals_locked')) and is_goal:
             match_entry['goals'] += 1
-        if (not stats['totals_locked']) and (not stats.get('assists_locked')) and is_assist:
+        if (not stats.get('assists_locked')) and is_assist:
             match_entry['assists'] += 1
         match_entry['success_rate'] = round(
             (match_entry['successes'] / match_entry['actions']) * 100
@@ -28741,6 +28745,18 @@ def compute_player_dashboard(primary_team, force_refresh=False):
                 if universo_entry.get('pt') not in (None, '')
                 else roster_entry.get('pt', 0)
             )
+            base_assists = (
+                manual_entry.get('assists')
+                if manual_entry.get('assists') is not None
+                else _parse_int(universo_entry.get('assists'))
+                if universo_entry.get('assists') not in (None, '')
+                else roster_entry.get('assists', 0)
+            )
+            assists_locked = 'assists' in manual_entry
+            goals_locked = 'goals' in manual_entry
+            yellow_cards_locked = 'yellow_cards' in manual_entry
+            red_cards_locked = 'red_cards' in manual_entry
+            totals_locked = any(key in manual_entry for key in ('pj', 'pt', 'minutes'))
             player_stats[player.id] = {
                 'player_id': player.id,
                 'name': player.name,
@@ -28780,11 +28796,12 @@ def compute_player_dashboard(primary_team, force_refresh=False):
                     if universo_entry.get('red_cards') not in (None, '')
                     else roster_entry.get('red_cards', 0)
                 ),
-                'assists': roster_entry.get('assists', 0),
-                'totals_locked': any(
-                    key in manual_entry
-                    for key in ('pj', 'pt', 'minutes', 'goals', 'yellow_cards', 'red_cards')
-                ),
+                'assists': base_assists,
+                'assists_locked': assists_locked,
+                'goals_locked': goals_locked,
+                'yellow_cards_locked': yellow_cards_locked,
+                'red_cards_locked': red_cards_locked,
+                'totals_locked': totals_locked,
                 'matches': {},
                 'zone_counts': {key: 0 for key in FIELD_ZONE_KEYS},
                 'position_counts': {key: 0 for key in FIELD_ZONE_KEYS},
