@@ -391,12 +391,7 @@
           <a class="btn alt" href="{% url 'player-detail' player.id %}?preview=player{% if active_tab %}&tab={{ active_tab }}{% endif %}">Vista previa jugador</a>
           {% endif %}
           {% endif %}
-          {% if not is_player_readonly %}
-          <a class="btn" href="{% url 'player-presentation' player.id %}" target="_blank">Ver presentación</a>
           <a class="btn" href="{% url 'player-dashboard' %}">Volver</a>
-          {% else %}
-          <a class="btn" href="{% url 'player-dashboard' %}">Volver</a>
-          {% endif %}
         </div>
       </header>
       {% if player_view_preview %}
