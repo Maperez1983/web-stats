@@ -15562,8 +15562,31 @@ def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
     )
     primary_club_team = _get_primary_team_for_request(request) or Team.objects.filter(is_primary=True).first()
     club_logo_url = resolve_team_crest_url(request, primary_club_team, sync=True) if primary_club_team else ''
-    # Para PDF "club" preferimos el escudo real del equipo, no un logo corporativo (normalmente blanco).
-    team_logo_url = resolve_team_crest_url(request, team, sync=True) or ''
+    # Para PDF "club" preferimos un escudo embebido (data URL) para evitar fallos de fetch/red en WeasyPrint.
+    team_logo_url = ''
+    try:
+        if getattr(team, 'crest_image', None):
+            team_logo_url = _file_field_as_data_url(getattr(team, 'crest_image', None)) or ''
+    except Exception:
+        team_logo_url = ''
+    if not team_logo_url:
+        try:
+            hue = _team_color_seed(team)
+            initials = _team_initials(getattr(team, 'display_name', '') or getattr(team, 'name', '') or '')
+            crest_svg = f"""<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="hsl({hue}, 70%, 42%)"/>
+      <stop offset="100%" stop-color="hsl({(hue + 35) % 360}, 74%, 36%)"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="160" height="160" rx="32" fill="url(#g)"/>
+  <rect x="10" y="10" width="140" height="140" rx="28" fill="rgba(2, 6, 23, 0.25)" stroke="rgba(255,255,255,0.26)" stroke-width="2"/>
+  <text x="80" y="92" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, Arial" font-size="56" font-weight="800" fill="rgba(255,255,255,0.92)" letter-spacing="2">{html.escape(str(initials or '').strip())}</text>
+</svg>"""
+            team_logo_url = "data:image/svg+xml;base64," + base64.b64encode(crest_svg.encode("utf-8")).decode("ascii")
+        except Exception:
+            team_logo_url = ''
     uefa_badge_url = request.build_absolute_uri(static('football/images/uefa-badge.svg'))
     task_sheets = [_build_session_task_sheet(task) for task in tasks]
 
@@ -21299,6 +21322,10 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
 
     if request.method == 'POST' and planner_tables_ready:
         planner_action = (request.POST.get('planner_action') or '').strip()
+        wants_json = (
+            str(request.headers.get('X-Requested-With') or '').lower() == 'xmlhttprequest'
+            or str(request.POST.get('ajax') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+        )
         posted_tab = _normalize_tab(request.POST.get('planner_tab') or '')
         active_tab = posted_tab or _sessions_tab_from_action(planner_action) or active_tab
         try:
@@ -21826,6 +21853,8 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 session_obj.content = _serialize_session_plan_fields(existing_sections)
                 session_obj.save(update_fields=['content'])
                 feedback = 'Secciones de sesión guardadas.'
+                if wants_json:
+                    return JsonResponse({'ok': True, 'message': feedback})
 
             elif planner_action == 'delete_session_plan':
                 session_id = _parse_int(request.POST.get('delete_session_id'))
@@ -22757,8 +22786,12 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 error = 'Acción no reconocida.'
         except ValueError as exc:
             error = str(exc)
+            if wants_json and planner_action == 'update_session_sections':
+                return JsonResponse({'ok': False, 'error': error}, status=400)
         except Exception:
             error = 'No se pudo completar la operación. Revisa los datos e inténtalo de nuevo.'
+            if wants_json and planner_action == 'update_session_sections':
+                return JsonResponse({'ok': False, 'error': error}, status=500)
     elif request.method == 'GET':
         requested_tab = _normalize_tab(request.GET.get('tab') or '')
         if requested_tab:

@@ -2445,6 +2445,9 @@
 	        const restoreBtn = document.getElementById('session-texts-draft-restore');
 	        const discardBtn = document.getElementById('session-texts-draft-discard');
 	        const statusEl = document.getElementById('session-texts-draft-status');
+	        const csrfTokenEl = form.querySelector('input[name="csrfmiddlewaretoken"]');
+	        const csrfToken = csrfTokenEl ? String(csrfTokenEl.value || '') : '';
+	        const postUrl = form.getAttribute('action') || window.location.href;
 	
 	        const readValues = () => {
 	          const out = {};
@@ -2483,6 +2486,32 @@
 	            // ignore
 	          }
 	        };
+	        const saveServer = async () => {
+	          try {
+	            const payload = new FormData(form);
+	            payload.set('ajax', '1');
+	            if (csrfToken && !payload.get('csrfmiddlewaretoken')) {
+	              payload.set('csrfmiddlewaretoken', csrfToken);
+	            }
+	            const resp = await fetch(postUrl, {
+	              method: 'POST',
+	              body: payload,
+	              credentials: 'same-origin',
+	              headers: { 'X-Requested-With': 'XMLHttpRequest' },
+	            });
+	            const data = await resp.json().catch(() => null);
+	            if (!resp.ok || !data || data.ok !== true) {
+	              const msg = (data && (data.error || data.message)) ? String(data.error || data.message) : 'No se pudo guardar en servidor.';
+	              if (statusEl) statusEl.textContent = msg;
+	              return false;
+	            }
+	            if (statusEl) statusEl.textContent = 'Guardado en servidor.';
+	            return true;
+	          } catch (e) {
+	            if (statusEl) statusEl.textContent = 'No se pudo guardar en servidor.';
+	            return false;
+	          }
+	        };
 	        const clearDraft = () => {
 	          try {
 	            window.localStorage.removeItem(storageKey);
@@ -2506,6 +2535,7 @@
 	              writeValues(draft.values);
 	              banner.hidden = true;
 	              saveDraft(readValues());
+	              scheduleServerSave();
 	            });
 	            discardBtn.addEventListener('click', () => {
 	              clearDraft();
@@ -2516,7 +2546,9 @@
 	        }
 	
 	        const scheduleSave = debounce(() => saveDraft(readValues()), 450);
+	        const scheduleServerSave = debounce(() => { void saveServer(); }, 1100);
 	        fields.forEach((el) => el.addEventListener('input', scheduleSave));
+	        fields.forEach((el) => el.addEventListener('input', scheduleServerSave));
 	        form.addEventListener('submit', () => clearDraft());
 	        window.addEventListener('beforeunload', () => {
 	          saveDraft(readValues());
