@@ -501,10 +501,25 @@ def system_healthcheck_api(request):
         while len(parts) < 3:
             parts.append(0)
         parsed = tuple(parts)
-        report['pydyf_ok'] = (parsed >= (0, 10, 0)) and (parsed < (0, 11, 0))
+        pydyf_ok = (parsed >= (0, 10, 0)) and (parsed < (0, 11, 0))
+        try:
+            import inspect  # noqa: WPS433
+
+            sig = inspect.signature(getattr(pydyf, 'PDF', None))
+            report['pydyf_pdf_signature'] = str(sig)
+            params = list(getattr(sig, 'parameters', {}).values()) if sig else []
+            report['pydyf_pdf_args_ok'] = len(params) >= 2
+            if len(params) < 2:
+                pydyf_ok = False
+        except Exception:
+            report['pydyf_pdf_signature'] = ''
+            report['pydyf_pdf_args_ok'] = False
+        report['pydyf_ok'] = bool(pydyf_ok)
     except Exception:
         report['pydyf_version'] = ''
         report['pydyf_ok'] = False
+        report['pydyf_pdf_signature'] = ''
+        report['pydyf_pdf_args_ok'] = False
     return JsonResponse(report)
 
 
@@ -1054,10 +1069,22 @@ def _build_pdf_response_or_html_fallback(request, html: str, filename: str, *, i
         """
         try:
             import pydyf  # noqa: WPS433
+            import inspect  # noqa: WPS433
 
             version = str(getattr(pydyf, '__version__', '') or '')
             parsed = _parse_version_tuple(version)
             ok = (0, 10, 0) <= parsed < (0, 11, 0)
+            # Guardrail extra: en entornos cacheados puede quedar un pydyf incompatible aunque la
+            # versión reportada sea errónea. Preferimos chequear la firma real.
+            try:
+                pdf_cls = getattr(pydyf, 'PDF', None)
+                sig = inspect.signature(pdf_cls) if pdf_cls else None
+                params = list(getattr(sig, 'parameters', {}).values()) if sig else []
+                # En pydyf 0.11+, PDF() no acepta args; en 0.10.x acepta (version, identifier).
+                if len(params) < 2:
+                    ok = False
+            except Exception:
+                pass
             return ok, version or 'unknown'
         except Exception:
             return False, 'not installed'
@@ -1111,10 +1138,20 @@ def _render_pdf_bytes(request, html: str):
     def _pydyf_ok():
         try:
             import pydyf  # noqa: WPS433
+            import inspect  # noqa: WPS433
 
             version = str(getattr(pydyf, '__version__', '') or '')
             parsed = _parse_version_tuple(version)
-            return (0, 10, 0) <= parsed < (0, 11, 0)
+            ok = (0, 10, 0) <= parsed < (0, 11, 0)
+            try:
+                pdf_cls = getattr(pydyf, 'PDF', None)
+                sig = inspect.signature(pdf_cls) if pdf_cls else None
+                params = list(getattr(sig, 'parameters', {}).values()) if sig else []
+                if len(params) < 2:
+                    ok = False
+            except Exception:
+                pass
+            return ok
         except Exception:
             return False
 
@@ -1152,10 +1189,19 @@ def _render_pdf_bytes_with_error(request, html: str):
     def _pydyf_compat_status():
         try:
             import pydyf  # noqa: WPS433
+            import inspect  # noqa: WPS433
 
             version = str(getattr(pydyf, '__version__', '') or '')
             parsed = _parse_version_tuple(version)
             ok = (0, 10, 0) <= parsed < (0, 11, 0)
+            try:
+                pdf_cls = getattr(pydyf, 'PDF', None)
+                sig = inspect.signature(pdf_cls) if pdf_cls else None
+                params = list(getattr(sig, 'parameters', {}).values()) if sig else []
+                if len(params) < 2:
+                    ok = False
+            except Exception:
+                pass
             return ok, version or 'unknown'
         except Exception:
             return False, 'not installed'
@@ -3900,13 +3946,25 @@ def _competition_payload_for_team(workspace, primary_team, *, allow_auto_sync: b
     context_team_key = str(getattr(context, 'external_team_key', '') or '').strip()
     # Guardrail comercial: si el contexto competitivo no está listo, NO inferimos clasificación/rival desde
     # cachés globales o partidos sin grupo, porque puede mezclar categorías (Senior/Prebenjamín).
-    context_ready = bool(
-        provider_key
-        and provider_key != WorkspaceCompetitionContext.PROVIDER_MANUAL
-        and context_status == WorkspaceCompetitionContext.STATUS_READY
-        and context_group_key
-        and context_team_key
-    )
+    #
+    # Nota producto: para Universo permitimos "next match" aun cuando falte `external_team_key`
+    # (podemos resolver por nombre) o cuando el `sync_status` no esté en READY pero ya existe snapshot.
+    has_snapshot = bool(snapshot and (snapshot.standings_payload or snapshot.next_match_payload or snapshot.schedule_payload))
+    if provider_key == WorkspaceCompetitionContext.PROVIDER_UNIVERSO:
+        context_ready = bool(
+            provider_key
+            and provider_key != WorkspaceCompetitionContext.PROVIDER_MANUAL
+            and context_group_key
+            and (context_status == WorkspaceCompetitionContext.STATUS_READY or has_snapshot)
+        )
+    else:
+        context_ready = bool(
+            provider_key
+            and provider_key != WorkspaceCompetitionContext.PROVIDER_MANUAL
+            and context_status == WorkspaceCompetitionContext.STATUS_READY
+            and context_group_key
+            and context_team_key
+        )
     # Auto-reparación: si el contexto es Universo y hay snapshot viejo/incompleto (o falta external_team_key),
     # forzamos un refresh con throttle para que el "próximo rival" no se quede vacío.
     if (
@@ -3993,15 +4051,27 @@ def _competition_payload_for_team(workspace, primary_team, *, allow_auto_sync: b
     if provider_key == WorkspaceCompetitionContext.PROVIDER_UNIVERSO and snapshot:
         if isinstance(snapshot.standings_payload, list) and snapshot.standings_payload:
             standings_payload = snapshot.standings_payload
-        if isinstance(snapshot.next_match_payload, dict) and _next_match_payload_is_reliable(snapshot.next_match_payload):
-            normalized_next_match_payload = snapshot.next_match_payload
+        snapshot_next_payload = snapshot.next_match_payload if isinstance(snapshot.next_match_payload, dict) else {}
+        if snapshot_next_payload and _next_match_payload_is_reliable(snapshot_next_payload):
+            normalized_next_match_payload = snapshot_next_payload
         elif normalized_next_match_payload and _next_match_payload_is_reliable(normalized_next_match_payload):
             # Si el snapshot tiene un próximo partido poco fiable (sin fecha, rival placeholder, etc.),
             # lo refrescamos con el candidato fiable para que el dashboard no se quede "atascado".
             try:
-                snapshot_payload = snapshot.next_match_payload if isinstance(snapshot.next_match_payload, dict) else {}
-                if snapshot_payload != normalized_next_match_payload:
+                if snapshot_next_payload != normalized_next_match_payload:
                     snapshot.next_match_payload = normalized_next_match_payload
+                    snapshot.save(update_fields=['next_match_payload', 'updated_at'])
+            except Exception:
+                pass
+        else:
+            # Caso real: snapshot existe pero el `next_match_payload` es legacy/placeholder y el
+            # fallback local no aporta fecha. Hacemos una consulta específica de "próximo partido"
+            # a Universo Live (menos costosa que sincronizar standings) para no dejar la home vacía.
+            try:
+                provider_next = _find_universo_next_match_for_context(context, primary_team)
+                if provider_next and _next_match_payload_is_reliable(provider_next):
+                    normalized_next_match_payload = provider_next
+                    snapshot.next_match_payload = provider_next
                     snapshot.save(update_fields=['next_match_payload', 'updated_at'])
             except Exception:
                 pass
@@ -9219,8 +9289,43 @@ def platform_overview_page(request):
                         }
                     )
             for workspace in club_workspaces:
-                workspace.team_links = team_links_map.get(int(workspace.id), [])
-                workspace.team_link_count = len(workspace.team_links or [])
+                # Backfill UX: si el workspace tiene `primary_team` pero no hay vínculo (WorkspaceTeam),
+                # lo mostramos igualmente para que Platform siempre tenga un "Entrar · <equipo>".
+                links = list(team_links_map.get(int(workspace.id), []) or [])
+                try:
+                    primary_team = getattr(workspace, 'primary_team', None)
+                    primary_team_id = int(getattr(primary_team, 'id', 0) or 0) if primary_team else 0
+                    if primary_team_id and primary_team_id not in {int(item.get('team_id') or 0) for item in links}:
+                        category = str(getattr(primary_team, 'category', '') or '').strip()
+                        name = str(getattr(primary_team, 'display_name', '') or getattr(primary_team, 'name', '') or '').strip()
+                        label = category or name or f'Equipo {primary_team_id}'
+                        links.insert(
+                            0,
+                            {
+                                'team_id': primary_team_id,
+                                'label': label,
+                                'category': category,
+                                'name': name,
+                                'is_default': True,
+                            },
+                        )
+                except Exception:
+                    pass
+                # Orden: default primero, luego por categoría/nombre.
+                try:
+                    links = sorted(
+                        links,
+                        key=lambda item: (
+                            0 if item.get('is_default') else 1,
+                            str(item.get('category') or '').lower(),
+                            str(item.get('name') or item.get('label') or '').lower(),
+                            int(item.get('team_id') or 0),
+                        ),
+                    )
+                except Exception:
+                    pass
+                workspace.team_links = links
+                workspace.team_link_count = len(links)
             primary_workspace = next(
                 (workspace for workspace in club_workspaces if workspace.primary_team_id),
                 None,

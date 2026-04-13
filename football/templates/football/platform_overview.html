@@ -313,6 +313,20 @@
         color: #b7c4d8;
       }
 
+      .workspace-team-links {
+        padding-top: 0.75rem;
+        margin-top: 0.75rem;
+        border-top: 1px dashed rgba(148, 163, 184, 0.18);
+      }
+
+      .workspace-team-title {
+        font-size: 0.72rem;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        font-weight: 900;
+        color: rgba(148, 163, 184, 0.95);
+      }
+
       .stack-section + .stack-section {
         margin-top: 1.2rem;
       }
@@ -959,12 +973,15 @@
 	                <a class="link-btn" href="{% url 'platform-workspace-detail' workspace.id %}">Abrir ficha</a>
 	              </div>
               {% if workspace.team_links %}
-              <div class="actions-row" style="margin-top:0.55rem; opacity:0.92;">
-                {% for link in workspace.team_links %}
-                <a class="link-btn" href="{% url 'platform-workspace-enter' workspace.id %}?team={{ link.team_id }}">
-                  Entrar · {{ link.label }}
-                </a>
-                {% endfor %}
+              <div class="workspace-team-links" style="margin-top:0.7rem;">
+                <div class="workspace-team-title">Clubs (equipos)</div>
+                <div class="actions-row" style="margin-top:0.45rem; opacity:0.92; flex-wrap:wrap;">
+                  {% for link in workspace.team_links %}
+                  <a class="link-btn" href="{% url 'platform-workspace-enter' workspace.id %}?team={{ link.team_id }}">
+                    Entrar · {{ link.label }}
+                  </a>
+                  {% endfor %}
+                </div>
               </div>
               {% endif %}
             </article>
