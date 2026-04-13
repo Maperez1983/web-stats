@@ -43,7 +43,7 @@
       <a href="{% url 'match-action-page' %}">Registro de acciones</a>
       {% endif %}
       {% if workspace_module_access.match_actions|default:True %}
-      <a href="{% url 'match-report-pdf' %}" target="_blank" rel="noreferrer">Ficha final (PDF)</a>
+      <a href="{% url 'match-report-pdf' %}{% if active_match_id %}?match_id={{ active_match_id }}{% if active_team %}&team={{ active_team.id }}{% endif %}{% endif %}" target="_blank" rel="noreferrer">Ficha final (PDF)</a>
       {% endif %}
       {% endif %}
 

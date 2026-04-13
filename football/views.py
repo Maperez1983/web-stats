@@ -3115,6 +3115,80 @@ def _allowed_team_ids_for_request(request):
     return {int(getattr(link, 'team_id', 0) or 0) for link in links if getattr(link, 'team_id', None)}
 
 
+def _user_can_access_team(request, team: "Team") -> bool:
+    if not team or not request or not getattr(request, "user", None) or not request.user.is_authenticated:
+        return False
+    # Platform: acceso global (admin/soporte).
+    try:
+        if _can_access_platform(request.user):
+            return True
+    except Exception:
+        pass
+
+    # Si hay workspace club activo, validar contra sus equipos visibles.
+    allowed_team_ids = _allowed_team_ids_for_request(request)
+    if allowed_team_ids:
+        try:
+            return int(team.id) in {int(tid) for tid in allowed_team_ids}
+        except Exception:
+            return False
+
+    # Sin workspace activo: permitimos si el usuario está vinculado a ese equipo en algún workspace.
+    try:
+        if WorkspaceTeamAccess.objects.filter(user=request.user, team=team).exists():
+            return True
+    except Exception:
+        pass
+    try:
+        if WorkspaceTeam.objects.filter(
+            team=team,
+            workspace__is_active=True,
+            workspace__owner_user=request.user,
+        ).exists():
+            return True
+        return WorkspaceTeam.objects.filter(
+            team=team,
+            workspace__is_active=True,
+            workspace__memberships__user=request.user,
+        ).exists()
+    except Exception:
+        return False
+
+
+def _team_from_request_param(request):
+    """
+    Resolver Team desde parámetros explícitos (para links estables a PDFs en multi-equipo).
+
+    Params soportados:
+    - team / team_id: id numérico de Team
+    - team_slug: slug de Team (mejor evitar en público)
+    """
+    if not request:
+        return None
+    team_id = _parse_int(request.GET.get("team") or request.GET.get("team_id") or request.POST.get("team") or request.POST.get("team_id"))
+    if team_id:
+        team = Team.objects.filter(id=team_id).first()
+        if team and _user_can_access_team(request, team):
+            # Mejor esfuerzo: fijar el equipo activo de este workspace para estabilizar navegación.
+            workspace = _get_active_workspace(request)
+            if workspace and workspace.kind == Workspace.KIND_CLUB and hasattr(request, "session"):
+                try:
+                    mapping = request.session.get("active_team_by_workspace")
+                    if not isinstance(mapping, dict):
+                        mapping = {}
+                    mapping[str(workspace.id)] = int(team.id)
+                    request.session["active_team_by_workspace"] = mapping
+                except Exception:
+                    pass
+            return team
+    team_slug = str(request.GET.get("team_slug") or request.POST.get("team_slug") or "").strip()
+    if team_slug:
+        team = Team.objects.filter(slug=team_slug).first()
+        if team and _user_can_access_team(request, team):
+            return team
+    return None
+
+
 def _resolve_player_for_request_scope(request, player_id):
     """
     Resuelve (primary_team, player) de forma robusta para navegación desde listados.
@@ -12089,14 +12163,14 @@ def share_convocation_pdf_page(request, token):
         'generated_at': timezone.localtime(),
     }
 
-    html = render_to_string('football/convocation_pdf.html', context)
+    pdf_html = render_to_string('football/convocation_pdf.html', context)
     filename = slugify(f'convocatoria-{primary_team.display_name}-{convocation_record.match_date or timezone.localdate()}') or f'convocatoria-{convocation_record.id}'
     try:
         ShareLink.objects.filter(id=link.id).update(access_count=(link.access_count or 0) + 1, last_accessed_at=timezone.now())
     except Exception:
         pass
     # En enlace público preferimos inline para que abra directo en móvil/desktop.
-    return _build_pdf_response_or_html_fallback(request, html, filename, inline=True, force_pdf=True)
+    return _build_pdf_response_or_html_fallback(request, pdf_html, filename, inline=True, force_pdf=True)
 
 
 def share_task_simulation_page(request, token):
@@ -13282,10 +13356,6 @@ def match_report_pdf(request):
     forbidden = _forbid_if_workspace_module_disabled(request, 'match_actions', label='registro de acciones')
     if forbidden:
         return forbidden
-    primary_team = _get_primary_team_for_request(request)
-    if not primary_team:
-        raise Http404('Equipo principal no configurado')
-
     match_id = _parse_int(request.GET.get('match_id'))
     match = None
     if match_id:
@@ -13295,6 +13365,18 @@ def match_report_pdf(request):
             .filter(id=match_id)
             .first()
         )
+
+    # Multi-equipo: el PDF se abre en una pestaña nueva y puede llegar sin equipo activo en sesión.
+    # Permitimos resolver el equipo desde `?team=<id>` o, si se pasa `match_id`, desde el propio partido.
+    primary_team = _get_primary_team_for_request(request) or _team_from_request_param(request)
+    if not primary_team and match:
+        for candidate in [match.home_team, match.away_team]:
+            if candidate and _user_can_access_team(request, candidate):
+                primary_team = candidate
+                break
+    if not primary_team:
+        raise Http404('Equipo principal no configurado')
+
     if not match:
         match = get_latest_live_match(primary_team) or get_active_match(primary_team)
     if not match:
@@ -13704,9 +13786,9 @@ def match_report_pdf(request):
         'team_photo_data_uri': team_photo.get('data_uri') or '',
         'generated_at': timezone.localtime(),
     }
-    html = render_to_string('football/match_report_pdf.html', context)
+    pdf_html = render_to_string('football/match_report_pdf.html', context)
     filename = slugify(f'acta-{team_name}-{opponent_name}-{match.date or timezone.localdate()}') or f'acta-{match.id}'
-    return _build_pdf_response_or_html_fallback(request, html, filename, inline=True, force_pdf=True)
+    return _build_pdf_response_or_html_fallback(request, pdf_html, filename, inline=True, force_pdf=True)
 
 
 @login_required
@@ -13920,6 +14002,7 @@ def convocation_page(request):
         {
             'players': players,
             'team_name': primary_team.display_name,
+            'primary_team_id': int(primary_team.id),
             'team_crest_url': resolve_team_crest_url(request, primary_team, sync=True),
             'avatar_url': request.build_absolute_uri(static('football/images/player-avatar.svg')),
             'selected_player_ids_json': json.dumps(selected_player_ids),
@@ -14073,7 +14156,7 @@ def convocation_pdf(request):
     forbidden = _forbid_if_workspace_module_disabled(request, 'convocation', label='convocatoria')
     if forbidden:
         return forbidden
-    primary_team = _get_primary_team_for_request(request)
+    primary_team = _get_primary_team_for_request(request) or _team_from_request_param(request)
     if not primary_team:
         raise Http404('Equipo principal no configurado')
     convocation_record = get_current_convocation_record(primary_team)
@@ -14307,9 +14390,9 @@ def convocation_pdf(request):
         'generated_at': timezone.localtime(),
     }
 
-    html = render_to_string('football/convocation_pdf.html', context)
+    pdf_html = render_to_string('football/convocation_pdf.html', context)
     filename = f'convocatoria-{timezone.localdate().isoformat()}'
-    return _build_pdf_response_or_html_fallback(request, html, filename, inline=True, force_pdf=True)
+    return _build_pdf_response_or_html_fallback(request, pdf_html, filename, inline=True, force_pdf=True)
 
 
 @login_required
@@ -14324,7 +14407,7 @@ def convocation_referee_pdf(request):
     forbidden = _forbid_if_workspace_module_disabled(request, 'convocation', label='convocatoria')
     if forbidden:
         return forbidden
-    primary_team = _get_primary_team_for_request(request)
+    primary_team = _get_primary_team_for_request(request) or _team_from_request_param(request)
     if not primary_team:
         raise Http404('Equipo principal no configurado')
     convocation_record = get_current_convocation_record(primary_team)
@@ -14635,7 +14718,7 @@ def convocation_referee_pdf(request):
             )
         grid_class = 'cols-4' if len(grid_players) > 10 else ''
         dense = bool(len(grid_players) > 16)
-        html = render_to_string(
+        pdf_html = render_to_string(
             'football/referee_licenses_grid_pdf.html',
             {
                 **_build_pdf_nav_urls(request),
@@ -14659,7 +14742,7 @@ def convocation_referee_pdf(request):
             },
         )
         filename = slugify(f'licencias-arbitro-{primary_team.display_name}-{timezone.localdate().isoformat()}') or f'licencias-arbitro-{convocation_record.id}'
-        return _build_pdf_response_or_html_fallback(request, html, filename, inline=True, force_pdf=True)
+        return _build_pdf_response_or_html_fallback(request, pdf_html, filename, inline=True, force_pdf=True)
 
     # Compatibilidad (modo antiguo): cover + 1 página por jugador + adjuntar PDFs.
     if PdfReader is None or PdfWriter is None:
@@ -28830,6 +28913,7 @@ def match_hub_page(request):
             'match_date_label': match_date_label,
             'match_location': match_location,
             'active_match_id': active_match_id,
+            'primary_team_id': int(primary_team.id),
             'has_convocation': bool(convocation_record and convocation_players_count > 0),
             'convocation_players_count': convocation_players_count,
             'has_lineup': bool(has_lineup),

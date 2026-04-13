@@ -485,8 +485,8 @@
         </div>
         <div class="actions">
           <button id="save-convocation" class="button primary" type="button">Guardar convocatoria</button>
-          <a href="{% url 'convocation-pdf' %}" class="button {% if not can_generate_convocation_pdf %}is-disabled{% endif %}" id="pdf-convocation">Generar PDF</a>
-          <a href="{% url 'convocation-referee-pdf' %}" class="button {% if not can_generate_convocation_pdf %}is-disabled{% endif %}" id="pdf-referee">Ficha árbitro PDF</a>
+          <a href="{% url 'convocation-pdf' %}?team={{ primary_team_id }}" class="button {% if not can_generate_convocation_pdf %}is-disabled{% endif %}" id="pdf-convocation">Generar PDF</a>
+          <a href="{% url 'convocation-referee-pdf' %}?team={{ primary_team_id }}" class="button {% if not can_generate_convocation_pdf %}is-disabled{% endif %}" id="pdf-referee">Ficha árbitro PDF</a>
           <button id="share-convocation-pdf" class="button {% if not can_generate_convocation_pdf %}is-disabled{% endif %}" type="button">Compartir PDF</button>
           <span id="convocation-message" class="status"></span>
         </div>

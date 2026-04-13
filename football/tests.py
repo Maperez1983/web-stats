@@ -10,6 +10,7 @@ from types import SimpleNamespace
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.http import HttpResponse
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -2570,6 +2571,47 @@ class ConvocationWorkflowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.context['has_pending_lineup'])
         self.assertJSONEqual(response.context['lineup_seed_json'], {'starters': [], 'bench': []})
+
+    @patch('football.views._build_pdf_response_or_html_fallback')
+    def test_convocation_pdf_accepts_team_param_without_active_workspace(self, mock_pdf):
+        mock_pdf.return_value = HttpResponse('ok', status=200)
+        self.client.force_login(self.user)
+        record = ConvocationRecord.objects.create(
+            team=self.team,
+            round='J1',
+            opponent_name='Rival',
+            match_date=date(2026, 3, 29),
+            is_current=True,
+        )
+        record.players.add(self.player)
+        session = self.client.session
+        session.pop('active_workspace_id', None)
+        session.save()
+
+        response = self.client.get(reverse('convocation-pdf'), {'team': self.team.id})
+
+        self.assertEqual(response.status_code, 200)
+
+    @patch('football.views._build_pdf_response_or_html_fallback')
+    def test_match_report_pdf_resolves_team_from_match_without_active_workspace(self, mock_pdf):
+        mock_pdf.return_value = HttpResponse('ok', status=200)
+        self.client.force_login(self.user)
+        match = Match.objects.create(
+            season=self.team.group.season,
+            group=self.team.group,
+            home_team=self.team,
+            away_team=None,
+            round='J1',
+            date=timezone.localdate(),
+            location='Campo',
+        )
+        session = self.client.session
+        session.pop('active_workspace_id', None)
+        session.save()
+
+        response = self.client.get(reverse('match-report-pdf'), {'match_id': match.id})
+
+        self.assertEqual(response.status_code, 200)
 
 
 class HealthcheckTests(TestCase):
