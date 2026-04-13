@@ -23750,10 +23750,15 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
         .filter(team=primary_team, is_active=True)
         .order_by('number', 'name')[:60]
     )
+    # Recursos gráficos extraídos de PDFs importados (y/o subidos por el usuario en su estudio).
+    # En sesiones (coach/club) mostramos:
+    # - assets del equipo (team=primary_team)
+    # - assets privados del usuario (owner=request.user), útil si los subió en Task Studio.
     pdf_assets = list(
         PdfGraphicAsset.objects
-        .filter(team=primary_team)
-        .order_by('-created_at', '-id')[:60]
+        .filter(Q(team=primary_team) | Q(owner=request.user))
+        .exclude(file='')
+        .order_by('-created_at', '-id')[:80]
     )
     pdf_assets_json = json.dumps(
         [

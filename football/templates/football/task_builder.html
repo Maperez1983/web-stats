@@ -2193,25 +2193,27 @@
                       <span>Recursos</span>
                       <span class="current" id="task-resource-summary-label">Selecciona…</span>
                     </summary>
-			                    <div class="resource-tabs">
-			                      <button type="button" class="resource-tab" data-resource="base">Recursos base</button>
-			                      <button type="button" class="resource-tab" data-resource="trazos">Trazos y flechas</button>
-			                      <button type="button" class="resource-tab" data-resource="figuras">Figuras geométricas</button>
-			                      <button type="button" class="resource-tab" data-resource="emoji">Recursos emoji</button>
-			                    </div>
+				                    <div class="resource-tabs">
+				                      <button type="button" class="resource-tab" data-resource="base">Recursos base</button>
+				                      <button type="button" class="resource-tab" data-resource="importados">Importados</button>
+				                      <button type="button" class="resource-tab" data-resource="trazos">Trazos y flechas</button>
+				                      <button type="button" class="resource-tab" data-resource="figuras">Figuras geométricas</button>
+				                      <button type="button" class="resource-tab" data-resource="emoji">Recursos emoji</button>
+				                    </div>
 		                  </details>
 		                  <div class="resource-select" aria-label="Selector rápido de recursos">
 		                    <label>
 		                      Panel
 		                      <select id="task-resource-select">
-		                        <option value="">—</option>
-			                        <option value="base">Recursos base</option>
-			                        <option value="trazos">Trazos y flechas</option>
-			                        <option value="figuras">Figuras geométricas</option>
-			                        <option value="emoji">Recursos emoji</option>
-			                      </select>
-		                    </label>
-		                  </div>
+			                        <option value="">—</option>
+				                        <option value="base">Recursos base</option>
+				                        <option value="importados">Importados</option>
+				                        <option value="trazos">Trazos y flechas</option>
+				                        <option value="figuras">Figuras geométricas</option>
+				                        <option value="emoji">Recursos emoji</option>
+				                      </select>
+			                    </label>
+			                  </div>
 			                  <div class="command-bar" id="task-command-bar" aria-label="Comandos rápidos">
 	                    <button type="button" class="icon-btn" data-action="undo" title="Deshacer" aria-label="Deshacer">
 	                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7V4L2 9l5 5v-3h7a4 4 0 1 1 0 8H9v2h5a6 6 0 1 0 0-12H7Z"/></svg>
@@ -2412,7 +2414,7 @@
                 <p class="resource-helper">Pulsa una pestaña para mostrar los recursos.</p>
                 <div class="resource-panel" data-panel="base" hidden>
                   <h3 class="tool-group-title">Recursos base</h3>
-	                  <div class="resource-strip" id="task-basic-tools">
+		                  <div class="resource-strip" id="task-basic-tools">
 	                  <button type="button" data-add="player_local">Jugador local</button>
 	                  <button type="button" data-add="player_rival">Jugador rival</button>
 	                  <button type="button" data-add="player_away">Jugador 2a equipación</button>
@@ -2440,7 +2442,7 @@
 	                  <button type="button" data-add="ring" title="Aro">Aro</button>
 	                  <button type="button" data-add="zone">Zona</button>
 	                  <button type="button" data-add="text">Texto</button>
-		                  <button type="button" data-action="duplicate">Duplicar</button>
+			                  <button type="button" data-action="duplicate">Duplicar</button>
                 </div>
                   <div data-inspector-slot="base">
                     <div class="selection-toolbar" id="task-selection-toolbar" hidden>
@@ -2517,6 +2519,32 @@
 	                        Tip: usa `Cmd/Ctrl + D` para duplicar.
 	                      </div>
                     </div>
+                  </div>
+                </div>
+
+                <div class="resource-panel" data-panel="importados" hidden>
+                  <h3 class="tool-group-title">Importados (PDF/PPT)</h3>
+                  <p class="meta" style="margin:0 0 0.65rem; font-size:0.78rem;">
+                    Recursos extraídos automáticamente al importar tareas desde PDF (Sesiones → Biblioteca).
+                  </p>
+                  <div class="resource-strip pdf-assets-strip">
+                    {% if pdf_assets %}
+                      {% for asset in pdf_assets %}
+                        {% if asset.file %}
+                          <button
+                            type="button"
+                            class="pdf-asset-btn"
+                            data-add="pdf_asset:{{ asset.id }}"
+                            title="{{ asset.title|default:'Recurso importado' }}"
+                            aria-label="{{ asset.title|default:'Recurso importado' }}"
+                          >
+                            <img src="{% url 'pdf-graphic-asset-file' asset.id %}" alt="{{ asset.title|default:'Recurso importado' }}" loading="lazy" />
+                          </button>
+                        {% endif %}
+                      {% endfor %}
+                    {% else %}
+                      <span class="meta">Aún no hay recursos importados para este equipo.</span>
+                    {% endif %}
                   </div>
                 </div>
                 <div class="resource-panel" data-panel="trazos" hidden>
