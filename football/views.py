@@ -22880,6 +22880,8 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     if not planner_focus_items:
         planner_focus_items.append('La planificación tiene base suficiente para seguir construyendo sesiones y microciclos.')
 
+    prefill_microcycle_id = _parse_int(request.GET.get('microcycle_id') or request.POST.get('microcycle_id'))
+
     return render(
         request,
         'football/sessions_planner.html',
@@ -22928,6 +22930,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             'task_surface_choices': TASK_SURFACE_CHOICES,
             'task_pitch_choices': TASK_PITCH_FORMAT_CHOICES,
             'tactical_player_catalog': tactical_player_catalog,
+            'prefill_microcycle_id': prefill_microcycle_id,
         },
     )
 

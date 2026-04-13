@@ -1303,7 +1303,7 @@
 		                  <select name="plan_microcycle_id" required>
 		                    <option value="">Seleccionar</option>
 		                    {% for item in planning_microcycles %}
-		                    <option value="{{ item.id }}">{{ item.week_start|date:"d/m" }}-{{ item.week_end|date:"d/m" }} · {{ item.title }}</option>
+		                    <option value="{{ item.id }}" {% if prefill_microcycle_id and item.id == prefill_microcycle_id %}selected{% endif %}>{{ item.week_start|date:"d/m" }}-{{ item.week_end|date:"d/m" }} · {{ item.title }}</option>
 		                    {% endfor %}
 		                  </select>
 		                </label>
@@ -1408,9 +1408,9 @@
 		                <div><button type="submit" class="primary">Guardar textos</button></div>
 		              </form>
 		              {% else %}
-		              <p class="empty">No hay sesiones creadas todavía. Crea una en la pestaña Microciclos.</p>
+		              <p class="empty">No hay sesiones creadas todavía. Usa “Crear sesión” en esta misma pestaña.</p>
 		              {% endif %}
-	            </div>
+		            </div>
 	          </div>
 	        </section>
 
@@ -1548,16 +1548,17 @@
         <section class="panel">
           <h2>Mapa de planificación</h2>
           {% if planning_microcycle_rows %}
-          <div class="task-list">
-            {% for row in planning_microcycle_rows %}
-	            <article class="task">
-	              <div class="task-content">
-	                <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:0.75rem; flex-wrap:wrap;">
-	                  <h3 class="task-title" style="margin:0;">{{ row.obj.title }}</h3>
-	                  <div class="session-chip-row" style="margin-top:0;">
-	                    <a class="button" href="{% url 'microcycle-presentation-pdf' row.obj.id %}" target="_blank" rel="noopener">Presentación (PDF)</a>
-	                  </div>
-	                </div>
+	          <div class="task-list">
+	            {% for row in planning_microcycle_rows %}
+		            <article class="task">
+		              <div class="task-content">
+		                <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:0.75rem; flex-wrap:wrap;">
+		                  <h3 class="task-title" style="margin:0;">{{ row.obj.title }}</h3>
+		                  <div class="session-chip-row" style="margin-top:0;">
+		                    <a class="button" href="{% url 'microcycle-presentation-pdf' row.obj.id %}" target="_blank" rel="noopener">Presentación (PDF)</a>
+		                    <a class="button secondary" href="?tab=sessions&microcycle_id={{ row.obj.id }}">Crear sesión</a>
+		                  </div>
+		                </div>
 	                <p class="meta"><strong>{{ row.obj.week_start|date:"d/m/Y" }}</strong> → <strong>{{ row.obj.week_end|date:"d/m/Y" }}</strong> · Estado: {{ row.obj.get_status_display }}</p>
                 <div class="session-chip-row" style="margin-top:0.45rem;">
                   <span class="session-chip">Sesiones · {{ row.sessions_count }}</span>
