@@ -3895,6 +3895,18 @@ def _competition_payload_for_team(workspace, primary_team, *, allow_auto_sync: b
                     )
 
     provider_key = str(getattr(context, 'provider', '') or '').strip().lower()
+    context_status = str(getattr(context, 'sync_status', '') or '').strip().lower()
+    context_group_key = str(getattr(context, 'external_group_key', '') or '').strip()
+    context_team_key = str(getattr(context, 'external_team_key', '') or '').strip()
+    # Guardrail comercial: si el contexto competitivo no está listo, NO inferimos clasificación/rival desde
+    # cachés globales o partidos sin grupo, porque puede mezclar categorías (Senior/Prebenjamín).
+    context_ready = bool(
+        provider_key
+        and provider_key != WorkspaceCompetitionContext.PROVIDER_MANUAL
+        and context_status == WorkspaceCompetitionContext.STATUS_READY
+        and context_group_key
+        and context_team_key
+    )
     # Auto-reparación: si el contexto es Universo y hay snapshot viejo/incompleto (o falta external_team_key),
     # forzamos un refresh con throttle para que el "próximo rival" no se quede vacío.
     if (
@@ -3930,6 +3942,39 @@ def _competition_payload_for_team(workspace, primary_team, *, allow_auto_sync: b
                     )
         except Exception:
             pass
+    if not context_ready:
+        # Sin contexto (Universo) listo, podemos usar clasificación local (BD) SOLO si el equipo
+        # tiene `group` y no hay colisión de grupo con otra categoría del mismo cliente.
+        safe_local = False
+        try:
+            safe_local = bool(primary_team and getattr(primary_team, 'group_id', None))
+            if safe_local and workspace and workspace.kind == Workspace.KIND_CLUB:
+                other_team_ids = list(
+                    WorkspaceTeam.objects
+                    .filter(workspace=workspace)
+                    .exclude(team=primary_team)
+                    .values_list('team_id', flat=True)
+                )
+                if other_team_ids:
+                    collision = Team.objects.filter(id__in=other_team_ids, group_id=primary_team.group_id).exists()
+                    if collision:
+                        safe_local = False
+        except Exception:
+            safe_local = False
+        if safe_local and primary_team and getattr(primary_team, 'group', None):
+            standings_payload = _resolve_standings_for_team(primary_team, provider=provider_key)
+            next_match_payload = get_next_match(primary_team, primary_team.group, allow_external_fetch=False) or {}
+            normalized_next = normalize_next_match_payload(next_match_payload) if next_match_payload else {}
+            return {
+                'standings': standings_payload or [],
+                'next_match': normalized_next or (_build_next_match_from_convocation(primary_team) or {}),
+            }
+        # Fallback seguro: sólo usamos datos explícitos del staff (convocatoria) y evitamos inferencias.
+        return {
+            'standings': [],
+            'next_match': _build_next_match_from_convocation(primary_team) or {},
+        }
+
     standings_payload = _resolve_standings_for_team(
         primary_team,
         snapshot=load_universo_snapshot(),
