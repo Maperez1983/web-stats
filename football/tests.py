@@ -4911,6 +4911,74 @@ class SessionsPlanningTests(TestCase):
         self.assertEqual(task.duration_minutes, 22)
         self.assertEqual(task.block, SessionTask.BLOCK_MAIN_2)
 
+    def test_task_builder_edit_partial_post_does_not_wipe_existing_fields(self):
+        session = TrainingSession.objects.create(
+            microcycle=self.microcycle,
+            session_date=date(2026, 3, 25),
+            focus='Sesión base',
+            duration_minutes=90,
+        )
+        task = SessionTask.objects.create(
+            session=session,
+            title='Tarea completa',
+            block=SessionTask.BLOCK_MAIN_1,
+            duration_minutes=15,
+            objective='Objetivo previo',
+            coaching_points='Consignas previas',
+            confrontation_rules='Reglas previas',
+            tactical_layout={
+                'tokens': [],
+                'meta': {
+                    'scope': 'coach',
+                    'surface': 'natural_grass',
+                    'pitch_format': '11v11_half',
+                    'constraints': ['two_touches'],
+                    'assigned_player_ids': [self.player.id],
+                    'assigned_player_names': [self.player.name],
+                    'analysis': {
+                        'task_sheet': {
+                            'description': 'Descripción previa',
+                            'players': 'A, B, C',
+                            'space': 'Zona media',
+                            'dimensions': '30x20',
+                            'materials': 'Conos',
+                            'description_html': '<p>Previo</p>',
+                            'coaching_html': '<ul><li>Previo</li></ul>',
+                            'rules_html': '<p>Reglas</p>',
+                        }
+                    },
+                    'graphic_editor': {'canvas_state': {'version': '5.3.0', 'objects': []}, 'canvas_width': 1280, 'canvas_height': 720},
+                },
+            },
+        )
+
+        response = self.client.post(
+            reverse('sessions-task-edit', args=[task.id]),
+            {
+                'planner_action': 'create_draw_task',
+                'draw_target_session_id': session.id,
+                'draw_task_template': 'none',
+                'draw_task_title': 'Tarea renombrada sin payload completo',
+                'draw_task_block': SessionTask.BLOCK_MAIN_1,
+                'draw_task_minutes': '15',
+                'draw_task_pitch_preset': 'full_pitch',
+                # Omitimos intencionadamente objetivo/consignas/reglas + task_sheet + constraints + assigned_player_ids + canvas_state
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        task.refresh_from_db()
+        self.assertEqual(task.title, 'Tarea renombrada sin payload completo')
+        self.assertEqual(task.objective, 'Objetivo previo')
+        self.assertEqual(task.coaching_points, 'Consignas previas')
+        self.assertEqual(task.confrontation_rules, 'Reglas previas')
+        meta = (task.tactical_layout or {}).get('meta') or {}
+        self.assertEqual(meta.get('constraints'), ['two_touches'])
+        self.assertEqual(meta.get('assigned_player_ids'), [self.player.id])
+        sheet = ((meta.get('analysis') or {}).get('task_sheet') or {})
+        self.assertEqual(sheet.get('description'), 'Descripción previa')
+        self.assertEqual(sheet.get('materials'), 'Conos')
+
     @patch('football.views.weasyprint', None)
     def test_session_task_pdf_renders_uefa_style_layout(self):
         session = TrainingSession.objects.create(
