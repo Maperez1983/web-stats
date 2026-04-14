@@ -58,6 +58,9 @@
         font-size: 0.7rem;
         color: rgba(226,232,240,0.76);
       }
+      label span {
+        display: block;
+      }
       input, textarea, select {
         border-radius: 14px;
         padding: 0.7rem 0.8rem;
@@ -194,6 +197,23 @@
             <label>
               Nombre
               <input name="name" value="{% if member %}{{ member.name }}{% endif %}" {% if mode != 'create' and not can_manage_workspace %}readonly{% endif %} required />
+            </label>
+            <label>
+              Usuario (username)
+              <input
+                name="user_username"
+                value="{% if member and member.user %}{{ member.user.username }}{% endif %}"
+                {% if mode != 'create' and not can_manage_workspace %}readonly{% endif %}
+                placeholder="Opcional: vincular acceso"
+              />
+              {% if mode != 'create' and can_manage_workspace and member and member.user %}
+              <span style="color: rgba(226,232,240,0.7); font-weight:700; letter-spacing:0.02em; text-transform:none; font-size:0.85rem;">
+                <label style="display:inline-flex; gap:10px; align-items:center; margin-top:0.35rem; font-size:0.75rem; text-transform:none; letter-spacing:0.02em;">
+                  <input type="checkbox" name="unlink_user" value="1" />
+                  Desvincular usuario
+                </label>
+              </span>
+              {% endif %}
             </label>
             <label>
               Rol

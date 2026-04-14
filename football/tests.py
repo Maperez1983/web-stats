@@ -15,7 +15,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from football.models import AnalystVideoFolder, Competition, ConvocationRecord, Group, Match, MatchEvent, MatchReport, Player, PlayerCommunication, PlayerFine, PlayerStatistic, RivalAnalysisReport, RivalVideo, Season, SessionTask, TaskStudioProfile, TaskStudioRosterPlayer, TaskStudioTask, Team, TeamStanding, TrainingMicrocycle, TrainingSession, UserInvitation, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot, WorkspaceMembership, WorkspaceTeam
+from football.models import AnalystVideoFolder, Competition, ConvocationRecord, Group, Match, MatchEvent, MatchReport, Player, PlayerCommunication, PlayerFine, PlayerStatistic, RivalAnalysisReport, RivalVideo, Season, SessionTask, StaffMember, TaskStudioProfile, TaskStudioRosterPlayer, TaskStudioTask, Team, TeamStanding, TrainingMicrocycle, TrainingSession, UserInvitation, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot, WorkspaceMembership, WorkspaceTeam
 from football import views as football_views
 from football.bootstrap import ensure_bootstrap_admin_from_env
 from football.event_taxonomy import (
@@ -4612,6 +4612,68 @@ class SessionsPlanningTests(TestCase):
         self.assertEqual(task.confrontation_rules, 'Reglas de confrontación')
         meta = (task.tactical_layout or {}).get('meta') or {}
         self.assertIn('original_version', meta)
+
+
+class StaffUserLinkingTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.admin = get_user_model().objects.create_user(username='admin', password='pass-1234')
+        # Admin "platform": usamos is_staff para superar checks de vistas de platform en tests.
+        self.admin.is_staff = True
+        self.admin.save(update_fields=['is_staff'])
+        AppUserRole.objects.create(user=self.admin, role=AppUserRole.ROLE_COACH)
+
+        competition = Competition.objects.create(name='Liga Staff', slug='liga-staff', region='Test')
+        season = Season.objects.create(competition=competition, name='2025/2026', is_current=True)
+        group = Group.objects.create(season=season, name='Grupo Staff', slug='grupo-staff')
+        self.team = Team.objects.create(name='Equipo Staff', slug='equipo-staff', group=group, is_primary=True)
+        self.workspace = Workspace.objects.create(
+            name='Club Staff',
+            slug='club-staff',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.team,
+            enabled_modules={
+                'dashboard': True,
+                'coach_overview': True,
+                'players': True,
+                'convocation': True,
+                'match_actions': True,
+                'sessions': True,
+                'analysis': True,
+                'abp_board': True,
+                'manual_stats': True,
+            },
+            is_active=True,
+        )
+        WorkspaceMembership.objects.create(workspace=self.workspace, user=self.admin, role=WorkspaceMembership.ROLE_ADMIN)
+        self.client.force_login(self.admin)
+
+    def test_inviting_user_links_matching_staff_member_by_email(self):
+        StaffMember.objects.create(
+            workspace=self.workspace,
+            team=None,
+            name='Fisio Uno',
+            email='fisio@example.com',
+            is_active=True,
+        )
+
+        response = self.client.post(
+            reverse('platform-workspace-detail', args=[self.workspace.id]),
+            {
+                'form_action': 'invite_member',
+                'invite_username': 'fisio',
+                'invite_full_name': 'Fisio Uno',
+                'invite_email': 'fisio@example.com',
+                'invite_app_role': 'analista',
+                'invite_member_role': 'viewer',
+                'invite_valid_days': '7',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        user_obj = get_user_model().objects.get(username='fisio')
+        staff = StaffMember.objects.get(workspace=self.workspace, email='fisio@example.com')
+        self.assertEqual(staff.user_id, user_obj.id)
 
     def test_create_session_plan_can_attach_selected_library_tasks(self):
         library_session = TrainingSession.objects.create(

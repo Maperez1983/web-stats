@@ -1850,6 +1850,80 @@ def _staff_scope_label(active_team):
     return base
 
 
+def _normalize_staff_email(value: str) -> str:
+    return re.sub(r'\s+', '', str(value or '')).strip().lower()
+
+
+def _normalize_staff_name(value: str) -> str:
+    raw = str(value or '').strip().lower()
+    if not raw:
+        return ''
+    raw = unicodedata.normalize('NFKD', raw)
+    raw = ''.join([ch for ch in raw if not unicodedata.combining(ch)])
+    raw = re.sub(r'\s+', ' ', raw).strip()
+    return raw
+
+
+def _ensure_workspace_membership(workspace, user_obj, *, role=None):
+    if not workspace or not user_obj:
+        return None
+    role = role or WorkspaceMembership.ROLE_VIEWER
+    if role not in {choice[0] for choice in WorkspaceMembership.ROLE_CHOICES}:
+        role = WorkspaceMembership.ROLE_VIEWER
+    membership, _ = WorkspaceMembership.objects.update_or_create(
+        workspace=workspace,
+        user=user_obj,
+        defaults={'role': role},
+    )
+    return membership
+
+
+def _maybe_link_staff_member_to_user(workspace, user_obj, *, preferred_team=None):
+    """
+    Vincula un `StaffMember` (ficha) con un `User` cuando hay una coincidencia clara.
+
+    Regla segura:
+    - Preferimos email exacto (case-insensitive).
+    - Si no hay email, intentamos nombre exacto (first+last) SOLO si es único.
+    - Si hay más de una coincidencia, no hacemos nada (evita falsos positivos).
+    """
+    if not workspace or not user_obj:
+        return None
+    try:
+        existing = StaffMember.objects.filter(workspace=workspace, user=user_obj).first()
+        if existing:
+            return existing
+    except Exception:
+        pass
+
+    email = _normalize_staff_email(getattr(user_obj, 'email', '') or '')
+    base_qs = StaffMember.objects.filter(workspace=workspace, user__isnull=True)
+    if preferred_team is not None:
+        base_qs = base_qs.filter(Q(team__isnull=True) | Q(team=preferred_team))
+
+    candidates = []
+    if email:
+        candidates = list(base_qs.filter(email__iexact=email).order_by('-updated_at', '-id')[:3])
+    if not candidates:
+        full_name = _normalize_staff_name(f"{getattr(user_obj, 'first_name', '')} {getattr(user_obj, 'last_name', '')}")
+        if full_name:
+            candidates = list(base_qs.filter(name__iexact=str(full_name)).order_by('-updated_at', '-id')[:3])
+
+    if len(candidates) != 1:
+        return None
+    member = candidates[0]
+    try:
+        member.user = user_obj
+        member.save(update_fields=['user', 'updated_at'])
+    except Exception:
+        return None
+    try:
+        _ensure_workspace_membership(workspace, user_obj, role=WorkspaceMembership.ROLE_VIEWER)
+    except Exception:
+        pass
+    return member
+
+
 def _save_staff_photo(staff_member, uploaded_photo):
     if not staff_member or not uploaded_photo:
         return False
@@ -1950,6 +2024,7 @@ def staff_member_create_page(request):
             name = str(request.POST.get('name') or '').strip()
             if not name:
                 raise ValueError('El nombre es obligatorio.')
+            user_username = _sanitize_username(request.POST.get('user_username'), max_len=150)
             role_title = str(request.POST.get('role_title') or '').strip()[:120]
             certification_level = str(request.POST.get('certification_level') or '').strip()[:160]
             dni = str(request.POST.get('dni') or '').strip()[:24]
@@ -1976,6 +2051,27 @@ def staff_member_create_page(request):
                 certification_expires_at=certification_expires_at,
                 is_active=True,
             )
+            linked_user = None
+            if user_username:
+                linked_user = User.objects.filter(username__iexact=user_username).first()
+                if not linked_user:
+                    raise ValueError(f'No existe el usuario "{user_username}" para vincular.')
+                member.user = linked_user
+                member.save(update_fields=['user', 'updated_at'])
+            elif (member.email or '').strip():
+                # Autovincula por email si hay un usuario único con ese email.
+                email_norm = _normalize_staff_email(member.email)
+                if email_norm:
+                    candidates = list(User.objects.filter(email__iexact=email_norm).order_by('id')[:2])
+                    if len(candidates) == 1:
+                        member.user = candidates[0]
+                        member.save(update_fields=['user', 'updated_at'])
+                        linked_user = candidates[0]
+            if linked_user:
+                try:
+                    _ensure_workspace_membership(workspace, linked_user, role=WorkspaceMembership.ROLE_VIEWER)
+                except Exception:
+                    pass
             uploaded_photo = request.FILES.get('photo')
             if uploaded_photo:
                 _save_staff_photo(member, uploaded_photo)
@@ -2003,6 +2099,7 @@ def staff_member_create_page(request):
             'team_label': _staff_scope_label(active_team),
             'active_team': active_team,
             'error': error,
+            'can_manage_workspace': True,
         },
     )
 
@@ -2030,6 +2127,8 @@ def staff_member_detail_page(request, staff_id):
             member.delete()
             return redirect('staff-directory')
         try:
+            user_username = _sanitize_username(request.POST.get('user_username'), max_len=150)
+            unlink_user = str(request.POST.get('unlink_user') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
             member.name = str(request.POST.get('name') or '').strip()[:160]
             if not member.name:
                 raise ValueError('El nombre es obligatorio.')
@@ -2046,6 +2145,17 @@ def staff_member_detail_page(request, staff_id):
             scope = str(request.POST.get('scope') or '').strip().lower()
             active_team = _get_active_team_for_request(request)
             member.team = active_team if scope == 'team' else None
+            if unlink_user:
+                member.user = None
+            elif user_username:
+                linked_user = User.objects.filter(username__iexact=user_username).first()
+                if not linked_user:
+                    raise ValueError(f'No existe el usuario "{user_username}" para vincular.')
+                member.user = linked_user
+                try:
+                    _ensure_workspace_membership(workspace, linked_user, role=WorkspaceMembership.ROLE_VIEWER)
+                except Exception:
+                    pass
             member.save()
             uploaded_photo = request.FILES.get('photo')
             if uploaded_photo:
@@ -10092,6 +10202,11 @@ def platform_workspace_detail_page(request, workspace_id):
                     created_by=request.user.get_username() if request.user.is_authenticated else '',
                     is_active=True,
                 )
+                # Si existe una ficha de Staff con email/nombre coincidente, la vinculamos al usuario invitado.
+                try:
+                    _maybe_link_staff_member_to_user(workspace, user_obj, preferred_team=getattr(workspace, 'primary_team', None))
+                except Exception:
+                    pass
                 invite_link = request.build_absolute_uri(reverse('user-invite-accept', args=[invitation.token]))
                 feedback = f'Invitación generada para {user_obj.username}.'
                 _audit(
