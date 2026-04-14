@@ -2,7 +2,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
   appId: "es.segundajugada.app",
-  appName: "2J",
+  appName: "2J Football Intelligence",
   webDir: "www",
   // Wrapper tipo “app real”: carga la web remota y usa plugins nativos.
   server: {

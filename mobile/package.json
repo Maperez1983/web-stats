@@ -9,17 +9,21 @@
     "@capacitor/haptics": "^6.0.0",
     "@capacitor/keyboard": "^6.0.0",
     "@capacitor/network": "^6.0.0",
-    "@capacitor/status-bar": "^6.0.0",
-    "@capacitor/splash-screen": "^6.0.0"
+    "@capacitor/splash-screen": "^6.0.0",
+    "@capacitor/status-bar": "^6.0.0"
   },
   "devDependencies": {
+    "@capacitor/android": "^6.2.1",
     "@capacitor/cli": "^6.0.0",
     "@capacitor/ios": "^6.0.0",
     "typescript": "^5.6.3"
   },
   "scripts": {
+    "add:android": "npx cap add android",
     "add:ios": "npx cap add ios",
+    "sync:android": "npx cap sync android",
     "sync:ios": "npx cap sync ios",
+    "open:android": "npx cap open android",
     "open:ios": "npx cap open ios",
     "doctor": "npx cap doctor"
   }
