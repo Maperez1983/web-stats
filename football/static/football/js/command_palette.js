@@ -8,10 +8,12 @@
 
   const RECENTS_KEY = 'webstats:cmdk:recents:v1';
   const FAVS_KEY = 'webstats:cmdk:favs:v1';
+  const SERVER_SEARCH_MIN = 2;
 
   const safeParse = (raw, fallback) => {
     try {
-      return JSON.parse(String(raw || '')) ?? fallback;
+      const parsed = JSON.parse(String(raw || ''));
+      return parsed === undefined || parsed === null ? fallback : parsed;
     } catch {
       return fallback;
     }
@@ -34,9 +36,9 @@
     return Array.isArray(items)
       ? items
           .map((it) => ({
-            label: String(it?.label || '').trim(),
-            url: normalizeUrl(it?.url || ''),
-            keywords: String(it?.keywords || '').toLowerCase(),
+            label: String((it && it.label) || '').trim(),
+            url: normalizeUrl((it && it.url) || ''),
+            keywords: String((it && it.keywords) || '').toLowerCase(),
           }))
           .filter((it) => it.label && it.url)
       : [];
@@ -57,9 +59,9 @@
     if (!Array.isArray(items)) return [];
     return items
       .map((it) => ({
-        label: String(it?.label || '').trim(),
-        url: normalizeUrl(it?.url || ''),
-        ts: Number(it?.ts || 0),
+        label: String((it && it.label) || '').trim(),
+        url: normalizeUrl((it && it.url) || ''),
+        ts: Number((it && it.ts) || 0),
       }))
       .filter((it) => it.label && it.url && it.ts)
       .sort((a, b) => b.ts - a.ts)
@@ -98,6 +100,10 @@
     query: '',
     selectedIndex: 0,
     items: loadStaticItems(),
+    serverQuery: '',
+    serverGroups: [],
+    serverStatus: 'idle', // idle | loading | ok | error
+    serverReqId: 0,
   };
 
   const isFav = (url) => loadFavs().includes(normalizeUrl(url));
@@ -124,6 +130,78 @@
     return score;
   };
 
+  const resolveActiveTeamId = () => {
+    try {
+      const params = new URLSearchParams(String(window.location.search || ''));
+      const raw = String(params.get('team') || '').trim();
+      if (/^\d+$/.test(raw)) return raw;
+    } catch {}
+    return '';
+  };
+
+  const buildServerSearchUrl = (query) => {
+    const params = new URLSearchParams();
+    params.set('q', String(query || '').trim());
+    const teamId = resolveActiveTeamId();
+    if (teamId) params.set('team', teamId);
+    return `/api/search/?${params.toString()}`;
+  };
+
+  const serverCache = new Map(); // q -> groups
+
+  const fetchServerResults = async (query) => {
+    const q = String(query || '').trim();
+    if (q.length < SERVER_SEARCH_MIN) {
+      state.serverQuery = '';
+      state.serverGroups = [];
+      state.serverStatus = 'idle';
+      return;
+    }
+    if (serverCache.has(q)) {
+      state.serverQuery = q;
+      state.serverGroups = serverCache.get(q) || [];
+      state.serverStatus = 'ok';
+      return;
+    }
+    state.serverStatus = 'loading';
+    state.serverQuery = q;
+    const reqId = (state.serverReqId || 0) + 1;
+    state.serverReqId = reqId;
+    try {
+      const resp = await fetch(buildServerSearchUrl(q), { credentials: 'same-origin' });
+      const data = await resp.json();
+      if (state.serverReqId !== reqId) return; // stale
+      if (!resp.ok || !data || data.ok !== true) throw new Error(String((data && data.error) || 'search failed'));
+      const groups = Array.isArray(data.groups) ? data.groups : [];
+      serverCache.set(q, groups);
+      try {
+        while (serverCache.size > 30) {
+          const firstKey = serverCache.keys().next().value;
+          if (!firstKey) break;
+          serverCache.delete(firstKey);
+        }
+      } catch {}
+      state.serverGroups = groups;
+      state.serverStatus = 'ok';
+    } catch (e) {
+      if (state.serverReqId !== reqId) return;
+      state.serverGroups = [];
+      state.serverStatus = 'error';
+    }
+  };
+
+  const debounce = (fn, ms) => {
+    let t = 0;
+    return (...args) => {
+      if (t) window.clearTimeout(t);
+      t = window.setTimeout(() => fn(...args), ms);
+    };
+  };
+
+  const debouncedFetch = debounce((q) => {
+    fetchServerResults(q).then(() => render());
+  }, 160);
+
   const buildResults = () => {
     const q = String(state.query || '').toLowerCase().trim();
     const tokens = q ? q.split(/\s+/).filter(Boolean).slice(0, 6) : [];
@@ -147,7 +225,31 @@
       subtitle: it.url,
     }));
 
-    const base = q ? staticItems.map((it) => ({ ...it, section: 'Ir a' })) : [...favItems, ...recentItems, ...staticItems.map((it) => ({ ...it, section: 'Ir a' }))];
+    const serverItems = [];
+    if (q && state.serverQuery && state.serverQuery.toLowerCase() === q && Array.isArray(state.serverGroups)) {
+      state.serverGroups.forEach((g) => {
+        const label = String((g && g.label) || '').trim() || 'Resultados';
+        const items = Array.isArray(g && g.items) ? g.items : [];
+        items.forEach((it) => {
+          const url = normalizeUrl((it && it.url) || '');
+          const title = String((it && it.label) || '').trim();
+          if (!url || !title) return;
+          const meta = String((it && it.meta) || '').trim();
+          const type = String((it && it.type) || '').trim();
+          serverItems.push({
+            label: title,
+            url,
+            keywords: `${type} ${meta}`.toLowerCase(),
+            section: label,
+            subtitle: meta || url,
+          });
+        });
+      });
+    }
+
+    const base = q
+      ? [...serverItems, ...staticItems.map((it) => ({ ...it, section: 'Ir a' }))]
+      : [...favItems, ...recentItems, ...staticItems.map((it) => ({ ...it, section: 'Ir a' }))];
 
     const seen = new Set();
     const filtered = [];
@@ -170,6 +272,9 @@
 
     let html = '';
     let currentSection = '';
+    if (state.query && String(state.query || '').trim().length >= SERVER_SEARCH_MIN && state.serverStatus === 'loading') {
+      html += `<div class="cmdk-section">Buscando…</div>`;
+    }
     results.forEach((it, idx) => {
       if (it.section && it.section !== currentSection) {
         currentSection = it.section;
@@ -262,7 +367,7 @@
       ev.preventDefault();
       const results = buildResults();
       const it = results[state.selectedIndex];
-      if (it?.url) go(it.url);
+      if (it && it.url) go(it.url);
       return;
     }
   });
@@ -284,6 +389,7 @@
   INPUT_EL.addEventListener('input', () => {
     state.query = INPUT_EL.value || '';
     state.selectedIndex = 0;
+    debouncedFetch(state.query);
     render();
   });
 

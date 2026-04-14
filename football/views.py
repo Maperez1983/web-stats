@@ -30516,6 +30516,7 @@ def search_api(request):
     q = str(request.GET.get('q') or '').strip()
     if len(q) < 2:
         return JsonResponse({'ok': True, 'q': q, 'groups': []})
+    team_qs = f'?team={int(primary_team.id)}'
 
     player_items = []
     try:
@@ -30537,7 +30538,7 @@ def search_api(request):
                     'id': str(player.id),
                     'label': str(player.name or '').strip() or f'Jugador {player.id}',
                     'meta': ' · '.join(meta_parts),
-                    'url': reverse('player-detail', args=[player.id]),
+                    'url': f"{reverse('player-detail', args=[player.id])}{team_qs}",
                 }
             )
     except Exception:
@@ -30563,18 +30564,106 @@ def search_api(request):
                     'id': str(match.id),
                     'label': f'vs {opponent_name}'.strip(),
                     'meta': meta,
-                    'url': f"{reverse('match-hub')}?match_id={match.id}",
+                    'url': f"{reverse('match-hub')}?match_id={match.id}&team={int(primary_team.id)}",
                 }
             )
     except Exception:
         match_items = []
 
+    staff_items = []
+    try:
+        if _can_access_coach_workspace(request.user):
+            workspace = _get_active_workspace(request)
+            staff_qs = StaffMember.objects.filter(is_active=True)
+            if workspace and workspace.kind == Workspace.KIND_CLUB:
+                staff_qs = staff_qs.filter(workspace=workspace).filter(Q(team__isnull=True) | Q(team=primary_team))
+            else:
+                staff_qs = staff_qs.filter(Q(team=primary_team) | Q(team__isnull=True))
+            staff_qs = staff_qs.filter(Q(name__icontains=q) | Q(role_title__icontains=q)).order_by('-is_active', 'role_title', 'name')[:12]
+            for staff in staff_qs:
+                meta_parts = []
+                role_title = str(getattr(staff, 'role_title', '') or '').strip()
+                if role_title:
+                    meta_parts.append(role_title)
+                if getattr(staff, 'team_id', None):
+                    meta_parts.append('Categoría')
+                staff_items.append(
+                    {
+                        'type': 'staff',
+                        'id': str(staff.id),
+                        'label': str(staff.name or '').strip() or f'Staff {staff.id}',
+                        'meta': ' · '.join([part for part in meta_parts if part]),
+                        'url': f"{reverse('staff-member-detail', args=[staff.id])}{team_qs}",
+                    }
+                )
+    except Exception:
+        staff_items = []
+
+    session_items = []
+    try:
+        if _can_access_sessions_workspace(request.user):
+            sessions = (
+                TrainingSession.objects
+                .select_related('microcycle')
+                .filter(microcycle__team=primary_team)
+                .filter(Q(focus__icontains=q) | Q(content__icontains=q))
+                .order_by('-session_date', '-id')[:12]
+            )
+            for session in sessions:
+                date_label = session.session_date.strftime('%d/%m/%Y') if getattr(session, 'session_date', None) else ''
+                meta_parts = [date_label]
+                intensity_label = str(getattr(session, 'get_intensity_display', lambda: '')() or '').strip()
+                if intensity_label:
+                    meta_parts.append(intensity_label)
+                session_items.append(
+                    {
+                        'type': 'session',
+                        'id': str(session.id),
+                        'label': str(getattr(session, 'focus', '') or '').strip() or f'Sesión {session.id}',
+                        'meta': ' · '.join([p for p in meta_parts if p]),
+                        'url': f"{reverse('sessions')}{team_qs}&tab=sessions&session_id={int(session.id)}",
+                    }
+                )
+    except Exception:
+        session_items = []
+
+    task_items = []
+    try:
+        if _can_access_sessions_workspace(request.user):
+            tasks = (
+                SessionTask.objects
+                .select_related('session__microcycle')
+                .filter(session__microcycle__team=primary_team, deleted_at__isnull=True)
+                .filter(Q(title__icontains=q) | Q(objective__icontains=q) | Q(coaching_points__icontains=q))
+                .order_by('-id')[:12]
+            )
+            block_labels = dict(SessionTask.BLOCK_CHOICES)
+            for task in tasks:
+                meta_parts = []
+                block_label = block_labels.get(getattr(task, 'block', ''), '')
+                if block_label:
+                    meta_parts.append(block_label)
+                minutes = int(getattr(task, 'duration_minutes', 0) or 0)
+                if minutes:
+                    meta_parts.append(f'{minutes} min')
+                task_items.append(
+                    {
+                        'type': 'task',
+                        'id': str(task.id),
+                        'label': str(getattr(task, 'title', '') or '').strip() or f'Tarea {task.id}',
+                        'meta': ' · '.join([p for p in meta_parts if p]),
+                        'url': f"{reverse('session-task-detail', args=[int(task.id)])}{team_qs}",
+                    }
+                )
+    except Exception:
+        task_items = []
+
     page_items = [
-        {'type': 'page', 'id': 'match-hub', 'label': 'Partido', 'meta': 'Convocatoria · 11 · acciones · PDFs', 'url': reverse('match-hub')},
-        {'type': 'page', 'id': 'players', 'label': 'Jugadores', 'meta': 'Fichas y KPIs', 'url': reverse('coach-roster') if (_can_manage_workspace(request.user, _get_active_workspace(request)) or _is_admin_user(request.user)) else reverse('player-dashboard')},
-        {'type': 'page', 'id': 'sessions', 'label': 'Entrenos', 'meta': 'Sesiones y tareas', 'url': reverse('sessions')},
-        {'type': 'page', 'id': 'actions', 'label': 'Registro de acciones', 'meta': 'Banquillo · en vivo', 'url': reverse('match-action-page')},
-        {'type': 'page', 'id': 'settings', 'label': 'Ajustes', 'meta': 'Competición y módulos', 'url': reverse('club-onboarding')},
+        {'type': 'page', 'id': 'match-hub', 'label': 'Partido', 'meta': 'Convocatoria · 11 · acciones · PDFs', 'url': f"{reverse('match-hub')}{team_qs}"},
+        {'type': 'page', 'id': 'players', 'label': 'Jugadores', 'meta': 'Fichas y KPIs', 'url': f"{(reverse('coach-roster') if (_can_manage_workspace(request.user, _get_active_workspace(request)) or _is_admin_user(request.user)) else reverse('player-dashboard'))}{team_qs}"},
+        {'type': 'page', 'id': 'sessions', 'label': 'Entrenos', 'meta': 'Sesiones y tareas', 'url': f"{reverse('sessions')}{team_qs}"},
+        {'type': 'page', 'id': 'actions', 'label': 'Registro de acciones', 'meta': 'Banquillo · en vivo', 'url': f"{reverse('match-action-page')}{team_qs}"},
+        {'type': 'page', 'id': 'settings', 'label': 'Ajustes', 'meta': 'Competición y módulos', 'url': f"{reverse('club-onboarding')}{team_qs}"},
     ]
 
     groups = []
@@ -30582,6 +30671,12 @@ def search_api(request):
         groups.append({'key': 'players', 'label': 'Jugadores', 'items': player_items})
     if match_items:
         groups.append({'key': 'matches', 'label': 'Partidos', 'items': match_items})
+    if staff_items:
+        groups.append({'key': 'staff', 'label': 'Staff', 'items': staff_items})
+    if session_items:
+        groups.append({'key': 'sessions', 'label': 'Sesiones', 'items': session_items})
+    if task_items:
+        groups.append({'key': 'tasks', 'label': 'Tareas', 'items': task_items})
     groups.append({'key': 'pages', 'label': 'Atajos', 'items': page_items})
 
     return JsonResponse(

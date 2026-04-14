@@ -225,6 +225,108 @@ class DashboardDayPlanPayloadTests(TransactionTestCase):
         self.assertEqual(payload['next_session']['focus'], 'Sesión test')
 
 
+class SearchApiExtendedGroupsTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.team = Team.objects.create(
+            name='Benagalbón',
+            slug='benagalbon-pre',
+            short_name='Benagalbón',
+            category='prebenjamin',
+            game_format=Team.GAME_FORMAT_F7,
+        )
+        self.user = get_user_model().objects.create_user(
+            username='coach-search',
+            email='coach-search@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_COACH)
+        self.workspace = Workspace.objects.create(
+            name='BENAGALBON',
+            slug='benagalbon',
+            kind=Workspace.KIND_CLUB,
+            is_active=True,
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.user,
+            role=WorkspaceMembership.ROLE_OWNER,
+        )
+        WorkspaceTeam.objects.create(
+            workspace=self.workspace,
+            team=self.team,
+            is_default=True,
+        )
+
+    def test_search_api_includes_staff_sessions_and_tasks(self):
+        StaffMember.objects.create(
+            workspace=self.workspace,
+            team=None,
+            name='Carlos Fisio',
+            role_title='Fisio',
+            is_active=True,
+        )
+        today = timezone.localdate()
+        microcycle = TrainingMicrocycle.objects.create(
+            team=self.team,
+            title='Microciclo',
+            objective='',
+            week_start=today,
+            week_end=today + timedelta(days=6),
+            status=TrainingMicrocycle.STATUS_DRAFT,
+        )
+        session = TrainingSession.objects.create(
+            microcycle=microcycle,
+            session_date=today,
+            duration_minutes=90,
+            intensity=TrainingSession.INTENSITY_LOW,
+            focus='Conceptos básicos',
+            status=TrainingSession.STATUS_PLANNED,
+        )
+        SessionTask.objects.create(
+            session=session,
+            title='Búsqueda del espacio',
+            block=SessionTask.BLOCK_MAIN_1,
+            duration_minutes=15,
+            objective='',
+            coaching_points='',
+            confrontation_rules='',
+            tactical_layout={},
+        )
+
+        self.client.force_login(self.user)
+        response = self.client.get(
+            f"{reverse('search-api')}?workspace={self.workspace.id}&team={self.team.id}&q=conceptos",
+            secure=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload.get('ok'))
+        groups = payload.get('groups') or []
+        labels = {g.get('label') for g in groups if isinstance(g, dict)}
+        self.assertIn('Sesiones', labels)
+        response_tasks = self.client.get(
+            f"{reverse('search-api')}?workspace={self.workspace.id}&team={self.team.id}&q=búsqueda",
+            secure=True,
+        )
+        self.assertEqual(response_tasks.status_code, 200)
+        payload_tasks = response_tasks.json()
+        labels_tasks = {g.get('label') for g in (payload_tasks.get('groups') or []) if isinstance(g, dict)}
+        self.assertIn('Tareas', labels_tasks)
+
+        response_staff = self.client.get(
+            f"{reverse('search-api')}?workspace={self.workspace.id}&team={self.team.id}&q=fisio",
+            secure=True,
+        )
+        self.assertEqual(response_staff.status_code, 200)
+        payload_staff = response_staff.json()
+        groups_staff = payload_staff.get('groups') or []
+        label_staff = next((g for g in groups_staff if g.get('label') == 'Staff'), None)
+        self.assertIsNotNone(label_staff)
+        items = label_staff.get('items') or []
+        self.assertTrue(any('Carlos' in str(it.get('label') or '') for it in items))
+
+
 class CommercialIsolationTests(TestCase):
     def test_user_without_workspace_does_not_fall_back_to_global_team(self):
         Team.objects.create(name='GLOBAL', slug='global', short_name='GLOBAL', is_primary=True)
