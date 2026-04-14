@@ -56,7 +56,7 @@
         <a href="{% url 'player-dashboard' %}">Jugadores</a>
         {% endif %}
       {% endif %}
-      {% if workspace_module_access.coach_overview|default:True %}
+      {% if can_access_staff|default:False %}
       <a href="{% url 'staff-directory' %}">Staff</a>
       {% endif %}
       {% if workspace_module_access.analysis|default:True %}

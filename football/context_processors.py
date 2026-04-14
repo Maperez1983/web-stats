@@ -91,12 +91,19 @@ def workspace_access(request):
         club_dashboard_url = ''
     can_manage = False
     is_admin = False
+    can_access_staff = False
     try:
         can_manage = bool(_can_manage_workspace(request.user, workspace)) if workspace else False
         is_admin = bool(_is_admin_user(request.user))
+        # Staff (cuerpo técnico) debe ser accesible para perfiles técnicos aunque el workspace o el menú varíen.
+        # Usamos la misma lógica que el backend para permitir/denegar el acceso.
+        from football.views import _can_access_coach_workspace  # noqa: WPS433 (lazy import)
+
+        can_access_staff = bool(_can_access_coach_workspace(request.user))
     except Exception:
         can_manage = False
         is_admin = False
+        can_access_staff = False
 
     team_switcher_enabled = False
     try:
@@ -171,4 +178,5 @@ def workspace_access(request):
         'active_team_current_path': request.get_full_path() if request else '',
         'can_manage_workspace': can_manage,
         'is_admin_user': is_admin,
+        'can_access_staff': can_access_staff,
     }
