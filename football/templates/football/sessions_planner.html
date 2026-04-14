@@ -1509,7 +1509,7 @@
 			                    </svg>
 			                  </button>
 			                  {% if row.obj.task_preview_image or row.obj.task_pdf %}
-			                  <div class="task-media"><img src="{% url 'session-task-preview-file' row.obj.id %}?v={{ row.obj.id }}" alt="Representación gráfica" loading="lazy" /></div>
+				                  <div class="task-media"><img src="{% url 'session-task-preview-file' row.obj.id %}?v={% if row.obj.task_preview_image %}{{ row.obj.task_preview_image.name|urlencode }}{% else %}{{ row.obj.id }}{% endif %}" alt="Representación gráfica" loading="lazy" /></div>
 			                  {% else %}
 			                  <div class="task-media-fallback">Sin representación<br />{{ row.sheet.block_label }}</div>
 		                  {% endif %}

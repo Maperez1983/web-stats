@@ -25048,7 +25048,10 @@ def task_studio_task_preview_file(request, task_id):
     }.get(extension, 'application/octet-stream')
     response = FileResponse(file_field, content_type=content_type)
     response['Content-Disposition'] = f'inline; filename="{Path(file_field.name).name}"'
-    response['Cache-Control'] = 'private, max-age=0, must-revalidate'
+    # Evita que Safari/SW “congele” previews antiguas tras regenerarlas o cambiar tareas.
+    response['Cache-Control'] = 'no-store, max-age=0'
+    response['Pragma'] = 'no-cache'
+    response['Expires'] = '0'
     return response
 
 
