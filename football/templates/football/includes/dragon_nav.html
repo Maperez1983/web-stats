@@ -28,9 +28,11 @@
   {% if workspace_module_access.convocation|default:True %}
   <a href="{% url 'match-hub' %}">Partido</a>
   {% endif %}
+  <button type="button" class="nav-command-btn" data-command-palette title="Buscar y navegar (Ctrl/Cmd + K)">Buscar</button>
   <details class="nav-more">
     <summary>Menú</summary>
     <div class="nav-more-panel">
+      <button type="button" class="nav-command-btn nav-command-btn--panel" data-command-palette>Buscar / Ir a…</button>
       <a href="{% url 'search-page' %}">Buscar</a>
 
       {% if workspace_module_access.convocation|default:True or workspace_module_access.match_actions|default:True %}
@@ -190,6 +192,38 @@
   border-color: rgba(244, 180, 0, 0.5);
   color: #fff9e8;
 }
+.product-nav-shortcuts button.nav-command-btn {
+  appearance: none;
+  border: 1px solid rgba(244, 180, 0, 0.18);
+  border-radius: 999px;
+  padding: 0.32rem 0.72rem;
+  font-size: 0.7rem;
+  line-height: 1.15;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.04);
+  color: #f5f7fa;
+  cursor: pointer;
+}
+.product-nav-shortcuts button.nav-command-btn:hover {
+  border-color: rgba(244, 180, 0, 0.5);
+  color: #fff9e8;
+}
+.product-nav-shortcuts button.nav-command-btn--panel {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 0.55rem 0.65rem;
+  letter-spacing: 0.1em;
+  font-weight: 800;
+  font-size: 0.68rem;
+  text-align: left;
+}
+.product-nav-shortcuts button.nav-command-btn--panel:hover {
+  border-color: rgba(244, 180, 0, 0.45);
+}
 .nav-more {
   position: relative;
 }
@@ -307,6 +341,118 @@
   }
 }
 </style>
+<div class="cmdk" id="cmdk" hidden aria-hidden="true">
+  <div class="cmdk-backdrop" data-cmdk-close></div>
+  <div class="cmdk-panel" role="dialog" aria-modal="true" aria-label="Buscar / Ir a">
+    <div class="cmdk-head">
+      <input class="cmdk-input" id="cmdk-input" type="search" placeholder="Buscar… (ej: jugador, partido, pdf, staff)" autocomplete="off" />
+      <button type="button" class="cmdk-close" data-cmdk-close aria-label="Cerrar">Esc</button>
+    </div>
+    <div class="cmdk-hint">Ctrl/Cmd + K · ↑↓ navegar · Enter abrir · ⭐ favorito</div>
+    <div class="cmdk-list" id="cmdk-list" role="listbox" aria-label="Resultados"></div>
+  </div>
+</div>
+<script type="application/json" id="cmdk-static-items">
+[
+  {"label":"Portada","url":"{% if club_dashboard_url %}{{ club_dashboard_url|escapejs }}{% else %}{% url 'dashboard-home' %}{% endif %}","keywords":"home portada dashboard"},
+  {"label":"Partido","url":"{% url 'match-hub' %}","keywords":"partido match hub"},
+  {"label":"Convocatoria","url":"{% url 'convocation' %}","keywords":"convocatoria convocatoria pdf lista"},
+  {"label":"11 inicial","url":"{% url 'initial-eleven' %}","keywords":"11 inicial lineup titulares"},
+  {"label":"Registro acciones","url":"{% url 'match-action-page' %}","keywords":"acciones registro en vivo"},
+  {"label":"Entrenos","url":"{% url 'sessions' %}","keywords":"entrenos sesiones microciclos"},
+  {"label":"Crear tarea (editor)","url":"{% url 'sessions-task-create' %}","keywords":"crear tarea pizarra editor"},
+  {"label":"Buscar (página)","url":"{% url 'search-page' %}","keywords":"buscar search"},
+  {"label":"Jugadores · estadísticas","url":"{% url 'coach-roster' %}?tab=stats{% if active_team %}&team={{ active_team.id }}{% endif %}","keywords":"jugadores stats kpi"},
+  {"label":"Alta jugador","url":"{% url 'coach-roster' %}?tab=manage{% if active_team %}&team={{ active_team.id }}{% endif %}","keywords":"alta jugador crear"},
+  {"label":"Staff","url":"{% url 'staff-directory' %}","keywords":"staff cuerpo tecnico"},
+  {"label":"Ajustes club","url":"{% url 'club-onboarding' %}","keywords":"ajustes onboarding club configuracion"},
+  {"label":"Admin","url":"{% url 'admin-page' %}?tab=teams","keywords":"admin equipos operativa"},
+  {"label":"Platform","url":"{% url 'platform-overview' %}","keywords":"platform clientes"}
+]
+</script>
+<style>
+.cmdk { position: fixed; inset: 0; z-index: 1200; }
+.cmdk[hidden] { display: none; }
+.cmdk-backdrop { position: absolute; inset: 0; background: rgba(2, 6, 23, 0.55); backdrop-filter: blur(3px); }
+.cmdk-panel {
+  position: absolute;
+  top: 10vh;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(720px, calc(100vw - 1.2rem));
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(7, 16, 30, 0.94);
+  box-shadow: 0 28px 90px rgba(0,0,0,0.55);
+  overflow: hidden;
+}
+.cmdk-head { display: flex; gap: 0.5rem; align-items: center; padding: 0.75rem 0.85rem; border-bottom: 1px solid rgba(255,255,255,0.10); }
+.cmdk-input {
+  flex: 1;
+  border-radius: 12px;
+  border: 1px solid rgba(244, 180, 0, 0.24);
+  background: rgba(15, 23, 42, 0.65);
+  color: #f8fafc;
+  padding: 0.72rem 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  font-size: 0.95rem;
+}
+.cmdk-input:focus { outline: 2px solid rgba(244, 180, 0, 0.45); outline-offset: 2px; }
+.cmdk-close {
+  appearance: none;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.04);
+  color: rgba(226,232,240,0.92);
+  border-radius: 12px;
+  padding: 0.62rem 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+.cmdk-hint { padding: 0.5rem 0.85rem; color: rgba(226,232,240,0.72); font-weight: 700; font-size: 0.78rem; }
+.cmdk-list { max-height: 58vh; overflow: auto; padding: 0.45rem; display: grid; gap: 0.25rem; }
+.cmdk-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 0.7rem;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.03);
+  color: rgba(245,247,250,0.92);
+  cursor: pointer;
+}
+.cmdk-item:hover { border-color: rgba(244, 180, 0, 0.45); }
+.cmdk-item[aria-selected="true"] { border-color: rgba(244, 180, 0, 0.65); background: rgba(244, 180, 0, 0.10); }
+.cmdk-main { min-width: 0; }
+.cmdk-title { font-weight: 950; letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.72rem; }
+.cmdk-sub { margin-top: 0.15rem; color: rgba(226,232,240,0.70); font-size: 0.78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 46ch; }
+.cmdk-star {
+  appearance: none;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.03);
+  color: rgba(226,232,240,0.92);
+  border-radius: 999px;
+  padding: 0.25rem 0.55rem;
+  font-weight: 950;
+  cursor: pointer;
+}
+.cmdk-star.is-fav { border-color: rgba(244,180,0,0.55); color: #fff9e8; background: rgba(244,180,0,0.12); }
+.cmdk-section {
+  margin: 0.35rem 0 0.2rem;
+  padding: 0.25rem 0.55rem 0.15rem;
+  color: rgba(148,163,184,0.92);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 950;
+  font-size: 0.66rem;
+}
+</style>
+<script src="{% static 'football/js/command_palette.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
 <script>
 (function () {
   const url = "{% url 'session-keepalive' %}";
