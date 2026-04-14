@@ -2833,6 +2833,16 @@
 	                  <p class="meta" style="margin-top:0.35rem;">
 	                    Plantillas guiadas para crear tareas rápido sin perder estructura. Ajusta siempre la carga y la técnica a tu grupo.
 	                  </p>
+	                  <div style="margin-top:0.55rem; display:grid; gap:0.45rem;">
+	                    <label style="display:flex; gap:10px; align-items:center; font-size:0.95rem; opacity:0.92;">
+	                      <input type="checkbox" id="task-assistant-apply-board" checked />
+	                      Crear pizarra base (conos/jugadores)
+	                    </label>
+	                    <label style="display:flex; gap:10px; align-items:center; font-size:0.95rem; opacity:0.92;">
+	                      <input type="checkbox" id="task-assistant-clear-board" checked />
+	                      Borrar pizarra actual antes
+	                    </label>
+	                  </div>
 	                  <div class="compact-grid" style="margin-top:0.65rem;">
 	                    <label style="grid-column:1 / -1;">
 	                      Programa
@@ -3275,12 +3285,14 @@
 		        if (multiToggle) multiToggle.addEventListener('change', updateMultiUi);
 		        updateMultiUi();
 
-		        const initTaskAssistant = () => {
-		          const form = document.getElementById('task-builder-form');
-		          const programEl = document.getElementById('task-assistant-program');
-		          const levelEl = document.getElementById('task-assistant-level');
-		          const minutesEl = document.getElementById('task-assistant-minutes');
-		          if (!form || !programEl || !levelEl || !minutesEl) return;
+			          const initTaskAssistant = () => {
+			          const form = document.getElementById('task-builder-form');
+			          const programEl = document.getElementById('task-assistant-program');
+			          const levelEl = document.getElementById('task-assistant-level');
+			          const minutesEl = document.getElementById('task-assistant-minutes');
+			          const applyBoardEl = document.getElementById('task-assistant-apply-board');
+			          const clearBoardEl = document.getElementById('task-assistant-clear-board');
+			          if (!form || !programEl || !levelEl || !minutesEl) return;
 
 		          const toInt = (value, fallback) => {
 		            const parsed = Number.parseInt(String(value || ''), 10);
@@ -3337,27 +3349,42 @@
 		            } catch (err) {}
 		          };
 
-		          const buildFifa11PlusTemplates = () => {
-		            const level = String(levelEl.value || '1').trim();
-		            const minutes = Math.max(5, Math.min(30, toInt(minutesEl.value, 8)));
-		            const levelLabel = level === '3' ? 'Nivel 3' : (level === '2' ? 'Nivel 2' : 'Nivel 1');
-		            const baseMaterials = 'Conos, petos, balones (opcional)';
-		            const baseSpace = '2 carriles (10–15 m) + zona central';
-		            const basePlayers = 'Todo el equipo (parejas)';
+			          const buildFifa11PlusTemplates = () => {
+			            const level = String(levelEl.value || '1').trim();
+			            const minutes = Math.max(5, Math.min(30, toInt(minutesEl.value, 8)));
+			            const levelLabel = level === '3' ? 'Nivel 3' : (level === '2' ? 'Nivel 2' : 'Nivel 1');
+			            const baseMaterials = 'Conos, petos, balones (opcional)';
+			            const baseSpace = '2 carriles (10–15 m) + zona central';
+			            const basePlayers = 'Todo el equipo (parejas)';
 
-		            const part1 = {
-		              title: `FIFA 11+ · Parte 1 · Carrera + movilidad (${levelLabel})`,
-		              objective: 'Activación general, movilidad dinámica y preparación neuromuscular.',
-		              minutes: minutes,
-		              block: 'activation',
-		              player_count: basePlayers,
-		              dimensions: 'Carril 10–15 m',
-		              materials: baseMaterials,
-		              space: baseSpace,
-		              description_html: `
-		                <ul>
-		                  <li>Carrera suave ida/vuelta (progresivo) + coordinación de brazos.</li>
-		                  <li>Movilidad dinámica: cadera (abre/cierra), tobillo, skipping y talones.</li>
+			            const part1 = {
+			              title: `FIFA 11+ · Parte 1 · Carrera + movilidad (${levelLabel})`,
+			              objective: 'Activación general, movilidad dinámica y preparación neuromuscular.',
+			              minutes: minutes,
+			              block: 'activation',
+			              player_count: basePlayers,
+			              dimensions: 'Carril 10–15 m',
+			              materials: baseMaterials,
+			              space: baseSpace,
+			              board: {
+			                items: [
+			                  // Dos carriles con conos + flechas (muy básico, editable).
+			                  { payload: { kind: 'cone_striped' }, x: 0.14, y: 0.36 },
+			                  { payload: { kind: 'cone' }, x: 0.44, y: 0.36 },
+			                  { payload: { kind: 'arrow_solid' }, x: 0.29, y: 0.36 },
+			                  { payload: { kind: 'player_local' }, x: 0.10, y: 0.34 },
+			                  { payload: { kind: 'player_local' }, x: 0.10, y: 0.38 },
+			                  { payload: { kind: 'cone_striped' }, x: 0.14, y: 0.64 },
+			                  { payload: { kind: 'cone' }, x: 0.44, y: 0.64 },
+			                  { payload: { kind: 'arrow_solid' }, x: 0.29, y: 0.64 },
+			                  { payload: { kind: 'player_local' }, x: 0.10, y: 0.62 },
+			                  { payload: { kind: 'player_local' }, x: 0.10, y: 0.66 },
+			                ],
+			              },
+			              description_html: `
+			                <ul>
+			                  <li>Carrera suave ida/vuelta (progresivo) + coordinación de brazos.</li>
+			                  <li>Movilidad dinámica: cadera (abre/cierra), tobillo, skipping y talones.</li>
 		                  <li>Trabajo por parejas: contacto controlado (hombro) y reacción (mirada al frente).</li>
 		                  <li>Progresión: aumenta la velocidad y reduce el tiempo de apoyo.</li>
 		                </ul>
@@ -3381,19 +3408,33 @@
 		              }
 		              return '<li>Variante base: énfasis en técnica, control y rango de movimiento.</li>';
 		            })();
-		            const part2 = {
-		              title: `FIFA 11+ · Parte 2 · Fuerza + equilibrio (${levelLabel})`,
-		              objective: 'Prevención: core, isquios, cadera, estabilidad y control de rodilla/tobillo.',
-		              minutes: Math.max(8, minutes),
-		              block: 'activation',
-		              player_count: basePlayers,
-		              dimensions: 'Zona central',
-		              materials: baseMaterials,
-		              space: 'Zona central (colchonetas opcional)',
-		              description_html: `
-		                <ul>
-		                  <li>Core: plancha frontal + plancha lateral (técnica limpia).</li>
-		                  <li>Cadena posterior: trabajo de isquios (nórdicos asistidos / bisagra de cadera).</li>
+			            const part2 = {
+			              title: `FIFA 11+ · Parte 2 · Fuerza + equilibrio (${levelLabel})`,
+			              objective: 'Prevención: core, isquios, cadera, estabilidad y control de rodilla/tobillo.',
+			              minutes: Math.max(8, minutes),
+			              block: 'activation',
+			              player_count: basePlayers,
+			              dimensions: 'Zona central',
+			              materials: baseMaterials,
+			              space: 'Zona central (colchonetas opcional)',
+			              board: {
+			                items: [
+			                  // Estaciones simples en zona central.
+			                  { payload: { kind: 'ring' }, x: 0.30, y: 0.44 },
+			                  { payload: { kind: 'ring' }, x: 0.38, y: 0.44 },
+			                  { payload: { kind: 'ring' }, x: 0.30, y: 0.56 },
+			                  { payload: { kind: 'ring' }, x: 0.38, y: 0.56 },
+			                  { payload: { kind: 'player_local' }, x: 0.27, y: 0.44 },
+			                  { payload: { kind: 'player_local' }, x: 0.41, y: 0.44 },
+			                  { payload: { kind: 'player_local' }, x: 0.27, y: 0.56 },
+			                  { payload: { kind: 'player_local' }, x: 0.41, y: 0.56 },
+			                  { payload: { kind: 'text' }, x: 0.34, y: 0.62 },
+			                ],
+			              },
+			              description_html: `
+			                <ul>
+			                  <li>Core: plancha frontal + plancha lateral (técnica limpia).</li>
+			                  <li>Cadena posterior: trabajo de isquios (nórdicos asistidos / bisagra de cadera).</li>
 		                  <li>Equilibrio: apoyo unipodal + sentadilla a una pierna (control).</li>
 		                  <li>Pliometría: saltos bajos con aterrizaje estable (rodilla alineada).</li>
 		                  ${part2LevelTips}
@@ -3409,19 +3450,31 @@
 		              rules_html: '<ul><li>Sin competición. Se para si aparece dolor o mala técnica.</li></ul>',
 		            };
 
-		            const part3 = {
-		              title: `FIFA 11+ · Parte 3 · Carrera + cambios (${levelLabel})`,
-		              objective: 'Activación final: velocidad, cambios de dirección y desaceleración segura.',
-		              minutes: Math.max(5, Math.min(12, minutes)),
-		              block: 'activation',
-		              player_count: 'Todo el equipo',
-		              dimensions: 'Carril 20–30 m',
-		              materials: 'Conos',
-		              space: 'Carril recto + marcas de giro',
-		              description_html: `
-		                <ul>
-		                  <li>Aceleraciones progresivas (70% → 90%).</li>
-		                  <li>Cambios de dirección (45°/90°) con frenada y re-aceleración.</li>
+			            const part3 = {
+			              title: `FIFA 11+ · Parte 3 · Carrera + cambios (${levelLabel})`,
+			              objective: 'Activación final: velocidad, cambios de dirección y desaceleración segura.',
+			              minutes: Math.max(5, Math.min(12, minutes)),
+			              block: 'activation',
+			              player_count: 'Todo el equipo',
+			              dimensions: 'Carril 20–30 m',
+			              materials: 'Conos',
+			              space: 'Carril recto + marcas de giro',
+			              board: {
+			                items: [
+			                  { payload: { kind: 'cone_striped' }, x: 0.56, y: 0.50 },
+			                  { payload: { kind: 'cone' }, x: 0.82, y: 0.50 },
+			                  { payload: { kind: 'arrow_thick' }, x: 0.69, y: 0.50 },
+			                  { payload: { kind: 'cone' }, x: 0.82, y: 0.40 },
+			                  { payload: { kind: 'cone' }, x: 0.82, y: 0.60 },
+			                  { payload: { kind: 'arrow_curve' }, x: 0.86, y: 0.50 },
+			                  { payload: { kind: 'player_local' }, x: 0.52, y: 0.48 },
+			                  { payload: { kind: 'player_local' }, x: 0.52, y: 0.52 },
+			                ],
+			              },
+			              description_html: `
+			                <ul>
+			                  <li>Aceleraciones progresivas (70% → 90%).</li>
+			                  <li>Cambios de dirección (45°/90°) con frenada y re-aceleración.</li>
 		                  <li>Desaceleración: pasos cortos, centro de gravedad bajo, control.</li>
 		                  <li>Opcional: saltos con carrera (bounding) si el grupo lo tolera.</li>
 		                </ul>
@@ -3443,14 +3496,19 @@
 		            };
 		          };
 
-		          const applyTemplate = (key) => {
-		            const program = String(programEl.value || '').trim();
-		            if (program !== 'fifa11plus') return;
-		            const templates = buildFifa11PlusTemplates();
-		            const tpl = templates[key];
-		            if (!tpl) return;
-		            const ok = window.confirm('Esto rellenará campos de la tarea actual. ¿Continuar?');
-		            if (!ok) return;
+			          const applyTemplate = (key) => {
+			            const program = String(programEl.value || '').trim();
+			            if (program !== 'fifa11plus') return;
+			            const templates = buildFifa11PlusTemplates();
+			            const tpl = templates[key];
+			            if (!tpl) return;
+			            const wantsBoard = !!(applyBoardEl && applyBoardEl.checked);
+			            const willClearBoard = !!(clearBoardEl && clearBoardEl.checked);
+			            const confirmMsg = wantsBoard
+			              ? (`Esto rellenará campos de la tarea y ${willClearBoard ? 'reemplazará' : 'añadirá a'} la pizarra. ¿Continuar?`)
+			              : 'Esto rellenará campos de la tarea actual. ¿Continuar?';
+			            const ok = window.confirm(confirmMsg);
+			            if (!ok) return;
 
 		            setValue('draw_task_title', tpl.title);
 		            setValue('draw_task_objective', tpl.objective);
@@ -3460,13 +3518,24 @@
 		            setValue('draw_task_dimensions', tpl.dimensions);
 		            setValue('draw_task_materials', tpl.materials);
 		            setValue('draw_task_space', tpl.space);
-		            setRichHtml('draw_task_description', tpl.description_html);
-		            setRichHtml('draw_task_coaching_points', tpl.coaching_html);
-		            setRichHtml('draw_task_confrontation_rules', tpl.rules_html);
+			            setRichHtml('draw_task_description', tpl.description_html);
+			            setRichHtml('draw_task_coaching_points', tpl.coaching_html);
+			            setRichHtml('draw_task_confrontation_rules', tpl.rules_html);
 
-		            const fichaTab = document.querySelector('#task-side-tabs .side-tab[data-pane="ficha"]');
-		            try { fichaTab?.click(); } catch (err) {}
-		          };
+			            if (wantsBoard && tpl.board && Array.isArray(tpl.board.items)) {
+			              try {
+			                window.dispatchEvent(new CustomEvent('webstats:tpad:assistant-board', {
+			                  detail: {
+			                    clear: willClearBoard,
+			                    items: tpl.board.items,
+			                  },
+			                }));
+			              } catch (err) {}
+			            }
+
+			            const fichaTab = document.querySelector('#task-side-tabs .side-tab[data-pane="ficha"]');
+			            try { fichaTab?.click(); } catch (err) {}
+			          };
 
 		          Array.from(document.querySelectorAll('[data-assistant-template]')).forEach((btn) => {
 		            btn.addEventListener('click', () => {

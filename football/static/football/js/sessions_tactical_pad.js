@@ -4633,10 +4633,10 @@
 	        y: clamp(y, 24, h - 24),
 	      };
 	    };
-    const createFactoryFromPayload = (payload) => {
-      if (!payload || typeof payload !== 'object') return null;
-      if (payload.playerId) {
-        const player = players.find((item) => String(item.id) === String(payload.playerId));
+	    const createFactoryFromPayload = (payload) => {
+	      if (!payload || typeof payload !== 'object') return null;
+	      if (payload.playerId) {
+	        const player = players.find((item) => String(item.id) === String(payload.playerId));
         if (!player) return null;
         return {
           factory: playerTokenFactory(payload.kind || 'player_local', player),
@@ -4649,21 +4649,85 @@
       if (payload.kind === 'goalkeeper_local') return { factory: playerTokenFactory('goalkeeper_local', null), label: 'un portero' };
       return { factory: simpleFactory(payload.kind), label: RESOURCE_LABELS[payload.kind] || payload.kind };
     };
-	    const addPayloadAtPointer = (payload, pointer) => {
-	      if (isSimulating) {
-	        setStatus('Modo simulación: no se pueden añadir recursos. Sal del simulador para editar.', true);
-	        return false;
-	      }
-	      const resolved = createFactoryFromPayload(payload);
-	      if (!resolved?.factory) return false;
-	      addObject(objectAtPointer(resolved.factory, pointer));
-	      clearPendingPlacement();
-	      setStatus(`${resolved.label} colocado.`);
-	      return true;
-	    };
-    const registerDraggableButton = (button, payloadBuilder) => {
-      if (!button) return;
-      button.draggable = true;
+		    const addPayloadAtPointer = (payload, pointer) => {
+		      if (isSimulating) {
+		        setStatus('Modo simulación: no se pueden añadir recursos. Sal del simulador para editar.', true);
+		        return false;
+		      }
+		      const resolved = createFactoryFromPayload(payload);
+		      if (!resolved?.factory) return false;
+		      addObject(objectAtPointer(resolved.factory, pointer));
+		      clearPendingPlacement();
+		      setStatus(`${resolved.label} colocado.`);
+		      return true;
+		    };
+
+		    const applyAssistantBoardTemplate = (detail = {}) => {
+		      if (isSimulating) {
+		        setStatus('Modo simulación: no se puede aplicar una plantilla. Sal del simulador.', true);
+		        return false;
+		      }
+		      const items = Array.isArray(detail?.items) ? detail.items : [];
+		      const shouldClear = detail?.clear === true;
+		      const { w, h } = worldSize();
+		      const toAbs = (value, max) => {
+		        const num = Number(value);
+		        if (!Number.isFinite(num)) return null;
+		        if (num >= 0 && num <= 1) return clamp(num * max, 24, max - 24);
+		        return clamp(num, 24, max - 24);
+		      };
+
+		      try { clearPendingPlacement(); } catch (e) { /* ignore */ }
+		      pendingFactory = null;
+		      backgroundPickMode = false;
+		      if (freeDrawMode) {
+		        freeDrawMode = false;
+		        try { canvas.isDrawingMode = false; } catch (e) { /* ignore */ }
+		      }
+
+		      if (shouldClear) {
+		        const existing = (canvas.getObjects?.() || []).slice().filter((obj) => obj && !(obj?.data?.base));
+		        existing.forEach((obj) => {
+		          try { canvas.remove(obj); } catch (e) { /* ignore */ }
+		        });
+		        try { canvas.discardActiveObject(); } catch (e) { /* ignore */ }
+		      }
+
+		      const added = [];
+		      items.slice(0, 64).forEach((item) => {
+		        const payload = item?.payload;
+		        if (!payload) return;
+		        const x = toAbs(item?.x, w);
+		        const y = toAbs(item?.y, h);
+		        if (x == null || y == null) return;
+		        const resolved = createFactoryFromPayload(payload);
+		        if (!resolved?.factory) return;
+		        try {
+		          const obj = objectAtPointer(resolved.factory, { x, y });
+		          if (!obj) return;
+		          // Evita el coste de addObject() por cada elemento; añadimos en batch.
+		          if (isBackgroundShape(obj)) {
+		            obj.data = obj.data || {};
+		            obj.data.background_edit = true;
+		          }
+		          normalizeEditableObject(obj);
+		          canvas.add(obj);
+		          if (isBackgroundShape(obj)) canvas.sendToBack(obj);
+		          added.push(obj);
+		        } catch (e) { /* ignore */ }
+		      });
+
+		      if (!added.length && !shouldClear) return false;
+		      try { canvas.discardActiveObject(); } catch (e) { /* ignore */ }
+		      try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+		      pushHistory();
+		      syncInspector();
+		      setStatus(added.length ? `Plantilla aplicada (${added.length} elementos).` : 'Plantilla aplicada.');
+		      return true;
+		    };
+		    const registerDraggableButton = (button, payloadBuilder) => {
+		      if (!button) return;
+		      button.draggable = true;
       button.addEventListener('dragstart', (event) => {
         const payload = payloadBuilder();
         if (!payload) {
@@ -5439,6 +5503,12 @@
 		      Array.from(playerBank?.querySelectorAll('button') || []).forEach((button) => button.classList.remove('is-active'));
 		      setStatus(`Haz clic en el campo para colocar ${label}. (Shift: varios · Cmd/Ctrl: alinear por centro)`);
 		    };
+
+		    // Integración: permite que el Asistente (en la plantilla HTML) coloque recursos de forma programática
+		    // sin exponer el canvas globalmente.
+		    window.addEventListener('webstats:tpad:assistant-board', (event) => {
+		      try { applyAssistantBoardTemplate(event?.detail || {}); } catch (e) { /* ignore */ }
+		    });
 
 			    const restoreState = () => {
 		      let parsed = { version: '5.3.0', objects: [] };
