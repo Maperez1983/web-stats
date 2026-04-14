@@ -214,7 +214,8 @@
         margin-top: 10px;
       }
       .footer-photo {
-        height: 56mm;
+        /* Un poco más alta para evitar cortes (p.ej. cabezas) en fotos de equipo. */
+        height: 64mm;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -225,7 +226,8 @@
         width: 100%;
         height: 100%;
         object-fit: contain;
-        object-position: center;
+        /* Si el motor interpreta `object-fit` de forma distinta, prioriza la parte superior (cabezas). */
+        object-position: center top;
         display: block;
       }
       .footer-meta {
