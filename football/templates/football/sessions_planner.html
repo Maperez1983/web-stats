@@ -1748,8 +1748,8 @@
 	                          {{ slot_session.obj.duration_minutes }}' · {{ slot_session.obj.get_intensity_display }}
 	                        </span>
 	                        <span style="margin-top:4px; display:flex; gap:8px; flex-wrap:wrap;">
-	                          <a class="meta" href="{% url 'session-plan-pdf' slot_session.obj.id %}?style=uefa" target="_blank" rel="noopener">PDF UEFA</a>
-	                          <a class="meta" href="{% url 'session-plan-pdf' slot_session.obj.id %}?style=club" target="_blank" rel="noopener">PDF Club</a>
+	                          <a class="meta session-pdf-link" data-session-pdf="1" href="{% url 'session-plan-pdf' slot_session.obj.id %}?style=uefa" target="_blank" rel="noopener">PDF UEFA</a>
+	                          <a class="meta session-pdf-link" data-session-pdf="1" href="{% url 'session-plan-pdf' slot_session.obj.id %}?style=club" target="_blank" rel="noopener">PDF Club</a>
 	                          <a class="meta" href="{% url 'session-presentation-pdf' slot_session.obj.id %}" target="_blank" rel="noopener">Presentación</a>
 	                        </span>
 	                      </div>
@@ -1977,9 +1977,8 @@
                     </details>
                     {% endif %}
                     <div class="session-actions">
-                      <a class="button" href="{% url 'session-plan-pdf' session.obj.id %}" target="_blank" rel="noopener">Imprimir UEFA</a>
-                      <a class="button" href="{% url 'session-plan-pdf' session.obj.id %}?style=uefa" target="_blank" rel="noopener">Imprimir UEFA</a>
-                      <a class="button secondary" href="{% url 'session-plan-pdf' session.obj.id %}?style=club" target="_blank" rel="noopener">Imprimir Club</a>
+	                      <a class="button session-pdf-link" data-session-pdf="1" href="{% url 'session-plan-pdf' session.obj.id %}?style=uefa" target="_blank" rel="noopener">Imprimir UEFA</a>
+	                      <a class="button secondary session-pdf-link" data-session-pdf="1" href="{% url 'session-plan-pdf' session.obj.id %}?style=club" target="_blank" rel="noopener">Imprimir Club</a>
                       <details class="session-editor">
                         <summary>Editar sesión</summary>
                         <form method="post" class="grid" style="margin-top:0.7rem;">
