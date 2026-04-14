@@ -266,13 +266,13 @@
 	                <img src="{{ logo_url }}" alt="RFEF / UEFA" />
 	              </div>
 	            </td>
-	            <td style="vertical-align:middle; font-size:20px;">ENTREGA SESIÓN</td>
+		            <td style="vertical-align:middle; font-size:20px;">Entrega Sesión <span style="font-size:11px; font-weight:700; opacity:0.9; margin-left:10px;">Formato UEFA</span></td>
 	          </tr>
 	        </table>
 	      </div>
 
 	      <div style="padding:12px 14px 0;">
-		        <div class="uefa-section-head">DETALLES DE LA SESIÓN</div>
+			        <div class="uefa-section-head">Detalles de la sesión</div>
 		        <table class="uefa-grid" style="margin-bottom:10px;">
 		          <colgroup>
 		            <col style="width:18%;" />
@@ -304,14 +304,14 @@
 	          {{ session_notes|default:"" }}
 	        </div>
 
-		        <div class="uefa-section-head">TAREAS DE LA SESIÓN</div>
+			        <div class="uefa-section-head">Tareas de la sesión</div>
 		        {% if task_cards %}
 		          {% for card in task_cards %}
 		          {% if not forloop.first %}<div class="uefa-page-break"></div>{% endif %}
 		          <div class="uefa-bar uefa-red" style="margin:0 0 10px; border-top:1px solid #1f2937; border-bottom:1px solid #1f2937;">
 		            <table style="width:100%; border-collapse:collapse;">
 		              <tr>
-		                <td style="font-size:16px;">ENTREGA SESIÓN</td>
+			                <td style="font-size:16px;">Entrega Sesión</td>
 		                <td style="text-align:right; font-size:11px; font-weight:700;">{{ session.session_date|date:"d/m/Y" }}{% if session.start_time %} · {{ session.start_time|time:"H:i" }}{% endif %}</td>
 		              </tr>
 		            </table>
@@ -385,11 +385,12 @@
 	                <img src="{{ logo_url }}" alt="Escudo {{ team_name }}" />
 	              </div>
 	            </td>
-            <td style="vertical-align:top;">
-              <div style="font-size:9px; letter-spacing:0.18em; text-transform:uppercase; opacity:0.8;">Planificación de sesión</div>
-              <div style="font-size:25px; font-weight:800; line-height:1.1; margin-top:4px;">{{ session.focus }}</div>
-              <div style="font-size:11px; margin-top:6px; opacity:0.88;">{{ team_name }} · {{ coach_name }} · {{ session.session_date|date:"d/m/Y" }}{% if session.start_time %} · {{ session.start_time|time:"H:i" }}{% endif %}</div>
-            </td>
+	            <td style="vertical-align:top;">
+	              <div style="font-size:9px; letter-spacing:0.18em; text-transform:uppercase; opacity:0.8;">Planificación de sesión</div>
+	              <div style="margin-top:2px; font-size:9px; letter-spacing:0.18em; text-transform:uppercase; opacity:0.85;">Formato Club</div>
+	              <div style="font-size:25px; font-weight:800; line-height:1.1; margin-top:4px;">{{ session.focus }}</div>
+	              <div style="font-size:11px; margin-top:6px; opacity:0.88;">{{ team_name }} · {{ coach_name }} · {{ session.session_date|date:"d/m/Y" }}{% if session.start_time %} · {{ session.start_time|time:"H:i" }}{% endif %}</div>
+	            </td>
 	            <td style="width:150px; text-align:right; vertical-align:top;"></td>
 	          </tr>
 	        </table>
@@ -459,7 +460,7 @@
 	            {% if session_plan_fields.cooldown %}<p><strong>Vuelta a la calma:</strong><br />{{ session_plan_fields.cooldown|linebreaksbr }}</p>{% endif %}
 	            {% if session_notes %}<p><strong>Notas:</strong><br />{{ session_notes|linebreaksbr }}</p>{% endif %}
 	          {% else %}
-	          -
+	          <span style="color:#64748b;">(Sin textos guardados. Escríbelos en “Textos de sesión” y guarda antes de imprimir.)</span>
 	          {% endif %}
 	        </div>
 
@@ -528,7 +529,7 @@
 	          </div>
 	          {% endfor %}
 	        {% else %}
-	        <div class="box">-</div>
+	        <div class="box" style="color:#64748b;">No hay tareas guardadas para esta sesión. Asigna tareas en “Tareas por bloque” y vuelve a generar el PDF.</div>
 	        {% endif %}
 	      </div>
 

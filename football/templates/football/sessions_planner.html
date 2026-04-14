@@ -1380,14 +1380,14 @@
 	                    {% endfor %}
 	                  </select>
 	                </label>
-		                <div style="display:flex; align-items:flex-end; gap:0.6rem;">
-		                  <button type="submit" class="secondary">Cargar</button>
-		                  {% if selected_session %}
-		                  <a class="button" href="{% url 'session-plan-pdf' selected_session.id %}?style=uefa">PDF UEFA</a>
-		                  <a class="button secondary" href="{% url 'session-plan-pdf' selected_session.id %}?style=club">PDF Club</a>
-		                  {% endif %}
-		                </div>
-		              </form>
+			                <div style="display:flex; align-items:flex-end; gap:0.6rem;">
+			                  <button type="submit" class="secondary">Cargar</button>
+			                  {% if selected_session %}
+			                  <a class="button session-pdf-link" data-session-pdf="1" href="{% url 'session-plan-pdf' selected_session.id %}?style=uefa" target="_blank" rel="noopener">PDF UEFA</a>
+			                  <a class="button secondary session-pdf-link" data-session-pdf="1" href="{% url 'session-plan-pdf' selected_session.id %}?style=club" target="_blank" rel="noopener">PDF Club</a>
+			                  {% endif %}
+			                </div>
+			              </form>
 		              {% if selected_session %}
 		              <p class="meta" style="margin:0.65rem 0 0;">
 		                {% if inbox_microcycle_id and selected_session.microcycle_id == inbox_microcycle_id %}
@@ -2419,9 +2419,9 @@
 	        }
 	      })();
 	
-	      (() => {
-	        const form = document.getElementById('session-texts-form');
-	        if (!form) return;
+		      (() => {
+		        const form = document.getElementById('session-texts-form');
+		        if (!form) return;
 	        let canStore = true;
 	        try {
 	          const testKey = '__ls_test__';
@@ -2486,7 +2486,7 @@
 	            // ignore
 	          }
 	        };
-	        const saveServer = async () => {
+		        const saveServer = async () => {
 	          try {
 	            const payload = new FormData(form);
 	            payload.set('ajax', '1');
@@ -2511,7 +2511,11 @@
 	            if (statusEl) statusEl.textContent = 'No se pudo guardar en servidor.';
 	            return false;
 	          }
-	        };
+		        };
+		        try {
+		          window.__WebStats = window.__WebStats || {};
+		          window.__WebStats.saveSessionTexts = saveServer;
+		        } catch (e) {}
 	        const clearDraft = () => {
 	          try {
 	            window.localStorage.removeItem(storageKey);
@@ -2559,7 +2563,7 @@
 	            window.setTimeout(() => { void saveServer(); }, 900);
 	          }
 	        } catch (e) {}
-	        form.addEventListener('submit', () => clearDraft());
+		        form.addEventListener('submit', () => clearDraft());
 	        window.addEventListener('beforeunload', () => {
 	          try { saveDraft(readValues()); } catch (e) {}
 	          try {
@@ -2570,7 +2574,34 @@
 	            }
 	          } catch (e) {}
 	        });
-	      })();
-	    </script>
-	  </body>
-	</html>
+		      })();
+
+		      (() => {
+		        const links = Array.from(document.querySelectorAll('a.session-pdf-link[data-session-pdf="1"]'));
+		        if (!links.length) return;
+		        links.forEach((link) => {
+		          link.addEventListener('click', async (event) => {
+		            const href = link.getAttribute('href');
+		            if (!href) return;
+		            const saver = (window.__WebStats && window.__WebStats.saveSessionTexts) ? window.__WebStats.saveSessionTexts : null;
+		            if (typeof saver !== 'function') return;
+		            event.preventDefault();
+		            const opened = window.open('about:blank', '_blank', 'noopener');
+		            try {
+		              await saver();
+		            } catch (e) {}
+		            try {
+		              if (opened && !opened.closed) {
+		                opened.location.href = href;
+		              } else {
+		                window.location.href = href;
+		              }
+		            } catch (e) {
+		              window.location.href = href;
+		            }
+		          });
+		        });
+		      })();
+		    </script>
+		  </body>
+		</html>
