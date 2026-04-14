@@ -34,6 +34,14 @@
     <div class="nav-more-panel">
       <button type="button" class="nav-command-btn nav-command-btn--panel" data-command-palette>Buscar / Ir a…</button>
       <a href="{% url 'search-page' %}">Buscar</a>
+      {% if is_admin_user and active_workspace_options and active_workspace_options|length > 1 %}
+      <div class="nav-more-subtitle">Clientes</div>
+      {% for ws in active_workspace_options %}
+        {% if ws.kind == 'club' %}
+        <a href="{% url 'platform-workspace-enter' ws.id %}">Entrar · {{ ws.label }}</a>
+        {% endif %}
+      {% endfor %}
+      {% endif %}
 
       {% if workspace_module_access.convocation|default:True or workspace_module_access.match_actions|default:True %}
       <div class="nav-more-subtitle">Partido</div>
@@ -368,6 +376,13 @@
   {"label":"Ajustes club","url":"{% url 'club-onboarding' %}","keywords":"ajustes onboarding club configuracion"},
   {"label":"Admin","url":"{% url 'admin-page' %}?tab=teams","keywords":"admin equipos operativa"},
   {"label":"Platform","url":"{% url 'platform-overview' %}","keywords":"platform clientes"}
+  {% if is_admin_user and active_workspace_options %}
+  {% for ws in active_workspace_options %}
+  {% if ws.kind == 'club' %}
+  ,{"label":"Cliente · {{ ws.label|escapejs }}","url":"{% url 'platform-workspace-enter' ws.id %}","keywords":"cliente workspace entrar {{ ws.label|lower|escapejs }}"}
+  {% endif %}
+  {% endfor %}
+  {% endif %}
 ]
 </script>
 <style>

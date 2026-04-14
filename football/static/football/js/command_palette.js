@@ -224,13 +224,13 @@
 
   const escapeHtml = (value) =>
     String(value || '')
-      .replaceAll('&', '&amp;')
-      .replaceAll('<', '&lt;')
-      .replaceAll('>', '&gt;')
-      .replaceAll('"', '&quot;')
-      .replaceAll("'", '&#39;');
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
 
-  const escapeAttr = (value) => escapeHtml(value).replaceAll('`', '&#96;');
+  const escapeAttr = (value) => escapeHtml(value).replace(/`/g, '&#96;');
 
   document.addEventListener('keydown', (ev) => {
     const k = String(ev.key || '').toLowerCase();
@@ -309,4 +309,3 @@
     recordRecent();
   } catch {}
 })();
-
