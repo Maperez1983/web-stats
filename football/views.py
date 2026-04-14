@@ -23549,6 +23549,14 @@ def _normalize_animation_timeline(raw_timeline):
 
 def _save_task_builder_entry(request, primary_team, scope_key, existing_task=None):
     existing_meta = _task_existing_meta(existing_task)
+    # Snapshot defensivo: si el editor visual guarda un payload incompleto (p.ej. por un bug de JS,
+    # recarga, o el usuario renombra sin que se serialice el canvas), evitamos perder información.
+    # Esto permite restaurar desde "Versión original" y además reduce regresiones.
+    try:
+        if existing_task:
+            _ensure_original_task_snapshot(existing_task)
+    except Exception:
+        pass
     target_session_id = _parse_int(request.POST.get('draw_target_session_id'))
     title = _sanitize_task_text((request.POST.get('draw_task_title') or '').strip(), multiline=False, max_len=160)
     block = (request.POST.get('draw_task_block') or SessionTask.BLOCK_MAIN_1).strip()
@@ -23734,7 +23742,8 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
         target_session = _get_or_create_library_session(primary_team, scope_key)
 
     canvas_state = None
-    raw_canvas_state = (request.POST.get('draw_canvas_state') or '').strip()
+    raw_canvas_state_value = request.POST.get('draw_canvas_state')
+    raw_canvas_state = str(raw_canvas_state_value or '').strip() if raw_canvas_state_value is not None else None
     if raw_canvas_state:
         try:
             parsed_state = json.loads(raw_canvas_state)
@@ -23742,12 +23751,62 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
                 canvas_state = parsed_state
         except Exception:
             canvas_state = None
+
+    # Si no llega canvas_state (o llega vacío por error), preservamos el existente para no "borrar" la pizarra.
+    existing_canvas_state = None
+    try:
+        if existing_task and isinstance(existing_task.tactical_layout, dict):
+            meta = existing_task.tactical_layout.get('meta') if isinstance(existing_task.tactical_layout.get('meta'), dict) else {}
+            graphic_editor = meta.get('graphic_editor') if isinstance(meta.get('graphic_editor'), dict) else {}
+            if isinstance(graphic_editor.get('canvas_state'), dict):
+                existing_canvas_state = graphic_editor.get('canvas_state')
+    except Exception:
+        existing_canvas_state = None
+
+    def _objects_count(state):
+        try:
+            objs = state.get('objects') if isinstance(state, dict) else None
+            return len(objs) if isinstance(objs, list) else 0
+        except Exception:
+            return 0
+
+    def _timeline_count(state):
+        try:
+            tl = state.get('timeline') if isinstance(state, dict) else None
+            return len(tl) if isinstance(tl, list) else 0
+        except Exception:
+            return 0
+
     if not isinstance(canvas_state, dict):
-        canvas_state = _starter_canvas_state(pitch_preset)
+        if isinstance(existing_canvas_state, dict):
+            canvas_state = dict(existing_canvas_state)
+        else:
+            canvas_state = _starter_canvas_state(pitch_preset)
+    else:
+        # Guardrail: si el payload trae una pizarra vacía pero ya había contenido, no lo machacamos.
+        if existing_task and isinstance(existing_canvas_state, dict):
+            if _objects_count(canvas_state) == 0 and _timeline_count(canvas_state) == 0 and (_objects_count(existing_canvas_state) > 0 or _timeline_count(existing_canvas_state) > 0):
+                canvas_state = dict(existing_canvas_state)
     timeline = _normalize_animation_timeline(canvas_state.get('timeline'))
 
-    canvas_width = max(320, min(_parse_int(request.POST.get('draw_canvas_width')) or 1280, 3840))
-    canvas_height = max(180, min(_parse_int(request.POST.get('draw_canvas_height')) or 720, 2160))
+    raw_canvas_width = request.POST.get('draw_canvas_width')
+    raw_canvas_height = request.POST.get('draw_canvas_height')
+    if raw_canvas_width is None and existing_task and isinstance(existing_task.tactical_layout, dict):
+        try:
+            meta = existing_task.tactical_layout.get('meta') if isinstance(existing_task.tactical_layout.get('meta'), dict) else {}
+            graphic_editor = meta.get('graphic_editor') if isinstance(meta.get('graphic_editor'), dict) else {}
+            raw_canvas_width = graphic_editor.get('canvas_width')
+        except Exception:
+            raw_canvas_width = None
+    if raw_canvas_height is None and existing_task and isinstance(existing_task.tactical_layout, dict):
+        try:
+            meta = existing_task.tactical_layout.get('meta') if isinstance(existing_task.tactical_layout.get('meta'), dict) else {}
+            graphic_editor = meta.get('graphic_editor') if isinstance(meta.get('graphic_editor'), dict) else {}
+            raw_canvas_height = graphic_editor.get('canvas_height')
+        except Exception:
+            raw_canvas_height = None
+    canvas_width = max(320, min(_parse_int(raw_canvas_width) or 1280, 3840))
+    canvas_height = max(180, min(_parse_int(raw_canvas_height) or 720, 2160))
     tactical_layout = {
         'tokens': canvas_state.get('objects') if isinstance(canvas_state.get('objects'), list) else [],
         'timeline': timeline,
