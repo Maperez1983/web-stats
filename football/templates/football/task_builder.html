@@ -2848,6 +2848,7 @@
 		                      Programa
 		                      <select id="task-assistant-program">
 		                        <option value="fifa11plus">FIFA 11+ · calentamiento (prevención)</option>
+		                        <option value="smart">2J Smart · generar por objetivo</option>
 		                        <option value="fundamentals">Fundamentos · tareas base</option>
 		                      </select>
 		                    </label>
@@ -2870,6 +2871,41 @@
 		                        <button type="button" class="button" data-assistant-template="fifa11plus_part1">Rellenar Parte 1 · carrera + movilidad</button>
 		                        <button type="button" class="button" data-assistant-template="fifa11plus_part2">Rellenar Parte 2 · fuerza + equilibrio</button>
 		                        <button type="button" class="button" data-assistant-template="fifa11plus_part3">Rellenar Parte 3 · carrera + cambios</button>
+		                      </div>
+		                    </div>
+		                    <div data-assistant-program="smart" hidden>
+		                      <div class="compact-grid">
+		                        <label style="grid-column:1 / -1;">
+		                          Etapa / edad
+		                          <select id="task-assistant-ageband">
+		                            <option value="u8">Fútbol base (4–8)</option>
+		                            <option value="u12">Formación (8–12)</option>
+		                            <option value="u15">Rendimiento (12–15)</option>
+		                            <option value="u19">Competición (16+)</option>
+		                          </select>
+		                        </label>
+		                        <label style="grid-column:1 / -1;">
+		                          Objetivo
+		                          <select id="task-assistant-goal">
+		                            <option value="warmup">Calentamiento</option>
+		                            <option value="dribble">Conducción / regate</option>
+		                            <option value="pass">Pase / conservación</option>
+		                            <option value="1v1">1v1</option>
+		                            <option value="2v1">2v1</option>
+		                            <option value="finish">Finalización</option>
+		                            <option value="build">Salida / progresión</option>
+		                            <option value="press">Presión / recuperación</option>
+		                            <option value="transition">Transición</option>
+		                            <option value="coord">Coordinación</option>
+		                          </select>
+		                        </label>
+		                      </div>
+		                      <div style="margin-top:0.65rem; display:grid; gap:0.55rem;">
+		                        <button type="button" class="button" id="task-assistant-smart-generate">Generar tarea</button>
+		                        <button type="button" class="button" id="task-assistant-smart-generate-session">Generar bloque (3 tareas)</button>
+		                      </div>
+		                      <div class="meta" style="margin-top:0.65rem; opacity:0.9;">
+		                        Consejo: usa “Generar bloque” para crear 3 tareas (activación + principal + vuelta calma) y luego ajusta.
 		                      </div>
 		                    </div>
 		                    <div data-assistant-program="fundamentals" hidden>
@@ -3862,9 +3898,231 @@
 			            };
 			          };
 
-			          const buildTemplatesForProgram = (program) => {
-			            const p = String(program || '').trim();
+			          const buildSmartTemplates = () => {
+			            const age = String((document.getElementById('task-assistant-ageband')?.value) || 'u12').trim();
+			            const goal = String((document.getElementById('task-assistant-goal')?.value) || 'pass').trim();
+			            const minutes = Math.max(5, Math.min(30, toInt(minutesEl.value, 12)));
+			            const level = String(levelEl.value || '1').trim();
+			            const levelLabel = level === '3' ? 'Nivel 3' : (level === '2' ? 'Nivel 2' : 'Nivel 1');
+
+			            const isYoung = age === 'u8';
+			            const isSenior = age === 'u19';
+			            const base = buildFundamentalsTemplates();
+
+			            const warmup = (isSenior)
+			              ? {
+			                  title: `Activación con balón · rondo + movilidad (${levelLabel})`,
+			                  objective: 'Activar con balón: movilidad dinámica + toma de decisión a baja/media intensidad.',
+			                  minutes: Math.max(8, minutes),
+			                  block: 'activation',
+			                  player_count: '6–12',
+			                  dimensions: '2 rondos 8x8 m',
+			                  materials: 'Balones, conos, petos',
+			                  space: '2 zonas',
+			                  training_type: 'Activación con balón',
+			                  description_html: `
+			                    <ul>
+			                      <li>Rondo 4v1/5v2 por bloques cortos.</li>
+			                      <li>Entre bloques: movilidad dinámica (cadera/tobillo) y cambios de ritmo suaves.</li>
+			                    </ul>
+			                  `,
+			                  coaching_html: `
+			                    <ul>
+			                      <li>Perfil corporal antes de recibir, control orientado y pase con ventaja.</li>
+			                      <li>Sube intensidad de forma progresiva sin fatigar.</li>
+			                    </ul>
+			                  `,
+			                  rules_html: '<ul><li>2 toques recomendado; cambia defensores al recuperar.</li></ul>',
+			                  board: {
+			                    items: [
+			                      { payload: { kind: 'shape_rect' }, x: 0.34, y: 0.48, scale: 1.2 },
+			                      { payload: { kind: 'shape_rect' }, x: 0.66, y: 0.48, scale: 1.2 },
+			                      { payload: { kind: 'ball' }, x: 0.34, y: 0.48 },
+			                      { payload: { kind: 'ball' }, x: 0.66, y: 0.48 },
+			                      { payload: { kind: 'player_local' }, x: 0.30, y: 0.44 },
+			                      { payload: { kind: 'player_local' }, x: 0.38, y: 0.44 },
+			                      { payload: { kind: 'player_local' }, x: 0.30, y: 0.52 },
+			                      { payload: { kind: 'player_local' }, x: 0.38, y: 0.52 },
+			                      { payload: { kind: 'player_rival' }, x: 0.34, y: 0.48 },
+			                      { payload: { kind: 'player_local' }, x: 0.62, y: 0.44 },
+			                      { payload: { kind: 'player_local' }, x: 0.70, y: 0.44 },
+			                      { payload: { kind: 'player_local' }, x: 0.62, y: 0.52 },
+			                      { payload: { kind: 'player_local' }, x: 0.70, y: 0.52 },
+			                      { payload: { kind: 'player_rival' }, x: 0.66, y: 0.48 },
+			                    ],
+			                  },
+			                }
+			              : {
+			                  title: `Activación con balón · juegos simples (${levelLabel})`,
+			                  objective: 'Activar jugando: conducción, coordinación y diversión con balón.',
+			                  minutes: Math.max(8, minutes),
+			                  block: 'activation',
+			                  player_count: 'Todo el equipo',
+			                  dimensions: '25x20 m',
+			                  materials: 'Balones, conos, petos',
+			                  space: 'Rectángulo',
+			                  training_type: 'Activación',
+			                  description_html: '<ul><li>Juego “pilla-pilla con balón” + cambios de dirección.</li><li>Mini retos: cambio de pie, giro, frenada.</li></ul>',
+			                  coaching_html: '<ul><li>Una consigna cada vez.</li><li>Muchos contactos y sonrisas.</li></ul>',
+			                  rules_html: '<ul><li>Seguridad: cabeza arriba, sin entradas.</li></ul>',
+			                  board: base.fund_adapted_game_coord?.board || null,
+			                };
+
+			            const buildUp = {
+			              title: `Salida y progresión · juego posicional (${levelLabel})`,
+			              objective: 'Mejorar salida y progresión: crear líneas de pase, atraer y superar presión.',
+			              minutes: Math.max(12, minutes),
+			              block: isSenior ? 'main_1' : 'main_1',
+			              player_count: isSenior ? '6v4 + porteros (ajustable)' : '5v3 (ajustable)',
+			              dimensions: isSenior ? '45x35 m' : '35x25 m',
+			              materials: 'Balones, petos, conos, 2 porterías',
+			              space: '1/2 campo (o 2/3)',
+			              training_type: 'Salida',
+			              description_html: `
+			                <ul>
+			                  <li>Equipo en posesión construye desde atrás para progresar a zona objetivo.</li>
+			                  <li>Equipo rival presiona con reglas para provocar repeticiones.</li>
+			                </ul>
+			              `,
+			              coaching_html: `
+			                <ul>
+			                  <li>Portero/centrales: atraer para liberar al 6/8.</li>
+			                  <li>Laterales: altura y amplitud; extremo fija por fuera.</li>
+			                  <li>Tercer hombre y cambios de orientación cuando se cierra un lado.</li>
+			                </ul>
+			              `,
+			              rules_html: '<ul><li>Puntúa por salir limpio a zona objetivo o superar línea con control.</li></ul>',
+			              board: {
+			                items: [
+			                  { payload: { kind: 'goal' }, x: 0.18, y: 0.50 },
+			                  { payload: { kind: 'goal' }, x: 0.82, y: 0.50, angle: 180 },
+			                  { payload: { kind: 'shape_rect_long' }, x: 0.50, y: 0.50, scale: 2.2 },
+			                  { payload: { kind: 'player_local' }, x: 0.26, y: 0.50 },
+			                  { payload: { kind: 'player_local' }, x: 0.30, y: 0.42 },
+			                  { payload: { kind: 'player_local' }, x: 0.30, y: 0.58 },
+			                  { payload: { kind: 'player_local' }, x: 0.36, y: 0.50 },
+			                  { payload: { kind: 'player_local' }, x: 0.42, y: 0.44 },
+			                  { payload: { kind: 'player_local' }, x: 0.42, y: 0.56 },
+			                  { payload: { kind: 'player_rival' }, x: 0.52, y: 0.44 },
+			                  { payload: { kind: 'player_rival' }, x: 0.52, y: 0.56 },
+			                  { payload: { kind: 'player_rival' }, x: 0.58, y: 0.50 },
+			                  { payload: { kind: 'player_rival' }, x: 0.62, y: 0.50 },
+			                  { payload: { kind: 'ball' }, x: 0.26, y: 0.50 },
+			                ],
+			              },
+			            };
+
+			            const press = {
+			              title: `Presión tras pérdida · recuperar en 6s (${levelLabel})`,
+			              objective: 'Organizar presión tras pérdida: reacción, cierres de línea de pase y recuperación.',
+			              minutes: Math.max(10, minutes),
+			              block: isSenior ? 'main_1' : 'main_1',
+			              player_count: isSenior ? '5v5 + 2 comodines' : '4v4 + 2 comodines',
+			              dimensions: isSenior ? '30x25 m' : '25x20 m',
+			              materials: 'Balones, petos, conos',
+			              space: 'Zona media',
+			              training_type: 'Presión',
+			              description_html: `
+			                <ul>
+			                  <li>Posesión con comodines para continuidad.</li>
+			                  <li>Al perder: 6 segundos para recuperar o replegar a bloque medio.</li>
+			                </ul>
+			              `,
+			              coaching_html: `
+			                <ul>
+			                  <li>Primer defensor: sprint + orientar.</li>
+			                  <li>Segundo/tercero: cerrar líneas de pase (no correr “a lo loco”).</li>
+			                  <li>Comunicación: “voy”, “cubro”, “cierro dentro/fuera”.</li>
+			                </ul>
+			              `,
+			              rules_html: '<ul><li>Recuperación en 6s = 2 puntos; si no, replegar y reiniciar.</li></ul>',
+			              board: base.fund_conservation_pass?.board || null,
+			            };
+
+			            const finish = {
+			              title: `Finalización · 3v2 + portero (${levelLabel})`,
+			              objective: 'Finalizar con ventaja: decidir entre tiro, pase al 2º palo o conducción.',
+			              minutes: Math.max(12, minutes),
+			              block: 'main_2',
+			              player_count: isSenior ? '3v2 + portero' : '2v1 + portero',
+			              dimensions: isSenior ? '35x25 m' : '28x20 m',
+			              materials: 'Balones, petos, conos, portería',
+			              space: 'Zona de finalización',
+			              training_type: 'Finalización',
+			              description_html: `
+			                <ul>
+			                  <li>Oleadas a zona de finalización con superioridad ofensiva.</li>
+			                  <li>Busca finalización rápida con lectura del defensor y portero.</li>
+			                </ul>
+			              `,
+			              coaching_html: `
+			                <ul>
+			                  <li>Atacante con balón: fija al defensor antes de asistir.</li>
+			                  <li>Segundo palo: llegada a tiempo, no demasiado pronto.</li>
+			                  <li>Portero: achique y comunicación.</li>
+			                </ul>
+			              `,
+			              rules_html: '<ul><li>Máximo 8–10s por oleada; rotación inmediata.</li></ul>',
+			              board: {
+			                items: [
+			                  { payload: { kind: 'goal' }, x: 0.82, y: 0.50, angle: 180 },
+			                  { payload: { kind: 'goalkeeper_local' }, x: 0.78, y: 0.50 },
+			                  { payload: { kind: 'player_local' }, x: 0.56, y: 0.44 },
+			                  { payload: { kind: 'player_local' }, x: 0.56, y: 0.56 },
+			                  { payload: { kind: 'player_local' }, x: 0.50, y: 0.50 },
+			                  { payload: { kind: 'player_rival' }, x: 0.66, y: 0.46 },
+			                  { payload: { kind: 'player_rival' }, x: 0.66, y: 0.54 },
+			                  { payload: { kind: 'ball' }, x: 0.52, y: 0.50 },
+			                  { payload: { kind: 'arrow_thick' }, x: 0.64, y: 0.50 },
+			                ],
+			              },
+			            };
+
+			            const transition = {
+			              title: `Transición ataque-defensa · 5s reacción (${levelLabel})`,
+			              objective: 'Reaccionar a la pérdida/recuperación: decisión rápida y organización inmediata.',
+			              minutes: Math.max(10, minutes),
+			              block: 'main_2',
+			              player_count: isSenior ? '6v6' : '4v4',
+			              dimensions: isSenior ? '35x30 m' : '25x20 m',
+			              materials: 'Balones, petos, conos',
+			              space: 'Partido condicionado',
+			              training_type: 'Transición',
+			              description_html: '<ul><li>Juego reducido con regla: tras pérdida, 5s para recuperar o replegar.</li><li>Tras recuperación, 5s para finalizar o progresar.</li></ul>',
+			              coaching_html: '<ul><li>Primer paso tras pérdida/recuperación: sprint + dirección correcta.</li><li>Orientación del cuerpo para ver balón y rival.</li></ul>',
+			              rules_html: '<ul><li>Puntúa doble si finalizas en ventana de 5s.</li></ul>',
+			              board: base.fund_dribble_game?.board || null,
+			            };
+
+			            const coord = base.fund_coord_circuit;
+
+			            const mapping = {
+			              warmup,
+			              dribble: base.fund_dribble_game,
+			              pass: base.fund_conservation_pass,
+			              '1v1': base.fund_oleadas_1v1,
+			              '2v1': base.fund_conservation_2v1,
+			              finish,
+			              build: buildUp,
+			              press,
+			              transition,
+			              coord,
+			            };
+
+			            const pick = mapping[goal] || base.fund_conservation_pass;
+			            // Ajustes suaves por edad.
+			            if (isYoung && pick) {
+			              pick.block = 'activation';
+			              pick.minutes = Math.max(8, Math.min(15, minutes));
+			              pick.dimensions = pick.dimensions || '25x20 m';
+			            }
+			            return { smart_generate: pick };
+			          };
+
+				          const buildTemplatesForProgram = (program) => {
+				            const p = String(program || '').trim();
 			            if (p === 'fifa11plus') return buildFifa11PlusTemplates();
+			            if (p === 'smart') return buildSmartTemplates();
 			            if (p === 'fundamentals') return buildFundamentalsTemplates();
 			            return {};
 			          };
@@ -3911,13 +4169,24 @@
 			            try { fichaTab?.click(); } catch (err) {}
 			          };
 
-		          Array.from(document.querySelectorAll('[data-assistant-template]')).forEach((btn) => {
-		            btn.addEventListener('click', () => {
-		              const key = String(btn.getAttribute('data-assistant-template') || '').trim();
-		              if (key) applyTemplate(key);
-		            });
-		          });
-		        };
+			          Array.from(document.querySelectorAll('[data-assistant-template]')).forEach((btn) => {
+			            btn.addEventListener('click', () => {
+			              const key = String(btn.getAttribute('data-assistant-template') || '').trim();
+			              if (key) applyTemplate(key);
+			            });
+			          });
+
+			          // Botones Smart.
+			          const smartBtn = document.getElementById('task-assistant-smart-generate');
+			          const smartSessionBtn = document.getElementById('task-assistant-smart-generate-session');
+			          smartBtn?.addEventListener('click', () => applyTemplate('smart_generate'));
+			          smartSessionBtn?.addEventListener('click', () => {
+			            // No crea nuevas tareas automáticamente (evita efectos colaterales).
+			            // Genera una tarea “tipo” y deja al usuario duplicar/crear las siguientes.
+			            applyTemplate('smart_generate');
+			            window.alert('Bloque sugerido: duplica esta tarea 2 veces y ajusta cada una (activación / principal / vuelta a la calma).');
+			          });
+			        };
 
 		        if (window.initSessionsTacticalPad) window.initSessionsTacticalPad();
 		        initTaskAssistant();
