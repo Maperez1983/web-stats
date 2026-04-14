@@ -2023,6 +2023,13 @@
         </div>
 	        <div class="actions">
 	          <a href="{{ back_url|default:'#' }}" class="button">{{ back_label|default:'Volver a sesiones' }}</a>
+            {% if task and can_restore_original %}
+            <form method="post" style="display:inline-flex; margin:0;">
+              {% csrf_token %}
+              <input type="hidden" name="builder_action" value="restore_original_version" />
+              <button type="submit" class="button danger" title="Restaura el contenido anterior si algo se borró por error">Restaurar versión</button>
+            </form>
+            {% endif %}
 	          <div class="device-toggle" role="group" aria-label="Modo de edición">
 	            <button type="button" data-device-mode="desktop">Ordenador</button>
 	            <button type="button" data-device-mode="tablet">iPad</button>

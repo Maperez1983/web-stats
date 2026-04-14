@@ -20982,9 +20982,24 @@ def _update_library_task_from_post(task, post_data, scope_key=None):
     task.block = block
     task.duration_minutes = minutes
     task.title = _polish_spanish_text(task.title, multiline=False, max_len=160)
-    task.objective = _polish_spanish_text(_repair_joined_words_text((post_data.get('task_objective') or '').strip()[:260]), multiline=False, max_len=180)
-    task.coaching_points = _polish_spanish_text(_repair_joined_words_text((post_data.get('task_coaching_points') or '').strip()), multiline=True)
-    task.confrontation_rules = _polish_spanish_text(_repair_joined_words_text((post_data.get('task_confrontation_rules') or '').strip()), multiline=True)
+    # Importante: algunas acciones (renombrar desde card/listado) envían solo `task_title`.
+    # En ese caso, NO debemos borrar campos existentes (objetivo/consignas/reglas).
+    if 'task_objective' in post_data:
+        task.objective = _polish_spanish_text(
+            _repair_joined_words_text((post_data.get('task_objective') or '').strip()[:260]),
+            multiline=False,
+            max_len=180,
+        )
+    if 'task_coaching_points' in post_data:
+        task.coaching_points = _polish_spanish_text(
+            _repair_joined_words_text((post_data.get('task_coaching_points') or '').strip()),
+            multiline=True,
+        )
+    if 'task_confrontation_rules' in post_data:
+        task.confrontation_rules = _polish_spanish_text(
+            _repair_joined_words_text((post_data.get('task_confrontation_rules') or '').strip()),
+            multiline=True,
+        )
 
     layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
     layout = dict(layout)
@@ -24227,14 +24242,30 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             error = messages.get(board_err, 'No se pudo reconstruir la pizarra desde el PDF.')
     if request.method == 'POST':
         try:
-            task = _save_task_builder_entry(request, primary_team, scope_key, existing_task=task)
-            feedback = 'Tarea guardada correctamente.'
+            builder_action = (request.POST.get('builder_action') or '').strip()
+            if builder_action == 'restore_original_version':
+                if not task:
+                    raise ValueError('No se pudo identificar la tarea a restaurar.')
+                _restore_task_from_original_snapshot(task, scope_key=scope_key)
+                task.refresh_from_db()
+                feedback = 'Se restauró la versión original de la tarea.'
+            else:
+                task = _save_task_builder_entry(request, primary_team, scope_key, existing_task=task)
+                feedback = 'Tarea guardada correctamente.'
         except ValueError as exc:
             error = str(exc)
         except Exception:
             error = 'No se pudo guardar la tarea.'
 
     initial = _task_builder_initial_values(task)
+    can_restore_original = False
+    try:
+        if task and isinstance(getattr(task, 'tactical_layout', None), dict):
+            meta = task.tactical_layout.get('meta') if isinstance(task.tactical_layout.get('meta'), dict) else {}
+            original = meta.get('original_version') if isinstance(meta.get('original_version'), dict) else {}
+            can_restore_original = bool(original)
+    except Exception:
+        can_restore_original = False
     all_sessions = list(
         TrainingSession.objects
         .select_related('microcycle')
@@ -24296,6 +24327,7 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             'task': task,
             'feedback': feedback,
             'error': error,
+            'can_restore_original': can_restore_original,
             'task_blocks': SessionTask.BLOCK_CHOICES,
             'all_sessions': all_sessions,
             'task_surface_choices': TASK_SURFACE_CHOICES,

@@ -4578,6 +4578,41 @@ class SessionsPlanningTests(TestCase):
         self.assertContains(response, 'Transición + finalización')
         self.assertContains(response, '19:30')
 
+    def test_update_library_task_does_not_wipe_unposted_fields_on_rename(self):
+        session = TrainingSession.objects.create(
+            microcycle=self.microcycle,
+            session_date=date(2026, 3, 25),
+            focus='Biblioteca coach',
+            duration_minutes=90,
+        )
+        task = SessionTask.objects.create(
+            session=session,
+            title='Tarea original',
+            block=SessionTask.BLOCK_MAIN_1,
+            duration_minutes=15,
+            objective='Objetivo importante',
+            coaching_points='Consigna clave',
+            confrontation_rules='Reglas de confrontación',
+            tactical_layout={'meta': {'scope': 'coach'}},
+        )
+
+        football_views._update_library_task_from_post(
+            task,
+            {
+                'task_title': 'Tarea renombrada',
+                # Simula renombrado desde card: no envía el resto de campos.
+            },
+            scope_key=None,
+        )
+
+        task.refresh_from_db()
+        self.assertEqual(task.title, 'Tarea renombrada')
+        self.assertEqual(task.objective, 'Objetivo importante')
+        self.assertEqual(task.coaching_points, 'Consigna clave')
+        self.assertEqual(task.confrontation_rules, 'Reglas de confrontación')
+        meta = (task.tactical_layout or {}).get('meta') or {}
+        self.assertIn('original_version', meta)
+
     def test_create_session_plan_can_attach_selected_library_tasks(self):
         library_session = TrainingSession.objects.create(
             microcycle=self.microcycle,
