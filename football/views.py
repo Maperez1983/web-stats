@@ -1191,6 +1191,11 @@ def _build_pdf_response_or_html_fallback(request, html: str, filename: str, *, i
         response = HttpResponse(pdf_file, content_type='application/pdf')
         disposition = 'inline' if inline else 'attachment'
         response['Content-Disposition'] = f'{disposition}; filename="{filename}.pdf"'
+        # PDFs: evitar que Safari / Service Worker reutilicen un PDF antiguo tras cambios en la sesión.
+        # (caso real: el usuario añade tareas y el PDF sigue saliendo “vacío” por caché).
+        response['Cache-Control'] = 'no-store, max-age=0'
+        response['Pragma'] = 'no-cache'
+        response['Expires'] = '0'
         # Ayuda a depurar despliegues/cachés (Safari/SW): permite ver el build activo.
         try:
             build_id = (

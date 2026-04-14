@@ -2583,25 +2583,37 @@
 		      (() => {
 		        const links = Array.from(document.querySelectorAll('a.session-pdf-link[data-session-pdf="1"]'));
 		        if (!links.length) return;
+		        const buildUrl = (href) => {
+		          try {
+		            const url = new URL(href, window.location.href);
+		            url.searchParams.set('_ts', String(Date.now()));
+		            return url.toString();
+		          } catch (e) {
+		            const sep = href.includes('?') ? '&' : '?';
+		            return `${href}${sep}_ts=${Date.now()}`;
+		          }
+		        };
 		        links.forEach((link) => {
 		          link.addEventListener('click', async (event) => {
 		            const href = link.getAttribute('href');
 		            if (!href) return;
-		            const saver = (window.__WebStats && window.__WebStats.saveSessionTexts) ? window.__WebStats.saveSessionTexts : null;
-		            if (typeof saver !== 'function') return;
 		            event.preventDefault();
+		            const targetUrl = buildUrl(href);
 		            const opened = window.open('about:blank', '_blank', 'noopener');
-		            try {
-		              await saver();
-		            } catch (e) {}
+		            const saver = (window.__WebStats && window.__WebStats.saveSessionTexts) ? window.__WebStats.saveSessionTexts : null;
+		            if (typeof saver === 'function') {
+		              try {
+		                await saver();
+		              } catch (e) {}
+		            }
 		            try {
 		              if (opened && !opened.closed) {
-		                opened.location.href = href;
+		                opened.location.href = targetUrl;
 		              } else {
-		                window.location.href = href;
+		                window.location.href = targetUrl;
 		              }
 		            } catch (e) {
-		              window.location.href = href;
+		              window.location.href = targetUrl;
 		            }
 		          });
 		        });
