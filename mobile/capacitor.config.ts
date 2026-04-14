@@ -2,7 +2,8 @@ import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
   appId: "es.segundajugada.app",
-  appName: "2J Football Intelligence",
+  // Nombre corto para el icono (el nombre comercial completo se define en App Store Connect / Google Play).
+  appName: "2J",
   webDir: "www",
   // Wrapper tipo “app real”: carga la web remota y usa plugins nativos.
   server: {

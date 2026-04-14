@@ -52,3 +52,7 @@ python manage.py create_review_account \
 ```
 
 El comando imprimirá una contraseña si no se la pasas.
+
+En producción se recomienda usar un usuario simple para revisión:
+
+- Usuario: `DEMO`
