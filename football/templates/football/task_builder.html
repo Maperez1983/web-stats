@@ -2845,11 +2845,12 @@
 	                  </div>
 	                  <div class="compact-grid" style="margin-top:0.65rem;">
 	                    <label style="grid-column:1 / -1;">
-	                      Programa
-	                      <select id="task-assistant-program">
-	                        <option value="fifa11plus">FIFA 11+ · calentamiento (prevención)</option>
-	                      </select>
-	                    </label>
+		                      Programa
+		                      <select id="task-assistant-program">
+		                        <option value="fifa11plus">FIFA 11+ · calentamiento (prevención)</option>
+		                        <option value="fundamentals">Fundamentos · tareas base</option>
+		                      </select>
+		                    </label>
 	                    <label>
 	                      Nivel
 	                      <select id="task-assistant-level">
@@ -2863,11 +2864,30 @@
 	                      <input type="number" id="task-assistant-minutes" min="5" max="30" value="8" />
 	                    </label>
 	                  </div>
-	                  <div style="margin-top:0.75rem; display:grid; gap:0.55rem;">
-	                    <button type="button" class="button" data-assistant-template="fifa11plus_part1">Rellenar Parte 1 · carrera + movilidad</button>
-	                    <button type="button" class="button" data-assistant-template="fifa11plus_part2">Rellenar Parte 2 · fuerza + equilibrio</button>
-	                    <button type="button" class="button" data-assistant-template="fifa11plus_part3">Rellenar Parte 3 · carrera + cambios</button>
-	                  </div>
+		                  <div style="margin-top:0.75rem; display:grid; gap:0.55rem;">
+		                    <div data-assistant-program="fifa11plus">
+		                      <div style="display:grid; gap:0.55rem;">
+		                        <button type="button" class="button" data-assistant-template="fifa11plus_part1">Rellenar Parte 1 · carrera + movilidad</button>
+		                        <button type="button" class="button" data-assistant-template="fifa11plus_part2">Rellenar Parte 2 · fuerza + equilibrio</button>
+		                        <button type="button" class="button" data-assistant-template="fifa11plus_part3">Rellenar Parte 3 · carrera + cambios</button>
+		                      </div>
+		                    </div>
+		                    <div data-assistant-program="fundamentals" hidden>
+		                      <div class="meta" style="margin:0.1rem 0 0.55rem; opacity:0.92;">
+		                        Plantillas genéricas para arrancar rápido (ajusta reglas y dimensiones).
+		                      </div>
+		                      <div style="display:grid; gap:0.55rem;">
+		                        <button type="button" class="button" data-assistant-template="fund_dribble_game">Conducción · partido reducido</button>
+		                        <button type="button" class="button" data-assistant-template="fund_oleada_entry">Regate + entrada · oleada</button>
+		                        <button type="button" class="button" data-assistant-template="fund_conservation_pass">Conservación · pase (4v4+2)</button>
+		                        <button type="button" class="button" data-assistant-template="fund_conservation_2v1">Conservación · 2v1</button>
+		                        <button type="button" class="button" data-assistant-template="fund_oleadas_1v1">Oleadas · 1v1</button>
+		                        <button type="button" class="button" data-assistant-template="fund_match_2v1">Partido · 2v1</button>
+		                        <button type="button" class="button" data-assistant-template="fund_coord_circuit">Circuito coordinativo</button>
+		                        <button type="button" class="button" data-assistant-template="fund_adapted_game_coord">Juego adaptado coordinativo</button>
+		                      </div>
+		                    </div>
+		                  </div>
 	                  <div class="alert warn" style="margin-top:0.85rem;">
 	                    Tip: para un calentamiento completo, crea 3 tareas (Parte 1 + Parte 2 + Parte 3) y así podrás reordenarlas/ajustarlas dentro de la sesión.
 	                  </div>
@@ -3324,7 +3344,7 @@
 		            } catch (err) {}
 		          };
 
-		          const setRichHtml = (plainName, html) => {
+			          const setRichHtml = (plainName, html) => {
 		            const wrapper = form.querySelector(`[data-rich-editor][data-rich-name="${plainName}"]`);
 		            if (!wrapper) {
 		              setValue(plainName, String(html || '').replace(/<[^>]*>/g, ''));
@@ -3347,9 +3367,19 @@
 		                htmlField.value = safeHtml;
 		              }
 		            } catch (err) {}
-		          };
+			          };
 
-			          const buildFifa11PlusTemplates = () => {
+			          const setAssistantProgramUi = () => {
+			            const program = String(programEl.value || '').trim();
+			            Array.from(document.querySelectorAll('[data-assistant-program]')).forEach((node) => {
+			              const key = String(node.getAttribute('data-assistant-program') || '').trim();
+			              node.hidden = !!key && key !== program;
+			            });
+			          };
+			          try { programEl.addEventListener('change', setAssistantProgramUi); } catch (e) {}
+			          setAssistantProgramUi();
+
+				          const buildFifa11PlusTemplates = () => {
 			            const level = String(levelEl.value || '1').trim();
 			            const minutes = Math.max(5, Math.min(30, toInt(minutesEl.value, 8)));
 			            const levelLabel = level === '3' ? 'Nivel 3' : (level === '2' ? 'Nivel 2' : 'Nivel 1');
@@ -3494,14 +3524,356 @@
 		              fifa11plus_part2: part2,
 		              fifa11plus_part3: part3,
 		            };
-		          };
+			          };
 
-			          const applyTemplate = (key) => {
-			            const program = String(programEl.value || '').trim();
-			            if (program !== 'fifa11plus') return;
-			            const templates = buildFifa11PlusTemplates();
-			            const tpl = templates[key];
-			            if (!tpl) return;
+			          const buildFundamentalsTemplates = () => {
+			            const level = String(levelEl.value || '1').trim();
+			            const minutes = Math.max(5, Math.min(30, toInt(minutesEl.value, 12)));
+			            const levelLabel = level === '3' ? 'Nivel 3' : (level === '2' ? 'Nivel 2' : 'Nivel 1');
+			            const smallSided = level === '1' ? '3v3' : (level === '2' ? '4v4' : '4v4 + comodín');
+
+			            const dribbleGame = {
+			              title: `Conducción · partido reducido (${levelLabel})`,
+			              objective: 'Conducción con cabeza arriba, cambios de dirección y protección del balón en juego real.',
+			              minutes: Math.max(8, minutes),
+			              block: 'activation',
+			              player_count: smallSided,
+			              dimensions: '25x20 m',
+			              materials: 'Balones, conos, petos, 2 mini porterías',
+			              space: 'Rectángulo + mini porterías',
+			              training_type: 'Conducción / regate',
+			              description_html: `
+			                <ul>
+			                  <li>Juego reducido con muchos contactos de balón y transiciones rápidas.</li>
+			                  <li>Prioriza conducción y regate (pases opcionales según nivel).</li>
+			                  <li>Finaliza en mini porterías o en línea de fondo.</li>
+			                </ul>
+			              `,
+			              coaching_html: `
+			                <ul>
+			                  <li>Escaneo: mirada arriba antes y durante la conducción.</li>
+			                  <li>Cambios de ritmo y dirección para ganar ventaja.</li>
+			                  <li>Protege con el cuerpo: balón alejado del rival, apoyo firme.</li>
+			                </ul>
+			              `,
+			              rules_html: `
+			                <ul>
+			                  <li>Nivel 1: 2–3 toques antes de soltar (opcional) para fomentar conducción.</li>
+			                  <li>Nivel 2–3: después de regate/1v1, se puede combinar para finalizar.</li>
+			                </ul>
+			              `,
+			              board: {
+			                items: [
+			                  { payload: { kind: 'cone' }, x: 0.22, y: 0.30 },
+			                  { payload: { kind: 'cone' }, x: 0.78, y: 0.30 },
+			                  { payload: { kind: 'cone' }, x: 0.22, y: 0.70 },
+			                  { payload: { kind: 'cone' }, x: 0.78, y: 0.70 },
+			                  { payload: { kind: 'goal_mini' }, x: 0.22, y: 0.50 },
+			                  { payload: { kind: 'goal_mini' }, x: 0.78, y: 0.50, angle: 180 },
+			                  { payload: { kind: 'ball' }, x: 0.50, y: 0.50 },
+			                  { payload: { kind: 'player_local' }, x: 0.44, y: 0.46 },
+			                  { payload: { kind: 'player_local' }, x: 0.44, y: 0.54 },
+			                  { payload: { kind: 'player_rival' }, x: 0.56, y: 0.46 },
+			                  { payload: { kind: 'player_rival' }, x: 0.56, y: 0.54 },
+			                ],
+			              },
+			            };
+
+			            const oleadaEntry = {
+			              title: `Regate + entrada · oleada (${levelLabel})`,
+			              objective: 'Mejorar el 1v1: atacar con cambio de ritmo y defender con entrada segura.',
+			              minutes: Math.max(10, minutes),
+			              block: 'main_1',
+			              player_count: '3v3 (por carriles) o 1v1 rotatorio',
+			              dimensions: 'Carriles 12–15 m',
+			              materials: 'Conos, petos, balones',
+			              space: '3 carriles (duelos)',
+			              training_type: '1v1',
+			              description_html: `
+			                <ul>
+			                  <li>Organiza carriles de duelo para repetir situaciones de regate + entrada.</li>
+			                  <li>El atacante busca superar y progresar; el defensor temporiza y entra con ventaja.</li>
+			                  <li>Rotación rápida para acumular repeticiones de calidad.</li>
+			                </ul>
+			              `,
+			              coaching_html: `
+			                <ul>
+			                  <li>Atacante: finta + cambio de ritmo, balón pegado en zonas de riesgo.</li>
+			                  <li>Defensor: perfilado, distancia adecuada, entra cuando el balón está “expuesto”.</li>
+			                  <li>Evita entradas a destiempo: primero temporiza, luego roba.</li>
+			                </ul>
+			              `,
+			              rules_html: `
+			                <ul>
+			                  <li>Norma: no se invade carril (para repetir 1v1 claros).</li>
+			                  <li>Punto por superación + progresión / por robo limpio.</li>
+			                </ul>
+			              `,
+			              board: {
+			                items: [
+			                  { payload: { kind: 'shape_lane_3' }, x: 0.50, y: 0.40, scale: 2.1 },
+			                  { payload: { kind: 'shape_lane_3' }, x: 0.50, y: 0.60, scale: 2.1 },
+			                  { payload: { kind: 'player_local' }, x: 0.34, y: 0.50 },
+			                  { payload: { kind: 'player_rival' }, x: 0.40, y: 0.50 },
+			                  { payload: { kind: 'ball' }, x: 0.37, y: 0.50 },
+			                ],
+			              },
+			            };
+
+			            const conservationPass = {
+			              title: `Conservación · pase (4v4+2) (${levelLabel})`,
+			              objective: 'Encontrar líneas de pase y crear espacios libres con amplitud, profundidad y apoyos.',
+			              minutes: Math.max(12, minutes),
+			              block: 'main_1',
+			              player_count: '4v4 + 2 comodines',
+			              dimensions: '30x30 m',
+			              materials: 'Balones, conos, petos',
+			              space: 'Cuadrado + zonas de puntuación',
+			              training_type: 'Conservación / pase',
+			              description_html: `
+			                <ul>
+			                  <li>Posesión con comodines para facilitar continuidad y mejorar toma de decisión.</li>
+			                  <li>Puntúa al recibir en zonas objetivo o tras cierto número de pases (según nivel).</li>
+			                </ul>
+			              `,
+			              coaching_html: `
+			                <ul>
+			                  <li>Perfil corporal para jugar a 1–2 toques cuando sea posible.</li>
+			                  <li>Ocupar alturas y ejes distintos: crea triángulos, no te pegues al balón.</li>
+			                  <li>Pase con ventaja: al pie “bueno” o al espacio libre.</li>
+			                </ul>
+			              `,
+			              rules_html: `
+			                <ul>
+			                  <li>Nivel 1: comodines con libertad, objetivo mantener + progresar.</li>
+			                  <li>Nivel 2–3: limitación de toques y zonas de puntuación.</li>
+			                </ul>
+			              `,
+			              board: {
+			                items: [
+			                  { payload: { kind: 'shape_rect_long' }, x: 0.30, y: 0.50, scale: 1.4 },
+			                  { payload: { kind: 'shape_rect_long' }, x: 0.70, y: 0.50, scale: 1.4 },
+			                  { payload: { kind: 'player_local' }, x: 0.44, y: 0.44 },
+			                  { payload: { kind: 'player_local' }, x: 0.44, y: 0.56 },
+			                  { payload: { kind: 'player_local' }, x: 0.50, y: 0.40 },
+			                  { payload: { kind: 'player_local' }, x: 0.50, y: 0.60 },
+			                  { payload: { kind: 'player_rival' }, x: 0.56, y: 0.44 },
+			                  { payload: { kind: 'player_rival' }, x: 0.56, y: 0.56 },
+			                  { payload: { kind: 'player_rival' }, x: 0.62, y: 0.40 },
+			                  { payload: { kind: 'player_rival' }, x: 0.62, y: 0.60 },
+			                  { payload: { kind: 'player_away' }, x: 0.50, y: 0.50 },
+			                  { payload: { kind: 'player_away' }, x: 0.50, y: 0.32 },
+			                  { payload: { kind: 'ball' }, x: 0.50, y: 0.50 },
+			                ],
+			              },
+			            };
+
+			            const conservation2v1 = {
+			              title: `Conservación · 2v1 (${levelLabel})`,
+			              objective: 'Crear y resolver 2v1: fijar, atraer y soltar en el momento correcto.',
+			              minutes: Math.max(10, minutes),
+			              block: 'main_1',
+			              player_count: '2v1 por oleadas',
+			              dimensions: '20x12 m',
+			              materials: 'Conos, petos, balones, mini portería',
+			              space: 'Carril + finalización',
+			              training_type: 'Superioridad 2v1',
+			              description_html: `
+			                <ul>
+			                  <li>Inicia 2 atacantes contra 1 defensor con objetivo de progresar y finalizar.</li>
+			                  <li>Regla simple: si el defensor fija al poseedor, aparece el pase; si temporiza, ataca espacio.</li>
+			                </ul>
+			              `,
+			              coaching_html: `
+			                <ul>
+			                  <li>Atacante con balón: conduce para fijar al defensor, no pases “sin atraer”.</li>
+			                  <li>Apoyo: desmarque diagonal, distancia de pase, orienta cuerpo para jugar de cara.</li>
+			                  <li>Defensor: perfilado + temporización, obliga a ir a banda o a decidir pronto.</li>
+			                </ul>
+			              `,
+			              rules_html: '<ul><li>Máximo 6–8 segundos por oleada para mantener intensidad.</li></ul>',
+			              board: {
+			                items: [
+			                  { payload: { kind: 'goal_mini' }, x: 0.82, y: 0.50, angle: 180 },
+			                  { payload: { kind: 'cone_striped' }, x: 0.22, y: 0.40 },
+			                  { payload: { kind: 'cone_striped' }, x: 0.22, y: 0.60 },
+			                  { payload: { kind: 'player_local' }, x: 0.34, y: 0.46 },
+			                  { payload: { kind: 'player_local' }, x: 0.34, y: 0.54 },
+			                  { payload: { kind: 'player_rival' }, x: 0.50, y: 0.50 },
+			                  { payload: { kind: 'ball' }, x: 0.36, y: 0.46 },
+			                  { payload: { kind: 'arrow_thick' }, x: 0.62, y: 0.50 },
+			                ],
+			              },
+			            };
+
+			            const oleadas1v1 = {
+			              title: `Oleadas · 1v1 (${levelLabel})`,
+			              objective: 'Resolver 1v1: ataque con iniciativa y defensa con temporización + robo limpio.',
+			              minutes: Math.max(10, minutes),
+			              block: 'main_1',
+			              player_count: '1v1 por oleadas',
+			              dimensions: '18x12 m',
+			              materials: 'Conos, petos, balones, mini porterías',
+			              space: 'Carril + portería',
+			              training_type: '1v1',
+			              description_html: `
+			                <ul>
+			                  <li>Oleadas cortas: entra 1 atacante vs 1 defensor, finaliza rápido y rota.</li>
+			                  <li>Variantes: finalización a portería, cruzar línea, o puntuar por superar.</li>
+			                </ul>
+			              `,
+			              coaching_html: `
+			                <ul>
+			                  <li>Atacante: ataca el pie adelantado del defensor y cambia de ritmo.</li>
+			                  <li>Defensor: orienta hacia fuera y controla distancia.</li>
+			                </ul>
+			              `,
+			              rules_html: '<ul><li>Repeticiones cortas (6–8s) + descanso activo.</li></ul>',
+			              board: {
+			                items: [
+			                  { payload: { kind: 'shape_lane_3' }, x: 0.50, y: 0.50, scale: 2.0 },
+			                  { payload: { kind: 'goal_mini' }, x: 0.82, y: 0.50, angle: 180 },
+			                  { payload: { kind: 'player_local' }, x: 0.42, y: 0.50 },
+			                  { payload: { kind: 'player_rival' }, x: 0.50, y: 0.50 },
+			                  { payload: { kind: 'ball' }, x: 0.44, y: 0.50 },
+			                ],
+			              },
+			            };
+
+			            const match2v1 = {
+			              title: `Partido · 2v1 (${levelLabel})`,
+			              objective: 'Transferir superioridades al juego: identificar 2v1 y finalizar con criterio.',
+			              minutes: Math.max(12, minutes),
+			              block: 'main_2',
+			              player_count: '3v3 / 4v4 con comodines (crear 2v1)',
+			              dimensions: '35x25 m',
+			              materials: 'Conos, petos, balones, porterías',
+			              space: 'Partido condicionado',
+			              training_type: 'Juego aplicado',
+			              description_html: `
+			                <ul>
+			                  <li>Partido reducido con condicionantes para provocar 2v1 (comodín o reglas de superioridad).</li>
+			                  <li>Objetivo: fijar y soltar para finalizar, no acumular pases sin intención.</li>
+			                </ul>
+			              `,
+			              coaching_html: `
+			                <ul>
+			                  <li>Fijación: conduce hacia el defensor antes de pasar.</li>
+			                  <li>Apoyos por dentro y por fuera para dar 2 líneas de pase.</li>
+			                  <li>Finaliza con ventaja: tiro o pase al segundo palo.</li>
+			                </ul>
+			              `,
+			              rules_html: '<ul><li>Puntúa doble si el gol viene tras un 2v1 claro.</li></ul>',
+			              board: {
+			                items: [
+			                  { payload: { kind: 'goal' }, x: 0.18, y: 0.50 },
+			                  { payload: { kind: 'goal' }, x: 0.82, y: 0.50, angle: 180 },
+			                  { payload: { kind: 'ball' }, x: 0.50, y: 0.50 },
+			                  { payload: { kind: 'player_local' }, x: 0.44, y: 0.46 },
+			                  { payload: { kind: 'player_local' }, x: 0.44, y: 0.54 },
+			                  { payload: { kind: 'player_rival' }, x: 0.56, y: 0.50 },
+			                ],
+			              },
+			            };
+
+			            const coordCircuit = {
+			              title: `Circuito coordinativo (${levelLabel})`,
+			              objective: 'Mejorar coordinación, apoyos y cambios de ritmo con y sin balón.',
+			              minutes: Math.max(10, minutes),
+			              block: 'activation',
+			              player_count: 'Grupos de 3–4 por estación',
+			              dimensions: 'Zona central',
+			              materials: 'Conos, aros, escalera, picas, balones (opcional)',
+			              space: 'Circuito por estaciones',
+			              training_type: 'Coordinación',
+			              description_html: `
+			                <ul>
+			                  <li>3–4 estaciones: escalera, aros, slalom, recepción/orientación.</li>
+			                  <li>Trabajo por tiempo (30–45s) + cambio de estación.</li>
+			                </ul>
+			              `,
+			              coaching_html: `
+			                <ul>
+			                  <li>Calidad de apoyos: estabilidad y control antes de velocidad.</li>
+			                  <li>Progresión: añade balón o estímulo (señal/colores) si el grupo domina.</li>
+			                </ul>
+			              `,
+			              rules_html: '<ul><li>Sin competición si afecta a la técnica.</li></ul>',
+			              board: {
+			                items: [
+			                  { payload: { kind: 'emoji_ladder' }, x: 0.32, y: 0.50 },
+			                  { payload: { kind: 'ring' }, x: 0.50, y: 0.44 },
+			                  { payload: { kind: 'ring' }, x: 0.56, y: 0.44 },
+			                  { payload: { kind: 'ring' }, x: 0.50, y: 0.56 },
+			                  { payload: { kind: 'ring' }, x: 0.56, y: 0.56 },
+			                  { payload: { kind: 'cone' }, x: 0.70, y: 0.40 },
+			                  { payload: { kind: 'cone' }, x: 0.76, y: 0.50 },
+			                  { payload: { kind: 'cone' }, x: 0.70, y: 0.60 },
+			                  { payload: { kind: 'player_local' }, x: 0.26, y: 0.50 },
+			                ],
+			              },
+			            };
+
+			            const adaptedGame = {
+			              title: `Juego adaptado coordinativo (${levelLabel})`,
+			              objective: 'Coordinar movimientos con balón en un juego sencillo y motivante.',
+			              minutes: Math.max(10, minutes),
+			              block: 'activation',
+			              player_count: '2 equipos (5–8 por lado)',
+			              dimensions: '25x20 m',
+			              materials: 'Conos, petos, balones',
+			              space: 'Juego con reglas simples',
+			              training_type: 'Juego adaptado',
+			              description_html: `
+			                <ul>
+			                  <li>Juego corto con reglas que obliguen a coordinar (señales, cambios de rol, objetivos por colores).</li>
+			                  <li>En categorías pequeñas: objetivos muy claros y rotaciones rápidas.</li>
+			                </ul>
+			              `,
+			              coaching_html: `
+			                <ul>
+			                  <li>Consignas cortas: 1 idea por bloque.</li>
+			                  <li>Motiva y refuerza: “lo que sale bien se repite”.</li>
+			                </ul>
+			              `,
+			              rules_html: '<ul><li>Regla ejemplo: tras 3 pases, obliga a un cambio de dirección o a atacar una zona.</li></ul>',
+			              board: {
+			                items: [
+			                  { payload: { kind: 'cone' }, x: 0.26, y: 0.30 },
+			                  { payload: { kind: 'cone' }, x: 0.74, y: 0.30 },
+			                  { payload: { kind: 'cone' }, x: 0.26, y: 0.70 },
+			                  { payload: { kind: 'cone' }, x: 0.74, y: 0.70 },
+			                  { payload: { kind: 'player_local' }, x: 0.46, y: 0.50 },
+			                  { payload: { kind: 'player_rival' }, x: 0.54, y: 0.50 },
+			                  { payload: { kind: 'ball' }, x: 0.50, y: 0.50 },
+			                ],
+			              },
+			            };
+
+			            return {
+			              fund_dribble_game: dribbleGame,
+			              fund_oleada_entry: oleadaEntry,
+			              fund_conservation_pass: conservationPass,
+			              fund_conservation_2v1: conservation2v1,
+			              fund_oleadas_1v1: oleadas1v1,
+			              fund_match_2v1: match2v1,
+			              fund_coord_circuit: coordCircuit,
+			              fund_adapted_game_coord: adaptedGame,
+			            };
+			          };
+
+			          const buildTemplatesForProgram = (program) => {
+			            const p = String(program || '').trim();
+			            if (p === 'fifa11plus') return buildFifa11PlusTemplates();
+			            if (p === 'fundamentals') return buildFundamentalsTemplates();
+			            return {};
+			          };
+
+				          const applyTemplate = (key) => {
+				            const program = String(programEl.value || '').trim();
+				            const templates = buildTemplatesForProgram(program);
+				            const tpl = templates[key];
+				            if (!tpl) return;
 			            const wantsBoard = !!(applyBoardEl && applyBoardEl.checked);
 			            const willClearBoard = !!(clearBoardEl && clearBoardEl.checked);
 			            const confirmMsg = wantsBoard
@@ -3510,17 +3882,19 @@
 			            const ok = window.confirm(confirmMsg);
 			            if (!ok) return;
 
-		            setValue('draw_task_title', tpl.title);
-		            setValue('draw_task_objective', tpl.objective);
-		            setValue('draw_task_block', tpl.block);
-		            setValue('draw_task_minutes', tpl.minutes);
-		            setValue('draw_task_player_count', tpl.player_count);
-		            setValue('draw_task_dimensions', tpl.dimensions);
-		            setValue('draw_task_materials', tpl.materials);
-		            setValue('draw_task_space', tpl.space);
-			            setRichHtml('draw_task_description', tpl.description_html);
-			            setRichHtml('draw_task_coaching_points', tpl.coaching_html);
-			            setRichHtml('draw_task_confrontation_rules', tpl.rules_html);
+			            setValue('draw_task_title', tpl.title);
+			            setValue('draw_task_objective', tpl.objective);
+			            setValue('draw_task_block', tpl.block);
+			            setValue('draw_task_minutes', tpl.minutes);
+			            setValue('draw_task_player_count', tpl.player_count);
+			            setValue('draw_task_dimensions', tpl.dimensions);
+			            setValue('draw_task_materials', tpl.materials);
+			            setValue('draw_task_space', tpl.space);
+			            if (tpl.training_type) setValue('draw_task_training_type', tpl.training_type);
+			            if (tpl.age_group) setValue('draw_task_age_group', tpl.age_group);
+				            setRichHtml('draw_task_description', tpl.description_html);
+				            setRichHtml('draw_task_coaching_points', tpl.coaching_html);
+				            setRichHtml('draw_task_confrontation_rules', tpl.rules_html);
 
 			            if (wantsBoard && tpl.board && Array.isArray(tpl.board.items)) {
 			              try {

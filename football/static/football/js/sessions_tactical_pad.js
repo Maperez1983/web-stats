@@ -4702,14 +4702,32 @@
 		        if (x == null || y == null) return;
 		        const resolved = createFactoryFromPayload(payload);
 		        if (!resolved?.factory) return;
-		        try {
-		          const obj = objectAtPointer(resolved.factory, { x, y });
-		          if (!obj) return;
-		          // Evita el coste de addObject() por cada elemento; añadimos en batch.
-		          if (isBackgroundShape(obj)) {
-		            obj.data = obj.data || {};
-		            obj.data.background_edit = true;
-		          }
+			        try {
+			          const obj = objectAtPointer(resolved.factory, { x, y });
+			          if (!obj) return;
+			          const angle = Number(item?.angle);
+			          const scale = Number(item?.scale);
+			          const scaleX = Number(item?.scaleX);
+			          const scaleY = Number(item?.scaleY);
+			          const opacity = Number(item?.opacity);
+			          try {
+			            const next = {};
+			            if (Number.isFinite(angle)) next.angle = angle;
+			            if (Number.isFinite(opacity)) next.opacity = clamp(opacity, 0.05, 1);
+			            if (Number.isFinite(scale)) {
+			              next.scaleX = clampScale(scale, 12);
+			              next.scaleY = clampScale(scale, 12);
+			            } else {
+			              if (Number.isFinite(scaleX)) next.scaleX = clampScale(scaleX, 12);
+			              if (Number.isFinite(scaleY)) next.scaleY = clampScale(scaleY, 12);
+			            }
+			            if (Object.keys(next).length) obj.set(next);
+			          } catch (e) { /* ignore */ }
+			          // Evita el coste de addObject() por cada elemento; añadimos en batch.
+			          if (isBackgroundShape(obj)) {
+			            obj.data = obj.data || {};
+			            obj.data.background_edit = true;
+			          }
 		          normalizeEditableObject(obj);
 		          canvas.add(obj);
 		          if (isBackgroundShape(obj)) canvas.sendToBack(obj);
