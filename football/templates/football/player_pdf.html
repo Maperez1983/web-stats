@@ -22,6 +22,9 @@
 	        border-bottom: 1px solid rgba(148, 163, 184, 0.35);
 	        background: linear-gradient(135deg, #0b1220 0%, #0f172a 55%, rgba(15, 122, 53, 0.92) 100%);
 	        color: #ffffff;
+          /* Evita que el header se quede solo al final de una página (WeasyPrint). */
+          break-after: avoid-page;
+          page-break-after: avoid;
 	      }
       .brand { display:flex; align-items:center; gap: 10px; }
       .brand img { display:block; object-fit: contain; }
@@ -36,6 +39,13 @@
         display: table;
         width: 100%;
         table-layout: fixed;
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+      .hero-row {
+        display: table-row;
+        break-inside: avoid;
+        page-break-inside: avoid;
       }
       .hero-left { display: table-cell; width: 68%; vertical-align: top; padding-right: 14px; }
       .hero-right { display: table-cell; width: 32%; vertical-align: top; }
@@ -64,12 +74,12 @@
 	        border-radius: 14px;
 	        overflow: hidden;
 	        background: #ffffff;
-	        padding: 8px;
+	        padding: 6px;
 	      }
-	      .photo img { width: 100%; height: 240px; object-fit: cover; object-position: 50% 25%; border-radius: 10px; display:block; background:#ffffff; }
+	      .photo img { width: 100%; height: 220px; object-fit: cover; object-position: 50% 25%; border-radius: 10px; display:block; background:#ffffff; }
       .photo-fallback {
         width: 100%;
-        height: 240px;
+        height: 220px;
         border-radius: 12px;
         display:flex;
         align-items:center;
@@ -176,6 +186,7 @@
 
 	    <div class="content">
 	      <div class="player-hero">
+          <div class="hero-row">
           <div class="hero-left">
 	        <div class="hero-card">
 	          <h1 class="player-name">{{ player.name }}</h1>
@@ -282,6 +293,7 @@
               {% endif %}
 		        </div>
 	          </div>
+          </div>
 		      </div>
 
 		      <div class="section">
