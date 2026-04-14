@@ -23023,14 +23023,14 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             .exclude(week_start=INBOX_MICROCYCLE_WEEK_START)
             .order_by('-week_start', '-id')
         )
-        planning_microcycles = [item for item in list(planning_microcycles_qs[:24]) if not _is_library_microcycle(item)]
+        planning_microcycles = list(planning_microcycles_qs[:24])
         planning_session_qs = (
             TrainingSession.objects
             .select_related('microcycle')
             .filter(microcycle__team=primary_team)
             .order_by('-microcycle__week_start', 'session_date', 'start_time', 'order', 'id')
         )
-        planning_sessions = [item for item in list(planning_session_qs[:220]) if not _is_library_session(item)]
+        planning_sessions = list(planning_session_qs[:220])
         if inbox_microcycle:
             standalone_sessions = [
                 item for item in planning_sessions
@@ -23050,7 +23050,6 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             .select_related('microcycle')
             .filter(microcycle__team=primary_team)
         )
-        session_qs = session_qs.exclude(microcycle__notes__contains=LIBRARY_MICROCYCLE_MARKER)
         if selected_session_id:
             selected_session = session_qs.filter(id=selected_session_id).first()
         if not selected_session:
@@ -23238,7 +23237,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
 
         planning_session_items = [
             {'id': int(session.id), 'label': _session_label(session)}
-            for session in [item for item in (planning_sessions or all_sessions) if not _is_library_session(item)]
+            for session in (planning_sessions or all_sessions)
         ]
 
     planning_task_source_options = []
