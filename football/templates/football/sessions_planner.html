@@ -1335,7 +1335,7 @@
 		                  <input type="date" name="plan_session_date" required />
 		                </label>
 		                <label style="grid-column:1/-1;">
-		                  Foco
+		                  Nombre de la sesión
 		                  <input type="text" name="plan_session_focus" maxlength="140" placeholder="Ej: Transición + finalización" required />
 		                </label>
 		                <label>
@@ -2004,7 +2004,7 @@
                             <input type="time" name="edit_session_start_time" value="{{ session.obj.start_time|time:'H:i' }}" />
                           </label>
                           <label>
-                            Foco
+                            Nombre de la sesión
                             <input type="text" name="edit_session_focus" value="{{ session.obj.focus }}" maxlength="140" required />
                           </label>
                           <label>
@@ -2054,7 +2054,7 @@
                             <input type="date" name="duplicate_session_date" value="{{ session.obj.session_date|date:'Y-m-d' }}" required />
                           </label>
                           <label style="grid-column:1/-1;">
-                            Foco duplicado
+                            Nombre (duplicado)
                             <input type="text" name="duplicate_session_focus" value="{{ session.obj.focus }} · copia" maxlength="140" />
                           </label>
                           <div><button type="submit" class="secondary">Duplicar sesión con tareas</button></div>
@@ -2094,16 +2094,20 @@
 	      <div class="tab-panel {% if active_tab == 'library' %}is-active{% endif %}" data-tab="library">
 	      <section class="panel">
 	        <h2>Acciones rápidas</h2>
-	        <div class="folder-grid" style="margin-top:0.75rem;">
-	          <a class="folder-card" href="?tab=microcycles">
-	            <strong>Ir a microciclos</strong>
-	            <span>Semana, sesiones y distribución de tareas</span>
-	          </a>
-	          <a class="folder-card" href="?tab=sessions">
-	            <strong>Editar sesión</strong>
-	            <span>Textos por bloques y tareas del día</span>
-	          </a>
-	        </div>
+		        <div class="folder-grid" style="margin-top:0.75rem;">
+		          <a class="folder-card" href="?tab=microcycles">
+		            <strong>Ir a microciclos</strong>
+		            <span>Semana, sesiones y distribución de tareas</span>
+		          </a>
+		          <a class="folder-card" href="?tab=sessions">
+		            <strong>Editar sesión</strong>
+		            <span>Textos por bloques y tareas del día</span>
+		          </a>
+		          <a class="folder-card" href="{% url 'sessions-task-create' %}">
+		            <strong>Crear tarea</strong>
+		            <span>Editor visual dedicado</span>
+		          </a>
+		        </div>
 	        <details style="margin-top:0.85rem;">
 	          <summary>Importar tareas desde PDF</summary>
 	          <div style="margin-top:0.75rem;">

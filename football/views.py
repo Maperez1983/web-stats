@@ -794,12 +794,46 @@ INBOX_MICROCYCLE_WEEK_START = date(2000, 1, 1)
 INBOX_MICROCYCLE_WEEK_END = date(2099, 12, 31)
 INBOX_MICROCYCLE_TITLE = 'Sesiones sueltas (sin microciclo)'
 
+# Microciclos/sesiones de biblioteca (internos). No deberían aparecer en los selectores
+# de planificación para no confundir con sesiones reales.
+LIBRARY_MICROCYCLE_MARKER = '[2J_LIBRARY_MICROCYCLE]'
+
 
 def _is_inbox_microcycle(microcycle):
     if not microcycle:
         return False
     try:
         return getattr(microcycle, 'week_start', None) == INBOX_MICROCYCLE_WEEK_START
+    except Exception:
+        return False
+
+
+def _is_library_microcycle(microcycle):
+    if not microcycle:
+        return False
+    try:
+        notes = str(getattr(microcycle, 'notes', '') or '')
+        if LIBRARY_MICROCYCLE_MARKER in notes:
+            return True
+        # Legacy marker.
+        if 'microciclo tecnico generado automaticamente para biblioteca' in notes.lower():
+            return True
+        objective = str(getattr(microcycle, 'objective', '') or '')
+        if objective.strip().lower() == 'repositorio de tareas en pdf':
+            return True
+        title = str(getattr(microcycle, 'title', '') or '')
+        if title.strip().lower().startswith('biblioteca '):
+            return True
+        return False
+    except Exception:
+        return False
+
+
+def _is_library_session(session):
+    if not session:
+        return False
+    try:
+        return _is_library_microcycle(getattr(session, 'microcycle', None))
     except Exception:
         return False
 
@@ -15743,11 +15777,22 @@ def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
         )
     )
     session_objectives_summary = str(session.focus or '').strip()
+    session_display_name = str(getattr(session, 'focus', '') or '').strip()
+    microcycle_display_title = str(getattr(getattr(session, 'microcycle', None), 'title', '') or '').strip()
+    try:
+        if session_display_name.lower().startswith('biblioteca pdf'):
+            session_display_name = 'Repositorio de tareas (PDF)'
+        if microcycle_display_title.lower().startswith('biblioteca '):
+            microcycle_display_title = 'Repositorio'
+    except Exception:
+        pass
     return {
         **_build_pdf_nav_urls(request),
         'team_name': team.name,
         'session': session,
         'microcycle': session.microcycle,
+        'session_display_name': session_display_name,
+        'microcycle_display_title': microcycle_display_title,
         'session_plan_fields': session_plan_fields,
         'session_notes': str(session_plan_fields.get('notes') or '').strip(),
         'tasks': tasks,
@@ -20739,9 +20784,17 @@ def _get_or_create_library_session(team, scope_key):
             'title': f'Biblioteca {scope_label}',
             'objective': 'Repositorio de tareas en PDF',
             'status': TrainingMicrocycle.STATUS_DRAFT,
-            'notes': 'Microciclo tecnico generado automaticamente para biblioteca.',
+            'notes': f'{LIBRARY_MICROCYCLE_MARKER} Microciclo tecnico generado automaticamente para biblioteca.',
         },
     )
+    try:
+        # Asegura marker incluso en microciclos legacy.
+        notes = str(getattr(microcycle, 'notes', '') or '')
+        if LIBRARY_MICROCYCLE_MARKER not in notes:
+            microcycle.notes = (notes + '\n' if notes else '') + f'{LIBRARY_MICROCYCLE_MARKER}'
+            microcycle.save(update_fields=['notes'])
+    except Exception:
+        pass
     session, _ = TrainingSession.objects.get_or_create(
         microcycle=microcycle,
         session_date=today,
@@ -21288,7 +21341,7 @@ def _clone_training_session(source_session, target_microcycle, target_date=None,
     clone_date = target_date or source_session.session_date
     clone_focus = str(target_focus or source_session.focus or '').strip()[:140]
     if not clone_focus:
-        raise ValueError('Indica un foco válido para la sesión duplicada.')
+        raise ValueError('Indica un nombre válido para la sesión duplicada.')
     if clone_date < target_microcycle.week_start or clone_date > target_microcycle.week_end:
         raise ValueError('La fecha duplicada debe quedar dentro del microciclo destino.')
     if TrainingSession.objects.filter(
@@ -21296,7 +21349,7 @@ def _clone_training_session(source_session, target_microcycle, target_date=None,
         session_date=clone_date,
         focus__iexact=clone_focus,
     ).exists():
-        raise ValueError('Ya existe una sesión con esa fecha y foco en el microciclo destino.')
+        raise ValueError('Ya existe una sesión con esa fecha y nombre en el microciclo destino.')
 
     cloned_session = TrainingSession.objects.create(
         microcycle=target_microcycle,
@@ -21725,7 +21778,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 session_date_raw = str(request.POST.get('plan_session_date') or '').strip()
                 focus = str(request.POST.get('plan_session_focus') or '').strip()[:140]
                 if not session_date_raw or not focus:
-                    raise ValueError('Completa fecha y foco para crear la sesión.')
+                    raise ValueError('Completa fecha y nombre para crear la sesión.')
                 try:
                     session_date = datetime.strptime(session_date_raw, '%Y-%m-%d').date()
                 except ValueError:
@@ -21755,7 +21808,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     focus__iexact=focus,
                 ).exists()
                 if duplicate_exists:
-                    raise ValueError('Ya existe una sesión con la misma fecha y foco en este microciclo.')
+                    raise ValueError('Ya existe una sesión con la misma fecha y nombre en este microciclo.')
                 next_order = (TrainingSession.objects.filter(microcycle=microcycle).aggregate(Max('order')).get('order__max') or 0) + 1
                 session_obj = TrainingSession.objects.create(
                     microcycle=microcycle,
@@ -21861,7 +21914,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 session_date_raw = str(request.POST.get('edit_session_date') or '').strip()
                 focus = str(request.POST.get('edit_session_focus') or '').strip()[:140]
                 if not session_date_raw or not focus:
-                    raise ValueError('Completa fecha y foco para actualizar la sesión.')
+                    raise ValueError('Completa fecha y nombre para actualizar la sesión.')
                 try:
                     session_date = datetime.strptime(session_date_raw, '%Y-%m-%d').date()
                 except ValueError:
@@ -21890,7 +21943,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     .exists()
                 )
                 if duplicate_exists:
-                    raise ValueError('Ya existe otra sesión con la misma fecha y foco en este microciclo.')
+                    raise ValueError('Ya existe otra sesión con la misma fecha y nombre en este microciclo.')
                 if session_obj.microcycle_id != microcycle.id:
                     session_obj.order = (TrainingSession.objects.filter(microcycle=microcycle).aggregate(Max('order')).get('order__max') or 0) + 1
                 session_obj.microcycle = microcycle
@@ -22970,14 +23023,14 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             .exclude(week_start=INBOX_MICROCYCLE_WEEK_START)
             .order_by('-week_start', '-id')
         )
-        planning_microcycles = list(planning_microcycles_qs[:24])
+        planning_microcycles = [item for item in list(planning_microcycles_qs[:24]) if not _is_library_microcycle(item)]
         planning_session_qs = (
             TrainingSession.objects
             .select_related('microcycle')
             .filter(microcycle__team=primary_team)
             .order_by('-microcycle__week_start', 'session_date', 'start_time', 'order', 'id')
         )
-        planning_sessions = list(planning_session_qs[:220])
+        planning_sessions = [item for item in list(planning_session_qs[:220]) if not _is_library_session(item)]
         if inbox_microcycle:
             standalone_sessions = [
                 item for item in planning_sessions
@@ -22997,6 +23050,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             .select_related('microcycle')
             .filter(microcycle__team=primary_team)
         )
+        session_qs = session_qs.exclude(microcycle__notes__contains=LIBRARY_MICROCYCLE_MARKER)
         if selected_session_id:
             selected_session = session_qs.filter(id=selected_session_id).first()
         if not selected_session:
@@ -23184,7 +23238,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
 
         planning_session_items = [
             {'id': int(session.id), 'label': _session_label(session)}
-            for session in (planning_sessions or all_sessions)
+            for session in [item for item in (planning_sessions or all_sessions) if not _is_library_session(item)]
         ]
 
     planning_task_source_options = []
@@ -23199,6 +23253,8 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             if _task_scope_for_item(task_item) != scope_key:
                 continue
             session_focus = str(getattr(getattr(task_item, 'session', None), 'focus', '') or '').strip()
+            if session_focus.lower().startswith('biblioteca pdf'):
+                session_focus = 'Repositorio'
             planning_task_source_options.append(
                 {
                     'id': int(task_item.id),

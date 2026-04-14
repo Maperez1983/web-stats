@@ -4647,7 +4647,7 @@ class SessionsPlanningTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Ya existe una sesión con la misma fecha y foco en este microciclo.')
+        self.assertContains(response, 'Ya existe una sesión con la misma fecha y nombre en este microciclo.')
         self.assertEqual(TrainingSession.objects.count(), 1)
 
     def test_update_session_plan_changes_schedule_fields(self):

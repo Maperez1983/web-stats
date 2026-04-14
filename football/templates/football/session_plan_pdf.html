@@ -2,7 +2,7 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <title>Sesión · {{ session.focus }}</title>
+    <title>Sesión · {{ session_display_name|default:session.focus }}</title>
 	    <style>
       :root {
         --border: {% if pdf_style == 'club' %}#d5dde7{% else %}#6b7280{% endif %};
@@ -282,7 +282,7 @@
 		          </colgroup>
 		          <tr>
 		            <td class="kcell">Título</td>
-		            <td colspan="3">{{ session.focus }}</td>
+		            <td colspan="3">{{ session_display_name|default:session.focus }}</td>
 		          </tr>
 	          <tr>
 	            <td class="kcell">Tiempo</td>
@@ -388,7 +388,7 @@
 	            <td style="vertical-align:top;">
 	              <div style="font-size:9px; letter-spacing:0.18em; text-transform:uppercase; opacity:0.8;">Planificación de sesión</div>
 	              <div style="margin-top:2px; font-size:9px; letter-spacing:0.18em; text-transform:uppercase; opacity:0.85;">Formato Club</div>
-	              <div style="font-size:25px; font-weight:800; line-height:1.1; margin-top:4px;">{{ session.focus }}</div>
+	              <div style="font-size:25px; font-weight:800; line-height:1.1; margin-top:4px;">{{ session_display_name|default:session.focus }}</div>
 	              <div style="font-size:11px; margin-top:6px; opacity:0.88;">{{ team_name }} · {{ coach_name }} · {{ session.session_date|date:"d/m/Y" }}{% if session.start_time %} · {{ session.start_time|time:"H:i" }}{% endif %}</div>
 	            </td>
 	            <td style="width:150px; text-align:right; vertical-align:top;"></td>
@@ -420,12 +420,12 @@
         </div>
         <table class="table {% if pdf_style != 'club' %}uefa-table{% endif %}" style="margin-bottom:12px;">
           <tr>
-            <td style="width:18%;">Título</td>
-            <td colspan="3"><div class="v">{{ session.focus }}</div></td>
+            <td style="width:18%;">Nombre</td>
+            <td colspan="3"><div class="v">{{ session_display_name|default:session.focus }}</div></td>
           </tr>
           <tr>
             <td>Microciclo</td>
-            <td><div class="v">{{ microcycle.title }}</div></td>
+            <td><div class="v">{{ microcycle_display_title|default:microcycle.title }}</div></td>
             <td>Fecha</td>
             <td><div class="v">{{ session.session_date|date:"d/m/Y" }}{% if session.start_time %} · {{ session.start_time|time:"H:i" }}{% endif %}</div></td>
           </tr>
