@@ -2051,17 +2051,18 @@
         <span id="task-builder-draft-text"></span>
         <button type="button" class="button" id="task-builder-draft-clear">Borrar borrador</button>
       </div>
-		      <form
-		        method="post"
-		        id="task-builder-form"
-	        data-scope-key="{{ scope_key }}"
-	        data-task-id="{% if task %}{{ task.id }}{% endif %}"
-	        data-pdf-preview-url="{{ pdf_preview_url|default:'' }}"
-	        data-keepalive-url="{% url 'session-keepalive' %}"
-	        data-save-success="{% if feedback %}1{% else %}0{% endif %}"
-	        data-draft-key="webstats:tpad:draft:{{ scope_key }}:{% if task %}{{ task.id }}{% else %}new{% endif %}:{% firstof request.GET.workspace '' %}"
-        data-draft-new-key="webstats:tpad:draft:{{ scope_key }}:new:{% firstof request.GET.workspace '' %}"
-      >
+			      <form
+			        method="post"
+			        id="task-builder-form"
+		        data-scope-key="{{ scope_key }}"
+		        data-task-id="{% if task %}{{ task.id }}{% endif %}"
+		        data-pdf-preview-url="{{ pdf_preview_url|default:'' }}"
+		        data-task-create-url="{% if scope_key == 'goalkeeper' %}{% url 'sessions-goalkeeper-task-create' %}{% elif scope_key == 'fitness' %}{% url 'sessions-fitness-task-create' %}{% else %}{% url 'sessions-task-create' %}{% endif %}"
+		        data-keepalive-url="{% url 'session-keepalive' %}"
+		        data-save-success="{% if feedback %}1{% else %}0{% endif %}"
+		        data-draft-key="webstats:tpad:draft:{{ scope_key }}:{% if task %}{{ task.id }}{% else %}new{% endif %}:{% firstof request.GET.workspace '' %}"
+	        data-draft-new-key="webstats:tpad:draft:{{ scope_key }}:new:{% firstof request.GET.workspace '' %}"
+	      >
 	        {% csrf_token %}
 	        <input type="hidden" id="task-sim-share-url" value="{% url 'share-task-simulation-create' %}" />
 	        <input type="hidden" name="planner_action" value="create_draw_task" />
@@ -2924,11 +2925,18 @@
 		                      </div>
 		                    </div>
 		                  </div>
-	                  <div class="alert warn" style="margin-top:0.85rem;">
-	                    Tip: para un calentamiento completo, crea 3 tareas (Parte 1 + Parte 2 + Parte 3) y así podrás reordenarlas/ajustarlas dentro de la sesión.
-	                  </div>
-	                </div>
-	              </div>
+		                  <div class="alert warn" style="margin-top:0.85rem;">
+		                    Tip: para un calentamiento completo, crea 3 tareas (Parte 1 + Parte 2 + Parte 3) y así podrás reordenarlas/ajustarlas dentro de la sesión.
+		                  </div>
+		                  <div class="alert ok" id="task-assistant-queue" hidden style="margin-top:0.85rem; display:flex; align-items:center; justify-content:space-between; gap:0.75rem; flex-wrap:wrap;">
+		                    <span id="task-assistant-queue-text"></span>
+		                    <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+		                      <button type="button" class="button" id="task-assistant-queue-next">Abrir siguiente tarea</button>
+		                      <button type="button" class="button" id="task-assistant-queue-clear">Vaciar cola</button>
+		                    </div>
+		                  </div>
+		                </div>
+		              </div>
 
 			              <div class="side-pane" data-pane="avanzado" role="tabpanel">
 			                <div class="section">
@@ -4109,84 +4117,215 @@
 			              coord,
 			            };
 
-			            const pick = mapping[goal] || base.fund_conservation_pass;
-			            // Ajustes suaves por edad.
-			            if (isYoung && pick) {
-			              pick.block = 'activation';
-			              pick.minutes = Math.max(8, Math.min(15, minutes));
-			              pick.dimensions = pick.dimensions || '25x20 m';
-			            }
-			            return { smart_generate: pick };
-			          };
+				            const pick = mapping[goal] || base.fund_conservation_pass;
+				            // Ajustes suaves por edad.
+				            if (isYoung && pick) {
+				              pick.block = 'activation';
+				              pick.minutes = Math.max(8, Math.min(15, minutes));
+				              pick.dimensions = pick.dimensions || '25x20 m';
+				            }
+				            const cooldown = {
+				              title: `Vuelta a la calma · movilidad + respiración (${levelLabel})`,
+				              objective: 'Bajar pulsaciones, recuperar movilidad y cerrar con feedback breve.',
+				              minutes: Math.max(6, Math.min(12, Math.round(minutes * 0.8))),
+				              block: 'recovery',
+				              player_count: 'Todo el equipo',
+				              dimensions: 'Zona central',
+				              materials: 'Conos (opcional)',
+				              space: 'Zona central',
+				              training_type: 'Recuperación',
+				              description_html: `
+				                <ul>
+				                  <li>Jog suave + movilidad dinámica suave (cadera, tobillo, isquios).</li>
+				                  <li>Respiración/relajación 2–3 min y feedback rápido.</li>
+				                </ul>
+				              `,
+				              coaching_html: `
+				                <ul>
+				                  <li>Control de respiración, postura y amplitud progresiva.</li>
+				                  <li>Cierra con 1 idea: qué se hizo bien y qué mejorar.</li>
+				                </ul>
+				              `,
+				              rules_html: '<ul><li>Sin competición. Prioriza recuperación.</li></ul>',
+				              board: { items: [{ payload: { kind: 'text' }, x: 0.50, y: 0.50 }] },
+				            };
+				            return {
+				              smart_generate: pick,
+				              smart_block_1: warmup,
+				              smart_block_2: pick,
+				              smart_block_3: cooldown,
+				            };
+				          };
 
 				          const buildTemplatesForProgram = (program) => {
-				            const p = String(program || '').trim();
-			            if (p === 'fifa11plus') return buildFifa11PlusTemplates();
-			            if (p === 'smart') return buildSmartTemplates();
-			            if (p === 'fundamentals') return buildFundamentalsTemplates();
-			            return {};
-			          };
+					            const p = String(program || '').trim();
+				            if (p === 'fifa11plus') return buildFifa11PlusTemplates();
+				            if (p === 'smart') return buildSmartTemplates();
+				            if (p === 'fundamentals') return buildFundamentalsTemplates();
+				            return {};
+				          };
 
-				          const applyTemplate = (key) => {
+				          const queueRow = document.getElementById('task-assistant-queue');
+				          const queueText = document.getElementById('task-assistant-queue-text');
+				          const queueNextBtn = document.getElementById('task-assistant-queue-next');
+				          const queueClearBtn = document.getElementById('task-assistant-queue-clear');
+				          const scopeKey = String(form.dataset.scopeKey || 'coach').trim() || 'coach';
+				          const queueKey = `webstats:task_assistant:queue_v1:${scopeKey}`;
+				          const readQueue = () => {
+				            try {
+				              const raw = window.localStorage?.getItem(queueKey) || '';
+				              const parsed = raw ? JSON.parse(raw) : null;
+				              const items = Array.isArray(parsed?.items) ? parsed.items : [];
+				              return { v: 1, created_at: parsed?.created_at || null, items };
+				            } catch (e) {
+				              return { v: 1, created_at: null, items: [] };
+				            }
+				          };
+				          const writeQueue = (queue) => {
+				            try {
+				              const items = Array.isArray(queue?.items) ? queue.items : [];
+				              window.localStorage?.setItem(queueKey, JSON.stringify({ v: 1, created_at: queue?.created_at || new Date().toISOString(), items }));
+				            } catch (e) { /* ignore */ }
+				          };
+				          const clearQueue = () => writeQueue({ v: 1, created_at: new Date().toISOString(), items: [] });
+				          const setQueueItems = (items) => writeQueue({ v: 1, created_at: new Date().toISOString(), items: Array.isArray(items) ? items : [] });
+				          const updateQueueUi = () => {
+				            const q = readQueue();
+				            const count = q.items.length;
+				            if (queueRow) queueRow.hidden = !(count > 0);
+				            if (queueText) queueText.textContent = count > 0 ? `Tareas en cola: ${count}.` : '';
+				            if (queueNextBtn) queueNextBtn.disabled = !(count > 0);
+				            if (queueClearBtn) queueClearBtn.disabled = !(count > 0);
+				          };
+
+				          const openNextTask = () => {
+				            const q = readQueue();
+				            if (!q.items.length) return;
+				            const base = String(form.dataset.taskCreateUrl || '').trim();
+				            if (!base) {
+				              window.alert('No se encontró la URL para crear una nueva tarea.');
+				              return;
+				            }
+				            try {
+				              const target = new URL(base, window.location.origin);
+				              const current = new URL(window.location.href);
+				              const workspace = current.searchParams.get('workspace');
+				              if (workspace && !target.searchParams.has('workspace')) target.searchParams.set('workspace', workspace);
+				              target.searchParams.set('assistant_next', '1');
+				              window.location.href = target.toString();
+				            } catch (e) {
+				              window.location.href = `${base}?assistant_next=1`;
+				            }
+				          };
+
+				          queueNextBtn?.addEventListener('click', openNextTask);
+				          queueClearBtn?.addEventListener('click', () => {
+				            clearQueue();
+				            updateQueueUi();
+				          });
+
+				          const applyTpl = (tpl, options = {}) => {
+				            if (!tpl || typeof tpl !== 'object') return false;
+				            const wantsBoard = !!(applyBoardEl && applyBoardEl.checked);
+				            const willClearBoard = !!(clearBoardEl && clearBoardEl.checked);
+				            const confirmEnabled = options.confirm !== false;
+				            if (confirmEnabled) {
+				              const confirmMsg = wantsBoard
+				                ? (`Esto rellenará campos de la tarea y ${willClearBoard ? 'reemplazará' : 'añadirá a'} la pizarra. ¿Continuar?`)
+				                : 'Esto rellenará campos de la tarea actual. ¿Continuar?';
+				              const ok = window.confirm(confirmMsg);
+				              if (!ok) return false;
+				            }
+
+				            if (tpl.title != null) setValue('draw_task_title', tpl.title);
+				            if (tpl.objective != null) setValue('draw_task_objective', tpl.objective);
+				            if (tpl.block != null) setValue('draw_task_block', tpl.block);
+				            if (tpl.minutes != null) setValue('draw_task_minutes', tpl.minutes);
+				            if (tpl.player_count != null) setValue('draw_task_player_count', tpl.player_count);
+				            if (tpl.dimensions != null) setValue('draw_task_dimensions', tpl.dimensions);
+				            if (tpl.materials != null) setValue('draw_task_materials', tpl.materials);
+				            if (tpl.space != null) setValue('draw_task_space', tpl.space);
+				            if (tpl.training_type) setValue('draw_task_training_type', tpl.training_type);
+				            if (tpl.age_group) setValue('draw_task_age_group', tpl.age_group);
+				            if (tpl.description_html != null) setRichHtml('draw_task_description', tpl.description_html);
+				            if (tpl.coaching_html != null) setRichHtml('draw_task_coaching_points', tpl.coaching_html);
+				            if (tpl.rules_html != null) setRichHtml('draw_task_confrontation_rules', tpl.rules_html);
+
+				            if (wantsBoard && tpl.board && Array.isArray(tpl.board.items)) {
+				              try {
+				                window.dispatchEvent(new CustomEvent('webstats:tpad:assistant-board', {
+				                  detail: {
+				                    clear: willClearBoard,
+				                    items: tpl.board.items,
+				                  },
+				                }));
+				              } catch (err) {}
+				            }
+
+				            const fichaTab = document.querySelector('#task-side-tabs .side-tab[data-pane="ficha"]');
+				            try { fichaTab?.click(); } catch (err) {}
+				            return true;
+				          };
+
+				          const applyTemplate = (key, options = {}) => {
 				            const program = String(programEl.value || '').trim();
 				            const templates = buildTemplatesForProgram(program);
 				            const tpl = templates[key];
-				            if (!tpl) return;
-			            const wantsBoard = !!(applyBoardEl && applyBoardEl.checked);
-			            const willClearBoard = !!(clearBoardEl && clearBoardEl.checked);
-			            const confirmMsg = wantsBoard
-			              ? (`Esto rellenará campos de la tarea y ${willClearBoard ? 'reemplazará' : 'añadirá a'} la pizarra. ¿Continuar?`)
-			              : 'Esto rellenará campos de la tarea actual. ¿Continuar?';
-			            const ok = window.confirm(confirmMsg);
-			            if (!ok) return;
+				            if (!tpl) return false;
+				            return applyTpl(tpl, options);
+				          };
 
-			            setValue('draw_task_title', tpl.title);
-			            setValue('draw_task_objective', tpl.objective);
-			            setValue('draw_task_block', tpl.block);
-			            setValue('draw_task_minutes', tpl.minutes);
-			            setValue('draw_task_player_count', tpl.player_count);
-			            setValue('draw_task_dimensions', tpl.dimensions);
-			            setValue('draw_task_materials', tpl.materials);
-			            setValue('draw_task_space', tpl.space);
-			            if (tpl.training_type) setValue('draw_task_training_type', tpl.training_type);
-			            if (tpl.age_group) setValue('draw_task_age_group', tpl.age_group);
-				            setRichHtml('draw_task_description', tpl.description_html);
-				            setRichHtml('draw_task_coaching_points', tpl.coaching_html);
-				            setRichHtml('draw_task_confrontation_rules', tpl.rules_html);
+				          Array.from(document.querySelectorAll('[data-assistant-template]')).forEach((btn) => {
+				            btn.addEventListener('click', () => {
+				              const key = String(btn.getAttribute('data-assistant-template') || '').trim();
+				              if (key) applyTemplate(key);
+				            });
+				          });
 
-			            if (wantsBoard && tpl.board && Array.isArray(tpl.board.items)) {
-			              try {
-			                window.dispatchEvent(new CustomEvent('webstats:tpad:assistant-board', {
-			                  detail: {
-			                    clear: willClearBoard,
-			                    items: tpl.board.items,
-			                  },
-			                }));
-			              } catch (err) {}
-			            }
+				          // Botones Smart.
+				          const smartBtn = document.getElementById('task-assistant-smart-generate');
+				          const smartSessionBtn = document.getElementById('task-assistant-smart-generate-session');
+				          smartBtn?.addEventListener('click', () => applyTemplate('smart_generate'));
+				          smartSessionBtn?.addEventListener('click', () => {
+				            const templates = buildTemplatesForProgram('smart');
+				            const block = [templates.smart_block_1, templates.smart_block_2, templates.smart_block_3].filter(Boolean);
+				            if (!block.length) return;
+				            const wantsBoard = !!(applyBoardEl && applyBoardEl.checked);
+				            const willClearBoard = !!(clearBoardEl && clearBoardEl.checked);
+				            const confirmMsg = wantsBoard
+				              ? (`Esto rellenará 1 tarea y dejará ${Math.max(0, block.length - 1)} en cola (${willClearBoard ? 'reemplazando' : 'añadiendo'} pizarra). ¿Continuar?`)
+				              : `Esto rellenará 1 tarea y dejará ${Math.max(0, block.length - 1)} en cola. ¿Continuar?`;
+				            const ok = window.confirm(confirmMsg);
+				            if (!ok) return;
+				            applyTpl(block[0], { confirm: false });
+				            setQueueItems(block.slice(1));
+				            updateQueueUi();
+				          });
 
-			            const fichaTab = document.querySelector('#task-side-tabs .side-tab[data-pane="ficha"]');
-			            try { fichaTab?.click(); } catch (err) {}
-			          };
+				          // Auto-aplicar desde cola cuando se abre /nueva con ?assistant_next=1
+				          const bootFromQueue = () => {
+				            try {
+				              const url = new URL(window.location.href);
+				              if (url.searchParams.get('assistant_next') !== '1') return;
+				              const q = readQueue();
+				              const next = q.items.shift();
+				              if (!next) {
+				                updateQueueUi();
+				                return;
+				              }
+				              writeQueue(q);
+				              applyTpl(next, { confirm: false });
+				              updateQueueUi();
+				              try {
+				                url.searchParams.delete('assistant_next');
+				                window.history.replaceState({}, '', url.toString());
+				              } catch (e) { /* ignore */ }
+				            } catch (e) { /* ignore */ }
+				          };
 
-			          Array.from(document.querySelectorAll('[data-assistant-template]')).forEach((btn) => {
-			            btn.addEventListener('click', () => {
-			              const key = String(btn.getAttribute('data-assistant-template') || '').trim();
-			              if (key) applyTemplate(key);
-			            });
-			          });
-
-			          // Botones Smart.
-			          const smartBtn = document.getElementById('task-assistant-smart-generate');
-			          const smartSessionBtn = document.getElementById('task-assistant-smart-generate-session');
-			          smartBtn?.addEventListener('click', () => applyTemplate('smart_generate'));
-			          smartSessionBtn?.addEventListener('click', () => {
-			            // No crea nuevas tareas automáticamente (evita efectos colaterales).
-			            // Genera una tarea “tipo” y deja al usuario duplicar/crear las siguientes.
-			            applyTemplate('smart_generate');
-			            window.alert('Bloque sugerido: duplica esta tarea 2 veces y ajusta cada una (activación / principal / vuelta a la calma).');
-			          });
-			        };
+				          updateQueueUi();
+				          bootFromQueue();
+				        };
 
 		        if (window.initSessionsTacticalPad) window.initSessionsTacticalPad();
 		        initTaskAssistant();
