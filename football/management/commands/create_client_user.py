@@ -1,4 +1,5 @@
 import secrets
+from typing import Optional
 
 from django.contrib.auth.models import User
 from django.core.management.base import BaseCommand
@@ -24,7 +25,7 @@ def _unique_username(base: str) -> str:
     return candidate
 
 
-def _pick_workspace(slug: str | None) -> Workspace | None:
+def _pick_workspace(slug: Optional[str]) -> Optional[Workspace]:
     slug = str(slug or '').strip()
     if slug:
         return Workspace.objects.filter(slug=slug, is_active=True).first()

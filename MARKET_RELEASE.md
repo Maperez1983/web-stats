@@ -37,3 +37,14 @@ Notas:
 - `SUPPORT_EMAIL` o `APP_SUPPORT_EMAIL`: email de soporte que aparecerá en Soporte/Legal.
 - `LEGAL_UPDATED_AT`: fecha legal que se muestra en Privacidad/Términos (ej: `14/04/2026`).
 
+## Cuenta demo para revisión (login obligatorio)
+
+Crear/actualizar usuario + club demo (idempotente):
+
+```bash
+python manage.py create_review_account \
+  --username review.2j \
+  --email review@segundajugada.com
+```
+
+El comando imprimirá una contraseña si no se la pasas.
