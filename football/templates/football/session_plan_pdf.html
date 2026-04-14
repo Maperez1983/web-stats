@@ -60,6 +60,23 @@
         border-bottom: 1px solid #b8c0cc;
         padding: 14px 16px;
       }
+      .crest-badge {
+        width: 62px;
+        height: 62px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.92);
+        padding: 4px;
+        border: 1px solid rgba(255,255,255,0.55);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.18);
+        overflow: hidden;
+        line-height: 0;
+      }
+      .crest-badge img {
+        width: 100%;
+        height: 100%;
+        display: block;
+        object-fit: contain;
+      }
       .section-title {
         padding: 7px 12px;
         font-size: 13px;
@@ -364,9 +381,9 @@
 	        <table style="width:100%; border-collapse:collapse;">
 	          <tr>
 	            <td style="width:74px; vertical-align:top;">
-	              <a href="{{ pdf_return_url|default:platform_url }}" style="text-decoration:none; color:inherit;">
-	                <img src="{{ logo_url }}" alt="Escudo {{ team_name }}" style="width:62px; height:62px; object-fit:contain; border-radius:999px; background:linear-gradient(135deg, rgba(255,255,255,0.92), rgba(11,18,32,0.22)); padding:4px; border:1px solid rgba(15,23,42,0.12); box-shadow:0 1px 0 rgba(0,0,0,0.12);" />
-	              </a>
+	              <div class="crest-badge">
+	                <img src="{{ logo_url }}" alt="Escudo {{ team_name }}" />
+	              </div>
 	            </td>
             <td style="vertical-align:top;">
               <div style="font-size:9px; letter-spacing:0.18em; text-transform:uppercase; opacity:0.8;">Planificación de sesión</div>

@@ -1225,6 +1225,22 @@ def _render_pdf_bytes(request, html: str):
         return None
     try:
         def _safe_url_fetcher(url, timeout=4, ssl_context=None):
+            # Soporte explícito para data URLs (evita que el fetcher "seguro"
+            # degrade imágenes embebidas a vacío).
+            try:
+                raw_url = str(url or '').strip()
+                if raw_url.startswith('data:') and ',' in raw_url:
+                    import urllib.parse  # noqa: WPS433
+
+                    header, payload = raw_url.split(',', 1)
+                    mime = header[5:].split(';', 1)[0].strip() or 'application/octet-stream'
+                    if ';base64' in header:
+                        content = base64.b64decode(payload.encode('ascii'))
+                    else:
+                        content = urllib.parse.unquote_to_bytes(payload)
+                    return {'string': content, 'mime_type': mime}
+            except Exception:
+                pass
             try:
                 default_fetcher = getattr(weasyprint, 'default_url_fetcher', None)
                 if callable(default_fetcher):
@@ -1277,6 +1293,21 @@ def _render_pdf_bytes_with_error(request, html: str):
         return None, f'pydyf incompatible ({pydyf_version}); requires 0.10.x for weasyprint 57.x'
     try:
         def _safe_url_fetcher(url, timeout=4, ssl_context=None):
+            # Soporte explícito para data URLs (escudos, previews, SVGs embebidos).
+            try:
+                raw_url = str(url or '').strip()
+                if raw_url.startswith('data:') and ',' in raw_url:
+                    import urllib.parse  # noqa: WPS433
+
+                    header, payload = raw_url.split(',', 1)
+                    mime = header[5:].split(';', 1)[0].strip() or 'application/octet-stream'
+                    if ';base64' in header:
+                        content = base64.b64decode(payload.encode('ascii'))
+                    else:
+                        content = urllib.parse.unquote_to_bytes(payload)
+                    return {'string': content, 'mime_type': mime}
+            except Exception:
+                pass
             try:
                 default_fetcher = getattr(weasyprint, 'default_url_fetcher', None)
                 if callable(default_fetcher):
@@ -12077,7 +12108,7 @@ def share_convocation_pdf_page(request, token):
             except Exception:
                 pass
         if team_obj and _is_benagalbon_team(team_obj):
-            local_primary = static_base_dir / 'football' / 'images' / 'cdb-benagalbon-crest-contrast.png'
+            local_primary = static_base_dir / 'football' / 'images' / 'cdb-benagalbon-crest-pdf.png'
             data_uri = _image_file_as_small_data_uri(local_primary, max_width=220, max_height=220, quality=72)
             if data_uri:
                 return data_uri
@@ -13733,7 +13764,7 @@ def match_report_pdf(request):
                 pass
         if team_obj and _is_benagalbon_team(team_obj):
             static_base_dir = Path(settings.BASE_DIR) / 'static'
-            local_primary = static_base_dir / 'football' / 'images' / 'cdb-benagalbon-crest-contrast.png'
+            local_primary = static_base_dir / 'football' / 'images' / 'cdb-benagalbon-crest-pdf.png'
             data_uri = _image_file_as_small_data_uri(local_primary, max_width=220, max_height=220, quality=72)
             if data_uri:
                 return data_uri
@@ -14298,7 +14329,7 @@ def convocation_pdf(request):
 
         # Escudo local Benagalbón (estable).
         if team_obj and _is_benagalbon_team(team_obj):
-            local_primary = static_base_dir / 'football' / 'images' / 'cdb-benagalbon-crest-contrast.png'
+            local_primary = static_base_dir / 'football' / 'images' / 'cdb-benagalbon-crest-pdf.png'
             data_uri = _image_file_as_small_data_uri(local_primary, max_width=220, max_height=220, quality=72)
             if data_uri:
                 return data_uri
@@ -14704,7 +14735,7 @@ def convocation_referee_pdf(request):
                 pass
         if team_obj and _is_benagalbon_team(team_obj):
             static_base_dir = Path(settings.BASE_DIR) / 'static'
-            local_primary = static_base_dir / 'football' / 'images' / 'cdb-benagalbon-crest-contrast.png'
+            local_primary = static_base_dir / 'football' / 'images' / 'cdb-benagalbon-crest-pdf.png'
             data_uri = _image_file_as_small_data_uri(local_primary, max_width=220, max_height=220, quality=72)
             if data_uri:
                 return data_uri
@@ -15563,18 +15594,40 @@ def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
     primary_club_team = _get_primary_team_for_request(request) or Team.objects.filter(is_primary=True).first()
     club_logo_url = resolve_team_crest_url(request, primary_club_team, sync=True) if primary_club_team else ''
     # Para PDF "club" preferimos un escudo embebido (data URL) para evitar fallos de fetch/red en WeasyPrint.
+    def _small_png_data_url(raw_bytes: bytes, *, max_side: int = 220) -> str:
+        try:
+            from io import BytesIO  # noqa: WPS433
+            from PIL import Image  # noqa: WPS433
+
+            bio = BytesIO(raw_bytes or b"")
+            img = Image.open(bio)
+            img = img.convert("RGBA")
+            img.thumbnail((max_side, max_side))
+            out = BytesIO()
+            img.save(out, format="PNG", optimize=True)
+            payload = base64.b64encode(out.getvalue()).decode("ascii")
+            return "data:image/png;base64," + payload
+        except Exception:
+            return ''
     team_logo_url = ''
     try:
         if getattr(team, 'crest_image', None):
             team_logo_url = _file_field_as_data_url(getattr(team, 'crest_image', None)) or ''
+            if team_logo_url.startswith('data:image/') and ';base64,' in team_logo_url:
+                try:
+                    header, payload = team_logo_url.split(';base64,', 1)
+                    raw = base64.b64decode(payload.encode('ascii'))
+                    team_logo_url = _small_png_data_url(raw, max_side=220) or team_logo_url
+                except Exception:
+                    pass
     except Exception:
         team_logo_url = ''
     if not team_logo_url and _is_benagalbon_team(team):
         try:
-            crest_path = Path(getattr(settings, 'BASE_DIR', Path.cwd())) / 'static' / 'football' / 'images' / 'cdb-benagalbon-crest-contrast.png'
+            crest_path = Path(getattr(settings, 'BASE_DIR', Path.cwd())) / 'static' / 'football' / 'images' / 'cdb-benagalbon-crest-pdf.png'
             raw = crest_path.read_bytes()
             if raw:
-                team_logo_url = "data:image/png;base64," + base64.b64encode(raw).decode("ascii")
+                team_logo_url = _small_png_data_url(raw, max_side=220) or ("data:image/png;base64," + base64.b64encode(raw).decode("ascii"))
         except Exception:
             team_logo_url = ''
     if not team_logo_url:
@@ -15595,7 +15648,22 @@ def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
             team_logo_url = "data:image/svg+xml;base64," + base64.b64encode(crest_svg.encode("utf-8")).decode("ascii")
         except Exception:
             team_logo_url = ''
-    uefa_badge_url = request.build_absolute_uri(static('football/images/uefa-badge.svg'))
+    def _static_data_url(static_path: str, mime: str) -> str:
+        try:
+            from django.contrib.staticfiles import finders  # noqa: WPS433
+
+            disk_path = finders.find(static_path)
+            if not disk_path:
+                return ''
+            raw = Path(disk_path).read_bytes()
+            if not raw:
+                return ''
+            return f"data:{mime};base64," + base64.b64encode(raw).decode("ascii")
+        except Exception:
+            return ''
+
+    uefa_badge_url = _static_data_url('football/images/uefa-badge.svg', 'image/svg+xml') or request.build_absolute_uri(static('football/images/uefa-badge.svg'))
+    brand_mark_data_url = _static_data_url('football/images/2j-mark.svg', 'image/svg+xml')
     task_sheets = [_build_session_task_sheet(task) for task in tasks]
 
     def _task_preview_data_url_for_pdf(task):
@@ -15691,7 +15759,7 @@ def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
         'pdf_palette': _team_pdf_palette(team, pdf_style),
         'coach_name': coach_name,
         'logo_url': team_logo_url if pdf_style == 'club' else uefa_badge_url,
-        'brand_mark_url': request.build_absolute_uri(static('football/images/2j-mark.svg')),
+        'brand_mark_url': brand_mark_data_url or request.build_absolute_uri(static('football/images/2j-mark.svg')),
         'club_logo_url': club_logo_url,
         'generated_at': timezone.localtime(),
         'intensity_label': dict(TrainingSession.INTENSITY_CHOICES).get(session.intensity, session.intensity or '-'),
