@@ -158,8 +158,14 @@
 
         <button class="pill-button" type="submit">Crear</button>
         <a class="ghost-link" href="{% url 'login' %}">Ya tengo cuenta</a>
+        <p style="margin-top:0.75rem;color:rgba(145,161,185,0.82);font-size:0.72rem;line-height:1.4;">
+          Al crear la cuenta aceptas los
+          <a href="{% url 'terms-page' %}" style="color:rgba(244,180,0,0.95);text-decoration:none;">términos</a>
+          y la
+          <a href="{% url 'privacy-policy' %}" style="color:rgba(244,180,0,0.95);text-decoration:none;">política de privacidad</a>.
+          Soporte: <a href="{% url 'support-page' %}" style="color:rgba(244,180,0,0.95);text-decoration:none;">contacto</a>.
+        </p>
       </form>
     </main>
   </body>
 </html>
-

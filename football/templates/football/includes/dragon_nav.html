@@ -107,7 +107,14 @@
       {% endif %}
       {% if is_admin_user %}
       <a href="{% url 'platform-overview' %}">Platform</a>
-  {% endif %}
+      {% endif %}
+      <div class="nav-more-subtitle">Cuenta</div>
+      {% if request.user.is_authenticated %}
+      <a href="{% url 'account-page' %}">Cuenta</a>
+      {% endif %}
+      <a href="{% url 'support-page' %}">Soporte</a>
+      <a href="{% url 'privacy-policy' %}">Privacidad</a>
+      <a href="{% url 'terms-page' %}">Términos</a>
     </div>
   </details>
   {% endwith %}
@@ -424,6 +431,10 @@
   {"label":"Alta jugador","url":"{% url 'coach-roster' %}?tab=manage{% if active_team %}&team={{ active_team.id }}{% endif %}","keywords":"alta jugador crear"},
   {"label":"Staff","url":"{% url 'staff-directory' %}{% if active_team %}?team={{ active_team.id }}{% endif %}","keywords":"staff cuerpo tecnico"},
   {"label":"Ajustes club","url":"{% url 'club-onboarding' %}{% if active_team %}?team={{ active_team.id }}{% endif %}","keywords":"ajustes onboarding club configuracion"},
+  {"label":"Cuenta","url":"{% url 'account-page' %}","keywords":"cuenta perfil eliminar"},
+  {"label":"Soporte","url":"{% url 'support-page' %}","keywords":"soporte ayuda contact"},
+  {"label":"Privacidad","url":"{% url 'privacy-policy' %}","keywords":"privacidad legal policy"},
+  {"label":"Términos","url":"{% url 'terms-page' %}","keywords":"terminos legal terms"},
   {"label":"Admin","url":"{% url 'admin-page' %}?tab=teams","keywords":"admin equipos operativa"},
   {"label":"Platform","url":"{% url 'platform-overview' %}","keywords":"platform clientes"}
   {% if is_admin_user and active_workspace_options %}

@@ -1,0 +1,94 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <title>Soporte · 2J</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background:
+          radial-gradient(circle at 8% -12%, rgba(244, 180, 0, 0.12), transparent 38%),
+          radial-gradient(circle at 95% 0%, rgba(70, 211, 255, 0.14), transparent 38%),
+          linear-gradient(180deg, #03070f 0%, #081120 55%, #0a1427 100%);
+        color: rgba(245, 247, 250, 0.92);
+        font-family: "Avenir Next", "Segoe UI", sans-serif;
+      }
+      .shell { max-width: 980px; margin: 0 auto; padding: 1.2rem; }
+      .panel {
+        margin-top: 0.9rem;
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(7, 16, 30, 0.78);
+        box-shadow: 0 20px 44px rgba(0, 0, 0, 0.35);
+        padding: 1rem;
+      }
+      h1 { margin: 0; font-size: 1rem; letter-spacing: 0.14em; text-transform: uppercase; }
+      p { color: rgba(226, 232, 240, 0.82); line-height: 1.55; }
+      a { color: rgba(244, 180, 0, 0.95); text-decoration: none; }
+      a:hover { text-decoration: underline; }
+      .muted { color: rgba(148, 163, 184, 0.75); font-size: 0.85rem; }
+      .toplinks { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.7rem; }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        border-radius: 999px;
+        padding: 0.45rem 0.75rem;
+        border: 1px solid rgba(244, 180, 0, 0.18);
+        background: rgba(15, 23, 42, 0.62);
+        color: rgba(245, 247, 250, 0.92);
+        font-weight: 900;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        font-size: 0.68rem;
+      }
+      .pill:hover { border-color: rgba(244, 180, 0, 0.45); }
+      .box {
+        border-radius: 14px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(255,255,255,0.03);
+        padding: 0.85rem 0.9rem;
+        margin-top: 0.9rem;
+      }
+      code { color: rgba(226, 232, 240, 0.92); }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <div class="panel">
+        <h1>Soporte</h1>
+        <p class="muted">Build: {{ static_build_id|default:"prod" }}</p>
+        <div class="toplinks">
+          <a class="pill" href="{% url 'privacy-policy' %}">Privacidad</a>
+          <a class="pill" href="{% url 'terms-page' %}">Términos</a>
+          {% if request.user.is_authenticated %}
+          <a class="pill" href="{% url 'account-page' %}">Cuenta</a>
+          {% endif %}
+        </div>
+
+        <div class="box">
+          <p>
+            Escríbenos a <a href="mailto:{{ support_email }}">{{ support_email }}</a>.
+          </p>
+          <p>
+            Si reportas un error, incluye:
+          </p>
+          <ul>
+            <li>Dispositivo (iPad/iPhone/Android) y versión.</li>
+            <li>Qué estabas haciendo y en qué pantalla.</li>
+            <li>Captura de pantalla del error.</li>
+            <li>Build: <code>{{ static_build_id|default:"prod" }}</code></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
+

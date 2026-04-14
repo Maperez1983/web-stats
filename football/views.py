@@ -29,7 +29,7 @@ from urllib.parse import quote, urlparse, parse_qs
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
-from django.contrib.auth import login as auth_login, update_session_auth_hash
+from django.contrib.auth import login as auth_login, update_session_auth_hash, logout as auth_logout
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.hashers import make_password, check_password
 from django.core.cache import cache
@@ -1677,6 +1677,94 @@ def product_landing_page(request):
             ],
         },
     )
+
+
+def _support_email():
+    return (str(os.getenv('SUPPORT_EMAIL') or os.getenv('APP_SUPPORT_EMAIL') or '').strip() or 'soporte@segundajugada.es').strip()
+
+
+def privacy_policy_page(request):
+    updated_at = (str(os.getenv('LEGAL_UPDATED_AT') or '').strip() or timezone.now().date().strftime('%d/%m/%Y'))
+    return render(
+        request,
+        'football/legal_privacy.html',
+        {
+            'updated_at': updated_at,
+            'support_email': _support_email(),
+        },
+    )
+
+
+def terms_page(request):
+    updated_at = (str(os.getenv('LEGAL_UPDATED_AT') or '').strip() or timezone.now().date().strftime('%d/%m/%Y'))
+    return render(
+        request,
+        'football/legal_terms.html',
+        {
+            'updated_at': updated_at,
+            'support_email': _support_email(),
+        },
+    )
+
+
+def support_page(request):
+    return render(
+        request,
+        'football/support.html',
+        {
+            'support_email': _support_email(),
+        },
+    )
+
+
+@login_required
+def account_page(request):
+    return render(
+        request,
+        'football/account.html',
+        {
+            'support_email': _support_email(),
+            'deleted_ok': str(request.GET.get('deleted') or '').strip() in {'1', 'true', 'yes', 'ok'},
+        },
+    )
+
+
+@login_required
+@require_POST
+def account_delete(request):
+    user = request.user
+    if not user or not getattr(user, 'id', None):
+        return JsonResponse({'error': 'No autorizado'}, status=403)
+
+    user_id = int(user.id)
+    token = uuid.uuid4().hex[:6]
+    new_username = f'deleted-{user_id}-{token}'
+    try:
+        if User.objects.filter(username=new_username).exists():
+            new_username = f'deleted-{user_id}-{uuid.uuid4().hex[:10]}'
+    except Exception:
+        pass
+
+    try:
+        user.username = new_username
+        user.email = ''
+        user.first_name = ''
+        user.last_name = ''
+        user.is_active = False
+        try:
+            user.set_unusable_password()
+        except Exception:
+            pass
+        user.save()
+    except Exception as exc:
+        logger.exception('No se pudo desactivar la cuenta %s', user_id)
+        return JsonResponse({'error': str(exc) or 'No se pudo eliminar la cuenta.'}, status=500)
+
+    try:
+        auth_logout(request)
+    except Exception:
+        pass
+    return redirect(f"{reverse('login')}?deleted=1")
 
 
 def save_player_photo(player, uploaded_photo):

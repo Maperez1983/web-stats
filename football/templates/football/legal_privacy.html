@@ -1,0 +1,129 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <title>Política de privacidad · 2J</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background:
+          radial-gradient(circle at 8% -12%, rgba(244, 180, 0, 0.12), transparent 38%),
+          radial-gradient(circle at 95% 0%, rgba(70, 211, 255, 0.14), transparent 38%),
+          linear-gradient(180deg, #03070f 0%, #081120 55%, #0a1427 100%);
+        color: rgba(245, 247, 250, 0.92);
+        font-family: "Avenir Next", "Segoe UI", sans-serif;
+      }
+      .shell { max-width: 980px; margin: 0 auto; padding: 1.2rem; }
+      .panel {
+        margin-top: 0.9rem;
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(7, 16, 30, 0.78);
+        box-shadow: 0 20px 44px rgba(0, 0, 0, 0.35);
+        padding: 1rem;
+      }
+      h1 {
+        margin: 0;
+        font-size: 1rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      h2 {
+        margin: 1.1rem 0 0.35rem;
+        font-size: 0.82rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      p, li { color: rgba(226, 232, 240, 0.82); line-height: 1.55; }
+      a { color: rgba(244, 180, 0, 0.95); text-decoration: none; }
+      a:hover { text-decoration: underline; }
+      .muted { color: rgba(148, 163, 184, 0.75); font-size: 0.85rem; }
+      .toplinks { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.7rem; }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        border-radius: 999px;
+        padding: 0.45rem 0.75rem;
+        border: 1px solid rgba(244, 180, 0, 0.18);
+        background: rgba(15, 23, 42, 0.62);
+        color: rgba(245, 247, 250, 0.92);
+        font-weight: 900;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        font-size: 0.68rem;
+      }
+      .pill:hover { border-color: rgba(244, 180, 0, 0.45); }
+      .legal-box {
+        border-radius: 14px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(255,255,255,0.03);
+        padding: 0.85rem 0.9rem;
+        margin-top: 0.9rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <div class="panel">
+        <h1>Política de privacidad</h1>
+        <p class="muted">Última actualización: {{ updated_at }}</p>
+        <div class="toplinks">
+          <a class="pill" href="{% url 'support-page' %}">Soporte</a>
+          <a class="pill" href="{% url 'terms-page' %}">Términos</a>
+          {% if request.user.is_authenticated %}
+          <a class="pill" href="{% url 'account-page' %}">Cuenta</a>
+          {% endif %}
+        </div>
+
+        <div class="legal-box">
+          <p>
+            Este texto es un borrador operativo para publicar en App Store / Google Play. Antes de enviar a revisión,
+            revisa y completa los apartados con tus datos legales (responsable, dirección, DPO si aplica) y confirma
+            el tratamiento de datos que realmente realiza la app.
+          </p>
+        </div>
+
+        <h2>Qué datos tratamos</h2>
+        <ul>
+          <li>Cuenta: usuario, email, credenciales de acceso.</li>
+          <li>Datos deportivos: clubes, equipos, jugadores, sesiones, partidos y estadísticas.</li>
+          <li>Archivos que subas: fotos y documentos (p. ej. licencias federativas).</li>
+          <li>Datos técnicos: logs y métricas para diagnóstico (sin incluir contraseñas).</li>
+        </ul>
+
+        <h2>Finalidad</h2>
+        <ul>
+          <li>Prestar el servicio y permitir el acceso a los módulos.</li>
+          <li>Generar informes/PDFs deportivos.</li>
+          <li>Mejorar la estabilidad y seguridad del sistema.</li>
+        </ul>
+
+        <h2>Conservación</h2>
+        <p>
+          Conservamos la información mientras exista la cuenta o sea necesario para la prestación del servicio.
+          Puedes solicitar la baja desde la propia app.
+        </p>
+
+        <h2>Derechos</h2>
+        <p>
+          Puedes acceder, rectificar o solicitar la supresión de tus datos. Para incidencias o solicitudes, contacta en
+          <a href="mailto:{{ support_email }}">{{ support_email }}</a>.
+        </p>
+
+        <h2>Contacto</h2>
+        <p>
+          Soporte: <a href="mailto:{{ support_email }}">{{ support_email }}</a>
+        </p>
+      </div>
+    </div>
+  </body>
+</html>
+

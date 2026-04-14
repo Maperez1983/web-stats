@@ -158,6 +158,11 @@
       {% if form.errors %}
       <p class="error">Credenciales inválidas o usuario sin permisos de acceso.</p>
       {% endif %}
+      {% if request.GET.deleted %}
+      <p class="error" style="border-color: rgba(34,197,94,0.35); background: rgba(34,197,94,0.12); color: rgba(220,252,231,0.95);">
+        Cuenta desactivada correctamente.
+      </p>
+      {% endif %}
 
       <form method="post">
         {% csrf_token %}
@@ -193,6 +198,11 @@
         <a class="ghost-link" href="{% url 'signup' %}">Crear cuenta</a>
         {% endif %}
         <a class="ghost-link" href="{% url 'product-landing' %}">Conocer 2J</a>
+        <div style="display:flex;gap:0.5rem;justify-content:center;flex-wrap:wrap;margin-top:0.9rem;">
+          <a class="ghost-link" style="width:auto;padding:0.55rem 0.75rem;font-size:0.68rem;" href="{% url 'privacy-policy' %}">Privacidad</a>
+          <a class="ghost-link" style="width:auto;padding:0.55rem 0.75rem;font-size:0.68rem;" href="{% url 'terms-page' %}">Términos</a>
+          <a class="ghost-link" style="width:auto;padding:0.55rem 0.75rem;font-size:0.68rem;" href="{% url 'support-page' %}">Soporte</a>
+        </div>
       </form>
 
       <p style="margin-top:0.9rem;color:rgba(145,161,185,0.8);font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;">
