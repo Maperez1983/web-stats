@@ -214,7 +214,7 @@ def render_task_preview_png(
     html, body {{
       margin: 0;
       padding: 0;
-      background: #ffffff;
+      background: #2f7d32;
       width: 100%;
       height: 100%;
       overflow: hidden;
@@ -224,7 +224,7 @@ def render_task_preview_png(
       width: 100vw;
       height: 100vh;
       overflow: hidden;
-      background: #ffffff;
+      background: #2f7d32;
     }}
     #pitch {{
       position: absolute;

@@ -5686,7 +5686,7 @@ def resolve_team_crest_url(request, team, *, fallback_static='football/images/cd
     # Para el equipo principal, usar un escudo local estable si no hay imagen subida.
     if _is_benagalbon_team(team):
         try:
-            local_primary = 'football/images/cdb-benagalbon-crest.png'
+            local_primary = 'football/images/cdb-benagalbon-crest-contrast.png'
             return request.build_absolute_uri(static(local_primary)) if request else static(local_primary)
         except Exception:
             pass
@@ -12077,7 +12077,7 @@ def share_convocation_pdf_page(request, token):
             except Exception:
                 pass
         if team_obj and _is_benagalbon_team(team_obj):
-            local_primary = static_base_dir / 'football' / 'images' / 'cdb-benagalbon-crest.png'
+            local_primary = static_base_dir / 'football' / 'images' / 'cdb-benagalbon-crest-contrast.png'
             data_uri = _image_file_as_small_data_uri(local_primary, max_width=220, max_height=220, quality=72)
             if data_uri:
                 return data_uri
@@ -13733,7 +13733,7 @@ def match_report_pdf(request):
                 pass
         if team_obj and _is_benagalbon_team(team_obj):
             static_base_dir = Path(settings.BASE_DIR) / 'static'
-            local_primary = static_base_dir / 'football' / 'images' / 'cdb-benagalbon-crest.png'
+            local_primary = static_base_dir / 'football' / 'images' / 'cdb-benagalbon-crest-contrast.png'
             data_uri = _image_file_as_small_data_uri(local_primary, max_width=220, max_height=220, quality=72)
             if data_uri:
                 return data_uri
@@ -14298,7 +14298,7 @@ def convocation_pdf(request):
 
         # Escudo local Benagalbón (estable).
         if team_obj and _is_benagalbon_team(team_obj):
-            local_primary = static_base_dir / 'football' / 'images' / 'cdb-benagalbon-crest.png'
+            local_primary = static_base_dir / 'football' / 'images' / 'cdb-benagalbon-crest-contrast.png'
             data_uri = _image_file_as_small_data_uri(local_primary, max_width=220, max_height=220, quality=72)
             if data_uri:
                 return data_uri
@@ -14704,7 +14704,7 @@ def convocation_referee_pdf(request):
                 pass
         if team_obj and _is_benagalbon_team(team_obj):
             static_base_dir = Path(settings.BASE_DIR) / 'static'
-            local_primary = static_base_dir / 'football' / 'images' / 'cdb-benagalbon-crest.png'
+            local_primary = static_base_dir / 'football' / 'images' / 'cdb-benagalbon-crest-contrast.png'
             data_uri = _image_file_as_small_data_uri(local_primary, max_width=220, max_height=220, quality=72)
             if data_uri:
                 return data_uri
@@ -15571,7 +15571,7 @@ def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
         team_logo_url = ''
     if not team_logo_url and _is_benagalbon_team(team):
         try:
-            crest_path = Path(getattr(settings, 'BASE_DIR', Path.cwd())) / 'static' / 'football' / 'images' / 'cdb-benagalbon-crest.png'
+            crest_path = Path(getattr(settings, 'BASE_DIR', Path.cwd())) / 'static' / 'football' / 'images' / 'cdb-benagalbon-crest-contrast.png'
             raw = crest_path.read_bytes()
             if raw:
                 team_logo_url = "data:image/png;base64," + base64.b64encode(raw).decode("ascii")
@@ -15615,10 +15615,8 @@ def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
                 pitch_grass_style = str(meta.get('pitch_grass_style') or 'classic').strip().lower()
                 if pitch_grass_style not in {'classic', 'realistic'}:
                     pitch_grass_style = 'classic'
-                try:
-                    pitch_zoom = float(str(meta.get('pitch_zoom') or '1.0').strip())
-                except Exception:
-                    pitch_zoom = 1.0
+                # En PDF no queremos recortes por zoom: forzamos a 1.0.
+                pitch_zoom = 1.0
                 canvas_width = max(320, min(_parse_int(graphic.get('canvas_width')) or 1280, 3840))
                 canvas_height = max(180, min(_parse_int(graphic.get('canvas_height')) or 720, 2160))
                 png_bytes = render_task_preview_png(

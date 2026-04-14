@@ -2546,7 +2546,7 @@
 	        }
 	
 	        const scheduleSave = debounce(() => saveDraft(readValues()), 450);
-	        const scheduleServerSave = debounce(() => { void saveServer(); }, 1100);
+	        const scheduleServerSave = debounce(() => { void saveServer(); }, 650);
 	        fields.forEach((el) => el.addEventListener('input', scheduleSave));
 	        fields.forEach((el) => el.addEventListener('input', scheduleServerSave));
 	
@@ -2561,7 +2561,14 @@
 	        } catch (e) {}
 	        form.addEventListener('submit', () => clearDraft());
 	        window.addEventListener('beforeunload', () => {
-	          saveDraft(readValues());
+	          try { saveDraft(readValues()); } catch (e) {}
+	          try {
+	            if (navigator.sendBeacon) {
+	              const payload = new FormData(form);
+	              payload.set('ajax', '1');
+	              navigator.sendBeacon(postUrl, payload);
+	            }
+	          } catch (e) {}
 	        });
 	      })();
 	    </script>
