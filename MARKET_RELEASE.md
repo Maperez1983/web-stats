@@ -34,8 +34,12 @@ Notas:
 
 ## Valores a definir (rellenar)
 
-- `SUPPORT_EMAIL` o `APP_SUPPORT_EMAIL`: email de soporte que aparecerá en Soporte/Legal.
+- `SUPPORT_EMAIL` o `APP_SUPPORT_EMAIL`: email de soporte que aparecerá en Soporte/Legal (ej: `soporte@segundajugada.es`).
 - `LEGAL_UPDATED_AT`: fecha legal que se muestra en Privacidad/Términos (ej: `14/04/2026`).
+- `LEGAL_OWNER_NAME`: responsable (ej: `Miguel Ángel Pérez Rodríguez`).
+- `LEGAL_OWNER_TAX_ID`: NIF/CIF (ej: `74871983Z`).
+- `LEGAL_OWNER_ADDRESS` (opcional): domicilio fiscal.
+- `LEGAL_OWNER_WEBSITE` (opcional): web (ej: `https://segundajugada.com`).
 
 ## Cuenta demo para revisión (login obligatorio)
 

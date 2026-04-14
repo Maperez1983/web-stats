@@ -1683,26 +1683,43 @@ def _support_email():
     return (str(os.getenv('SUPPORT_EMAIL') or os.getenv('APP_SUPPORT_EMAIL') or '').strip() or 'soporte@segundajugada.es').strip()
 
 
+def _legal_owner():
+    """
+    Datos legales mínimos para publicar en stores.
+    Se pueden sobrescribir por variables de entorno (recomendado en producción).
+    """
+    return {
+        'name': (str(os.getenv('LEGAL_OWNER_NAME') or '').strip() or 'Miguel Ángel Pérez Rodríguez'),
+        'tax_id': (str(os.getenv('LEGAL_OWNER_TAX_ID') or '').strip() or '74871983Z'),
+        'address': (str(os.getenv('LEGAL_OWNER_ADDRESS') or '').strip()),
+        'website': (str(os.getenv('LEGAL_OWNER_WEBSITE') or '').strip() or 'https://segundajugada.com'),
+    }
+
+
 def privacy_policy_page(request):
     updated_at = (str(os.getenv('LEGAL_UPDATED_AT') or '').strip() or timezone.now().date().strftime('%d/%m/%Y'))
+    owner = _legal_owner()
     return render(
         request,
         'football/legal_privacy.html',
         {
             'updated_at': updated_at,
             'support_email': _support_email(),
+            'legal_owner': owner,
         },
     )
 
 
 def terms_page(request):
     updated_at = (str(os.getenv('LEGAL_UPDATED_AT') or '').strip() or timezone.now().date().strftime('%d/%m/%Y'))
+    owner = _legal_owner()
     return render(
         request,
         'football/legal_terms.html',
         {
             'updated_at': updated_at,
             'support_email': _support_email(),
+            'legal_owner': owner,
         },
     )
 

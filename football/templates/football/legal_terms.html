@@ -105,8 +105,15 @@
         <p>
           Contacto: <a href="mailto:{{ support_email }}">{{ support_email }}</a>
         </p>
+        {% if legal_owner %}
+        <h2>Responsable</h2>
+        <p>
+          {{ legal_owner.name }}{% if legal_owner.tax_id %} · {{ legal_owner.tax_id }}{% endif %}
+          {% if legal_owner.address %}<br />{{ legal_owner.address }}{% endif %}
+          {% if legal_owner.website %}<br /><a href="{{ legal_owner.website }}">{{ legal_owner.website }}</a>{% endif %}
+        </p>
+        {% endif %}
       </div>
     </div>
   </body>
 </html>
-
