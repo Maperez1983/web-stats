@@ -27,12 +27,15 @@
         justify-content: space-between;
         align-items: flex-start;
         gap: 12px;
+        flex-wrap: wrap;
       }
       .comp {
         display: flex;
         align-items: center;
         gap: 10px;
-        min-width: 220px;
+        /* Evita overflow/cortes en PDF cuando el ancho útil es menor. */
+        min-width: 0;
+        flex: 1 1 240px;
       }
       .comp-badge {
         width: 40px;
@@ -58,6 +61,8 @@
       .duel {
         flex: 1;
         text-align: center;
+        min-width: 0;
+        flex: 2 1 360px;
       }
       .duel-row {
         display: inline-flex;
@@ -124,20 +129,25 @@
       .staff span { color: #475569; }
       .brand {
         text-align: right;
-        min-width: 170px;
+        min-width: 0;
+        flex: 0 1 150px;
+        max-width: 170px;
       }
       .brand strong {
         display: block;
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 900;
-        letter-spacing: 0.06em;
+        letter-spacing: 0.05em;
         text-transform: uppercase;
       }
       .brand span {
         display: block;
         margin-top: 2px;
-        font-size: 10px;
+        font-size: 9px;
         color: #475569;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
       .section-title {
         margin: 10px 0 0;
