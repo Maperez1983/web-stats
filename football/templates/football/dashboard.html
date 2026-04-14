@@ -344,6 +344,64 @@
         letter-spacing: 0.14em;
         text-transform: uppercase;
       }
+      .day-plan {
+        display: grid;
+        gap: 0.65rem;
+        align-content: start;
+      }
+      .day-plan .meta {
+        font-size: 0.78rem;
+        color: rgba(71, 85, 105, 0.95);
+      }
+      .day-plan-items {
+        display: grid;
+        gap: 0.6rem;
+      }
+      .day-plan-item {
+        border-radius: 16px;
+        border: 1px solid var(--paper-line);
+        background: rgba(15, 23, 42, 0.03);
+        padding: 0.75rem 0.8rem;
+      }
+      .day-plan-item strong {
+        display: block;
+        font-size: 0.95rem;
+        letter-spacing: 0.01em;
+      }
+      .day-plan-item span {
+        display: block;
+        margin-top: 0.25rem;
+        color: rgba(71, 85, 105, 0.96);
+        font-size: 0.82rem;
+      }
+      .day-plan-actions {
+        margin-top: 0.55rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+      }
+      .day-plan-actions a {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        padding: 0.38rem 0.8rem;
+        border: 1px solid rgba(15, 23, 42, 0.14);
+        background: rgba(15, 23, 42, 0.04);
+        color: rgba(15, 23, 42, 0.92);
+        text-decoration: none;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-size: 0.68rem;
+      }
+      .day-plan-actions a.primary {
+        border-color: rgba(244, 180, 0, 0.65);
+        background: linear-gradient(135deg, rgba(244, 180, 0, 0.14), rgba(47, 125, 50, 0.10));
+      }
+      .day-plan-actions a:hover {
+        border-color: rgba(15, 23, 42, 0.32);
+      }
 
       .standings table {
         width: 100%;
@@ -697,7 +755,7 @@
 
       <section id="setup-banner" class="setup-banner" hidden></section>
 
-      <section class="main-grid single-column">
+      <section class="main-grid">
         <article class="block standings" id="standings-block">
           <div class="standings-header">
             <h3>Clasificación</h3>
@@ -709,6 +767,12 @@
           <div id="standings-meta" class="meta" style="margin-top:0.35rem;"></div>
           <div id="standings">Cargando clasificación…</div>
         </article>
+
+        <aside class="block day-plan" id="day-plan-block">
+          <h3>Tu día</h3>
+          <div class="meta">Atajos recomendados según partido y entrenos.</div>
+          <div id="day-plan" class="day-plan-items">Cargando…</div>
+        </aside>
       </section>
     </div>
 
@@ -834,6 +898,7 @@
 
           renderStandings(payload.standings, payload.team);
           renderNextMatch(payload.next_match, payload.standings);
+          renderDayPlan(payload);
           const meta = payload.standings_meta || {};
           const metaEl = document.getElementById('standings-meta');
           if (metaEl) {
@@ -1045,6 +1110,83 @@
           <p>${nextMatch.location || 'Campo por confirmar'}</p>
           <p>Posición rival · ${opponentStanding?.rank ?? '-'}</p>
         `;
+      }
+
+      function escapeHtml(value) {
+        return String(value ?? '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+      }
+
+      function renderDayPlan(payload) {
+        const container = document.getElementById('day-plan');
+        if (!container) return;
+        const items = [];
+        const fmtDate = (iso) => {
+          const raw = String(iso || '').trim();
+          const match = raw.match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);
+          if (!match) return raw || 'Fecha por definir';
+          return `${match[3]}/${match[2]}/${match[1]}`;
+        };
+
+        const activeMatch = payload?.active_match || null;
+        if (activeMatch?.id && activeMatch?.url) {
+          items.push(`
+            <div class="day-plan-item">
+              <strong>Partido en curso</strong>
+              <span>Convocatoria · 11 · acciones · PDFs</span>
+              <div class="day-plan-actions">
+                <a class="primary" href="${escapeHtml(activeMatch.url)}">Abrir partido</a>
+                ${activeMatch.stats_url ? `<a href="${escapeHtml(activeMatch.stats_url)}">Ver stats</a>` : ''}
+              </div>
+            </div>
+          `);
+        } else {
+          items.push(`
+            <div class="day-plan-item">
+              <strong>Partido</strong>
+              <span>Convocatoria · 11 · acciones · PDFs</span>
+              <div class="day-plan-actions">
+                <a class="primary" href="{% url 'match-hub' %}">Abrir partido</a>
+              </div>
+            </div>
+          `);
+        }
+
+        const nextSession = payload?.next_session || null;
+        if (nextSession?.id && nextSession?.url) {
+          const focus = escapeHtml(nextSession.focus || 'Sesión');
+          const when = [fmtDate(nextSession.date), (nextSession.time ? String(nextSession.time) : '')].filter(Boolean).join(' · ');
+          const dur = nextSession.duration_minutes ? `${Number(nextSession.duration_minutes)} min` : '';
+          const intensity = String(nextSession.intensity_label || '').trim();
+          const subtitleParts = [when, dur, intensity].filter(Boolean).map((part) => escapeHtml(part));
+          items.push(`
+            <div class="day-plan-item">
+              <strong>${focus}</strong>
+              <span>${subtitleParts.join(' · ')}</span>
+              <div class="day-plan-actions">
+                <a class="primary" href="${escapeHtml(nextSession.url)}">Abrir sesión</a>
+                ${nextSession.pdf_url ? `<a href="${escapeHtml(nextSession.pdf_url)}" target="_blank" rel="noreferrer">PDF</a>` : ''}
+              </div>
+            </div>
+          `);
+        } else {
+          items.push(`
+            <div class="day-plan-item">
+              <strong>Entreno</strong>
+              <span>No hay sesiones planificadas todavía.</span>
+              <div class="day-plan-actions">
+                <a class="primary" href="{% url 'sessions' %}">Ir a entrenos</a>
+                <a href="{% url 'sessions-task-create' %}">Crear tarea</a>
+              </div>
+            </div>
+          `);
+        }
+
+        container.innerHTML = items.join('') || '<div class="product-empty">Sin datos.</div>';
       }
 
       function getCookie(name) {

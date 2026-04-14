@@ -11,7 +11,7 @@ from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.http import HttpResponse
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 from django.urls import reverse
 from django.utils import timezone
 
@@ -158,6 +158,71 @@ class DashboardSetupModeTests(TestCase):
         self.assertEqual(payload.get('team', {}).get('name'), 'PRUEBA')
         self.assertIn('player-avatar.svg', payload.get('team', {}).get('crest_url', ''))
         self.assertNotEqual(payload.get('team', {}).get('name'), self.primary_global_team.name)
+
+
+class DashboardDayPlanPayloadTests(TransactionTestCase):
+    def setUp(self):
+        cache.clear()
+        self.team = Team.objects.create(
+            name='Benagalbón',
+            slug='benagalbon-pre',
+            short_name='Benagalbón',
+            category='prebenjamin',
+            game_format=Team.GAME_FORMAT_F7,
+        )
+        self.user = get_user_model().objects.create_user(
+            username='coach-dayplan',
+            email='coach-dayplan@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_COACH)
+        self.workspace = Workspace.objects.create(
+            name='BENAGALBON',
+            slug='benagalbon',
+            kind=Workspace.KIND_CLUB,
+            is_active=True,
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.user,
+            role=WorkspaceMembership.ROLE_OWNER,
+        )
+        WorkspaceTeam.objects.create(
+            workspace=self.workspace,
+            team=self.team,
+            is_default=True,
+        )
+
+    def test_dashboard_data_includes_next_session_when_planned_session_exists(self):
+        today = timezone.localdate()
+        microcycle = TrainingMicrocycle.objects.create(
+            team=self.team,
+            title='Microciclo',
+            objective='',
+            week_start=today,
+            week_end=today + timedelta(days=6),
+            status=TrainingMicrocycle.STATUS_DRAFT,
+        )
+        session = TrainingSession.objects.create(
+            microcycle=microcycle,
+            session_date=today + timedelta(days=1),
+            duration_minutes=90,
+            intensity=TrainingSession.INTENSITY_LOW,
+            focus='Sesión test',
+            status=TrainingSession.STATUS_PLANNED,
+        )
+        self.assertEqual(TrainingSession.objects.filter(microcycle__team=self.team).count(), 1)
+
+        self.client.force_login(self.user)
+        response = self.client.get(
+            f"{reverse('dashboard-data')}?workspace={self.workspace.id}&team={self.team.id}&fresh=1",
+            secure=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn('next_session', payload)
+        self.assertEqual(payload['next_session']['id'], session.id)
+        self.assertEqual(payload['next_session']['focus'], 'Sesión test')
 
 
 class CommercialIsolationTests(TestCase):

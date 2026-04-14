@@ -1893,8 +1893,14 @@ def _maybe_link_staff_member_to_user(workspace, user_obj, *, preferred_team=None
         existing = StaffMember.objects.filter(workspace=workspace, user=user_obj).first()
         if existing:
             return existing
-    except Exception:
-        pass
+    except Exception as exc:
+        try:
+            from django.conf import settings  # noqa: WPS433 (lazy import)
+
+            if getattr(settings, 'DEBUG', False):
+                payload['debug_dayplan_error'] = str(exc.__class__.__name__) + ': ' + str(exc)
+        except Exception:
+            pass
 
     email = _normalize_staff_email(getattr(user_obj, 'email', '') or '')
     base_qs = StaffMember.objects.filter(workspace=workspace, user__isnull=True)
@@ -8045,6 +8051,8 @@ def dashboard_data(request):
                     fix_url = reverse('admin-page') + '?tab=teams'
                 payload = {
                     'team': {
+                        'id': int(getattr(primary_team, 'id', 0) or 0),
+                        'slug': str(getattr(primary_team, 'slug', '') or '').strip(),
                         'name': primary_team.name,
                         'group': '',
                         'competition': '',
@@ -8073,6 +8081,48 @@ def dashboard_data(request):
                     ),
                     'setup_action_label': 'Arreglar ahora',
                 }
+                # En este modo guardrail también mostramos "Tu día" para no bloquear el trabajo diario.
+                try:
+                    today = timezone.localdate()
+                    next_session = (
+                        TrainingSession.objects
+                        .select_related('microcycle')
+                        .filter(microcycle__team=primary_team, session_date__gte=today)
+                        .exclude(status=TrainingSession.STATUS_CANCELED)
+                        .order_by('session_date', 'start_time', 'order', 'id')
+                        .first()
+                    ) or (
+                        TrainingSession.objects
+                        .select_related('microcycle')
+                        .filter(microcycle__team=primary_team)
+                        .exclude(status=TrainingSession.STATUS_CANCELED)
+                        .order_by('-session_date', '-id')
+                        .first()
+                    )
+                    if next_session:
+                        payload['next_session'] = {
+                            'id': int(next_session.id),
+                            'focus': str(getattr(next_session, 'focus', '') or '').strip(),
+                            'date': next_session.session_date.isoformat() if getattr(next_session, 'session_date', None) else '',
+                            'time': next_session.start_time.strftime('%H:%M') if getattr(next_session, 'start_time', None) else '',
+                            'duration_minutes': int(getattr(next_session, 'duration_minutes', 0) or 0),
+                            'intensity': str(getattr(next_session, 'intensity', '') or '').strip(),
+                            'intensity_label': str(getattr(next_session, 'get_intensity_display', lambda: '')() or '').strip(),
+                            'url': f"{reverse('sessions')}?tab=sessions&session_id={int(next_session.id)}",
+                            'pdf_url': reverse('session-plan-pdf', args=[int(next_session.id)]),
+                        }
+                except Exception:
+                    pass
+                try:
+                    active_match_guardrail = get_active_match(primary_team)
+                except Exception:
+                    active_match_guardrail = None
+                if active_match_guardrail:
+                    payload['active_match'] = {
+                        'id': int(active_match_guardrail.id),
+                        'url': f"{reverse('match-hub')}?match_id={int(active_match_guardrail.id)}",
+                        'stats_url': reverse('match-stats', args=[int(active_match_guardrail.id)]),
+                    }
                 return JsonResponse(payload)
     except Exception:
         pass
@@ -8084,6 +8134,8 @@ def dashboard_data(request):
         player_cards = compute_player_cards(primary_team)
         payload = {
             'team': {
+                'id': int(getattr(primary_team, 'id', 0) or 0),
+                'slug': str(getattr(primary_team, 'slug', '') or '').strip(),
                 'name': primary_team.name,
                 'group': '',
                 'competition': '',
@@ -8104,6 +8156,48 @@ def dashboard_data(request):
             'player_cards': player_cards,
             'player_cards_scope': {'type': 'global', 'label': 'Jugador · datos La Preferente'},
         }
+        # Aunque no haya competición/grupo configurado todavía, mostramos accesos diarios.
+        try:
+            today = timezone.localdate()
+            next_session = (
+                TrainingSession.objects
+                .select_related('microcycle')
+                .filter(microcycle__team=primary_team, session_date__gte=today)
+                .exclude(status=TrainingSession.STATUS_CANCELED)
+                .order_by('session_date', 'start_time', 'order', 'id')
+                .first()
+            ) or (
+                TrainingSession.objects
+                .select_related('microcycle')
+                .filter(microcycle__team=primary_team)
+                .exclude(status=TrainingSession.STATUS_CANCELED)
+                .order_by('-session_date', '-id')
+                .first()
+            )
+            if next_session:
+                payload['next_session'] = {
+                    'id': int(next_session.id),
+                    'focus': str(getattr(next_session, 'focus', '') or '').strip(),
+                    'date': next_session.session_date.isoformat() if getattr(next_session, 'session_date', None) else '',
+                    'time': next_session.start_time.strftime('%H:%M') if getattr(next_session, 'start_time', None) else '',
+                    'duration_minutes': int(getattr(next_session, 'duration_minutes', 0) or 0),
+                    'intensity': str(getattr(next_session, 'intensity', '') or '').strip(),
+                    'intensity_label': str(getattr(next_session, 'get_intensity_display', lambda: '')() or '').strip(),
+                    'url': f"{reverse('sessions')}?tab=sessions&session_id={int(next_session.id)}",
+                    'pdf_url': reverse('session-plan-pdf', args=[int(next_session.id)]),
+                }
+        except Exception:
+            pass
+        try:
+            active_match_empty = get_active_match(primary_team)
+        except Exception:
+            active_match_empty = None
+        if active_match_empty:
+            payload['active_match'] = {
+                'id': int(active_match_empty.id),
+                'url': f"{reverse('match-hub')}?match_id={int(active_match_empty.id)}",
+                'stats_url': reverse('match-stats', args=[int(active_match_empty.id)]),
+            }
         return JsonResponse(payload)
 
     force_fresh = str(request.GET.get('fresh') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
@@ -8124,6 +8218,68 @@ def dashboard_data(request):
                         cached_payload = dict(cached_payload)
                         cached_payload['next_match'] = repaired_next
                         cache.set(cache_key, cached_payload, DASHBOARD_CACHE_SECONDS)
+            except Exception:
+                pass
+            # Bloque B (UX): enriquecer payload cacheado con "Tu día" (sesión/partido) sin recomputar KPIs.
+            try:
+                enriched = dict(cached_payload)
+                # Normalizar `team` en caché (añadir id/slug para links estables multi-equipo).
+                try:
+                    team_blob = enriched.get('team') if isinstance(enriched, dict) else None
+                    if isinstance(team_blob, dict):
+                        team_blob = dict(team_blob)
+                        team_blob.setdefault('id', int(getattr(primary_team, 'id', 0) or 0))
+                        team_blob.setdefault('slug', str(getattr(primary_team, 'slug', '') or '').strip())
+                        enriched['team'] = team_blob
+                except Exception:
+                    pass
+                # Próxima sesión (si falta) - 1 query.
+                if 'next_session' not in enriched:
+                    today = timezone.localdate()
+                    next_session = (
+                        TrainingSession.objects
+                        .select_related('microcycle')
+                        .filter(microcycle__team=primary_team, session_date__gte=today)
+                        .exclude(status=TrainingSession.STATUS_CANCELED)
+                        .order_by('session_date', 'start_time', 'order', 'id')
+                        .first()
+                    )
+                    if not next_session:
+                        next_session = (
+                            TrainingSession.objects
+                            .select_related('microcycle')
+                            .filter(microcycle__team=primary_team)
+                            .exclude(status=TrainingSession.STATUS_CANCELED)
+                            .order_by('-session_date', '-id')
+                            .first()
+                        )
+                    if next_session:
+                        enriched['next_session'] = {
+                            'id': int(next_session.id),
+                            'focus': str(getattr(next_session, 'focus', '') or '').strip(),
+                            'date': next_session.session_date.isoformat() if getattr(next_session, 'session_date', None) else '',
+                            'time': next_session.start_time.strftime('%H:%M') if getattr(next_session, 'start_time', None) else '',
+                            'duration_minutes': int(getattr(next_session, 'duration_minutes', 0) or 0),
+                            'intensity': str(getattr(next_session, 'intensity', '') or '').strip(),
+                            'intensity_label': str(getattr(next_session, 'get_intensity_display', lambda: '')() or '').strip(),
+                            'url': f"{reverse('sessions')}?tab=sessions&session_id={int(next_session.id)}",
+                            'pdf_url': reverse('session-plan-pdf', args=[int(next_session.id)]),
+                        }
+                # Match activo (si falta) - 1 query.
+                if 'active_match' not in enriched:
+                    try:
+                        active_match_cached = get_active_match(primary_team)
+                    except Exception:
+                        active_match_cached = None
+                    if active_match_cached:
+                        enriched['active_match'] = {
+                            'id': int(active_match_cached.id),
+                            'url': f"{reverse('match-hub')}?match_id={int(active_match_cached.id)}",
+                            'stats_url': reverse('match-stats', args=[int(active_match_cached.id)]),
+                        }
+                if enriched != cached_payload:
+                    cache.set(cache_key, enriched, DASHBOARD_CACHE_SECONDS)
+                cached_payload = enriched
             except Exception:
                 pass
             return JsonResponse(cached_payload)
@@ -8236,6 +8392,8 @@ def dashboard_data(request):
 
     payload = {
         'team': {
+            'id': int(getattr(primary_team, 'id', 0) or 0),
+            'slug': str(getattr(primary_team, 'slug', '') or '').strip(),
             'name': primary_team.name,
             'category': str(getattr(primary_team, 'category', '') or '').strip(),
             'group': group_label,
@@ -8257,6 +8415,49 @@ def dashboard_data(request):
         'player_cards': player_cards,
         'player_cards_scope': player_cards_scope,
     }
+    # Bloque B (UX): "Tu día" en la home (próxima sesión + acceso directo a partido/sesiones).
+    # Mantenerlo ligero: sólo 1-2 queries indexadas y sin agregaciones pesadas.
+    try:
+        # Nota UX: este bloque no debe depender del rol para no dejar la home "vacía" si el usuario
+        # todavía no tiene AppUserRole correctamente inicializado. Si el módulo Sesiones está activo,
+        # damos el acceso directo; el backend de /coach/sesiones seguirá protegiendo permisos.
+        include_sessions = True
+        if workspace:
+            include_sessions = include_sessions and bool(_workspace_has_module_for_user(workspace, 'sessions', user=request.user))
+        if include_sessions:
+            today = timezone.localdate()
+            next_session = (
+                TrainingSession.objects
+                .select_related('microcycle')
+                .filter(microcycle__team=primary_team, session_date__gte=today)
+                .exclude(status=TrainingSession.STATUS_CANCELED)
+                .order_by('session_date', 'start_time', 'order', 'id')
+                .first()
+            )
+            if not next_session:
+                next_session = (
+                    TrainingSession.objects
+                    .select_related('microcycle')
+                    .filter(microcycle__team=primary_team)
+                    .exclude(status=TrainingSession.STATUS_CANCELED)
+                    .order_by('-session_date', '-id')
+                    .first()
+                )
+            if next_session:
+                session_url = f"{reverse('sessions')}?tab=sessions&session_id={int(next_session.id)}"
+                payload['next_session'] = {
+                    'id': int(next_session.id),
+                    'focus': str(getattr(next_session, 'focus', '') or '').strip(),
+                    'date': next_session.session_date.isoformat() if getattr(next_session, 'session_date', None) else '',
+                    'time': next_session.start_time.strftime('%H:%M') if getattr(next_session, 'start_time', None) else '',
+                    'duration_minutes': int(getattr(next_session, 'duration_minutes', 0) or 0),
+                    'intensity': str(getattr(next_session, 'intensity', '') or '').strip(),
+                    'intensity_label': str(getattr(next_session, 'get_intensity_display', lambda: '')() or '').strip(),
+                    'url': session_url,
+                    'pdf_url': reverse('session-plan-pdf', args=[int(next_session.id)]),
+                }
+    except Exception:
+        pass
     if isinstance(setup_banner, dict) and setup_banner and not payload.get('setup_required'):
         payload.update(setup_banner)
     # Checklist de activación (simplifica adopción del producto).
@@ -8264,6 +8465,16 @@ def dashboard_data(request):
         active_match = get_active_match(primary_team)
     except Exception:
         active_match = None
+    try:
+        # Match activo (si existe) para guiar al usuario directamente al "Partido".
+        if active_match:
+            payload['active_match'] = {
+                'id': int(active_match.id),
+                'url': f"{reverse('match-hub')}?match_id={int(active_match.id)}",
+                'stats_url': reverse('match-stats', args=[int(active_match.id)]),
+            }
+    except Exception:
+        pass
     try:
         convocation_record = get_current_convocation_record(primary_team)
     except Exception:
