@@ -19,17 +19,27 @@
 {% endif %}
 {% if not hide_product_shortcuts %}
 <nav class="product-nav-shortcuts" aria-label="Accesos rápidos">
+  {% if active_workspace %}
+  <div class="nav-context" aria-label="Contexto actual">
+    <span class="nav-context-name">{{ active_workspace.name }}</span>
+    {% if active_workspace.subtitle %}
+    <span class="nav-context-sep">·</span>
+    <span class="nav-context-subtitle">{{ active_workspace.subtitle }}</span>
+    {% endif %}
+  </div>
+  {% endif %}
+  {% with nav_path=request.path|default:'' nav_url_name=request.resolver_match.url_name|default:'' %}
   {% if workspace_module_access.dashboard|default:True %}
-  <a href="{% if club_dashboard_url %}{{ club_dashboard_url }}{% else %}{% url 'dashboard-home' %}{% endif %}{% if active_team %}{% if '?' in club_dashboard_url %}&{% else %}?{% endif %}team={{ active_team.id }}{% endif %}">Portada</a>
+  <a href="{% if club_dashboard_url %}{{ club_dashboard_url }}{% else %}{% url 'dashboard-home' %}{% endif %}{% if active_team %}{% if '?' in club_dashboard_url %}&{% else %}?{% endif %}team={{ active_team.id }}{% endif %}" class="{% if nav_url_name == 'dashboard-home' or nav_path == '/' %}is-active{% endif %}" {% if nav_url_name == 'dashboard-home' or nav_path == '/' %}aria-current="page"{% endif %}>Portada</a>
   {% endif %}
   {% if workspace_module_access.sessions|default:True %}
-  <a href="{% url 'sessions' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Entrenos</a>
+  <a href="{% url 'sessions' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if 'coach/sesiones' in nav_path %}is-active{% endif %}" {% if 'coach/sesiones' in nav_path %}aria-current="page"{% endif %}>Entrenos</a>
   {% endif %}
   {% if workspace_module_access.convocation|default:True %}
-  <a href="{% url 'match-hub' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Partido</a>
+  <a href="{% url 'match-hub' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if 'registro-acciones' in nav_path or 'convocatoria' in nav_path or '11-inicial' in nav_path or nav_path|slice:":9" == '/partido/' or nav_path|slice:":7" == '/match/' or nav_path|slice:":12" == '/incidencias/' %}is-active{% endif %}" {% if 'registro-acciones' in nav_path or 'convocatoria' in nav_path or '11-inicial' in nav_path or nav_path|slice:":9" == '/partido/' or nav_path|slice:":7" == '/match/' or nav_path|slice:":12" == '/incidencias/' %}aria-current="page"{% endif %}>Partido</a>
   {% endif %}
-  <button type="button" class="nav-command-btn" data-command-palette title="Buscar y navegar (Ctrl/Cmd + K)">Buscar</button>
-  <details class="nav-more">
+  <button type="button" class="nav-command-btn {% if nav_url_name != 'dashboard-home' and nav_path != '/' and not 'coach/sesiones' in nav_path and not 'registro-acciones' in nav_path and not 'convocatoria' in nav_path and not '11-inicial' in nav_path and nav_path|slice:":9" != '/partido/' and nav_path|slice:":7" != '/match/' and nav_path|slice:":12" != '/incidencias/' %}is-active{% endif %}" data-command-palette title="Buscar y navegar (Ctrl/Cmd + K)">Buscar</button>
+  <details class="nav-more {% if nav_url_name != 'dashboard-home' and nav_path != '/' and not 'coach/sesiones' in nav_path and not 'registro-acciones' in nav_path and not 'convocatoria' in nav_path and not '11-inicial' in nav_path and nav_path|slice:":9" != '/partido/' and nav_path|slice:":7" != '/match/' and nav_path|slice:":12" != '/incidencias/' %}is-active{% endif %}">
     <summary>Menú</summary>
     <div class="nav-more-panel">
       <button type="button" class="nav-command-btn nav-command-btn--panel" data-command-palette>Buscar / Ir a…</button>
@@ -97,9 +107,10 @@
       {% endif %}
       {% if is_admin_user %}
       <a href="{% url 'platform-overview' %}">Platform</a>
-      {% endif %}
+  {% endif %}
     </div>
   </details>
+  {% endwith %}
 </nav>
 {% endif %}
 <style>
@@ -184,6 +195,30 @@
   gap: 0.45rem;
   margin-top: 0.42rem;
 }
+.nav-context {
+  flex-basis: 100%;
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 0.15rem 0.05rem 0.05rem;
+  color: rgba(226, 232, 240, 0.82);
+  font-size: 0.76rem;
+  letter-spacing: 0.02em;
+}
+.nav-context-name {
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.nav-context-sep {
+  color: rgba(148, 163, 184, 0.85);
+}
+.nav-context-subtitle {
+  font-weight: 800;
+  color: rgba(244, 180, 0, 0.88);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
 .product-nav-shortcuts a {
   text-decoration: none;
   color: #f5f7fa;
@@ -199,6 +234,11 @@
 .product-nav-shortcuts a:hover {
   border-color: rgba(244, 180, 0, 0.5);
   color: #fff9e8;
+}
+.product-nav-shortcuts a.is-active {
+  border-color: rgba(244, 180, 0, 0.65);
+  background: rgba(244, 180, 0, 0.12);
+  color: #ffffff;
 }
 .product-nav-shortcuts button.nav-command-btn {
   appearance: none;
@@ -217,6 +257,11 @@
 .product-nav-shortcuts button.nav-command-btn:hover {
   border-color: rgba(244, 180, 0, 0.5);
   color: #fff9e8;
+}
+.product-nav-shortcuts button.nav-command-btn.is-active {
+  border-color: rgba(244, 180, 0, 0.65);
+  background: rgba(244, 180, 0, 0.12);
+  color: #ffffff;
 }
 .product-nav-shortcuts button.nav-command-btn--panel {
   width: 100%;
@@ -254,6 +299,11 @@
 .nav-more[open] summary {
   border-color: rgba(244, 180, 0, 0.5);
   color: #fff9e8;
+}
+.nav-more.is-active summary {
+  border-color: rgba(244, 180, 0, 0.65);
+  background: rgba(244, 180, 0, 0.12);
+  color: #ffffff;
 }
 .nav-more-panel {
   position: absolute;
