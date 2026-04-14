@@ -20,13 +20,13 @@
 {% if not hide_product_shortcuts %}
 <nav class="product-nav-shortcuts" aria-label="Accesos rápidos">
   {% if workspace_module_access.dashboard|default:True %}
-  <a href="{% if club_dashboard_url %}{{ club_dashboard_url }}{% else %}{% url 'dashboard-home' %}{% endif %}">Portada</a>
+  <a href="{% if club_dashboard_url %}{{ club_dashboard_url }}{% else %}{% url 'dashboard-home' %}{% endif %}{% if active_team %}{% if '?' in club_dashboard_url %}&{% else %}?{% endif %}team={{ active_team.id }}{% endif %}">Portada</a>
   {% endif %}
   {% if workspace_module_access.sessions|default:True %}
-  <a href="{% url 'sessions' %}">Entrenos</a>
+  <a href="{% url 'sessions' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Entrenos</a>
   {% endif %}
   {% if workspace_module_access.convocation|default:True %}
-  <a href="{% url 'match-hub' %}">Partido</a>
+  <a href="{% url 'match-hub' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Partido</a>
   {% endif %}
   <button type="button" class="nav-command-btn" data-command-palette title="Buscar y navegar (Ctrl/Cmd + K)">Buscar</button>
   <details class="nav-more">
@@ -46,11 +46,11 @@
       {% if workspace_module_access.convocation|default:True or workspace_module_access.match_actions|default:True %}
       <div class="nav-more-subtitle">Partido</div>
       {% if workspace_module_access.convocation|default:True %}
-      <a href="{% url 'convocation' %}">Convocatoria</a>
-      <a href="{% url 'initial-eleven' %}">11 inicial</a>
+      <a href="{% url 'convocation' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Convocatoria</a>
+      <a href="{% url 'initial-eleven' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">11 inicial</a>
       {% endif %}
       {% if workspace_module_access.match_actions|default:True %}
-      <a href="{% url 'match-action-page' %}">Registro de acciones</a>
+      <a href="{% url 'match-action-page' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Registro de acciones</a>
       {% endif %}
       {% if workspace_module_access.match_actions|default:True %}
       <a href="{% url 'match-report-pdf' %}{% if active_match_id %}?match_id={{ active_match_id }}{% if active_team %}&team={{ active_team.id }}{% endif %}{% endif %}" target="_blank" rel="noreferrer">Ficha final (PDF)</a>
@@ -63,14 +63,14 @@
         <a href="{% url 'coach-roster' %}?tab=stats{% if active_team %}&team={{ active_team.id }}{% endif %}">Jugadores · estadísticas</a>
         <a href="{% url 'coach-roster' %}?tab=manage{% if active_team %}&team={{ active_team.id }}{% endif %}">Alta jugador</a>
         {% else %}
-        <a href="{% url 'player-dashboard' %}">Jugadores</a>
+        <a href="{% url 'player-dashboard' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Jugadores</a>
         {% endif %}
       {% endif %}
       {% if can_access_staff|default:False %}
-      <a href="{% url 'staff-directory' %}">Staff</a>
+      <a href="{% url 'staff-directory' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Staff</a>
       {% endif %}
       {% if workspace_module_access.analysis|default:True %}
-      <a href="{% url 'analysis' %}">Análisis</a>
+      <a href="{% url 'analysis' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Análisis</a>
       {% endif %}
       {% if active_team_options and active_team_options|length > 1 %}
       <div class="nav-more-subtitle">Equipo</div>
@@ -88,7 +88,7 @@
       {% endif %}
       {% if can_manage_workspace and active_workspace and active_workspace.kind == 'club' %}
       <div class="nav-more-subtitle">Gestión</div>
-      <a href="{% url 'club-onboarding' %}">Ajustes</a>
+      <a href="{% url 'club-onboarding' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Ajustes</a>
       <a href="{% url 'billing' %}">Suscripción</a>
       {% endif %}
       {% if can_manage_workspace or is_admin_user %}
@@ -362,18 +362,18 @@
 </div>
 <script type="application/json" id="cmdk-static-items">
 [
-  {"label":"Portada","url":"{% if club_dashboard_url %}{{ club_dashboard_url|escapejs }}{% else %}{% url 'dashboard-home' %}{% endif %}","keywords":"home portada dashboard"},
-  {"label":"Partido","url":"{% url 'match-hub' %}","keywords":"partido match hub"},
-  {"label":"Convocatoria","url":"{% url 'convocation' %}","keywords":"convocatoria convocatoria pdf lista"},
-  {"label":"11 inicial","url":"{% url 'initial-eleven' %}","keywords":"11 inicial lineup titulares"},
-  {"label":"Registro acciones","url":"{% url 'match-action-page' %}","keywords":"acciones registro en vivo"},
-  {"label":"Entrenos","url":"{% url 'sessions' %}","keywords":"entrenos sesiones microciclos"},
-  {"label":"Crear tarea (editor)","url":"{% url 'sessions-task-create' %}","keywords":"crear tarea pizarra editor"},
+  {"label":"Portada","url":"{% if club_dashboard_url %}{{ club_dashboard_url|escapejs }}{% else %}{% url 'dashboard-home' %}{% endif %}{% if active_team %}{% if '?' in club_dashboard_url %}&{% else %}?{% endif %}team={{ active_team.id }}{% endif %}","keywords":"home portada dashboard"},
+  {"label":"Partido","url":"{% url 'match-hub' %}{% if active_team %}?team={{ active_team.id }}{% endif %}","keywords":"partido match hub"},
+  {"label":"Convocatoria","url":"{% url 'convocation' %}{% if active_team %}?team={{ active_team.id }}{% endif %}","keywords":"convocatoria convocatoria pdf lista"},
+  {"label":"11 inicial","url":"{% url 'initial-eleven' %}{% if active_team %}?team={{ active_team.id }}{% endif %}","keywords":"11 inicial lineup titulares"},
+  {"label":"Registro acciones","url":"{% url 'match-action-page' %}{% if active_team %}?team={{ active_team.id }}{% endif %}","keywords":"acciones registro en vivo"},
+  {"label":"Entrenos","url":"{% url 'sessions' %}{% if active_team %}?team={{ active_team.id }}{% endif %}","keywords":"entrenos sesiones microciclos"},
+  {"label":"Crear tarea (editor)","url":"{% url 'sessions-task-create' %}{% if active_team %}?team={{ active_team.id }}{% endif %}","keywords":"crear tarea pizarra editor"},
   {"label":"Buscar (página)","url":"{% url 'search-page' %}","keywords":"buscar search"},
   {"label":"Jugadores · estadísticas","url":"{% url 'coach-roster' %}?tab=stats{% if active_team %}&team={{ active_team.id }}{% endif %}","keywords":"jugadores stats kpi"},
   {"label":"Alta jugador","url":"{% url 'coach-roster' %}?tab=manage{% if active_team %}&team={{ active_team.id }}{% endif %}","keywords":"alta jugador crear"},
-  {"label":"Staff","url":"{% url 'staff-directory' %}","keywords":"staff cuerpo tecnico"},
-  {"label":"Ajustes club","url":"{% url 'club-onboarding' %}","keywords":"ajustes onboarding club configuracion"},
+  {"label":"Staff","url":"{% url 'staff-directory' %}{% if active_team %}?team={{ active_team.id }}{% endif %}","keywords":"staff cuerpo tecnico"},
+  {"label":"Ajustes club","url":"{% url 'club-onboarding' %}{% if active_team %}?team={{ active_team.id }}{% endif %}","keywords":"ajustes onboarding club configuracion"},
   {"label":"Admin","url":"{% url 'admin-page' %}?tab=teams","keywords":"admin equipos operativa"},
   {"label":"Platform","url":"{% url 'platform-overview' %}","keywords":"platform clientes"}
   {% if is_admin_user and active_workspace_options %}

@@ -695,7 +695,7 @@
             <h4>Acciones rápidas</h4>
             <div class="quick-actions-grid">
               {% if workspace_module_access.convocation|default:True %}
-              <a class="quick-action is-primary" href="{% url 'match-hub' %}">
+              <a class="quick-action is-primary" href="{% url 'match-hub' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">
                 <strong>Partido</strong>
                 <span>Convoca · 11 · acciones · PDFs</span>
               </a>
@@ -707,7 +707,7 @@
               {% endif %}
 
               {% if workspace_module_access.match_actions|default:True %}
-              <a class="quick-action is-secondary" href="{% url 'match-action-page' %}">
+              <a class="quick-action is-secondary" href="{% url 'match-action-page' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">
                 <strong>Registro acciones</strong>
                 <span>Banquillo · en vivo</span>
               </a>
@@ -718,13 +718,13 @@
               </a>
               {% endif %}
 
-              <a class="quick-action is-muted" href="{% url 'initial-eleven' %}">
+              <a class="quick-action is-muted" href="{% url 'initial-eleven' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">
                 <strong>11 inicial</strong>
                 <span>Organiza titulares</span>
               </a>
 
               {% if workspace_module_access.players|default:True %}
-              <a class="quick-action is-muted" href="{% if can_manage_workspace or is_admin_user %}{% url 'coach-roster' %}{% else %}{% url 'player-dashboard' %}{% endif %}">
+              <a class="quick-action is-muted" href="{% if can_manage_workspace or is_admin_user %}{% url 'coach-roster' %}{% else %}{% url 'player-dashboard' %}{% endif %}{% if active_team %}?team={{ active_team.id }}{% endif %}">
                 <strong>Jugadores</strong>
                 <span>Fichas, licencias, KPIs</span>
               </a>
@@ -736,14 +736,14 @@
               {% endif %}
 
               {% if workspace_module_access.sessions|default:True %}
-              <a class="quick-action is-muted" href="{% url 'sessions' %}">
+              <a class="quick-action is-muted" href="{% url 'sessions' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">
                 <strong>Entrenos</strong>
                 <span>Sesiones y tareas</span>
               </a>
               {% endif %}
 
               {% if can_manage_workspace %}
-              <a class="quick-action is-muted" href="{% url 'club-onboarding' %}">
+              <a class="quick-action is-muted" href="{% url 'club-onboarding' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">
                 <strong>Ajustes</strong>
                 <span>Club, competición, módulos</span>
               </a>
@@ -1150,7 +1150,7 @@
               <strong>Partido</strong>
               <span>Convocatoria · 11 · acciones · PDFs</span>
               <div class="day-plan-actions">
-                <a class="primary" href="{% url 'match-hub' %}">Abrir partido</a>
+                <a class="primary" href="{% url 'match-hub' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Abrir partido</a>
               </div>
             </div>
           `);
@@ -1179,8 +1179,8 @@
               <strong>Entreno</strong>
               <span>No hay sesiones planificadas todavía.</span>
               <div class="day-plan-actions">
-                <a class="primary" href="{% url 'sessions' %}">Ir a entrenos</a>
-                <a href="{% url 'sessions-task-create' %}">Crear tarea</a>
+                <a class="primary" href="{% url 'sessions' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Ir a entrenos</a>
+                <a href="{% url 'sessions-task-create' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Crear tarea</a>
               </div>
             </div>
           `);
