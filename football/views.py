@@ -30791,3 +30791,110 @@ def search_api(request):
             'groups': groups,
         }
     )
+
+
+@login_required
+def task_assistant_blueprints_api(request):
+    """
+    Devuelve plantillas (TaskBlueprint) guardadas para el equipo activo.
+
+    Se usan por el Asistente de tareas para "aprender" del estilo del equipo y reutilizar tareas reales.
+    """
+    if not _can_access_sessions_workspace(request.user):
+        return JsonResponse({'ok': False, 'error': 'No tienes permisos.'}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
+    items = list(
+        TaskBlueprint.objects
+        .filter(team=primary_team)
+        .order_by('-updated_at', '-id')[:240]
+    )
+    payload_items = []
+    for obj in items:
+        payload_items.append(
+            {
+                'id': int(obj.id),
+                'name': str(obj.name or '').strip(),
+                'category': str(obj.category or '').strip(),
+                'description': str(obj.description or '').strip(),
+                'payload': obj.payload if isinstance(obj.payload, dict) else {},
+                'updated_at': obj.updated_at.isoformat() if getattr(obj, 'updated_at', None) else None,
+            }
+        )
+    return JsonResponse({'ok': True, 'items': payload_items})
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def task_assistant_blueprint_save_api(request):
+    """
+    Guarda/actualiza una plantilla (TaskBlueprint) para el equipo activo.
+
+    Payload esperado (JSON):
+    - name: str
+    - category: str (opcional)
+    - description: str (opcional)
+    - payload: dict
+    """
+    if not _can_access_sessions_workspace(request.user):
+        return JsonResponse({'ok': False, 'error': 'No tienes permisos.'}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
+
+    data = None
+    try:
+        if request.content_type and 'application/json' in request.content_type.lower():
+            data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+    except Exception:
+        data = None
+    if not isinstance(data, dict):
+        data = request.POST.dict() if hasattr(request, 'POST') else {}
+
+    raw_name = str((data.get('name') if isinstance(data, dict) else '') or '').strip()
+    name = _sanitize_task_text(raw_name, multiline=False, max_len=160)
+    if not name:
+        return JsonResponse({'ok': False, 'error': 'Nombre de plantilla requerido.'}, status=400)
+
+    raw_category = str((data.get('category') if isinstance(data, dict) else '') or '').strip()
+    category = raw_category or TaskBlueprint.CATEGORY_OTHER
+    valid_categories = {choice[0] for choice in TaskBlueprint.CATEGORY_CHOICES}
+    if category not in valid_categories:
+        category = TaskBlueprint.CATEGORY_OTHER
+
+    description = _sanitize_task_text(str((data.get('description') if isinstance(data, dict) else '') or '').strip(), multiline=False, max_len=220)
+
+    payload = data.get('payload') if isinstance(data, dict) else None
+    if isinstance(payload, str):
+        try:
+            payload = json.loads(payload)
+        except Exception:
+            payload = {}
+    if not isinstance(payload, dict):
+        payload = {}
+
+    created_by = str(getattr(request.user, 'username', '') or '').strip()[:80]
+
+    try:
+        obj, created = TaskBlueprint.objects.update_or_create(
+            team=primary_team,
+            name=name,
+            defaults={
+                'category': category,
+                'description': description,
+                'payload': payload,
+                'created_by': created_by,
+            },
+        )
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'No se pudo guardar la plantilla.'}, status=500)
+
+    return JsonResponse({'ok': True, 'id': int(obj.id), 'created': bool(created)})

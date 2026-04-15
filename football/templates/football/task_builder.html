@@ -2051,18 +2051,20 @@
         <span id="task-builder-draft-text"></span>
         <button type="button" class="button" id="task-builder-draft-clear">Borrar borrador</button>
       </div>
-			      <form
-			        method="post"
-			        id="task-builder-form"
-		        data-scope-key="{{ scope_key }}"
-		        data-task-id="{% if task %}{{ task.id }}{% endif %}"
-		        data-pdf-preview-url="{{ pdf_preview_url|default:'' }}"
-		        data-task-create-url="{% if scope_key == 'goalkeeper' %}{% url 'sessions-goalkeeper-task-create' %}{% elif scope_key == 'fitness' %}{% url 'sessions-fitness-task-create' %}{% else %}{% url 'sessions-task-create' %}{% endif %}"
-		        data-keepalive-url="{% url 'session-keepalive' %}"
-		        data-save-success="{% if feedback %}1{% else %}0{% endif %}"
-		        data-draft-key="webstats:tpad:draft:{{ scope_key }}:{% if task %}{{ task.id }}{% else %}new{% endif %}:{% firstof request.GET.workspace '' %}"
-	        data-draft-new-key="webstats:tpad:draft:{{ scope_key }}:new:{% firstof request.GET.workspace '' %}"
-	      >
+				      <form
+				        method="post"
+				        id="task-builder-form"
+			        data-scope-key="{{ scope_key }}"
+			        data-task-id="{% if task %}{{ task.id }}{% endif %}"
+			        data-pdf-preview-url="{{ pdf_preview_url|default:'' }}"
+			        data-task-create-url="{% if scope_key == 'goalkeeper' %}{% url 'sessions-goalkeeper-task-create' %}{% elif scope_key == 'fitness' %}{% url 'sessions-fitness-task-create' %}{% else %}{% url 'sessions-task-create' %}{% endif %}"
+			        data-assistant-blueprints-url="{% url 'task-assistant-blueprints-api' %}"
+			        data-assistant-blueprints-save-url="{% url 'task-assistant-blueprint-save-api' %}"
+			        data-keepalive-url="{% url 'session-keepalive' %}"
+			        data-save-success="{% if feedback %}1{% else %}0{% endif %}"
+			        data-draft-key="webstats:tpad:draft:{{ scope_key }}:{% if task %}{{ task.id }}{% else %}new{% endif %}:{% firstof request.GET.workspace '' %}"
+		        data-draft-new-key="webstats:tpad:draft:{{ scope_key }}:new:{% firstof request.GET.workspace '' %}"
+		      >
 	        {% csrf_token %}
 	        <input type="hidden" id="task-sim-share-url" value="{% url 'share-task-simulation-create' %}" />
 	        <input type="hidden" name="planner_action" value="create_draw_task" />
@@ -2951,11 +2953,16 @@
 		                          Material (opcional)
 		                          <input type="text" id="task-assistant-smart-materials" placeholder="Ej: 12 conos, 8 petos, 6 balones, mini porterías…" />
 		                        </label>
+		                        <label style="grid-column:1 / -1;">
+		                          Guardar como plantilla (equipo)
+		                          <input type="text" id="task-assistant-blueprint-name" placeholder="Nombre de plantilla (ej: Salida 3+2 · atraer y cambiar)" />
+		                        </label>
 		                      </div>
 		                      <div style="margin-top:0.65rem; display:grid; gap:0.55rem;">
 		                        <button type="button" class="button" id="task-assistant-smart-suggest">Sugerir tareas</button>
 		                        <button type="button" class="button" id="task-assistant-smart-generate">Aplicar mejor sugerencia</button>
 		                        <button type="button" class="button" id="task-assistant-smart-generate-session">Generar bloque (3 tareas)</button>
+		                        <button type="button" class="button" id="task-assistant-blueprint-save">Guardar plantilla</button>
 		                      </div>
 		                      <div id="task-assistant-smart-suggestions" style="margin-top:0.75rem; display:grid; gap:0.55rem;"></div>
 		                      <div class="meta" style="margin-top:0.65rem; opacity:0.9;">
@@ -3408,14 +3415,43 @@
 		        if (multiToggle) multiToggle.addEventListener('change', updateMultiUi);
 		        updateMultiUi();
 
-			          const initTaskAssistant = () => {
-			          const form = document.getElementById('task-builder-form');
-			          const programEl = document.getElementById('task-assistant-program');
-			          const levelEl = document.getElementById('task-assistant-level');
-			          const minutesEl = document.getElementById('task-assistant-minutes');
-			          const applyBoardEl = document.getElementById('task-assistant-apply-board');
-			          const clearBoardEl = document.getElementById('task-assistant-clear-board');
-			          if (!form || !programEl || !levelEl || !minutesEl) return;
+				          const initTaskAssistant = () => {
+				          const form = document.getElementById('task-builder-form');
+				          const programEl = document.getElementById('task-assistant-program');
+				          const levelEl = document.getElementById('task-assistant-level');
+				          const minutesEl = document.getElementById('task-assistant-minutes');
+				          const applyBoardEl = document.getElementById('task-assistant-apply-board');
+				          const clearBoardEl = document.getElementById('task-assistant-clear-board');
+				          const blueprintNameEl = document.getElementById('task-assistant-blueprint-name');
+				          const blueprintSaveBtn = document.getElementById('task-assistant-blueprint-save');
+				          const blueprintsUrl = String(form?.dataset?.assistantBlueprintsUrl || '').trim();
+				          const blueprintsSaveUrl = String(form?.dataset?.assistantBlueprintsSaveUrl || '').trim();
+				          const csrfToken = String(form?.querySelector('input[name=csrfmiddlewaretoken]')?.value || '').trim();
+				          let assistantBlueprints = [];
+				          let assistantBlueprintsLoaded = false;
+				          const reloadAssistantBlueprints = async () => {
+				            assistantBlueprintsLoaded = false;
+				            assistantBlueprints = [];
+				            return loadAssistantBlueprints();
+				          };
+				          const loadAssistantBlueprints = async () => {
+				            if (assistantBlueprintsLoaded) return assistantBlueprints;
+				            assistantBlueprintsLoaded = true;
+				            if (!blueprintsUrl) return assistantBlueprints;
+				            try {
+				              const res = await fetch(blueprintsUrl, { credentials: 'same-origin' });
+				              const data = res.ok ? await res.json() : null;
+				              const items = Array.isArray(data?.items) ? data.items : [];
+				              assistantBlueprints = items;
+				            } catch (err) {
+				              assistantBlueprints = [];
+				            }
+				            return assistantBlueprints;
+				          };
+				          if (!form || !programEl || !levelEl || !minutesEl) return;
+
+				          // Cargamos en segundo plano para tenerlas disponibles en sugerencias.
+				          try { loadAssistantBlueprints(); } catch (e) {}
 
 		          const toInt = (value, fallback) => {
 		            const parsed = Number.parseInt(String(value || ''), 10);
@@ -4433,8 +4469,8 @@
 				              },
 				            };
 
-				            const applySubphase = (tpl, goalKey, subKey) => {
-				              if (!tpl || !goalKey || !subKey || subKey === 'auto') return tpl;
+					            const applySubphase = (tpl, goalKey, subKey) => {
+					              if (!tpl || !goalKey || !subKey || subKey === 'auto') return tpl;
 				              const preset = SUBPHASE_PRESETS?.[goalKey]?.[subKey];
 				              if (!preset) return tpl;
 				              const next = { ...tpl };
@@ -4454,10 +4490,85 @@
 				              if (preset.board && Array.isArray(preset.board.items)) {
 				                next.board = preset.board;
 				              }
-				              return next;
-				            };
+					              return next;
+					            };
 
-				            const warmup = (isSenior)
+					            const addSections = (tpl, sections) => {
+					              if (!tpl || typeof tpl !== 'object') return tpl;
+					              const s = sections && typeof sections === 'object' ? sections : {};
+					              const next = { ...tpl };
+					              if (s.progression_html && next.progression_html == null) next.progression_html = String(s.progression_html);
+					              if (s.regression_html && next.regression_html == null) next.regression_html = String(s.regression_html);
+					              if (s.success_criteria_html && next.success_criteria_html == null) next.success_criteria_html = String(s.success_criteria_html);
+					              return next;
+					            };
+
+					            // Plantillas "UEFA-style": siempre intenta incluir progresión, regresión y criterio de éxito.
+					            const SECTIONS_BY_GOAL = {
+					              warmup: {
+					                progression_html: '<ul><li>Reduce espacio / sube toques mínimos.</li><li>Añade estímulo (señal/colores) o balón tras dominio.</li></ul>',
+					                regression_html: '<ul><li>Amplía espacio y baja intensidad.</li><li>Quita reglas (libre) hasta asegurar técnica.</li></ul>',
+					                success_criteria_html: '<ul><li>Intensidad progresiva sin fatiga.</li><li>Técnica limpia: control orientado y pase con ventaja.</li></ul>',
+					              },
+					              build_up: {
+					                progression_html: '<ul><li>Limita toques en primera línea.</li><li>Presión rival más agresiva o +1 defensor.</li><li>Añade objetivo de finalizar tras superar 1ª línea.</li></ul>',
+					                regression_html: '<ul><li>Más tiempo/espacio (zona mayor).</li><li>Defensores condicionados (solo interceptar).</li><li>Permite “comodín” para asegurar salida.</li></ul>',
+					                success_criteria_html: '<ul><li>Superas 1ª línea con ventaja (pase tenso / conducción).</li><li>Jugadores perfilados y con escalonamiento.</li></ul>',
+					              },
+					              progression: {
+					                progression_html: '<ul><li>Obliga a progresar por zonas (3 zonas).</li><li>Reduce espacio o añade 1 defensor.</li><li>Puntúa doble tras cambio de orientación.</li></ul>',
+					                regression_html: '<ul><li>Añade comodines (4v4+2/3).</li><li>Aumenta el ancho del campo.</li></ul>',
+					                success_criteria_html: '<ul><li>El equipo encuentra al hombre libre y supera líneas con intención.</li><li>Recepciones perfiladas (entre líneas/half-space).</li></ul>',
+					              },
+					              final_third: {
+					                progression_html: '<ul><li>Finalizar en ventana de 6–8s.</li><li>Añade defensor recuperando (transición).</li><li>Restricción: 1 contacto en zona de remate.</li></ul>',
+					                regression_html: '<ul><li>Superioridad ofensiva (3v2/4v3).</li><li>Permite 2–3 toques extra para ajustar.</li></ul>',
+					                success_criteria_html: '<ul><li>Finalización con decisión (tiro/pase atrás/centro) y ocupación de zonas (1º/2º palo/punto penal).</li></ul>',
+					              },
+					              pressing: {
+					                progression_html: '<ul><li>Activa triggers obligatorios (pase atrás, control malo, receptor de espaldas).</li><li>Reduce espacio para aumentar densidad.</li></ul>',
+					                regression_html: '<ul><li>Bloque medio sin saltos largos (distancias).</li><li>Permite comodín para estabilizar posesión rival.</li></ul>',
+					                success_criteria_html: '<ul><li>Robo coordinado (orientar + coberturas) y finalización/ataque rápido tras recuperar.</li></ul>',
+					              },
+					              counterpress: {
+					                progression_html: '<ul><li>Regla 5s para recuperar o replegar.</li><li>Puntúa doble si recuperas y finalizas en 6–8s.</li></ul>',
+					                regression_html: '<ul><li>Permite 1 pase “seguro” tras pérdida antes de presionar.</li><li>Aumenta el espacio para reducir estrés.</li></ul>',
+					                success_criteria_html: '<ul><li>Tras pérdida: reacción inmediata + protección carril central.</li></ul>',
+					              },
+					              defending: {
+					                progression_html: '<ul><li>Limita zonas de defensa (carril central prioritario).</li><li>Añade “tercer hombre” atacante para exigir coberturas.</li></ul>',
+					                regression_html: '<ul><li>Atacantes con restricciones (máximo 2 toques).</li><li>Zona más pequeña y roles más claros.</li></ul>',
+					                success_criteria_html: '<ul><li>Bloque compacto: distancias entre líneas, basculación y cierres del lado débil.</li></ul>',
+					              },
+					              transition_atd: {
+					                progression_html: '<ul><li>Ventana 5s: o recuperas o repliegas a bloque.</li><li>Añade gol/objetivo tras robo del rival.</li></ul>',
+					                regression_html: '<ul><li>Permite 1 pase rival antes de contraatacar.</li><li>Reduce número de atacantes en transición.</li></ul>',
+					                success_criteria_html: '<ul><li>Tras pérdida: primera acción correcta (sprint, orientar, temporizar) y reorganización.</li></ul>',
+					              },
+					              transition_dta: {
+					                progression_html: '<ul><li>Finalizar en 6–8s tras recuperar.</li><li>Añade defensor recuperando desde atrás.</li></ul>',
+					                regression_html: '<ul><li>Superioridad ofensiva inicial (3v2).</li><li>Más espacio para conducir y decidir.</li></ul>',
+					                success_criteria_html: '<ul><li>Primer pase seguro + siguiente vertical si aparece; ocupación de carriles.</li></ul>',
+					              },
+					              duels: {
+					                progression_html: '<ul><li>Puntúa doble si el 1v1 acaba en tiro.</li><li>Añade apoyo (2v1) tras 3s.</li></ul>',
+					                regression_html: '<ul><li>Espacio mayor para más tiempo de decisión.</li><li>Defensor condicionado (solo orientar).</li></ul>',
+					                success_criteria_html: '<ul><li>Atacante: cambio de ritmo y protección; defensor: perfil, temporizar y robar limpio.</li></ul>',
+					              },
+					              set_pieces: {
+					                progression_html: '<ul><li>Añade segundas jugadas + transición defensiva.</li><li>Introduce 2 variantes con señal.</li></ul>',
+					                regression_html: '<ul><li>Menos oposiciones (sin saltos) para fijar timing.</li><li>Solo 1 variante hasta dominar.</li></ul>',
+					                success_criteria_html: '<ul><li>Roles claros, timing y ejecución tensa (centro/pase).</li></ul>',
+					              },
+					              coord: {
+					                progression_html: '<ul><li>Añade balón tras dominio del patrón.</li><li>Aumenta velocidad y exige calidad técnica.</li></ul>',
+					                regression_html: '<ul><li>Menos estaciones / patrón más simple.</li><li>Más descanso y control postural.</li></ul>',
+					                success_criteria_html: '<ul><li>Movimientos estables (tobillo/rodilla/cadera) y técnica limpia antes de intensidad.</li></ul>',
+					              },
+					            };
+					            const applySections = (goalKey, tpl) => addSections(tpl, SECTIONS_BY_GOAL[String(goalKey || '').trim()] || {});
+
+					            const warmup = (isSenior)
 				              ? {
 				                  title: `Activación con balón · rondo + movilidad (${levelLabel})`,
 			                  objective: 'Activar con balón: movilidad dinámica + toma de decisión a baja/media intensidad.',
@@ -4718,18 +4829,18 @@
 			            });
 
 				            const mapping = {
-				              warmup,
-				              build_up: applyPrinciple(buildUp),
-				              progression,
-			              final_third: finalThird,
-			              pressing,
-			              counterpress,
-			              defending,
-			              transition_atd: transitionATD,
-			              transition_dta: transitionDTA,
-			              duels,
-			              set_pieces: setPieces,
-				              coord: applyPrinciple(coord),
+				              warmup: applySections('warmup', warmup),
+				              build_up: applySections('build_up', applyPrinciple(buildUp)),
+				              progression: applySections('progression', progression),
+				              final_third: applySections('final_third', finalThird),
+				              pressing: applySections('pressing', pressing),
+				              counterpress: applySections('counterpress', counterpress),
+				              defending: applySections('defending', defending),
+				              transition_atd: applySections('transition_atd', transitionATD),
+				              transition_dta: applySections('transition_dta', transitionDTA),
+				              duels: applySections('duels', duels),
+				              set_pieces: applySections('set_pieces', setPieces),
+				              coord: applySections('coord', applyPrinciple(coord)),
 				            };
 
 				            const pick = mapping[goal] || progression;
@@ -4778,13 +4889,15 @@
 					            const buildExternalKnowledgeCandidates = () => {
 					              // Usamos recursos públicos como inspiración y enlazamos a la fuente.
 					              // El texto/estructura de la tarea es propio (no copiamos el contenido original).
-					              const tc = {
-					                name: 'FIFA Training Centre',
-					                urls: {
-					                  u8_teambuilding: 'https://www.fifatrainingcentre.com/en/practice/grassroots/4-to-8/teambuilding.php',
-					                  attacking_reduced: 'https://www.fifatrainingcentre.com/en/practice/talent-coach-programme/sessions/attacking-games-with-reduced-numbers.php',
-					                },
-					              };
+						              const tc = {
+						                name: 'FIFA Training Centre',
+						                urls: {
+						                  u8_teambuilding: 'https://www.fifatrainingcentre.com/en/practice/grassroots/4-to-8/teambuilding.php',
+						                  u12_switch_play: 'https://www.fifatrainingcentre.com/en/practice/grassroots/8-to-12/switch-of-play.php',
+						                  u12_unopposed_warmups: 'https://www.fifatrainingcentre.com/en/practice/grassroots/grassroots-and-youth-football-essentials/grassroots-coaching-essentials/stanley-2-focusing-on-technical-skills-in-unopposed-warm-ups.php',
+						                  attacking_reduced: 'https://www.fifatrainingcentre.com/en/practice/talent-coach-programme/sessions/attacking-games-with-reduced-numbers.php',
+						                },
+						              };
 
 					              const list = [];
 					              const push = (id, tpl, meta = {}) => {
@@ -4796,8 +4909,8 @@
 					                });
 					              };
 
-					              push(
-					                'kb_tc_u8_tag',
+						              push(
+						                'kb_tc_u8_tag',
 					                {
 					                  title: `Activación · persecución por parejas (${levelLabel})`,
 					                  objective: 'Elevar temperatura y activar coordinación en un juego de persecución divertido.',
@@ -4841,8 +4954,42 @@
 					                { goal: 'warmup', age, format: 'game', intensity: 'low', subphase: (goal === 'warmup' ? smartSubphase : 'auto') },
 					              );
 
-					              push(
-					                'kb_tc_attack_numbers',
+						              push(
+						                'kb_tc_u12_unopposed',
+						                {
+						                  title: `Calentamiento técnico (sin oposición) (${levelLabel})`,
+						                  objective: 'Repetir gestos técnicos a baja/media intensidad antes del juego con oposición.',
+						                  minutes: Math.max(8, Math.min(12, minutes)),
+						                  block: 'activation',
+						                  player_count: 'Grupos de 3–5',
+						                  dimensions: '10–20 m por estación',
+						                  materials: 'Balones, conos, mini vallas (opcional)',
+						                  space: 'Circuito por estaciones',
+						                  training_type: 'Técnica (sin oposición)',
+						                  age_group: 'u12',
+						                  description_html: `
+						                    <ul>
+						                      <li>Estaciones de técnica básica: pase/recepción, conducción, coordinación.</li>
+						                      <li>En cada estación: calidad técnica + ritmo progresivo.</li>
+						                      <li>Cierra con 1 mini reto competitivo corto (sin fatiga).</li>
+						                    </ul>
+						                  `,
+						                  coaching_html: `
+						                    <ul>
+						                      <li>Equilibrio entre técnica y velocidad: primero limpio, luego rápido.</li>
+						                      <li>Feedback corto: 1 corrección cada vez.</li>
+						                    </ul>
+						                  `,
+						                  rules_html: '<ul><li>Rotación cada 60–90s.</li></ul>',
+						                  board: base.fund_coord_circuit?.board || null,
+						                  source_name: tc.name,
+						                  source_url: tc.urls.u12_unopposed_warmups,
+						                },
+						                { goal: 'warmup', age, format: 'circuit', intensity: 'low' },
+						              );
+
+						              push(
+						                'kb_tc_attack_numbers',
 					                {
 					                  title: `Ataque · superioridades y finalización (${levelLabel})`,
 					                  objective: 'Atacar con agresividad: crear 2v1, fijar y finalizar con decisión.',
@@ -4883,7 +5030,40 @@
 					                  source_url: tc.urls.attacking_reduced,
 					                },
 					                { goal: 'final_third', age, format: 'ssg', intensity: 'high' },
-					              );
+						              );
+
+						              push(
+						                'kb_tc_u12_switch_play',
+						                {
+						                  title: `Progresión · cambio de orientación (${levelLabel})`,
+						                  objective: 'Atraer por un lado y atacar el lado débil con cambio de orientación.',
+						                  minutes: Math.max(10, Math.min(18, minutes)),
+						                  block: 'main_1',
+						                  player_count: '1v1/2v2 + rotaciones',
+						                  dimensions: isSenior ? '35x25 m' : '30x20 m',
+						                  materials: 'Balones, conos, 4 mini porterías',
+						                  space: 'Campo con 4 porterías',
+						                  training_type: 'Juego reducido',
+						                  age_group: 'u12',
+						                  description_html: `
+						                    <ul>
+						                      <li>Juego con 4 mini porterías: puntúa cambiando de lado antes de finalizar.</li>
+						                      <li>Progresión: llama 2 números (2v2) y exige cambio de orientación.</li>
+						                    </ul>
+						                  `,
+						                  coaching_html: `
+						                    <ul>
+						                      <li>Cabeza arriba: identifica el lado débil rápido.</li>
+						                      <li>Pase tenso al pie más alejado y primer control orientado.</li>
+						                    </ul>
+						                  `,
+						                  rules_html: '<ul><li>Gol tras cambio de orientación = doble.</li></ul>',
+						                  board: base.fund_match_2v1?.board || null,
+						                  source_name: tc.name,
+						                  source_url: tc.urls.u12_switch_play,
+						                },
+						                { goal: 'progression', age, format: 'game', intensity: 'medium' },
+						              );
 
 					              return list.filter((item) => {
 					                const g = String(item?.meta?.goal || '').trim();
@@ -4910,15 +5090,214 @@
 				                },
 				              });
 				            };
-				            addCandidate(
-				              'smart_warmup',
-				              (goal === 'warmup' ? applySubphase(warmup, 'warmup', smartSubphase) : warmup),
-				              { goal: 'warmup', subphase: (goal === 'warmup' ? smartSubphase : 'auto'), format: isSenior ? 'ssg' : 'game', intensity: 'low' },
-				            );
-				            addCandidate('smart_main', pickWithSubphase, { goal, subphase: smartSubphase, format: (goal === 'coord' ? 'circuit' : 'game') });
+					            addCandidate(
+					              'smart_warmup',
+					              (goal === 'warmup' ? applySubphase(mapping.warmup, 'warmup', smartSubphase) : mapping.warmup),
+					              { goal: 'warmup', subphase: (goal === 'warmup' ? smartSubphase : 'auto'), format: isSenior ? 'ssg' : 'game', intensity: 'low' },
+					            );
+					            addCandidate('smart_main', pickWithSubphase, { goal, subphase: smartSubphase, format: (goal === 'coord' ? 'circuit' : 'game') });
 
-				            // Variantes por sub-fase (solo para el objetivo actual) para enriquecer sugerencias.
-				            try {
+					            const addVariant = (id, goalKey, baseTpl, overrides = {}, meta = {}) => {
+					              if (!baseTpl) return;
+					              const merged = { ...(baseTpl || {}), ...(overrides || {}) };
+					              const withSections = applySections(goalKey, merged);
+					              const withSub = applySubphase(withSections, goalKey, smartSubphase);
+					              addCandidate(id, withSub, { goal: goalKey, subphase: meta.subphase || 'auto', format: meta.format || 'auto', intensity: meta.intensity || 'auto' });
+					            };
+
+					            // Variantes "reales" por objetivo: 30+ tareas base (antes de sub-fases/principios).
+					            addVariant(
+					              'smart_build_3lanes',
+					              'build_up',
+					              mapping.build_up,
+					              {
+					                title: `Salida · 3 carriles + zonas objetivo (${levelLabel})`,
+					                dimensions: isSenior ? '55x40 m (3 carriles)' : '40x28 m (3 carriles)',
+					                player_count: isSenior ? '7v6 + porteros (adaptable)' : '5v4 (adaptable)',
+					                rules_html: '<ul><li>Progresar de carril (cambio de carril) = 1 punto.</li><li>Superar 1ª línea y encontrar al pivote = 2 puntos.</li></ul>',
+					              },
+					              { format: 'game' },
+					            );
+					            addVariant(
+					              'smart_build_exit_gates',
+					              'build_up',
+					              mapping.build_up,
+					              {
+					                title: `Salida · superar 1ª línea por puertas (${levelLabel})`,
+					                dimensions: isSenior ? '45x35 m + 2 puertas' : '35x25 m + 2 puertas',
+					                rules_html: '<ul><li>Punto si progresas atravesando una puerta con control o pase.</li><li>Tras puerta, finaliza en 6–8s (doble).</li></ul>',
+					              },
+					              { format: 'ssg' },
+					            );
+					            addVariant(
+					              'smart_build_pattern',
+					              'build_up',
+					              mapping.build_up,
+					              {
+					                title: `Salida · patrón 3+2 (semi-oposición) (${levelLabel})`,
+					                player_count: '6–10 (rotaciones)',
+					                training_type: 'Patrón / repetición con oposición ligera',
+					                rules_html: '<ul><li>Empieza siempre en portero. Secuencia: central → pivote → lateral/extremo → progresión.</li></ul>',
+					              },
+					              { format: 'analytic', intensity: 'medium' },
+					            );
+
+					            addVariant(
+					              'smart_prog_3v3plus3',
+					              'progression',
+					              mapping.progression,
+					              {
+					                title: `Progresión · 3v3 + 3 comodines (${levelLabel})`,
+					                player_count: '3v3 + 3 (2 fuera + 1 interior)',
+					                dimensions: isSenior ? '32x26 m' : '28x20 m',
+					                rules_html: '<ul><li>Puntúa por encontrar comodín interior y progresar a zona objetivo.</li></ul>',
+					              },
+					              { format: 'ssg' },
+					            );
+					            addVariant(
+					              'smart_prog_switch',
+					              'progression',
+					              mapping.progression,
+					              {
+					                title: `Progresión · atraer y cambiar (${levelLabel})`,
+					                rules_html: '<ul><li>Tras 4 pases en un lado, el cambio al lado débil es obligatorio.</li><li>Cambio y progresión = doble.</li></ul>',
+					              },
+					              { format: 'game' },
+					            );
+					            addVariant(
+					              'smart_prog_between_lines',
+					              'progression',
+					              mapping.progression,
+					              {
+					                title: `Progresión · encontrar entre líneas (${levelLabel})`,
+					                rules_html: '<ul><li>Gol/punto solo si hay recepción entre líneas y giro o pase vertical.</li></ul>',
+					              },
+					              { format: 'ssg' },
+					            );
+
+					            addVariant(
+					              'smart_final_cross',
+					              'final_third',
+					              mapping.final_third,
+					              {
+					                title: `Último tercio · centros + zonas de remate (${levelLabel})`,
+					                training_type: 'Finalización (centros)',
+					                rules_html: '<ul><li>Remate 1º/2º palo o punto penal = válido.</li><li>Pase atrás a frontal = doble.</li></ul>',
+					              },
+					              { format: 'game', intensity: 'high' },
+					            );
+					            addVariant(
+					              'smart_final_cutback',
+					              'final_third',
+					              mapping.final_third,
+					              {
+					                title: `Último tercio · llegar a línea y pase atrás (${levelLabel})`,
+					                rules_html: '<ul><li>Solo puntúa si el gol llega tras pase atrás (cutback).</li></ul>',
+					              },
+					              { format: 'ssg', intensity: 'high' },
+					            );
+					            addVariant(
+					              'smart_final_waves',
+					              'final_third',
+					              mapping.final_third,
+					              {
+					                title: `Finalización · oleadas 3v2 (${levelLabel})`,
+					                player_count: isSenior ? '3v2 + portero' : '2v1/3v2',
+					                rules_html: '<ul><li>Máximo 10s por oleada. Rotación inmediata.</li></ul>',
+					              },
+					              { format: 'analytic', intensity: 'high' },
+					            );
+
+					            addVariant(
+					              'smart_press_triggers',
+					              'pressing',
+					              mapping.pressing,
+					              {
+					                title: `Presión organizada · triggers + coberturas (${levelLabel})`,
+					                rules_html: '<ul><li>Triggers: pase atrás, control malo, receptor de espaldas.</li><li>Robo y finalización en 6–8s = doble.</li></ul>',
+					              },
+					              { format: 'ssg', intensity: 'high' },
+					            );
+					            addVariant(
+					              'smart_press_trap_wide',
+					              'pressing',
+					              mapping.pressing,
+					              {
+					                title: `Presión · trampa en banda (${levelLabel})`,
+					                rules_html: '<ul><li>Orientar fuera y cerrar carril interior.</li><li>Punto si fuerzas pérdida en banda.</li></ul>',
+					              },
+					              { format: 'game', intensity: 'high' },
+					            );
+					            addVariant(
+					              'smart_def_block',
+					              'defending',
+					              mapping.defending,
+					              {
+					                title: `Defensa en bloque · proteger carril central (${levelLabel})`,
+					                rules_html: '<ul><li>El carril central vale doble: no permitir recepciones entre líneas.</li></ul>',
+					              },
+					              { format: 'game', intensity: 'medium' },
+					            );
+
+					            addVariant(
+					              'smart_tr_atd_5s',
+					              'transition_atd',
+					              mapping.transition_atd,
+					              {
+					                title: `Transición A→D · 5s recuperar o replegar (${levelLabel})`,
+					                rules_html: '<ul><li>Tras pérdida: 5s para recuperar; si no, replegar a bloque.</li></ul>',
+					              },
+					              { format: 'game', intensity: 'high' },
+					            );
+					            addVariant(
+					              'smart_tr_dta_8s',
+					              'transition_dta',
+					              mapping.transition_dta,
+					              {
+					                title: `Transición D→A · finalizar en 8s (${levelLabel})`,
+					                rules_html: '<ul><li>Tras recuperar: 8s para finalizar o llegar a zona objetivo.</li></ul>',
+					              },
+					              { format: 'game', intensity: 'high' },
+					            );
+
+					            addVariant(
+					              'smart_duels_1v1_lanes',
+					              'duels',
+					              mapping.duels,
+					              {
+					                title: `Duelos · 1v1 en carriles (${levelLabel})`,
+					                player_count: '1v1 (rotaciones rápidas)',
+					                dimensions: '12x8 m (carril) x 2–4',
+					                rules_html: '<ul><li>Atacante debe cambiar de ritmo.</li><li>Defensor orienta a zona “débil”.</li></ul>',
+					              },
+					              { format: 'analytic', intensity: 'high' },
+					            );
+
+					            addVariant(
+					              'smart_abp_corner',
+					              'set_pieces',
+					              mapping.set_pieces,
+					              {
+					                title: `ABP · córner ofensivo (roles + 2 variantes) (${levelLabel})`,
+					                rules_html: '<ul><li>Ensaya 2 variantes con señal.</li><li>Incluye segunda jugada + transición defensiva.</li></ul>',
+					              },
+					              { format: 'analytic', intensity: 'medium' },
+					            );
+
+					            addVariant(
+					              'smart_coord_injury',
+					              'coord',
+					              mapping.coord,
+					              {
+					                title: `Prevención · tobillo-rodilla-cadera (${levelLabel})`,
+					                training_type: 'Prevención',
+					                rules_html: '<ul><li>Pocas repeticiones, mucha calidad. Descanso suficiente.</li></ul>',
+					              },
+					              { format: 'circuit', intensity: 'low' },
+					            );
+
+					            // Variantes por sub-fase (solo para el objetivo actual) para enriquecer sugerencias.
+					            try {
 				              const presetKeys = Object.keys(SUBPHASE_PRESETS?.[goal] || {});
 				              presetKeys.slice(0, 12).forEach((subKey) => {
 				                const baseTpl = pickBase || mapping[goal] || pick;
@@ -4941,6 +5320,26 @@
 				            try {
 				              buildExternalKnowledgeCandidates().forEach((item) => {
 				                addCandidate(item.id, item.tpl, item.meta);
+				              });
+				            } catch (e) {}
+				            try {
+				              (assistantBlueprints || []).slice(0, 240).forEach((bp) => {
+				                const payload = (bp && typeof bp === 'object') ? (bp.payload || {}) : {};
+				                const meta = (payload && typeof payload === 'object') ? (payload.meta || {}) : {};
+				                const tplRaw = (payload && typeof payload === 'object') ? (payload.tpl || payload.template || {}) : {};
+				                if (!tplRaw || typeof tplRaw !== 'object') return;
+				                const tpl = { ...tplRaw };
+				                // Etiqueta para que el usuario sepa de dónde viene.
+				                tpl.source_name = tpl.source_name || 'Plantilla del equipo';
+				                // Normalizamos canvas_state si viene como string.
+				                if (typeof tpl.canvas_state === 'string') {
+				                  try { tpl.canvas_state = JSON.parse(tpl.canvas_state); } catch (err) {}
+				                }
+				                const goalKey = String(meta.goal || meta.focus || meta.phase || '').trim() || goal;
+				                const subphaseKey = String(meta.subphase || 'auto').trim() || 'auto';
+				                const approachKey = String(meta.approach || meta.methodology || 'auto').trim() || 'auto';
+				                const format = (approachKey === 'analytic') ? 'analytic' : ((approachKey === 'systemic') ? 'game' : 'auto');
+				                addCandidate(`bp_${bp.id}`, tpl, { goal: goalKey, subphase: subphaseKey, format, intensity: 'auto' });
 				              });
 				            } catch (e) {}
 
@@ -4974,6 +5373,12 @@
 				            const suggestions = catalog
 				              .filter((item) => {
 				                if (!item?.tpl) return false;
+				                const itemGoal = String(item.meta?.goal || '').trim();
+				                if (goal === 'warmup') {
+				                  if (itemGoal !== 'warmup') return false;
+				                } else {
+				                  if (itemGoal !== goal) return false;
+				                }
 				                if (blockPref !== 'auto' && String(item.tpl.block || '') !== blockPref) return false;
 				                if (allowedFormatsForApproach && !allowedFormatsForApproach.has(String(item.meta?.format || ''))) return false;
 				                if (smartSubphase !== 'auto') {
@@ -4981,7 +5386,6 @@
 				                  // Permite variantes específicas y, si no hay, la base (auto).
 				                  if (sp !== smartSubphase && sp !== 'auto') return false;
 				                }
-				                if (goal !== 'warmup' && String(item.meta?.goal || '') !== goal) return true;
 				                return true;
 				              })
 				              .map((item) => ({ ...item, score: scoreCandidate(item) }))
@@ -5066,11 +5470,11 @@
 				            updateQueueUi();
 				          });
 
-				          const applyTpl = (tpl, options = {}) => {
-				            if (!tpl || typeof tpl !== 'object') return false;
-				            const wantsBoard = !!(applyBoardEl && applyBoardEl.checked);
-				            const willClearBoard = !!(clearBoardEl && clearBoardEl.checked);
-				            const confirmEnabled = options.confirm !== false;
+					          const applyTpl = (tpl, options = {}) => {
+					            if (!tpl || typeof tpl !== 'object') return false;
+					            const wantsBoard = !!(applyBoardEl && applyBoardEl.checked);
+					            const willClearBoard = !!(clearBoardEl && clearBoardEl.checked);
+					            const confirmEnabled = options.confirm !== false;
 				            if (confirmEnabled) {
 				              const confirmMsg = wantsBoard
 				                ? (`Esto rellenará campos de la tarea y ${willClearBoard ? 'reemplazará' : 'añadirá a'} la pizarra. ¿Continuar?`)
@@ -5088,21 +5492,31 @@
 				            if (tpl.materials != null) setValue('draw_task_materials', tpl.materials);
 				            if (tpl.space != null) setValue('draw_task_space', tpl.space);
 				            if (tpl.training_type) setValue('draw_task_training_type', tpl.training_type);
-				            if (tpl.age_group) setValue('draw_task_age_group', tpl.age_group);
-				            if (tpl.description_html != null) setRichHtml('draw_task_description', tpl.description_html);
-				            if (tpl.coaching_html != null) setRichHtml('draw_task_coaching_points', tpl.coaching_html);
-				            if (tpl.rules_html != null) setRichHtml('draw_task_confrontation_rules', tpl.rules_html);
+					            if (tpl.age_group) setValue('draw_task_age_group', tpl.age_group);
+					            if (tpl.description_html != null) setRichHtml('draw_task_description', tpl.description_html);
+					            if (tpl.coaching_html != null) setRichHtml('draw_task_coaching_points', tpl.coaching_html);
+					            if (tpl.rules_html != null) setRichHtml('draw_task_confrontation_rules', tpl.rules_html);
+					            if (tpl.progression_html != null) setRichHtml('draw_task_progression', tpl.progression_html);
+					            if (tpl.regression_html != null) setRichHtml('draw_task_regression', tpl.regression_html);
+					            if (tpl.success_criteria_html != null) setRichHtml('draw_task_success_criteria', tpl.success_criteria_html);
 
-				            if (wantsBoard && tpl.board && Array.isArray(tpl.board.items)) {
-				              try {
-				                window.dispatchEvent(new CustomEvent('webstats:tpad:assistant-board', {
-				                  detail: {
-				                    clear: willClearBoard,
-				                    items: tpl.board.items,
-				                  },
-				                }));
-				              } catch (err) {}
-				            }
+					            if (wantsBoard && tpl.board && Array.isArray(tpl.board.items)) {
+					              try {
+					                window.dispatchEvent(new CustomEvent('webstats:tpad:assistant-board', {
+					                  detail: {
+					                    clear: willClearBoard,
+					                    items: tpl.board.items,
+					                  },
+					                }));
+					              } catch (err) {}
+					            }
+					            if (tpl.canvas_state && typeof tpl.canvas_state === 'object') {
+					              try {
+					                setValue('draw_canvas_state', JSON.stringify(tpl.canvas_state));
+					                if (tpl.canvas_width) setValue('draw_canvas_width', tpl.canvas_width);
+					                if (tpl.canvas_height) setValue('draw_canvas_height', tpl.canvas_height);
+					              } catch (err) {}
+					            }
 
 				            const fichaTab = document.querySelector('#task-side-tabs .side-tab[data-pane="ficha"]');
 				            try { fichaTab?.click(); } catch (err) {}
@@ -5163,7 +5577,7 @@
 					              const sourceUrl = String(tpl.source_url || '').trim();
 					              const sourceHtml = sourceUrl
 					                ? `<a class="meta" style="opacity:0.9;" href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener noreferrer">Fuente: ${escapeHtml(sourceName || 'Referencia')}</a>`
-					                : '';
+					                : (sourceName ? `<span class="meta" style="opacity:0.9;">Fuente: ${escapeHtml(sourceName)}</span>` : '');
 					              return `
 					                <div style="border:1px solid rgba(255,255,255,0.10); background:rgba(255,255,255,0.03); border-radius:14px; padding:0.7rem 0.75rem; display:grid; gap:0.45rem;">
 					                  <div style="display:flex; align-items:baseline; justify-content:space-between; gap:0.75rem; flex-wrap:wrap;">
@@ -5210,10 +5624,10 @@
 				            renderSmartSuggestions();
 				            applyTemplate('smart_generate');
 				          });
-				          smartSessionBtn?.addEventListener('click', () => {
-				            const templates = buildTemplatesForProgram('smart');
-				            const block = [templates.smart_block_1, templates.smart_block_2, templates.smart_block_3].filter(Boolean);
-				            if (!block.length) return;
+					          smartSessionBtn?.addEventListener('click', () => {
+					            const templates = buildTemplatesForProgram('smart');
+					            const block = [templates.smart_block_1, templates.smart_block_2, templates.smart_block_3].filter(Boolean);
+					            if (!block.length) return;
 				            const wantsBoard = !!(applyBoardEl && applyBoardEl.checked);
 				            const willClearBoard = !!(clearBoardEl && clearBoardEl.checked);
 				            const confirmMsg = wantsBoard
@@ -5224,11 +5638,124 @@
 				            applyTpl(block[0], { confirm: false });
 				            setQueueItems(block.slice(1));
 				            updateQueueUi();
-				            renderSmartSuggestions();
-				          });
+					            renderSmartSuggestions();
+					          });
 
-				          // Auto-aplicar desde cola cuando se abre /nueva con ?assistant_next=1
-				          const bootFromQueue = () => {
+					          const inferBlueprintCategory = (goalKey) => {
+					            const g = String(goalKey || '').trim();
+					            if (g === 'build_up' || g === 'progression') return 'build_up';
+					            if (g === 'pressing' || g === 'counterpress' || g === 'defending') return 'pressing';
+					            if (String(g).startsWith('transition')) return 'transition';
+					            if (g === 'final_third' || g === 'duels') return 'finishing';
+					            if (g === 'set_pieces') return 'abp';
+					            if (g === 'coord' || g === 'warmup') return 'physical';
+					            return 'other';
+					          };
+
+					          const buildBlueprintPayloadFromForm = () => {
+					            const getVal = (name) => {
+					              const f = getField(name);
+					              if (!f || f instanceof RadioNodeList) return '';
+					              return String(f.value || '').trim();
+					            };
+					            const getHtml = (name) => {
+					              const f = getField(name);
+					              if (!f || f instanceof RadioNodeList) return '';
+					              return String(f.value || '').trim();
+					            };
+					            let canvasState = null;
+					            try {
+					              const raw = getVal('draw_canvas_state');
+					              canvasState = raw ? JSON.parse(raw) : null;
+					            } catch (e) {
+					              canvasState = null;
+					            }
+					            const tpl = {
+					              title: getVal('draw_task_title'),
+					              objective: getVal('draw_task_objective'),
+					              block: getVal('draw_task_block'),
+					              minutes: toInt(getVal('draw_task_minutes'), 15),
+					              player_count: getVal('draw_task_player_count') || getVal('draw_task_players_distribution') || '',
+					              dimensions: getVal('draw_task_dimensions'),
+					              materials: getVal('draw_task_materials'),
+					              space: getVal('draw_task_space'),
+					              training_type: getVal('draw_task_training_type'),
+					              age_group: getVal('draw_task_age_group'),
+					              description_html: getHtml('draw_task_description_html'),
+					              coaching_html: getHtml('draw_task_coaching_points_html'),
+					              rules_html: getHtml('draw_task_confrontation_rules_html'),
+					              progression_html: getHtml('draw_task_progression_html'),
+					              regression_html: getHtml('draw_task_regression_html'),
+					              success_criteria_html: getHtml('draw_task_success_criteria_html'),
+					              canvas_state: canvasState,
+					              canvas_width: toInt(getVal('draw_canvas_width'), 1280),
+					              canvas_height: toInt(getVal('draw_canvas_height'), 720),
+					              source_name: 'Plantilla del equipo',
+					            };
+					            const goalKey = String(document.getElementById('task-assistant-goal')?.value || '').trim() || 'other';
+					            const subphaseKey = String(document.getElementById('task-assistant-smart-subphase')?.value || 'auto').trim() || 'auto';
+					            const approachKey = String(document.getElementById('task-assistant-smart-approach')?.value || 'auto').trim() || 'auto';
+					            const principleKey = String(document.getElementById('task-assistant-smart-principle')?.value || 'auto').trim() || 'auto';
+					            const meta = {
+					              v: 1,
+					              created_at: new Date().toISOString(),
+					              scope_key: String(form.dataset.scopeKey || '').trim() || 'coach',
+					              goal: goalKey,
+					              subphase: subphaseKey,
+					              approach: approachKey,
+					              principle: principleKey,
+					            };
+					            return { tpl, meta };
+					          };
+
+					          blueprintSaveBtn?.addEventListener('click', async () => {
+					            if (!blueprintsSaveUrl) {
+					              window.alert('No se encontró el endpoint para guardar plantillas.');
+					              return;
+					            }
+					            const rawName = String(blueprintNameEl?.value || '').trim();
+					            const fallbackName = String(getField('draw_task_title')?.value || '').trim();
+					            const name = (rawName || fallbackName).slice(0, 160);
+					            if (!name) {
+					              window.alert('Pon un nombre a la plantilla (o escribe un título de tarea).');
+					              return;
+					            }
+					            const payload = buildBlueprintPayloadFromForm();
+					            const category = inferBlueprintCategory(payload?.meta?.goal || '');
+					            try {
+					              const res = await fetch(blueprintsSaveUrl, {
+					                method: 'POST',
+					                credentials: 'same-origin',
+					                headers: {
+					                  'Content-Type': 'application/json',
+					                  ...(csrfToken ? { 'X-CSRFToken': csrfToken } : {}),
+					                },
+					                body: JSON.stringify({
+					                  name,
+					                  category,
+					                  description: '',
+					                  payload,
+					                }),
+					              });
+					              const data = res.ok ? await res.json() : null;
+					              if (!res.ok || !data?.ok) {
+					                window.alert(String(data?.error || 'No se pudo guardar la plantilla.'));
+					                return;
+					              }
+					              try {
+					                blueprintNameEl.value = name;
+					              } catch (e) {}
+					              // Recarga y refresca sugerencias para que aparezca como candidata.
+					              try { await reloadAssistantBlueprints(); } catch (e) {}
+					              try { renderSmartSuggestions(); } catch (e) {}
+					              window.alert('Plantilla guardada.');
+					            } catch (err) {
+					              window.alert('No se pudo guardar la plantilla.');
+					            }
+					          });
+
+					          // Auto-aplicar desde cola cuando se abre /nueva con ?assistant_next=1
+					          const bootFromQueue = () => {
 				            try {
 				              const url = new URL(window.location.href);
 				              if (url.searchParams.get('assistant_next') !== '1') return;
