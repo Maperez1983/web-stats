@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Skipping rodillas arriba">
+  <g fill="none" stroke="#0f7a35" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="38" cy="12" r="6"/>
+    <path d="M36 18 L32 30 L22 28"/>
+    <path d="M32 30 L40 40"/>
+    <path d="M40 40 L52 56"/>
+    <path d="M30 32 L18 44"/>
+    <path d="M18 44 L10 56"/>
+    <!-- knee up -->
+    <path d="M28 34 L22 24"/>
+    <path d="M22 24 L14 24"/>
+    <!-- arrow up -->
+    <path d="M54 12 L54 28"/>
+    <path d="M54 12 L50 16"/>
+    <path d="M54 12 L58 16"/>
+  </g>
+</svg>
+

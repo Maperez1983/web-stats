@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Isquios barrido">
+  <g fill="none" stroke="#0f7a35" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="26" cy="12" r="6"/>
+    <path d="M26 18 L30 30"/>
+    <!-- hinge -->
+    <path d="M30 30 L44 34"/>
+    <path d="M44 34 L58 34"/>
+    <!-- support leg -->
+    <path d="M30 30 L22 56"/>
+    <!-- sweeping leg -->
+    <path d="M34 40 L50 52"/>
+    <path d="M50 52 L58 56"/>
+    <!-- toe touch arrow -->
+    <path d="M54 44 L54 56"/>
+    <path d="M54 56 L50 52"/>
+    <path d="M54 56 L58 52"/>
+  </g>
+</svg>
+

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Carioca cruce lateral">
+  <g fill="none" stroke="#0f7a35" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="22" cy="14" r="6"/>
+    <path d="M22 20 L22 34"/>
+    <path d="M22 26 L10 28"/>
+    <path d="M22 26 L34 28"/>
+    <!-- crossing legs -->
+    <path d="M22 34 L14 56"/>
+    <path d="M22 34 L34 56"/>
+    <path d="M18 44 L30 44"/>
+    <!-- arrows -->
+    <path d="M42 22 L58 22"/>
+    <path d="M58 22 L54 18"/>
+    <path d="M58 22 L54 26"/>
+    <path d="M42 28 L58 28"/>
+    <path d="M42 28 L46 24"/>
+    <path d="M42 28 L46 32"/>
+  </g>
+</svg>
+

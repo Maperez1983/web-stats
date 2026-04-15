@@ -54,6 +54,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 from .task_backups import write_task_backup
 from .preview_render import render_task_preview_png
+from .drills import DRILL_CATALOG, drill_cards, normalize_drill_ids
 
 try:
     from PIL import Image, ImageFilter, ImageOps
@@ -2967,6 +2968,37 @@ def _file_as_data_uri(file_path):
         return f'data:{mime_type};base64,{encoded}'
     except Exception:
         return ''
+
+
+def _static_asset_as_data_uri(static_path: str) -> str:
+    static_path = str(static_path or '').lstrip('/').strip()
+    if not static_path:
+        return ''
+    try:
+        source = Path(settings.BASE_DIR) / 'static' / static_path
+    except Exception:
+        return ''
+    return _file_as_data_uri(source)
+
+
+def _task_drills_for_pdf(meta: dict) -> list:
+    if not isinstance(meta, dict):
+        return []
+    drill_ids = normalize_drill_ids(meta.get('drills'))
+    if not drill_ids:
+        return []
+    cards = []
+    for card in drill_cards(drill_ids):
+        icon_uri = _static_asset_as_data_uri(card.get('icon_static_path'))
+        cards.append(
+            {
+                'id': card.get('id'),
+                'label': card.get('label'),
+                'category': card.get('category'),
+                'icon_url': icon_uri,
+            }
+        )
+    return cards
 
 def _image_bytes_as_small_data_uri(raw_bytes: bytes, *, mime_type: str = 'image/jpeg', max_width=600, max_height=600, quality=75) -> str:
     if not raw_bytes:
@@ -16242,6 +16274,7 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
     )
     pdf_text_heavy = copy_len >= 700
     pdf_text_superheavy = copy_len >= 1300
+    task_drills = _task_drills_for_pdf(meta)
     return {
         **_build_pdf_nav_urls(request),
         'team_name': team.name,
@@ -16261,6 +16294,8 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
         'organization_rich_html': rich_organization,
         'tokens': _build_task_pdf_tokens(request, tactical_layout),
         'task_meta': meta,
+        'task_drills': task_drills,
+        'task_drills_count': len(task_drills),
         'multi_board_enabled': multi_board_enabled,
         'strategy_label': strategy_label or '-',
         'space_label': space_label or '-',
@@ -16330,6 +16365,7 @@ def _build_task_draft_pdf_context(request, primary_team, pdf_style='uefa'):
     success_criteria_html = _sanitize_task_rich_html((request.POST.get('draw_task_success_criteria_html') or '').strip())
     category_tags_raw = _sanitize_task_text((request.POST.get('draw_task_category_tags') or '').strip(), multiline=False, max_len=240)
     category_tags = [tag.strip() for tag in category_tags_raw.split(',') if tag.strip()]
+    drills_ids = normalize_drill_ids((request.POST.get('draw_task_drills_json') or '').strip())
     assigned_player_ids = [
         player_id
         for player_id in (_parse_int(value) for value in request.POST.getlist('assigned_player_ids'))
@@ -16385,6 +16421,7 @@ def _build_task_draft_pdf_context(request, primary_team, pdf_style='uefa'):
             'player_count': player_count,
             'age_group': age_group,
             'training_type': training_type,
+            'drills': drills_ids,
             'category_tags': category_tags,
             'assigned_player_names': assigned_player_names,
             'progression': progression,
@@ -16598,11 +16635,18 @@ def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
     for idx, task in enumerate(tasks):
         sheet = task_sheets[idx] if idx < len(task_sheets) else _build_session_task_sheet(task)
         preview_url = _task_preview_data_url_for_pdf(task)
+        meta = {}
+        try:
+            if isinstance(getattr(task, 'tactical_layout', None), dict):
+                meta = task.tactical_layout.get('meta') if isinstance(task.tactical_layout.get('meta'), dict) else {}
+        except Exception:
+            meta = {}
         task_cards.append(
             {
                 'task': task,
                 'sheet': sheet,
                 'preview_url': preview_url,
+                'drills': _task_drills_for_pdf(meta),
             }
         )
     # Sugerencias para plantilla UEFA (no bloqueante).
@@ -23521,9 +23565,10 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                             'pitch_format': selected_pitch_format,
                             'pitch_orientation': pitch_orientation,
                             'game_phase': selected_phase,
-                            'methodology': selected_methodology,
-                            'complexity': selected_complexity,
-                            'space': space,
+	                            'methodology': selected_methodology,
+	                            'complexity': selected_complexity,
+	                            'drills': normalize_drill_ids((request.POST.get('draw_task_drills_json') or '').strip()),
+	                            'space': space,
                             'organization': organization,
                             'organization_html': organization_html,
                             'players_distribution': players_distribution,
@@ -24542,6 +24587,7 @@ def _task_builder_initial_values(task):
     if isinstance(timeline, list) and timeline:
         canvas_state['timeline'] = timeline
         canvas_state['active_step_index'] = 0
+    drills_ids = normalize_drill_ids(meta.get('drills'))
     return {
         'multi_board_enabled': bool(meta.get('multi_board') or meta.get('multi_board_enabled') or False),
         'target_session_id': str(getattr(task, 'session_id', '') or ''),
@@ -24597,6 +24643,8 @@ def _task_builder_initial_values(task):
         'canvas_state': json.dumps(canvas_state, ensure_ascii=False),
         'canvas_width': int(graphic_editor.get('canvas_width') or 1280),
         'canvas_height': int(graphic_editor.get('canvas_height') or 720),
+        'drills_ids': drills_ids,
+        'drills_json': json.dumps(drills_ids, ensure_ascii=False),
     }
 
 
@@ -24875,6 +24923,12 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
     else:
         category_tags_raw = _sanitize_task_text((raw_category_tags or '').strip(), multiline=False, max_len=240)
         category_tags = [tag.strip() for tag in category_tags_raw.split(',') if tag.strip()]
+
+    raw_drills_json = request.POST.get('draw_task_drills_json')
+    if raw_drills_json is None:
+        drills_ids = normalize_drill_ids(existing_meta.get('drills'))
+    else:
+        drills_ids = normalize_drill_ids(raw_drills_json)
     if 'assigned_player_ids' in request.POST:
         assigned_player_ids = [
             player_id
@@ -25087,6 +25141,7 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
             'player_count': player_count,
             'age_group': age_group,
             'training_type': training_type,
+            'drills': drills_ids,
             'category_tags': category_tags,
             'assigned_player_ids': assigned_player_ids,
             'assigned_player_names': [player.name for player in assigned_players],
@@ -25703,6 +25758,15 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
                 )
     except Exception:
         ppt_icons = []
+    drills_catalog = [
+        {
+            'id': item.id,
+            'label': item.label,
+            'category': item.category,
+            'icon_static_path': item.icon_static_path,
+        }
+        for item in DRILL_CATALOG
+    ]
     return render(
         request,
         'football/task_builder.html',
@@ -25730,6 +25794,7 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             'pdf_assets': pdf_assets,
             'pdf_assets_json': pdf_assets_json,
             'ppt_icons': ppt_icons,
+            'drills_catalog': drills_catalog,
             'initial': initial,
             'back_url': reverse(_sessions_scope_route_name(scope_key)),
             'back_label': 'Volver a sesiones',

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Pies rápidos ankling">
+  <g fill="none" stroke="#0f7a35" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="32" cy="12" r="6"/>
+    <path d="M32 18 L32 34"/>
+    <path d="M32 24 L20 28"/>
+    <path d="M32 24 L44 28"/>
+    <path d="M32 34 L24 46"/>
+    <path d="M32 34 L40 46"/>
+    <!-- fast feet marks -->
+    <path d="M12 52 L18 52"/>
+    <path d="M22 52 L28 52"/>
+    <path d="M32 52 L38 52"/>
+    <path d="M42 52 L48 52"/>
+    <path d="M52 52 L58 52"/>
+  </g>
+</svg>
+

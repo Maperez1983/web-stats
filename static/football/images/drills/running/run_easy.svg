@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Carrera suave">
+  <g fill="none" stroke="#0f7a35" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="44" cy="14" r="6"/>
+    <path d="M42 20 L36 30 L24 28"/>
+    <path d="M36 30 L44 42 L54 40"/>
+    <path d="M33 34 L22 44"/>
+    <path d="M44 42 L38 56"/>
+    <path d="M22 44 L12 56"/>
+    <path d="M10 40 L18 40"/>
+    <path d="M6 46 L14 46"/>
+  </g>
+</svg>
+

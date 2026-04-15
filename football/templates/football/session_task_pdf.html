@@ -374,14 +374,43 @@
       .pdf-block + .pdf-block {
         margin-top: 10px;
       }
-      .rich-text,
-      .text-block,
-      .uefa-long-copy {
-        overflow-wrap: anywhere;
-        word-break: break-word;
-      }
-    </style>
-  </head>
+	      .rich-text,
+	      .text-block,
+	      .uefa-long-copy {
+	        overflow-wrap: anywhere;
+	        word-break: break-word;
+	      }
+	      .drills-row {
+	        display: flex;
+	        flex-wrap: wrap;
+	        gap: 6px;
+	      }
+	      .drill-chip {
+	        display: inline-flex;
+	        align-items: center;
+	        gap: 6px;
+	        padding: 4px 8px;
+	        border-radius: 999px;
+	        border: 1px solid #cbd5e1;
+	        background: #ffffff;
+	        font-size: 9px;
+	        font-weight: 800;
+	        letter-spacing: 0.04em;
+	        text-transform: uppercase;
+	        color: #0f172a;
+	      }
+	      .drill-chip img {
+	        width: 18px;
+	        height: 18px;
+	        object-fit: contain;
+	        display: block;
+	        background: #ffffff;
+	        border: 1px solid #e2e8f0;
+	        border-radius: 6px;
+	        padding: 2px;
+	      }
+	    </style>
+	  </head>
   <body>
     {% if pdf_style == 'club' %}
     <section class="sheet" style="border-color:{{ pdf_palette.primary }};">
@@ -455,10 +484,23 @@
                       {% endif %}
                     </span>
                     {% endfor %}
-                  </div>
-                  {% endif %}
-                </div>
-              </div>
+	                  </div>
+	                  {% endif %}
+	                  {% if task_drills %}
+	                  <div style="margin-top:10px;">
+	                    <div style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; color:{{ pdf_palette.accent }}; margin-bottom:6px;">Secuencia</div>
+	                    <div class="drills-row">
+	                      {% for drill in task_drills %}
+	                      <div class="drill-chip">
+	                        {% if drill.icon_url %}<img src="{{ drill.icon_url }}" alt="" />{% endif %}
+	                        {{ drill.label }}
+	                      </div>
+	                      {% endfor %}
+	                    </div>
+	                  </div>
+	                  {% endif %}
+	                </div>
+	              </div>
             </td>
             <td style="width:38%; vertical-align:top;">
               <div style="border:1px solid #d5dde7; border-radius:14px; overflow:hidden; margin-bottom:10px;">
@@ -707,9 +749,9 @@
 	        </table>
 
         <div class="uefa-section">Descripción Gráfica</div>
-        <div class="uefa-box" style="min-height:{% if pdf_text_superheavy %}240px{% elif pdf_text_heavy %}300px{% else %}340px{% endif %};">
-          {% if task_preview_url %}
-          <div class="preview-frame" style="border:1px solid #d5dde7; background-image:url(&quot;{{ task_preview_url }}&quot;);" aria-label="Vista gráfica de la tarea"></div>
+	        <div class="uefa-box" style="min-height:{% if pdf_text_superheavy %}240px{% elif pdf_text_heavy %}300px{% else %}340px{% endif %};">
+	          {% if task_preview_url %}
+	          <div class="preview-frame" style="border:1px solid #d5dde7; background-image:url(&quot;{{ task_preview_url }}&quot;);" aria-label="Vista gráfica de la tarea"></div>
           {% else %}
           <div class="field">
             <span class="mid-line"></span>
@@ -728,10 +770,23 @@
             </span>
             {% endfor %}
           </div>
-          {% endif %}
-        </div>
+	          {% endif %}
+	        </div>
+	        {% if task_drills %}
+	        <div style="margin-top:8px;">
+	          <div style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; color:#0f7a35; margin-bottom:6px;">Secuencia</div>
+	          <div class="drills-row">
+	            {% for drill in task_drills %}
+	            <div class="drill-chip">
+	              {% if drill.icon_url %}<img src="{{ drill.icon_url }}" alt="" />{% endif %}
+	              {{ drill.label }}
+	            </div>
+	            {% endfor %}
+	          </div>
+	        </div>
+	        {% endif %}
 
-        {% if animation_frames %}
+	        {% if animation_frames %}
         <div style="margin-top:12px;" class="uefa-section">{% if multi_board_enabled %}Multipizarra{% else %}Secuencia animada{% endif %}</div>
         <div class="uefa-box">
           <div class="sequence-frames {% if multi_board_enabled %}is-storyboard{% endif %}">

@@ -1417,12 +1417,26 @@
         text-transform: uppercase;
         user-select: none;
       }
-      .chip-toggle input {
-        width: 18px;
-        height: 18px;
-        margin: 0;
-        accent-color: #22d3ee;
-      }
+	      .chip-toggle input {
+	        width: 18px;
+	        height: 18px;
+	        margin: 0;
+	        accent-color: #22d3ee;
+	      }
+	      .chip-toggle .drill-icon {
+	        width: 18px;
+	        height: 18px;
+	        object-fit: contain;
+	        display: block;
+	        background: rgba(255,255,255,0.92);
+	        border-radius: 6px;
+	        padding: 2px;
+	      }
+	      .drills-picker {
+	        display: flex;
+	        flex-wrap: wrap;
+	        gap: 0.5rem;
+	      }
       .library-grid {
         grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
       }
@@ -2824,13 +2838,29 @@
                     Material
                     <input type="text" name="draw_task_materials" value="{{ initial.materials }}" placeholder="Conos, petos, porterías..." />
                   </label>
-                  <label>
-                    Espacio
-                    <input type="text" name="draw_task_space" value="{{ initial.space }}" placeholder="Ej: zona central + 2 carriles" />
-                  </label>
-                </div>
-	              </div>
-	              </div>
+	                  <label>
+	                    Espacio
+	                    <input type="text" name="draw_task_space" value="{{ initial.space }}" placeholder="Ej: zona central + 2 carriles" />
+	                  </label>
+	                  <label style="grid-column:1 / -1;">
+	                    Pictogramas (opcional)
+	                    <div class="meta" style="margin-top:0.25rem; margin-bottom:0.45rem; opacity:0.86;">
+	                      Útil para calentamientos (técnica de carrera / movilidad). Se imprimen en el PDF como secuencia visual.
+	                    </div>
+	                    <input type="hidden" name="draw_task_drills_json" id="draw-task-drills-json" value="{{ initial.drills_json|default:'[]'|escape }}" />
+	                    <div class="drills-picker" id="task-drills-picker" style="margin-top:0.35rem;">
+	                      {% for drill in drills_catalog %}
+	                      <label class="chip-toggle" title="{{ drill.label }}">
+	                        <input type="checkbox" value="{{ drill.id }}" {% if drill.id in initial.drills_ids %}checked{% endif %} data-drill-id="{{ drill.id }}" />
+	                        <img class="drill-icon" src="{% static drill.icon_static_path %}" alt="" />
+	                        {{ drill.label }}
+	                      </label>
+	                      {% endfor %}
+	                    </div>
+	                  </label>
+	                </div>
+		              </div>
+		              </div>
 
 	              <div class="side-pane" data-pane="assistant" role="tabpanel">
 	                <div class="section">
@@ -3500,8 +3530,8 @@
 		            } catch (err) {}
 		          };
 
-			          const setRichHtml = (plainName, html) => {
-		            const wrapper = form.querySelector(`[data-rich-editor][data-rich-name="${plainName}"]`);
+				          const setRichHtml = (plainName, html) => {
+			            const wrapper = form.querySelector(`[data-rich-editor][data-rich-name="${plainName}"]`);
 		            if (!wrapper) {
 		              setValue(plainName, String(html || '').replace(/<[^>]*>/g, ''));
 		              return;
@@ -3523,10 +3553,77 @@
 		                htmlField.value = safeHtml;
 		              }
 		            } catch (err) {}
-			          };
+				          };
 
-				          const setAssistantProgramUi = () => {
-				            const program = String(programEl.value || '').trim();
+				          const drillsInput = document.getElementById('draw-task-drills-json');
+				          const drillsPicker = document.getElementById('task-drills-picker');
+				          const parseJsonList = (value) => {
+				            const raw = String(value || '').trim();
+				            if (!raw) return [];
+				            if (!(raw.startsWith('[') && raw.endsWith(']'))) return [];
+				            try {
+				              const parsed = JSON.parse(raw);
+				              return Array.isArray(parsed) ? parsed.map((v) => String(v || '').trim()).filter(Boolean) : [];
+				            } catch (err) {
+				              return [];
+				            }
+				          };
+				          const writeDrills = (ids) => {
+				            const safe = Array.isArray(ids) ? ids.map((v) => String(v || '').trim()).filter(Boolean) : [];
+				            const deduped = [];
+				            const seen = new Set();
+				            safe.forEach((id) => {
+				              if (!id || seen.has(id)) return;
+				              seen.add(id);
+				              deduped.push(id);
+				            });
+				            try {
+				              if (drillsInput) drillsInput.value = JSON.stringify(deduped);
+				            } catch (err) {}
+				            try {
+				              if (!drillsPicker) return;
+				              Array.from(drillsPicker.querySelectorAll('input[type="checkbox"][data-drill-id]')).forEach((cb) => {
+				                const id = String(cb.getAttribute('data-drill-id') || '').trim();
+				                cb.checked = !!(id && deduped.includes(id));
+				              });
+				            } catch (err) {}
+				          };
+				          const readDrills = () => {
+				            const current = parseJsonList(drillsInput?.value);
+				            if (current.length) return current;
+				            const ids = [];
+				            if (!drillsPicker) return ids;
+				            Array.from(drillsPicker.querySelectorAll('input[type="checkbox"][data-drill-id]')).forEach((cb) => {
+				              if (!cb.checked) return;
+				              const id = String(cb.getAttribute('data-drill-id') || '').trim();
+				              if (id) ids.push(id);
+				            });
+				            return ids;
+				          };
+
+				          try {
+				            if (drillsPicker && drillsInput) {
+				              // Normaliza valor inicial y engancha eventos.
+				              writeDrills(readDrills());
+				              Array.from(drillsPicker.querySelectorAll('input[type="checkbox"][data-drill-id]')).forEach((cb) => {
+				                cb.addEventListener('change', () => {
+				                  const id = String(cb.getAttribute('data-drill-id') || '').trim();
+				                  let ids = readDrills();
+				                  ids = Array.isArray(ids) ? ids.slice() : [];
+				                  if (cb.checked) {
+				                    // Añade al final (orden de selección).
+				                    ids.push(id);
+				                  } else {
+				                    ids = ids.filter((x) => String(x || '').trim() !== id);
+				                  }
+				                  writeDrills(ids);
+				                });
+				              });
+				            }
+				          } catch (err) {}
+
+					          const setAssistantProgramUi = () => {
+					            const program = String(programEl.value || '').trim();
 				            Array.from(document.querySelectorAll('[data-assistant-program]')).forEach((node) => {
 				              const key = String(node.getAttribute('data-assistant-program') || '').trim();
 				              node.hidden = !!key && key !== program;
@@ -3672,11 +3769,12 @@
 			              minutes: minutes,
 			              block: 'activation',
 			              player_count: basePlayers,
-			              dimensions: 'Carril 10–15 m',
-			              materials: baseMaterials,
-			              space: baseSpace,
-			              board: {
-			                items: [
+				              dimensions: 'Carril 10–15 m',
+				              materials: baseMaterials,
+				              space: baseSpace,
+				              drills: ['run_easy', 'a_skip', 'butt_kicks', 'hip_open_close', 'hamstring_sweep'],
+				              board: {
+				                items: [
 			                  // Dos carriles con conos + flechas (muy básico, editable).
 			                  { payload: { kind: 'cone_striped' }, x: 0.14, y: 0.36 },
 			                  { payload: { kind: 'cone' }, x: 0.44, y: 0.36 },
@@ -3766,10 +3864,11 @@
 			              block: 'activation',
 			              player_count: 'Todo el equipo',
 			              dimensions: 'Carril 20–30 m',
-			              materials: 'Conos',
-			              space: 'Carril recto + marcas de giro',
-			              board: {
-			                items: [
+				              materials: 'Conos',
+				              space: 'Carril recto + marcas de giro',
+				              drills: ['run_easy', 'ankling', 'side_shuffle', 'carioca', 'bounding'],
+				              board: {
+				                items: [
 			                  { payload: { kind: 'cone_striped' }, x: 0.56, y: 0.50 },
 			                  { payload: { kind: 'cone' }, x: 0.82, y: 0.50 },
 			                  { payload: { kind: 'arrow_thick' }, x: 0.69, y: 0.50 },
@@ -5492,7 +5591,7 @@
 				            updateQueueUi();
 				          });
 
-					          const applyTpl = (tpl, options = {}) => {
+						          const applyTpl = (tpl, options = {}) => {
 					            if (!tpl || typeof tpl !== 'object') return false;
 					            const wantsBoard = !!(applyBoardEl && applyBoardEl.checked);
 					            const willClearBoard = !!(clearBoardEl && clearBoardEl.checked);
@@ -5513,14 +5612,17 @@
 				            if (tpl.dimensions != null) setValue('draw_task_dimensions', tpl.dimensions);
 				            if (tpl.materials != null) setValue('draw_task_materials', tpl.materials);
 				            if (tpl.space != null) setValue('draw_task_space', tpl.space);
-				            if (tpl.training_type) setValue('draw_task_training_type', tpl.training_type);
-					            if (tpl.age_group) setValue('draw_task_age_group', tpl.age_group);
-					            if (tpl.description_html != null) setRichHtml('draw_task_description', tpl.description_html);
-					            if (tpl.coaching_html != null) setRichHtml('draw_task_coaching_points', tpl.coaching_html);
-					            if (tpl.rules_html != null) setRichHtml('draw_task_confrontation_rules', tpl.rules_html);
-					            if (tpl.progression_html != null) setRichHtml('draw_task_progression', tpl.progression_html);
-					            if (tpl.regression_html != null) setRichHtml('draw_task_regression', tpl.regression_html);
-					            if (tpl.success_criteria_html != null) setRichHtml('draw_task_success_criteria', tpl.success_criteria_html);
+					            if (tpl.training_type) setValue('draw_task_training_type', tpl.training_type);
+						            if (tpl.age_group) setValue('draw_task_age_group', tpl.age_group);
+						            if (tpl.description_html != null) setRichHtml('draw_task_description', tpl.description_html);
+						            if (tpl.coaching_html != null) setRichHtml('draw_task_coaching_points', tpl.coaching_html);
+						            if (tpl.rules_html != null) setRichHtml('draw_task_confrontation_rules', tpl.rules_html);
+						            if (tpl.progression_html != null) setRichHtml('draw_task_progression', tpl.progression_html);
+						            if (tpl.regression_html != null) setRichHtml('draw_task_regression', tpl.regression_html);
+						            if (tpl.success_criteria_html != null) setRichHtml('draw_task_success_criteria', tpl.success_criteria_html);
+					            if (tpl.drills && Array.isArray(tpl.drills)) {
+					              writeDrills(tpl.drills);
+					            }
 
 					            if (wantsBoard && tpl.board && Array.isArray(tpl.board.items)) {
 					              try {

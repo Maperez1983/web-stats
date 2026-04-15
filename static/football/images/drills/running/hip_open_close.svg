@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Movilidad cadera abre y cierra">
+  <g fill="none" stroke="#0f7a35" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="30" cy="12" r="6"/>
+    <path d="M30 18 L30 34"/>
+    <path d="M30 24 L18 28"/>
+    <path d="M30 24 L42 28"/>
+    <!-- standing leg -->
+    <path d="M30 34 L24 56"/>
+    <!-- opening leg -->
+    <path d="M30 34 L44 44"/>
+    <path d="M44 44 L52 56"/>
+    <!-- hip circle arrows -->
+    <path d="M10 40 C10 30 18 24 28 24"/>
+    <path d="M10 40 L14 36"/>
+    <path d="M10 40 L14 44"/>
+    <path d="M52 24 C42 24 34 30 34 40"/>
+    <path d="M34 40 L30 36"/>
+    <path d="M34 40 L38 36"/>
+  </g>
+</svg>
+

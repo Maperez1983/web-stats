@@ -246,14 +246,44 @@
 	        background: #f3f4f6;
 	        font-weight: 700;
 	      }
-	      .uefa-box {
-	        border: 1px solid #1f2937;
-	        min-height: 34px;
-	        padding: 8px;
-	      }
-	      .uefa-page-break { page-break-before: always; }
-	      .page-break { page-break-before: always; }
-	    </style>
+		      .uefa-box {
+		        border: 1px solid #1f2937;
+		        min-height: 34px;
+		        padding: 8px;
+		      }
+		      .drills-row {
+		        display: flex;
+		        flex-wrap: wrap;
+		        gap: 6px;
+		        margin: 8px 0 10px;
+		      }
+		      .drill-chip {
+		        display: inline-flex;
+		        align-items: center;
+		        gap: 6px;
+		        padding: 4px 8px;
+		        border-radius: 999px;
+		        border: 1px solid #cbd5e1;
+		        background: #ffffff;
+		        font-size: 9px;
+		        font-weight: 800;
+		        letter-spacing: 0.04em;
+		        text-transform: uppercase;
+		        color: #0f172a;
+		      }
+		      .drill-chip img {
+		        width: 18px;
+		        height: 18px;
+		        object-fit: contain;
+		        display: block;
+		        background: #ffffff;
+		        border: 1px solid #e2e8f0;
+		        border-radius: 6px;
+		        padding: 2px;
+		      }
+		      .uefa-page-break { page-break-before: always; }
+		      .page-break { page-break-before: always; }
+		    </style>
 	  </head>
 	    <body>
 	    {% if pdf_style != 'club' %}
@@ -322,13 +352,24 @@
 	          <div class="task-graphic" style="margin-bottom:10px;">
 	            <img src="{{ card.preview_url }}" alt="Representación gráfica" />
 	          </div>
-	          {% else %}
-	          <div class="task-graphic" style="margin-bottom:10px; line-height:1.2;">
-	            <div style="color:#6b7280;">(Sin representación gráfica)</div>
-	          </div>
-	          {% endif %}
+		          {% else %}
+		          <div class="task-graphic" style="margin-bottom:10px; line-height:1.2;">
+		            <div style="color:#6b7280;">(Sin representación gráfica)</div>
+		          </div>
+		          {% endif %}
+		          {% if card.drills %}
+		          <div style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; color:#0f7a35; margin-bottom:6px;">Secuencia</div>
+		          <div class="drills-row">
+		            {% for drill in card.drills %}
+		            <div class="drill-chip">
+		              {% if drill.icon_url %}<img src="{{ drill.icon_url }}" alt="" />{% endif %}
+		              {{ drill.label }}
+		            </div>
+		            {% endfor %}
+		          </div>
+		          {% endif %}
 
-	          <div class="uefa-section-head">CONSIGNA / EXPLICACIÓN</div>
+		          <div class="uefa-section-head">CONSIGNA / EXPLICACIÓN</div>
 	          <div class="uefa-box" style="margin-bottom:10px; white-space:pre-line;">
 	            {% if card.sheet.focus %}{{ card.sheet.focus }}{% elif card.sheet.description %}{{ card.sheet.description }}{% else %}-{% endif %}
 	          </div>
@@ -473,12 +514,23 @@
 	          <div class="task-sheet-card">
 	            <div class="task-title">Tarea {{ forloop.counter }} · {{ card.sheet.title }}</div>
 	            <div class="task-meta">{{ card.sheet.block_label }} · {{ card.sheet.minutes }} min{% if card.sheet.type_label and card.sheet.type_label != '-' %} · {{ card.sheet.type_label }}{% endif %}</div>
-	              {% if card.preview_url %}
-	              <div class="task-graphic" style="margin-top:8px; margin-bottom:10px;">
-	                <img src="{{ card.preview_url }}" alt="Representación gráfica" />
-	              </div>
-	              {% endif %}
-	            <table class="task-sheet-grid">
+		              {% if card.preview_url %}
+		              <div class="task-graphic" style="margin-top:8px; margin-bottom:10px;">
+		                <img src="{{ card.preview_url }}" alt="Representación gráfica" />
+		              </div>
+		              {% endif %}
+		              {% if card.drills %}
+		              <div style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; color:#0f7a35; margin-bottom:6px;">Secuencia</div>
+		              <div class="drills-row" style="margin-top:0; margin-bottom:10px;">
+		                {% for drill in card.drills %}
+		                <div class="drill-chip">
+		                  {% if drill.icon_url %}<img src="{{ drill.icon_url }}" alt="" />{% endif %}
+		                  {{ drill.label }}
+		                </div>
+		                {% endfor %}
+		              </div>
+		              {% endif %}
+		            <table class="task-sheet-grid">
 	              <tr>
 	                <td style="width:50%;">
 	                  <strong>Contenidos</strong>
