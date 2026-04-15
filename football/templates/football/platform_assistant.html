@@ -129,6 +129,28 @@
               {% endfor %}
             </select>
           </label>
+          <label style="display:grid; gap:6px; min-width: 320px;">
+            <span class="meta">Sesión (UEFA) · fondo</span>
+            <select id="tpl-session-bg">
+              <option value="">(sin plantilla)</option>
+              {% for asset in asset_options %}
+              <option value="{{ asset.id }}" {% if session_bg_asset_id|stringformat:"s" == asset.id|stringformat:"s" %}selected{% endif %}>
+                #{{ asset.id }} · {{ asset.title|default:"Recurso" }}
+              </option>
+              {% endfor %}
+            </select>
+          </label>
+          <label style="display:grid; gap:6px; min-width: 320px;">
+            <span class="meta">Tarea (UEFA) · fondo</span>
+            <select id="tpl-task-bg">
+              <option value="">(sin plantilla)</option>
+              {% for asset in asset_options %}
+              <option value="{{ asset.id }}" {% if task_bg_asset_id|stringformat:"s" == asset.id|stringformat:"s" %}selected{% endif %}>
+                #{{ asset.id }} · {{ asset.title|default:"Recurso" }}
+              </option>
+              {% endfor %}
+            </select>
+          </label>
           <button type="button" class="link-btn primary" id="tpl-save">Guardar</button>
         </div>
         <div class="meta" id="tpl-msg" style="margin-top:0.75rem;"></div>
@@ -313,20 +335,29 @@
         const tplSaveBtn = document.getElementById('tpl-save');
         const tplMsgEl = document.getElementById('tpl-msg');
         const tplMicroBg = document.getElementById('tpl-microcycle-bg');
+        const tplSessionBg = document.getElementById('tpl-session-bg');
+        const tplTaskBg = document.getElementById('tpl-task-bg');
         tplSaveBtn?.addEventListener('click', async () => {
           try {
             tplMsgEl.textContent = 'Guardando…';
-            const fd = new FormData();
-            fd.append('key', 'pdf_template_microcycle_bg_asset_id');
-            fd.append('value', String(tplMicroBg?.value || '').trim());
-            const res = await fetch(settingSetUrl, {
-              method: 'POST',
-              credentials: 'same-origin',
-              headers: csrf ? { 'X-CSRFToken': csrf } : {},
-              body: fd,
-            });
-            const data = res.ok ? await res.json() : null;
-            if (!res.ok || !data?.ok) throw new Error(data?.error || 'No se pudo guardar.');
+            const settings = [
+              ['pdf_template_microcycle_bg_asset_id', String(tplMicroBg?.value || '').trim()],
+              ['pdf_template_session_bg_asset_id', String(tplSessionBg?.value || '').trim()],
+              ['pdf_template_task_bg_asset_id', String(tplTaskBg?.value || '').trim()],
+            ];
+            for (const [key, value] of settings) {
+              const fd = new FormData();
+              fd.append('key', key);
+              fd.append('value', value);
+              const res = await fetch(settingSetUrl, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: csrf ? { 'X-CSRFToken': csrf } : {},
+                body: fd,
+              });
+              const data = res.ok ? await res.json() : null;
+              if (!res.ok || !data?.ok) throw new Error(data?.error || 'No se pudo guardar.');
+            }
             tplMsgEl.textContent = 'Plantilla guardada.';
           } catch (e) {
             tplMsgEl.textContent = 'Error al guardar plantilla.';

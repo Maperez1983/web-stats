@@ -255,9 +255,9 @@
 	      .page-break { page-break-before: always; }
 	    </style>
 	  </head>
-	  <body>
+	    <body>
 	    {% if pdf_style != 'club' %}
-	    <section class="sheet uefa-sheet">
+	    <section class="sheet uefa-sheet"{% if template_bg_src %} style="background-image:url('{{ template_bg_src }}'); background-size:100% 100%; background-repeat:no-repeat; background-position:center;"{% endif %}>
 	      <div class="uefa-bar uefa-red">
 	        <table style="width:100%; border-collapse:collapse;">
 	          <tr>

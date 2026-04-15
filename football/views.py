@@ -16002,6 +16002,7 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
         'animation_frames': animation_frames,
         'animation_frame_cards': animation_frame_cards,
         'pdf_style': pdf_style,
+        'template_bg_src': _system_pdf_template_bg_src('pdf_template_session_bg_asset_id', max_width=2200, max_height=3100, quality=72) if pdf_style == 'uefa' else '',
         'pdf_palette': _team_pdf_palette(team, pdf_style),
         'coach_name': coach_name,
         'animation_frames_count': len(animation_frames),
@@ -16009,6 +16010,7 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
         'brand_mark_url': request.build_absolute_uri(static('football/images/2j-mark.svg')),
         'club_logo_url': club_logo_url,
         'task_preview_url': preview_url,
+        'template_bg_src': _system_pdf_template_bg_src('pdf_template_task_bg_asset_id', max_width=2200, max_height=3100, quality=72) if pdf_style == 'uefa' else '',
         'pdf_text_heavy': pdf_text_heavy,
         'pdf_text_superheavy': pdf_text_superheavy,
         'generated_at': timezone.localtime(),
@@ -16730,6 +16732,43 @@ def _resolve_static_asset_file(asset_value):
         if candidate.exists() and candidate.is_file():
             return candidate
     return None
+
+
+def _system_pdf_template_bg_src(setting_key: str, *, max_width=2600, max_height=1800, quality=74) -> str:
+    """
+    Resuelve una plantilla de fondo (imagen) desde SystemSetting -> PdfGraphicAsset (repositorio `pizarra`)
+    y la devuelve como data URI ligera para incrustarla en HTML/PDF (WeasyPrint).
+    """
+    key = str(setting_key or '').strip()
+    if not key:
+        return ''
+    try:
+        raw_value = SystemSetting.objects.filter(key=key).values_list('value', flat=True).first()
+    except Exception:
+        raw_value = ''
+    asset_id = _parse_int(str(raw_value or '').strip())
+    if not asset_id:
+        return ''
+    asset = PdfGraphicAsset.objects.select_related('team').filter(id=asset_id).first()
+    if not asset or not getattr(asset, 'file', None):
+        return ''
+    team = getattr(asset, 'team', None)
+    if not team or str(getattr(team, 'slug', '') or '') != 'pizarra':
+        return ''
+    try:
+        asset.file.open('rb')
+        blob = asset.file.read() or b''
+    except Exception:
+        blob = b''
+    if not blob:
+        return ''
+    return _image_bytes_as_small_data_uri(
+        blob,
+        mime_type='image/jpeg',
+        max_width=int(max_width or 2600),
+        max_height=int(max_height or 1800),
+        quality=int(quality or 74),
+    )
 
 
 @login_required
@@ -31400,12 +31439,26 @@ def platform_assistant_page(request):
         .order_by('-created_at', '-id')[:240]
     )
     microcycle_bg_asset_id = ''
+    session_bg_asset_id = ''
+    task_bg_asset_id = ''
     try:
         microcycle_bg_asset_id = str(
             (SystemSetting.objects.filter(key='pdf_template_microcycle_bg_asset_id').values_list('value', flat=True).first() or '').strip()
         )
     except Exception:
         microcycle_bg_asset_id = ''
+    try:
+        session_bg_asset_id = str(
+            (SystemSetting.objects.filter(key='pdf_template_session_bg_asset_id').values_list('value', flat=True).first() or '').strip()
+        )
+    except Exception:
+        session_bg_asset_id = ''
+    try:
+        task_bg_asset_id = str(
+            (SystemSetting.objects.filter(key='pdf_template_task_bg_asset_id').values_list('value', flat=True).first() or '').strip()
+        )
+    except Exception:
+        task_bg_asset_id = ''
     return render(
         request,
         'football/platform_assistant.html',
@@ -31416,6 +31469,8 @@ def platform_assistant_page(request):
             'assets_count': len(assets),
             'asset_options': asset_options,
             'microcycle_bg_asset_id': microcycle_bg_asset_id,
+            'session_bg_asset_id': session_bg_asset_id,
+            'task_bg_asset_id': task_bg_asset_id,
         },
     )
 
