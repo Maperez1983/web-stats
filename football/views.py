@@ -2633,6 +2633,18 @@ def pdf_graphic_asset_upload(request):
     skipped = 0
     errors = 0
     warnings = []
+    def _warn(message: str) -> None:
+        try:
+            msg = str(message or '').strip()
+        except Exception:
+            msg = ''
+        if not msg:
+            return
+        if len(warnings) >= 6:
+            return
+        if msg in warnings:
+            return
+        warnings.append(msg)
 
     def _already_exists(sha256_value):
         qs = PdfGraphicAsset.objects.filter(sha256=sha256_value)
@@ -2701,7 +2713,7 @@ def pdf_graphic_asset_upload(request):
         if normalized in {'png', 'jpg', 'jpeg', 'webp'}:
             return data, ('jpg' if normalized == 'jpeg' else normalized)
         # TIFF y GIF: convertimos a PNG (mejor compatibilidad en Fabric/canvas).
-        if normalized in {'tif', 'tiff', 'gif'}:
+        if normalized in {'tif', 'tiff', 'gif', 'bmp', 'dib', 'ico'}:
             if Image is None:
                 return b'', 'png'
             try:
@@ -2734,6 +2746,7 @@ def pdf_graphic_asset_upload(request):
                     ext = Path(base).suffix.lower().lstrip('.')
                     # EMF/WMF no se pueden rasterizar sin herramientas externas.
                     if ext in {'emf', 'wmf'}:
+                        _warn(f'Omitido {base}: {ext.upper()} no soportado. Exporta ese elemento a PNG desde PowerPoint.')
                         skipped += 1
                         continue
                     try:
@@ -2744,6 +2757,7 @@ def pdf_graphic_asset_upload(request):
                         continue
                     data, out_ext = _convert_to_png_if_needed(raw, ext)
                     if not data:
+                        _warn(f'Omitido {base}: formato {ext.upper() or "desconocido"} no soportado.')
                         continue
                     title_hint = Path(base).stem
                     _store_asset(data=data, title_hint=title_hint, ext_hint=out_ext)
