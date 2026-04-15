@@ -222,6 +222,9 @@
         <nav class="tabs">
           <a class="tab {% if active_tab == 'stats' %}is-active{% endif %}" href="{{ tab_link_stats }}">Estadísticas</a>
           <a class="tab {% if active_tab == 'manage' %}is-active{% endif %}" href="{{ tab_link_manage }}">Alta y plantilla</a>
+          {% if active_tab == 'stats' %}
+            <a class="tab" style="margin-left:auto;" href="{{ tab_link_refresh }}">Actualizar</a>
+          {% endif %}
         </nav>
         {% if message %}<p class="alert ok">{{ message }}</p>{% endif %}
         {% if error %}<p class="alert err">{{ error }}</p>{% endif %}

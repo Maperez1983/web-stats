@@ -742,7 +742,9 @@ SCRAPE_LOCK_TIMEOUT_SECONDS = 900
 DASHBOARD_CACHE_KEY_PREFIX = "football:dashboard_payload"
 DASHBOARD_CACHE_SECONDS = int(os.getenv('DASHBOARD_CACHE_SECONDS', '600'))
 PLAYER_DASHBOARD_CACHE_KEY_PREFIX = "football:player_dashboard"
-PLAYER_DASHBOARD_CACHE_SECONDS = int(os.getenv('PLAYER_DASHBOARD_CACHE_SECONDS', '600'))
+# Importante (Render multi-worker): si el backend de cache es local-memoria, los invalidates no se comparten
+# entre workers. Mantener una TTL corta evita que el usuario vea estadísticas “antiguas” tras registrar un partido.
+PLAYER_DASHBOARD_CACHE_SECONDS = int(os.getenv('PLAYER_DASHBOARD_CACHE_SECONDS', '60'))
 PLAYER_PHOTO_VERSION_CACHE_KEY_PREFIX = "football:player_photo_version"
 PLAYER_PHOTO_VERSION_CACHE_SECONDS = int(os.getenv('PLAYER_PHOTO_VERSION_CACHE_SECONDS', '86400'))
 TEAM_METRICS_CACHE_SECONDS = int(os.getenv('TEAM_METRICS_CACHE_SECONDS', '900'))
@@ -17850,12 +17852,17 @@ def coach_roster_page(request):
     player_cards = []
     if active_tab == 'stats':
         try:
-            player_cards = compute_player_cards(primary_team)
+            force_refresh = str(request.GET.get('refresh') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+            player_cards = compute_player_cards(primary_team, force_refresh=force_refresh)
         except Exception:
             player_cards = []
-    def _tab_link(tab_name):
+    def _tab_link(tab_name, *, refresh=False):
         params = request.GET.copy()
         params['tab'] = tab_name
+        if refresh:
+            params['refresh'] = '1'
+        else:
+            params.pop('refresh', None)
         encoded = params.urlencode()
         return f'?{encoded}' if encoded else ''
     return render(
@@ -17868,6 +17875,7 @@ def coach_roster_page(request):
             'active_tab': active_tab,
             'tab_link_stats': _tab_link('stats'),
             'tab_link_manage': _tab_link('manage'),
+            'tab_link_refresh': _tab_link('stats', refresh=True),
             'message': message,
             'error': error,
         },
@@ -29778,10 +29786,10 @@ def compute_player_metrics(primary_team):
     return result
 
 
-def compute_player_cards(primary_team):
+def compute_player_cards(primary_team, *, force_refresh=False):
     if not primary_team:
         return []
-    dashboard_rows = compute_player_dashboard(primary_team)
+    dashboard_rows = compute_player_dashboard(primary_team, force_refresh=bool(force_refresh))
     cards = []
     for row in dashboard_rows:
         cards.append(
