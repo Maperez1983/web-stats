@@ -30983,27 +30983,48 @@ def _assistant_goal_specs():
 def _extract_pdf_text_via_pdftotext(pdf_bytes: bytes) -> str:
     if not pdf_bytes:
         return ''
-    if shutil.which('pdftotext') is None:
+    # 1) Preferimos `pdftotext` si está disponible (suele dar mejores resultados con layout).
+    if shutil.which('pdftotext') is not None:
+        with tempfile.NamedTemporaryFile(suffix='.pdf', delete=True) as tmp:
+            tmp.write(pdf_bytes)
+            tmp.flush()
+            try:
+                proc = subprocess.run(
+                    ['pdftotext', '-layout', '-enc', 'UTF-8', tmp.name, '-'],
+                    check=False,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    timeout=45,
+                )
+            except Exception:
+                proc = None
+            if proc and proc.returncode == 0:
+                try:
+                    text = (proc.stdout or b'').decode('utf-8', errors='ignore')
+                except Exception:
+                    text = ''
+                if text and len(text.strip()) >= 40:
+                    return text
+
+    # 2) Fallback puro Python (Render/local) cuando no hay `pdftotext`.
+    try:
+        import io
+        from pypdf import PdfReader  # type: ignore
+    except Exception:
         return ''
-    with tempfile.NamedTemporaryFile(suffix='.pdf', delete=True) as tmp:
-        tmp.write(pdf_bytes)
-        tmp.flush()
+    try:
+        reader = PdfReader(io.BytesIO(pdf_bytes))
+    except Exception:
+        return ''
+    out = []
+    for page in (getattr(reader, 'pages', None) or [])[:180]:
         try:
-            proc = subprocess.run(
-                ['pdftotext', '-layout', '-enc', 'UTF-8', tmp.name, '-'],
-                check=False,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                timeout=45,
-            )
+            chunk = page.extract_text() or ''
         except Exception:
-            return ''
-        if proc.returncode != 0:
-            return ''
-        try:
-            return (proc.stdout or b'').decode('utf-8', errors='ignore')
-        except Exception:
-            return ''
+            chunk = ''
+        if chunk:
+            out.append(chunk)
+    return '\n'.join(out).strip()
 
 
 def _assistant_extract_bullets(text: str):
@@ -31174,7 +31195,7 @@ def task_assistant_knowledge_upload_api(request):
 
     files = list(request.FILES.getlist('documents')) or list(request.FILES.getlist('files'))
     if not files:
-        return JsonResponse({'ok': False, 'error': 'Selecciona al menos un PDF.'}, status=400)
+        return JsonResponse({'ok': False, 'error': 'Selecciona al menos un documento.'}, status=400)
 
     saved = 0
     skipped = 0
@@ -31201,11 +31222,19 @@ def task_assistant_knowledge_upload_api(request):
         try:
             obj = AssistantKnowledgeDocument(team=primary_team, title=title, sha256=sha, mime_type=mime)
             obj.file.save(Path(title).name, ContentFile(raw), save=False)
-            # Extract ahora (solo PDFs).
+            # Extract ahora (PDF/TXT/MD).
             text = ''
-            if title.lower().endswith('.pdf') or mime == 'application/pdf':
+            lower_title = title.lower()
+            is_pdf = bool(lower_title.endswith('.pdf') or mime == 'application/pdf')
+            if is_pdf:
                 text = _extract_pdf_text_via_pdftotext(raw)
-            if text and len(text.strip()) >= 120:
+            elif lower_title.endswith('.txt') or lower_title.endswith('.md') or mime.startswith('text/'):
+                try:
+                    text = (raw or b'').decode('utf-8', errors='ignore')
+                except Exception:
+                    text = ''
+            min_len = 120 if is_pdf else 30
+            if text and len(text.strip()) >= min_len:
                 obj.extracted_text = text[:500_000]
                 obj.extracted_at = timezone.now()
                 extracted += 1
