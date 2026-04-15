@@ -110,6 +110,32 @@
           </tbody>
         </table>
       </section>
+
+      <section class="panel" style="margin-top:1rem;">
+        <h2 style="margin:0 0 0.35rem;">Recursos gráficos (PPTX/IMG)</h2>
+        <div class="meta" style="margin-bottom:0.7rem;">
+          Sube un <strong>PPTX</strong> con imágenes incrustadas o archivos sueltos (PNG/JPG/WebP/GIF). El sistema extrae los recursos
+          y los deja disponibles en la pizarra de tareas (cualquier club/equipo) para tu uso interno.
+        </div>
+        <div class="row">
+          <input type="file" id="sys-assets-files" accept=".pptx,image/*" multiple />
+          <button type="button" class="link-btn primary" id="sys-assets-upload">Subir recursos</button>
+        </div>
+        <div class="meta" id="sys-assets-msg" style="margin-top:0.75rem;"></div>
+
+        {% if assets %}
+        <div class="meta" style="margin-top:0.9rem;">Últimos recursos ({{ assets_count }})</div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:0.6rem;">
+          {% for asset in assets %}
+          <a class="link-btn" style="padding:0.35rem; border-radius:14px;" href="{% url 'pdf-graphic-asset-file' asset.id %}" target="_blank" rel="noopener" title="{{ asset.title|default:'Recurso' }}">
+            <img src="{% url 'pdf-graphic-asset-file' asset.id %}" alt="{{ asset.title|default:'Recurso' }}" style="width:74px; height:74px; object-fit:contain; display:block; background:#ffffff; border-radius:12px;" loading="lazy" />
+          </a>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="meta" style="margin-top:0.9rem;">Aún no hay recursos gráficos en el sistema.</div>
+        {% endif %}
+      </section>
     </div>
 
     <form id="csrf-form" style="display:none;">{% csrf_token %}</form>
@@ -124,6 +150,7 @@
 
         const knowledgeUrl = "{% url 'task-assistant-knowledge-api' %}?scope=system";
         const uploadUrl = "{% url 'task-assistant-knowledge-upload-api' %}";
+        const assetUploadUrl = "{% url 'pdf-graphic-asset-upload' %}";
 
         const escapeHtml = (v) => String(v ?? '').replace(/[&<>"']/g, (ch) => ({
           '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
@@ -187,9 +214,40 @@
           }
         });
 
+        const assetsFilesEl = document.getElementById('sys-assets-files');
+        const assetsUploadBtn = document.getElementById('sys-assets-upload');
+        const assetsMsgEl = document.getElementById('sys-assets-msg');
+        assetsUploadBtn?.addEventListener('click', async () => {
+          const files = Array.from(assetsFilesEl?.files || []);
+          if (!files.length) {
+            assetsMsgEl.textContent = 'Selecciona un PPTX o imágenes.';
+            return;
+          }
+          const fd = new FormData();
+          fd.append('scope', 'system');
+          fd.append('scope_key', 'coach');
+          files.slice(0, 20).forEach((f) => fd.append('assets', f, f.name || 'asset'));
+          try {
+            assetsMsgEl.textContent = 'Subiendo recursos…';
+            const res = await fetch(assetUploadUrl, {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: csrf ? { 'X-CSRFToken': csrf } : {},
+              body: fd,
+            });
+            const data = res.ok ? await res.json() : null;
+            if (!res.ok || !data?.ok) throw new Error(data?.error || 'No se pudo subir.');
+            assetsMsgEl.textContent = `Subidos: ${Array.isArray(data?.saved) ? data.saved.length : 0}. Omitidos: ${Number(data?.skipped || 0) || 0}. Errores: ${Number(data?.errors || 0) || 0}.`;
+            try { assetsFilesEl.value = ''; } catch (e) {}
+            // Recarga para ver miniaturas actualizadas.
+            setTimeout(() => { try { window.location.reload(); } catch (e) {} }, 450);
+          } catch (e) {
+            assetsMsgEl.textContent = 'Error: no se pudieron subir los recursos.';
+          }
+        });
+
         load();
       })();
     </script>
   </body>
 </html>
-

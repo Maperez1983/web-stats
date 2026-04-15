@@ -2544,9 +2544,18 @@ def pdf_graphic_asset_file(request, asset_id):
         raise Http404('Recurso no disponible')
     # Permisos por alcance: equipo (coach/club) o owner (Task Studio).
     if asset.team_id:
-        primary_team = _get_primary_team_for_request(request)
-        if not primary_team or int(primary_team.id) != int(asset.team_id):
-            return HttpResponse('No tienes permisos para acceder a este recurso.', status=403)
+        # Repositorio global del sistema (uso interno): accesible desde cualquier equipo.
+        try:
+            if getattr(asset.team, 'slug', '') == 'pizarra':
+                pass
+            else:
+                primary_team = _get_primary_team_for_request(request)
+                if not primary_team or int(primary_team.id) != int(asset.team_id):
+                    return HttpResponse('No tienes permisos para acceder a este recurso.', status=403)
+        except Exception:
+            primary_team = _get_primary_team_for_request(request)
+            if not primary_team or int(primary_team.id) != int(asset.team_id):
+                return HttpResponse('No tienes permisos para acceder a este recurso.', status=403)
     elif asset.owner_id:
         if int(getattr(request.user, 'id', 0) or 0) != int(asset.owner_id) and not _is_admin_user(request.user):
             return HttpResponse('No tienes permisos para acceder a este recurso.', status=403)
@@ -2582,12 +2591,22 @@ def pdf_graphic_asset_upload(request):
     - task_studio: se guardan por owner (usuario del estudio).
     """
     scope_key = str(request.POST.get('scope_key') or '').strip().lower() or 'coach'
+    scope = str(request.POST.get('scope') or '').strip().lower()
     files = list(request.FILES.getlist('assets'))
     if not files:
         return JsonResponse({'ok': False, 'error': 'Selecciona al menos un archivo.'}, status=400)
 
     team = None
     owner = None
+    if scope == 'system':
+        if not bool(getattr(request.user, 'is_superuser', False)):
+            return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+        try:
+            team, _ = Team.objects.get_or_create(slug='pizarra', defaults={'name': 'PIZARRA'})
+        except Exception:
+            team = Team.objects.filter(slug='pizarra').first()
+        if not team:
+            return JsonResponse({'ok': False, 'error': 'No se pudo inicializar el repositorio del sistema.'}, status=500)
     if scope_key == 'task_studio':
         forbidden = _forbid_if_no_task_studio_access(request.user)
         if forbidden:
@@ -2598,15 +2617,16 @@ def pdf_graphic_asset_upload(request):
             return forbidden
         owner = target_user
     else:
-        if not _can_access_sessions_workspace(request.user):
-            return JsonResponse({'ok': False, 'error': 'No tienes permisos.'}, status=403)
-        forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
-        if forbidden:
-            return forbidden
-        primary_team = _get_primary_team_for_request(request)
-        if not primary_team:
-            return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
-        team = primary_team
+        if not team:
+            if not _can_access_sessions_workspace(request.user):
+                return JsonResponse({'ok': False, 'error': 'No tienes permisos.'}, status=403)
+            forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+            if forbidden:
+                return forbidden
+            primary_team = _get_primary_team_for_request(request)
+            if not primary_team:
+                return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
+            team = primary_team
 
     saved = []
     skipped = 0
@@ -25023,10 +25043,19 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
     # Recursos gráficos extraídos de PDFs importados (y/o subidos por el usuario en su estudio).
     # En sesiones (coach/club) mostramos:
     # - assets del equipo (team=primary_team)
+    # - assets globales del sistema (team slug="pizarra")
     # - assets privados del usuario (owner=request.user), útil si los subió en Task Studio.
+    system_team = None
+    try:
+        system_team = Team.objects.filter(slug='pizarra').first()
+    except Exception:
+        system_team = None
+    assets_filter = Q(team=primary_team) | Q(owner=request.user)
+    if system_team:
+        assets_filter |= Q(team=system_team)
     pdf_assets = list(
         PdfGraphicAsset.objects
-        .filter(Q(team=primary_team) | Q(owner=request.user))
+        .filter(assets_filter)
         .exclude(file='')
         .order_by('-created_at', '-id')[:80]
     )
@@ -31228,12 +31257,20 @@ def platform_assistant_page(request):
         .filter(team=system_team, is_active=True)
         .order_by('-created_at', '-id')[:120]
     )
+    assets = list(
+        PdfGraphicAsset.objects
+        .filter(team=system_team)
+        .exclude(file='')
+        .order_by('-created_at', '-id')[:80]
+    )
     return render(
         request,
         'football/platform_assistant.html',
         {
             'system_team': system_team,
             'docs_count': len(docs),
+            'assets': assets,
+            'assets_count': len(assets),
         },
     )
 
