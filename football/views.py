@@ -30813,9 +30813,9 @@ def task_assistant_blueprints_api(request):
     # Nota: por defecto usamos el equipo especial `slug="pizarra"` como repositorio global.
     system_team = None
     try:
-        system_team = Team.objects.filter(slug='pizarra').first()
+        system_team, _ = Team.objects.get_or_create(slug='pizarra', defaults={'name': 'PIZARRA'})
     except Exception:
-        system_team = None
+        system_team = Team.objects.filter(slug='pizarra').first()
     team_ids = [int(primary_team.id)]
     if system_team and int(system_team.id) != int(primary_team.id):
         team_ids.append(int(system_team.id))
@@ -31208,9 +31208,22 @@ def task_assistant_knowledge_upload_api(request):
     forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
     if forbidden:
         return forbidden
-    primary_team = _get_primary_team_for_request(request)
-    if not primary_team:
-        return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
+    # Permite subir documentos como "base de conocimiento del sistema" (repositorio global),
+    # pensado para uso interno. Por seguridad, solo superusers pueden hacerlo.
+    scope = str(request.POST.get('scope') or '').strip().lower()
+    if scope == 'system':
+        if not bool(getattr(request.user, 'is_superuser', False)):
+            return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+        try:
+            primary_team, _ = Team.objects.get_or_create(slug='pizarra', defaults={'name': 'PIZARRA'})
+        except Exception:
+            primary_team = Team.objects.filter(slug='pizarra').first()
+        if not primary_team:
+            return JsonResponse({'ok': False, 'error': 'No se pudo resolver el equipo del sistema.'}, status=500)
+    else:
+        primary_team = _get_primary_team_for_request(request)
+        if not primary_team:
+            return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
 
     files = list(request.FILES.getlist('documents')) or list(request.FILES.getlist('files'))
     if not files:

@@ -2847,6 +2847,12 @@
 	                      <input type="checkbox" id="task-assistant-clear-board" checked />
 	                      Borrar antes
 	                    </label>
+	                    {% if user.is_superuser %}
+	                    <label class="chip-toggle" title="Si lo activas, los documentos se guardan como base de conocimiento global del sistema (repositorio PIZARRA).">
+	                      <input type="checkbox" id="task-assistant-knowledge-scope-system" />
+	                      Guardar en sistema
+	                    </label>
+	                    {% endif %}
 	                  </div>
 	                  <div class="compact-grid" style="margin-top:0.65rem;">
 	                    <label style="grid-column:1 / -1;">
@@ -5777,10 +5783,14 @@
 						            }
 						            const files = Array.from(knowledgeFilesEl?.files || []);
 						            if (!files.length) {
-						              window.alert('Selecciona uno o varios PDFs.');
+						              window.alert('Selecciona uno o varios documentos.');
 						              return;
 						            }
 						            const fd = new FormData();
+						            try {
+						              const scopeSystem = document.getElementById('task-assistant-knowledge-scope-system');
+						              if (scopeSystem && scopeSystem.checked) fd.append('scope', 'system');
+						            } catch (e) {}
 						            files.slice(0, 12).forEach((file) => {
 						              try { fd.append('documents', file, file.name || 'documento.pdf'); } catch (e) {}
 						            });
