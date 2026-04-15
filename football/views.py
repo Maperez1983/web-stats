@@ -2749,6 +2749,56 @@ def pdf_graphic_asset_upload(request):
         except Exception:
             return
 
+    def _looks_like_pptx(data_bytes: bytes) -> bool:
+        if not data_bytes or len(data_bytes) < 4:
+            return False
+        # PPTX es un ZIP con estructura `ppt/...`.
+        if not (data_bytes[:2] == b'PK'):
+            return False
+        try:
+            with zipfile.ZipFile(io.BytesIO(data_bytes)) as zf:
+                names = zf.namelist()
+                return any(str(n or '').startswith('ppt/') for n in names) and any(str(n or '').endswith('ppt/presentation.xml') for n in names)
+        except Exception:
+            return False
+
+    def _extract_from_zip(zip_bytes: bytes):
+        nonlocal skipped
+        if not zip_bytes:
+            return
+        try:
+            with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zf:
+                for info in zf.infolist():
+                    if info.is_dir():
+                        continue
+                    inner = str(info.filename or '')
+                    base = Path(inner).name
+                    if not base:
+                        continue
+                    ext = Path(base).suffix.lower()
+                    if ext in {'.pptx'}:
+                        try:
+                            blob = zf.read(info) or b''
+                        except Exception:
+                            blob = b''
+                        if blob:
+                            _extract_from_pptx(blob)
+                        continue
+                    if ext in {'.png', '.jpg', '.jpeg', '.webp', '.gif', '.tif', '.tiff'}:
+                        try:
+                            blob = zf.read(info) or b''
+                        except Exception:
+                            blob = b''
+                        if not blob:
+                            continue
+                        data, out_ext = _convert_to_png_if_needed(blob, ext.lstrip('.'))
+                        if not data:
+                            continue
+                        _store_asset(data=data, title_hint=Path(base).stem, ext_hint=out_ext)
+                        continue
+        except Exception:
+            return
+
     for uploaded in files[:40]:
         raw_name = str(getattr(uploaded, 'name', '') or '').rsplit('/', 1)[-1]
         raw_name = raw_name[:220]
@@ -2764,7 +2814,11 @@ def pdf_graphic_asset_upload(request):
         if not data:
             errors += 1
             continue
-        if suffix == '.pptx':
+        content_type = str(getattr(uploaded, 'content_type', '') or '').lower()
+        if suffix == '.zip' or content_type in {'application/zip', 'application/x-zip-compressed'}:
+            _extract_from_zip(data)
+            continue
+        if suffix == '.pptx' or 'presentationml' in content_type or _looks_like_pptx(data):
             _extract_from_pptx(data)
             continue
         ext = suffix.lstrip('.')
