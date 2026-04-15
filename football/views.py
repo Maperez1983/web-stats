@@ -29884,6 +29884,42 @@ def compute_player_dashboard(primary_team, force_refresh=False):
                 convocation_seed_by_match_id[int(record.match_id)] = record
     except Exception:
         convocation_seed_by_match_id = {}
+    # PJ "oficial": partidos convocados/guardados (aunque no haya acciones registradas).
+    official_played_match_ids_by_player = defaultdict(set)
+    official_match_ids = set()
+    try:
+        today = timezone.localdate()
+        for record in (
+            ConvocationRecord.objects
+            .filter(team=primary_team, match__isnull=False)
+            .select_related('match')
+            .prefetch_related('players')
+            .order_by('-created_at', '-id')[:420]
+        ):
+            match_id = int(record.match_id or 0)
+            if not match_id:
+                continue
+            match_date = getattr(record, 'match_date', None) or getattr(getattr(record, 'match', None), 'date', None)
+            if match_date and match_date > today:
+                continue
+            official_match_ids.add(match_id)
+            try:
+                for player in record.players.all():
+                    pid = int(getattr(player, 'id', 0) or 0)
+                    if pid:
+                        official_played_match_ids_by_player[pid].add(match_id)
+            except Exception:
+                continue
+    except Exception:
+        official_played_match_ids_by_player = defaultdict(set)
+        official_match_ids = set()
+    official_match_by_id = {}
+    if official_match_ids:
+        try:
+            for m in Match.objects.filter(id__in=list(official_match_ids)).select_related('home_team', 'away_team'):
+                official_match_by_id[int(m.id)] = m
+        except Exception:
+            official_match_by_id = {}
     lineup_by_match = {}
     convocation_qs = (
         ConvocationRecord.objects.filter(team=primary_team, match__isnull=False)
@@ -30164,6 +30200,43 @@ def compute_player_dashboard(primary_team, force_refresh=False):
         match_entry['success_rate'] = round(
             (match_entry['successes'] / match_entry['actions']) * 100
         ) if match_entry['actions'] else 0
+    # Asegurar que aparezcan partidos oficiales (convocatoria) aunque no haya acciones.
+    if official_match_ids:
+        for player_id, match_ids in official_played_match_ids_by_player.items():
+            stats = player_stats.get(player_id)
+            if not stats:
+                continue
+            for mid in match_ids:
+                if mid in stats.get('matches', {}):
+                    continue
+                match_obj = official_match_by_id.get(int(mid))
+                conv_seed = convocation_seed_by_match_id.get(int(mid)) if convocation_seed_by_match_id else None
+                conv_round = str(getattr(conv_seed, 'round', '') or '').strip() if conv_seed else ''
+                conv_date = getattr(conv_seed, 'match_date', None) if conv_seed else None
+                conv_opponent = str(getattr(conv_seed, 'opponent_name', '') or '').strip() if conv_seed else ''
+                home_flag = bool(match_obj and match_obj.home_team_id == primary_team.id)
+                opponent_label = conv_opponent
+                if not opponent_label and match_obj:
+                    if match_obj.home_team_id == primary_team.id and match_obj.away_team:
+                        opponent_label = match_obj.away_team.display_name
+                    elif match_obj.away_team_id == primary_team.id and match_obj.home_team:
+                        opponent_label = match_obj.home_team.display_name
+                stats['matches'][int(mid)] = {
+                    'match_id': int(mid),
+                    'round': conv_round or (match_obj.round if match_obj else '') or 'Partido sin jornada',
+                    'date': (conv_date.isoformat() if conv_date else (match_obj.date.isoformat() if match_obj and match_obj.date else None)),
+                    'home': home_flag,
+                    'opponent': opponent_label or 'Rival desconocido',
+                    'home_score': (match_obj.home_score if match_obj else None),
+                    'away_score': (match_obj.away_score if match_obj else None),
+                    'result': ((match_obj.result or '').strip() if match_obj else ''),
+                    'played': True,
+                    'goals': 0,
+                    'assists': 0,
+                    'actions': 0,
+                    'successes': 0,
+                    'success_rate': 0,
+                }
     for event in live_events:
         match = event.match
         if match:
@@ -30240,6 +30313,15 @@ def compute_player_dashboard(primary_team, force_refresh=False):
                     stats['pt'] += 1
         if not stats.get('totals_locked'):
             stats['pc'] = max(stats.get('pc', 0), stats['pj'])
+    # Ajuste final: PJ al menos igual que los partidos "oficiales" (convocatoria) aunque no haya acciones.
+    if official_match_ids:
+        for player_id, stats in player_stats.items():
+            if stats.get('totals_locked'):
+                continue
+            official_count = len(official_played_match_ids_by_player.get(int(player_id), set()))
+            if official_count and int(stats.get('pj', 0) or 0) < official_count:
+                stats['pj'] = official_count
+                stats['pc'] = max(int(stats.get('pc', 0) or 0), int(stats['pj'] or 0))
     # ensure roster players appear even without events
     for player in roster_players:
         if player.id not in player_stats:
