@@ -2631,6 +2631,7 @@ def pdf_graphic_asset_upload(request):
     saved = []
     skipped = 0
     errors = 0
+    warnings = []
 
     def _already_exists(sha256_value):
         qs = PdfGraphicAsset.objects.filter(sha256=sha256_value)
@@ -2752,6 +2753,10 @@ def pdf_graphic_asset_upload(request):
         raw_name = str(getattr(uploaded, 'name', '') or '').rsplit('/', 1)[-1]
         raw_name = raw_name[:220]
         suffix = Path(raw_name).suffix.lower()
+        if suffix in {'.ppt', '.pps', '.pptm', '.pot'}:
+            warnings.append(f'Archivo {raw_name}: formato .ppt no soportado. Exporta a .pptx.')
+            errors += 1
+            continue
         try:
             data = uploaded.read() or b''
         except Exception:
@@ -2769,7 +2774,7 @@ def pdf_graphic_asset_upload(request):
             continue
         _store_asset(data=data2, title_hint=Path(raw_name).stem, ext_hint=out_ext)
 
-    return JsonResponse({'ok': True, 'saved': saved, 'skipped': skipped, 'errors': errors})
+    return JsonResponse({'ok': True, 'saved': saved, 'skipped': skipped, 'errors': errors, 'warnings': warnings[:6]})
 
 
 def resolve_player_photo_url(request, player):
