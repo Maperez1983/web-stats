@@ -1374,3 +1374,21 @@ class AssistantKnowledgeDocument(models.Model):
     @staticmethod
     def sha256_for_bytes(data: bytes) -> str:
         return hashlib.sha256(data or b'').hexdigest()
+
+
+class SystemSetting(models.Model):
+    """
+    Ajustes globales del sistema (uso interno).
+
+    Se usan para activar plantillas/recursos compartidos sin depender de variables de entorno.
+    """
+
+    key = models.CharField(max_length=120, unique=True)
+    value = models.TextField(blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['key']
+
+    def __str__(self):
+        return self.key

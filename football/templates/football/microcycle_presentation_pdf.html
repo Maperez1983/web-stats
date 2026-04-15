@@ -17,6 +17,9 @@
       .sheet {
         border: 1px solid #6b7280;
         background: #ffffff;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-size: cover;
       }
       .top {
         display: flex;
@@ -186,7 +189,7 @@
     </style>
   </head>
   <body>
-    <section class="sheet page-break">
+    <section class="sheet page-break"{% if template_bg_src %} style="background-image:url('{{ template_bg_src }}');"{% endif %}>
       <div class="top">
         <div class="badge">Semana</div>
         <div class="top-box" style="min-width:320px;">
@@ -267,7 +270,7 @@
     </section>
 
     <!-- Ficha 2 (réplica de la primera, preparada para imprimir/compartir como hoja extra) -->
-    <section class="sheet">
+    <section class="sheet"{% if template_bg_src %} style="background-image:url('{{ template_bg_src }}');"{% endif %}>
       <div class="top">
         <div class="badge">Semana</div>
         <div class="top-box" style="min-width:320px;">

@@ -112,6 +112,29 @@
       </section>
 
       <section class="panel" style="margin-top:1rem;">
+        <h2 style="margin:0 0 0.35rem;">Plantillas PDF</h2>
+        <div class="meta" style="margin-bottom:0.7rem;">
+          Selecciona un recurso del sistema para usarlo como plantilla de fondo en los PDFs.
+          Recomendación: exporta la diapositiva de PowerPoint a <strong>PNG</strong> (A4 apaisado) y súbela como recurso.
+        </div>
+        <div class="row" style="align-items:flex-end;">
+          <label style="display:grid; gap:6px; min-width: 320px;">
+            <span class="meta">Microciclo · fondo</span>
+            <select id="tpl-microcycle-bg">
+              <option value="">(sin plantilla)</option>
+              {% for asset in asset_options %}
+              <option value="{{ asset.id }}" {% if microcycle_bg_asset_id|stringformat:"s" == asset.id|stringformat:"s" %}selected{% endif %}>
+                #{{ asset.id }} · {{ asset.title|default:"Recurso" }}
+              </option>
+              {% endfor %}
+            </select>
+          </label>
+          <button type="button" class="link-btn primary" id="tpl-save">Guardar</button>
+        </div>
+        <div class="meta" id="tpl-msg" style="margin-top:0.75rem;"></div>
+      </section>
+
+      <section class="panel" style="margin-top:1rem;">
         <h2 style="margin:0 0 0.35rem;">Recursos gráficos (PPTX/IMG)</h2>
         <div class="meta" style="margin-bottom:0.7rem;">
           Sube un <strong>PPTX</strong> con imágenes incrustadas o archivos sueltos (PNG/JPG/WebP/GIF). El sistema extrae los recursos
@@ -155,6 +178,7 @@
         const uploadUrl = "{% url 'task-assistant-knowledge-upload-api' %}";
         const assetUploadUrl = "{% url 'pdf-graphic-asset-upload' %}";
         const assetDeleteUrl = "{% url 'pdf-graphic-asset-delete-api' %}";
+        const settingSetUrl = "{% url 'system-setting-set-api' %}";
 
         const escapeHtml = (v) => String(v ?? '').replace(/[&<>"']/g, (ch) => ({
           '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
@@ -284,6 +308,29 @@
               window.alert('No se pudo borrar el recurso.');
             }
           });
+        });
+
+        const tplSaveBtn = document.getElementById('tpl-save');
+        const tplMsgEl = document.getElementById('tpl-msg');
+        const tplMicroBg = document.getElementById('tpl-microcycle-bg');
+        tplSaveBtn?.addEventListener('click', async () => {
+          try {
+            tplMsgEl.textContent = 'Guardando…';
+            const fd = new FormData();
+            fd.append('key', 'pdf_template_microcycle_bg_asset_id');
+            fd.append('value', String(tplMicroBg?.value || '').trim());
+            const res = await fetch(settingSetUrl, {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: csrf ? { 'X-CSRFToken': csrf } : {},
+              body: fd,
+            });
+            const data = res.ok ? await res.json() : null;
+            if (!res.ok || !data?.ok) throw new Error(data?.error || 'No se pudo guardar.');
+            tplMsgEl.textContent = 'Plantilla guardada.';
+          } catch (e) {
+            tplMsgEl.textContent = 'Error al guardar plantilla.';
+          }
         });
 
         load();

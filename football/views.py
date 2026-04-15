@@ -123,6 +123,7 @@ from football.models import (
     AuditEvent,
     TaskBlueprint,
     AssistantKnowledgeDocument,
+    SystemSetting,
     TaskStudioProfile,
     TaskStudioRosterPlayer,
     TaskStudioTask,
@@ -16620,6 +16621,29 @@ def microcycle_presentation_pdf(request, microcycle_id):
         'brand_mark_url': request.build_absolute_uri(static('football/images/2j-mark.svg')),
         'generated_at': timezone.localtime(),
     }
+    # Plantilla opcional del sistema para microciclos (fondo).
+    template_bg_src = ''
+    try:
+        raw_value = (
+            SystemSetting.objects
+            .filter(key='pdf_template_microcycle_bg_asset_id')
+            .values_list('value', flat=True)
+            .first()
+        )
+        asset_id = _parse_int(str(raw_value or '').strip())
+        if asset_id:
+            asset = PdfGraphicAsset.objects.select_related('team').filter(id=asset_id).first()
+            if asset and getattr(asset, 'team', None) and getattr(asset.team, 'slug', '') == 'pizarra' and getattr(asset, 'file', None):
+                try:
+                    asset.file.open('rb')
+                    blob = asset.file.read() or b''
+                except Exception:
+                    blob = b''
+                if blob:
+                    template_bg_src = _image_bytes_as_small_data_uri(blob, mime_type='image/jpeg', max_width=2600, max_height=1800, quality=74)
+    except Exception:
+        template_bg_src = ''
+    context['template_bg_src'] = template_bg_src
     html = render_to_string('football/microcycle_presentation_pdf.html', context)
     filename = slugify(f'microciclo-{microcycle.title}') or f'microciclo-{microcycle.id}'
     return _build_pdf_response_or_html_fallback(request, html, filename)
@@ -31369,6 +31393,19 @@ def platform_assistant_page(request):
         .exclude(file='')
         .order_by('-created_at', '-id')[:80]
     )
+    asset_options = list(
+        PdfGraphicAsset.objects
+        .filter(team=system_team)
+        .exclude(file='')
+        .order_by('-created_at', '-id')[:240]
+    )
+    microcycle_bg_asset_id = ''
+    try:
+        microcycle_bg_asset_id = str(
+            (SystemSetting.objects.filter(key='pdf_template_microcycle_bg_asset_id').values_list('value', flat=True).first() or '').strip()
+        )
+    except Exception:
+        microcycle_bg_asset_id = ''
     return render(
         request,
         'football/platform_assistant.html',
@@ -31377,8 +31414,29 @@ def platform_assistant_page(request):
             'docs_count': len(docs),
             'assets': assets,
             'assets_count': len(assets),
+            'asset_options': asset_options,
+            'microcycle_bg_asset_id': microcycle_bg_asset_id,
         },
     )
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def system_setting_set_api(request):
+    if not bool(getattr(request.user, 'is_superuser', False)):
+        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+    key = str(request.POST.get('key') or '').strip()
+    value = str(request.POST.get('value') or '').strip()
+    if not key:
+        return JsonResponse({'ok': False, 'error': 'key requerido.'}, status=400)
+    if len(key) > 120:
+        return JsonResponse({'ok': False, 'error': 'key demasiado largo.'}, status=400)
+    try:
+        obj, _ = SystemSetting.objects.update_or_create(key=key, defaults={'value': value})
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'No se pudo guardar.'}, status=500)
+    return JsonResponse({'ok': True, 'key': obj.key, 'value': obj.value})
 
 
 @csrf_exempt

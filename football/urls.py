@@ -44,6 +44,7 @@ urlpatterns = [
     path('api/share/revoke/<str:token>/', views.share_link_revoke, name='share-link-revoke'),
     path('api/system/diagnostics/', views.system_diagnostics, name='system-diagnostics'),
     path('api/system/healthcheck/', views.system_healthcheck_api, name='system-healthcheck-api'),
+    path('api/system/settings/set/', views.system_setting_set_api, name='system-setting-set-api'),
     path('legal/privacidad/', views.privacy_policy_page, name='privacy-policy'),
     path('legal/terminos/', views.terms_page, name='terms-page'),
     path('support/', views.support_page, name='support-page'),
