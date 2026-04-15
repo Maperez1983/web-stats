@@ -30809,13 +30809,31 @@ def task_assistant_blueprints_api(request):
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
+    # Plantillas del equipo + (opcional) plantillas "globales" del sistema.
+    # Nota: por defecto usamos el equipo especial `slug="pizarra"` como repositorio global.
+    system_team = None
+    try:
+        system_team = Team.objects.filter(slug='pizarra').first()
+    except Exception:
+        system_team = None
+    team_ids = [int(primary_team.id)]
+    if system_team and int(system_team.id) != int(primary_team.id):
+        team_ids.append(int(system_team.id))
+
     items = list(
         TaskBlueprint.objects
-        .filter(team=primary_team)
-        .order_by('-updated_at', '-id')[:240]
+        .filter(team_id__in=team_ids)
+        .select_related('team')
+        .order_by('-updated_at', '-id')[:300]
     )
     payload_items = []
     for obj in items:
+        scope = 'team'
+        try:
+            if system_team and int(obj.team_id) == int(system_team.id):
+                scope = 'system'
+        except Exception:
+            scope = 'team'
         payload_items.append(
             {
                 'id': int(obj.id),
@@ -30823,6 +30841,7 @@ def task_assistant_blueprints_api(request):
                 'category': str(obj.category or '').strip(),
                 'description': str(obj.description or '').strip(),
                 'payload': obj.payload if isinstance(obj.payload, dict) else {},
+                'scope': scope,
                 'updated_at': obj.updated_at.isoformat() if getattr(obj, 'updated_at', None) else None,
             }
         )

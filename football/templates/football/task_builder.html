@@ -5341,7 +5341,12 @@
 				                if (!tplRaw || typeof tplRaw !== 'object') return;
 				                const tpl = { ...tplRaw };
 				                // Etiqueta para que el usuario sepa de dónde viene.
-				                tpl.source_name = tpl.source_name || 'Plantilla del equipo';
+				                const scope = String((bp && bp.scope) || '').trim();
+				                if (scope === 'system') {
+				                  tpl.source_name = tpl.source_name || 'Plantilla del sistema';
+				                } else {
+				                  tpl.source_name = tpl.source_name || 'Plantilla del equipo';
+				                }
 				                // Normalizamos canvas_state si viene como string.
 				                if (typeof tpl.canvas_state === 'string') {
 				                  try { tpl.canvas_state = JSON.parse(tpl.canvas_state); } catch (err) {}
