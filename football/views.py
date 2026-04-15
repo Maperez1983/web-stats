@@ -29444,7 +29444,6 @@ def preferred_event_source_by_match(primary_team):
     team_events = (
         MatchEvent.objects
         .filter(player__team=primary_team)
-        .filter(Q(match__home_team=primary_team) | Q(match__away_team=primary_team))
         .filter(
             Q(source_file='registro-acciones')
             | ~Q(system='touch-field')
@@ -29924,7 +29923,6 @@ def compute_player_dashboard(primary_team, force_refresh=False):
     stats_events = (
         MatchEvent.objects
         .filter(player__team=primary_team)
-        .filter(Q(match__home_team=primary_team) | Q(match__away_team=primary_team))
         .filter(
             Q(system='touch-field', source_file='registro-acciones')
             | ~Q(system='touch-field')
