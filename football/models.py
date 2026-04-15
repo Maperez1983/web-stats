@@ -387,12 +387,35 @@ class StaffMember(models.Model):
 
 class PlayerInjuryRecord(models.Model):
     player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='injury_records')
+    catalog_entry = models.ForeignKey(
+        'InjuryCatalogEntry',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='records',
+        help_text='Catálogo (opcional). Si se usa, permite métricas homogéneas.',
+    )
     injury = models.CharField(max_length=180)
     injury_type = models.CharField(max_length=80, blank=True)
     injury_zone = models.CharField(max_length=80, blank=True)
     injury_side = models.CharField(max_length=20, blank=True)
+    severity_grade = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        help_text='Grado orientativo (1 leve · 2 moderada · 3 grave).',
+    )
     injury_date = models.DateField()
+    diagnosed_on = models.DateField(null=True, blank=True, help_text='Fecha de diagnóstico (opcional).')
+    rehab_started_on = models.DateField(null=True, blank=True, help_text='Inicio de readaptación/rehab (opcional).')
+    estimated_return_date = models.DateField(null=True, blank=True, help_text='Alta estimada (orientativa).')
     return_date = models.DateField(null=True, blank=True, help_text='Fecha de alta médica/deportiva')
+    return_to_train_on = models.DateField(null=True, blank=True, help_text='Vuelta a entrenar (opcional).')
+    return_to_play_on = models.DateField(null=True, blank=True, help_text='Vuelta a competir (opcional).')
+    training_status = models.CharField(
+        max_length=20,
+        blank=True,
+        help_text='Estado funcional: disponible · carga modificada · rehab · baja.',
+    )
     notes = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -403,6 +426,72 @@ class PlayerInjuryRecord(models.Model):
 
     def __str__(self):
         return f'{self.player.name} · {self.injury} ({self.injury_date:%d/%m/%Y})'
+
+
+class InjuryCatalogEntry(models.Model):
+    """
+    Catálogo unificado de lesiones (orientativo) para que el club mida bajas de forma homogénea.
+
+    Importante: no sustituye criterio médico. Los rangos son aproximaciones para planificación.
+    """
+
+    CATEGORY_MUSCLE = 'muscle'
+    CATEGORY_LIGAMENT = 'ligament'
+    CATEGORY_TENDON = 'tendon'
+    CATEGORY_BONE = 'bone'
+    CATEGORY_CONCUSSION = 'concussion'
+    CATEGORY_OTHER = 'other'
+    CATEGORY_CHOICES = [
+        (CATEGORY_MUSCLE, 'Muscular'),
+        (CATEGORY_LIGAMENT, 'Ligamentosa'),
+        (CATEGORY_TENDON, 'Tendinosa'),
+        (CATEGORY_BONE, 'Ósea'),
+        (CATEGORY_CONCUSSION, 'Conmoción'),
+        (CATEGORY_OTHER, 'Otra'),
+    ]
+
+    REGION_ANKLE = 'ankle'
+    REGION_KNEE = 'knee'
+    REGION_HIP_GROIN = 'hip_groin'
+    REGION_THIGH = 'thigh'
+    REGION_CALF_ACHILLES = 'calf_achilles'
+    REGION_FOOT_TOES = 'foot_toes'
+    REGION_SHOULDER_CLAVICLE = 'shoulder_clavicle'
+    REGION_HEAD = 'head'
+    REGION_BACK = 'back'
+    REGION_OTHER = 'other'
+    REGION_CHOICES = [
+        (REGION_ANKLE, 'Tobillo'),
+        (REGION_KNEE, 'Rodilla'),
+        (REGION_HIP_GROIN, 'Cadera / Aductores'),
+        (REGION_THIGH, 'Muslo'),
+        (REGION_CALF_ACHILLES, 'Gemelo / Aquiles'),
+        (REGION_FOOT_TOES, 'Pie / Dedos'),
+        (REGION_SHOULDER_CLAVICLE, 'Hombro / Clavícula'),
+        (REGION_HEAD, 'Cabeza'),
+        (REGION_BACK, 'Espalda'),
+        (REGION_OTHER, 'Otra'),
+    ]
+
+    code = models.SlugField(max_length=64, unique=True, help_text='Identificador estable (p.ej. ankle-sprain).')
+    name = models.CharField(max_length=180)
+    category = models.CharField(max_length=24, choices=CATEGORY_CHOICES, default=CATEGORY_OTHER)
+    region = models.CharField(max_length=24, choices=REGION_CHOICES, default=REGION_OTHER)
+    typical_min_days = models.PositiveSmallIntegerField(default=0, help_text='Mínimo orientativo (días).')
+    typical_max_days = models.PositiveSmallIntegerField(default=0, help_text='Máximo orientativo (días).')
+    notes = models.TextField(blank=True)
+    reference_url = models.URLField(blank=True, help_text='Fuente pública (opcional).')
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['region', 'category', 'name', 'id']
+        verbose_name = 'Lesión (catálogo)'
+        verbose_name_plural = 'Lesiones (catálogo)'
+
+    def __str__(self):
+        return self.name
 
 
 class PlayerPhysicalMetric(models.Model):

@@ -131,6 +131,7 @@ from football.models import (
     WorkspaceCompetitionSnapshot,
     TeamRosterSnapshot,
     StaffMember,
+    InjuryCatalogEntry,
 )
 from football.event_taxonomy import (
     DRIBBLE_KEYWORDS,
@@ -207,6 +208,7 @@ from football.query_helpers import (
     is_manual_sanction_active,
     parse_match_date_from_ui,
 )
+from football.injuries import categorize_time_loss, estimate_return_date as estimate_return_date_from_catalog, time_loss_days
 from football.task_library import filter_task_library, prepare_task_library
 
 logger = logging.getLogger(__name__)
@@ -17854,6 +17856,173 @@ def coach_roster_page(request):
     )
 
 
+@login_required
+def coach_injuries_page(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'players', label='lesiones')
+    if forbidden:
+        return forbidden
+
+    workspace = _get_active_workspace(request)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        raise Http404('Equipo principal no configurado')
+
+    today = timezone.localdate()
+    records = list(
+        PlayerInjuryRecord.objects
+        .select_related('player', 'catalog_entry')
+        .filter(player__team=primary_team)
+        .order_by('-injury_date', '-id')
+    )
+    total_days_lost = 0
+    active_days_lost = 0
+    active_records = 0
+    by_category = Counter()
+    by_region = Counter()
+
+    rows = []
+    for record in records:
+        is_active = bool(is_injury_record_active(record, today=today))
+        days = time_loss_days(record.injury_date, record.return_date, today=today)
+        severity = categorize_time_loss(days) if days else ''
+        total_days_lost += days
+        if is_active:
+            active_records += 1
+            active_days_lost += days
+        catalog = getattr(record, 'catalog_entry', None)
+        if catalog:
+            by_category[str(catalog.get_category_display())] += 1
+            by_region[str(catalog.get_region_display())] += 1
+        else:
+            fallback = (record.injury_type or '').strip() or 'Sin clasificar'
+            by_category[fallback] += 1
+        rows.append(
+            {
+                'record': record,
+                'player': record.player,
+                'is_active': is_active,
+                'days_lost': days,
+                'severity': severity,
+                'estimated_return': record.estimated_return_date,
+            }
+        )
+
+    top_categories = [{'label': key, 'value': value} for key, value in by_category.most_common(8)]
+    top_regions = [{'label': key, 'value': value} for key, value in by_region.most_common(8)]
+
+    injury_catalog = list(InjuryCatalogEntry.objects.filter(is_active=True).order_by('region', 'category', 'name'))
+    players = list(Player.objects.filter(team=primary_team).order_by('is_active', 'number', 'name'))
+
+    can_edit = bool(_can_manage_workspace(request.user, workspace) or _is_admin_user(request.user) or _can_access_platform(request.user))
+    message = ''
+    error = ''
+    if request.method == 'POST':
+        if not can_edit:
+            return HttpResponse('No tienes permisos para registrar lesiones.', status=403)
+        action = (request.POST.get('action') or '').strip().lower() or 'create'
+        player_id = _parse_int(request.POST.get('player_id'))
+        catalog_code = (request.POST.get('catalog_code') or '').strip()
+        injury_name = (request.POST.get('injury') or '').strip()
+        injury_type = (request.POST.get('injury_type') or '').strip()
+        injury_zone = (request.POST.get('injury_zone') or '').strip()
+        injury_side = (request.POST.get('injury_side') or '').strip()
+        injury_date = parse_date((request.POST.get('injury_date') or '').strip()) or today
+        severity_grade = _parse_int(request.POST.get('severity_grade')) or None
+        return_date = parse_date((request.POST.get('return_date') or '').strip()) or None
+        estimated_return_date = parse_date((request.POST.get('estimated_return_date') or '').strip()) or None
+        training_status = (request.POST.get('training_status') or '').strip()
+        notes = (request.POST.get('notes') or '').strip()
+
+        try:
+            if not player_id:
+                raise ValueError('Selecciona un jugador.')
+            player = Player.objects.filter(id=player_id, team=primary_team).first()
+            if not player:
+                raise ValueError('Jugador no encontrado.')
+
+            catalog_entry = None
+            if catalog_code:
+                catalog_entry = InjuryCatalogEntry.objects.filter(code=catalog_code, is_active=True).first()
+                if not catalog_entry:
+                    raise ValueError('Lesión (catálogo) no válida.')
+
+            if catalog_entry and not injury_name:
+                injury_name = catalog_entry.name
+
+            if catalog_entry and not estimated_return_date:
+                estimated_return_date = estimate_return_date_from_catalog(
+                    injury_date,
+                    catalog_entry.typical_min_days,
+                    catalog_entry.typical_max_days,
+                    severity_grade=severity_grade,
+                )
+
+            is_active = not return_date or return_date > today
+
+            if action == 'close':
+                record_id = _parse_int(request.POST.get('record_id'))
+                record = PlayerInjuryRecord.objects.filter(id=record_id, player__team=primary_team).first()
+                if not record:
+                    raise ValueError('Registro no encontrado.')
+                record.return_date = return_date or today
+                record.is_active = False
+                record.save(update_fields=['return_date', 'is_active', 'updated_at'])
+                message = 'Lesión marcada como alta.'
+            else:
+                PlayerInjuryRecord.objects.create(
+                    player=player,
+                    catalog_entry=catalog_entry,
+                    injury=injury_name or 'Lesión',
+                    injury_type=injury_type,
+                    injury_zone=injury_zone,
+                    injury_side=injury_side,
+                    severity_grade=severity_grade,
+                    injury_date=injury_date,
+                    estimated_return_date=estimated_return_date,
+                    return_date=return_date,
+                    training_status=training_status,
+                    notes=notes,
+                    is_active=is_active,
+                )
+                player.injury = injury_name or player.injury
+                player.injury_type = injury_type or player.injury_type
+                player.injury_zone = injury_zone or player.injury_zone
+                player.injury_side = injury_side or player.injury_side
+                player.injury_date = injury_date
+                player.save(update_fields=['injury', 'injury_type', 'injury_zone', 'injury_side', 'injury_date'])
+                message = 'Lesión registrada.'
+        except ValueError as exc:
+            error = str(exc)
+        except Exception:
+            logger.exception('Error registrando lesión')
+            error = 'No se pudo guardar la lesión.'
+
+        return redirect(reverse('coach-injuries') + (f'?team={primary_team.id}' if primary_team else ''))
+
+    return render(
+        request,
+        'football/coach_injuries.html',
+        {
+            'team_name': primary_team.display_name,
+            'records': rows,
+            'players': players,
+            'total_records': len(records),
+            'active_records': active_records,
+            'total_days_lost': total_days_lost,
+            'active_days_lost': active_days_lost,
+            'top_categories': top_categories,
+            'top_regions': top_regions,
+            'injury_catalog': injury_catalog,
+            'can_edit': can_edit,
+            'message': message,
+            'error': error,
+        },
+    )
+
+
 def initial_eleven_page(request):
     forbidden = _forbid_if_workspace_module_disabled(request, 'convocation', label='11 inicial')
     if forbidden:
@@ -27776,7 +27945,16 @@ def player_detail_page(request, player_id):
         assigned_analysis_videos = list(
             player.assigned_analysis_videos.select_related('rival_team', 'folder').order_by('-created_at')[:20]
         )
-        injury_records = player.injury_records.all()[:20]
+        injury_records = list(player.injury_records.select_related('catalog_entry').all()[:20])
+        for record in injury_records:
+            try:
+                record.days_lost = time_loss_days(record.injury_date, record.return_date)
+                record.time_loss_severity = categorize_time_loss(record.days_lost) if record.days_lost else ''
+                record.is_active_now = bool(is_injury_record_active(record))
+            except Exception:
+                record.days_lost = 0
+                record.time_loss_severity = ''
+                record.is_active_now = bool(getattr(record, 'is_active', False))
         latest_injury_record = injury_records[0] if injury_records else None
         has_active_injury = player.id in get_active_injury_player_ids([player.id])
         if not has_active_injury and latest_injury_record:

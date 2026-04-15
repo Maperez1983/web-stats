@@ -804,19 +804,32 @@
         </div>
         <table>
           <thead>
-            <tr><th>Lesión</th><th>Tipo · Zona · Lado</th><th>Fecha lesión</th><th>Fecha alta</th><th>Estado</th></tr>
+            <tr><th>Lesión</th><th>Tipo · Zona · Lado</th><th>Fecha lesión</th><th>Alta est.</th><th>Alta real</th><th>Días</th><th>Estado</th></tr>
           </thead>
           <tbody>
             {% for item in injury_records %}
             <tr>
-              <td>{{ item.injury }}</td>
+              <td>
+                {{ item.injury }}
+                {% if item.catalog_entry %}
+                <div class="subtle">{{ item.catalog_entry.get_region_display }} · {{ item.catalog_entry.get_category_display }}</div>
+                {% endif %}
+              </td>
               <td>{{ item.injury_type|default:"--" }} · {{ item.injury_zone|default:"--" }} · {{ item.injury_side|default:"--" }}</td>
               <td>{{ item.injury_date|date:"d/m/Y" }}</td>
+              <td>{% if item.estimated_return_date %}{{ item.estimated_return_date|date:"d/m/Y" }}{% else %}--{% endif %}</td>
               <td>{% if item.return_date %}{{ item.return_date|date:"d/m/Y" }}{% else %}--{% endif %}</td>
-              <td>{% if item.is_active %}<span class="pill warn">Activa</span>{% else %}<span class="pill ok">Alta</span>{% endif %}</td>
+              <td>{% if item.days_lost %}{{ item.days_lost }}{% else %}--{% endif %}</td>
+              <td>
+                {% if item.is_active_now %}
+                  <span class="pill warn">Activa</span>
+                {% else %}
+                  <span class="pill ok">Alta</span>
+                {% endif %}
+              </td>
             </tr>
             {% empty %}
-            <tr><td colspan="5" class="subtle">Sin lesiones registradas.</td></tr>
+            <tr><td colspan="7" class="subtle">Sin lesiones registradas.</td></tr>
             {% endfor %}
           </tbody>
         </table>

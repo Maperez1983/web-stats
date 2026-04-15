@@ -33,6 +33,7 @@ from football.event_taxonomy import (
 from football.healthchecks import run_system_healthcheck
 from football.manual_stats import get_manual_player_base_overrides, save_manual_player_base_overrides, season_display_name
 from football.query_helpers import _team_match_queryset, get_active_injury_player_ids, get_current_convocation_record, is_injury_record_active, is_manual_sanction_active
+from football.injuries import categorize_time_loss, estimate_return_date, time_loss_days
 from football.models import AppUserRole
 from football.services import find_roster_entry
 from football.staff_briefing import build_weekly_staff_brief
@@ -2612,6 +2613,21 @@ class QueryHelperTests(TestCase):
 
         self.assertFalse(is_injury_record_active(record, today=timezone.localdate()))
         self.assertFalse(get_active_injury_player_ids([player.id]))
+
+    def test_time_loss_helpers(self):
+        today = timezone.localdate()
+        self.assertEqual(time_loss_days(today - timedelta(days=2), today, today=today), 3)
+        self.assertEqual(categorize_time_loss(0), 'minima')
+        self.assertEqual(categorize_time_loss(3), 'minima')
+        self.assertEqual(categorize_time_loss(4), 'leve')
+        self.assertEqual(categorize_time_loss(10), 'moderada')
+        self.assertEqual(categorize_time_loss(40), 'grave')
+
+    def test_estimate_return_date_uses_grade(self):
+        today = date(2026, 4, 15)
+        self.assertEqual(estimate_return_date(today, 7, 84, severity_grade=1), date(2026, 4, 22))
+        self.assertEqual(estimate_return_date(today, 7, 84, severity_grade=2), date(2026, 5, 31))
+        self.assertEqual(estimate_return_date(today, 7, 84, severity_grade=3), date(2026, 7, 8))
 
 
 class ConvocationWorkflowTests(TestCase):

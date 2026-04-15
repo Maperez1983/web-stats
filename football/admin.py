@@ -53,6 +53,20 @@ class PlayerAdmin(admin.ModelAdmin):
     list_display = ('name', 'team', 'number', 'position', 'injury', 'injury_date')
 
 
+@admin.register(models.InjuryCatalogEntry)
+class InjuryCatalogEntryAdmin(admin.ModelAdmin):
+    list_display = ('name', 'code', 'category', 'region', 'typical_min_days', 'typical_max_days', 'is_active')
+    list_filter = ('category', 'region', 'is_active')
+    search_fields = ('name', 'code')
+
+
+@admin.register(models.PlayerInjuryRecord)
+class PlayerInjuryRecordAdmin(admin.ModelAdmin):
+    list_display = ('player', 'injury', 'injury_date', 'return_date', 'is_active', 'severity_grade', 'training_status')
+    list_filter = ('is_active', 'injury_type', 'injury_zone')
+    search_fields = ('player__name', 'injury', 'injury_type', 'injury_zone')
+
+
 @admin.register(models.PlayerPhysicalMetric)
 class PlayerPhysicalMetricAdmin(admin.ModelAdmin):
     list_display = ('player', 'recorded_on', 'workload', 'rpe', 'wellness')

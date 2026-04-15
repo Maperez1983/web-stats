@@ -72,6 +72,7 @@
         {% if can_manage_workspace or is_admin_user %}
         <a href="{% url 'coach-roster' %}?tab=stats{% if active_team %}&team={{ active_team.id }}{% endif %}">Jugadores · estadísticas</a>
         <a href="{% url 'coach-roster' %}?tab=manage{% if active_team %}&team={{ active_team.id }}{% endif %}">Alta jugador</a>
+        <a href="{% url 'coach-injuries' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Lesiones</a>
         {% else %}
         <a href="{% url 'player-dashboard' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Jugadores</a>
         {% endif %}
