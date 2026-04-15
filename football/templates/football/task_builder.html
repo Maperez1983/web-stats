@@ -2916,6 +2916,12 @@
 		                            <option value="rest_defense">Equilibrio defensivo (rest-defense)</option>
 		                          </select>
 		                        </label>
+		                        <label style="grid-column:1 / -1;">
+		                          Sub-fase (opcional)
+		                          <select id="task-assistant-smart-subphase">
+		                            <option value="auto">Auto</option>
+		                          </select>
+		                        </label>
 		                        <label>
 		                          Bloque
 		                          <select id="task-assistant-smart-block">
@@ -3478,7 +3484,126 @@
 				            });
 				          };
 			          try { programEl.addEventListener('change', setAssistantProgramUi); } catch (e) {}
-			          setAssistantProgramUi();
+				          setAssistantProgramUi();
+
+				          // Sub-fases dinámicas para 2J Smart (dependen de la fase/foco).
+				          const smartGoalEl = document.getElementById('task-assistant-goal');
+				          const smartSubphaseEl = document.getElementById('task-assistant-smart-subphase');
+				          const SMART_SUBPHASES = {
+				            warmup: [
+				              { v: 'no_ball', label: 'Sin balón (movilidad + carrera)' },
+				              { v: 'with_ball', label: 'Con balón (rondo/juego simple)' },
+				              { v: 'neuromuscular', label: 'Neuromuscular (saltos/aterrizajes/COD)' },
+				            ],
+				            build_up: [
+				              { v: 'gk_restart', label: 'Saque de portería / reinicio' },
+				              { v: '2plus1', label: 'Estructura 2+1' },
+				              { v: '3plus2', label: 'Estructura 3+2' },
+				              { v: 'attract_inside', label: 'Atraer por dentro' },
+				              { v: 'play_wide', label: 'Salir por fuera (lateral/extremo)' },
+				              { v: 'find_pivot', label: 'Encontrar al pivote/entre líneas' },
+				              { v: 'break_first_line', label: 'Superar 1ª línea' },
+				            ],
+				            progression: [
+				              { v: 'third_man', label: 'Tercer hombre' },
+				              { v: 'wall_pass', label: 'Pared / devolución' },
+				              { v: 'overload_isolate', label: 'Sobrecargar para aislar' },
+				              { v: 'switch', label: 'Cambio de orientación' },
+				              { v: 'half_spaces', label: 'Atacar intervalos (half-spaces)' },
+				              { v: 'between_lines', label: 'Encontrar entre líneas' },
+				              { v: 'turn_and_go', label: 'Recibir, girar y progresar' },
+				            ],
+				            final_third: [
+				              { v: 'cross', label: 'Centros' },
+				              { v: 'cutback', label: 'Pase atrás (cutback)' },
+				              { v: 'through_ball', label: 'Pase al espacio' },
+				              { v: 'second_post', label: '2º palo + llegada' },
+				              { v: 'edge_box', label: 'Disparo frontal (borde área)' },
+				              { v: 'finishing_2v1', label: 'Finalización 2v1' },
+				              { v: 'finishing_3v2', label: 'Finalización 3v2' },
+				            ],
+				            pressing: [
+				              { v: 'high', label: 'Presión alta' },
+				              { v: 'mid', label: 'Bloque medio' },
+				              { v: 'trap_wide', label: 'Trampa en banda' },
+				              { v: 'cover_shadow', label: 'Sombra de cobertura' },
+				              { v: 'press_triggers', label: 'Triggers (pase atrás/control malo)' },
+				            ],
+				            counterpress: [
+				              { v: '5s', label: 'Regla 5 segundos' },
+				              { v: '6s', label: 'Regla 6 segundos' },
+				              { v: 'rest_defense', label: 'Rest-defense (equilibrio)' },
+				              { v: 'protect_center', label: 'Proteger carril central' },
+				            ],
+				            defending: [
+				              { v: 'protect_central', label: 'Proteger zona central' },
+				              { v: 'deny_between_lines', label: 'Negar entre líneas' },
+				              { v: 'defend_depth', label: 'Defender profundidad' },
+				              { v: 'defend_cross', label: 'Defender centros' },
+				              { v: 'block_shift', label: 'Basculación y cierres' },
+				            ],
+				            transition_atd: [
+				              { v: 'counterpress', label: 'Contra-presión inmediata' },
+				              { v: 'delay', label: 'Temporizar y reorganizar' },
+				              { v: 'foul_or_stop', label: 'Cortar transición (si procede)' },
+				            ],
+				            transition_dta: [
+				              { v: 'counterattack_central', label: 'Contraataque por dentro' },
+				              { v: 'counterattack_wide', label: 'Contraataque por fuera' },
+				              { v: 'secure_then_go', label: 'Asegurar 1º pase y atacar' },
+				              { v: 'third_man_run', label: 'Ruptura del 3º hombre' },
+				            ],
+				            duels: [
+				              { v: '1v1_wide', label: '1v1 en banda' },
+				              { v: '1v1_central', label: '1v1 central' },
+				              { v: '2v1', label: '2v1' },
+				              { v: '1v2', label: '1v2' },
+				              { v: 'shielding', label: 'Protección de balón' },
+				              { v: 'tackling', label: 'Entrada/robo limpio' },
+				            ],
+				            set_pieces: [
+				              { v: 'corner_attack', label: 'Córner ofensivo' },
+				              { v: 'corner_defend', label: 'Córner defensivo' },
+				              { v: 'fk_direct', label: 'Falta directa' },
+				              { v: 'fk_indirect', label: 'Falta indirecta / centro' },
+				              { v: 'throw_in', label: 'Saque de banda' },
+				              { v: 'kickoff', label: 'Saque inicial' },
+				              { v: 'second_ball', label: 'Segundas jugadas' },
+				            ],
+				            coord: [
+				              { v: 'injury_prevention', label: 'Prevención' },
+				              { v: 'speed_mechanics', label: 'Técnica de carrera' },
+				              { v: 'agility_cods', label: 'Agilidad / cambios dirección' },
+				              { v: 'balance', label: 'Equilibrio' },
+				            ],
+				          };
+				          const setSelectOptions = (selectEl, options, selected = 'auto') => {
+				            if (!selectEl) return;
+				            const safeSelected = String(selected || 'auto').trim() || 'auto';
+				            const base = [{ v: 'auto', label: 'Auto' }, ...(Array.isArray(options) ? options : [])];
+				            selectEl.innerHTML = base.map((item) => {
+				              const v = String(item?.v || '').trim();
+				              const label = String(item?.label || v).trim();
+				              const isSel = v === safeSelected;
+				              return `<option value="${v}" ${isSel ? 'selected' : ''}>${label}</option>`;
+				            }).join('');
+				          };
+				          const subphaseStorageKey = (goalKey) => `webstats:task_assistant:smart:subphase_v1:${scopeKey}:${goalKey}`;
+				          const updateSmartSubphases = () => {
+				            const goalKey = String(smartGoalEl?.value || 'progression').trim();
+				            let stored = 'auto';
+				            try { stored = String(window.localStorage?.getItem(subphaseStorageKey(goalKey)) || 'auto').trim() || 'auto'; } catch (e) {}
+				            setSelectOptions(smartSubphaseEl, SMART_SUBPHASES[goalKey] || [], stored);
+				          };
+				          smartGoalEl?.addEventListener('change', () => {
+				            updateSmartSubphases();
+				          });
+				          smartSubphaseEl?.addEventListener('change', () => {
+				            const goalKey = String(smartGoalEl?.value || 'progression').trim();
+				            const v = String(smartSubphaseEl?.value || 'auto').trim() || 'auto';
+				            try { window.localStorage?.setItem(subphaseStorageKey(goalKey), v); } catch (e) {}
+				          });
+				          updateSmartSubphases();
 
 				          const buildFifa11PlusTemplates = () => {
 			            const level = String(levelEl.value || '1').trim();
@@ -3963,14 +4088,16 @@
 			            };
 			          };
 
-			          const buildSmartTemplates = () => {
-			            const age = String((document.getElementById('task-assistant-ageband')?.value) || 'u12').trim();
-			            const rawGoal = String((document.getElementById('task-assistant-goal')?.value) || 'progression').trim();
-			            const principle = String((document.getElementById('task-assistant-smart-principle')?.value) || 'auto').trim();
-			            const blockPref = String((document.getElementById('task-assistant-smart-block')?.value) || 'auto').trim();
-			            const approachPref = String((document.getElementById('task-assistant-smart-approach')?.value) || 'auto').trim();
-			            const playersCount = toInt((document.getElementById('task-assistant-smart-players')?.value) || '', 0);
-			            const materialsHint = String((document.getElementById('task-assistant-smart-materials')?.value) || '').trim();
+				          const buildSmartTemplates = () => {
+				            const age = String((document.getElementById('task-assistant-ageband')?.value) || 'u12').trim();
+				            const rawGoal = String((document.getElementById('task-assistant-goal')?.value) || 'progression').trim();
+				            const smartSubphase = String((smartSubphaseEl?.value) || 'auto').trim();
+				            const smartSubphaseLabel = String((smartSubphaseEl?.selectedOptions && smartSubphaseEl.selectedOptions[0]?.textContent) || '').trim();
+				            const principle = String((document.getElementById('task-assistant-smart-principle')?.value) || 'auto').trim();
+				            const blockPref = String((document.getElementById('task-assistant-smart-block')?.value) || 'auto').trim();
+				            const approachPref = String((document.getElementById('task-assistant-smart-approach')?.value) || 'auto').trim();
+				            const playersCount = toInt((document.getElementById('task-assistant-smart-players')?.value) || '', 0);
+				            const materialsHint = String((document.getElementById('task-assistant-smart-materials')?.value) || '').trim();
 			            const minutes = Math.max(5, Math.min(30, toInt(minutesEl.value, 12)));
 			            const level = String(levelEl.value || '1').trim();
 			            const levelLabel = level === '3' ? 'Nivel 3' : (level === '2' ? 'Nivel 2' : 'Nivel 1');
@@ -4030,11 +4157,11 @@
 			                coaching: 'Estructura por detrás del balón: 2+1/3+2 según fase.',
 			              },
 			            };
-			            const applyPrinciple = (tpl) => {
-			              if (!tpl || principle === 'auto') return tpl;
-			              const info = PRINCIPLES[principle];
-			              if (!info) return tpl;
-			              const next = { ...tpl };
+				            const applyPrinciple = (tpl) => {
+				              if (!tpl || principle === 'auto') return tpl;
+				              const info = PRINCIPLES[principle];
+				              if (!info) return tpl;
+				              const next = { ...tpl };
 			              if (info.objective) {
 			                next.objective = next.objective ? `${next.objective} (${info.objective})` : info.objective;
 			              }
@@ -4043,13 +4170,296 @@
 			                next.coaching_html = (next.coaching_html || '').includes('<ul>')
 			                  ? (next.coaching_html || '').replace('</ul>', `${extra}</ul>`)
 			                  : `<ul>${extra}</ul>`;
-			              }
-			              return next;
-			            };
+				              }
+				              return next;
+				            };
 
-			            const warmup = (isSenior)
-			              ? {
-			                  title: `Activación con balón · rondo + movilidad (${levelLabel})`,
+				            const ensureListHtml = (html) => {
+				              const h = String(html || '').trim();
+				              if (!h) return '<ul></ul>';
+				              if (h.includes('<ul')) return h;
+				              return `<ul><li>${h}</li></ul>`;
+				            };
+				            const appendBullets = (html, bullets) => {
+				              const items = (Array.isArray(bullets) ? bullets : []).map((b) => String(b || '').trim()).filter(Boolean);
+				              if (!items.length) return html;
+				              const base = ensureListHtml(html);
+				              const extra = items.map((b) => `<li>${b}</li>`).join('');
+				              return base.replace('</ul>', `${extra}</ul>`);
+				            };
+
+				            // Ajustes por sub-fase (opcional): enfoca la tarea sin cambiar la estructura base.
+				            const SUBPHASE_PRESETS = {
+				              warmup: {
+				                no_ball: {
+				                  title_suffix: 'sin balón',
+				                  training_type: 'Activación (sin balón)',
+				                  coaching: [
+				                    'Movilidad dinámica + técnica de carrera (apoyos, braceo, postura).',
+				                    'Progresión suave: RPE 3→5, sin fatiga.',
+				                  ],
+				                  rules: ['Sin competición. Calidad antes que velocidad.'],
+				                  board: {
+				                    items: [
+				                      { payload: { kind: 'emoji_ladder' }, x: 0.28, y: 0.50 },
+				                      { payload: { kind: 'cone' }, x: 0.42, y: 0.42 },
+				                      { payload: { kind: 'cone' }, x: 0.42, y: 0.58 },
+				                      { payload: { kind: 'cone' }, x: 0.58, y: 0.42 },
+				                      { payload: { kind: 'cone' }, x: 0.58, y: 0.58 },
+				                      { payload: { kind: 'arrow_thick' }, x: 0.46, y: 0.50 },
+				                      { payload: { kind: 'arrow_thick' }, x: 0.54, y: 0.50, angle: 180 },
+				                    ],
+				                  },
+				                },
+				                with_ball: {
+				                  title_suffix: 'con balón',
+				                  coaching: ['Muchos contactos: control orientado + pase con ventaja.'],
+				                  rules: ['1–2 toques recomendado. Cambia roles rápido.'],
+				                },
+				                neuromuscular: {
+				                  title_suffix: 'neuromuscular',
+				                  training_type: 'Activación (neuromuscular)',
+				                  coaching: ['Aterrizajes controlados, estabilidad de cadera/rodilla, COD progresivo.'],
+				                  rules: ['Pocas repeticiones, descanso suficiente.'],
+				                },
+				              },
+				              build_up: {
+				                gk_restart: {
+				                  title_suffix: 'reinicio (portero)',
+				                  coaching: ['Portero: perfil + pase tenso al pie libre.', 'Centrales: atraer para liberar al 6.'],
+				                  rules: ['Siempre inicia en portero. Punto extra si superas 1ª línea con el 6.'],
+				                  board: {
+				                    items: [
+				                      { payload: { kind: 'goal' }, x: 0.18, y: 0.50 },
+				                      { payload: { kind: 'goalkeeper_local' }, x: 0.22, y: 0.50 },
+				                      { payload: { kind: 'ball' }, x: 0.24, y: 0.50 },
+				                      { payload: { kind: 'player_local' }, x: 0.28, y: 0.44 },
+				                      { payload: { kind: 'player_local' }, x: 0.28, y: 0.56 },
+				                      { payload: { kind: 'player_local' }, x: 0.36, y: 0.50 },
+				                      { payload: { kind: 'player_rival' }, x: 0.40, y: 0.44 },
+				                      { payload: { kind: 'player_rival' }, x: 0.40, y: 0.56 },
+				                      { payload: { kind: 'arrow_thick' }, x: 0.32, y: 0.50 },
+				                    ],
+				                  },
+				                },
+				                '2plus1': {
+				                  title_suffix: 'estructura 2+1',
+				                  coaching: ['Mantén 2+1 por detrás del balón para asegurar rest-defense.'],
+				                  rules: ['Obligatorio dejar 2+1. Si se rompe, no puntúa la acción.'],
+				                },
+				                '3plus2': {
+				                  title_suffix: 'estructura 3+2',
+				                  coaching: ['3+2 en base: escalonamiento y líneas de pase.'],
+				                  rules: ['Puntúa si progresas tras atraer y jugar al lado débil.'],
+				                },
+				                attract_inside: {
+				                  title_suffix: 'atraer por dentro',
+				                  coaching: ['Conduce/pasa por dentro para atraer; cambia cuando se cierre.'],
+				                  rules: ['Punto extra si el cambio de orientación sale tras 3 pases interiores.'],
+				                },
+				                play_wide: {
+				                  title_suffix: 'salir por fuera',
+				                  coaching: ['Lateral alto y ancho; extremo fija por fuera para liberar carril interior.'],
+				                  rules: ['Puntúa doble si progresas por banda y encuentras pase atrás.'],
+				                },
+				                find_pivot: {
+				                  title_suffix: 'encontrar pivote',
+				                  coaching: ['Pivote: perfil para jugar de cara o girar si hay ventaja.'],
+				                  rules: ['Debe intervenir el pivote antes de progresar.'],
+				                },
+				                break_first_line: {
+				                  title_suffix: 'superar 1ª línea',
+				                  coaching: ['Primer control orientado para “romper” línea. Evita pases neutros.'],
+				                  rules: ['Puntúa si superas 1ª línea con pase tenso o conducción.'],
+				                },
+				              },
+				              progression: {
+				                third_man: {
+				                  title_suffix: 'tercer hombre',
+				                  coaching: ['Apoyo de cara + ruptura del 3º hombre en el lado libre.'],
+				                  rules: ['Puntúa si el 3º hombre recibe orientado hacia adelante.'],
+				                  board: {
+				                    items: [
+				                      { payload: { kind: 'player_local' }, x: 0.40, y: 0.52 },
+				                      { payload: { kind: 'player_local' }, x: 0.50, y: 0.42 },
+				                      { payload: { kind: 'player_local' }, x: 0.60, y: 0.52 },
+				                      { payload: { kind: 'ball' }, x: 0.40, y: 0.52 },
+				                      { payload: { kind: 'arrow_thick' }, x: 0.46, y: 0.48 },
+				                      { payload: { kind: 'arrow_thick' }, x: 0.54, y: 0.48, angle: 180 },
+				                    ],
+				                  },
+				                },
+				                wall_pass: {
+				                  title_suffix: 'pared',
+				                  coaching: ['Pase tenso, devolución a 1 toque, tercero ataca el espacio.'],
+				                  rules: ['Gol/punto solo si hay pared (2 pases consecutivos).'],
+				                },
+				                overload_isolate: {
+				                  title_suffix: 'sobrecargar/aislar',
+				                  coaching: ['Sobra en un lado para atraer; cambia al lado débil.'],
+				                  rules: ['Puntúa si el lado débil recibe en ventaja (1v1).'],
+				                },
+				                switch: {
+				                  title_suffix: 'cambio de orientación',
+				                  coaching: ['Atraer + asegurar + cambiar rápido y tenso.'],
+				                  rules: ['Punto extra si el cambio supera 2 líneas rivales.'],
+				                },
+				                half_spaces: {
+				                  title_suffix: 'half-spaces',
+				                  coaching: ['Ataca el intervalo lateral-central y juega a la espalda del lateral.'],
+				                  rules: ['Puntúa si progresas por half-space y finalizas con pase atrás.'],
+				                },
+				                between_lines: {
+				                  title_suffix: 'entre líneas',
+				                  coaching: ['Recepción perfilada entre líneas (hombro mirado).'],
+				                  rules: ['El receptor debe girar o jugar de cara con ventaja.'],
+				                },
+				                turn_and_go: {
+				                  title_suffix: 'recibir y girar',
+				                  coaching: ['Primer control orientado para girar. Si no, juega de cara.'],
+				                  rules: ['Puntúa si el receptor gira y supera rival directo.'],
+				                },
+				              },
+				              final_third: {
+				                cross: {
+				                  title_suffix: 'centros',
+				                  coaching: ['Atacantes: 1º palo / 2º palo / punto penal. Timing.'],
+				                  rules: ['Puntúa doble si hay centro y remate en zona.'],
+				                },
+				                cutback: {
+				                  title_suffix: 'pase atrás',
+				                  coaching: ['Línea de fondo: cabeza arriba y pase atrás a la frontal.'],
+				                  rules: ['Gol/punto solo si acaba con pase atrás.'],
+				                },
+				                through_ball: {
+				                  title_suffix: 'pase al espacio',
+				                  coaching: ['Temporiza para fijar y filtrar cuando el defensor salta.'],
+				                  rules: ['Puntúa si el pase al espacio deja al atacante delante del defensor.'],
+				                },
+				                second_post: {
+				                  title_suffix: '2º palo',
+				                  coaching: ['Llegada al 2º palo: ni pronto ni tarde.'],
+				                  rules: ['Puntúa si se ataca 2º palo con 2+ llegadas.'],
+				                },
+				                edge_box: {
+				                  title_suffix: 'disparo frontal',
+				                  coaching: ['Orientar el control para disparar: pie de apoyo y superficie.'],
+				                  rules: ['Puntúa si el disparo sale tras 1–2 pases y control orientado.'],
+				                },
+				                finishing_2v1: {
+				                  title_suffix: 'finalización 2v1',
+				                  coaching: ['Con balón: fija al defensor antes de asistir. Sin balón: trayectoria al espacio.'],
+				                  rules: ['Puntúa doble si el 2v1 acaba en gol.'],
+				                },
+				                finishing_3v2: {
+				                  title_suffix: 'finalización 3v2',
+				                  coaching: ['Atacar en oleada, ocupar carriles y finalizar rápido.'],
+				                  rules: ['Máximo 8–10s por oleada.'],
+				                },
+				              },
+				              pressing: {
+				                high: {
+				                  title_suffix: 'presión alta',
+				                  coaching: ['Orientar hacia banda y saltar en trigger.'],
+				                  rules: ['Punto extra si robas y finalizas en 6s.'],
+				                },
+				                mid: {
+				                  title_suffix: 'bloque medio',
+				                  coaching: ['Distancias cortas entre líneas, cierres interiores.'],
+				                  rules: ['No se permite presión individual sin cobertura.'],
+				                },
+				                trap_wide: {
+				                  title_suffix: 'trampa en banda',
+				                  coaching: ['Cierra carril interior y atrapa en lateral.'],
+				                  rules: ['Puntúa si fuerzas pérdida en banda.'],
+				                },
+				                cover_shadow: {
+				                  title_suffix: 'sombra de cobertura',
+				                  coaching: ['Correr tapando línea de pase al pivote/entre líneas.'],
+				                  rules: ['Puntúa si bloqueas pase interior y recuperas.'],
+				                },
+				                press_triggers: {
+				                  title_suffix: 'triggers',
+				                  coaching: ['Triggers: pase atrás, control malo, receptor de espaldas.'],
+				                  rules: ['Solo se salta a presionar en trigger.'],
+				                },
+				              },
+				              counterpress: {
+				                '5s': { title_suffix: 'regla 5s', coaching: ['Tras pérdida: 5s de máxima intención para recuperar o frenar.'] },
+				                '6s': { title_suffix: 'regla 6s', coaching: ['Tras pérdida: 6s de máxima intención y cobertura.'] },
+				                rest_defense: { title_suffix: 'rest-defense', coaching: ['Estructura por detrás del balón para estar “preparado” para la pérdida.'] },
+				                protect_center: { title_suffix: 'proteger centro', coaching: ['Tras pérdida: prioridad carril central y espalda de mediocentros.'] },
+				              },
+				              defending: {
+				                protect_central: { title_suffix: 'proteger centro', coaching: ['Cerrar carril central; orientar fuera.'] },
+				                deny_between_lines: { title_suffix: 'negar entre líneas', coaching: ['No permitir recepciones a la espalda del medio.'] },
+				                defend_depth: { title_suffix: 'defender profundidad', coaching: ['Línea lista para correr hacia atrás; perfil y distancias.'] },
+				                defend_cross: { title_suffix: 'defender centros', coaching: ['Cierre 2º palo y zona punto penal; roles claros.'] },
+				                block_shift: { title_suffix: 'basculación', coaching: ['Basculación rápida y cierres del lado débil.'] },
+				              },
+				              transition_atd: {
+				                counterpress: { title_suffix: 'contra-presión', coaching: ['Tras pérdida: primer paso y orientación correctos.'] },
+				                delay: { title_suffix: 'temporizar', coaching: ['Si no se puede recuperar: temporiza para reorganizar.'] },
+				                foul_or_stop: { title_suffix: 'cortar transición', coaching: ['Si procede: cortar con falta táctica o impedir avance.'] },
+				              },
+				              transition_dta: {
+				                counterattack_central: { title_suffix: 'contraataque por dentro', coaching: ['Primer pase vertical al carril central.'] },
+				                counterattack_wide: { title_suffix: 'contraataque por fuera', coaching: ['Abrir rápido a banda para correr.'] },
+				                secure_then_go: { title_suffix: 'asegurar y atacar', coaching: ['Asegura el 1º pase si no hay ventaja inmediata.'] },
+				                third_man_run: { title_suffix: 'ruptura 3º hombre', coaching: ['3º hombre ataca el espacio tras apoyo.'] },
+				              },
+				              duels: {
+				                '1v1_wide': { title_suffix: '1v1 banda', coaching: ['Atacar el espacio, cambio de ritmo y proteger balón.'] },
+				                '1v1_central': { title_suffix: '1v1 central', coaching: ['Cerrar perfil y orientar al rival a su lado débil.'] },
+				                '2v1': { title_suffix: '2v1', coaching: ['Fijar y soltar con ventaja; apoyo en diagonal.'] },
+				                '1v2': { title_suffix: '1v2', coaching: ['Conservar y esperar apoyo; proteger balón.'] },
+				                shielding: { title_suffix: 'protección', coaching: ['Cadera entre rival y balón; escudo y giro.'] },
+				                tackling: { title_suffix: 'entrada/robo', coaching: ['Temporiza y entra cuando el balón está “lejos” del pie.'] },
+				              },
+				              set_pieces: {
+				                corner_attack: { title_suffix: 'córner ofensivo', coaching: ['Roles: bloqueos, remate, segunda jugada.'] },
+				                corner_defend: { title_suffix: 'córner defensivo', coaching: ['Marcaje y zonas: 1º palo, punto penal, 2º palo.'] },
+				                fk_direct: { title_suffix: 'falta directa', coaching: ['Rutina 1–2 opciones: tiro o pase.'] },
+				                fk_indirect: { title_suffix: 'falta indirecta', coaching: ['Centro con timing + segundas jugadas.'] },
+				                throw_in: { title_suffix: 'saque de banda', coaching: ['Desmarques cortos/largos y 3ª opción.'] },
+				                kickoff: { title_suffix: 'saque inicial', coaching: ['Señal, apoyo y progresión segura.'] },
+				                second_ball: { title_suffix: 'segundas jugadas', coaching: ['Estructura para capturar rechaces y atacar rápido.'] },
+				              },
+				              coord: {
+				                injury_prevention: { title_suffix: 'prevención', coaching: ['Tobillo-rodilla-cadera: estabilidad y control.'] },
+				                speed_mechanics: { title_suffix: 'técnica de carrera', coaching: ['Postura, braceo, apoyo bajo centro de gravedad.'] },
+				                agility_cods: { title_suffix: 'agilidad/COD', coaching: ['Frenada, apoyos, salida; progresión.'] },
+				                balance: { title_suffix: 'equilibrio', coaching: ['Equilibrio estático/dinámico + perturbaciones.'] },
+				              },
+				            };
+
+				            const applySubphase = (tpl, goalKey, subKey) => {
+				              if (!tpl || !goalKey || !subKey || subKey === 'auto') return tpl;
+				              const preset = SUBPHASE_PRESETS?.[goalKey]?.[subKey];
+				              if (!preset) return tpl;
+				              const next = { ...tpl };
+				              const label = smartSubphaseLabel || preset.title_suffix || subKey;
+				              if (preset.title_suffix) {
+				                next.title = `${String(next.title || '').trim()} · ${preset.title_suffix}`;
+				              } else if (label) {
+				                next.title = `${String(next.title || '').trim()} · ${label}`;
+				              }
+				              if (preset.training_type) next.training_type = preset.training_type;
+				              if (preset.objective_suffix) {
+				                next.objective = next.objective ? `${next.objective} (${preset.objective_suffix})` : preset.objective_suffix;
+				              }
+				              next.description_html = appendBullets(next.description_html, preset.description || []);
+				              next.coaching_html = appendBullets(next.coaching_html, preset.coaching || []);
+				              next.rules_html = appendBullets(next.rules_html, preset.rules || []);
+				              if (preset.board && Array.isArray(preset.board.items)) {
+				                next.board = preset.board;
+				              }
+				              return next;
+				            };
+
+				            const warmup = (isSenior)
+				              ? {
+				                  title: `Activación con balón · rondo + movilidad (${levelLabel})`,
 			                  objective: 'Activar con balón: movilidad dinámica + toma de decisión a baja/media intensidad.',
 			                  minutes: Math.max(8, minutes),
 			                  block: 'activation',
@@ -4307,10 +4717,10 @@
 			              },
 			            });
 
-			            const mapping = {
-			              warmup,
-			              build_up: applyPrinciple(buildUp),
-			              progression,
+				            const mapping = {
+				              warmup,
+				              build_up: applyPrinciple(buildUp),
+				              progression,
 			              final_third: finalThird,
 			              pressing,
 			              counterpress,
@@ -4319,22 +4729,26 @@
 			              transition_dta: transitionDTA,
 			              duels,
 			              set_pieces: setPieces,
-			              coord: applyPrinciple(coord),
-			            };
+				              coord: applyPrinciple(coord),
+				            };
 
-			            const pick = mapping[goal] || progression;
-			            // Ajustes suaves por edad.
-			            if (isYoung && pick) {
-			              pick.block = 'activation';
-			              pick.minutes = Math.max(8, Math.min(15, minutes));
-			              pick.dimensions = pick.dimensions || '25x20 m';
-			            }
-			            // Añade una pista de material si el usuario la ha escrito.
-			            if (materialsHint) {
-			              try {
-			                pick.materials = pick.materials ? `${pick.materials} · ${materialsHint}` : materialsHint;
-			              } catch (e) { /* ignore */ }
-			            }
+				            const pick = mapping[goal] || progression;
+				            const pickBase = pick ? { ...pick } : null;
+				            // Ajustes suaves por edad.
+				            if (isYoung && pickBase) {
+				              pickBase.block = 'activation';
+				              pickBase.minutes = Math.max(8, Math.min(15, minutes));
+				              pickBase.dimensions = pickBase.dimensions || '25x20 m';
+				            }
+				            // Añade una pista de material si el usuario la ha escrito.
+				            if (materialsHint) {
+				              try {
+				                if (pickBase) {
+				                  pickBase.materials = pickBase.materials ? `${pickBase.materials} · ${materialsHint}` : materialsHint;
+				                }
+				              } catch (e) { /* ignore */ }
+				            }
+				            const pickWithSubphase = applySubphase((pickBase || pick), goal, smartSubphase);
 				            const cooldown = {
 				              title: `Vuelta a la calma · movilidad + respiración (${levelLabel})`,
 				              objective: 'Bajar pulsaciones, recuperar movilidad y cerrar con feedback breve.',
@@ -4361,27 +4775,43 @@
 				              board: { items: [{ payload: { kind: 'text' }, x: 0.50, y: 0.50 }] },
 				            };
 			            // Catálogo de candidatos (mínimo viable).
-			            const catalog = [];
-			            const addCandidate = (id, tpl, meta = {}) => {
-			              if (!tpl) return;
-			              catalog.push({
-			                id: String(id || '').trim(),
-			                tpl,
-			                meta: {
-			                  goal: meta.goal || goal,
-			                  age,
-			                  format: meta.format || 'auto',
-			                  intensity: meta.intensity || 'auto',
-			                  players_min: meta.players_min || 0,
-			                  players_max: meta.players_max || 0,
-			                },
-			              });
-			            };
-			            addCandidate('smart_warmup', warmup, { goal: 'warmup', format: isSenior ? 'ssg' : 'game', intensity: 'low' });
-			            addCandidate('smart_main', pick, { goal, format: (goal === 'coord' ? 'circuit' : 'game') });
-			            addCandidate('smart_alt_1', mapping.progression, { goal: 'progression', format: 'ssg' });
-			            addCandidate('smart_alt_2', mapping.duels, { goal: 'duels', format: 'analytic' });
-			            addCandidate('smart_alt_3', mapping.build_up, { goal: 'build_up', format: 'game' });
+				            const catalog = [];
+				            const addCandidate = (id, tpl, meta = {}) => {
+				              if (!tpl) return;
+				              catalog.push({
+				                id: String(id || '').trim(),
+				                tpl,
+				                meta: {
+				                  goal: meta.goal || goal,
+				                  age,
+				                  subphase: meta.subphase || 'auto',
+				                  format: meta.format || 'auto',
+				                  intensity: meta.intensity || 'auto',
+				                  players_min: meta.players_min || 0,
+				                  players_max: meta.players_max || 0,
+				                },
+				              });
+				            };
+				            addCandidate(
+				              'smart_warmup',
+				              (goal === 'warmup' ? applySubphase(warmup, 'warmup', smartSubphase) : warmup),
+				              { goal: 'warmup', subphase: (goal === 'warmup' ? smartSubphase : 'auto'), format: isSenior ? 'ssg' : 'game', intensity: 'low' },
+				            );
+				            addCandidate('smart_main', pickWithSubphase, { goal, subphase: smartSubphase, format: (goal === 'coord' ? 'circuit' : 'game') });
+
+				            // Variantes por sub-fase (solo para el objetivo actual) para enriquecer sugerencias.
+				            try {
+				              const presetKeys = Object.keys(SUBPHASE_PRESETS?.[goal] || {});
+				              presetKeys.slice(0, 12).forEach((subKey) => {
+				                const baseTpl = pickBase || mapping[goal] || pick;
+				                const variant = applySubphase(baseTpl, goal, subKey);
+				                if (!variant) return;
+				                addCandidate(`smart_${goal}_${subKey}`, variant, { goal, subphase: subKey, format: (goal === 'coord' ? 'circuit' : 'game') });
+				              });
+				            } catch (e) {}
+				            addCandidate('smart_alt_1', mapping.progression, { goal: 'progression', format: 'ssg' });
+				            addCandidate('smart_alt_2', mapping.duels, { goal: 'duels', format: 'analytic' });
+				            addCandidate('smart_alt_3', mapping.build_up, { goal: 'build_up', format: 'game' });
 			            addCandidate('smart_alt_4', mapping.pressing, { goal: 'pressing', format: 'ssg' });
 			            addCandidate('smart_alt_5', mapping.counterpress, { goal: 'counterpress', format: 'ssg' });
 			            addCandidate('smart_alt_6', mapping.final_third, { goal: 'final_third', format: 'analytic' });
@@ -4391,15 +4821,21 @@
 			            addCandidate('smart_alt_10', mapping.set_pieces, { goal: 'set_pieces', format: 'analytic' });
 			            addCandidate('smart_cooldown', cooldown, { goal: 'warmup', format: 'analytic', intensity: 'low' });
 
-			            const scoreCandidate = (item) => {
-			              const tpl = item?.tpl || {};
-			              const meta = item?.meta || {};
-			              let score = 0;
-			              if (String(meta.goal || '') === goal) score += 50;
-			              if (goal === 'warmup' && String(item.id || '').includes('warmup')) score += 10;
-			              if (blockPref !== 'auto' && String(tpl.block || '') === blockPref) score += 12;
-			              if (allowedFormatsForApproach && allowedFormatsForApproach.has(String(meta.format || ''))) score += 10;
-			              if (allowedFormatsForApproach && !allowedFormatsForApproach.has(String(meta.format || ''))) score -= 6;
+				            const scoreCandidate = (item) => {
+				              const tpl = item?.tpl || {};
+				              const meta = item?.meta || {};
+				              let score = 0;
+				              if (String(meta.goal || '') === goal) score += 50;
+				              if (smartSubphase !== 'auto') {
+				                const sp = String(meta.subphase || 'auto').trim();
+				                if (sp === smartSubphase) score += 20;
+				                else if (sp === 'auto') score -= 4;
+				                else score -= 2;
+				              }
+				              if (goal === 'warmup' && String(item.id || '').includes('warmup')) score += 10;
+				              if (blockPref !== 'auto' && String(tpl.block || '') === blockPref) score += 12;
+				              if (allowedFormatsForApproach && allowedFormatsForApproach.has(String(meta.format || ''))) score += 10;
+				              if (allowedFormatsForApproach && !allowedFormatsForApproach.has(String(meta.format || ''))) score -= 6;
 			              const tMin = Number(tpl.minutes) || 0;
 			              if (tMin) score += Math.max(0, 12 - Math.abs(tMin - minutes));
 			              if (playersCount > 0) {
@@ -4412,19 +4848,24 @@
 			              return score;
 			            };
 
-			            const suggestions = catalog
-			              .filter((item) => {
-			                if (!item?.tpl) return false;
-			                if (blockPref !== 'auto' && String(item.tpl.block || '') !== blockPref) return false;
-			                if (allowedFormatsForApproach && !allowedFormatsForApproach.has(String(item.meta?.format || ''))) return false;
-			                if (goal !== 'warmup' && String(item.meta?.goal || '') !== goal) return true;
-			                return true;
-			              })
-			              .map((item) => ({ ...item, score: scoreCandidate(item) }))
-			              .sort((a, b) => (b.score || 0) - (a.score || 0))
-			              .slice(0, 6);
+				            const suggestions = catalog
+				              .filter((item) => {
+				                if (!item?.tpl) return false;
+				                if (blockPref !== 'auto' && String(item.tpl.block || '') !== blockPref) return false;
+				                if (allowedFormatsForApproach && !allowedFormatsForApproach.has(String(item.meta?.format || ''))) return false;
+				                if (smartSubphase !== 'auto') {
+				                  const sp = String(item.meta?.subphase || 'auto').trim();
+				                  // Permite variantes específicas y, si no hay, la base (auto).
+				                  if (sp !== smartSubphase && sp !== 'auto') return false;
+				                }
+				                if (goal !== 'warmup' && String(item.meta?.goal || '') !== goal) return true;
+				                return true;
+				              })
+				              .map((item) => ({ ...item, score: scoreCandidate(item) }))
+				              .sort((a, b) => (b.score || 0) - (a.score || 0))
+				              .slice(0, 6);
 
-			            const best = suggestions[0]?.tpl || pick;
+				            const best = suggestions[0]?.tpl || pickWithSubphase;
 
 			            return {
 			              smart_generate: best,
