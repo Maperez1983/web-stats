@@ -2886,18 +2886,34 @@
 		                          </select>
 		                        </label>
 		                        <label style="grid-column:1 / -1;">
-		                          Objetivo
+		                          Fase / foco
 		                          <select id="task-assistant-goal">
-		                            <option value="warmup">Calentamiento</option>
-		                            <option value="dribble">Conducción / regate</option>
-		                            <option value="pass">Pase / conservación</option>
-		                            <option value="1v1">1v1</option>
-		                            <option value="2v1">2v1</option>
-		                            <option value="finish">Finalización</option>
-		                            <option value="build">Salida / progresión</option>
-		                            <option value="press">Presión / recuperación</option>
-		                            <option value="transition">Transición</option>
-		                            <option value="coord">Coordinación</option>
+		                            <option value="warmup">Calentamiento (con/sin balón)</option>
+		                            <option value="build_up">Salida de balón</option>
+		                            <option value="progression">Progresión (superar líneas)</option>
+		                            <option value="final_third">Último tercio / finalización</option>
+		                            <option value="pressing">Presión organizada</option>
+		                            <option value="counterpress">Presión tras pérdida</option>
+		                            <option value="defending">Defensa en bloque (medio/bajo)</option>
+		                            <option value="transition_atd">Transición ataque → defensa</option>
+		                            <option value="transition_dta">Transición defensa → ataque</option>
+		                            <option value="duels">Duelos (1v1, 2v1)</option>
+		                            <option value="set_pieces">ABP (córner, falta, saque banda…)</option>
+		                            <option value="coord">Coordinación / prevención</option>
+		                          </select>
+		                        </label>
+		                        <label style="grid-column:1 / -1;">
+		                          Principio (opcional)
+		                          <select id="task-assistant-smart-principle">
+		                            <option value="auto">Auto</option>
+		                            <option value="width_depth">Amplitud + profundidad</option>
+		                            <option value="third_man">Tercer hombre</option>
+		                            <option value="fix_release">Fijar y soltar</option>
+		                            <option value="switch">Cambio de orientación</option>
+		                            <option value="support_angles">Ángulos de apoyo</option>
+		                            <option value="press_triggers">Triggers de presión</option>
+		                            <option value="cover_balance">Cobertura + equilibrio</option>
+		                            <option value="rest_defense">Equilibrio defensivo (rest-defense)</option>
 		                          </select>
 		                        </label>
 		                        <label>
@@ -3950,7 +3966,8 @@
 
 			          const buildSmartTemplates = () => {
 			            const age = String((document.getElementById('task-assistant-ageband')?.value) || 'u12').trim();
-			            const goal = String((document.getElementById('task-assistant-goal')?.value) || 'pass').trim();
+			            const rawGoal = String((document.getElementById('task-assistant-goal')?.value) || 'progression').trim();
+			            const principle = String((document.getElementById('task-assistant-smart-principle')?.value) || 'auto').trim();
 			            const blockPref = String((document.getElementById('task-assistant-smart-block')?.value) || 'auto').trim();
 			            const formatPref = String((document.getElementById('task-assistant-smart-format')?.value) || 'auto').trim();
 			            const playersCount = toInt((document.getElementById('task-assistant-smart-players')?.value) || '', 0);
@@ -3961,7 +3978,70 @@
 
 			            const isYoung = age === 'u8';
 			            const isSenior = age === 'u19';
+			            const goalAliases = {
+			              // Compat con valores antiguos (por si queda en cache/cola).
+			              build: 'build_up',
+			              press: 'pressing',
+			              transition: 'transition_atd',
+			              pass: 'progression',
+			              dribble: 'duels',
+			              '1v1': 'duels',
+			              '2v1': 'duels',
+			              finish: 'final_third',
+			            };
+			            const goal = goalAliases[rawGoal] || rawGoal;
 			            const base = buildFundamentalsTemplates();
+
+			            const PRINCIPLES = {
+			              width_depth: {
+			                objective: 'crear amplitud y profundidad para abrir líneas de pase.',
+			                coaching: 'Amplitud real (pegarse a línea) y profundidad (amenaza a espalda).',
+			              },
+			              third_man: {
+			                objective: 'usar al tercer hombre para superar presión.',
+			                coaching: 'Pase al pie libre, apoyo de cara y tercer hombre atacando espacio.',
+			              },
+			              fix_release: {
+			                objective: 'fijar al defensor y soltar con ventaja.',
+			                coaching: 'Conduce para atraer; suelta cuando el rival “muerde”.',
+			              },
+			              switch: {
+			                objective: 'cambiar de orientación para atacar el lado débil.',
+			                coaching: 'Antes de cambiar: atraer, asegurar y cambiar rápido y tenso.',
+			              },
+			              support_angles: {
+			                objective: 'mejorar ángulos/distancias de apoyo.',
+			                coaching: 'Triángulos, distancias útiles y perfil corporal antes de recibir.',
+			              },
+			              press_triggers: {
+			                objective: 'coordinar triggers y roles de presión.',
+			                coaching: 'Señales claras (pase atrás, control malo, banda) y coberturas.',
+			              },
+			              cover_balance: {
+			                objective: 'mantener cobertura y equilibrio defensivo.',
+			                coaching: 'Primer defensor orienta; segundo cierra línea; tercero equilibra.',
+			              },
+			              rest_defense: {
+			                objective: 'asegurar rest-defense para evitar transiciones.',
+			                coaching: 'Estructura por detrás del balón: 2+1/3+2 según fase.',
+			              },
+			            };
+			            const applyPrinciple = (tpl) => {
+			              if (!tpl || principle === 'auto') return tpl;
+			              const info = PRINCIPLES[principle];
+			              if (!info) return tpl;
+			              const next = { ...tpl };
+			              if (info.objective) {
+			                next.objective = next.objective ? `${next.objective} (${info.objective})` : info.objective;
+			              }
+			              if (info.coaching) {
+			                const extra = `<li><strong>Principio:</strong> ${info.coaching}</li>`;
+			                next.coaching_html = (next.coaching_html || '').includes('<ul>')
+			                  ? (next.coaching_html || '').replace('</ul>', `${extra}</ul>`)
+			                  : `<ul>${extra}</ul>`;
+			              }
+			              return next;
+			            };
 
 			            const warmup = (isSenior)
 			              ? {
@@ -4150,20 +4230,95 @@
 
 			            const coord = base.fund_coord_circuit;
 
+			            const progression = applyPrinciple({
+			              ...(base.fund_conservation_pass || {}),
+			              title: `Progresión · conservación + zonas (${levelLabel})`,
+			              objective: 'Progresar mediante pases: fijar, atraer y encontrar la zona libre.',
+			              block: isSenior ? 'main_1' : 'main_1',
+			            });
+			            const finalThird = applyPrinciple(finish);
+			            const pressing = applyPrinciple({
+			              ...press,
+			              title: `Presión organizada · robar y finalizar (${levelLabel})`,
+			              objective: 'Coordinar presión para recuperar y atacar rápido.',
+			              block: 'main_1',
+			            });
+			            const counterpress = applyPrinciple(press);
+			            const defending = applyPrinciple({
+			              title: `Defensa en bloque · cierres y basculación (${levelLabel})`,
+			              objective: 'Defender en bloque: temporizar, cerrar líneas y proteger zona central.',
+			              minutes: Math.max(10, minutes),
+			              block: 'main_1',
+			              player_count: isSenior ? '6v6 (bloque vs ataque)' : '4v4 (bloque vs ataque)',
+			              dimensions: isSenior ? '40x30 m' : '30x22 m',
+			              materials: 'Petos, conos, balones',
+			              space: 'Zona media',
+			              training_type: 'Defensa en bloque',
+			              description_html: '<ul><li>Equipo defensor en bloque medio/bajo; el atacante busca progresar.</li><li>Reinicia tras robo o salida.</li></ul>',
+			              coaching_html: '<ul><li>Distancias entre líneas, basculación y coberturas.</li><li>Orientar al rival hacia fuera.</li></ul>',
+			              rules_html: '<ul><li>Punto por robo + salida; punto por progresión del ataque.</li></ul>',
+			              board: buildUp?.board || null,
+			            });
+			            const transitionATD = applyPrinciple(transition);
+			            const transitionDTA = applyPrinciple({
+			              title: `Transición defensa-ataque · atacar espacio (${levelLabel})`,
+			              objective: 'Tras recuperar: atacar espacio libre con 2–3 pases y finalización.',
+			              minutes: Math.max(10, minutes),
+			              block: 'main_2',
+			              player_count: isSenior ? '5v5' : '4v4',
+			              dimensions: isSenior ? '35x28 m' : '28x20 m',
+			              materials: 'Balones, petos, conos, porterías',
+			              space: 'Partido condicionado',
+			              training_type: 'Transición',
+			              description_html: '<ul><li>Tras recuperación hay ventana de 6–8s para finalizar.</li><li>Si no hay opción, conservar y reorganizar.</li></ul>',
+			              coaching_html: '<ul><li>Primer pase seguro, segundo vertical si aparece.</li><li>Desmarques de ruptura y apoyo por detrás.</li></ul>',
+			              rules_html: '<ul><li>Gol en ventana de transición = doble.</li></ul>',
+			              board: base.fund_dribble_game?.board || null,
+			            });
+			            const duels = applyPrinciple(base.fund_oleadas_1v1 || base.fund_conservation_2v1);
+			            const setPieces = applyPrinciple({
+			              title: `ABP · diseño y roles (${levelLabel})`,
+			              objective: 'Diseñar ABP: roles, timing y segundas jugadas.',
+			              minutes: Math.max(10, minutes),
+			              block: 'set_pieces',
+			              player_count: 'Todo el equipo',
+			              dimensions: 'Zona de área',
+			              materials: 'Balones, conos',
+			              space: 'Área + puntos de referencia',
+			              training_type: 'ABP',
+			              description_html: '<ul><li>Define 1–2 ABP (córner/falta) y repite con corrección.</li><li>Incluye segundas jugadas y transición defensiva.</li></ul>',
+			              coaching_html: '<ul><li>Roles claros (bloqueos, remate, segunda jugada).</li><li>Timing y señales.</li></ul>',
+			              rules_html: '<ul><li>Repeticiones cortas; calidad en ejecución.</li></ul>',
+			              board: {
+			                items: [
+			                  { payload: { kind: 'goal' }, x: 0.86, y: 0.50, angle: 180 },
+			                  { payload: { kind: 'ball' }, x: 0.74, y: 0.30 },
+			                  { payload: { kind: 'player_local' }, x: 0.72, y: 0.46 },
+			                  { payload: { kind: 'player_local' }, x: 0.74, y: 0.52 },
+			                  { payload: { kind: 'player_local' }, x: 0.78, y: 0.46 },
+			                  { payload: { kind: 'player_rival' }, x: 0.80, y: 0.52 },
+			                  { payload: { kind: 'player_rival' }, x: 0.82, y: 0.46 },
+			                  { payload: { kind: 'arrow_curve' }, x: 0.78, y: 0.44 },
+			                ],
+			              },
+			            });
+
 			            const mapping = {
 			              warmup,
-			              dribble: base.fund_dribble_game,
-			              pass: base.fund_conservation_pass,
-			              '1v1': base.fund_oleadas_1v1,
-			              '2v1': base.fund_conservation_2v1,
-			              finish,
-			              build: buildUp,
-			              press,
-			              transition,
-			              coord,
+			              build_up: applyPrinciple(buildUp),
+			              progression,
+			              final_third: finalThird,
+			              pressing,
+			              counterpress,
+			              defending,
+			              transition_atd: transitionATD,
+			              transition_dta: transitionDTA,
+			              duels,
+			              set_pieces: setPieces,
+			              coord: applyPrinciple(coord),
 			            };
 
-			            const pick = mapping[goal] || base.fund_conservation_pass;
+			            const pick = mapping[goal] || progression;
 			            // Ajustes suaves por edad.
 			            if (isYoung && pick) {
 			              pick.block = 'activation';
@@ -4220,14 +4375,16 @@
 			            };
 			            addCandidate('smart_warmup', warmup, { goal: 'warmup', format: isSenior ? 'ssg' : 'game', intensity: 'low' });
 			            addCandidate('smart_main', pick, { goal, format: (goal === 'coord' ? 'circuit' : 'game') });
-			            addCandidate('smart_alt_1', base.fund_conservation_pass, { goal: 'pass', format: 'ssg' });
-			            addCandidate('smart_alt_2', base.fund_dribble_game, { goal: 'dribble', format: 'game' });
-			            addCandidate('smart_alt_3', base.fund_oleadas_1v1, { goal: '1v1', format: 'analytic' });
-			            addCandidate('smart_alt_4', base.fund_conservation_2v1, { goal: '2v1', format: 'analytic' });
-			            addCandidate('smart_alt_5', buildUp, { goal: 'build', format: 'game' });
-			            addCandidate('smart_alt_6', press, { goal: 'press', format: 'ssg' });
-			            addCandidate('smart_alt_7', finish, { goal: 'finish', format: 'analytic' });
-			            addCandidate('smart_alt_8', transition, { goal: 'transition', format: 'game' });
+			            addCandidate('smart_alt_1', mapping.progression, { goal: 'progression', format: 'ssg' });
+			            addCandidate('smart_alt_2', mapping.duels, { goal: 'duels', format: 'analytic' });
+			            addCandidate('smart_alt_3', mapping.build_up, { goal: 'build_up', format: 'game' });
+			            addCandidate('smart_alt_4', mapping.pressing, { goal: 'pressing', format: 'ssg' });
+			            addCandidate('smart_alt_5', mapping.counterpress, { goal: 'counterpress', format: 'ssg' });
+			            addCandidate('smart_alt_6', mapping.final_third, { goal: 'final_third', format: 'analytic' });
+			            addCandidate('smart_alt_7', mapping.transition_atd, { goal: 'transition_atd', format: 'game' });
+			            addCandidate('smart_alt_8', mapping.transition_dta, { goal: 'transition_dta', format: 'game' });
+			            addCandidate('smart_alt_9', mapping.defending, { goal: 'defending', format: 'game' });
+			            addCandidate('smart_alt_10', mapping.set_pieces, { goal: 'set_pieces', format: 'analytic' });
 			            addCandidate('smart_cooldown', cooldown, { goal: 'warmup', format: 'analytic', intensity: 'low' });
 
 			            const scoreCandidate = (item) => {
