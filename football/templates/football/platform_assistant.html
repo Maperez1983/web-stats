@@ -141,7 +141,7 @@
           y los deja disponibles en la pizarra de tareas (cualquier club/equipo) para tu uso interno.
         </div>
         <div class="row">
-          <input type="file" id="sys-assets-files" accept=".zip,.ppt,.pptx,image/*" multiple />
+          <input type="file" id="sys-assets-files" accept=".zip,.pptx,image/*" multiple />
           <button type="button" class="link-btn primary" id="sys-assets-upload">Subir recursos</button>
         </div>
         <div class="meta" id="sys-assets-msg" style="margin-top:0.75rem;"></div>
@@ -248,7 +248,7 @@
         assetsUploadBtn?.addEventListener('click', async () => {
           const files = Array.from(assetsFilesEl?.files || []);
           if (!files.length) {
-            assetsMsgEl.textContent = 'Selecciona un PPTX o imágenes.';
+            assetsMsgEl.textContent = 'Selecciona un PPTX (.pptx) o imágenes.';
             return;
           }
           const fd = new FormData();
@@ -271,7 +271,7 @@
             const warnings = Array.isArray(data?.warnings) ? data.warnings : [];
             assetsMsgEl.textContent = `Subidos: ${savedCount}. Omitidos: ${skipped}. Errores: ${errors}.`;
             if (!savedCount && (skipped || errors)) {
-              const tip = 'Tip: el PPT debe ser .pptx y las imágenes deben estar incrustadas (no solo formas). Convierte shapes a imagen o exporta diapositivas a PNG.';
+              const tip = 'Tip: el archivo debe ser .pptx (no .ppt) y las imágenes deben estar incrustadas (no solo formas). Convierte shapes a imagen o exporta diapositivas a PNG.';
               assetsMsgEl.textContent += ` ${tip}`;
             }
             if (warnings.length) {
