@@ -27901,13 +27901,14 @@ def manual_player_stats_page(request):
             with transaction.atomic():
                 for player in players:
                     overrides = {
-                        'manual_pj': _parse_int(request.POST.get(f'pj_{player.id}')) or 0,
-                        'manual_pt': _parse_int(request.POST.get(f'pt_{player.id}')) or 0,
-                        'manual_minutes': _parse_int(request.POST.get(f'minutes_{player.id}')) or 0,
-                        'manual_goals': _parse_int(request.POST.get(f'goals_{player.id}')) or 0,
-                        'manual_assists': _parse_int(request.POST.get(f'assists_{player.id}')) or 0,
-                        'manual_yellow_cards': _parse_int(request.POST.get(f'yellow_{player.id}')) or 0,
-                        'manual_red_cards': _parse_int(request.POST.get(f'red_{player.id}')) or 0,
+                        # Vacío => eliminar override y volver a cálculo automático.
+                        'manual_pj': request.POST.get(f'pj_{player.id}'),
+                        'manual_pt': request.POST.get(f'pt_{player.id}'),
+                        'manual_minutes': request.POST.get(f'minutes_{player.id}'),
+                        'manual_goals': request.POST.get(f'goals_{player.id}'),
+                        'manual_assists': request.POST.get(f'assists_{player.id}'),
+                        'manual_yellow_cards': request.POST.get(f'yellow_{player.id}'),
+                        'manual_red_cards': request.POST.get(f'red_{player.id}'),
                     }
                     save_manual_player_base_overrides(
                         player=player,
@@ -28146,13 +28147,13 @@ def player_detail_page(request, player_id):
                 season = _resolve_season()
                 if season:
                     manual_values = {
-                        'manual_pj': _parse_int(request.POST.get('manual_pj')) or 0,
-                        'manual_pt': _parse_int(request.POST.get('manual_pt')) or 0,
-                        'manual_minutes': _parse_int(request.POST.get('manual_minutes')) or 0,
-                        'manual_goals': _parse_int(request.POST.get('manual_goals')) or 0,
-                        'manual_assists': _parse_int(request.POST.get('manual_assists')) or 0,
-                        'manual_yellow_cards': _parse_int(request.POST.get('manual_yellow_cards')) or 0,
-                        'manual_red_cards': _parse_int(request.POST.get('manual_red_cards')) or 0,
+                        'manual_pj': request.POST.get('manual_pj'),
+                        'manual_pt': request.POST.get('manual_pt'),
+                        'manual_minutes': request.POST.get('manual_minutes'),
+                        'manual_goals': request.POST.get('manual_goals'),
+                        'manual_assists': request.POST.get('manual_assists'),
+                        'manual_yellow_cards': request.POST.get('manual_yellow_cards'),
+                        'manual_red_cards': request.POST.get('manual_red_cards'),
                     }
                     with transaction.atomic():
                         save_manual_player_base_overrides(
@@ -28299,11 +28300,8 @@ def player_detail_page(request, player_id):
         red_cards = _to_int_value(stats_source.get('red_cards'))
         second_yellow_cards = _to_int_value(stats_source.get('second_yellow_cards'))
         competition_total_rounds = _to_int_value(stats_source.get('competition_total_rounds')) or get_competition_total_rounds(primary_team)
-        participation_pct = (
-            round(min((pj / competition_total_rounds) * 100, 100), 1)
-            if competition_total_rounds > 0
-            else 0
-        )
+        # La participación real debe basarse en minutos y partidos del equipo (se calcula en compute_player_dashboard).
+        participation_pct = float(stats_source.get('participation_pct') or 0)
         suplente = max(pj - pt, 0)
         goals_per_match = round((goals / pj), 2) if pj else 0
         match_minutes = _regulation_minutes_for_team(primary_team)
@@ -30510,11 +30508,14 @@ def compute_player_dashboard(primary_team, force_refresh=False):
             if universo_entry.get('assists') not in (None, '')
             else roster_entry.get('assists', 0)
         )
-        assists_locked = 'assists' in manual_entry
-        goals_locked = 'goals' in manual_entry
-        yellow_cards_locked = 'yellow_cards' in manual_entry
-        red_cards_locked = 'red_cards' in manual_entry
-        totals_locked = any(key in manual_entry for key in ('pj', 'pt', 'minutes'))
+        # Manual-base: bloquear solo cuando el override aporta un valor no-cero.
+        # (Evita el caso típico: el usuario guarda el formulario en blanco y se crean overrides=0
+        # que impiden sumar los eventos reales de partido.)
+        assists_locked = ('assists' in manual_entry) and int(manual_entry.get('assists') or 0) != 0
+        goals_locked = ('goals' in manual_entry) and int(manual_entry.get('goals') or 0) != 0
+        yellow_cards_locked = ('yellow_cards' in manual_entry) and int(manual_entry.get('yellow_cards') or 0) != 0
+        red_cards_locked = ('red_cards' in manual_entry) and int(manual_entry.get('red_cards') or 0) != 0
+        totals_locked = any(int(manual_entry.get(key) or 0) != 0 for key in ('pj', 'pt', 'minutes') if key in manual_entry)
         stats = player_stats.setdefault(
             player.id,
             {
@@ -31048,6 +31049,13 @@ def compute_player_dashboard(primary_team, force_refresh=False):
         except Exception:
             pass
         team_played_matches = len(played_ids)
+    if team_played_matches <= 0:
+        # Último fallback: si el equipo no tiene standing y no hay marcadores,
+        # usamos el máximo PJ del cálculo (suele venir de convocatorias/11 inicial).
+        try:
+            team_played_matches = max(int(stats.get('pj', 0) or 0) for stats in player_stats.values())
+        except Exception:
+            team_played_matches = 0
     max_successes = max((int(stats.get('successes', 0) or 0) for stats in player_stats.values()), default=0)
     max_decisive_actions_per90 = 0.0
     for stats in player_stats.values():

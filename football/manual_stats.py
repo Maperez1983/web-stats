@@ -85,8 +85,14 @@ def save_manual_player_base_overrides(*, player, season, values):
             name=stat_name,
             context='manual-base',
         )
-        normalized_value = _parse_int(stat_value) or 0
+        parsed = _parse_int(stat_value)
         stat = queryset.order_by('-id').first()
+        if parsed is None:
+            # Campo vacío => no bloquear el cálculo automático.
+            if stat:
+                queryset.delete()
+            continue
+        normalized_value = parsed
         if stat:
             duplicates = queryset.exclude(id=stat.id)
             if duplicates.exists():
