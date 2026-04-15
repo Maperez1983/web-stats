@@ -13734,8 +13734,8 @@ def register_match_action(request):
     tercio = zone_to_tercio(zone)
     observation = (request.POST.get('observation') or '').strip()
     # Dedupe anti doble-click / reintentos de red muy inmediatos.
-    # No debe bloquear acciones reales consecutivas (en vivo).
-    duplicate_window = timezone.now() - timedelta(seconds=2)
+    # Ventana muy pequeña para no bloquear acciones reales consecutivas.
+    duplicate_window = timezone.now() - timedelta(milliseconds=700)
     recent_duplicates = MatchEvent.objects.filter(
         match=match,
         player=player if player else None,
@@ -13884,42 +13884,10 @@ def finalize_match_actions(request):
     )
     if not pending_events:
         return JsonResponse({'saved': True, 'updated': 0, 'match_id': match.id})
-    # No borrar acciones finalizadas previamente. Solo consolidar las nuevas acciones pendientes.
-    # La deduplicación por firma/ventana temporal ya evita dobles clicks.
-
-    # Evita consolidar duplicados por doble click/reintento de red en pocos segundos.
-    # Importante: no eliminar acciones reales repetidas a lo largo del partido.
-    # En vivo, el staff puede registrar varias acciones iguales en segundos.
-    # Mantener una ventana muy corta para cubrir doble-click / retry inmediato.
-    dedupe_seconds = 2
-    existing_final_by_signature = defaultdict(list)
-    for event in MatchEvent.objects.filter(
-        match=match,
-        system='touch-field-final',
-        source_file='registro-acciones',
-    ).select_related('player'):
-        existing_final_by_signature[_match_action_dedupe_signature(event)].append(event.created_at)
-    seen_pending_by_signature = defaultdict(list)
-    keep_ids = []
-    drop_ids = []
-    for event in sorted(pending_events, key=lambda e: e.created_at or timezone.now()):
-        signature = _match_action_dedupe_signature(event)
-        created_at = event.created_at or timezone.now()
-        existing_times = existing_final_by_signature.get(signature, [])
-        pending_times = seen_pending_by_signature.get(signature, [])
-        is_near_duplicate = any(
-            abs((created_at - known).total_seconds()) <= dedupe_seconds
-            for known in [*existing_times, *pending_times]
-        )
-        if is_near_duplicate:
-            drop_ids.append(event.id)
-            continue
-        seen_pending_by_signature[signature].append(created_at)
-        keep_ids.append(event.id)
-
-    if drop_ids:
-        MatchEvent.objects.filter(id__in=drop_ids, match=match, system='touch-field').delete()
-
+    # Consolidar TODO lo pendiente. No eliminamos "duplicados" aquí porque en fútbol puede haber
+    # acciones iguales repetidas en el mismo minuto (y el usuario prefiere sumar de más antes
+    # que perder acciones reales). El endpoint `register_match_action` ya evita doble-click inmediato.
+    keep_ids = [event.id for event in pending_events if getattr(event, 'id', None)]
     updated = 0
     if keep_ids:
         updated = MatchEvent.objects.filter(id__in=keep_ids).update(system='touch-field-final')
@@ -13928,7 +13896,7 @@ def finalize_match_actions(request):
         {
             'saved': True,
             'updated': updated,
-            'deduplicated': len(drop_ids),
+            'deduplicated': 0,
             'match_id': match.id,
             'match_label': str(match),
         }
