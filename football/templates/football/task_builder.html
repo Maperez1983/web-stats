@@ -2834,14 +2834,14 @@
 	                  <p class="meta" style="margin-top:0.35rem;">
 	                    Plantillas guiadas para crear tareas rápido sin perder estructura. Ajusta siempre la carga y la técnica a tu grupo.
 	                  </p>
-	                  <div style="margin-top:0.55rem; display:grid; gap:0.45rem;">
-	                    <label style="display:flex; gap:10px; align-items:center; font-size:0.95rem; opacity:0.92;">
+	                  <div style="margin-top:0.55rem; display:flex; gap:0.5rem; flex-wrap:wrap;">
+	                    <label class="chip-toggle" title="Crea automáticamente una pizarra base (conos/jugadores) al aplicar la plantilla.">
 	                      <input type="checkbox" id="task-assistant-apply-board" checked />
-	                      Crear pizarra base (conos/jugadores)
+	                      Pizarra base
 	                    </label>
-	                    <label style="display:flex; gap:10px; align-items:center; font-size:0.95rem; opacity:0.92;">
+	                    <label class="chip-toggle" title="Borra la pizarra actual antes de aplicar la plantilla (si no, añadirá elementos).">
 	                      <input type="checkbox" id="task-assistant-clear-board" checked />
-	                      Borrar pizarra actual antes
+	                      Borrar antes
 	                    </label>
 	                  </div>
 	                  <div class="compact-grid" style="margin-top:0.65rem;">
@@ -2900,13 +2900,45 @@
 		                            <option value="coord">Coordinación</option>
 		                          </select>
 		                        </label>
+		                        <label>
+		                          Bloque
+		                          <select id="task-assistant-smart-block">
+		                            <option value="auto">Auto</option>
+		                            <option value="activation">Activación</option>
+		                            <option value="main_1">Principal 1</option>
+		                            <option value="main_2">Principal 2</option>
+		                            <option value="conditioning">Condicionante</option>
+		                            <option value="set_pieces">ABP</option>
+		                            <option value="recovery">Vuelta calma</option>
+		                          </select>
+		                        </label>
+		                        <label>
+		                          Nº jugadores
+		                          <input type="number" id="task-assistant-smart-players" min="4" max="30" value="12" />
+		                        </label>
+		                        <label style="grid-column:1 / -1;">
+		                          Formato preferido
+		                          <select id="task-assistant-smart-format">
+		                            <option value="auto">Auto</option>
+		                            <option value="game">Juego / partido condicionado</option>
+		                            <option value="ssg">Juego reducido (SSG)</option>
+		                            <option value="circuit">Circuito / estaciones</option>
+		                            <option value="analytic">Analítico / técnico</option>
+		                          </select>
+		                        </label>
+		                        <label style="grid-column:1 / -1;">
+		                          Material (opcional)
+		                          <input type="text" id="task-assistant-smart-materials" placeholder="Ej: 12 conos, 8 petos, 6 balones, mini porterías…" />
+		                        </label>
 		                      </div>
 		                      <div style="margin-top:0.65rem; display:grid; gap:0.55rem;">
-		                        <button type="button" class="button" id="task-assistant-smart-generate">Generar tarea</button>
+		                        <button type="button" class="button" id="task-assistant-smart-suggest">Sugerir tareas</button>
+		                        <button type="button" class="button" id="task-assistant-smart-generate">Aplicar mejor sugerencia</button>
 		                        <button type="button" class="button" id="task-assistant-smart-generate-session">Generar bloque (3 tareas)</button>
 		                      </div>
+		                      <div id="task-assistant-smart-suggestions" style="margin-top:0.75rem; display:grid; gap:0.55rem;"></div>
 		                      <div class="meta" style="margin-top:0.65rem; opacity:0.9;">
-		                        Consejo: usa “Generar bloque” para crear 3 tareas (activación + principal + vuelta calma) y luego ajusta.
+		                        Consejo: define qué quieres entrenar y pulsa “Sugerir tareas”. Aplica una y ajusta reglas/dimensiones.
 		                      </div>
 		                    </div>
 		                    <div data-assistant-program="fundamentals" hidden>
@@ -2925,8 +2957,14 @@
 		                      </div>
 		                    </div>
 		                  </div>
-		                  <div class="alert warn" style="margin-top:0.85rem;">
+		                  <div class="alert warn" data-assistant-tip="fifa11plus" style="margin-top:0.85rem;">
 		                    Tip: para un calentamiento completo, crea 3 tareas (Parte 1 + Parte 2 + Parte 3) y así podrás reordenarlas/ajustarlas dentro de la sesión.
+		                  </div>
+		                  <div class="alert warn" data-assistant-tip="smart" hidden style="margin-top:0.85rem;">
+		                    Tip: usa “Generar bloque (3 tareas)” para activar + principal + vuelta a la calma y luego ajusta cada tarea a tu equipo.
+		                  </div>
+		                  <div class="alert warn" data-assistant-tip="fundamentals" hidden style="margin-top:0.85rem;">
+		                    Tip: usa “Fundamentos” para arrancar rápido y adapta reglas/dimensiones según edad y nivel.
 		                  </div>
 		                  <div class="alert ok" id="task-assistant-queue" hidden style="margin-top:0.85rem; display:flex; align-items:center; justify-content:space-between; gap:0.75rem; flex-wrap:wrap;">
 		                    <span id="task-assistant-queue-text"></span>
@@ -3413,13 +3451,17 @@
 		            } catch (err) {}
 			          };
 
-			          const setAssistantProgramUi = () => {
-			            const program = String(programEl.value || '').trim();
-			            Array.from(document.querySelectorAll('[data-assistant-program]')).forEach((node) => {
-			              const key = String(node.getAttribute('data-assistant-program') || '').trim();
-			              node.hidden = !!key && key !== program;
-			            });
-			          };
+				          const setAssistantProgramUi = () => {
+				            const program = String(programEl.value || '').trim();
+				            Array.from(document.querySelectorAll('[data-assistant-program]')).forEach((node) => {
+				              const key = String(node.getAttribute('data-assistant-program') || '').trim();
+				              node.hidden = !!key && key !== program;
+				            });
+				            Array.from(document.querySelectorAll('[data-assistant-tip]')).forEach((node) => {
+				              const key = String(node.getAttribute('data-assistant-tip') || '').trim();
+				              node.hidden = !!key && key !== program;
+				            });
+				          };
 			          try { programEl.addEventListener('change', setAssistantProgramUi); } catch (e) {}
 			          setAssistantProgramUi();
 
@@ -3909,6 +3951,10 @@
 			          const buildSmartTemplates = () => {
 			            const age = String((document.getElementById('task-assistant-ageband')?.value) || 'u12').trim();
 			            const goal = String((document.getElementById('task-assistant-goal')?.value) || 'pass').trim();
+			            const blockPref = String((document.getElementById('task-assistant-smart-block')?.value) || 'auto').trim();
+			            const formatPref = String((document.getElementById('task-assistant-smart-format')?.value) || 'auto').trim();
+			            const playersCount = toInt((document.getElementById('task-assistant-smart-players')?.value) || '', 0);
+			            const materialsHint = String((document.getElementById('task-assistant-smart-materials')?.value) || '').trim();
 			            const minutes = Math.max(5, Math.min(30, toInt(minutesEl.value, 12)));
 			            const level = String(levelEl.value || '1').trim();
 			            const levelLabel = level === '3' ? 'Nivel 3' : (level === '2' ? 'Nivel 2' : 'Nivel 1');
@@ -4117,13 +4163,19 @@
 			              coord,
 			            };
 
-				            const pick = mapping[goal] || base.fund_conservation_pass;
-				            // Ajustes suaves por edad.
-				            if (isYoung && pick) {
-				              pick.block = 'activation';
-				              pick.minutes = Math.max(8, Math.min(15, minutes));
-				              pick.dimensions = pick.dimensions || '25x20 m';
-				            }
+			            const pick = mapping[goal] || base.fund_conservation_pass;
+			            // Ajustes suaves por edad.
+			            if (isYoung && pick) {
+			              pick.block = 'activation';
+			              pick.minutes = Math.max(8, Math.min(15, minutes));
+			              pick.dimensions = pick.dimensions || '25x20 m';
+			            }
+			            // Añade una pista de material si el usuario la ha escrito.
+			            if (materialsHint) {
+			              try {
+			                pick.materials = pick.materials ? `${pick.materials} · ${materialsHint}` : materialsHint;
+			              } catch (e) { /* ignore */ }
+			            }
 				            const cooldown = {
 				              title: `Vuelta a la calma · movilidad + respiración (${levelLabel})`,
 				              objective: 'Bajar pulsaciones, recuperar movilidad y cerrar con feedback breve.',
@@ -4149,13 +4201,77 @@
 				              rules_html: '<ul><li>Sin competición. Prioriza recuperación.</li></ul>',
 				              board: { items: [{ payload: { kind: 'text' }, x: 0.50, y: 0.50 }] },
 				            };
-				            return {
-				              smart_generate: pick,
-				              smart_block_1: warmup,
-				              smart_block_2: pick,
-				              smart_block_3: cooldown,
-				            };
-				          };
+			            // Catálogo de candidatos (mínimo viable).
+			            const catalog = [];
+			            const addCandidate = (id, tpl, meta = {}) => {
+			              if (!tpl) return;
+			              catalog.push({
+			                id: String(id || '').trim(),
+			                tpl,
+			                meta: {
+			                  goal: meta.goal || goal,
+			                  age,
+			                  format: meta.format || 'auto',
+			                  intensity: meta.intensity || 'auto',
+			                  players_min: meta.players_min || 0,
+			                  players_max: meta.players_max || 0,
+			                },
+			              });
+			            };
+			            addCandidate('smart_warmup', warmup, { goal: 'warmup', format: isSenior ? 'ssg' : 'game', intensity: 'low' });
+			            addCandidate('smart_main', pick, { goal, format: (goal === 'coord' ? 'circuit' : 'game') });
+			            addCandidate('smart_alt_1', base.fund_conservation_pass, { goal: 'pass', format: 'ssg' });
+			            addCandidate('smart_alt_2', base.fund_dribble_game, { goal: 'dribble', format: 'game' });
+			            addCandidate('smart_alt_3', base.fund_oleadas_1v1, { goal: '1v1', format: 'analytic' });
+			            addCandidate('smart_alt_4', base.fund_conservation_2v1, { goal: '2v1', format: 'analytic' });
+			            addCandidate('smart_alt_5', buildUp, { goal: 'build', format: 'game' });
+			            addCandidate('smart_alt_6', press, { goal: 'press', format: 'ssg' });
+			            addCandidate('smart_alt_7', finish, { goal: 'finish', format: 'analytic' });
+			            addCandidate('smart_alt_8', transition, { goal: 'transition', format: 'game' });
+			            addCandidate('smart_cooldown', cooldown, { goal: 'warmup', format: 'analytic', intensity: 'low' });
+
+			            const scoreCandidate = (item) => {
+			              const tpl = item?.tpl || {};
+			              const meta = item?.meta || {};
+			              let score = 0;
+			              if (String(meta.goal || '') === goal) score += 50;
+			              if (goal === 'warmup' && String(item.id || '').includes('warmup')) score += 10;
+			              if (blockPref !== 'auto' && String(tpl.block || '') === blockPref) score += 12;
+			              if (formatPref !== 'auto' && String(meta.format || '') === formatPref) score += 10;
+			              const tMin = Number(tpl.minutes) || 0;
+			              if (tMin) score += Math.max(0, 12 - Math.abs(tMin - minutes));
+			              if (playersCount > 0) {
+			                // Si no tenemos rango, no penalizamos.
+			                const lo = Number(meta.players_min) || 0;
+			                const hi = Number(meta.players_max) || 0;
+			                if (lo && playersCount < lo) score -= 6;
+			                if (hi && playersCount > hi) score -= 6;
+			              }
+			              return score;
+			            };
+
+			            const suggestions = catalog
+			              .filter((item) => {
+			                if (!item?.tpl) return false;
+			                if (blockPref !== 'auto' && String(item.tpl.block || '') !== blockPref) return false;
+			                if (formatPref !== 'auto' && String(item.meta?.format || '') !== formatPref) return false;
+			                if (goal !== 'warmup' && String(item.meta?.goal || '') !== goal) return true;
+			                return true;
+			              })
+			              .map((item) => ({ ...item, score: scoreCandidate(item) }))
+			              .sort((a, b) => (b.score || 0) - (a.score || 0))
+			              .slice(0, 6);
+
+			            const best = suggestions[0]?.tpl || pick;
+
+			            return {
+			              smart_generate: best,
+			              smart_suggestions: suggestions,
+			              smart_block_1: warmup,
+			              smart_block_2: best,
+			              smart_block_3: cooldown,
+			            };
+			          };
 
 				          const buildTemplatesForProgram = (program) => {
 					            const p = String(program || '').trim();
@@ -4285,7 +4401,76 @@
 				          // Botones Smart.
 				          const smartBtn = document.getElementById('task-assistant-smart-generate');
 				          const smartSessionBtn = document.getElementById('task-assistant-smart-generate-session');
-				          smartBtn?.addEventListener('click', () => applyTemplate('smart_generate'));
+				          const smartSuggestBtn = document.getElementById('task-assistant-smart-suggest');
+				          const smartSuggestionsBox = document.getElementById('task-assistant-smart-suggestions');
+				          const pushQueueItem = (tpl) => {
+				            if (!tpl) return;
+				            const q = readQueue();
+				            q.items = Array.isArray(q.items) ? q.items : [];
+				            q.items.push(tpl);
+				            writeQueue(q);
+				            updateQueueUi();
+				          };
+				          const renderSmartSuggestions = () => {
+				            if (!smartSuggestionsBox) return;
+				            const templates = buildTemplatesForProgram('smart');
+				            const suggestions = Array.isArray(templates.smart_suggestions) ? templates.smart_suggestions : [];
+				            if (!suggestions.length) {
+				              smartSuggestionsBox.innerHTML = '<div class="meta" style="opacity:0.85;">No hay sugerencias todavía. Pulsa “Sugerir tareas”.</div>';
+				              return;
+				            }
+				            const rows = suggestions.map((item, index) => {
+				              const tpl = item?.tpl || {};
+				              const title = String(tpl.title || '').trim() || `Sugerencia ${index + 1}`;
+				              const minutes = String(tpl.minutes || '').trim();
+				              const players = String(tpl.player_count || '').trim();
+				              const block = String(tpl.block || '').trim();
+				              const meta = [minutes ? `${minutes}’` : '', players || '', block || ''].filter(Boolean).join(' · ');
+				              return `
+				                <div style="border:1px solid rgba(255,255,255,0.10); background:rgba(255,255,255,0.03); border-radius:14px; padding:0.7rem 0.75rem; display:grid; gap:0.45rem;">
+				                  <div style="display:flex; align-items:baseline; justify-content:space-between; gap:0.75rem; flex-wrap:wrap;">
+				                    <strong>${index + 1}. ${title}</strong>
+				                    <span class="meta" style="opacity:0.85;">${meta}</span>
+				                  </div>
+				                  <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+				                    <button type="button" class="button" data-smart-apply="${index}">Aplicar</button>
+				                    <button type="button" class="button" data-smart-queue="${index}">Añadir a cola</button>
+				                  </div>
+				                </div>
+				              `;
+				            }).join('');
+				            smartSuggestionsBox.innerHTML = rows;
+				            Array.from(smartSuggestionsBox.querySelectorAll('[data-smart-apply]')).forEach((btn) => {
+				              btn.addEventListener('click', () => {
+				                const idx = Number(btn.getAttribute('data-smart-apply') || '0') || 0;
+				                const templates2 = buildTemplatesForProgram('smart');
+				                const list = Array.isArray(templates2.smart_suggestions) ? templates2.smart_suggestions : [];
+				                const item = list[idx];
+				                if (item?.tpl) applyTpl(item.tpl);
+				              });
+				            });
+				            Array.from(smartSuggestionsBox.querySelectorAll('[data-smart-queue]')).forEach((btn) => {
+				              btn.addEventListener('click', () => {
+				                const idx = Number(btn.getAttribute('data-smart-queue') || '0') || 0;
+				                const templates2 = buildTemplatesForProgram('smart');
+				                const list = Array.isArray(templates2.smart_suggestions) ? templates2.smart_suggestions : [];
+				                const item = list[idx];
+				                if (item?.tpl) {
+				                  pushQueueItem(item.tpl);
+				                  setAssistantProgramUi();
+				                }
+				              });
+				            });
+				          };
+
+				          smartSuggestBtn?.addEventListener('click', () => {
+				            renderSmartSuggestions();
+				          });
+
+				          smartBtn?.addEventListener('click', () => {
+				            renderSmartSuggestions();
+				            applyTemplate('smart_generate');
+				          });
 				          smartSessionBtn?.addEventListener('click', () => {
 				            const templates = buildTemplatesForProgram('smart');
 				            const block = [templates.smart_block_1, templates.smart_block_2, templates.smart_block_3].filter(Boolean);
@@ -4300,6 +4485,7 @@
 				            applyTpl(block[0], { confirm: false });
 				            setQueueItems(block.slice(1));
 				            updateQueueUi();
+				            renderSmartSuggestions();
 				          });
 
 				          // Auto-aplicar desde cola cuando se abre /nueva con ?assistant_next=1
