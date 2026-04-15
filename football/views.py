@@ -13733,7 +13733,9 @@ def register_match_action(request):
     zone = (request.POST.get('zone') or '').strip()
     tercio = zone_to_tercio(zone)
     observation = (request.POST.get('observation') or '').strip()
-    duplicate_window = timezone.now() - timedelta(seconds=8)
+    # Dedupe anti doble-click / reintentos de red muy inmediatos.
+    # No debe bloquear acciones reales consecutivas (en vivo).
+    duplicate_window = timezone.now() - timedelta(seconds=2)
     recent_duplicates = MatchEvent.objects.filter(
         match=match,
         player=player if player else None,
@@ -13887,7 +13889,9 @@ def finalize_match_actions(request):
 
     # Evita consolidar duplicados por doble click/reintento de red en pocos segundos.
     # Importante: no eliminar acciones reales repetidas a lo largo del partido.
-    dedupe_seconds = 12
+    # En vivo, el staff puede registrar varias acciones iguales en segundos.
+    # Mantener una ventana muy corta para cubrir doble-click / retry inmediato.
+    dedupe_seconds = 2
     existing_final_by_signature = defaultdict(list)
     for event in MatchEvent.objects.filter(
         match=match,
@@ -29673,6 +29677,11 @@ def _event_signature(event):
 
     if _is_manual_event_source(getattr(event, 'source_file', '')):
         return ('manual-event', getattr(event, 'id', None))
+
+    # Registro en vivo: no deduplicar por (minuto, tipo) porque en fútbol puede haber
+    # varias acciones iguales dentro del mismo minuto. El endpoint ya evita dobles clicks.
+    if (getattr(event, 'source_file', '') or '').strip() == 'registro-acciones':
+        return ('registro-acciones', getattr(event, 'id', None))
 
     # "Acción realizada" for dashboard cards:
     # keep one action per player/match/minute/type.
