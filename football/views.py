@@ -122,6 +122,7 @@ from football.models import (
     ShareLink,
     AuditEvent,
     TaskBlueprint,
+    AssistantKnowledgeDocument,
     TaskStudioProfile,
     TaskStudioRosterPlayer,
     TaskStudioTask,
@@ -30898,3 +30899,335 @@ def task_assistant_blueprint_save_api(request):
         return JsonResponse({'ok': False, 'error': 'No se pudo guardar la plantilla.'}, status=500)
 
     return JsonResponse({'ok': True, 'id': int(obj.id), 'created': bool(created)})
+
+
+def _assistant_goal_specs():
+    # Keywords mínimos para clasificar bullets a objetivos del Asistente.
+    # (No intentamos ser perfectos; sirve para extraer ideas útiles de documentos subidos.)
+    return {
+        'warmup': {
+            'label': 'Calentamiento',
+            'keywords': ['calent', 'activac', 'movil', 'prevenci', 'carrera', 'técnica de carrera', 'injury', 'warm up'],
+            'category': TaskBlueprint.CATEGORY_PHYSICAL,
+            'block': SessionTask.BLOCK_ACTIVATION,
+        },
+        'build_up': {
+            'label': 'Salida de balón',
+            'keywords': ['salida', 'portero', 'central', 'centrales', 'lateral', 'pivote', 'primer pase', 'reinicio', 'build up'],
+            'category': TaskBlueprint.CATEGORY_BUILD,
+            'block': SessionTask.BLOCK_MAIN_1,
+        },
+        'progression': {
+            'label': 'Progresión',
+            'keywords': ['progres', 'superar', 'línea', 'linea', 'cambio de orientación', 'orientación', 'tercer hombre', 'entre líneas', 'between lines', 'switch'],
+            'category': TaskBlueprint.CATEGORY_BUILD,
+            'block': SessionTask.BLOCK_MAIN_1,
+        },
+        'final_third': {
+            'label': 'Último tercio / finalización',
+            'keywords': ['finaliz', 'remate', 'tiro', 'disparo', 'centro', 'pase atrás', 'cutback', 'área', 'area', 'último tercio', 'final third'],
+            'category': TaskBlueprint.CATEGORY_FINISH,
+            'block': SessionTask.BLOCK_MAIN_2,
+        },
+        'pressing': {
+            'label': 'Presión organizada',
+            'keywords': ['presión', 'presion', 'press', 'trigger', 'triggers', 'orientar', 'cobertura', 'salt', 'sombra'],
+            'category': TaskBlueprint.CATEGORY_PRESS,
+            'block': SessionTask.BLOCK_MAIN_1,
+        },
+        'counterpress': {
+            'label': 'Presión tras pérdida',
+            'keywords': ['tras pérdida', 'tras perdida', 'pérdida', 'perdida', 'contra presión', 'contrapresión', '5s', '6s', 'counterpress'],
+            'category': TaskBlueprint.CATEGORY_PRESS,
+            'block': SessionTask.BLOCK_MAIN_1,
+        },
+        'defending': {
+            'label': 'Defensa en bloque',
+            'keywords': ['bloque', 'replieg', 'bascul', 'tempor', 'cerrar', 'líneas', 'coberturas', 'rest-defense', 'defend'],
+            'category': TaskBlueprint.CATEGORY_PRESS,
+            'block': SessionTask.BLOCK_MAIN_1,
+        },
+        'transition_atd': {
+            'label': 'Transición A→D',
+            'keywords': ['transición ataque', 'transicion ataque', 'pérdida', 'perdida', 'reacción', 'reaccion', 'replegar', 'delay'],
+            'category': TaskBlueprint.CATEGORY_TRANSITION,
+            'block': SessionTask.BLOCK_MAIN_2,
+        },
+        'transition_dta': {
+            'label': 'Transición D→A',
+            'keywords': ['transición defensa', 'transicion defensa', 'recuper', 'contraataque', 'atacar espacio', 'first pass', 'counterattack'],
+            'category': TaskBlueprint.CATEGORY_TRANSITION,
+            'block': SessionTask.BLOCK_MAIN_2,
+        },
+        'duels': {
+            'label': 'Duelos',
+            'keywords': ['duelo', '1v1', '2v1', 'regate', 'entrada', 'tackle', 'protección', 'proteccion'],
+            'category': TaskBlueprint.CATEGORY_FINISH,
+            'block': SessionTask.BLOCK_MAIN_2,
+        },
+        'set_pieces': {
+            'label': 'ABP',
+            'keywords': ['abp', 'córner', 'corner', 'falta', 'saque de banda', 'kickoff', 'segundas jugadas', 'balón parado', 'balon parado'],
+            'category': TaskBlueprint.CATEGORY_ABP,
+            'block': SessionTask.BLOCK_SET_PIECES,
+        },
+        'coord': {
+            'label': 'Coordinación / prevención',
+            'keywords': ['coordin', 'prevenci', 'estabilidad', 'fuerza', 'core', 'equilibrio', 'balance', 'agilidad'],
+            'category': TaskBlueprint.CATEGORY_PHYSICAL,
+            'block': SessionTask.BLOCK_CONDITIONING,
+        },
+    }
+
+
+def _extract_pdf_text_via_pdftotext(pdf_bytes: bytes) -> str:
+    if not pdf_bytes:
+        return ''
+    if shutil.which('pdftotext') is None:
+        return ''
+    with tempfile.NamedTemporaryFile(suffix='.pdf', delete=True) as tmp:
+        tmp.write(pdf_bytes)
+        tmp.flush()
+        try:
+            proc = subprocess.run(
+                ['pdftotext', '-layout', '-enc', 'UTF-8', tmp.name, '-'],
+                check=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=45,
+            )
+        except Exception:
+            return ''
+        if proc.returncode != 0:
+            return ''
+        try:
+            return (proc.stdout or b'').decode('utf-8', errors='ignore')
+        except Exception:
+            return ''
+
+
+def _assistant_extract_bullets(text: str):
+    lines = []
+    try:
+        raw_lines = str(text or '').splitlines()
+    except Exception:
+        raw_lines = []
+    for raw in raw_lines:
+        s = str(raw or '').strip()
+        if not s:
+            continue
+        s = re.sub(r'\s+', ' ', s).strip()
+        if len(s) < 8 or len(s) > 260:
+            continue
+        if re.match(r'^(\-|\•|\*|\–|\—)\s+', s) or re.match(r'^\d+(\.|\))\s+', s):
+            s = re.sub(r'^(\-|\•|\*|\–|\—)\s+', '', s).strip()
+            s = re.sub(r'^\d+(\.|\))\s+', '', s).strip()
+            if s:
+                lines.append(s)
+                continue
+        # Algunas exportaciones no respetan bullets; nos quedamos con frases cortas.
+        if len(s) <= 140 and any(ch in s for ch in ('.', ';', ':')) and not s.isupper():
+            lines.append(s)
+    # Dedup (casefold) manteniendo orden.
+    seen = set()
+    out = []
+    for item in lines:
+        key = item.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(item)
+    return out[:800]
+
+
+def _assistant_pick_bullets_for_goal(bullets, keywords, limit=7):
+    keys = [str(k or '').casefold() for k in (keywords or []) if str(k or '').strip()]
+    picked = []
+    for item in (bullets or []):
+        low = str(item or '').casefold()
+        if not low:
+            continue
+        if any(k in low for k in keys):
+            picked.append(str(item).strip())
+        if len(picked) >= limit:
+            break
+    # Si hay poco, devolvemos vacío (para no crear blueprints ruido).
+    if len(picked) < 3:
+        return []
+    return picked
+
+
+def _assistant_html_list(items):
+    safe = [html.escape(str(v or '').strip()) for v in (items or []) if str(v or '').strip()]
+    if not safe:
+        return ''
+    return '<ul>' + ''.join(f'<li>{item}</li>' for item in safe[:10]) + '</ul>'
+
+
+def _assistant_create_blueprints_from_document(team, doc: AssistantKnowledgeDocument):
+    """
+    Convierte el texto extraído en 0..N TaskBlueprints (solo si hay bullets suficientes).
+    """
+    created = 0
+    updated = 0
+    text = str(getattr(doc, 'extracted_text', '') or '')
+    if not text.strip():
+        return {'created': 0, 'updated': 0, 'skipped': 0}
+    bullets = _assistant_extract_bullets(text)
+    if not bullets:
+        return {'created': 0, 'updated': 0, 'skipped': 0}
+    specs = _assistant_goal_specs()
+    for goal_key, spec in specs.items():
+        picked = _assistant_pick_bullets_for_goal(bullets, spec.get('keywords') or [])
+        if not picked:
+            continue
+        label = str(spec.get('label') or goal_key).strip()
+        name = f'{doc.title} · {label} · ideas'
+        name = _sanitize_task_text(name, multiline=False, max_len=160)
+        if not name:
+            continue
+        coaching_html = _assistant_html_list(picked)
+        objective = picked[0][:180] if picked else ''
+        tpl = {
+            'title': f'{label} · ideas clave',
+            'objective': objective,
+            'minutes': 12,
+            'block': str(spec.get('block') or SessionTask.BLOCK_MAIN_1),
+            'training_type': label,
+            'coaching_html': coaching_html,
+            'rules_html': '',
+            'source_name': 'Documento del equipo',
+        }
+        payload = {
+            'tpl': tpl,
+            'meta': {
+                'v': 1,
+                'goal': goal_key,
+                'subphase': 'auto',
+                'approach': 'auto',
+                'source_doc_id': int(doc.id),
+            },
+        }
+        category = str(spec.get('category') or TaskBlueprint.CATEGORY_OTHER)
+        try:
+            obj, was_created = TaskBlueprint.objects.update_or_create(
+                team=team,
+                name=name,
+                defaults={
+                    'category': category,
+                    'description': _sanitize_task_text(f'Generado desde documento: {doc.title}', multiline=False, max_len=220),
+                    'payload': payload,
+                    'created_by': 'assistant_docs',
+                },
+            )
+        except Exception:
+            continue
+        if was_created:
+            created += 1
+        else:
+            updated += 1
+    return {'created': created, 'updated': updated, 'skipped': 0}
+
+
+@login_required
+def task_assistant_knowledge_api(request):
+    if not _can_access_sessions_workspace(request.user):
+        return JsonResponse({'ok': False, 'error': 'No tienes permisos.'}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
+    docs = list(
+        AssistantKnowledgeDocument.objects
+        .filter(team=primary_team, is_active=True)
+        .order_by('-created_at', '-id')[:80]
+    )
+    items = []
+    for doc in docs:
+        items.append(
+            {
+                'id': int(doc.id),
+                'title': str(doc.title or '').strip(),
+                'mime_type': str(doc.mime_type or '').strip(),
+                'created_at': doc.created_at.isoformat() if getattr(doc, 'created_at', None) else None,
+                'extracted_at': doc.extracted_at.isoformat() if getattr(doc, 'extracted_at', None) else None,
+                'has_text': bool(str(doc.extracted_text or '').strip()),
+            }
+        )
+    return JsonResponse({'ok': True, 'items': items})
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def task_assistant_knowledge_upload_api(request):
+    if not _can_access_sessions_workspace(request.user):
+        return JsonResponse({'ok': False, 'error': 'No tienes permisos.'}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
+
+    files = list(request.FILES.getlist('documents')) or list(request.FILES.getlist('files'))
+    if not files:
+        return JsonResponse({'ok': False, 'error': 'Selecciona al menos un PDF.'}, status=400)
+
+    saved = 0
+    skipped = 0
+    extracted = 0
+    blueprints = {'created': 0, 'updated': 0, 'skipped': 0}
+    errors = 0
+
+    for upload in files[:12]:
+        try:
+            raw = upload.read() or b''
+        except Exception:
+            raw = b''
+        if not raw:
+            errors += 1
+            continue
+        sha = AssistantKnowledgeDocument.sha256_for_bytes(raw)
+        if AssistantKnowledgeDocument.objects.filter(team=primary_team, sha256=sha).exists():
+            skipped += 1
+            continue
+        title = str(getattr(upload, 'name', '') or '').strip()[:220] or 'Documento'
+        mime = str(getattr(upload, 'content_type', '') or '').strip()
+        if not mime:
+            mime = mimetypes.guess_type(title)[0] or ''
+        try:
+            obj = AssistantKnowledgeDocument(team=primary_team, title=title, sha256=sha, mime_type=mime)
+            obj.file.save(Path(title).name, ContentFile(raw), save=False)
+            # Extract ahora (solo PDFs).
+            text = ''
+            if title.lower().endswith('.pdf') or mime == 'application/pdf':
+                text = _extract_pdf_text_via_pdftotext(raw)
+            if text and len(text.strip()) >= 120:
+                obj.extracted_text = text[:500_000]
+                obj.extracted_at = timezone.now()
+                extracted += 1
+            obj.save()
+            saved += 1
+            try:
+                result = _assistant_create_blueprints_from_document(primary_team, obj)
+                for key in ('created', 'updated', 'skipped'):
+                    blueprints[key] = int(blueprints.get(key, 0) or 0) + int(result.get(key, 0) or 0)
+            except Exception:
+                pass
+        except Exception:
+            errors += 1
+            continue
+
+    return JsonResponse(
+        {
+            'ok': True,
+            'saved': saved,
+            'skipped': skipped,
+            'extracted': extracted,
+            'blueprints': blueprints,
+            'errors': errors,
+        }
+    )

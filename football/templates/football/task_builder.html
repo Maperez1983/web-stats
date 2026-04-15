@@ -2060,6 +2060,8 @@
 			        data-task-create-url="{% if scope_key == 'goalkeeper' %}{% url 'sessions-goalkeeper-task-create' %}{% elif scope_key == 'fitness' %}{% url 'sessions-fitness-task-create' %}{% else %}{% url 'sessions-task-create' %}{% endif %}"
 			        data-assistant-blueprints-url="{% url 'task-assistant-blueprints-api' %}"
 			        data-assistant-blueprints-save-url="{% url 'task-assistant-blueprint-save-api' %}"
+			        data-assistant-knowledge-url="{% url 'task-assistant-knowledge-api' %}"
+			        data-assistant-knowledge-upload-url="{% url 'task-assistant-knowledge-upload-api' %}"
 			        data-keepalive-url="{% url 'session-keepalive' %}"
 			        data-save-success="{% if feedback %}1{% else %}0{% endif %}"
 			        data-draft-key="webstats:tpad:draft:{{ scope_key }}:{% if task %}{{ task.id }}{% else %}new{% endif %}:{% firstof request.GET.workspace '' %}"
@@ -2957,12 +2959,17 @@
 		                          Guardar como plantilla (equipo)
 		                          <input type="text" id="task-assistant-blueprint-name" placeholder="Nombre de plantilla (ej: Salida 3+2 · atraer y cambiar)" />
 		                        </label>
+		                        <label style="grid-column:1 / -1;">
+		                          Base de conocimiento (PDF)
+		                          <input type="file" id="task-assistant-knowledge-files" accept="application/pdf" multiple />
+		                        </label>
 		                      </div>
 		                      <div style="margin-top:0.65rem; display:grid; gap:0.55rem;">
 		                        <button type="button" class="button" id="task-assistant-smart-suggest">Sugerir tareas</button>
 		                        <button type="button" class="button" id="task-assistant-smart-generate">Aplicar mejor sugerencia</button>
 		                        <button type="button" class="button" id="task-assistant-smart-generate-session">Generar bloque (3 tareas)</button>
 		                        <button type="button" class="button" id="task-assistant-blueprint-save">Guardar plantilla</button>
+		                        <button type="button" class="button" id="task-assistant-knowledge-upload">Subir PDFs y crear plantillas</button>
 		                      </div>
 		                      <div id="task-assistant-smart-suggestions" style="margin-top:0.75rem; display:grid; gap:0.55rem;"></div>
 		                      <div class="meta" style="margin-top:0.65rem; opacity:0.9;">
@@ -3426,6 +3433,10 @@
 				          const blueprintSaveBtn = document.getElementById('task-assistant-blueprint-save');
 				          const blueprintsUrl = String(form?.dataset?.assistantBlueprintsUrl || '').trim();
 				          const blueprintsSaveUrl = String(form?.dataset?.assistantBlueprintsSaveUrl || '').trim();
+				          const knowledgeFilesEl = document.getElementById('task-assistant-knowledge-files');
+				          const knowledgeUploadBtn = document.getElementById('task-assistant-knowledge-upload');
+				          const knowledgeUrl = String(form?.dataset?.assistantKnowledgeUrl || '').trim();
+				          const knowledgeUploadUrl = String(form?.dataset?.assistantKnowledgeUploadUrl || '').trim();
 				          const csrfToken = String(form?.querySelector('input[name=csrfmiddlewaretoken]')?.value || '').trim();
 				          let assistantBlueprints = [];
 				          let assistantBlueprintsLoaded = false;
@@ -5708,7 +5719,7 @@
 					            return { tpl, meta };
 					          };
 
-					          blueprintSaveBtn?.addEventListener('click', async () => {
+						          blueprintSaveBtn?.addEventListener('click', async () => {
 					            if (!blueprintsSaveUrl) {
 					              window.alert('No se encontró el endpoint para guardar plantillas.');
 					              return;
@@ -5752,10 +5763,50 @@
 					            } catch (err) {
 					              window.alert('No se pudo guardar la plantilla.');
 					            }
-					          });
+						          });
 
-					          // Auto-aplicar desde cola cuando se abre /nueva con ?assistant_next=1
-					          const bootFromQueue = () => {
+						          knowledgeUploadBtn?.addEventListener('click', async () => {
+						            if (!knowledgeUploadUrl) {
+						              window.alert('No se encontró el endpoint para subir documentos.');
+						              return;
+						            }
+						            const files = Array.from(knowledgeFilesEl?.files || []);
+						            if (!files.length) {
+						              window.alert('Selecciona uno o varios PDFs.');
+						              return;
+						            }
+						            const fd = new FormData();
+						            files.slice(0, 12).forEach((file) => {
+						              try { fd.append('documents', file, file.name || 'documento.pdf'); } catch (e) {}
+						            });
+						            try {
+						              const res = await fetch(knowledgeUploadUrl, {
+						                method: 'POST',
+						                credentials: 'same-origin',
+						                headers: {
+						                  ...(csrfToken ? { 'X-CSRFToken': csrfToken } : {}),
+						                },
+						                body: fd,
+						              });
+						              const data = res.ok ? await res.json() : null;
+						              if (!res.ok || !data?.ok) {
+						                window.alert(String(data?.error || 'No se pudieron subir los documentos.'));
+						                return;
+						              }
+						              try { if (knowledgeFilesEl) knowledgeFilesEl.value = ''; } catch (e) {}
+						              try { await reloadAssistantBlueprints(); } catch (e) {}
+						              try { renderSmartSuggestions(); } catch (e) {}
+						              const created = Number(data?.blueprints?.created || 0) || 0;
+						              const updated = Number(data?.blueprints?.updated || 0) || 0;
+						              const msg = `Subidos: ${Number(data?.saved || 0) || 0}. Plantillas creadas/actualizadas: ${created}/${updated}.`;
+						              window.alert(msg);
+						            } catch (err) {
+						              window.alert('No se pudieron subir los documentos.');
+						            }
+						          });
+
+						          // Auto-aplicar desde cola cuando se abre /nueva con ?assistant_next=1
+						          const bootFromQueue = () => {
 				            try {
 				              const url = new URL(window.location.href);
 				              if (url.searchParams.get('assistant_next') !== '1') return;

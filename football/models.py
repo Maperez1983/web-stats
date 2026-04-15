@@ -3,6 +3,7 @@ from django.db.models import Q
 from django.utils import timezone
 from django.contrib.auth.models import User
 import secrets
+import hashlib
 
 
 class DataSource(models.Model):
@@ -1340,3 +1341,36 @@ class TaskBlueprint(models.Model):
 
     def __str__(self):
         return f'{self.team.name} · {self.name}'
+
+
+class AssistantKnowledgeDocument(models.Model):
+    """
+    Documentos (PDF/otros) que el club/equipo sube para enriquecer el Asistente de tareas.
+
+    Importante:
+    - Estos documentos suelen estar protegidos por copyright (UEFA, federaciones, etc.).
+      Se almacenan por equipo y solo se usan como referencia interna del propio equipo.
+    """
+
+    team = models.ForeignKey('Team', on_delete=models.CASCADE, related_name='assistant_knowledge_documents')
+    title = models.CharField(max_length=220)
+    file = models.FileField(upload_to='assistant-knowledge/')
+    sha256 = models.CharField(max_length=64, db_index=True)
+    mime_type = models.CharField(max_length=80, blank=True)
+    extracted_text = models.TextField(blank=True)
+    extracted_at = models.DateTimeField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+        constraints = [
+            models.UniqueConstraint(fields=['team', 'sha256'], name='uniq_assistant_knowledge_team_sha256'),
+        ]
+
+    def __str__(self):
+        return f'{self.team.name} · {self.title}'
+
+    @staticmethod
+    def sha256_for_bytes(data: bytes) -> str:
+        return hashlib.sha256(data or b'').hexdigest()
