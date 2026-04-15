@@ -4749,10 +4749,10 @@
 				              } catch (e) { /* ignore */ }
 				            }
 				            const pickWithSubphase = applySubphase((pickBase || pick), goal, smartSubphase);
-				            const cooldown = {
-				              title: `Vuelta a la calma · movilidad + respiración (${levelLabel})`,
-				              objective: 'Bajar pulsaciones, recuperar movilidad y cerrar con feedback breve.',
-				              minutes: Math.max(6, Math.min(12, Math.round(minutes * 0.8))),
+					            const cooldown = {
+					              title: `Vuelta a la calma · movilidad + respiración (${levelLabel})`,
+					              objective: 'Bajar pulsaciones, recuperar movilidad y cerrar con feedback breve.',
+					              minutes: Math.max(6, Math.min(12, Math.round(minutes * 0.8))),
 				              block: 'recovery',
 				              player_count: 'Todo el equipo',
 				              dimensions: 'Zona central',
@@ -4771,9 +4771,127 @@
 				                  <li>Cierra con 1 idea: qué se hizo bien y qué mejorar.</li>
 				                </ul>
 				              `,
-				              rules_html: '<ul><li>Sin competición. Prioriza recuperación.</li></ul>',
-				              board: { items: [{ payload: { kind: 'text' }, x: 0.50, y: 0.50 }] },
-				            };
+					              rules_html: '<ul><li>Sin competición. Prioriza recuperación.</li></ul>',
+					              board: { items: [{ payload: { kind: 'text' }, x: 0.50, y: 0.50 }] },
+					            };
+
+					            const buildExternalKnowledgeCandidates = () => {
+					              // Usamos recursos públicos como inspiración y enlazamos a la fuente.
+					              // El texto/estructura de la tarea es propio (no copiamos el contenido original).
+					              const tc = {
+					                name: 'FIFA Training Centre',
+					                urls: {
+					                  u8_teambuilding: 'https://www.fifatrainingcentre.com/en/practice/grassroots/4-to-8/teambuilding.php',
+					                  attacking_reduced: 'https://www.fifatrainingcentre.com/en/practice/talent-coach-programme/sessions/attacking-games-with-reduced-numbers.php',
+					                },
+					              };
+
+					              const list = [];
+					              const push = (id, tpl, meta = {}) => {
+					                if (!tpl) return;
+					                list.push({
+					                  id,
+					                  tpl: { ...tpl },
+					                  meta: { ...meta },
+					                });
+					              };
+
+					              push(
+					                'kb_tc_u8_tag',
+					                {
+					                  title: `Activación · persecución por parejas (${levelLabel})`,
+					                  objective: 'Elevar temperatura y activar coordinación en un juego de persecución divertido.',
+					                  minutes: Math.max(8, Math.min(12, minutes)),
+					                  block: 'activation',
+					                  player_count: 'Parejas (o tríos si impar)',
+					                  dimensions: '2–4 mini zonas (8x8 m aprox.)',
+					                  materials: 'Conos, petos (opcional)',
+					                  space: 'Zonas con “casa”',
+					                  training_type: 'Juego de activación',
+					                  age_group: 'u8',
+					                  description_html: `
+					                    <ul>
+					                      <li>Organiza parejas enfrentadas: a la señal, uno persigue y el otro escapa hasta su “casa”.</li>
+					                      <li>Varía desplazamientos: lateral, atrás, skipping, cambios de ritmo.</li>
+					                      <li>Progresión: añade balón en conducción cuando domine (sin perder calidad).</li>
+					                    </ul>
+					                  `,
+					                  coaching_html: `
+					                    <ul>
+					                      <li>Postura y apoyos: correr “con control”, no solo rápido.</li>
+					                      <li>Señales cortas: una consigna por bloque.</li>
+					                    </ul>
+					                  `,
+					                  rules_html: '<ul><li>Sin contacto. Cambia roles cada 20–30s.</li></ul>',
+					                  board: {
+					                    items: [
+					                      { payload: { kind: 'shape_rect' }, x: 0.34, y: 0.50, scale: 1.2 },
+					                      { payload: { kind: 'shape_rect' }, x: 0.66, y: 0.50, scale: 1.2 },
+					                      { payload: { kind: 'player_local' }, x: 0.30, y: 0.45 },
+					                      { payload: { kind: 'player_rival' }, x: 0.38, y: 0.55 },
+					                      { payload: { kind: 'arrow_thick' }, x: 0.34, y: 0.50 },
+					                      { payload: { kind: 'player_local' }, x: 0.62, y: 0.45 },
+					                      { payload: { kind: 'player_rival' }, x: 0.70, y: 0.55 },
+					                      { payload: { kind: 'arrow_thick' }, x: 0.66, y: 0.50 },
+					                    ],
+					                  },
+					                  source_name: tc.name,
+					                  source_url: tc.urls.u8_teambuilding,
+					                },
+					                { goal: 'warmup', age, format: 'game', intensity: 'low', subphase: (goal === 'warmup' ? smartSubphase : 'auto') },
+					              );
+
+					              push(
+					                'kb_tc_attack_numbers',
+					                {
+					                  title: `Ataque · superioridades y finalización (${levelLabel})`,
+					                  objective: 'Atacar con agresividad: crear 2v1, fijar y finalizar con decisión.',
+					                  minutes: Math.max(12, Math.min(20, minutes)),
+					                  block: 'main_1',
+					                  player_count: '2v2, 3v2, 4v4 (adaptable)',
+					                  dimensions: isSenior ? '40x30 m' : '30x22 m',
+					                  materials: 'Balones, petos, conos, porterías',
+					                  space: 'Zona de ataque',
+					                  training_type: 'Ataque',
+					                  description_html: `
+					                    <ul>
+					                      <li>Secuencias cortas de ataque con superioridad (2v1 / 3v2) para repetir decisiones “fijar + soltar”.</li>
+					                      <li>Tras cada acción, reinicia rápido para acumular repeticiones de calidad.</li>
+					                      <li>Termina en juego reducido con objetivo de finalizar en 6–8s.</li>
+					                    </ul>
+					                  `,
+					                  coaching_html: `
+					                    <ul>
+					                      <li>Con balón: fija al defensor antes de asistir; cambia de ritmo para ganar ventaja.</li>
+					                      <li>Sin balón: desmarque con intención (apoyo/ruptura) y orientar el cuerpo hacia portería.</li>
+					                    </ul>
+					                  `,
+					                  rules_html: '<ul><li>Gol en 6–8s = doble (ventana de decisión).</li></ul>',
+					                  board: {
+					                    items: [
+					                      { payload: { kind: 'goal' }, x: 0.82, y: 0.50, angle: 180 },
+					                      { payload: { kind: 'goalkeeper_local' }, x: 0.78, y: 0.50 },
+					                      { payload: { kind: 'player_local' }, x: 0.54, y: 0.44 },
+					                      { payload: { kind: 'player_local' }, x: 0.54, y: 0.56 },
+					                      { payload: { kind: 'player_rival' }, x: 0.66, y: 0.46 },
+					                      { payload: { kind: 'player_rival' }, x: 0.66, y: 0.54 },
+					                      { payload: { kind: 'ball' }, x: 0.50, y: 0.50 },
+					                      { payload: { kind: 'arrow_thick' }, x: 0.60, y: 0.50 },
+					                    ],
+					                  },
+					                  source_name: tc.name,
+					                  source_url: tc.urls.attacking_reduced,
+					                },
+					                { goal: 'final_third', age, format: 'ssg', intensity: 'high' },
+					              );
+
+					              return list.filter((item) => {
+					                const g = String(item?.meta?.goal || '').trim();
+					                if (!g) return false;
+					                if (goal === 'warmup') return g === 'warmup';
+					                return g === goal;
+					              });
+					            };
 			            // Catálogo de candidatos (mínimo viable).
 				            const catalog = [];
 				            const addCandidate = (id, tpl, meta = {}) => {
@@ -4816,10 +4934,15 @@
 			            addCandidate('smart_alt_5', mapping.counterpress, { goal: 'counterpress', format: 'ssg' });
 			            addCandidate('smart_alt_6', mapping.final_third, { goal: 'final_third', format: 'analytic' });
 			            addCandidate('smart_alt_7', mapping.transition_atd, { goal: 'transition_atd', format: 'game' });
-			            addCandidate('smart_alt_8', mapping.transition_dta, { goal: 'transition_dta', format: 'game' });
-			            addCandidate('smart_alt_9', mapping.defending, { goal: 'defending', format: 'game' });
-			            addCandidate('smart_alt_10', mapping.set_pieces, { goal: 'set_pieces', format: 'analytic' });
-			            addCandidate('smart_cooldown', cooldown, { goal: 'warmup', format: 'analytic', intensity: 'low' });
+				            addCandidate('smart_alt_8', mapping.transition_dta, { goal: 'transition_dta', format: 'game' });
+				            addCandidate('smart_alt_9', mapping.defending, { goal: 'defending', format: 'game' });
+				            addCandidate('smart_alt_10', mapping.set_pieces, { goal: 'set_pieces', format: 'analytic' });
+				            addCandidate('smart_cooldown', cooldown, { goal: 'warmup', format: 'analytic', intensity: 'low' });
+				            try {
+				              buildExternalKnowledgeCandidates().forEach((item) => {
+				                addCandidate(item.id, item.tpl, item.meta);
+				              });
+				            } catch (e) {}
 
 				            const scoreCandidate = (item) => {
 				              const tpl = item?.tpl || {};
@@ -5014,34 +5137,47 @@
 				            writeQueue(q);
 				            updateQueueUi();
 				          };
-				          const renderSmartSuggestions = () => {
-				            if (!smartSuggestionsBox) return;
-				            const templates = buildTemplatesForProgram('smart');
-				            const suggestions = Array.isArray(templates.smart_suggestions) ? templates.smart_suggestions : [];
-				            if (!suggestions.length) {
-				              smartSuggestionsBox.innerHTML = '<div class="meta" style="opacity:0.85;">No hay sugerencias todavía. Pulsa “Sugerir tareas”.</div>';
-				              return;
-				            }
-				            const rows = suggestions.map((item, index) => {
-				              const tpl = item?.tpl || {};
-				              const title = String(tpl.title || '').trim() || `Sugerencia ${index + 1}`;
-				              const minutes = String(tpl.minutes || '').trim();
-				              const players = String(tpl.player_count || '').trim();
-				              const block = String(tpl.block || '').trim();
-				              const meta = [minutes ? `${minutes}’` : '', players || '', block || ''].filter(Boolean).join(' · ');
-				              return `
-				                <div style="border:1px solid rgba(255,255,255,0.10); background:rgba(255,255,255,0.03); border-radius:14px; padding:0.7rem 0.75rem; display:grid; gap:0.45rem;">
-				                  <div style="display:flex; align-items:baseline; justify-content:space-between; gap:0.75rem; flex-wrap:wrap;">
-				                    <strong>${index + 1}. ${title}</strong>
-				                    <span class="meta" style="opacity:0.85;">${meta}</span>
-				                  </div>
-				                  <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-				                    <button type="button" class="button" data-smart-apply="${index}">Aplicar</button>
-				                    <button type="button" class="button" data-smart-queue="${index}">Añadir a cola</button>
-				                  </div>
-				                </div>
-				              `;
-				            }).join('');
+					          const renderSmartSuggestions = () => {
+					            if (!smartSuggestionsBox) return;
+					            const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({
+					              '&': '&amp;',
+					              '<': '&lt;',
+					              '>': '&gt;',
+					              '"': '&quot;',
+					              "'": '&#39;',
+					            }[ch] || ch));
+					            const templates = buildTemplatesForProgram('smart');
+					            const suggestions = Array.isArray(templates.smart_suggestions) ? templates.smart_suggestions : [];
+					            if (!suggestions.length) {
+					              smartSuggestionsBox.innerHTML = '<div class="meta" style="opacity:0.85;">No hay sugerencias todavía. Pulsa “Sugerir tareas”.</div>';
+					              return;
+					            }
+					            const rows = suggestions.map((item, index) => {
+					              const tpl = item?.tpl || {};
+					              const title = String(tpl.title || '').trim() || `Sugerencia ${index + 1}`;
+					              const minutes = String(tpl.minutes || '').trim();
+					              const players = String(tpl.player_count || '').trim();
+					              const block = String(tpl.block || '').trim();
+					              const meta = [minutes ? `${minutes}’` : '', players || '', block || ''].filter(Boolean).join(' · ');
+					              const sourceName = String(tpl.source_name || '').trim();
+					              const sourceUrl = String(tpl.source_url || '').trim();
+					              const sourceHtml = sourceUrl
+					                ? `<a class="meta" style="opacity:0.9;" href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener noreferrer">Fuente: ${escapeHtml(sourceName || 'Referencia')}</a>`
+					                : '';
+					              return `
+					                <div style="border:1px solid rgba(255,255,255,0.10); background:rgba(255,255,255,0.03); border-radius:14px; padding:0.7rem 0.75rem; display:grid; gap:0.45rem;">
+					                  <div style="display:flex; align-items:baseline; justify-content:space-between; gap:0.75rem; flex-wrap:wrap;">
+					                    <strong>${escapeHtml(`${index + 1}. ${title}`)}</strong>
+					                    <span class="meta" style="opacity:0.85;">${escapeHtml(meta)}</span>
+					                  </div>
+					                  ${sourceHtml ? `<div style="display:flex; justify-content:flex-end;">${sourceHtml}</div>` : ''}
+					                  <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+					                    <button type="button" class="button" data-smart-apply="${index}">Aplicar</button>
+					                    <button type="button" class="button" data-smart-queue="${index}">Añadir a cola</button>
+					                  </div>
+					                </div>
+					              `;
+					            }).join('');
 				            smartSuggestionsBox.innerHTML = rows;
 				            Array.from(smartSuggestionsBox.querySelectorAll('[data-smart-apply]')).forEach((btn) => {
 				              btn.addEventListener('click', () => {
