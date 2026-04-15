@@ -127,9 +127,12 @@
         <div class="meta" style="margin-top:0.9rem;">Últimos recursos ({{ assets_count }})</div>
         <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:0.6rem;">
           {% for asset in assets %}
-          <a class="link-btn" style="padding:0.35rem; border-radius:14px;" href="{% url 'pdf-graphic-asset-file' asset.id %}" target="_blank" rel="noopener" title="{{ asset.title|default:'Recurso' }}">
-            <img src="{% url 'pdf-graphic-asset-file' asset.id %}" alt="{{ asset.title|default:'Recurso' }}" style="width:74px; height:74px; object-fit:contain; display:block; background:#ffffff; border-radius:12px;" loading="lazy" />
-          </a>
+          <div style="display:grid; gap:6px; justify-items:stretch;">
+            <a class="link-btn" style="padding:0.35rem; border-radius:14px;" href="{% url 'pdf-graphic-asset-file' asset.id %}" target="_blank" rel="noopener" title="{{ asset.title|default:'Recurso' }}">
+              <img src="{% url 'pdf-graphic-asset-file' asset.id %}" alt="{{ asset.title|default:'Recurso' }}" style="width:74px; height:74px; object-fit:contain; display:block; background:#ffffff; border-radius:12px;" loading="lazy" />
+            </a>
+            <button type="button" class="link-btn" style="padding:0.35rem 0.55rem;" data-asset-delete="{{ asset.id }}">Borrar</button>
+          </div>
           {% endfor %}
         </div>
         {% else %}
@@ -151,6 +154,7 @@
         const knowledgeUrl = "{% url 'task-assistant-knowledge-api' %}?scope=system";
         const uploadUrl = "{% url 'task-assistant-knowledge-upload-api' %}";
         const assetUploadUrl = "{% url 'pdf-graphic-asset-upload' %}";
+        const assetDeleteUrl = "{% url 'pdf-graphic-asset-delete-api' %}";
 
         const escapeHtml = (v) => String(v ?? '').replace(/[&<>"']/g, (ch) => ({
           '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
@@ -255,6 +259,31 @@
           } catch (e) {
             assetsMsgEl.textContent = 'Error: no se pudieron subir los recursos.';
           }
+        });
+
+        Array.from(document.querySelectorAll('[data-asset-delete]')).forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            const assetId = Number(btn.getAttribute('data-asset-delete') || '0') || 0;
+            if (!assetId) return;
+            const ok = window.confirm('¿Borrar este recurso del sistema?');
+            if (!ok) return;
+            try {
+              const fd = new FormData();
+              fd.append('scope', 'system');
+              fd.append('asset_id', String(assetId));
+              const res = await fetch(assetDeleteUrl, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: csrf ? { 'X-CSRFToken': csrf } : {},
+                body: fd,
+              });
+              const data = res.ok ? await res.json() : null;
+              if (!res.ok || !data?.ok) throw new Error(data?.error || 'No se pudo borrar.');
+              try { window.location.reload(); } catch (e) {}
+            } catch (e) {
+              window.alert('No se pudo borrar el recurso.');
+            }
+          });
         });
 
         load();

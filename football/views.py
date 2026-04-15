@@ -2831,6 +2831,53 @@ def pdf_graphic_asset_upload(request):
     return JsonResponse({'ok': True, 'saved': saved, 'skipped': skipped, 'errors': errors, 'warnings': warnings[:6]})
 
 
+@csrf_exempt
+@login_required
+@require_POST
+def pdf_graphic_asset_delete_api(request):
+    """
+    Borra un recurso gráfico (PdfGraphicAsset) por id.
+
+    - scope=system: solo superuser, y solo assets del repositorio global (team slug="pizarra").
+    """
+    asset_id = _parse_int(request.POST.get('asset_id') or request.POST.get('id'))
+    if not asset_id:
+        return JsonResponse({'ok': False, 'error': 'asset_id requerido.'}, status=400)
+
+    scope = str(request.POST.get('scope') or '').strip().lower()
+    qs = PdfGraphicAsset.objects.select_related('team', 'owner').filter(id=int(asset_id))
+
+    if scope == 'system':
+        if not bool(getattr(request.user, 'is_superuser', False)):
+            return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+        try:
+            system_team = Team.objects.filter(slug='pizarra').first()
+        except Exception:
+            system_team = None
+        if not system_team:
+            return JsonResponse({'ok': False, 'error': 'Repositorio del sistema no inicializado.'}, status=500)
+        qs = qs.filter(team=system_team)
+    else:
+        # Por ahora, restringimos el borrado desde UI a scope=system para evitar borrados accidentales.
+        return JsonResponse({'ok': False, 'error': 'Scope no soportado.'}, status=400)
+
+    asset = qs.first()
+    if not asset:
+        return JsonResponse({'ok': False, 'error': 'Recurso no encontrado.'}, status=404)
+
+    try:
+        if getattr(asset, 'file', None):
+            try:
+                asset.file.delete(save=False)
+            except Exception:
+                pass
+        asset.delete()
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'No se pudo borrar el recurso.'}, status=500)
+
+    return JsonResponse({'ok': True})
+
+
 def resolve_player_photo_url(request, player):
     resolved_storage_name = ''
     for storage_name in _player_photo_storage_candidates(player):

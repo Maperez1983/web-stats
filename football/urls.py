@@ -52,6 +52,7 @@ urlpatterns = [
     path('api/system/kpi-audit/', views.kpi_audit, name='kpi-audit'),
     path('api/analysis/rival-form/', views.analysis_rival_form_api, name='analysis-rival-form-api'),
     path('api/pdf-assets/upload/', views.pdf_graphic_asset_upload, name='pdf-graphic-asset-upload'),
+    path('api/pdf-assets/delete/', views.pdf_graphic_asset_delete_api, name='pdf-graphic-asset-delete-api'),
     path('api/task-assistant/blueprints/', views.task_assistant_blueprints_api, name='task-assistant-blueprints-api'),
     path('api/task-assistant/blueprints/save/', views.task_assistant_blueprint_save_api, name='task-assistant-blueprint-save-api'),
     path('api/task-assistant/knowledge/', views.task_assistant_knowledge_api, name='task-assistant-knowledge-api'),
