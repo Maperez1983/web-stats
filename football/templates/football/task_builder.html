@@ -2933,13 +2933,12 @@
 		                          <input type="number" id="task-assistant-smart-players" min="4" max="30" value="12" />
 		                        </label>
 		                        <label style="grid-column:1 / -1;">
-		                          Formato preferido
-		                          <select id="task-assistant-smart-format">
+		                          Enfoque metodológico
+		                          <select id="task-assistant-smart-approach">
 		                            <option value="auto">Auto</option>
-		                            <option value="game">Juego / partido condicionado</option>
-		                            <option value="ssg">Juego reducido (SSG)</option>
-		                            <option value="circuit">Circuito / estaciones</option>
-		                            <option value="analytic">Analítico / técnico</option>
+		                            <option value="systemic">Sistémica (juego / SSG)</option>
+		                            <option value="analytic">Analítica (técnico / repetición)</option>
+		                            <option value="mixed">Mixta</option>
 		                          </select>
 		                        </label>
 		                        <label style="grid-column:1 / -1;">
@@ -3969,7 +3968,7 @@
 			            const rawGoal = String((document.getElementById('task-assistant-goal')?.value) || 'progression').trim();
 			            const principle = String((document.getElementById('task-assistant-smart-principle')?.value) || 'auto').trim();
 			            const blockPref = String((document.getElementById('task-assistant-smart-block')?.value) || 'auto').trim();
-			            const formatPref = String((document.getElementById('task-assistant-smart-format')?.value) || 'auto').trim();
+			            const approachPref = String((document.getElementById('task-assistant-smart-approach')?.value) || 'auto').trim();
 			            const playersCount = toInt((document.getElementById('task-assistant-smart-players')?.value) || '', 0);
 			            const materialsHint = String((document.getElementById('task-assistant-smart-materials')?.value) || '').trim();
 			            const minutes = Math.max(5, Math.min(30, toInt(minutesEl.value, 12)));
@@ -3991,6 +3990,11 @@
 			            };
 			            const goal = goalAliases[rawGoal] || rawGoal;
 			            const base = buildFundamentalsTemplates();
+			            const allowedFormatsForApproach = (() => {
+			              if (approachPref === 'analytic') return new Set(['analytic', 'circuit']);
+			              if (approachPref === 'systemic') return new Set(['game', 'ssg']);
+			              return null;
+			            })();
 
 			            const PRINCIPLES = {
 			              width_depth: {
@@ -4394,7 +4398,8 @@
 			              if (String(meta.goal || '') === goal) score += 50;
 			              if (goal === 'warmup' && String(item.id || '').includes('warmup')) score += 10;
 			              if (blockPref !== 'auto' && String(tpl.block || '') === blockPref) score += 12;
-			              if (formatPref !== 'auto' && String(meta.format || '') === formatPref) score += 10;
+			              if (allowedFormatsForApproach && allowedFormatsForApproach.has(String(meta.format || ''))) score += 10;
+			              if (allowedFormatsForApproach && !allowedFormatsForApproach.has(String(meta.format || ''))) score -= 6;
 			              const tMin = Number(tpl.minutes) || 0;
 			              if (tMin) score += Math.max(0, 12 - Math.abs(tMin - minutes));
 			              if (playersCount > 0) {
@@ -4411,7 +4416,7 @@
 			              .filter((item) => {
 			                if (!item?.tpl) return false;
 			                if (blockPref !== 'auto' && String(item.tpl.block || '') !== blockPref) return false;
-			                if (formatPref !== 'auto' && String(item.meta?.format || '') !== formatPref) return false;
+			                if (allowedFormatsForApproach && !allowedFormatsForApproach.has(String(item.meta?.format || ''))) return false;
 			                if (goal !== 'warmup' && String(item.meta?.goal || '') !== goal) return true;
 			                return true;
 			              })
