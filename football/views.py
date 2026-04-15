@@ -31176,9 +31176,20 @@ def task_assistant_knowledge_api(request):
     forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
     if forbidden:
         return forbidden
-    primary_team = _get_primary_team_for_request(request)
-    if not primary_team:
-        return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
+    scope = str(request.GET.get('scope') or '').strip().lower()
+    if scope == 'system':
+        if not bool(getattr(request.user, 'is_superuser', False)):
+            return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+        try:
+            primary_team, _ = Team.objects.get_or_create(slug='pizarra', defaults={'name': 'PIZARRA'})
+        except Exception:
+            primary_team = Team.objects.filter(slug='pizarra').first()
+        if not primary_team:
+            return JsonResponse({'ok': False, 'error': 'No se pudo resolver el equipo del sistema.'}, status=500)
+    else:
+        primary_team = _get_primary_team_for_request(request)
+        if not primary_team:
+            return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
     docs = list(
         AssistantKnowledgeDocument.objects
         .filter(team=primary_team, is_active=True)
@@ -31197,6 +31208,34 @@ def task_assistant_knowledge_api(request):
             }
         )
     return JsonResponse({'ok': True, 'items': items})
+
+
+@login_required
+def platform_assistant_page(request):
+    if not _can_access_platform(request.user):
+        return HttpResponse('No tienes permisos para acceder a la plataforma.', status=403)
+    if not bool(getattr(request.user, 'is_superuser', False)):
+        return HttpResponse('No autorizado.', status=403)
+    try:
+        system_team, _ = Team.objects.get_or_create(slug='pizarra', defaults={'name': 'PIZARRA'})
+    except Exception:
+        system_team = Team.objects.filter(slug='pizarra').first()
+    if not system_team:
+        return HttpResponse('No se pudo inicializar el repositorio del sistema.', status=500)
+
+    docs = list(
+        AssistantKnowledgeDocument.objects
+        .filter(team=system_team, is_active=True)
+        .order_by('-created_at', '-id')[:120]
+    )
+    return render(
+        request,
+        'football/platform_assistant.html',
+        {
+            'system_team': system_team,
+            'docs_count': len(docs),
+        },
+    )
 
 
 @csrf_exempt

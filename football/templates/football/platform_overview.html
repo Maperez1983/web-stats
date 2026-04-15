@@ -885,6 +885,9 @@
 	        <a class="{% if active_tab == 'clients' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=clients">Clubes</a>
 	        <a class="{% if active_tab == 'users' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=users&subtab=list">Usuarios</a>
 	        <a class="{% if active_tab == 'documents' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=documents">Documentos</a>
+	        {% if user.is_superuser %}
+	        <a href="{% url 'platform-assistant' %}">Asistente</a>
+	        {% endif %}
 	        <a class="{% if active_tab == 'home-global' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=home-global">Home global</a>
 	        <a class="{% if active_tab == 'workspace-create' %}is-active{% endif %}" href="{% url 'platform-overview' %}?tab=workspace-create">Crear club</a>
 	      </nav>

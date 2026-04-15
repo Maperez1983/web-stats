@@ -1,0 +1,195 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <title>Segunda Jugada · Asistente</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      body {
+        margin: 0;
+        background:
+          radial-gradient(circle at top left, rgba(244, 180, 0, 0.12), transparent 26%),
+          radial-gradient(circle at top right, rgba(47, 125, 50, 0.14), transparent 24%),
+          #08111d;
+        color: #e7ebf3;
+        font-family: "Avenir Next", "Inter", system-ui, sans-serif;
+      }
+      .shell {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 1.25rem;
+      }
+      .panel {
+        border-radius: 20px;
+        border: 1px solid rgba(255,255,255,0.10);
+        background: rgba(8, 17, 29, 0.72);
+        padding: 1rem;
+      }
+      .row {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .link-btn {
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(255,255,255,0.05);
+        color: #e7ebf3;
+        border-radius: 14px;
+        padding: 0.55rem 0.8rem;
+        text-decoration: none;
+        cursor: pointer;
+      }
+      .link-btn.primary {
+        background: linear-gradient(90deg, rgba(244, 180, 0, 0.95), rgba(47, 125, 50, 0.95));
+        color: #08111d;
+        border-color: transparent;
+        font-weight: 700;
+      }
+      input[type="file"]{
+        width: 100%;
+        max-width: 520px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 0.9rem;
+      }
+      th, td {
+        text-align: left;
+        padding: 0.55rem 0.55rem;
+        border-bottom: 1px solid rgba(255,255,255,0.10);
+        vertical-align: top;
+      }
+      th { opacity: 0.9; font-weight: 700; }
+      .meta { opacity: 0.85; font-size: 0.95rem; }
+      .ok { color: rgba(47, 200, 120, 0.95); }
+      .warn { color: rgba(244, 180, 0, 0.95); }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <div class="row" style="justify-content:space-between; margin-bottom: 0.85rem;">
+        <div>
+          <div class="meta">Plataforma</div>
+          <h1 style="margin:0.15rem 0 0.2rem;">Asistente · Conocimiento del sistema</h1>
+          <div class="meta">Repositorio: <strong>{{ system_team.name }}</strong> (slug: {{ system_team.slug }}) · Documentos activos: {{ docs_count }}</div>
+        </div>
+        <div class="row">
+          <a class="link-btn" href="{% url 'platform-overview' %}?tab=clients">Volver</a>
+        </div>
+      </div>
+
+      <section class="panel">
+        <h2 style="margin:0 0 0.35rem;">Subir documentos</h2>
+        <div class="meta" style="margin-bottom:0.7rem;">
+          Sube PDFs/TXT/MD que quieras que el asistente use como referencia para sugerir tareas (para tu uso interno).
+        </div>
+        <div class="row">
+          <input type="file" id="sys-knowledge-files" accept="application/pdf,text/plain,text/markdown,.pdf,.txt,.md" multiple />
+          <button type="button" class="link-btn primary" id="sys-knowledge-upload">Subir y generar plantillas</button>
+          <button type="button" class="link-btn" id="sys-knowledge-refresh">Actualizar lista</button>
+        </div>
+        <div class="meta" id="sys-knowledge-msg" style="margin-top:0.75rem;"></div>
+
+        <table aria-label="Documentos de conocimiento">
+          <thead>
+            <tr>
+              <th>Título</th>
+              <th>Tipo</th>
+              <th>Texto</th>
+              <th>Creado</th>
+            </tr>
+          </thead>
+          <tbody id="sys-knowledge-list">
+            <tr><td colspan="4" class="meta">Cargando…</td></tr>
+          </tbody>
+        </table>
+      </section>
+    </div>
+
+    <form id="csrf-form" style="display:none;">{% csrf_token %}</form>
+    <script>
+      (function() {
+        const listEl = document.getElementById('sys-knowledge-list');
+        const msgEl = document.getElementById('sys-knowledge-msg');
+        const filesEl = document.getElementById('sys-knowledge-files');
+        const uploadBtn = document.getElementById('sys-knowledge-upload');
+        const refreshBtn = document.getElementById('sys-knowledge-refresh');
+        const csrf = document.querySelector('#csrf-form input[name=csrfmiddlewaretoken]')?.value || '';
+
+        const knowledgeUrl = "{% url 'task-assistant-knowledge-api' %}?scope=system";
+        const uploadUrl = "{% url 'task-assistant-knowledge-upload-api' %}";
+
+        const escapeHtml = (v) => String(v ?? '').replace(/[&<>"']/g, (ch) => ({
+          '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+        }[ch] || ch));
+
+        const render = (items) => {
+          const rows = (items || []).map((it) => {
+            const hasText = it.has_text ? '<span class="ok">OK</span>' : '<span class="warn">—</span>';
+            const created = it.created_at ? new Date(it.created_at).toLocaleString() : '';
+            return `
+              <tr>
+                <td><strong>${escapeHtml(it.title || '')}</strong></td>
+                <td class="meta">${escapeHtml(it.mime_type || '')}</td>
+                <td class="meta">${hasText}</td>
+                <td class="meta">${escapeHtml(created)}</td>
+              </tr>
+            `;
+          }).join('');
+          listEl.innerHTML = rows || '<tr><td colspan="4" class="meta">No hay documentos todavía.</td></tr>';
+        };
+
+        const load = async () => {
+          try {
+            msgEl.textContent = '';
+            const res = await fetch(knowledgeUrl, { credentials: 'same-origin' });
+            const data = res.ok ? await res.json() : null;
+            if (!res.ok || !data?.ok) throw new Error(data?.error || 'No se pudo cargar.');
+            render(data.items || []);
+          } catch (e) {
+            listEl.innerHTML = `<tr><td colspan="4" class="meta">Error al cargar documentos.</td></tr>`;
+          }
+        };
+
+        refreshBtn?.addEventListener('click', load);
+        uploadBtn?.addEventListener('click', async () => {
+          const files = Array.from(filesEl?.files || []);
+          if (!files.length) {
+            msgEl.textContent = 'Selecciona documentos.';
+            return;
+          }
+          const fd = new FormData();
+          fd.append('scope', 'system');
+          files.slice(0, 12).forEach((f) => fd.append('documents', f, f.name || 'documento'));
+          try {
+            msgEl.textContent = 'Subiendo…';
+            const res = await fetch(uploadUrl, {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: csrf ? { 'X-CSRFToken': csrf } : {},
+              body: fd,
+            });
+            const data = res.ok ? await res.json() : null;
+            if (!res.ok || !data?.ok) throw new Error(data?.error || 'No se pudo subir.');
+            const created = Number(data?.blueprints?.created || 0) || 0;
+            const updated = Number(data?.blueprints?.updated || 0) || 0;
+            msgEl.textContent = `Subidos: ${Number(data?.saved || 0) || 0}. Plantillas creadas/actualizadas: ${created}/${updated}.`;
+            try { filesEl.value = ''; } catch (e) {}
+            await load();
+          } catch (e) {
+            msgEl.textContent = 'Error: no se pudieron subir los documentos.';
+          }
+        });
+
+        load();
+      })();
+    </script>
+  </body>
+</html>
+

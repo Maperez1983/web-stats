@@ -23,6 +23,7 @@ urlpatterns = [
     path('api/workspace/sync/', views.workspace_sync_competition_api, name='workspace-sync-competition'),
     path('team/<int:team_id>/cover/', views.team_cover_image_file, name='team-cover-image-file'),
     path('platform/', views.platform_overview_page, name='platform-overview'),
+    path('platform/asistente/', views.platform_assistant_page, name='platform-assistant'),
     path('platform/clear/', views.platform_workspace_clear_page, name='platform-workspace-clear'),
     path('platform/workspaces/<int:workspace_id>/', views.platform_workspace_detail_page, name='platform-workspace-detail'),
     path('platform/workspaces/<int:workspace_id>/delete/', views.platform_workspace_delete_page, name='platform-workspace-delete'),
