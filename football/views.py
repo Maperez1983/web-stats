@@ -29593,7 +29593,6 @@ def compute_team_metrics(primary_team):
     events = _filter_stats_events(
         confirmed_events_queryset()
         .filter(player__team=primary_team)
-        .filter(Q(match__home_team=primary_team) | Q(match__away_team=primary_team))
         .select_related('match')
         .order_by('match_id', 'minute', 'id'),
         preferred_sources=preferred_sources,
@@ -29920,10 +29919,22 @@ def compute_player_dashboard(primary_team, force_refresh=False):
     )
     inferred_zone_events = _filter_stats_events(events, preferred_sources=preferred_sources)
     match_zone_profiles, player_zone_profiles = _build_zone_inference_profiles(inferred_zone_events)
+    allowed_match_ids = set()
+    try:
+        allowed_match_ids = set(
+            stats_events.exclude(match_id__isnull=True).values_list('match_id', flat=True).distinct()
+        )
+    except Exception:
+        allowed_match_ids = set()
+    if lineup_by_match:
+        try:
+            allowed_match_ids.update(int(mid) for mid in lineup_by_match.keys() if mid)
+        except Exception:
+            pass
     live_events = (
         MatchEvent.objects.filter(
             Q(player__team=primary_team) | Q(player__isnull=True),
-            Q(match__home_team=primary_team) | Q(match__away_team=primary_team),
+            Q(match_id__in=list(allowed_match_ids)) if allowed_match_ids else Q(match__isnull=False),
         ).filter(
             Q(system='touch-field-final')
             | Q(system='touch-field', source_file='registro-acciones')
