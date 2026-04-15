@@ -14455,7 +14455,290 @@ def match_report_pdf(request):
     }
     pdf_html = render_to_string('football/match_report_pdf.html', context)
     filename = slugify(f'acta-{team_name}-{opponent_name}-{match.date or timezone.localdate()}') or f'acta-{match.id}'
-    return _build_pdf_response_or_html_fallback(request, pdf_html, filename, inline=True, force_pdf=True)
+
+    include_licenses = str(os.getenv('MATCH_REPORT_PDF_INCLUDE_LICENSES', '1')).strip().lower() in {'1', 'true', 'yes', 'on'}
+    if not include_licenses or PdfReader is None or PdfWriter is None:
+        return _build_pdf_response_or_html_fallback(request, pdf_html, filename, inline=True, force_pdf=True)
+
+    base_pdf, base_err = _render_pdf_bytes_with_error(request, pdf_html)
+    if not base_pdf:
+        logger.exception('WeasyPrint: error generando acta base: %s', base_err or 'unknown')
+        return _build_pdf_response_or_html_fallback(request, pdf_html, filename, inline=True, force_pdf=True)
+
+    # Extra: añadir licencias federativas al final del acta (para árbitro).
+    try:
+        workspace = _get_active_workspace(request)
+        staff_lines = []
+        try:
+            if workspace and workspace.kind == Workspace.KIND_CLUB:
+                staff_qs = (
+                    StaffMember.objects
+                    .filter(workspace=workspace, is_active=True)
+                    .filter(Q(team__isnull=True) | Q(team=primary_team))
+                    .order_by('role_title', 'name', 'id')
+                )
+                for member in list(staff_qs)[:8]:
+                    role_title = str(getattr(member, 'role_title', '') or '').strip() or 'Staff'
+                    staff_lines.append({'role': role_title, 'name': str(member.name or '').strip()})
+        except Exception:
+            staff_lines = []
+
+        competition_name = ''
+        season_name = ''
+        group_name = ''
+        try:
+            group = getattr(primary_team, 'group', None)
+            if group and getattr(group, 'season', None) and getattr(group.season, 'competition', None):
+                competition_name = str(group.season.competition.name or '').strip()
+                season_name = str(group.season.name or '').strip()
+                group_name = str(group.name or '').strip()
+        except Exception:
+            competition_name = ''
+            season_name = ''
+            group_name = ''
+
+        # Reutilizamos el formato del PDF de licencias (cuadrícula).
+        storage = storages['default']
+        if isinstance(storage, FileSystemStorage):
+            storage = FileSystemStorage(location=getattr(settings, 'MEDIA_ROOT', None), base_url=getattr(settings, 'MEDIA_URL', '/media/'))
+
+        def _find_license_name(player_obj):
+            for candidate in _player_license_storage_candidates(player_obj):
+                try:
+                    if storage.exists(candidate):
+                        return candidate
+                except Exception:
+                    continue
+            return ''
+
+        def _read_storage_bytes(storage_name):
+            if not storage_name:
+                return b''
+            try:
+                with storage.open(storage_name, 'rb') as fp:
+                    return fp.read() or b''
+            except Exception:
+                return b''
+
+        def _extract_first_image_from_pdf_bytes(pdf_bytes):
+            if not pdf_bytes or PdfReader is None:
+                return b''
+            try:
+                reader = PdfReader(io.BytesIO(pdf_bytes))
+                if not getattr(reader, 'pages', None):
+                    return b''
+                page = reader.pages[0]
+            except Exception:
+                return b''
+            try:
+                images = getattr(page, 'images', None)
+                if images:
+                    best_score = -1
+                    best_data = b''
+                    for img in images:
+                        try:
+                            data = getattr(img, 'data', None)
+                            if not data and hasattr(img, 'get_data'):
+                                data = img.get_data()
+                            data = bytes(data) if data else b''
+                            if not data:
+                                continue
+                            width = int(getattr(img, 'width', 0) or 0)
+                            height = int(getattr(img, 'height', 0) or 0)
+                            score = (width * height) if width and height else len(data)
+                            if score > best_score:
+                                best_score = score
+                                best_data = data
+                        except Exception:
+                            continue
+                    if best_data:
+                        return best_data
+            except Exception:
+                pass
+            try:
+                resources = page.get('/Resources') or {}
+                xobjects = resources.get('/XObject') or {}
+            except Exception:
+                return b''
+            best = {'score': -1, 'data': b''}
+
+            def _filter_names(value):
+                if not value:
+                    return []
+                if isinstance(value, (list, tuple)):
+                    return [str(v) for v in value]
+                return [str(value)]
+
+            def _try_store_candidate(width, height, data):
+                score = (int(width) * int(height)) if width and height else len(data or b'')
+                if score > best['score'] and data:
+                    best['score'] = score
+                    best['data'] = data
+
+            for _name, xobj_ref in getattr(xobjects, 'items', lambda: [])():
+                try:
+                    xobj = xobj_ref.get_object()
+                except Exception:
+                    continue
+                try:
+                    if str(xobj.get('/Subtype')) != '/Image':
+                        continue
+                    width = int(xobj.get('/Width') or 0)
+                    height = int(xobj.get('/Height') or 0)
+                    filters = _filter_names(xobj.get('/Filter'))
+                    data = xobj.get_data() or b''
+                    if any('/DCTDecode' in f for f in filters) or any('/JPXDecode' in f for f in filters):
+                        _try_store_candidate(width, height, data)
+                        continue
+                    if Image is not None:
+                        try:
+                            with Image.open(io.BytesIO(data)) as img:
+                                buffer = io.BytesIO()
+                                img.convert('RGB').save(buffer, format='JPEG', optimize=True, quality=80)
+                            _try_store_candidate(width, height, buffer.getvalue())
+                            continue
+                        except Exception:
+                            pass
+                except Exception:
+                    continue
+            return best['data'] or b''
+
+        def _license_image_data_uri(storage_name):
+            if not storage_name:
+                return ''
+            ext = Path(storage_name).suffix.lower()
+            raw = _read_storage_bytes(storage_name)
+            if not raw:
+                return ''
+            if ext == '.pdf':
+                extracted = _extract_first_image_from_pdf_bytes(raw)
+                if not extracted:
+                    return ''
+                if Image is not None:
+                    try:
+                        with Image.open(io.BytesIO(extracted)) as probe:
+                            width, height = probe.size
+                        if (width * height) < 140_000:
+                            return ''
+                    except Exception:
+                        pass
+                raw = extracted
+                ext = '.jpg'
+            if Image is None:
+                mime_type = mimetypes.guess_type(storage_name)[0] or ('image/jpeg' if ext in {'.jpg', '.jpeg'} else 'image/png')
+                encoded = base64.b64encode(raw).decode('ascii')
+                return f'data:{mime_type};base64,{encoded}'
+            try:
+                with Image.open(io.BytesIO(raw)) as img:
+                    if ImageOps is not None:
+                        try:
+                            img = ImageOps.exif_transpose(img)
+                        except Exception:
+                            pass
+                    normalized = img.convert('RGB')
+                    normalized.thumbnail((900, 650))
+                    buffer = io.BytesIO()
+                    normalized.save(buffer, format='JPEG', optimize=True, quality=74)
+                encoded = base64.b64encode(buffer.getvalue()).decode('ascii')
+                return f'data:image/jpeg;base64,{encoded}'
+            except Exception:
+                if ext == '.pdf':
+                    return ''
+                mime_type = mimetypes.guess_type(storage_name)[0] or 'image/jpeg'
+                encoded = base64.b64encode(raw).decode('ascii')
+                return f'data:{mime_type};base64,{encoded}'
+
+        def _sort_player_key(player_obj):
+            number = player_obj.number if player_obj.number is not None else 999
+            return (number, (player_obj.name or '').lower())
+
+        ordered_players = sorted(convocation_players, key=_sort_player_key)
+        grid_players = []
+        pdf_fallback_licenses = []
+        for player_obj in ordered_players:
+            license_name = _find_license_name(player_obj)
+            license_image_uri = _license_image_data_uri(license_name) if license_name else ''
+            if license_name and Path(license_name).suffix.lower() == '.pdf' and not license_image_uri:
+                pdf_fallback_licenses.append(license_name)
+            grid_players.append(
+                {
+                    'number': player_obj.number,
+                    'name': player_obj.name,
+                    'license_image_uri': license_image_uri,
+                }
+            )
+        if grid_players:
+            grid_class = 'cols-4' if len(grid_players) > 10 else ''
+            dense = bool(len(grid_players) > 16)
+            grid_html = render_to_string(
+                'football/referee_licenses_grid_pdf.html',
+                {
+                    **nav_urls,
+                    'team_name': primary_team.display_name,
+                    'home_team_name': home_team_name,
+                    'away_team_name': away_team_name,
+                    'team_crest_src': home_crest_src,
+                    'rival_crest_src': away_crest_src,
+                    'competition_name': competition_name or 'Competición',
+                    'season_name': season_name,
+                    'group_name': group_name,
+                    'round_label': round_label,
+                    'date_label': match.date.strftime('%d/%m/%Y') if match.date else '--',
+                    'time_label': match.kickoff_time.strftime('%H:%M') if match.kickoff_time else '--:--',
+                    'location_label': location_label,
+                    'players': grid_players,
+                    'grid_class': grid_class,
+                    'dense': dense,
+                    'staff_lines': staff_lines,
+                    'generated_at': timezone.localtime(),
+                },
+            )
+            grid_pdf, _grid_err = _render_pdf_bytes_with_error(request, grid_html)
+        else:
+            grid_pdf = None
+            pdf_fallback_licenses = []
+
+        writer = PdfWriter()
+
+        def _append_pdf_bytes(pdf_bytes):
+            if not pdf_bytes:
+                return
+            reader = PdfReader(io.BytesIO(pdf_bytes))
+            for page in reader.pages:
+                writer.add_page(page)
+
+        _append_pdf_bytes(base_pdf)
+        if grid_pdf:
+            _append_pdf_bytes(grid_pdf)
+        for license_name in pdf_fallback_licenses[:30]:
+            pdf_bytes = _read_storage_bytes(license_name)
+            if pdf_bytes:
+                _append_pdf_bytes(pdf_bytes)
+
+        output = io.BytesIO()
+        writer.write(output)
+        merged = output.getvalue()
+        response = HttpResponse(merged, content_type='application/pdf')
+        response['Content-Disposition'] = f'inline; filename=\"{filename}.pdf\"'
+        response['Cache-Control'] = 'no-store, max-age=0'
+        response['Pragma'] = 'no-cache'
+        response['Expires'] = '0'
+        try:
+            build_id = (
+                os.getenv('RENDER_GIT_COMMIT')
+                or os.getenv('RENDER_DEPLOY_ID')
+                or os.getenv('SOURCE_VERSION')
+                or os.getenv('GIT_SHA')
+                or ''
+            ).strip()
+            if build_id:
+                response['X-2J-Build'] = build_id
+        except Exception:
+            pass
+        return response
+    except Exception:
+        logger.exception('No se pudieron adjuntar licencias al acta')
+        return _build_pdf_response_or_html_fallback(request, pdf_html, filename, inline=True, force_pdf=True)
 
 
 @login_required
