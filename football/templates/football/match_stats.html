@@ -95,10 +95,18 @@
     <header>
       <div>
         <p style="margin:0;color:#94a3b8;">Estadísticas del partido</p>
-        <h1>{{ match.opponent }} · Jornada {{ match.round }}</h1>
+        <h1>
+          {{ match.opponent }} · Jornada {{ match.round }}
+          {% if match.score_label %}
+            <span style="margin-left:0.75rem;color:#facc15;font-weight:800;">{{ match.score_label }}</span>
+          {% endif %}
+        </h1>
         <p style="margin:0;color:#94a3b8;">{{ match.date }} · {{ match.location }}</p>
       </div>
-      <a href="{% url 'player-dashboard' %}">← Volver a jugadores</a>
+      <div style="display:flex;gap:1rem;align-items:center;justify-content:flex-end;flex-wrap:wrap;">
+        <a href="{{ match.edit_actions_url }}">Editar acciones / marcador</a>
+        <a href="{% url 'player-dashboard' %}">← Volver a jugadores</a>
+      </div>
     </header>
 
     <div class="card">

@@ -13925,6 +13925,11 @@ def finalize_match_actions(request):
     updated = 0
     if keep_ids:
         updated = MatchEvent.objects.filter(id__in=keep_ids).update(system='touch-field-final')
+    # Auto-rellena marcador si el staff no lo fijó manualmente.
+    try:
+        _sync_match_score_from_events(match, primary_team)
+    except Exception:
+        pass
     _invalidate_team_dashboard_caches(primary_team)
     return JsonResponse(
         {
@@ -13968,6 +13973,11 @@ def save_match_info(request):
     if not isinstance(match_info, dict):
         match_info = payload if isinstance(payload, dict) else {}
     _apply_match_info_overrides(match, primary_team, match_info)
+    # Si el usuario no envió marcador (o lo dejó en blanco) pero hay goles registrados, rellena "a favor".
+    try:
+        _sync_match_score_from_events(match, primary_team)
+    except Exception:
+        pass
 
     # Mantener Convocatoria alineada con los cambios (si existe).
     try:
@@ -28837,12 +28847,46 @@ def match_stats_page(request, match_id):
     if not match:
         raise Http404('Partido no encontrado')
     opponent = match.away_team if match.home_team == primary_team else match.home_team
+    # Marcador (fallback: parse de result, o inferir goles a favor desde eventos).
+    home_score = match.home_score
+    away_score = match.away_score
+    if home_score is None or away_score is None:
+        try:
+            found = re.findall(r'(\d+)\s*[-:]\s*(\d+)', str(match.result or '').strip())
+        except Exception:
+            found = []
+        if found:
+            try:
+                parsed_home = int(found[0][0])
+                parsed_away = int(found[0][1])
+            except Exception:
+                parsed_home = None
+                parsed_away = None
+            if home_score is None:
+                home_score = parsed_home
+            if away_score is None:
+                away_score = parsed_away
+    try:
+        goals_for = _infer_team_goals_from_events(match, primary_team)
+    except Exception:
+        goals_for = 0
+    if match.home_team_id == primary_team.id and home_score is None and goals_for:
+        home_score = int(goals_for)
+    if match.away_team_id == primary_team.id and away_score is None and goals_for:
+        away_score = int(goals_for)
+
     payload = {
         'round': match.round or 'Partido sin jornada',
         'date': match.date.strftime('%d/%m/%Y') if match.date else 'Fecha por definir',
         'location': match.location or 'Campo por confirmar',
         'opponent': opponent.name if opponent else 'Rival desconocido',
         'home': match.home_team == primary_team,
+        'home_score': home_score,
+        'away_score': away_score,
+        'score_label': ''
+        if (home_score is None and away_score is None)
+        else f"{'' if home_score is None else home_score} - {'' if away_score is None else away_score}",
+        'edit_actions_url': f"{reverse('match-action-page')}?match_id={int(match.id)}&stage=close",
     }
     team_metrics = compute_team_metrics_for_match(match, primary_team=primary_team)
     player_cards = compute_player_cards_for_match(match, primary_team)
@@ -29830,8 +29874,12 @@ def _apply_match_info_overrides(match, primary_team, match_info_payload):
     location_value = (match_info_payload.get('location') or '').strip()
     datetime_value = (match_info_payload.get('datetime') or '').strip()
     opponent_name = (match_info_payload.get('opponent') or '').strip()
-    score_for = _parse_optional_nonnegative_int(match_info_payload.get('score_for'))
-    score_against = _parse_optional_nonnegative_int(match_info_payload.get('score_against'))
+    raw_score_for = match_info_payload.get('score_for')
+    raw_score_against = match_info_payload.get('score_against')
+    score_for = _parse_optional_nonnegative_int(raw_score_for)
+    score_against = _parse_optional_nonnegative_int(raw_score_against)
+    score_for_blank = ('score_for' in match_info_payload) and (str(raw_score_for).strip() == '')
+    score_against_blank = ('score_against' in match_info_payload) and (str(raw_score_against).strip() == '')
 
     if round_value != (match.round or ''):
         match.round = round_value
@@ -29872,14 +29920,14 @@ def _apply_match_info_overrides(match, primary_team, match_info_payload):
     apply_score = ('score_for' in match_info_payload) or ('score_against' in match_info_payload)
     if primary_team and apply_score:
         if match.home_team_id == primary_team.id:
-            desired_home = score_for
-            desired_away = score_against
+            desired_home = match.home_score if score_for_blank else score_for
+            desired_away = match.away_score if score_against_blank else score_against
         elif match.away_team_id == primary_team.id:
-            desired_home = score_against
-            desired_away = score_for
+            desired_home = match.home_score if score_against_blank else score_against
+            desired_away = match.away_score if score_for_blank else score_for
         else:
-            desired_home = score_for
-            desired_away = score_against
+            desired_home = match.home_score if score_for_blank else score_for
+            desired_away = match.away_score if score_against_blank else score_against
         if desired_home != match.home_score:
             match.home_score = desired_home
             changed_fields.append('home_score')
@@ -29887,8 +29935,61 @@ def _apply_match_info_overrides(match, primary_team, match_info_payload):
             match.away_score = desired_away
             changed_fields.append('away_score')
 
+    # Campo `result`: mantenlo alineado si tenemos marcador completo.
+    if match.home_score is not None and match.away_score is not None:
+        desired_result = f'{int(match.home_score)}-{int(match.away_score)}'
+        if (match.result or '').strip() != desired_result:
+            match.result = desired_result
+            changed_fields.append('result')
+
     if changed_fields:
         match.save(update_fields=list(dict.fromkeys(changed_fields)))
+
+
+def _infer_team_goals_from_events(match, primary_team):
+    if not match or not primary_team:
+        return 0
+    try:
+        preferred_sources = preferred_event_source_by_match(primary_team)
+        events = _filter_stats_events(
+            confirmed_events_queryset()
+            .filter(match=match, player__team=primary_team)
+            .select_related('player')
+            .order_by('minute', 'id'),
+            preferred_sources=preferred_sources,
+        )
+    except Exception:
+        events = []
+    return sum(1 for ev in events if is_goal_event(ev.event_type, ev.result, ev.observation))
+
+
+def _sync_match_score_from_events(match, primary_team):
+    """
+    Si el partido no tiene marcador, intenta rellenar "goles a favor" a partir de eventos.
+    No toca el "goles en contra" (no tenemos eventos del rival).
+    """
+    if not match or not primary_team:
+        return
+    goals_for = _infer_team_goals_from_events(match, primary_team)
+    changed_fields = []
+    if match.home_team_id == primary_team.id:
+        if match.home_score is None:
+            match.home_score = int(goals_for)
+            changed_fields.append('home_score')
+    elif match.away_team_id == primary_team.id:
+        if match.away_score is None:
+            match.away_score = int(goals_for)
+            changed_fields.append('away_score')
+    if match.home_score is not None and match.away_score is not None:
+        desired_result = f'{int(match.home_score)}-{int(match.away_score)}'
+        if (match.result or '').strip() != desired_result:
+            match.result = desired_result
+            changed_fields.append('result')
+    if changed_fields:
+        try:
+            match.save(update_fields=list(dict.fromkeys(changed_fields)))
+        except Exception:
+            pass
 
 
 def gather_team_fields_for_group(group):
