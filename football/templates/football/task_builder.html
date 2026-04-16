@@ -3718,10 +3718,11 @@
 				              { v: 'between_lines', label: 'Encontrar entre líneas' },
 				              { v: 'turn_and_go', label: 'Recibir, girar y progresar' },
 				            ],
-				            final_third: [
-				              { v: 'cross', label: 'Centros' },
-				              { v: 'cutback', label: 'Pase atrás (cutback)' },
-				              { v: 'through_ball', label: 'Pase al espacio' },
+					            final_third: [
+					              { v: '3v3_finish', label: '3v3 + porteros (finalización)' },
+					              { v: 'cross', label: 'Centros' },
+					              { v: 'cutback', label: 'Pase atrás (cutback)' },
+					              { v: 'through_ball', label: 'Pase al espacio' },
 				              { v: 'second_post', label: '2º palo + llegada' },
 				              { v: 'edge_box', label: 'Disparo frontal (borde área)' },
 				              { v: 'finishing_2v1', label: 'Finalización 2v1' },
@@ -5532,17 +5533,133 @@
 					              },
 					              { format: 'ssg', intensity: 'high' },
 					            );
-					            addVariant(
-					              'smart_final_waves',
-					              'final_third',
-					              mapping.final_third,
-					              {
-					                title: `Finalización · oleadas 3v2 (${levelLabel})`,
-					                player_count: isSenior ? '3v2 + portero' : '2v1/3v2',
-					                rules_html: '<ul><li>Máximo 10s por oleada. Rotación inmediata.</li></ul>',
-					              },
-					              { format: 'analytic', intensity: 'high' },
-					            );
+						            addVariant(
+						              'smart_final_waves',
+						              'final_third',
+						              mapping.final_third,
+						              {
+						                title: `Finalización · oleadas 3v2 (${levelLabel})`,
+						                player_count: isSenior ? '3v2 + portero' : '2v1/3v2',
+						                rules_html: '<ul><li>Máximo 10s por oleada. Rotación inmediata.</li></ul>',
+						              },
+						              { format: 'analytic', intensity: 'high' },
+						            );
+						            addVariant(
+						              'smart_final_3v3_eq',
+						              'final_third',
+						              mapping.final_third,
+						              {
+						                title: `Finalización · 3v3 + porteros (igualdad) (${levelLabel})`,
+						                objective: 'Resolver finalización en espacio reducido con ritmo alto y foco en remate/1v1.',
+						                training_type: 'Juego reducido (finalización)',
+						                block: 'main_1',
+						                minutes: Math.max(10, Math.min(16, minutes)),
+						                player_count: '3v3 + 2 porteros',
+						                dimensions: isSenior ? '35x25 m' : (isYoung ? '22x16 m' : '30x20 m'),
+						                materials: 'Balones, conos, 2 porterías, petos',
+						                space: 'Rectángulo con 2 porterías',
+						                drills: ['acceleration', 'deceleration', 'change_direction'],
+						                description_html: `
+						                  <ul>
+						                    <li>Juego 3v3 + porteros en espacio reducido. Objetivo: finalizar rápido.</li>
+						                    <li>Provoca 1v1, tiros tras conducción corta y segundas jugadas.</li>
+						                    <li>Tras gol o salida, reinicia el portero (ritmo alto).</li>
+						                  </ul>
+						                `,
+						                coaching_html: `
+						                  <ul>
+						                    <li>Atacante: prepara el tiro con 1–2 toques útiles; finaliza con ventaja.</li>
+						                    <li>Defensor: acosa al poseedor y cierra líneas de tiro tras pérdida.</li>
+						                    <li>Portero: juego rápido para dar continuidad.</li>
+						                  </ul>
+						                `,
+						                rules_html: '<ul><li>Opcional: gol a 1 toque = doble.</li></ul>',
+						                board: {
+						                  items: [
+						                    { payload: { kind: 'goal' }, x: 0.18, y: 0.50 },
+						                    { payload: { kind: 'goalkeeper_local' }, x: 0.22, y: 0.50 },
+						                    { payload: { kind: 'goal' }, x: 0.82, y: 0.50, angle: 180 },
+						                    { payload: { kind: 'goalkeeper_rival' }, x: 0.78, y: 0.50 },
+						                    { payload: { kind: 'shape_rect' }, x: 0.50, y: 0.50, scale: 1.55 },
+						                    { payload: { kind: 'ball' }, x: 0.50, y: 0.50 },
+						                    { payload: { kind: 'player_local' }, x: 0.44, y: 0.44 },
+						                    { payload: { kind: 'player_local' }, x: 0.44, y: 0.56 },
+						                    { payload: { kind: 'player_local' }, x: 0.50, y: 0.50 },
+						                    { payload: { kind: 'player_rival' }, x: 0.56, y: 0.44 },
+						                    { payload: { kind: 'player_rival' }, x: 0.56, y: 0.56 },
+						                    { payload: { kind: 'player_rival' }, x: 0.62, y: 0.50 },
+						                  ],
+						                },
+						              },
+						              { format: 'ssg', intensity: 'high', subphase: '3v3_finish' },
+						            );
+						            addVariant(
+						              'smart_final_3v3_defsup',
+						              'final_third',
+						              mapping.final_third,
+						              {
+						                title: `Finalización · 3v3 + porteros (defensa +1) (${levelLabel})`,
+						                objective: 'Finalizar con poco espacio: defender protege zona y obliga a tiros/segundas jugadas.',
+						                training_type: 'Juego reducido (finalización)',
+						                block: 'main_1',
+						                minutes: Math.max(10, Math.min(16, minutes)),
+						                player_count: '3v3 + 2 porteros',
+						                dimensions: isSenior ? '38x26 m' : (isYoung ? '24x16 m' : '32x22 m'),
+						                materials: 'Balones, conos, 2 porterías, petos',
+						                space: 'Rectángulo + zona defensiva marcada',
+						                drills: ['deceleration', 'change_direction'],
+						                description_html: `
+						                  <ul>
+						                    <li>Como el 3v3, pero el equipo defensor deja 1 jugador fijo en su zona defensiva.</li>
+						                    <li>Objetivo: fomentar protección de espacios y obligar a elegir tiro/último pase.</li>
+						                    <li>Variante: tiro desde fuera de zona = doble (si procede).</li>
+						                  </ul>
+						                `,
+						                coaching_html: `
+						                  <ul>
+						                    <li>Atacante: atrae al defensor fijo y busca ángulos de tiro/pase atrás.</li>
+						                    <li>Defensa: equilibrio y cierre tras pérdida; acoso al poseedor.</li>
+						                  </ul>
+						                `,
+						                rules_html: '<ul><li>Defensor fijo no puede salir de su zona (marcada con conos).</li></ul>',
+						                board: {
+						                  items: [
+						                    { payload: { kind: 'goal' }, x: 0.18, y: 0.50 },
+						                    { payload: { kind: 'goalkeeper_local' }, x: 0.22, y: 0.50 },
+						                    { payload: { kind: 'goal' }, x: 0.82, y: 0.50, angle: 180 },
+						                    { payload: { kind: 'goalkeeper_rival' }, x: 0.78, y: 0.50 },
+						                    { payload: { kind: 'shape_rect' }, x: 0.50, y: 0.50, scale: 1.55 },
+						                    { payload: { kind: 'shape_rect' }, x: 0.30, y: 0.50, scale: 0.75 },
+						                    { payload: { kind: 'ball' }, x: 0.50, y: 0.50 },
+						                    { payload: { kind: 'player_rival' }, x: 0.30, y: 0.50 },
+						                    { payload: { kind: 'player_local' }, x: 0.48, y: 0.44 },
+						                    { payload: { kind: 'player_local' }, x: 0.48, y: 0.56 },
+						                    { payload: { kind: 'player_rival' }, x: 0.60, y: 0.44 },
+						                    { payload: { kind: 'player_rival' }, x: 0.60, y: 0.56 },
+						                  ],
+						                },
+						              },
+						              { format: 'ssg', intensity: 'high', subphase: '3v3_finish' },
+						            );
+						            addVariant(
+						              'smart_final_3v3_2touch',
+						              'final_third',
+						              mapping.final_third,
+						              {
+						                title: `Finalización · 3v3 + porteros (máx. 2 toques) (${levelLabel})`,
+						                objective: 'Aumentar ritmo de decisión y remate/pase final en espacio reducido.',
+						                training_type: 'Juego reducido (finalización)',
+						                block: 'main_1',
+						                minutes: Math.max(10, Math.min(16, minutes)),
+						                player_count: '3v3 + 2 porteros',
+						                dimensions: isSenior ? '35x25 m' : (isYoung ? '22x16 m' : '30x20 m'),
+						                materials: 'Balones, conos, 2 porterías, petos',
+						                space: 'Rectángulo con 2 porterías',
+						                load_target: isYoung ? 'RPE 6' : 'RPE 7–8',
+						                rules_html: '<ul><li>Máximo 2 toques por jugador (U8: libre o 3 toques).</li><li>Tras pérdida, el portero del equipo que recupera reinicia rápido.</li></ul>',
+						              },
+						              { format: 'ssg', intensity: 'high', subphase: '3v3_finish' },
+						            );
 
 					            addVariant(
 					              'smart_press_triggers',
