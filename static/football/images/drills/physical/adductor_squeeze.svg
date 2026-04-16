@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Aductor squeeze">
+  <g fill="none" stroke="#0f7a35" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="32" cy="12" r="6"/>
+    <path d="M32 18 L32 32"/>
+    <path d="M32 24 L18 26"/>
+    <path d="M32 24 L46 26"/>
+    <path d="M32 32 L24 56"/>
+    <path d="M32 32 L40 56"/>
+    <!-- ball between knees -->
+    <circle cx="32" cy="40" r="4"/>
+    <path d="M26 40 L30 40"/>
+    <path d="M34 40 L38 40"/>
+  </g>
+</svg>
+

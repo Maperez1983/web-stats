@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Saltos laterales">
+  <g fill="none" stroke="#0f7a35" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="28" cy="12" r="6"/>
+    <path d="M28 18 L28 34"/>
+    <path d="M28 24 L16 28"/>
+    <path d="M28 24 L40 28"/>
+    <path d="M28 34 L22 56"/>
+    <path d="M28 34 L34 56"/>
+    <!-- lateral arrows -->
+    <path d="M46 24 L58 24"/>
+    <path d="M46 24 L50 20"/>
+    <path d="M46 24 L50 28"/>
+    <path d="M18 24 L6 24"/>
+    <path d="M6 24 L10 20"/>
+    <path d="M6 24 L10 28"/>
+  </g>
+</svg>
+

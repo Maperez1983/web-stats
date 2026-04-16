@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Agilidad reactiva">
+  <g fill="none" stroke="#0f7a35" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="22" cy="14" r="6"/>
+    <path d="M22 20 L22 34"/>
+    <path d="M22 26 L10 28"/>
+    <path d="M22 26 L34 28"/>
+    <path d="M22 34 L14 56"/>
+    <path d="M22 34 L30 56"/>
+    <!-- reaction arrows -->
+    <path d="M44 22 L58 22"/>
+    <path d="M58 22 L54 18"/>
+    <path d="M58 22 L54 26"/>
+    <path d="M44 34 L58 34"/>
+    <path d="M44 34 L48 30"/>
+    <path d="M44 34 L48 38"/>
+    <path d="M50 46 L58 54"/>
+    <path d="M58 54 L52 54"/>
+  </g>
+</svg>
+

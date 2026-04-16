@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Sprint en curva">
+  <g fill="none" stroke="#0f7a35" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="24" cy="14" r="6"/>
+    <path d="M24 20 L30 30 L18 28"/>
+    <path d="M30 30 L44 34"/>
+    <path d="M44 34 L58 30"/>
+    <path d="M28 34 L14 50"/>
+    <path d="M14 50 L8 56"/>
+    <path d="M44 34 L42 56"/>
+    <!-- curved arrow -->
+    <path d="M46 14 C58 18 60 30 50 38"/>
+    <path d="M50 38 L50 30"/>
+  </g>
+</svg>
+

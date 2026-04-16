@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Bird dog">
+  <g fill="none" stroke="#0f7a35" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="18" cy="24" r="5"/>
+    <path d="M14 28 L30 30"/>
+    <path d="M30 30 L46 28"/>
+    <path d="M46 28 L56 24"/>
+    <path d="M30 30 L26 56"/>
+    <path d="M46 28 L44 56"/>
+    <!-- extended arm and leg -->
+    <path d="M30 30 L40 18"/>
+    <path d="M46 28 L58 36"/>
+  </g>
+</svg>
+

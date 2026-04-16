@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Hop y estabiliza">
+  <g fill="none" stroke="#0f7a35" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="26" cy="12" r="6"/>
+    <path d="M26 18 L26 32"/>
+    <path d="M26 24 L14 26"/>
+    <path d="M26 24 L38 26"/>
+    <path d="M26 32 L22 56"/>
+    <!-- hop arc -->
+    <path d="M40 20 C50 26 52 34 46 44"/>
+    <!-- stick marker -->
+    <path d="M46 44 L58 56"/>
+  </g>
+</svg>
+

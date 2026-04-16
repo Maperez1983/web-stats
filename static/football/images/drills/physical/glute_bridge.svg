@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Puente de glúteo">
+  <g fill="none" stroke="#0f7a35" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="16" cy="30" r="5"/>
+    <path d="M12 34 L28 36"/>
+    <path d="M28 36 L46 28"/>
+    <path d="M46 28 L56 34"/>
+    <path d="M28 36 L26 54"/>
+    <path d="M56 34 L54 54"/>
+    <!-- floor -->
+    <path d="M6 54 L58 54"/>
+  </g>
+</svg>
+

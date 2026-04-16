@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Carrera tempo">
+  <g fill="none" stroke="#0f7a35" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="30" cy="12" r="6"/>
+    <path d="M30 18 L26 30 L16 28"/>
+    <path d="M26 30 L40 34"/>
+    <path d="M40 34 L54 30"/>
+    <path d="M24 34 L12 48"/>
+    <path d="M12 48 L8 56"/>
+    <path d="M40 34 L38 56"/>
+    <!-- metronome / steady -->
+    <path d="M54 18 L58 26"/>
+    <path d="M58 26 L62 18"/>
+  </g>
+</svg>
+

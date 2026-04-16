@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Sprint lanzado">
+  <g fill="none" stroke="#0f7a35" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="36" cy="12" r="6"/>
+    <path d="M34 18 L28 30 L18 28"/>
+    <path d="M28 30 L42 34"/>
+    <path d="M42 34 L56 28"/>
+    <path d="M26 34 L14 48"/>
+    <path d="M14 48 L8 56"/>
+    <path d="M42 34 L40 56"/>
+    <!-- flying zone marker -->
+    <path d="M6 20 L18 20"/>
+    <path d="M20 20 L32 20"/>
+    <path d="M34 20 L46 20"/>
+  </g>
+</svg>
+
