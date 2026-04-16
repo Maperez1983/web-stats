@@ -1319,6 +1319,22 @@
 	        font-weight: 700;
 	        color: rgba(226,232,240,0.8);
 	      }
+	      .pitch-quick {
+	        display: flex;
+	        align-items: center;
+	        gap: 0.35rem;
+	      }
+	      .pitch-quick .surface-trigger {
+	        border-radius: 10px;
+	        padding: 8px 10px;
+	        min-width: 38px;
+	        justify-content: center;
+	      }
+	      .pitch-quick .surface-trigger.danger {
+	        border-color: rgba(248,113,113,0.45);
+	        background: rgba(127,29,29,0.22);
+	        color: #fecaca;
+	      }
       .resource-section {
         display: flex;
         flex-direction: column;
@@ -2193,6 +2209,17 @@
 	                    <button type="button" id="pitch-size-up" title="Campo más grande">+</button>
 	                    <button type="button" id="pitch-size-fit" title="Ajustar a pantalla">⤢</button>
 	                  </div>
+	                  <div class="pitch-quick" id="task-pitch-quick-tools" aria-label="Acciones rápidas">
+	                    <button type="button" class="surface-trigger" data-action="undo" title="Deshacer">↶</button>
+	                    <button type="button" class="surface-trigger" data-action="redo" title="Rehacer">↷</button>
+	                    <button type="button" class="surface-trigger" data-action="duplicate" title="Duplicar seleccionado">⧉</button>
+	                    <button type="button" class="surface-trigger danger" data-action="delete" title="Borrar seleccionado">⌫</button>
+	                  </div>
+	                  <div class="pitch-quick" id="task-token-style-global" aria-label="Estilo de ficha">
+	                    <button type="button" class="surface-trigger" data-global-token-style="disk" title="Chapa">Chapa</button>
+	                    <button type="button" class="surface-trigger" data-global-token-style="jersey" title="Camiseta">Camiseta</button>
+	                    <button type="button" class="surface-trigger" data-global-token-style="photo" title="Foto">Foto</button>
+	                  </div>
 	                </div>
 	              </div>
 
@@ -2538,8 +2565,29 @@
 	                        <button type="button" data-color="#000000">Negro</button>
 	                        <button type="button" data-color="#a855f7">Morado</button>
 	                      </div>
-	                      <div class="selection-actions">
+                    <div class="selection-actions">
 	                        <button type="button" data-inspector-action="duplicate">Duplicar</button>
+	                      </div>
+	                      <div class="selection-actions" id="task-token-style-actions" hidden>
+	                        <span class="preset-label">Token</span>
+	                        <button type="button" data-token-style="disk">Chapa</button>
+	                        <button type="button" data-token-style="jersey">Camiseta</button>
+	                        <button type="button" data-token-style="photo">Foto</button>
+	                      </div>
+	                      <div class="selection-grid" id="task-token-color-grid" hidden style="grid-template-columns: 1fr 1fr;">
+	                        <label>
+	                          Base
+	                          <input type="color" id="task-token-base-color" value="#ffffff" />
+	                        </label>
+	                        <label>
+	                          Franjas
+	                          <input type="color" id="task-token-stripe-color" value="#0f7a35" />
+	                        </label>
+	                      </div>
+	                      <div class="selection-actions" id="task-token-pattern-actions" hidden>
+	                        <span class="preset-label">Patrón</span>
+	                        <button type="button" data-token-pattern="striped">Rayas</button>
+	                        <button type="button" data-token-pattern="solid">Sólido</button>
 	                      </div>
 	                      <div class="selection-note">
 	                        Tip: usa `Cmd/Ctrl + D` para duplicar.

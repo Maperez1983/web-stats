@@ -714,9 +714,15 @@
 		    const tokenMetaRow = document.getElementById('task-token-meta');
 		    const tokenNameInput = document.getElementById('task-token-name');
 		    const tokenNumberInput = document.getElementById('task-token-number');
-			    const commandBar = document.getElementById('task-command-bar');
-			    const commandMoreBtn = document.getElementById('task-command-more');
-			    const commandMenu = document.getElementById('task-command-menu');
+		    const tokenStyleActions = document.getElementById('task-token-style-actions');
+		    const tokenColorGrid = document.getElementById('task-token-color-grid');
+		    const tokenBaseColorInput = document.getElementById('task-token-base-color');
+		    const tokenStripeColorInput = document.getElementById('task-token-stripe-color');
+		    const tokenPatternActions = document.getElementById('task-token-pattern-actions');
+		    const tokenGlobalStyleActions = document.getElementById('task-token-style-global');
+				    const commandBar = document.getElementById('task-command-bar');
+				    const commandMoreBtn = document.getElementById('task-command-more');
+				    const commandMenu = document.getElementById('task-command-menu');
 			    const simBtn = document.getElementById('task-sim-btn');
 			    const simPopover = document.getElementById('task-sim-popover');
 			    const simCloseBtn = document.getElementById('task-sim-close');
@@ -1110,13 +1116,46 @@
 	    };
 	    initRichEditors();
 
-	    let players = [];
-	    try {
-	      players = JSON.parse(document.getElementById('tpad-players-catalog')?.textContent || '[]');
-	    } catch (error) {
-      players = [];
-    }
-    if (!Array.isArray(players)) players = [];
+		    let players = [];
+		    try {
+		      players = JSON.parse(document.getElementById('tpad-players-catalog')?.textContent || '[]');
+		    } catch (error) {
+	      players = [];
+	    }
+	    if (!Array.isArray(players)) players = [];
+
+	    // Estilo global de fichas (para nuevos jugadores colocados en la pizarra).
+	    const TOKEN_STYLE_STORAGE_KEY = 'webstats:tpad:token-style';
+	    const normalizeTokenStyle = (value) => {
+	      const v = safeText(value).trim().toLowerCase();
+	      if (v === 'jersey' || v === 'photo') return v;
+	      return 'disk';
+	    };
+	    const normalizeTokenPattern = (value) => {
+	      const v = safeText(value).trim().toLowerCase();
+	      if (v === 'solid') return 'solid';
+	      return 'striped';
+	    };
+	    let tokenGlobalStyle = 'disk';
+	    try { tokenGlobalStyle = normalizeTokenStyle(window.localStorage?.getItem(TOKEN_STYLE_STORAGE_KEY)); } catch (e) { /* ignore */ }
+	    const syncTokenGlobalStyleUi = () => {
+	      if (!tokenGlobalStyleActions) return;
+	      Array.from(tokenGlobalStyleActions.querySelectorAll('button[data-global-token-style]') || []).forEach((btn) => {
+	        const style = normalizeTokenStyle(btn.dataset.globalTokenStyle);
+	        btn.classList.toggle('is-active', style === tokenGlobalStyle);
+	        try { btn.setAttribute('aria-pressed', style === tokenGlobalStyle ? 'true' : 'false'); } catch (e) { /* ignore */ }
+	      });
+	    };
+	    syncTokenGlobalStyleUi();
+	    tokenGlobalStyleActions?.addEventListener('click', (event) => {
+	      const btn = event.target.closest('button[data-global-token-style]');
+	      if (!btn) return;
+	      event.preventDefault();
+	      tokenGlobalStyle = normalizeTokenStyle(btn.dataset.globalTokenStyle);
+	      try { window.localStorage?.setItem(TOKEN_STYLE_STORAGE_KEY, tokenGlobalStyle); } catch (e) { /* ignore */ }
+	      syncTokenGlobalStyleUi();
+	      setStatus(`Estilo de fichas: ${tokenGlobalStyle === 'disk' ? 'chapa' : (tokenGlobalStyle === 'jersey' ? 'camiseta' : 'foto')}.`);
+	    });
 
 	    // Assets extraídos de PDFs importados. El catálogo de iconos se ha eliminado,
 	    // pero seguimos renderizando cualquier `pdf_asset:<id>` existente en tareas previas.
@@ -1700,11 +1739,13 @@
       if (fill) return fill;
       return '#22d3ee';
     };
-	    const applyTokenColor = (group, colorHex) => {
-	      if (!group || !Array.isArray(group._objects)) return;
-	      setObjectData(group, { color: colorHex });
-	      const tokenKind = safeText(group?.data?.token_kind);
-	      const walkObjects = (node, fn) => {
+		    const applyTokenColor = (group, colorHex) => {
+		      if (!group || !Array.isArray(group._objects)) return;
+		      // Compat: el selector de color "único" sigue asignando `data.color`.
+		      // Para fichas a rayas, este color representa el color de la franja principal.
+		      setObjectData(group, { color: colorHex, token_stripe_color: colorHex });
+		      const tokenKind = safeText(group?.data?.token_kind);
+		      const walkObjects = (node, fn) => {
 	        if (!node) return;
 	        try { fn(node); } catch (e) { /* ignore */ }
 	        if (Array.isArray(node?._objects)) node._objects.forEach((child) => walkObjects(child, fn));
@@ -1777,12 +1818,75 @@
           return;
         }
         node.set({ fill: contrast });
-      });
-      group.dirty = true;
-    };
-    const applyEmojiColor = (emojiObject, colorHex) => {
-      if (!emojiObject) return;
-      setObjectData(emojiObject, { color: colorHex });
+	      });
+	      group.dirty = true;
+	    };
+
+	    const walkTokenObjects = (group, fn) => {
+	      const walk = (node) => {
+	        if (!node) return;
+	        try { fn(node); } catch (e) { /* ignore */ }
+	        if (Array.isArray(node?._objects)) node._objects.forEach((child) => walk(child));
+	      };
+	      walk(group);
+	    };
+
+	    const tokenHasStripeRoles = (group) => {
+	      let found = false;
+	      walkTokenObjects(group, (child) => {
+	        if (found) return;
+	        const role = safeText(child?.data?.role);
+	        if (role === 'token_stripe' || role === 'token_stripe_base' || role === 'token_stripes') found = true;
+	      });
+	      return found;
+	    };
+
+	    const applyTokenPalette = (group, options = {}) => {
+	      if (!group) return false;
+	      const kind = safeText(group?.data?.kind);
+	      if (kind !== 'token') return false;
+
+	      const tokenKind = safeText(group?.data?.token_kind);
+	      const baseHex = parseColorToHex(options.base, parseColorToHex(group?.data?.token_base_color, '#ffffff')) || '#ffffff';
+	      const stripeHex = parseColorToHex(options.stripe, parseColorToHex(group?.data?.token_stripe_color, baseHex)) || baseHex;
+	      const pattern = normalizeTokenPattern(options.pattern || group?.data?.token_pattern);
+
+	      setObjectData(group, { token_base_color: baseHex, token_stripe_color: stripeHex, token_pattern: pattern });
+
+	      // Tokens sin franjas: la base es el color del disco/camiseta.
+	      if (!tokenHasStripeRoles(group) || tokenKind === 'player_away' || tokenKind === 'player_rival') {
+	        applyTokenColor(group, baseHex);
+	        setObjectData(group, { token_base_color: baseHex });
+	        return true;
+	      }
+
+	      const stripeNodes = [];
+	      const baseStripeNodes = [];
+	      const baseNodes = [];
+	      walkTokenObjects(group, (child) => {
+	        if (!child) return;
+	        const role = safeText(child?.data?.role);
+	        if (role === 'token_base' || role === 'token_fill') baseNodes.push(child);
+	        if (role === 'token_stripe') stripeNodes.push(child);
+	        if (role === 'token_stripe_base') baseStripeNodes.push(child);
+	        // Compat: stripes "blancas" antiguas sin role.
+	        if (!role && child.type === 'rect') {
+	          const current = parseColorToHex(child.fill, '');
+	          if (current === '#f8fafc' || current === '#ffffff') baseStripeNodes.push(child);
+	        }
+	      });
+
+	      const effectiveBase = pattern === 'solid' ? stripeHex : baseHex;
+	      baseNodes.forEach((node) => { try { node.set({ fill: effectiveBase }); } catch (e) { /* ignore */ } });
+	      stripeNodes.forEach((node) => { try { node.set({ fill: stripeHex }); } catch (e) { /* ignore */ } });
+	      baseStripeNodes.forEach((node) => { try { node.set({ fill: effectiveBase }); } catch (e) { /* ignore */ } });
+
+	      group.dirty = true;
+	      return true;
+	    };
+	    const applyEmojiColor = (emojiObject, colorHex) => {
+	      if (!emojiObject) return;
+	      setObjectData(emojiObject, { color: colorHex });
       const glow = `${rgbaFromHex(colorHex, 0.55)} 0 0 10px`;
       if (emojiObject.type === 'text') {
         emojiObject.set({ shadow: glow });
@@ -1981,11 +2085,14 @@
 		        scaleYInput.value = '100';
 	        rotationInput.value = '0';
 	        colorInput.value = '#22d3ee';
-	        if (strokeWidthRow) strokeWidthRow.hidden = true;
-	        if (strokePresetsRow) strokePresetsRow.hidden = true;
-	        if (strokeWidthInput) strokeWidthInput.value = '3';
-	        return;
-	      }
+		        if (strokeWidthRow) strokeWidthRow.hidden = true;
+		        if (strokePresetsRow) strokePresetsRow.hidden = true;
+		        if (strokeWidthInput) strokeWidthInput.value = '3';
+		        if (tokenStyleActions) tokenStyleActions.hidden = true;
+		        if (tokenColorGrid) tokenColorGrid.hidden = true;
+		        if (tokenPatternActions) tokenPatternActions.hidden = true;
+		        return;
+		      }
 	      selectionToolbar.hidden = false;
 	      const canColor = isColorizableObject(active);
 	      selectionToolbar.querySelectorAll('input,button').forEach((node) => { node.disabled = false; });
@@ -2009,12 +2116,13 @@
 	        strokeWidthInput.disabled = !canStroke;
 	        if (canStroke) strokeWidthInput.value = String(Math.round(strokeWidth));
 	      }
-	      const isToken = safeText(active?.data?.kind) === 'token';
-	      if (tokenSizePresetsRow) tokenSizePresetsRow.hidden = !isToken;
-	      if (scalePresetsRow) scalePresetsRow.hidden = !!isToken;
-	      if (tokenMetaRow && tokenNameInput && tokenNumberInput) {
-	        tokenMetaRow.hidden = !isToken;
-	        if (isToken) {
+		      const isToken = safeText(active?.data?.kind) === 'token';
+		      if (tokenSizePresetsRow) tokenSizePresetsRow.hidden = !isToken;
+		      if (scalePresetsRow) scalePresetsRow.hidden = !!isToken;
+		      if (tokenStyleActions) tokenStyleActions.hidden = !isToken;
+		      if (tokenMetaRow && tokenNameInput && tokenNumberInput) {
+		        tokenMetaRow.hidden = !isToken;
+		        if (isToken) {
 	          const storedName = safeText(active?.data?.playerName, '');
 	          const storedNumber = safeText(active?.data?.playerNumber, '');
 	          tokenNameInput.value = storedName || safeText(findTokenChild(active, 'token_name', (child) => child?.type === 'text' && Math.abs((Number(child.top) || 0) + 35) <= 5)?.text, '');
@@ -2177,12 +2285,68 @@
 	    };
 	    tokenNameInput?.addEventListener('keydown', handleTokenInputKeydown);
 	    tokenNumberInput?.addEventListener('keydown', handleTokenInputKeydown);
-	    tokenNumberInput?.addEventListener('input', () => {
-	      if (!tokenNumberInput) return;
-	      const raw = String(tokenNumberInput.value || '');
-	      const cleaned = raw.toUpperCase().replace(/[^0-9A-Z]/g, '').slice(0, 2);
-	      if (raw !== cleaned) tokenNumberInput.value = cleaned;
-	    });
+		    tokenNumberInput?.addEventListener('input', () => {
+		      if (!tokenNumberInput) return;
+		      const raw = String(tokenNumberInput.value || '');
+		      const cleaned = raw.toUpperCase().replace(/[^0-9A-Z]/g, '').slice(0, 2);
+		      if (raw !== cleaned) tokenNumberInput.value = cleaned;
+		    });
+
+		    const resolvePlayerForToken = (tokenGroup) => {
+		      const playerId = safeText(tokenGroup?.data?.playerId);
+		      if (playerId) {
+		        const found = players.find((item) => String(item.id) === String(playerId));
+		        if (found) return found;
+		      }
+		      return {
+		        id: playerId,
+		        name: safeText(tokenGroup?.data?.playerName) || safeText(tokenGroup?.data?.name) || 'Jugador',
+		        number: safeText(tokenGroup?.data?.playerNumber) || safeText(tokenGroup?.data?.number) || '',
+		        position: '',
+		        photo_url: safeText(tokenGroup?.data?.playerPhotoUrl) || safeText(tokenGroup?.data?.photo_url) || '',
+		      };
+		    };
+
+		    const setActiveTokenStyle = (rawStyle) => {
+		      const active = activeInspectableObject();
+		      if (!active || !isTokenGroup(active)) return;
+		      if (active?.data?.locked) {
+		        setStatus('Elemento bloqueado. Usa “Desbloquear” para editarlo.', true);
+		        return;
+		      }
+		      const nextStyle = normalizeTokenStyle(rawStyle);
+		      const tokenKind = safeText(active?.data?.token_kind);
+		      const center = active.getCenterPoint ? active.getCenterPoint() : { x: Number(active.left) || 0, y: Number(active.top) || 0 };
+		      const player = resolvePlayerForToken(active);
+		      const palette = {
+		        base: safeText(active?.data?.token_base_color) || '#ffffff',
+		        stripe: safeText(active?.data?.token_stripe_color) || safeText(active?.data?.color) || '#0f7a35',
+		        pattern: safeText(active?.data?.token_pattern) || 'striped',
+		        photoUrl: safeText(active?.data?.playerPhotoUrl) || safeText(player?.photo_url),
+		      };
+		      const factory = playerTokenFactory(tokenKind || 'player_local', player, { style: nextStyle, ...palette });
+		      if (typeof factory !== 'function') return;
+		      const fresh = factory(center.x, center.y);
+		      if (!fresh) return;
+
+		      const prevData = active.data || {};
+		      const objects = canvas.getObjects() || [];
+		      const index = objects.indexOf(active);
+		      canvas.remove(active);
+		      canvas.insertAt(fresh, index >= 0 ? index : objects.length, false);
+		      fresh.set({
+		        angle: Number(active.angle) || 0,
+		        scaleX: clampScale(Number(active.scaleX) || 1),
+		        scaleY: clampScale(Number(active.scaleY) || 1),
+		        opacity: active.opacity == null ? 1 : active.opacity,
+		      });
+		      fresh.data = { ...(fresh.data || {}), layer_uid: safeText(prevData.layer_uid), locked: prevData.locked, token_size: safeText(prevData.token_size, 'm') };
+		      // Respeta nombre/dorsal editados manualmente.
+		      updateTokenAppearance(fresh, { name: safeText(prevData.playerName), number: safeText(prevData.playerNumber) });
+		      applyTokenPalette(fresh, palette);
+		      canvas.setActiveObject(fresh);
+		      commitObjectChange(`Token: ${nextStyle === 'disk' ? 'chapa' : (nextStyle === 'jersey' ? 'camiseta' : 'foto')}.`);
+		    };
 
 	    const getSelectionObjects = () => {
 	      const active = canvas.getActiveObject();
@@ -3881,9 +4045,9 @@
             const center = obj.getCenterPoint ? obj.getCenterPoint() : { x: Number(obj.left) || 0, y: Number(obj.top) || 0 };
             const legacyPlayer = resolvePlayerForLegacy(obj);
             if (typeof playerTokenFactory !== 'function') return;
-            const factory = playerTokenFactory(tokenKind, legacyPlayer);
-            if (typeof factory !== 'function') return;
-            const fresh = factory(center.x, center.y);
+	            const factory = playerTokenFactory(tokenKind, legacyPlayer, { style: 'disk' });
+	            if (typeof factory !== 'function') return;
+	            const fresh = factory(center.x, center.y);
             if (!fresh) return;
             const locked = obj?.data?.locked;
             fresh.set({
@@ -4764,7 +4928,65 @@
       });
     };
 
-			    const playerTokenFactory = (kind, player) => (left, top) => {
+		    // Acciones rápidas (ideal iPad): deshacer/rehacer/duplicar/borrar siempre arriba.
+		    const quickTools = document.getElementById('task-pitch-quick-tools');
+			    quickTools?.addEventListener('click', (event) => {
+			      const btn = event.target.closest('button[data-action]');
+			      if (!btn) return;
+			      const action = safeText(btn.dataset.action);
+			      if (!action) return;
+			      event.preventDefault();
+			      try { handleCanvasAction(action); } catch (e) { /* ignore */ }
+			    });
+
+			    const resolvePlayerPhotoUrl = (candidate) => {
+			      const url = safeText(candidate);
+			      if (!url) return '';
+			      if (url.startsWith('data:')) return url;
+			      if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('/')) return url;
+			      return url;
+			    };
+			    const loadPhotoIntoGroup = (group, url, radius) => {
+			      const src = resolvePlayerPhotoUrl(url);
+			      if (!group || !src) return;
+			      try {
+			        const img = new Image();
+			        try { img.crossOrigin = 'anonymous'; } catch (e) { /* ignore */ }
+			        img.onload = () => {
+			          try {
+			            const naturalW = Number(img.naturalWidth || img.width || 1);
+			            const naturalH = Number(img.naturalHeight || img.height || 1);
+			            const targetSize = Math.max(1, radius * 2);
+			            const scale = targetSize / Math.max(1, Math.min(naturalW, naturalH));
+			            const photo = new fabric.Image(img, {
+			              left: 0,
+			              top: 0,
+			              originX: 'center',
+			              originY: 'center',
+			              selectable: false,
+			              evented: false,
+			              scaleX: scale,
+			              scaleY: scale,
+			            });
+			            photo.clipPath = new fabric.Circle({
+			              radius,
+			              originX: 'center',
+			              originY: 'center',
+			              left: 0,
+			              top: 0,
+			            });
+			            photo.data = { role: 'token_photo' };
+			            group.addWithUpdate(photo);
+			            group.dirty = true;
+			            canvas?.requestRenderAll?.();
+			          } catch (e) { /* ignore */ }
+			        };
+			        img.onerror = () => { /* ignore */ };
+			        img.src = src;
+			      } catch (e) { /* ignore */ }
+			    };
+
+				    const playerTokenFactory = (kind, player, options = {}) => (left, top) => {
 	      const playerNameLower = safeText(player?.name, '').toLowerCase();
 	      const goalkeeperPreferBlue = playerNameLower.includes('trivi') || playerNameLower.includes('antonio');
 	      const palette = kind === 'goalkeeper_local'
@@ -4784,31 +5006,175 @@
         .join('')
         .slice(0, 2)
         .toUpperCase() || label;
-	      const tokenParts = [];
-	      let baseRadius = 22;
-	      // Estilo "chapa" (igual que en la plantilla de abajo): disco con dorsal centrado y nombre simple.
-	      // Evitamos el "jersey" y los cartuchos para que dentro del campo se vea igual que fuera.
-	      if (kind === 'player_local' || kind === 'player_away' || kind === 'goalkeeper_local') {
-	        const radius = 22;
-	        baseRadius = radius;
-	        const isAway = kind === 'player_away';
-	        const isGoalkeeper = kind === 'goalkeeper_local';
-	        const baseCircle = new fabric.Circle({
-	          radius,
-	          fill: isAway ? '#facc15' : '#ffffff',
-	          stroke: 'rgba(255,255,255,0.92)',
-	          strokeWidth: 2,
-	          originX: 'center',
-	          originY: 'center',
-	          left: 0,
-	          top: 0,
-	          shadow: 'rgba(15,23,42,0.28) 0 6px 14px',
-	        });
-	        baseCircle.data = { role: isAway ? 'token_fill' : 'token_base' };
-	        tokenParts.push(baseCircle);
-	        if (isGoalkeeper) {
-	          // Portero: disco azul con brillo suave (aproxima el gradiente CSS del bank).
-	          const gkBg = new fabric.Circle({
+		      const tokenParts = [];
+		      let baseRadius = 22;
+		      const style = normalizeTokenStyle(options?.style || player?.token_style || tokenGlobalStyle);
+		      const pattern = normalizeTokenPattern(options?.pattern || player?.token_pattern || 'striped');
+		      const defaultBase = kind === 'player_away' ? '#facc15' : '#ffffff';
+		      const defaultStripe = kind === 'player_local' ? '#0f7a35' : palette.fill;
+		      const baseColor = parseColorToHex(options?.base, parseColorToHex(player?.token_base_color, defaultBase)) || defaultBase;
+		      const stripeColor = parseColorToHex(options?.stripe, parseColorToHex(player?.token_stripe_color, defaultStripe)) || defaultStripe;
+		      const photoUrl = resolvePlayerPhotoUrl(options?.photoUrl || player?.photo_url);
+		      const effectiveBase = pattern === 'solid' ? stripeColor : baseColor;
+		      // Estilo "chapa" (igual que en la plantilla de abajo): disco con dorsal centrado y nombre simple.
+		      // Evitamos el "jersey" y los cartuchos para que dentro del campo se vea igual que fuera.
+		      if (kind === 'player_local' || kind === 'player_away' || kind === 'goalkeeper_local') {
+		        const radius = 22;
+		        baseRadius = radius;
+		        const isAway = kind === 'player_away';
+		        const isGoalkeeper = kind === 'goalkeeper_local';
+		        if (style === 'photo') {
+		          const border = new fabric.Circle({
+		            radius,
+		            fill: effectiveBase,
+		            stroke: 'rgba(255,255,255,0.92)',
+		            strokeWidth: 2,
+		            originX: 'center',
+		            originY: 'center',
+		            left: 0,
+		            top: 0,
+		            shadow: 'rgba(15,23,42,0.28) 0 6px 14px',
+		          });
+		          border.data = { role: 'token_base' };
+		          tokenParts.push(border);
+		          const placeholder = new fabric.Circle({
+		            radius: radius - 2.5,
+		            fill: 'rgba(15,23,42,0.22)',
+		            originX: 'center',
+		            originY: 'center',
+		            left: 0,
+		            top: 0,
+		            strokeWidth: 0,
+		          });
+		          placeholder.data = { role: 'token_photo_bg' };
+		          tokenParts.push(placeholder);
+		          const initialsText = new fabric.Text(initials, {
+		            originX: 'center',
+		            originY: 'center',
+		            left: 0,
+		            top: 0,
+		            fontSize: 13,
+		            fontWeight: '800',
+		            fill: '#e2e8f0',
+		          });
+		          initialsText.data = { role: 'token_initials' };
+		          tokenParts.push(initialsText);
+
+		          const numberText = new fabric.Text(isGoalkeeper ? 'GK' : label, {
+		            originX: 'center',
+		            originY: 'center',
+		            left: 0,
+		            top: 18,
+		            fontSize: 10,
+		            fontWeight: '800',
+		            fill: '#ffffff',
+		            backgroundColor: 'rgba(15,23,42,0.92)',
+		          });
+		          numberText.data = { role: 'token_number' };
+		          tokenParts.push(numberText);
+		          const nameText = new fabric.Text(displayName, {
+		            originX: 'center',
+		            originY: 'center',
+		            left: 0,
+		            top: -34,
+		            fontSize: 10,
+		            fontWeight: '700',
+		            fill: '#e2e8f0',
+		            shadow: 'rgba(15,23,42,0.55) 0 1px 2px',
+		          });
+		          nameText.data = { role: 'token_name' };
+		          tokenParts.push(nameText);
+		        } else if (style === 'jersey') {
+		          const shirtDef = 'M -22 -18 L -10 -18 L -6 -26 L 6 -26 L 10 -18 L 22 -18 L 16 -2 L 16 22 L -16 22 L -16 -2 Z';
+		          const shirtPath = new fabric.Path(shirtDef, {
+		            left: 0,
+		            top: 0,
+		            originX: 'center',
+		            originY: 'center',
+		            fill: effectiveBase,
+		            stroke: 'rgba(255,255,255,0.92)',
+		            strokeWidth: 2,
+		            shadow: 'rgba(15,23,42,0.28) 0 6px 14px',
+		          });
+		          shirtPath.data = { role: 'token_base' };
+		          tokenParts.push(shirtPath);
+		          if (!isAway && !isGoalkeeper) {
+		            const stripeWidth = 8;
+		            const stripeCount = 7;
+		            const start = -24 + (stripeWidth / 2);
+		            const stripes = [];
+		            for (let i = 0; i < stripeCount; i += 1) {
+		              const isStripe = i % 2 === 0;
+		              const stripe = new fabric.Rect({
+		                left: start + (i * stripeWidth),
+		                top: 0,
+		                width: stripeWidth,
+		                height: 64,
+		                fill: isStripe ? stripeColor : effectiveBase,
+		                originX: 'center',
+		                originY: 'center',
+		              });
+		              stripe.data = { role: isStripe ? 'token_stripe' : 'token_stripe_base' };
+		              stripes.push(stripe);
+		            }
+		            const stripeGroup = new fabric.Group(stripes, {
+		              originX: 'center',
+		              originY: 'center',
+		              left: 0,
+		              top: 0,
+		              selectable: false,
+		              evented: false,
+		            });
+		            stripeGroup.clipPath = new fabric.Path(shirtDef, {
+		              left: 0,
+		              top: 0,
+		              originX: 'center',
+		              originY: 'center',
+		            });
+		            stripeGroup.data = { role: 'token_stripes' };
+		            tokenParts.push(stripeGroup);
+		          }
+		          const numberText = new fabric.Text(isGoalkeeper ? 'GK' : label, {
+		            originX: 'center',
+		            originY: 'center',
+		            left: 0,
+		            top: -2,
+		            fontSize: 14,
+		            fontWeight: '800',
+		            fill: '#ffffff',
+		            shadow: 'rgba(15,23,42,0.65) 0 1px 2px',
+		          });
+		          numberText.data = { role: 'token_number' };
+		          tokenParts.push(numberText);
+		          const nameText = new fabric.Text(displayName, {
+		            originX: 'center',
+		            originY: 'center',
+		            left: 0,
+		            top: -34,
+		            fontSize: 10,
+		            fontWeight: '700',
+		            fill: '#e2e8f0',
+		            shadow: 'rgba(15,23,42,0.55) 0 1px 2px',
+		          });
+		          nameText.data = { role: 'token_name' };
+		          tokenParts.push(nameText);
+		        } else {
+		          const baseCircle = new fabric.Circle({
+		            radius,
+		            fill: isAway ? stripeColor : effectiveBase,
+		            stroke: 'rgba(255,255,255,0.92)',
+		            strokeWidth: 2,
+		            originX: 'center',
+		            originY: 'center',
+		            left: 0,
+		            top: 0,
+		            shadow: 'rgba(15,23,42,0.28) 0 6px 14px',
+		          });
+		          baseCircle.data = { role: isAway ? 'token_fill' : 'token_base' };
+		          tokenParts.push(baseCircle);
+		        if (isGoalkeeper) {
+		          // Portero: disco azul con brillo suave (aproxima el gradiente CSS del bank).
+		          const gkBg = new fabric.Circle({
 	            radius: radius - 1,
 	            originX: 'center',
 	            originY: 'center',
@@ -4836,28 +5202,28 @@
 	            fill: 'rgba(255,255,255,0.28)',
 	            strokeWidth: 0,
 	          });
-	          highlight.data = { role: 'token_highlight' };
-	          tokenParts.push(highlight);
-	        } else if (!isAway) {
-	          const stripeWidth = 8;
+		          highlight.data = { role: 'token_highlight' };
+		          tokenParts.push(highlight);
+		        } else if (!isAway) {
+		          const stripeWidth = 8;
 	          const stripeHeight = 46;
 	          const stripeCount = Math.ceil((radius * 2) / stripeWidth) + 1;
 	          const start = (-radius) + (stripeWidth / 2);
 	          const stripes = [];
 	          for (let i = 0; i < stripeCount; i += 1) {
 	            const isGreen = i % 2 === 0;
-	            const stripe = new fabric.Rect({
-	              left: start + (i * stripeWidth),
-	              top: 0,
-	              width: stripeWidth,
-	              height: stripeHeight,
-	              fill: isGreen ? '#0f7a35' : '#f8fafc',
-	              originX: 'center',
-	              originY: 'center',
-	            });
-	            if (isGreen) stripe.data = { role: 'token_stripe' };
-	            stripes.push(stripe);
-	          }
+		            const stripe = new fabric.Rect({
+		              left: start + (i * stripeWidth),
+		              top: 0,
+		              width: stripeWidth,
+		              height: stripeHeight,
+		              fill: isGreen ? stripeColor : effectiveBase,
+		              originX: 'center',
+		              originY: 'center',
+		            });
+		            stripe.data = { role: isGreen ? 'token_stripe' : 'token_stripe_base' };
+		            stripes.push(stripe);
+		          }
 	          // Clip a nivel de grupo (más robusto que aplicar el mismo clipPath a cada rect).
 	          const stripeGroup = new fabric.Group(stripes, {
 	            originX: 'center',
@@ -4874,10 +5240,10 @@
 	            left: 0,
 	            top: 0,
 	          });
-	          stripeGroup.data = { role: 'token_stripes' };
-	          tokenParts.push(stripeGroup);
-	        }
-	        const numberText = new fabric.Text(isGoalkeeper ? 'GK' : label, {
+		          stripeGroup.data = { role: 'token_stripes' };
+		          tokenParts.push(stripeGroup);
+		        }
+		        const numberText = new fabric.Text(isGoalkeeper ? 'GK' : label, {
 	          originX: 'center',
 	          originY: 'center',
 	          left: 0,
@@ -4899,9 +5265,10 @@
 	          fill: '#e2e8f0',
 	          shadow: 'rgba(15,23,42,0.55) 0 1px 2px',
 	        });
-	        nameText.data = { role: 'token_name' };
-	        tokenParts.push(nameText);
-	      } else {
+		        nameText.data = { role: 'token_name' };
+		        tokenParts.push(nameText);
+		        }
+		      } else {
 	        baseRadius = kind === 'goalkeeper_local' ? 24 : 21;
 	        const circle = new fabric.Circle({
 	          radius: baseRadius,
@@ -4971,16 +5338,21 @@
 	        originX: 'center',
 	        originY: 'center',
 		        data: {
-		          kind: 'token',
-		          token_kind: kind,
-		          token_base_radius: baseRadius,
-		          token_size: 'm',
-		          color: kind === 'player_local' ? '#1f7a38' : (kind === 'player_away' ? '#facc15' : palette.fill),
-		          playerId: player?.id || '',
-		          playerName,
-		          playerNumber: safeText(label),
-		        },
-		      });
+			          kind: 'token',
+			          token_kind: kind,
+			          token_base_radius: baseRadius,
+			          token_size: 'm',
+			          token_style: style,
+			          token_pattern: pattern,
+			          token_base_color: baseColor,
+			          token_stripe_color: stripeColor,
+			          color: kind === 'player_local' ? stripeColor : (kind === 'player_away' ? stripeColor : palette.fill),
+			          playerId: player?.id || '',
+			          playerName,
+			          playerNumber: safeText(label),
+			          playerPhotoUrl: photoUrl,
+			        },
+			      });
 		      // Evita blur por cache rasterizado al escalar/zoomear; los tokens son vectoriales.
 		      try { group.objectCaching = false; } catch (error) { /* ignore */ }
 		      try { group.noScaleCache = true; } catch (error) { /* ignore */ }
@@ -4991,8 +5363,11 @@
 		          try { part.noScaleCache = true; } catch (e) { /* ignore */ }
 		        });
 		      } catch (error) { /* ignore */ }
-			      return group;
-			    };
+			      if (style === 'photo' && photoUrl) {
+			        try { loadPhotoIntoGroup(group, photoUrl, 19.2); } catch (e) { /* ignore */ }
+			      }
+				      return group;
+				    };
 
 	    const buildGoalGroup = (left, top, style = 'net', options = {}) => {
 	      const stroke = safeText(options.stroke, '#f8fafc') || '#f8fafc';
@@ -6847,18 +7222,30 @@
         active.rotate(Number(rotationInput.value) || 0);
       }, 'Orientación actualizada.');
     });
-	    colorInput?.addEventListener('input', () => {
-	      applyToActiveFlexibleObject((active) => {
-	        applyObjectColor(active, colorInput.value || '#22d3ee');
-	      }, 'Color actualizado.');
-	      if (freeDrawMode && canvas && canvas.freeDrawingBrush) {
-	        try { canvas.freeDrawingBrush.color = colorInput.value || '#22d3ee'; } catch (e) { /* ignore */ }
-	      }
-	    });
-	    strokeWidthInput?.addEventListener('input', () => {
-	      applyToActiveFlexibleObject((active) => {
-	        applyObjectStrokeWidth(active, Number(strokeWidthInput.value) || 3);
-	      }, 'Grosor actualizado.');
+		    colorInput?.addEventListener('input', () => {
+		      applyToActiveFlexibleObject((active) => {
+		        applyObjectColor(active, colorInput.value || '#22d3ee');
+		      }, 'Color actualizado.');
+		      if (freeDrawMode && canvas && canvas.freeDrawingBrush) {
+		        try { canvas.freeDrawingBrush.color = colorInput.value || '#22d3ee'; } catch (e) { /* ignore */ }
+		      }
+		    });
+		    tokenBaseColorInput?.addEventListener('input', () => {
+		      applyToActiveFlexibleObject((active) => {
+		        if (!isTokenGroup(active)) return;
+		        applyTokenPalette(active, { base: tokenBaseColorInput.value });
+		      }, 'Base actualizada.');
+		    });
+		    tokenStripeColorInput?.addEventListener('input', () => {
+		      applyToActiveFlexibleObject((active) => {
+		        if (!isTokenGroup(active)) return;
+		        applyTokenPalette(active, { stripe: tokenStripeColorInput.value });
+		      }, 'Franjas actualizadas.');
+		    });
+		    strokeWidthInput?.addEventListener('input', () => {
+		      applyToActiveFlexibleObject((active) => {
+		        applyObjectStrokeWidth(active, Number(strokeWidthInput.value) || 3);
+		      }, 'Grosor actualizado.');
 	      if (freeDrawMode && canvas && canvas.freeDrawingBrush) {
 	        try { canvas.freeDrawingBrush.width = clamp(Number(strokeWidthInput.value) || 4, 1, 26); } catch (e) { /* ignore */ }
 	      }
@@ -6879,18 +7266,31 @@
 		        pasteClipboardObject();
 		        return;
 		      }
-		      const tokenSize = safeText(button.dataset.tokenSize);
-		      if (tokenSize) {
-		        applyToActiveFlexibleObject((active) => {
-		          if (!isTokenGroup(active)) return;
-		          setTokenStandardSize(active, tokenSize);
-		        }, `Chapa: ${tokenSize.toUpperCase()}.`);
-		        return;
-		      }
-		      const scalePreset = Number(button.dataset.scalePreset);
-		      if (!Number.isNaN(scalePreset) && button.dataset.scalePreset !== undefined) {
-		        const active = activeInspectableObject();
-		        const next = clampScale(scalePreset / 100, maxScaleForObject(active));
+			      const tokenSize = safeText(button.dataset.tokenSize);
+			      if (tokenSize) {
+			        applyToActiveFlexibleObject((active) => {
+			          if (!isTokenGroup(active)) return;
+			          setTokenStandardSize(active, tokenSize);
+			        }, `Chapa: ${tokenSize.toUpperCase()}.`);
+			        return;
+			      }
+			      const tokenStyle = safeText(button.dataset.tokenStyle);
+			      if (tokenStyle) {
+			        setActiveTokenStyle(tokenStyle);
+			        return;
+			      }
+			      const tokenPattern = safeText(button.dataset.tokenPattern);
+			      if (tokenPattern) {
+			        applyToActiveFlexibleObject((active) => {
+			          if (!isTokenGroup(active)) return;
+			          applyTokenPalette(active, { pattern: tokenPattern });
+			        }, `Patrón: ${normalizeTokenPattern(tokenPattern) === 'solid' ? 'sólido' : 'rayas'}.`);
+			        return;
+			      }
+			      const scalePreset = Number(button.dataset.scalePreset);
+			      if (!Number.isNaN(scalePreset) && button.dataset.scalePreset !== undefined) {
+			        const active = activeInspectableObject();
+			        const next = clampScale(scalePreset / 100, maxScaleForObject(active));
 		        if (scaleXInput) scaleXInput.value = String(scalePreset);
 		        if (scaleYInput) scaleYInput.value = String(scalePreset);
 		        applyToActiveFlexibleObject((active) => {
@@ -7495,6 +7895,38 @@
 		        } catch (err) {
 		          return '';
 		        }
+		      }
+
+		      if (isToken) {
+		        const style = normalizeTokenStyle(active?.data?.token_style);
+		        if (tokenStyleActions) {
+		          Array.from(tokenStyleActions.querySelectorAll('button[data-token-style]') || []).forEach((btn) => {
+		            const btnStyle = normalizeTokenStyle(btn.dataset.tokenStyle);
+		            btn.classList.toggle('is-active', btnStyle === style);
+		            try { btn.setAttribute('aria-pressed', btnStyle === style ? 'true' : 'false'); } catch (e) { /* ignore */ }
+		          });
+		        }
+		        const hasStripes = tokenHasStripeRoles(active);
+		        if (tokenColorGrid) tokenColorGrid.hidden = !hasStripes || style === 'photo';
+		        if (tokenPatternActions) tokenPatternActions.hidden = !hasStripes || style === 'photo';
+		        if (tokenBaseColorInput) {
+		          try { tokenBaseColorInput.value = parseColorToHex(active?.data?.token_base_color, '#ffffff'); } catch (e) { /* ignore */ }
+		        }
+		        if (tokenStripeColorInput) {
+		          try { tokenStripeColorInput.value = parseColorToHex(active?.data?.token_stripe_color, objectPreferredColor(active)); } catch (e) { /* ignore */ }
+		        }
+		        if (tokenPatternActions) {
+		          const pattern = normalizeTokenPattern(active?.data?.token_pattern);
+		          Array.from(tokenPatternActions.querySelectorAll('button[data-token-pattern]') || []).forEach((btn) => {
+		            const btnPattern = normalizeTokenPattern(btn.dataset.tokenPattern);
+		            btn.classList.toggle('is-active', btnPattern === pattern);
+		            try { btn.setAttribute('aria-pressed', btnPattern === pattern ? 'true' : 'false'); } catch (e) { /* ignore */ }
+		          });
+		        }
+		      } else {
+		        if (tokenStyleActions) tokenStyleActions.hidden = true;
+		        if (tokenColorGrid) tokenColorGrid.hidden = true;
+		        if (tokenPatternActions) tokenPatternActions.hidden = true;
 		      }
 		    };
 
