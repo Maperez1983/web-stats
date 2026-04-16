@@ -32138,6 +32138,17 @@ def _assistant__norm_line(s: str) -> str:
     except Exception:
         raw = ''
     raw = _assistant__strip_accents(raw).casefold()
+    # Normaliza símbolos frecuentes en OCR de PDFs/libros.
+    raw = (
+        raw.replace('¢', 'c')
+        .replace('©', 'c')
+        .replace('ç', 'c')
+        .replace('€', 'e')
+        .replace('®', 'r')
+        .replace('“', '"')
+        .replace('”', '"')
+        .replace('’', "'")
+    )
     raw = re.sub(r'\s+', ' ', raw).strip()
     raw = re.sub(r'[\|·•]+', ' ', raw).strip()
     return raw
@@ -32164,6 +32175,85 @@ def _assistant__split_sentences(text: str, limit: int = 12):
         if len(out) >= limit:
             break
     return out
+
+
+def _assistant__derive_compact_task_title(text: str) -> str:
+    """
+    Intenta extraer un título compacto tipo "3c3+porteros" desde OCR ruidoso.
+    """
+    low = _assistant__norm_line(text)
+    if not low:
+        return ''
+    # Primer patrón tipo "3 c 3", "3vs3", etc.
+    m = re.search(r'\b(\d{1,2})\s*(c|vs)\s*(\d{1,2})\b', low)
+    if not m:
+        # A veces OCR junta: "3c3"
+        m = re.search(r'\b(\d{1,2})c(\d{1,2})\b', low)
+    if not m:
+        # OCR a veces pierde la "c": "11 11 en espacio reducido"
+        m = re.search(r'\b(\d{1,2})\s+(\d{1,2})\s+en\s+espacio\b', low)
+    if not m:
+        return ''
+    try:
+        a = int(m.group(1))
+        if m.lastindex and m.lastindex >= 3 and m.group(3):
+            b = int(m.group(3))
+        else:
+            b = int(m.group(2))
+    except Exception:
+        return ''
+    base = f'{a}c{b}'
+
+    # Captura contexto alrededor para detectar "+ N", "portero", "comodin".
+    try:
+        start = max(0, int(m.start()) - 40)
+        end = min(len(low), int(m.end()) + 120)
+        ctx = low[start:end]
+    except Exception:
+        ctx = low
+
+    # "+ 2" (comodines, etc.)
+    plus_num = None
+    try:
+        m2 = re.search(r'\+\s*(\d{1,2})\b', ctx)
+        if m2:
+            plus_num = int(m2.group(1))
+    except Exception:
+        plus_num = None
+
+    has_goalkeepers = 'portero' in ctx or 'porteros' in ctx
+    has_comodin = 'comodin' in ctx or 'comodines' in ctx or 'comodi' in ctx
+
+    suffix = ''
+    if plus_num:
+        suffix += f'+{plus_num}'
+    if has_goalkeepers:
+        suffix += '+porteros'
+    if has_comodin and '+comod' not in suffix:
+        suffix += '+comodines'
+
+    out = (base + suffix).strip('+')
+    out = re.sub(r'[^0-9a-z\+]+', '', out)
+    return out[:32]
+
+
+def _assistant__derive_task_theme(text: str) -> str:
+    low = _assistant__norm_line(text)
+    if not low:
+        return ''
+    if any(k in low for k in ('finalizacion', 'remate', 'gol', 'porteria', 'tiro', 'disparo')):
+        return 'Finalización'
+    if any(k in low for k in ('salida', 'progresion', 'organiza', 'inicio', 'construccion')):
+        return 'Salida / progresión'
+    if 'posesion' in low or 'conserva' in low:
+        return 'Posesión'
+    if any(k in low for k in ('presion', 'recuperacion', 'robo', 'intercepcion', 'perdida')):
+        return 'Presión / recuperación'
+    if 'transicion' in low:
+        return 'Transición'
+    if any(k in low for k in ('condicionante', 'fuerza', 'resistencia', 'velocidad', 'potencia')):
+        return 'Condicionante físico'
+    return ''
 
 
 def _assistant__extract_task_sheet_sections(text: str):
@@ -32210,14 +32300,21 @@ def _assistant__extract_task_sheet_sections(text: str):
                 break
 
     # Title: primera línea con pinta de "X c Y" o que contenga "portero/porteros" o "mini-partido".
-    title = ''
-    for s in lines[:12]:
-        low = _assistant__norm_line(s)
-        if re.search(r'\b\d+\s*(c|vs)\s*\d+\b', low) or 'portero' in low or 'mini' in low:
-            title = s
-            break
-    if not title:
-        title = lines[0]
+    compact = _assistant__derive_compact_task_title('\n'.join(lines[:60]))
+    theme = _assistant__derive_task_theme('\n'.join(lines[:120]))
+    if compact and theme:
+        title = f'{compact} · {theme}'
+    elif compact:
+        title = compact
+    else:
+        title = ''
+        for s in lines[:12]:
+            low = _assistant__norm_line(s)
+            if re.search(r'\b\d+\s*(c|vs)\s*\d+\b', low) or 'portero' in low or 'mini' in low:
+                title = s
+                break
+        if not title:
+            title = lines[0]
     title = _sanitize_task_text(title, multiline=False, max_len=90)
 
     # Extrae secciones por rangos de líneas.
@@ -32301,7 +32398,13 @@ def _assistant_create_blueprint_from_task_sheet(team, doc: AssistantKnowledgeDoc
         TaskBlueprint.CATEGORY_PHYSICAL: 'Condicionante físico',
     }.get(category, 'Otros')
 
-    name = f'{title} · ficha (doc {int(doc.id)})'
+    stem = Path(str(getattr(doc, 'title', '') or '')).stem.strip() if 'Path' in globals() else ''
+    stem = _sanitize_task_text(stem, multiline=False, max_len=40)
+    if stem:
+        name = f'{stem} · {title}'
+    else:
+        name = title
+    name = f'{name} · ficha (doc {int(doc.id)})'
     name = _sanitize_task_text(name, multiline=False, max_len=160)
     if not name:
         return {'created': 0, 'updated': 0}
