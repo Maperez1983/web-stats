@@ -37,6 +37,13 @@ class Command(BaseCommand):
             help="Máximo de ficheros a procesar (evita importaciones accidentales enormes).",
         )
         parser.add_argument(
+            "--images-only",
+            dest="images_only",
+            action="store_true",
+            default=False,
+            help="Importa únicamente imágenes (png/jpg/jpeg/webp). Útil para evitar importar .txt/.pdf de carpetas temporales.",
+        )
+        parser.add_argument(
             "--dry-run",
             dest="dry_run",
             action="store_true",
@@ -69,8 +76,11 @@ class Command(BaseCommand):
         dry_run = bool(options.get("dry_run"))
         skip_blueprints = bool(options.get("skip_blueprints"))
         skip_extract = bool(options.get("skip_extract"))
+        images_only = bool(options.get("images_only"))
 
         allowed = {".pdf", ".txt", ".md", ".png", ".jpg", ".jpeg", ".webp"}
+        if images_only:
+            allowed = {".png", ".jpg", ".jpeg", ".webp"}
         paths = []
         if root.is_file():
             paths = [root]
