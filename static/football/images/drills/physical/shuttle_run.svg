@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Shuttle run ida y vuelta">
+  <g fill="none" stroke="#0f7a35" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="20" cy="14" r="6"/>
+    <path d="M20 20 L20 34"/>
+    <path d="M20 26 L10 28"/>
+    <path d="M20 26 L30 28"/>
+    <path d="M20 34 L12 56"/>
+    <path d="M20 34 L28 56"/>
+    <!-- cones/turn points -->
+    <path d="M48 46 L48 56"/>
+    <path d="M56 46 L56 56"/>
+    <!-- shuttle arrows -->
+    <path d="M28 42 L56 42"/>
+    <path d="M56 42 L52 38"/>
+    <path d="M56 42 L52 46"/>
+    <path d="M56 36 L28 36"/>
+    <path d="M28 36 L32 32"/>
+    <path d="M28 36 L32 40"/>
+  </g>
+</svg>
+

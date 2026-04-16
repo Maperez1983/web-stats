@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Sprint máximo">
+  <g fill="none" stroke="#0f7a35" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="38" cy="12" r="6"/>
+    <path d="M36 18 L30 30 L18 28"/>
+    <path d="M30 30 L44 34"/>
+    <path d="M44 34 L56 28"/>
+    <path d="M28 34 L14 48"/>
+    <path d="M14 48 L8 56"/>
+    <path d="M44 34 L40 56"/>
+    <!-- speed lines -->
+    <path d="M6 26 L18 26"/>
+    <path d="M6 32 L16 32"/>
+    <path d="M6 38 L14 38"/>
+  </g>
+</svg>
+

@@ -85,6 +85,120 @@ DRILL_CATALOG: List[Drill] = [
         icon_static_path="football/images/drills/running/hamstring_sweep.svg",
         tags=("warmup", "mobility"),
     ),
+    # Carga física (campo)
+    Drill(
+        id="acceleration",
+        label="Aceleraciones",
+        category="physical_field",
+        icon_static_path="football/images/drills/physical/acceleration.svg",
+        tags=("physical", "field", "speed"),
+    ),
+    Drill(
+        id="max_sprint",
+        label="Sprint máximo",
+        category="physical_field",
+        icon_static_path="football/images/drills/physical/max_sprint.svg",
+        tags=("physical", "field", "speed"),
+    ),
+    Drill(
+        id="deceleration",
+        label="Frenadas (deceleración)",
+        category="physical_field",
+        icon_static_path="football/images/drills/physical/deceleration.svg",
+        tags=("physical", "field", "cod"),
+    ),
+    Drill(
+        id="change_direction",
+        label="Cambios de dirección (COD)",
+        category="physical_field",
+        icon_static_path="football/images/drills/physical/change_direction.svg",
+        tags=("physical", "field", "cod"),
+    ),
+    Drill(
+        id="shuttle_run",
+        label="Ida y vuelta (shuttle)",
+        category="physical_field",
+        icon_static_path="football/images/drills/physical/shuttle_run.svg",
+        tags=("physical", "field", "hiit"),
+    ),
+    Drill(
+        id="jump_land",
+        label="Saltos + aterrizaje",
+        category="plyo",
+        icon_static_path="football/images/drills/physical/jump_land.svg",
+        tags=("physical", "field", "plyo"),
+    ),
+    Drill(
+        id="pogo_hops",
+        label="Saltitos (pogo hops)",
+        category="plyo",
+        icon_static_path="football/images/drills/physical/pogo_hops.svg",
+        tags=("physical", "field", "plyo"),
+    ),
+    # Carga física (gimnasio / fuerza)
+    Drill(
+        id="squat",
+        label="Sentadilla",
+        category="strength",
+        icon_static_path="football/images/drills/physical/squat.svg",
+        tags=("physical", "gym", "strength"),
+    ),
+    Drill(
+        id="hinge",
+        label="Bisagra cadera (hinge)",
+        category="strength",
+        icon_static_path="football/images/drills/physical/hinge.svg",
+        tags=("physical", "gym", "strength"),
+    ),
+    Drill(
+        id="split_squat",
+        label="Zancada (split squat)",
+        category="strength",
+        icon_static_path="football/images/drills/physical/split_squat.svg",
+        tags=("physical", "gym", "strength"),
+    ),
+    Drill(
+        id="nordic",
+        label="Nórdicos (isquios)",
+        category="prehab",
+        icon_static_path="football/images/drills/physical/nordic.svg",
+        tags=("physical", "gym", "prehab", "hamstring"),
+    ),
+    Drill(
+        id="calf_raise",
+        label="Gemelo (elevación)",
+        category="prehab",
+        icon_static_path="football/images/drills/physical/calf_raise.svg",
+        tags=("physical", "gym", "prehab"),
+    ),
+    Drill(
+        id="plank",
+        label="Plancha",
+        category="core",
+        icon_static_path="football/images/drills/physical/plank.svg",
+        tags=("physical", "gym", "core"),
+    ),
+    Drill(
+        id="side_plank",
+        label="Plancha lateral",
+        category="core",
+        icon_static_path="football/images/drills/physical/side_plank.svg",
+        tags=("physical", "gym", "core"),
+    ),
+    Drill(
+        id="push_up",
+        label="Flexiones",
+        category="strength",
+        icon_static_path="football/images/drills/physical/push_up.svg",
+        tags=("physical", "gym", "strength"),
+    ),
+    Drill(
+        id="band_row",
+        label="Remo con goma",
+        category="strength",
+        icon_static_path="football/images/drills/physical/band_row.svg",
+        tags=("physical", "gym", "strength"),
+    ),
 ]
 
 
@@ -186,4 +300,3 @@ def drill_cards(ids: Iterable[str]) -> List[dict]:
             }
         )
     return cards
-

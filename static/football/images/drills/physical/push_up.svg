@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Flexiones">
+  <g fill="none" stroke="#0f7a35" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="18" cy="22" r="5"/>
+    <path d="M14 26 L34 30"/>
+    <path d="M34 30 L56 30"/>
+    <path d="M34 30 L28 56"/>
+    <path d="M56 30 L54 56"/>
+    <!-- down arrow -->
+    <path d="M10 46 L10 56"/>
+    <path d="M10 56 L6 52"/>
+    <path d="M10 56 L14 52"/>
+  </g>
+</svg>
+

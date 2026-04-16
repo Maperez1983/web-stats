@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Plancha">
+  <g fill="none" stroke="#0f7a35" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="18" cy="22" r="5"/>
+    <path d="M14 26 L34 32"/>
+    <path d="M34 32 L56 34"/>
+    <path d="M34 32 L28 56"/>
+    <path d="M56 34 L54 56"/>
+    <path d="M10 40 L58 40"/>
+  </g>
+</svg>
+

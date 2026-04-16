@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Pogo hops">
+  <g fill="none" stroke="#0f7a35" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="30" cy="12" r="6"/>
+    <path d="M30 18 L30 34"/>
+    <path d="M30 24 L18 28"/>
+    <path d="M30 24 L42 28"/>
+    <path d="M30 34 L26 56"/>
+    <path d="M30 34 L34 56"/>
+    <!-- bounce arrows -->
+    <path d="M52 18 L52 32"/>
+    <path d="M52 18 L48 22"/>
+    <path d="M52 18 L56 22"/>
+    <path d="M52 46 L52 32"/>
+    <path d="M52 46 L48 42"/>
+    <path d="M52 46 L56 42"/>
+  </g>
+</svg>
+

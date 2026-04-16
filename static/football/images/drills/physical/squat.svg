@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Sentadilla">
+  <g fill="none" stroke="#0f7a35" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="32" cy="12" r="6"/>
+    <path d="M32 18 L32 30"/>
+    <path d="M32 24 L18 24"/>
+    <path d="M32 24 L46 24"/>
+    <path d="M32 30 L22 38"/>
+    <path d="M22 38 L18 56"/>
+    <path d="M32 30 L42 38"/>
+    <path d="M42 38 L46 56"/>
+    <!-- chair line -->
+    <path d="M12 44 L52 44"/>
+  </g>
+</svg>
+

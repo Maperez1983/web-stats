@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Frenadas deceleración">
+  <g fill="none" stroke="#0f7a35" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="36" cy="12" r="6"/>
+    <path d="M36 18 L30 30 L18 28"/>
+    <path d="M30 30 L40 40"/>
+    <path d="M40 40 L54 56"/>
+    <path d="M28 34 L16 52"/>
+    <path d="M16 52 L10 56"/>
+    <!-- stop marker -->
+    <path d="M56 20 L56 36"/>
+    <path d="M50 20 L50 36"/>
+  </g>
+</svg>
+

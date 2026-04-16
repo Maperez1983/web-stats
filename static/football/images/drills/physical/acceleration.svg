@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Aceleraciones">
+  <g fill="none" stroke="#0f7a35" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="26" cy="14" r="6"/>
+    <path d="M26 20 L30 30 L18 30"/>
+    <path d="M30 30 L42 34"/>
+    <path d="M42 34 L56 30"/>
+    <path d="M30 32 L18 46"/>
+    <path d="M18 46 L12 56"/>
+    <path d="M42 34 L38 56"/>
+    <!-- arrows forward -->
+    <path d="M40 16 L58 16"/>
+    <path d="M58 16 L54 12"/>
+    <path d="M58 16 L54 20"/>
+  </g>
+</svg>
+

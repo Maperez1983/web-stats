@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Nórdicos isquios">
+  <g fill="none" stroke="#0f7a35" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="22" cy="18" r="6"/>
+    <path d="M18 24 L32 30"/>
+    <path d="M32 30 L52 34"/>
+    <path d="M32 30 L24 52"/>
+    <path d="M24 52 L18 56"/>
+    <path d="M52 34 L56 56"/>
+    <!-- anchor feet -->
+    <path d="M44 56 L60 56"/>
+  </g>
+</svg>
+

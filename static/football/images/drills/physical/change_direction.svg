@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Cambios de dirección">
+  <g fill="none" stroke="#0f7a35" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="24" cy="14" r="6"/>
+    <path d="M24 20 L24 34"/>
+    <path d="M24 26 L12 28"/>
+    <path d="M24 26 L36 28"/>
+    <path d="M24 34 L16 56"/>
+    <path d="M24 34 L34 50"/>
+    <!-- direction arrows -->
+    <path d="M44 18 C52 18 56 22 56 30"/>
+    <path d="M56 30 L52 26"/>
+    <path d="M56 30 L60 26"/>
+    <path d="M56 30 C56 38 52 42 44 42"/>
+    <path d="M44 42 L48 38"/>
+    <path d="M44 42 L48 46"/>
+  </g>
+</svg>
+

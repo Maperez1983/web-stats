@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Salto y aterrizaje">
+  <g fill="none" stroke="#0f7a35" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="32" cy="12" r="6"/>
+    <path d="M32 18 L32 30"/>
+    <path d="M32 24 L20 28"/>
+    <path d="M32 24 L44 28"/>
+    <path d="M32 30 L24 44"/>
+    <path d="M32 30 L40 44"/>
+    <path d="M24 44 L18 56"/>
+    <path d="M40 44 L46 56"/>
+    <!-- jump arrow -->
+    <path d="M10 40 L10 24"/>
+    <path d="M10 24 L6 28"/>
+    <path d="M10 24 L14 28"/>
+    <!-- landing mark -->
+    <path d="M54 54 L60 60"/>
+    <path d="M60 54 L54 60"/>
+  </g>
+</svg>
+

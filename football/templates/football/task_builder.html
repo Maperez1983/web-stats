@@ -2848,9 +2848,23 @@
 	                      Útil para calentamientos (técnica de carrera / movilidad). Se imprimen en el PDF como secuencia visual.
 	                    </div>
 	                    <input type="hidden" name="draw_task_drills_json" id="draw-task-drills-json" value="{{ initial.drills_json|default:'[]'|escape }}" />
+	                    <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; margin-bottom:0.45rem;">
+	                      <input type="text" id="task-drills-search" placeholder="Buscar…" style="flex:1 1 140px; min-width:140px;" />
+	                      <select id="task-drills-filter" style="flex:0 0 auto;">
+	                        <option value="all">Todos</option>
+	                        <option value="running">Carrera</option>
+	                        <option value="running_technique">Técnica carrera</option>
+	                        <option value="mobility">Movilidad</option>
+	                        <option value="physical_field">Carga · campo</option>
+	                        <option value="plyo">Pliometría</option>
+	                        <option value="strength">Fuerza</option>
+	                        <option value="core">Core</option>
+	                        <option value="prehab">Prehab</option>
+	                      </select>
+	                    </div>
 	                    <div class="drills-picker" id="task-drills-picker" style="margin-top:0.35rem;">
 	                      {% for drill in drills_catalog %}
-	                      <label class="chip-toggle" title="{{ drill.label }}">
+	                      <label class="chip-toggle" title="{{ drill.label }}" data-drill-cat="{{ drill.category }}" data-drill-label="{{ drill.label }}">
 	                        <input type="checkbox" value="{{ drill.id }}" {% if drill.id in initial.drills_ids %}checked{% endif %} data-drill-id="{{ drill.id }}" />
 	                        <img class="drill-icon" src="{% static drill.icon_static_path %}" alt="" />
 	                        {{ drill.label }}
@@ -2925,13 +2939,15 @@
 		                            <option value="u19">Competición (16+)</option>
 		                          </select>
 		                        </label>
-		                        <label style="grid-column:1 / -1;">
-		                          Fase / foco
-		                          <select id="task-assistant-goal">
-		                            <option value="warmup">Calentamiento (con/sin balón)</option>
-		                            <option value="build_up">Salida de balón</option>
-		                            <option value="progression">Progresión (superar líneas)</option>
-		                            <option value="final_third">Último tercio / finalización</option>
+			                        <label style="grid-column:1 / -1;">
+			                          Fase / foco
+			                          <select id="task-assistant-goal">
+			                            <option value="warmup">Calentamiento (con/sin balón)</option>
+			                            <option value="physical_field">Carga física · campo</option>
+			                            <option value="physical_gym">Carga física · fuerza (gimnasio)</option>
+			                            <option value="build_up">Salida de balón</option>
+			                            <option value="progression">Progresión (superar líneas)</option>
+			                            <option value="final_third">Último tercio / finalización</option>
 		                            <option value="pressing">Presión organizada</option>
 		                            <option value="counterpress">Presión tras pérdida</option>
 		                            <option value="defending">Defensa en bloque (medio/bajo)</option>
@@ -3138,18 +3154,22 @@
                     Reparto jugadores
                     <input type="text" name="draw_task_players_distribution" value="{{ initial.players_distribution }}" placeholder="Ej: 2 líneas + pivote" />
                   </label>
-                  <label>
-                    Series
-                    <input type="text" name="draw_task_series" value="{{ initial.series }}" placeholder="Ej: 4" />
-                  </label>
-                  <label>
-                    Repeticiones
-                    <input type="text" name="draw_task_repetitions" value="{{ initial.repetitions }}" placeholder="Ej: 3" />
-                  </label>
-	                  <label>
-	                    Carga objetivo
-	                    <input type="text" name="draw_task_load_target" value="{{ initial.load_target }}" placeholder="Ej: RPE 7" />
+		                  <label>
+	                    Series
+	                    <input type="text" name="draw_task_series" value="{{ initial.series }}" placeholder="Ej: 4" />
 	                  </label>
+	                  <label>
+	                    Repeticiones
+	                    <input type="text" name="draw_task_repetitions" value="{{ initial.repetitions }}" placeholder="Ej: 3" />
+	                  </label>
+	                  <label>
+	                    Trabajo/descanso
+	                    <input type="text" name="draw_task_work_rest" value="{{ initial.work_rest }}" placeholder="Ej: 15'' / 15''" />
+	                  </label>
+		                  <label>
+		                    Carga objetivo
+		                    <input type="text" name="draw_task_load_target" value="{{ initial.load_target }}" placeholder="Ej: RPE 7" />
+		                  </label>
                   <label>
                     Complejidad
                     <select name="draw_task_complexity">
@@ -3557,6 +3577,8 @@
 
 				          const drillsInput = document.getElementById('draw-task-drills-json');
 				          const drillsPicker = document.getElementById('task-drills-picker');
+				          const drillsFilter = document.getElementById('task-drills-filter');
+				          const drillsSearch = document.getElementById('task-drills-search');
 				          const parseJsonList = (value) => {
 				            const raw = String(value || '').trim();
 				            if (!raw) return [];
@@ -3621,6 +3643,25 @@
 				              });
 				            }
 				          } catch (err) {}
+				          const applyDrillsFilter = () => {
+				            if (!drillsPicker) return;
+				            const cat = String(drillsFilter?.value || 'all').trim();
+				            const q = String(drillsSearch?.value || '').trim().toLowerCase();
+				            Array.from(drillsPicker.querySelectorAll('[data-drill-id]')).forEach((cb) => {
+				              const wrapper = cb.closest('label');
+				              if (!wrapper) return;
+				              const wcat = String(wrapper.getAttribute('data-drill-cat') || '').trim();
+				              const wlabel = String(wrapper.getAttribute('data-drill-label') || '').trim().toLowerCase();
+				              const catOk = (cat === 'all') || (wcat === cat);
+				              const qOk = (!q) || wlabel.includes(q);
+				              wrapper.style.display = (catOk && qOk) ? '' : 'none';
+				            });
+				          };
+				          try {
+				            drillsFilter?.addEventListener('change', applyDrillsFilter);
+				            drillsSearch?.addEventListener('input', applyDrillsFilter);
+				            applyDrillsFilter();
+				          } catch (err) {}
 
 					          const setAssistantProgramUi = () => {
 					            const program = String(programEl.value || '').trim();
@@ -3639,12 +3680,26 @@
 				          // Sub-fases dinámicas para 2J Smart (dependen de la fase/foco).
 				          const smartGoalEl = document.getElementById('task-assistant-goal');
 				          const smartSubphaseEl = document.getElementById('task-assistant-smart-subphase');
-				          const SMART_SUBPHASES = {
-				            warmup: [
-				              { v: 'no_ball', label: 'Sin balón (movilidad + carrera)' },
-				              { v: 'with_ball', label: 'Con balón (rondo/juego simple)' },
-				              { v: 'neuromuscular', label: 'Neuromuscular (saltos/aterrizajes/COD)' },
-				            ],
+					          const SMART_SUBPHASES = {
+					            physical_field: [
+					              { v: 'aerobic', label: 'Aeróbico (intervalos suaves)' },
+					              { v: 'hiit', label: 'HIIT / intermitente' },
+					              { v: 'rsa', label: 'RSA (repeated sprints)' },
+					              { v: 'speed', label: 'Velocidad (técnica + sprints)' },
+					              { v: 'cod', label: 'COD (cambios de dirección)' },
+					              { v: 'plyo', label: 'Pliometría (saltos)' },
+					            ],
+					            physical_gym: [
+					              { v: 'strength_lower', label: 'Fuerza tren inferior' },
+					              { v: 'full_body', label: 'Circuito full body' },
+					              { v: 'core', label: 'Core' },
+					              { v: 'prehab', label: 'Prehab (isquios / tobillo)' },
+					            ],
+					            warmup: [
+					              { v: 'no_ball', label: 'Sin balón (movilidad + carrera)' },
+					              { v: 'with_ball', label: 'Con balón (rondo/juego simple)' },
+					              { v: 'neuromuscular', label: 'Neuromuscular (saltos/aterrizajes/COD)' },
+					            ],
 				            build_up: [
 				              { v: 'gk_restart', label: 'Saque de portería / reinicio' },
 				              { v: '2plus1', label: 'Estructura 2+1' },
@@ -4267,13 +4322,178 @@
 			              '2v1': 'duels',
 			              finish: 'final_third',
 			            };
-			            const goal = goalAliases[rawGoal] || rawGoal;
-			            const base = buildFundamentalsTemplates();
-			            const allowedFormatsForApproach = (() => {
-			              if (approachPref === 'analytic') return new Set(['analytic', 'circuit']);
-			              if (approachPref === 'systemic') return new Set(['game', 'ssg']);
-			              return null;
-			            })();
+				            const goal = goalAliases[rawGoal] || rawGoal;
+				            const base = buildFundamentalsTemplates();
+				            const allowedFormatsForApproach = (() => {
+				              if (approachPref === 'analytic') return new Set(['analytic', 'circuit']);
+				              if (approachPref === 'systemic') return new Set(['game', 'ssg']);
+				              return null;
+				            })();
+
+				            // Carga física (campo / gimnasio): generador directo (sin depender del catálogo).
+				            if (goal === 'physical_field' || goal === 'physical_gym') {
+				              const sub = (smartSubphase && smartSubphase !== 'auto') ? smartSubphase : (goal === 'physical_gym' ? 'strength_lower' : 'hiit');
+				              const ageLabel = age === 'u8' ? 'Fútbol base' : (age === 'u12' ? 'Formación' : (age === 'u15' ? 'Rendimiento' : 'Competición'));
+				              const safePlayers = playersCount > 0 ? `${playersCount} jugadores` : (goal === 'physical_gym' ? 'Grupos 2–3' : 'Todo el equipo');
+				              const maybeMaterials = (materialsHint ? materialsHint : (goal === 'physical_gym' ? 'Colchonetas, gomas, conos (opcional)' : 'Conos, cronómetro, balones (opcional)'));
+
+				              const loadPresets = (() => {
+				                // Valores orientativos (ajusta según grupo). Para U8 reducimos volumen e intensidades.
+				                const young = age === 'u8';
+				                const baseField = {
+				                  aerobic: { series: young ? '2' : '3', reps: young ? '6' : '8', work_rest: young ? "10'' / 20''" : "20'' / 20''", rpe: young ? 'RPE 5–6' : 'RPE 6–7' },
+				                  hiit: { series: young ? '2' : '3', reps: young ? '6' : '10', work_rest: young ? "10'' / 20''" : "15'' / 15''", rpe: young ? 'RPE 6' : 'RPE 7–8' },
+				                  rsa: { series: young ? '2' : '3', reps: young ? '4' : '6', work_rest: young ? "6'' / 24''" : "6'' / 30''", rpe: young ? 'RPE 7' : 'RPE 8–9' },
+				                  speed: { series: young ? '2' : '3', reps: young ? '4' : '6', work_rest: young ? "6'' / 30''" : "8'' / 40''", rpe: young ? 'RPE 7' : 'RPE 8' },
+				                  cod: { series: young ? '2' : '3', reps: young ? '6' : '8', work_rest: young ? "8'' / 20''" : "10'' / 25''", rpe: young ? 'RPE 6–7' : 'RPE 7–8' },
+				                  plyo: { series: young ? '2' : '3', reps: young ? '6' : '8', work_rest: young ? "6'' / 24''" : "8'' / 30''", rpe: young ? 'RPE 6' : 'RPE 7' },
+				                };
+				                const baseGym = {
+				                  strength_lower: { series: young ? '2' : '3', reps: young ? '6–8' : '8–10', work_rest: young ? "30'' / 45''" : "45'' / 60''", rpe: young ? 'Técnica' : 'RPE 7' },
+				                  full_body: { series: young ? '2' : '3', reps: young ? '6–8' : '8–12', work_rest: young ? "30'' / 45''" : "45'' / 60''", rpe: young ? 'Técnica' : 'RPE 7' },
+				                  core: { series: young ? '2' : '3', reps: young ? "20''" : "30–40''", work_rest: young ? "20'' / 30''" : "30'' / 30''", rpe: young ? 'Control' : 'RPE 6–7' },
+				                  prehab: { series: young ? '2' : '3', reps: young ? '6' : '8', work_rest: young ? "30'' / 45''" : "45'' / 60''", rpe: young ? 'Control' : 'RPE 6–7' },
+				                };
+				                return goal === 'physical_gym' ? baseGym : baseField;
+				              })();
+				              const preset = loadPresets[sub] || (goal === 'physical_gym' ? loadPresets.strength_lower : loadPresets.hiit);
+
+				              const warmup = {
+				                title: `Calentamiento · técnica carrera (${ageLabel})`,
+				                objective: 'Activación general y preparación neuromuscular.',
+				                minutes: Math.max(6, Math.min(12, Math.round(minutes * 0.45))),
+				                block: 'activation',
+				                player_count: safePlayers,
+				                dimensions: goal === 'physical_gym' ? 'Zona central' : 'Carril 10–15 m',
+				                materials: maybeMaterials,
+				                space: goal === 'physical_gym' ? 'Zona central (sin impacto)' : 'Carriles + movilidad',
+				                drills: ['run_easy', 'a_skip', 'butt_kicks', 'hip_open_close', 'hamstring_sweep'],
+				                description_html: ensureListHtml(`
+				                  <li>Carrera suave + movilidad dinámica (cadera, tobillo, isquios).</li>
+				                  <li>Técnica de carrera: skipping / talones + pies rápidos.</li>
+				                `),
+				                coaching_html: ensureListHtml(`
+				                  <li>Postura alta, brazos coordinados, apoyos cortos.</li>
+				                  <li>Calidad por encima de velocidad (especialmente en U8).</li>
+				                `),
+				              };
+
+				              const cooldown = {
+				                title: `Vuelta a la calma · movilidad (${ageLabel})`,
+				                objective: 'Recuperación: respiración + movilidad suave.',
+				                minutes: Math.max(5, Math.min(10, Math.round(minutes * 0.35))),
+				                block: 'recovery',
+				                player_count: safePlayers,
+				                dimensions: 'Zona central',
+				                materials: '—',
+				                space: 'Zona central',
+				                drills: ['lunge_walk', 'hip_open_close', 'hamstring_sweep'],
+				                description_html: ensureListHtml(`
+				                  <li>Movilidad suave (cadera/isquios) + estiramientos dinámicos ligeros.</li>
+				                  <li>Respiración y vuelta progresiva a calma.</li>
+				                `),
+				              };
+
+				              const main = (() => {
+				                if (goal === 'physical_gym') {
+				                  const titleMap = {
+				                    strength_lower: 'Fuerza tren inferior',
+				                    full_body: 'Circuito full body',
+				                    core: 'Core',
+				                    prehab: 'Prehab (isquios/tobillo)',
+				                  };
+				                  const drillMap = {
+				                    strength_lower: ['squat', 'hinge', 'split_squat', 'calf_raise'],
+				                    full_body: ['squat', 'hinge', 'push_up', 'band_row', 'plank'],
+				                    core: ['plank', 'side_plank'],
+				                    prehab: ['nordic', 'calf_raise', 'plank'],
+				                  };
+				                  const drills = drillMap[sub] || drillMap.strength_lower;
+				                  return {
+				                    title: `Carga física · Gimnasio · ${titleMap[sub] || titleMap.strength_lower} (${ageLabel})`,
+				                    objective: 'Desarrollar fuerza y prevención con control técnico.',
+				                    minutes: Math.max(8, Math.min(25, minutes)),
+				                    block: (blockPref !== 'auto' ? blockPref : 'conditioning'),
+				                    player_count: safePlayers,
+				                    dimensions: 'Zona central',
+				                    materials: maybeMaterials,
+				                    space: 'Circuito por estaciones',
+				                    training_type: 'Carga física (fuerza)',
+				                    series: preset.series,
+				                    repetitions: preset.reps,
+				                    work_rest: preset.work_rest,
+				                    load_target: preset.rpe,
+				                    drills,
+				                    description_html: ensureListHtml(`
+				                      <li>Organiza estaciones (2–3 jugadores) y rota cada ${preset.work_rest || "45'' / 60''"}.</li>
+				                      <li>Prioriza técnica limpia: control de rodilla/tobillo, core activo.</li>
+				                    `),
+				                    coaching_html: ensureListHtml(`
+				                      <li>Control de rodilla (evita valgo) y espalda neutra.</li>
+				                      <li>Si se pierde técnica, reduce reps/carga.</li>
+				                    `),
+				                    rules_html: ensureListHtml(`<li>Sin dolor. Pausa si hay molestias.</li>`),
+				                  };
+				                }
+				                // Campo
+				                const titleMap = {
+				                  aerobic: 'Aeróbico (intervalos)',
+				                  hiit: 'HIIT (intermitente)',
+				                  rsa: 'RSA (repeated sprints)',
+				                  speed: 'Velocidad (técnica + sprints)',
+				                  cod: 'COD (cambios de dirección)',
+				                  plyo: 'Pliometría (saltos)',
+				                };
+				                const drillMap = {
+				                  aerobic: ['run_easy', 'shuttle_run'],
+				                  hiit: ['shuttle_run', 'acceleration', 'deceleration', 'change_direction'],
+				                  rsa: ['max_sprint', 'deceleration'],
+				                  speed: ['acceleration', 'max_sprint', 'ankling'],
+				                  cod: ['change_direction', 'deceleration', 'side_shuffle', 'carioca'],
+				                  plyo: ['jump_land', 'pogo_hops', 'bounding'],
+				                };
+				                const drills = drillMap[sub] || drillMap.hiit;
+				                return {
+				                  title: `Carga física · Campo · ${titleMap[sub] || titleMap.hiit} (${ageLabel})`,
+				                  objective: 'Mejorar capacidad física específica sin perder técnica.',
+				                  minutes: Math.max(8, Math.min(25, minutes)),
+				                  block: (blockPref !== 'auto' ? blockPref : 'conditioning'),
+				                  player_count: safePlayers,
+				                  dimensions: 'Carril / zona',
+				                  materials: maybeMaterials,
+				                  space: 'Carriles + marcas de giro',
+				                  training_type: 'Carga física (campo)',
+				                  series: preset.series,
+				                  repetitions: preset.reps,
+				                  work_rest: preset.work_rest,
+				                  load_target: preset.rpe,
+				                  drills,
+				                  description_html: ensureListHtml(`
+				                    <li>Series: ${preset.series || '-'} · Reps: ${preset.reps || '-'} · Trabajo/descanso: ${preset.work_rest || '-'}</li>
+				                    <li>Calidad de carrera y frenada. En U8, foco en juego y técnica.</li>
+				                  `),
+				                  coaching_html: ensureListHtml(`
+				                    <li>Frenada: pasos cortos, centro de gravedad bajo, rodilla alineada.</li>
+				                    <li>Velocidad: progresiva (no a tope desde la 1ª repetición).</li>
+				                  `),
+				                  rules_html: ensureListHtml(`<li>Descanso completo si la técnica cae.</li>`),
+				                };
+				              })();
+
+				              const suggestions = [
+				                { id: `phys:${goal}:${sub}:main`, meta: { goal, subphase: sub, format: 'analytic' }, tpl: main, score: 100 },
+				                { id: `phys:${goal}:${sub}:warmup`, meta: { goal, subphase: 'warmup', format: 'analytic' }, tpl: warmup, score: 70 },
+				                { id: `phys:${goal}:${sub}:cooldown`, meta: { goal, subphase: 'cooldown', format: 'analytic' }, tpl: cooldown, score: 60 },
+				              ];
+
+				              return {
+				                smart_generate: main,
+				                smart_suggestions: suggestions,
+				                smart_block_1: warmup,
+				                smart_block_2: main,
+				                smart_block_3: cooldown,
+				              };
+				            }
 
 			            const PRINCIPLES = {
 			              width_depth: {
@@ -5614,6 +5834,10 @@
 				            if (tpl.space != null) setValue('draw_task_space', tpl.space);
 					            if (tpl.training_type) setValue('draw_task_training_type', tpl.training_type);
 						            if (tpl.age_group) setValue('draw_task_age_group', tpl.age_group);
+					            if (tpl.series != null) setValue('draw_task_series', tpl.series);
+					            if (tpl.repetitions != null) setValue('draw_task_repetitions', tpl.repetitions);
+					            if (tpl.work_rest != null) setValue('draw_task_work_rest', tpl.work_rest);
+					            if (tpl.load_target != null) setValue('draw_task_load_target', tpl.load_target);
 						            if (tpl.description_html != null) setRichHtml('draw_task_description', tpl.description_html);
 						            if (tpl.coaching_html != null) setRichHtml('draw_task_coaching_points', tpl.coaching_html);
 						            if (tpl.rules_html != null) setRichHtml('draw_task_confrontation_rules', tpl.rules_html);
@@ -5765,16 +5989,17 @@
 					            renderSmartSuggestions();
 					          });
 
-					          const inferBlueprintCategory = (goalKey) => {
-					            const g = String(goalKey || '').trim();
-					            if (g === 'build_up' || g === 'progression') return 'build_up';
-					            if (g === 'pressing' || g === 'counterpress' || g === 'defending') return 'pressing';
-					            if (String(g).startsWith('transition')) return 'transition';
-					            if (g === 'final_third' || g === 'duels') return 'finishing';
-					            if (g === 'set_pieces') return 'abp';
-					            if (g === 'coord' || g === 'warmup') return 'physical';
-					            return 'other';
-					          };
+						          const inferBlueprintCategory = (goalKey) => {
+						            const g = String(goalKey || '').trim();
+						            if (g === 'physical_field' || g === 'physical_gym') return 'physical';
+						            if (g === 'build_up' || g === 'progression') return 'build_up';
+						            if (g === 'pressing' || g === 'counterpress' || g === 'defending') return 'pressing';
+						            if (String(g).startsWith('transition')) return 'transition';
+						            if (g === 'final_third' || g === 'duels') return 'finishing';
+						            if (g === 'set_pieces') return 'abp';
+						            if (g === 'coord' || g === 'warmup') return 'physical';
+						            return 'other';
+						          };
 
 					          const buildBlueprintPayloadFromForm = () => {
 					            const getVal = (name) => {

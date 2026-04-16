@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Bisagra de cadera">
+  <g fill="none" stroke="#0f7a35" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="28" cy="12" r="6"/>
+    <path d="M28 18 L34 28"/>
+    <path d="M34 28 L52 30"/>
+    <path d="M34 28 L22 28"/>
+    <path d="M34 28 L26 56"/>
+    <path d="M34 28 L40 56"/>
+    <!-- hinge arrow -->
+    <path d="M54 16 C46 16 40 20 38 26"/>
+    <path d="M54 16 L50 12"/>
+    <path d="M54 16 L50 20"/>
+  </g>
+</svg>
+

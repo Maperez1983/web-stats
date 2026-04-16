@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Elevación de gemelo">
+  <g fill="none" stroke="#0f7a35" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="30" cy="12" r="6"/>
+    <path d="M30 18 L30 34"/>
+    <path d="M30 24 L18 26"/>
+    <path d="M30 24 L42 26"/>
+    <path d="M30 34 L26 56"/>
+    <path d="M30 34 L34 56"/>
+    <!-- heel raise arrow -->
+    <path d="M52 50 L52 38"/>
+    <path d="M52 38 L48 42"/>
+    <path d="M52 38 L56 42"/>
+  </g>
+</svg>
+
