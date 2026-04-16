@@ -17,6 +17,7 @@ data/input/rfaf_storage_state.json
 data/debug/
 data/input/universo-rfaf-capture.json
 data/input/universo-rfaf-snapshot.json
+data/input/assistant/
 db.sqlite3.bak-*
 stats-/
 web-stats/

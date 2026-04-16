@@ -11,7 +11,7 @@ from football.models import AssistantKnowledgeDocument, Team
 
 
 class Command(BaseCommand):
-    help = "Importa documentos (PDF/TXT/MD) como base de conocimiento del Asistente de tareas para un equipo."
+    help = "Importa documentos (PDF/TXT/MD/PNG/JPG/WEBP) como base de conocimiento del Asistente de tareas para un equipo."
 
     def add_arguments(self, parser):
         parser.add_argument("--team-slug", dest="team_slug", help="Slug del equipo (Team.slug).")
@@ -20,7 +20,7 @@ class Command(BaseCommand):
             "--path",
             dest="path",
             required=True,
-            help="Ruta a un fichero o carpeta (se importan PDFs/TXT/MD).",
+            help="Ruta a un fichero o carpeta (se importan PDFs/TXT/MD e imágenes PNG/JPG/WEBP).",
         )
         parser.add_argument(
             "--recursive",
@@ -70,7 +70,7 @@ class Command(BaseCommand):
         skip_blueprints = bool(options.get("skip_blueprints"))
         skip_extract = bool(options.get("skip_extract"))
 
-        allowed = {".pdf", ".txt", ".md"}
+        allowed = {".pdf", ".txt", ".md", ".png", ".jpg", ".jpeg", ".webp"}
         paths = []
         if root.is_file():
             paths = [root]
@@ -85,7 +85,7 @@ class Command(BaseCommand):
 
         paths = sorted(paths)[:max_files]
         if not paths:
-            raise CommandError("No se encontraron ficheros .pdf/.txt/.md en la ruta indicada.")
+            raise CommandError("No se encontraron ficheros soportados (.pdf/.txt/.md/.png/.jpg/.jpeg/.webp) en la ruta indicada.")
 
         # Importamos utilidades desde `views` para reutilizar exactamente la misma lógica de extracción y blueprints.
         try:
@@ -138,11 +138,15 @@ class Command(BaseCommand):
                 mime = mime or "text/plain"
 
             extracted_text = ""
-            is_pdf = path.suffix.lower() == ".pdf"
+            suffix = path.suffix.lower()
+            is_pdf = suffix == ".pdf"
+            is_image = suffix in {".png", ".jpg", ".jpeg", ".webp"}
             if not skip_extract:
                 try:
                     if is_pdf:
                         extracted_text = football_views._extract_pdf_text_via_pdftotext(raw)  # type: ignore[attr-defined]
+                    elif is_image:
+                        extracted_text = football_views._extract_image_text_via_tesseract(raw)  # type: ignore[attr-defined]
                     else:
                         extracted_text = raw.decode("utf-8", errors="ignore")
                 except Exception:
@@ -150,14 +154,14 @@ class Command(BaseCommand):
 
             if dry_run:
                 saved += 1
-                min_len = 120 if is_pdf else 30
+                min_len = 120 if is_pdf else (40 if is_image else 30)
                 extracted += 1 if (extracted_text and len(extracted_text.strip()) >= min_len) else 0
                 continue
 
             with transaction.atomic():
                 doc = AssistantKnowledgeDocument(team=team, title=title, sha256=sha, mime_type=mime)
                 doc.file.save(Path(title).name, ContentFile(raw), save=False)
-                min_len = 120 if is_pdf else 30
+                min_len = 120 if is_pdf else (40 if is_image else 30)
                 if extracted_text and len(extracted_text.strip()) >= min_len:
                     doc.extracted_text = extracted_text[:500_000]
                     doc.extracted_at = timezone.now()

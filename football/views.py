@@ -31868,6 +31868,99 @@ def _extract_pdf_text_via_pdftotext(pdf_bytes: bytes) -> str:
     return '\n'.join(out).strip()
 
 
+def _extract_image_text_via_tesseract(image_bytes: bytes) -> str:
+    """
+    OCR básico para imágenes (capturas/fotos de tareas).
+
+    Nota: si el servidor no tiene `tesseract`/idiomas instalados, devolverá ''.
+    """
+    if not image_bytes or Image is None:
+        return ''
+    try:
+        import pytesseract  # type: ignore
+    except Exception:
+        return ''
+    try:
+        img = Image.open(io.BytesIO(image_bytes))
+    except Exception:
+        return ''
+    try:
+        if ImageOps is not None:
+            try:
+                img = ImageOps.exif_transpose(img)
+            except Exception:
+                pass
+        img = img.convert('RGB')
+        # Subimos resolución si la foto viene muy pequeña (mejor OCR en texto).
+        try:
+            max_side = max(int(img.size[0]), int(img.size[1]))
+        except Exception:
+            max_side = 0
+        target_side = 1800
+        if max_side and max_side < target_side:
+            scale = float(target_side) / float(max_side)
+            new_w = max(320, int(round(img.size[0] * scale)))
+            new_h = max(240, int(round(img.size[1] * scale)))
+            try:
+                resample = getattr(Image, 'Resampling', Image).LANCZOS  # Pillow>=9
+            except Exception:
+                resample = getattr(Image, 'LANCZOS', 1)
+            try:
+                img = img.resize((new_w, new_h), resample=resample)
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    configs = ['--psm 6', '--psm 4']
+    langs = ['spa+eng', 'spa', 'eng']
+    variants = [img]
+    # Algunas fotos de libros/temarios salen mejor en escala de grises + autocontrast.
+    if ImageOps is not None:
+        try:
+            gray = ImageOps.grayscale(img)
+            try:
+                gray = ImageOps.autocontrast(gray)
+            except Exception:
+                pass
+            variants.append(gray)
+            if ImageFilter is not None:
+                try:
+                    variants.append(gray.filter(ImageFilter.SHARPEN))
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+    best_text = ''
+    best_score = 0
+    boost_keywords = ('descripcion', 'reglas', 'consideraciones', 'condicionantes', 'portero', 'finaliza', 'remate', 'duelo')
+    for var_img in variants:
+        for cfg in configs:
+            for lang in langs:
+                try:
+                    text = pytesseract.image_to_string(var_img, lang=lang, config=cfg) or ''
+                except Exception:
+                    text = ''
+                cleaned = str(text or '').strip()
+                if len(cleaned) < 40:
+                    continue
+                low = _assistant__norm_line(cleaned) if '_assistant__norm_line' in globals() else cleaned.casefold()
+                hits = 0
+                for kw in boost_keywords:
+                    try:
+                        if kw in low:
+                            hits += 1
+                    except Exception:
+                        continue
+                # Priorizamos texto más largo y que contenga keywords típicas de fichas.
+                score = len(cleaned) + (hits * 220)
+                if score > best_score:
+                    best_score = score
+                    best_text = cleaned
+    return best_text.strip()
+
+
 def _assistant_extract_bullets(text: str):
     lines = []
     try:
@@ -31935,60 +32028,319 @@ def _assistant_create_blueprints_from_document(team, doc: AssistantKnowledgeDocu
     text = str(getattr(doc, 'extracted_text', '') or '')
     if not text.strip():
         return {'created': 0, 'updated': 0, 'skipped': 0}
-    bullets = _assistant_extract_bullets(text)
-    if not bullets:
-        return {'created': 0, 'updated': 0, 'skipped': 0}
-    specs = _assistant_goal_specs()
-    for goal_key, spec in specs.items():
-        picked = _assistant_pick_bullets_for_goal(bullets, spec.get('keywords') or [])
-        if not picked:
-            continue
-        label = str(spec.get('label') or goal_key).strip()
-        name = f'{doc.title} · {label} · ideas'
-        name = _sanitize_task_text(name, multiline=False, max_len=160)
-        if not name:
-            continue
-        coaching_html = _assistant_html_list(picked)
-        objective = picked[0][:180] if picked else ''
-        tpl = {
-            'title': f'{label} · ideas clave',
-            'objective': objective,
-            'minutes': 12,
-            'block': str(spec.get('block') or SessionTask.BLOCK_MAIN_1),
-            'training_type': label,
-            'coaching_html': coaching_html,
-            'rules_html': '',
-            'source_name': 'Documento del equipo',
-        }
-        payload = {
-            'tpl': tpl,
-            'meta': {
-                'v': 1,
-                'goal': goal_key,
-                'subphase': 'auto',
-                'approach': 'auto',
-                'source_doc_id': int(doc.id),
-            },
-        }
-        category = str(spec.get('category') or TaskBlueprint.CATEGORY_OTHER)
+    lower_title = str(getattr(doc, 'title', '') or '').lower()
+    mime = str(getattr(doc, 'mime_type', '') or '').lower()
+    is_image = bool(
+        mime.startswith('image/')
+        or lower_title.endswith('.png')
+        or lower_title.endswith('.jpg')
+        or lower_title.endswith('.jpeg')
+        or lower_title.endswith('.webp')
+    )
+
+    # Prioridad para fotos de fichas (tabla): suelen ser "una tarea concreta",
+    # y el OCR en bullets suele salir muy ruidoso.
+    if is_image:
         try:
-            obj, was_created = TaskBlueprint.objects.update_or_create(
-                team=team,
-                name=name,
-                defaults={
-                    'category': category,
-                    'description': _sanitize_task_text(f'Generado desde documento: {doc.title}', multiline=False, max_len=220),
-                    'payload': payload,
-                    'created_by': 'assistant_docs',
-                },
-            )
+            res = _assistant_create_blueprint_from_task_sheet(team, doc, text)
         except Exception:
-            continue
-        if was_created:
-            created += 1
-        else:
-            updated += 1
+            res = {'created': 0, 'updated': 0}
+        if int(res.get('created', 0) or 0) or int(res.get('updated', 0) or 0):
+            return {'created': int(res.get('created', 0) or 0), 'updated': int(res.get('updated', 0) or 0), 'skipped': 0}
+
+    bullets = _assistant_extract_bullets(text)
+    if bullets:
+        specs = _assistant_goal_specs()
+        for goal_key, spec in specs.items():
+            picked = _assistant_pick_bullets_for_goal(bullets, spec.get('keywords') or [])
+            if not picked:
+                continue
+            label = str(spec.get('label') or goal_key).strip()
+            name = f'{doc.title} · {label} · ideas'
+            name = _sanitize_task_text(name, multiline=False, max_len=160)
+            if not name:
+                continue
+            coaching_html = _assistant_html_list(picked)
+            objective = picked[0][:180] if picked else ''
+            tpl = {
+                'title': f'{label} · ideas clave',
+                'objective': objective,
+                'minutes': 12,
+                'block': str(spec.get('block') or SessionTask.BLOCK_MAIN_1),
+                'training_type': label,
+                'coaching_html': coaching_html,
+                'rules_html': '',
+                'source_name': 'Documento del equipo',
+            }
+            payload = {
+                'tpl': tpl,
+                'meta': {
+                    'v': 1,
+                    'goal': goal_key,
+                    'subphase': 'auto',
+                    'approach': 'auto',
+                    'source_doc_id': int(doc.id),
+                },
+            }
+            category = str(spec.get('category') or TaskBlueprint.CATEGORY_OTHER)
+            try:
+                obj, was_created = TaskBlueprint.objects.update_or_create(
+                    team=team,
+                    name=name,
+                    defaults={
+                        'category': category,
+                        'description': _sanitize_task_text(f'Generado desde documento: {doc.title}', multiline=False, max_len=220),
+                        'payload': payload,
+                        'created_by': 'assistant_docs',
+                    },
+                )
+            except Exception:
+                continue
+            if was_created:
+                created += 1
+            else:
+                updated += 1
+
     return {'created': created, 'updated': updated, 'skipped': 0}
+
+
+def _assistant__strip_accents(s: str) -> str:
+    try:
+        import unicodedata
+    except Exception:
+        unicodedata = None
+    try:
+        txt = str(s or '')
+    except Exception:
+        txt = ''
+    if not txt:
+        return ''
+    if unicodedata is None:
+        return txt
+    try:
+        norm = unicodedata.normalize('NFKD', txt)
+    except Exception:
+        return txt
+    out = []
+    for ch in norm:
+        try:
+            if unicodedata.category(ch) == 'Mn':
+                continue
+        except Exception:
+            pass
+        out.append(ch)
+    return ''.join(out)
+
+
+def _assistant__norm_line(s: str) -> str:
+    try:
+        raw = str(s or '')
+    except Exception:
+        raw = ''
+    raw = _assistant__strip_accents(raw).casefold()
+    raw = re.sub(r'\s+', ' ', raw).strip()
+    raw = re.sub(r'[\|·•]+', ' ', raw).strip()
+    return raw
+
+
+def _assistant__split_sentences(text: str, limit: int = 12):
+    out = []
+    try:
+        raw = str(text or '')
+    except Exception:
+        raw = ''
+    raw = re.sub(r'\s+', ' ', raw).strip()
+    if not raw:
+        return out
+    parts = re.split(r'(?<=[\.\;\:])\s+|\s+\-\s+|\s+\u2022\s+|\s+\•\s+', raw)
+    for p in parts:
+        s = str(p or '').strip(' -\t\r\n')
+        if not s:
+            continue
+        s = re.sub(r'\s+', ' ', s).strip()
+        if len(s) < 6 or len(s) > 220:
+            continue
+        out.append(s)
+        if len(out) >= limit:
+            break
+    return out
+
+
+def _assistant__extract_task_sheet_sections(text: str):
+    """
+    Heurística para fichas tipo tabla: intenta localizar secciones comunes.
+    Devuelve dict con keys: title, desc, behaviors, bio, considerations, structural.
+    """
+    lines = []
+    try:
+        raw_lines = str(text or '').splitlines()
+    except Exception:
+        raw_lines = []
+    for raw in raw_lines:
+        s = str(raw or '').strip()
+        if not s:
+            continue
+        s = re.sub(r'\s+', ' ', s).strip()
+        if len(s) < 2:
+            continue
+        # Quitamos "Capitulo ..." típico de libros
+        if _assistant__norm_line(s).startswith('capitulo '):
+            continue
+        lines.append(s)
+    if not lines:
+        return {}
+
+    headings = {
+        'desc': [('descripcion',), ('reglas',)],
+        'behaviors': [('tipo de comportamientos',), ('comportamientos preferenciados',), ('comportamientos preferenciados',)],
+        'bio': [('caracteristicas',), ('bio',), ('condicionales',)],
+        'considerations': [('consideraciones',)],
+        'structural': [('condicionantes estructurales',), ('condicionantes', 'estructurales')],
+    }
+    # Índices por sección (la primera ocurrencia).
+    idxs = {}
+    norm_lines = [_assistant__norm_line(s) for s in lines]
+    for key, variants in headings.items():
+        for i, low in enumerate(norm_lines):
+            for words in variants:
+                if all(w in low for w in words):
+                    idxs[key] = i
+                    break
+            if key in idxs:
+                break
+
+    # Title: primera línea con pinta de "X c Y" o que contenga "portero/porteros" o "mini-partido".
+    title = ''
+    for s in lines[:12]:
+        low = _assistant__norm_line(s)
+        if re.search(r'\b\d+\s*(c|vs)\s*\d+\b', low) or 'portero' in low or 'mini' in low:
+            title = s
+            break
+    if not title:
+        title = lines[0]
+    title = _sanitize_task_text(title, multiline=False, max_len=90)
+
+    # Extrae secciones por rangos de líneas.
+    def grab(start_key, end_keys):
+        if start_key not in idxs:
+            return []
+        start = int(idxs[start_key]) + 1
+        ends = [int(idxs[k]) for k in end_keys if k in idxs and int(idxs[k]) > int(idxs[start_key])]
+        end = min(ends) if ends else len(lines)
+        chunk = [v for v in lines[start:end] if v.strip()]
+        # Evita que se meta el mismo título si OCR lo repite
+        if chunk and _assistant__norm_line(chunk[0]) == _assistant__norm_line(title):
+            chunk = chunk[1:]
+        return chunk
+
+    return {
+        'title': title,
+        'desc': grab('desc', ['behaviors', 'bio', 'considerations', 'structural']),
+        'behaviors': grab('behaviors', ['bio', 'considerations', 'structural']),
+        'bio': grab('bio', ['considerations', 'structural']),
+        'considerations': grab('considerations', ['structural']),
+        'structural': grab('structural', []),
+        'raw_lines': lines[:220],
+    }
+
+
+def _assistant__guess_category_from_text(text: str) -> str:
+    low = _assistant__norm_line(text)
+    if any(k in low for k in ('finalizacion', 'remate', 'gol', 'porteria', 'tiro', 'disparo')):
+        return TaskBlueprint.CATEGORY_FINISH
+    if any(k in low for k in ('presion', 'recuperacion', 'robo', 'intercepcion')):
+        return TaskBlueprint.CATEGORY_PRESS
+    if 'transicion' in low:
+        return TaskBlueprint.CATEGORY_TRANSITION
+    if any(k in low for k in ('salida', 'progresion', 'construccion', 'inicio y progresion')):
+        return TaskBlueprint.CATEGORY_BUILD
+    if any(k in low for k in ('condicionante', 'fuerza', 'resistencia', 'velocidad', 'potencia')):
+        return TaskBlueprint.CATEGORY_PHYSICAL
+    if 'portero' in low:
+        return TaskBlueprint.CATEGORY_GK
+    return TaskBlueprint.CATEGORY_OTHER
+
+
+def _assistant_create_blueprint_from_task_sheet(team, doc: AssistantKnowledgeDocument, text: str):
+    """
+    Crea 1 blueprint desde una ficha OCR (tablas tipo libros/temarios).
+    """
+    sections = _assistant__extract_task_sheet_sections(text)
+    title = str(sections.get('title') or '').strip()
+    if not title or len(title) < 6:
+        return {'created': 0, 'updated': 0}
+
+    desc_lines = sections.get('desc') or []
+    beh_lines = sections.get('behaviors') or []
+    cons_lines = sections.get('considerations') or []
+    struct_lines = sections.get('structural') or []
+
+    objective_src = ' '.join(beh_lines[:2]).strip() or ' '.join(desc_lines[:2]).strip() or title
+    objective = _sanitize_task_text(objective_src, multiline=False, max_len=180)
+
+    coaching_items = []
+    coaching_items.extend(_assistant__split_sentences(' '.join(cons_lines), limit=6))
+    coaching_items.extend(_assistant__split_sentences(' '.join(beh_lines), limit=6))
+    coaching_items = coaching_items[:10]
+
+    rules_items = []
+    rules_items.extend(_assistant__split_sentences(' '.join(desc_lines), limit=10))
+    rules_items.extend(_assistant__split_sentences(' '.join(struct_lines), limit=6))
+    rules_items = rules_items[:12]
+
+    coaching_html = _assistant_html_list(coaching_items)
+    rules_html = _assistant_html_list(rules_items)
+
+    category = _assistant__guess_category_from_text(text)
+    training_type = {
+        TaskBlueprint.CATEGORY_FINISH: 'Finalización',
+        TaskBlueprint.CATEGORY_BUILD: 'Inicio y progresión',
+        TaskBlueprint.CATEGORY_PRESS: 'Presión y recuperación',
+        TaskBlueprint.CATEGORY_TRANSITION: 'Transiciones',
+        TaskBlueprint.CATEGORY_GK: 'Porteros',
+        TaskBlueprint.CATEGORY_PHYSICAL: 'Condicionante físico',
+    }.get(category, 'Otros')
+
+    name = f'{title} · ficha (doc {int(doc.id)})'
+    name = _sanitize_task_text(name, multiline=False, max_len=160)
+    if not name:
+        return {'created': 0, 'updated': 0}
+
+    tpl = {
+        'title': title,
+        'objective': objective,
+        'minutes': 12,
+        'block': SessionTask.BLOCK_MAIN_1,
+        'training_type': training_type,
+        'coaching_html': coaching_html,
+        'rules_html': rules_html,
+        'source_name': 'Foto (OCR)',
+    }
+    payload = {
+        'tpl': tpl,
+        'meta': {
+            'v': 1,
+            'goal': 'auto',
+            'subphase': 'auto',
+            'approach': 'auto',
+            'source_doc_id': int(doc.id),
+            'kind': 'task_sheet',
+        },
+    }
+    try:
+        _, was_created = TaskBlueprint.objects.update_or_create(
+            team=team,
+            name=name,
+            defaults={
+                'category': category,
+                'description': _sanitize_task_text(f'Generado por OCR desde: {doc.title}', multiline=False, max_len=220),
+                'payload': payload,
+                'created_by': 'assistant_docs_ocr',
+            },
+        )
+    except Exception:
+        return {'created': 0, 'updated': 0}
+    return {'created': 1 if was_created else 0, 'updated': 0 if was_created else 1}
 
 
 @login_required
@@ -32177,6 +32529,13 @@ def task_assistant_knowledge_upload_api(request):
             text = ''
             lower_title = title.lower()
             is_pdf = bool(lower_title.endswith('.pdf') or mime == 'application/pdf')
+            is_image = bool(
+                mime.startswith('image/')
+                or lower_title.endswith('.png')
+                or lower_title.endswith('.jpg')
+                or lower_title.endswith('.jpeg')
+                or lower_title.endswith('.webp')
+            )
             if is_pdf:
                 text = _extract_pdf_text_via_pdftotext(raw)
             elif lower_title.endswith('.txt') or lower_title.endswith('.md') or mime.startswith('text/'):
@@ -32184,7 +32543,9 @@ def task_assistant_knowledge_upload_api(request):
                     text = (raw or b'').decode('utf-8', errors='ignore')
                 except Exception:
                     text = ''
-            min_len = 120 if is_pdf else 30
+            elif is_image:
+                text = _extract_image_text_via_tesseract(raw)
+            min_len = 120 if is_pdf else (40 if is_image else 30)
             if text and len(text.strip()) >= min_len:
                 obj.extracted_text = text[:500_000]
                 obj.extracted_at = timezone.now()
