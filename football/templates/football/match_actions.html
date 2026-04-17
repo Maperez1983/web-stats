@@ -2045,21 +2045,54 @@
                     placeholder="dd/mm/aaaa · hh:mm"
                   />
                 </div>
-                <div class="match-info-row" data-field="round">
-                  <span>Jornada</span>
-                  <strong data-display>{{ match_info.round|default:"-" }}</strong>
-                  <input
-                    class="match-info-input"
-                    type="text"
-                    data-input
-                    value="{{ match_info.round|default:''|escape }}"
-                    placeholder="Jornada o ronda"
-                  />
-                </div>
-                <div class="match-info-row" data-field="score_for">
-                  <span>Goles {{ team_name }}</span>
-                  <strong data-display>{{ match_info.score_for|default:"-" }}</strong>
-                  <input
+	                <div class="match-info-row" data-field="round">
+	                  <span>Jornada</span>
+	                  <strong data-display>{{ match_info.round|default:"-" }}</strong>
+	                  <input
+	                    class="match-info-input"
+	                    type="text"
+	                    data-input
+	                    value="{{ match_info.round|default:''|escape }}"
+	                    placeholder="Jornada o ronda"
+	                  />
+	                </div>
+	                <div class="match-info-row" data-field="context">
+	                  <span>Competición</span>
+	                  <strong data-display>
+	                    {% if match_info.context == 'tournament' %}Torneo{% elif match_info.context == 'friendly' %}Amistoso{% else %}Liga{% endif %}
+	                  </strong>
+	                  <select class="match-info-input" data-input>
+	                    <option value="league" {% if match_info.context == 'league' or not match_info.context %}selected{% endif %}>Liga</option>
+	                    <option value="tournament" {% if match_info.context == 'tournament' %}selected{% endif %}>Torneo</option>
+	                    <option value="friendly" {% if match_info.context == 'friendly' %}selected{% endif %}>Amistoso</option>
+	                  </select>
+	                </div>
+	                <div class="match-info-row" data-field="tournament_name" data-tournament-only hidden>
+	                  <span>Torneo</span>
+	                  <strong data-display>{{ match_info.tournament_name|default:"-" }}</strong>
+	                  <input
+	                    class="match-info-input"
+	                    type="text"
+	                    data-input
+	                    value="{{ match_info.tournament_name|default:''|escape }}"
+	                    placeholder="Nombre del torneo"
+	                  />
+	                </div>
+	                <div class="match-info-row" data-field="tournament_stage" data-tournament-only hidden>
+	                  <span>Fase</span>
+	                  <strong data-display>{{ match_info.tournament_stage|default:"-" }}</strong>
+	                  <input
+	                    class="match-info-input"
+	                    type="text"
+	                    data-input
+	                    value="{{ match_info.tournament_stage|default:''|escape }}"
+	                    placeholder="Grupo, cuartos, semifinal..."
+	                  />
+	                </div>
+	                <div class="match-info-row" data-field="score_for">
+	                  <span>Goles {{ team_name }}</span>
+	                  <strong data-display>{{ match_info.score_for|default:"-" }}</strong>
+	                  <input
                     class="match-info-input"
                     type="number"
                     inputmode="numeric"
@@ -2697,14 +2730,17 @@
       const initialMatchDbIdEl = document.getElementById('match-db-id');
       const pageStatus = document.getElementById('match-page-status');
       const currentMatchId = String(initialMatchDbIdEl?.textContent || '').trim();
-      const matchInfoState = {
-        opponent: matchInfoCard?.querySelector('[data-field="opponent"] [data-input]')?.value || '',
-        location: matchInfoCard?.querySelector('[data-field="location"] [data-input]')?.value || '',
-        datetime: matchInfoCard?.querySelector('[data-field="datetime"] [data-input]')?.value || '',
-        round: matchInfoCard?.querySelector('[data-field="round"] [data-input]')?.value || '',
-        score_for: matchInfoCard?.querySelector('[data-field="score_for"] [data-input]')?.value || '',
-        score_against: matchInfoCard?.querySelector('[data-field="score_against"] [data-input]')?.value || '',
-      };
+	      const matchInfoState = {
+	        opponent: matchInfoCard?.querySelector('[data-field="opponent"] [data-input]')?.value || '',
+	        location: matchInfoCard?.querySelector('[data-field="location"] [data-input]')?.value || '',
+	        datetime: matchInfoCard?.querySelector('[data-field="datetime"] [data-input]')?.value || '',
+	        round: matchInfoCard?.querySelector('[data-field="round"] [data-input]')?.value || '',
+	        context: matchInfoCard?.querySelector('[data-field="context"] [data-input]')?.value || 'league',
+	        tournament_name: matchInfoCard?.querySelector('[data-field="tournament_name"] [data-input]')?.value || '',
+	        tournament_stage: matchInfoCard?.querySelector('[data-field="tournament_stage"] [data-input]')?.value || '',
+	        score_for: matchInfoCard?.querySelector('[data-field="score_for"] [data-input]')?.value || '',
+	        score_against: matchInfoCard?.querySelector('[data-field="score_against"] [data-input]')?.value || '',
+	      };
       const urlWithMatchId = (baseUrl) => {
         if (!currentMatchId) return baseUrl;
         const joiner = baseUrl.includes('?') ? '&' : '?';

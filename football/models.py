@@ -653,9 +653,30 @@ class RivalConvocationRecord(models.Model):
 
 
 class Match(models.Model):
+    CONTEXT_LEAGUE = 'league'
+    CONTEXT_TOURNAMENT = 'tournament'
+    CONTEXT_FRIENDLY = 'friendly'
+    CONTEXT_CHOICES = [
+        (CONTEXT_LEAGUE, 'Liga'),
+        (CONTEXT_TOURNAMENT, 'Torneo'),
+        (CONTEXT_FRIENDLY, 'Amistoso'),
+    ]
+
     season = models.ForeignKey(Season, on_delete=models.CASCADE, related_name='matches')
     group = models.ForeignKey(Group, on_delete=models.SET_NULL, null=True, blank=True, related_name='matches')
     round = models.CharField(max_length=50, blank=True, help_text='Jornada / ronda')
+    context = models.CharField(
+        max_length=16,
+        choices=CONTEXT_CHOICES,
+        default=CONTEXT_LEAGUE,
+        help_text='Determina si el partido cuenta para la Liga (clasificación/próximo rival) o es Torneo/Amistoso.',
+    )
+    tournament_name = models.CharField(max_length=120, blank=True, help_text='Nombre del torneo (solo si context=Torneo).')
+    tournament_stage = models.CharField(
+        max_length=120,
+        blank=True,
+        help_text='Fase/ronda del torneo (grupo, cuartos, semifinal, final...).',
+    )
     date = models.DateField(null=True, blank=True)
     kickoff_time = models.TimeField(null=True, blank=True)
     location = models.CharField(max_length=200, blank=True)

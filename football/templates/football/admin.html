@@ -227,23 +227,39 @@
         <p style="color:#fecaca;">{{ actions_error }}</p>
         {% endif %}
 
-        <form method="post" class="users-form" style="margin-bottom:1rem;">
-          {% csrf_token %}
-          <input type="hidden" name="form_action" value="admin_match_save" />
-          <input type="hidden" name="active_tab" value="actions" />
-          <input type="hidden" name="match_id" value="{{ selected_admin_match.id|default:'' }}" />
+	        <form method="post" class="users-form" style="margin-bottom:1rem;">
+	          {% csrf_token %}
+	          <input type="hidden" name="form_action" value="admin_match_save" />
+	          <input type="hidden" name="active_tab" value="actions" />
+	          <input type="hidden" name="match_id" value="{{ selected_admin_match.id|default:'' }}" />
           <label>
             <span>Rival</span>
             <input type="text" name="opponent_name" value="{% if selected_admin_match %}{% if selected_admin_match.home_team_id == primary_team_id %}{{ selected_admin_match.away_team.display_name }}{% else %}{{ selected_admin_match.home_team.display_name }}{% endif %}{% endif %}" required />
           </label>
-          <label>
-            <span>Jornada</span>
-            <input type="text" name="round" value="{{ selected_admin_match.round|default:'' }}" />
-          </label>
-          <label>
-            <span>Campo</span>
-            <input type="text" name="location" value="{{ selected_admin_match.location|default:'' }}" />
-          </label>
+	          <label>
+	            <span>Jornada</span>
+	            <input type="text" name="round" value="{{ selected_admin_match.round|default:'' }}" />
+	          </label>
+	          <label>
+	            <span>Competición</span>
+	            <select name="context">
+	              <option value="league" {% if selected_admin_match.context == 'league' or not selected_admin_match.context %}selected{% endif %}>Liga</option>
+	              <option value="tournament" {% if selected_admin_match.context == 'tournament' %}selected{% endif %}>Torneo</option>
+	              <option value="friendly" {% if selected_admin_match.context == 'friendly' %}selected{% endif %}>Amistoso</option>
+	            </select>
+	          </label>
+	          <label>
+	            <span>Torneo</span>
+	            <input type="text" name="tournament_name" value="{{ selected_admin_match.tournament_name|default:'' }}" placeholder="(solo si Torneo)" />
+	          </label>
+	          <label>
+	            <span>Fase</span>
+	            <input type="text" name="tournament_stage" value="{{ selected_admin_match.tournament_stage|default:'' }}" placeholder="Grupo, cuartos, final..." />
+	          </label>
+	          <label>
+	            <span>Campo</span>
+	            <input type="text" name="location" value="{{ selected_admin_match.location|default:'' }}" />
+	          </label>
           <label>
             <span>Fecha</span>
             <input type="date" name="match_date" value="{{ selected_admin_match.date|date:'Y-m-d' }}" />

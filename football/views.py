@@ -8653,8 +8653,8 @@ def dashboard_data(request):
     # Evitar mostrar el "último partido" como si fuera el próximo rival.
     if not _next_match_payload_is_reliable(next_match):
         next_match = None
-    team_metrics = compute_team_metrics(primary_team)
-    player_metrics = compute_player_metrics(primary_team)
+    team_metrics = compute_team_metrics(primary_team, scope=Match.CONTEXT_LEAGUE)
+    player_metrics = compute_player_metrics(primary_team, scope=Match.CONTEXT_LEAGUE)
     player_cards = compute_player_cards(primary_team)
     player_cards_scope = {'type': 'global', 'label': 'Jugador · datos La Preferente'}
     competition_name = ''
@@ -11953,12 +11953,17 @@ def admin_page(request):
                 match_id = _parse_int(request.POST.get('match_id'))
                 opponent_name = (request.POST.get('opponent_name') or '').strip()
                 round_value = (request.POST.get('round') or '').strip()
+                context_value = (request.POST.get('context') or '').strip().lower() or Match.CONTEXT_LEAGUE
+                tournament_name_value = (request.POST.get('tournament_name') or '').strip()
+                tournament_stage_value = (request.POST.get('tournament_stage') or '').strip()
                 location = (request.POST.get('location') or '').strip()
                 date_raw = (request.POST.get('match_date') or '').strip()
                 time_raw = (request.POST.get('match_time') or '').strip()
                 if not opponent_name:
                     actions_error = 'El rival es obligatorio.'
                 else:
+                    if context_value not in {Match.CONTEXT_LEAGUE, Match.CONTEXT_TOURNAMENT, Match.CONTEXT_FRIENDLY}:
+                        context_value = Match.CONTEXT_LEAGUE
                     match_date = None
                     for fmt in ('%Y-%m-%d', '%d/%m/%Y'):
                         try:
@@ -11981,6 +11986,10 @@ def admin_page(request):
                                 short_name=opponent_name[:24],
                                 group=primary_team.group,
                             )
+                        season_obj = resolve_stats_season(primary_team) or getattr(getattr(primary_team, 'group', None), 'season', None)
+                        if not season_obj:
+                            actions_error = 'No hay temporada activa para asignar el partido.'
+                            season_obj = None
                         match_dt = None
                         if match_date:
                             match_dt = timezone.make_aware(
@@ -11989,22 +11998,45 @@ def admin_page(request):
                             )
                         match_obj = Match.objects.filter(id=match_id).first() if match_id else None
                         if not match_obj:
-                            match_obj = Match.objects.create(
-                                home_team=primary_team,
-                                away_team=rival_team,
-                                date=match_date,
-                                kickoff_time=match_time,
-                                round=round_value,
-                                location=location,
-                            )
+                            if actions_error:
+                                match_obj = None
+                            else:
+                                match_obj = Match.objects.create(
+                                    season=season_obj,
+                                    group=primary_team.group,
+                                    home_team=primary_team,
+                                    away_team=rival_team,
+                                    date=match_date,
+                                    kickoff_time=match_time,
+                                    round=round_value,
+                                    context=context_value,
+                                    tournament_name=(tournament_name_value if context_value == Match.CONTEXT_TOURNAMENT else ''),
+                                    tournament_stage=(tournament_stage_value if context_value == Match.CONTEXT_TOURNAMENT else ''),
+                                    location=location,
+                                )
                         else:
                             match_obj.away_team = rival_team
                             match_obj.date = match_date
                             match_obj.kickoff_time = match_time
                             match_obj.round = round_value
+                            match_obj.context = context_value
+                            if context_value == Match.CONTEXT_TOURNAMENT:
+                                match_obj.tournament_name = tournament_name_value
+                                match_obj.tournament_stage = tournament_stage_value
+                            else:
+                                match_obj.tournament_name = ''
+                                match_obj.tournament_stage = ''
                             match_obj.location = location
-                            match_obj.save(update_fields=['away_team', 'date', 'kickoff_time', 'round', 'location'])
-                        actions_message = f'Partido guardado (ID {match_obj.id}).'
+                            update_fields = ['away_team', 'date', 'kickoff_time', 'round', 'location', 'context', 'tournament_name', 'tournament_stage']
+                            if not match_obj.season_id and season_obj:
+                                match_obj.season = season_obj
+                                update_fields.append('season')
+                            if not match_obj.group_id and getattr(primary_team, 'group_id', None):
+                                match_obj.group = primary_team.group
+                                update_fields.append('group')
+                            match_obj.save(update_fields=list(dict.fromkeys(update_fields)))
+                        if not actions_error and match_obj:
+                            actions_message = f'Partido guardado (ID {match_obj.id}).'
             elif form_action == 'admin_action_bulk_add':
                 match_id = _parse_int(request.POST.get('match_id'))
                 player_id = _parse_int(request.POST.get('player_id'))
@@ -13042,13 +13074,19 @@ def player_dashboard_page(request):
             refresh_primary_roster_cache(primary_team, force=False)
         except Exception:
             pass
+    scope = str(request.GET.get('scope') or '').strip().lower() or Match.CONTEXT_LEAGUE
+    if scope not in {Match.CONTEXT_LEAGUE, Match.CONTEXT_TOURNAMENT, Match.CONTEXT_FRIENDLY, 'all'}:
+        scope = Match.CONTEXT_LEAGUE
     force_refresh_stats = str(request.GET.get('refresh') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
-    player_stats = compute_player_dashboard(primary_team, force_refresh=force_refresh_stats)
-    team_matches = list(
+    player_stats = compute_player_dashboard(primary_team, force_refresh=force_refresh_stats, scope=scope)
+    match_qs = (
         _team_match_queryset(primary_team)
         .select_related('home_team', 'away_team')
         .order_by('-date', '-id')
     )
+    if scope != 'all':
+        match_qs = match_qs.filter(context=scope)
+    team_matches = list(match_qs)
     match_options = []
     for match in team_matches:
         opponent = (
@@ -13111,6 +13149,7 @@ def player_dashboard_page(request):
             'selected_match': selected_match,
             'selected_match_id': selected_match_id,
             'selected_match_total_actions': selected_match_total_actions,
+            'stats_scope': scope,
             'current_role': current_role,
             'current_role_label': role_labels.get(current_role, 'Jugador'),
             'can_preview_player_view': can_preview_player_view,
@@ -13605,6 +13644,9 @@ def match_action_page(request):
             'opponent': opponent.name if opponent else '',
             'location': active_match.location or '',
             'round': active_match.round or '',
+            'context': getattr(active_match, 'context', Match.CONTEXT_LEAGUE) or Match.CONTEXT_LEAGUE,
+            'tournament_name': getattr(active_match, 'tournament_name', '') or '',
+            'tournament_stage': getattr(active_match, 'tournament_stage', '') or '',
             'date': active_match.date.strftime('%d/%m/%Y') if active_match.date else None,
             'time': active_match.kickoff_time.strftime('%H:%M') if active_match.kickoff_time else '00:00',
             'score_for': '' if score_for is None else str(score_for),
@@ -14795,13 +14837,23 @@ def convocation_page(request):
     all_players = list(Player.objects.filter(team=primary_team, is_active=True).order_by('name'))
     for player in all_players:
         player.photo_url = resolve_player_photo_url(request, player)
-    # La caché de La Preferente es legacy y solo aplica al equipo principal.
-    # En multicategoría, evitar mezclar stats base entre equipos.
-    roster_cache = get_roster_stats_cache() if bool(getattr(primary_team, 'is_primary', False)) else {}
-    manual_overrides = get_manual_player_base_overrides(primary_team)
-    universo_snapshot = load_universo_snapshot() or {}
-    can_use_universo = _universo_snapshot_supports_team(universo_snapshot, primary_team)
-    universo_players = (universo_snapshot.get('players') if isinstance(universo_snapshot, dict) else []) if can_use_universo else []
+    # Convocatoria trabaja sobre el flujo de partido principal (Liga por defecto).
+    # Evitamos depender de un selector de ámbito aquí para no romper la pantalla.
+    scope_value = Match.CONTEXT_LEAGUE
+    # Stats base (Universo/LaPreferente) solo son fiables para Liga.
+    if scope_value == Match.CONTEXT_LEAGUE:
+        # La caché de La Preferente es legacy y solo aplica al equipo principal.
+        # En multicategoría, evitar mezclar stats base entre equipos.
+        roster_cache = get_roster_stats_cache() if bool(getattr(primary_team, 'is_primary', False)) else {}
+        manual_overrides = get_manual_player_base_overrides(primary_team)
+        universo_snapshot = load_universo_snapshot() or {}
+        can_use_universo = _universo_snapshot_supports_team(universo_snapshot, primary_team)
+        universo_players = (universo_snapshot.get('players') if isinstance(universo_snapshot, dict) else []) if can_use_universo else []
+    else:
+        roster_cache = {}
+        manual_overrides = {}
+        universo_snapshot = {}
+        universo_players = []
     universo_map = {}
     universo_by_number = {}
     if isinstance(universo_players, list):
@@ -17410,11 +17462,13 @@ def coach_role_trainer_page(request):
             group=primary_team.group,
             team=primary_team,
         ).first()
-    preferred_sources = preferred_event_source_by_match(primary_team) if primary_team else {}
+    # Vista "entrenador": por defecto solo Liga (torneos/amistosos no deben contaminar el panel).
+    preferred_sources = preferred_event_source_by_match(primary_team, scope=Match.CONTEXT_LEAGUE) if primary_team else {}
     events = (
         _filter_stats_events(
             confirmed_events_queryset()
             .filter(player__team=primary_team)
+            .filter(match__context=Match.CONTEXT_LEAGUE)
             .select_related('player', 'match', 'match__home_team', 'match__away_team')
             .order_by('match_id', 'minute', 'id'),
             preferred_sources=preferred_sources,
@@ -17426,7 +17480,7 @@ def coach_role_trainer_page(request):
     measured_matches = len(measured_match_ids)
     total_actions = len(events) if primary_team else 0
     total_matches = (
-        _team_match_queryset(primary_team).count()
+        _team_match_queryset(primary_team).filter(context=Match.CONTEXT_LEAGUE).count()
         if primary_team
         else 0
     )
@@ -28266,7 +28320,10 @@ def player_detail_page(request, player_id):
 
         try:
             force_refresh_stats = str(request.GET.get('refresh') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
-            matches = compute_player_dashboard(primary_team, force_refresh=force_refresh_stats)
+            scope = str(request.GET.get('scope') or '').strip().lower() or Match.CONTEXT_LEAGUE
+            if scope not in {Match.CONTEXT_LEAGUE, Match.CONTEXT_TOURNAMENT, Match.CONTEXT_FRIENDLY, 'all'}:
+                scope = Match.CONTEXT_LEAGUE
+            matches = compute_player_dashboard(primary_team, force_refresh=force_refresh_stats, scope=scope)
             stats_error = ''
         except Exception:
             logger.exception('No se pudo recomponer el dashboard del jugador %s', player_id)
@@ -29874,6 +29931,9 @@ def _apply_match_info_overrides(match, primary_team, match_info_payload):
     location_value = (match_info_payload.get('location') or '').strip()
     datetime_value = (match_info_payload.get('datetime') or '').strip()
     opponent_name = (match_info_payload.get('opponent') or '').strip()
+    context_value = (match_info_payload.get('context') or '').strip().lower()
+    tournament_name_value = (match_info_payload.get('tournament_name') or '').strip()
+    tournament_stage_value = (match_info_payload.get('tournament_stage') or '').strip()
     raw_score_for = match_info_payload.get('score_for')
     raw_score_against = match_info_payload.get('score_against')
     score_for = _parse_optional_nonnegative_int(raw_score_for)
@@ -29884,6 +29944,27 @@ def _apply_match_info_overrides(match, primary_team, match_info_payload):
     if round_value != (match.round or ''):
         match.round = round_value
         changed_fields.append('round')
+
+    allowed_contexts = {Match.CONTEXT_LEAGUE, Match.CONTEXT_TOURNAMENT, Match.CONTEXT_FRIENDLY}
+    if context_value and context_value in allowed_contexts and context_value != (match.context or Match.CONTEXT_LEAGUE):
+        match.context = context_value
+        changed_fields.append('context')
+    # Si el partido deja de ser Torneo, limpiamos metadatos para evitar confusión.
+    effective_context = (match.context or Match.CONTEXT_LEAGUE).strip().lower()
+    if effective_context != Match.CONTEXT_TOURNAMENT:
+        if match.tournament_name:
+            match.tournament_name = ''
+            changed_fields.append('tournament_name')
+        if match.tournament_stage:
+            match.tournament_stage = ''
+            changed_fields.append('tournament_stage')
+    else:
+        if tournament_name_value != (match.tournament_name or ''):
+            match.tournament_name = tournament_name_value
+            changed_fields.append('tournament_name')
+        if tournament_stage_value != (match.tournament_stage or ''):
+            match.tournament_stage = tournament_stage_value
+            changed_fields.append('tournament_stage')
     if location_value != (match.location or ''):
         match.location = location_value
         changed_fields.append('location')
@@ -30037,7 +30118,7 @@ def build_match_payload(match, primary_team, status):
     })
 
 
-def preferred_event_source_by_match(primary_team):
+def preferred_event_source_by_match(primary_team, scope=None):
     """
     Choose one authoritative source per match to avoid cross-source double counting.
     Priority:
@@ -30046,6 +30127,9 @@ def preferred_event_source_by_match(primary_team):
     """
     if not primary_team:
         return {}
+    scope_value = str(scope or '').strip().lower()
+    if scope_value not in {Match.CONTEXT_LEAGUE, Match.CONTEXT_TOURNAMENT, Match.CONTEXT_FRIENDLY, 'all', ''}:
+        scope_value = ''
     team_events = (
         MatchEvent.objects
         .filter(player__team=primary_team)
@@ -30054,6 +30138,8 @@ def preferred_event_source_by_match(primary_team):
             | ~Q(system='touch-field')
         )
     )
+    if scope_value and scope_value != 'all':
+        team_events = team_events.filter(match__context=scope_value)
     preferred = {}
     registro_match_ids = set(
         team_events.filter(source_file='registro-acciones')
@@ -30207,19 +30293,27 @@ def append_events_to_bd_eventos(match, primary_team, events):
     return rows_written
 
 
-def compute_team_metrics(primary_team):
+def compute_team_metrics(primary_team, scope=Match.CONTEXT_LEAGUE):
     if not primary_team:
         return {'total_events': 0, 'top_event_types': [], 'top_results': []}
-    cache_key = _team_metrics_cache_key(primary_team.id)
+    scope_value = str(scope or Match.CONTEXT_LEAGUE).strip().lower() or Match.CONTEXT_LEAGUE
+    if scope_value not in {Match.CONTEXT_LEAGUE, Match.CONTEXT_TOURNAMENT, Match.CONTEXT_FRIENDLY, 'all'}:
+        scope_value = Match.CONTEXT_LEAGUE
+    cache_key = f'{_team_metrics_cache_key(primary_team.id)}:{scope_value}'
     cached = cache.get(cache_key)
     if isinstance(cached, dict) and cached:
         return cached
-    preferred_sources = preferred_event_source_by_match(primary_team)
-    events = _filter_stats_events(
+    preferred_sources = preferred_event_source_by_match(primary_team, scope=scope_value)
+    events_qs = (
         confirmed_events_queryset()
         .filter(player__team=primary_team)
         .select_related('match')
-        .order_by('match_id', 'minute', 'id'),
+        .order_by('match_id', 'minute', 'id')
+    )
+    if scope_value != 'all':
+        events_qs = events_qs.filter(match__context=scope_value)
+    events = _filter_stats_events(
+        events_qs,
         preferred_sources=preferred_sources,
     )
     total_events = len(events)
@@ -30350,19 +30444,27 @@ def compute_player_cards_for_match(match, primary_team, source_file=None):
         item['success_rate'] = round((success / total_actions) * 100, 1) if total_actions else 0
     return sorted(cards, key=lambda item: item['actions'], reverse=True)
 
-def compute_player_metrics(primary_team):
+def compute_player_metrics(primary_team, scope=Match.CONTEXT_LEAGUE):
     if not primary_team:
         return []
-    cache_key = _player_metrics_cache_key(primary_team.id)
+    scope_value = str(scope or Match.CONTEXT_LEAGUE).strip().lower() or Match.CONTEXT_LEAGUE
+    if scope_value not in {Match.CONTEXT_LEAGUE, Match.CONTEXT_TOURNAMENT, Match.CONTEXT_FRIENDLY, 'all'}:
+        scope_value = Match.CONTEXT_LEAGUE
+    cache_key = f'{_player_metrics_cache_key(primary_team.id)}:{scope_value}'
     cached = cache.get(cache_key)
     if isinstance(cached, list) and cached:
         return cached
-    preferred_sources = preferred_event_source_by_match(primary_team)
-    events = _filter_stats_events(
+    preferred_sources = preferred_event_source_by_match(primary_team, scope=scope_value)
+    events_qs = (
         confirmed_events_queryset()
         .filter(player__team=primary_team)
         .select_related('player', 'match')
-        .order_by('match_id', 'minute', 'id'),
+        .order_by('match_id', 'minute', 'id')
+    )
+    if scope_value != 'all':
+        events_qs = events_qs.filter(match__context=scope_value)
+    events = _filter_stats_events(
+        events_qs,
         preferred_sources=preferred_sources,
     )
     per_player = {}
@@ -30387,10 +30489,10 @@ def compute_player_metrics(primary_team):
     return result
 
 
-def compute_player_cards(primary_team, *, force_refresh=False):
+def compute_player_cards(primary_team, *, force_refresh=False, scope=None):
     if not primary_team:
         return []
-    dashboard_rows = compute_player_dashboard(primary_team, force_refresh=bool(force_refresh))
+    dashboard_rows = compute_player_dashboard(primary_team, force_refresh=bool(force_refresh), scope=scope)
     cards = []
     for row in dashboard_rows:
         cards.append(
@@ -30419,10 +30521,13 @@ def compute_player_cards(primary_team, *, force_refresh=False):
     return sorted(cards, key=lambda entry: (-entry['goals'], -entry['pj'], entry['name']))
 
 
-def compute_player_dashboard(primary_team, force_refresh=False):
+def compute_player_dashboard(primary_team, force_refresh=False, scope=None):
     if not primary_team:
         return []
-    cache_key = _player_dashboard_cache_key(primary_team.id)
+    scope_value = str(scope or Match.CONTEXT_LEAGUE).strip().lower()
+    if scope_value not in {Match.CONTEXT_LEAGUE, Match.CONTEXT_TOURNAMENT, Match.CONTEXT_FRIENDLY, 'all'}:
+        scope_value = Match.CONTEXT_LEAGUE
+    cache_key = f'{_player_dashboard_cache_key(primary_team.id)}:{scope_value}'
     if not force_refresh:
         cached_rows = cache.get(cache_key)
         if isinstance(cached_rows, list):
@@ -30438,12 +30543,19 @@ def compute_player_dashboard(primary_team, force_refresh=False):
         primary_team,
         reference_match=active_match,
     )
+    # Las estadísticas base (Universo/La Preferente + overrides manuales) solo aplican a Liga.
+    # En Torneos/Amistosos, los KPI deben derivarse de acciones registradas para ese contexto.
+    use_base_stats = scope_value in {Match.CONTEXT_LEAGUE, 'all'}
     # La caché de La Preferente es legacy y solo aplica al equipo principal.
     # En multicategoría, evitar mezclar stats base entre equipos.
-    roster_cache = get_roster_stats_cache() if bool(getattr(primary_team, 'is_primary', False)) else {}
-    manual_overrides = get_manual_player_base_overrides(primary_team)
-    universo_snapshot = load_universo_snapshot() or {}
-    can_use_universo = _universo_snapshot_supports_team(universo_snapshot, primary_team)
+    roster_cache = (
+        (get_roster_stats_cache() if bool(getattr(primary_team, 'is_primary', False)) else {})
+        if use_base_stats
+        else {}
+    )
+    manual_overrides = get_manual_player_base_overrides(primary_team) if use_base_stats else {}
+    universo_snapshot = (load_universo_snapshot() or {}) if use_base_stats else {}
+    can_use_universo = _universo_snapshot_supports_team(universo_snapshot, primary_team) if use_base_stats else False
     universo_players = (universo_snapshot.get('players') if isinstance(universo_snapshot, dict) else []) if can_use_universo else []
     universo_map = {}
     universo_by_number = {}
@@ -30496,12 +30608,14 @@ def compute_player_dashboard(primary_team, force_refresh=False):
     for player in roster_players:
         photo_path = resolve_player_photo_static_path(player)
         player_photo_url_by_id[player.id] = resolve_player_photo_url(None, player) or (static(photo_path) if photo_path else '')
-    preferred_sources = preferred_event_source_by_match(primary_team)
+    preferred_sources = preferred_event_source_by_match(primary_team, scope=scope_value)
+    convocation_base_qs = ConvocationRecord.objects.filter(team=primary_team, match__isnull=False)
+    if scope_value != 'all':
+        convocation_base_qs = convocation_base_qs.filter(match__context=scope_value)
     convocation_seed_by_match_id = {}
     try:
         for record in (
-            ConvocationRecord.objects
-            .filter(team=primary_team, match__isnull=False)
+            convocation_base_qs
             .select_related('match')
             .order_by('match_id', '-created_at', '-id')
         ):
@@ -30514,9 +30628,9 @@ def compute_player_dashboard(primary_team, force_refresh=False):
     official_match_ids = set()
     try:
         today = timezone.localdate()
+        convocation_scope_qs = convocation_base_qs
         for record in (
-            ConvocationRecord.objects
-            .filter(team=primary_team, match__isnull=False)
+            convocation_scope_qs
             .select_related('match')
             .prefetch_related('players')
             .order_by('-created_at', '-id')[:420]
@@ -30547,7 +30661,7 @@ def compute_player_dashboard(primary_team, force_refresh=False):
             official_match_by_id = {}
     lineup_by_match = {}
     convocation_qs = (
-        ConvocationRecord.objects.filter(team=primary_team, match__isnull=False)
+        convocation_base_qs
         .exclude(lineup_data={})
         .prefetch_related('players')
         .order_by('match_id', '-created_at')
@@ -30573,6 +30687,13 @@ def compute_player_dashboard(primary_team, force_refresh=False):
             | ~Q(system='touch-field')
         )
     )
+    # Guardrail multicategoría: en categorías secundarias, solo contamos eventos de partidos
+    # donde el equipo activo figura como local/visitante. Evita mezclar Senior vs Prebenjamín
+    # cuando hay datos históricos mal asociados.
+    if not bool(getattr(primary_team, 'is_primary', False)):
+        stats_events = stats_events.filter(Q(match__home_team=primary_team) | Q(match__away_team=primary_team))
+    if scope_value != 'all':
+        stats_events = stats_events.filter(match__context=scope_value)
     events = (
         stats_events
         .select_related('player', 'match', 'match__home_team', 'match__away_team')
@@ -30600,6 +30721,13 @@ def compute_player_dashboard(primary_team, force_refresh=False):
             Q(system='touch-field-final')
             | Q(system='touch-field', source_file='registro-acciones')
         )
+    )
+    if not bool(getattr(primary_team, 'is_primary', False)):
+        live_events = live_events.filter(Q(match__home_team=primary_team) | Q(match__away_team=primary_team))
+    if scope_value != 'all':
+        live_events = live_events.filter(match__context=scope_value)
+    live_events = (
+        live_events
         .select_related('player', 'match', 'match__home_team', 'match__away_team')
         .order_by('player__name', 'match__date')
     )

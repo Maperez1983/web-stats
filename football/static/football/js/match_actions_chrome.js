@@ -49,14 +49,33 @@ window.initMatchActionsChrome = function initMatchActionsChrome(options) {
     if (!matchInfoCard) {
       return {};
     }
+    const contextValue = matchInfoCard.querySelector('[data-field="context"] [data-input]')?.value?.trim() || '';
     return {
       opponent: matchInfoCard.querySelector('[data-field="opponent"] [data-input]')?.value?.trim() || '',
       location: matchInfoCard.querySelector('[data-field="location"] [data-input]')?.value?.trim() || '',
       datetime: matchInfoCard.querySelector('[data-field="datetime"] [data-input]')?.value?.trim() || '',
       round: matchInfoCard.querySelector('[data-field="round"] [data-input]')?.value?.trim() || '',
+      context: contextValue || 'league',
+      tournament_name: matchInfoCard.querySelector('[data-field="tournament_name"] [data-input]')?.value?.trim() || '',
+      tournament_stage: matchInfoCard.querySelector('[data-field="tournament_stage"] [data-input]')?.value?.trim() || '',
       score_for: matchInfoCard.querySelector('[data-field="score_for"] [data-input]')?.value?.trim() || '',
       score_against: matchInfoCard.querySelector('[data-field="score_against"] [data-input]')?.value?.trim() || '',
     };
+  };
+
+  const contextLabel = (value) => {
+    const v = String(value || '').trim().toLowerCase();
+    if (v === 'tournament') return 'Torneo';
+    if (v === 'friendly') return 'Amistoso';
+    return 'Liga';
+  };
+
+  const syncTournamentRows = (contextValue) => {
+    if (!matchInfoCard) return;
+    const isTournament = String(contextValue || '').trim().toLowerCase() === 'tournament';
+    matchInfoCard.querySelectorAll('[data-tournament-only]').forEach((row) => {
+      row.hidden = !isTournament;
+    });
   };
 
   const renderMatchInfoState = (matchInfoState) => {
@@ -74,10 +93,21 @@ window.initMatchActionsChrome = function initMatchActionsChrome(options) {
         input.value = value || '';
       }
       if (display) {
-        display.textContent = value || '-';
+        if (key === 'context') {
+          display.textContent = contextLabel(value);
+        } else {
+          display.textContent = value || '-';
+        }
       }
     });
+    syncTournamentRows(matchInfoState.context);
   };
+
+  // Cambios en el selector de contexto.
+  matchInfoCard?.querySelector('[data-field="context"] [data-input]')?.addEventListener('change', (event) => {
+    const value = event?.target?.value || '';
+    syncTournamentRows(value);
+  });
 
   const showQuickHistoryModal = (historyKey, title) => {
     const entries = quickHistoryState?.[historyKey] || [];

@@ -183,6 +183,10 @@ def get_active_match(primary_team):
     qs = _team_match_queryset(primary_team)
     if not qs.exists():
         return None
+    # Default UX: si hay partidos de torneo/amistoso, no deben desplazar al "próximo partido" de Liga.
+    qs_league = qs.filter(context=Match.CONTEXT_LEAGUE)
+    if qs_league.exists():
+        qs = qs_league
     today = timezone.localdate()
     upcoming = qs.filter(date__gte=today).order_by('date').first()
     if upcoming:
@@ -247,6 +251,14 @@ def get_previous_match(primary_team, reference_match=None):
     qs = _team_match_queryset(primary_team)
     if not qs.exists():
         return None
+    # Si estamos en un partido de Liga/Torneo/Amistoso, el "anterior" debe respetar el mismo contexto.
+    reference_context = getattr(reference_match, 'context', None) if reference_match else None
+    if reference_context:
+        qs = qs.filter(context=reference_context)
+    else:
+        qs_league = qs.filter(context=Match.CONTEXT_LEAGUE)
+        if qs_league.exists():
+            qs = qs_league
     if reference_match and reference_match.date:
         previous = (
             qs.exclude(id=reference_match.id)
