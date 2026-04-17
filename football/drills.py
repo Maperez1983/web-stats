@@ -12,6 +12,8 @@ class Drill:
     icon_static_path: str
     description: str = ""
     tags: Tuple[str, ...] = ()
+    age_min: Optional[int] = None
+    age_max: Optional[int] = None
 
 
 DRILL_CATALOG: List[Drill] = [
@@ -142,6 +144,7 @@ DRILL_CATALOG: List[Drill] = [
         category="strength",
         icon_static_path="football/images/drills/physical/squat.svg",
         tags=("physical", "gym", "strength"),
+        age_min=13,
     ),
     Drill(
         id="hinge",
@@ -149,6 +152,7 @@ DRILL_CATALOG: List[Drill] = [
         category="strength",
         icon_static_path="football/images/drills/physical/hinge.svg",
         tags=("physical", "gym", "strength"),
+        age_min=13,
     ),
     Drill(
         id="split_squat",
@@ -156,6 +160,7 @@ DRILL_CATALOG: List[Drill] = [
         category="strength",
         icon_static_path="football/images/drills/physical/split_squat.svg",
         tags=("physical", "gym", "strength"),
+        age_min=13,
     ),
     Drill(
         id="nordic",
@@ -163,6 +168,7 @@ DRILL_CATALOG: List[Drill] = [
         category="prehab",
         icon_static_path="football/images/drills/physical/nordic.svg",
         tags=("physical", "gym", "prehab", "hamstring"),
+        age_min=12,
     ),
     Drill(
         id="calf_raise",
@@ -191,6 +197,7 @@ DRILL_CATALOG: List[Drill] = [
         category="strength",
         icon_static_path="football/images/drills/physical/push_up.svg",
         tags=("physical", "gym", "strength"),
+        age_min=10,
     ),
     Drill(
         id="band_row",
@@ -198,6 +205,7 @@ DRILL_CATALOG: List[Drill] = [
         category="strength",
         icon_static_path="football/images/drills/physical/band_row.svg",
         tags=("physical", "gym", "strength"),
+        age_min=12,
     ),
     Drill(
         id="glute_bridge",
@@ -205,6 +213,7 @@ DRILL_CATALOG: List[Drill] = [
         category="strength",
         icon_static_path="football/images/drills/physical/glute_bridge.svg",
         tags=("physical", "gym", "strength", "glute"),
+        age_min=10,
     ),
     Drill(
         id="hip_thrust",
@@ -212,6 +221,7 @@ DRILL_CATALOG: List[Drill] = [
         category="strength",
         icon_static_path="football/images/drills/physical/hip_thrust.svg",
         tags=("physical", "gym", "strength", "glute"),
+        age_min=13,
     ),
     Drill(
         id="single_leg_rdl",
@@ -219,6 +229,7 @@ DRILL_CATALOG: List[Drill] = [
         category="strength",
         icon_static_path="football/images/drills/physical/single_leg_rdl.svg",
         tags=("physical", "gym", "strength", "balance"),
+        age_min=13,
     ),
     Drill(
         id="copenhagen",
@@ -226,6 +237,7 @@ DRILL_CATALOG: List[Drill] = [
         category="prehab",
         icon_static_path="football/images/drills/physical/copenhagen.svg",
         tags=("physical", "gym", "prehab", "adductor"),
+        age_min=13,
     ),
     Drill(
         id="band_walk",
@@ -233,6 +245,7 @@ DRILL_CATALOG: List[Drill] = [
         category="prehab",
         icon_static_path="football/images/drills/physical/band_walk.svg",
         tags=("physical", "gym", "prehab", "hip"),
+        age_min=10,
     ),
     Drill(
         id="adductor_squeeze",
@@ -240,6 +253,7 @@ DRILL_CATALOG: List[Drill] = [
         category="prehab",
         icon_static_path="football/images/drills/physical/adductor_squeeze.svg",
         tags=("physical", "gym", "prehab", "adductor"),
+        age_min=10,
     ),
     Drill(
         id="dead_bug",
@@ -395,6 +409,8 @@ def drill_cards(ids: Iterable[str]) -> List[dict]:
                 "category": item.category,
                 "icon_static_path": item.icon_static_path,
                 "description": item.description,
+                "age_min": item.age_min,
+                "age_max": item.age_max,
             }
         )
     return cards

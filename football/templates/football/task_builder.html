@@ -2909,10 +2909,17 @@
 	                        <option value="core">Core</option>
 	                        <option value="prehab">Prehab</option>
 	                      </select>
+	                      <select id="task-drills-age" style="flex:0 0 auto;" title="Filtra por edad orientativa (no excluye: deja en “Todas” para ver el catálogo completo).">
+	                        <option value="all">Edades · Todas</option>
+	                        <option value="u8">4–8</option>
+	                        <option value="u12">9–12</option>
+	                        <option value="u16">13–16</option>
+	                        <option value="adult">17+</option>
+	                      </select>
 	                    </div>
 	                    <div class="drills-picker" id="task-drills-picker" style="margin-top:0.35rem;">
 	                      {% for drill in drills_catalog %}
-	                      <label class="chip-toggle" title="{{ drill.label }}" data-drill-cat="{{ drill.category }}" data-drill-label="{{ drill.label }}">
+	                      <label class="chip-toggle" title="{{ drill.label }}" data-drill-cat="{{ drill.category }}" data-drill-label="{{ drill.label }}" data-drill-age-min="{{ drill.age_min|default:'' }}" data-drill-age-max="{{ drill.age_max|default:'' }}">
 	                        <input type="checkbox" value="{{ drill.id }}" {% if drill.id in initial.drills_ids %}checked{% endif %} data-drill-id="{{ drill.id }}" />
 	                        <img class="drill-icon" src="{% static drill.icon_static_path %}" alt="" />
 	                        {{ drill.label }}
@@ -3626,6 +3633,7 @@
 				          const drillsInput = document.getElementById('draw-task-drills-json');
 				          const drillsPicker = document.getElementById('task-drills-picker');
 				          const drillsFilter = document.getElementById('task-drills-filter');
+				          const drillsAge = document.getElementById('task-drills-age');
 				          const drillsSearch = document.getElementById('task-drills-search');
 				          const parseJsonList = (value) => {
 				            const raw = String(value || '').trim();
@@ -3694,19 +3702,39 @@
 				          const applyDrillsFilter = () => {
 				            if (!drillsPicker) return;
 				            const cat = String(drillsFilter?.value || 'all').trim();
+				            const ageKey = String(drillsAge?.value || 'all').trim();
+				            const ageRanges = {
+				              u8: [4, 8],
+				              u12: [9, 12],
+				              u16: [13, 16],
+				              adult: [17, 99],
+				            };
+				            const ageSel = ageRanges[ageKey] || null;
 				            const q = String(drillsSearch?.value || '').trim().toLowerCase();
 				            Array.from(drillsPicker.querySelectorAll('[data-drill-id]')).forEach((cb) => {
 				              const wrapper = cb.closest('label');
 				              if (!wrapper) return;
 				              const wcat = String(wrapper.getAttribute('data-drill-cat') || '').trim();
 				              const wlabel = String(wrapper.getAttribute('data-drill-label') || '').trim().toLowerCase();
+				              const wAgeMinRaw = String(wrapper.getAttribute('data-drill-age-min') || '').trim();
+				              const wAgeMaxRaw = String(wrapper.getAttribute('data-drill-age-max') || '').trim();
+				              const wAgeMin = wAgeMinRaw ? parseInt(wAgeMinRaw, 10) : null;
+				              const wAgeMax = wAgeMaxRaw ? parseInt(wAgeMaxRaw, 10) : null;
 				              const catOk = (cat === 'all') || (wcat === cat);
 				              const qOk = (!q) || wlabel.includes(q);
-				              wrapper.style.display = (catOk && qOk) ? '' : 'none';
+				              let ageOk = true;
+				              if (ageSel) {
+				                const minSel = ageSel[0];
+				                const maxSel = ageSel[1];
+				                if (wAgeMin != null && wAgeMin > maxSel) ageOk = false;
+				                if (wAgeMax != null && wAgeMax < minSel) ageOk = false;
+				              }
+				              wrapper.style.display = (catOk && qOk && ageOk) ? '' : 'none';
 				            });
 				          };
 				          try {
 				            drillsFilter?.addEventListener('change', applyDrillsFilter);
+				            drillsAge?.addEventListener('change', applyDrillsFilter);
 				            drillsSearch?.addEventListener('input', applyDrillsFilter);
 				            applyDrillsFilter();
 				          } catch (err) {}

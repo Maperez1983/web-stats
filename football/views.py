@@ -25860,6 +25860,8 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             'label': item.label,
             'category': item.category,
             'icon_static_path': item.icon_static_path,
+            'age_min': item.age_min,
+            'age_max': item.age_max,
         }
         for item in DRILL_CATALOG
     ]
