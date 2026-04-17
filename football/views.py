@@ -18446,6 +18446,162 @@ def coach_injuries_page(request):
     )
 
 
+def _build_team_load_advanced_rows(players, selected_date):
+    """
+    Carga avanzada (orientativa) a partir de PlayerPhysicalMetric (RPE + wellness).
+
+    Nota:
+    - No usamos duración porque no está registrada por día; el objetivo es detectar tendencias básicas.
+    - ACWR aquí es un proxy: suma RPE 7d / (suma RPE 28d / 4).
+    """
+    if not players:
+        return []
+    try:
+        cutoff = selected_date or timezone.localdate()
+    except Exception:
+        cutoff = timezone.localdate()
+
+    player_ids = [int(getattr(p, 'id', 0) or 0) for p in players if getattr(p, 'id', None)]
+    player_ids = [pid for pid in player_ids if pid]
+    if not player_ids:
+        return []
+
+    start_28 = cutoff - timedelta(days=27)
+    start_7 = cutoff - timedelta(days=6)
+    start_3 = cutoff - timedelta(days=2)
+
+    # 1 query: todas las métricas 28d para el equipo.
+    rows = (
+        PlayerPhysicalMetric.objects
+        .filter(player_id__in=player_ids, recorded_on__gte=start_28, recorded_on__lte=cutoff)
+        .values('id', 'player_id', 'recorded_on', 'rpe', 'wellness')
+        .order_by('player_id', 'recorded_on', 'id')
+    )
+
+    # Normaliza duplicados por día: nos quedamos con la última entrada (id mayor).
+    by_player_day = {}
+    for item in rows:
+        pid = int(item.get('player_id') or 0)
+        day = item.get('recorded_on')
+        if not pid or not day:
+            continue
+        day_key = (pid, day)
+        prev = by_player_day.get(day_key)
+        if not prev or int(item.get('id') or 0) >= int(prev.get('id') or 0):
+            by_player_day[day_key] = item
+
+    def _avg(values):
+        nums = [v for v in values if isinstance(v, int)]
+        if not nums:
+            return None
+        return round(sum(nums) / len(nums), 1)
+
+    def _sum(values):
+        nums = [v for v in values if isinstance(v, int)]
+        if not nums:
+            return 0
+        return int(sum(nums))
+
+    alert_order = {
+        'acwr_high': 0,
+        'wellness_low': 1,
+        'rpe_high': 2,
+        'acwr_low': 3,
+        'missing': 4,
+        '': 5,
+    }
+
+    out = []
+    for player in players:
+        pid = int(getattr(player, 'id', 0) or 0)
+        if not pid:
+            continue
+        # Extrae días para el jugador.
+        day_items = [
+            payload
+            for (p, d), payload in by_player_day.items()
+            if int(p) == pid
+        ]
+        # Última fecha con registro
+        last_date = None
+        if day_items:
+            try:
+                last_date = max(item.get('recorded_on') for item in day_items if item.get('recorded_on'))
+            except Exception:
+                last_date = None
+
+        rpe_7 = []
+        rpe_28 = []
+        rpe_3 = []
+        w_7 = []
+        w_3 = []
+        for item in day_items:
+            d = item.get('recorded_on')
+            if not d:
+                continue
+            rpe = item.get('rpe')
+            wellness = item.get('wellness')
+            if d >= start_28:
+                if isinstance(rpe, int):
+                    rpe_28.append(rpe)
+            if d >= start_7:
+                if isinstance(rpe, int):
+                    rpe_7.append(rpe)
+                if isinstance(wellness, int):
+                    w_7.append(wellness)
+            if d >= start_3:
+                if isinstance(rpe, int):
+                    rpe_3.append(rpe)
+                if isinstance(wellness, int):
+                    w_3.append(wellness)
+
+        rpe_7_sum = _sum(rpe_7)
+        rpe_28_sum = _sum(rpe_28)
+        chronic_weekly = round((rpe_28_sum / 4.0), 1) if rpe_28_sum else None
+        acwr = None
+        if chronic_weekly and chronic_weekly > 0:
+            try:
+                acwr = round((rpe_7_sum / float(chronic_weekly)), 2)
+            except Exception:
+                acwr = None
+
+        wellness_7_avg = _avg(w_7)
+        rpe_3_avg = _avg(rpe_3)
+        wellness_3_avg = _avg(w_3)
+
+        # Alertas simples (prioridad por riesgo).
+        alert = ''
+        if (not rpe_7 and not w_7):
+            alert = 'missing'
+        elif acwr is not None and acwr >= 1.5 and rpe_7_sum >= 10:
+            alert = 'acwr_high'
+        elif wellness_3_avg is not None and wellness_3_avg <= 4:
+            alert = 'wellness_low'
+        elif rpe_3_avg is not None and rpe_3_avg >= 8:
+            alert = 'rpe_high'
+        elif acwr is not None and acwr <= 0.8 and (chronic_weekly or 0) >= 10:
+            alert = 'acwr_low'
+
+        out.append(
+            {
+                'player': player,
+                'rpe_7_sum': rpe_7_sum if rpe_7 else None,
+                'rpe_28_sum': rpe_28_sum if rpe_28 else None,
+                'rpe_28_weekly': chronic_weekly,
+                'acwr': acwr,
+                'wellness_7_avg': wellness_7_avg,
+                'rpe_3_avg': rpe_3_avg,
+                'wellness_3_avg': wellness_3_avg,
+                'alert': alert,
+                'last_date': (last_date.strftime('%Y-%m-%d') if last_date else ''),
+                'sort_key': (alert_order.get(alert, 9), (player.number if player.number is not None else 999), (player.name or '').lower()),
+            }
+        )
+
+    out.sort(key=lambda row: row.get('sort_key') or (9, 999, ''))
+    return out
+
+
 @login_required
 def coach_load_page(request):
     forbidden = _forbid_if_no_coach_access(request.user)
@@ -18494,27 +18650,70 @@ def coach_load_page(request):
             return None
 
     # Export CSV simple (para seguimiento en hojas).
-    if str(request.GET.get('format') or '').strip().lower() == 'csv':
+    export_format = str(request.GET.get('format') or '').strip().lower()
+    if export_format in {'csv', 'csv_advanced'}:
         filename = slugify(f'carga-{primary_team.slug}-{selected_date.isoformat()}') or 'carga'
         response = HttpResponse(content_type='text/csv; charset=utf-8')
         response['Content-Disposition'] = f'attachment; filename="{filename}.csv"'
         writer = csv.writer(response)
-        writer.writerow(['jugador_id', 'dorsal', 'jugador', 'fecha', 'rpe', 'wellness', 'workload', 'peso_kg', 'notas'])
-        for player in players:
-            metric = metrics_by_player_id.get(int(player.id))
+        if export_format == 'csv':
+            writer.writerow(['jugador_id', 'dorsal', 'jugador', 'fecha', 'rpe', 'wellness', 'workload', 'peso_kg', 'notas'])
+            for player in players:
+                metric = metrics_by_player_id.get(int(player.id))
+                writer.writerow(
+                    [
+                        int(player.id),
+                        player.number if player.number is not None else '',
+                        player.name,
+                        selected_date.isoformat(),
+                        _metric_val(metric, 'rpe') if metric else '',
+                        _metric_val(metric, 'wellness') if metric else '',
+                        _metric_val(metric, 'workload') if metric else '',
+                        _metric_val(metric, 'weight_kg') if metric else '',
+                        _metric_val(metric, 'notes') if metric else '',
+                    ]
+                )
+        else:
+            # CSV avanzada: incluye ventanas 7/28d y alertas (ACWR orientativo).
+            advanced_rows = _build_team_load_advanced_rows(players, selected_date)
             writer.writerow(
                 [
-                    int(player.id),
-                    player.number if player.number is not None else '',
-                    player.name,
-                    selected_date.isoformat(),
-                    _metric_val(metric, 'rpe') if metric else '',
-                    _metric_val(metric, 'wellness') if metric else '',
-                    _metric_val(metric, 'workload') if metric else '',
-                    _metric_val(metric, 'weight_kg') if metric else '',
-                    _metric_val(metric, 'notes') if metric else '',
+                    'jugador_id',
+                    'dorsal',
+                    'jugador',
+                    'fecha_corte',
+                    'rpe_7_sum',
+                    'rpe_28_sum',
+                    'rpe_28_weekly',
+                    'acwr',
+                    'wellness_7_avg',
+                    'rpe_3_avg',
+                    'wellness_3_avg',
+                    'alerta',
+                    'ult_fecha',
                 ]
             )
+            for row in advanced_rows:
+                player = row.get('player')
+                if not player:
+                    continue
+                writer.writerow(
+                    [
+                        int(player.id),
+                        player.number if player.number is not None else '',
+                        player.name,
+                        selected_date.isoformat(),
+                        row.get('rpe_7_sum') if row.get('rpe_7_sum') is not None else '',
+                        row.get('rpe_28_sum') if row.get('rpe_28_sum') is not None else '',
+                        row.get('rpe_28_weekly') if row.get('rpe_28_weekly') is not None else '',
+                        row.get('acwr') if row.get('acwr') is not None else '',
+                        row.get('wellness_7_avg') if row.get('wellness_7_avg') is not None else '',
+                        row.get('rpe_3_avg') if row.get('rpe_3_avg') is not None else '',
+                        row.get('wellness_3_avg') if row.get('wellness_3_avg') is not None else '',
+                        row.get('alert') or '',
+                        row.get('last_date') or '',
+                    ]
+                )
         return response
 
     message = ''
@@ -18602,6 +18801,15 @@ def coach_load_page(request):
     avg_rpe = round(sum(rpe_values) / len(rpe_values), 1) if rpe_values else None
     avg_wellness = round(sum(wellness_values) / len(wellness_values), 1) if wellness_values else None
 
+    advanced_rows = _build_team_load_advanced_rows(players, selected_date)
+    advanced_alerts = {
+        'acwr_high': sum(1 for row in advanced_rows if row.get('alert') == 'acwr_high'),
+        'acwr_low': sum(1 for row in advanced_rows if row.get('alert') == 'acwr_low'),
+        'wellness_low': sum(1 for row in advanced_rows if row.get('alert') == 'wellness_low'),
+        'rpe_high': sum(1 for row in advanced_rows if row.get('alert') == 'rpe_high'),
+        'missing': sum(1 for row in advanced_rows if row.get('alert') == 'missing'),
+    }
+
     player_rows = []
     for player in players:
         player_rows.append({'player': player, 'metric': metrics_by_player_id.get(int(player.id))})
@@ -18617,6 +18825,8 @@ def coach_load_page(request):
             'avg_wellness': avg_wellness,
             'high_rpe': high_rpe,
             'low_wellness': low_wellness,
+            'advanced_rows': advanced_rows,
+            'advanced_alerts': advanced_alerts,
             'message': message,
             'error': error,
             'can_edit': can_edit,

@@ -107,6 +107,7 @@
         <div style="display:flex; gap:0.55rem; flex-wrap:wrap;">
           <a class="ghost" href="{% url 'coach-cards' %}?area=training">Volver</a>
           <a class="ghost" href="?date={{ selected_date|date:'Y-m-d' }}&format=csv">CSV</a>
+          <a class="ghost" href="?date={{ selected_date|date:'Y-m-d' }}&format=csv_advanced">CSV avanzada</a>
         </div>
       </div>
 
@@ -132,6 +133,72 @@
           </label>
           <button class="primary" type="submit">Abrir</button>
         </form>
+      </section>
+
+      <section class="panel">
+        <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
+          <div>
+            <h2 style="margin:0; letter-spacing:0.09em; text-transform:uppercase; font-size:1.02rem;">Carga avanzada (7/28 días)</h2>
+            <p class="subtle" style="margin-top:0.35rem;">
+              ACWR proxy = RPE(7d) / (RPE(28d)/4). Usa esto como <strong>señal</strong> para ajustar carga, no como diagnóstico.
+            </p>
+          </div>
+          <div class="value" style="display:flex; gap:0.45rem; flex-wrap:wrap;">
+            <span class="pill {% if advanced_alerts.acwr_high %}warn{% else %}ok{% endif %}">ACWR↑ {{ advanced_alerts.acwr_high }}</span>
+            <span class="pill {% if advanced_alerts.wellness_low %}warn{% else %}ok{% endif %}">Well↓ {{ advanced_alerts.wellness_low }}</span>
+            <span class="pill {% if advanced_alerts.rpe_high %}warn{% else %}ok{% endif %}">RPE↑ {{ advanced_alerts.rpe_high }}</span>
+            <span class="pill {% if advanced_alerts.missing %}warn{% else %}ok{% endif %}">Sin datos {{ advanced_alerts.missing }}</span>
+          </div>
+        </div>
+
+        <table aria-label="Carga avanzada por jugador">
+          <thead>
+            <tr>
+              <th>Jugador</th>
+              <th>RPE 7d</th>
+              <th>RPE 28d</th>
+              <th>28d/sem</th>
+              <th>ACWR</th>
+              <th>Well 7d</th>
+              <th>RPE 3d</th>
+              <th>Well 3d</th>
+              <th>Alerta</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in advanced_rows %}
+              {% with p=row.player %}
+              <tr>
+                <td><strong>#{{ p.number|default:"-" }} · {{ p.name }}</strong></td>
+                <td class="num">{{ row.rpe_7_sum|default:"—" }}</td>
+                <td class="num">{{ row.rpe_28_sum|default:"—" }}</td>
+                <td class="num">{{ row.rpe_28_weekly|default:"—" }}</td>
+                <td class="num">{% if row.acwr %}{{ row.acwr }}{% else %}—{% endif %}</td>
+                <td class="num">{{ row.wellness_7_avg|default:"—" }}</td>
+                <td class="num">{{ row.rpe_3_avg|default:"—" }}</td>
+                <td class="num">{{ row.wellness_3_avg|default:"—" }}</td>
+                <td>
+                  {% if row.alert == 'acwr_high' %}
+                    <span class="pill warn">ACWR alto</span>
+                  {% elif row.alert == 'acwr_low' %}
+                    <span class="pill warn">ACWR bajo</span>
+                  {% elif row.alert == 'wellness_low' %}
+                    <span class="pill warn">Bienestar bajo</span>
+                  {% elif row.alert == 'rpe_high' %}
+                    <span class="pill warn">RPE alto</span>
+                  {% elif row.alert == 'missing' %}
+                    <span class="pill warn">Sin datos</span>
+                  {% else %}
+                    <span class="pill ok">OK</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endwith %}
+            {% empty %}
+              <tr><td colspan="9" class="subtle">No hay datos suficientes para calcular carga avanzada.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </section>
 
       <section class="panel">
