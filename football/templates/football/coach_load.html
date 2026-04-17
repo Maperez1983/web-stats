@@ -1,0 +1,193 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Carga · {{ team_name }}</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      body {
+        margin: 0;
+        font-family: "Inter", "Segoe UI", sans-serif;
+        background: linear-gradient(180deg, #020617 0%, #07162f 100%);
+        color: #e2e8f0;
+      }
+      .page { max-width: 1060px; margin: 0 auto; padding: 1.3rem; }
+      .top { display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap; }
+      h1 { margin:0; letter-spacing:0.09em; text-transform:uppercase; font-size:1.3rem; }
+      .subtle { color: rgba(226,232,240,0.72); margin:0.4rem 0 0; font-size:0.9rem; }
+      .panel {
+        margin-top: 1rem;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(15, 23, 42, 0.92);
+        padding: 1rem;
+      }
+      .alert { margin: 0 0 0.85rem; padding: 0.6rem 0.7rem; border-radius: 10px; }
+      .ok { background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.4); }
+      .err { background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.4); }
+      .stats { display: grid; gap: 0.8rem; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+      .stat {
+        border: 1px solid rgba(255, 255, 255, 0.10);
+        background: rgba(2, 6, 23, 0.35);
+        border-radius: 14px;
+        padding: 0.85rem 0.95rem;
+      }
+      .stat .label { text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.7rem; color: rgba(226, 232, 240, 0.72); }
+      .stat .value { margin-top: 0.25rem; font-weight: 900; font-size: 1.35rem; }
+      form.tools { display:flex; gap:0.55rem; flex-wrap:wrap; align-items:end; margin-top:0.75rem; }
+      label { display:grid; gap:0.3rem; font-size:0.74rem; text-transform:uppercase; letter-spacing:0.09em; }
+      input, select, button, textarea { font: inherit; }
+      input, select, textarea {
+        border-radius: 9px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: rgba(2, 6, 23, 0.7);
+        color: #e2e8f0;
+        padding: 0.45rem 0.55rem;
+      }
+      textarea { min-height: 40px; resize: vertical; }
+      button.primary, a.primary {
+        border: none;
+        border-radius: 999px;
+        background: linear-gradient(135deg, #22d3ee, #38bdf8);
+        color: #022c43;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        padding: 0.64rem 1rem;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.4rem;
+      }
+      a.ghost {
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: rgba(255, 255, 255, 0.05);
+        color: #e2e8f0;
+        padding: 0.6rem 0.9rem;
+        text-decoration: none;
+        text-transform: uppercase;
+        letter-spacing: 0.10em;
+        font-weight: 800;
+        font-size: 0.75rem;
+      }
+      table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+      th, td { border-bottom: 1px solid rgba(255, 255, 255, 0.12); padding: 0.58rem 0.45rem; text-align:left; font-size:0.9rem; vertical-align: top; }
+      th { text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.7rem; color: rgba(226, 232, 240, 0.75); }
+      .num { opacity: 0.86; }
+      .pill {
+        display:inline-flex; align-items:center; gap:0.35rem;
+        border-radius:999px; padding:0.18rem 0.55rem;
+        font-size:0.72rem; letter-spacing:0.12em; text-transform:uppercase;
+        border:1px solid rgba(255,255,255,0.12);
+      }
+      .pill.warn { background: rgba(245, 158, 11, 0.15); border-color: rgba(245, 158, 11, 0.35); }
+      .pill.ok { background: rgba(16, 185, 129, 0.12); border-color: rgba(16, 185, 129, 0.35); }
+      .cell-input { width: 90px; }
+      .cell-notes { width: 100%; min-width: 220px; }
+      @media (max-width: 820px) {
+        .cell-notes { min-width: 140px; }
+      }
+    </style>
+  </head>
+  <body class="prod-commercial">
+    <div class="page">
+      {% include 'football/includes/dragon_nav.html' %}
+      <div class="top">
+        <div>
+          <h1>Carga · {{ team_name }}</h1>
+          <p class="subtle">Registro diario de RPE (1–10) y bienestar (1–10). Orientativo; no sustituye criterio médico.</p>
+        </div>
+        <div style="display:flex; gap:0.55rem; flex-wrap:wrap;">
+          <a class="ghost" href="{% url 'coach-cards' %}?area=training">Volver</a>
+          <a class="ghost" href="?date={{ selected_date|date:'Y-m-d' }}&format=csv">CSV</a>
+        </div>
+      </div>
+
+      <section class="panel">
+        {% if message %}<div class="alert ok">{{ message }}</div>{% endif %}
+        {% if error %}<div class="alert err">{{ error }}</div>{% endif %}
+
+        <div class="stats">
+          <article class="stat"><div class="label">Fecha</div><div class="value">{{ selected_date|date:"d/m/Y" }}</div></article>
+          <article class="stat"><div class="label">Media RPE</div><div class="value">{{ avg_rpe|default:"—" }}</div></article>
+          <article class="stat"><div class="label">Media bienestar</div><div class="value">{{ avg_wellness|default:"—" }}</div></article>
+          <article class="stat"><div class="label">Alertas</div>
+            <div class="value" style="display:flex; gap:0.55rem; flex-wrap:wrap;">
+              <span class="pill {% if high_rpe %}warn{% else %}ok{% endif %}">RPE≥8: {{ high_rpe }}</span>
+              <span class="pill {% if low_wellness %}warn{% else %}ok{% endif %}">Well≤4: {{ low_wellness }}</span>
+            </div>
+          </article>
+        </div>
+
+        <form method="get" class="tools">
+          <label>Fecha
+            <input type="date" name="date" value="{{ selected_date|date:'Y-m-d' }}" />
+          </label>
+          <button class="primary" type="submit">Abrir</button>
+        </form>
+      </section>
+
+      <section class="panel">
+        {% if can_edit %}
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="date" value="{{ selected_date|date:'Y-m-d' }}" />
+          <div style="display:flex; gap:0.55rem; flex-wrap:wrap; align-items:end;">
+            <label style="min-width:220px;">Tipo (opcional)
+              <input type="text" name="workload" placeholder="Ej: Entreno, Partido, Fuerza…" />
+            </label>
+            <button class="primary" type="submit">Guardar</button>
+          </div>
+
+          <table aria-label="Carga diaria">
+            <thead>
+              <tr>
+                <th>Jugador</th>
+                <th>RPE</th>
+                <th>Well</th>
+                <th>Peso</th>
+                <th>Notas</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in player_rows %}
+                {% with p=row.player m=row.metric %}
+                <tr>
+                  <td>
+                    <strong>#{{ p.number|default:"-" }} · {{ p.name }}</strong>
+                    <div class="subtle" style="margin:0.15rem 0 0; font-size:0.82rem;">{{ p.position|default:"" }}</div>
+                  </td>
+                  <td>
+                    <input class="cell-input" type="number" min="1" max="10" name="rpe_{{ p.id }}" value="{% if m %}{{ m.rpe|default:'' }}{% endif %}" />
+                  </td>
+                  <td>
+                    <input class="cell-input" type="number" min="1" max="10" name="wellness_{{ p.id }}" value="{% if m %}{{ m.wellness|default:'' }}{% endif %}" />
+                  </td>
+                  <td>
+                    <input class="cell-input" type="number" step="0.1" name="weight_{{ p.id }}" value="{% if m %}{{ m.weight_kg|default:'' }}{% endif %}" />
+                  </td>
+                  <td>
+                    <textarea class="cell-notes" name="notes_{{ p.id }}" placeholder="Fatiga, molestias, carga modificada…">{% if m %}{{ m.notes|default:'' }}{% endif %}</textarea>
+                  </td>
+                </tr>
+                {% endwith %}
+              {% empty %}
+                <tr><td colspan="5" class="subtle">No hay jugadores activos.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </form>
+        {% else %}
+          <div class="subtle">No tienes permisos para editar. Puedes exportar el CSV desde el botón de arriba.</div>
+        {% endif %}
+      </section>
+    </div>
+  </body>
+</html>

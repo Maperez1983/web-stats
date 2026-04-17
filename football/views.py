@@ -17445,6 +17445,7 @@ def coach_cards_page(request):
                 {'label': 'Planificación general', 'link': 'sessions'},
                 {'label': 'Porteros', 'link': 'sessions-goalkeeper'},
                 {'label': 'Preparación física', 'link': 'sessions-fitness'},
+                {'label': 'Carga (RPE)', 'link': 'coach-load'},
                 {'label': 'ABP', 'link': 'coach-role-abp'},
             ],
         },
@@ -18441,6 +18442,184 @@ def coach_injuries_page(request):
             'can_edit': can_edit,
             'message': message,
             'error': error,
+        },
+    )
+
+
+@login_required
+def coach_load_page(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'players', label='métricas físicas')
+    if forbidden:
+        return forbidden
+
+    workspace = _get_active_workspace(request)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        raise Http404('Equipo principal no configurado')
+
+    today = timezone.localdate()
+    selected_date = parse_date(str(request.GET.get('date') or '').strip()) or today
+    if selected_date > (today + timedelta(days=3)):
+        selected_date = today
+
+    can_edit = bool(_can_manage_workspace(request.user, workspace) or _is_admin_user(request.user) or _can_access_platform(request.user))
+
+    players = list(Player.objects.filter(team=primary_team, is_active=True).order_by('number', 'name', 'id'))
+    player_ids = [int(p.id) for p in players if getattr(p, 'id', None)]
+
+    # Cargamos la última métrica por jugador en la fecha seleccionada (si hay duplicados por entradas repetidas).
+    metrics_by_player_id = {}
+    if player_ids:
+        qs = (
+            PlayerPhysicalMetric.objects
+            .filter(player_id__in=player_ids, recorded_on=selected_date)
+            .order_by('player_id', '-id')
+        )
+        seen = set()
+        for item in qs:
+            pid = int(getattr(item, 'player_id', 0) or 0)
+            if not pid or pid in seen:
+                continue
+            metrics_by_player_id[pid] = item
+            seen.add(pid)
+
+    def _metric_val(metric, field):
+        try:
+            value = getattr(metric, field, None)
+            return value
+        except Exception:
+            return None
+
+    # Export CSV simple (para seguimiento en hojas).
+    if str(request.GET.get('format') or '').strip().lower() == 'csv':
+        filename = slugify(f'carga-{primary_team.slug}-{selected_date.isoformat()}') or 'carga'
+        response = HttpResponse(content_type='text/csv; charset=utf-8')
+        response['Content-Disposition'] = f'attachment; filename="{filename}.csv"'
+        writer = csv.writer(response)
+        writer.writerow(['jugador_id', 'dorsal', 'jugador', 'fecha', 'rpe', 'wellness', 'workload', 'peso_kg', 'notas'])
+        for player in players:
+            metric = metrics_by_player_id.get(int(player.id))
+            writer.writerow(
+                [
+                    int(player.id),
+                    player.number if player.number is not None else '',
+                    player.name,
+                    selected_date.isoformat(),
+                    _metric_val(metric, 'rpe') if metric else '',
+                    _metric_val(metric, 'wellness') if metric else '',
+                    _metric_val(metric, 'workload') if metric else '',
+                    _metric_val(metric, 'weight_kg') if metric else '',
+                    _metric_val(metric, 'notes') if metric else '',
+                ]
+            )
+        return response
+
+    message = ''
+    error = ''
+    if request.method == 'POST':
+        if not can_edit:
+            return HttpResponse('No tienes permisos para editar métricas físicas.', status=403)
+        selected_date = parse_date(str(request.POST.get('date') or '').strip()) or selected_date
+        workload = str(request.POST.get('workload') or '').strip()[:120]
+        try:
+            with transaction.atomic():
+                for player in players:
+                    pid = int(player.id)
+                    rpe = _parse_int(request.POST.get(f'rpe_{pid}'))
+                    wellness = _parse_int(request.POST.get(f'wellness_{pid}'))
+                    weight_kg_raw = str(request.POST.get(f'weight_{pid}') or '').strip()
+                    notes = str(request.POST.get(f'notes_{pid}') or '').strip()
+
+                    # Si no hay datos, no creamos fila.
+                    if rpe is None and wellness is None and not weight_kg_raw and not notes and not workload:
+                        continue
+
+                    existing = (
+                        PlayerPhysicalMetric.objects
+                        .filter(player_id=pid, recorded_on=selected_date)
+                        .order_by('-id')
+                        .first()
+                    )
+                    if existing:
+                        existing.workload = workload or existing.workload
+                        existing.rpe = rpe
+                        existing.wellness = wellness
+                        existing.weight_kg = weight_kg_raw or None
+                        existing.notes = notes
+                        existing.save(update_fields=['workload', 'rpe', 'wellness', 'weight_kg', 'notes'])
+                    else:
+                        PlayerPhysicalMetric.objects.create(
+                            player_id=pid,
+                            recorded_on=selected_date,
+                            workload=workload,
+                            rpe=rpe,
+                            wellness=wellness,
+                            weight_kg=weight_kg_raw or None,
+                            notes=notes,
+                        )
+            message = 'Carga guardada.'
+        except Exception:
+            logger.exception('No se pudo guardar la carga física %s', primary_team.id)
+            error = 'No se pudo guardar la carga.'
+
+        # Re-carga para pintar estado actualizado.
+        metrics_by_player_id = {}
+        qs = (
+            PlayerPhysicalMetric.objects
+            .filter(player_id__in=player_ids, recorded_on=selected_date)
+            .order_by('player_id', '-id')
+        )
+        seen = set()
+        for item in qs:
+            pid = int(getattr(item, 'player_id', 0) or 0)
+            if not pid or pid in seen:
+                continue
+            metrics_by_player_id[pid] = item
+            seen.add(pid)
+
+    # Resumen diario + alertas básicas.
+    rpe_values = []
+    wellness_values = []
+    high_rpe = 0
+    low_wellness = 0
+    for player in players:
+        metric = metrics_by_player_id.get(int(player.id))
+        if not metric:
+            continue
+        rpe = getattr(metric, 'rpe', None)
+        wellness = getattr(metric, 'wellness', None)
+        if isinstance(rpe, int):
+            rpe_values.append(rpe)
+            if rpe >= 8:
+                high_rpe += 1
+        if isinstance(wellness, int):
+            wellness_values.append(wellness)
+            if wellness <= 4:
+                low_wellness += 1
+    avg_rpe = round(sum(rpe_values) / len(rpe_values), 1) if rpe_values else None
+    avg_wellness = round(sum(wellness_values) / len(wellness_values), 1) if wellness_values else None
+
+    player_rows = []
+    for player in players:
+        player_rows.append({'player': player, 'metric': metrics_by_player_id.get(int(player.id))})
+
+    return render(
+        request,
+        'football/coach_load.html',
+        {
+            'team_name': primary_team.display_name,
+            'selected_date': selected_date,
+            'player_rows': player_rows,
+            'avg_rpe': avg_rpe,
+            'avg_wellness': avg_wellness,
+            'high_rpe': high_rpe,
+            'low_wellness': low_wellness,
+            'message': message,
+            'error': error,
+            'can_edit': can_edit,
         },
     )
 

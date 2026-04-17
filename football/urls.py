@@ -92,6 +92,7 @@ urlpatterns = [
     path('coach/rival/', views.coach_rival_page, name='coach-rival'),
     path('coach/plantilla/', views.coach_roster_page, name='coach-roster'),
     path('coach/lesiones/', views.coach_injuries_page, name='coach-injuries'),
+    path('coach/carga/', views.coach_load_page, name='coach-load'),
     path('coach/roles/entrenador/', views.coach_role_trainer_page, name='coach-role-trainer'),
     path('coach/roles/porteros/', views.coach_role_goalkeeper_page, name='coach-role-goalkeeper'),
     path('coach/roles/preparacion-fisica/', views.coach_role_fitness_page, name='coach-role-fitness'),
