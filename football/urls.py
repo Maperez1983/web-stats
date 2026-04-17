@@ -15,6 +15,7 @@ urlpatterns = [
     path('partido/', views.match_hub_page, name='match-hub'),
     path('partido/crear/', views.match_hub_create_match, name='match-hub-create'),
     path('buscar/', views.search_page, name='search-page'),
+    path('calendario/club.ics', views.team_calendar_ics, name='team-calendar-ics'),
     path('api/session/keepalive/', views.session_keepalive, name='session-keepalive'),
     path('api/build/', views.public_build_info, name='public-build-info'),
     path('api/search/', views.search_api, name='search-api'),

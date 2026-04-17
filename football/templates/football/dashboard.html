@@ -772,6 +772,11 @@
           <h3>Tu día</h3>
           <div class="meta">Atajos recomendados según partido y entrenos.</div>
           <div id="day-plan" class="day-plan-items">Cargando…</div>
+          <div class="meta" style="margin-top:0.65rem;">
+            <a href="{% url 'team-calendar-ics' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" style="color:rgba(248,250,252,0.86); font-weight:800; letter-spacing:0.08em; text-transform:uppercase; font-size:0.72rem; text-decoration:none;">
+              Exportar calendario (ICS)
+            </a>
+          </div>
         </aside>
       </section>
     </div>

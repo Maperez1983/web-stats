@@ -31982,6 +31982,205 @@ def search_api(request):
     )
 
 
+def _ics_escape(text):
+    value = str(text or '')
+    value = value.replace('\\', '\\\\')
+    value = value.replace('\r\n', '\n').replace('\r', '\n')
+    value = value.replace('\n', '\\n')
+    value = value.replace(',', '\\,').replace(';', '\\;')
+    return value
+
+
+def _ics_fold_lines(lines, limit=73):
+    """
+    RFC5545 line folding (75 octets). We keep it simple and fold by characters.
+    """
+    out = []
+    for line in lines:
+        raw = str(line or '')
+        if len(raw) <= limit:
+            out.append(raw)
+            continue
+        while raw:
+            out.append(raw[:limit])
+            raw = raw[limit:]
+            if raw:
+                raw = ' ' + raw
+    return out
+
+
+def _ics_format_dt(dt_value):
+    if not dt_value:
+        return ''
+    try:
+        if timezone.is_naive(dt_value):
+            dt_value = timezone.make_aware(dt_value, timezone.get_current_timezone())
+        dt_utc = dt_value.astimezone(timezone.utc)
+        return dt_utc.strftime('%Y%m%dT%H%M%SZ')
+    except Exception:
+        try:
+            return dt_value.strftime('%Y%m%dT%H%M%SZ')
+        except Exception:
+            return ''
+
+
+@login_required
+def team_calendar_ics(request):
+    """
+    Exporta calendario (ICS) con partidos + sesiones del equipo activo.
+
+    Nota: no pretende cubrir todos los casos (timezone/VTimezone), pero es suficiente para
+    suscripción en Apple/Google Calendar y mantener al staff sincronizado.
+    """
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        raise Http404('Equipo no configurado')
+
+    today = timezone.localdate()
+    window_from = today - timedelta(days=30)
+    window_to = today + timedelta(days=210)
+
+    matches = list(
+        _team_match_queryset(primary_team)
+        .filter(Q(date__isnull=True) | Q(date__range=(window_from, window_to)))
+        .select_related('home_team', 'away_team')
+        .order_by('date', 'kickoff_time', 'id')
+    )
+    sessions = list(
+        TrainingSession.objects
+        .select_related('microcycle')
+        .filter(microcycle__team=primary_team)
+        .filter(session_date__range=(window_from, window_to))
+        .exclude(status=TrainingSession.STATUS_CANCELED)
+        .order_by('session_date', 'start_time', 'order', 'id')
+    )
+
+    team_label = str(getattr(primary_team, 'display_name', '') or getattr(primary_team, 'name', '') or '').strip() or 'Club'
+    base_uid_domain = 'segundajugada.es'
+    dtstamp = _ics_format_dt(timezone.now())
+
+    lines = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//SegundaJugada//2J Football Intelligence//ES',
+        'CALSCALE:GREGORIAN',
+        'METHOD:PUBLISH',
+        f'X-WR-CALNAME:{_ics_escape(f"2J · {team_label}")}',
+    ]
+
+    def add_event(*, uid, dtstart_line, dtend_line='', summary='', description='', location='', url=''):
+        if not uid or not dtstart_line:
+            return
+        lines.append('BEGIN:VEVENT')
+        lines.append(f'UID:{uid}')
+        lines.append(f'DTSTAMP:{dtstamp}')
+        lines.append(dtstart_line)
+        if dtend_line:
+            lines.append(dtend_line)
+        if summary:
+            lines.append(f'SUMMARY:{_ics_escape(summary)}')
+        if description:
+            lines.append(f'DESCRIPTION:{_ics_escape(description)}')
+        if location:
+            lines.append(f'LOCATION:{_ics_escape(location)}')
+        if url:
+            lines.append(f'URL:{_ics_escape(url)}')
+        lines.append('END:VEVENT')
+
+    # Partidos (incluye liga/torneo/amistoso).
+    default_match_duration_minutes = max(60, int(_regulation_minutes_for_team(primary_team) or 90)) + 30
+    for match in matches:
+        if not match.date:
+            continue
+        opponent = match.away_team if match.home_team_id == primary_team.id else match.home_team
+        opponent_label = str(getattr(opponent, 'display_name', '') or getattr(opponent, 'name', '') or '').strip() or 'Rival'
+        context_label = dict(Match.CONTEXT_CHOICES).get(match.context, 'Liga')
+        prefix = f'[{context_label}]'
+        if match.context == Match.CONTEXT_TOURNAMENT and str(match.tournament_name or '').strip():
+            prefix = f'[Torneo · {str(match.tournament_name).strip()}]'
+        summary = f'{prefix} {team_label} vs {opponent_label}'.strip()
+        location = str(match.location or '').strip()
+        extra = []
+        round_label = str(match.round or '').strip()
+        if round_label:
+            extra.append(f'Ronda: {round_label}')
+        if match.context == Match.CONTEXT_TOURNAMENT and str(match.tournament_stage or '').strip():
+            extra.append(f'Fase: {str(match.tournament_stage).strip()}')
+        if location:
+            extra.append(f'Campo: {location}')
+        description = ' · '.join(extra)
+        url = request.build_absolute_uri(f"{reverse('match-hub')}?match_id={int(match.id)}&team={int(primary_team.id)}")
+
+        if match.kickoff_time:
+            start_dt = timezone.make_aware(datetime.combine(match.date, match.kickoff_time), timezone.get_current_timezone())
+            end_dt = start_dt + timedelta(minutes=default_match_duration_minutes)
+            dtstart_line = f'DTSTART:{_ics_format_dt(start_dt)}'
+            dtend_line = f'DTEND:{_ics_format_dt(end_dt)}'
+        else:
+            # All-day (sin hora).
+            dtstart_line = f'DTSTART;VALUE=DATE:{match.date.strftime("%Y%m%d")}'
+            dtend_line = f'DTEND;VALUE=DATE:{(match.date + timedelta(days=1)).strftime("%Y%m%d")}'
+        uid = f'match-{int(match.id)}@{base_uid_domain}'
+        add_event(
+            uid=uid,
+            dtstart_line=dtstart_line,
+            dtend_line=dtend_line,
+            summary=summary,
+            description=description,
+            location=location,
+            url=url,
+        )
+
+    # Sesiones
+    for session in sessions:
+        if not session.session_date:
+            continue
+        focus = str(getattr(session, 'focus', '') or '').strip() or 'Sesión'
+        intensity = str(getattr(session, 'get_intensity_display', lambda: '')() or '').strip()
+        summary = f'[Entreno] {focus}'.strip()
+        if intensity:
+            summary = f'{summary} · {intensity}'
+        description_parts = []
+        try:
+            micro = getattr(session, 'microcycle', None)
+            if micro and getattr(micro, 'name', None):
+                description_parts.append(f'Microciclo: {micro.name}')
+        except Exception:
+            pass
+        if session.duration_minutes:
+            description_parts.append(f'Duración: {int(session.duration_minutes)} min')
+        description = ' · '.join([p for p in description_parts if str(p or '').strip()])
+        url = request.build_absolute_uri(f"{reverse('sessions')}?tab=sessions&session_id={int(session.id)}&team={int(primary_team.id)}")
+
+        if session.start_time:
+            start_dt = timezone.make_aware(datetime.combine(session.session_date, session.start_time), timezone.get_current_timezone())
+            dur = int(session.duration_minutes or 90)
+            end_dt = start_dt + timedelta(minutes=max(15, dur))
+            dtstart_line = f'DTSTART:{_ics_format_dt(start_dt)}'
+            dtend_line = f'DTEND:{_ics_format_dt(end_dt)}'
+        else:
+            dtstart_line = f'DTSTART;VALUE=DATE:{session.session_date.strftime("%Y%m%d")}'
+            dtend_line = f'DTEND;VALUE=DATE:{(session.session_date + timedelta(days=1)).strftime("%Y%m%d")}'
+        uid = f'session-{int(session.id)}@{base_uid_domain}'
+        add_event(
+            uid=uid,
+            dtstart_line=dtstart_line,
+            dtend_line=dtend_line,
+            summary=summary,
+            description=description,
+            location='',
+            url=url,
+        )
+
+    lines.append('END:VCALENDAR')
+    payload = '\r\n'.join(_ics_fold_lines(lines)) + '\r\n'
+    filename = slugify(f'calendario-{team_label}') or f'calendario-{int(primary_team.id)}'
+    response = HttpResponse(payload, content_type='text/calendar; charset=utf-8')
+    response['Content-Disposition'] = f'attachment; filename="{filename}.ics"'
+    response['Cache-Control'] = 'no-store, max-age=0'
+    return response
+
+
 @login_required
 def task_assistant_blueprints_api(request):
     """
