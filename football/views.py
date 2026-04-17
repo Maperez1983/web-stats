@@ -13868,8 +13868,7 @@ def save_match_lineup(request):
     if not primary_team:
         return JsonResponse({'error': 'Equipo principal no configurado'}, status=400)
     starters_limit = _required_starters_for_team(primary_team)
-    requested_match = get_requested_match(request, primary_team)
-    target_match = requested_match or get_active_match(primary_team)
+    target_match = _resolve_active_match_for_flow(request, primary_team)
     convocation_record = get_current_convocation_record(
         primary_team,
         match=target_match,
@@ -14900,7 +14899,7 @@ def convocation_page(request):
                 return entry
         return {}
     active_injury_ids = get_active_injury_player_ids([p.id for p in all_players])
-    active_match = get_active_match(primary_team)
+    active_match = _resolve_active_match_for_flow(request, primary_team)
     sanctioned_player_ids = get_sanctioned_player_ids_from_previous_round(
         primary_team,
         reference_match=active_match,
@@ -14932,7 +14931,7 @@ def convocation_page(request):
         player.has_active_injury = player.id in active_injury_ids
         filtered_players.append(player)
     players = filtered_players
-    convocation_record = get_current_convocation_record(primary_team)
+    convocation_record = get_current_convocation_record(primary_team, match=active_match, fallback_to_latest=True)
     selected_player_ids = []
     captain_id = None
     goalkeeper_id = None
@@ -14970,6 +14969,27 @@ def convocation_page(request):
         'location': str(default_match_info.get('location') or '').strip() if isinstance(default_match_info, dict) else '',
         'opponent': opponent_name,
     }
+    # Si el usuario seleccionó un partido (match_id / sesión), la UI de convocatoria debe reflejarlo.
+    if active_match:
+        try:
+            opponent_team = (
+                active_match.away_team
+                if active_match.home_team_id == primary_team.id
+                else active_match.home_team
+            )
+            opponent_label = str(getattr(opponent_team, 'display_name', '') or getattr(opponent_team, 'name', '') or '').strip()
+            if opponent_label:
+                match_info['opponent'] = opponent_label
+        except Exception:
+            pass
+        if active_match.round:
+            match_info['round'] = str(active_match.round or '').strip()
+        if active_match.date:
+            match_info['date'] = active_match.date.isoformat()
+        if active_match.kickoff_time:
+            match_info['time'] = active_match.kickoff_time.strftime('%H:%M')
+        if active_match.location:
+            match_info['location'] = str(active_match.location or '').strip()
     if convocation_record:
         if convocation_record.round:
             match_info['round'] = convocation_record.round
@@ -15047,6 +15067,7 @@ def convocation_page(request):
             'players': players,
             'team_name': primary_team.display_name,
             'primary_team_id': int(primary_team.id),
+            'active_match_id': int(active_match.id) if active_match else None,
             'team_crest_url': resolve_team_crest_url(request, primary_team, sync=True),
             'avatar_url': request.build_absolute_uri(static('football/images/player-avatar.svg')),
             'selected_player_ids_json': json.dumps(selected_player_ids),
@@ -15125,7 +15146,7 @@ def save_convocation(request):
             except ValueError:
                 continue
 
-    target_match = get_active_match(primary_team)
+    target_match = _resolve_active_match_for_flow(request, primary_team)
     if not target_match:
         season = None
         if primary_team.group and primary_team.group.season:
@@ -15203,7 +15224,12 @@ def convocation_pdf(request):
     primary_team = _get_primary_team_for_request(request) or _team_from_request_param(request)
     if not primary_team:
         raise Http404('Equipo principal no configurado')
-    convocation_record = get_current_convocation_record(primary_team)
+    match = get_requested_match(request, primary_team)
+    convocation_record = (
+        get_current_convocation_record(primary_team, match=match, fallback_to_latest=True)
+        if match
+        else get_current_convocation_record(primary_team)
+    )
     if not convocation_record:
         return HttpResponse('No hay convocatoria guardada.', status=400)
 
@@ -15454,7 +15480,12 @@ def convocation_referee_pdf(request):
     primary_team = _get_primary_team_for_request(request) or _team_from_request_param(request)
     if not primary_team:
         raise Http404('Equipo principal no configurado')
-    convocation_record = get_current_convocation_record(primary_team)
+    match = get_requested_match(request, primary_team)
+    convocation_record = (
+        get_current_convocation_record(primary_team, match=match, fallback_to_latest=True)
+        if match
+        else get_current_convocation_record(primary_team)
+    )
     if not convocation_record:
         return HttpResponse('No hay convocatoria guardada.', status=400)
 
@@ -18433,9 +18464,10 @@ def initial_eleven_page(request):
             return redirect('platform-workspace-detail', workspace_id=workspace.id)
         return HttpResponse('Este club no tiene equipo/configuración. Completa el onboarding primero.', status=400)
     starters_limit = _required_starters_for_team(primary_team)
+    target_match = _resolve_active_match_for_flow(request, primary_team)
     convocation_record = get_current_convocation_record(
         primary_team,
-        match=get_active_match(primary_team),
+        match=target_match,
         fallback_to_latest=True,
     )
     convocation_players = list(convocation_record.players.order_by('number', 'name')) if convocation_record else []
@@ -31542,29 +31574,7 @@ def match_hub_page(request):
     if not primary_team:
         raise Http404('Equipo no configurado')
 
-    active_match = None
-    requested_match = get_requested_match(request, primary_team)
-    if requested_match:
-        active_match = requested_match
-        if hasattr(request, 'session'):
-            try:
-                mapping = request.session.get('active_match_by_team')
-                if not isinstance(mapping, dict):
-                    mapping = {}
-                mapping[str(primary_team.id)] = int(requested_match.id)
-                request.session['active_match_by_team'] = mapping
-            except Exception:
-                pass
-    if not active_match and hasattr(request, 'session'):
-        try:
-            mapping = request.session.get('active_match_by_team')
-            desired_match_id = _parse_int(mapping.get(str(primary_team.id)) if isinstance(mapping, dict) else None)
-            if desired_match_id:
-                active_match = _team_match_queryset(primary_team).filter(id=desired_match_id).first()
-        except Exception:
-            active_match = None
-    if not active_match:
-        active_match = get_latest_live_match(primary_team) or get_active_match(primary_team)
+    active_match = _resolve_active_match_for_flow(request, primary_team)
     convocation_record = None
     if active_match:
         convocation_record = get_current_convocation_record(
@@ -31607,6 +31617,7 @@ def match_hub_page(request):
     match_date_label = ''
     match_location = ''
     active_match_id = None
+    match_context_label = ''
     if active_match:
         active_match_id = int(active_match.id)
         opponent = active_match.away_team if active_match.home_team_id == primary_team.id else active_match.home_team
@@ -31616,6 +31627,7 @@ def match_hub_page(request):
         if active_match.date:
             match_date_label = active_match.date.strftime('%d/%m/%Y')
         match_location = str(active_match.location or '').strip()
+        match_context_label = dict(Match.CONTEXT_CHOICES).get(active_match.context, 'Liga')
         # Prioridad: si hay convocatoria vinculada a ESTE partido, usa esos datos (más fiables para el usuario).
         if convocation_record and convocation_record.match_id and int(convocation_record.match_id) == int(active_match.id):
             if convocation_record.opponent_name:
@@ -31629,6 +31641,8 @@ def match_hub_page(request):
 
     can_render_pdfs = bool(weasyprint)
     pdf_smoke_detail = ''
+    can_create_match = bool(_can_edit_match_actions(request.user))
+    hub_message = str(request.GET.get('msg') or '').strip()
     return render(
         request,
         'football/match_hub.html',
@@ -31638,6 +31652,7 @@ def match_hub_page(request):
             'match_round': match_round,
             'match_date_label': match_date_label,
             'match_location': match_location,
+            'match_context_label': match_context_label,
             'active_match_id': active_match_id,
             'primary_team_id': int(primary_team.id),
             'has_convocation': bool(convocation_record and convocation_players_count > 0),
@@ -31646,8 +31661,130 @@ def match_hub_page(request):
             'actions_count': int(actions_count or 0),
             'can_render_pdfs': can_render_pdfs,
             'pdf_smoke_detail': pdf_smoke_detail,
+            'can_create_match': can_create_match,
+            'hub_message': hub_message,
         },
     )
+
+
+def _resolve_active_match_for_flow(request, primary_team):
+    """
+    Match "activo" dentro del flujo matchday.
+
+    Prioridad:
+    1) match_id explícito en query/body.
+    2) match guardado en sesión por equipo (para permitir Torneos/Amistosos sin desplazar la Liga).
+    3) último partido en vivo con acciones.
+    4) próximo/último partido de Liga (get_active_match).
+    """
+    if not primary_team:
+        return None
+    active_match = None
+    requested_match = get_requested_match(request, primary_team)
+    if requested_match:
+        active_match = requested_match
+        if hasattr(request, 'session'):
+            try:
+                mapping = request.session.get('active_match_by_team')
+                if not isinstance(mapping, dict):
+                    mapping = {}
+                mapping[str(primary_team.id)] = int(requested_match.id)
+                request.session['active_match_by_team'] = mapping
+            except Exception:
+                pass
+    if not active_match and hasattr(request, 'session'):
+        try:
+            mapping = request.session.get('active_match_by_team')
+            desired_match_id = _parse_int(mapping.get(str(primary_team.id)) if isinstance(mapping, dict) else None)
+            if desired_match_id:
+                active_match = _team_match_queryset(primary_team).filter(id=desired_match_id).first()
+        except Exception:
+            active_match = None
+    if not active_match:
+        active_match = get_latest_live_match(primary_team) or get_active_match(primary_team)
+    return active_match
+
+
+@authenticated_write
+@require_POST
+def match_hub_create_match(request):
+    if not _can_edit_match_actions(request.user):
+        return HttpResponse('Solo el cuerpo técnico puede crear partidos.', status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'convocation', label='partido')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return HttpResponse('Equipo no configurado.', status=400)
+    opponent_name = str(request.POST.get('opponent') or '').strip()
+    if not opponent_name:
+        return HttpResponse('El rival es obligatorio.', status=400)
+    round_value = str(request.POST.get('round') or '').strip()
+    location_value = str(request.POST.get('location') or '').strip()
+    context_value = str(request.POST.get('context') or Match.CONTEXT_LEAGUE).strip().lower() or Match.CONTEXT_LEAGUE
+    if context_value not in {Match.CONTEXT_LEAGUE, Match.CONTEXT_TOURNAMENT, Match.CONTEXT_FRIENDLY}:
+        context_value = Match.CONTEXT_LEAGUE
+    tournament_name_value = str(request.POST.get('tournament_name') or '').strip()
+    tournament_stage_value = str(request.POST.get('tournament_stage') or '').strip()
+    home_away = str(request.POST.get('home_away') or 'home').strip().lower()
+    if home_away not in {'home', 'away'}:
+        home_away = 'home'
+
+    date_raw = str(request.POST.get('date') or '').strip()
+    time_raw = str(request.POST.get('time') or '').strip()
+    match_date = None
+    if date_raw:
+        for fmt in ('%Y-%m-%d', '%d/%m/%Y'):
+            try:
+                match_date = datetime.strptime(date_raw, fmt).date()
+                break
+            except ValueError:
+                continue
+    match_time = None
+    if time_raw:
+        try:
+            match_time = datetime.strptime(time_raw, '%H:%M').time()
+        except ValueError:
+            match_time = None
+
+    rival_team = Team.objects.filter(name__iexact=opponent_name).first()
+    if not rival_team:
+        rival_team = Team.objects.create(
+            slug=_unique_team_slug(opponent_name),
+            name=opponent_name,
+            short_name=opponent_name[:24],
+            group=primary_team.group,
+        )
+    season_obj = resolve_stats_season(primary_team) or getattr(getattr(primary_team, 'group', None), 'season', None)
+    if not season_obj:
+        return HttpResponse('No hay temporada activa para asignar el partido.', status=400)
+    home_team = primary_team if home_away == 'home' else rival_team
+    away_team = rival_team if home_away == 'home' else primary_team
+    match_obj = Match.objects.create(
+        season=season_obj,
+        group=primary_team.group,
+        home_team=home_team,
+        away_team=away_team,
+        date=match_date,
+        kickoff_time=match_time,
+        round=round_value,
+        context=context_value,
+        tournament_name=(tournament_name_value if context_value == Match.CONTEXT_TOURNAMENT else ''),
+        tournament_stage=(tournament_stage_value if context_value == Match.CONTEXT_TOURNAMENT else ''),
+        location=location_value,
+    )
+    # Guardar como match activo del flujo para este equipo.
+    if hasattr(request, 'session'):
+        try:
+            mapping = request.session.get('active_match_by_team')
+            if not isinstance(mapping, dict):
+                mapping = {}
+            mapping[str(primary_team.id)] = int(match_obj.id)
+            request.session['active_match_by_team'] = mapping
+        except Exception:
+            pass
+    _invalidate_team_dashboard_caches(primary_team)
+    return redirect(f"{reverse('match-hub')}?match_id={int(match_obj.id)}&team={int(primary_team.id)}&msg=Partido+creado")
 
 
 @login_required

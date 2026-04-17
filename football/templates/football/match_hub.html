@@ -164,6 +164,73 @@
         text-transform: uppercase;
         color: rgba(226, 232, 240, 0.72);
       }
+      .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(2, 6, 23, 0.72);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 1.1rem;
+        z-index: 1200;
+      }
+      .modal-backdrop.is-open { display: flex; }
+      .modal {
+        width: min(720px, 100%);
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(7, 16, 30, 0.92);
+        box-shadow: 0 40px 120px rgba(0, 0, 0, 0.65);
+        padding: 1rem;
+      }
+      .modal h3 {
+        margin: 0;
+        font-size: 0.9rem;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+      .modal p {
+        margin: 0.35rem 0 0.8rem;
+        color: rgba(226, 232, 240, 0.72);
+      }
+      .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.75rem;
+      }
+      @media (max-width: 680px) {
+        .form-grid { grid-template-columns: 1fr; }
+      }
+      .field label {
+        display: block;
+        font-size: 0.68rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.72);
+        margin-bottom: 0.3rem;
+        font-weight: 800;
+      }
+      .field input,
+      .field select {
+        width: 100%;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(15, 23, 42, 0.55);
+        color: rgba(245, 247, 250, 0.92);
+        padding: 0.55rem 0.65rem;
+        font-weight: 700;
+      }
+      .modal-actions {
+        margin-top: 0.9rem;
+        display: flex;
+        gap: 0.6rem;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+      }
+      .btn.danger {
+        border-color: rgba(248, 113, 113, 0.35);
+        background: rgba(127, 29, 29, 0.2);
+      }
     </style>
   </head>
   <body class="prod-commercial">
@@ -182,7 +249,12 @@
           </div>
         </div>
         <div class="actions">
+          {% if hub_message %}<span class="pill">{{ hub_message }}</span>{% endif %}
+          {% if match_context_label %}<span class="pill">{{ match_context_label }}</span>{% endif %}
           <a class="btn" href="{% url 'search-page' %}">Buscar</a>
+          {% if can_create_match %}
+          <button class="btn" type="button" id="createMatchBtn">Nuevo partido</button>
+          {% endif %}
           {% if active_match_id %}
           <a class="btn" href="{% url 'match-stats' active_match_id %}">Ver stats</a>
           {% endif %}
@@ -200,9 +272,9 @@
             {% if convocation_players_count %}<span class="badge">{{ convocation_players_count }} convocados</span>{% endif %}
           </div>
           <div class="actions">
-            <a class="btn primary" href="{% url 'convocation' %}">Abrir convocatoria</a>
-            <a class="btn" href="{% url 'convocation-pdf' %}" {% if not has_convocation %}aria-disabled="true"{% endif %}>PDF lista</a>
-            <a class="btn" href="{% url 'convocation-referee-pdf' %}" {% if not has_convocation %}aria-disabled="true"{% endif %}>PDF árbitro</a>
+            <a class="btn primary" href="{% url 'convocation' %}{% if active_match_id %}?match_id={{ active_match_id }}&team={{ primary_team_id }}{% endif %}">Abrir convocatoria</a>
+            <a class="btn" href="{% url 'convocation-pdf' %}{% if active_match_id %}?match_id={{ active_match_id }}&team={{ primary_team_id }}{% endif %}" {% if not has_convocation %}aria-disabled="true"{% endif %}>PDF lista</a>
+            <a class="btn" href="{% url 'convocation-referee-pdf' %}{% if active_match_id %}?match_id={{ active_match_id }}&team={{ primary_team_id }}{% endif %}" {% if not has_convocation %}aria-disabled="true"{% endif %}>PDF árbitro</a>
           </div>
         </article>
 
@@ -215,8 +287,8 @@
             </span>
           </div>
           <div class="actions">
-            <a class="btn primary" href="{% url 'initial-eleven' %}">Abrir 11 inicial</a>
-            <a class="btn" href="{% url 'match-action-page' %}">Ir a acciones</a>
+            <a class="btn primary" href="{% url 'initial-eleven' %}{% if active_match_id %}?match_id={{ active_match_id }}&team={{ primary_team_id }}{% endif %}">Abrir 11 inicial</a>
+            <a class="btn" href="{% url 'match-action-page' %}{% if active_match_id %}?match_id={{ active_match_id }}&team={{ primary_team_id }}{% endif %}">Ir a acciones</a>
           </div>
         </article>
 
@@ -264,5 +336,104 @@
         </article>
       </section>
     </div>
+
+    {% if can_create_match %}
+    <div class="modal-backdrop" id="createMatchModal" aria-hidden="true">
+      <div class="modal" role="dialog" aria-modal="true" aria-label="Crear partido">
+        <h3>Nuevo partido</h3>
+        <p>Crea un partido de Liga, Torneo o Amistoso y empieza el flujo (convocatoria → 11 → acciones → PDFs).</p>
+        <form method="post" action="{% url 'match-hub-create' %}">
+          {% csrf_token %}
+          <input type="hidden" name="team" value="{{ primary_team_id }}" />
+          <div class="form-grid">
+            <div class="field" style="grid-column:1/-1;">
+              <label for="opponentInput">Rival</label>
+              <input id="opponentInput" name="opponent" required placeholder="Ej. TORREMOYA" />
+            </div>
+            <div class="field">
+              <label for="contextSelect">Competición</label>
+              <select id="contextSelect" name="context">
+                <option value="league">Liga</option>
+                <option value="tournament">Torneo</option>
+                <option value="friendly">Amistoso</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="homeAwaySelect">Condición</label>
+              <select id="homeAwaySelect" name="home_away">
+                <option value="home">Local</option>
+                <option value="away">Visitante</option>
+              </select>
+            </div>
+            <div class="field" data-tournament-only style="display:none;">
+              <label for="tournamentName">Torneo</label>
+              <input id="tournamentName" name="tournament_name" placeholder="Nombre del torneo" />
+            </div>
+            <div class="field" data-tournament-only style="display:none;">
+              <label for="tournamentStage">Fase</label>
+              <input id="tournamentStage" name="tournament_stage" placeholder="Grupo, cuartos, final..." />
+            </div>
+            <div class="field">
+              <label for="dateInput">Fecha</label>
+              <input id="dateInput" name="date" type="date" />
+            </div>
+            <div class="field">
+              <label for="timeInput">Hora</label>
+              <input id="timeInput" name="time" type="time" />
+            </div>
+            <div class="field">
+              <label for="roundInput">Jornada / Ronda</label>
+              <input id="roundInput" name="round" placeholder="Jornada 2 / Semifinal" />
+            </div>
+            <div class="field">
+              <label for="locationInput">Campo</label>
+              <input id="locationInput" name="location" placeholder="Campo de juego" />
+            </div>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn danger" id="createMatchCancel">Cancelar</button>
+            <button type="submit" class="btn primary">Crear</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <script>
+      (function() {
+        const btn = document.getElementById('createMatchBtn');
+        const modal = document.getElementById('createMatchModal');
+        const cancel = document.getElementById('createMatchCancel');
+        const contextSelect = document.getElementById('contextSelect');
+        if (!btn || !modal || !cancel || !contextSelect) return;
+        const setTournament = () => {
+          const isTournament = (String(contextSelect.value || '').toLowerCase() === 'tournament');
+          modal.querySelectorAll('[data-tournament-only]').forEach((el) => {
+            el.style.display = isTournament ? 'block' : 'none';
+          });
+        };
+        const open = () => {
+          setTournament();
+          modal.classList.add('is-open');
+          modal.setAttribute('aria-hidden', 'false');
+          setTimeout(() => {
+            const input = document.getElementById('opponentInput');
+            if (input) input.focus();
+          }, 50);
+        };
+        const close = () => {
+          modal.classList.remove('is-open');
+          modal.setAttribute('aria-hidden', 'true');
+        };
+        btn.addEventListener('click', open);
+        cancel.addEventListener('click', close);
+        contextSelect.addEventListener('change', setTournament);
+        modal.addEventListener('click', (event) => {
+          if (event.target === modal) close();
+        });
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape') close();
+        });
+      })();
+    </script>
+    {% endif %}
   </body>
 </html>

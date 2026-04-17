@@ -13,6 +13,7 @@ urlpatterns = [
     path('team/<int:team_id>/crest.svg', views.team_crest_svg, name='team-crest-svg'),
     path('', views.dashboard_page, name='dashboard-home'),
     path('partido/', views.match_hub_page, name='match-hub'),
+    path('partido/crear/', views.match_hub_create_match, name='match-hub-create'),
     path('buscar/', views.search_page, name='search-page'),
     path('api/session/keepalive/', views.session_keepalive, name='session-keepalive'),
     path('api/build/', views.public_build_info, name='public-build-info'),
