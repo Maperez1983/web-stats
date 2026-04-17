@@ -528,6 +528,34 @@
         background: rgba(255,255,255,0.05);
         position: relative;
       }
+      /* iPad UX: dock fijo para no perder acciones clave al scroll. */
+      body.ui-tablet main.page {
+        padding-bottom: calc(96px + env(safe-area-inset-bottom));
+      }
+      body.ui-tablet .command-bar {
+        position: fixed;
+        left: 50%;
+        bottom: calc(14px + env(safe-area-inset-bottom));
+        transform: translateX(-50%);
+        z-index: 120;
+        max-width: min(960px, 96vw);
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        box-shadow: 0 20px 46px rgba(2, 6, 23, 0.55);
+        background: rgba(2, 6, 23, 0.82);
+        backdrop-filter: blur(12px);
+      }
+      body.ui-tablet .command-bar::-webkit-scrollbar {
+        display: none;
+      }
+      body.ui-tablet .icon-btn {
+        width: 54px;
+        height: 48px;
+      }
+      body.ui-tablet .icon-btn svg {
+        width: 26px;
+        height: 26px;
+      }
       .icon-btn {
         width: 60px;
         height: 54px;
@@ -2273,6 +2301,9 @@
 	                    </button>
 	                    <button type="button" class="icon-btn" data-action="redo" title="Rehacer" aria-label="Rehacer">
 	                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 7h-7a6 6 0 1 0 0 12h5v-2H10a4 4 0 1 1 0-8h7v3l5-5-5-5v3Z"/></svg>
+	                    </button>
+	                    <button type="button" class="icon-btn" data-action="duplicate" title="Duplicar seleccionado" aria-label="Duplicar seleccionado">
+	                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8h12v12H8V8Zm-2 8H4V4h12v2H6v10Z"/></svg>
 	                    </button>
 	                    <button type="button" class="icon-btn" data-action="edit_bg" title="Editar figura (toca la figura para ajustarla)" aria-label="Editar figura">
 	                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20Zm0 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16Zm-1 3h2v3.2l2.7-1.55 1 1.73-2.7 1.55 2.7 1.55-1 1.73-2.7-1.55V17h-2v-3.2l-2.7 1.55-1-1.73 2.7-1.55-2.7-1.55 1-1.73L11 10.2V7Z"/></svg>
