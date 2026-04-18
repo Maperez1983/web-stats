@@ -8126,6 +8126,30 @@ def _build_team_setup_checklist(request, workspace, primary_team, *, match=None,
             'meta': {'count': actions_count},
         }
     )
+
+    # 8) Entrenamiento: al menos una sesión creada (para empezar a usar biblioteca/PDFs).
+    sessions_count = 0
+    try:
+        sessions_count = int(
+            TrainingSession.objects
+            .filter(microcycle__team=primary_team)
+            .exclude(status=TrainingSession.STATUS_CANCELED)
+            .count()
+        )
+    except Exception:
+        sessions_count = 0
+    has_sessions = sessions_count > 0
+    items.append(
+        {
+            'key': 'sessions',
+            'label': 'Sesión creada',
+            'ok': has_sessions,
+            'required': False,
+            'description': 'Crea una sesión para imprimir el plan y reutilizar tareas en tu biblioteca.',
+            'url': reverse('sessions') + '?tab=sessions',
+            'meta': {'count': sessions_count},
+        }
+    )
     return items
 
 
