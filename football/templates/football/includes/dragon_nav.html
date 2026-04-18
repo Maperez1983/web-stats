@@ -42,7 +42,7 @@
   {% if workspace_module_access.convocation|default:True %}
   <a href="{% url 'match-hub' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if 'registro-acciones' in nav_path or 'convocatoria' in nav_path or '11-inicial' in nav_path or nav_path|slice:":9" == '/partido/' or nav_path|slice:":7" == '/match/' or nav_path|slice:":12" == '/incidencias/' %}is-active{% endif %}" {% if 'registro-acciones' in nav_path or 'convocatoria' in nav_path or '11-inicial' in nav_path or nav_path|slice:":9" == '/partido/' or nav_path|slice:":7" == '/match/' or nav_path|slice:":12" == '/incidencias/' %}aria-current="page"{% endif %}>Partido</a>
   {% endif %}
-  <button type="button" class="nav-command-btn {% if nav_url_name != 'dashboard-home' and nav_path != '/' and not 'coach/sesiones' in nav_path and not 'registro-acciones' in nav_path and not 'convocatoria' in nav_path and not '11-inicial' in nav_path and nav_path|slice:":9" != '/partido/' and nav_path|slice:":7" != '/match/' and nav_path|slice:":12" != '/incidencias/' %}is-active{% endif %}" data-command-palette title="Buscar y navegar (Ctrl/Cmd + K)">Buscar</button>
+  {# Buscador se mantiene dentro del Menú (y atajo Ctrl/Cmd+K). Evitamos saturar la barra superior. #}
   <details class="nav-more {% if nav_url_name != 'dashboard-home' and nav_path != '/' and not 'coach/sesiones' in nav_path and not 'registro-acciones' in nav_path and not 'convocatoria' in nav_path and not '11-inicial' in nav_path and nav_path|slice:":9" != '/partido/' and nav_path|slice:":7" != '/match/' and nav_path|slice:":12" != '/incidencias/' %}is-active{% endif %}">
     <summary>Menú</summary>
     <div class="nav-more-panel">
