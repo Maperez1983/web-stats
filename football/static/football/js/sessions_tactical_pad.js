@@ -1155,6 +1155,10 @@
 	      try { window.localStorage?.setItem(TOKEN_STYLE_STORAGE_KEY, tokenGlobalStyle); } catch (e) { /* ignore */ }
 	      syncTokenGlobalStyleUi();
 	      setStatus(`Estilo de fichas: ${tokenGlobalStyle === 'disk' ? 'chapa' : (tokenGlobalStyle === 'jersey' ? 'camiseta' : 'foto')}.`);
+	      // Refresca el banco de jugadores para que el estilo se vea inmediatamente.
+	      runWhenIdle(() => {
+	        try { renderPlayerBank(); } catch (e) { /* ignore */ }
+	      }, 120);
 	    });
 
 	    // Assets extraídos de PDFs importados. El catálogo de iconos se ha eliminado,
@@ -4950,8 +4954,20 @@
 			      const src = resolvePlayerPhotoUrl(url);
 			      if (!group || !src) return;
 			      try {
+			        const shouldUseAnonymousCors = (() => {
+			          try {
+			            const resolved = new URL(src, window.location.href);
+			            return resolved.origin !== window.location.origin;
+			          } catch (e) {
+			            return false;
+			          }
+			        })();
 			        const img = new Image();
-			        try { img.crossOrigin = 'anonymous'; } catch (e) { /* ignore */ }
+			        // Solo forzamos CORS anónimo si la imagen es cross-origin; en same-origin
+			        // dejamos que el navegador envíe credenciales (p.ej. /media/ protegidos).
+			        if (shouldUseAnonymousCors) {
+			          try { img.crossOrigin = 'anonymous'; } catch (e) { /* ignore */ }
+			        }
 			        img.onload = () => {
 			          try {
 			            const naturalW = Number(img.naturalWidth || img.width || 1);
@@ -6063,15 +6079,68 @@
 		        const name = document.createElement('span');
 		        name.className = 'token-name';
 		        name.textContent = shortPlayerName(player.name);
-	        const disk = document.createElement('span');
-	        disk.className = 'token-disk';
-	        if (kind === 'goalkeeper_local') disk.classList.add('is-goalkeeper');
+	        const style = normalizeTokenStyle(tokenGlobalStyle);
+	        const badge = document.createElement('span');
 	        const number = document.createElement('span');
 	        number.className = 'token-number';
 	        number.textContent = kind === 'goalkeeper_local' ? 'GK' : (player.number ? String(player.number).slice(0, 2) : 'J');
-	        disk.appendChild(number);
+
+	        if (style === 'jersey') {
+	          const clipId = `tpad-shirt-clip-${String(player.id || '').replace(/[^a-zA-Z0-9_-]/g, '') || 'x'}`;
+	          const gkGradId = `tpad-gk-grad-${String(player.id || '').replace(/[^a-zA-Z0-9_-]/g, '') || 'x'}`;
+	          badge.className = 'token-jersey';
+	          if (kind === 'goalkeeper_local') badge.classList.add('is-goalkeeper');
+	          badge.innerHTML = `
+	            <svg class="token-jersey-svg" viewBox="-26 -30 52 60" aria-hidden="true" focusable="false">
+	              <defs>
+	                <clipPath id="${clipId}">
+	                  <path d="M -22 -18 L -10 -18 L -6 -26 L 6 -26 L 10 -18 L 22 -18 L 16 -2 L 16 22 L -16 22 L -16 -2 Z"></path>
+	                </clipPath>
+	                <linearGradient id="${gkGradId}" x1="0" y1="0" x2="1" y2="1">
+	                  <stop offset="0" stop-color="#1d4ed8"></stop>
+	                  <stop offset="1" stop-color="#0ea5e9"></stop>
+	                </linearGradient>
+	              </defs>
+	              <g clip-path="url(#${clipId})">
+	                <rect x="-28" y="-32" width="56" height="64" fill="${kind === 'goalkeeper_local' ? `url(#${gkGradId})` : '#f8fafc'}"></rect>
+	                ${kind === 'goalkeeper_local' ? '' : `
+	                  <g>
+	                    <rect x="-28" y="-32" width="8" height="64" fill="#0f7a35"></rect>
+	                    <rect x="-20" y="-32" width="8" height="64" fill="#f8fafc"></rect>
+	                    <rect x="-12" y="-32" width="8" height="64" fill="#0f7a35"></rect>
+	                    <rect x="-4" y="-32" width="8" height="64" fill="#f8fafc"></rect>
+	                    <rect x="4" y="-32" width="8" height="64" fill="#0f7a35"></rect>
+	                    <rect x="12" y="-32" width="8" height="64" fill="#f8fafc"></rect>
+	                    <rect x="20" y="-32" width="8" height="64" fill="#0f7a35"></rect>
+	                  </g>
+	                `}
+	              </g>
+	              <path d="M -22 -18 L -10 -18 L -6 -26 L 6 -26 L 10 -18 L 22 -18 L 16 -2 L 16 22 L -16 22 L -16 -2 Z"
+	                    fill="none" stroke="rgba(255,255,255,0.92)" stroke-width="2"></path>
+	            </svg>
+	          `.trim();
+	          badge.appendChild(number);
+	        } else if (style === 'photo') {
+	          badge.className = 'token-photo';
+	          if (kind === 'goalkeeper_local') badge.classList.add('is-goalkeeper');
+	          const photoUrl = resolvePlayerPhotoUrl(player?.photo_url);
+	          if (photoUrl) {
+	            badge.style.backgroundImage = `url("${photoUrl.replace(/"/g, '\\"')}")`;
+	          } else {
+	            const initials = document.createElement('span');
+	            initials.className = 'token-initials';
+	            initials.textContent = computeInitials(player?.name, number.textContent);
+	            badge.appendChild(initials);
+	          }
+	          badge.appendChild(number);
+	        } else {
+	          badge.className = 'token-disk';
+	          if (kind === 'goalkeeper_local') badge.classList.add('is-goalkeeper');
+	          badge.appendChild(number);
+	        }
+
 	        button.appendChild(name);
-	        button.appendChild(disk);
+	        button.appendChild(badge);
 	        registerDraggableButton(button, () => ({ kind, playerId: String(player.id) }));
 			        button.addEventListener('click', () => {
 			          if (freeDrawMode) handleCanvasAction('draw_free');

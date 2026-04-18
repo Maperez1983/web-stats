@@ -288,11 +288,68 @@
           linear-gradient(135deg, #1d4ed8, #0ea5e9);
         border-color: rgba(255, 255, 255, 0.92);
       }
+      .player-bank button.player-token-bank .token-jersey,
+      .player-bank button.player-token-bank .token-photo {
+        width: 44px;
+        height: 44px;
+        border-radius: 999px;
+        border: 2px solid rgba(255, 255, 255, 0.9);
+        box-shadow: 0 6px 14px rgba(15, 23, 42, 0.28);
+        position: relative;
+        overflow: hidden;
+        display: grid;
+        place-items: center;
+        background: rgba(15, 23, 42, 0.18);
+      }
+      .player-bank button.player-token-bank .token-jersey {
+        border-radius: 16px;
+      }
+      .player-bank button.player-token-bank .token-jersey svg.token-jersey-svg {
+        width: 56px;
+        height: 56px;
+        display: block;
+      }
+      .player-bank button.player-token-bank .token-photo {
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+      }
+      .player-bank button.player-token-bank .token-photo::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at 30% 20%, rgba(255,255,255,0.22), transparent 46%);
+        pointer-events: none;
+      }
+      .player-bank button.player-token-bank .token-photo .token-initials {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        font-size: 0.85rem;
+        font-weight: 800;
+        color: #e2e8f0;
+        text-shadow: 0 1px 2px rgba(15, 23, 42, 0.65);
+      }
       .player-bank button.player-token-bank .token-number {
         font-size: 0.92rem;
         font-weight: 800;
         color: #ffffff;
         text-shadow: 0 1px 2px rgba(15, 23, 42, 0.65);
+      }
+      .player-bank button.player-token-bank .token-jersey .token-number,
+      .player-bank button.player-token-bank .token-photo .token-number {
+        position: absolute;
+        left: 50%;
+        bottom: 4px;
+        transform: translateX(-50%);
+        font-size: 0.7rem;
+        padding: 1px 6px;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.88);
+        border: 1px solid rgba(255,255,255,0.14);
+        text-shadow: none;
+        z-index: 2;
       }
       .surface-picker {
         position: relative;
