@@ -1,7 +1,11 @@
 {% load static %}
 {% if not hide_dragon_logo %}
 <div class="dragon-nav">
-	  <a href="{% if club_dashboard_url %}{{ club_dashboard_url }}{% elif active_team and workspace_entry_url %}{{ workspace_entry_url }}{% elif home_url %}{{ home_url }}{% elif workspace_entry_url %}{{ workspace_entry_url }}{% else %}{% url 'dashboard-home' %}{% endif %}" class="dragon-link" title="Volver al inicio">
+	  {# 
+	    Regla de oro: el logo siempre vuelve al "home del club/equipo" si hay un equipo activo.
+	    Platform queda solo como botón explícito (admin). Esto evita mezclar contextos al navegar.
+	  #}
+	  <a href="{% if club_dashboard_url %}{{ club_dashboard_url }}{% elif active_team %}{% url 'dashboard-home' %}?team={{ active_team.id }}{% elif home_url %}{{ home_url }}{% elif workspace_entry_url %}{{ workspace_entry_url }}{% else %}{% url 'dashboard-home' %}{% endif %}" class="dragon-link" title="Volver al inicio">
 	    <img src="{% static 'football/images/2j-icon.svg' %}" alt="Segunda Jugada · 2J" loading="lazy" />
 	  </a>
 </div>
