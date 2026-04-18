@@ -4674,6 +4674,56 @@ class CoachTrainerMetricsTests(TestCase):
         self.assertContains(response, 'Comunicación')
 
 
+class StatsScopePersistenceTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username='scope-user',
+            email='scope-user@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_COACH)
+        competition = Competition.objects.create(name='Liga Scope', slug='liga-scope', region='Andalucia')
+        season = Season.objects.create(competition=competition, name='2025/2026', is_current=True)
+        group = Group.objects.create(season=season, name='Grupo Scope', slug='grupo-scope')
+        self.team = Team.objects.create(name='Equipo Scope', slug='equipo-scope', group=group, is_primary=True)
+        self.workspace = Workspace.objects.create(
+            name='Workspace Scope',
+            slug='workspace-scope',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.team,
+            enabled_modules={
+                'players': True,
+                'dashboard': True,
+                'coach_overview': True,
+            },
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.user,
+            role=WorkspaceMembership.ROLE_ADMIN,
+        )
+        self.client.force_login(self.user)
+        session = self.client.session
+        session['active_workspace_id'] = self.workspace.id
+        session['active_team_by_workspace'] = {str(self.workspace.id): int(self.team.id)}
+        session.save()
+
+    def test_player_dashboard_scope_persists_in_session(self):
+        response1 = self.client.get(reverse('player-dashboard') + '?scope=tournament')
+        self.assertEqual(response1.status_code, 200)
+        self.assertEqual(response1.context.get('stats_scope'), 'tournament')
+
+        response2 = self.client.get(reverse('player-dashboard'))
+        self.assertEqual(response2.status_code, 200)
+        self.assertEqual(response2.context.get('stats_scope'), 'tournament')
+
+    def test_coach_roster_scope_defaults_to_persisted(self):
+        self.client.get(reverse('player-dashboard') + '?scope=friendly')
+        response = self.client.get(reverse('coach-roster'))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context.get('scope_value'), 'friendly')
+
+
 class AnalysisVideoWorkspaceTests(TestCase):
     def setUp(self):
         cache.clear()

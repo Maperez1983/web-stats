@@ -3706,6 +3706,57 @@ def _team_from_request_param(request):
     return None
 
 
+STATS_SCOPE_SESSION_KEY = 'stats_scope_by_team'
+
+
+def _normalize_stats_scope(value):
+    scope = str(value or '').strip().lower()
+    if scope in {Match.CONTEXT_LEAGUE, Match.CONTEXT_TOURNAMENT, Match.CONTEXT_FRIENDLY, 'all'}:
+        return scope
+    return Match.CONTEXT_LEAGUE
+
+
+def _get_stats_scope_for_request(request, primary_team=None):
+    """
+    Ámbito de estadísticas (Liga/Torneo/Amistoso/Todas) persistido en sesión por equipo.
+
+    Objetivo UX:
+    - Si el usuario cambia el scope en cualquier vista, se mantiene al navegar.
+    - Evita mezclar estadísticas entre contextos al entrar/salir de páginas.
+    """
+    scope_from_query = ''
+    try:
+        scope_from_query = str(request.GET.get('scope') or '').strip().lower()
+    except Exception:
+        scope_from_query = ''
+
+    team_id = int(getattr(primary_team, 'id', 0) or 0) if primary_team else 0
+    if not request or not hasattr(request, 'session'):
+        return _normalize_stats_scope(scope_from_query) if scope_from_query else Match.CONTEXT_LEAGUE
+
+    mapping = request.session.get(STATS_SCOPE_SESSION_KEY)
+    if not isinstance(mapping, dict):
+        mapping = {}
+
+    if scope_from_query:
+        scope = _normalize_stats_scope(scope_from_query)
+        if team_id:
+            mapping[str(team_id)] = scope
+        else:
+            mapping['_default'] = scope
+        request.session[STATS_SCOPE_SESSION_KEY] = mapping
+        return scope
+
+    if team_id:
+        stored = mapping.get(str(team_id))
+        if stored:
+            return _normalize_stats_scope(stored)
+    stored_default = mapping.get('_default')
+    if stored_default:
+        return _normalize_stats_scope(stored_default)
+    return Match.CONTEXT_LEAGUE
+
+
 def _resolve_player_for_request_scope(request, player_id):
     """
     Resuelve (primary_team, player) de forma robusta para navegación desde listados.
@@ -13108,9 +13159,7 @@ def player_dashboard_page(request):
             refresh_primary_roster_cache(primary_team, force=False)
         except Exception:
             pass
-    scope = str(request.GET.get('scope') or '').strip().lower() or Match.CONTEXT_LEAGUE
-    if scope not in {Match.CONTEXT_LEAGUE, Match.CONTEXT_TOURNAMENT, Match.CONTEXT_FRIENDLY, 'all'}:
-        scope = Match.CONTEXT_LEAGUE
+    scope = _get_stats_scope_for_request(request, primary_team)
     force_refresh_stats = str(request.GET.get('refresh') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
     player_stats = compute_player_dashboard(primary_team, force_refresh=force_refresh_stats, scope=scope)
     match_qs = (
@@ -17534,6 +17583,7 @@ def coach_role_trainer_page(request):
     if forbidden:
         return forbidden
     primary_team = _get_primary_team_for_request(request)
+    stats_scope = _get_stats_scope_for_request(request, primary_team)
     standing = None
     if primary_team and primary_team.group and primary_team.group.season:
         standing = TeamStanding.objects.filter(
@@ -17541,15 +17591,20 @@ def coach_role_trainer_page(request):
             group=primary_team.group,
             team=primary_team,
         ).first()
-    # Vista "entrenador": por defecto solo Liga (torneos/amistosos no deben contaminar el panel).
-    preferred_sources = preferred_event_source_by_match(primary_team, scope=Match.CONTEXT_LEAGUE) if primary_team else {}
+    preferred_sources = preferred_event_source_by_match(primary_team, scope=stats_scope) if primary_team else {}
+    base_events_qs = (
+        confirmed_events_queryset()
+        .filter(player__team=primary_team)
+        .select_related('player', 'match', 'match__home_team', 'match__away_team')
+        .order_by('match_id', 'minute', 'id')
+        if primary_team
+        else confirmed_events_queryset().none()
+    )
+    if primary_team and stats_scope != 'all':
+        base_events_qs = base_events_qs.filter(match__context=stats_scope)
     events = (
         _filter_stats_events(
-            confirmed_events_queryset()
-            .filter(player__team=primary_team)
-            .filter(match__context=Match.CONTEXT_LEAGUE)
-            .select_related('player', 'match', 'match__home_team', 'match__away_team')
-            .order_by('match_id', 'minute', 'id'),
+            base_events_qs,
             preferred_sources=preferred_sources,
         )
         if primary_team
@@ -17559,7 +17614,7 @@ def coach_role_trainer_page(request):
     measured_matches = len(measured_match_ids)
     total_actions = len(events) if primary_team else 0
     total_matches = (
-        _team_match_queryset(primary_team).filter(context=Match.CONTEXT_LEAGUE).count()
+        (_team_match_queryset(primary_team).filter(context=stats_scope).count() if stats_scope != 'all' else _team_match_queryset(primary_team).count())
         if primary_team
         else 0
     )
@@ -17809,7 +17864,7 @@ def coach_role_trainer_page(request):
             {'label': 'Tarjetas', 'value': card_total},
         ],
     }
-    player_dashboard_rows = compute_player_dashboard(primary_team) if primary_team else []
+    player_dashboard_rows = compute_player_dashboard(primary_team, scope=stats_scope) if primary_team else []
     coach_player_options = [
         {
             'id': item.get('player_id'),
@@ -17960,7 +18015,10 @@ def coach_role_trainer_page(request):
     for event in team_events:
         if event.match_id:
             match_events_map[event.match_id].append(event)
-    team_matches = list(_team_match_queryset(primary_team).select_related('home_team', 'away_team').order_by('-date', '-id'))
+    match_qs = _team_match_queryset(primary_team).select_related('home_team', 'away_team').order_by('-date', '-id')
+    if stats_scope != 'all':
+        match_qs = match_qs.filter(context=stats_scope)
+    team_matches = list(match_qs)
     coach_match_rows = []
     for match in team_matches:
         match_events = match_events_map.get(match.id, [])
@@ -18241,9 +18299,7 @@ def coach_roster_page(request):
     active_tab = str(request.GET.get('tab') or '').strip().lower() or 'stats'
     if active_tab not in {'stats', 'manage'}:
         active_tab = 'stats'
-    scope_value = str(request.GET.get('scope') or '').strip().lower() or Match.CONTEXT_LEAGUE
-    if scope_value not in {Match.CONTEXT_LEAGUE, Match.CONTEXT_TOURNAMENT, Match.CONTEXT_FRIENDLY, 'all'}:
-        scope_value = Match.CONTEXT_LEAGUE
+    scope_value = _get_stats_scope_for_request(request, primary_team)
     message = ''
     error = ''
     if request.method == 'POST':
@@ -28794,9 +28850,7 @@ def player_detail_page(request, player_id):
 
         try:
             force_refresh_stats = str(request.GET.get('refresh') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
-            scope = str(request.GET.get('scope') or '').strip().lower() or Match.CONTEXT_LEAGUE
-            if scope not in {Match.CONTEXT_LEAGUE, Match.CONTEXT_TOURNAMENT, Match.CONTEXT_FRIENDLY, 'all'}:
-                scope = Match.CONTEXT_LEAGUE
+            scope = _get_stats_scope_for_request(request, primary_team)
             matches = compute_player_dashboard(primary_team, force_refresh=force_refresh_stats, scope=scope)
             stats_error = ''
         except Exception:
@@ -29052,7 +29106,8 @@ def player_pdf(request, player_id):
     if forbidden:
         return forbidden
     # PDF debe reflejar el estado real del partido/jugador: evitamos caché para no servir datos stale.
-    matches = compute_player_dashboard(primary_team, force_refresh=True)
+    scope = _get_stats_scope_for_request(request, primary_team)
+    matches = compute_player_dashboard(primary_team, force_refresh=True, scope=scope)
     detail = next((p for p in matches if p.get('player_id') == player_id), None)
     if not detail:
         raise Http404('Sin datos para generar el PDF')
@@ -29354,7 +29409,8 @@ def player_presentation(request, player_id):
     forbidden = _forbid_if_no_player_access(request.user, player, primary_team=primary_team)
     if forbidden:
         return forbidden
-    matches = compute_player_dashboard(primary_team)
+    stats_scope = _get_stats_scope_for_request(request, primary_team)
+    matches = compute_player_dashboard(primary_team, scope=stats_scope)
     detail = next((p for p in matches if p.get('player_id') == player_id), None)
     if not detail:
         raise Http404('Sin datos para generar la presentación')
