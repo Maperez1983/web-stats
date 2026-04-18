@@ -63,6 +63,34 @@
         text-transform: uppercase;
         font-size: 0.82rem;
       }
+      .panel .field-row {
+        display: grid;
+        gap: 0.35rem;
+        margin: 0.55rem 0 0.65rem;
+      }
+      .panel .field-row label {
+        font-size: 0.78rem;
+        color: rgba(226, 232, 240, 0.85);
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+      .panel .field-row select {
+        width: 100%;
+        border-radius: 12px;
+        border: 1px solid rgba(148, 163, 184, 0.3);
+        padding: 0.55rem 0.65rem;
+        background: rgba(2, 6, 23, 0.6);
+        color: #f8fafc;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        outline: none;
+      }
+      .panel .field-help {
+        margin: 0 0 0.75rem;
+        font-size: 0.8rem;
+        color: rgba(226, 232, 240, 0.7);
+        line-height: 1.3;
+      }
       .players {
         display: grid;
         gap: 0.5rem;
@@ -330,6 +358,15 @@
             <button type="button" id="clear-btn">Limpiar</button>
             <button type="button" class="primary {% if has_pending_convocation %}is-disabled{% endif %}" id="save-btn">Guardar</button>
           </div>
+          <div class="field-row">
+            <label for="lineup-gk-select">Portero (este partido)</label>
+            <select id="lineup-gk-select" {% if has_pending_convocation %}disabled{% endif %}>
+              <option value="">Auto</option>
+            </select>
+          </div>
+          <p class="field-help">
+            En categorías de niños es normal que un jugador marcado como “POR” juegue en cualquier posición. Selecciona aquí quién ocupa la casilla de portero en el 11 inicial.
+          </p>
           <p class="status {% if has_pending_convocation or has_pending_lineup %}warn{% endif %}" id="status-msg">
             {% if has_pending_convocation %}
               Convocatoria pendiente. La alineación inicial se activará cuando haya jugadores convocados.
@@ -355,6 +392,7 @@
       const saveBtn = document.getElementById('save-btn');
       const clearBtn = document.getElementById('clear-btn');
       const autoFillBtn = document.getElementById('auto-fill-btn');
+      const gkSelect = document.getElementById('lineup-gk-select');
       const hasPendingConvocation = {{ has_pending_convocation|yesno:"true,false" }};
       const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]')?.value
         || document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('csrftoken='))?.split('=')[1]
@@ -464,9 +502,9 @@
       });
 
       const normalizePosition = (value) => String(value || '').toLowerCase().trim();
+      const isGoalkeeperPosition = (position) => normalizePosition(position).includes('por');
       const roleFromPosition = (position) => {
         const pos = normalizePosition(position);
-        if (pos.includes('por')) return 'gk';
         if (
           pos.includes('dfc') || pos.includes('defen') || pos.includes('ld') || pos.includes('li') ||
           pos.includes('lateral') || pos.includes('carril')
@@ -485,16 +523,46 @@
         const parsed = parseInt(String(player?.number || '').replace(/[^\d]/g, ''), 10);
         return Number.isFinite(parsed) ? parsed : 999;
       };
-      const orderPlayersByRole = (players) => {
-        const groups = { gk: [], def: [], mid: [], fwd: [], other: [] };
-        players.forEach((player) => {
+      const buildGkChoice = (players, forcedId) => {
+        const forced = (players || []).find((p) => String(p.id) === String(forcedId || ''));
+        if (forced) return forced;
+        const byPos = (players || []).find((p) => isGoalkeeperPosition(p.position));
+        return byPos || null;
+      };
+      const syncGkSelectOptions = (selectedPlayers) => {
+        if (!gkSelect) return;
+        const current = String(gkSelect.value || '');
+        gkSelect.innerHTML = '';
+        const optAuto = document.createElement('option');
+        optAuto.value = '';
+        optAuto.textContent = 'Auto';
+        gkSelect.appendChild(optAuto);
+        (selectedPlayers || []).forEach((p) => {
+          const opt = document.createElement('option');
+          opt.value = String(p.id || '');
+          const num = p.number ? `#${p.number}` : '#--';
+          opt.textContent = `${num} ${String(p.name || '').toUpperCase()}`;
+          gkSelect.appendChild(opt);
+        });
+        if (current && Array.from(gkSelect.options).some((o) => o.value === current)) {
+          gkSelect.value = current;
+          return;
+        }
+        const suggested = buildGkChoice(selectedPlayers || [], '');
+        if (suggested) gkSelect.value = String(suggested.id || '');
+      };
+      const orderPlayersByRole = (players, forcedGkId = '') => {
+        const chosenGk = buildGkChoice(players || [], forcedGkId);
+        const remainingPlayers = (players || []).filter((p) => !chosenGk || String(p.id) !== String(chosenGk.id));
+        const groups = { def: [], mid: [], fwd: [], other: [] };
+        remainingPlayers.forEach((player) => {
           const role = roleFromPosition(player.position);
           if (groups[role]) groups[role].push(player);
           else groups.other.push(player);
         });
         Object.keys(groups).forEach((key) => groups[key].sort((a, b) => numberValue(a) - numberValue(b)));
         const starters = [];
-        if (groups.gk.length) starters.push(groups.gk.shift());
+        if (chosenGk) starters.push(chosenGk);
         const consume = (role, amount) => {
           while (amount > 0 && groups[role].length) {
             starters.push(groups[role].shift());
@@ -511,7 +579,7 @@
         }
         return {
           starters: starters.slice(0, STARTERS_REQUIRED),
-          bench: [...remaining, ...groups.gk].slice(0),
+          bench: [...remaining].slice(0),
         };
       };
 
@@ -519,7 +587,8 @@
         const selected = playerCards
           .filter((card) => card.querySelector('input[type="checkbox"]')?.checked)
           .map(parseCard);
-        const ordered = orderPlayersByRole(selected);
+        syncGkSelectOptions(selected);
+        const ordered = orderPlayersByRole(selected, String(gkSelect?.value || ''));
         lineupState.starters = ordered.starters;
         lineupState.bench = ordered.bench;
         renderField();
@@ -553,10 +622,22 @@
       autoFillBtn?.addEventListener('click', () => {
         if (hasPendingConvocation) return;
         const all = playerCards.map(parseCard);
-        const ordered = orderPlayersByRole(all);
+        syncGkSelectOptions(all);
+        const ordered = orderPlayersByRole(all, String(gkSelect?.value || ''));
         lineupState.starters = ordered.starters;
         lineupState.bench = ordered.bench;
         hydrateChecks();
+        renderField();
+      });
+
+      gkSelect?.addEventListener('change', () => {
+        if (hasPendingConvocation) return;
+        const selected = playerCards
+          .filter((card) => card.querySelector('input[type="checkbox"]')?.checked)
+          .map(parseCard);
+        const ordered = orderPlayersByRole(selected, String(gkSelect.value || ''));
+        lineupState.starters = ordered.starters;
+        lineupState.bench = ordered.bench;
         renderField();
       });
 
@@ -597,6 +678,12 @@
       });
 
       hydrateChecks();
+      try {
+        const selectedNow = playerCards
+          .filter((card) => card.querySelector('input[type="checkbox"]')?.checked)
+          .map(parseCard);
+        syncGkSelectOptions(selectedNow);
+      } catch (_) {}
       renderField();
     </script>
   </body>
