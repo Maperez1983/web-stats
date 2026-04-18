@@ -735,6 +735,20 @@
               </a>
               {% endif %}
 
+              {% if can_access_staff %}
+              <a class="quick-action is-muted" href="{% url 'staff-directory' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">
+                <strong>Staff</strong>
+                <span>Cuerpo técnico y roles</span>
+              </a>
+              {% endif %}
+
+              {% if workspace_module_access.analysis|default:True %}
+              <a class="quick-action is-muted" href="{% url 'analysis' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">
+                <strong>Análisis</strong>
+                <span>Vídeos e informes</span>
+              </a>
+              {% endif %}
+
               {% if workspace_module_access.sessions|default:True %}
               <a class="quick-action is-muted" href="{% url 'sessions' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">
                 <strong>Entrenos</strong>
