@@ -18194,6 +18194,9 @@ def coach_roster_page(request):
     active_tab = str(request.GET.get('tab') or '').strip().lower() or 'stats'
     if active_tab not in {'stats', 'manage'}:
         active_tab = 'stats'
+    scope_value = str(request.GET.get('scope') or '').strip().lower() or Match.CONTEXT_LEAGUE
+    if scope_value not in {Match.CONTEXT_LEAGUE, Match.CONTEXT_TOURNAMENT, Match.CONTEXT_FRIENDLY, 'all'}:
+        scope_value = Match.CONTEXT_LEAGUE
     message = ''
     error = ''
     if request.method == 'POST':
@@ -18250,7 +18253,7 @@ def coach_roster_page(request):
     if active_tab == 'stats':
         try:
             force_refresh = str(request.GET.get('refresh') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
-            player_cards = compute_player_cards(primary_team, force_refresh=force_refresh)
+            player_cards = compute_player_cards(primary_team, force_refresh=force_refresh, scope=scope_value)
         except Exception:
             player_cards = []
     def _tab_link(tab_name, *, refresh=False):
@@ -18270,6 +18273,7 @@ def coach_roster_page(request):
             'players': players,
             'player_cards': player_cards,
             'active_tab': active_tab,
+            'scope_value': scope_value,
             'tab_link_stats': _tab_link('stats'),
             'tab_link_manage': _tab_link('manage'),
             'tab_link_refresh': _tab_link('stats', refresh=True),

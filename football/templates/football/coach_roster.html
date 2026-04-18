@@ -197,12 +197,35 @@
         font-size: 0.72rem;
         color: rgba(226, 232, 240, 0.9);
       }
+      .scope-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.7rem;
+        margin: 0 0 0.9rem;
+        flex-wrap: wrap;
+      }
+      .scope-row .label {
+        font-size: 0.72rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: rgba(148, 163, 184, 0.95);
+        font-weight: 800;
+      }
+      .scope-row select {
+        width: auto;
+        min-width: 240px;
+      }
       @media (max-width: 900px) {
         form.add {
           grid-template-columns: 1fr;
         }
         .card-grid {
           grid-template-columns: 1fr;
+        }
+        .scope-row select {
+          width: 100%;
+          min-width: 0;
         }
       }
     </style>
@@ -230,6 +253,15 @@
         {% if error %}<p class="alert err">{{ error }}</p>{% endif %}
 
         {% if active_tab == 'stats' %}
+          <div class="scope-row">
+            <span class="label">Ámbito</span>
+            <select id="scopeSelect" aria-label="Ámbito estadísticas">
+              <option value="league" {% if scope_value == 'league' %}selected{% endif %}>Liga</option>
+              <option value="tournament" {% if scope_value == 'tournament' %}selected{% endif %}>Torneos</option>
+              <option value="friendly" {% if scope_value == 'friendly' %}selected{% endif %}>Amistosos</option>
+              <option value="all" {% if scope_value == 'all' %}selected{% endif %}>Todo</option>
+            </select>
+          </div>
           <div class="card-grid">
             {% for card in player_cards %}
               <a class="player-card" href="{% url 'player-detail' player_id=card.player_id %}{{ active_team_query|default:'' }}">
@@ -249,6 +281,24 @@
               <div style="grid-column:1/-1; color:#94a3b8;">No hay jugadores aún. Usa “Alta y plantilla”.</div>
             {% endfor %}
           </div>
+          <script>
+            (function() {
+              const sel = document.getElementById('scopeSelect');
+              if (!sel) return;
+              sel.addEventListener('change', () => {
+                try {
+                  const url = new URL(window.location.href);
+                  url.searchParams.set('tab', 'stats');
+                  url.searchParams.set('scope', sel.value);
+                  url.searchParams.delete('refresh');
+                  window.location.href = url.toString();
+                } catch (e) {
+                  // fallback
+                  window.location.search = `?tab=stats&scope=${encodeURIComponent(sel.value)}`;
+                }
+              });
+            })();
+          </script>
         {% else %}
         <form method="post" class="add">
           {% csrf_token %}
