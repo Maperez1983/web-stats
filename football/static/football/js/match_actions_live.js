@@ -160,6 +160,17 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
   };
   const makeOfflineId = () => `${OFFLINE_ID_PREFIX}${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
   const isOfflineId = (value) => String(value || '').startsWith(OFFLINE_ID_PREFIX);
+  const makeClientEventUid = () => {
+    try {
+      const cryptoObj = window.crypto || window.msCrypto;
+      if (cryptoObj && typeof cryptoObj.randomUUID === 'function') {
+        return cryptoObj.randomUUID();
+      }
+    } catch (error) {
+      // ignore
+    }
+    return `evt:${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  };
   const serializeFormData = (formData) => {
     const out = {};
     try {
@@ -865,6 +876,8 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     }
     syncAutoFields();
     const payload = new FormData(popupForm);
+    // UID por envío para poder deduplicar reintentos de red sin bloquear acciones reales consecutivas.
+    if (!payload.get('client_event_uid')) payload.set('client_event_uid', makeClientEventUid());
     if (currentMatchId && !payload.get('match_id')) payload.set('match_id', currentMatchId);
     if (isTeamOnlyAction) payload.delete('player');
     try {

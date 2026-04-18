@@ -3864,6 +3864,58 @@ class MatchActionWorkflowTests(TestCase):
             1,
         )
 
+    def test_register_match_action_allows_identical_same_minute_actions_with_distinct_client_uids(self):
+        # En fútbol, es habitual registrar varias acciones iguales en el mismo minuto (pases, duelos, etc.).
+        # El servidor solo debe deduplicar reintentos de red, no acciones reales consecutivas.
+        payload = {
+            'match_id': self.match.id,
+            'player': self.player.id,
+            'action_type': 'Pase',
+            'result': 'OK',
+            'zone': 'Ataque Centro',
+            'minute': 12,
+            'period': 1,
+        }
+        response1 = self.client.post(reverse('match-action-record'), {**payload, 'client_event_uid': 'evt-1'})
+        self.assertEqual(response1.status_code, 200)
+        response2 = self.client.post(reverse('match-action-record'), {**payload, 'client_event_uid': 'evt-2'})
+        self.assertEqual(response2.status_code, 200)
+        self.assertEqual(
+            MatchEvent.objects.filter(
+                match=self.match,
+                player=self.player,
+                source_file='registro-acciones',
+                system='touch-field',
+                minute=12,
+                event_type='Pase',
+            ).count(),
+            2,
+        )
+
+    def test_match_action_invalidates_scoped_player_dashboard_cache(self):
+        # Cache por scope (liga/torneo/amistoso) debe invalidarse tras registrar acciones.
+        from django.core.cache import cache
+
+        cache.clear()
+        compute_player_dashboard(self.team)  # llena cache "league"
+        response = self.client.post(
+            reverse('match-action-record'),
+            {
+                'match_id': self.match.id,
+                'player': self.player.id,
+                'action_type': 'Asistencia',
+                'result': 'OK',
+                'zone': 'Ataque Centro',
+                'minute': 42,
+                'period': 1,
+                'client_event_uid': 'evt-cache-1',
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        dashboard = compute_player_dashboard(self.team)
+        detail = next(item for item in dashboard if item['player_id'] == self.player.id)
+        self.assertEqual(detail['assists'], 1)
+
     def test_lineup_save_is_allowed_from_match_actions_workspace(self):
         response = self.client.post(
             reverse('match-lineup-save'),

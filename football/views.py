@@ -7711,10 +7711,20 @@ def _player_dashboard_cache_key(team_id):
 def _invalidate_team_dashboard_caches(primary_team):
     if not primary_team or not getattr(primary_team, 'id', None):
         return
+    # `compute_player_dashboard()` cachea por scope (liga/torneo/amistoso/all) añadiendo sufijo.
+    # Si no invalidamos esas claves, las estadísticas del equipo se quedan "pegadas" tras registrar acciones.
+    base_player_key = _player_dashboard_cache_key(primary_team.id)
+    scoped_player_keys = [
+        f'{base_player_key}:{Match.CONTEXT_LEAGUE}',
+        f'{base_player_key}:{Match.CONTEXT_TOURNAMENT}',
+        f'{base_player_key}:{Match.CONTEXT_FRIENDLY}',
+        f'{base_player_key}:all',
+    ]
     cache.delete_many(
         [
             _dashboard_cache_key(primary_team.id),
-            _player_dashboard_cache_key(primary_team.id),
+            base_player_key,
+            *scoped_player_keys,
             _team_metrics_cache_key(primary_team.id),
             _player_metrics_cache_key(primary_team.id),
         ]
@@ -13833,9 +13843,12 @@ def register_match_action(request):
     zone = (request.POST.get('zone') or '').strip()
     tercio = zone_to_tercio(zone)
     observation = (request.POST.get('observation') or '').strip()
+    client_event_uid = (request.POST.get('client_event_uid') or '').strip()
     # Dedupe anti doble-click / reintentos de red muy inmediatos.
     # Ventana muy pequeña para no bloquear acciones reales consecutivas.
-    duplicate_window = timezone.now() - timedelta(milliseconds=700)
+    # Nota: con "minuto" como granularidad, es muy fácil que dos acciones reales caigan en el mismo minuto.
+    # Para no "comernos" acciones, preferimos deduplicar por un UID de cliente cuando exista.
+    duplicate_window = timezone.now() - timedelta(seconds=10 if client_event_uid else 0.7)
     recent_duplicates = MatchEvent.objects.filter(
         match=match,
         player=player if player else None,
@@ -13846,6 +13859,15 @@ def register_match_action(request):
         created_at__gte=duplicate_window,
     ).order_by('-id')
     for existing in recent_duplicates:
+        if client_event_uid:
+            try:
+                if str((existing.raw_data or {}).get('client_event_uid') or '') == client_event_uid:
+                    return JsonResponse(_serialize_match_event(existing, duplicate=True))
+            except Exception:
+                continue
+            # Con UID de cliente, solo deduplicamos por ese UID (reintento de red).
+            # No aplicamos dedupe por campos (minuto/acción) porque bloquearía acciones reales consecutivas.
+            continue
         if (
             _canonical_action_value(existing.event_type) == _canonical_action_value(action_type)
             and _canonical_action_value(existing.result) == _canonical_action_value(result)
@@ -13867,6 +13889,7 @@ def register_match_action(request):
         observation=observation,
         source_file='registro-acciones',
         system='touch-field',
+        raw_data={'client_event_uid': client_event_uid} if client_event_uid else {},
     )
     _invalidate_team_dashboard_caches(primary_team)
     return JsonResponse(_serialize_match_event(event, duplicate=False))
