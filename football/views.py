@@ -28952,6 +28952,7 @@ def player_detail_page(request, player_id):
             {
                 'player': player,
                 'stats': safe_stats,
+                'scope_value': scope,
                 'active_tab': active_tab,
                 'physical_metrics': physical_metrics,
                 'latest_physical_metric': latest_physical_metric,
