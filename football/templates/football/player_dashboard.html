@@ -309,6 +309,14 @@
 		              <option value="friendly" {% if stats_scope == 'friendly' %}selected{% endif %}>Amistoso</option>
 		              <option value="all" {% if stats_scope == 'all' %}selected{% endif %}>Todo</option>
 		            </select>
+                {% if stats_scope == 'tournament' %}
+                  <select name="tournament" aria-label="Torneo">
+                    <option value="">Todos los torneos</option>
+                    {% for name in tournament_options %}
+                      <option value="{{ name }}" {% if tournament_filter == name %}selected{% endif %}>{{ name }}</option>
+                    {% endfor %}
+                  </select>
+                {% endif %}
 		            <select name="match">
 		              <option value="">Modo global</option>
 	              {% for option in match_options %}
@@ -337,7 +345,7 @@
       <div class="grid" id="playersGrid">
         {% for player in player_stats %}
           <article class="card" data-player-name="{{ player.name|lower }}" data-player="{{ player.player_id }}">
-	            <a class="card-link" href="{% url 'player-detail' player.player_id %}{% if active_workspace and active_workspace.id %}?workspace={{ active_workspace.id }}{% if active_team %}&team={{ active_team.id }}{% endif %}{% if stats_scope %}&scope={{ stats_scope }}{% endif %}{% elif stats_scope %}?scope={{ stats_scope }}{% endif %}">
+	            <a class="card-link" href="{% url 'player-detail' player.player_id %}{% if active_workspace and active_workspace.id %}?workspace={{ active_workspace.id }}{% if active_team %}&team={{ active_team.id }}{% endif %}{% if stats_scope %}&scope={{ stats_scope }}{% endif %}{% if stats_scope == 'tournament' and tournament_filter %}&tournament={{ tournament_filter|urlencode }}{% endif %}{% elif stats_scope %}?scope={{ stats_scope }}{% if stats_scope == 'tournament' and tournament_filter %}&tournament={{ tournament_filter|urlencode }}{% endif %}{% endif %}">
               <div class="head">
                 <div class="head-main">
                   {% if player.photo_url %}

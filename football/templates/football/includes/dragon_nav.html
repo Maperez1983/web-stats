@@ -62,6 +62,9 @@
       {% if workspace_module_access.convocation|default:True %}
       <a href="{% url 'convocation' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Convocatoria</a>
       <a href="{% url 'initial-eleven' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">11 inicial</a>
+      {% if can_manage_workspace or is_admin_user %}
+      <a href="{% url 'coach-tournaments' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Torneos</a>
+      {% endif %}
       {% endif %}
       {% if workspace_module_access.match_actions|default:True %}
       <a href="{% url 'match-action-page' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Registro de acciones</a>

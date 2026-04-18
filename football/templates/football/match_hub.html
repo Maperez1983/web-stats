@@ -403,6 +403,8 @@
         const modal = document.getElementById('createMatchModal');
         const cancel = document.getElementById('createMatchCancel');
         const contextSelect = document.getElementById('contextSelect');
+        const tournamentName = document.getElementById('tournamentName');
+        const tournamentStage = document.getElementById('tournamentStage');
         if (!btn || !modal || !cancel || !contextSelect) return;
         const setTournament = () => {
           const isTournament = (String(contextSelect.value || '').toLowerCase() === 'tournament');
@@ -432,6 +434,22 @@
         document.addEventListener('keydown', (event) => {
           if (event.key === 'Escape') close();
         });
+
+        // Prefill por querystring (útil al crear partidos desde Torneos).
+        try {
+          const params = new URLSearchParams(window.location.search || '');
+          const preContext = String(params.get('context') || '').toLowerCase();
+          if (preContext && ['league','tournament','friendly'].includes(preContext)) {
+            contextSelect.value = preContext;
+          }
+          if (tournamentName) tournamentName.value = String(params.get('tournament_name') || '').trim();
+          if (tournamentStage) tournamentStage.value = String(params.get('tournament_stage') || '').trim();
+          setTournament();
+          if (String(params.get('create') || '') === '1') {
+            // abre automáticamente
+            open();
+          }
+        } catch (e) { /* ignore */ }
       })();
     </script>
     {% endif %}

@@ -91,6 +91,7 @@ urlpatterns = [
     path('coach/staff/<int:staff_id>/pdf/', views.staff_member_pdf, name='staff-member-pdf'),
     path('coach/rival/', views.coach_rival_page, name='coach-rival'),
     path('coach/plantilla/', views.coach_roster_page, name='coach-roster'),
+    path('coach/torneos/', views.coach_tournaments_page, name='coach-tournaments'),
     path('coach/lesiones/', views.coach_injuries_page, name='coach-injuries'),
     path('coach/carga/', views.coach_load_page, name='coach-load'),
     path('coach/roles/entrenador/', views.coach_role_trainer_page, name='coach-role-trainer'),

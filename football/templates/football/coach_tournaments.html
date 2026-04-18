@@ -1,0 +1,288 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Torneos · {{ team_name }}</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      body {
+        margin: 0;
+        font-family: "Inter", "Segoe UI", sans-serif;
+        background: linear-gradient(180deg, #020617 0%, #07162f 100%);
+        color: #e2e8f0;
+      }
+      .page {
+        max-width: 1040px;
+        margin: 0 auto;
+        padding: 1.3rem;
+      }
+      .top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+      }
+      h1 {
+        margin: 0;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+        font-size: 1.3rem;
+      }
+      .button {
+        text-decoration: none;
+        border-radius: 10px;
+        padding: 0.55rem 0.85rem;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: #e2e8f0;
+      }
+      .panel {
+        margin-top: 1rem;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(15, 23, 42, 0.92);
+        padding: 1rem;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.65rem;
+        align-items: center;
+      }
+      label {
+        display: grid;
+        gap: 0.3rem;
+        font-size: 0.74rem;
+        text-transform: uppercase;
+        letter-spacing: 0.09em;
+        color: rgba(148, 163, 184, 0.96);
+      }
+      select, input {
+        font: inherit;
+        border-radius: 9px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: rgba(2, 6, 23, 0.7);
+        color: #e2e8f0;
+        padding: 0.48rem 0.55rem;
+        min-width: 220px;
+      }
+      .primary {
+        border: none;
+        border-radius: 999px;
+        background: linear-gradient(135deg, #22d3ee, #38bdf8);
+        color: #022c43;
+        font-weight: 900;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        padding: 0.64rem 1rem;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .muted {
+        color: rgba(148, 163, 184, 0.9);
+        font-size: 0.85rem;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 0.9rem;
+      }
+      th, td {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        padding: 0.6rem 0.45rem;
+        text-align: left;
+      }
+      th {
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: #94a3b8;
+      }
+      .link {
+        color: #7dd3fc;
+        text-decoration: none;
+      }
+      .link:hover { text-decoration: underline; }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        border-radius: 999px;
+        padding: 0.28rem 0.65rem;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: rgba(2, 6, 23, 0.35);
+        font-size: 0.74rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.9);
+      }
+      .grid {
+        display: grid;
+        gap: 0.9rem;
+        grid-template-columns: 1fr;
+      }
+      @media (min-width: 900px) {
+        .grid { grid-template-columns: 1fr 1fr; }
+      }
+      .card {
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(2, 6, 23, 0.35);
+        padding: 0.9rem;
+      }
+      .card h2 {
+        margin: 0 0 0.25rem;
+        font-size: 0.95rem;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      {% include 'football/includes/dragon_nav.html' %}
+      <header class="top">
+        <div>
+          <p style="margin:0;color:#94a3b8;">Partido</p>
+          <h1>Torneos · {{ team_name }}</h1>
+        </div>
+        <a class="button" href="{% url 'coach-cards' %}">Volver</a>
+      </header>
+
+      <section class="panel">
+        <div class="row">
+          <label>
+            Torneo activo
+            <select id="tournamentSelect" aria-label="Torneo activo">
+              <option value="">Todos</option>
+              {% for name in tournament_options %}
+                <option value="{{ name }}" {% if tournament_filter == name %}selected{% endif %}>{{ name }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            Fase (opcional)
+            <input id="stageInput" placeholder="Grupo, cuartos, final..." />
+          </label>
+          <a id="createTournamentMatch" class="primary" href="{% url 'match-hub' %}">Crear partido (torneo)</a>
+          <span class="muted" style="flex-basis:100%;">Los partidos de torneo no afectan a la clasificación ni al “Próximo rival” de Liga.</span>
+        </div>
+
+        <div class="grid" style="margin-top:1rem;">
+          <div class="card">
+            <h2>Resumen</h2>
+            {% if tournament_rows %}
+              <table>
+                <thead>
+                  <tr>
+                    <th>Torneo</th>
+                    <th>Partidos</th>
+                    <th>Fechas</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in tournament_rows %}
+                    <tr>
+                      <td><a class="link" href="?tournament={{ row.name|urlencode }}">{{ row.name }}</a></td>
+                      <td>{{ row.matches }}</td>
+                      <td>
+                        {% if row.first_date %}{{ row.first_date|date:"d/m/Y" }}{% else %}-{% endif %}
+                        →
+                        {% if row.last_date %}{{ row.last_date|date:"d/m/Y" }}{% else %}-{% endif %}
+                      </td>
+                      <td>
+                        {% if row.latest_match_id %}
+                          <a class="link" href="{% url 'match-hub' %}?match_id={{ row.latest_match_id }}&team={{ active_team.id }}">Ver último</a>
+                        {% endif %}
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            {% else %}
+              <p class="muted" style="margin:0;">Todavía no hay partidos de torneo registrados.</p>
+            {% endif %}
+          </div>
+
+          <div class="card">
+            <h2>Partidos</h2>
+            {% if tournament_filter %}
+              <div class="chip">Torneo · {{ tournament_filter }}</div>
+              {% if selected_matches %}
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Ronda</th>
+                      <th>Fase</th>
+                      <th>Rival</th>
+                      <th>Fecha</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for m in selected_matches %}
+                      <tr>
+                        <td>{{ m.round|default:"-" }}</td>
+                        <td>{{ m.stage|default:"-" }}</td>
+                        <td>{{ m.opponent }}</td>
+                        <td>{% if m.date %}{{ m.date|date:"d/m/Y" }}{% else %}-{% endif %}</td>
+                        <td><a class="link" href="{% url 'match-hub' %}?match_id={{ m.id }}&team={{ active_team.id }}">Abrir</a></td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              {% else %}
+                <p class="muted" style="margin-top:0.8rem;">No hay partidos para este torneo.</p>
+              {% endif %}
+            {% else %}
+              <p class="muted" style="margin:0;">Selecciona un torneo para ver sus partidos y crear uno nuevo con el nombre ya rellenado.</p>
+            {% endif %}
+          </div>
+        </div>
+      </section>
+    </main>
+    <script>
+      (function() {
+        const tournamentSel = document.getElementById('tournamentSelect');
+        const stageInput = document.getElementById('stageInput');
+        const createBtn = document.getElementById('createTournamentMatch');
+
+        const buildCreateUrl = () => {
+          const url = new URL("{% url 'match-hub' %}", window.location.origin);
+          url.searchParams.set('team', "{{ active_team.id|default:'' }}");
+          url.searchParams.set('create', '1');
+          url.searchParams.set('context', 'tournament');
+          const name = (tournamentSel && tournamentSel.value) ? String(tournamentSel.value).trim() : '';
+          const stage = (stageInput && stageInput.value) ? String(stageInput.value).trim() : '';
+          if (name) url.searchParams.set('tournament_name', name);
+          if (stage) url.searchParams.set('tournament_stage', stage);
+          return url.toString();
+        };
+
+        const sync = () => {
+          try { createBtn.href = buildCreateUrl(); } catch (e) {}
+        };
+        if (tournamentSel) {
+          tournamentSel.addEventListener('change', () => {
+            try {
+              const url = new URL(window.location.href);
+              if (tournamentSel.value) url.searchParams.set('tournament', tournamentSel.value);
+              else url.searchParams.delete('tournament');
+              window.location.href = url.toString();
+            } catch (e) { /* ignore */ }
+          });
+        }
+        if (stageInput) stageInput.addEventListener('input', sync);
+        sync();
+      })();
+    </script>
+  </body>
+</html>
+

@@ -661,6 +661,17 @@
                   <option value="all" {% if scope_value == 'all' %}selected{% endif %}>Todo</option>
                 </select>
               </div>
+              {% if scope_value == 'tournament' %}
+              <div class="scope-filter" style="margin-left:0.8rem;">
+                <label for="playerTournamentSelect">Torneo</label>
+                <select id="playerTournamentSelect" aria-label="Torneo">
+                  <option value="">Todos</option>
+                  {% for name in tournament_options %}
+                    <option value="{{ name }}" {% if tournament_filter == name %}selected{% endif %}>{{ name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              {% endif %}
               <h3 class="general-team">{{ player.team.display_name }}</h3>
               <p class="general-division">{{ division_label|default:'Categoría principal' }}</p>
             </div>
@@ -694,10 +705,12 @@
           (function() {
             const sel = document.getElementById('playerScopeSelect');
             if (!sel) return;
+            const tournamentSel = document.getElementById('playerTournamentSelect');
             sel.addEventListener('change', () => {
               try {
                 const url = new URL(window.location.href);
                 url.searchParams.set('scope', sel.value);
+                if (sel.value !== 'tournament') url.searchParams.delete('tournament');
                 url.searchParams.delete('refresh');
                 window.location.href = url.toString();
               } catch (e) {
@@ -705,6 +718,20 @@
                 window.location.search = `?scope=${encodeURIComponent(sel.value)}`;
               }
             });
+            if (tournamentSel) {
+              tournamentSel.addEventListener('change', () => {
+                try {
+                  const url = new URL(window.location.href);
+                  url.searchParams.set('scope', 'tournament');
+                  if (tournamentSel.value) url.searchParams.set('tournament', tournamentSel.value);
+                  else url.searchParams.delete('tournament');
+                  url.searchParams.delete('refresh');
+                  window.location.href = url.toString();
+                } catch (e) {
+                  window.location.search = `?scope=tournament&tournament=${encodeURIComponent(tournamentSel.value || '')}`;
+                }
+              });
+            }
           })();
         </script>
 
