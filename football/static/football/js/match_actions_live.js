@@ -789,8 +789,35 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
   const bindFinalizeHandler = (button) => {
     if (!button) return;
     button.addEventListener('click', async () => {
+      if (button.disabled) return;
+      button.disabled = true;
       Object.assign(matchInfoState, collectMatchInfoPayload());
       try {
+        // No permitimos cerrar si hay acciones offline sin sincronizar: se perderían del resumen/KPI.
+        const countOfflineActions = () =>
+          readOfflineQueue().filter((item) => item && item.kind === 'action').length;
+        const pendingOffline = countOfflineActions();
+        if (pendingOffline > 0) {
+          if (!navigator.onLine) {
+            showPageStatus(
+              `Tienes ${pendingOffline} acciones offline pendientes. Conéctate y pulsa “Sincronizar” antes de guardar el partido.`,
+              'warning',
+              7000
+            );
+            return;
+          }
+          await flushOfflineQueue({ limit: 500 });
+          const stillPending = countOfflineActions();
+          if (stillPending > 0) {
+            showPageStatus(
+              `Aún quedan ${stillPending} acciones offline pendientes. Pulsa “Sincronizar” y vuelve a guardar.`,
+              'warning',
+              7000
+            );
+            return;
+          }
+        }
+
         const response = await fetch(finalizeUrl, {
           method: 'POST',
           credentials: 'same-origin',
@@ -805,10 +832,24 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
         renderMatchInfoState(matchInfoState);
         if (matchInfoCard) matchInfoCard.classList.remove('is-editing');
         emitSummaryChange();
-        showPageStatus(`Partido guardado. ${data.updated || 0} acciones consolidadas${data.deduplicated ? ` · ${data.deduplicated} duplicadas descartadas` : ''}.`, 'success', 4200);
+        // UX: al guardar, el staff espera que se "reinicie" el registro en vivo.
+        // Consolidamos en servidor y limpiamos el HUD/panel de pendientes sin tocar los datos ya guardados.
+        clearRegisterHistoryUI();
+        resetRegisterHudState();
+        resetClockExternal ? resetClockExternal() : resetClock();
+        try {
+          document.querySelector('[data-stage-tab="close"]')?.click();
+        } catch (err) { /* ignore */ }
+        showPageStatus(
+          `Partido guardado. ${data.updated || 0} acciones consolidadas${data.deduplicated ? ` · ${data.deduplicated} duplicadas descartadas` : ''}.`,
+          'success',
+          5200
+        );
       } catch (err) {
         console.error(err);
         showPageStatus('Error al guardar el partido.', 'danger', 5200);
+      } finally {
+        button.disabled = false;
       }
     });
   };
