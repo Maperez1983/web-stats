@@ -13780,6 +13780,19 @@ def match_action_page(request):
             .select_related('player')
             .order_by('-created_at', '-id')[:20]
         )
+    actions_total_count = 0
+    actions_pending_count = 0
+    actions_final_count = 0
+    if active_match:
+        try:
+            base_actions = MatchEvent.objects.filter(match=active_match, source_file='registro-acciones')
+            actions_total_count = base_actions.count()
+            actions_pending_count = base_actions.filter(system='touch-field').count()
+            actions_final_count = base_actions.filter(system='touch-field-final').count()
+        except Exception:
+            actions_total_count = 0
+            actions_pending_count = 0
+            actions_final_count = 0
     official_next = load_preferred_next_match_payload(primary_team=primary_team)
 
     def _payload_date_label(payload):
@@ -13916,6 +13929,9 @@ def match_action_page(request):
             'tercio_options': STANDARD_TERCIO_LABELS,
             'recent_events': recent_events,
             'match_info': match_info,
+            'actions_total_count': actions_total_count,
+            'actions_pending_count': actions_pending_count,
+            'actions_final_count': actions_final_count,
             'category_rivals': category_rivals,
             'team_fields': team_fields,
             'substitution_history': substitution_history,

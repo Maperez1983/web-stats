@@ -122,6 +122,10 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       return false;
     }
   })();
+  const liveStateKey = (() => {
+    const mid = String(currentMatchId || '').trim();
+    return mid ? `webstats:live:state:v1:${mid}` : '';
+  })();
   const safeParseJson = (raw, fallback) => {
     try {
       return JSON.parse(String(raw || ''));
@@ -143,6 +147,24 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     if (!canUseStorage) return;
     try {
       window.localStorage.setItem(offlineQueueKey, JSON.stringify(Array.isArray(list) ? list : []));
+    } catch (error) {
+      // ignore quota errors
+    }
+  };
+  const readLiveState = () => {
+    if (!canUseStorage || !liveStateKey) return null;
+    try {
+      const raw = window.localStorage.getItem(liveStateKey) || '';
+      const parsed = safeParseJson(raw, null);
+      return parsed && typeof parsed === 'object' ? parsed : null;
+    } catch (error) {
+      return null;
+    }
+  };
+  const writeLiveState = (value) => {
+    if (!canUseStorage || !liveStateKey) return;
+    try {
+      window.localStorage.setItem(liveStateKey, JSON.stringify(value && typeof value === 'object' ? value : {}));
     } catch (error) {
       // ignore quota errors
     }
@@ -295,6 +317,15 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
   try { window.setInterval(() => flushOfflineQueue({ limit: 10 }), 15_000); } catch (error) { /* ignore */ }
   const emitSummaryChange = () => {
     if (typeof onSummaryChange !== 'function') return;
+    try {
+      const pendingEl = document.getElementById('persistent-pending');
+      if (pendingEl && historyList) {
+        const count = historyList.querySelectorAll('[data-event-id]').length;
+        pendingEl.textContent = String(count);
+      }
+    } catch (error) {
+      // ignore
+    }
     onSummaryChange({
       actions: liveEventStore.size,
       yellow: quickStats.amarilla,
@@ -507,6 +538,8 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
   let clockInterval = null;
   let clockRunning = false;
   let currentHalf = 1;
+  let wakeLockSentinel = null;
+  let wakeLockEnabled = false;
   const halfSeconds = (() => {
     const value = Number(matchHalfMinutes);
     if (!Number.isFinite(value) || value <= 0) return 45 * 60;
@@ -518,18 +551,86 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
   const getCurrentMatchMinute = () => Math.floor(elapsedRef.value / 60);
+  let lastPersistedAt = 0;
+  const persistClockState = () => {
+    if (!liveStateKey) return;
+    const now = Date.now();
+    // Evita escribir en localStorage cada segundo.
+    if (now - lastPersistedAt < 5000) return;
+    lastPersistedAt = now;
+    writeLiveState({
+      v: 1,
+      saved_at: now,
+      elapsed: Number(elapsedRef.value) || 0,
+      half: currentHalf,
+      running: Boolean(clockRunning),
+      offline_queue: (() => {
+        try {
+          return readOfflineQueue().length;
+        } catch (e) {
+          return 0;
+        }
+      })(),
+    });
+  };
+  const restoreClockState = () => {
+    const state = readLiveState();
+    if (!state || state.v !== 1) return;
+    const savedAt = Number(state.saved_at) || 0;
+    // Si es muy antiguo, ignora (nuevo partido / dispositivo).
+    if (savedAt && Date.now() - savedAt > 8 * 60 * 60 * 1000) return;
+    const elapsed = Number(state.elapsed);
+    if (Number.isFinite(elapsed) && elapsed >= 0) {
+      elapsedRef.value = Math.round(elapsed);
+    }
+    const half = Number(state.half);
+    if (half === 2) {
+      currentHalf = 2;
+      if (changeHalfBtn) changeHalfBtn.textContent = '2ª Parte';
+    } else {
+      currentHalf = 1;
+      if (changeHalfBtn) changeHalfBtn.textContent = '1ª Parte';
+    }
+  };
+  const requestWakeLock = async () => {
+    if (!wakeLockEnabled) return;
+    if (!navigator.wakeLock || typeof navigator.wakeLock.request !== 'function') return;
+    try {
+      if (wakeLockSentinel) return;
+      wakeLockSentinel = await navigator.wakeLock.request('screen');
+      wakeLockSentinel.addEventListener('release', () => {
+        wakeLockSentinel = null;
+      });
+    } catch (error) {
+      // No disponible / permiso denegado: ignora.
+      wakeLockSentinel = null;
+    }
+  };
+  const releaseWakeLock = async () => {
+    try {
+      await wakeLockSentinel?.release?.();
+    } catch (error) {
+      // ignore
+    } finally {
+      wakeLockSentinel = null;
+    }
+  };
   const updateClockDisplay = () => {
     if (matchClockDisplay) matchClockDisplay.textContent = formatClock(elapsedRef.value);
     if (persistentClockEl) persistentClockEl.textContent = formatClock(elapsedRef.value);
     syncAutoFields();
     refreshLiveStatsHud();
     emitSummaryChange();
+    persistClockState();
   };
   const pauseClock = () => {
     clockRunning = false;
     if (clockToggle) clockToggle.textContent = '►';
     clearInterval(clockInterval);
     clockInterval = null;
+    wakeLockEnabled = false;
+    void releaseWakeLock();
+    persistClockState();
   };
   const resetClock = ({ keepHalf = false } = {}) => {
     pauseClock();
@@ -544,6 +645,8 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     if (clockRunning) return;
     clockRunning = true;
     if (clockToggle) clockToggle.textContent = '||';
+    wakeLockEnabled = true;
+    void requestWakeLock();
     clockInterval = setInterval(() => {
       elapsedRef.value += 1;
       updateClockDisplay();
@@ -578,6 +681,23 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       updateClockDisplay();
     });
   }
+  // Restaura cronómetro si el iPad recarga (suspensión/auto-lock).
+  try {
+    restoreClockState();
+  } catch (error) {
+    // ignore
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      void requestWakeLock();
+      persistClockState();
+    } else {
+      persistClockState();
+    }
+  });
+  window.addEventListener('pagehide', () => {
+    persistClockState();
+  });
   updateClockDisplay();
   setPopupEditMode(false);
   if (liveStatsHud && liveStatsToggle) {
@@ -829,6 +949,16 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
           showPageStatus(data.error || 'No se pudo guardar el partido.', 'danger', 5200);
           return;
         }
+        try {
+          const finalEl = document.getElementById('persistent-final');
+          if (finalEl) {
+            const current = parseInt(String(finalEl.textContent || '0'), 10);
+            const next = (Number.isFinite(current) ? current : 0) + (parseInt(String(data.updated || 0), 10) || 0);
+            finalEl.textContent = String(next);
+          }
+        } catch (error) {
+          // ignore
+        }
         renderMatchInfoState(matchInfoState);
         if (matchInfoCard) matchInfoCard.classList.remove('is-editing');
         emitSummaryChange();
@@ -837,6 +967,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
         clearRegisterHistoryUI();
         resetRegisterHudState();
         resetClockExternal ? resetClockExternal() : resetClock();
+        emitSummaryChange();
         try {
           document.querySelector('[data-stage-tab="close"]')?.click();
         } catch (err) { /* ignore */ }
