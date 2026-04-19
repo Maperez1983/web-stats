@@ -1947,11 +1947,11 @@
                 <span>{{ team_name }} · Registro táctil de partido</span>
               </div>
             </div>
-            <div class="field-header-actions">
-              <button type="button" id="zone-overlay-toggle" class="zone-overlay-toggle">Ver zonas</button>
-              <button type="button" id="match-finalize-btn-top" class="zone-overlay-toggle finalize-top" data-stage-jump="close">Ir a cierre</button>
-            </div>
-          </div>
+	            <div class="field-header-actions">
+	              <button type="button" id="zone-overlay-toggle" class="zone-overlay-toggle">Ver zonas</button>
+	              <button type="button" id="match-finalize-btn-top" class="zone-overlay-toggle finalize-top">Guardar partido</button>
+	            </div>
+	          </div>
           <nav class="match-stage-tabs" aria-label="Fases del registro">
             <button type="button" class="match-stage-tab {% if default_stage == 'pre' %}is-active{% endif %}" data-stage-tab="pre">Prepartido</button>
             <button type="button" class="match-stage-tab {% if default_stage == 'live' %}is-active{% endif %}" data-stage-tab="live">En vivo</button>
@@ -2478,9 +2478,9 @@
                   <li>Sin revisar todavía.</li>
                 </ul>
               </article>
-              <div class="closure-actions">
-                <button type="button" class="save" id="match-finalize-btn">Finalizar partido</button>
-                {% if match_info %}
+	              <div class="closure-actions">
+	                <button type="button" class="save" id="match-finalize-btn">Guardar partido</button>
+	                {% if match_info %}
                 <a
                   class="pdf"
                   href="{% url 'match-report-pdf' %}?match_id={{ match_info.match_id }}"
@@ -2648,9 +2648,10 @@
       const matchInfoEditBtn = document.getElementById('match-info-edit-btn');
       const matchInfoSaveBtn = document.getElementById('match-info-save-btn');
       const matchInfoResetBtn = document.getElementById('match-info-reset-btn');
-      const matchFinalizeBtn = [
-        document.getElementById('match-finalize-btn'),
-      ].filter(Boolean);
+	      const matchFinalizeBtn = [
+	        document.getElementById('match-finalize-btn'),
+	        document.getElementById('match-finalize-btn-top'),
+	      ].filter(Boolean);
       const rivalToggleBtn = matchInfoCard?.querySelector('.rival-toggle') || null;
       const rivalDropdown = matchInfoCard?.querySelector('[data-rival-dropdown]') || null;
       const rivalOptions = matchInfoCard?.querySelectorAll('.rival-option') || [];
@@ -3624,7 +3625,7 @@
       const closeSummaryClock = document.getElementById('close-summary-clock');
       const closeSummaryCorners = document.getElementById('close-summary-corners');
       const closeSummaryAlerts = document.getElementById('close-summary-alerts');
-      const closeFinalizeBtn = document.getElementById('match-finalize-btn');
+	      const closeFinalizeBtn = document.getElementById('match-finalize-btn');
       let liveSummaryState = {
         actions: 0,
         yellow: 0,
@@ -3694,9 +3695,9 @@
         if (closeSummaryCorners) {
           closeSummaryCorners.textContent = `${liveSummaryState.cornerFor || 0} córners a favor · ${liveSummaryState.cornerAgainst || 0} en contra`;
         }
-        if (closeSummaryAlerts) {
-          const alerts = [];
-          const criticalAlerts = [];
+	        if (closeSummaryAlerts) {
+	          const alerts = [];
+	          const criticalAlerts = [];
           const forValue = String(summaryInfo.score_for || '').trim();
           const againstValue = String(summaryInfo.score_against || '').trim();
           if (!summaryInfo.opponent) {
@@ -3715,18 +3716,18 @@
           if (!(liveSummaryState.elapsedSeconds > 0)) alerts.push('El cronómetro sigue en cero.');
           closeSummaryAlerts.innerHTML = '';
           const alertItems = alerts.length ? alerts : ['Todo listo para guardar el partido.'];
-          alertItems.forEach((message) => {
-            const item = document.createElement('li');
-            item.textContent = message;
-            closeSummaryAlerts.appendChild(item);
-          });
-          if (closeFinalizeBtn) {
-            const hasCritical = criticalAlerts.length > 0;
-            closeFinalizeBtn.disabled = hasCritical;
-            closeFinalizeBtn.title = hasCritical ? criticalAlerts.join(' ') : 'Finalizar partido';
-          }
-        }
-      };
+	          alertItems.forEach((message) => {
+	            const item = document.createElement('li');
+	            item.textContent = message;
+	            closeSummaryAlerts.appendChild(item);
+	          });
+	          const hasCritical = criticalAlerts.length > 0;
+	          matchFinalizeBtn.forEach((button) => {
+	            button.disabled = hasCritical;
+	            button.title = hasCritical ? criticalAlerts.join(' ') : 'Guardar partido';
+	          });
+	        }
+	      };
 	      const activateStage = (stage) => {
 	        activeStage = stage;
 	        stageTabs.forEach((tab) => {
