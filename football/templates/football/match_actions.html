@@ -3744,14 +3744,16 @@
       stageTabs.forEach((tab) => {
         tab.addEventListener('click', () => activateStage(tab.dataset.stageTab));
       });
-      stageJumpButtons.forEach((button) => {
-        button.addEventListener('click', () => activateStage(button.dataset.stageJump));
-      });
-      if (matchInfoSaveBtn) {
-        matchInfoSaveBtn.addEventListener('click', () => {
-          requestAnimationFrame(() => updateCloseSummary({ matchInfo: { ...matchInfoState } }));
-        });
-      }
+	      stageJumpButtons.forEach((button) => {
+	        button.addEventListener('click', () => activateStage(button.dataset.stageJump));
+	      });
+	      // Inicializa el estado del cierre (deshabilita Guardar si falta rival/marcador/11).
+	      requestAnimationFrame(() => updateCloseSummary({ matchInfo: { ...matchInfoState } }));
+	      if (matchInfoSaveBtn) {
+	        matchInfoSaveBtn.addEventListener('click', () => {
+	          requestAnimationFrame(() => updateCloseSummary({ matchInfo: { ...matchInfoState } }));
+	        });
+	      }
       if (matchInfoResetBtn) {
         matchInfoResetBtn.addEventListener('click', () => {
           requestAnimationFrame(() => updateCloseSummary({ matchInfo: { ...matchInfoState } }));
