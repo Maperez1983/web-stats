@@ -68,6 +68,7 @@ urlpatterns = [
     path('player/<int:player_id>/presentacion/', views.player_presentation, name='player-presentation'),
     path('player/<int:player_id>/match/<int:match_id>/', views.player_match_stats_page, name='player-match-stats'),
     path('match/<int:match_id>/', views.match_stats_page, name='match-stats'),
+    path('coach/partidos/<int:match_id>/editar/', views.match_editor_page, name='match-editor'),
     path('incidencias/', views.incident_page, name='incident-page'),
     path('registro-acciones/', views.match_action_page, name='match-action-page'),
     path('registro-acciones/guardar/', views.register_match_action, name='match-action-record'),

@@ -29677,6 +29677,7 @@ def match_stats_page(request, match_id):
         if (home_score is None and away_score is None)
         else f"{'' if home_score is None else home_score} - {'' if away_score is None else away_score}",
         'edit_actions_url': f"{reverse('match-action-page')}?match_id={int(match.id)}&stage=close",
+        'edit_match_url': f"{reverse('match-editor', args=[int(match.id)])}?team={int(primary_team.id)}",
     }
     team_metrics = compute_team_metrics_for_match(match, primary_team=primary_team)
     player_cards = compute_player_cards_for_match(match, primary_team)
@@ -29687,6 +29688,224 @@ def match_stats_page(request, match_id):
             'match': payload,
             'team_metrics': team_metrics,
             'player_cards': player_cards,
+        },
+    )
+
+
+@login_required
+def match_editor_page(request, match_id):
+    """
+    Editor "full" de partido y acciones para corregir errores de guardado.
+
+    - Permite editar metadatos (rival, fecha, campo, contexto y marcador).
+    - Permite añadir/editar/borrar eventos del partido (solo del equipo activo o team-only).
+    """
+    if not _can_edit_match_actions(request.user):
+        return HttpResponse('Solo el cuerpo técnico puede editar partidos.', status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'match_actions', label='partidos')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        raise Http404('Equipo principal no configurado')
+
+    match = _team_match_queryset(primary_team).filter(id=match_id).select_related('home_team', 'away_team').first()
+    if not match:
+        raise Http404('Partido no encontrado')
+
+    players = list(Player.objects.filter(team=primary_team).order_by('number', 'name'))
+    player_by_id = {int(p.id): p for p in players if getattr(p, 'id', None)}
+
+    message = ''
+    error = ''
+    if request.method == 'POST':
+        form_action = str(request.POST.get('form_action') or '').strip()
+        try:
+            if form_action == 'match_save':
+                opponent = str(request.POST.get('opponent') or '').strip()
+                round_value = str(request.POST.get('round') or '').strip()
+                location_value = str(request.POST.get('location') or '').strip()
+                context_value = str(request.POST.get('context') or match.context or Match.CONTEXT_LEAGUE).strip().lower()
+                tournament_name_value = str(request.POST.get('tournament_name') or '').strip()
+                tournament_stage_value = str(request.POST.get('tournament_stage') or '').strip()
+                score_for = str(request.POST.get('score_for') or '').strip()
+                score_against = str(request.POST.get('score_against') or '').strip()
+
+                date_raw = str(request.POST.get('date') or '').strip()
+                time_raw = str(request.POST.get('time') or '').strip()
+                match_date = None
+                if date_raw:
+                    for fmt in ('%Y-%m-%d', '%d/%m/%Y'):
+                        try:
+                            match_date = datetime.strptime(date_raw, fmt).date()
+                            break
+                        except ValueError:
+                            continue
+                match_time = None
+                if time_raw:
+                    try:
+                        match_time = datetime.strptime(time_raw, '%H:%M').time()
+                    except ValueError:
+                        match_time = None
+
+                _apply_match_info_overrides(
+                    match,
+                    primary_team,
+                    {
+                        'opponent': opponent,
+                        'round': round_value,
+                        'location': location_value,
+                        'context': context_value,
+                        'tournament_name': tournament_name_value,
+                        'tournament_stage': tournament_stage_value,
+                        'score_for': score_for,
+                        'score_against': score_against,
+                    },
+                )
+                changed = []
+                if match_date and match.date != match_date:
+                    match.date = match_date
+                    changed.append('date')
+                if match_time and match.kickoff_time != match_time:
+                    match.kickoff_time = match_time
+                    changed.append('kickoff_time')
+                if changed:
+                    match.save(update_fields=changed)
+                try:
+                    _sync_match_score_from_events(match, primary_team)
+                except Exception:
+                    pass
+                _invalidate_team_dashboard_caches(primary_team)
+                return redirect(reverse('match-editor', args=[int(match.id)]) + f'?team={int(primary_team.id)}')
+
+            if form_action == 'event_add':
+                action_type = str(request.POST.get('event_type') or '').strip()
+                if not action_type:
+                    raise ValueError('La acción es obligatoria.')
+                minute = _parse_int(request.POST.get('minute'))
+                period = _parse_int(request.POST.get('period'))
+                result = str(request.POST.get('result') or '').strip()
+                zone = str(request.POST.get('zone') or '').strip()
+                observation = str(request.POST.get('observation') or '').strip()
+                player_id = _parse_int(request.POST.get('player_id'))
+                player_obj = player_by_id.get(int(player_id)) if player_id else None
+                MatchEvent.objects.create(
+                    match=match,
+                    player=player_obj,
+                    minute=minute,
+                    period=period,
+                    event_type=action_type,
+                    result=result,
+                    zone=zone,
+                    tercio=zone_to_tercio(zone),
+                    observation=observation,
+                    system='admin-manual',
+                    source_file='admin-manual',
+                    raw_data={'editor': 'match-editor'},
+                )
+                _invalidate_team_dashboard_caches(primary_team)
+                return redirect(reverse('match-editor', args=[int(match.id)]) + f'?team={int(primary_team.id)}')
+
+            if form_action in {'event_update', 'event_delete'}:
+                event_id = _parse_int(request.POST.get('event_id'))
+                if not event_id:
+                    raise ValueError('Evento no válido.')
+                event = (
+                    MatchEvent.objects
+                    .filter(match=match)
+                    .filter(Q(player__team=primary_team) | Q(player__isnull=True))
+                    .filter(id=event_id)
+                    .select_related('player')
+                    .first()
+                )
+                if not event:
+                    raise ValueError('Evento no encontrado.')
+                if form_action == 'event_delete':
+                    event.delete()
+                    _invalidate_team_dashboard_caches(primary_team)
+                    return redirect(reverse('match-editor', args=[int(match.id)]) + f'?team={int(primary_team.id)}')
+
+                # update
+                changed_fields = []
+                minute = _parse_int(request.POST.get('minute'))
+                period = _parse_int(request.POST.get('period'))
+                if minute is not None and minute != event.minute:
+                    event.minute = minute
+                    changed_fields.append('minute')
+                if period is not None and period != event.period:
+                    event.period = period
+                    changed_fields.append('period')
+                event_type = str(request.POST.get('event_type') or '').strip()
+                if event_type and event_type != event.event_type:
+                    event.event_type = event_type
+                    changed_fields.append('event_type')
+                result = str(request.POST.get('result') or '').strip()
+                if result != (event.result or ''):
+                    event.result = result
+                    changed_fields.append('result')
+                zone = str(request.POST.get('zone') or '').strip()
+                if zone != (event.zone or ''):
+                    event.zone = zone
+                    changed_fields.append('zone')
+                desired_tercio = zone_to_tercio(zone)
+                if desired_tercio != (event.tercio or ''):
+                    event.tercio = desired_tercio
+                    changed_fields.append('tercio')
+                observation = str(request.POST.get('observation') or '').strip()
+                if observation != (event.observation or ''):
+                    event.observation = observation
+                    changed_fields.append('observation')
+                player_id = _parse_int(request.POST.get('player_id'))
+                player_obj = player_by_id.get(int(player_id)) if player_id else None
+                if (player_obj.id if player_obj else None) != (event.player_id if event.player_id else None):
+                    event.player = player_obj
+                    changed_fields.append('player')
+                # asegurar que quede marcado como manual si se edita desde aquí
+                if (event.source_file or '').strip() != 'admin-manual':
+                    event.source_file = 'admin-manual'
+                    changed_fields.append('source_file')
+                if (event.system or '').strip() == 'touch-field':
+                    event.system = 'touch-field-final'
+                    changed_fields.append('system')
+                if changed_fields:
+                    event.save(update_fields=list(dict.fromkeys(changed_fields)))
+                _invalidate_team_dashboard_caches(primary_team)
+                return redirect(reverse('match-editor', args=[int(match.id)]) + f'?team={int(primary_team.id)}')
+
+            raise ValueError('Acción no soportada.')
+        except ValueError as exc:
+            error = str(exc)
+        except Exception:
+            logger.exception('Error en match_editor_page')
+            error = 'No se pudo guardar. Revisa los datos.'
+
+    opponent_team = match.away_team if match.home_team_id == primary_team.id else match.home_team
+    opponent_name = str(getattr(opponent_team, 'display_name', '') or getattr(opponent_team, 'name', '') or '').strip()
+    is_home = match.home_team_id == primary_team.id
+    score_for = match.home_score if is_home else match.away_score
+    score_against = match.away_score if is_home else match.home_score
+
+    events = list(
+        MatchEvent.objects
+        .filter(match=match)
+        .filter(Q(player__team=primary_team) | Q(player__isnull=True))
+        .select_related('player')
+        .order_by('minute', 'id')
+    )
+    return render(
+        request,
+        'football/match_editor.html',
+        {
+            'team_name': primary_team.display_name,
+            'primary_team_id': int(primary_team.id),
+            'match': match,
+            'opponent_name': opponent_name,
+            'score_for': score_for if score_for is not None else '',
+            'score_against': score_against if score_against is not None else '',
+            'players': players,
+            'events': events,
+            'message': message,
+            'error': error,
         },
     )
 
@@ -31241,6 +31460,7 @@ def compute_player_cards(primary_team, *, force_refresh=False, scope=None, tourn
                 'pj': int(row.get('pj', 0) or 0),
                 'minutes': int(row.get('minutes', 0) or 0),
                 'goals': int(row.get('goals', 0) or 0),
+                'assists': int(row.get('assists', 0) or 0),
                 'yellow_cards': int(row.get('yellow_cards', 0) or 0),
                 'red_cards': int(row.get('red_cards', 0) or 0),
                 'total_actions': int(row.get('total_actions', 0) or 0),
@@ -31367,42 +31587,12 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
                 convocation_seed_by_match_id[int(record.match_id)] = record
     except Exception:
         convocation_seed_by_match_id = {}
-    # PJ "oficial": partidos convocados/guardados (aunque no haya acciones registradas).
-    official_played_match_ids_by_player = defaultdict(set)
-    official_match_ids = set()
-    try:
-        today = timezone.localdate()
-        convocation_scope_qs = convocation_base_qs
-        for record in (
-            convocation_scope_qs
-            .select_related('match')
-            .prefetch_related('players')
-            .order_by('-created_at', '-id')[:420]
-        ):
-            match_id = int(record.match_id or 0)
-            if not match_id:
-                continue
-            match_date = getattr(record, 'match_date', None) or getattr(getattr(record, 'match', None), 'date', None)
-            if match_date and match_date > today:
-                continue
-            official_match_ids.add(match_id)
-            try:
-                for player in record.players.all():
-                    pid = int(getattr(player, 'id', 0) or 0)
-                    if pid:
-                        official_played_match_ids_by_player[pid].add(match_id)
-            except Exception:
-                continue
-    except Exception:
-        official_played_match_ids_by_player = defaultdict(set)
-        official_match_ids = set()
-    official_match_by_id = {}
-    if official_match_ids:
-        try:
-            for m in Match.objects.filter(id__in=list(official_match_ids)).select_related('home_team', 'away_team'):
-                official_match_by_id[int(m.id)] = m
-        except Exception:
-            official_match_by_id = {}
+    # PJ "oficial" se deriva de:
+    # - acciones registradas (MatchEvent)
+    # - o, si existe 11 inicial guardado, de los titulares.
+    # Importante: NO usar Convocatoria completa como "PJ" porque inflaría minutos/participación
+    # (banquillo sin entrar ≠ partido jugado).
+    today = timezone.localdate()
     lineup_by_match = {}
     convocation_qs = (
         convocation_base_qs
@@ -31420,6 +31610,31 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
             starters_limit=_required_starters_for_team(primary_team),
         )
         lineup_by_match[record.match_id] = normalized
+    starter_match_ids_by_player = defaultdict(set)
+    starter_match_ids = set()
+    for match_id, lineup_seed in (lineup_by_match or {}).items():
+        try:
+            mid = int(match_id or 0)
+        except Exception:
+            continue
+        if not mid:
+            continue
+        seed = convocation_seed_by_match_id.get(int(mid)) if convocation_seed_by_match_id else None
+        match_date = getattr(seed, 'match_date', None) or getattr(getattr(seed, 'match', None), 'date', None)
+        if match_date and match_date > today:
+            continue
+        starters = lineup_seed.get('starters') if isinstance(lineup_seed, dict) else []
+        for row in starters or []:
+            if not isinstance(row, dict):
+                continue
+            try:
+                pid = int(row.get('id') or 0)
+            except Exception:
+                pid = 0
+            if not pid:
+                continue
+            starter_match_ids_by_player[pid].add(mid)
+            starter_match_ids.add(mid)
     match_end_minutes = {}
     match_end_marker_minutes = {}
     player_match_timeline = {}
@@ -31431,11 +31646,6 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
             | ~Q(system='touch-field')
         )
     )
-    # Guardrail multicategoría: en categorías secundarias, solo contamos eventos de partidos
-    # donde el equipo activo figura como local/visitante. Evita mezclar Senior vs Prebenjamín
-    # cuando hay datos históricos mal asociados.
-    if not bool(getattr(primary_team, 'is_primary', False)):
-        stats_events = stats_events.filter(Q(match__home_team=primary_team) | Q(match__away_team=primary_team))
     if scope_value != 'all':
         stats_events = stats_events.filter(match__context=scope_value)
     if tournament_filter and scope_value == Match.CONTEXT_TOURNAMENT:
@@ -31459,6 +31669,14 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
             allowed_match_ids.update(int(mid) for mid in lineup_by_match.keys() if mid)
         except Exception:
             pass
+    # Seed de titulares: cuenta PJ/minutos aunque no haya acciones registradas.
+    if starter_match_ids_by_player:
+        for pid, match_ids in starter_match_ids_by_player.items():
+            for mid in match_ids:
+                player_match_timeline.setdefault(int(pid), {}).setdefault(
+                    int(mid),
+                    {'entry': 0, 'exit': None, 'has_event': False},
+                )
     live_events = (
         MatchEvent.objects.filter(
             Q(player__team=primary_team) | Q(player__isnull=True),
@@ -31468,8 +31686,6 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
             | Q(system='touch-field', source_file='registro-acciones')
         )
     )
-    if not bool(getattr(primary_team, 'is_primary', False)):
-        live_events = live_events.filter(Q(match__home_team=primary_team) | Q(match__away_team=primary_team))
     if scope_value != 'all':
         live_events = live_events.filter(match__context=scope_value)
     if tournament_filter and scope_value == Match.CONTEXT_TOURNAMENT:
@@ -31704,16 +31920,23 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
         match_entry['success_rate'] = round(
             (match_entry['successes'] / match_entry['actions']) * 100
         ) if match_entry['actions'] else 0
-    # Asegurar que aparezcan partidos oficiales (convocatoria) aunque no haya acciones.
-    if official_match_ids:
-        for player_id, match_ids in official_played_match_ids_by_player.items():
-            stats = player_stats.get(player_id)
+    # Asegurar que aparezcan partidos de titulares aunque no haya acciones registradas.
+    starter_match_by_id = {}
+    if starter_match_ids:
+        try:
+            for m in Match.objects.filter(id__in=list(starter_match_ids)).select_related('home_team', 'away_team'):
+                starter_match_by_id[int(m.id)] = m
+        except Exception:
+            starter_match_by_id = {}
+    if starter_match_ids_by_player:
+        for player_id, match_ids in starter_match_ids_by_player.items():
+            stats = player_stats.get(int(player_id))
             if not stats:
                 continue
             for mid in match_ids:
-                if mid in stats.get('matches', {}):
+                if int(mid) in stats.get('matches', {}):
                     continue
-                match_obj = official_match_by_id.get(int(mid))
+                match_obj = starter_match_by_id.get(int(mid))
                 conv_seed = convocation_seed_by_match_id.get(int(mid)) if convocation_seed_by_match_id else None
                 conv_round = str(getattr(conv_seed, 'round', '') or '').strip() if conv_seed else ''
                 conv_date = getattr(conv_seed, 'match_date', None) if conv_seed else None
@@ -31794,38 +32017,51 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
             player_key = str(player_id)
             entry_minute = timeline.get('entry')
             exit_minute = timeline.get('exit')
-            if entry_minute is None and player_key in lineup_starters:
-                entry_minute = 0
+            match_stats_entry = (stats.get('matches') or {}).get(int(match_id)) if isinstance(stats.get('matches'), dict) else None
+            has_stats_activity = bool(match_stats_entry and int(match_stats_entry.get('actions', 0) or 0) > 0)
+            has_player_event = bool(timeline.get('has_event')) or has_stats_activity
+            is_starter = player_key in lineup_starters
             if entry_minute is None:
-                entry_minute = 0
+                if is_starter or has_player_event:
+                    entry_minute = 0
+                else:
+                    # Banquillo sin entrada ni acciones: no cuenta minutos ni PJ.
+                    continue
             has_explicit_end_marker = match_id in match_end_marker_minutes
             if has_explicit_end_marker:
                 match_end = max(match_end, match_end_marker_minutes.get(match_id, 0))
             elif has_lineup and (match_end <= 0 or match_end < match_regulation_minutes):
                 match_end = match_regulation_minutes
             if exit_minute is None:
-                exit_minute = match_end
+                exit_minute = match_end if (is_starter or has_player_event) else entry_minute
             if exit_minute is None:
                 exit_minute = entry_minute
             if exit_minute < entry_minute:
                 exit_minute = entry_minute
             if not stats.get('totals_locked'):
-                played_match = bool(timeline.get('has_event')) or (player_key in lineup_starters)
+                played_match = has_player_event or is_starter
                 stats['minutes'] += max(0, exit_minute - entry_minute)
                 stats['pj'] += 1 if played_match else 0
-                if player_key in lineup_starters:
+                if is_starter:
                     stats['pt'] += 1
         if not stats.get('totals_locked'):
             stats['pc'] = max(stats.get('pc', 0), stats['pj'])
-    # Ajuste final: PJ al menos igual que los partidos "oficiales" (convocatoria) aunque no haya acciones.
-    if official_match_ids:
-        for player_id, stats in player_stats.items():
-            if stats.get('totals_locked'):
-                continue
-            official_count = len(official_played_match_ids_by_player.get(int(player_id), set()))
-            if official_count and int(stats.get('pj', 0) or 0) < official_count:
-                stats['pj'] = official_count
-                stats['pc'] = max(int(stats.get('pc', 0) or 0), int(stats['pj'] or 0))
+    # Ajuste final: PJ al menos igual que el nº de partidos que aparecen en `matches`
+    # (por acciones registradas o titularidad).
+    for player_id, stats in player_stats.items():
+        if stats.get('totals_locked'):
+            continue
+        try:
+            played_matches_count = sum(
+                1
+                for item in (stats.get('matches') or {}).values()
+                if isinstance(item, dict) and item.get('played')
+            )
+        except Exception:
+            played_matches_count = 0
+        if played_matches_count and int(stats.get('pj', 0) or 0) < int(played_matches_count):
+            stats['pj'] = int(played_matches_count)
+            stats['pc'] = max(int(stats.get('pc', 0) or 0), int(stats['pj'] or 0))
     # ensure roster players appear even without events
     for player in roster_players:
         if player.id not in player_stats:

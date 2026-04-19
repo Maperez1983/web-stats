@@ -1,10 +1,6 @@
 {% load static %}
 {% if not hide_dragon_logo %}
 <div class="dragon-nav">
-	  {# 
-	    Regla de oro: el logo siempre vuelve al "home del club/equipo" si hay un equipo activo.
-	    Platform queda solo como botón explícito (admin). Esto evita mezclar contextos al navegar.
-	  #}
 	  <a href="{% if club_dashboard_url %}{{ club_dashboard_url }}{% elif active_team %}{% url 'dashboard-home' %}?team={{ active_team.id }}{% elif home_url %}{{ home_url }}{% elif workspace_entry_url %}{{ workspace_entry_url }}{% else %}{% url 'dashboard-home' %}{% endif %}" class="dragon-link" title="Volver al inicio">
 	    <img src="{% static 'football/images/2j-icon.svg' %}" alt="Segunda Jugada · 2J" loading="lazy" />
 	  </a>
@@ -140,6 +136,8 @@
   align-items: center;
   justify-content: center;
   box-shadow: 0 18px 36px rgba(2, 6, 23, 0.45);
+  /* Evita que cualquier nodo de texto accidental (p.ej. comentarios copiados) se muestre en lugar del logo. */
+  font-size: 0;
 }
 .logout-form {
   margin-top: 0.4rem;
