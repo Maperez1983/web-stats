@@ -135,6 +135,74 @@
         grid-template-columns: 1fr 1fr;
         gap: 10px;
       }
+      .lineup-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .subhead {
+        font-size: 10px;
+        font-weight: 1000;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #0f172a;
+        margin: 0 0 6px;
+      }
+      .lineup-note {
+        font-size: 10px;
+        color: #475569;
+        margin: 0 0 8px;
+      }
+      .lineup-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: grid;
+        gap: 6px;
+      }
+      .lineup-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 8px;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        background: #ffffff;
+        min-height: 28px;
+      }
+      .ln-num {
+        width: 34px;
+        font-weight: 1000;
+        letter-spacing: 0.06em;
+      }
+      .ln-name {
+        flex: 1;
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+      .ln-pos {
+        font-size: 10px;
+        color: #475569;
+        white-space: nowrap;
+      }
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 18px;
+        border-radius: 999px;
+        border: 1px solid rgba(15, 23, 42, 0.18);
+        background: rgba(2, 6, 23, 0.03);
+        font-size: 9px;
+        font-weight: 1000;
+        letter-spacing: 0.08em;
+      }
       .card {
         border: 1px solid #e2e8f0;
         border-radius: 14px;
@@ -382,6 +450,55 @@
                 {% endif %}
               </tbody>
             </table>
+          </div>
+        </section>
+
+        <section class="card" style="grid-column: 1 / -1;">
+          <h2>Alineación</h2>
+          <div class="content">
+            <p class="lineup-note">
+              Titulares ({{ starters|length }}/{{ starters_limit|default:11 }})
+              {% if goalkeeper_label %} · Portero: <strong>{{ goalkeeper_label }}</strong>{% endif %}
+              {% if captain_label %} · Capitán: <strong>{{ captain_label }}</strong>{% endif %}
+            </p>
+            <div class="lineup-grid">
+              <div>
+                <div class="subhead">Titulares</div>
+                <ul class="lineup-list">
+                  {% if starters %}
+                    {% for p in starters %}
+                    <li class="lineup-item">
+                      <span class="ln-num">#{{ p.number|default:"--" }}</span>
+                      <span class="ln-name">{{ p.name }}</span>
+                      {% if p.is_goalkeeper %}<span class="tag">PT</span>{% endif %}
+                      {% if p.is_captain %}<span class="tag">C</span>{% endif %}
+                      {% if p.position %}<span class="ln-pos">{{ p.position }}</span>{% endif %}
+                    </li>
+                    {% endfor %}
+                  {% else %}
+                    <li class="lineup-item"><span class="ln-name muted">Sin titulares definidos.</span></li>
+                  {% endif %}
+                </ul>
+              </div>
+              <div>
+                <div class="subhead">Banquillo</div>
+                <ul class="lineup-list">
+                  {% if bench %}
+                    {% for p in bench %}
+                    <li class="lineup-item">
+                      <span class="ln-num">#{{ p.number|default:"--" }}</span>
+                      <span class="ln-name">{{ p.name }}</span>
+                      {% if p.is_goalkeeper %}<span class="tag">PT</span>{% endif %}
+                      {% if p.is_captain %}<span class="tag">C</span>{% endif %}
+                      {% if p.position %}<span class="ln-pos">{{ p.position }}</span>{% endif %}
+                    </li>
+                    {% endfor %}
+                  {% else %}
+                    <li class="lineup-item"><span class="ln-name muted">Sin banquillo.</span></li>
+                  {% endif %}
+                </ul>
+              </div>
+            </div>
           </div>
         </section>
 

@@ -14448,6 +14448,14 @@ def match_report_pdf(request):
 
     starters = [_row_to_pdf_player(row) for row in lineup_payload.get('starters') or []]
     bench = [_row_to_pdf_player(row) for row in lineup_payload.get('bench') or []]
+    captain_id = str(getattr(convocation_record, 'captain_id', '') or '') if convocation_record else ''
+    goalkeeper_id = str(getattr(convocation_record, 'goalkeeper_id', '') or '') if convocation_record else ''
+    for row in starters:
+        row['is_captain'] = bool(captain_id and str(row.get('id') or '') == captain_id)
+        row['is_goalkeeper'] = bool(goalkeeper_id and str(row.get('id') or '') == goalkeeper_id)
+    for row in bench:
+        row['is_captain'] = bool(captain_id and str(row.get('id') or '') == captain_id)
+        row['is_goalkeeper'] = bool(goalkeeper_id and str(row.get('id') or '') == goalkeeper_id)
 
     events = list(
         MatchEvent.objects
@@ -14729,6 +14737,11 @@ def match_report_pdf(request):
         'away_score': away_score,
         'home_crest_src': home_crest_src,
         'away_crest_src': away_crest_src,
+        'starters': starters,
+        'bench': bench,
+        'captain_label': _player_label(convocation_record.captain).upper() if convocation_record and convocation_record.captain else '',
+        'goalkeeper_label': _player_label(convocation_record.goalkeeper).upper() if convocation_record and convocation_record.goalkeeper else '',
+        'starters_limit': starters_limit,
         'scorers': scorers,
         'summary_actions': len(events),
         'summary_subs': sum(max(len(v['out']), len(v['in']), 1) for v in subs_by_minute.values()) if subs_by_minute else 0,
