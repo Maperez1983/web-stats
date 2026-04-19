@@ -307,7 +307,7 @@
 		              <option value="league" {% if stats_scope == 'league' or not stats_scope %}selected{% endif %}>Liga</option>
 		              <option value="tournament" {% if stats_scope == 'tournament' %}selected{% endif %}>Torneo</option>
 		              <option value="friendly" {% if stats_scope == 'friendly' %}selected{% endif %}>Amistoso</option>
-		              <option value="all" {% if stats_scope == 'all' %}selected{% endif %}>Todo</option>
+		              <option value="all" {% if stats_scope == 'all' %}selected{% endif %}>Globales</option>
 		            </select>
                 {% if stats_scope == 'tournament' %}
                   <select name="tournament" aria-label="Torneo">

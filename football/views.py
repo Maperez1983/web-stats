@@ -17789,8 +17789,12 @@ def coach_role_trainer_page(request):
             'field_zones': [],
         }
 
-    # General overview based on player base stats (Universo/cache/manual) + actions dataset.
-    player_cards = compute_player_cards(primary_team) if primary_team else []
+    # Lectura de plantilla (tarjetas) respetando el ámbito seleccionado.
+    player_cards = (
+        compute_player_cards(primary_team, scope=stats_scope, tournament_name=tournament_filter)
+        if primary_team
+        else []
+    )
     yellows = sum(int(item.get('yellow_cards', 0) or 0) for item in player_cards)
     reds = sum(int(item.get('red_cards', 0) or 0) for item in player_cards)
     avg_yellows = round(yellows / season_played_matches, 2) if season_played_matches else 0.0
@@ -17951,7 +17955,11 @@ def coach_role_trainer_page(request):
             {'label': 'Tarjetas', 'value': card_total},
         ],
     }
-    player_dashboard_rows = compute_player_dashboard(primary_team, scope=stats_scope) if primary_team else []
+    player_dashboard_rows = (
+        compute_player_dashboard(primary_team, scope=stats_scope, tournament_name=tournament_filter)
+        if primary_team
+        else []
+    )
     coach_player_options = [
         {
             'id': item.get('player_id'),
@@ -18249,6 +18257,9 @@ def coach_role_trainer_page(request):
             'role_title': 'Entrenador',
             'role_key': 'trainer',
             'role_description': 'Área operativa principal del staff técnico.',
+            'stats_scope': stats_scope,
+            'tournament_filter': tournament_filter,
+            'tournament_options': _team_tournament_name_options(primary_team) if primary_team else [],
             'modules': modules,
             'kpis': kpis,
             'kpi_note': '* Goles, puntos y clasificación: temporada real. Métricas de acciones: solo sobre partidos medidos.',

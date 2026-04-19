@@ -1441,6 +1441,26 @@
           <section class="summary-card">
             <h3>Vista por partido</h3>
             <form method="get" class="summary-toolbar">
+              <div>
+                <label for="coach-scope-select">Ámbito</label>
+                <select id="coach-scope-select" name="scope" onchange="this.form.submit()">
+                  <option value="all" {% if stats_scope == 'all' %}selected{% endif %}>Globales</option>
+                  <option value="league" {% if stats_scope == 'league' or not stats_scope %}selected{% endif %}>Liga</option>
+                  <option value="tournament" {% if stats_scope == 'tournament' %}selected{% endif %}>Torneos</option>
+                  <option value="friendly" {% if stats_scope == 'friendly' %}selected{% endif %}>Amistosos</option>
+                </select>
+              </div>
+              {% if stats_scope == 'tournament' %}
+              <div>
+                <label for="coach-tournament-select">Torneo</label>
+                <select id="coach-tournament-select" name="tournament" onchange="this.form.submit()">
+                  <option value="">Todos</option>
+                  {% for name in tournament_options %}
+                  <option value="{{ name }}" {% if tournament_filter == name %}selected{% endif %}>{{ name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              {% endif %}
               {% if coach_selected_player_id %}<input type="hidden" name="player" value="{{ coach_selected_player_id }}" />{% endif %}
               {% if coach_selected_player_match_id %}<input type="hidden" name="player_match" value="{{ coach_selected_player_match_id }}" />{% endif %}
               <div>
@@ -1556,6 +1576,31 @@
         <section id="coach-player" class="analysis-section is-light coach-player-tools" style="margin-top:0;">
           <h3>Individuales</h3>
           <p class="section-copy">Se muestran 6 jugadores por minutos disputados. Usa el buscador para localizar cualquier ficha rápidamente.</p>
+          <form method="get" class="summary-toolbar" style="margin:0 0 1rem;">
+            {% if coach_selected_match %}<input type="hidden" name="match" value="{{ coach_selected_match.match_id }}" />{% endif %}
+            {% if coach_selected_player_id %}<input type="hidden" name="player" value="{{ coach_selected_player_id }}" />{% endif %}
+            {% if coach_selected_player_match_id %}<input type="hidden" name="player_match" value="{{ coach_selected_player_match_id }}" />{% endif %}
+            <div>
+              <label for="coach-scope-select-2">Ámbito</label>
+              <select id="coach-scope-select-2" name="scope" onchange="this.form.submit()">
+                <option value="all" {% if stats_scope == 'all' %}selected{% endif %}>Globales</option>
+                <option value="league" {% if stats_scope == 'league' or not stats_scope %}selected{% endif %}>Liga</option>
+                <option value="tournament" {% if stats_scope == 'tournament' %}selected{% endif %}>Torneos</option>
+                <option value="friendly" {% if stats_scope == 'friendly' %}selected{% endif %}>Amistosos</option>
+              </select>
+            </div>
+            {% if stats_scope == 'tournament' %}
+            <div>
+              <label for="coach-tournament-select-2">Torneo</label>
+              <select id="coach-tournament-select-2" name="tournament" onchange="this.form.submit()">
+                <option value="">Todos</option>
+                {% for name in tournament_options %}
+                <option value="{{ name }}" {% if tournament_filter == name %}selected{% endif %}>{{ name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            {% endif %}
+          </form>
           <div class="individual-search">
             <label for="individual-player-search">Buscar jugador</label>
             <input id="individual-player-search" type="search" placeholder="Escribe nombre o dorsal" />
@@ -1564,7 +1609,7 @@
             {% for item in coach_player_cards_all %}
             <a
               class="individual-card{% if coach_selected_player_id == item.id %} is-selected{% endif %}"
-              href="{% url 'player-detail' item.id %}{% if active_workspace and active_workspace.id %}?workspace={{ active_workspace.id }}{% if active_team %}&team={{ active_team.id }}{% endif %}{% endif %}"
+              href="{% url 'player-detail' item.id %}{% if active_workspace and active_workspace.id %}?workspace={{ active_workspace.id }}{% if active_team %}&team={{ active_team.id }}{% endif %}{% if stats_scope %}&scope={{ stats_scope }}{% endif %}{% if stats_scope == 'tournament' and tournament_filter %}&tournament={{ tournament_filter|urlencode }}{% endif %}{% elif stats_scope %}?scope={{ stats_scope }}{% if stats_scope == 'tournament' and tournament_filter %}&tournament={{ tournament_filter|urlencode }}{% endif %}{% endif %}"
               data-player-card
               data-player-name="{{ item.name|lower }}"
               data-player-number="{{ item.number|default:'' }}"
@@ -1600,6 +1645,9 @@
           </div>
           {% if coach_player_view %}
           <form method="get" class="coach-player-toolbar" style="margin-top:1rem;">
+            {% if stats_scope %}<input type="hidden" name="scope" value="{{ stats_scope }}" />{% endif %}
+            {% if stats_scope == 'tournament' and tournament_filter %}<input type="hidden" name="tournament" value="{{ tournament_filter }}" />{% endif %}
+            {% if coach_selected_match %}<input type="hidden" name="match" value="{{ coach_selected_match.match_id }}" />{% endif %}
             <div>
               <label for="coach-player-select">Jugador</label>
               <select id="coach-player-select" name="player" onchange="this.form.submit()">
