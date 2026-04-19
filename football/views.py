@@ -13924,6 +13924,7 @@ def match_action_page(request):
             'selected_match_id': selected_match_id,
             'match_half_minutes': _half_minutes_for_team(primary_team),
             'match_regulation_minutes': _regulation_minutes_for_team(primary_team),
+            'starters_limit': starters_limit,
             'default_stage': default_stage,
         },
     )

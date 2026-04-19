@@ -1949,7 +1949,7 @@
             </div>
             <div class="field-header-actions">
               <button type="button" id="zone-overlay-toggle" class="zone-overlay-toggle">Ver zonas</button>
-              <button type="button" id="match-finalize-btn-top" class="zone-overlay-toggle finalize-top">Guardar partido</button>
+              <button type="button" id="match-finalize-btn-top" class="zone-overlay-toggle finalize-top" data-stage-jump="close">Ir a cierre</button>
             </div>
           </div>
           <nav class="match-stage-tabs" aria-label="Fases del registro">
@@ -2458,8 +2458,8 @@
                 </article>
                 <article class="closure-card">
                   <h4>Once inicial</h4>
-                  <strong id="close-summary-lineup">0/11</strong>
-                  <p id="close-summary-lineup-note">Define 11 titulares antes de cerrar el partido.</p>
+                  <strong id="close-summary-lineup">0/{{ starters_limit|default:11 }}</strong>
+                  <p id="close-summary-lineup-note">Define {{ starters_limit|default:11 }} titulares antes de cerrar el partido.</p>
                 </article>
                 <article class="closure-card">
                   <h4>Acciones registradas</h4>
@@ -2479,7 +2479,7 @@
                 </ul>
               </article>
               <div class="closure-actions">
-                <button type="button" class="save" id="match-finalize-btn">Guardar partido</button>
+                <button type="button" class="save" id="match-finalize-btn">Finalizar partido</button>
                 {% if match_info %}
                 <a
                   class="pdf"
@@ -2650,7 +2650,6 @@
       const matchInfoResetBtn = document.getElementById('match-info-reset-btn');
       const matchFinalizeBtn = [
         document.getElementById('match-finalize-btn'),
-        document.getElementById('match-finalize-btn-top'),
       ].filter(Boolean);
       const rivalToggleBtn = matchInfoCard?.querySelector('.rival-toggle') || null;
       const rivalDropdown = matchInfoCard?.querySelector('[data-rival-dropdown]') || null;
@@ -2696,13 +2695,17 @@
       const convocationCards = document.querySelectorAll('.convocation-card');
       const historyList = document.getElementById('history-list');
       const lineupInput = document.getElementById('initial-lineup-data');
+      const startersLimit = (() => {
+        const value = Number('{{ starters_limit|default:11 }}');
+        return Number.isFinite(value) && value > 0 ? value : 11;
+      })();
       const lineupSections = {
         starters: {
           wrapper: document.querySelector('#sidebar-initial-lineup')?.closest('.lineup-slot') || null,
           element: document.getElementById('sidebar-initial-lineup'),
           countEl: document.getElementById('lineup-starters-count'),
-          limit: 11,
-          placeholder: 'Arrastra hasta 11 jugadores desde la convocatoria.',
+          limit: startersLimit,
+          placeholder: `Arrastra hasta ${startersLimit} jugadores desde la convocatoria.`,
         },
         bench: {
           wrapper: document.querySelector('#sidebar-bench-lineup')?.closest('.lineup-slot') || null,
@@ -3621,6 +3624,7 @@
       const closeSummaryClock = document.getElementById('close-summary-clock');
       const closeSummaryCorners = document.getElementById('close-summary-corners');
       const closeSummaryAlerts = document.getElementById('close-summary-alerts');
+      const closeFinalizeBtn = document.getElementById('match-finalize-btn');
       let liveSummaryState = {
         actions: 0,
         yellow: 0,
@@ -3649,6 +3653,7 @@
         const summaryInfo = liveSummaryState.matchInfo || {};
         const startersCount = lineupState.starters?.length || 0;
         const benchCount = lineupState.bench?.length || 0;
+        const requiredStarters = startersLimit;
         if (closeSummaryOpponent) {
           closeSummaryOpponent.textContent = summaryInfo.opponent || '-';
         }
@@ -3670,12 +3675,12 @@
           }
         }
         if (closeSummaryLineup) {
-          closeSummaryLineup.textContent = `${startersCount}/11`;
+          closeSummaryLineup.textContent = `${startersCount}/${requiredStarters}`;
         }
         if (closeSummaryLineupNote) {
-          closeSummaryLineupNote.textContent = startersCount === 11
+          closeSummaryLineupNote.textContent = startersCount === requiredStarters
             ? `Once listo · ${benchCount} suplentes disponibles.`
-            : `Faltan ${Math.max(0, 11 - startersCount)} titulares para completar el once.`;
+            : `Faltan ${Math.max(0, requiredStarters - startersCount)} titulares para completar el once.`;
         }
         if (closeSummaryActions) {
           closeSummaryActions.textContent = String(liveSummaryState.actions || 0);
@@ -3691,11 +3696,21 @@
         }
         if (closeSummaryAlerts) {
           const alerts = [];
+          const criticalAlerts = [];
           const forValue = String(summaryInfo.score_for || '').trim();
           const againstValue = String(summaryInfo.score_against || '').trim();
-          if (!summaryInfo.opponent) alerts.push('Falta definir el rival.');
-          if (!forValue && !againstValue) alerts.push('Falta definir el marcador final.');
-          if (startersCount < 11) alerts.push('El once inicial no está completo.');
+          if (!summaryInfo.opponent) {
+            alerts.push('Falta definir el rival.');
+            criticalAlerts.push('Falta definir el rival.');
+          }
+          if (!forValue && !againstValue) {
+            alerts.push('Falta definir el marcador final.');
+            criticalAlerts.push('Falta definir el marcador final.');
+          }
+          if (startersCount < requiredStarters) {
+            alerts.push('El once inicial no está completo.');
+            criticalAlerts.push('El once inicial no está completo.');
+          }
           if (!(liveSummaryState.actions > 0)) alerts.push('Todavía no hay acciones registradas en vivo.');
           if (!(liveSummaryState.elapsedSeconds > 0)) alerts.push('El cronómetro sigue en cero.');
           closeSummaryAlerts.innerHTML = '';
@@ -3705,6 +3720,11 @@
             item.textContent = message;
             closeSummaryAlerts.appendChild(item);
           });
+          if (closeFinalizeBtn) {
+            const hasCritical = criticalAlerts.length > 0;
+            closeFinalizeBtn.disabled = hasCritical;
+            closeFinalizeBtn.title = hasCritical ? criticalAlerts.join(' ') : 'Finalizar partido';
+          }
         }
       };
 	      const activateStage = (stage) => {
