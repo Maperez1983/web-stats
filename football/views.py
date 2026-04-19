@@ -14118,7 +14118,18 @@ def finalize_match_actions(request):
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         return JsonResponse({'error': 'Equipo principal no configurado'}, status=400)
-    requested_match = get_requested_match(request, primary_team)
+    payload_match_id = None
+    try:
+        if isinstance(payload, dict):
+            payload_match_id = _parse_int(payload.get('match_id') or (payload.get('match_info') or {}).get('match_id'))
+    except Exception:
+        payload_match_id = None
+
+    requested_match = None
+    if payload_match_id:
+        requested_match = _team_match_queryset(primary_team).filter(id=payload_match_id).first()
+    if not requested_match:
+        requested_match = get_requested_match(request, primary_team)
     match = requested_match or get_active_match(primary_team)
     if not match:
         return JsonResponse({'error': 'No hay partido activo para guardar'}, status=400)

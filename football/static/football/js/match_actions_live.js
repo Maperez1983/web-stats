@@ -822,7 +822,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
           method: 'POST',
           credentials: 'same-origin',
           headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken, Accept: 'application/json' },
-          body: JSON.stringify({ match_info: matchInfoState }),
+          body: JSON.stringify({ match_id: currentMatchId, match_info: matchInfoState }),
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
