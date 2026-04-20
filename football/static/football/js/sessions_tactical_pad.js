@@ -5883,13 +5883,26 @@
 					      {
 					        id: 'abp_corner_attack_near',
 					        title: 'Córner ofensivo · 1º palo',
-				        folder: 'ABP · Córners',
-				        tags: ['template', 'abp', 'corner', 'attack'],
-				        preset: 'attacking_third',
-				        orientation: 'landscape',
-				        items: [
-				          { type: 'player', slot: 'GK', kind: 'goalkeeper_local', x: 0.12, y: 0.52 },
-				          { type: 'player', slot: 'CB1', kind: 'player_local', x: 0.22, y: 0.48 },
+					        folder: 'ABP · Córners',
+					        tags: ['template', 'abp', 'corner', 'attack'],
+					        preset: 'attacking_third',
+					        orientation: 'landscape',
+					        sequence: [
+					          { title: 'Córner ofensivo · 1º palo (inicio)', durationSec: 2 },
+					          {
+					            title: 'Córner ofensivo · 1º palo (finalización)',
+					            durationSec: 4,
+					            items: [
+					              { type: 'player', slot: 'P1', kind: 'player_local', x: 0.90, y: 0.44 },
+					              { type: 'player', slot: 'P2', kind: 'player_local', x: 0.92, y: 0.50 },
+					              { type: 'player', slot: 'P3', kind: 'player_local', x: 0.90, y: 0.58 },
+					              { type: 'ball', x: 0.88, y: 0.50 },
+					            ],
+					          },
+					        ],
+					        items: [
+					          { type: 'player', slot: 'GK', kind: 'goalkeeper_local', x: 0.12, y: 0.52 },
+					          { type: 'player', slot: 'CB1', kind: 'player_local', x: 0.22, y: 0.48 },
 				          { type: 'player', slot: 'CB2', kind: 'player_local', x: 0.22, y: 0.58 },
 				          { type: 'player', slot: 'P1', kind: 'player_local', x: 0.78, y: 0.44 },
 				          { type: 'player', slot: 'P2', kind: 'player_local', x: 0.84, y: 0.50 },
@@ -6155,9 +6168,9 @@
 				      try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
 				      try { schedulePlayerBankUpdate(); } catch (e) { /* ignore */ }
 				    };
-				    const applyTacticalTemplate = async (template, options = {}) => {
-				      const tpl = template && typeof template === 'object' ? template : null;
-				      if (!tpl) return;
+					    const applyTacticalTemplate = async (template, options = {}) => {
+					      const tpl = template && typeof template === 'object' ? template : null;
+					      if (!tpl) return;
 				      // Asegura simulación.
 				      if (!isSimulating) {
 				        try { enterSimulation(); } catch (e) { /* ignore */ }
@@ -6183,68 +6196,119 @@
 				      } catch (e) { /* ignore */ }
 				      await sleep(50);
 
-				      const { w, h } = worldSize();
-				      const roster = sortRosterForTemplate(players);
-				      const used = new Set();
-				      const placed = [];
-				      (Array.isArray(tpl.items) ? tpl.items : []).forEach((entry) => {
-				        const type = safeText(entry?.type);
-				        const x = clamp(Number(entry?.x) || 0.5, 0.03, 0.97) * Math.max(1, Number(w) || 1);
-				        const y = clamp(Number(entry?.y) || 0.5, 0.03, 0.97) * Math.max(1, Number(h) || 1);
-				        if (type === 'player') {
-				          const slot = safeText(entry?.slot, 'P');
-				          const player = pickPlayerForSlot(slot, roster, used);
-				          const kind = safeText(entry?.kind, 'player_local');
-				          const factory = playerTokenFactory(kind, player || { name: slot, number: slot }, { style: normalizeTokenStyle(tokenGlobalStyle) });
-				          const obj = factory(x, y);
-				          if (obj) {
-				            obj.data = { ...(obj.data || {}), placeholder_slot: slot };
-				            try { canvas.add(obj); } catch (e) { /* ignore */ }
-				            placed.push(obj);
-				          }
-				          return;
-				        }
-				        if (type === 'rival') {
-				          const label = safeText(entry?.label, 'R');
-				          const factory = playerTokenFactory('player_rival', { name: 'Rival', number: label }, { style: 'disk' });
-				          const obj = factory(x, y);
-				          if (obj) {
-				            obj.data = { ...(obj.data || {}), placeholder_slot: label };
-				            try { canvas.add(obj); } catch (e) { /* ignore */ }
-				            placed.push(obj);
-				          }
-				          return;
-				        }
-				        if (type === 'ball') {
-				          try {
-				            const f = simpleFactory('ball');
-				            const obj = typeof f === 'function' ? f(x, y) : null;
-				            if (obj) {
-				              try { canvas.add(obj); } catch (e) { /* ignore */ }
-				              placed.push(obj);
-				            }
-				          } catch (e) { /* ignore */ }
-				        }
-				      });
+					      const { w, h } = worldSize();
+					      const roster = sortRosterForTemplate(players);
+					      const used = new Set();
+					      const placed = [];
 
-				      try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
-				      try { ensureLayerUidsOnCanvas(); } catch (e) { /* ignore */ }
-				      // Captura un único paso con la plantilla aplicada.
-				      try { captureSimulationStep(); } catch (e) { /* ignore */ }
-				      try {
-				        if (simulationSteps.length) {
-				          const idx = simulationSteps.length - 1;
-				          simulationSteps[idx].title = safeText(tpl.title, simulationSteps[idx].title);
-				          simulationSteps[idx].duration = clamp(Number(options.durationSec) || 5, 1, 20);
-				          simulationActiveIndex = idx;
-				          renderSimulationSteps();
-				          void selectSimulationStep(idx);
-				        }
-				      } catch (e) { /* ignore */ }
-				      try { renderClipsLibrary(); } catch (e) { /* ignore */ }
-				      setStatus(`Plantilla aplicada: ${safeText(tpl.title)}`);
-				      return { ok: true, placed: placed.length };
-				    };
+					      const keyForPlaceholder = (value) => safeText(value).trim().toUpperCase();
+					      const findPlaceholderOnCanvas = (placeholderKey) => {
+					        if (!placeholderKey) return null;
+					        const list = (canvas.getObjects?.() || []).filter((obj) => obj && !(obj?.data?.base));
+					        return list.find((obj) => keyForPlaceholder(obj?.data?.placeholder_slot) === placeholderKey) || null;
+					      };
+
+					      const applyTemplateItems = (items, { reuse = false } = {}) => {
+					        (Array.isArray(items) ? items : []).forEach((entry) => {
+					          const type = safeText(entry?.type);
+					          const x = clamp(Number(entry?.x) || 0.5, 0.03, 0.97) * Math.max(1, Number(w) || 1);
+					          const y = clamp(Number(entry?.y) || 0.5, 0.03, 0.97) * Math.max(1, Number(h) || 1);
+					          if (type === 'player') {
+					            const slot = safeText(entry?.slot, 'P');
+					            const placeholderKey = keyForPlaceholder(slot);
+					            if (reuse) {
+					              const existing = findPlaceholderOnCanvas(placeholderKey);
+					              if (existing) {
+					                try { existing.set({ left: x, top: y }); } catch (e) { /* ignore */ }
+					                try { existing.setCoords?.(); } catch (e) { /* ignore */ }
+					                placed.push(existing);
+					                return;
+					              }
+					            }
+					            const player = pickPlayerForSlot(slot, roster, used);
+					            const kind = safeText(entry?.kind, 'player_local');
+					            const factory = playerTokenFactory(kind, player || { name: slot, number: slot }, { style: normalizeTokenStyle(tokenGlobalStyle) });
+					            const obj = factory(x, y);
+					            if (obj) {
+					              obj.data = { ...(obj.data || {}), placeholder_slot: slot };
+					              try { canvas.add(obj); } catch (e) { /* ignore */ }
+					              placed.push(obj);
+					            }
+					            return;
+					          }
+					          if (type === 'rival') {
+					            const label = safeText(entry?.label, 'R');
+					            const placeholderKey = keyForPlaceholder(label);
+					            if (reuse) {
+					              const existing = findPlaceholderOnCanvas(placeholderKey);
+					              if (existing) {
+					                try { existing.set({ left: x, top: y }); } catch (e) { /* ignore */ }
+					                try { existing.setCoords?.(); } catch (e) { /* ignore */ }
+					                placed.push(existing);
+					                return;
+					              }
+					            }
+					            const factory = playerTokenFactory('player_rival', { name: 'Rival', number: label }, { style: 'disk' });
+					            const obj = factory(x, y);
+					            if (obj) {
+					              obj.data = { ...(obj.data || {}), placeholder_slot: label };
+					              try { canvas.add(obj); } catch (e) { /* ignore */ }
+					              placed.push(obj);
+					            }
+					            return;
+					          }
+					          if (type === 'ball') {
+					            const placeholderKey = 'BALL';
+					            if (reuse) {
+					              const existing = findPlaceholderOnCanvas(placeholderKey);
+					              if (existing) {
+					                try { existing.set({ left: x, top: y }); } catch (e) { /* ignore */ }
+					                try { existing.setCoords?.(); } catch (e) { /* ignore */ }
+					                placed.push(existing);
+					                return;
+					              }
+					            }
+					            try {
+					              const f = simpleFactory('ball');
+					              const obj = typeof f === 'function' ? f(x, y) : null;
+					              if (obj) {
+					                obj.data = { ...(obj.data || {}), placeholder_slot: 'BALL' };
+					                try { canvas.add(obj); } catch (e) { /* ignore */ }
+					                placed.push(obj);
+					              }
+					            } catch (e) { /* ignore */ }
+					          }
+					        });
+					      };
+
+					      const seq = (Array.isArray(tpl.sequence) ? tpl.sequence : []).filter((s) => s && typeof s === 'object').slice(0, 8);
+					      const frames = seq.length ? seq : [{ title: safeText(tpl.title, 'Plantilla'), durationSec: Number(options.durationSec) || 5, items: Array.isArray(tpl.items) ? tpl.items : [] }];
+					      for (let i = 0; i < frames.length; i += 1) {
+					        const frame = frames[i] || {};
+					        const frameItems = Array.isArray(frame.items) ? frame.items : (Array.isArray(tpl.items) ? tpl.items : []);
+					        applyTemplateItems(frameItems, { reuse: i > 0 });
+					        try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+					        try { ensureLayerUidsOnCanvas(); } catch (e) { /* ignore */ }
+					        try { captureSimulationStep(); } catch (e) { /* ignore */ }
+					        try {
+					          if (simulationSteps.length) {
+					            const idx = simulationSteps.length - 1;
+					            simulationSteps[idx].title = safeText(frame.title, safeText(tpl.title, simulationSteps[idx].title));
+					            simulationSteps[idx].duration = clamp(Number(frame.durationSec) || Number(options.durationSec) || 5, 1, 20);
+					            simulationActiveIndex = idx;
+					            renderSimulationSteps();
+					            // eslint-disable-next-line no-await-in-loop
+					            await selectSimulationStep(idx);
+					          }
+					        } catch (e) { /* ignore */ }
+					      }
+
+					      try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+					      try { ensureLayerUidsOnCanvas(); } catch (e) { /* ignore */ }
+					      try { renderClipsLibrary(); } catch (e) { /* ignore */ }
+					      setStatus(`Plantilla aplicada: ${safeText(tpl.title)}`);
+					      return { ok: true, placed: placed.length };
+					    };
 
 				    const fetchPlaybookClips = async (options = {}) => {
 				      if (!playbookListUrl) return [];
