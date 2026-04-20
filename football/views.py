@@ -34936,7 +34936,22 @@ def _assistant_goal_specs():
         },
         'progression': {
             'label': 'Progresión',
-            'keywords': ['progres', 'superar', 'línea', 'linea', 'cambio de orientación', 'orientación', 'tercer hombre', 'entre líneas', 'between lines', 'switch'],
+            'keywords': [
+                'progres', 'superar', 'línea', 'linea', 'romper', 'ruptura', 'line-breaking', 'romper líneas', 'romper lineas',
+                'cambio de orientación', 'orientación', 'tercer hombre', 'entre líneas', 'between lines', 'switch',
+                'carril interior', 'half space', 'intervalo', 'intervalos', 'perfil', 'perfilado', 'escalon',
+                'fijar', 'soltar', 'apoyo', 'ángulo', 'angulo', 'apoyos',
+            ],
+            'category': TaskBlueprint.CATEGORY_BUILD,
+            'block': SessionTask.BLOCK_MAIN_1,
+        },
+        'positional_play': {
+            'label': 'Juego de posición',
+            'keywords': [
+                'juego de posición', 'juego de posicion', 'posicional', 'positional play', 'rondo', 'conservación', 'conservacion',
+                'amplitud', 'profundidad', 'ocupación', 'ocupacion', 'altura', 'anchura', 'pasillo', 'carril',
+                'tercer hombre', 'fijar', 'soltar', 'escalon', 'perfiles', 'perfilado', 'línea de pase', 'linea de pase',
+            ],
             'category': TaskBlueprint.CATEGORY_BUILD,
             'block': SessionTask.BLOCK_MAIN_1,
         },
@@ -34960,7 +34975,10 @@ def _assistant_goal_specs():
         },
         'defending': {
             'label': 'Defensa en bloque',
-            'keywords': ['bloque', 'replieg', 'bascul', 'tempor', 'cerrar', 'líneas', 'coberturas', 'rest-defense', 'defend'],
+            'keywords': [
+                'bloque', 'replieg', 'bascul', 'tempor', 'cerrar', 'líneas', 'lineas', 'coberturas', 'rest-defense', 'defend',
+                'bloque alto', 'bloque medio', 'bloque bajo', 'compact', 'compacto', 'compactación', 'compactacion', 'distancias',
+            ],
             'category': TaskBlueprint.CATEGORY_PRESS,
             'block': SessionTask.BLOCK_MAIN_1,
         },
