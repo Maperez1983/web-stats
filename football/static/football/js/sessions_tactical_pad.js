@@ -739,6 +739,7 @@
 			    const simExportAllBtn = document.getElementById('task-sim-export-all');
 			    const simRecordBtn = document.getElementById('task-sim-record');
 			    const simView3dBtn = document.getElementById('task-sim-view-3d');
+			    const simVideoStudioBtn = document.getElementById('task-sim-video-studio');
 			    const simClipSaveBtn = document.getElementById('task-sim-clip-save');
 			    const simClipImportBtn = document.getElementById('task-sim-clip-import');
 			    const simClipFileInput = document.getElementById('task-sim-clip-file');
@@ -762,6 +763,31 @@
 			    const simRouteSplineInput = document.getElementById('task-sim-route-spline');
 			    const simBallFollowBtn = document.getElementById('task-sim-ball-follow');
 			    const simBallPassBtn = document.getElementById('task-sim-ball-pass');
+			    const videoStudioModal = document.getElementById('task-video-studio-modal');
+			    const videoStudioCloseBtn = document.getElementById('task-video-studio-close');
+			    const videoStudioPlayer = document.getElementById('task-video-studio-player');
+			    const videoStudioCanvasEl = document.getElementById('task-video-studio-canvas');
+			    const videoLoadBtn = document.getElementById('task-video-load');
+			    const videoClearBtn = document.getElementById('task-video-clear');
+			    const videoFileInput = document.getElementById('task-video-file');
+			    const videoStatusEl = document.getElementById('task-video-status');
+			    const videoToolPenBtn = document.getElementById('task-video-tool-pen');
+			    const videoToolArrowBtn = document.getElementById('task-video-tool-arrow');
+			    const videoToolCircleBtn = document.getElementById('task-video-tool-circle');
+			    const videoToolRectBtn = document.getElementById('task-video-tool-rect');
+			    const videoToolTextBtn = document.getElementById('task-video-tool-text');
+			    const videoUndoBtn = document.getElementById('task-video-undo');
+			    const videoClearDrawBtn = document.getElementById('task-video-clear-draw');
+			    const videoColorInput = document.getElementById('task-video-color');
+			    const videoWidthSelect = document.getElementById('task-video-width');
+			    const videoExportBtn = document.getElementById('task-video-export');
+			    const videoExportLenSelect = document.getElementById('task-video-export-len');
+			    const videoScrubInput = document.getElementById('task-video-scrub');
+			    const videoTimeEl = document.getElementById('task-video-time');
+			    const videoDurationEl = document.getElementById('task-video-duration');
+			    const videoKeyframeAddBtn = document.getElementById('task-video-kf-add');
+			    const videoKeyframeDeleteAllBtn = document.getElementById('task-video-kf-delete-all');
+			    const videoKeyframeList = document.getElementById('task-video-kf-list');
 				    const patternPopover = document.getElementById('task-pattern-popover');
 				    const patternCloseBtn = document.getElementById('task-pattern-close');
 				    const formationPopover = document.getElementById('task-formation-popover');
@@ -3461,6 +3487,7 @@
 						      if (simExportAllBtn) simExportAllBtn.hidden = !isSimulating;
 						      if (simRecordBtn) simRecordBtn.hidden = !isSimulating;
 						      if (simView3dBtn) simView3dBtn.hidden = !isSimulating;
+						      if (simVideoStudioBtn) simVideoStudioBtn.hidden = !isSimulating;
 						      if (simClipSaveBtn) simClipSaveBtn.hidden = !isSimulating;
 						      if (simClipImportBtn) simClipImportBtn.hidden = !isSimulating;
 						      if (simClipsList) simClipsList.hidden = !isSimulating;
@@ -3475,6 +3502,727 @@
 						      if (simPlayBtn) simPlayBtn.textContent = simulationPlaying ? 'Parar' : 'Reproducir';
 						      if (simRecordBtn) simRecordBtn.disabled = !canRecord2d();
 					    };
+
+					    // Video Studio (telestración): carga un vídeo y dibuja encima con keyframes.
+					    const canRecordVideoStudio = () => {
+					      try {
+					        if (typeof window.MediaRecorder === 'undefined') return false;
+					        if (typeof HTMLCanvasElement === 'undefined') return false;
+					        const probe = document.createElement('canvas');
+					        return typeof probe.captureStream === 'function';
+					      } catch (e) {
+					        return false;
+					      }
+					    };
+
+					    const formatClock = (seconds) => {
+					      const s = Math.max(0, Number(seconds) || 0);
+					      const mm = Math.floor(s / 60);
+					      const ss = Math.floor(s % 60);
+					      return `${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
+					    };
+
+					    const videoStudioStorageKey = (() => {
+					      const base = safeText(draftKey) || safeText(draftNewKey) || 'webstats:tpad:draft:unknown';
+					      return `${base}:video_studio_v1`;
+					    })();
+
+					    let videoStudioUrl = '';
+					    let videoStudioCanvas = null;
+					    let videoStudioTool = 'pen';
+					    let videoStudioHistory = [];
+					    let videoStudioHistoryIndex = -1;
+					    let videoStudioKeyframes = [];
+					    let videoStudioActiveKeyframe = -1;
+					    let videoStudioExporting = false;
+					    let videoStudioExportFrame = null;
+					    let videoStudioHandlersInstalled = false;
+					    let videoStudioToolsInstalled = false;
+
+					    const readVideoStudioState = () => {
+					      if (!canUseStorage) return;
+					      try {
+					        const raw = safeText(window.localStorage.getItem(videoStudioStorageKey));
+					        const parsed = raw ? JSON.parse(raw) : null;
+					        const keyframes = Array.isArray(parsed?.keyframes) ? parsed.keyframes : [];
+					        videoStudioKeyframes = keyframes
+					          .map((kf) => ({
+					            id: safeText(kf?.id) || `kf_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+					            t: Math.max(0, Number(kf?.t) || 0),
+					            title: safeText(kf?.title),
+					            json: (kf?.json && typeof kf.json === 'object') ? kf.json : null,
+					          }))
+					          .filter((kf) => !!kf.json)
+					          .sort((a, b) => (a.t - b.t))
+					          .slice(0, 220);
+					      } catch (e) { /* ignore */ }
+					    };
+
+					    const writeVideoStudioState = () => {
+					      if (!canUseStorage) return;
+					      try {
+					        const payload = {
+					          v: 1,
+					          updated_at: new Date().toISOString(),
+					          keyframes: videoStudioKeyframes.slice(0, 220),
+					        };
+					        window.localStorage.setItem(videoStudioStorageKey, JSON.stringify(payload));
+					      } catch (e) { /* ignore */ }
+					    };
+
+					    const setVideoStudioToolActive = (tool) => {
+					      videoStudioTool = safeText(tool, 'pen');
+					      const setActive = (btn, on) => {
+					        if (!btn) return;
+					        btn.classList.toggle('is-active', !!on);
+					      };
+					      setActive(videoToolPenBtn, videoStudioTool === 'pen');
+					      setActive(videoToolArrowBtn, videoStudioTool === 'arrow');
+					      setActive(videoToolCircleBtn, videoStudioTool === 'circle');
+					      setActive(videoToolRectBtn, videoStudioTool === 'rect');
+					      setActive(videoToolTextBtn, videoStudioTool === 'text');
+					      if (videoStudioCanvas) {
+					        const isPen = videoStudioTool === 'pen';
+					        videoStudioCanvas.isDrawingMode = !!isPen;
+					        if (isPen) {
+					          try {
+					            videoStudioCanvas.freeDrawingBrush.color = safeText(videoColorInput?.value, '#facc15');
+					            videoStudioCanvas.freeDrawingBrush.width = clamp(Number(videoWidthSelect?.value) || 5, 1, 20);
+					          } catch (e) { /* ignore */ }
+					        }
+					      }
+					    };
+
+					    const pushVideoStudioHistory = () => {
+					      if (!videoStudioCanvas) return;
+					      let json = null;
+					      try { json = videoStudioCanvas.toDatalessJSON(['data']); } catch (e) { json = null; }
+					      if (!json) return;
+					      // Recorta si el usuario ha hecho undo y luego crea nuevos cambios.
+					      if (videoStudioHistoryIndex < videoStudioHistory.length - 1) {
+					        videoStudioHistory = videoStudioHistory.slice(0, videoStudioHistoryIndex + 1);
+					      }
+					      videoStudioHistory.push(json);
+					      videoStudioHistoryIndex = videoStudioHistory.length - 1;
+					      if (videoUndoBtn) videoUndoBtn.disabled = videoStudioHistoryIndex <= 0;
+					      if (videoClearDrawBtn) videoClearDrawBtn.disabled = !videoStudioCanvas.getObjects().length;
+					    };
+
+					    const loadVideoStudioHistory = async (idx) => {
+					      if (!videoStudioCanvas) return;
+					      const index = clamp(Number(idx) || 0, 0, Math.max(0, videoStudioHistory.length - 1));
+					      const json = videoStudioHistory[index];
+					      if (!json) return;
+					      videoStudioHistoryIndex = index;
+					      if (videoUndoBtn) videoUndoBtn.disabled = videoStudioHistoryIndex <= 0;
+					      try {
+					        videoStudioCanvas.__loading = true;
+					        await new Promise((resolve) => {
+					          videoStudioCanvas.loadFromJSON(json, () => {
+					            resolve(true);
+					          });
+					        });
+					      } catch (e) { /* ignore */ }
+					      try { videoStudioCanvas.renderAll(); } catch (e) { /* ignore */ }
+					      try { videoStudioCanvas.__loading = false; } catch (e) { /* ignore */ }
+					      if (videoClearDrawBtn) videoClearDrawBtn.disabled = !videoStudioCanvas.getObjects().length;
+					    };
+
+					    const clearVideoStudioCanvas = () => {
+					      if (!videoStudioCanvas) return;
+					      try {
+					        const objs = videoStudioCanvas.getObjects() || [];
+					        objs.forEach((o) => { try { videoStudioCanvas.remove(o); } catch (e) { /* ignore */ } });
+					      } catch (e) { /* ignore */ }
+					      try { videoStudioCanvas.renderAll(); } catch (e) { /* ignore */ }
+					      pushVideoStudioHistory();
+					    };
+
+					    const renderVideoKeyframes = () => {
+					      if (!videoKeyframeList) return;
+					      videoKeyframeList.innerHTML = '';
+					      if (!videoStudioKeyframes.length) {
+					        videoKeyframeList.innerHTML = '<div class="timeline-empty">No hay keyframes todavía.</div>';
+					      } else {
+					        videoStudioKeyframes.slice(0, 220).forEach((kf) => {
+					          const row = document.createElement('div');
+					          row.className = 'video-kf-item';
+					          const label = safeText(kf.title) ? `${formatClock(kf.t)} · ${safeText(kf.title)}` : `${formatClock(kf.t)}`;
+					          row.innerHTML = `
+					            <div>
+					              <strong>${label}</strong>
+					              <div class="meta" style="opacity:0.85;">Dibujo guardado</div>
+					            </div>
+					            <div>
+					              <button type="button" class="button" data-video-kf-go="${kf.id}">Ir</button>
+					              <button type="button" class="button" data-video-kf-load="${kf.id}">Cargar</button>
+					              <button type="button" class="button danger" data-video-kf-del="${kf.id}">Borrar</button>
+					            </div>
+					          `;
+					          videoKeyframeList.appendChild(row);
+					        });
+					      }
+					      const has = !!videoStudioKeyframes.length;
+					      if (videoKeyframeDeleteAllBtn) videoKeyframeDeleteAllBtn.disabled = !has;
+					    };
+
+					    const findKeyframeIndexForTime = (t) => {
+					      const time = Math.max(0, Number(t) || 0);
+					      if (!videoStudioKeyframes.length) return -1;
+					      let best = -1;
+					      for (let i = 0; i < videoStudioKeyframes.length; i += 1) {
+					        if (videoStudioKeyframes[i].t <= time + 0.001) best = i;
+					        else break;
+					      }
+					      return best;
+					    };
+
+					    const loadKeyframeAtIndex = async (index) => {
+					      if (!videoStudioCanvas) return;
+					      const idx = clamp(Number(index) || -1, -1, Math.max(-1, videoStudioKeyframes.length - 1));
+					      if (idx === -1) {
+					        clearVideoStudioCanvas();
+					        videoStudioActiveKeyframe = -1;
+					        return;
+					      }
+					      const kf = videoStudioKeyframes[idx];
+					      if (!kf?.json) return;
+					      videoStudioActiveKeyframe = idx;
+					      try {
+					        videoStudioCanvas.__loading = true;
+					        await new Promise((resolve) => {
+					          videoStudioCanvas.loadFromJSON(kf.json, () => resolve(true));
+					        });
+					      } catch (e) { /* ignore */ }
+					      try { videoStudioCanvas.renderAll(); } catch (e) { /* ignore */ }
+					      try { videoStudioCanvas.__loading = false; } catch (e) { /* ignore */ }
+					      pushVideoStudioHistory();
+					    };
+
+					    const syncVideoScrubUi = () => {
+					      const vid = videoStudioPlayer;
+					      if (!vid) return;
+					      const dur = Number(vid.duration) || 0;
+					      const cur = Number(vid.currentTime) || 0;
+					      if (videoTimeEl) videoTimeEl.textContent = formatClock(cur);
+					      if (videoDurationEl) videoDurationEl.textContent = formatClock(dur);
+					      if (videoScrubInput) {
+					        const max = Number(videoScrubInput.max) || 1000;
+					        const next = dur > 0 ? Math.round((cur / dur) * max) : 0;
+					        if (!videoScrubInput.__dragging) videoScrubInput.value = String(clamp(next, 0, max));
+					      }
+					    };
+
+					    const setVideoStudioStatus = (text, isErr = false) => {
+					      if (!videoStatusEl) return;
+					      videoStatusEl.textContent = safeText(text, '—');
+					      videoStatusEl.style.color = isErr ? 'rgba(248,113,113,0.92)' : '';
+					    };
+
+					    const setVideoStudioLoadedUi = (loaded) => {
+					      const on = !!loaded;
+					      if (videoClearBtn) videoClearBtn.disabled = !on;
+					      if (videoKeyframeAddBtn) videoKeyframeAddBtn.disabled = !on;
+					      if (videoClearDrawBtn) videoClearDrawBtn.disabled = !on || !(videoStudioCanvas?.getObjects()?.length);
+					      if (videoExportBtn) videoExportBtn.disabled = !on || !canRecordVideoStudio();
+					      if (videoExportLenSelect) videoExportLenSelect.disabled = !on || !canRecordVideoStudio();
+					      if (videoKeyframeDeleteAllBtn) videoKeyframeDeleteAllBtn.disabled = !on || !videoStudioKeyframes.length;
+					      if (videoUndoBtn) videoUndoBtn.disabled = !on || videoStudioHistoryIndex <= 0;
+					    };
+
+					    const revokeVideoStudioUrl = () => {
+					      if (!videoStudioUrl) return;
+					      try { URL.revokeObjectURL(videoStudioUrl); } catch (e) { /* ignore */ }
+					      videoStudioUrl = '';
+					    };
+
+					    const ensureVideoStudioCanvas = () => {
+					      if (!videoStudioCanvasEl || !window.fabric) return null;
+					      if (videoStudioCanvas) return videoStudioCanvas;
+					      videoStudioCanvas = new window.fabric.Canvas(videoStudioCanvasEl, {
+					        preserveObjectStacking: true,
+					        selection: true,
+					      });
+					      try { videoStudioCanvas.setDimensions({ width: 1280, height: 720 }, { cssOnly: false }); } catch (e) { /* ignore */ }
+					      try {
+					        videoStudioCanvas.freeDrawingBrush = new window.fabric.PencilBrush(videoStudioCanvas);
+					        videoStudioCanvas.freeDrawingBrush.color = safeText(videoColorInput?.value, '#facc15');
+					        videoStudioCanvas.freeDrawingBrush.width = clamp(Number(videoWidthSelect?.value) || 5, 1, 20);
+					      } catch (e) { /* ignore */ }
+					      pushVideoStudioHistory();
+					      return videoStudioCanvas;
+					    };
+
+					    const installVideoStudioTools = () => {
+					      if (videoStudioToolsInstalled) return;
+					      const c = ensureVideoStudioCanvas();
+					      if (!c) return;
+					      videoStudioToolsInstalled = true;
+					      let temp = null;
+					      let start = null;
+
+					      const strokeColor = () => safeText(videoColorInput?.value, '#facc15');
+					      const strokeWidth = () => clamp(Number(videoWidthSelect?.value) || 5, 1, 20);
+					      const applyStroke = (obj) => {
+					        try {
+					          obj.set({
+					            stroke: strokeColor(),
+					            strokeWidth: strokeWidth(),
+					            strokeLineCap: 'round',
+					            strokeLineJoin: 'round',
+					          });
+					        } catch (e) { /* ignore */ }
+					      };
+
+					      const cleanupTemp = () => {
+					        if (temp) {
+					          try { c.remove(temp); } catch (e) { /* ignore */ }
+					          temp = null;
+					        }
+					      };
+
+					      c.on('mouse:down', (opt) => {
+					        if (videoStudioExporting) return;
+					        if (!videoStudioPlayer || !Number.isFinite(Number(videoStudioPlayer.duration) || 0)) return;
+					        const tool = videoStudioTool;
+					        if (tool === 'pen') return;
+					        const ptr = c.getPointer(opt.e);
+					        start = { x: Number(ptr.x) || 0, y: Number(ptr.y) || 0 };
+
+					        if (tool === 'arrow') {
+					          const line = new window.fabric.Line([start.x, start.y, start.x, start.y], { fill: '', selectable: false, evented: false });
+					          applyStroke(line);
+					          temp = line;
+					          c.add(line);
+					        } else if (tool === 'circle') {
+					          const circ = new window.fabric.Circle({ left: start.x, top: start.y, radius: 1, fill: 'rgba(0,0,0,0)', originX: 'center', originY: 'center', selectable: false, evented: false });
+					          applyStroke(circ);
+					          temp = circ;
+					          c.add(circ);
+					        } else if (tool === 'rect') {
+					          const rect = new window.fabric.Rect({ left: start.x, top: start.y, width: 1, height: 1, fill: 'rgba(0,0,0,0)', originX: 'left', originY: 'top', selectable: false, evented: false });
+					          applyStroke(rect);
+					          temp = rect;
+					          c.add(rect);
+					        } else if (tool === 'text') {
+					          const text = window.prompt('Texto:', ''); // eslint-disable-line no-alert
+					          if (text == null) { start = null; return; }
+					          const txt = new window.fabric.Textbox(safeText(text), { left: start.x, top: start.y, originX: 'left', originY: 'top', fill: strokeColor(), fontSize: 34, fontWeight: 900 });
+					          txt.data = { kind: 'video-text' };
+					          c.add(txt);
+					          c.setActiveObject(txt);
+					          try { c.renderAll(); } catch (e) { /* ignore */ }
+					          pushVideoStudioHistory();
+					          start = null;
+					        }
+					      });
+
+					      c.on('mouse:move', (opt) => {
+					        if (!start || !temp) return;
+					        const tool = videoStudioTool;
+					        const ptr = c.getPointer(opt.e);
+					        const x = Number(ptr.x) || 0;
+					        const y = Number(ptr.y) || 0;
+					        if (tool === 'arrow' && temp.type === 'line') {
+					          temp.set({ x2: x, y2: y });
+					        } else if (tool === 'circle' && temp.type === 'circle') {
+					          const dx = x - start.x;
+					          const dy = y - start.y;
+					          const r = Math.max(1, Math.hypot(dx, dy));
+					          temp.set({ radius: r });
+					        } else if (tool === 'rect' && temp.type === 'rect') {
+					          temp.set({ width: x - start.x, height: y - start.y });
+					        }
+					        try { c.renderAll(); } catch (e) { /* ignore */ }
+					      });
+
+					      c.on('mouse:up', () => {
+					        if (!start) return;
+					        const tool = videoStudioTool;
+					        if (tool === 'arrow' && temp && temp.type === 'line') {
+					          const line = temp;
+					          const x1 = Number(line.x1) || 0;
+					          const y1 = Number(line.y1) || 0;
+					          const x2 = Number(line.x2) || 0;
+					          const y2 = Number(line.y2) || 0;
+					          const dx = x2 - x1;
+					          const dy = y2 - y1;
+					          const len = Math.hypot(dx, dy) || 0;
+					          if (len >= 10) {
+					            const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+					            const head = new window.fabric.Triangle({
+					              width: 18,
+					              height: 18,
+					              fill: strokeColor(),
+					              left: x2,
+					              top: y2,
+					              originX: 'center',
+					              originY: 'center',
+					              angle: angle + 90,
+					              selectable: false,
+					              evented: false,
+					            });
+					            const group = new window.fabric.Group([line, head], { selectable: true, evented: true });
+					            group.data = { kind: 'video-arrow' };
+					            try { c.remove(line); } catch (e) { /* ignore */ }
+					            c.add(group);
+					            c.setActiveObject(group);
+					          } else {
+					            cleanupTemp();
+					          }
+					        }
+					        start = null;
+					        temp = null;
+					        try { c.renderAll(); } catch (e) { /* ignore */ }
+					        pushVideoStudioHistory();
+					      });
+
+					      c.on('object:modified', () => {
+					        if (c.__loading) return;
+					        pushVideoStudioHistory();
+					      });
+					      c.on('selection:created', () => {
+					        if (videoClearDrawBtn) videoClearDrawBtn.disabled = !c.getObjects().length;
+					      });
+					      c.on('selection:updated', () => {
+					        if (videoClearDrawBtn) videoClearDrawBtn.disabled = !c.getObjects().length;
+					      });
+					      c.on('selection:cleared', () => {
+					        if (videoClearDrawBtn) videoClearDrawBtn.disabled = !c.getObjects().length;
+					      });
+					    };
+
+					    const ensureVideoStudioHandlers = () => {
+					      if (videoStudioHandlersInstalled) return;
+					      if (!videoStudioModal) return;
+					      videoStudioHandlersInstalled = true;
+
+					      readVideoStudioState();
+					      renderVideoKeyframes();
+
+					      videoToolPenBtn?.addEventListener('click', () => setVideoStudioToolActive('pen'));
+					      videoToolArrowBtn?.addEventListener('click', () => setVideoStudioToolActive('arrow'));
+					      videoToolCircleBtn?.addEventListener('click', () => setVideoStudioToolActive('circle'));
+					      videoToolRectBtn?.addEventListener('click', () => setVideoStudioToolActive('rect'));
+					      videoToolTextBtn?.addEventListener('click', () => setVideoStudioToolActive('text'));
+
+					      videoColorInput?.addEventListener('change', () => {
+					        if (videoStudioCanvas && videoStudioCanvas.freeDrawingBrush) {
+					          try { videoStudioCanvas.freeDrawingBrush.color = safeText(videoColorInput.value, '#facc15'); } catch (e) { /* ignore */ }
+					        }
+					      });
+					      videoWidthSelect?.addEventListener('change', () => {
+					        if (videoStudioCanvas && videoStudioCanvas.freeDrawingBrush) {
+					          try { videoStudioCanvas.freeDrawingBrush.width = clamp(Number(videoWidthSelect.value) || 5, 1, 20); } catch (e) { /* ignore */ }
+					        }
+					      });
+
+					      videoUndoBtn?.addEventListener('click', () => {
+					        if (videoStudioHistoryIndex <= 0) return;
+					        void loadVideoStudioHistory(videoStudioHistoryIndex - 1);
+					      });
+					      videoClearDrawBtn?.addEventListener('click', () => {
+					        const ok = window.confirm('¿Limpiar todos los dibujos?'); // eslint-disable-line no-alert
+					        if (!ok) return;
+					        clearVideoStudioCanvas();
+					      });
+
+					      videoLoadBtn?.addEventListener('click', () => {
+					        try { videoFileInput?.click?.(); } catch (e) { /* ignore */ }
+					      });
+					      videoClearBtn?.addEventListener('click', () => {
+					        const ok = window.confirm('¿Quitar el vídeo? (Los keyframes se mantienen.)'); // eslint-disable-line no-alert
+					        if (!ok) return;
+					        revokeVideoStudioUrl();
+					        if (videoStudioPlayer) {
+					          try { videoStudioPlayer.pause(); } catch (e) { /* ignore */ }
+					          videoStudioPlayer.removeAttribute('src');
+					          try { videoStudioPlayer.load(); } catch (e) { /* ignore */ }
+					        }
+					        setVideoStudioStatus('—');
+					        setVideoStudioLoadedUi(false);
+					        syncVideoScrubUi();
+					      });
+
+					      videoFileInput?.addEventListener('change', () => {
+					        const file = videoFileInput.files && videoFileInput.files[0];
+					        if (!file) return;
+					        revokeVideoStudioUrl();
+					        videoStudioUrl = URL.createObjectURL(file);
+					        if (videoStudioPlayer) {
+					          videoStudioPlayer.src = videoStudioUrl;
+					          try { videoStudioPlayer.load(); } catch (e) { /* ignore */ }
+					        }
+					        setVideoStudioStatus(`${safeText(file.name, 'video')}`);
+					        setVideoStudioLoadedUi(true);
+					      });
+
+					      videoStudioPlayer?.addEventListener('loadedmetadata', () => {
+					        syncVideoScrubUi();
+					        setVideoStudioLoadedUi(true);
+					      });
+					      videoStudioPlayer?.addEventListener('timeupdate', () => {
+					        syncVideoScrubUi();
+					        if (videoStudioPlayer?.paused) return;
+					        const idx = findKeyframeIndexForTime(videoStudioPlayer.currentTime);
+					        if (idx !== videoStudioActiveKeyframe) void loadKeyframeAtIndex(idx);
+					      });
+					      videoStudioPlayer?.addEventListener('pause', () => {
+					        syncVideoScrubUi();
+					      });
+					      videoStudioPlayer?.addEventListener('play', () => {
+					        syncVideoScrubUi();
+					      });
+
+					      if (videoScrubInput) {
+					        videoScrubInput.addEventListener('pointerdown', () => { videoScrubInput.__dragging = true; });
+					        videoScrubInput.addEventListener('pointerup', () => { videoScrubInput.__dragging = false; });
+					        videoScrubInput.addEventListener('input', () => {
+					          if (!videoStudioPlayer) return;
+					          const max = Number(videoScrubInput.max) || 1000;
+					          const dur = Number(videoStudioPlayer.duration) || 0;
+					          const frac = clamp((Number(videoScrubInput.value) || 0) / max, 0, 1);
+					          if (dur > 0) {
+					            try { videoStudioPlayer.currentTime = frac * dur; } catch (e) { /* ignore */ }
+					          }
+					          syncVideoScrubUi();
+					        });
+					      }
+
+					      videoKeyframeAddBtn?.addEventListener('click', () => {
+					        if (!videoStudioCanvas || !videoStudioPlayer) return;
+					        let json = null;
+					        try { json = videoStudioCanvas.toDatalessJSON(['data']); } catch (e) { json = null; }
+					        if (!json) return;
+					        const t = Math.max(0, Number(videoStudioPlayer.currentTime) || 0);
+					        const title = window.prompt('Nombre (opcional):', ''); // eslint-disable-line no-alert
+					        const kf = {
+					          id: `kf_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+					          t,
+					          title: safeText(title),
+					          json,
+					        };
+					        videoStudioKeyframes.push(kf);
+					        videoStudioKeyframes.sort((a, b) => (a.t - b.t));
+					        videoStudioKeyframes = videoStudioKeyframes.slice(0, 220);
+					        writeVideoStudioState();
+					        renderVideoKeyframes();
+					        setStatus('Keyframe guardado.');
+					      });
+
+					      videoKeyframeDeleteAllBtn?.addEventListener('click', () => {
+					        const ok = window.confirm('¿Borrar TODOS los keyframes guardados?'); // eslint-disable-line no-alert
+					        if (!ok) return;
+					        videoStudioKeyframes = [];
+					        videoStudioActiveKeyframe = -1;
+					        writeVideoStudioState();
+					        renderVideoKeyframes();
+					        setStatus('Keyframes borrados.');
+					      });
+
+					      videoKeyframeList?.addEventListener('click', (event) => {
+					        const target = event.target;
+					        const id = safeText(target?.getAttribute?.('data-video-kf-go') || target?.getAttribute?.('data-video-kf-load') || target?.getAttribute?.('data-video-kf-del'));
+					        if (!id) return;
+					        const idx = videoStudioKeyframes.findIndex((kf) => kf.id === id);
+					        if (idx < 0) return;
+					        if (target?.hasAttribute?.('data-video-kf-go')) {
+					          if (videoStudioPlayer) {
+					            try { videoStudioPlayer.currentTime = videoStudioKeyframes[idx].t; } catch (e) { /* ignore */ }
+					            try { videoStudioPlayer.pause(); } catch (e) { /* ignore */ }
+					          }
+					          syncVideoScrubUi();
+					          return;
+					        }
+					        if (target?.hasAttribute?.('data-video-kf-load')) {
+					          void loadKeyframeAtIndex(idx);
+					          if (videoStudioPlayer) {
+					            try { videoStudioPlayer.currentTime = videoStudioKeyframes[idx].t; } catch (e) { /* ignore */ }
+					            try { videoStudioPlayer.pause(); } catch (e) { /* ignore */ }
+					          }
+					          syncVideoScrubUi();
+					          return;
+					        }
+					        if (target?.hasAttribute?.('data-video-kf-del')) {
+					          const ok = window.confirm('¿Borrar este keyframe?'); // eslint-disable-line no-alert
+					          if (!ok) return;
+					          videoStudioKeyframes.splice(idx, 1);
+					          videoStudioKeyframes.sort((a, b) => (a.t - b.t));
+					          writeVideoStudioState();
+					          renderVideoKeyframes();
+					        }
+					      });
+
+					      const drawContain = (ctx, video, outW, outH) => {
+					        const vw = Number(video?.videoWidth) || 0;
+					        const vh = Number(video?.videoHeight) || 0;
+					        if (!vw || !vh) return;
+					        const scale = Math.min(outW / vw, outH / vh);
+					        const w = Math.round(vw * scale);
+					        const h = Math.round(vh * scale);
+					        const dx = Math.round((outW - w) / 2);
+					        const dy = Math.round((outH - h) / 2);
+					        try { ctx.drawImage(video, dx, dy, w, h); } catch (e) { /* ignore */ }
+					      };
+
+					      const exportVideoStudio = async () => {
+					        if (!videoStudioPlayer || !videoStudioCanvas) return;
+					        if (videoStudioExporting) return;
+					        if (!canRecordVideoStudio()) {
+					          window.alert('Tu navegador no soporta exportación de vídeo aquí.'); // eslint-disable-line no-alert
+					          return;
+					        }
+					        const dur = Number(videoStudioPlayer.duration) || 0;
+					        if (!(dur > 0)) return;
+					        const lenRaw = safeText(videoExportLenSelect?.value, '10');
+					        const startTime = clamp(Number(videoStudioPlayer.currentTime) || 0, 0, Math.max(0, dur - 0.1));
+					        const clipLen = (lenRaw === 'full') ? (dur - startTime) : clamp(Number(lenRaw) || 10, 3, 600);
+					        if (clipLen <= 0.25) return;
+
+					        videoStudioExporting = true;
+					        if (videoExportBtn) videoExportBtn.disabled = true;
+					        setVideoStudioStatus('Exportando…');
+
+					        const outW = Math.max(640, Math.round(videoStudioCanvas.getWidth() || 1280));
+					        const outH = Math.max(360, Math.round(videoStudioCanvas.getHeight() || 720));
+					        const out = document.createElement('canvas');
+					        out.width = outW;
+					        out.height = outH;
+					        const ctx = out.getContext('2d');
+					        if (!ctx) {
+					          videoStudioExporting = false;
+					          setVideoStudioStatus('No se pudo exportar.', true);
+					          setVideoStudioLoadedUi(true);
+					          return;
+					        }
+
+					        let stream = null;
+					        try { stream = out.captureStream(30); } catch (e) { stream = null; }
+					        if (!stream) {
+					          videoStudioExporting = false;
+					          setVideoStudioStatus('No se pudo exportar.', true);
+					          setVideoStudioLoadedUi(true);
+					          return;
+					        }
+					        // Audio (si el navegador lo permite).
+					        try {
+					          const vstream = typeof videoStudioPlayer.captureStream === 'function' ? videoStudioPlayer.captureStream() : null;
+					          const atrack = vstream?.getAudioTracks?.()?.[0] || null;
+					          if (atrack) stream.addTrack(atrack);
+					        } catch (e) { /* ignore */ }
+
+					        const mimeCandidates = [
+					          'video/webm;codecs=vp9,opus',
+					          'video/webm;codecs=vp8,opus',
+					          'video/webm',
+					        ];
+					        let mimeType = '';
+					        mimeCandidates.some((mt) => {
+					          try {
+					            if (window.MediaRecorder.isTypeSupported(mt)) {
+					              mimeType = mt;
+					              return true;
+					            }
+					          } catch (e) { /* ignore */ }
+					          return false;
+					        });
+					        let recorder = null;
+					        try { recorder = new window.MediaRecorder(stream, mimeType ? { mimeType } : undefined); } catch (e) { recorder = null; }
+					        if (!recorder) {
+					          videoStudioExporting = false;
+					          setVideoStudioStatus('No se pudo exportar.', true);
+					          setVideoStudioLoadedUi(true);
+					          return;
+					        }
+
+					        const chunks = [];
+					        recorder.ondataavailable = (ev) => { if (ev?.data && ev.data.size > 0) chunks.push(ev.data); };
+					        recorder.onstop = () => {
+					          const blob = new Blob(chunks, { type: recorder?.mimeType || 'video/webm' });
+					          const url = URL.createObjectURL(blob);
+					          const link = document.createElement('a');
+					          link.href = url;
+					          link.download = `telestracion_${Date.now()}.webm`;
+					          document.body.appendChild(link);
+					          link.click();
+					          link.remove();
+					          window.setTimeout(() => {
+					            try { URL.revokeObjectURL(url); } catch (e) { /* ignore */ }
+					          }, 2500);
+					        };
+
+					        const prevPaused = !!videoStudioPlayer.paused;
+					        const prevTime = Number(videoStudioPlayer.currentTime) || 0;
+					        try { videoStudioPlayer.pause(); } catch (e) { /* ignore */ }
+					        try { videoStudioPlayer.currentTime = startTime; } catch (e) { /* ignore */ }
+					        await new Promise((r) => window.setTimeout(r, 120));
+
+					        const startedAt = window.performance?.now?.() || Date.now();
+					        const stopAtMs = clipLen * 1000;
+					        try { recorder.start(250); } catch (e) { /* ignore */ }
+					        try { videoStudioPlayer.play(); } catch (e) { /* ignore */ }
+
+					        const tick = (nowRaw) => {
+					          const now = Number(nowRaw) || (window.performance?.now?.() || Date.now());
+					          const elapsed = now - startedAt;
+					          try {
+					            ctx.fillStyle = 'rgba(2,6,23,1)';
+					            ctx.fillRect(0, 0, outW, outH);
+					            drawContain(ctx, videoStudioPlayer, outW, outH);
+					            ctx.drawImage(videoStudioCanvas.lowerCanvasEl, 0, 0, outW, outH);
+					          } catch (e) { /* ignore */ }
+					          if (elapsed >= stopAtMs || (Number(videoStudioPlayer.currentTime) || 0) >= (startTime + clipLen - 0.04)) {
+					            videoStudioExportFrame = null;
+					            try { videoStudioPlayer.pause(); } catch (e) { /* ignore */ }
+					            try { recorder.stop(); } catch (e) { /* ignore */ }
+					            videoStudioExporting = false;
+					            setVideoStudioStatus('Exportado.');
+					            setVideoStudioLoadedUi(true);
+					            try { stream.getTracks().forEach((t) => t.stop()); } catch (e) { /* ignore */ }
+					            try { videoStudioPlayer.currentTime = prevTime; } catch (e) { /* ignore */ }
+					            if (!prevPaused) { try { videoStudioPlayer.play(); } catch (e) { /* ignore */ } }
+					            return;
+					          }
+					          videoStudioExportFrame = window.requestAnimationFrame(tick);
+					        };
+					        videoStudioExportFrame = window.requestAnimationFrame(tick);
+					      };
+
+					      videoExportBtn?.addEventListener('click', () => { void exportVideoStudio(); });
+					    };
+
+					    const setVideoStudioOpen = (open) => {
+					      if (!videoStudioModal) return;
+					      const shouldOpen = !!open;
+					      videoStudioModal.hidden = !shouldOpen;
+					      if (shouldOpen) {
+					        ensureVideoStudioCanvas();
+					        installVideoStudioTools();
+					        ensureVideoStudioHandlers();
+					        setVideoStudioToolActive(videoStudioTool);
+					        syncVideoScrubUi();
+					        setVideoStudioLoadedUi(!!safeText(videoStudioPlayer?.src));
+					      } else {
+					        if (videoStudioExportFrame) {
+					          try { window.cancelAnimationFrame(videoStudioExportFrame); } catch (e) { /* ignore */ }
+					          videoStudioExportFrame = null;
+					        }
+					        videoStudioExporting = false;
+					        try { videoStudioPlayer?.pause?.(); } catch (e) { /* ignore */ }
+					      }
+					    };
+
+					    simVideoStudioBtn?.addEventListener('click', () => {
+					      if (!isSimulating) return;
+					      setVideoStudioOpen(true);
+					    });
+					    videoStudioCloseBtn?.addEventListener('click', () => setVideoStudioOpen(false));
+					    videoStudioModal?.addEventListener('click', (event) => {
+					      if (event.target === videoStudioModal) setVideoStudioOpen(false);
+					    });
+					    videoStudioModal?.addEventListener('keydown', (event) => {
+					      if (String(event.key || '').toLowerCase() === 'escape') setVideoStudioOpen(false);
+					    });
 
 				    // Rutas editables por jugador (waypoints) + pase / balón pegado.
 				    let simRouteAddMode = false;
