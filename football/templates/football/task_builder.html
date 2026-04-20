@@ -2118,13 +2118,126 @@
       }
 
       body.prod-commercial input:focus,
-      body.prod-commercial select:focus,
-      body.prod-commercial textarea:focus {
-        outline: 2px solid rgba(244, 180, 0, 0.38);
-        outline-offset: 2px;
-        border-color: rgba(244, 180, 0, 0.28);
-      }
-    </style>
+	      body.prod-commercial select:focus,
+	      body.prod-commercial textarea:focus {
+	        outline: 2px solid rgba(244, 180, 0, 0.38);
+	        outline-offset: 2px;
+	        border-color: rgba(244, 180, 0, 0.28);
+	      }
+
+	      /* Asistente Smart: vista previa de sugerencias */
+	      .assistant-suggestion-card {
+	        border: 1px solid rgba(255, 255, 255, 0.10);
+	        background: rgba(255, 255, 255, 0.03);
+	        border-radius: 14px;
+	        padding: 0.7rem 0.75rem;
+	        display: grid;
+	        gap: 0.55rem;
+	      }
+	      .assistant-suggestion-preview {
+	        border-radius: 14px;
+	        border: 1px solid rgba(255, 255, 255, 0.10);
+	        overflow: hidden;
+	        background: rgba(15, 23, 42, 0.35);
+	      }
+	      .assistant-suggestion-pitch {
+	        position: relative;
+	        width: 100%;
+	        height: 104px;
+	        border-radius: 14px;
+	        background:
+	          linear-gradient(90deg, rgba(34, 197, 94, 0.18) 0%, rgba(34, 197, 94, 0.10) 50%, rgba(34, 197, 94, 0.18) 100%),
+	          repeating-linear-gradient(90deg, rgba(34, 197, 94, 0.10) 0, rgba(34, 197, 94, 0.10) 22px, rgba(34, 197, 94, 0.14) 22px, rgba(34, 197, 94, 0.14) 44px);
+	      }
+	      .assistant-suggestion-card.is-peek-open .assistant-suggestion-pitch {
+	        height: 190px;
+	      }
+	      .assistant-suggestion-item {
+	        position: absolute;
+	        left: 50%;
+	        top: 50%;
+	        transform: translate(-50%, -50%);
+	        width: 20px;
+	        height: 20px;
+	        display: grid;
+	        place-items: center;
+	        font-size: 12px;
+	        font-weight: 800;
+	        color: rgba(15, 23, 42, 0.92);
+	        background: rgba(248, 250, 252, 0.92);
+	        border: 1px solid rgba(15, 23, 42, 0.22);
+	        box-shadow: rgba(15, 23, 42, 0.40) 0 2px 10px;
+	        user-select: none;
+	      }
+	      .assistant-suggestion-item.is-circle { border-radius: 999px; }
+	      .assistant-suggestion-item.is-goal {
+	        width: 24px;
+	        height: 14px;
+	        border-radius: 4px;
+	        background: rgba(248, 250, 252, 0.06);
+	        border: 2px solid rgba(248, 250, 252, 0.92);
+	        box-shadow: rgba(15, 23, 42, 0.35) 0 2px 10px;
+	      }
+	      .assistant-suggestion-item.is-local { background: rgba(34, 197, 94, 0.92); color: rgba(15, 23, 42, 0.95); }
+	      .assistant-suggestion-item.is-rival { background: rgba(239, 68, 68, 0.92); color: rgba(15, 23, 42, 0.95); }
+	      .assistant-suggestion-item.is-ball { background: rgba(248, 250, 252, 0.96); }
+	      .assistant-suggestion-item.is-cone {
+	        width: 0;
+	        height: 0;
+	        border-left: 10px solid transparent;
+	        border-right: 10px solid transparent;
+	        border-bottom: 18px solid rgba(245, 158, 11, 0.95);
+	        background: transparent;
+	        border-radius: 0;
+	        border-top: 0;
+	        border-bottom-left-radius: 6px;
+	        border-bottom-right-radius: 6px;
+	        box-shadow: rgba(15, 23, 42, 0.32) 0 2px 10px;
+	      }
+	      .assistant-suggestion-item.is-cone-striped {
+	        border-bottom-color: transparent;
+	        background: transparent;
+	      }
+	      .assistant-suggestion-item.is-cone-striped::before {
+	        content: "";
+	        position: absolute;
+	        left: -10px;
+	        top: -1px;
+	        width: 0;
+	        height: 0;
+	        border-left: 10px solid transparent;
+	        border-right: 10px solid transparent;
+	        border-bottom: 18px solid rgba(245, 158, 11, 0.95);
+	        filter: drop-shadow(rgba(15, 23, 42, 0.30) 0 2px 10px);
+	        clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+	        background: repeating-linear-gradient(90deg, rgba(15,23,42,0.55) 0 4px, rgba(245,158,11,0.96) 4px 8px);
+	        -webkit-mask: none;
+	      }
+	      .assistant-suggestion-item.is-ring {
+	        background: transparent;
+	        border: 2px solid rgba(248, 250, 252, 0.92);
+	        width: 18px;
+	        height: 18px;
+	        box-shadow: rgba(15, 23, 42, 0.30) 0 2px 10px;
+	      }
+	      .assistant-suggestion-item.is-arrow {
+	        width: 18px;
+	        height: 18px;
+	        background: rgba(248, 250, 252, 0.92);
+	        border-radius: 999px;
+	        color: rgba(15, 23, 42, 0.88);
+	        font-size: 14px;
+	      }
+	      .assistant-suggestion-peek {
+	        border-top: 1px solid rgba(255, 255, 255, 0.10);
+	        padding-top: 0.6rem;
+	        display: grid;
+	        gap: 0.45rem;
+	      }
+	      .assistant-suggestion-peek .meta {
+	        opacity: 0.92;
+	      }
+	    </style>
   </head>
   <body class="prod-commercial">
     <main class="page">
@@ -6180,52 +6293,194 @@
 				            writeQueue(q);
 				            updateQueueUi();
 				          };
-					          const renderSmartSuggestions = () => {
-					            if (!smartSuggestionsBox) return;
-					            const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({
-					              '&': '&amp;',
+						          const renderSmartSuggestions = () => {
+						            if (!smartSuggestionsBox) return;
+						            const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({
+						              '&': '&amp;',
 					              '<': '&lt;',
 					              '>': '&gt;',
-					              '"': '&quot;',
-					              "'": '&#39;',
-					            }[ch] || ch));
-					            const templates = buildTemplatesForProgram('smart');
-					            const suggestions = Array.isArray(templates.smart_suggestions) ? templates.smart_suggestions : [];
-					            if (!suggestions.length) {
-					              smartSuggestionsBox.innerHTML = '<div class="meta" style="opacity:0.85;">No hay sugerencias todavía. Pulsa “Sugerir tareas”.</div>';
+						              '"': '&quot;',
+						              "'": '&#39;',
+						            }[ch] || ch));
+						            const stripTags = (html) => String(html ?? '')
+						              .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ' ')
+						              .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ' ')
+						              .replace(/<[^>]+>/g, ' ')
+						              .replace(/\s+/g, ' ')
+						              .trim();
+						            const clipText = (text, maxLen = 220) => {
+						              const t = String(text || '').trim();
+						              if (!t) return '';
+						              return t.length > maxLen ? `${t.slice(0, Math.max(0, maxLen - 1))}…` : t;
+						            };
+						            const clamp01 = (value) => {
+						              const n = Number(value);
+						              if (!Number.isFinite(n)) return 0.5;
+						              return Math.max(0.02, Math.min(0.98, n));
+						            };
+						            const renderPitchPreview = (pitchEl, tpl) => {
+						              if (!pitchEl) return;
+						              pitchEl.innerHTML = '';
+						              const items = tpl?.board?.items;
+						              if (!Array.isArray(items) || !items.length) {
+						                const msg = document.createElement('div');
+						                msg.className = 'meta';
+						                msg.style.cssText = 'padding:0.55rem; opacity:0.85;';
+						                msg.textContent = tpl?.canvas_state ? 'Pizarra guardada (sin vista previa rápida).' : 'Sin pizarra.';
+						                pitchEl.appendChild(msg);
+						                return;
+						              }
+						              const pickEmoji = (kind) => {
+						                const k = String(kind || '').trim();
+						                const map = {
+						                  emoji_ladder: '🪜',
+						                  emoji_hurdle: '🟧',
+						                  emoji_cones: '🔺',
+						                  emoji_poles: '🟨',
+						                  emoji_mini_goal: '🥅',
+						                  emoji_gates: '🚪',
+						                  emoji_whistle: '🎺',
+						                };
+						                return map[k] || '';
+						              };
+						              const makeItemEl = (kind, angle = 0) => {
+						                const k = String(kind || '').trim();
+						                const el = document.createElement('div');
+						                el.className = 'assistant-suggestion-item';
+						                const rotate = Number.isFinite(Number(angle)) ? Number(angle) : 0;
+						                el.style.transform = `translate(-50%, -50%) rotate(${rotate}deg)`;
+						                const emoji = pickEmoji(k);
+						                if (emoji) {
+						                  el.classList.add('is-circle');
+						                  el.textContent = emoji;
+						                  el.style.fontSize = '14px';
+						                  return el;
+						                }
+						                if (k === 'goal') {
+						                  el.classList.add('is-goal');
+						                  el.textContent = '';
+						                  return el;
+						                }
+						                if (k === 'cone' || k === 'cone_striped') {
+						                  el.classList.add('is-cone');
+						                  el.textContent = '';
+						                  return el;
+						                }
+						                if (k === 'ring') {
+						                  el.classList.add('is-ring', 'is-circle');
+						                  el.textContent = '';
+						                  return el;
+						                }
+						                if (k === 'arrow_solid' || k === 'arrow_dotted' || k === 'arrow_curve') {
+						                  el.classList.add('is-arrow', 'is-circle');
+						                  el.textContent = '➜';
+						                  return el;
+						                }
+						                if (k === 'ball') {
+						                  el.classList.add('is-ball', 'is-circle');
+						                  el.textContent = '⚽';
+						                  el.style.fontSize = '13px';
+						                  return el;
+						                }
+						                if (k === 'player_local') {
+						                  el.classList.add('is-local', 'is-circle');
+						                  el.textContent = 'L';
+						                  return el;
+						                }
+						                if (k === 'player_rival') {
+						                  el.classList.add('is-rival', 'is-circle');
+						                  el.textContent = 'R';
+						                  return el;
+						                }
+						                if (k === 'text') {
+						                  el.classList.add('is-circle');
+						                  el.textContent = 'T';
+						                  return el;
+						                }
+						                el.classList.add('is-circle');
+						                el.textContent = '•';
+						                return el;
+						              };
+						              items.slice(0, 90).forEach((it) => {
+						                const kind = it?.payload?.kind;
+						                const node = makeItemEl(kind, it?.angle || 0);
+						                node.style.left = `${clamp01(it?.x) * 100}%`;
+						                node.style.top = `${clamp01(it?.y) * 100}%`;
+						                pitchEl.appendChild(node);
+						              });
+						            };
+						            const templates = buildTemplatesForProgram('smart');
+						            const suggestions = Array.isArray(templates.smart_suggestions) ? templates.smart_suggestions : [];
+						            if (!suggestions.length) {
+						              smartSuggestionsBox.innerHTML = '<div class="meta" style="opacity:0.85;">No hay sugerencias todavía. Pulsa “Sugerir tareas”.</div>';
 					              return;
-					            }
-					            const rows = suggestions.map((item, index) => {
-					              const tpl = item?.tpl || {};
-					              const title = String(tpl.title || '').trim() || `Sugerencia ${index + 1}`;
-					              const minutes = String(tpl.minutes || '').trim();
+						            }
+						            const rows = suggestions.map((item, index) => {
+						              const tpl = item?.tpl || {};
+						              const title = String(tpl.title || '').trim() || `Sugerencia ${index + 1}`;
+						              const minutes = String(tpl.minutes || '').trim();
 					              const players = String(tpl.player_count || '').trim();
 					              const block = String(tpl.block || '').trim();
 					              const meta = [minutes ? `${minutes}’` : '', players || '', block || ''].filter(Boolean).join(' · ');
-					              const sourceName = String(tpl.source_name || '').trim();
-					              const sourceUrl = String(tpl.source_url || '').trim();
-					              const sourceHtml = sourceUrl
-					                ? `<a class="meta" style="opacity:0.9;" href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener noreferrer">Fuente: ${escapeHtml(sourceName || 'Referencia')}</a>`
-					                : (sourceName ? `<span class="meta" style="opacity:0.9;">Fuente: ${escapeHtml(sourceName)}</span>` : '');
-					              return `
-					                <div style="border:1px solid rgba(255,255,255,0.10); background:rgba(255,255,255,0.03); border-radius:14px; padding:0.7rem 0.75rem; display:grid; gap:0.45rem;">
-					                  <div style="display:flex; align-items:baseline; justify-content:space-between; gap:0.75rem; flex-wrap:wrap;">
-					                    <strong>${escapeHtml(`${index + 1}. ${title}`)}</strong>
-					                    <span class="meta" style="opacity:0.85;">${escapeHtml(meta)}</span>
-					                  </div>
-					                  ${sourceHtml ? `<div style="display:flex; justify-content:flex-end;">${sourceHtml}</div>` : ''}
-					                  <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-					                    <button type="button" class="button" data-smart-apply="${index}">Aplicar</button>
-					                    <button type="button" class="button" data-smart-queue="${index}">Añadir a cola</button>
-					                  </div>
-					                </div>
-					              `;
-					            }).join('');
-				            smartSuggestionsBox.innerHTML = rows;
-				            Array.from(smartSuggestionsBox.querySelectorAll('[data-smart-apply]')).forEach((btn) => {
-				              btn.addEventListener('click', () => {
-				                const idx = Number(btn.getAttribute('data-smart-apply') || '0') || 0;
-				                const templates2 = buildTemplatesForProgram('smart');
+						              const sourceName = String(tpl.source_name || '').trim();
+						              const sourceUrl = String(tpl.source_url || '').trim();
+						              const sourceHtml = sourceUrl
+						                ? `<a class="meta" style="opacity:0.9;" href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener noreferrer">Fuente: ${escapeHtml(sourceName || 'Referencia')}</a>`
+						                : (sourceName ? `<span class="meta" style="opacity:0.9;">Fuente: ${escapeHtml(sourceName)}</span>` : '');
+						              const objective = clipText(stripTags(tpl.objective || ''), 220);
+						              const desc = clipText(stripTags(tpl.description_html || ''), 320);
+						              const dims = String(tpl.dimensions || '').trim();
+						              const mats = String(tpl.materials || '').trim();
+						              return `
+						                <div class="assistant-suggestion-card" data-smart-card="${index}">
+						                  <div style="display:flex; align-items:baseline; justify-content:space-between; gap:0.75rem; flex-wrap:wrap;">
+						                    <strong>${escapeHtml(`${index + 1}. ${title}`)}</strong>
+						                    <span class="meta" style="opacity:0.85;">${escapeHtml(meta)}</span>
+						                  </div>
+						                  ${sourceHtml ? `<div style="display:flex; justify-content:flex-end;">${sourceHtml}</div>` : ''}
+						                  <div class="assistant-suggestion-preview" title="Vista previa de la pizarra (orientativa)">
+						                    <div class="assistant-suggestion-pitch" data-smart-pitch="${index}"></div>
+						                  </div>
+						                  <div class="assistant-suggestion-peek" data-smart-peek="${index}" hidden>
+						                    ${objective ? `<div class="meta"><strong>Objetivo:</strong> ${escapeHtml(objective)}</div>` : ''}
+						                    ${dims ? `<div class="meta"><strong>Dimensiones:</strong> ${escapeHtml(dims)}</div>` : ''}
+						                    ${mats ? `<div class="meta"><strong>Material:</strong> ${escapeHtml(mats)}</div>` : ''}
+						                    ${desc ? `<div class="meta"><strong>Descripción:</strong> ${escapeHtml(desc)}</div>` : ''}
+						                  </div>
+						                  <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+						                    <button type="button" class="button" data-smart-peek-toggle="${index}">Vista previa</button>
+						                    <button type="button" class="button" data-smart-apply="${index}">Aplicar</button>
+						                    <button type="button" class="button" data-smart-queue="${index}">Añadir a cola</button>
+						                  </div>
+						                </div>
+						              `;
+						            }).join('');
+					            smartSuggestionsBox.innerHTML = rows;
+					            // Renderiza la vista previa de pizarra en cada sugerencia.
+					            try {
+					              const templates3 = buildTemplatesForProgram('smart');
+					              const list = Array.isArray(templates3.smart_suggestions) ? templates3.smart_suggestions : [];
+					              list.forEach((item, idx) => {
+					                const pitchEl = smartSuggestionsBox.querySelector(`[data-smart-pitch="${idx}"]`);
+					                renderPitchPreview(pitchEl, item?.tpl || {});
+					              });
+					            } catch (e) { /* ignore */ }
+					            // Toggle de vista previa (sin tocar la tarea actual).
+					            Array.from(smartSuggestionsBox.querySelectorAll('[data-smart-peek-toggle]')).forEach((btn) => {
+					              btn.addEventListener('click', () => {
+					                const idx = Number(btn.getAttribute('data-smart-peek-toggle') || '0') || 0;
+					                const card = btn.closest('.assistant-suggestion-card');
+					                const pane = smartSuggestionsBox.querySelector(`[data-smart-peek="${idx}"]`);
+					                const isOpen = !!(card && card.classList.contains('is-peek-open'));
+					                if (card) card.classList.toggle('is-peek-open', !isOpen);
+					                if (pane) pane.hidden = isOpen;
+					                btn.textContent = isOpen ? 'Vista previa' : 'Ocultar';
+					              });
+					            });
+					            Array.from(smartSuggestionsBox.querySelectorAll('[data-smart-apply]')).forEach((btn) => {
+					              btn.addEventListener('click', () => {
+					                const idx = Number(btn.getAttribute('data-smart-apply') || '0') || 0;
+					                const templates2 = buildTemplatesForProgram('smart');
 				                const list = Array.isArray(templates2.smart_suggestions) ? templates2.smart_suggestions : [];
 				                const item = list[idx];
 				                if (item?.tpl) applyTpl(item.tpl);
