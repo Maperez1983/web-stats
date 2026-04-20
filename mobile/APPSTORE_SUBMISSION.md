@@ -20,6 +20,11 @@ Proyecto: `mobile/ios/App/App.xcworkspace`
 - Términos: `https://app.segundajugada.es/legal/terminos/`
 - Soporte: `https://app.segundajugada.es/support/`
 
+## App Privacy (App Store Connect)
+
+La ficha **App Privacy** se completa en App Store Connect (no en código).
+Guía para rellenarla: `mobile/APP_STORE_CONNECT_APP_PRIVACY.md`.
+
 ## Pasos (Xcode)
 
 1. Abrir `App.xcworkspace`.
@@ -40,4 +45,3 @@ La app requiere login.
 
 Módulos a probar:
 Portada, Entrenos, Partido, Jugadores, generación de PDFs.
-
