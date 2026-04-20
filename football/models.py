@@ -985,6 +985,33 @@ class DataImportLog(models.Model):
         return f'{self.file_name} ({self.imported_at:%Y-%m-%d %H:%M})'
 
 
+class TacticalPlaybookClip(models.Model):
+    """
+    Clips de simulación (jugadas) reutilizables como Playbook.
+
+    Se guardan por equipo. Para uso interno "global" del sistema, se usa el equipo especial `slug="pizarra"`.
+    """
+
+    team = models.ForeignKey('Team', on_delete=models.CASCADE, related_name='tactical_playbook_clips')
+    name = models.CharField(max_length=160)
+    folder = models.CharField(max_length=80, blank=True)
+    tags = models.JSONField(default=list, blank=True)
+    steps = models.JSONField(default=list, blank=True)
+    created_by = models.CharField(max_length=80, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at', '-id']
+        indexes = [
+            models.Index(fields=['team', '-updated_at']),
+        ]
+
+    def __str__(self):
+        team_label = getattr(self.team, 'name', '') or 'team'
+        return f'{team_label} · {self.name}'
+
+
 class ScrapeSource(models.Model):
     name = models.CharField(max_length=150)
     url = models.URLField()

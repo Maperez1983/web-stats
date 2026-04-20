@@ -133,6 +133,7 @@ from football.models import (
     TeamRosterSnapshot,
     StaffMember,
     InjuryCatalogEntry,
+    TacticalPlaybookClip,
 )
 from football.event_taxonomy import (
     DRIBBLE_KEYWORDS,
@@ -33309,6 +33310,269 @@ def task_assistant_blueprint_save_api(request):
         return JsonResponse({'ok': False, 'error': 'No se pudo guardar la plantilla.'}, status=500)
 
     return JsonResponse({'ok': True, 'id': int(obj.id), 'created': bool(created)})
+
+
+@login_required
+def tactical_playbook_clips_api(request):
+    """
+    Lista clips del Playbook (equipo y opcionalmente sistema).
+
+    Query params:
+    - scope: team|system (default: team)
+    - include_system: 1|0 (solo superuser)
+    - q: filtro por nombre/carpeta
+    """
+    if not _can_access_sessions_workspace(request.user):
+        return JsonResponse({'ok': False, 'error': 'No tienes permisos.'}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+    if forbidden:
+        return forbidden
+    scope = str(request.GET.get('scope') or 'team').strip().lower()
+    include_system = str(request.GET.get('include_system') or '').strip() in ('1', 'true', 'yes')
+    q = str(request.GET.get('q') or '').strip()
+
+    system_team = None
+    try:
+        system_team, _ = Team.objects.get_or_create(slug='pizarra', defaults={'name': 'PIZARRA'})
+    except Exception:
+        system_team = Team.objects.filter(slug='pizarra').first()
+
+    if scope == 'system':
+        if not bool(getattr(request.user, 'is_superuser', False)):
+            return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+        primary_team = system_team
+        if not primary_team:
+            return JsonResponse({'ok': False, 'error': 'No se pudo resolver el equipo del sistema.'}, status=500)
+        team_ids = [int(primary_team.id)]
+    else:
+        primary_team = _get_primary_team_for_request(request)
+        if not primary_team:
+            return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
+        team_ids = [int(primary_team.id)]
+        if include_system and bool(getattr(request.user, 'is_superuser', False)) and system_team and int(system_team.id) != int(primary_team.id):
+            team_ids.append(int(system_team.id))
+
+    qs = TacticalPlaybookClip.objects.filter(team_id__in=team_ids)
+    if q:
+        qs = qs.filter(Q(name__icontains=q) | Q(folder__icontains=q))
+    # Nota: devolvemos steps completos para poder cargar el clip desde el editor, así que limitamos para no saturar.
+    items = list(qs.select_related('team').order_by('-updated_at', '-id')[:80])
+
+    username = str(getattr(request.user, 'username', '') or '').strip()
+    payload = []
+    for obj in items:
+        obj_scope = 'team'
+        try:
+            if system_team and int(obj.team_id) == int(system_team.id):
+                obj_scope = 'system'
+        except Exception:
+            obj_scope = 'team'
+        can_delete = bool(getattr(request.user, 'is_superuser', False)) or (username and username == str(obj.created_by or '').strip())
+        payload.append(
+            {
+                'id': int(obj.id),
+                'name': str(obj.name or '').strip(),
+                'folder': str(obj.folder or '').strip(),
+                'tags': obj.tags if isinstance(obj.tags, list) else [],
+                'steps': obj.steps if isinstance(obj.steps, list) else [],
+                'created_by': str(obj.created_by or '').strip(),
+                'created_at': obj.created_at.isoformat() if getattr(obj, 'created_at', None) else None,
+                'updated_at': obj.updated_at.isoformat() if getattr(obj, 'updated_at', None) else None,
+                'scope': obj_scope,
+                'can_delete': bool(can_delete),
+            }
+        )
+    return JsonResponse({'ok': True, 'items': payload})
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def tactical_playbook_clip_save_api(request):
+    """
+    Guarda/actualiza un clip del Playbook.
+
+    JSON:
+    - scope: team|system (default team)
+    - id: (opcional) id a actualizar
+    - name: str
+    - folder: str (opcional)
+    - tags: list[str] (opcional)
+    - steps: list (requerido)
+    - overwrite: 1|0 (si existe mismo nombre en el scope)
+    """
+    if not _can_access_sessions_workspace(request.user):
+        return JsonResponse({'ok': False, 'error': 'No tienes permisos.'}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+    if forbidden:
+        return forbidden
+
+    data = None
+    try:
+        if request.content_type and 'application/json' in request.content_type.lower():
+            data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+    except Exception:
+        data = None
+    if not isinstance(data, dict):
+        data = request.POST.dict() if hasattr(request, 'POST') else {}
+
+    scope = str(data.get('scope') or 'team').strip().lower()
+    overwrite = str(data.get('overwrite') or '').strip() in ('1', 'true', 'yes')
+    raw_id = data.get('id')
+    clip_id = 0
+    try:
+        clip_id = int(raw_id or 0)
+    except Exception:
+        clip_id = 0
+
+    system_team = None
+    try:
+        system_team, _ = Team.objects.get_or_create(slug='pizarra', defaults={'name': 'PIZARRA'})
+    except Exception:
+        system_team = Team.objects.filter(slug='pizarra').first()
+
+    if scope == 'system':
+        if not bool(getattr(request.user, 'is_superuser', False)):
+            return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+        primary_team = system_team
+        if not primary_team:
+            return JsonResponse({'ok': False, 'error': 'No se pudo resolver el equipo del sistema.'}, status=500)
+    else:
+        primary_team = _get_primary_team_for_request(request)
+        if not primary_team:
+            return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
+
+    name = _sanitize_task_text(str(data.get('name') or '').strip(), multiline=False, max_len=160)
+    if not name:
+        return JsonResponse({'ok': False, 'error': 'Nombre requerido.'}, status=400)
+    folder = _sanitize_task_text(str(data.get('folder') or '').strip(), multiline=False, max_len=80)
+
+    tags = data.get('tags')
+    if isinstance(tags, str):
+        try:
+            tags = json.loads(tags)
+        except Exception:
+            tags = [tags]
+    if not isinstance(tags, list):
+        tags = []
+    tags = [(_sanitize_task_text(str(t or '').strip(), multiline=False, max_len=32) or '') for t in tags[:12]]
+    tags = [t for t in tags if t]
+
+    steps = data.get('steps')
+    if isinstance(steps, str):
+        try:
+            steps = json.loads(steps)
+        except Exception:
+            steps = None
+    if not isinstance(steps, list) or not steps:
+        return JsonResponse({'ok': False, 'error': 'steps requerido.'}, status=400)
+    steps = steps[:24]
+    try:
+        # Validación blanda: asegura que sea JSON-serializable sin crecer infinito.
+        raw = json.dumps(steps)
+        if len(raw) > 1_200_000:
+            return JsonResponse({'ok': False, 'error': 'Clip demasiado grande.'}, status=400)
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'steps inválido.'}, status=400)
+
+    username = str(getattr(request.user, 'username', '') or '').strip()[:80]
+
+    try:
+        obj = None
+        created = False
+        if clip_id:
+            obj = TacticalPlaybookClip.objects.filter(id=clip_id, team=primary_team).first()
+            if not obj:
+                return JsonResponse({'ok': False, 'error': 'Clip no encontrado.'}, status=404)
+            obj.name = name
+            obj.folder = folder
+            obj.tags = tags
+            obj.steps = steps
+            obj.created_by = obj.created_by or username
+            obj.save(update_fields=['name', 'folder', 'tags', 'steps', 'updated_at', 'created_by'])
+        else:
+            existing = TacticalPlaybookClip.objects.filter(team=primary_team, name=name).order_by('-updated_at', '-id').first()
+            if existing and not overwrite:
+                return JsonResponse({'ok': False, 'error': 'exists', 'existing_id': int(existing.id)}, status=409)
+            if existing and overwrite:
+                obj = existing
+                obj.folder = folder
+                obj.tags = tags
+                obj.steps = steps
+                obj.created_by = obj.created_by or username
+                obj.save(update_fields=['folder', 'tags', 'steps', 'updated_at', 'created_by'])
+            else:
+                obj = TacticalPlaybookClip.objects.create(
+                    team=primary_team,
+                    name=name,
+                    folder=folder,
+                    tags=tags,
+                    steps=steps,
+                    created_by=username,
+                )
+                created = True
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'No se pudo guardar.'}, status=500)
+
+    return JsonResponse({'ok': True, 'id': int(obj.id), 'created': bool(created)})
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def tactical_playbook_clip_delete_api(request):
+    if not _can_access_sessions_workspace(request.user):
+        return JsonResponse({'ok': False, 'error': 'No tienes permisos.'}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+    if forbidden:
+        return forbidden
+
+    clip_id = 0
+    scope = 'team'
+    try:
+        if request.content_type and 'application/json' in (request.content_type or '').lower():
+            data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+        else:
+            data = request.POST.dict() if hasattr(request, 'POST') else {}
+    except Exception:
+        data = {}
+    try:
+        clip_id = int((data.get('id') or 0))
+    except Exception:
+        clip_id = 0
+    scope = str(data.get('scope') or 'team').strip().lower()
+    if not clip_id:
+        return JsonResponse({'ok': False, 'error': 'id requerido.'}, status=400)
+
+    system_team = None
+    try:
+        system_team, _ = Team.objects.get_or_create(slug='pizarra', defaults={'name': 'PIZARRA'})
+    except Exception:
+        system_team = Team.objects.filter(slug='pizarra').first()
+
+    if scope == 'system':
+        if not bool(getattr(request.user, 'is_superuser', False)):
+            return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+        primary_team = system_team
+        if not primary_team:
+            return JsonResponse({'ok': False, 'error': 'No se pudo resolver el equipo del sistema.'}, status=500)
+    else:
+        primary_team = _get_primary_team_for_request(request)
+        if not primary_team:
+            return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
+
+    obj = TacticalPlaybookClip.objects.filter(id=clip_id, team=primary_team).first()
+    if not obj:
+        return JsonResponse({'ok': False, 'error': 'Clip no encontrado.'}, status=404)
+
+    username = str(getattr(request.user, 'username', '') or '').strip()
+    if not bool(getattr(request.user, 'is_superuser', False)) and username != str(obj.created_by or '').strip():
+        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+    try:
+        obj.delete()
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'No se pudo borrar.'}, status=500)
+    return JsonResponse({'ok': True})
 
 
 def _assistant_goal_specs():

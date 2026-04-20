@@ -2461,6 +2461,9 @@
 		      >
 	        {% csrf_token %}
 	        <input type="hidden" id="task-sim-share-url" value="{% url 'share-task-simulation-create' %}" />
+	        <input type="hidden" id="task-playbook-list-url" value="{% url 'tactical-playbook-clips-api' %}" />
+	        <input type="hidden" id="task-playbook-save-url" value="{% url 'tactical-playbook-clip-save-api' %}" />
+	        <input type="hidden" id="task-playbook-delete-url" value="{% url 'tactical-playbook-clip-delete-api' %}" />
 	        <input type="hidden" name="planner_action" value="create_draw_task" />
 	        <input type="hidden" name="draw_canvas_state" id="draw-canvas-state" value="{{ initial.canvas_state|escape }}" />
 	        <input type="hidden" name="draw_canvas_width" id="draw-canvas-width" value="{{ initial.canvas_width }}" />
@@ -2699,6 +2702,7 @@
 			                          <button type="button" class="button" id="task-scenario-add">+ Escenario</button>
 			                          <button type="button" class="button" id="task-scenario-duplicate">Duplicar</button>
 			                          <button type="button" class="button danger" id="task-scenario-remove">Eliminar</button>
+			                          <button type="button" class="button" id="task-scenario-template-3" title="Crea 3 escenarios rápidos: Inicio, Desarrollo, Final">Plantilla 3</button>
 			                        </div>
 			                        <div class="scenarios-fields" aria-label="Datos del escenario activo">
 			                          <label>
@@ -2738,6 +2742,17 @@
 					                          <button type="button" class="button" id="task-sim-video-studio" hidden>Video Studio</button>
 					                          <button type="button" class="button" id="task-sim-clip-save" hidden>Guardar clip</button>
 					                          <button type="button" class="button" id="task-sim-clip-import" hidden>Importar clip</button>
+					                          <label style="display:flex; gap:10px; align-items:center;" id="task-sim-clip-dest-wrap" hidden>
+					                            Destino
+					                            <select id="task-sim-clip-dest">
+					                              <option value="local" selected>Local</option>
+					                              <option value="team">Playbook equipo</option>
+					                              {% if user.is_superuser %}
+					                              <option value="system">Playbook sistema</option>
+					                              {% endif %}
+					                            </select>
+					                          </label>
+					                          <button type="button" class="button" id="task-sim-pack" hidden>Pack presentación</button>
 					                        </div>
 					                        <input type="file" id="task-sim-clip-file" accept="application/json,.json" hidden />
 					                        <div class="sim-options">
@@ -3018,6 +3033,16 @@
 				                        <button type="button" class="pattern-close" id="task-overlays-close" aria-label="Cerrar">×</button>
 				                      </div>
 				                      <div class="pattern-fields">
+				                        <div class="pattern-field" style="grid-column:1 / -1;">
+				                          Preset
+				                          <select id="task-overlays-preset">
+				                            <option value="custom" selected>Personalizado</option>
+				                            <option value="clean">Limpio</option>
+				                            <option value="grid">Carriles + sectores</option>
+				                            <option value="analysis">Análisis (pase + superioridades)</option>
+				                            <option value="full">Completo</option>
+				                          </select>
+				                        </div>
 				                        <label class="pattern-check" style="grid-column:1 / -1;">
 				                          <input type="checkbox" id="task-overlay-snap" />
 				                          Snap a carriles/sectores (Shift: desactiva temporalmente)

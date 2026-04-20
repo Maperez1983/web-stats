@@ -742,6 +742,9 @@
 			    const simVideoStudioBtn = document.getElementById('task-sim-video-studio');
 			    const simClipSaveBtn = document.getElementById('task-sim-clip-save');
 			    const simClipImportBtn = document.getElementById('task-sim-clip-import');
+			    const simClipDestWrap = document.getElementById('task-sim-clip-dest-wrap');
+			    const simClipDestSelect = document.getElementById('task-sim-clip-dest');
+			    const simPackBtn = document.getElementById('task-sim-pack');
 			    const simClipFileInput = document.getElementById('task-sim-clip-file');
 			    const simClipsList = document.getElementById('task-sim-clips');
 				    const simToScenariosBtn = document.getElementById('task-sim-to-scenarios');
@@ -763,6 +766,11 @@
 			    const simRouteSplineInput = document.getElementById('task-sim-route-spline');
 			    const simBallFollowBtn = document.getElementById('task-sim-ball-follow');
 			    const simBallPassBtn = document.getElementById('task-sim-ball-pass');
+			    const playbookListUrlInput = document.getElementById('task-playbook-list-url');
+			    const playbookSaveUrlInput = document.getElementById('task-playbook-save-url');
+			    const playbookDeleteUrlInput = document.getElementById('task-playbook-delete-url');
+			    const overlaysPresetSelect = document.getElementById('task-overlays-preset');
+			    const scenarioTemplate3Btn = document.getElementById('task-scenario-template-3');
 			    const videoStudioModal = document.getElementById('task-video-studio-modal');
 			    const videoStudioCloseBtn = document.getElementById('task-video-studio-close');
 			    const videoStudioPlayer = document.getElementById('task-video-studio-player');
@@ -3431,6 +3439,25 @@
 		      renderTacticalOverlays();
 		      setStatus('Overlays actualizados.');
 		    });
+		    const OVERLAY_PRESETS = {
+		      clean: { snap: false, lanes: false, sectors: false, passlines: false, superiorities: false },
+		      grid: { snap: true, lanes: true, sectors: true, passlines: false, superiorities: false },
+		      analysis: { snap: false, lanes: false, sectors: false, passlines: true, superiorities: true },
+		      full: { snap: true, lanes: true, sectors: true, passlines: true, superiorities: true },
+		    };
+		    overlaysPresetSelect?.addEventListener('change', () => {
+		      const key = safeText(overlaysPresetSelect.value, 'custom');
+		      if (key === 'custom') return;
+		      const preset = OVERLAY_PRESETS[key];
+		      if (!preset) return;
+		      if (overlaySnapInput) overlaySnapInput.checked = !!preset.snap;
+		      if (overlayLanesInput) overlayLanesInput.checked = !!preset.lanes;
+		      if (overlaySectorsInput) overlaySectorsInput.checked = !!preset.sectors;
+		      if (overlayPassLinesInput) overlayPassLinesInput.checked = !!preset.passlines;
+		      if (overlaySuperioritiesInput) overlaySuperioritiesInput.checked = !!preset.superiorities;
+		      try { overlaysApplyBtn?.click?.(); } catch (e) { /* ignore */ }
+		      setStatus('Preset aplicado.');
+		    });
 		    overlaysPopover?.addEventListener('keydown', (event) => {
 		      const key = String(event.key || '').toLowerCase();
 		      if (key === 'escape') {
@@ -3490,6 +3517,8 @@
 						      if (simVideoStudioBtn) simVideoStudioBtn.hidden = !isSimulating;
 						      if (simClipSaveBtn) simClipSaveBtn.hidden = !isSimulating;
 						      if (simClipImportBtn) simClipImportBtn.hidden = !isSimulating;
+						      if (simClipDestWrap) simClipDestWrap.hidden = !isSimulating;
+						      if (simPackBtn) simPackBtn.hidden = !isSimulating;
 						      if (simClipsList) simClipsList.hidden = !isSimulating;
 						      if (simMetaPanel) simMetaPanel.hidden = !isSimulating;
 						      if (simRoutesPanel) simRoutesPanel.hidden = !isSimulating;
@@ -4614,6 +4643,75 @@
 				      return await startSimRecording();
 				    };
 
+				    // Playbook (server): clips guardados por equipo/sistema.
+				    const playbookListUrl = safeText(playbookListUrlInput?.value);
+				    const playbookSaveUrl = safeText(playbookSaveUrlInput?.value);
+				    const playbookDeleteUrl = safeText(playbookDeleteUrlInput?.value);
+				    let playbookClips = [];
+				    let playbookLoading = false;
+				    let playbookLoadedAt = 0;
+
+				    const fetchPlaybookClips = async (options = {}) => {
+				      if (!playbookListUrl) return [];
+				      if (playbookLoading) return playbookClips || [];
+				      const now = Date.now();
+				      const ttl = clamp(Number(options.ttlMs) || 20_000, 5_000, 120_000);
+				      if (!options.force && playbookLoadedAt && (now - playbookLoadedAt) < ttl) return playbookClips || [];
+				      playbookLoading = true;
+				      try {
+				        const url = new URL(playbookListUrl, window.location.origin);
+				        url.searchParams.set('scope', 'team');
+				        url.searchParams.set('include_system', '1');
+				        const resp = await fetch(url.toString(), { credentials: 'same-origin' });
+				        const data = await resp.json().catch(() => ({}));
+				        if (!resp.ok || !data?.ok) throw new Error(data?.error || 'No se pudo cargar Playbook.');
+				        const items = Array.isArray(data?.items) ? data.items : [];
+				        playbookClips = items.slice(0, 120);
+				        playbookLoadedAt = Date.now();
+				        return playbookClips;
+				      } catch (e) {
+				        if (!options.silent) setStatus(e?.message || 'Error al cargar Playbook.', true);
+				        playbookClips = [];
+				        playbookLoadedAt = Date.now();
+				        return [];
+				      } finally {
+				        playbookLoading = false;
+				      }
+				    };
+
+				    const savePlaybookClip = async (payload) => {
+				      if (!playbookSaveUrl) throw new Error('Playbook no disponible.');
+				      const csrf = form.querySelector('input[name="csrfmiddlewaretoken"]')?.value || '';
+				      const resp = await fetch(playbookSaveUrl, {
+				        method: 'POST',
+				        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+				        credentials: 'same-origin',
+				        body: JSON.stringify(payload || {}),
+				      });
+				      const data = await resp.json().catch(() => ({}));
+				      if (resp.status === 409 && safeText(data?.error) === 'exists') {
+				        const ok = window.confirm('Ya existe un clip con ese nombre en el Playbook. ¿Sobrescribir?');
+				        if (!ok) return { ok: false, canceled: true };
+				        return await savePlaybookClip({ ...(payload || {}), overwrite: 1 });
+				      }
+				      if (!resp.ok || !data?.ok) throw new Error(data?.error || 'No se pudo guardar.');
+				      return data;
+				    };
+
+				    const deletePlaybookClip = async (id, scope) => {
+				      if (!playbookDeleteUrl) throw new Error('Playbook no disponible.');
+				      const csrf = form.querySelector('input[name="csrfmiddlewaretoken"]')?.value || '';
+				      const resp = await fetch(playbookDeleteUrl, {
+				        method: 'POST',
+				        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+				        credentials: 'same-origin',
+				        body: JSON.stringify({ id: Number(id) || 0, scope: safeText(scope || 'team') }),
+				      });
+				      const data = await resp.json().catch(() => ({}));
+				      if (!resp.ok || !data?.ok) throw new Error(data?.error || 'No se pudo borrar.');
+				      return data;
+				    };
+
 				    const readClipsLibrary = () => {
 				      if (!canUseStorage) return [];
 				      try {
@@ -4635,7 +4733,38 @@
 				    const renderClipsLibrary = () => {
 				      if (!simClipsList) return;
 				      const clips = readClipsLibrary();
-				      if (!clips.length) {
+				      const playbookRows = (() => {
+				        if (!Array.isArray(playbookClips) || !playbookClips.length) return '';
+				        const rows = playbookClips.slice(0, 80).map((clip) => {
+				          const pid = Number(clip?.id) || 0;
+				          if (!pid) return '';
+				          const name = safeText(clip?.name, `Clip ${pid}`);
+				          const scope = safeText(clip?.scope, 'team');
+				          const when = safeText(clip?.updated_at || clip?.created_at, '');
+				          const canDel = !!clip?.can_delete;
+				          const scopeLabel = scope === 'system' ? 'Sistema' : 'Equipo';
+				          return `
+				            <div class="sim-step" style="display:flex; align-items:center; justify-content:space-between; gap:0.75rem;">
+				              <div style="display:flex; flex-direction:column; gap:0.1rem;">
+				                <strong>${name}</strong>
+				                <span>${scopeLabel}${when ? ` · ${when.slice(0, 10)}` : ''}</span>
+				              </div>
+				              <div style="display:flex; gap:0.4rem; flex-wrap:wrap;">
+				                <button type="button" class="button" data-playbook-load="${pid}">Cargar</button>
+				                <button type="button" class="button" data-playbook-export="${pid}">Export</button>
+				                ${canDel ? `<button type="button" class="button danger" data-playbook-delete="${pid}" data-playbook-scope="${scope}">Borrar</button>` : ''}
+				              </div>
+				            </div>
+				          `;
+				        }).filter(Boolean).join('');
+				        if (!rows) return '';
+				        return `
+				          <div class="timeline-empty" style="opacity:0.92; margin:0.85rem 0 0.35rem;">Playbook (equipo/sistema)</div>
+				          ${rows}
+				        `;
+				      })();
+
+				      if (!clips.length && !playbookRows) {
 				        simClipsList.innerHTML = '<div class="timeline-empty">Clips: todavía no hay ninguno. Pulsa “Guardar clip”.</div>';
 				        return;
 				      }
@@ -4659,6 +4788,7 @@
 				      simClipsList.innerHTML = `
 				        <div class="timeline-empty" style="opacity:0.92; margin-bottom:0.35rem;">Clips guardados (local)</div>
 				        ${rows}
+				        ${playbookRows}
 				      `;
 				      Array.from(simClipsList.querySelectorAll('[data-clip-load]')).forEach((btn) => {
 				        btn.addEventListener('click', () => {
@@ -4694,6 +4824,53 @@
 				          const idx = clamp(Number(btn.getAttribute('data-clip-export') || 0), 0, Math.max(0, clips.length - 1));
 				          const clip = clips[idx];
 				          const payload = { v: 1, name: safeText(clip?.name), created_at: safeText(clip?.created_at), steps: clip?.steps || [] };
+				          const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
+				          downloadBlob(blob, `${fileSafeSlug(payload.name || 'clip')}.json`);
+				        });
+				      });
+
+				      Array.from(simClipsList.querySelectorAll('[data-playbook-load]')).forEach((btn) => {
+				        btn.addEventListener('click', () => {
+				          const id = Number(btn.getAttribute('data-playbook-load') || 0);
+				          const clip = (playbookClips || []).find((it) => Number(it?.id) === id);
+				          const steps = Array.isArray(clip?.steps) ? clip.steps : [];
+				          if (!steps.length) return;
+				          if (simulationPlaying) stopSimulationPlayback();
+				          try { simulationSavedSteps = JSON.parse(JSON.stringify(steps)); } catch (e) { simulationSavedSteps = steps.slice(); }
+				          simulationSavedUpdatedAt = Date.now();
+				          try { simulationSteps = JSON.parse(JSON.stringify(steps)); } catch (e) { simulationSteps = steps.slice(); }
+				          simulationActiveIndex = clamp(0, 0, Math.max(0, simulationSteps.length - 1));
+				          renderSimulationSteps();
+				          void selectSimulationStep(simulationActiveIndex);
+				          syncSimUi();
+				          setStatus(`Clip cargado (Playbook): ${safeText(clip?.name, '')}`);
+				        });
+				      });
+				      Array.from(simClipsList.querySelectorAll('[data-playbook-delete]')).forEach((btn) => {
+				        btn.addEventListener('click', async () => {
+				          const id = Number(btn.getAttribute('data-playbook-delete') || 0);
+				          const scope = safeText(btn.getAttribute('data-playbook-scope') || 'team');
+				          const clip = (playbookClips || []).find((it) => Number(it?.id) === id);
+				          const name = safeText(clip?.name);
+				          const ok = window.confirm(`¿Borrar el clip del Playbook “${name || id}”?`);
+				          if (!ok) return;
+				          try {
+				            await deletePlaybookClip(id, scope);
+				            await fetchPlaybookClips({ force: true, silent: true });
+				            renderClipsLibrary();
+				            setStatus('Clip borrado (Playbook).');
+				          } catch (e) {
+				            setStatus(e?.message || 'No se pudo borrar.', true);
+				          }
+				        });
+				      });
+				      Array.from(simClipsList.querySelectorAll('[data-playbook-export]')).forEach((btn) => {
+				        btn.addEventListener('click', () => {
+				          const id = Number(btn.getAttribute('data-playbook-export') || 0);
+				          const clip = (playbookClips || []).find((it) => Number(it?.id) === id);
+				          const steps = clip?.steps || [];
+				          if (!Array.isArray(steps) || !steps.length) return;
+				          const payload = { v: 1, name: safeText(clip?.name), created_at: safeText(clip?.created_at), updated_at: safeText(clip?.updated_at), steps };
 				          const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
 				          downloadBlob(blob, `${fileSafeSlug(payload.name || 'clip')}.json`);
 				        });
@@ -5360,6 +5537,11 @@
 				      }
 					      syncSimUi();
 					      setStatus(simulationSavedSteps.length ? 'Modo simulación activado (rehidratado). Mueve elementos: no se guardan cambios.' : 'Modo simulación activado. Mueve elementos: no se guardan cambios.');
+					      try {
+					        void fetchPlaybookClips({ silent: true }).then(() => {
+					          try { renderClipsLibrary(); } catch (e) { /* ignore */ }
+					        });
+					      } catch (e) { /* ignore */ }
 					      try { renderClipsLibrary(); } catch (e) { /* ignore */ }
 					    };
 				    const exitSimulation = () => {
@@ -9136,6 +9318,13 @@
 	      .replace(/^-+|-+$/g, '')
 	      .slice(0, 60) || 'tarea';
 
+	    const htmlEscape = (value) => safeText(value || '')
+	      .replace(/&/g, '&amp;')
+	      .replace(/</g, '&lt;')
+	      .replace(/>/g, '&gt;')
+	      .replace(/"/g, '&quot;')
+	      .replace(/'/g, '&#39;');
+
 	    const exportCurrentPng = async (maxWidth) => {
 	      const title = fileSafeSlug(form.querySelector('[name="draw_task_title"]')?.value);
 	      const composite = await buildCompositeCanvas({ maxWidth });
@@ -9362,6 +9551,35 @@
     scenarioAddBtn?.addEventListener('click', () => addTimelineStep(false));
     scenarioDuplicateBtn?.addEventListener('click', () => addTimelineStep(true));
     scenarioRemoveBtn?.addEventListener('click', removeTimelineStep);
+    scenarioTemplate3Btn?.addEventListener('click', async () => {
+      if (isSimulating) {
+        setStatus('Sal del simulador para usar plantillas de escenarios.', true);
+        return;
+      }
+      const willReplace = !!timeline.length;
+      if (willReplace) {
+        const ok = window.confirm('Esto reemplazará los escenarios actuales. ¿Continuar?');
+        if (!ok) return;
+      }
+      persistActiveStepSnapshot();
+      const { w, h } = worldSize();
+      const base = serializeCanvasOnly();
+      const mk = (title) => ({
+        title,
+        duration: 3,
+        canvas_state: sanitizeLoadedState(base),
+        canvas_width: Math.round(w || 0),
+        canvas_height: Math.round(h || 0),
+      });
+      timeline = [mk('Inicio'), mk('Desarrollo'), mk('Final')];
+      activeStepIndex = 0;
+      try { await loadCanvasSnapshotAsync(timeline[0].canvas_state, { sourceWidth: timeline[0].canvas_width, sourceHeight: timeline[0].canvas_height }); } catch (e) { /* ignore */ }
+      renderTimeline();
+      syncStepInputs();
+      pushHistory();
+      refreshLivePreview();
+      setStatus('Plantilla de 3 escenarios creada.');
+    });
     stepTitleInput?.addEventListener('input', () => {
       if (activeStepIndex < 0 || !timeline[activeStepIndex]) return;
       timeline[activeStepIndex].title = safeText(stepTitleInput.value, `Paso ${activeStepIndex + 1}`);
@@ -10185,6 +10403,137 @@
 		      }
 		    };
 
+		    const exportSimulationPresentationPack = async () => {
+		      if (!isSimulating) return;
+		      if (exportInFlight) return;
+		      exportInFlight = true;
+		      stopSimulationPlayback();
+		      const startIndex = clamp(simulationActiveIndex, 0, Math.max(0, simulationSteps.length - 1));
+		      try {
+		        if (!simulationSteps.length) {
+		          setStatus('No hay pasos para exportar.', true);
+		          return;
+		        }
+		        const maxSlides = 20;
+		        const count = Math.min(maxSlides, simulationSteps.length);
+		        if (simulationSteps.length > maxSlides) {
+		          setStatus(`Pack: exportando ${count}/${simulationSteps.length} pasos (límite ${maxSlides}).`);
+		        } else {
+		          setStatus(`Pack: exportando ${count} pasos…`);
+		        }
+		        const title = safeText(form.querySelector('[name="draw_task_title"]')?.value, 'Presentación');
+		        const slides = [];
+		        for (let i = 0; i < count; i += 1) {
+		          const step = simulationSteps[i];
+		          setStatus(`Pack: render ${i + 1}/${count}…`);
+		          await selectSimulationStep(i);
+		          const img = await buildPreviewData({ maxWidth: 1600, mime: 'image/jpeg', quality: 0.88 });
+		          slides.push({
+		            i,
+		            title: safeText(step?.title, `Paso ${i + 1}`),
+		            duration: clamp(Number(step?.duration) || 3, 1, 20),
+		            img: safeText(img),
+		          });
+		          await sleep(120);
+		        }
+		        const payload = {
+		          v: 1,
+		          title: safeText(title),
+		          created_at: new Date().toISOString(),
+		          slides,
+		        };
+		        const safeJson = htmlEscape(JSON.stringify(payload));
+		        const htmlDoc = `<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>${htmlEscape(safeText(title, 'Presentación'))}</title>
+  <style>
+    :root{color-scheme:dark;--bg:#020617;--panel:#0f172a;--muted:rgba(226,232,240,.78);--accent:#22c55e}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;background:radial-gradient(circle at 30% 20%, rgba(34,197,94,.12), var(--bg) 55%);color:#f8fafc}
+    header{padding:16px 18px;border-bottom:1px solid rgba(255,255,255,.10);background:rgba(2,6,23,.72);backdrop-filter:blur(10px);position:sticky;top:0}
+    header h1{margin:0;font-size:18px;letter-spacing:.02em}
+    header .meta{margin-top:4px;color:var(--muted);font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.14em}
+    main{display:grid;grid-template-columns:1fr;gap:12px;padding:14px}
+    .stage{border:1px solid rgba(255,255,255,.12);border-radius:16px;overflow:hidden;background:rgba(15,23,42,.68);box-shadow:rgba(0,0,0,.45) 0 18px 50px}
+    .stage img{display:block;width:100%;height:auto;background:#000}
+    .bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;padding:10px 12px;border-top:1px solid rgba(255,255,255,.10);background:rgba(2,6,23,.55)}
+    .bar strong{font-size:14px}
+    .bar span{color:var(--muted);font-weight:800;font-size:12px}
+    .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    button{appearance:none;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#f8fafc;border-radius:12px;padding:8px 10px;font-weight:900;cursor:pointer}
+    button.primary{background:rgba(34,197,94,.18);border-color:rgba(34,197,94,.35)}
+    input[type=range]{width:min(620px, 62vw)}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>${htmlEscape(safeText(title, 'Presentación'))}</h1>
+    <div class="meta">2J · Tactical Board · Pack</div>
+  </header>
+  <main>
+    <div class="stage">
+      <img id="slideImg" alt="slide" />
+      <div class="bar">
+        <div>
+          <strong id="slideTitle">—</strong><br />
+          <span id="slideMeta">—</span>
+        </div>
+        <div class="controls">
+          <button id="prevBtn">Anterior</button>
+          <button id="playBtn" class="primary">Play</button>
+          <button id="nextBtn">Siguiente</button>
+          <input id="scrub" type="range" min="0" max="0" value="0" />
+        </div>
+      </div>
+    </div>
+  </main>
+  <script id="pack-data" type="application/json">${safeJson}</script>
+  <script>
+  (function(){
+    const dataEl=document.getElementById('pack-data');
+    let pack=null;
+    try{pack=JSON.parse(dataEl.textContent||'{}')}catch(e){pack=null}
+    const slides=Array.isArray(pack&&pack.slides)?pack.slides:[];
+    let idx=0;
+    let timer=null;
+    const img=document.getElementById('slideImg');
+    const title=document.getElementById('slideTitle');
+    const meta=document.getElementById('slideMeta');
+    const scrub=document.getElementById('scrub');
+    const playBtn=document.getElementById('playBtn');
+    const prevBtn=document.getElementById('prevBtn');
+    const nextBtn=document.getElementById('nextBtn');
+    scrub.max=String(Math.max(0, slides.length-1));
+    const render=()=>{
+      const s=slides[idx]||null;
+      if(!s){title.textContent='(sin slides)';meta.textContent='';img.removeAttribute('src');return}
+      img.src=s.img||'';
+      title.textContent=s.title||('Paso '+(idx+1));
+      meta.textContent=(idx+1)+' / '+slides.length+' · '+(s.duration||3)+'s';
+      scrub.value=String(idx);
+    };
+    const stop=()=>{ if(timer){clearTimeout(timer);timer=null} playBtn.textContent='Play'; };
+    const play=()=>{ stop(); playBtn.textContent='Stop'; const tick=()=>{ const s=slides[idx]||{}; const ms=Math.max(800, (Number(s.duration)||3)*1000); timer=setTimeout(()=>{ idx=(idx+1)%slides.length; render(); if(timer){tick()} }, ms); }; timer=true; tick(); };
+    playBtn.addEventListener('click',()=>{ if(timer){ stop(); } else { play(); }});
+    prevBtn.addEventListener('click',()=>{ stop(); idx=Math.max(0, idx-1); render(); });
+    nextBtn.addEventListener('click',()=>{ stop(); idx=Math.min(slides.length-1, idx+1); render(); });
+    scrub.addEventListener('input',()=>{ stop(); idx=Math.max(0, Math.min(slides.length-1, Number(scrub.value)||0)); render(); });
+    render();
+  })();
+  </script>
+</body>
+</html>`;
+		        const blob = new Blob([htmlDoc], { type: 'text/html;charset=utf-8' });
+		        downloadBlob(blob, `${fileSafeSlug(title)}_pack.html`);
+		        setStatus('Pack descargado.');
+		      } finally {
+		        try { await selectSimulationStep(startIndex); } catch (error) { /* ignore */ }
+		        exportInFlight = false;
+		      }
+		    };
+
 			    const shareSimulationLink = async () => {
 		      if (!isSimulating) return;
 		      const shareUrl = safeText(simShareUrlInput?.value);
@@ -10286,6 +10635,10 @@
 			      event.preventDefault();
 			      void exportSimulationAllStepsPng();
 			    });
+			    simPackBtn?.addEventListener('click', (event) => {
+			      event.preventDefault();
+			      void exportSimulationPresentationPack();
+			    });
 			    simClipSaveBtn?.addEventListener('click', (event) => {
 			      event.preventDefault();
 			      if (!isSimulating) return;
@@ -10298,6 +10651,22 @@
 			      if (!name) return;
 			      let steps = [];
 			      try { steps = JSON.parse(JSON.stringify(simulationSteps)); } catch (e) { steps = simulationSteps.slice(); }
+			      const dest = safeText(simClipDestSelect?.value, 'local');
+			      if (dest !== 'local') {
+			        const scope = dest === 'system' ? 'system' : 'team';
+			        (async () => {
+			          try {
+			            const res = await savePlaybookClip({ scope, name: name.slice(0, 160), folder: '', tags: [], steps });
+			            if (res?.canceled) return;
+			            await fetchPlaybookClips({ force: true, silent: true });
+			            renderClipsLibrary();
+			            setStatus(`Clip guardado en Playbook (${scope === 'system' ? 'sistema' : 'equipo'}).`);
+			          } catch (e) {
+			            setStatus(e?.message || 'No se pudo guardar en Playbook.', true);
+			          }
+			        })();
+			        return;
+			      }
 			      const clip = { name: name.slice(0, 120), created_at: new Date().toISOString(), steps };
 			      const prev = readClipsLibrary();
 			      const next = [clip, ...prev].slice(0, 40);
