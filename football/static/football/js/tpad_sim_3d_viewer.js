@@ -21,6 +21,35 @@
     return `${base}:simsteps_v1`;
   };
 
+  const buildSim3dStorageKey = (form) => {
+    if (!form) return 'webstats:tpad:draft:unknown:sim3d_pro_v1';
+    const base = safeText(form.dataset.draftKey) || safeText(form.dataset.draftNewKey) || 'webstats:tpad:draft:unknown';
+    return `${base}:sim3d_pro_v1`;
+  };
+
+  const readSim3dState = (form) => {
+    const key = buildSim3dStorageKey(form);
+    try {
+      const raw = window.localStorage?.getItem(key) || '';
+      const parsed = raw ? JSON.parse(raw) : null;
+      return (parsed && typeof parsed === 'object') ? parsed : { v: 1 };
+    } catch (e) {
+      return { v: 1 };
+    }
+  };
+
+  const writeSim3dState = (form, state) => {
+    const key = buildSim3dStorageKey(form);
+    try {
+      const payload = (state && typeof state === 'object') ? state : { v: 1 };
+      payload.v = 1;
+      payload.updated_at = new Date().toISOString();
+      window.localStorage?.setItem(key, JSON.stringify(payload));
+    } catch (e) {
+      // ignore
+    }
+  };
+
   const readSimSteps = (form) => {
     const key = buildSimStorageKey(form);
     try {
@@ -398,6 +427,14 @@
       this.cameraState = { yaw: 0.0, zoom: 1.0, tilt: 0.86 };
       this.cameraPreset = 'tv';
       this.followBall = false;
+      this.proEnabled = true;
+      this.followMode = 'auto'; // off|auto|ball|selected
+      this.selectedKey = '';
+      this.selectedRing = null;
+      this.overlayGroup = null;
+      this.overlayFlags = { lanes: false, sectors: false, zones: false };
+      this.cameraKeyframesByStep = {};
+      this.proClock = { startAt: 0, dur: 0, speed: 1, t: 0 };
       this.focus = { x: 0, z: 0 };
       this.drag = { active: false, x: 0, y: 0, yaw0: 0 };
       this.onResize = this.onResize.bind(this);
@@ -411,6 +448,10 @@
       this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       this.renderer.setSize(Math.max(1, rect.width), Math.max(1, rect.height), false);
       try { this.renderer.outputColorSpace = THREE.SRGBColorSpace; } catch (e) {}
+      try {
+        this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      } catch (e) {}
 
       this.scene = new THREE.Scene();
       this.scene.background = null;
@@ -424,6 +465,18 @@
       this.scene.add(ambient);
       const dir = new THREE.DirectionalLight(0xffffff, 0.55);
       dir.position.set(40, 80, 40);
+      try {
+        dir.castShadow = true;
+        dir.shadow.mapSize.width = 1024;
+        dir.shadow.mapSize.height = 1024;
+        dir.shadow.camera.near = 10;
+        dir.shadow.camera.far = 220;
+        dir.shadow.camera.left = -70;
+        dir.shadow.camera.right = 70;
+        dir.shadow.camera.top = 70;
+        dir.shadow.camera.bottom = -70;
+        dir.shadow.bias = -0.00015;
+      } catch (e) {}
       this.scene.add(dir);
 
       const buildGrassTexture = () => {
@@ -481,6 +534,7 @@
       );
       grass.rotation.x = -Math.PI / 2;
       grass.position.y = 0;
+      try { grass.receiveShadow = true; } catch (e) {}
       this.pitchGroup.add(grass);
 
       // Marcas del campo (3D): usamos tiras finas (mesh) para que el grosor sea visible.
@@ -682,6 +736,25 @@
       this.pitchGroup.add(buildGoal(-halfH));
       this.pitchGroup.add(buildGoal(halfH));
 
+      // Overlays 3D (carriles/sectores/zonas) en una capa separada.
+      this.overlayGroup = new THREE.Group();
+      this.overlayGroup.position.y = 0.06;
+      this.pitchGroup.add(this.overlayGroup);
+      this.renderOverlays();
+
+      // Selector ring (click jugador).
+      try {
+        const ring = new THREE.Mesh(
+          new THREE.RingGeometry(1.7, 2.25, 34),
+          new THREE.MeshStandardMaterial({ color: 0xfacc15, transparent: true, opacity: 0.9, roughness: 0.8, metalness: 0.0, side: THREE.DoubleSide, emissive: new THREE.Color(0xf59e0b), emissiveIntensity: 0.25 }),
+        );
+        ring.rotation.x = -Math.PI / 2;
+        ring.position.set(0, 0.07, 0);
+        ring.visible = false;
+        this.selectedRing = ring;
+        this.pitchGroup.add(ring);
+      } catch (e) { /* ignore */ }
+
       this.camera = new THREE.PerspectiveCamera(40, 1, 0.1, 500);
       this.applyCamera();
 
@@ -709,21 +782,66 @@
         this.drag.x = ev.clientX || 0;
         this.drag.y = ev.clientY || 0;
         this.drag.yaw0 = this.cameraState.yaw;
+        this.drag.downAt = performance.now();
+        this.drag.moved = false;
       };
       const onMove = (ev) => {
         if (!this.drag.active) return;
         const dx = (ev.clientX || 0) - this.drag.x;
+        if (Math.abs(dx) > 4) this.drag.moved = true;
         this.cameraState.yaw = this.drag.yaw0 + (dx / 300);
         this.applyCamera();
       };
-      const onUp = () => { this.drag.active = false; };
+      const pickAt = (clientX, clientY) => {
+        if (!this.renderer || !this.camera || !this.scene) return null;
+        if (!window.THREE) return null;
+        const rect = this.canvas.getBoundingClientRect();
+        const xN = ((clientX - rect.left) / Math.max(1, rect.width)) * 2 - 1;
+        const yN = -(((clientY - rect.top) / Math.max(1, rect.height)) * 2 - 1);
+        const ray = new THREE.Raycaster();
+        ray.setFromCamera({ x: xN, y: yN }, this.camera);
+        const candidates = [];
+        for (const mesh of this.meshByKey.values()) {
+          const kind = safeText(mesh?.userData?.kind).toLowerCase();
+          if (kind !== 'token' && kind !== 'ball') continue;
+          candidates.push(mesh);
+        }
+        const hits = ray.intersectObjects(candidates, true);
+        const first = hits?.[0]?.object || null;
+        if (!first) return null;
+        let obj = first;
+        // Subir hasta el objeto con key.
+        for (let i = 0; i < 4 && obj; i += 1) {
+          if (safeText(obj?.userData?.key)) break;
+          obj = obj.parent;
+        }
+        const key = safeText(obj?.userData?.key) || safeText(first?.userData?.key);
+        if (!key) return null;
+        const kind = safeText(obj?.userData?.kind) || safeText(first?.userData?.kind);
+        return { key, kind };
+      };
+      const onUp = (ev) => {
+        const now = performance.now();
+        const dt = now - (Number(this.drag.downAt) || now);
+        const moved = !!this.drag.moved;
+        const x = ev?.clientX || 0;
+        const y = ev?.clientY || 0;
+        this.drag.active = false;
+        if (!moved && dt < 260) {
+          const hit = pickAt(x, y);
+          if (hit && safeText(hit.kind).toLowerCase() === 'token') {
+            this.setSelectedKey(hit.key);
+            if (this.followMode === 'selected') this.applyCamera();
+          }
+        }
+      };
       this.canvas.addEventListener('pointerdown', (ev) => {
         try { this.canvas.setPointerCapture(ev.pointerId); } catch (e) {}
         onDown(ev);
       });
       this.canvas.addEventListener('pointermove', onMove);
       this.canvas.addEventListener('pointerup', onUp);
-      this.canvas.addEventListener('pointercancel', onUp);
+      this.canvas.addEventListener('pointercancel', () => { this.drag.active = false; });
       this.canvas.addEventListener('wheel', (ev) => {
         ev.preventDefault();
         const delta = Math.sign(ev.deltaY || 0);
@@ -757,6 +875,87 @@
       this.camera.lookAt(fx, 0, fz);
     }
 
+    setProEnabled(enabled) {
+      this.proEnabled = !!enabled;
+    }
+
+    setFollowMode(mode) {
+      const m = safeText(mode, 'auto').toLowerCase();
+      this.followMode = (m === 'off' || m === 'ball' || m === 'selected' || m === 'auto') ? m : 'auto';
+      this.followBall = this.followMode === 'ball';
+      if (this.followMode === 'off') this.focus = { x: 0, z: 0 };
+      this.applyCamera();
+    }
+
+    setSelectedKey(key) {
+      this.selectedKey = safeText(key);
+    }
+
+    setOverlaysPreset(preset) {
+      const p = safeText(preset, 'off').toLowerCase();
+      this.overlayFlags = { lanes: false, sectors: false, zones: false };
+      if (p === 'lanes') this.overlayFlags.lanes = true;
+      if (p === 'sectors') this.overlayFlags.sectors = true;
+      if (p === 'all') this.overlayFlags = { lanes: true, sectors: true, zones: true };
+      this.renderOverlays();
+    }
+
+    renderOverlays() {
+      if (!this.overlayGroup || !window.THREE) return;
+      // Limpia.
+      try {
+        while (this.overlayGroup.children.length) {
+          const child = this.overlayGroup.children[0];
+          try { this.overlayGroup.remove(child); } catch (e) {}
+          try { child.geometry?.dispose?.(); } catch (e) {}
+          try { child.material?.dispose?.(); } catch (e) {}
+        }
+      } catch (e) { /* ignore */ }
+      const flags = this.overlayFlags || {};
+      if (!flags.lanes && !flags.sectors && !flags.zones) return;
+      const pitchW = 100;
+      const pitchH = 65;
+      const halfW = pitchW / 2;
+      const halfH = pitchH / 2;
+      const mat = new THREE.LineBasicMaterial({ color: 0xf8fafc, transparent: true, opacity: 0.20 });
+      const addLine = (x1, z1, x2, z2) => {
+        const geo = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(x1, 0, z1),
+          new THREE.Vector3(x2, 0, z2),
+        ]);
+        const line = new THREE.Line(geo, mat.clone());
+        line.userData = { kind: 'overlay', static: true };
+        this.overlayGroup.add(line);
+      };
+      if (flags.lanes) {
+        const lanes = 5;
+        for (let i = 1; i < lanes; i += 1) {
+          const x = -halfW + (i * pitchW) / lanes;
+          addLine(x, -halfH, x, halfH);
+        }
+      }
+      if (flags.sectors) {
+        const sectors = 3;
+        for (let i = 1; i < sectors; i += 1) {
+          const z = -halfH + (i * pitchH) / sectors;
+          addLine(-halfW, z, halfW, z);
+        }
+      }
+      if (flags.zones) {
+        const zoneMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.06, roughness: 0.98, metalness: 0.0 });
+        const thirds = 3;
+        for (let i = 0; i < thirds; i += 1) {
+          const z0 = -halfH + (i * pitchH) / thirds;
+          const z1 = -halfH + ((i + 1) * pitchH) / thirds;
+          const plane = new THREE.Mesh(new THREE.PlaneGeometry(pitchW, Math.max(1, z1 - z0), 1, 1), zoneMat.clone());
+          plane.rotation.x = -Math.PI / 2;
+          plane.position.set(0, 0.01, (z0 + z1) / 2);
+          plane.userData = { kind: 'overlay-zone', static: true };
+          this.overlayGroup.add(plane);
+        }
+      }
+    }
+
     setCameraPreset(preset) {
       const p = safeText(preset, 'tv');
       this.cameraPreset = p;
@@ -778,9 +977,104 @@
 
     setFollowBall(enabled) {
       this.followBall = !!enabled;
+      if (this.followBall) this.followMode = 'ball';
       if (!this.followBall) {
         this.focus = { x: 0, z: 0 };
       }
+      this.applyCamera();
+    }
+
+    cameraKeyframesForStep(stepIdx) {
+      const idx = Number(stepIdx);
+      const key = Number.isFinite(idx) ? String(idx) : '0';
+      const list = this.cameraKeyframesByStep?.[key];
+      return Array.isArray(list) ? list : [];
+    }
+
+    setCameraKeyframesForStep(stepIdx, keyframes) {
+      const idx = Number(stepIdx);
+      const key = Number.isFinite(idx) ? String(idx) : '0';
+      const list = Array.isArray(keyframes) ? keyframes : [];
+      const cleaned = list
+        .map((kf) => ({
+          id: safeText(kf?.id) || `ckf_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+          t: Math.max(0, Number(kf?.t) || 0),
+          preset: safeText(kf?.preset, 'tv'),
+          yaw: Number(kf?.yaw),
+          zoom: Number(kf?.zoom),
+          tilt: Number(kf?.tilt),
+          follow_mode: safeText(kf?.follow_mode, 'auto'),
+          follow_key: safeText(kf?.follow_key),
+        }))
+        .sort((a, b) => a.t - b.t)
+        .slice(0, 60);
+      this.cameraKeyframesByStep = (this.cameraKeyframesByStep && typeof this.cameraKeyframesByStep === 'object') ? this.cameraKeyframesByStep : {};
+      this.cameraKeyframesByStep[key] = cleaned;
+      return cleaned;
+    }
+
+    cameraSnapshot() {
+      return {
+        preset: this.cameraPreset,
+        yaw: Number(this.cameraState.yaw) || 0,
+        zoom: Number(this.cameraState.zoom) || 1,
+        tilt: Number(this.cameraState.tilt) || 0.86,
+        follow_mode: this.followMode,
+        follow_key: safeText(this.selectedKey),
+      };
+    }
+
+    applyCameraSnapshot(snap) {
+      const s = (snap && typeof snap === 'object') ? snap : {};
+      this.cameraPreset = safeText(s.preset, this.cameraPreset || 'tv');
+      if (Number.isFinite(Number(s.yaw))) this.cameraState.yaw = Number(s.yaw);
+      if (Number.isFinite(Number(s.zoom))) this.cameraState.zoom = clamp(Number(s.zoom), 0.55, 1.6);
+      if (Number.isFinite(Number(s.tilt))) this.cameraState.tilt = clamp(Number(s.tilt), 0.45, 1.25);
+      const fm = safeText(s.follow_mode, this.followMode);
+      if (fm) this.followMode = fm;
+      const fk = safeText(s.follow_key);
+      if (fk) this.selectedKey = fk;
+      this.applyCamera();
+    }
+
+    seekProTime(seconds) {
+      const t = Math.max(0, Number(seconds) || 0);
+      const speed = clamp(Number(this.proClock.speed) || 1, 0.25, 3);
+      this.proClock.t = t;
+      this.proClock.startAt = performance.now() - ((t / speed) * 1000);
+      this.applyCameraKeyframes();
+    }
+
+    applyCameraKeyframes() {
+      if (!this.proEnabled) return;
+      const step = this.steps[this.stepIndex] || {};
+      const dur = clamp(Number(step.duration) || 3, 1, 20);
+      const t = clamp(Number(this.proClock.t) || 0, 0, dur);
+      const kfs = this.cameraKeyframesForStep(this.stepIndex);
+      if (!kfs.length) return;
+      let a = kfs[0];
+      let b = kfs[kfs.length - 1];
+      for (let i = 0; i < kfs.length; i += 1) {
+        if (kfs[i].t <= t + 0.0001) a = kfs[i];
+        if (kfs[i].t >= t - 0.0001) { b = kfs[i]; break; }
+      }
+      if (!a) return;
+      if (!b) b = a;
+      const span = Math.max(0.0001, (Number(b.t) || 0) - (Number(a.t) || 0));
+      const local = clamp((t - (Number(a.t) || 0)) / span, 0, 1);
+      const lerp = (x0, x1) => (Number(x0) || 0) + (((Number(x1) || 0) - (Number(x0) || 0)) * local);
+      const yaw = lerp(a.yaw, b.yaw);
+      const zoom = lerp(a.zoom, b.zoom);
+      const tilt = lerp(a.tilt, b.tilt);
+      this.cameraState.yaw = Number.isFinite(yaw) ? yaw : this.cameraState.yaw;
+      this.cameraState.zoom = Number.isFinite(zoom) ? clamp(zoom, 0.55, 1.6) : this.cameraState.zoom;
+      this.cameraState.tilt = Number.isFinite(tilt) ? clamp(tilt, 0.45, 1.25) : this.cameraState.tilt;
+      // Cambios discretos (preset/follow) al cruzar mitad.
+      const use = local >= 0.5 ? b : a;
+      this.cameraPreset = safeText(use?.preset, this.cameraPreset || 'tv');
+      this.followMode = safeText(use?.follow_mode, this.followMode || 'auto');
+      this.followBall = this.followMode === 'ball';
+      if (safeText(use?.follow_key)) this.selectedKey = safeText(use.follow_key);
       this.applyCamera();
     }
 
@@ -849,6 +1143,17 @@
         prevMap,
         nextMap,
       };
+
+      // Reset clock for camera keyframes within this step.
+      try {
+        const speed = clamp(Number(this.speedEl?.value) || 1, 0.25, 3);
+        const duration = clamp(Number(next?.duration) || 3, 1, 20);
+        this.proClock.speed = speed;
+        this.proClock.dur = duration;
+        this.proClock.t = 0;
+        this.proClock.startAt = performance.now();
+        if (this.proEnabled) this.applyCameraKeyframes();
+      } catch (e) { /* ignore */ }
     }
 
     updateLabel() {
@@ -879,6 +1184,10 @@
         const duration = clamp(Number(step.duration) || 3, 1, 20);
         const totalMs = Math.round((duration / speed) * 1000);
         const transMs = clamp(Math.round(totalMs * 0.35), 220, 900);
+        this.proClock.speed = speed;
+        this.proClock.dur = duration;
+        this.proClock.t = 0;
+        this.proClock.startAt = performance.now();
         this.setStep(this.stepIndex, { transitionMs: transMs });
         this.playTimer = window.setTimeout(() => {
           this.stepIndex = (this.stepIndex + 1) % this.steps.length;
@@ -1097,7 +1406,8 @@
           new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.6, metalness: 0.0 }),
         );
         mesh.position.set(x, 1.0, z);
-        mesh.userData = { kind: 'ball' };
+        try { mesh.castShadow = true; } catch (e) {}
+        mesh.userData = { kind: 'ball', key: safeText(item.k) };
         return mesh;
       }
       if (item.kind === 'cone') {
@@ -1106,7 +1416,8 @@
           new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.75, metalness: 0.0 }),
         );
         mesh.position.set(x, 1.4, z);
-        mesh.userData = { kind: 'cone' };
+        try { mesh.castShadow = true; } catch (e) {}
+        mesh.userData = { kind: 'cone', key: safeText(item.k) };
         return mesh;
       }
       if (item.kind === 'goal') {
@@ -1115,7 +1426,8 @@
           new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.95, metalness: 0.0 }),
         );
         mesh.position.set(x, 1.0, z);
-        mesh.userData = { kind: 'goal' };
+        try { mesh.castShadow = true; } catch (e) {}
+        mesh.userData = { kind: 'goal', key: safeText(item.k) };
         return mesh;
       }
       if (item.kind === 'token') {
@@ -1128,7 +1440,8 @@
           new THREE.MeshStandardMaterial({ color, roughness: 0.55, metalness: 0.0 }),
         );
         mesh.position.set(x, 1.3, z);
-        mesh.userData = { kind: 'token' };
+        try { mesh.castShadow = true; } catch (e) {}
+        mesh.userData = { kind: 'token', key: safeText(item.k), label: safeText(item.label) };
         return mesh;
       }
       if (item.kind === 'polyline' || item.kind === 'arrow-line' || item.kind === 'sim-move') {
@@ -1223,13 +1536,62 @@
       if (!this.renderer || !this.scene || !this.camera) return;
       const now = performance.now();
       this.applyTransition(now);
-      if (this.followBall) {
-        const ball = this.findMeshByKind('ball');
-        const tx = ball ? Number(ball.position?.x) || 0 : 0;
-        const tz = ball ? Number(ball.position?.z) || 0 : 0;
-        this.focus.x = (Number(this.focus?.x) || 0) + ((tx - (Number(this.focus?.x) || 0)) * 0.08);
-        this.focus.z = (Number(this.focus?.z) || 0) + ((tz - (Number(this.focus?.z) || 0)) * 0.08);
+      // Clock Pro (para keyframes).
+      if (this.playing) {
+        const step = this.steps[this.stepIndex] || {};
+        const dur = clamp(Number(step.duration) || 3, 1, 20);
+        const speed = clamp(Number(this.proClock.speed) || 1, 0.25, 3);
+        const elapsed = ((now - (Number(this.proClock.startAt) || now)) / 1000) * speed;
+        this.proClock.dur = dur;
+        this.proClock.t = clamp(elapsed, 0, dur);
+      } else {
+        this.proClock.t = clamp(Number(this.proClock.t) || 0, 0, clamp(Number(this.proClock.dur) || 3, 1, 20));
+      }
+      if (this.proEnabled) this.applyCameraKeyframes();
+
+      // Seguimiento inteligente.
+      const follow = safeText(this.followMode, 'auto');
+      if (follow !== 'off') {
+        const pickMesh = () => {
+          if (follow === 'ball') return this.findMeshByKind('ball');
+          if (follow === 'selected') {
+            const m = this.selectedKey ? this.meshByKey.get(this.selectedKey) : null;
+            if (m) return m;
+            return this.findMeshByKind('ball');
+          }
+          // auto: balón si existe, si no centro de masas de tokens.
+          const ball = this.findMeshByKind('ball');
+          if (ball) return ball;
+          const tokens = [];
+          for (const mesh of this.meshByKey.values()) {
+            if (safeText(mesh?.userData?.kind).toLowerCase() !== 'token') continue;
+            tokens.push(mesh);
+          }
+          if (!tokens.length) return null;
+          const sum = tokens.reduce((acc, m) => ({ x: acc.x + (Number(m.position?.x) || 0), z: acc.z + (Number(m.position?.z) || 0) }), { x: 0, z: 0 });
+          const cx = sum.x / tokens.length;
+          const cz = sum.z / tokens.length;
+          return { position: { x: cx, z: cz } };
+        };
+        const tgt = pickMesh();
+        const tx = tgt ? Number(tgt.position?.x) || 0 : 0;
+        const tz = tgt ? Number(tgt.position?.z) || 0 : 0;
+        const f = 0.08;
+        this.focus.x = (Number(this.focus?.x) || 0) + ((tx - (Number(this.focus?.x) || 0)) * f);
+        this.focus.z = (Number(this.focus?.z) || 0) + ((tz - (Number(this.focus?.z) || 0)) * f);
         this.applyCamera();
+      }
+
+      // Ring seleccionado.
+      if (this.selectedRing) {
+        const mesh = this.selectedKey ? this.meshByKey.get(this.selectedKey) : null;
+        if (mesh) {
+          this.selectedRing.visible = true;
+          this.selectedRing.position.x = Number(mesh.position?.x) || 0;
+          this.selectedRing.position.z = Number(mesh.position?.z) || 0;
+        } else {
+          this.selectedRing.visible = false;
+        }
       }
       this.renderer.render(this.scene, this.camera);
       this.animFrame = requestAnimationFrame(this.tick);
@@ -1251,6 +1613,13 @@
     const recordBtn = document.getElementById('task-sim-3d-record');
     const cameraSelect = document.getElementById('task-sim-3d-camera');
     const followInput = document.getElementById('task-sim-3d-follow');
+    const proInput = document.getElementById('task-sim-3d-pro');
+    const followModeSelect = document.getElementById('task-sim-3d-follow-mode');
+    const overlaysSelect = document.getElementById('task-sim-3d-overlays');
+    const camKfAddBtn = document.getElementById('task-sim-3d-kf-add');
+    const camKfDelBtn = document.getElementById('task-sim-3d-kf-del');
+    const camKfClearBtn = document.getElementById('task-sim-3d-kf-clear');
+    const camKfListEl = document.getElementById('task-sim-3d-kf-list');
     if (!openBtn || !modal || !canvas) return;
 
     let viewer = null;
@@ -1258,6 +1627,68 @@
     let recordChunks = [];
     let recordStream = null;
     let recording = false;
+    let sim3dState = readSim3dState(form);
+    let activeCamKfId = '';
+
+    const persistState = () => {
+      writeSim3dState(form, sim3dState);
+    };
+
+    const stepKey = () => {
+      const idx = Number(viewer?.stepIndex) || 0;
+      return String(idx);
+    };
+
+    const readStepKfs = () => {
+      const byStep = (sim3dState?.by_step && typeof sim3dState.by_step === 'object') ? sim3dState.by_step : {};
+      const entry = (byStep?.[stepKey()] && typeof byStep[stepKey()] === 'object') ? byStep[stepKey()] : {};
+      const kfs = Array.isArray(entry?.camera_kfs) ? entry.camera_kfs : [];
+      return kfs.slice(0, 60);
+    };
+
+    const writeStepKfs = (kfs) => {
+      sim3dState.by_step = (sim3dState.by_step && typeof sim3dState.by_step === 'object') ? sim3dState.by_step : {};
+      sim3dState.by_step[stepKey()] = {
+        camera_kfs: Array.isArray(kfs) ? kfs.slice(0, 60) : [],
+      };
+      persistState();
+    };
+
+    const formatClock = (seconds) => {
+      const s = Math.max(0, Number(seconds) || 0);
+      const mm = Math.floor(s / 60);
+      const ss = Math.floor(s % 60);
+      return `${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
+    };
+
+    const renderCamKfList = () => {
+      if (!camKfListEl || !viewer) return;
+      const kfs = viewer.cameraKeyframesForStep(viewer.stepIndex);
+      camKfListEl.innerHTML = '';
+      if (!kfs.length) {
+        camKfListEl.hidden = true;
+        return;
+      }
+      camKfListEl.hidden = false;
+      kfs.forEach((kf) => {
+        const row = document.createElement('div');
+        row.className = 'video-layer-item';
+        if (safeText(kf.id) && safeText(kf.id) === safeText(activeCamKfId)) row.classList.add('is-active');
+        const label = `${formatClock(kf.t)} · ${safeText(kf.preset, 'tv')} · ${safeText(kf.follow_mode, 'auto')}`;
+        row.innerHTML = `
+          <div>
+            <strong>🎥 ${label}</strong>
+            <div class="video-layer-meta">yaw ${Number(kf.yaw).toFixed(2)} · zoom ${Number(kf.zoom).toFixed(2)} · tilt ${Number(kf.tilt).toFixed(2)}</div>
+          </div>
+          <div style="display:flex; gap:0.45rem; flex-wrap:wrap; justify-content:flex-end;">
+            <button type="button" class="button" data-cam-kf-go="${kf.id}">Ir</button>
+            <button type="button" class="button danger" data-cam-kf-del="${kf.id}">Borrar</button>
+          </div>
+        `;
+        row.setAttribute('data-cam-kf', safeText(kf.id));
+        camKfListEl.appendChild(row);
+      });
+    };
 
     const canRecord = () => {
       try {
@@ -1413,6 +1844,7 @@
     const open = () => {
       modal.hidden = false;
       document.body.style.overflow = 'hidden';
+      sim3dState = readSim3dState(form);
       const steps = buildSteps();
       if (!viewer) {
         viewer = new Sim3DViewer(canvas, labelEl, speedEl);
@@ -1429,17 +1861,41 @@
       viewer.setStep(0, { transitionMs: 1 });
       viewer.updateLabel();
       try { viewer.setCameraPreset(safeText(cameraSelect?.value, 'tv')); } catch (e) {}
-      try { viewer.setFollowBall(!!followInput?.checked); } catch (e) {}
+      try {
+        const proEnabled = sim3dState?.pro_enabled !== false;
+        const followMode = safeText(sim3dState?.follow_mode, 'auto');
+        const overlays = safeText(sim3dState?.overlays, 'off');
+        const selectedKey = safeText(sim3dState?.selected_key);
+        viewer.setProEnabled(!!proEnabled);
+        viewer.setFollowMode(followMode);
+        viewer.setOverlaysPreset(overlays);
+        if (selectedKey) viewer.setSelectedKey(selectedKey);
+        if (proInput) proInput.checked = !!proEnabled;
+        if (followModeSelect) followModeSelect.value = followMode;
+        if (overlaysSelect) overlaysSelect.value = overlays;
+        if (followInput) followInput.checked = followMode === 'ball';
+        // Carga keyframes por paso.
+        const byStep = (sim3dState?.by_step && typeof sim3dState.by_step === 'object') ? sim3dState.by_step : {};
+        Object.entries(byStep).slice(0, 40).forEach(([k, entry]) => {
+          const list = Array.isArray(entry?.camera_kfs) ? entry.camera_kfs : [];
+          viewer.setCameraKeyframesForStep(Number(k), list);
+        });
+      } catch (e) { /* ignore */ }
       if (playBtn) playBtn.textContent = 'Reproducir';
       setFsUi();
       setRecordUi(false);
       if (recordBtn) recordBtn.disabled = !canRecord();
+      renderCamKfList();
     };
 
     const close = () => {
       modal.hidden = true;
       document.body.style.overflow = '';
-      if (viewer) viewer.stop();
+      if (viewer) {
+        viewer.stop();
+        sim3dState.selected_key = safeText(viewer.selectedKey);
+        persistState();
+      }
       if (playBtn) playBtn.textContent = 'Reproducir';
       if (recording) {
         try { stopRecording(); } catch (e) {}
@@ -1459,6 +1915,7 @@
       viewer.stepIndex = clamp(viewer.stepIndex - 1, 0, Math.max(0, viewer.steps.length - 1));
       viewer.setStep(viewer.stepIndex, { transitionMs: 320 });
       if (playBtn) playBtn.textContent = 'Reproducir';
+      renderCamKfList();
     });
     nextBtn?.addEventListener('click', () => {
       if (!viewer) return;
@@ -1466,6 +1923,7 @@
       viewer.stepIndex = clamp(viewer.stepIndex + 1, 0, Math.max(0, viewer.steps.length - 1));
       viewer.setStep(viewer.stepIndex, { transitionMs: 320 });
       if (playBtn) playBtn.textContent = 'Reproducir';
+      renderCamKfList();
     });
     playBtn?.addEventListener('click', () => {
       if (!viewer) return;
@@ -1478,7 +1936,124 @@
     });
     followInput?.addEventListener('change', () => {
       if (!viewer) return;
-      viewer.setFollowBall(!!followInput.checked);
+      const checked = !!followInput.checked;
+      const mode = checked ? 'ball' : (safeText(followModeSelect?.value, 'auto') === 'ball' ? 'auto' : safeText(followModeSelect?.value, 'off'));
+      viewer.setFollowMode(mode);
+      if (followModeSelect) followModeSelect.value = mode;
+      sim3dState.follow_mode = mode;
+      persistState();
+    });
+    proInput?.addEventListener('change', () => {
+      if (!viewer) return;
+      const on = !!proInput.checked;
+      viewer.setProEnabled(on);
+      sim3dState.pro_enabled = on;
+      persistState();
+    });
+    followModeSelect?.addEventListener('change', () => {
+      if (!viewer) return;
+      const mode = safeText(followModeSelect.value, 'auto');
+      viewer.setFollowMode(mode);
+      if (followInput) followInput.checked = mode === 'ball';
+      sim3dState.follow_mode = mode;
+      persistState();
+    });
+    overlaysSelect?.addEventListener('change', () => {
+      if (!viewer) return;
+      const val = safeText(overlaysSelect.value, 'off');
+      viewer.setOverlaysPreset(val);
+      sim3dState.overlays = val;
+      persistState();
+    });
+
+    const addCamKf = () => {
+      if (!viewer) return;
+      const step = viewer.steps[viewer.stepIndex] || {};
+      const dur = clamp(Number(step.duration) || 3, 1, 20);
+      const t = clamp(Number(viewer.proClock?.t) || 0, 0, dur);
+      const snap = viewer.cameraSnapshot();
+      const kfs = viewer.cameraKeyframesForStep(viewer.stepIndex).slice(0, 60);
+      const kf = {
+        id: `ckf_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+        t,
+        preset: safeText(cameraSelect?.value, snap.preset || 'tv'),
+        yaw: Number(snap.yaw) || 0,
+        zoom: Number(snap.zoom) || 1,
+        tilt: Number(snap.tilt) || 0.86,
+        follow_mode: safeText(viewer.followMode, 'auto'),
+        follow_key: safeText(viewer.selectedKey),
+      };
+      kfs.push(kf);
+      const merged = viewer.setCameraKeyframesForStep(viewer.stepIndex, kfs);
+      writeStepKfs(merged);
+      activeCamKfId = kf.id;
+      renderCamKfList();
+    };
+    const delCamKf = () => {
+      if (!viewer) return;
+      const kfs = viewer.cameraKeyframesForStep(viewer.stepIndex).slice(0, 60);
+      if (!kfs.length) return;
+      const t = Number(viewer.proClock?.t) || 0;
+      let idx = -1;
+      if (safeText(activeCamKfId)) idx = kfs.findIndex((k) => safeText(k.id) === safeText(activeCamKfId));
+      if (idx < 0) {
+        let best = { idx: -1, dist: 999 };
+        kfs.forEach((k, i) => {
+          const d = Math.abs((Number(k.t) || 0) - t);
+          if (d < best.dist) best = { idx: i, dist: d };
+        });
+        if (best.idx >= 0 && best.dist <= 0.5) idx = best.idx;
+      }
+      if (idx < 0) return;
+      kfs.splice(idx, 1);
+      const merged = viewer.setCameraKeyframesForStep(viewer.stepIndex, kfs);
+      writeStepKfs(merged);
+      activeCamKfId = safeText(merged[0]?.id);
+      renderCamKfList();
+    };
+    const clearCamKf = () => {
+      if (!viewer) return;
+      const ok = window.confirm('¿Limpiar todos los keyframes de cámara de este paso?'); // eslint-disable-line no-alert
+      if (!ok) return;
+      const merged = viewer.setCameraKeyframesForStep(viewer.stepIndex, []);
+      writeStepKfs(merged);
+      activeCamKfId = '';
+      renderCamKfList();
+    };
+    camKfAddBtn?.addEventListener('click', addCamKf);
+    camKfDelBtn?.addEventListener('click', delCamKf);
+    camKfClearBtn?.addEventListener('click', clearCamKf);
+
+    camKfListEl?.addEventListener('click', (ev) => {
+      if (!viewer) return;
+      const target = ev.target instanceof Element ? ev.target : null;
+      if (!target) return;
+      const goId = safeText(target.getAttribute('data-cam-kf-go'));
+      const delId = safeText(target.getAttribute('data-cam-kf-del'));
+      const row = target.closest?.('[data-cam-kf]');
+      const rowId = safeText(row?.getAttribute?.('data-cam-kf'));
+      if (goId) {
+        const kfs = viewer.cameraKeyframesForStep(viewer.stepIndex);
+        const kf = kfs.find((k) => safeText(k.id) === goId);
+        if (kf) {
+          activeCamKfId = goId;
+          viewer.applyCameraSnapshot(kf);
+          viewer.seekProTime(Number(kf.t) || 0);
+          sim3dState.selected_key = safeText(viewer.selectedKey);
+          persistState();
+          renderCamKfList();
+        }
+        return;
+      }
+      if (delId) {
+        activeCamKfId = delId;
+        delCamKf();
+        return;
+      }
+      if (rowId) {
+        activeCamKfId = rowId;
+        renderCamKfList();
+      }
     });
     fullscreenBtn?.addEventListener('click', () => {
       void toggleFullscreen();
