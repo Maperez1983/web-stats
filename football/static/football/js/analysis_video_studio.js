@@ -54,10 +54,26 @@
     const projectsUrl = safeText(document.getElementById('vs-projects-url')?.value);
     const projectSaveUrl = safeText(document.getElementById('vs-project-save-url')?.value);
     const projectDeleteUrl = safeText(document.getElementById('vs-project-delete-url')?.value);
+    const clipsUrl = safeText(document.getElementById('vs-clips-url')?.value);
+    const clipSaveUrl = safeText(document.getElementById('vs-clip-save-url')?.value);
+    const clipDeleteUrl = safeText(document.getElementById('vs-clip-delete-url')?.value);
+    const timelineUrl = safeText(document.getElementById('vs-timeline-url')?.value);
+    const timelineSaveUrl = safeText(document.getElementById('vs-timeline-save-url')?.value);
+    const timelineDeleteUrl = safeText(document.getElementById('vs-timeline-delete-url')?.value);
     const projectTitleInput = document.getElementById('vs-project-title');
     const projectSaveBtn = document.getElementById('vs-project-save');
     const projectRefreshBtn = document.getElementById('vs-project-refresh');
     const projectsList = document.getElementById('vs-projects');
+    const clipTitleInput = document.getElementById('vs-clip-title');
+    const clipCollectionInput = document.getElementById('vs-clip-collection');
+    const clipSaveBtn = document.getElementById('vs-clip-save');
+    const clipRefreshBtn = document.getElementById('vs-clip-refresh');
+    const clipsList = document.getElementById('vs-clips');
+    const eventKindSelect = document.getElementById('vs-event-kind');
+    const eventLabelInput = document.getElementById('vs-event-label');
+    const eventAddBtn = document.getElementById('vs-event-add');
+    const eventRefreshBtn = document.getElementById('vs-event-refresh');
+    const timelineList = document.getElementById('vs-timeline');
 
     const csrf = document.querySelector('input[name="csrfmiddlewaretoken"]')?.value || '';
 
@@ -106,6 +122,13 @@
     });
     video.addEventListener('loadeddata', scheduleResize);
     scheduleResize();
+
+    const fmtTime = (seconds) => {
+      const s = Math.max(0, Number(seconds) || 0);
+      const mm = Math.floor(s / 60);
+      const ss = Math.floor(s % 60);
+      return `${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
+    };
 
     let tool = 'select';
     let arrowStart = null;
@@ -372,6 +395,30 @@
       return await startRecording({ from: start, to: end });
     });
 
+    // Shortcuts (Video Analysis Pro)
+    document.addEventListener('keydown', (event) => {
+      const key = String(event.key || '').toLowerCase();
+      const tag = String(event.target?.tagName || '').toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+      if (key === ' ') {
+        event.preventDefault();
+        if (video.paused) video.play().catch(() => {});
+        else video.pause();
+      } else if (key === 'i') {
+        event.preventDefault();
+        btnIn?.click();
+      } else if (key === 'o') {
+        event.preventDefault();
+        btnOut?.click();
+      } else if (key === 'c') {
+        event.preventDefault();
+        clipSaveBtn?.click();
+      } else if (key === 't') {
+        event.preventDefault();
+        eventAddBtn?.click();
+      }
+    });
+
     // Projects (server)
     let activeProjectId = 0;
     const renderProjects = (items) => {
@@ -477,10 +524,235 @@
     projectRefreshBtn?.addEventListener('click', refreshProjects);
     refreshProjects();
 
+    // Clips (server)
+    let activeClipId = 0;
+    const renderClips = (items) => {
+      if (!clipsList) return;
+      const rows = (Array.isArray(items) ? items : []).slice(0, 120).map((c) => {
+        const id = Number(c?.id) || 0;
+        if (!id) return '';
+        const title = safeText(c?.title, `Clip ${id}`);
+        const coll = safeText(c?.collection, '');
+        const inS = Number(c?.in_s) || 0;
+        const outS = Number(c?.out_s) || 0;
+        const label = `${fmtTime(inS)} → ${fmtTime(outS || inS)}`;
+        return `
+          <div class="row">
+            <div style="display:flex; flex-direction:column; gap:0.05rem;">
+              <strong>${title}</strong>
+              <small>${coll ? `${coll} · ` : ''}${label}</small>
+            </div>
+            <div style="display:flex; gap:0.35rem; flex-wrap:wrap;">
+              <button type="button" class="button" data-vs-clip-load="${id}">Abrir</button>
+              <button type="button" class="button danger" data-vs-clip-del="${id}">Borrar</button>
+            </div>
+          </div>
+        `;
+      }).filter(Boolean).join('');
+      clipsList.innerHTML = rows || '<div class="meta">Sin clips guardados.</div>';
+
+      Array.from(clipsList.querySelectorAll('[data-vs-clip-load]')).forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const id = Number(btn.getAttribute('data-vs-clip-load') || 0);
+          if (!id) return;
+          try {
+            const resp = await fetch(`${clipsUrl}?video_id=${encodeURIComponent(String(videoId))}`, { credentials: 'same-origin' });
+            const data = await resp.json().catch(() => ({}));
+            const items2 = Array.isArray(data?.items) ? data.items : [];
+            const found = items2.find((x) => Number(x?.id) === id);
+            if (!found) return;
+            activeClipId = id;
+            if (clipTitleInput) clipTitleInput.value = safeText(found?.title);
+            if (clipCollectionInput) clipCollectionInput.value = safeText(found?.collection);
+            if (inInput) inInput.value = String((Number(found?.in_s) || 0).toFixed(1));
+            if (outInput) outInput.value = String((Number(found?.out_s) || 0).toFixed(1));
+            const overlay = found?.overlay || {};
+            if (overlay && typeof overlay === 'object' && Array.isArray(overlay?.objects)) {
+              restoreJson(overlay);
+            }
+            try {
+              video.currentTime = Number(found?.in_s) || 0;
+            } catch (e) { /* ignore */ }
+            pushHistory();
+            setStatus('Clip cargado.');
+          } catch (e) {
+            setStatus('No se pudo cargar clip.', true);
+          }
+        });
+      });
+      Array.from(clipsList.querySelectorAll('[data-vs-clip-del]')).forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const id = Number(btn.getAttribute('data-vs-clip-del') || 0);
+          if (!id) return;
+          const ok = window.confirm('¿Borrar clip?');
+          if (!ok) return;
+          try {
+            const resp = await fetch(clipDeleteUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+              credentials: 'same-origin',
+              body: JSON.stringify({ id }),
+            });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok || !data?.ok) throw new Error(data?.error || 'error');
+            if (activeClipId === id) activeClipId = 0;
+            await refreshClips();
+            setStatus('Clip borrado.');
+          } catch (e) {
+            setStatus('No se pudo borrar clip.', true);
+          }
+        });
+      });
+    };
+    const refreshClips = async () => {
+      if (!clipsUrl || !videoId) return;
+      try {
+        const resp = await fetch(`${clipsUrl}?video_id=${encodeURIComponent(String(videoId))}`, { credentials: 'same-origin' });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok || !data?.ok) throw new Error(data?.error || 'error');
+        renderClips(Array.isArray(data?.items) ? data.items : []);
+      } catch (e) {
+        renderClips([]);
+      }
+    };
+    const saveClip = async () => {
+      if (!clipSaveUrl || !videoId) return;
+      const title = safeText(clipTitleInput?.value, 'Clip').slice(0, 180);
+      const collection = safeText(clipCollectionInput?.value, '').slice(0, 120);
+      const inS = Number(inInput?.value || 0) || 0;
+      const outS = Number(outInput?.value || 0) || 0;
+      if (!outS || outS <= inS) {
+        setStatus('Define IN/OUT para el clip.', true);
+        return;
+      }
+      const overlay = fabricCanvas.toDatalessJSON(['data']);
+      try {
+        const resp = await fetch(clipSaveUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+          credentials: 'same-origin',
+          body: JSON.stringify({ id: activeClipId || 0, video_id: videoId, title, collection, in_s: inS, out_s: outS, overlay }),
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok || !data?.ok) throw new Error(data?.error || 'error');
+        activeClipId = Number(data?.id) || activeClipId;
+        await refreshClips();
+        setStatus('Clip guardado.');
+      } catch (e) {
+        setStatus('No se pudo guardar clip.', true);
+      }
+    };
+    clipSaveBtn?.addEventListener('click', saveClip);
+    clipRefreshBtn?.addEventListener('click', refreshClips);
+    refreshClips();
+
+    // Timeline (server)
+    const renderTimeline = (items) => {
+      if (!timelineList) return;
+      const rows = (Array.isArray(items) ? items : []).slice(0, 260).map((ev) => {
+        const id = Number(ev?.id) || 0;
+        if (!id) return '';
+        const kind = safeText(ev?.kind, 'tag').toUpperCase();
+        const label = safeText(ev?.label, '');
+        const color = safeText(ev?.color, '');
+        const at = fmtTime(Number(ev?.time_s) || 0);
+        return `
+          <div class="row">
+            <div style="display:flex; flex-direction:column; gap:0.05rem;">
+              <strong>${at} · ${kind}</strong>
+              <small>${label || '—'}</small>
+            </div>
+            <div style="display:flex; gap:0.35rem; flex-wrap:wrap; align-items:center;">
+              ${color ? `<span style="width:12px;height:12px;border-radius:999px;background:${color};display:inline-block;border:1px solid rgba(255,255,255,0.25);"></span>` : ''}
+              <button type="button" class="button" data-vs-ev-go="${id}">Ir</button>
+              <button type="button" class="button danger" data-vs-ev-del="${id}">Borrar</button>
+            </div>
+          </div>
+        `;
+      }).filter(Boolean).join('');
+      timelineList.innerHTML = rows || '<div class="meta">Sin eventos.</div>';
+
+      Array.from(timelineList.querySelectorAll('[data-vs-ev-go]')).forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const id = Number(btn.getAttribute('data-vs-ev-go') || 0);
+          if (!id) return;
+          try {
+            const resp = await fetch(`${timelineUrl}?video_id=${encodeURIComponent(String(videoId))}`, { credentials: 'same-origin' });
+            const data = await resp.json().catch(() => ({}));
+            const items2 = Array.isArray(data?.items) ? data.items : [];
+            const found = items2.find((x) => Number(x?.id) === id);
+            if (!found) return;
+            const seek = Number(found?.time_s) || 0;
+            video.currentTime = seek;
+            setStatus(`Timeline → ${fmtTime(seek)}`);
+          } catch (e) {
+            setStatus('No se pudo ir al evento.', true);
+          }
+        });
+      });
+      Array.from(timelineList.querySelectorAll('[data-vs-ev-del]')).forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const id = Number(btn.getAttribute('data-vs-ev-del') || 0);
+          if (!id) return;
+          const ok = window.confirm('¿Borrar evento?');
+          if (!ok) return;
+          try {
+            const resp = await fetch(timelineDeleteUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+              credentials: 'same-origin',
+              body: JSON.stringify({ id }),
+            });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok || !data?.ok) throw new Error(data?.error || 'error');
+            await refreshTimeline();
+            setStatus('Evento borrado.');
+          } catch (e) {
+            setStatus('No se pudo borrar.', true);
+          }
+        });
+      });
+    };
+    const refreshTimeline = async () => {
+      if (!timelineUrl || !videoId) return;
+      try {
+        const resp = await fetch(`${timelineUrl}?video_id=${encodeURIComponent(String(videoId))}`, { credentials: 'same-origin' });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok || !data?.ok) throw new Error(data?.error || 'error');
+        renderTimeline(Array.isArray(data?.items) ? data.items : []);
+      } catch (e) {
+        renderTimeline([]);
+      }
+    };
+    const addTimelineEvent = async () => {
+      if (!timelineSaveUrl || !videoId) return;
+      const kind = safeText(eventKindSelect?.value, 'tag');
+      const label = safeText(eventLabelInput?.value, '');
+      const color = strokeColor();
+      const timeS = Number(video.currentTime) || 0;
+      try {
+        const resp = await fetch(timelineSaveUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+          credentials: 'same-origin',
+          body: JSON.stringify({ video_id: videoId, time_s: timeS, kind, label, color }),
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok || !data?.ok) throw new Error(data?.error || 'error');
+        if (eventLabelInput) eventLabelInput.value = '';
+        await refreshTimeline();
+        setStatus(`Evento añadido en ${fmtTime(timeS)}.`);
+      } catch (e) {
+        setStatus('No se pudo añadir evento.', true);
+      }
+    };
+    eventAddBtn?.addEventListener('click', addTimelineEvent);
+    eventRefreshBtn?.addEventListener('click', refreshTimeline);
+    refreshTimeline();
+
     pushHistory();
     setStatus('Listo.');
   };
 
   document.addEventListener('DOMContentLoaded', init);
 })();
-

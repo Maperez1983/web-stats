@@ -15,7 +15,7 @@ from django.test import TestCase, TransactionTestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from football.models import AnalystVideoFolder, Competition, ConvocationRecord, Group, Match, MatchEvent, MatchReport, Player, PlayerCommunication, PlayerFine, PlayerStatistic, RivalAnalysisReport, RivalVideo, Season, SessionTask, StaffMember, TaskStudioProfile, TaskStudioRosterPlayer, TaskStudioTask, Team, TeamStanding, TrainingMicrocycle, TrainingSession, UserInvitation, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot, WorkspaceMembership, WorkspaceTeam
+from football.models import AnalystVideoFolder, Competition, ConvocationRecord, Group, Match, MatchEvent, MatchReport, Player, PlayerCommunication, PlayerFine, PlayerStatistic, RivalAnalysisReport, RivalVideo, Season, SessionTask, StaffMember, TaskStudioProfile, TaskStudioRosterPlayer, TaskStudioTask, Team, TeamStanding, TrainingMicrocycle, TrainingSession, UserInvitation, VideoClip, VideoTimelineEvent, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot, WorkspaceMembership, WorkspaceTeam
 from football import views as football_views
 from football.bootstrap import ensure_bootstrap_admin_from_env
 from football.event_taxonomy import (
@@ -4793,6 +4793,101 @@ class AnalysisVideoWorkspaceTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Vídeos')
         self.assertContains(response, 'ABP ofensiva rival')
+
+
+class VideoStudioProApiTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.user = get_user_model().objects.create_user(
+            username='video-studio-coach',
+            email='video-studio@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_COACH)
+        competition = Competition.objects.create(name='Liga VS', slug='liga-vs', region='Andalucia')
+        season = Season.objects.create(competition=competition, name='2025/2026', is_current=True)
+        group = Group.objects.create(season=season, name='Grupo VS', slug='grupo-vs')
+        self.team = Team.objects.create(name='Equipo VS', slug='equipo-vs', group=group, is_primary=True)
+        self.rival = Team.objects.create(name='Rival VS', slug='rival-vs', group=group)
+        self.workspace = Workspace.objects.create(
+            name='Workspace VS',
+            slug='workspace-vs',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.team,
+            enabled_modules={
+                'analysis': True,
+                'dashboard': True,
+                'players': True,
+            },
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.user,
+            role=WorkspaceMembership.ROLE_ADMIN,
+        )
+        self.client.force_login(self.user)
+        session = self.client.session
+        session['active_workspace_id'] = self.workspace.id
+        session['active_team_by_workspace'] = {str(self.workspace.id): int(self.team.id)}
+        session.save()
+
+        self.folder = AnalystVideoFolder.objects.create(team=self.team, rival_team=self.rival, name='J1 · Clips')
+        self.video = RivalVideo.objects.create(
+            team=self.team,
+            rival_team=self.rival,
+            folder=self.folder,
+            title='Clip 1',
+            video=SimpleUploadedFile('clip.mp4', b'fake-video', content_type='video/mp4'),
+            source=RivalVideo.SOURCE_MANUAL,
+            notes='',
+        )
+
+    def test_video_studio_can_create_and_list_timeline_and_clips(self):
+        clip_save = self.client.post(
+            reverse('analysis-video-studio-clip-save-api'),
+            data=json.dumps(
+                {
+                    'video_id': self.video.id,
+                    'title': 'Presión tras pérdida',
+                    'collection': 'J1',
+                    'in_s': 12.0,
+                    'out_s': 18.0,
+                    'overlay': {'objects': []},
+                }
+            ),
+            content_type='application/json',
+        )
+        self.assertEqual(clip_save.status_code, 200)
+        payload = clip_save.json()
+        self.assertTrue(payload.get('ok'))
+        self.assertTrue(VideoClip.objects.filter(team=self.team, video=self.video).exists())
+
+        clips_list = self.client.get(reverse('analysis-video-studio-clips-api') + f'?video_id={self.video.id}')
+        self.assertEqual(clips_list.status_code, 200)
+        items = clips_list.json().get('items') or []
+        self.assertTrue(any((row.get('title') == 'Presión tras pérdida') for row in items))
+
+        ev_save = self.client.post(
+            reverse('analysis-video-studio-timeline-save-api'),
+            data=json.dumps(
+                {
+                    'video_id': self.video.id,
+                    'time_s': 15.4,
+                    'kind': 'press',
+                    'label': 'Presión alta',
+                    'color': '#22d3ee',
+                }
+            ),
+            content_type='application/json',
+        )
+        self.assertEqual(ev_save.status_code, 200)
+        self.assertTrue(ev_save.json().get('ok'))
+        self.assertTrue(VideoTimelineEvent.objects.filter(team=self.team, video=self.video).exists())
+
+        ev_list = self.client.get(reverse('analysis-video-studio-timeline-api') + f'?video_id={self.video.id}')
+        self.assertEqual(ev_list.status_code, 200)
+        items = ev_list.json().get('items') or []
+        self.assertTrue(any((row.get('kind') == 'press') for row in items))
 
 
 class SessionsPlanningTests(TestCase):
