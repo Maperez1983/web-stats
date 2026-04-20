@@ -824,9 +824,144 @@
     const nextBtn = document.getElementById('task-sim-3d-next');
     const playBtn = document.getElementById('task-sim-3d-play');
     const speedEl = document.getElementById('task-sim-3d-speed');
+    const fullscreenBtn = document.getElementById('task-sim-3d-fullscreen');
+    const recordBtn = document.getElementById('task-sim-3d-record');
     if (!openBtn || !modal || !canvas) return;
 
     let viewer = null;
+    let recorder = null;
+    let recordChunks = [];
+    let recordStream = null;
+    let recording = false;
+
+    const canRecord = () => {
+      try {
+        return typeof canvas.captureStream === 'function' && typeof window.MediaRecorder !== 'undefined';
+      } catch (e) {
+        return false;
+      }
+    };
+
+    const downloadBlob = (blob, filename) => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename || `tactical_${Date.now()}.webm`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => {
+        try { URL.revokeObjectURL(url); } catch (e) {}
+      }, 2500);
+    };
+
+    const fileSafeSlug = (value) => safeText(value || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 60) || 'tactica';
+
+    const setRecordUi = (isOn) => {
+      recording = !!isOn;
+      if (recordBtn) {
+        recordBtn.textContent = recording ? 'Parar' : 'Grabar vídeo';
+        recordBtn.classList.toggle('danger', recording);
+      }
+    };
+
+    const stopRecording = async () => {
+      if (!recorder) return;
+      try { recorder.stop(); } catch (e) {}
+    };
+
+    const startRecording = () => {
+      if (!canRecord()) {
+        window.alert('Tu navegador no soporta grabación de vídeo aquí. Prueba en Chrome/desktop.');
+        return;
+      }
+      recordChunks = [];
+      try {
+        recordStream = canvas.captureStream(30);
+      } catch (e) {
+        recordStream = null;
+      }
+      if (!recordStream) {
+        window.alert('No se pudo iniciar la captura de vídeo.');
+        return;
+      }
+      const mimeCandidates = [
+        'video/webm;codecs=vp9,opus',
+        'video/webm;codecs=vp8,opus',
+        'video/webm',
+      ];
+      let mimeType = '';
+      mimeCandidates.some((mt) => {
+        try {
+          if (window.MediaRecorder.isTypeSupported(mt)) {
+            mimeType = mt;
+            return true;
+          }
+        } catch (e) {}
+        return false;
+      });
+      try {
+        recorder = new window.MediaRecorder(recordStream, mimeType ? { mimeType } : undefined);
+      } catch (e) {
+        recorder = null;
+      }
+      if (!recorder) {
+        window.alert('No se pudo crear el grabador de vídeo.');
+        return;
+      }
+      recorder.ondataavailable = (ev) => {
+        if (ev?.data && ev.data.size > 0) recordChunks.push(ev.data);
+      };
+      recorder.onstop = () => {
+        const blob = new Blob(recordChunks, { type: recorder?.mimeType || 'video/webm' });
+        const title = fileSafeSlug(document.querySelector('[name="draw_task_title"]')?.value || 'tactica');
+        downloadBlob(blob, `${title}-3d.webm`);
+        try { recordStream?.getTracks?.().forEach((t) => t.stop()); } catch (e) {}
+        recorder = null;
+        recordStream = null;
+        recordChunks = [];
+        setRecordUi(false);
+      };
+      try { recorder.start(250); } catch (e) {
+        window.alert('No se pudo iniciar la grabación.');
+        recorder = null;
+        recordStream = null;
+        recordChunks = [];
+        return;
+      }
+      setRecordUi(true);
+    };
+
+    const toggleRecording = () => {
+      if (recording) return stopRecording();
+      return startRecording();
+    };
+
+    const isFullscreen = () => {
+      try { return !!document.fullscreenElement; } catch (e) { return false; }
+    };
+    const setFsUi = () => {
+      if (!fullscreenBtn) return;
+      fullscreenBtn.textContent = isFullscreen() ? 'Salir pantalla completa' : 'Pantalla completa';
+    };
+    const toggleFullscreen = async () => {
+      const target = modal?.querySelector('.sim-3d-card') || modal;
+      try {
+        if (!isFullscreen()) {
+          await target.requestFullscreen();
+        } else {
+          await document.exitFullscreen();
+        }
+      } catch (e) {
+        window.alert('No se pudo activar pantalla completa.');
+      }
+      setFsUi();
+    };
 
     const buildSteps = () => {
       const dims = readCanvasDims(form);
@@ -869,6 +1004,9 @@
       viewer.setStep(0, { transitionMs: 1 });
       viewer.updateLabel();
       if (playBtn) playBtn.textContent = 'Reproducir';
+      setFsUi();
+      setRecordUi(false);
+      if (recordBtn) recordBtn.disabled = !canRecord();
     };
 
     const close = () => {
@@ -876,6 +1014,9 @@
       document.body.style.overflow = '';
       if (viewer) viewer.stop();
       if (playBtn) playBtn.textContent = 'Reproducir';
+      if (recording) {
+        try { stopRecording(); } catch (e) {}
+      }
     };
 
     openBtn.addEventListener('click', () => {
@@ -903,6 +1044,15 @@
       if (!viewer) return;
       viewer.play();
       playBtn.textContent = viewer.playing ? 'Parar' : 'Reproducir';
+    });
+    fullscreenBtn?.addEventListener('click', () => {
+      void toggleFullscreen();
+    });
+    recordBtn?.addEventListener('click', () => {
+      void toggleRecording();
+    });
+    document.addEventListener('fullscreenchange', () => {
+      setFsUi();
     });
     document.addEventListener('keydown', (ev) => {
       if (modal.hidden) return;

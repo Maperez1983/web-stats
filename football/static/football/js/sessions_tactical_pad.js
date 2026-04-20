@@ -735,11 +735,15 @@
 			    const simNextBtn = document.getElementById('task-sim-next');
 			    const simDuplicateBtn = document.getElementById('task-sim-duplicate');
 			    const simShareBtn = document.getElementById('task-sim-share');
-		    const simExportStepBtn = document.getElementById('task-sim-export-step');
-		    const simExportAllBtn = document.getElementById('task-sim-export-all');
-		    const simView3dBtn = document.getElementById('task-sim-view-3d');
-			    const simToScenariosBtn = document.getElementById('task-sim-to-scenarios');
-			    const simShareUrlInput = document.getElementById('task-sim-share-url');
+			    const simExportStepBtn = document.getElementById('task-sim-export-step');
+			    const simExportAllBtn = document.getElementById('task-sim-export-all');
+			    const simView3dBtn = document.getElementById('task-sim-view-3d');
+			    const simClipSaveBtn = document.getElementById('task-sim-clip-save');
+			    const simClipImportBtn = document.getElementById('task-sim-clip-import');
+			    const simClipFileInput = document.getElementById('task-sim-clip-file');
+			    const simClipsList = document.getElementById('task-sim-clips');
+				    const simToScenariosBtn = document.getElementById('task-sim-to-scenarios');
+				    const simShareUrlInput = document.getElementById('task-sim-share-url');
 			    const simAutoCaptureInput = document.getElementById('task-sim-autocapture');
 			    const simTrajectoriesInput = document.getElementById('task-sim-trajectories');
 			    const simMagnetsInput = document.getElementById('task-sim-magnets');
@@ -829,10 +833,14 @@
 	        return false;
 	      }
 	    })();
-	    const simStorageKey = (() => {
-	      const base = safeText(draftKey) || safeText(draftNewKey) || 'webstats:tpad:draft:unknown';
-	      return `${base}:simsteps_v1`;
-	    })();
+		    const simStorageKey = (() => {
+		      const base = safeText(draftKey) || safeText(draftNewKey) || 'webstats:tpad:draft:unknown';
+		      return `${base}:simsteps_v1`;
+		    })();
+		    const clipsStorageKey = (() => {
+		      const scope = safeText(form?.dataset?.scopeKey) || 'coach';
+		      return `webstats:tpad:clips_v1:${scope}`;
+		    })();
     const setDraftAlert = (message) => {
       if (!draftAlert) return;
       const text = safeText(message);
@@ -2806,10 +2814,13 @@
 					      if (simDuplicateBtn) simDuplicateBtn.hidden = !isSimulating;
 					      if (simToScenariosBtn) simToScenariosBtn.hidden = !isSimulating;
 					      if (simShareBtn) simShareBtn.hidden = !isSimulating;
-					      if (simExportStepBtn) simExportStepBtn.hidden = !isSimulating;
-					      if (simExportAllBtn) simExportAllBtn.hidden = !isSimulating;
-					      if (simView3dBtn) simView3dBtn.hidden = !isSimulating;
-					      if (simMetaPanel) simMetaPanel.hidden = !isSimulating;
+						      if (simExportStepBtn) simExportStepBtn.hidden = !isSimulating;
+						      if (simExportAllBtn) simExportAllBtn.hidden = !isSimulating;
+						      if (simView3dBtn) simView3dBtn.hidden = !isSimulating;
+						      if (simClipSaveBtn) simClipSaveBtn.hidden = !isSimulating;
+						      if (simClipImportBtn) simClipImportBtn.hidden = !isSimulating;
+						      if (simClipsList) simClipsList.hidden = !isSimulating;
+						      if (simMetaPanel) simMetaPanel.hidden = !isSimulating;
 					      if (simAutoCaptureInput) simAutoCaptureInput.checked = !!simulationAutoCapture;
 						      if (simTrajectoriesInput) simTrajectoriesInput.checked = !!simulationTrajectories;
 					      if (simMagnetsInput) simMagnetsInput.checked = !!simulationMagnets;
@@ -2818,11 +2829,97 @@
 					      if (simSpeedSelect) simSpeedSelect.value = String(simulationSpeed);
 					      if (simPlayBtn) simPlayBtn.textContent = simulationPlaying ? 'Parar' : 'Reproducir';
 					    };
-			    const setSimPopoverOpen = (open) => {
-			      if (!simPopover) return;
-			      simPopover.hidden = !open;
-			      if (open) syncSimUi();
-			    };
+				    const setSimPopoverOpen = (open) => {
+				      if (!simPopover) return;
+				      simPopover.hidden = !open;
+				      if (open) syncSimUi();
+				    };
+
+				    const readClipsLibrary = () => {
+				      if (!canUseStorage) return [];
+				      try {
+				        const raw = safeText(window.localStorage.getItem(clipsStorageKey));
+				        const parsed = raw ? JSON.parse(raw) : null;
+				        const items = Array.isArray(parsed?.items) ? parsed.items : [];
+				        return items.filter((it) => it && typeof it === 'object').slice(0, 40);
+				      } catch (e) {
+				        return [];
+				      }
+				    };
+				    const writeClipsLibrary = (items) => {
+				      if (!canUseStorage) return;
+				      try {
+				        const safeItems = Array.isArray(items) ? items.slice(0, 40) : [];
+				        window.localStorage.setItem(clipsStorageKey, JSON.stringify({ v: 1, updated_at: new Date().toISOString(), items: safeItems }));
+				      } catch (e) { /* ignore */ }
+				    };
+				    const renderClipsLibrary = () => {
+				      if (!simClipsList) return;
+				      const clips = readClipsLibrary();
+				      if (!clips.length) {
+				        simClipsList.innerHTML = '<div class="timeline-empty">Clips: todavía no hay ninguno. Pulsa “Guardar clip”.</div>';
+				        return;
+				      }
+				      const rows = clips.map((clip, index) => {
+				        const name = safeText(clip?.name, `Clip ${index + 1}`);
+				        const when = safeText(clip?.created_at, '');
+				        return `
+				          <div class="sim-step" style="display:flex; align-items:center; justify-content:space-between; gap:0.75rem;">
+				            <div style="display:flex; flex-direction:column; gap:0.1rem;">
+				              <strong>${name}</strong>
+				              <span>${when ? when.slice(0, 10) : ''}</span>
+				            </div>
+				            <div style="display:flex; gap:0.4rem; flex-wrap:wrap;">
+				              <button type="button" class="button" data-clip-load="${index}">Cargar</button>
+				              <button type="button" class="button" data-clip-export="${index}">Export</button>
+				              <button type="button" class="button danger" data-clip-delete="${index}">Borrar</button>
+				            </div>
+				          </div>
+				        `;
+				      }).join('');
+				      simClipsList.innerHTML = `
+				        <div class="timeline-empty" style="opacity:0.92; margin-bottom:0.35rem;">Clips guardados (local)</div>
+				        ${rows}
+				      `;
+				      Array.from(simClipsList.querySelectorAll('[data-clip-load]')).forEach((btn) => {
+				        btn.addEventListener('click', () => {
+				          const idx = clamp(Number(btn.getAttribute('data-clip-load') || 0), 0, Math.max(0, clips.length - 1));
+				          const clip = clips[idx];
+				          const steps = Array.isArray(clip?.steps) ? clip.steps : [];
+				          if (!steps.length) return;
+				          if (simulationPlaying) stopSimulationPlayback();
+				          try { simulationSavedSteps = JSON.parse(JSON.stringify(steps)); } catch (e) { simulationSavedSteps = steps.slice(); }
+				          simulationSavedUpdatedAt = Date.now();
+				          try { simulationSteps = JSON.parse(JSON.stringify(steps)); } catch (e) { simulationSteps = steps.slice(); }
+				          simulationActiveIndex = clamp(0, 0, Math.max(0, simulationSteps.length - 1));
+				          renderSimulationSteps();
+				          void selectSimulationStep(simulationActiveIndex);
+				          syncSimUi();
+				          setStatus(`Clip cargado: ${safeText(clip?.name, '')}`);
+				        });
+				      });
+				      Array.from(simClipsList.querySelectorAll('[data-clip-delete]')).forEach((btn) => {
+				        btn.addEventListener('click', () => {
+				          const idx = clamp(Number(btn.getAttribute('data-clip-delete') || 0), 0, Math.max(0, clips.length - 1));
+				          const name = safeText(clips[idx]?.name);
+				          const ok = window.confirm(`¿Borrar el clip “${name || 'sin nombre'}”?`);
+				          if (!ok) return;
+				          const next = clips.slice();
+				          next.splice(idx, 1);
+				          writeClipsLibrary(next);
+				          renderClipsLibrary();
+				        });
+				      });
+				      Array.from(simClipsList.querySelectorAll('[data-clip-export]')).forEach((btn) => {
+				        btn.addEventListener('click', () => {
+				          const idx = clamp(Number(btn.getAttribute('data-clip-export') || 0), 0, Math.max(0, clips.length - 1));
+				          const clip = clips[idx];
+				          const payload = { v: 1, name: safeText(clip?.name), created_at: safeText(clip?.created_at), steps: clip?.steps || [] };
+				          const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
+				          downloadBlob(blob, `${fileSafeSlug(payload.name || 'clip')}.json`);
+				        });
+				      });
+				    };
 				    const restoreSimulationBaseline = () => {
 				      if (!simulationBaselineSnapshot) return;
 				      let parsed = null;
@@ -3339,7 +3436,7 @@
 					      } catch (error) { /* ignore */ }
 					      try { if (locked && resourceDetails) resourceDetails.open = false; } catch (error) { /* ignore */ }
 					    };
-				    const enterSimulation = () => {
+					    const enterSimulation = () => {
 				      if (isSimulating) return;
 				      try { simulationBaselineSnapshot = JSON.stringify(serializeState()); } catch (error) { simulationBaselineSnapshot = null; }
 				      clearPendingPlacement();
@@ -3365,9 +3462,10 @@
 				      } else {
 				        seedSimulationStepsFromCurrent();
 				      }
-				      syncSimUi();
-				      setStatus(simulationSavedSteps.length ? 'Modo simulación activado (rehidratado). Mueve elementos: no se guardan cambios.' : 'Modo simulación activado. Mueve elementos: no se guardan cambios.');
-				    };
+					      syncSimUi();
+					      setStatus(simulationSavedSteps.length ? 'Modo simulación activado (rehidratado). Mueve elementos: no se guardan cambios.' : 'Modo simulación activado. Mueve elementos: no se guardan cambios.');
+					      try { renderClipsLibrary(); } catch (e) { /* ignore */ }
+					    };
 				    const exitSimulation = () => {
 				      if (!isSimulating) return;
 				      stopSimulationPlayback();
@@ -8151,14 +8249,64 @@
 		      event.preventDefault();
 		      void exportSimulationCurrentStepPng();
 		    });
-		    simExportAllBtn?.addEventListener('click', (event) => {
-		      event.preventDefault();
-		      void exportSimulationAllStepsPng();
-		    });
-			    simShareBtn?.addEventListener('click', (event) => {
+			    simExportAllBtn?.addEventListener('click', (event) => {
 			      event.preventDefault();
-			      void shareSimulationLink();
+			      void exportSimulationAllStepsPng();
 			    });
+			    simClipSaveBtn?.addEventListener('click', (event) => {
+			      event.preventDefault();
+			      if (!isSimulating) return;
+			      if (!Array.isArray(simulationSteps) || !simulationSteps.length) {
+			        setStatus('No hay pasos para guardar. Captura al menos 1 paso.', true);
+			        return;
+			      }
+			      const defaultName = safeText(form.querySelector('[name="draw_task_title"]')?.value, 'Clip');
+			      const name = safeText(window.prompt('Nombre del clip', defaultName));
+			      if (!name) return;
+			      let steps = [];
+			      try { steps = JSON.parse(JSON.stringify(simulationSteps)); } catch (e) { steps = simulationSteps.slice(); }
+			      const clip = { name: name.slice(0, 120), created_at: new Date().toISOString(), steps };
+			      const prev = readClipsLibrary();
+			      const next = [clip, ...prev].slice(0, 40);
+			      writeClipsLibrary(next);
+			      renderClipsLibrary();
+			      setStatus('Clip guardado (local).');
+			    });
+			    simClipImportBtn?.addEventListener('click', (event) => {
+			      event.preventDefault();
+			      if (!isSimulating) return;
+			      if (!simClipFileInput) return;
+			      try { simClipFileInput.value = ''; } catch (e) {}
+			      simClipFileInput.click();
+			    });
+			    simClipFileInput?.addEventListener('change', async () => {
+			      if (!isSimulating) return;
+			      const file = simClipFileInput.files?.[0];
+			      if (!file) return;
+			      let text = '';
+			      try { text = await file.text(); } catch (e) { text = ''; }
+			      if (!text) {
+			        setStatus('No se pudo leer el archivo.', true);
+			        return;
+			      }
+			      let parsed = null;
+			      try { parsed = JSON.parse(text); } catch (e) { parsed = null; }
+			      const steps = Array.isArray(parsed?.steps) ? parsed.steps : [];
+			      if (!steps.length) {
+			        setStatus('El JSON no contiene pasos.', true);
+			        return;
+			      }
+			      const name = safeText(parsed?.name, file.name.replace(/\\.json$/i, '')).slice(0, 120) || 'Clip importado';
+			      const clip = { name, created_at: new Date().toISOString(), steps };
+			      const prev = readClipsLibrary();
+			      writeClipsLibrary([clip, ...prev].slice(0, 40));
+			      renderClipsLibrary();
+			      setStatus('Clip importado (local).');
+			    });
+				    simShareBtn?.addEventListener('click', (event) => {
+				      event.preventDefault();
+				      void shareSimulationLink();
+				    });
 			    simToScenariosBtn?.addEventListener('click', (event) => {
 			      event.preventDefault();
 			      void convertSimulationToScenarios();
