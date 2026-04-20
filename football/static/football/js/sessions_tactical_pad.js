@@ -5878,11 +5878,11 @@
 				    const playbookFilters = { q: '', folder: '', tag: '', favorites: false, latest: true, version_group: '' };
 				    let playbookFilterTimer = null;
 
-				    const TACTICAL_TEMPLATES = [
-				      // ABP (acciones a balón parado)
-				      {
-				        id: 'abp_corner_attack_near',
-				        title: 'Córner ofensivo · 1º palo',
+					    const TACTICAL_TEMPLATES = [
+					      // ABP (acciones a balón parado)
+					      {
+					        id: 'abp_corner_attack_near',
+					        title: 'Córner ofensivo · 1º palo',
 				        folder: 'ABP · Córners',
 				        tags: ['template', 'abp', 'corner', 'attack'],
 				        preset: 'attacking_third',
@@ -5901,9 +5901,9 @@
 				          { type: 'ball', x: 0.95, y: 0.20 },
 				        ],
 				      },
-				      {
-				        id: 'abp_freekick_wall',
-				        title: 'Falta directa · Barrera + portero',
+					      {
+					        id: 'abp_freekick_wall',
+					        title: 'Falta directa · Barrera + portero',
 				        folder: 'ABP · Faltas',
 				        tags: ['template', 'abp', 'freekick', 'defense'],
 				        preset: 'attacking_third',
@@ -5915,13 +5915,50 @@
 				          { type: 'player', slot: 'W3', kind: 'player_local', x: 0.26, y: 0.56 },
 				          { type: 'rival', label: 'TIRADOR', x: 0.48, y: 0.50 },
 				          { type: 'ball', x: 0.44, y: 0.50 },
-				        ],
-				      },
+					        ],
+					      },
+					      {
+					        id: 'abp_corner_defense_zonal',
+					        title: 'Córner defensivo · Zonal (base)',
+					        folder: 'ABP · Córners',
+					        tags: ['template', 'abp', 'corner', 'defense'],
+					        preset: 'attacking_third',
+					        orientation: 'landscape',
+					        items: [
+					          { type: 'player', slot: 'GK', kind: 'goalkeeper_local', x: 0.08, y: 0.50 },
+					          { type: 'player', slot: 'Z1', kind: 'player_local', x: 0.76, y: 0.40 },
+					          { type: 'player', slot: 'Z2', kind: 'player_local', x: 0.76, y: 0.50 },
+					          { type: 'player', slot: 'Z3', kind: 'player_local', x: 0.76, y: 0.60 },
+					          { type: 'player', slot: 'P1', kind: 'player_local', x: 0.66, y: 0.46 },
+					          { type: 'player', slot: 'P2', kind: 'player_local', x: 0.66, y: 0.54 },
+					          { type: 'rival', label: 'R1', x: 0.84, y: 0.40 },
+					          { type: 'rival', label: 'R2', x: 0.86, y: 0.50 },
+					          { type: 'rival', label: 'R3', x: 0.84, y: 0.60 },
+					          { type: 'ball', x: 0.95, y: 0.20 },
+					        ],
+					      },
+					      {
+					        id: 'abp_throwin_attack_wide',
+					        title: 'Saque de banda · Progresión por carril',
+					        folder: 'ABP · Saques',
+					        tags: ['template', 'abp', 'throwin', 'attack'],
+					        preset: 'half_pitch',
+					        orientation: 'landscape',
+					        items: [
+					          { type: 'player', slot: 'SB', kind: 'player_local', x: 0.18, y: 0.12 },
+					          { type: 'player', slot: 'R1', kind: 'player_local', x: 0.28, y: 0.20 },
+					          { type: 'player', slot: 'R2', kind: 'player_local', x: 0.34, y: 0.14 },
+					          { type: 'player', slot: 'R3', kind: 'player_local', x: 0.40, y: 0.22 },
+					          { type: 'rival', label: 'D1', x: 0.32, y: 0.18 },
+					          { type: 'rival', label: 'D2', x: 0.38, y: 0.16 },
+					          { type: 'ball', x: 0.14, y: 0.10 },
+					        ],
+					      },
 
-				      // Salidas / presión / transiciones
-				      {
-				        id: 'buildout_basic_3',
-				        title: 'Salida de balón · 3 + portero (base)',
+					      // Salidas / presión / transiciones
+					      {
+					        id: 'buildout_basic_3',
+					        title: 'Salida de balón · 3 + portero (base)',
 				        folder: 'Fases · Salida',
 				        tags: ['template', 'buildout'],
 				        preset: 'defensive_third',
@@ -5936,9 +5973,9 @@
 				          { type: 'ball', x: 0.12, y: 0.50 },
 				        ],
 				      },
-				      {
-				        id: 'press_high_2v2',
-				        title: 'Presión alta · 2v2 (disparo a 1 lado)',
+					      {
+					        id: 'press_high_2v2',
+					        title: 'Presión alta · 2v2 (disparo a 1 lado)',
 				        folder: 'Fases · Presión',
 				        tags: ['template', 'pressing'],
 				        preset: 'attacking_third',
@@ -5951,9 +5988,9 @@
 				          { type: 'ball', x: 0.84, y: 0.46 },
 				        ],
 				      },
-				      {
-				        id: 'transition_3v2',
-				        title: 'Transición · 3v2 (contra)',
+					      {
+					        id: 'transition_3v2',
+					        title: 'Transición · 3v2 (contra)',
 				        folder: 'Fases · Transición',
 				        tags: ['template', 'transition'],
 				        preset: 'half_pitch',
@@ -5965,9 +6002,83 @@
 				          { type: 'rival', label: 'D1', x: 0.58, y: 0.46 },
 				          { type: 'rival', label: 'D2', x: 0.58, y: 0.54 },
 				          { type: 'ball', x: 0.34, y: 0.50 },
-				        ],
-				      },
-				    ];
+					        ],
+					      },
+					      {
+					        id: 'buildout_4_2',
+					        title: 'Salida de balón · 4 + 2 (base)',
+					        folder: 'Fases · Salida',
+					        tags: ['template', 'buildout', 'structure'],
+					        preset: 'defensive_third',
+					        orientation: 'landscape',
+					        items: [
+					          { type: 'player', slot: 'GK', kind: 'goalkeeper_local', x: 0.10, y: 0.50 },
+					          { type: 'player', slot: 'LB', kind: 'player_local', x: 0.22, y: 0.22 },
+					          { type: 'player', slot: 'CB1', kind: 'player_local', x: 0.22, y: 0.42 },
+					          { type: 'player', slot: 'CB2', kind: 'player_local', x: 0.22, y: 0.58 },
+					          { type: 'player', slot: 'RB', kind: 'player_local', x: 0.22, y: 0.78 },
+					          { type: 'player', slot: 'PIV1', kind: 'player_local', x: 0.38, y: 0.44 },
+					          { type: 'player', slot: 'PIV2', kind: 'player_local', x: 0.38, y: 0.56 },
+					          { type: 'rival', label: 'R1', x: 0.52, y: 0.42 },
+					          { type: 'rival', label: 'R2', x: 0.52, y: 0.58 },
+					          { type: 'ball', x: 0.10, y: 0.50 },
+					        ],
+					      },
+					      {
+					        id: 'press_midblock_442',
+					        title: 'Bloque medio · 4-4-2 (base)',
+					        folder: 'Fases · Presión',
+					        tags: ['template', 'pressing', 'block', '442'],
+					        preset: 'half_pitch',
+					        orientation: 'landscape',
+					        items: [
+					          { type: 'player', slot: 'ST1', kind: 'player_local', x: 0.55, y: 0.44 },
+					          { type: 'player', slot: 'ST2', kind: 'player_local', x: 0.55, y: 0.56 },
+					          { type: 'player', slot: 'LM', kind: 'player_local', x: 0.46, y: 0.26 },
+					          { type: 'player', slot: 'CM1', kind: 'player_local', x: 0.46, y: 0.44 },
+					          { type: 'player', slot: 'CM2', kind: 'player_local', x: 0.46, y: 0.56 },
+					          { type: 'player', slot: 'RM', kind: 'player_local', x: 0.46, y: 0.74 },
+					          { type: 'player', slot: 'LB', kind: 'player_local', x: 0.34, y: 0.26 },
+					          { type: 'player', slot: 'CB1', kind: 'player_local', x: 0.34, y: 0.44 },
+					          { type: 'player', slot: 'CB2', kind: 'player_local', x: 0.34, y: 0.56 },
+					          { type: 'player', slot: 'RB', kind: 'player_local', x: 0.34, y: 0.74 },
+					          { type: 'rival', label: 'MC', x: 0.64, y: 0.50 },
+					          { type: 'ball', x: 0.72, y: 0.50 },
+					        ],
+					      },
+					      {
+					        id: 'attack_overload_wide_3',
+					        title: 'Ataque · Superioridad 3v2 en banda (base)',
+					        folder: 'Fases · Ataque',
+					        tags: ['template', 'attack', 'overload', 'wide'],
+					        preset: 'attacking_third',
+					        orientation: 'landscape',
+					        items: [
+					          { type: 'player', slot: 'W', kind: 'player_local', x: 0.70, y: 0.18 },
+					          { type: 'player', slot: 'FB', kind: 'player_local', x: 0.62, y: 0.26 },
+					          { type: 'player', slot: 'CM', kind: 'player_local', x: 0.58, y: 0.34 },
+					          { type: 'rival', label: 'D1', x: 0.78, y: 0.26 },
+					          { type: 'rival', label: 'D2', x: 0.74, y: 0.34 },
+					          { type: 'ball', x: 0.70, y: 0.18 },
+					        ],
+					      },
+					      {
+					        id: 'counterpress_5s',
+					        title: 'Tras pérdida · Contra-presión 5s (base)',
+					        folder: 'Fases · Transición',
+					        tags: ['template', 'transition', 'counterpress'],
+					        preset: 'half_pitch',
+					        orientation: 'landscape',
+					        items: [
+					          { type: 'player', slot: 'P1', kind: 'player_local', x: 0.52, y: 0.46 },
+					          { type: 'player', slot: 'P2', kind: 'player_local', x: 0.54, y: 0.56 },
+					          { type: 'player', slot: 'P3', kind: 'player_local', x: 0.44, y: 0.54 },
+					          { type: 'player', slot: 'P4', kind: 'player_local', x: 0.44, y: 0.44 },
+					          { type: 'rival', label: 'R', x: 0.50, y: 0.50 },
+					          { type: 'ball', x: 0.50, y: 0.50 },
+					        ],
+					      },
+					    ];
 
 				    const templateById = (id) => (TACTICAL_TEMPLATES || []).find((t) => safeText(t?.id) === safeText(id));
 				    const templateGroups = () => {
