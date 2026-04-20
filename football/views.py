@@ -14137,6 +14137,12 @@ def finalize_match_actions(request):
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         return JsonResponse({'error': 'Equipo principal no configurado'}, status=400)
+    payload = {}
+    try:
+        if request.body:
+            payload = json.loads(request.body.decode('utf-8'))
+    except Exception:
+        payload = {}
     payload_match_id = None
     try:
         if isinstance(payload, dict):
@@ -14152,12 +14158,6 @@ def finalize_match_actions(request):
     match = requested_match or get_active_match(primary_team)
     if not match:
         return JsonResponse({'error': 'No hay partido activo para guardar'}, status=400)
-    payload = {}
-    try:
-        if request.body:
-            payload = json.loads(request.body.decode('utf-8'))
-    except Exception:
-        payload = {}
     _apply_match_info_overrides(match, primary_team, payload.get('match_info'))
     pending_events = list(
         MatchEvent.objects.filter(
@@ -16892,10 +16892,62 @@ def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
     task_sheets = [_build_session_task_sheet(task) for task in tasks]
 
     def _task_preview_data_url_for_pdf(task):
+        def _autocrop_preview_data_url(data_url: str) -> str:
+            """
+            Centra la pizarra eliminando márgenes blancos del PNG/JPEG.
+
+            En algunos renders (según preset/zoom/orientación) el preview puede tener un área en blanco a la
+            derecha/abajo. WeasyPrint centrará el <img>, pero si el "blanco" está dentro del propio bitmap,
+            la pizarra seguirá viéndose desplazada. Autocrop arregla esto para el PDF UEFA.
+            """
+            if pdf_style == 'club':
+                return data_url
+            raw = str(data_url or '')
+            if not raw.startswith('data:image/') or ';base64,' not in raw:
+                return data_url
+            try:
+                header, payload = raw.split(';base64,', 1)
+                mime = header.split(':', 1)[1].strip().lower()
+                if mime not in {'image/png', 'image/jpeg', 'image/jpg', 'image/webp'}:
+                    return data_url
+                blob = base64.b64decode(payload.encode('ascii'))
+            except Exception:
+                return data_url
+            try:
+                from io import BytesIO  # noqa: WPS433
+                from PIL import Image, ImageChops  # noqa: WPS433
+
+                img = Image.open(BytesIO(blob))
+                # Aplanamos sobre blanco para que el recorte funcione también con transparencia.
+                rgba = img.convert('RGBA')
+                flat = Image.new('RGBA', rgba.size, (255, 255, 255, 255))
+                try:
+                    flat.alpha_composite(rgba)
+                except Exception:
+                    # Compat: alpha_composite puede fallar en algunas modes.
+                    flat.paste(rgba, (0, 0), rgba)
+                rgb = flat.convert('RGB')
+                bg = Image.new('RGB', rgb.size, (255, 255, 255))
+                diff = ImageChops.difference(rgb, bg)
+                bbox = diff.getbbox()
+                if not bbox:
+                    return data_url
+                pad = 10
+                left = max(0, int(bbox[0]) - pad)
+                top = max(0, int(bbox[1]) - pad)
+                right = min(rgb.size[0], int(bbox[2]) + pad)
+                bottom = min(rgb.size[1], int(bbox[3]) + pad)
+                cropped = rgb.crop((left, top, right, bottom))
+                out = BytesIO()
+                cropped.save(out, format='PNG', optimize=True)
+                return 'data:image/png;base64,' + base64.b64encode(out.getvalue()).decode('ascii')
+            except Exception:
+                return data_url
+
         # 1) Imagen ya guardada.
         preview = _file_field_as_data_url(getattr(task, 'task_preview_image', None))
         if preview:
-            return preview
+            return _autocrop_preview_data_url(preview)
         layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
         meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
         graphic = meta.get('graphic_editor') if isinstance(meta.get('graphic_editor'), dict) else {}
@@ -16923,7 +16975,7 @@ def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
                     max_side=2600,
                 )
                 if png_bytes:
-                    return "data:image/png;base64," + base64.b64encode(png_bytes).decode("ascii")
+                    return _autocrop_preview_data_url("data:image/png;base64," + base64.b64encode(png_bytes).decode("ascii"))
             except Exception:
                 pass
         # 3) Fallback: extraer preview del PDF si existe.
@@ -16941,7 +16993,7 @@ def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
                     if raw:
                         ext = str(name or '').rsplit('.', 1)[-1].lower()
                         mime = {'png': 'image/png', 'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'webp': 'image/webp'}.get(ext, 'image/png')
-                        return f"data:{mime};base64," + base64.b64encode(raw).decode("ascii")
+                        return _autocrop_preview_data_url(f"data:{mime};base64," + base64.b64encode(raw).decode("ascii"))
             except Exception:
                 pass
         return ''
@@ -16977,9 +17029,11 @@ def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
     task_sections = []
     for spec in section_specs:
         cards = [card for card in task_cards if str(getattr(card['task'], 'block', '') or '') in set(spec['blocks'])]
+        cards.sort(key=lambda c: (int(getattr(c.get('task'), 'order', 0) or 0), int(getattr(c.get('task'), 'id', 0) or 0)))
         if cards:
             task_sections.append({'key': spec['key'], 'label': spec['label'], 'cards': cards})
     other_cards = [card for card in task_cards if str(getattr(card['task'], 'block', '') or '') not in known_blocks]
+    other_cards.sort(key=lambda c: (int(getattr(c.get('task'), 'order', 0) or 0), int(getattr(c.get('task'), 'id', 0) or 0)))
     if other_cards:
         task_sections.append({'key': 'other', 'label': 'Otros', 'cards': other_cards})
     # Sugerencias para plantilla UEFA (no bloqueante).
@@ -32886,15 +32940,22 @@ def match_hub_page(request):
         has_lineup = bool(starters)
 
     actions_count = 0
+    actions_pending_count = 0
+    actions_final_count = 0
     if active_match:
         try:
-            actions_count = (
-                MatchEvent.objects
-                .filter(match=active_match, player__team=primary_team, source_file='registro-acciones')
-                .count()
+            base_actions = MatchEvent.objects.filter(
+                match=active_match,
+                player__team=primary_team,
+                source_file='registro-acciones',
             )
+            actions_count = int(base_actions.count() or 0)
+            actions_pending_count = int(base_actions.filter(system='touch-field').count() or 0)
+            actions_final_count = int(base_actions.filter(system='touch-field-final').count() or 0)
         except Exception:
             actions_count = 0
+            actions_pending_count = 0
+            actions_final_count = 0
 
     category = str(getattr(primary_team, 'category', '') or '').strip()
     team_label = str(getattr(primary_team, 'display_name', '') or getattr(primary_team, 'name', '') or '').strip() or 'Equipo'
@@ -32930,6 +32991,7 @@ def match_hub_page(request):
     can_render_pdfs = bool(weasyprint)
     pdf_smoke_detail = ''
     can_create_match = bool(_can_edit_match_actions(request.user))
+    can_finalize_match = bool(_can_edit_match_actions(request.user))
     hub_message = str(request.GET.get('msg') or '').strip()
     return render(
         request,
@@ -32947,6 +33009,9 @@ def match_hub_page(request):
             'convocation_players_count': convocation_players_count,
             'has_lineup': bool(has_lineup),
             'actions_count': int(actions_count or 0),
+            'actions_pending_count': int(actions_pending_count or 0),
+            'actions_final_count': int(actions_final_count or 0),
+            'can_finalize_match': can_finalize_match,
             'can_render_pdfs': can_render_pdfs,
             'pdf_smoke_detail': pdf_smoke_detail,
             'can_create_match': can_create_match,
@@ -33073,6 +33138,55 @@ def match_hub_create_match(request):
             pass
     _invalidate_team_dashboard_caches(primary_team)
     return redirect(f"{reverse('match-hub')}?match_id={int(match_obj.id)}&team={int(primary_team.id)}&msg=Partido+creado")
+
+
+@authenticated_write
+@require_POST
+def match_hub_finalize_match(request):
+    """
+    Consolidar (finalizar) acciones pendientes del registro en vivo desde el Match Hub.
+
+    Motivo UX: muchos entrenadores cierran el flujo desde /partido y esperan que las estadísticas se vuelquen sin
+    tener que volver a entrar a /registro-acciones.
+    """
+    if not _can_edit_match_actions(request.user):
+        return HttpResponse('Solo el cuerpo técnico puede guardar partidos.', status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'match_actions', label='registro de acciones')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return HttpResponse('Equipo no configurado.', status=400)
+
+    match_id = _parse_int(request.POST.get('match_id')) or _parse_int(request.GET.get('match_id'))
+    match = None
+    if match_id:
+        match = _team_match_queryset(primary_team).filter(id=match_id).first()
+    if not match:
+        match = get_requested_match(request, primary_team) or get_active_match(primary_team)
+    if not match:
+        return HttpResponse('No hay partido activo para guardar.', status=400)
+
+    try:
+        updated = int(
+            MatchEvent.objects.filter(
+                match=match,
+                source_file='registro-acciones',
+                system='touch-field',
+            ).update(system='touch-field-final')
+            or 0
+        )
+    except Exception:
+        updated = 0
+    try:
+        _sync_match_score_from_events(match, primary_team)
+    except Exception:
+        pass
+    _invalidate_team_dashboard_caches(primary_team)
+
+    return redirect(
+        f"{reverse('match-hub')}?match_id={int(match.id)}&team={int(primary_team.id)}&msg=Partido+guardado+({updated}+acciones)"
+    )
 
 
 @login_required

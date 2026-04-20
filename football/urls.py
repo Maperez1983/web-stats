@@ -14,6 +14,7 @@ urlpatterns = [
     path('', views.dashboard_page, name='dashboard-home'),
     path('partido/', views.match_hub_page, name='match-hub'),
     path('partido/crear/', views.match_hub_create_match, name='match-hub-create'),
+    path('partido/guardar/', views.match_hub_finalize_match, name='match-hub-finalize'),
     path('buscar/', views.search_page, name='search-page'),
     path('calendario/club.ics', views.team_calendar_ics, name='team-calendar-ics'),
     path('api/session/keepalive/', views.session_keepalive, name='session-keepalive'),

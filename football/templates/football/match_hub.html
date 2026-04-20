@@ -299,6 +299,12 @@
             <span class="badge {% if actions_count %}ok{% else %}warn{% endif %}">
               {% if actions_count %}{{ actions_count }} acciones{% else %}Sin acciones{% endif %}
             </span>
+            {% if actions_pending_count %}
+            <span class="badge warn">Pendientes {{ actions_pending_count }}</span>
+            {% endif %}
+            {% if actions_final_count %}
+            <span class="badge ok">Final {{ actions_final_count }}</span>
+            {% endif %}
           </div>
           <div class="actions">
             <a class="btn primary" href="{% url 'match-action-page' %}{% if active_match_id %}?match_id={{ active_match_id }}{% endif %}">Abrir registro</a>
@@ -314,8 +320,20 @@
               {% if can_render_pdfs %}PDF OK{% else %}PDF con incidencia{% endif %}
             </span>
             {% if pdf_smoke_detail %}<span class="badge">{{ pdf_smoke_detail }}</span>{% endif %}
+            {% if actions_pending_count %}
+            <span class="badge warn">Pendiente guardar</span>
+            {% else %}
+            {% if actions_final_count %}<span class="badge ok">Guardado</span>{% endif %}
+            {% endif %}
           </div>
           <div class="actions">
+            {% if active_match_id and can_finalize_match and actions_pending_count %}
+            <form method="post" action="{% url 'match-hub-finalize' %}" style="margin:0; display:inline-flex;">
+              {% csrf_token %}
+              <input type="hidden" name="match_id" value="{{ active_match_id }}" />
+              <button class="btn primary" type="submit">Guardar partido</button>
+            </form>
+            {% endif %}
             <a class="btn primary" href="{% url 'match-report-pdf' %}{% if active_match_id %}?match_id={{ active_match_id }}&team={{ primary_team_id }}{% endif %}" {% if not active_match_id %}aria-disabled="true"{% endif %}>Acta partido</a>
             {% if is_admin_user %}
             <a class="btn" href="{% url 'system-healthcheck-api' %}" target="_blank" rel="noreferrer">Healthcheck</a>
