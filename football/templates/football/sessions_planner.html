@@ -1358,6 +1358,18 @@
 		                    {% endfor %}
 		                  </select>
 		                </label>
+		                <label>
+		                  N jugadores
+		                  <input type="text" name="plan_session_player_count" maxlength="40" placeholder="Ej: 18 / 16 disponibles" />
+		                </label>
+		                <label style="grid-column:1/-1;">
+		                  Materiales
+		                  <input type="text" name="plan_session_materials" maxlength="300" placeholder="Conos, petos, porterías..." />
+		                </label>
+		                <label style="grid-column:1/-1;">
+		                  Lesionados / ausencias
+		                  <textarea name="plan_session_absences" placeholder="Bajas, molestias, precauciones..."></textarea>
+		                </label>
 		                <label style="grid-column:1/-1;">
 		                  Notas (opcional)
 		                  <textarea name="plan_session_content" placeholder="Notas generales de la sesión (sin pizarra)"></textarea>
@@ -2027,8 +2039,20 @@
                             </select>
                           </label>
                           <label style="grid-column:1/-1;">
-                            Contenido
+                            Notas (generales)
 	                            <textarea name="edit_session_content">{{ session.plan_fields.notes|default:'' }}</textarea>
+                          </label>
+                          <label>
+                            N jugadores
+                            <input type="text" name="edit_session_player_count" value="{{ session.plan_fields.player_count|default:'' }}" maxlength="40" placeholder="Ej: 18" />
+                          </label>
+                          <label style="grid-column:1/-1;">
+                            Materiales
+                            <input type="text" name="edit_session_materials" value="{{ session.plan_fields.materials|default:'' }}" maxlength="300" placeholder="Conos, petos, porterías..." />
+                          </label>
+                          <label style="grid-column:1/-1;">
+                            Lesionados / ausencias
+                            <textarea name="edit_session_absences" placeholder="Bajas, molestias, precauciones...">{{ session.plan_fields.absences|default:'' }}</textarea>
                           </label>
                           <div><button type="submit" class="primary">Guardar cambios</button></div>
                         </form>

@@ -134,6 +134,7 @@ from football.models import (
     StaffMember,
     InjuryCatalogEntry,
     TacticalPlaybookClip,
+    TacticalPlaybookClipFavorite,
 )
 from football.event_taxonomy import (
     DRIBBLE_KEYWORDS,
@@ -16973,6 +16974,30 @@ def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
         )
     )
     session_objectives_summary = str(session.focus or '').strip()
+    session_materials_override = str(session_plan_fields.get('materials') or '').strip()
+    if session_materials_override:
+        session_materials_summary = session_materials_override
+    session_absences_summary = (
+        str(session_plan_fields.get('absences') or '').strip()
+        or str(session_plan_fields.get('notes') or '').strip()
+    )
+    session_player_count_display = str(session_plan_fields.get('player_count') or '').strip()
+    if not session_player_count_display:
+        assigned_ids = set()
+        for task in tasks:
+            layout = task.tactical_layout if isinstance(getattr(task, 'tactical_layout', None), dict) else {}
+            meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+            raw_ids = meta.get('assigned_player_ids')
+            if not isinstance(raw_ids, list):
+                continue
+            for raw_id in raw_ids:
+                pid = _parse_int(raw_id)
+                if pid:
+                    assigned_ids.add(pid)
+        if assigned_ids:
+            session_player_count_display = str(len(assigned_ids))
+    if not session_player_count_display:
+        session_player_count_display = '-'
     session_display_name = str(getattr(session, 'focus', '') or '').strip()
     microcycle_display_title = str(getattr(getattr(session, 'microcycle', None), 'title', '') or '').strip()
     try:
@@ -17007,6 +17032,8 @@ def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
         'status_label': dict(TrainingSession.STATUS_CHOICES).get(session.status, session.status or '-'),
         'session_materials_summary': session_materials_summary,
         'session_objectives_summary': session_objectives_summary,
+        'session_absences_summary': session_absences_summary,
+        'session_player_count_display': session_player_count_display,
     }
 
 
@@ -17017,6 +17044,9 @@ def _parse_session_plan_fields(raw_content):
         'activation': '',
         'main': '',
         'cooldown': '',
+        'player_count': '',
+        'materials': '',
+        'absences': '',
         'notes': content.strip(),
     }
     if not content.strip():
@@ -17026,10 +17056,10 @@ def _parse_session_plan_fields(raw_content):
         return defaults
     _, payload = content.split(marker, 1)
     parsed = defaults.copy()
-    parsed.update({'warmup': '', 'activation': '', 'main': '', 'cooldown': '', 'notes': ''})
+    parsed.update({'warmup': '', 'activation': '', 'main': '', 'cooldown': '', 'player_count': '', 'materials': '', 'absences': '', 'notes': ''})
     current_key = None
     free_lines = []
-    allowed_keys = {'warmup', 'activation', 'main', 'cooldown', 'notes'}
+    allowed_keys = {'warmup', 'activation', 'main', 'cooldown', 'player_count', 'materials', 'absences', 'notes'}
     for raw_line in payload.splitlines():
         line = raw_line.rstrip()
         if not line.strip():
@@ -17053,7 +17083,7 @@ def _parse_session_plan_fields(raw_content):
 
 
 def _serialize_session_plan_fields(fields):
-    keys = ['warmup', 'activation', 'main', 'cooldown', 'notes']
+    keys = ['warmup', 'activation', 'main', 'cooldown', 'player_count', 'materials', 'absences', 'notes']
     clean = {key: str((fields or {}).get(key) or '').strip() for key in keys}
     if not any(clean.values()):
         return ''
@@ -17167,6 +17197,9 @@ def _build_session_task_sheet(task):
         'focus': str(task.coaching_points or '').strip(),
         'variants': str(meta.get('progression') or '').strip(),
         'success': str(meta.get('success_criteria') or '').strip(),
+        'coordination_label': str(meta.get('coordination') or '').strip(),
+        'coordination_skills_label': str(meta.get('coordination_skills') or meta.get('coordination_skills_label') or '').strip(),
+        'tactical_intent_label': str(meta.get('tactical_intent') or '').strip(),
     }
 
 
@@ -23768,7 +23801,17 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 if status not in {item[0] for item in TrainingSession.STATUS_CHOICES}:
                     status = TrainingSession.STATUS_PLANNED
                 notes_text = str(request.POST.get('plan_session_content') or '').strip()
-                content = _serialize_session_plan_fields({'notes': notes_text})
+                player_count = str(request.POST.get('plan_session_player_count') or '').strip()
+                materials = str(request.POST.get('plan_session_materials') or '').strip()
+                absences = str(request.POST.get('plan_session_absences') or '').strip()
+                content = _serialize_session_plan_fields(
+                    {
+                        'player_count': player_count,
+                        'materials': materials,
+                        'absences': absences,
+                        'notes': notes_text,
+                    }
+                )
                 duplicate_exists = TrainingSession.objects.filter(
                     microcycle=microcycle,
                     session_date=session_date,
@@ -23921,6 +23964,15 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 session_obj.focus = focus
                 existing_sections = _parse_session_plan_fields(getattr(session_obj, 'content', ''))
                 existing_sections['notes'] = notes_text
+                posted_player_count = request.POST.get('edit_session_player_count')
+                if posted_player_count is not None:
+                    existing_sections['player_count'] = str(posted_player_count or '').strip()
+                posted_materials = request.POST.get('edit_session_materials')
+                if posted_materials is not None:
+                    existing_sections['materials'] = str(posted_materials or '').strip()
+                posted_absences = request.POST.get('edit_session_absences')
+                if posted_absences is not None:
+                    existing_sections['absences'] = str(posted_absences or '').strip()
                 session_obj.content = _serialize_session_plan_fields(existing_sections)
                 session_obj.status = status
                 session_obj.save()
@@ -25007,7 +25059,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
 
     # Pestaña Sesiones: trabajamos sobre una única sesión seleccionada.
     selected_session = None
-    selected_session_plan_fields = {'warmup': '', 'activation': '', 'main': '', 'cooldown': '', 'notes': ''}
+    selected_session_plan_fields = {'warmup': '', 'activation': '', 'main': '', 'cooldown': '', 'player_count': '', 'materials': '', 'absences': '', 'notes': ''}
     selected_session_tasks = []
     selected_session_task_sections = []
     selected_session_id = None
@@ -33320,7 +33372,12 @@ def tactical_playbook_clips_api(request):
     Query params:
     - scope: team|system (default: team)
     - include_system: 1|0 (solo superuser)
-    - q: filtro por nombre/carpeta
+    - q: filtro por nombre/carpeta/tags
+    - folder: filtra por carpeta exacta
+    - tag: filtra por tag
+    - favorites: 1|0 (solo favoritos del usuario)
+    - latest: 1|0 (por defecto: 1)
+    - version_group: UUID (si se define, lista todas las versiones del grupo)
     """
     if not _can_access_sessions_workspace(request.user):
         return JsonResponse({'ok': False, 'error': 'No tienes permisos.'}, status=403)
@@ -33330,6 +33387,12 @@ def tactical_playbook_clips_api(request):
     scope = str(request.GET.get('scope') or 'team').strip().lower()
     include_system = str(request.GET.get('include_system') or '').strip() in ('1', 'true', 'yes')
     q = str(request.GET.get('q') or '').strip()
+    folder = str(request.GET.get('folder') or '').strip()
+    tag = str(request.GET.get('tag') or '').strip()
+    favorites_only = str(request.GET.get('favorites') or '').strip().lower() in ('1', 'true', 'yes', 'on')
+    latest_only = str(request.GET.get('latest') or '').strip().lower()
+    latest_only = False if latest_only in ('0', 'false', 'no', 'off') else True
+    version_group = str(request.GET.get('version_group') or '').strip()
 
     system_team = None
     try:
@@ -33353,12 +33416,82 @@ def tactical_playbook_clips_api(request):
             team_ids.append(int(system_team.id))
 
     qs = TacticalPlaybookClip.objects.filter(team_id__in=team_ids)
+    if version_group:
+        try:
+            qs = qs.filter(version_group=version_group)
+            # Si piden versiones concretas, ignoramos latest_only.
+            latest_only = False
+        except Exception:
+            pass
+    if latest_only:
+        qs = qs.filter(is_latest=True)
+    if folder:
+        qs = qs.filter(folder__iexact=folder[:80])
     if q:
         qs = qs.filter(Q(name__icontains=q) | Q(folder__icontains=q))
-    # Nota: devolvemos steps completos para poder cargar el clip desde el editor, así que limitamos para no saturar.
-    items = list(qs.select_related('team').order_by('-updated_at', '-id')[:80])
 
     username = str(getattr(request.user, 'username', '') or '').strip()
+    favorite_ids = set()
+    if favorites_only or username:
+        try:
+            favorite_ids = set(
+                TacticalPlaybookClipFavorite.objects
+                .filter(user=request.user, clip_id__in=qs.values_list('id', flat=True))
+                .values_list('clip_id', flat=True)
+            )
+        except Exception:
+            favorite_ids = set()
+    if favorites_only:
+        if not favorite_ids:
+            return JsonResponse({'ok': True, 'items': []})
+        qs = qs.filter(id__in=list(favorite_ids))
+
+    if tag:
+        tag_clean = _sanitize_task_text(tag, multiline=False, max_len=32) or ''
+        tag_clean = tag_clean.strip()
+        if tag_clean:
+            try:
+                qs = qs.filter(tags__contains=[tag_clean])
+            except Exception:
+                # SQLite JSONField puede no soportar contains; filtraremos en memoria más abajo.
+                pass
+
+    # Nota: devolvemos steps completos para poder cargar el clip desde el editor, así que limitamos para no saturar.
+    items = list(qs.select_related('team').order_by('-updated_at', '-id')[:200])
+    if tag:
+        tag_clean = (_sanitize_task_text(tag, multiline=False, max_len=32) or '').strip()
+        if tag_clean:
+            items = [obj for obj in items if isinstance(getattr(obj, 'tags', None), list) and tag_clean in obj.tags]
+    if q:
+        ql = q.lower()
+        filtered = []
+        for obj in items:
+            tags_list = obj.tags if isinstance(getattr(obj, 'tags', None), list) else []
+            tags_text = ' '.join([str(t) for t in tags_list if t])
+            if ql in (str(obj.name or '').lower() + ' ' + str(obj.folder or '').lower() + ' ' + tags_text.lower()):
+                filtered.append(obj)
+        items = filtered
+    items = items[:80]
+
+    # Conteo de versiones (para mostrar v1/v2 sin listar todo).
+    version_counts = {}
+    try:
+        groups = [obj.version_group for obj in items if getattr(obj, 'version_group', None)]
+        if groups:
+            rows = (
+                TacticalPlaybookClip.objects
+                .filter(team_id__in=team_ids, version_group__in=groups)
+                .values('version_group')
+                .annotate(cnt=Count('id'))
+            )
+            version_counts = {str(row['version_group']): int(row['cnt'] or 0) for row in rows if row.get('version_group')}
+    except Exception:
+        version_counts = {}
+    workspace = _get_active_workspace(request)
+    can_manage_workspace = bool(_can_manage_workspace(request.user, workspace)) if workspace else bool(_can_access_platform(request.user))
+    membership = _workspace_membership_for_user(workspace, request.user) if workspace else None
+    can_write = bool(can_manage_workspace or (membership and membership.role in {WorkspaceMembership.ROLE_OWNER, WorkspaceMembership.ROLE_ADMIN, WorkspaceMembership.ROLE_MEMBER}))
+
     payload = []
     for obj in items:
         obj_scope = 'team'
@@ -33367,7 +33500,10 @@ def tactical_playbook_clips_api(request):
                 obj_scope = 'system'
         except Exception:
             obj_scope = 'team'
-        can_delete = bool(getattr(request.user, 'is_superuser', False)) or (username and username == str(obj.created_by or '').strip())
+        is_superuser = bool(getattr(request.user, 'is_superuser', False))
+        creator = str(obj.created_by or '').strip()
+        can_delete = bool(is_superuser or can_manage_workspace or (username and username == creator))
+        can_edit = bool(can_write and (can_manage_workspace or (username and username == creator) or is_superuser))
         payload.append(
             {
                 'id': int(obj.id),
@@ -33380,6 +33516,12 @@ def tactical_playbook_clips_api(request):
                 'updated_at': obj.updated_at.isoformat() if getattr(obj, 'updated_at', None) else None,
                 'scope': obj_scope,
                 'can_delete': bool(can_delete),
+                'can_edit': bool(can_edit),
+                'is_favorite': bool(int(obj.id) in favorite_ids) if favorite_ids else False,
+                'version_group': str(getattr(obj, 'version_group', '') or ''),
+                'version_number': int(getattr(obj, 'version_number', 1) or 1),
+                'is_latest': bool(getattr(obj, 'is_latest', True)),
+                'version_count': int(version_counts.get(str(getattr(obj, 'version_group', '') or ''), 1) or 1),
             }
         )
     return JsonResponse({'ok': True, 'items': payload})
@@ -33400,6 +33542,7 @@ def tactical_playbook_clip_save_api(request):
     - tags: list[str] (opcional)
     - steps: list (requerido)
     - overwrite: 1|0 (si existe mismo nombre en el scope)
+    - new_version: 1|0 (si existe, guarda v2 en vez de sobrescribir)
     """
     if not _can_access_sessions_workspace(request.user):
         return JsonResponse({'ok': False, 'error': 'No tienes permisos.'}, status=403)
@@ -33418,6 +33561,7 @@ def tactical_playbook_clip_save_api(request):
 
     scope = str(data.get('scope') or 'team').strip().lower()
     overwrite = str(data.get('overwrite') or '').strip() in ('1', 'true', 'yes')
+    new_version = str(data.get('new_version') or '').strip().lower() in ('1', 'true', 'yes', 'on')
     raw_id = data.get('id')
     clip_id = 0
     try:
@@ -33441,6 +33585,10 @@ def tactical_playbook_clip_save_api(request):
         primary_team = _get_primary_team_for_request(request)
         if not primary_team:
             return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
+        workspace = _get_active_workspace(request)
+        membership = _workspace_membership_for_user(workspace, request.user) if workspace else None
+        if membership and membership.role == WorkspaceMembership.ROLE_VIEWER and not _can_manage_workspace(request.user, workspace):
+            return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
 
     name = _sanitize_task_text(str(data.get('name') or '').strip(), multiline=False, max_len=160)
     if not name:
@@ -33484,23 +33632,81 @@ def tactical_playbook_clip_save_api(request):
             obj = TacticalPlaybookClip.objects.filter(id=clip_id, team=primary_team).first()
             if not obj:
                 return JsonResponse({'ok': False, 'error': 'Clip no encontrado.'}, status=404)
-            obj.name = name
-            obj.folder = folder
-            obj.tags = tags
-            obj.steps = steps
-            obj.created_by = obj.created_by or username
-            obj.save(update_fields=['name', 'folder', 'tags', 'steps', 'updated_at', 'created_by'])
-        else:
-            existing = TacticalPlaybookClip.objects.filter(team=primary_team, name=name).order_by('-updated_at', '-id').first()
-            if existing and not overwrite:
-                return JsonResponse({'ok': False, 'error': 'exists', 'existing_id': int(existing.id)}, status=409)
-            if existing and overwrite:
-                obj = existing
+            creator = str(obj.created_by or '').strip()
+            workspace = _get_active_workspace(request)
+            can_manage = bool(_can_manage_workspace(request.user, workspace)) if workspace else bool(_can_access_platform(request.user))
+            if not bool(getattr(request.user, 'is_superuser', False)) and not can_manage and creator and creator != username:
+                return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+            if new_version:
+                # Guardar como nueva versión (v2, v3...).
+                try:
+                    TacticalPlaybookClip.objects.filter(team=primary_team, version_group=obj.version_group).exclude(id=obj.id).update(is_latest=False)
+                except Exception:
+                    pass
+                try:
+                    obj.is_latest = False
+                    obj.save(update_fields=['is_latest', 'updated_at'])
+                except Exception:
+                    pass
+                obj = TacticalPlaybookClip.objects.create(
+                    team=primary_team,
+                    name=name,
+                    folder=folder,
+                    tags=tags,
+                    steps=steps,
+                    created_by=username or creator,
+                    version_group=obj.version_group,
+                    version_number=int(getattr(obj, 'version_number', 1) or 1) + 1,
+                    is_latest=True,
+                )
+                created = True
+            else:
+                obj.name = name
                 obj.folder = folder
                 obj.tags = tags
                 obj.steps = steps
                 obj.created_by = obj.created_by or username
-                obj.save(update_fields=['folder', 'tags', 'steps', 'updated_at', 'created_by'])
+                obj.is_latest = True
+                obj.save(update_fields=['name', 'folder', 'tags', 'steps', 'updated_at', 'created_by', 'is_latest'])
+        else:
+            existing = TacticalPlaybookClip.objects.filter(team=primary_team, name=name, is_latest=True).order_by('-updated_at', '-id').first()
+            if existing and not overwrite and not new_version:
+                return JsonResponse(
+                    {
+                        'ok': False,
+                        'error': 'exists',
+                        'existing_id': int(existing.id),
+                        'existing_version_group': str(getattr(existing, 'version_group', '') or ''),
+                        'existing_version_number': int(getattr(existing, 'version_number', 1) or 1),
+                    },
+                    status=409,
+                )
+            if existing and (overwrite or new_version):
+                obj = existing
+                if new_version:
+                    try:
+                        TacticalPlaybookClip.objects.filter(team=primary_team, version_group=existing.version_group).update(is_latest=False)
+                    except Exception:
+                        pass
+                    obj = TacticalPlaybookClip.objects.create(
+                        team=primary_team,
+                        name=name,
+                        folder=folder,
+                        tags=tags,
+                        steps=steps,
+                        created_by=username or str(existing.created_by or '').strip(),
+                        version_group=existing.version_group,
+                        version_number=int(getattr(existing, 'version_number', 1) or 1) + 1,
+                        is_latest=True,
+                    )
+                    created = True
+                else:
+                    obj.folder = folder
+                    obj.tags = tags
+                    obj.steps = steps
+                    obj.created_by = obj.created_by or username
+                    obj.is_latest = True
+                    obj.save(update_fields=['folder', 'tags', 'steps', 'updated_at', 'created_by', 'is_latest'])
             else:
                 obj = TacticalPlaybookClip.objects.create(
                     team=primary_team,
@@ -33514,7 +33720,16 @@ def tactical_playbook_clip_save_api(request):
     except Exception:
         return JsonResponse({'ok': False, 'error': 'No se pudo guardar.'}, status=500)
 
-    return JsonResponse({'ok': True, 'id': int(obj.id), 'created': bool(created)})
+    return JsonResponse(
+        {
+            'ok': True,
+            'id': int(obj.id),
+            'created': bool(created),
+            'version_group': str(getattr(obj, 'version_group', '') or ''),
+            'version_number': int(getattr(obj, 'version_number', 1) or 1),
+            'is_latest': bool(getattr(obj, 'is_latest', True)),
+        }
+    )
 
 
 @csrf_exempt
@@ -33566,13 +33781,341 @@ def tactical_playbook_clip_delete_api(request):
         return JsonResponse({'ok': False, 'error': 'Clip no encontrado.'}, status=404)
 
     username = str(getattr(request.user, 'username', '') or '').strip()
-    if not bool(getattr(request.user, 'is_superuser', False)) and username != str(obj.created_by or '').strip():
+    workspace = _get_active_workspace(request)
+    can_manage = bool(_can_manage_workspace(request.user, workspace)) if workspace else bool(_can_access_platform(request.user))
+    creator = str(obj.created_by or '').strip()
+    if not bool(getattr(request.user, 'is_superuser', False)) and not can_manage and (not username or username != creator):
         return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+    version_group = getattr(obj, 'version_group', None)
+    was_latest = bool(getattr(obj, 'is_latest', False))
     try:
         obj.delete()
     except Exception:
         return JsonResponse({'ok': False, 'error': 'No se pudo borrar.'}, status=500)
+    if version_group and was_latest:
+        try:
+            next_latest = (
+                TacticalPlaybookClip.objects
+                .filter(team=primary_team, version_group=version_group)
+                .order_by('-version_number', '-updated_at', '-id')
+                .first()
+            )
+            if next_latest:
+                TacticalPlaybookClip.objects.filter(team=primary_team, version_group=version_group).update(is_latest=False)
+                TacticalPlaybookClip.objects.filter(id=next_latest.id).update(is_latest=True)
+        except Exception:
+            pass
     return JsonResponse({'ok': True})
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def tactical_playbook_clip_favorite_api(request):
+    if not _can_access_sessions_workspace(request.user):
+        return JsonResponse({'ok': False, 'error': 'No tienes permisos.'}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+    if forbidden:
+        return forbidden
+    try:
+        if request.content_type and 'application/json' in (request.content_type or '').lower():
+            data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+        else:
+            data = request.POST.dict() if hasattr(request, 'POST') else {}
+    except Exception:
+        data = {}
+    try:
+        clip_id = int(data.get('id') or 0)
+    except Exception:
+        clip_id = 0
+    if not clip_id:
+        return JsonResponse({'ok': False, 'error': 'id requerido.'}, status=400)
+
+    clip = TacticalPlaybookClip.objects.select_related('team').filter(id=clip_id).first()
+    if not clip:
+        return JsonResponse({'ok': False, 'error': 'Clip no encontrado.'}, status=404)
+    if not _user_can_access_team(request, clip.team):
+        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+    fav = TacticalPlaybookClipFavorite.objects.filter(user=request.user, clip=clip).first()
+    if fav:
+        try:
+            fav.delete()
+        except Exception:
+            return JsonResponse({'ok': False, 'error': 'No se pudo actualizar.'}, status=500)
+        return JsonResponse({'ok': True, 'is_favorite': False})
+    try:
+        TacticalPlaybookClipFavorite.objects.create(user=request.user, clip=clip)
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'No se pudo actualizar.'}, status=500)
+    return JsonResponse({'ok': True, 'is_favorite': True})
+
+
+@login_required
+@require_POST
+def tactical_playbook_clip_share_create(request):
+    """
+    Crea enlace público (solo lectura) para reproducir un clip del Playbook.
+    """
+    if not _can_access_sessions_workspace(request.user):
+        return JsonResponse({'error': 'No tienes permisos.'}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+    if forbidden:
+        return JsonResponse({'error': 'El módulo sesiones no está disponible.'}, status=403)
+    validity_days = _parse_int(request.POST.get('valid_days')) or 14
+    validity_days = max(1, min(validity_days, 60))
+    password = (request.POST.get('password') or '').strip()
+    clip_id = _parse_int(request.POST.get('id') or request.POST.get('clip_id'))
+    if not clip_id:
+        return JsonResponse({'error': 'id requerido.'}, status=400)
+    clip = TacticalPlaybookClip.objects.select_related('team').filter(id=clip_id).first()
+    if not clip:
+        return JsonResponse({'error': 'Clip no encontrado.'}, status=404)
+    if not _user_can_access_team(request, clip.team):
+        return JsonResponse({'error': 'No autorizado.'}, status=403)
+
+    steps = clip.steps if isinstance(clip.steps, list) else []
+    if not steps:
+        return JsonResponse({'error': 'El clip no contiene pasos.'}, status=400)
+    if len(steps) > 40:
+        steps = steps[:40]
+
+    cleaned_steps = []
+    for index, step in enumerate(steps):
+        if not isinstance(step, dict):
+            continue
+        state = step.get('canvas_state')
+        if not isinstance(state, dict):
+            continue
+        duration = _parse_int(step.get('duration')) or 3
+        cleaned_steps.append({
+            'title': str(step.get('title') or f'Paso {index + 1}')[:120],
+            'duration': max(1, min(duration, 20)),
+            'canvas_state': state,
+            'canvas_width': _parse_int(step.get('canvas_width')) or 0,
+            'canvas_height': _parse_int(step.get('canvas_height')) or 0,
+            'moves': step.get('moves') if isinstance(step.get('moves'), list) else [],
+        })
+    if not cleaned_steps:
+        return JsonResponse({'error': 'No se pudieron leer los pasos.'}, status=400)
+
+    link = ShareLink.objects.create(
+        token=ShareLink.generate_token(),
+        kind=ShareLink.KIND_TACTICAL_PLAYBOOK_CLIP,
+        payload={
+            'title': str(clip.name or 'Clip')[:180],
+            'pitch_svg': '',
+            'steps': cleaned_steps,
+            'clip_id': int(clip.id),
+            'team_id': int(clip.team_id),
+        },
+        password_hash=make_password(password) if password else '',
+        expires_at=timezone.now() + timedelta(days=validity_days),
+        created_by=request.user.get_username() if request.user.is_authenticated else '',
+        created_by_user=request.user if request.user.is_authenticated else None,
+        is_active=True,
+    )
+    url = request.build_absolute_uri(reverse('share-tactical-playbook-clip', args=[link.token]))
+    _audit(
+        request,
+        'share_link_create',
+        workspace=_get_active_workspace(request),
+        message='Enlace de playbook creado',
+        payload={'kind': 'tactical_playbook_clip', 'clip_id': int(clip.id), 'team_id': int(clip.team_id), 'expires_days': validity_days, 'password': bool(password)},
+    )
+    return JsonResponse({'ok': True, 'url': url, 'expires_at': link.expires_at})
+
+
+def share_tactical_playbook_clip_page(request, token):
+    """
+    Endpoint público para reproducir un clip de playbook compartido por token.
+    """
+    token = str(token or '').strip()
+    link = ShareLink.objects.filter(token=token, is_active=True, kind=ShareLink.KIND_TACTICAL_PLAYBOOK_CLIP).first()
+    now = timezone.now()
+    if not link or not link.can_be_used(now=now):
+        raise Http404('Enlace no disponible')
+    if (link.password_hash or '').strip():
+        if request.method != 'POST':
+            return render(
+                request,
+                'football/share_link_gate.html',
+                {'error': '', 'expires_at': link.expires_at},
+                status=200,
+            )
+        supplied = (request.POST.get('password') or '').strip()
+        if not supplied or not check_password(supplied, link.password_hash):
+            return render(
+                request,
+                'football/share_link_gate.html',
+                {'error': 'Contraseña incorrecta.', 'expires_at': link.expires_at},
+                status=403,
+            )
+    payload = link.payload if isinstance(link.payload, dict) else {}
+    try:
+        ShareLink.objects.filter(id=link.id).update(access_count=(link.access_count or 0) + 1, last_accessed_at=timezone.now())
+    except Exception:
+        pass
+    return render(
+        request,
+        'football/task_simulation_share.html',
+        {
+            'payload': payload,
+            'expires_at': link.expires_at,
+        },
+        status=200,
+    )
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def tactical_playbook_clip_clone_api(request):
+    """
+    Clona un clip existente a otro equipo (manteniendo steps).
+
+    JSON:
+    - id: clip origen
+    - to_team_id: Team.id destino
+    - overwrite: 1|0
+    - new_version: 1|0 (si existe en destino, crea v2)
+    """
+    if not _can_access_sessions_workspace(request.user):
+        return JsonResponse({'ok': False, 'error': 'No tienes permisos.'}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+    if forbidden:
+        return forbidden
+    try:
+        if request.content_type and 'application/json' in (request.content_type or '').lower():
+            data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+        else:
+            data = request.POST.dict() if hasattr(request, 'POST') else {}
+    except Exception:
+        data = {}
+    clip_id = _parse_int(data.get('id') or data.get('clip_id'))
+    to_team_id = _parse_int(data.get('to_team_id') or data.get('team_id'))
+    overwrite = str(data.get('overwrite') or '').strip().lower() in ('1', 'true', 'yes', 'on')
+    new_version = str(data.get('new_version') or '').strip().lower() in ('1', 'true', 'yes', 'on')
+    if not clip_id or not to_team_id:
+        return JsonResponse({'ok': False, 'error': 'Parámetros requeridos.'}, status=400)
+
+    clip = TacticalPlaybookClip.objects.select_related('team').filter(id=clip_id).first()
+    if not clip:
+        return JsonResponse({'ok': False, 'error': 'Clip no encontrado.'}, status=404)
+    to_team = Team.objects.filter(id=to_team_id).first()
+    if not to_team:
+        return JsonResponse({'ok': False, 'error': 'Equipo destino no encontrado.'}, status=404)
+    if not _user_can_access_team(request, to_team):
+        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+
+    workspace = _get_active_workspace(request)
+    membership = _workspace_membership_for_user(workspace, request.user) if workspace else None
+    if membership and membership.role == WorkspaceMembership.ROLE_VIEWER and not _can_manage_workspace(request.user, workspace):
+        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+
+    name = str(clip.name or '').strip()[:160] or 'Clip'
+    steps = clip.steps if isinstance(clip.steps, list) else []
+    folder = str(clip.folder or '').strip()[:80]
+    tags = clip.tags if isinstance(clip.tags, list) else []
+    username = request.user.get_username()[:80]
+
+    existing = TacticalPlaybookClip.objects.filter(team=to_team, name=name, is_latest=True).order_by('-updated_at', '-id').first()
+    if existing and not overwrite and not new_version:
+        return JsonResponse({'ok': False, 'error': 'exists', 'existing_id': int(existing.id)}, status=409)
+    try:
+        if existing and (overwrite or new_version):
+            if new_version:
+                TacticalPlaybookClip.objects.filter(team=to_team, version_group=existing.version_group).update(is_latest=False)
+                obj = TacticalPlaybookClip.objects.create(
+                    team=to_team,
+                    name=name,
+                    folder=folder,
+                    tags=tags,
+                    steps=steps,
+                    created_by=username,
+                    version_group=existing.version_group,
+                    version_number=int(getattr(existing, 'version_number', 1) or 1) + 1,
+                    is_latest=True,
+                )
+            else:
+                existing.folder = folder
+                existing.tags = tags
+                existing.steps = steps
+                existing.created_by = existing.created_by or username
+                existing.is_latest = True
+                existing.save(update_fields=['folder', 'tags', 'steps', 'updated_at', 'created_by', 'is_latest'])
+                obj = existing
+        else:
+            obj = TacticalPlaybookClip.objects.create(
+                team=to_team,
+                name=name,
+                folder=folder,
+                tags=tags,
+                steps=steps,
+                created_by=username,
+            )
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'No se pudo clonar.'}, status=500)
+    return JsonResponse({'ok': True, 'id': int(obj.id), 'team_id': int(to_team.id)})
+
+
+@login_required
+def tactical_playbook_teams_api(request):
+    """
+    Lista equipos accesibles (para clonar clips) dentro del workspace club activo.
+    """
+    if not _can_access_sessions_workspace(request.user):
+        return JsonResponse({'ok': False, 'error': 'No tienes permisos.'}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+    if forbidden:
+        return forbidden
+    workspace = _get_active_workspace(request)
+    links = _workspace_team_links_for_user(workspace, request.user) if workspace else []
+    items = []
+    for link in (links or [])[:24]:
+        team = getattr(link, 'team', None)
+        if not team:
+            continue
+        items.append({'id': int(team.id), 'slug': str(team.slug or ''), 'name': str(team.display_name or team.name or ''), 'is_default': bool(getattr(link, 'is_default', False))})
+    return JsonResponse({'ok': True, 'items': items})
+
+
+@login_required
+def tactical_playbook_versions_api(request):
+    """
+    Lista versiones (v1/v2/...) de un clip (por version_group).
+    """
+    if not _can_access_sessions_workspace(request.user):
+        return JsonResponse({'ok': False, 'error': 'No tienes permisos.'}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+    if forbidden:
+        return forbidden
+    version_group = str(request.GET.get('version_group') or '').strip()
+    if not version_group:
+        return JsonResponse({'ok': False, 'error': 'version_group requerido.'}, status=400)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
+    try:
+        qs = TacticalPlaybookClip.objects.filter(team=primary_team, version_group=version_group).order_by('-version_number', '-updated_at', '-id')
+    except Exception:
+        qs = TacticalPlaybookClip.objects.none()
+    items = list(qs[:24])
+    payload = []
+    for obj in items:
+        payload.append({
+            'id': int(obj.id),
+            'name': str(obj.name or '').strip(),
+            'folder': str(obj.folder or '').strip(),
+            'tags': obj.tags if isinstance(obj.tags, list) else [],
+            'steps': obj.steps if isinstance(obj.steps, list) else [],
+            'created_by': str(obj.created_by or '').strip(),
+            'created_at': obj.created_at.isoformat() if getattr(obj, 'created_at', None) else None,
+            'updated_at': obj.updated_at.isoformat() if getattr(obj, 'updated_at', None) else None,
+            'version_group': str(getattr(obj, 'version_group', '') or ''),
+            'version_number': int(getattr(obj, 'version_number', 1) or 1),
+            'is_latest': bool(getattr(obj, 'is_latest', True)),
+        })
+    return JsonResponse({'ok': True, 'items': payload})
 
 
 def _assistant_goal_specs():

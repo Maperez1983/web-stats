@@ -4,6 +4,7 @@ from django.utils import timezone
 from django.contrib.auth.models import User
 import secrets
 import hashlib
+import uuid
 
 
 class DataSource(models.Model):
@@ -998,6 +999,9 @@ class TacticalPlaybookClip(models.Model):
     tags = models.JSONField(default=list, blank=True)
     steps = models.JSONField(default=list, blank=True)
     created_by = models.CharField(max_length=80, blank=True)
+    version_group = models.UUIDField(default=uuid.uuid4, db_index=True, editable=False)
+    version_number = models.PositiveSmallIntegerField(default=1)
+    is_latest = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -1005,11 +1009,25 @@ class TacticalPlaybookClip(models.Model):
         ordering = ['-updated_at', '-id']
         indexes = [
             models.Index(fields=['team', '-updated_at']),
+            models.Index(fields=['team', 'version_group', 'is_latest']),
         ]
 
     def __str__(self):
         team_label = getattr(self.team, 'name', '') or 'team'
         return f'{team_label} · {self.name}'
+
+
+class TacticalPlaybookClipFavorite(models.Model):
+    clip = models.ForeignKey(TacticalPlaybookClip, on_delete=models.CASCADE, related_name='favorite_rows')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='tactical_playbook_favorites')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+        unique_together = ('clip', 'user')
+
+    def __str__(self):
+        return f'⭐ {self.user.username} · {self.clip.name}'
 
 
 class ScrapeSource(models.Model):
@@ -1241,10 +1259,12 @@ class ShareLink(models.Model):
     KIND_TASK_PDF = 'task_pdf'
     KIND_CONVOCATION_PDF = 'convocation_pdf'
     KIND_TASK_SIMULATION = 'task_simulation'
+    KIND_TACTICAL_PLAYBOOK_CLIP = 'tactical_playbook_clip'
     KIND_CHOICES = [
         (KIND_TASK_PDF, 'PDF de tarea'),
         (KIND_CONVOCATION_PDF, 'PDF de convocatoria'),
         (KIND_TASK_SIMULATION, 'Simulación de tarea'),
+        (KIND_TACTICAL_PLAYBOOK_CLIP, 'Clip Playbook'),
     ]
 
     token = models.CharField(max_length=120, unique=True, db_index=True)

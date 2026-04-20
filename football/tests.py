@@ -258,7 +258,6 @@ class SearchApiExtendedGroupsTests(TestCase):
             team=self.team,
             is_default=True,
         )
-
     def test_search_api_includes_staff_sessions_and_tasks(self):
         StaffMember.objects.create(
             workspace=self.workspace,
@@ -5969,3 +5968,24 @@ class ClubOnboardingImportTests(TestCase):
         self.assertIsNotNone(team.group_id)
         self.assertEqual(team.group.external_id, '45030656')
         self.assertEqual(context.group_id, team.group_id)
+
+
+class SessionPlanFieldsSerializationTests(TestCase):
+    def test_parse_and_serialize_supports_session_extras(self):
+        raw = football_views._serialize_session_plan_fields(
+            {
+                'warmup': 'Calentamiento',
+                'activation': 'Activación',
+                'main': 'Principal',
+                'cooldown': 'Vuelta',
+                'player_count': '18',
+                'materials': 'Conos, petos',
+                'absences': 'Juan (tobillo)',
+                'notes': 'Notas generales',
+            }
+        )
+        parsed = football_views._parse_session_plan_fields(raw)
+        self.assertEqual(parsed.get('player_count'), '18')
+        self.assertEqual(parsed.get('materials'), 'Conos, petos')
+        self.assertEqual(parsed.get('absences'), 'Juan (tobillo)')
+        self.assertEqual(parsed.get('notes'), 'Notas generales')

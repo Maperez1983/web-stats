@@ -231,6 +231,19 @@
 	        text-transform: uppercase;
 	        background: #e10613;
 	        color: #fff;
+	        page-break-after: avoid;
+	        break-after: avoid;
+	      }
+	      .uefa-task-card {
+	        page-break-inside: avoid;
+	        break-inside: avoid;
+	      }
+	      .uefa-bar,
+	      .uefa-box,
+	      .task-graphic,
+	      .uefa-grid {
+	        page-break-inside: avoid;
+	        break-inside: avoid;
 	      }
 	      .uefa-grid {
 	        width: 100%;
@@ -281,140 +294,256 @@
 		        border-radius: 6px;
 		        padding: 2px;
 		      }
-		      .uefa-page-break { page-break-before: always; }
-		      .page-break { page-break-before: always; }
-		    </style>
+	      .uefa-page-break { page-break-before: always; }
+	      .page-break { page-break-before: always; }
+
+	      /* UEFA (RFEF) estilo "ejemplo de sesión" (react-pdf) */
+	      .rfef-page {
+	        background: #ffffff;
+	      }
+	      .rfef-header {
+	        background: #e10613;
+	        color: #ffffff;
+	        margin: -12mm -12mm 10px;
+	        padding: 10px 14px;
+	      }
+	      .rfef-header table { width: 100%; border-collapse: collapse; }
+	      .rfef-title {
+	        font-size: 20px;
+	        font-weight: 900;
+	        letter-spacing: 0.04em;
+	        text-transform: uppercase;
+	      }
+	      .rfef-section { margin-top: 10px; }
+	      .rfef-section-title {
+	        background: #e10613;
+	        color: #ffffff;
+	        font-size: 10px;
+	        font-weight: 900;
+	        letter-spacing: 0.06em;
+	        text-transform: uppercase;
+	        padding: 6px 10px;
+	        border: 1px solid #1f2937;
+	        border-bottom: none;
+	        border-radius: 4px 4px 0 0;
+	        page-break-after: avoid;
+	        break-after: avoid;
+	      }
+	      .rfef-table {
+	        width: 100%;
+	        border-collapse: collapse;
+	        table-layout: fixed;
+	        border: 1px solid #1f2937;
+	      }
+	      .rfef-table td, .rfef-table th {
+	        border: 1px solid #1f2937;
+	        padding: 6px 8px;
+	        vertical-align: top;
+	        font-size: 10px;
+	      }
+	      .rfef-label {
+	        width: 22%;
+	        background: #f3f4f6;
+	        font-weight: 800;
+	      }
+	      .rfef-box {
+	        border: 1px solid #1f2937;
+	        padding: 8px;
+	        min-height: 30px;
+	        line-height: 1.45;
+	        white-space: pre-line;
+	      }
+	      .rfef-graphic {
+	        height: 78mm;
+	        display: flex;
+	        align-items: center;
+	        justify-content: center;
+	        overflow: hidden;
+	        line-height: 0;
+	      }
+	      .rfef-graphic img {
+	        max-width: 100%;
+	        max-height: 72mm;
+	        width: auto;
+	        height: auto;
+	        display: block;
+	      }
+	      .rfef-muted { color: #6b7280; }
+	    </style>
 	  </head>
 	    <body>
 	    {% if pdf_style != 'club' %}
-	    <section class="sheet uefa-sheet"{% if template_bg_src %} style="background-image:url('{{ template_bg_src }}'); background-size:100% 100%; background-repeat:no-repeat; background-position:center;"{% endif %}>
-	      <div class="uefa-bar uefa-red">
-	        <table style="width:100%; border-collapse:collapse;">
-	          <tr>
-	            <td style="width:56px; vertical-align:middle;">
-	              <div class="uefa-logo-wrap">
-	                <img src="{{ logo_url }}" alt="RFEF / UEFA" />
-	              </div>
-	            </td>
-		            <td style="vertical-align:middle; font-size:20px;">Entrega Sesión <span style="font-size:11px; font-weight:700; opacity:0.9; margin-left:10px;">Formato UEFA</span></td>
-	          </tr>
-	        </table>
-	      </div>
-
-	      <div style="padding:12px 14px 0;">
-			        <div class="uefa-section-head">Detalles de la sesión</div>
-		        <table class="uefa-grid" style="margin-bottom:10px;">
-		          <colgroup>
-		            <col style="width:18%;" />
-		            <col style="width:32%;" />
-		            <col style="width:18%;" />
-		            <col style="width:32%;" />
-		          </colgroup>
-		          <tr>
-		            <td class="kcell">Título</td>
-		            <td colspan="3">{{ session_display_name|default:session.focus }}</td>
-		          </tr>
-	          <tr>
-	            <td class="kcell">Tiempo</td>
-	            <td>{{ session.duration_minutes }}'</td>
-	            <td class="kcell">N jugadores</td>
-	            <td>-</td>
-	          </tr>
-	        </table>
-	        <div class="uefa-box" style="margin-bottom:8px;">
-	          <strong style="display:block; margin-bottom:4px;">Materiales</strong>
-	          {{ session_materials_summary|default:"" }}
-	        </div>
-	        <div class="uefa-box" style="margin-bottom:8px;">
-	          <strong style="display:block; margin-bottom:4px;">Objetivos</strong>
-	          {{ session_objectives_summary|default:"" }}
-	        </div>
-	        <div class="uefa-box" style="margin-bottom:10px;">
-	          <strong style="display:block; margin-bottom:4px;">Lesionados / Ausencias</strong>
-	          {{ session_notes|default:"" }}
-	        </div>
-
-			        <div class="uefa-section-head">Tareas de la sesión</div>
-		        {% if task_cards %}
-		          {% for card in task_cards %}
-		          {% if not forloop.first %}<div class="uefa-page-break"></div>{% endif %}
-		          <div class="uefa-bar uefa-red" style="margin:0 0 10px; border-top:1px solid #1f2937; border-bottom:1px solid #1f2937;">
-		            <table style="width:100%; border-collapse:collapse;">
-		              <tr>
-			                <td style="font-size:16px;">Entrega Sesión</td>
-		                <td style="text-align:right; font-size:11px; font-weight:700;">{{ session.session_date|date:"d/m/Y" }}{% if session.start_time %} · {{ session.start_time|time:"H:i" }}{% endif %}</td>
-		              </tr>
-		            </table>
-		          </div>
-
-	          <div class="uefa-section-head">DESCRIPCIÓN GRÁFICA</div>
-	          {% if card.preview_url %}
-	          <div class="task-graphic" style="margin-bottom:10px;">
-	            <img src="{{ card.preview_url }}" alt="Representación gráfica" />
-	          </div>
-		          {% else %}
-		          <div class="task-graphic" style="margin-bottom:10px; line-height:1.2;">
-		            <div style="color:#6b7280;">(Sin representación gráfica)</div>
-		          </div>
-		          {% endif %}
-		          {% if card.drills %}
-		          <div style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; color:#0f7a35; margin-bottom:6px;">Secuencia</div>
-		          <div class="drills-row">
-		            {% for drill in card.drills %}
-		            <div class="drill-chip">
-		              {% if drill.icon_url %}<img src="{{ drill.icon_url }}" alt="" />{% endif %}
-		              {{ drill.label }}
-		            </div>
-		            {% endfor %}
-		          </div>
-		          {% endif %}
-
-		          <div class="uefa-section-head">CONSIGNA / EXPLICACIÓN</div>
-	          <div class="uefa-box" style="margin-bottom:10px; white-space:pre-line;">
-	            {% if card.sheet.focus %}{{ card.sheet.focus }}{% elif card.sheet.description %}{{ card.sheet.description }}{% else %}-{% endif %}
+	      {% if task_cards %}
+	        {% for card in task_cards %}
+	        <section class="rfef-page{% if not forloop.first %} uefa-page-break{% endif %}">
+	          <div class="rfef-header">
+	            <table>
+	              <tr>
+	                <td style="width:56px; vertical-align:middle;">
+	                  <div class="uefa-logo-wrap" style="background: rgba(0,0,0,0.16);">
+	                    <img src="{{ logo_url }}" alt="RFEF" />
+	                  </div>
+	                </td>
+	                <td style="vertical-align:middle;">
+	                  <div class="rfef-title">ENTREGA SESIÓN</div>
+	                </td>
+	              </tr>
+	            </table>
 	          </div>
 
-		          <div class="uefa-section-head">DETALLES DEL EJERCICIO</div>
-		          <table class="uefa-grid">
-		            <colgroup>
-		              <col style="width:22%;" />
-		              <col style="width:78%;" />
-		            </colgroup>
-		            <tr>
-		              <td class="kcell">Título</td>
-		              <td>{{ card.sheet.title }}</td>
-		            </tr>
-	            <tr>
-	              <td class="kcell">Estrategia</td>
-	              <td>{{ card.sheet.type_label|default:"-" }}</td>
-	            </tr>
-	            <tr>
-	              <td class="kcell">Objetivos</td>
-	              <td>{{ card.sheet.contents_label|default:"-" }}</td>
-	            </tr>
-	            <tr>
-	              <td class="kcell">Espacio</td>
-	              <td>{{ card.sheet.dimensions_label|default:"-" }}</td>
-	            </tr>
-	            <tr>
-	              <td class="kcell">Tiempo</td>
-	              <td>{{ card.sheet.minutes }}'</td>
-	            </tr>
-	            <tr>
-	              <td class="kcell">Material</td>
-	              <td>{{ card.sheet.materials_label|default:"-" }}</td>
-	            </tr>
-	          </table>
-	          {% endfor %}
-	        {% else %}
-	          <div class="uefa-box" style="margin-top:10px;">-</div>
-	        {% endif %}
-	      </div>
+	          {% if forloop.first %}
+	          <div class="rfef-section">
+	            <div class="rfef-section-title">DETALLES DE LA SESIÓN</div>
+	            <table class="rfef-table">
+	              <tr>
+	                <td class="rfef-label">Título</td>
+	                <td colspan="3">{{ session_display_name|default:session.focus }}</td>
+	              </tr>
+	              <tr>
+	                <td class="rfef-label">Tiempo</td>
+	                <td>{{ session.duration_minutes }}{% if session.duration_minutes %}'{% endif %}</td>
+	                <td class="rfef-label">N Jugadores</td>
+	                <td>{{ session_player_count_display|default:"-" }}</td>
+	              </tr>
+	            </table>
 
-	      <div class="footer">
-	        {{ team_name }} · {{ coach_name }} · Generado {{ generated_at|date:"d/m/Y H:i" }}
-	      </div>
-	    </section>
+	            <div style="margin-top:6px;">
+	              <table class="rfef-table" style="margin-bottom:6px;">
+	                <tr>
+	                  <td class="rfef-label">Materiales</td>
+	                  <td>{{ session_materials_summary|default:"" }}</td>
+	                </tr>
+	              </table>
+	              <table class="rfef-table" style="margin-bottom:6px;">
+	                <tr>
+	                  <td class="rfef-label">Objetivos</td>
+	                  <td>{{ session_objectives_summary|default:"" }}</td>
+	                </tr>
+	              </table>
+	              <table class="rfef-table">
+	                <tr>
+	                  <td class="rfef-label">Lesionados / Ausencias</td>
+	                  <td>{{ session_absences_summary|default:"" }}</td>
+	                </tr>
+	              </table>
+	            </div>
+	          </div>
+	          {% endif %}
+
+	          {% ifchanged card.sheet.block_label %}
+	          <div class="rfef-section">
+	            <div class="rfef-section-title">DETALLES DE LA SECCIÓN</div>
+	            <table class="rfef-table">
+	              <tr>
+	                <td class="rfef-label">Nombre</td>
+	                <td colspan="3">{{ card.sheet.block_label|default:"" }}</td>
+	              </tr>
+	              <tr>
+	                <td class="rfef-label">Equipos</td>
+	                <td>{{ card.sheet.players_label|default:"" }}</td>
+	                <td class="rfef-label">Otros</td>
+	                <td>{{ card.sheet.structure_label|default:"" }}</td>
+	              </tr>
+	            </table>
+	          </div>
+	          {% endifchanged %}
+
+	          {% if not forloop.first %}
+	          <div class="rfef-section">
+	            <div class="rfef-section-title">DESCRIPCIÓN GRÁFICA</div>
+	            <div class="rfef-box rfef-graphic">
+	              {% if card.preview_url %}
+	                <img src="{{ card.preview_url }}" alt="Descripción gráfica" />
+	              {% else %}
+	                <div class="rfef-muted">(Sin representación gráfica)</div>
+	              {% endif %}
+	            </div>
+	          </div>
+
+	          <div class="rfef-section">
+	            <div class="rfef-section-title">CONSIGNA / EXPLICACIÓN</div>
+	            <div class="rfef-box">
+	              {% if card.sheet.focus %}{{ card.sheet.focus }}{% elif card.sheet.description %}{{ card.sheet.description }}{% else %}-{% endif %}
+	            </div>
+	          </div>
+	          {% endif %}
+
+	          <div class="rfef-section">
+	            <div class="rfef-section-title">DETALLES DEL EJERCICIO</div>
+	            <table class="rfef-table">
+	              <tr>
+	                <td class="rfef-label">Título</td>
+	                <td colspan="3">{{ card.sheet.title|default:"" }}</td>
+	              </tr>
+	              <tr>
+	                <td class="rfef-label">Estrategia</td>
+	                <td colspan="3">{{ card.sheet.type_label|default:"" }}</td>
+	              </tr>
+	              <tr>
+	                <td class="rfef-label">Objetivos</td>
+	                <td colspan="3">{{ card.sheet.contents_label|default:"" }}</td>
+	              </tr>
+	              <tr>
+	                <td class="rfef-label" style="text-align:center;">Espacio</td>
+	                <td class="rfef-label" style="text-align:center;">Tiempo</td>
+	                <td class="rfef-label" style="text-align:center;">Situación de Juego</td>
+	                <td class="rfef-label" style="text-align:center;">Coordinación</td>
+	              </tr>
+	              <tr>
+	                <td>{{ card.sheet.dimensions_label|default:"" }}</td>
+	                <td>{{ card.sheet.minutes }}{% if card.sheet.minutes %}'{% endif %}</td>
+	                <td>{{ card.sheet.structure_label|default:"" }}</td>
+	                <td>{% if card.sheet.coordination_label %}{{ card.sheet.coordination_label }}{% else %}-{% endif %}</td>
+	              </tr>
+	              <tr>
+	                <td class="rfef-label" colspan="2" style="text-align:center;">Habilidades Coordinativas</td>
+	                <td class="rfef-label" colspan="2" style="text-align:center;">Intención / Acción Táctica</td>
+	              </tr>
+	              <tr>
+	                <td colspan="2">{% if card.sheet.coordination_skills_label %}{{ card.sheet.coordination_skills_label }}{% else %}-{% endif %}</td>
+	                <td colspan="2">{% if card.sheet.tactical_intent_label %}{{ card.sheet.tactical_intent_label }}{% else %}-{% endif %}</td>
+	              </tr>
+	            </table>
+	          </div>
+	        </section>
+	        {% endfor %}
+	      {% else %}
+	        <section class="rfef-page">
+	          <div class="rfef-header">
+	            <table>
+	              <tr>
+	                <td style="width:56px; vertical-align:middle;">
+	                  <div class="uefa-logo-wrap" style="background: rgba(0,0,0,0.16);">
+	                    <img src="{{ logo_url }}" alt="RFEF" />
+	                  </div>
+	                </td>
+	                <td style="vertical-align:middle;">
+	                  <div class="rfef-title">ENTREGA SESIÓN</div>
+	                </td>
+	              </tr>
+	            </table>
+	          </div>
+	          <div class="rfef-section">
+	            <div class="rfef-section-title">DETALLES DE LA SESIÓN</div>
+	            <table class="rfef-table">
+	              <tr>
+	                <td class="rfef-label">Título</td>
+	                <td colspan="3">{{ session_display_name|default:session.focus }}</td>
+	              </tr>
+	              <tr>
+	                <td class="rfef-label">Tiempo</td>
+	                <td>{{ session.duration_minutes }}{% if session.duration_minutes %}'{% endif %}</td>
+	                <td class="rfef-label">N Jugadores</td>
+	                <td>{{ session_player_count_display|default:"-" }}</td>
+	              </tr>
+	            </table>
+	          </div>
+	          <div class="rfef-section">
+	            <div class="rfef-section-title">TAREAS DE LA SESIÓN</div>
+	            <div class="rfef-box rfef-muted">No hay tareas guardadas para esta sesión.</div>
+	          </div>
+	        </section>
+	      {% endif %}
 	    {% else %}
 	    <section class="sheet {% if pdf_style != 'club' %}uefa-sheet{% endif %}">
 		      {% if pdf_style == 'club' %}

@@ -2586,6 +2586,11 @@
 	        <input type="hidden" id="task-playbook-list-url" value="{% url 'tactical-playbook-clips-api' %}" />
 	        <input type="hidden" id="task-playbook-save-url" value="{% url 'tactical-playbook-clip-save-api' %}" />
 	        <input type="hidden" id="task-playbook-delete-url" value="{% url 'tactical-playbook-clip-delete-api' %}" />
+	        <input type="hidden" id="task-playbook-favorite-url" value="{% url 'tactical-playbook-clip-favorite-api' %}" />
+	        <input type="hidden" id="task-playbook-clone-url" value="{% url 'tactical-playbook-clip-clone-api' %}" />
+	        <input type="hidden" id="task-playbook-teams-url" value="{% url 'tactical-playbook-teams-api' %}" />
+	        <input type="hidden" id="task-playbook-versions-url" value="{% url 'tactical-playbook-versions-api' %}" />
+	        <input type="hidden" id="task-playbook-share-url" value="{% url 'share-tactical-playbook-clip-create' %}" />
 	        <input type="hidden" name="planner_action" value="create_draw_task" />
 	        <input type="hidden" name="draw_canvas_state" id="draw-canvas-state" value="{{ initial.canvas_state|escape }}" />
 	        <input type="hidden" name="draw_canvas_width" id="draw-canvas-width" value="{{ initial.canvas_width }}" />

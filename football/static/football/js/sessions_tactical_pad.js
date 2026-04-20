@@ -1,5 +1,11 @@
 (function () {
   const safeText = (value, fallback = '') => String(value || '').trim() || fallback;
+  const escapeHtml = (value) => String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
   const parseIntSafe = (value, fallback = 0) => {
     const parsed = Number.parseInt(String(value ?? '').trim(), 10);
     return Number.isFinite(parsed) ? parsed : fallback;
@@ -780,6 +786,11 @@
 			    const playbookListUrlInput = document.getElementById('task-playbook-list-url');
 			    const playbookSaveUrlInput = document.getElementById('task-playbook-save-url');
 			    const playbookDeleteUrlInput = document.getElementById('task-playbook-delete-url');
+			    const playbookFavoriteUrlInput = document.getElementById('task-playbook-favorite-url');
+			    const playbookCloneUrlInput = document.getElementById('task-playbook-clone-url');
+			    const playbookTeamsUrlInput = document.getElementById('task-playbook-teams-url');
+			    const playbookVersionsUrlInput = document.getElementById('task-playbook-versions-url');
+			    const playbookShareUrlInput = document.getElementById('task-playbook-share-url');
 			    const overlaysPresetSelect = document.getElementById('task-overlays-preset');
 			    const scenarioTemplate3Btn = document.getElementById('task-scenario-template-3');
 			    const videoStudioModal = document.getElementById('task-video-studio-modal');
@@ -5854,9 +5865,18 @@
 				    const playbookListUrl = safeText(playbookListUrlInput?.value);
 				    const playbookSaveUrl = safeText(playbookSaveUrlInput?.value);
 				    const playbookDeleteUrl = safeText(playbookDeleteUrlInput?.value);
+				    const playbookFavoriteUrl = safeText(playbookFavoriteUrlInput?.value);
+				    const playbookCloneUrl = safeText(playbookCloneUrlInput?.value);
+				    const playbookTeamsUrl = safeText(playbookTeamsUrlInput?.value);
+				    const playbookVersionsUrl = safeText(playbookVersionsUrlInput?.value);
+				    const playbookShareUrl = safeText(playbookShareUrlInput?.value);
 				    let playbookClips = [];
 				    let playbookLoading = false;
 				    let playbookLoadedAt = 0;
+				    let playbookTeams = [];
+				    let playbookTeamsLoadedAt = 0;
+				    const playbookFilters = { q: '', folder: '', tag: '', favorites: false, latest: true, version_group: '' };
+				    let playbookFilterTimer = null;
 
 				    const fetchPlaybookClips = async (options = {}) => {
 				      if (!playbookListUrl) return [];
@@ -5869,6 +5889,18 @@
 				        const url = new URL(playbookListUrl, window.location.origin);
 				        url.searchParams.set('scope', 'team');
 				        url.searchParams.set('include_system', '1');
+				        const q = safeText(options.q ?? playbookFilters.q);
+				        const folder = safeText(options.folder ?? playbookFilters.folder);
+				        const tag = safeText(options.tag ?? playbookFilters.tag);
+				        const favorites = !!(options.favorites ?? playbookFilters.favorites);
+				        const latest = (options.latest ?? playbookFilters.latest);
+				        const versionGroup = safeText(options.version_group ?? playbookFilters.version_group);
+				        if (q) url.searchParams.set('q', q.slice(0, 120));
+				        if (folder) url.searchParams.set('folder', folder.slice(0, 80));
+				        if (tag) url.searchParams.set('tag', tag.slice(0, 32));
+				        if (favorites) url.searchParams.set('favorites', '1');
+				        url.searchParams.set('latest', (latest === false) ? '0' : '1');
+				        if (versionGroup) url.searchParams.set('version_group', versionGroup);
 				        const resp = await fetch(url.toString(), { credentials: 'same-origin' });
 				        const data = await resp.json().catch(() => ({}));
 				        if (!resp.ok || !data?.ok) throw new Error(data?.error || 'No se pudo cargar Playbook.');
@@ -5886,6 +5918,26 @@
 				      }
 				    };
 
+				    const fetchPlaybookTeams = async (options = {}) => {
+				      if (!playbookTeamsUrl) return [];
+				      const now = Date.now();
+				      const ttl = clamp(Number(options.ttlMs) || 60_000, 10_000, 300_000);
+				      if (!options.force && playbookTeamsLoadedAt && (now - playbookTeamsLoadedAt) < ttl) return playbookTeams || [];
+				      try {
+				        const resp = await fetch(playbookTeamsUrl, { credentials: 'same-origin' });
+				        const data = await resp.json().catch(() => ({}));
+				        if (!resp.ok || !data?.ok) throw new Error(data?.error || 'No se pudo cargar equipos.');
+				        playbookTeams = Array.isArray(data?.items) ? data.items : [];
+				        playbookTeamsLoadedAt = Date.now();
+				        return playbookTeams;
+				      } catch (e) {
+				        playbookTeams = [];
+				        playbookTeamsLoadedAt = Date.now();
+				        if (!options.silent) setStatus(e?.message || 'Error al cargar equipos.', true);
+				        return [];
+				      }
+				    };
+
 				    const savePlaybookClip = async (payload) => {
 				      if (!playbookSaveUrl) throw new Error('Playbook no disponible.');
 				      const csrf = form.querySelector('input[name="csrfmiddlewaretoken"]')?.value || '';
@@ -5897,11 +5949,65 @@
 				      });
 				      const data = await resp.json().catch(() => ({}));
 				      if (resp.status === 409 && safeText(data?.error) === 'exists') {
-				        const ok = window.confirm('Ya existe un clip con ese nombre en el Playbook. ¿Sobrescribir?');
-				        if (!ok) return { ok: false, canceled: true };
-				        return await savePlaybookClip({ ...(payload || {}), overwrite: 1 });
+				        const okOverwrite = window.confirm('Ya existe un clip con ese nombre en el Playbook. ¿Sobrescribir?');
+				        if (okOverwrite) return await savePlaybookClip({ ...(payload || {}), overwrite: 1 });
+				        const okVersion = window.confirm('¿Guardar como nueva versión (v2/v3) sin sobrescribir?');
+				        if (!okVersion) return { ok: false, canceled: true };
+				        return await savePlaybookClip({ ...(payload || {}), new_version: 1 });
 				      }
 				      if (!resp.ok || !data?.ok) throw new Error(data?.error || 'No se pudo guardar.');
+				      return data;
+				    };
+
+				    const togglePlaybookFavorite = async (id) => {
+				      if (!playbookFavoriteUrl) throw new Error('Favoritos no disponible.');
+				      const csrf = form.querySelector('input[name="csrfmiddlewaretoken"]')?.value || '';
+				      const resp = await fetch(playbookFavoriteUrl, {
+				        method: 'POST',
+				        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+				        credentials: 'same-origin',
+				        body: JSON.stringify({ id: Number(id) || 0 }),
+				      });
+				      const data = await resp.json().catch(() => ({}));
+				      if (!resp.ok || !data?.ok) throw new Error(data?.error || 'No se pudo actualizar.');
+				      return data;
+				    };
+
+				    const createPlaybookShareLink = async (id) => {
+				      if (!playbookShareUrl) throw new Error('Compartir no disponible.');
+				      const csrf = form.querySelector('input[name="csrfmiddlewaretoken"]')?.value || '';
+				      const body = new URLSearchParams();
+				      body.set('id', String(Number(id) || 0));
+				      body.set('valid_days', '30');
+				      const resp = await fetch(playbookShareUrl, {
+				        method: 'POST',
+				        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': csrf },
+				        credentials: 'same-origin',
+				        body: body.toString(),
+				      });
+				      const data = await resp.json().catch(() => ({}));
+				      if (!resp.ok || !data?.ok || !data?.url) throw new Error(data?.error || 'No se pudo crear el enlace.');
+				      return data;
+				    };
+
+				    const clonePlaybookClip = async (id, toTeamId, options = {}) => {
+				      if (!playbookCloneUrl) throw new Error('Clonar no disponible.');
+				      const csrf = form.querySelector('input[name="csrfmiddlewaretoken"]')?.value || '';
+				      const resp = await fetch(playbookCloneUrl, {
+				        method: 'POST',
+				        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+				        credentials: 'same-origin',
+				        body: JSON.stringify({ id: Number(id) || 0, to_team_id: Number(toTeamId) || 0, ...(options || {}) }),
+				      });
+				      const data = await resp.json().catch(() => ({}));
+				      if (resp.status === 409 && safeText(data?.error) === 'exists') {
+				        const okOverwrite = window.confirm('Ya existe un clip con ese nombre en el equipo destino. ¿Sobrescribir?');
+				        if (okOverwrite) return await clonePlaybookClip(id, toTeamId, { overwrite: 1 });
+				        const okVersion = window.confirm('¿Clonar como nueva versión (v2/v3) sin sobrescribir?');
+				        if (!okVersion) return { ok: false, canceled: true };
+				        return await clonePlaybookClip(id, toTeamId, { new_version: 1 });
+				      }
+				      if (!resp.ok || !data?.ok) throw new Error(data?.error || 'No se pudo clonar.');
 				      return data;
 				    };
 
@@ -5942,6 +6048,41 @@
 				      const clips = readClipsLibrary();
 				      const playbookRows = (() => {
 				        if (!Array.isArray(playbookClips) || !playbookClips.length) return '';
+				        const folders = Array.from(new Set(playbookClips.map((c) => safeText(c?.folder)).filter(Boolean))).slice(0, 24);
+				        const tags = (() => {
+				          const acc = new Set();
+				          playbookClips.forEach((c) => {
+				            const ts = Array.isArray(c?.tags) ? c.tags : [];
+				            ts.forEach((t) => {
+				              const tt = safeText(t).trim();
+				              if (tt) acc.add(tt);
+				            });
+				          });
+				          return Array.from(acc).slice(0, 36);
+				        })();
+				        const controls = `
+				          <div style="display:flex; flex-wrap:wrap; gap:0.45rem; align-items:center; margin:0.55rem 0 0.55rem;">
+				            <input type="search" id="task-playbook-q" placeholder="Buscar…" value="${escapeHtml(playbookFilters.q || '')}" style="flex:1; min-width:180px; padding:0.55rem 0.75rem; border-radius:999px; border:1px solid rgba(148,163,184,0.18); background:rgba(255,255,255,0.04); color:#e7ebf3;" />
+				            <select id="task-playbook-folder" style="padding:0.55rem 0.75rem; border-radius:999px; border:1px solid rgba(148,163,184,0.18); background:rgba(255,255,255,0.04); color:#e7ebf3;">
+				              <option value="">Carpeta</option>
+				              ${folders.map((f) => `<option value="${escapeHtml(f)}" ${f === playbookFilters.folder ? 'selected' : ''}>${escapeHtml(f)}</option>`).join('')}
+				            </select>
+				            <select id="task-playbook-tag" style="padding:0.55rem 0.75rem; border-radius:999px; border:1px solid rgba(148,163,184,0.18); background:rgba(255,255,255,0.04); color:#e7ebf3;">
+				              <option value="">Tag</option>
+				              ${tags.map((t) => `<option value="${escapeHtml(t)}" ${t === playbookFilters.tag ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('')}
+				            </select>
+				            <label style="display:flex; gap:0.35rem; align-items:center; font-weight:900; letter-spacing:0.02em; opacity:0.9;">
+				              <input type="checkbox" id="task-playbook-favorites" ${playbookFilters.favorites ? 'checked' : ''} />
+				              Fav
+				            </label>
+				            <label style="display:flex; gap:0.35rem; align-items:center; font-weight:900; letter-spacing:0.02em; opacity:0.9;">
+				              <input type="checkbox" id="task-playbook-latest" ${playbookFilters.latest ? 'checked' : ''} />
+				              Última
+				            </label>
+				            <button type="button" class="button" id="task-playbook-refresh">Actualizar</button>
+				            ${playbookFilters.version_group ? `<button type="button" class="button" id="task-playbook-clear-group">← Grupo</button>` : ''}
+				          </div>
+				        `;
 				        const rows = playbookClips.slice(0, 80).map((clip) => {
 				          const pid = Number(clip?.id) || 0;
 				          if (!pid) return '';
@@ -5949,16 +6090,33 @@
 				          const scope = safeText(clip?.scope, 'team');
 				          const when = safeText(clip?.updated_at || clip?.created_at, '');
 				          const canDel = !!clip?.can_delete;
+				          const canEdit = !!clip?.can_edit;
+				          const isFav = !!clip?.is_favorite;
 				          const scopeLabel = scope === 'system' ? 'Sistema' : 'Equipo';
+				          const folderLabel = safeText(clip?.folder);
+				          const tagLabels = (Array.isArray(clip?.tags) ? clip.tags : []).slice(0, 6).map((t) => safeText(t)).filter(Boolean);
+				          const vNum = Number(clip?.version_number) || 1;
+				          const vCount = Number(clip?.version_count) || 1;
+				          const vLabel = vCount > 1 ? `v${vNum}/${vCount}` : `v${vNum}`;
+				          const group = safeText(clip?.version_group);
 				          return `
 				            <div class="sim-step" style="display:flex; align-items:center; justify-content:space-between; gap:0.75rem;">
 				              <div style="display:flex; flex-direction:column; gap:0.1rem;">
 				                <strong>${name}</strong>
-				                <span>${scopeLabel}${when ? ` · ${when.slice(0, 10)}` : ''}</span>
+				                <span>
+				                  ${scopeLabel}${when ? ` · ${when.slice(0, 10)}` : ''} · <span style="opacity:0.9; font-weight:900;">${vLabel}</span>
+				                  ${folderLabel ? ` · <span style="opacity:0.8;">${escapeHtml(folderLabel)}</span>` : ''}
+				                  ${tagLabels.length ? ` · <span style="opacity:0.75;">${tagLabels.map((t) => `#${escapeHtml(t)}`).join(' ')}</span>` : ''}
+				                </span>
 				              </div>
 				              <div style="display:flex; gap:0.4rem; flex-wrap:wrap;">
+				                <button type="button" class="button" data-playbook-fav="${pid}" title="Favorito">${isFav ? '★' : '☆'}</button>
 				                <button type="button" class="button" data-playbook-load="${pid}">Cargar</button>
 				                <button type="button" class="button" data-playbook-export="${pid}">Export</button>
+				                <button type="button" class="button" data-playbook-share="${pid}">Link</button>
+				                <button type="button" class="button" data-playbook-clone="${pid}">Clonar</button>
+				                ${(vCount > 1 && group) ? `<button type="button" class="button" data-playbook-group="${escapeHtml(group)}">Versiones</button>` : ''}
+				                ${canEdit ? `<button type="button" class="button" data-playbook-edit="${pid}">Editar</button>` : ''}
 				                ${canDel ? `<button type="button" class="button danger" data-playbook-delete="${pid}" data-playbook-scope="${scope}">Borrar</button>` : ''}
 				              </div>
 				            </div>
@@ -5967,6 +6125,7 @@
 				        if (!rows) return '';
 				        return `
 				          <div class="timeline-empty" style="opacity:0.92; margin:0.85rem 0 0.35rem;">Playbook (equipo/sistema)</div>
+				          ${controls}
 				          ${rows}
 				        `;
 				      })();
@@ -6081,6 +6240,127 @@
 				          const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
 				          downloadBlob(blob, `${fileSafeSlug(payload.name || 'clip')}.json`);
 				        });
+				      });
+				      Array.from(simClipsList.querySelectorAll('[data-playbook-fav]')).forEach((btn) => {
+				        btn.addEventListener('click', async () => {
+				          const id = Number(btn.getAttribute('data-playbook-fav') || 0);
+				          if (!id) return;
+				          try {
+				            const res = await togglePlaybookFavorite(id);
+				            const isFav = !!res?.is_favorite;
+				            playbookClips = (playbookClips || []).map((c) => (Number(c?.id) === id ? { ...(c || {}), is_favorite: isFav } : c));
+				            renderClipsLibrary();
+				          } catch (e) {
+				            setStatus(e?.message || 'No se pudo actualizar favorito.', true);
+				          }
+				        });
+				      });
+				      Array.from(simClipsList.querySelectorAll('[data-playbook-share]')).forEach((btn) => {
+				        btn.addEventListener('click', async () => {
+				          const id = Number(btn.getAttribute('data-playbook-share') || 0);
+				          if (!id) return;
+				          try {
+				            const res = await createPlaybookShareLink(id);
+				            const url = safeText(res?.url);
+				            try { await navigator.clipboard?.writeText(url); } catch (e) { /* ignore */ }
+				            window.prompt('Enlace de solo lectura (copiado si es posible):', url);
+				          } catch (e) {
+				            setStatus(e?.message || 'No se pudo crear enlace.', true);
+				          }
+				        });
+				      });
+				      Array.from(simClipsList.querySelectorAll('[data-playbook-clone]')).forEach((btn) => {
+				        btn.addEventListener('click', async () => {
+				          const id = Number(btn.getAttribute('data-playbook-clone') || 0);
+				          if (!id) return;
+				          try {
+				            const teams = await fetchPlaybookTeams({ force: false, silent: true });
+				            const list = (teams || []).map((t) => `${Number(t?.id) || ''}: ${safeText(t?.name)}`).filter(Boolean).join('\\n');
+				            const defId = Number((teams || []).find((t) => !!t?.is_default)?.id) || Number((teams || [])[0]?.id) || 0;
+				            const raw = window.prompt(`Clonar a equipo (id):\\n${list}`, defId ? String(defId) : '');
+				            const toId = Number(raw || 0);
+				            if (!toId) return;
+				            const res = await clonePlaybookClip(id, toId, {});
+				            if (res?.canceled) return;
+				            setStatus('Clip clonado.');
+				          } catch (e) {
+				            setStatus(e?.message || 'No se pudo clonar.', true);
+				          }
+				        });
+				      });
+				      Array.from(simClipsList.querySelectorAll('[data-playbook-edit]')).forEach((btn) => {
+				        btn.addEventListener('click', async () => {
+				          const id = Number(btn.getAttribute('data-playbook-edit') || 0);
+				          const clip = (playbookClips || []).find((it) => Number(it?.id) === id);
+				          if (!clip) return;
+				          const folder = safeText(window.prompt('Carpeta (opcional)', safeText(clip?.folder))).slice(0, 80);
+				          const tagsRaw = safeText(window.prompt('Tags (coma separada)', (Array.isArray(clip?.tags) ? clip.tags.join(', ') : ''))).slice(0, 160);
+				          const tags = tagsRaw.split(',').map((t) => safeText(t).trim()).filter(Boolean).slice(0, 12);
+				          try {
+				            await savePlaybookClip({ scope: safeText(clip?.scope || 'team'), id, name: safeText(clip?.name).slice(0, 160), folder, tags, steps: clip?.steps || [] });
+				            await fetchPlaybookClips({ force: true, silent: true });
+				            renderClipsLibrary();
+				            setStatus('Clip actualizado.');
+				          } catch (e) {
+				            setStatus(e?.message || 'No se pudo actualizar.', true);
+				          }
+				        });
+				      });
+				      Array.from(simClipsList.querySelectorAll('[data-playbook-group]')).forEach((btn) => {
+				        btn.addEventListener('click', async () => {
+				          const group = safeText(btn.getAttribute('data-playbook-group') || '');
+				          if (!group) return;
+				          playbookFilters.version_group = group;
+				          playbookFilters.latest = false;
+				          try {
+				            await fetchPlaybookClips({ force: true, silent: true });
+				            renderClipsLibrary();
+				          } catch (e) { /* ignore */ }
+				        });
+				      });
+				      const qInput = simClipsList.querySelector('#task-playbook-q');
+				      const folderSelect = simClipsList.querySelector('#task-playbook-folder');
+				      const tagSelect = simClipsList.querySelector('#task-playbook-tag');
+				      const favInput = simClipsList.querySelector('#task-playbook-favorites');
+				      const latestInput = simClipsList.querySelector('#task-playbook-latest');
+				      const refreshBtn = simClipsList.querySelector('#task-playbook-refresh');
+				      const clearGroupBtn = simClipsList.querySelector('#task-playbook-clear-group');
+				      const scheduleFetch = () => {
+				        if (playbookFilterTimer) window.clearTimeout(playbookFilterTimer);
+				        playbookFilterTimer = window.setTimeout(async () => {
+				          try {
+				            await fetchPlaybookClips({ force: true, silent: true });
+				            renderClipsLibrary();
+				          } catch (e) { /* ignore */ }
+				        }, 250);
+				      };
+				      qInput?.addEventListener('input', () => {
+				        playbookFilters.q = safeText(qInput.value);
+				        scheduleFetch();
+				      });
+				      folderSelect?.addEventListener('change', () => {
+				        playbookFilters.folder = safeText(folderSelect.value);
+				        scheduleFetch();
+				      });
+				      tagSelect?.addEventListener('change', () => {
+				        playbookFilters.tag = safeText(tagSelect.value);
+				        scheduleFetch();
+				      });
+				      favInput?.addEventListener('change', () => {
+				        playbookFilters.favorites = !!favInput.checked;
+				        scheduleFetch();
+				      });
+				      latestInput?.addEventListener('change', () => {
+				        playbookFilters.latest = !!latestInput.checked;
+				        scheduleFetch();
+				      });
+				      refreshBtn?.addEventListener('click', () => {
+				        void fetchPlaybookClips({ force: true, silent: true }).then(() => renderClipsLibrary());
+				      });
+				      clearGroupBtn?.addEventListener('click', () => {
+				        playbookFilters.version_group = '';
+				        playbookFilters.latest = true;
+				        void fetchPlaybookClips({ force: true, silent: true }).then(() => renderClipsLibrary());
 				      });
 				    };
 				    const restoreSimulationBaseline = () => {
@@ -12437,6 +12717,9 @@
 			      const defaultName = safeText(form.querySelector('[name="draw_task_title"]')?.value, 'Clip');
 			      const name = safeText(window.prompt('Nombre del clip', defaultName));
 			      if (!name) return;
+			      const folder = safeText(window.prompt('Carpeta (opcional)', '')).slice(0, 80);
+			      const tagsRaw = safeText(window.prompt('Tags (coma separada)', '')).slice(0, 200);
+			      const tags = tagsRaw.split(',').map((t) => safeText(t).trim()).filter(Boolean).slice(0, 12);
 			      let steps = [];
 			      try { steps = JSON.parse(JSON.stringify(simulationSteps)); } catch (e) { steps = simulationSteps.slice(); }
 			      const dest = safeText(simClipDestSelect?.value, 'local');
@@ -12444,7 +12727,7 @@
 			        const scope = dest === 'system' ? 'system' : 'team';
 			        (async () => {
 			          try {
-			            const res = await savePlaybookClip({ scope, name: name.slice(0, 160), folder: '', tags: [], steps });
+			            const res = await savePlaybookClip({ scope, name: name.slice(0, 160), folder, tags, steps });
 			            if (res?.canceled) return;
 			            await fetchPlaybookClips({ force: true, silent: true });
 			            renderClipsLibrary();
