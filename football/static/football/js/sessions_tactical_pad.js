@@ -5878,6 +5878,263 @@
 				    const playbookFilters = { q: '', folder: '', tag: '', favorites: false, latest: true, version_group: '' };
 				    let playbookFilterTimer = null;
 
+				    const TACTICAL_TEMPLATES = [
+				      // ABP (acciones a balón parado)
+				      {
+				        id: 'abp_corner_attack_near',
+				        title: 'Córner ofensivo · 1º palo',
+				        folder: 'ABP · Córners',
+				        tags: ['template', 'abp', 'corner', 'attack'],
+				        preset: 'attacking_third',
+				        orientation: 'landscape',
+				        items: [
+				          { type: 'player', slot: 'GK', kind: 'goalkeeper_local', x: 0.12, y: 0.52 },
+				          { type: 'player', slot: 'CB1', kind: 'player_local', x: 0.22, y: 0.48 },
+				          { type: 'player', slot: 'CB2', kind: 'player_local', x: 0.22, y: 0.58 },
+				          { type: 'player', slot: 'P1', kind: 'player_local', x: 0.78, y: 0.44 },
+				          { type: 'player', slot: 'P2', kind: 'player_local', x: 0.84, y: 0.50 },
+				          { type: 'player', slot: 'P3', kind: 'player_local', x: 0.80, y: 0.58 },
+				          { type: 'player', slot: 'P4', kind: 'player_local', x: 0.70, y: 0.50 },
+				          { type: 'rival', label: 'R1', x: 0.86, y: 0.40 },
+				          { type: 'rival', label: 'R2', x: 0.88, y: 0.50 },
+				          { type: 'rival', label: 'R3', x: 0.86, y: 0.60 },
+				          { type: 'ball', x: 0.95, y: 0.20 },
+				        ],
+				      },
+				      {
+				        id: 'abp_freekick_wall',
+				        title: 'Falta directa · Barrera + portero',
+				        folder: 'ABP · Faltas',
+				        tags: ['template', 'abp', 'freekick', 'defense'],
+				        preset: 'attacking_third',
+				        orientation: 'landscape',
+				        items: [
+				          { type: 'player', slot: 'GK', kind: 'goalkeeper_local', x: 0.10, y: 0.50 },
+				          { type: 'player', slot: 'W1', kind: 'player_local', x: 0.26, y: 0.44 },
+				          { type: 'player', slot: 'W2', kind: 'player_local', x: 0.26, y: 0.50 },
+				          { type: 'player', slot: 'W3', kind: 'player_local', x: 0.26, y: 0.56 },
+				          { type: 'rival', label: 'TIRADOR', x: 0.48, y: 0.50 },
+				          { type: 'ball', x: 0.44, y: 0.50 },
+				        ],
+				      },
+
+				      // Salidas / presión / transiciones
+				      {
+				        id: 'buildout_basic_3',
+				        title: 'Salida de balón · 3 + portero (base)',
+				        folder: 'Fases · Salida',
+				        tags: ['template', 'buildout'],
+				        preset: 'defensive_third',
+				        orientation: 'landscape',
+				        items: [
+				          { type: 'player', slot: 'GK', kind: 'goalkeeper_local', x: 0.12, y: 0.50 },
+				          { type: 'player', slot: 'CB1', kind: 'player_local', x: 0.24, y: 0.40 },
+				          { type: 'player', slot: 'CB2', kind: 'player_local', x: 0.24, y: 0.60 },
+				          { type: 'player', slot: 'PIV', kind: 'player_local', x: 0.38, y: 0.50 },
+				          { type: 'rival', label: 'R1', x: 0.50, y: 0.44 },
+				          { type: 'rival', label: 'R2', x: 0.50, y: 0.56 },
+				          { type: 'ball', x: 0.12, y: 0.50 },
+				        ],
+				      },
+				      {
+				        id: 'press_high_2v2',
+				        title: 'Presión alta · 2v2 (disparo a 1 lado)',
+				        folder: 'Fases · Presión',
+				        tags: ['template', 'pressing'],
+				        preset: 'attacking_third',
+				        orientation: 'landscape',
+				        items: [
+				          { type: 'player', slot: 'ST1', kind: 'player_local', x: 0.70, y: 0.46 },
+				          { type: 'player', slot: 'ST2', kind: 'player_local', x: 0.70, y: 0.54 },
+				          { type: 'rival', label: 'CB', x: 0.84, y: 0.46 },
+				          { type: 'rival', label: 'CB', x: 0.84, y: 0.54 },
+				          { type: 'ball', x: 0.84, y: 0.46 },
+				        ],
+				      },
+				      {
+				        id: 'transition_3v2',
+				        title: 'Transición · 3v2 (contra)',
+				        folder: 'Fases · Transición',
+				        tags: ['template', 'transition'],
+				        preset: 'half_pitch',
+				        orientation: 'landscape',
+				        items: [
+				          { type: 'player', slot: 'A1', kind: 'player_local', x: 0.34, y: 0.50 },
+				          { type: 'player', slot: 'A2', kind: 'player_local', x: 0.38, y: 0.40 },
+				          { type: 'player', slot: 'A3', kind: 'player_local', x: 0.38, y: 0.60 },
+				          { type: 'rival', label: 'D1', x: 0.58, y: 0.46 },
+				          { type: 'rival', label: 'D2', x: 0.58, y: 0.54 },
+				          { type: 'ball', x: 0.34, y: 0.50 },
+				        ],
+				      },
+				    ];
+
+				    const templateById = (id) => (TACTICAL_TEMPLATES || []).find((t) => safeText(t?.id) === safeText(id));
+				    const templateGroups = () => {
+				      const groups = new Map();
+				      (TACTICAL_TEMPLATES || []).forEach((t) => {
+				        const folder = safeText(t?.folder, 'Plantillas');
+				        if (!groups.has(folder)) groups.set(folder, []);
+				        groups.get(folder).push(t);
+				      });
+				      Array.from(groups.values()).forEach((arr) => arr.sort((a, b) => safeText(a?.title).localeCompare(safeText(b?.title))));
+				      return Array.from(groups.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+				    };
+
+				    const categorizePlayerForTemplate = (player) => {
+				      const pos = safeText(player?.position).toLowerCase();
+				      if (!pos) return 'any';
+				      if (pos.includes('portero') || pos === 'gk' || pos.includes('goalkeeper')) return 'gk';
+				      if (pos.includes('defen') || pos.includes('central') || pos.includes('lateral') || pos.includes('back')) return 'def';
+				      if (pos.includes('medio') || pos.includes('centrocamp') || pos.includes('mid')) return 'mid';
+				      if (pos.includes('extremo') || pos.includes('banda') || pos.includes('wing')) return 'wing';
+				      if (pos.includes('delant') || pos.includes('punta') || pos.includes('striker') || pos.includes('forward')) return 'fwd';
+				      return 'any';
+				    };
+				    const sortRosterForTemplate = (roster) => {
+				      const list = Array.isArray(roster) ? roster.slice() : [];
+				      list.sort((a, b) => {
+				        const na = Number.parseInt(String(a?.number || ''), 10);
+				        const nb = Number.parseInt(String(b?.number || ''), 10);
+				        if (Number.isFinite(na) && Number.isFinite(nb)) return na - nb;
+				        if (Number.isFinite(na)) return -1;
+				        if (Number.isFinite(nb)) return 1;
+				        return safeText(a?.name).localeCompare(safeText(b?.name));
+				      });
+				      return list;
+				    };
+				    const pickPlayerForSlot = (slot, roster, usedIds) => {
+				      const key = safeText(slot).toUpperCase();
+				      const list = sortRosterForTemplate(roster);
+				      const isUsed = (p) => usedIds && usedIds.has(String(p?.id));
+				      const markUsed = (p) => { try { usedIds.add(String(p?.id)); } catch (e) { /* ignore */ } };
+				      const byNumber = (() => {
+				        const n = Number.parseInt(key, 10);
+				        if (!Number.isFinite(n)) return null;
+				        return list.find((p) => !isUsed(p) && Number.parseInt(String(p?.number || ''), 10) === n) || null;
+				      })();
+				      if (byNumber) { markUsed(byNumber); return byNumber; }
+				      if (key.includes('GK') || key === 'POR') {
+				        const gk = list.find((p) => !isUsed(p) && categorizePlayerForTemplate(p) === 'gk') || list.find((p) => !isUsed(p)) || null;
+				        if (gk) markUsed(gk);
+				        return gk;
+				      }
+				      const desired = (() => {
+				        if (key.includes('CB') || key.includes('LB') || key.includes('RB') || key.includes('DEF')) return 'def';
+				        if (key.includes('DM') || key.includes('CM') || key.includes('MID') || key.includes('PIV')) return 'mid';
+				        if (key.includes('LW') || key.includes('RW') || key.includes('W')) return 'wing';
+				        if (key.includes('ST') || key.includes('FW') || key.includes('DEL') || key.includes('A')) return 'fwd';
+				        return 'any';
+				      })();
+				      const match = desired === 'any'
+				        ? (list.find((p) => !isUsed(p)) || null)
+				        : (list.find((p) => !isUsed(p) && categorizePlayerForTemplate(p) === desired) || list.find((p) => !isUsed(p)) || null);
+				      if (match) markUsed(match);
+				      return match;
+				    };
+				    const clearCanvasNonBaseObjects = () => {
+				      try {
+				        (canvas.getObjects?.() || []).slice().forEach((obj) => {
+				          if (!obj) return;
+				          if (obj?.data?.base) return;
+				          try { canvas.remove(obj); } catch (e) { /* ignore */ }
+				        });
+				      } catch (e) { /* ignore */ }
+				      try { canvas.discardActiveObject(); } catch (e) { /* ignore */ }
+				      try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+				      try { schedulePlayerBankUpdate(); } catch (e) { /* ignore */ }
+				    };
+				    const applyTacticalTemplate = async (template, options = {}) => {
+				      const tpl = template && typeof template === 'object' ? template : null;
+				      if (!tpl) return;
+				      // Asegura simulación.
+				      if (!isSimulating) {
+				        try { enterSimulation(); } catch (e) { /* ignore */ }
+				        await sleep(80);
+				      }
+				      if (!isSimulating) {
+				        setStatus('Activa el modo simulación para aplicar plantillas.', true);
+				        return;
+				      }
+				      try { stopSimulationPlayback(); } catch (e) { /* ignore */ }
+				      // Resetea pasos previos y limpia canvas.
+				      try {
+				        simulationSteps = [];
+				        simulationActiveIndex = -1;
+				        simulationProCaches = new Map();
+				      } catch (e) { /* ignore */ }
+				      try { clearCanvasNonBaseObjects(); } catch (e) { /* ignore */ }
+				      try {
+				        const preset = safeText(tpl?.preset);
+				        if (preset) setPreset(preset);
+				        const orient = safeText(tpl?.orientation);
+				        if (orient && orient !== pitchOrientation) applyPitchOrientation(orient, { preserveObjects: true, pushHistory: false });
+				      } catch (e) { /* ignore */ }
+				      await sleep(50);
+
+				      const { w, h } = worldSize();
+				      const roster = sortRosterForTemplate(players);
+				      const used = new Set();
+				      const placed = [];
+				      (Array.isArray(tpl.items) ? tpl.items : []).forEach((entry) => {
+				        const type = safeText(entry?.type);
+				        const x = clamp(Number(entry?.x) || 0.5, 0.03, 0.97) * Math.max(1, Number(w) || 1);
+				        const y = clamp(Number(entry?.y) || 0.5, 0.03, 0.97) * Math.max(1, Number(h) || 1);
+				        if (type === 'player') {
+				          const slot = safeText(entry?.slot, 'P');
+				          const player = pickPlayerForSlot(slot, roster, used);
+				          const kind = safeText(entry?.kind, 'player_local');
+				          const factory = playerTokenFactory(kind, player || { name: slot, number: slot }, { style: normalizeTokenStyle(tokenGlobalStyle) });
+				          const obj = factory(x, y);
+				          if (obj) {
+				            obj.data = { ...(obj.data || {}), placeholder_slot: slot };
+				            try { canvas.add(obj); } catch (e) { /* ignore */ }
+				            placed.push(obj);
+				          }
+				          return;
+				        }
+				        if (type === 'rival') {
+				          const label = safeText(entry?.label, 'R');
+				          const factory = playerTokenFactory('player_rival', { name: 'Rival', number: label }, { style: 'disk' });
+				          const obj = factory(x, y);
+				          if (obj) {
+				            obj.data = { ...(obj.data || {}), placeholder_slot: label };
+				            try { canvas.add(obj); } catch (e) { /* ignore */ }
+				            placed.push(obj);
+				          }
+				          return;
+				        }
+				        if (type === 'ball') {
+				          try {
+				            const f = simpleFactory('ball');
+				            const obj = typeof f === 'function' ? f(x, y) : null;
+				            if (obj) {
+				              try { canvas.add(obj); } catch (e) { /* ignore */ }
+				              placed.push(obj);
+				            }
+				          } catch (e) { /* ignore */ }
+				        }
+				      });
+
+				      try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+				      try { ensureLayerUidsOnCanvas(); } catch (e) { /* ignore */ }
+				      // Captura un único paso con la plantilla aplicada.
+				      try { captureSimulationStep(); } catch (e) { /* ignore */ }
+				      try {
+				        if (simulationSteps.length) {
+				          const idx = simulationSteps.length - 1;
+				          simulationSteps[idx].title = safeText(tpl.title, simulationSteps[idx].title);
+				          simulationSteps[idx].duration = clamp(Number(options.durationSec) || 5, 1, 20);
+				          simulationActiveIndex = idx;
+				          renderSimulationSteps();
+				          void selectSimulationStep(idx);
+				        }
+				      } catch (e) { /* ignore */ }
+				      try { renderClipsLibrary(); } catch (e) { /* ignore */ }
+				      setStatus(`Plantilla aplicada: ${safeText(tpl.title)}`);
+				      return { ok: true, placed: placed.length };
+				    };
+
 				    const fetchPlaybookClips = async (options = {}) => {
 				      if (!playbookListUrl) return [];
 				      if (playbookLoading) return playbookClips || [];
@@ -6046,6 +6303,26 @@
 				    const renderClipsLibrary = () => {
 				      if (!simClipsList) return;
 				      const clips = readClipsLibrary();
+				      const templatesSection = (() => {
+				        const groups = templateGroups();
+				        if (!groups.length) return '';
+				        const optionsHtml = groups.map(([folder, items]) => `
+				          <optgroup label="${escapeHtml(folder)}">
+				            ${(items || []).map((t) => `<option value="${escapeHtml(t.id)}">${escapeHtml(t.title)}</option>`).join('')}
+				          </optgroup>
+				        `).join('');
+				        return `
+				          <div class="timeline-empty" style="opacity:0.92; margin:0.55rem 0 0.35rem;">Plantillas tácticas (ABP / fases)</div>
+				          <div style="display:flex; flex-wrap:wrap; gap:0.45rem; align-items:center; margin:0.3rem 0 0.75rem;">
+				            <select id="task-template-select" style="flex:1; min-width:220px; padding:0.55rem 0.75rem; border-radius:999px; border:1px solid rgba(148,163,184,0.18); background:rgba(255,255,255,0.04); color:#e7ebf3;">
+				              ${optionsHtml}
+				            </select>
+				            <button type="button" class="button" id="task-template-apply">Aplicar</button>
+				            <button type="button" class="button" id="task-template-save">Guardar → Playbook</button>
+				          </div>
+				          <div class="meta" style="margin:-0.3rem 0 0.6rem; opacity:0.88;">Rellena automáticamente con tu plantilla (dorsales/posiciones) y deja rivales genéricos.</div>
+				        `;
+				      })();
 				      const playbookRows = (() => {
 				        if (!Array.isArray(playbookClips) || !playbookClips.length) return '';
 				        const folders = Array.from(new Set(playbookClips.map((c) => safeText(c?.folder)).filter(Boolean))).slice(0, 24);
@@ -6152,10 +6429,43 @@
 				        `;
 				      }).join('');
 				      simClipsList.innerHTML = `
+				        ${templatesSection}
 				        <div class="timeline-empty" style="opacity:0.92; margin-bottom:0.35rem;">Clips guardados (local)</div>
 				        ${rows}
 				        ${playbookRows}
 				      `;
+				      const templateSelect = simClipsList.querySelector('#task-template-select');
+				      const templateApplyBtn = simClipsList.querySelector('#task-template-apply');
+				      const templateSaveBtn = simClipsList.querySelector('#task-template-save');
+				      templateApplyBtn?.addEventListener('click', async () => {
+				        const id = safeText(templateSelect?.value);
+				        const tpl = templateById(id) || templateById('abp_corner_attack_near');
+				        try { await applyTacticalTemplate(tpl, { durationSec: 6 }); } catch (e) { /* ignore */ }
+				      });
+				      templateSaveBtn?.addEventListener('click', async () => {
+				        const id = safeText(templateSelect?.value);
+				        const tpl = templateById(id) || templateById('abp_corner_attack_near');
+				        if (!tpl) return;
+				        try {
+				          await applyTacticalTemplate(tpl, { durationSec: 6 });
+				          const name = safeText(window.prompt('Nombre del clip', safeText(tpl.title, 'Plantilla')));
+				          if (!name) return;
+				          const payloadSteps = Array.isArray(simulationSteps) ? simulationSteps.slice() : [];
+				          if (!payloadSteps.length) {
+				            setStatus('No hay pasos para guardar.', true);
+				            return;
+				          }
+				          const scope = 'team';
+				          const folder = safeText(tpl.folder, '').slice(0, 80);
+				          const tags = (Array.isArray(tpl.tags) ? tpl.tags : []).slice(0, 12);
+				          await savePlaybookClip({ scope, name: name.slice(0, 160), folder, tags, steps: payloadSteps });
+				          await fetchPlaybookClips({ force: true, silent: true });
+				          renderClipsLibrary();
+				          setStatus('Plantilla guardada en Playbook.');
+				        } catch (e) {
+				          setStatus(e?.message || 'No se pudo guardar.', true);
+				        }
+				      });
 				      Array.from(simClipsList.querySelectorAll('[data-clip-load]')).forEach((btn) => {
 				        btn.addEventListener('click', () => {
 				          const idx = clamp(Number(btn.getAttribute('data-clip-load') || 0), 0, Math.max(0, clips.length - 1));
