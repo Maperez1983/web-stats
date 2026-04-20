@@ -410,6 +410,7 @@
       this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: true, preserveDrawingBuffer: false });
       this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       this.renderer.setSize(Math.max(1, rect.width), Math.max(1, rect.height), false);
+      try { this.renderer.outputColorSpace = THREE.SRGBColorSpace; } catch (e) {}
 
       this.scene = new THREE.Scene();
       this.scene.background = null;
@@ -425,26 +426,261 @@
       dir.position.set(40, 80, 40);
       this.scene.add(dir);
 
-      // Césped (simple).
+      const buildGrassTexture = () => {
+        const c = document.createElement('canvas');
+        c.width = 1024;
+        c.height = 1024;
+        const ctx = c.getContext('2d');
+        if (!ctx) return null;
+        // Base.
+        ctx.fillStyle = '#166534';
+        ctx.fillRect(0, 0, c.width, c.height);
+        // Rayas de corte (mowing stripes).
+        const stripes = 10;
+        for (let i = 0; i < stripes; i += 1) {
+          const x = Math.round((i * c.width) / stripes);
+          const sw = Math.round(c.width / stripes);
+          const isLight = i % 2 === 0;
+          ctx.fillStyle = isLight ? 'rgba(34,197,94,0.18)' : 'rgba(15,118,54,0.18)';
+          ctx.fillRect(x, 0, sw, c.height);
+        }
+        // Grano / ruido suave.
+        ctx.globalAlpha = 0.10;
+        for (let i = 0; i < 1200; i += 1) {
+          const x = Math.random() * c.width;
+          const y = Math.random() * c.height;
+          const r = 0.5 + Math.random() * 1.4;
+          ctx.fillStyle = Math.random() > 0.5 ? '#0f172a' : '#ffffff';
+          ctx.beginPath();
+          ctx.arc(x, y, r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1.0;
+        return c;
+      };
+
+      const grassCanvas = buildGrassTexture();
+      const grassTex = grassCanvas ? new THREE.CanvasTexture(grassCanvas) : null;
+      if (grassTex) {
+        grassTex.wrapS = THREE.RepeatWrapping;
+        grassTex.wrapT = THREE.RepeatWrapping;
+        grassTex.repeat.set(1.2, 1.2);
+        grassTex.anisotropy = 4;
+        grassTex.needsUpdate = true;
+      }
+
+      // Césped 3D.
       const grass = new THREE.Mesh(
         new THREE.PlaneGeometry(w, h, 1, 1),
-        new THREE.MeshStandardMaterial({ color: 0x166534, roughness: 0.95, metalness: 0.0 }),
+        new THREE.MeshStandardMaterial({
+          color: 0x166534,
+          map: grassTex || null,
+          roughness: 0.95,
+          metalness: 0.0,
+        }),
       );
       grass.rotation.x = -Math.PI / 2;
       grass.position.y = 0;
       this.pitchGroup.add(grass);
 
-      // Líneas.
-      const lineMat = new THREE.LineBasicMaterial({ color: 0xf8fafc, transparent: true, opacity: 0.85 });
-      const lineGeo = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(-w / 2, 0.02, -h / 2),
-        new THREE.Vector3(w / 2, 0.02, -h / 2),
-        new THREE.Vector3(w / 2, 0.02, h / 2),
-        new THREE.Vector3(-w / 2, 0.02, h / 2),
-        new THREE.Vector3(-w / 2, 0.02, -h / 2),
-      ]);
-      const outline = new THREE.Line(lineGeo, lineMat);
-      this.pitchGroup.add(outline);
+      // Marcas del campo (3D): usamos tiras finas (mesh) para que el grosor sea visible.
+      const lineColor = 0xf8fafc;
+      const lineMat = new THREE.MeshStandardMaterial({ color: lineColor, roughness: 0.95, metalness: 0.0 });
+      const lineThickness = 0.22;
+      const lineY = 0.03;
+      const toVec = (x, z) => new THREE.Vector3(x, lineY, z);
+      const addStrip = (a, b, thickness = lineThickness) => {
+        const dx = b.x - a.x;
+        const dz = b.z - a.z;
+        const len = Math.hypot(dx, dz);
+        if (!Number.isFinite(len) || len <= 0.001) return null;
+        const geo = new THREE.BoxGeometry(len, 0.04, thickness);
+        const mesh = new THREE.Mesh(geo, lineMat);
+        mesh.position.set((a.x + b.x) / 2, lineY, (a.z + b.z) / 2);
+        mesh.rotation.y = Math.atan2(dz, dx);
+        mesh.userData = { kind: 'pitch-line', static: true };
+        this.pitchGroup.add(mesh);
+        return mesh;
+      };
+      const addRing = (cx, cz, radius, thickness = lineThickness, segments = 64, thetaStart = 0, thetaLen = Math.PI * 2) => {
+        const inner = Math.max(0.01, radius - thickness / 2);
+        const outer = radius + thickness / 2;
+        const geo = new THREE.RingGeometry(inner, outer, segments, 1, thetaStart, thetaLen);
+        const mat = new THREE.MeshStandardMaterial({ color: lineColor, side: THREE.DoubleSide, roughness: 0.95, metalness: 0.0 });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.rotation.x = -Math.PI / 2;
+        mesh.position.set(cx, lineY, cz);
+        mesh.userData = { kind: 'pitch-ring', static: true };
+        this.pitchGroup.add(mesh);
+        return mesh;
+      };
+
+      const halfW = w / 2;
+      const halfH = h / 2;
+
+      // Contorno.
+      addStrip(toVec(-halfW, -halfH), toVec(halfW, -halfH));
+      addStrip(toVec(halfW, -halfH), toVec(halfW, halfH));
+      addStrip(toVec(halfW, halfH), toVec(-halfW, halfH));
+      addStrip(toVec(-halfW, halfH), toVec(-halfW, -halfH));
+
+      // Línea de medio campo + círculo central.
+      addStrip(toVec(-halfW, 0), toVec(halfW, 0));
+      const ratioW = w / 105;
+      const ratioH = h / 68;
+      const centerCircle = 9.15 * ratioW;
+      addRing(0, 0, centerCircle, lineThickness, 80);
+
+      // Puntos.
+      addRing(0, 0, 0.35, lineThickness, 26);
+
+      // Áreas (aprox. proporciones FIFA/IFAB sobre este tamaño).
+      const penaltyDepth = 16.5 * ratioH;
+      const goalDepth = 5.5 * ratioH;
+      const penaltyWidth = 40.32 * ratioW;
+      const goalWidth = 18.32 * ratioW;
+      const penaltySpotDist = 11 * ratioH;
+      const penaltySpotRadius = 0.35;
+
+      const addBox = (zGoal, depth, boxWidth) => {
+        const z0 = zGoal;
+        const z1 = zGoal + (zGoal < 0 ? depth : -depth);
+        const x0 = -boxWidth / 2;
+        const x1 = boxWidth / 2;
+        addStrip(toVec(x0, z0), toVec(x1, z0));
+        addStrip(toVec(x0, z0), toVec(x0, z1));
+        addStrip(toVec(x1, z0), toVec(x1, z1));
+        addStrip(toVec(x0, z1), toVec(x1, z1));
+      };
+
+      // Zona norte (portería arriba, z negativa) y sur (z positiva).
+      addBox(-halfH, penaltyDepth, penaltyWidth);
+      addBox(-halfH, goalDepth, goalWidth);
+      addBox(halfH, penaltyDepth, penaltyWidth);
+      addBox(halfH, goalDepth, goalWidth);
+
+      // Punto de penalti (ambos lados).
+      const zPenTop = -halfH + penaltySpotDist;
+      const zPenBot = halfH - penaltySpotDist;
+      addRing(0, zPenTop, penaltySpotRadius, lineThickness, 26);
+      addRing(0, zPenBot, penaltySpotRadius, lineThickness, 26);
+
+      // Arco de penalti (muy simplificado, 180º hacia el centro).
+      const arcR = 9.15 * ratioW;
+      addRing(0, zPenTop, arcR, lineThickness, 80, Math.PI * 0.15, Math.PI * 0.70);
+      addRing(0, zPenBot, arcR, lineThickness, 80, Math.PI * 1.15, Math.PI * 0.70);
+
+      // Porterías 3D (postes + red simple).
+      const buildNetTexture = () => {
+        const c = document.createElement('canvas');
+        c.width = 512;
+        c.height = 256;
+        const ctx = c.getContext('2d');
+        if (!ctx) return null;
+        ctx.clearRect(0, 0, c.width, c.height);
+        ctx.fillStyle = 'rgba(255,255,255,0.06)';
+        ctx.fillRect(0, 0, c.width, c.height);
+        ctx.strokeStyle = 'rgba(248,250,252,0.22)';
+        ctx.lineWidth = 2;
+        const step = 24;
+        for (let x = 0; x <= c.width; x += step) {
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, c.height);
+          ctx.stroke();
+        }
+        for (let y = 0; y <= c.height; y += step) {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(c.width, y);
+          ctx.stroke();
+        }
+        return c;
+      };
+      const netCanvas = buildNetTexture();
+      const netTex = netCanvas ? new THREE.CanvasTexture(netCanvas) : null;
+      if (netTex) {
+        netTex.wrapS = THREE.RepeatWrapping;
+        netTex.wrapT = THREE.RepeatWrapping;
+        netTex.repeat.set(1.2, 1.0);
+        netTex.anisotropy = 2;
+        netTex.needsUpdate = true;
+      }
+      const goalMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.85, metalness: 0.0 });
+      const netMat = new THREE.MeshStandardMaterial({
+        color: 0xf8fafc,
+        map: netTex || null,
+        transparent: true,
+        opacity: 0.55,
+        roughness: 0.95,
+        metalness: 0.0,
+        side: THREE.DoubleSide,
+      });
+
+      const buildGoal = (zGoal) => {
+        const group = new THREE.Group();
+        const goalW = 7.32 * ratioW;
+        const goalH = 2.44 * ratioH;
+        const depth = 2.4 * ratioH;
+        const postR = 0.12;
+        const xL = -goalW / 2;
+        const xR = goalW / 2;
+        const y0 = 0;
+        const yT = goalH;
+        const zFront = zGoal + (zGoal < 0 ? -0.35 : 0.35);
+        const zBack = zFront + (zGoal < 0 ? -depth : depth);
+
+        const postGeo = new THREE.CylinderGeometry(postR, postR, goalH, 16);
+        const barGeo = new THREE.CylinderGeometry(postR, postR, goalW, 16);
+        const depthGeo = new THREE.CylinderGeometry(postR, postR, depth, 16);
+
+        const leftPost = new THREE.Mesh(postGeo, goalMat);
+        leftPost.position.set(xL, yT / 2, zFront);
+        const rightPost = new THREE.Mesh(postGeo, goalMat);
+        rightPost.position.set(xR, yT / 2, zFront);
+        const cross = new THREE.Mesh(barGeo, goalMat);
+        cross.rotation.z = Math.PI / 2;
+        cross.position.set(0, yT, zFront);
+
+        const leftDepth = new THREE.Mesh(depthGeo, goalMat);
+        leftDepth.rotation.x = Math.PI / 2;
+        leftDepth.position.set(xL, yT / 2, (zFront + zBack) / 2);
+        const rightDepth = new THREE.Mesh(depthGeo, goalMat);
+        rightDepth.rotation.x = Math.PI / 2;
+        rightDepth.position.set(xR, yT / 2, (zFront + zBack) / 2);
+
+        const topDepthGeo = new THREE.CylinderGeometry(postR, postR, depth, 16);
+        const topDepthL = new THREE.Mesh(topDepthGeo, goalMat);
+        topDepthL.rotation.x = Math.PI / 2;
+        topDepthL.position.set(xL, yT, (zFront + zBack) / 2);
+        const topDepthR = new THREE.Mesh(topDepthGeo, goalMat);
+        topDepthR.rotation.x = Math.PI / 2;
+        topDepthR.position.set(xR, yT, (zFront + zBack) / 2);
+
+        const backBar = new THREE.Mesh(barGeo, goalMat);
+        backBar.rotation.z = Math.PI / 2;
+        backBar.position.set(0, yT, zBack);
+
+        const netPlane = new THREE.Mesh(new THREE.PlaneGeometry(goalW, goalH, 1, 1), netMat);
+        netPlane.position.set(0, goalH / 2, zBack);
+        // Laterales de red.
+        const netSideL = new THREE.Mesh(new THREE.PlaneGeometry(depth, goalH, 1, 1), netMat);
+        netSideL.rotation.y = Math.PI / 2;
+        netSideL.position.set(xL, goalH / 2, (zFront + zBack) / 2);
+        const netSideR = new THREE.Mesh(new THREE.PlaneGeometry(depth, goalH, 1, 1), netMat);
+        netSideR.rotation.y = Math.PI / 2;
+        netSideR.position.set(xR, goalH / 2, (zFront + zBack) / 2);
+        const netTop = new THREE.Mesh(new THREE.PlaneGeometry(goalW, depth, 1, 1), netMat);
+        netTop.rotation.x = Math.PI / 2;
+        netTop.position.set(0, goalH, (zFront + zBack) / 2);
+
+        [leftPost, rightPost, cross, leftDepth, rightDepth, topDepthL, topDepthR, backBar, netPlane, netSideL, netSideR, netTop].forEach((m) => group.add(m));
+        group.userData = { kind: 'pitch-goal', static: true };
+        return group;
+      };
+
+      this.pitchGroup.add(buildGoal(-halfH));
+      this.pitchGroup.add(buildGoal(halfH));
 
       this.camera = new THREE.PerspectiveCamera(40, 1, 0.1, 500);
       this.applyCamera();
