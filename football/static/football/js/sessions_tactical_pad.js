@@ -792,21 +792,43 @@
 			    const videoStatusEl = document.getElementById('task-video-status');
 			    const videoToolPenBtn = document.getElementById('task-video-tool-pen');
 			    const videoToolArrowBtn = document.getElementById('task-video-tool-arrow');
-			    const videoToolCircleBtn = document.getElementById('task-video-tool-circle');
-			    const videoToolRectBtn = document.getElementById('task-video-tool-rect');
-			    const videoToolTextBtn = document.getElementById('task-video-tool-text');
-			    const videoUndoBtn = document.getElementById('task-video-undo');
-			    const videoClearDrawBtn = document.getElementById('task-video-clear-draw');
-			    const videoColorInput = document.getElementById('task-video-color');
-			    const videoWidthSelect = document.getElementById('task-video-width');
-			    const videoExportBtn = document.getElementById('task-video-export');
-			    const videoExportLenSelect = document.getElementById('task-video-export-len');
-			    const videoScrubInput = document.getElementById('task-video-scrub');
-			    const videoTimeEl = document.getElementById('task-video-time');
-			    const videoDurationEl = document.getElementById('task-video-duration');
-			    const videoKeyframeAddBtn = document.getElementById('task-video-kf-add');
-			    const videoKeyframeDeleteAllBtn = document.getElementById('task-video-kf-delete-all');
-			    const videoKeyframeList = document.getElementById('task-video-kf-list');
+				    const videoToolCircleBtn = document.getElementById('task-video-tool-circle');
+				    const videoToolRectBtn = document.getElementById('task-video-tool-rect');
+				    const videoToolTextBtn = document.getElementById('task-video-tool-text');
+				    const videoToolCalloutBtn = document.getElementById('task-video-tool-callout');
+				    const videoToolSpotlightBtn = document.getElementById('task-video-tool-spotlight');
+				    const videoToolBlurBtn = document.getElementById('task-video-tool-blur');
+				    const videoToolFreezeBtn = document.getElementById('task-video-tool-freeze');
+				    const videoUndoBtn = document.getElementById('task-video-undo');
+				    const videoClearDrawBtn = document.getElementById('task-video-clear-draw');
+				    const videoColorInput = document.getElementById('task-video-color');
+				    const videoWidthSelect = document.getElementById('task-video-width');
+				    const videoExportBtn = document.getElementById('task-video-export');
+				    const videoExportLenSelect = document.getElementById('task-video-export-len');
+				    const videoScrubInput = document.getElementById('task-video-scrub');
+				    const videoTimeEl = document.getElementById('task-video-time');
+				    const videoDurationEl = document.getElementById('task-video-duration');
+				    const videoKeyframeAddBtn = document.getElementById('task-video-kf-add');
+				    const videoKeyframeDeleteAllBtn = document.getElementById('task-video-kf-delete-all');
+				    const videoKeyframeList = document.getElementById('task-video-kf-list');
+				    const videoSpotlightEl = document.getElementById('task-video-spotlight');
+				    const videoBlurWrapEl = document.getElementById('task-video-blur-wrap');
+				    const videoLayerAddBtn = document.getElementById('task-video-layer-add');
+				    const videoLayerFromSelectionBtn = document.getElementById('task-video-layer-from-selection');
+				    const videoProEnabledInput = document.getElementById('task-video-pro-enabled');
+				    const videoShowHandlesInput = document.getElementById('task-video-show-handles');
+				    const videoLayerStatusEl = document.getElementById('task-video-layer-status');
+				    const videoLayerListEl = document.getElementById('task-video-layer-list');
+				    const videoLayerEditorEl = document.getElementById('task-video-layer-editor');
+				    const videoLayerNameInput = document.getElementById('task-video-layer-name');
+				    const videoLayerInInput = document.getElementById('task-video-layer-in');
+				    const videoLayerOutInput = document.getElementById('task-video-layer-out');
+				    const videoLayerFadeInInput = document.getElementById('task-video-layer-fadein');
+				    const videoLayerFadeOutInput = document.getElementById('task-video-layer-fadeout');
+				    const videoLayerSetInBtn = document.getElementById('task-video-layer-set-in');
+				    const videoLayerSetOutBtn = document.getElementById('task-video-layer-set-out');
+				    const videoLayerStrokeAnimSelect = document.getElementById('task-video-layer-stroke-anim');
+				    const videoLayerDeleteBtn = document.getElementById('task-video-layer-delete');
 				    const patternPopover = document.getElementById('task-pattern-popover');
 				    const patternCloseBtn = document.getElementById('task-pattern-close');
 				    const formationPopover = document.getElementById('task-formation-popover');
@@ -3580,45 +3602,107 @@
 					    let videoStudioUrl = '';
 					    let videoStudioCanvas = null;
 					    let videoStudioTool = 'pen';
-					    let videoStudioHistory = [];
-					    let videoStudioHistoryIndex = -1;
-					    let videoStudioKeyframes = [];
-					    let videoStudioActiveKeyframe = -1;
-					    let videoStudioExporting = false;
-					    let videoStudioExportFrame = null;
-					    let videoStudioHandlersInstalled = false;
-					    let videoStudioToolsInstalled = false;
+						    let videoStudioHistory = [];
+						    let videoStudioHistoryIndex = -1;
+						    let videoStudioKeyframes = [];
+						    let videoStudioActiveKeyframe = -1;
+						    let videoStudioMasterJson = null;
+						    let videoStudioLayers = [];
+						    let videoStudioActiveLayerId = '';
+						    let videoStudioCalloutSeq = 1;
+						    let videoStudioProEnabled = true;
+						    let videoStudioShowHandles = false;
+						    let videoStudioExporting = false;
+						    let videoStudioExportFrame = null;
+						    let videoStudioHandlersInstalled = false;
+						    let videoStudioToolsInstalled = false;
+						    let videoStudioMasterLoaded = false;
+						    let videoStudioSaveTimer = null;
 
-					    const readVideoStudioState = () => {
-					      if (!canUseStorage) return;
-					      try {
-					        const raw = safeText(window.localStorage.getItem(videoStudioStorageKey));
-					        const parsed = raw ? JSON.parse(raw) : null;
-					        const keyframes = Array.isArray(parsed?.keyframes) ? parsed.keyframes : [];
-					        videoStudioKeyframes = keyframes
-					          .map((kf) => ({
-					            id: safeText(kf?.id) || `kf_${Date.now()}_${Math.random().toString(16).slice(2)}`,
-					            t: Math.max(0, Number(kf?.t) || 0),
-					            title: safeText(kf?.title),
-					            json: (kf?.json && typeof kf.json === 'object') ? kf.json : null,
-					          }))
-					          .filter((kf) => !!kf.json)
-					          .sort((a, b) => (a.t - b.t))
-					          .slice(0, 220);
-					      } catch (e) { /* ignore */ }
-					    };
+						    const readVideoStudioState = () => {
+						      if (!canUseStorage) return;
+						      try {
+						        const raw = safeText(window.localStorage.getItem(videoStudioStorageKey));
+						        const parsed = raw ? JSON.parse(raw) : null;
+						        const keyframes = Array.isArray(parsed?.keyframes) ? parsed.keyframes : [];
+						        const layersRaw = Array.isArray(parsed?.layers) ? parsed.layers : [];
+						        const masterRaw = (parsed?.master_json && typeof parsed.master_json === 'object') ? parsed.master_json : null;
+						        const calloutSeq = Number(parsed?.callout_seq);
+						        const proEnabled = parsed?.pro_enabled;
+						        const showHandles = parsed?.show_handles;
+						        videoStudioKeyframes = keyframes
+						          .map((kf) => ({
+						            id: safeText(kf?.id) || `kf_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+						            t: Math.max(0, Number(kf?.t) || 0),
+						            title: safeText(kf?.title),
+						            json: (kf?.json && typeof kf.json === 'object') ? kf.json : null,
+						          }))
+						          .filter((kf) => !!kf.json)
+						          .sort((a, b) => (a.t - b.t))
+						          .slice(0, 220);
+						        videoStudioMasterJson = masterRaw;
+						        videoStudioLayers = layersRaw
+						          .map((layer) => {
+						            const type = safeText(layer?.type, 'draw');
+						            const start = Math.max(0, Number(layer?.start) || 0);
+						            const endRaw = Number(layer?.end);
+						            const end = Number.isFinite(endRaw) ? Math.max(0, endRaw) : null;
+						            const fadeIn = Math.max(0, Number(layer?.fade_in) || 0);
+						            const fadeOut = Math.max(0, Number(layer?.fade_out) || 0);
+						            const opacity = clamp(Number(layer?.opacity) || 1, 0, 1);
+						            const strokeAnim = safeText(layer?.stroke_anim, 'none');
+						            const params = (layer?.params && typeof layer.params === 'object') ? layer.params : {};
+						            return {
+						              id: safeText(layer?.id) || `ly_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+						              type,
+						              name: safeText(layer?.name) || '',
+						              enabled: layer?.enabled !== false,
+						              start,
+						              end,
+						              fade_in: fadeIn,
+						              fade_out: fadeOut,
+						              opacity,
+						              stroke_anim: strokeAnim,
+						              params,
+						              order: Number(layer?.order) || 0,
+						            };
+						          })
+						          .slice(0, 120);
+						        videoStudioLayers.sort((a, b) => ((a.order || 0) - (b.order || 0)) || (a.start - b.start));
+						        if (Number.isFinite(calloutSeq) && calloutSeq >= 1) videoStudioCalloutSeq = clamp(calloutSeq, 1, 999);
+						        if (typeof proEnabled === 'boolean') videoStudioProEnabled = proEnabled;
+						        if (typeof showHandles === 'boolean') videoStudioShowHandles = showHandles;
+						      } catch (e) { /* ignore */ }
+						    };
 
-					    const writeVideoStudioState = () => {
-					      if (!canUseStorage) return;
-					      try {
-					        const payload = {
-					          v: 1,
-					          updated_at: new Date().toISOString(),
-					          keyframes: videoStudioKeyframes.slice(0, 220),
-					        };
-					        window.localStorage.setItem(videoStudioStorageKey, JSON.stringify(payload));
-					      } catch (e) { /* ignore */ }
-					    };
+						    const writeVideoStudioState = () => {
+						      if (!canUseStorage) return;
+						      try {
+						        const payload = {
+						          v: 1,
+						          updated_at: new Date().toISOString(),
+						          pro_enabled: !!videoStudioProEnabled,
+						          show_handles: !!videoStudioShowHandles,
+						          callout_seq: clamp(Number(videoStudioCalloutSeq) || 1, 1, 999),
+						          master_json: videoStudioMasterJson,
+						          layers: (videoStudioLayers || []).slice(0, 120),
+						          keyframes: videoStudioKeyframes.slice(0, 220),
+						        };
+						        window.localStorage.setItem(videoStudioStorageKey, JSON.stringify(payload));
+						      } catch (e) { /* ignore */ }
+						    };
+
+						    const scheduleVideoStudioSave = () => {
+						      if (!canUseStorage) return;
+						      if (videoStudioSaveTimer) {
+						        try { window.clearTimeout(videoStudioSaveTimer); } catch (e) { /* ignore */ }
+						        videoStudioSaveTimer = null;
+						      }
+						      videoStudioSaveTimer = window.setTimeout(() => {
+						        videoStudioSaveTimer = null;
+						        try { writeVideoStudioState(); } catch (e) { /* ignore */ }
+						      }, 450);
+						    };
 
 					    const setVideoStudioToolActive = (tool) => {
 					      videoStudioTool = safeText(tool, 'pen');
@@ -3628,12 +3712,13 @@
 					      };
 					      setActive(videoToolPenBtn, videoStudioTool === 'pen');
 					      setActive(videoToolArrowBtn, videoStudioTool === 'arrow');
-					      setActive(videoToolCircleBtn, videoStudioTool === 'circle');
-					      setActive(videoToolRectBtn, videoStudioTool === 'rect');
-					      setActive(videoToolTextBtn, videoStudioTool === 'text');
-					      if (videoStudioCanvas) {
-					        const isPen = videoStudioTool === 'pen';
-					        videoStudioCanvas.isDrawingMode = !!isPen;
+						      setActive(videoToolCircleBtn, videoStudioTool === 'circle');
+						      setActive(videoToolRectBtn, videoStudioTool === 'rect');
+						      setActive(videoToolTextBtn, videoStudioTool === 'text');
+						      setActive(videoToolCalloutBtn, videoStudioTool === 'callout');
+						      if (videoStudioCanvas) {
+						        const isPen = videoStudioTool === 'pen';
+						        videoStudioCanvas.isDrawingMode = !!isPen;
 					        if (isPen) {
 					          try {
 					            videoStudioCanvas.freeDrawingBrush.color = safeText(videoColorInput?.value, '#facc15');
@@ -3643,15 +3728,35 @@
 					      }
 					    };
 
-					    const pushVideoStudioHistory = () => {
-					      if (!videoStudioCanvas) return;
-					      let json = null;
-					      try { json = videoStudioCanvas.toDatalessJSON(['data']); } catch (e) { json = null; }
-					      if (!json) return;
-					      // Recorta si el usuario ha hecho undo y luego crea nuevos cambios.
-					      if (videoStudioHistoryIndex < videoStudioHistory.length - 1) {
-					        videoStudioHistory = videoStudioHistory.slice(0, videoStudioHistoryIndex + 1);
-					      }
+							    const pushVideoStudioHistory = () => {
+							      if (!videoStudioCanvas) return;
+							      let json = null;
+							      try { json = videoStudioCanvas.toDatalessJSON(['data']); } catch (e) { json = null; }
+							      if (!json) return;
+							      // Guarda siempre el "estado autoría" (sin opacidades temporales del timeline).
+							      try {
+							        const walk = (node) => {
+							          if (!node || typeof node !== 'object') return;
+							          const data = (node.data && typeof node.data === 'object') ? node.data : null;
+							          if (data) {
+							            if (typeof data.vs_base_opacity === 'number') node.opacity = clamp(Number(data.vs_base_opacity) || 1, 0, 1);
+							            if (data.vs_dash_base && typeof data.vs_dash_base === 'object') {
+							              node.strokeDashArray = Array.isArray(data.vs_dash_base.dashArray) ? data.vs_dash_base.dashArray.slice(0) : null;
+							              node.strokeDashOffset = Number(data.vs_dash_base.dashOffset) || 0;
+							            }
+							            node.visible = true;
+							          }
+							          if (Array.isArray(node.objects)) node.objects.forEach(walk);
+							          if (node.clipPath) walk(node.clipPath);
+							        };
+							        if (Array.isArray(json.objects)) json.objects.forEach(walk);
+							      } catch (e) { /* ignore */ }
+							      videoStudioMasterJson = json;
+							      scheduleVideoStudioSave();
+							      // Recorta si el usuario ha hecho undo y luego crea nuevos cambios.
+							      if (videoStudioHistoryIndex < videoStudioHistory.length - 1) {
+							        videoStudioHistory = videoStudioHistory.slice(0, videoStudioHistoryIndex + 1);
+						      }
 					      videoStudioHistory.push(json);
 					      videoStudioHistoryIndex = videoStudioHistory.length - 1;
 					      if (videoUndoBtn) videoUndoBtn.disabled = videoStudioHistoryIndex <= 0;
@@ -3727,11 +3832,11 @@
 					      return best;
 					    };
 
-					    const loadKeyframeAtIndex = async (index) => {
-					      if (!videoStudioCanvas) return;
-					      const idx = clamp(Number(index) || -1, -1, Math.max(-1, videoStudioKeyframes.length - 1));
-					      if (idx === -1) {
-					        clearVideoStudioCanvas();
+						    const loadKeyframeAtIndex = async (index) => {
+						      if (!videoStudioCanvas) return;
+						      const idx = clamp(Number(index) || -1, -1, Math.max(-1, videoStudioKeyframes.length - 1));
+						      if (idx === -1) {
+						        clearVideoStudioCanvas();
 					        videoStudioActiveKeyframe = -1;
 					        return;
 					      }
@@ -3746,13 +3851,348 @@
 					      } catch (e) { /* ignore */ }
 					      try { videoStudioCanvas.renderAll(); } catch (e) { /* ignore */ }
 					      try { videoStudioCanvas.__loading = false; } catch (e) { /* ignore */ }
-					      pushVideoStudioHistory();
-					    };
+						      pushVideoStudioHistory();
+						    };
 
-					    const syncVideoScrubUi = () => {
-					      const vid = videoStudioPlayer;
-					      if (!vid) return;
-					      const dur = Number(vid.duration) || 0;
+						    const layerTypeLabel = (typeRaw) => {
+						      const type = safeText(typeRaw, 'draw').toLowerCase();
+						      if (type === 'spotlight') return 'Spotlight';
+						      if (type === 'blur') return 'Blur';
+						      if (type === 'freeze') return 'Freeze';
+						      if (type === 'callout') return 'Callout';
+						      return 'Dibujo';
+						    };
+
+						    const layerTypeIcon = (typeRaw) => {
+						      const type = safeText(typeRaw, 'draw').toLowerCase();
+						      if (type === 'spotlight') return '🎯';
+						      if (type === 'blur') return '🫧';
+						      if (type === 'freeze') return '⏸';
+						      if (type === 'callout') return '#';
+						      return '✏️';
+						    };
+
+						    const findVideoLayerIndex = (id) => (videoStudioLayers || []).findIndex((l) => safeText(l?.id) === safeText(id));
+						    const activeVideoLayer = () => {
+						      const id = safeText(videoStudioActiveLayerId);
+						      if (!id) return null;
+						      return (videoStudioLayers || []).find((l) => safeText(l?.id) === id) || null;
+						    };
+
+						    const computeVideoLayerState = (layer, timeRaw) => {
+						      const t = Math.max(0, Number(timeRaw) || 0);
+						      const start = Math.max(0, Number(layer?.start) || 0);
+						      const end = (layer?.end == null) ? Infinity : Math.max(0, Number(layer?.end) || 0);
+						      if (layer?.enabled === false) return { on: false, opacity: 0, progress: 0 };
+						      if (t < start - 0.001 || t > end + 0.001) return { on: false, opacity: 0, progress: 0 };
+						      const fadeIn = Math.max(0, Number(layer?.fade_in) || 0);
+						      const fadeOut = Math.max(0, Number(layer?.fade_out) || 0);
+						      const base = clamp(Number(layer?.opacity) || 1, 0, 1);
+						      let alphaIn = 1;
+						      if (fadeIn > 0.001) alphaIn = clamp((t - start) / fadeIn, 0, 1);
+						      let alphaOut = 1;
+						      if (fadeOut > 0.001 && Number.isFinite(end)) alphaOut = clamp((end - t) / fadeOut, 0, 1);
+						      const opacity = base * Math.min(alphaIn, alphaOut);
+						      const progress = clamp((t - start) / Math.max(0.001, (end - start)), 0, 1);
+						      return { on: true, opacity, progress };
+						    };
+
+						    const setActiveVideoLayer = (id) => {
+						      videoStudioActiveLayerId = safeText(id);
+						      renderVideoLayers();
+						      syncVideoLayerEditor();
+						    };
+
+						    const ensureVideoStudioDefaultLayer = () => {
+						      if ((videoStudioLayers || []).length) {
+						        if (!safeText(videoStudioActiveLayerId)) videoStudioActiveLayerId = safeText(videoStudioLayers[0]?.id);
+						        return safeText(videoStudioActiveLayerId) || safeText(videoStudioLayers[0]?.id);
+						      }
+						      const now = Math.max(0, Number(videoStudioPlayer?.currentTime) || 0);
+						      const layer = {
+						        id: `ly_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+						        type: 'draw',
+						        name: 'Capa 1',
+						        enabled: true,
+						        start: now,
+						        end: null,
+						        fade_in: 0.2,
+						        fade_out: 0.2,
+						        opacity: 1,
+						        stroke_anim: 'none',
+						        params: {},
+						        order: 1,
+						      };
+						      videoStudioLayers = [layer];
+						      videoStudioActiveLayerId = layer.id;
+						      scheduleVideoStudioSave();
+						      return layer.id;
+						    };
+
+						    const createVideoStudioLayer = (partial) => {
+						      const now = Math.max(0, Number(videoStudioPlayer?.currentTime) || 0);
+						      const nextIndex = (videoStudioLayers || []).length + 1;
+						      const type = safeText(partial?.type, 'draw');
+						      const layer = {
+						        id: `ly_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+						        type,
+						        name: safeText(partial?.name) || `${layerTypeLabel(type)} ${nextIndex}`,
+						        enabled: partial?.enabled !== false,
+						        start: Math.max(0, Number(partial?.start) || now),
+						        end: (partial?.end == null) ? null : Math.max(0, Number(partial?.end) || 0),
+						        fade_in: Math.max(0, Number(partial?.fade_in) || 0.25),
+						        fade_out: Math.max(0, Number(partial?.fade_out) || 0.25),
+						        opacity: clamp(Number(partial?.opacity) || 1, 0, 1),
+						        stroke_anim: safeText(partial?.stroke_anim, 'none'),
+						        params: (partial?.params && typeof partial.params === 'object') ? partial.params : {},
+						        order: Number(partial?.order) || (nextIndex * 10),
+						      };
+						      videoStudioLayers = (videoStudioLayers || []).concat([layer]).slice(0, 120);
+						      videoStudioLayers.sort((a, b) => ((a.order || 0) - (b.order || 0)) || (a.start - b.start));
+						      videoStudioActiveLayerId = layer.id;
+						      scheduleVideoStudioSave();
+						      return layer;
+						    };
+
+						    const assignVideoStudioObjectsToLayer = (objs, layerId) => {
+						      if (!videoStudioCanvas) return;
+						      const id = safeText(layerId) || ensureVideoStudioDefaultLayer();
+						      const list = Array.isArray(objs) ? objs : [];
+						      list.forEach((obj) => {
+						        if (!obj) return;
+						        obj.data = (obj.data && typeof obj.data === 'object') ? obj.data : {};
+						        obj.data.vs_layer_id = id;
+						        if (typeof obj.data.vs_base_opacity !== 'number') obj.data.vs_base_opacity = clamp(Number(obj.opacity) || 1, 0, 1);
+						      });
+						      pushVideoStudioHistory();
+						    };
+
+						    const gatherActiveVideoStudioObjects = () => {
+						      const c = videoStudioCanvas;
+						      if (!c) return [];
+						      const active = c.getActiveObject();
+						      if (!active) return [];
+						      if (active.type === 'activeSelection' && typeof active.getObjects === 'function') {
+						        return (active.getObjects() || []).slice(0, 50);
+						      }
+						      return [active];
+						    };
+
+						    const syncVideoLayerEditor = () => {
+						      const layer = activeVideoLayer();
+						      if (!videoLayerEditorEl) return;
+						      const on = !!layer;
+						      videoLayerEditorEl.hidden = !on;
+						      if (!on) return;
+						      if (videoLayerNameInput) videoLayerNameInput.value = safeText(layer.name);
+						      if (videoLayerInInput) videoLayerInInput.value = String(Number(layer.start) || 0);
+						      if (videoLayerOutInput) videoLayerOutInput.value = layer.end == null ? '' : String(Number(layer.end) || 0);
+						      if (videoLayerFadeInInput) videoLayerFadeInInput.value = String(Number(layer.fade_in) || 0);
+						      if (videoLayerFadeOutInput) videoLayerFadeOutInput.value = String(Number(layer.fade_out) || 0);
+						      if (videoLayerStrokeAnimSelect) videoLayerStrokeAnimSelect.value = safeText(layer.stroke_anim, 'none') || 'none';
+						    };
+
+						    const renderVideoLayers = () => {
+						      if (!videoLayerListEl) return;
+						      const layers = (videoStudioLayers || []).slice(0, 120);
+						      videoLayerListEl.innerHTML = '';
+						      if (!layers.length) {
+						        videoLayerListEl.innerHTML = '<div class="timeline-empty">No hay capas todavía.</div>';
+						      } else {
+						        layers.forEach((layer) => {
+						          const row = document.createElement('div');
+						          const id = safeText(layer?.id);
+						          row.className = 'video-layer-item';
+						          if (id && id === safeText(videoStudioActiveLayerId)) row.classList.add('is-active');
+						          const start = Math.max(0, Number(layer?.start) || 0);
+						          const end = layer?.end == null ? null : Math.max(0, Number(layer?.end) || 0);
+						          const label = safeText(layer?.name) || `${layerTypeLabel(layer?.type)}`;
+						          const enabled = layer?.enabled !== false;
+						          const meta = `${formatClock(start)} → ${end == null ? '—' : formatClock(end)} · fade ${Number(layer?.fade_in) || 0}/${Number(layer?.fade_out) || 0}`;
+						          row.innerHTML = `
+						            <div>
+						              <strong>${layerTypeIcon(layer?.type)} ${label}</strong>
+						              <div class="video-layer-meta">${meta}</div>
+						            </div>
+						            <div style="display:flex; gap:0.45rem; flex-wrap:wrap; justify-content:flex-end;">
+						              <button type="button" class="button" data-vs-layer-go="${id}">Ir</button>
+						              <button type="button" class="button ${enabled ? '' : 'danger'}" data-vs-layer-toggle="${id}">${enabled ? 'On' : 'Off'}</button>
+						            </div>
+						          `;
+						          row.setAttribute('data-vs-layer', id);
+						          videoLayerListEl.appendChild(row);
+						        });
+						      }
+						      if (videoLayerStatusEl) {
+						        const active = activeVideoLayer();
+						        const activeLabel = active ? `${layerTypeIcon(active.type)} ${safeText(active.name) || layerTypeLabel(active.type)}` : '—';
+						        videoLayerStatusEl.textContent = layers.length ? `Capas: ${layers.length} · Activa: ${activeLabel}` : '—';
+						      }
+						      syncVideoLayerEditor();
+						    };
+
+						    const applyProgressiveStrokeToObject = (obj, layer, time) => {
+						      if (!obj || !layer) return;
+						      if (safeText(layer.stroke_anim, 'none') !== 'draw') {
+						        // Restaura dash si lo tocamos antes.
+						        const restoreDash = (target) => {
+						          if (!target) return;
+						          target.data = (target.data && typeof target.data === 'object') ? target.data : {};
+						          if (!target.data.vs_dash_base) return;
+						          try {
+						            target.set({
+						              strokeDashArray: target.data.vs_dash_base.dashArray || null,
+						              strokeDashOffset: target.data.vs_dash_base.dashOffset || 0,
+						            });
+						          } catch (e) { /* ignore */ }
+						        };
+						        if (obj.type === 'group' && obj?._objects?.length) {
+						          (obj._objects || []).forEach(restoreDash);
+						        } else {
+						          restoreDash(obj);
+						        }
+						        return;
+						      }
+						      const drawDur = Math.max(0.15, Number(layer?.params?.draw_dur) || 0.9);
+						      const start = Math.max(0, Number(layer?.start) || 0);
+						      const progress = clamp((Math.max(0, Number(time) || 0) - start) / drawDur, 0, 1);
+						      if (obj.type === 'group' && safeText(obj?.data?.kind).includes('video-arrow') && obj?._objects?.length) {
+						        const line = (obj._objects || []).find((o) => o?.type === 'line') || null;
+						        if (!line) return;
+						        const x1 = Number(line.x1) || 0;
+						        const y1 = Number(line.y1) || 0;
+						        const x2 = Number(line.x2) || 0;
+						        const y2 = Number(line.y2) || 0;
+						        const len = Math.max(1, Math.hypot(x2 - x1, y2 - y1));
+						        line.data = (line.data && typeof line.data === 'object') ? line.data : {};
+						        if (!line.data.vs_dash_base) {
+						          line.data.vs_dash_base = {
+						            dashArray: Array.isArray(line.strokeDashArray) ? line.strokeDashArray.slice(0) : null,
+						            dashOffset: Number(line.strokeDashOffset) || 0,
+						          };
+						        }
+						        try {
+						          line.set({
+						            strokeDashArray: [len, len],
+						            strokeDashOffset: Math.round(len * (1 - progress)),
+						  });
+						        } catch (e) { /* ignore */ }
+						      }
+						    };
+
+						    const applyVideoStudioTimeline = (timeRaw, opts = {}) => {
+						      const c = videoStudioCanvas;
+						      if (!c) return;
+						      const time = Math.max(0, Number(timeRaw) || Number(videoStudioPlayer?.currentTime) || 0);
+						      const pro = !!videoStudioProEnabled && !!(videoStudioLayers || []).length;
+						      const showHandles = opts?.for_export ? false : (!!videoStudioShowHandles || !pro);
+						      const w = Number(c.getWidth?.()) || 1280;
+						      const h = Number(c.getHeight?.()) || 720;
+
+						      let spotlightLayer = null;
+						      const blurLayers = [];
+						      const freezeLayers = [];
+						      (videoStudioLayers || []).forEach((layer) => {
+						        const type = safeText(layer?.type, 'draw').toLowerCase();
+						        if (!pro) return;
+						        const st = computeVideoLayerState(layer, time);
+						        if (!st.on || st.opacity <= 0.001) return;
+						        if (type === 'spotlight') spotlightLayer = layer;
+						        if (type === 'blur') blurLayers.push(layer);
+						        if (type === 'freeze') freezeLayers.push(layer);
+						      });
+
+						      // DOM FX (preview)
+						      if (videoSpotlightEl) {
+						        if (pro && spotlightLayer) {
+						          const st = computeVideoLayerState(spotlightLayer, time);
+						          const p = spotlightLayer.params || {};
+						          const cx = clamp(Number(p.x) || (w / 2), 0, w);
+						          const cy = clamp(Number(p.y) || (h / 2), 0, h);
+						          const r = Math.max(10, Number(p.r) || 160);
+						          const feather = Math.max(0, Number(p.feather) || 40);
+						          const dim = clamp(Number(p.dim) || 0.55, 0, 0.95) * clamp(Number(st.opacity) || 0, 0, 1);
+						          videoSpotlightEl.style.setProperty('--spot-x', `${Math.round((cx / w) * 1000) / 10}%`);
+						          videoSpotlightEl.style.setProperty('--spot-y', `${Math.round((cy / h) * 1000) / 10}%`);
+						          videoSpotlightEl.style.setProperty('--spot-r', `${Math.round(r)}px`);
+						          videoSpotlightEl.style.setProperty('--spot-feather', `${Math.round(feather)}px`);
+						          videoSpotlightEl.style.background = `rgba(2, 6, 23, ${dim})`;
+						          videoSpotlightEl.hidden = false;
+						        } else {
+						          videoSpotlightEl.hidden = true;
+						        }
+						      }
+						      if (videoBlurWrapEl) {
+						        if (pro && blurLayers.length) {
+						          videoBlurWrapEl.hidden = false;
+						          videoBlurWrapEl.innerHTML = '';
+						          blurLayers.slice(0, 6).forEach((layer) => {
+						            const st = computeVideoLayerState(layer, time);
+						            const p = layer.params || {};
+						            const x = clamp(Number(p.x) || (w * 0.25), 0, w);
+						            const y = clamp(Number(p.y) || (h * 0.25), 0, h);
+						            const bw = clamp(Number(p.w) || (w * 0.25), 10, w);
+						            const bh = clamp(Number(p.h) || (h * 0.18), 10, h);
+						            const blur = clamp(Number(p.blur) || 12, 1, 30) * clamp(Number(st.opacity) || 0, 0.05, 1);
+						            const el = document.createElement('div');
+						            el.className = 'video-studio-blur-rect';
+						            el.style.opacity = String(clamp(Number(st.opacity) || 0, 0, 1));
+						            el.style.left = `${(x / w) * 100}%`;
+						            el.style.top = `${(y / h) * 100}%`;
+						            el.style.width = `${(bw / w) * 100}%`;
+						            el.style.height = `${(bh / h) * 100}%`;
+						            el.style.setProperty('--blur', `${blur}px`);
+						            videoBlurWrapEl.appendChild(el);
+						          });
+						        } else {
+						          videoBlurWrapEl.hidden = true;
+						          videoBlurWrapEl.innerHTML = '';
+						        }
+						      }
+
+						      // Objetos (overlay)
+						      try {
+						        (c.getObjects() || []).forEach((obj) => {
+						          obj.data = (obj.data && typeof obj.data === 'object') ? obj.data : {};
+						          const layerId = safeText(obj.data.vs_layer_id);
+						          const isHandle = !!obj.data.vs_handle;
+						          if (!pro) {
+						            obj.visible = true;
+						            if (typeof obj.data.vs_base_opacity === 'number') obj.opacity = obj.data.vs_base_opacity;
+						            else obj.data.vs_base_opacity = clamp(Number(obj.opacity) || 1, 0, 1);
+						            if (isHandle && !videoStudioShowHandles) obj.visible = false;
+						            return;
+						          }
+						          if (isHandle) {
+						            obj.visible = showHandles;
+						            obj.opacity = showHandles ? 0.85 : 0;
+						            return;
+						          }
+						          const layer = layerId ? (videoStudioLayers || []).find((l) => safeText(l?.id) === layerId) : null;
+						          if (!layer) {
+						            obj.visible = true;
+						            if (typeof obj.data.vs_base_opacity !== 'number') obj.data.vs_base_opacity = clamp(Number(obj.opacity) || 1, 0, 1);
+						            obj.opacity = obj.data.vs_base_opacity;
+						            return;
+						          }
+						          const st = computeVideoLayerState(layer, time);
+						          const baseOpacity = (typeof obj.data.vs_base_opacity === 'number') ? clamp(Number(obj.data.vs_base_opacity) || 1, 0, 1) : clamp(Number(obj.opacity) || 1, 0, 1);
+						          obj.data.vs_base_opacity = baseOpacity;
+						          obj.visible = st.on && st.opacity > 0.001;
+						          obj.opacity = baseOpacity * st.opacity;
+						          applyProgressiveStrokeToObject(obj, layer, time);
+						        });
+						      } catch (e) { /* ignore */ }
+						      try { c.renderAll(); } catch (e) { /* ignore */ }
+
+						      if (opts?.for_export) return { spotlightLayer, blurLayers, freezeLayers, w, h, pro };
+						      return null;
+						    };
+
+						    const syncVideoScrubUi = () => {
+						      const vid = videoStudioPlayer;
+						      if (!vid) return;
+						      const dur = Number(vid.duration) || 0;
 					      const cur = Number(vid.currentTime) || 0;
 					      if (videoTimeEl) videoTimeEl.textContent = formatClock(cur);
 					      if (videoDurationEl) videoDurationEl.textContent = formatClock(dur);
@@ -3769,16 +4209,22 @@
 					      videoStatusEl.style.color = isErr ? 'rgba(248,113,113,0.92)' : '';
 					    };
 
-					    const setVideoStudioLoadedUi = (loaded) => {
-					      const on = !!loaded;
-					      if (videoClearBtn) videoClearBtn.disabled = !on;
-					      if (videoKeyframeAddBtn) videoKeyframeAddBtn.disabled = !on;
-					      if (videoClearDrawBtn) videoClearDrawBtn.disabled = !on || !(videoStudioCanvas?.getObjects()?.length);
-					      if (videoExportBtn) videoExportBtn.disabled = !on || !canRecordVideoStudio();
-					      if (videoExportLenSelect) videoExportLenSelect.disabled = !on || !canRecordVideoStudio();
-					      if (videoKeyframeDeleteAllBtn) videoKeyframeDeleteAllBtn.disabled = !on || !videoStudioKeyframes.length;
-					      if (videoUndoBtn) videoUndoBtn.disabled = !on || videoStudioHistoryIndex <= 0;
-					    };
+						    const setVideoStudioLoadedUi = (loaded) => {
+						      const on = !!loaded;
+						      if (videoClearBtn) videoClearBtn.disabled = !on;
+						      if (videoKeyframeAddBtn) videoKeyframeAddBtn.disabled = !on;
+						      if (videoClearDrawBtn) videoClearDrawBtn.disabled = !on || !(videoStudioCanvas?.getObjects()?.length);
+						      if (videoToolCalloutBtn) videoToolCalloutBtn.disabled = !on;
+						      if (videoToolSpotlightBtn) videoToolSpotlightBtn.disabled = !on;
+						      if (videoToolBlurBtn) videoToolBlurBtn.disabled = !on;
+						      if (videoToolFreezeBtn) videoToolFreezeBtn.disabled = !on;
+						      if (videoLayerAddBtn) videoLayerAddBtn.disabled = !on;
+						      if (videoLayerFromSelectionBtn) videoLayerFromSelectionBtn.disabled = !on;
+						      if (videoExportBtn) videoExportBtn.disabled = !on || !canRecordVideoStudio();
+						      if (videoExportLenSelect) videoExportLenSelect.disabled = !on || !canRecordVideoStudio();
+						      if (videoKeyframeDeleteAllBtn) videoKeyframeDeleteAllBtn.disabled = !on || !videoStudioKeyframes.length;
+						      if (videoUndoBtn) videoUndoBtn.disabled = !on || videoStudioHistoryIndex <= 0;
+						    };
 
 					    const revokeVideoStudioUrl = () => {
 					      if (!videoStudioUrl) return;
@@ -3786,22 +4232,38 @@
 					      videoStudioUrl = '';
 					    };
 
-					    const ensureVideoStudioCanvas = () => {
-					      if (!videoStudioCanvasEl || !window.fabric) return null;
-					      if (videoStudioCanvas) return videoStudioCanvas;
-					      videoStudioCanvas = new window.fabric.Canvas(videoStudioCanvasEl, {
-					        preserveObjectStacking: true,
-					        selection: true,
-					      });
-					      try { videoStudioCanvas.setDimensions({ width: 1280, height: 720 }, { cssOnly: false }); } catch (e) { /* ignore */ }
-					      try {
-					        videoStudioCanvas.freeDrawingBrush = new window.fabric.PencilBrush(videoStudioCanvas);
-					        videoStudioCanvas.freeDrawingBrush.color = safeText(videoColorInput?.value, '#facc15');
-					        videoStudioCanvas.freeDrawingBrush.width = clamp(Number(videoWidthSelect?.value) || 5, 1, 20);
-					      } catch (e) { /* ignore */ }
-					      pushVideoStudioHistory();
-					      return videoStudioCanvas;
-					    };
+						    const ensureVideoStudioCanvas = () => {
+						      if (!videoStudioCanvasEl || !window.fabric) return null;
+						      if (videoStudioCanvas) return videoStudioCanvas;
+						      videoStudioCanvas = new window.fabric.Canvas(videoStudioCanvasEl, {
+						        preserveObjectStacking: true,
+						        selection: true,
+						      });
+						      try { videoStudioCanvas.setDimensions({ width: 1280, height: 720 }, { cssOnly: false }); } catch (e) { /* ignore */ }
+						      try {
+						        videoStudioCanvas.freeDrawingBrush = new window.fabric.PencilBrush(videoStudioCanvas);
+						        videoStudioCanvas.freeDrawingBrush.color = safeText(videoColorInput?.value, '#facc15');
+						        videoStudioCanvas.freeDrawingBrush.width = clamp(Number(videoWidthSelect?.value) || 5, 1, 20);
+						      } catch (e) { /* ignore */ }
+						      pushVideoStudioHistory();
+						      return videoStudioCanvas;
+						    };
+
+						    const loadVideoStudioMasterIfNeeded = async () => {
+						      if (!videoStudioCanvas) return;
+						      if (videoStudioMasterLoaded) return;
+						      videoStudioMasterLoaded = true;
+						      if (!videoStudioMasterJson) return;
+						      try {
+						        videoStudioCanvas.__loading = true;
+						        await new Promise((resolve) => {
+						          videoStudioCanvas.loadFromJSON(videoStudioMasterJson, () => resolve(true));
+						        });
+						      } catch (e) { /* ignore */ }
+						      try { videoStudioCanvas.renderAll(); } catch (e) { /* ignore */ }
+						      try { videoStudioCanvas.__loading = false; } catch (e) { /* ignore */ }
+						      pushVideoStudioHistory();
+						    };
 
 					    const installVideoStudioTools = () => {
 					      if (videoStudioToolsInstalled) return;
@@ -3831,41 +4293,77 @@
 					        }
 					      };
 
-					      c.on('mouse:down', (opt) => {
-					        if (videoStudioExporting) return;
-					        if (!videoStudioPlayer || !Number.isFinite(Number(videoStudioPlayer.duration) || 0)) return;
-					        const tool = videoStudioTool;
-					        if (tool === 'pen') return;
-					        const ptr = c.getPointer(opt.e);
-					        start = { x: Number(ptr.x) || 0, y: Number(ptr.y) || 0 };
+						      c.on('mouse:down', (opt) => {
+						        if (videoStudioExporting) return;
+						        if (!videoStudioPlayer || !Number.isFinite(Number(videoStudioPlayer.duration) || 0)) return;
+						        const tool = videoStudioTool;
+						        if (tool === 'pen') return;
+						        const ptr = c.getPointer(opt.e);
+						        start = { x: Number(ptr.x) || 0, y: Number(ptr.y) || 0 };
+						        const layerId = ensureVideoStudioDefaultLayer();
 
-					        if (tool === 'arrow') {
-					          const line = new window.fabric.Line([start.x, start.y, start.x, start.y], { fill: '', selectable: false, evented: false });
-					          applyStroke(line);
-					          temp = line;
-					          c.add(line);
-					        } else if (tool === 'circle') {
-					          const circ = new window.fabric.Circle({ left: start.x, top: start.y, radius: 1, fill: 'rgba(0,0,0,0)', originX: 'center', originY: 'center', selectable: false, evented: false });
-					          applyStroke(circ);
-					          temp = circ;
-					          c.add(circ);
-					        } else if (tool === 'rect') {
-					          const rect = new window.fabric.Rect({ left: start.x, top: start.y, width: 1, height: 1, fill: 'rgba(0,0,0,0)', originX: 'left', originY: 'top', selectable: false, evented: false });
-					          applyStroke(rect);
-					          temp = rect;
-					          c.add(rect);
-					        } else if (tool === 'text') {
-					          const text = window.prompt('Texto:', ''); // eslint-disable-line no-alert
-					          if (text == null) { start = null; return; }
-					          const txt = new window.fabric.Textbox(safeText(text), { left: start.x, top: start.y, originX: 'left', originY: 'top', fill: strokeColor(), fontSize: 34, fontWeight: 900 });
-					          txt.data = { kind: 'video-text' };
-					          c.add(txt);
-					          c.setActiveObject(txt);
-					          try { c.renderAll(); } catch (e) { /* ignore */ }
-					          pushVideoStudioHistory();
-					          start = null;
-					        }
-					      });
+						        if (tool === 'callout') {
+						          const num = clamp(Number(videoStudioCalloutSeq) || 1, 1, 999);
+						          videoStudioCalloutSeq = clamp(num + 1, 1, 999);
+						          scheduleVideoStudioSave();
+						          const circ = new window.fabric.Circle({
+						            left: start.x,
+						            top: start.y,
+						            originX: 'center',
+						            originY: 'center',
+						            radius: 22,
+						            fill: 'rgba(250,204,21,0.92)',
+						            stroke: 'rgba(15,23,42,0.55)',
+						            strokeWidth: 2,
+						          });
+						          const label = new window.fabric.Text(String(num), {
+						            left: start.x,
+						            top: start.y + 1,
+						            originX: 'center',
+						            originY: 'center',
+						            fill: 'rgba(15,23,42,0.94)',
+						            fontSize: 22,
+						            fontWeight: 900,
+						          });
+						          const group = new window.fabric.Group([circ, label], { selectable: true, evented: true });
+						          group.data = { kind: 'video-callout', vs_layer_id: layerId, vs_base_opacity: 1 };
+						          c.add(group);
+						          c.setActiveObject(group);
+						          try { c.renderAll(); } catch (e) { /* ignore */ }
+						          pushVideoStudioHistory();
+						          start = null;
+						          return;
+						        }
+
+						        if (tool === 'arrow') {
+						          const line = new window.fabric.Line([start.x, start.y, start.x, start.y], { fill: '', selectable: false, evented: false });
+						          applyStroke(line);
+						          temp = line;
+						          c.add(line);
+						        } else if (tool === 'circle') {
+						          const circ = new window.fabric.Circle({ left: start.x, top: start.y, radius: 1, fill: 'rgba(0,0,0,0)', originX: 'center', originY: 'center', selectable: false, evented: false });
+						          applyStroke(circ);
+						          circ.data = { kind: 'video-circle', vs_layer_id: layerId, vs_base_opacity: 1 };
+						          temp = circ;
+						          c.add(circ);
+						        } else if (tool === 'rect') {
+						          const rect = new window.fabric.Rect({ left: start.x, top: start.y, width: 1, height: 1, fill: 'rgba(0,0,0,0)', originX: 'left', originY: 'top', selectable: false, evented: false });
+						          applyStroke(rect);
+						          rect.data = { kind: 'video-rect', vs_layer_id: layerId, vs_base_opacity: 1 };
+						          temp = rect;
+						          c.add(rect);
+						        } else if (tool === 'text') {
+						          const text = window.prompt('Texto:', ''); // eslint-disable-line no-alert
+						          if (text == null) { start = null; return; }
+						          const txt = new window.fabric.Textbox(safeText(text), { left: start.x, top: start.y, originX: 'left', originY: 'top', fill: strokeColor(), fontSize: 34, fontWeight: 900 });
+						          txt.data = { kind: 'video-text', vs_layer_id: layerId, vs_base_opacity: 1 };
+						          c.add(txt);
+						          c.setActiveObject(txt);
+						          try { c.renderAll(); } catch (e) { /* ignore */ }
+						          pushVideoStudioHistory();
+						          start = null;
+						        }
+						      });
 
 					      c.on('mouse:move', (opt) => {
 					        if (!start || !temp) return;
@@ -3886,14 +4384,15 @@
 					        try { c.renderAll(); } catch (e) { /* ignore */ }
 					      });
 
-					      c.on('mouse:up', () => {
-					        if (!start) return;
-					        const tool = videoStudioTool;
-					        if (tool === 'arrow' && temp && temp.type === 'line') {
-					          const line = temp;
-					          const x1 = Number(line.x1) || 0;
-					          const y1 = Number(line.y1) || 0;
-					          const x2 = Number(line.x2) || 0;
+						      c.on('mouse:up', () => {
+						        if (!start) return;
+						        const tool = videoStudioTool;
+						        const layerId = ensureVideoStudioDefaultLayer();
+						        if (tool === 'arrow' && temp && temp.type === 'line') {
+						          const line = temp;
+						          const x1 = Number(line.x1) || 0;
+						          const y1 = Number(line.y1) || 0;
+						          const x2 = Number(line.x2) || 0;
 					          const y2 = Number(line.y2) || 0;
 					          const dx = x2 - x1;
 					          const dy = y2 - y1;
@@ -3912,25 +4411,72 @@
 					              selectable: false,
 					              evented: false,
 					            });
-					            const group = new window.fabric.Group([line, head], { selectable: true, evented: true });
-					            group.data = { kind: 'video-arrow' };
-					            try { c.remove(line); } catch (e) { /* ignore */ }
-					            c.add(group);
-					            c.setActiveObject(group);
-					          } else {
-					            cleanupTemp();
+						            const group = new window.fabric.Group([line, head], { selectable: true, evented: true });
+						            group.data = { kind: 'video-arrow', vs_layer_id: layerId, vs_base_opacity: 1 };
+						            try { c.remove(line); } catch (e) { /* ignore */ }
+						            c.add(group);
+						            c.setActiveObject(group);
+						          } else {
+						            cleanupTemp();
 					          }
 					        }
-					        start = null;
-					        temp = null;
-					        try { c.renderAll(); } catch (e) { /* ignore */ }
-					        pushVideoStudioHistory();
-					      });
+						        start = null;
+						        if (temp && (temp.type === 'circle' || temp.type === 'rect')) {
+						          try { temp.set({ selectable: true, evented: true }); } catch (e) { /* ignore */ }
+						        }
+						        temp = null;
+						        try { c.renderAll(); } catch (e) { /* ignore */ }
+						        pushVideoStudioHistory();
+						      });
 
-					      c.on('object:modified', () => {
-					        if (c.__loading) return;
-					        pushVideoStudioHistory();
-					      });
+						      c.on('path:created', (ev) => {
+						        const path = ev?.path;
+						        if (!path) return;
+						        const layerId = ensureVideoStudioDefaultLayer();
+						        path.data = (path.data && typeof path.data === 'object') ? path.data : {};
+						        path.data.kind = safeText(path.data.kind) || 'video-pen';
+						        path.data.vs_layer_id = layerId;
+						        if (typeof path.data.vs_base_opacity !== 'number') path.data.vs_base_opacity = clamp(Number(path.opacity) || 1, 0, 1);
+						        pushVideoStudioHistory();
+						      });
+
+						      c.on('object:modified', (ev) => {
+						        if (c.__loading) return;
+						        const target = ev?.target;
+						        if (target?.data?.vs_handle) {
+						          const layerId = safeText(target?.data?.vs_layer_id);
+						          const layer = layerId ? (videoStudioLayers || []).find((l) => safeText(l?.id) === layerId) : null;
+						          if (layer) {
+						            layer.params = (layer.params && typeof layer.params === 'object') ? layer.params : {};
+						            const kind = safeText(target?.data?.kind);
+						            if (kind === 'vs-spotlight-handle' && target.type === 'circle') {
+						              const cx = Number(target.left) || 0;
+						              const cy = Number(target.top) || 0;
+						              const scale = Math.max(0.05, Number(target.scaleX) || 1);
+						              const r = Math.max(10, (Number(target.radius) || 10) * scale);
+						              layer.params.x = cx;
+						              layer.params.y = cy;
+						              layer.params.r = r;
+						              // Resetea la escala para que la edición sea consistente.
+						              try { target.set({ scaleX: 1, scaleY: 1, radius: r }); } catch (e) { /* ignore */ }
+						            }
+						            if (kind === 'vs-blur-handle' && target.type === 'rect') {
+						              const x = Number(target.left) || 0;
+						              const y = Number(target.top) || 0;
+						              const w = Math.max(10, (Number(target.width) || 10) * Math.max(0.05, Number(target.scaleX) || 1));
+						              const h = Math.max(10, (Number(target.height) || 10) * Math.max(0.05, Number(target.scaleY) || 1));
+						              layer.params.x = x;
+						              layer.params.y = y;
+						              layer.params.w = w;
+						              layer.params.h = h;
+						              try { target.set({ scaleX: 1, scaleY: 1, width: w, height: h }); } catch (e) { /* ignore */ }
+						            }
+						            scheduleVideoStudioSave();
+						          }
+						        }
+						        pushVideoStudioHistory();
+						        applyVideoStudioTimeline(Number(videoStudioPlayer?.currentTime) || 0);
+						      });
 					      c.on('selection:created', () => {
 					        if (videoClearDrawBtn) videoClearDrawBtn.disabled = !c.getObjects().length;
 					      });
@@ -3942,23 +4488,39 @@
 					      });
 					    };
 
-					    const ensureVideoStudioHandlers = () => {
-					      if (videoStudioHandlersInstalled) return;
-					      if (!videoStudioModal) return;
-					      videoStudioHandlersInstalled = true;
+						    const ensureVideoStudioHandlers = () => {
+						      if (videoStudioHandlersInstalled) return;
+						      if (!videoStudioModal) return;
+						      videoStudioHandlersInstalled = true;
 
-					      readVideoStudioState();
-					      renderVideoKeyframes();
+						      readVideoStudioState();
+						      renderVideoKeyframes();
+						      renderVideoLayers();
+						      if (videoProEnabledInput) videoProEnabledInput.checked = !!videoStudioProEnabled;
+						      if (videoShowHandlesInput) videoShowHandlesInput.checked = !!videoStudioShowHandles;
 
-					      videoToolPenBtn?.addEventListener('click', () => setVideoStudioToolActive('pen'));
-					      videoToolArrowBtn?.addEventListener('click', () => setVideoStudioToolActive('arrow'));
-					      videoToolCircleBtn?.addEventListener('click', () => setVideoStudioToolActive('circle'));
-					      videoToolRectBtn?.addEventListener('click', () => setVideoStudioToolActive('rect'));
-					      videoToolTextBtn?.addEventListener('click', () => setVideoStudioToolActive('text'));
+						      videoToolPenBtn?.addEventListener('click', () => setVideoStudioToolActive('pen'));
+						      videoToolArrowBtn?.addEventListener('click', () => setVideoStudioToolActive('arrow'));
+						      videoToolCircleBtn?.addEventListener('click', () => setVideoStudioToolActive('circle'));
+						      videoToolRectBtn?.addEventListener('click', () => setVideoStudioToolActive('rect'));
+						      videoToolTextBtn?.addEventListener('click', () => setVideoStudioToolActive('text'));
+						      videoToolCalloutBtn?.addEventListener('click', () => setVideoStudioToolActive('callout'));
 
-					      videoColorInput?.addEventListener('change', () => {
-					        if (videoStudioCanvas && videoStudioCanvas.freeDrawingBrush) {
-					          try { videoStudioCanvas.freeDrawingBrush.color = safeText(videoColorInput.value, '#facc15'); } catch (e) { /* ignore */ }
+						      videoProEnabledInput?.addEventListener('change', () => {
+						        videoStudioProEnabled = !!videoProEnabledInput.checked;
+						        scheduleVideoStudioSave();
+						        applyVideoStudioTimeline(Number(videoStudioPlayer?.currentTime) || 0);
+						        renderVideoLayers();
+						      });
+						      videoShowHandlesInput?.addEventListener('change', () => {
+						        videoStudioShowHandles = !!videoShowHandlesInput.checked;
+						        scheduleVideoStudioSave();
+						        applyVideoStudioTimeline(Number(videoStudioPlayer?.currentTime) || 0);
+						      });
+
+						      videoColorInput?.addEventListener('change', () => {
+						        if (videoStudioCanvas && videoStudioCanvas.freeDrawingBrush) {
+						          try { videoStudioCanvas.freeDrawingBrush.color = safeText(videoColorInput.value, '#facc15'); } catch (e) { /* ignore */ }
 					        }
 					      });
 					      videoWidthSelect?.addEventListener('change', () => {
@@ -4007,42 +4569,249 @@
 					        setVideoStudioLoadedUi(true);
 					      });
 
-					      videoStudioPlayer?.addEventListener('loadedmetadata', () => {
-					        syncVideoScrubUi();
-					        setVideoStudioLoadedUi(true);
-					      });
-					      videoStudioPlayer?.addEventListener('timeupdate', () => {
-					        syncVideoScrubUi();
-					        if (videoStudioPlayer?.paused) return;
-					        const idx = findKeyframeIndexForTime(videoStudioPlayer.currentTime);
-					        if (idx !== videoStudioActiveKeyframe) void loadKeyframeAtIndex(idx);
-					      });
-					      videoStudioPlayer?.addEventListener('pause', () => {
-					        syncVideoScrubUi();
-					      });
-					      videoStudioPlayer?.addEventListener('play', () => {
-					        syncVideoScrubUi();
-					      });
+						      videoStudioPlayer?.addEventListener('loadedmetadata', () => {
+						        syncVideoScrubUi();
+						        setVideoStudioLoadedUi(true);
+						        ensureVideoStudioDefaultLayer();
+						        renderVideoLayers();
+						        applyVideoStudioTimeline(Number(videoStudioPlayer?.currentTime) || 0);
+						      });
+						      videoStudioPlayer?.addEventListener('timeupdate', () => {
+						        syncVideoScrubUi();
+						        applyVideoStudioTimeline(Number(videoStudioPlayer?.currentTime) || 0);
+						        if (videoStudioPlayer?.paused) return;
+						        if (videoStudioProEnabled && (videoStudioLayers || []).length) return;
+						        const idx = findKeyframeIndexForTime(videoStudioPlayer.currentTime);
+						        if (idx !== videoStudioActiveKeyframe) void loadKeyframeAtIndex(idx);
+						      });
+						      videoStudioPlayer?.addEventListener('pause', () => {
+						        syncVideoScrubUi();
+						        applyVideoStudioTimeline(Number(videoStudioPlayer?.currentTime) || 0);
+						      });
+						      videoStudioPlayer?.addEventListener('play', () => {
+						        syncVideoScrubUi();
+						        applyVideoStudioTimeline(Number(videoStudioPlayer?.currentTime) || 0);
+						      });
 
-					      if (videoScrubInput) {
-					        videoScrubInput.addEventListener('pointerdown', () => { videoScrubInput.__dragging = true; });
-					        videoScrubInput.addEventListener('pointerup', () => { videoScrubInput.__dragging = false; });
+						      if (videoScrubInput) {
+						        videoScrubInput.addEventListener('pointerdown', () => { videoScrubInput.__dragging = true; });
+						        videoScrubInput.addEventListener('pointerup', () => { videoScrubInput.__dragging = false; });
 					        videoScrubInput.addEventListener('input', () => {
 					          if (!videoStudioPlayer) return;
 					          const max = Number(videoScrubInput.max) || 1000;
 					          const dur = Number(videoStudioPlayer.duration) || 0;
 					          const frac = clamp((Number(videoScrubInput.value) || 0) / max, 0, 1);
-					          if (dur > 0) {
-					            try { videoStudioPlayer.currentTime = frac * dur; } catch (e) { /* ignore */ }
-					          }
-					          syncVideoScrubUi();
-					        });
-					      }
+						          if (dur > 0) {
+						            try { videoStudioPlayer.currentTime = frac * dur; } catch (e) { /* ignore */ }
+						          }
+						          syncVideoScrubUi();
+						          applyVideoStudioTimeline(Number(videoStudioPlayer?.currentTime) || 0);
+						        });
+						      }
 
-					      videoKeyframeAddBtn?.addEventListener('click', () => {
-					        if (!videoStudioCanvas || !videoStudioPlayer) return;
-					        let json = null;
-					        try { json = videoStudioCanvas.toDatalessJSON(['data']); } catch (e) { json = null; }
+						      videoLayerAddBtn?.addEventListener('click', () => {
+						        if (!videoStudioPlayer) return;
+						        const now = Math.max(0, Number(videoStudioPlayer.currentTime) || 0);
+						        createVideoStudioLayer({ type: 'draw', start: now, end: null, fade_in: 0.2, fade_out: 0.2, stroke_anim: 'none' });
+						        renderVideoLayers();
+						        applyVideoStudioTimeline(now);
+						      });
+						      videoLayerFromSelectionBtn?.addEventListener('click', () => {
+						        if (!videoStudioPlayer || !videoStudioCanvas) return;
+						        const objs = gatherActiveVideoStudioObjects();
+						        if (!objs.length) {
+						          window.alert('Selecciona un objeto/dibujo primero.'); // eslint-disable-line no-alert
+						          return;
+						        }
+						        const now = Math.max(0, Number(videoStudioPlayer.currentTime) || 0);
+						        const layer = createVideoStudioLayer({ type: 'draw', start: now, end: null, fade_in: 0.2, fade_out: 0.2 });
+						        assignVideoStudioObjectsToLayer(objs, layer.id);
+						        renderVideoLayers();
+						        applyVideoStudioTimeline(now);
+						      });
+
+						      videoLayerListEl?.addEventListener('click', (event) => {
+						        const target = event.target instanceof Element ? event.target : null;
+						        if (!target) return;
+						        const goId = safeText(target.getAttribute('data-vs-layer-go'));
+						        const toggleId = safeText(target.getAttribute('data-vs-layer-toggle'));
+						        const row = target.closest?.('[data-vs-layer]');
+						        const rowId = safeText(row?.getAttribute?.('data-vs-layer'));
+						        if (goId && videoStudioPlayer) {
+						          const idx = findVideoLayerIndex(goId);
+						          if (idx >= 0) {
+						            try { videoStudioPlayer.currentTime = Math.max(0, Number(videoStudioLayers[idx]?.start) || 0); } catch (e) { /* ignore */ }
+						            try { videoStudioPlayer.pause(); } catch (e) { /* ignore */ }
+						            syncVideoScrubUi();
+						            applyVideoStudioTimeline(Number(videoStudioPlayer.currentTime) || 0);
+						          }
+						          return;
+						        }
+						        if (toggleId) {
+						          const idx = findVideoLayerIndex(toggleId);
+						          if (idx >= 0) {
+						            videoStudioLayers[idx].enabled = videoStudioLayers[idx].enabled === false;
+						            scheduleVideoStudioSave();
+						            renderVideoLayers();
+						            applyVideoStudioTimeline(Number(videoStudioPlayer?.currentTime) || 0);
+						          }
+						          return;
+						        }
+						        if (rowId) {
+						          setActiveVideoLayer(rowId);
+						          applyVideoStudioTimeline(Number(videoStudioPlayer?.currentTime) || 0);
+						        }
+						      });
+
+						      const applyEditorToLayer = () => {
+						        const layer = activeVideoLayer();
+						        if (!layer) return;
+						        if (videoLayerNameInput) layer.name = safeText(videoLayerNameInput.value);
+						        if (videoLayerInInput) layer.start = Math.max(0, Number(videoLayerInInput.value) || 0);
+						        if (videoLayerOutInput) {
+						          const raw = safeText(videoLayerOutInput.value);
+						          layer.end = raw ? Math.max(0, Number(raw) || 0) : null;
+						        }
+						        if (videoLayerFadeInInput) layer.fade_in = Math.max(0, Number(videoLayerFadeInInput.value) || 0);
+						        if (videoLayerFadeOutInput) layer.fade_out = Math.max(0, Number(videoLayerFadeOutInput.value) || 0);
+						        if (videoLayerStrokeAnimSelect) layer.stroke_anim = safeText(videoLayerStrokeAnimSelect.value, 'none') || 'none';
+						        if (layer.end != null && layer.end < layer.start) layer.end = layer.start;
+						        scheduleVideoStudioSave();
+						        renderVideoLayers();
+						        applyVideoStudioTimeline(Number(videoStudioPlayer?.currentTime) || 0);
+						      };
+						      [videoLayerNameInput, videoLayerInInput, videoLayerOutInput, videoLayerFadeInInput, videoLayerFadeOutInput, videoLayerStrokeAnimSelect]
+						        .forEach((el) => el?.addEventListener?.('change', applyEditorToLayer));
+
+						      videoLayerSetInBtn?.addEventListener('click', () => {
+						        if (!videoStudioPlayer) return;
+						        const layer = activeVideoLayer();
+						        if (!layer) return;
+						        layer.start = Math.max(0, Number(videoStudioPlayer.currentTime) || 0);
+						        if (layer.end != null && layer.end < layer.start) layer.end = layer.start;
+						        scheduleVideoStudioSave();
+						        renderVideoLayers();
+						        syncVideoLayerEditor();
+						        applyVideoStudioTimeline(layer.start);
+						      });
+						      videoLayerSetOutBtn?.addEventListener('click', () => {
+						        if (!videoStudioPlayer) return;
+						        const layer = activeVideoLayer();
+						        if (!layer) return;
+						        layer.end = Math.max(0, Number(videoStudioPlayer.currentTime) || 0);
+						        if (layer.end < layer.start) layer.start = layer.end;
+						        scheduleVideoStudioSave();
+						        renderVideoLayers();
+						        syncVideoLayerEditor();
+						        applyVideoStudioTimeline(Number(videoStudioPlayer.currentTime) || 0);
+						      });
+
+						      videoLayerDeleteBtn?.addEventListener('click', () => {
+						        const layer = activeVideoLayer();
+						        if (!layer || !videoStudioCanvas) return;
+						        const ok = window.confirm('¿Borrar la capa y sus elementos?'); // eslint-disable-line no-alert
+						        if (!ok) return;
+						        const id = safeText(layer.id);
+						        // Elimina objetos ligados a la capa.
+						        try {
+						          (videoStudioCanvas.getObjects() || []).forEach((obj) => {
+						            if (safeText(obj?.data?.vs_layer_id) === id) {
+						              try { videoStudioCanvas.remove(obj); } catch (e) { /* ignore */ }
+						            }
+						          });
+						        } catch (e) { /* ignore */ }
+						        const idx = findVideoLayerIndex(id);
+						        if (idx >= 0) videoStudioLayers.splice(idx, 1);
+						        videoStudioActiveLayerId = safeText(videoStudioLayers[0]?.id);
+						        scheduleVideoStudioSave();
+						        renderVideoLayers();
+						        pushVideoStudioHistory();
+						        applyVideoStudioTimeline(Number(videoStudioPlayer?.currentTime) || 0);
+						      });
+
+						      // FX tools (one-shot layers)
+						      const createSpotlightLayer = () => {
+						        if (!videoStudioCanvas || !videoStudioPlayer || !window.fabric) return;
+						        const now = Math.max(0, Number(videoStudioPlayer.currentTime) || 0);
+						        const w = Number(videoStudioCanvas.getWidth?.()) || 1280;
+						        const h = Number(videoStudioCanvas.getHeight?.()) || 720;
+						        const layer = createVideoStudioLayer({
+						          type: 'spotlight',
+						          start: now,
+						          end: now + 3,
+						          fade_in: 0.2,
+						          fade_out: 0.2,
+						          params: { x: w / 2, y: h / 2, r: 170, feather: 45, dim: 0.55 },
+						        });
+						        const handle = new window.fabric.Circle({
+						          left: w / 2,
+						          top: h / 2,
+						          originX: 'center',
+						          originY: 'center',
+						          radius: 170,
+						          fill: 'rgba(0,0,0,0)',
+						          stroke: 'rgba(250,204,21,0.85)',
+						          strokeWidth: 3,
+						          strokeDashArray: [10, 8],
+						          selectable: true,
+						          evented: true,
+						        });
+						        handle.data = { vs_handle: true, kind: 'vs-spotlight-handle', vs_layer_id: layer.id, vs_base_opacity: 1 };
+						        videoStudioCanvas.add(handle);
+						        videoStudioShowHandles = true;
+						        if (videoShowHandlesInput) videoShowHandlesInput.checked = true;
+						        scheduleVideoStudioSave();
+						        renderVideoLayers();
+						        applyVideoStudioTimeline(now);
+						      };
+						      const createBlurLayer = () => {
+						        if (!videoStudioCanvas || !videoStudioPlayer || !window.fabric) return;
+						        const now = Math.max(0, Number(videoStudioPlayer.currentTime) || 0);
+						        const w = Number(videoStudioCanvas.getWidth?.()) || 1280;
+						        const h = Number(videoStudioCanvas.getHeight?.()) || 720;
+						        const layer = createVideoStudioLayer({
+						          type: 'blur',
+						          start: now,
+						          end: now + 3,
+						          fade_in: 0.2,
+						          fade_out: 0.2,
+						          params: { x: w * 0.34, y: h * 0.34, w: w * 0.32, h: h * 0.22, blur: 12 },
+						        });
+						        const handle = new window.fabric.Rect({
+						          left: w * 0.34,
+						          top: h * 0.34,
+						          width: w * 0.32,
+						          height: h * 0.22,
+						          fill: 'rgba(0,0,0,0)',
+						          stroke: 'rgba(59,130,246,0.85)',
+						          strokeWidth: 3,
+						          strokeDashArray: [10, 8],
+						          selectable: true,
+						          evented: true,
+						        });
+						        handle.data = { vs_handle: true, kind: 'vs-blur-handle', vs_layer_id: layer.id, vs_base_opacity: 1 };
+						        videoStudioCanvas.add(handle);
+						        videoStudioShowHandles = true;
+						        if (videoShowHandlesInput) videoShowHandlesInput.checked = true;
+						        scheduleVideoStudioSave();
+						        renderVideoLayers();
+						        applyVideoStudioTimeline(now);
+						      };
+						      const createFreezeLayer = () => {
+						        if (!videoStudioPlayer) return;
+						        const now = Math.max(0, Number(videoStudioPlayer.currentTime) || 0);
+						        createVideoStudioLayer({ type: 'freeze', start: now, end: now + 2.5, fade_in: 0, fade_out: 0, params: {} });
+						        renderVideoLayers();
+						        applyVideoStudioTimeline(now);
+						      };
+						      videoToolSpotlightBtn?.addEventListener('click', () => { createSpotlightLayer(); });
+						      videoToolBlurBtn?.addEventListener('click', () => { createBlurLayer(); });
+						      videoToolFreezeBtn?.addEventListener('click', () => { createFreezeLayer(); });
+
+						      videoKeyframeAddBtn?.addEventListener('click', () => {
+						        if (!videoStudioCanvas || !videoStudioPlayer) return;
+						        let json = null;
+						        try { json = videoStudioCanvas.toDatalessJSON(['data']); } catch (e) { json = null; }
 					        if (!json) return;
 					        const t = Math.max(0, Number(videoStudioPlayer.currentTime) || 0);
 					        const title = window.prompt('Nombre (opcional):', ''); // eslint-disable-line no-alert
@@ -4207,26 +4976,97 @@
 					        try { videoStudioPlayer.currentTime = startTime; } catch (e) { /* ignore */ }
 					        await new Promise((r) => window.setTimeout(r, 120));
 
-					        const startedAt = window.performance?.now?.() || Date.now();
-					        const stopAtMs = clipLen * 1000;
-					        try { recorder.start(250); } catch (e) { /* ignore */ }
-					        try { videoStudioPlayer.play(); } catch (e) { /* ignore */ }
+						        const startedAt = window.performance?.now?.() || Date.now();
+						        const stopAtMs = clipLen * 1000;
+						        let freezeHold = null;
+						        try { recorder.start(250); } catch (e) { /* ignore */ }
+						        try { videoStudioPlayer.play(); } catch (e) { /* ignore */ }
 
-					        const tick = (nowRaw) => {
-					          const now = Number(nowRaw) || (window.performance?.now?.() || Date.now());
-					          const elapsed = now - startedAt;
-					          try {
-					            ctx.fillStyle = 'rgba(2,6,23,1)';
-					            ctx.fillRect(0, 0, outW, outH);
-					            drawContain(ctx, videoStudioPlayer, outW, outH);
-					            ctx.drawImage(videoStudioCanvas.lowerCanvasEl, 0, 0, outW, outH);
-					          } catch (e) { /* ignore */ }
-					          if (elapsed >= stopAtMs || (Number(videoStudioPlayer.currentTime) || 0) >= (startTime + clipLen - 0.04)) {
-					            videoStudioExportFrame = null;
-					            try { videoStudioPlayer.pause(); } catch (e) { /* ignore */ }
-					            try { recorder.stop(); } catch (e) { /* ignore */ }
-					            videoStudioExporting = false;
-					            setVideoStudioStatus('Exportado.');
+						        const tick = (nowRaw) => {
+						          const now = Number(nowRaw) || (window.performance?.now?.() || Date.now());
+						          const elapsed = now - startedAt;
+						          const vtime = startTime + Math.max(0, elapsed / 1000);
+						          const fx = applyVideoStudioTimeline(vtime, { for_export: true }) || {};
+						          const freezeOn = !!(fx?.freezeLayers && fx.freezeLayers.length);
+						          if (freezeOn) {
+						            if (freezeHold == null) freezeHold = Number(videoStudioPlayer.currentTime) || vtime;
+						            try { videoStudioPlayer.pause(); } catch (e) { /* ignore */ }
+						          } else if (freezeHold != null) {
+						            freezeHold = null;
+						            try { videoStudioPlayer.currentTime = vtime; } catch (e) { /* ignore */ }
+						            try { videoStudioPlayer.play(); } catch (e) { /* ignore */ }
+						          } else {
+						            const cur = Number(videoStudioPlayer.currentTime) || 0;
+						            if (Math.abs(cur - vtime) > 0.12) {
+						              try { videoStudioPlayer.currentTime = vtime; } catch (e) { /* ignore */ }
+						            }
+						          }
+						          try {
+						            ctx.fillStyle = 'rgba(2,6,23,1)';
+						            ctx.fillRect(0, 0, outW, outH);
+						            drawContain(ctx, videoStudioPlayer, outW, outH);
+						            // Blur (regiones)
+						            if (fx?.pro && Array.isArray(fx.blurLayers) && fx.blurLayers.length) {
+						              const baseW = Number(fx.w) || (Number(videoStudioCanvas.getWidth?.()) || 1280);
+						              const baseH = Number(fx.h) || (Number(videoStudioCanvas.getHeight?.()) || 720);
+						              const sx = outW / Math.max(1, baseW);
+						              const sy = outH / Math.max(1, baseH);
+						              fx.blurLayers.slice(0, 8).forEach((layer) => {
+						                const st = computeVideoLayerState(layer, vtime);
+						                if (!st.on || st.opacity <= 0.01) return;
+						                const p = layer.params || {};
+						                const x = clamp(Number(p.x) || 0, 0, baseW);
+						                const y = clamp(Number(p.y) || 0, 0, baseH);
+						                const bw = clamp(Number(p.w) || (baseW * 0.25), 10, baseW);
+						                const bh = clamp(Number(p.h) || (baseH * 0.18), 10, baseH);
+						                const blur = clamp(Number(p.blur) || 12, 1, 40) * st.opacity;
+						                ctx.save();
+						                ctx.globalAlpha = st.opacity;
+						                ctx.filter = `blur(${Math.round(blur)}px)`;
+						                ctx.beginPath();
+						                ctx.rect(x * sx, y * sy, bw * sx, bh * sy);
+						                ctx.clip();
+						                drawContain(ctx, videoStudioPlayer, outW, outH);
+						                ctx.restore();
+						              });
+						            }
+						            // Spotlight (oscurecer fuera de foco)
+						            if (fx?.pro && fx?.spotlightLayer) {
+						              const st = computeVideoLayerState(fx.spotlightLayer, vtime);
+						              if (st.on && st.opacity > 0.01) {
+						                const baseW = Number(fx.w) || (Number(videoStudioCanvas.getWidth?.()) || 1280);
+						                const baseH = Number(fx.h) || (Number(videoStudioCanvas.getHeight?.()) || 720);
+						                const sx = outW / Math.max(1, baseW);
+						                const sy = outH / Math.max(1, baseH);
+						                const p = fx.spotlightLayer.params || {};
+						                const cx = clamp(Number(p.x) || (baseW / 2), 0, baseW) * sx;
+						                const cy = clamp(Number(p.y) || (baseH / 2), 0, baseH) * sy;
+						                const r = Math.max(10, Number(p.r) || 160) * Math.min(sx, sy);
+						                const feather = Math.max(0, Number(p.feather) || 40) * Math.min(sx, sy);
+						                const dim = clamp(Number(p.dim) || 0.55, 0, 0.95) * st.opacity;
+						                ctx.save();
+						                ctx.fillStyle = `rgba(2,6,23,${dim})`;
+						                ctx.fillRect(0, 0, outW, outH);
+						                ctx.globalCompositeOperation = 'destination-out';
+						                const g = ctx.createRadialGradient(cx, cy, Math.max(1, r - feather), cx, cy, r + feather);
+						                g.addColorStop(0, 'rgba(0,0,0,1)');
+						                g.addColorStop(0.72, 'rgba(0,0,0,1)');
+						                g.addColorStop(1, 'rgba(0,0,0,0)');
+						                ctx.fillStyle = g;
+						                ctx.beginPath();
+						                ctx.arc(cx, cy, r + feather, 0, Math.PI * 2);
+						                ctx.fill();
+						                ctx.restore();
+						              }
+						            }
+						            ctx.drawImage(videoStudioCanvas.lowerCanvasEl, 0, 0, outW, outH);
+						          } catch (e) { /* ignore */ }
+						          if (elapsed >= stopAtMs || vtime >= (startTime + clipLen - 0.01)) {
+						            videoStudioExportFrame = null;
+						            try { videoStudioPlayer.pause(); } catch (e) { /* ignore */ }
+						            try { recorder.stop(); } catch (e) { /* ignore */ }
+						            videoStudioExporting = false;
+						            setVideoStudioStatus('Exportado.');
 					            setVideoStudioLoadedUi(true);
 					            try { stream.getTracks().forEach((t) => t.stop()); } catch (e) { /* ignore */ }
 					            try { videoStudioPlayer.currentTime = prevTime; } catch (e) { /* ignore */ }
@@ -4244,15 +5084,20 @@
 					    const setVideoStudioOpen = (open) => {
 					      if (!videoStudioModal) return;
 					      const shouldOpen = !!open;
-					      videoStudioModal.hidden = !shouldOpen;
-					      if (shouldOpen) {
-					        ensureVideoStudioCanvas();
-					        installVideoStudioTools();
-					        ensureVideoStudioHandlers();
-					        setVideoStudioToolActive(videoStudioTool);
-					        syncVideoScrubUi();
-					        setVideoStudioLoadedUi(!!safeText(videoStudioPlayer?.src));
-					      } else {
+						      videoStudioModal.hidden = !shouldOpen;
+						      if (shouldOpen) {
+						        ensureVideoStudioCanvas();
+						        void loadVideoStudioMasterIfNeeded();
+						        ensureVideoStudioDefaultLayer();
+						        installVideoStudioTools();
+						        ensureVideoStudioHandlers();
+						        setVideoStudioToolActive(videoStudioTool);
+						        syncVideoScrubUi();
+						        setVideoStudioLoadedUi(!!safeText(videoStudioPlayer?.src));
+						        renderVideoLayers();
+						        syncVideoLayerEditor();
+						        applyVideoStudioTimeline(Number(videoStudioPlayer?.currentTime) || 0);
+						      } else {
 					        if (videoStudioExportFrame) {
 					          try { window.cancelAnimationFrame(videoStudioExportFrame); } catch (e) { /* ignore */ }
 					          videoStudioExportFrame = null;

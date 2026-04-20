@@ -2354,13 +2354,44 @@
 	        font: inherit;
 	        font-weight: 900;
 	      }
-	      .video-studio-timeline {
-	        display: grid;
-	        grid-template-columns: 1fr;
-	        gap: 0.55rem;
-	        border-top: 1px solid rgba(255,255,255,0.10);
-	        padding-top: 0.65rem;
-	      }
+		      .video-studio-timeline {
+		        display: grid;
+		        grid-template-columns: 1fr;
+		        gap: 0.55rem;
+		        border-top: 1px solid rgba(255,255,255,0.10);
+		        padding-top: 0.65rem;
+		      }
+		      .video-studio-fx {
+		        position: absolute;
+		        inset: 0;
+		        pointer-events: none;
+		      }
+		      .video-studio-spotlight {
+		        background: rgba(2, 6, 23, 0.55);
+		        --spot-x: 50%;
+		        --spot-y: 50%;
+		        --spot-r: 140px;
+		        --spot-feather: 40px;
+		        -webkit-mask-image: radial-gradient(circle at var(--spot-x) var(--spot-y),
+		          rgba(0,0,0,0) 0,
+		          rgba(0,0,0,0) calc(var(--spot-r) - var(--spot-feather)),
+		          rgba(0,0,0,0.9) var(--spot-r),
+		          rgba(0,0,0,1) calc(var(--spot-r) + var(--spot-feather)));
+		        mask-image: radial-gradient(circle at var(--spot-x) var(--spot-y),
+		          rgba(0,0,0,0) 0,
+		          rgba(0,0,0,0) calc(var(--spot-r) - var(--spot-feather)),
+		          rgba(0,0,0,0.9) var(--spot-r),
+		          rgba(0,0,0,1) calc(var(--spot-r) + var(--spot-feather)));
+		      }
+		      .video-studio-blur-wrap { }
+		      .video-studio-blur-rect {
+		        position: absolute;
+		        border-radius: 12px;
+		        -webkit-backdrop-filter: blur(var(--blur, 10px));
+		        backdrop-filter: blur(var(--blur, 10px));
+		        background: rgba(255,255,255,0.02);
+		        outline: 1px solid rgba(255,255,255,0.10);
+		      }
 	      .video-studio-scrub {
 	        display: grid;
 	        grid-template-columns: 88px 1fr 88px;
@@ -2376,12 +2407,103 @@
 	        gap: 0.5rem;
 	        align-items: center;
 	      }
-	      .video-studio-kf-list {
-	        display: grid;
-	        gap: 0.45rem;
-	        max-height: 160px;
-	        overflow: auto;
-	      }
+		      .video-studio-kf-list {
+		        display: grid;
+		        gap: 0.45rem;
+		        max-height: 160px;
+		        overflow: auto;
+		      }
+		      .video-studio-layer-panel {
+		        display: grid;
+		        gap: 0.55rem;
+		        border: 1px solid rgba(255,255,255,0.10);
+		        background: rgba(255,255,255,0.03);
+		        border-radius: 16px;
+		        padding: 12px;
+		      }
+		      .video-studio-layer-controls {
+		        display: flex;
+		        gap: 0.6rem;
+		        flex-wrap: wrap;
+		        align-items: center;
+		        justify-content: space-between;
+		      }
+		      .video-studio-layer-controls label {
+		        display: inline-flex;
+		        gap: 10px;
+		        align-items: center;
+		        font-weight: 900;
+		        letter-spacing: 0.04em;
+		        text-transform: uppercase;
+		        font-size: 0.72rem;
+		        color: rgba(226,232,240,0.92);
+		      }
+		      .video-studio-layer-controls input[type="checkbox"] {
+		        transform: translateY(1px);
+		      }
+		      .video-studio-layer-list {
+		        display: grid;
+		        gap: 0.45rem;
+		        max-height: 220px;
+		        overflow: auto;
+		      }
+		      .video-layer-item {
+		        display: grid;
+		        grid-template-columns: 1fr auto;
+		        gap: 0.6rem;
+		        align-items: center;
+		        padding: 10px 12px;
+		        border-radius: 12px;
+		        border: 1px solid rgba(255,255,255,0.10);
+		        background: rgba(2,6,23,0.35);
+		        color: rgba(248,250,252,0.92);
+		      }
+		      .video-layer-item.is-active {
+		        outline: 2px solid rgba(34,197,94,0.55);
+		      }
+		      .video-layer-meta {
+		        opacity: 0.85;
+		        font-size: 0.86rem;
+		      }
+		      .video-studio-layer-editor {
+		        display: grid;
+		        gap: 0.5rem;
+		        border-top: 1px solid rgba(255,255,255,0.10);
+		        padding-top: 0.55rem;
+		      }
+		      .video-studio-layer-grid {
+		        display: grid;
+		        grid-template-columns: 1.2fr 0.7fr 0.7fr 0.7fr 0.7fr;
+		        gap: 0.5rem;
+		        align-items: end;
+		      }
+		      .video-studio-layer-grid label {
+		        display: grid;
+		        gap: 6px;
+		        font-weight: 900;
+		        letter-spacing: 0.04em;
+		        text-transform: uppercase;
+		        font-size: 0.7rem;
+		        color: rgba(226,232,240,0.9);
+		      }
+		      .video-studio-layer-grid input[type="text"],
+		      .video-studio-layer-grid input[type="number"],
+		      .video-studio-layer-grid select {
+		        width: 100%;
+		        border-radius: 999px;
+		        border: 1px solid rgba(255,255,255,0.14);
+		        background: rgba(255,255,255,0.06);
+		        color: rgba(248,250,252,0.92);
+		        padding: 8px 10px;
+		        font: inherit;
+		        font-weight: 900;
+		      }
+		      .video-studio-layer-actions {
+		        display: flex;
+		        gap: 0.5rem;
+		        flex-wrap: wrap;
+		        justify-content: flex-end;
+		      }
 	      .video-kf-item {
 	        display: flex;
 	        align-items: center;
@@ -2905,27 +3027,33 @@
 				                          <button type="button" class="sim-3d-close" id="task-video-studio-close">Cerrar</button>
 				                        </div>
 				                        <div class="video-studio-body">
-				                          <div class="video-studio-stage" id="task-video-studio-stage">
-				                            <video class="video-studio-player" id="task-video-studio-player" playsinline controls preload="metadata"></video>
-				                            <canvas class="video-studio-canvas" id="task-video-studio-canvas"></canvas>
-				                          </div>
-				                          <div class="video-studio-toolbar">
-				                            <div class="video-studio-tools">
-				                              <button type="button" class="button" id="task-video-load">Cargar vídeo</button>
+					                          <div class="video-studio-stage" id="task-video-studio-stage">
+					                            <video class="video-studio-player" id="task-video-studio-player" playsinline controls preload="metadata"></video>
+					                            <div class="video-studio-fx video-studio-spotlight" id="task-video-spotlight" hidden></div>
+					                            <div class="video-studio-fx video-studio-blur-wrap" id="task-video-blur-wrap" hidden></div>
+					                            <canvas class="video-studio-canvas" id="task-video-studio-canvas"></canvas>
+					                          </div>
+					                          <div class="video-studio-toolbar">
+					                            <div class="video-studio-tools">
+					                              <button type="button" class="button" id="task-video-load">Cargar vídeo</button>
 				                              <button type="button" class="button danger" id="task-video-clear" disabled>Quitar</button>
 				                              <input type="file" id="task-video-file" accept="video/*" hidden />
 				                              <span class="meta" id="task-video-status" style="opacity:0.9;">—</span>
 				                            </div>
-				                            <div class="video-studio-tools">
-				                              <button type="button" class="button" id="task-video-tool-pen">Pen</button>
-				                              <button type="button" class="button" id="task-video-tool-arrow">Flecha</button>
-				                              <button type="button" class="button" id="task-video-tool-circle">Círculo</button>
-				                              <button type="button" class="button" id="task-video-tool-rect">Rect</button>
-				                              <button type="button" class="button" id="task-video-tool-text">Texto</button>
-				                              <button type="button" class="button" id="task-video-undo" disabled>Undo</button>
-				                              <button type="button" class="button danger" id="task-video-clear-draw" disabled>Limpiar</button>
-				                              <label>
-				                                Color
+					                            <div class="video-studio-tools">
+					                              <button type="button" class="button" id="task-video-tool-pen">Pen</button>
+					                              <button type="button" class="button" id="task-video-tool-arrow">Flecha</button>
+					                              <button type="button" class="button" id="task-video-tool-circle">Círculo</button>
+					                              <button type="button" class="button" id="task-video-tool-rect">Rect</button>
+					                              <button type="button" class="button" id="task-video-tool-text">Texto</button>
+					                              <button type="button" class="button" id="task-video-tool-callout" disabled>Callout #</button>
+					                              <button type="button" class="button" id="task-video-tool-spotlight" disabled>Spotlight</button>
+					                              <button type="button" class="button" id="task-video-tool-blur" disabled>Blur</button>
+					                              <button type="button" class="button" id="task-video-tool-freeze" disabled>Freeze</button>
+					                              <button type="button" class="button" id="task-video-undo" disabled>Undo</button>
+					                              <button type="button" class="button danger" id="task-video-clear-draw" disabled>Limpiar</button>
+					                              <label>
+					                                Color
 				                                <input type="color" id="task-video-color" value="#facc15" />
 				                              </label>
 				                              <label>
@@ -2964,11 +3092,59 @@
 				                                <button type="button" class="button danger" id="task-video-kf-delete-all" disabled>Borrar keyframes</button>
 				                              </div>
 				                            </div>
-				                            <div class="video-studio-kf-list" id="task-video-kf-list"></div>
-				                          </div>
-				                        </div>
-				                      </div>
-				                    </div>
+					                            <div class="video-studio-kf-list" id="task-video-kf-list"></div>
+					                            <div class="video-studio-kf">
+					                              <div class="video-studio-hint">
+					                                Capas Pro: entrada/salida, spotlight, blur, freeze y callouts (sin perder keyframes).
+					                              </div>
+					                              <div style="display:flex; gap:0.5rem; flex-wrap:wrap; justify-content:flex-end;">
+					                                <button type="button" class="button" id="task-video-layer-add" disabled>Nueva capa</button>
+					                                <button type="button" class="button" id="task-video-layer-from-selection" disabled>Capa (selección)</button>
+					                              </div>
+					                            </div>
+					                            <div class="video-studio-layer-panel">
+					                              <div class="video-studio-layer-controls">
+					                                <label>Pro <input type="checkbox" id="task-video-pro-enabled" checked /></label>
+					                                <label>Guías <input type="checkbox" id="task-video-show-handles" /></label>
+					                                <span class="meta" id="task-video-layer-status" style="opacity:0.9;">—</span>
+					                              </div>
+					                              <div class="video-studio-layer-list" id="task-video-layer-list"></div>
+					                              <div class="video-studio-layer-editor" id="task-video-layer-editor" hidden>
+					                                <div class="video-studio-layer-grid">
+					                                  <label>Nombre
+					                                    <input type="text" id="task-video-layer-name" placeholder="Capa" />
+					                                  </label>
+					                                  <label>IN (s)
+					                                    <input type="number" id="task-video-layer-in" min="0" step="0.1" />
+					                                  </label>
+					                                  <label>OUT (s)
+					                                    <input type="number" id="task-video-layer-out" min="0" step="0.1" />
+					                                  </label>
+					                                  <label>Fade IN
+					                                    <input type="number" id="task-video-layer-fadein" min="0" step="0.05" />
+					                                  </label>
+					                                  <label>Fade OUT
+					                                    <input type="number" id="task-video-layer-fadeout" min="0" step="0.05" />
+					                                  </label>
+					                                </div>
+					                                <div class="video-studio-layer-actions">
+					                                  <button type="button" class="button" id="task-video-layer-set-in">IN=Ahora</button>
+					                                  <button type="button" class="button" id="task-video-layer-set-out">OUT=Ahora</button>
+					                                  <label style="display:inline-flex; gap:10px; align-items:center; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; color:rgba(226,232,240,0.92);">
+					                                    Trazo
+					                                    <select id="task-video-layer-stroke-anim">
+					                                      <option value="none" selected>Sin</option>
+					                                      <option value="draw">Progresivo</option>
+					                                    </select>
+					                                  </label>
+					                                  <button type="button" class="button danger" id="task-video-layer-delete">Borrar capa</button>
+					                                </div>
+					                              </div>
+					                            </div>
+					                          </div>
+					                        </div>
+					                      </div>
+					                    </div>
 				                    </div>
 				                    </div>
 				                    <div class="pattern-popover" id="task-pattern-popover" hidden>
