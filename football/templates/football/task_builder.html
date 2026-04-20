@@ -2614,6 +2614,7 @@
 					                          <button type="button" class="button" id="task-sim-share" hidden>Copiar enlace</button>
 					                          <button type="button" class="button" id="task-sim-export-step" hidden>PNG paso</button>
 					                          <button type="button" class="button" id="task-sim-export-all" hidden>PNG pasos</button>
+					                          <button type="button" class="button" id="task-sim-record" hidden>Grabar vídeo</button>
 					                          <button type="button" class="button" id="task-sim-view-3d" hidden>Vista 3D</button>
 					                          <button type="button" class="button" id="task-sim-clip-save" hidden>Guardar clip</button>
 					                          <button type="button" class="button" id="task-sim-clip-import" hidden>Importar clip</button>
@@ -2681,6 +2682,18 @@
 				                            <button type="button" class="button" id="task-sim-3d-prev">Anterior</button>
 				                            <button type="button" class="button primary" id="task-sim-3d-play">Reproducir</button>
 				                            <button type="button" class="button" id="task-sim-3d-next">Siguiente</button>
+				                            <label style="display:flex; gap:10px; align-items:center;">
+				                              Cámara
+				                              <select id="task-sim-3d-camera">
+				                                <option value="tv" selected>TV</option>
+				                                <option value="top">Cenital</option>
+				                                <option value="side">Lateral</option>
+				                              </select>
+				                            </label>
+				                            <label style="display:flex; gap:10px; align-items:center;">
+				                              <input type="checkbox" id="task-sim-3d-follow" />
+				                              Seguir balón
+				                            </label>
 				                            <button type="button" class="button" id="task-sim-3d-fullscreen">Pantalla completa</button>
 				                            <button type="button" class="button" id="task-sim-3d-record">Grabar vídeo</button>
 				                            <label style="display:flex; gap:10px; align-items:center;">

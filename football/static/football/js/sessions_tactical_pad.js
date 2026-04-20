@@ -737,6 +737,7 @@
 			    const simShareBtn = document.getElementById('task-sim-share');
 			    const simExportStepBtn = document.getElementById('task-sim-export-step');
 			    const simExportAllBtn = document.getElementById('task-sim-export-all');
+			    const simRecordBtn = document.getElementById('task-sim-record');
 			    const simView3dBtn = document.getElementById('task-sim-view-3d');
 			    const simClipSaveBtn = document.getElementById('task-sim-clip-save');
 			    const simClipImportBtn = document.getElementById('task-sim-clip-import');
@@ -3451,6 +3452,7 @@
 					      if (simShareBtn) simShareBtn.hidden = !isSimulating;
 						      if (simExportStepBtn) simExportStepBtn.hidden = !isSimulating;
 						      if (simExportAllBtn) simExportAllBtn.hidden = !isSimulating;
+						      if (simRecordBtn) simRecordBtn.hidden = !isSimulating;
 						      if (simView3dBtn) simView3dBtn.hidden = !isSimulating;
 						      if (simClipSaveBtn) simClipSaveBtn.hidden = !isSimulating;
 						      if (simClipImportBtn) simClipImportBtn.hidden = !isSimulating;
@@ -3461,13 +3463,205 @@
 					      if (simMagnetsInput) simMagnetsInput.checked = !!simulationMagnets;
 					      if (simGuidesInput) simGuidesInput.checked = !!simulationGuides;
 					      if (simCollisionInput) simCollisionInput.checked = !!simulationCollision;
-					      if (simSpeedSelect) simSpeedSelect.value = String(simulationSpeed);
-					      if (simPlayBtn) simPlayBtn.textContent = simulationPlaying ? 'Parar' : 'Reproducir';
+						      if (simSpeedSelect) simSpeedSelect.value = String(simulationSpeed);
+						      if (simPlayBtn) simPlayBtn.textContent = simulationPlaying ? 'Parar' : 'Reproducir';
+						      if (simRecordBtn) simRecordBtn.disabled = !canRecord2d();
 					    };
 				    const setSimPopoverOpen = (open) => {
 				      if (!simPopover) return;
 				      simPopover.hidden = !open;
 				      if (open) syncSimUi();
+				    };
+
+				    // Grabación de vídeo (2D) del simulador (pitch + fichas).
+				    let simRecordActive = false;
+				    let simRecordCanvas = null;
+				    let simRecordCtx = null;
+				    let simRecordBgImg = null;
+				    let simRecordStream = null;
+				    let simRecordMedia = null;
+				    let simRecordChunks = [];
+				    let simRecordFrame = null;
+
+				    const canRecord2d = () => {
+				      try {
+				        return typeof window.MediaRecorder !== 'undefined'
+				          && typeof document?.createElement === 'function'
+				          && typeof HTMLCanvasElement !== 'undefined';
+				      } catch (e) { return false; }
+				    };
+				    const simFileSafeSlug = (value) => safeText(value || '')
+				      .toLowerCase()
+				      .replace(/[^a-z0-9]+/g, '-')
+				      .replace(/^-+|-+$/g, '')
+				      .slice(0, 60) || 'tactica';
+				    const simDownloadBlob = (blob, filename) => {
+				      if (!blob) return;
+				      const url = URL.createObjectURL(blob);
+				      const link = document.createElement('a');
+				      link.href = url;
+				      link.download = filename || `tactical_${Date.now()}.webm`;
+				      document.body.appendChild(link);
+				      link.click();
+				      link.remove();
+				      window.setTimeout(() => {
+				        try { URL.revokeObjectURL(url); } catch (e) { /* ignore */ }
+				      }, 2500);
+				    };
+
+				    const setSimRecordUi = (on) => {
+				      simRecordActive = !!on;
+				      if (!simRecordBtn) return;
+				      simRecordBtn.textContent = simRecordActive ? 'Parar' : 'Grabar vídeo';
+				      simRecordBtn.classList.toggle('danger', simRecordActive);
+				    };
+
+				    const buildPitchBackgroundImage = async () => {
+				      try {
+				        if (!svgSurface) return null;
+				        const svgMarkup = new XMLSerializer().serializeToString(svgSurface);
+				        const blob = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' });
+				        const blobUrl = URL.createObjectURL(blob);
+				        const img = new Image();
+				        await new Promise((resolve) => {
+				          img.onload = resolve;
+				          img.onerror = resolve;
+				          img.src = blobUrl;
+				        });
+				        try { URL.revokeObjectURL(blobUrl); } catch (e) { /* ignore */ }
+				        return img;
+				      } catch (e) {
+				        return null;
+				      }
+				    };
+
+				    const stopSimRecording = () => {
+				      if (simRecordFrame) {
+				        try { window.cancelAnimationFrame(simRecordFrame); } catch (e) { /* ignore */ }
+				        simRecordFrame = null;
+				      }
+				      try { simRecordMedia?.stop?.(); } catch (e) { /* ignore */ }
+				    };
+
+				    const startSimRecording = async () => {
+				      if (!isSimulating) return;
+				      if (!canRecord2d()) {
+				        window.alert('Tu navegador no soporta grabación aquí. Prueba en Chrome/desktop.');
+				        return;
+				      }
+				      if (!simRecordBtn) return;
+				      const base = canvas?.lowerCanvasEl;
+				      if (!base) {
+				        window.alert('No se pudo iniciar la grabación.');
+				        return;
+				      }
+				      const w = Math.max(1, Math.round(base.width || canvas.getWidth() || 1280));
+				      const h = Math.max(1, Math.round(base.height || canvas.getHeight() || 720));
+				      simRecordCanvas = document.createElement('canvas');
+				      simRecordCanvas.width = w;
+				      simRecordCanvas.height = h;
+				      simRecordCtx = simRecordCanvas.getContext('2d');
+				      if (!simRecordCtx) {
+				        window.alert('No se pudo iniciar la grabación.');
+				        simRecordCanvas = null;
+				        return;
+				      }
+				      simRecordBgImg = await buildPitchBackgroundImage();
+
+				      try {
+				        if (typeof simRecordCanvas.captureStream !== 'function') throw new Error('no captureStream');
+				        simRecordStream = simRecordCanvas.captureStream(30);
+				      } catch (e) {
+				        simRecordStream = null;
+				      }
+				      if (!simRecordStream) {
+				        window.alert('No se pudo iniciar la captura de vídeo.');
+				        simRecordCanvas = null;
+				        simRecordCtx = null;
+				        simRecordBgImg = null;
+				        return;
+				      }
+
+				      const mimeCandidates = [
+				        'video/webm;codecs=vp9,opus',
+				        'video/webm;codecs=vp8,opus',
+				        'video/webm',
+				      ];
+				      let mimeType = '';
+				      mimeCandidates.some((mt) => {
+				        try {
+				          if (window.MediaRecorder.isTypeSupported(mt)) {
+				            mimeType = mt;
+				            return true;
+				          }
+				        } catch (e) { /* ignore */ }
+				        return false;
+				      });
+				      try {
+				        simRecordMedia = new window.MediaRecorder(simRecordStream, mimeType ? { mimeType } : undefined);
+				      } catch (e) {
+				        simRecordMedia = null;
+				      }
+				      if (!simRecordMedia) {
+				        window.alert('No se pudo crear el grabador de vídeo.');
+				        try { simRecordStream?.getTracks?.().forEach((t) => t.stop()); } catch (e) { /* ignore */ }
+				        simRecordStream = null;
+				        simRecordCanvas = null;
+				        simRecordCtx = null;
+				        simRecordBgImg = null;
+				        return;
+				      }
+
+				      simRecordChunks = [];
+				      simRecordMedia.ondataavailable = (ev) => {
+				        if (ev?.data && ev.data.size > 0) simRecordChunks.push(ev.data);
+				      };
+				      simRecordMedia.onstop = () => {
+				        const blob = new Blob(simRecordChunks, { type: simRecordMedia?.mimeType || 'video/webm' });
+				        const title = simFileSafeSlug(document.querySelector('[name=\"draw_task_title\"]')?.value || 'tactica');
+				        simDownloadBlob(blob, `${title}-2d.webm`);
+				        try { simRecordStream?.getTracks?.().forEach((t) => t.stop()); } catch (e) { /* ignore */ }
+				        simRecordStream = null;
+				        simRecordMedia = null;
+				        simRecordChunks = [];
+				        simRecordCanvas = null;
+				        simRecordCtx = null;
+				        simRecordBgImg = null;
+				        setSimRecordUi(false);
+				      };
+
+				      const drawFrame = () => {
+				        if (!simRecordActive || !simRecordCtx || !simRecordCanvas) return;
+				        try {
+				          simRecordCtx.clearRect(0, 0, simRecordCanvas.width, simRecordCanvas.height);
+				          if (simRecordBgImg) {
+				            simRecordCtx.drawImage(simRecordBgImg, 0, 0, simRecordCanvas.width, simRecordCanvas.height);
+				          } else {
+				            simRecordCtx.fillStyle = '#14532d';
+				            simRecordCtx.fillRect(0, 0, simRecordCanvas.width, simRecordCanvas.height);
+				          }
+				          simRecordCtx.drawImage(base, 0, 0, simRecordCanvas.width, simRecordCanvas.height);
+				        } catch (e) { /* ignore */ }
+				        simRecordFrame = window.requestAnimationFrame(drawFrame);
+				      };
+
+				      try { simRecordMedia.start(250); } catch (e) {
+				        window.alert('No se pudo iniciar la grabación.');
+				        try { simRecordStream?.getTracks?.().forEach((t) => t.stop()); } catch (err) { /* ignore */ }
+				        simRecordStream = null;
+				        simRecordMedia = null;
+				        simRecordCanvas = null;
+				        simRecordCtx = null;
+				        simRecordBgImg = null;
+				        return;
+				      }
+				      setSimRecordUi(true);
+				      simRecordFrame = window.requestAnimationFrame(drawFrame);
+				    };
+
+				    const toggleSimRecording = async () => {
+				      if (simRecordActive) return stopSimRecording();
+				      return await startSimRecording();
 				    };
 
 				    const readClipsLibrary = () => {
@@ -4104,6 +4298,9 @@
 				    const exitSimulation = () => {
 				      if (!isSimulating) return;
 				      stopSimulationPlayback();
+				      if (simRecordActive) {
+				        try { stopSimRecording(); } catch (e) { /* ignore */ }
+				      }
 				      // Persiste los pasos capturados para guardarlos con la tarea (fase 9).
 				      try {
 				        if (Array.isArray(simulationSteps) && simulationSteps.length) {
@@ -4134,6 +4331,9 @@
 						    const resetSimulation = () => {
 						      if (!isSimulating) return;
 						      stopSimulationPlayback();
+						      if (simRecordActive) {
+						        try { stopSimRecording(); } catch (e) { /* ignore */ }
+						      }
 						      clearSimGuides();
 						      simulationSavedSteps = [];
 						      simulationSavedUpdatedAt = Date.now();
@@ -4245,6 +4445,10 @@
 			    simPlayBtn?.addEventListener('click', (event) => {
 			      event.preventDefault();
 			      void playSimulationSteps();
+			    });
+			    simRecordBtn?.addEventListener('click', (event) => {
+			      event.preventDefault();
+			      void toggleSimRecording();
 			    });
 			    simRemoveBtn?.addEventListener('click', (event) => {
 			      event.preventDefault();

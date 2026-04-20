@@ -346,6 +346,9 @@
       this.animFrame = null;
       this.transition = null;
       this.cameraState = { yaw: 0.0, zoom: 1.0, tilt: 0.86 };
+      this.cameraPreset = 'tv';
+      this.followBall = false;
+      this.focus = { x: 0, z: 0 };
       this.drag = { active: false, x: 0, y: 0, yaw0: 0 };
       this.onResize = this.onResize.bind(this);
       this.tick = this.tick.bind(this);
@@ -462,8 +465,46 @@
       const x = Math.sin(yaw) * radius;
       const z = Math.cos(yaw) * radius;
       const y = 92 * tilt;
-      this.camera.position.set(x, y, z);
-      this.camera.lookAt(0, 0, 0);
+      const fx = Number(this.focus?.x) || 0;
+      const fz = Number(this.focus?.z) || 0;
+      this.camera.position.set(fx + x, y, fz + z);
+      this.camera.lookAt(fx, 0, fz);
+    }
+
+    setCameraPreset(preset) {
+      const p = safeText(preset, 'tv');
+      this.cameraPreset = p;
+      if (p === 'top') {
+        this.cameraState.tilt = 1.2;
+        this.cameraState.zoom = 1.25;
+        this.cameraState.yaw = 0.0;
+      } else if (p === 'side') {
+        this.cameraState.tilt = 0.82;
+        this.cameraState.zoom = 1.05;
+        this.cameraState.yaw = Math.PI / 2;
+      } else {
+        this.cameraState.tilt = 0.86;
+        this.cameraState.zoom = 1.0;
+        this.cameraState.yaw = 0.0;
+      }
+      this.applyCamera();
+    }
+
+    setFollowBall(enabled) {
+      this.followBall = !!enabled;
+      if (!this.followBall) {
+        this.focus = { x: 0, z: 0 };
+      }
+      this.applyCamera();
+    }
+
+    findMeshByKind(kind) {
+      const want = safeText(kind).toLowerCase();
+      for (const mesh of this.meshByKey.values()) {
+        const k = safeText(mesh?.userData?.kind).toLowerCase();
+        if (k === want) return mesh;
+      }
+      return null;
     }
 
     setSteps(steps) {
@@ -808,6 +849,14 @@
       if (!this.renderer || !this.scene || !this.camera) return;
       const now = performance.now();
       this.applyTransition(now);
+      if (this.followBall) {
+        const ball = this.findMeshByKind('ball');
+        const tx = ball ? Number(ball.position?.x) || 0 : 0;
+        const tz = ball ? Number(ball.position?.z) || 0 : 0;
+        this.focus.x = (Number(this.focus?.x) || 0) + ((tx - (Number(this.focus?.x) || 0)) * 0.08);
+        this.focus.z = (Number(this.focus?.z) || 0) + ((tz - (Number(this.focus?.z) || 0)) * 0.08);
+        this.applyCamera();
+      }
       this.renderer.render(this.scene, this.camera);
       this.animFrame = requestAnimationFrame(this.tick);
     }
@@ -826,6 +875,8 @@
     const speedEl = document.getElementById('task-sim-3d-speed');
     const fullscreenBtn = document.getElementById('task-sim-3d-fullscreen');
     const recordBtn = document.getElementById('task-sim-3d-record');
+    const cameraSelect = document.getElementById('task-sim-3d-camera');
+    const followInput = document.getElementById('task-sim-3d-follow');
     if (!openBtn || !modal || !canvas) return;
 
     let viewer = null;
@@ -1003,6 +1054,8 @@
       viewer.stepIndex = 0;
       viewer.setStep(0, { transitionMs: 1 });
       viewer.updateLabel();
+      try { viewer.setCameraPreset(safeText(cameraSelect?.value, 'tv')); } catch (e) {}
+      try { viewer.setFollowBall(!!followInput?.checked); } catch (e) {}
       if (playBtn) playBtn.textContent = 'Reproducir';
       setFsUi();
       setRecordUi(false);
@@ -1044,6 +1097,14 @@
       if (!viewer) return;
       viewer.play();
       playBtn.textContent = viewer.playing ? 'Parar' : 'Reproducir';
+    });
+    cameraSelect?.addEventListener('change', () => {
+      if (!viewer) return;
+      viewer.setCameraPreset(safeText(cameraSelect.value, 'tv'));
+    });
+    followInput?.addEventListener('change', () => {
+      if (!viewer) return;
+      viewer.setFollowBall(!!followInput.checked);
     });
     fullscreenBtn?.addEventListener('click', () => {
       void toggleFullscreen();
