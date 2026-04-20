@@ -2760,6 +2760,10 @@
 					                            <input type="checkbox" id="task-sim-autocapture" />
 					                            Auto-capturar al mover
 				                          </label>
+					                          <label class="sim-check">
+					                            <input type="checkbox" id="task-sim-pro-enabled" />
+					                            Timeline Pro
+					                          </label>
 				                          <label class="sim-check">
 				                            <input type="checkbox" id="task-sim-trajectories" />
 				                            Trayectorias
@@ -2785,6 +2789,34 @@
 					                              <option value="2">2×</option>
 					                            </select>
 					                          </label>
+					                        </div>
+					                        <div class="sim-options" id="task-sim-pro-panel" hidden style="margin-top:0.75rem;">
+					                          <div class="meta" style="grid-column:1/-1;">Timeline Pro: scrub continuo + keyframes por objeto (posición/rotación/escala/opacidad).</div>
+					                          <div style="grid-column:1/-1; display:flex; gap:0.55rem; flex-wrap:wrap; align-items:center; justify-content:space-between;">
+					                            <div style="display:flex; gap:0.55rem; flex-wrap:wrap; align-items:center;">
+					                              <span class="meta" id="task-sim-pro-time">00:00</span>
+					                              <input type="range" id="task-sim-pro-scrub" min="0" max="1000" value="0" style="min-width:220px; width:min(520px, 60vw);" />
+					                              <span class="meta" id="task-sim-pro-total">00:00</span>
+					                            </div>
+					                            <label style="display:flex; gap:10px; align-items:center;">
+					                              Loop
+					                              <input type="checkbox" id="task-sim-pro-loop" checked />
+					                            </label>
+					                          </div>
+					                          <div style="grid-column:1/-1; display:flex; gap:0.45rem; flex-wrap:wrap; align-items:center;">
+					                            <button type="button" class="button" id="task-sim-pro-kf-add">+ Keyframe (selección)</button>
+					                            <button type="button" class="button danger" id="task-sim-pro-kf-del">Borrar keyframe</button>
+					                            <label style="display:flex; gap:10px; align-items:center;">
+					                              Easing
+					                              <select id="task-sim-pro-easing">
+					                                <option value="ease" selected>Ease</option>
+					                                <option value="linear">Linear</option>
+					                                <option value="hold">Hold</option>
+					                              </select>
+					                            </label>
+					                            <button type="button" class="button" id="task-sim-pro-clear">Limpiar keyframes</button>
+					                          </div>
+					                          <div class="sim-steps" id="task-sim-pro-kf-list" hidden></div>
 					                        </div>
 					                        <div class="sim-options" id="task-sim-routes-panel" hidden style="margin-top:0.75rem;">
 					                          <div class="meta" style="grid-column:1/-1;">Rutas: selecciona una ficha (o el balón) y añade waypoints. “Spline” suaviza el movimiento.</div>

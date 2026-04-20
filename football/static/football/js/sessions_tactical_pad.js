@@ -750,6 +750,17 @@
 				    const simToScenariosBtn = document.getElementById('task-sim-to-scenarios');
 				    const simShareUrlInput = document.getElementById('task-sim-share-url');
 			    const simAutoCaptureInput = document.getElementById('task-sim-autocapture');
+			    const simProEnabledInput = document.getElementById('task-sim-pro-enabled');
+			    const simProPanel = document.getElementById('task-sim-pro-panel');
+			    const simProScrub = document.getElementById('task-sim-pro-scrub');
+			    const simProTimeLabel = document.getElementById('task-sim-pro-time');
+			    const simProTotalLabel = document.getElementById('task-sim-pro-total');
+			    const simProLoopInput = document.getElementById('task-sim-pro-loop');
+			    const simProEasingSelect = document.getElementById('task-sim-pro-easing');
+			    const simProKfAddBtn = document.getElementById('task-sim-pro-kf-add');
+			    const simProKfDelBtn = document.getElementById('task-sim-pro-kf-del');
+			    const simProKfClearBtn = document.getElementById('task-sim-pro-clear');
+			    const simProKfList = document.getElementById('task-sim-pro-kf-list');
 			    const simTrajectoriesInput = document.getElementById('task-sim-trajectories');
 			    const simMagnetsInput = document.getElementById('task-sim-magnets');
 			    const simGuidesInput = document.getElementById('task-sim-guides');
@@ -1671,7 +1682,7 @@
 					    let simulationBaselineSnapshot = null;
 						    let simulationSteps = [];
 						    let simulationActiveIndex = -1;
-						    let simulationPlaying = false;
+					    let simulationPlaying = false;
 						    let simulationPlayTimer = null;
 						    let simulationAnimToken = 0;
 					    let simulationAnimFrame = null;
@@ -1682,6 +1693,14 @@
 					    let simulationGuides = true;
 					    let simulationCollision = false;
 						    let simulationTrajectories = true;
+						    let simulationProEnabled = false;
+						    let simulationProPlaying = false;
+						    let simulationProAnimFrame = null;
+						    let simulationProTimeMs = 0;
+						    let simulationProLoop = true;
+						    let simulationProTracks = {};
+						    let simulationProUpdatedAt = 0;
+						    let simulationProCaches = new Map(); // stepIndex -> { startMs, endMs, startMap, endMap }
 						    // Persistencia (fase 9): guardamos los pasos del simulador junto a la tarea
 						    // sin mezclarlos con el historial/undo del editor.
 						    let simulationSavedSteps = [];
@@ -3522,13 +3541,15 @@
 						      if (simClipsList) simClipsList.hidden = !isSimulating;
 						      if (simMetaPanel) simMetaPanel.hidden = !isSimulating;
 						      if (simRoutesPanel) simRoutesPanel.hidden = !isSimulating;
-					      if (simAutoCaptureInput) simAutoCaptureInput.checked = !!simulationAutoCapture;
+						      if (simAutoCaptureInput) simAutoCaptureInput.checked = !!simulationAutoCapture;
+						      if (simProEnabledInput) simProEnabledInput.checked = !!simulationProEnabled;
+						      if (simProPanel) simProPanel.hidden = !isSimulating || !simulationProEnabled;
 						      if (simTrajectoriesInput) simTrajectoriesInput.checked = !!simulationTrajectories;
 					      if (simMagnetsInput) simMagnetsInput.checked = !!simulationMagnets;
 					      if (simGuidesInput) simGuidesInput.checked = !!simulationGuides;
 					      if (simCollisionInput) simCollisionInput.checked = !!simulationCollision;
 						      if (simSpeedSelect) simSpeedSelect.value = String(simulationSpeed);
-						      if (simPlayBtn) simPlayBtn.textContent = simulationPlaying ? 'Parar' : 'Reproducir';
+						      if (simPlayBtn) simPlayBtn.textContent = (simulationProEnabled ? simulationProPlaying : simulationPlaying) ? 'Parar' : 'Reproducir';
 						      if (simRecordBtn) simRecordBtn.disabled = !canRecord2d();
 					    };
 
@@ -4886,12 +4907,17 @@
 				    };
 				    const stopSimulationPlayback = () => {
 				      simulationPlaying = false;
+				      simulationProPlaying = false;
 				      if (simulationPlayTimer) window.clearTimeout(simulationPlayTimer);
 				      simulationPlayTimer = null;
 				      simulationAnimToken += 1;
 				      if (simulationAnimFrame) {
 				        try { window.cancelAnimationFrame(simulationAnimFrame); } catch (error) { /* ignore */ }
 				        simulationAnimFrame = null;
+				      }
+				      if (simulationProAnimFrame) {
+				        try { window.cancelAnimationFrame(simulationProAnimFrame); } catch (error) { /* ignore */ }
+				        simulationProAnimFrame = null;
 				      }
 				      clearSimMoveOverlays();
 				      clearSimRouteOverlays();
@@ -4908,6 +4934,296 @@
 				        }
 				        used.add(safeText(obj?.data?.layer_uid));
 				      });
+				    };
+
+				    const clampInt = (value, min, max) => Math.max(min, Math.min(max, Math.floor(Number(value) || 0)));
+
+				    const computeSimulationTotalMs = () => {
+				      const steps = Array.isArray(simulationSteps) ? simulationSteps : [];
+				      const total = steps.reduce((acc, step) => acc + (clamp(Number(step?.duration) || 3, 1, 20) * 1000), 0);
+				      return Math.max(0, Math.round(total || 0));
+				    };
+
+				    const computeSimulationStepStartsMs = () => {
+				      const starts = [];
+				      let cursor = 0;
+				      (Array.isArray(simulationSteps) ? simulationSteps : []).forEach((step) => {
+				        starts.push(cursor);
+				        cursor += clamp(Number(step?.duration) || 3, 1, 20) * 1000;
+				      });
+				      return starts;
+				    };
+
+				    const mapFromCanvasState = (rawState) => {
+				      const state = sanitizeLoadedState(rawState);
+				      const objects = Array.isArray(state?.objects) ? state.objects : [];
+				      const map = new Map();
+				      objects.forEach((obj) => {
+				        const uid = safeText(obj?.data?.layer_uid);
+				        if (!uid) return;
+				        map.set(uid, {
+				          left: Number(obj.left) || 0,
+				          top: Number(obj.top) || 0,
+				          angle: Number(obj.angle) || 0,
+				          scaleX: clampScale(Number(obj.scaleX) || 1),
+				          scaleY: clampScale(Number(obj.scaleY) || 1),
+				          opacity: obj.opacity == null ? 1 : Number(obj.opacity),
+				        });
+				      });
+				      return map;
+				    };
+
+				    const normalizeEasing = (value) => {
+				      const v = safeText(value, 'ease').toLowerCase();
+				      if (v === 'linear') return 'linear';
+				      if (v === 'hold') return 'hold';
+				      return 'ease';
+				    };
+
+				    const easeFor = (easing, t) => {
+				      const v = normalizeEasing(easing);
+				      if (v === 'linear') return clamp(t, 0, 1);
+				      if (v === 'hold') return 0;
+				      return easeInOut(clamp(t, 0, 1));
+				    };
+
+				    const proKeyframesForUid = (uid) => {
+				      const list = simulationProTracks?.[uid];
+				      return Array.isArray(list) ? list : [];
+				    };
+
+				    const evalProTrackAtTime = (uid, timeMs) => {
+				      const kfs = proKeyframesForUid(uid);
+				      if (!kfs.length) return null;
+				      const t = Math.max(0, Number(timeMs) || 0);
+				      if (t <= (Number(kfs[0]?.t_ms) || 0)) return { props: kfs[0]?.props || null };
+				      const last = kfs[kfs.length - 1];
+				      if (t >= (Number(last?.t_ms) || 0)) return { props: last?.props || null };
+				      for (let i = 0; i < kfs.length - 1; i += 1) {
+				        const a = kfs[i];
+				        const b = kfs[i + 1];
+				        const ta = Number(a?.t_ms) || 0;
+				        const tb = Number(b?.t_ms) || 0;
+				        if (t < ta || t > tb) continue;
+				        const span = Math.max(1, tb - ta);
+				        const raw = (t - ta) / span;
+				        const eased = easeFor(a?.easing, raw);
+				        const pa = a?.props || {};
+				        const pb = b?.props || {};
+				        return {
+				          props: {
+				            left: lerp(pa.left, pb.left, eased),
+				            top: lerp(pa.top, pb.top, eased),
+				            angle: lerpAngle(pa.angle, pb.angle, eased),
+				            scaleX: lerp(pa.scaleX, pb.scaleX, eased),
+				            scaleY: lerp(pa.scaleY, pb.scaleY, eased),
+				            opacity: lerp(pa.opacity, pb.opacity, eased),
+				          },
+				        };
+				      }
+				      return { props: last?.props || null };
+				    };
+
+				    const renderSimulationAtTimeMs = (timeMs) => {
+				      if (!isSimulating) return;
+				      if (!Array.isArray(simulationSteps) || !simulationSteps.length) return;
+				      ensureLayerUidsOnCanvas();
+				      const totalMs = computeSimulationTotalMs();
+				      const t = clamp(Number(timeMs) || 0, 0, Math.max(0, totalMs));
+				      simulationProTimeMs = t;
+				      const starts = computeSimulationStepStartsMs();
+				      let segIndex = 0;
+				      for (let i = 0; i < starts.length - 1; i += 1) {
+				        if (t >= starts[i] && t < starts[i + 1]) {
+				          segIndex = i;
+				          break;
+				        }
+				        if (t >= starts[starts.length - 1]) segIndex = starts.length - 1;
+				      }
+				      const startStep = simulationSteps[segIndex];
+				      const endStep = simulationSteps[Math.min(simulationSteps.length - 1, segIndex + 1)];
+				      const segStartMs = starts[segIndex] || 0;
+				      const segEndMs = (segIndex + 1 < starts.length) ? starts[segIndex + 1] : totalMs;
+				      const segDur = Math.max(1, segEndMs - segStartMs);
+				      const rawAlpha = (segIndex === simulationSteps.length - 1) ? 1 : ((t - segStartMs) / segDur);
+				      const alpha = clamp(rawAlpha, 0, 1);
+
+				      const cacheKey = `${segIndex}`;
+				      let cache = simulationProCaches.get(cacheKey);
+				      if (!cache || cache.startMs !== segStartMs || cache.endMs !== segEndMs) {
+				        cache = {
+				          startMs: segStartMs,
+				          endMs: segEndMs,
+				          startMap: mapFromCanvasState(startStep?.canvas_state),
+				          endMap: mapFromCanvasState(endStep?.canvas_state),
+				        };
+				        simulationProCaches.set(cacheKey, cache);
+				      }
+				      const startMap = cache.startMap;
+				      const endMap = cache.endMap;
+				      const endRoutes = (endStep?.routes && typeof endStep.routes === 'object') ? endStep.routes : {};
+
+				      const liveObjects = (canvas.getObjects?.() || []).filter((obj) => obj && !(obj?.data?.base));
+				      const liveByUid = new Map();
+				      liveObjects.forEach((obj) => {
+				        const uid = safeText(obj?.data?.layer_uid);
+				        if (uid) liveByUid.set(uid, obj);
+				      });
+
+				      const applyProps = (obj, props) => {
+				        if (!obj || !props) return;
+				        obj.set({
+				          left: Number(props.left) || 0,
+				          top: Number(props.top) || 0,
+				          angle: Number(props.angle) || 0,
+				          scaleX: clampScale(Number(props.scaleX) || 1, maxScaleForObject(obj)),
+				          scaleY: clampScale(Number(props.scaleY) || 1, maxScaleForObject(obj)),
+				          opacity: props.opacity == null ? 1 : Number(props.opacity),
+				        });
+				        obj.setCoords();
+				      };
+
+				      liveByUid.forEach((obj, uid) => {
+				        const trackEval = simulationProEnabled ? evalProTrackAtTime(uid, t) : null;
+				        if (trackEval?.props) {
+				          applyProps(obj, trackEval.props);
+				          return;
+				        }
+				        const sp = startMap.get(uid);
+				        const ep = endMap.get(uid);
+				        if (!sp || !ep) return;
+				        let left = lerp(sp.left, ep.left, alpha);
+				        let top = lerp(sp.top, ep.top, alpha);
+				        const route = endRoutes?.[uid];
+				        const routePoints = Array.isArray(route?.points) ? route.points.slice(0, 60) : null;
+				        if (routePoints && routePoints.length >= 2) {
+				          const combined = (() => {
+				            const startPt = { x: sp.left, y: sp.top };
+				            const endPt = { x: ep.left, y: ep.top };
+				            const pts = routePoints.map((p) => routePoint(p)).filter(Boolean);
+				            if (!pts.length) return [startPt, endPt];
+				            const first = pts[0];
+				            const last = pts[pts.length - 1];
+				            const out = pts.slice();
+				            if (Math.hypot((first.x - startPt.x), (first.y - startPt.y)) > 6) out.unshift(startPt);
+				            if (Math.hypot((last.x - endPt.x), (last.y - endPt.y)) > 6) out.push(endPt);
+				            return out;
+				          })();
+				          const sampled = sampleRoute(combined, alpha, !!route?.spline);
+				          left = Number.isFinite(sampled?.x) ? sampled.x : left;
+				          top = Number.isFinite(sampled?.y) ? sampled.y : top;
+				        }
+				        applyProps(obj, {
+				          left,
+				          top,
+				          angle: lerpAngle(sp.angle, ep.angle, alpha),
+				          scaleX: lerp(sp.scaleX, ep.scaleX, alpha),
+				          scaleY: lerp(sp.scaleY, ep.scaleY, alpha),
+				          opacity: lerp(sp.opacity, ep.opacity, alpha),
+				        });
+				      });
+
+				      // Balón pegado (segmento): usa ball_follow_uid del endStep (si no hay track del balón).
+				      try {
+				        const followUid = safeText(endStep?.ball_follow_uid);
+				        if (followUid) {
+				          const ballUid = findBallUid();
+				          const ballObj = ballUid ? liveByUid.get(ballUid) : null;
+				          const followObj = liveByUid.get(followUid);
+				          const ballHasTrack = ballUid && Array.isArray(simulationProTracks?.[ballUid]) && simulationProTracks[ballUid].length >= 1;
+				          const ballHasRoute = ballUid && endRoutes?.[ballUid] && Array.isArray(endRoutes?.[ballUid]?.points) && endRoutes[ballUid].points.length >= 2;
+				          if (ballObj && followObj && !ballHasRoute && !ballHasTrack) {
+				            ballObj.set({ left: Number(followObj.left) || 0, top: Number(followObj.top) || 0 });
+				            ballObj.setCoords();
+				          }
+				        }
+				      } catch (e) { /* ignore */ }
+
+				      try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+				    };
+
+				    const syncSimProUi = () => {
+				      if (!simProPanel) return;
+				      const totalMs = computeSimulationTotalMs();
+				      if (simProTotalLabel) simProTotalLabel.textContent = formatClock(totalMs / 1000);
+				      if (simProTimeLabel) simProTimeLabel.textContent = formatClock((simulationProTimeMs || 0) / 1000);
+				      if (simProLoopInput) simProLoopInput.checked = !!simulationProLoop;
+				      if (simProScrub) {
+				        const max = 1000;
+				        simProScrub.max = String(max);
+				        const value = totalMs > 0 ? Math.round((clamp(simulationProTimeMs, 0, totalMs) / totalMs) * max) : 0;
+				        if (!simProScrub.__dragging) simProScrub.value = String(clampInt(value, 0, max));
+				      }
+				      if (simProKfList) simProKfList.hidden = true;
+				      if (simProKfDelBtn) simProKfDelBtn.disabled = false;
+				      if (simProKfAddBtn) simProKfAddBtn.disabled = false;
+				    };
+
+				    const persistSimulationProToStorage = () => {
+				      if (!canUseStorage) return;
+				      try {
+				        const raw = safeText(window.localStorage.getItem(simStorageKey));
+				        const parsedStore = raw ? JSON.parse(raw) : null;
+				        const base = (parsedStore && typeof parsedStore === 'object') ? parsedStore : {};
+				        base.v = base.v || 1;
+				        base.updated_at = new Date().toISOString();
+				        base.pro = {
+				          v: 1,
+				          enabled: !!simulationProEnabled,
+				          loop: !!simulationProLoop,
+				          updated_at: new Date().toISOString(),
+				          tracks: simulationProTracks || {},
+				        };
+				        window.localStorage.setItem(simStorageKey, JSON.stringify(base));
+				      } catch (e) { /* ignore */ }
+				    };
+
+				    const restoreSimulationProFromStorage = () => {
+				      simulationProTracks = {};
+				      simulationProEnabled = false;
+				      simulationProLoop = true;
+				      simulationProTimeMs = 0;
+				      simulationProUpdatedAt = 0;
+				      simulationProCaches = new Map();
+				      if (!canUseStorage) return;
+				      try {
+				        const raw = safeText(window.localStorage.getItem(simStorageKey));
+				        const parsedStore = raw ? JSON.parse(raw) : null;
+				        const pro = parsedStore && typeof parsedStore === 'object' ? parsedStore.pro : null;
+				        if (!pro || typeof pro !== 'object') return;
+				        simulationProEnabled = !!pro.enabled;
+				        simulationProLoop = pro.loop !== false;
+				        const tracks = pro.tracks && typeof pro.tracks === 'object' ? pro.tracks : {};
+				        const safeTracks = {};
+				        Object.entries(tracks).slice(0, 240).forEach(([uid, list]) => {
+				          if (!uid) return;
+				          if (!Array.isArray(list)) return;
+				          const cleaned = list
+				            .map((kf) => {
+				              const t_ms = clamp(Number(kf?.t_ms) || 0, 0, 3_600_000);
+				              const props = kf?.props && typeof kf.props === 'object' ? kf.props : null;
+				              if (!props) return null;
+				              return {
+				                t_ms,
+				                easing: normalizeEasing(kf?.easing),
+				                props: {
+				                  left: Number(props.left) || 0,
+				                  top: Number(props.top) || 0,
+				                  angle: Number(props.angle) || 0,
+				                  scaleX: clampScale(Number(props.scaleX) || 1),
+				                  scaleY: clampScale(Number(props.scaleY) || 1),
+				                  opacity: props.opacity == null ? 1 : Number(props.opacity),
+				                },
+				              };
+				            })
+				            .filter(Boolean)
+				            .sort((a, b) => (a.t_ms - b.t_ms))
+				            .slice(0, 120);
+				          if (cleaned.length) safeTracks[uid] = cleaned;
+				        });
+				        simulationProTracks = safeTracks;
+				        simulationProUpdatedAt = Date.now();
+				      } catch (e) { /* ignore */ }
 				    };
 				    const clearSimGuides = () => {
 				      try { if (simGuideX) canvas.remove(simGuideX); } catch (e) { /* ignore */ }
@@ -5387,6 +5703,7 @@
 				        routes: {},
 				        ball_follow_uid: '',
 				      });
+				      simulationProCaches = new Map();
 				      simulationActiveIndex = simulationSteps.length - 1;
 				      renderSimulationSteps();
 				      setStatus('Paso capturado.');
@@ -5400,6 +5717,7 @@
 				      stopSimulationPlayback();
 				      const idx = clamp(simulationActiveIndex, 0, simulationSteps.length - 1);
 				      simulationSteps.splice(idx, 1);
+				      simulationProCaches = new Map();
 				      simulationActiveIndex = clamp(idx - 1, 0, simulationSteps.length - 1);
 				      renderSimulationSteps();
 				      void selectSimulationStep(simulationActiveIndex);
@@ -5428,6 +5746,7 @@
 				      };
 				      const insertAt = clamp(simulationActiveIndex + 1, 0, simulationSteps.length);
 				      simulationSteps.splice(insertAt, 0, clone);
+				      simulationProCaches = new Map();
 				      simulationActiveIndex = insertAt;
 				      renderSimulationSteps();
 				      void selectSimulationStep(simulationActiveIndex);
@@ -5442,6 +5761,7 @@
 				      if (to < 0 || to >= simulationSteps.length) return;
 				      const [moved] = simulationSteps.splice(from, 1);
 				      simulationSteps.splice(to, 0, moved);
+				      simulationProCaches = new Map();
 				      if (simulationActiveIndex === from) simulationActiveIndex = to;
 				      else if (simulationActiveIndex > from && simulationActiveIndex <= to) simulationActiveIndex -= 1;
 				      else if (simulationActiveIndex < from && simulationActiveIndex >= to) simulationActiveIndex += 1;
@@ -5451,6 +5771,45 @@
 				    const playSimulationSteps = async () => {
 				      if (!isSimulating) return;
 				      if (!simulationSteps.length) return;
+				      if (simulationProEnabled) {
+				        if (simulationProPlaying) {
+				          stopSimulationPlayback();
+				          setStatus('Reproducción detenida.');
+				          return;
+				        }
+				        const totalMs = computeSimulationTotalMs();
+				        if (totalMs <= 0) return;
+				        simulationProPlaying = true;
+				        syncSimUi();
+				        const startAt = window.performance?.now?.() || Date.now();
+				        const startTimeMs = clamp(Number(simulationProTimeMs) || 0, 0, totalMs);
+				        const speed = clamp(Number(simulationSpeed) || 1, 0.25, 3);
+				        const tick = (nowRaw) => {
+				          const now = Number(nowRaw) || (window.performance?.now?.() || Date.now());
+				          if (!simulationProPlaying) return;
+				          const elapsed = (now - startAt) * speed;
+				          let next = startTimeMs + elapsed;
+				          if (next >= totalMs) {
+				            if (simulationProLoop) {
+				              next = next % totalMs;
+				            } else {
+				              next = totalMs;
+				              simulationProPlaying = false;
+				              syncSimUi();
+				            }
+				          }
+				          renderSimulationAtTimeMs(next);
+				          syncSimProUi();
+				          if (simulationProPlaying) {
+				            simulationProAnimFrame = window.requestAnimationFrame(tick);
+				          } else {
+				            simulationProAnimFrame = null;
+				          }
+				        };
+				        setStatus('Reproduciendo (Timeline Pro)…');
+				        simulationProAnimFrame = window.requestAnimationFrame(tick);
+				        return;
+				      }
 				      if (simulationPlaying) {
 				        stopSimulationPlayback();
 				        setStatus('Reproducción detenida.');
@@ -5504,7 +5863,7 @@
 					      } catch (error) { /* ignore */ }
 					      try { if (locked && resourceDetails) resourceDetails.open = false; } catch (error) { /* ignore */ }
 					    };
-					    const enterSimulation = () => {
+				    const enterSimulation = () => {
 				      if (isSimulating) return;
 				      try { simulationBaselineSnapshot = JSON.stringify(serializeState()); } catch (error) { simulationBaselineSnapshot = null; }
 				      clearPendingPlacement();
@@ -5522,6 +5881,7 @@
 				      simulationGuides = true;
 				      simulationCollision = false;
 				      simulationTrajectories = true;
+				      restoreSimulationProFromStorage();
 				      isSimulating = true;
 				      setSimulationUiLocked(true);
 				      if (Array.isArray(simulationSavedSteps) && simulationSavedSteps.length) {
@@ -5535,6 +5895,12 @@
 				      } else {
 				        seedSimulationStepsFromCurrent();
 				      }
+				      // Ajusta playhead pro al inicio del paso activo (si aplica).
+				      try {
+				        const starts = computeSimulationStepStartsMs();
+				        simulationProTimeMs = clamp(Number(starts?.[simulationActiveIndex] || 0), 0, computeSimulationTotalMs());
+				      } catch (e) { /* ignore */ }
+				      syncSimProUi();
 					      syncSimUi();
 					      setStatus(simulationSavedSteps.length ? 'Modo simulación activado (rehidratado). Mueve elementos: no se guardan cambios.' : 'Modo simulación activado. Mueve elementos: no se guardan cambios.');
 					      try {
@@ -5561,7 +5927,7 @@
 				          simulationSavedSteps = JSON.parse(JSON.stringify(simulationSteps));
 				          simulationSavedUpdatedAt = Date.now();
 				          try {
-				            if (canUseStorage) window.localStorage.setItem(simStorageKey, JSON.stringify({ v: 1, updated_at: new Date().toISOString(), steps: simulationSavedSteps }));
+				            if (canUseStorage) window.localStorage.setItem(simStorageKey, JSON.stringify({ v: 1, updated_at: new Date().toISOString(), steps: simulationSavedSteps, pro: { v: 1, enabled: !!simulationProEnabled, loop: !!simulationProLoop, updated_at: new Date().toISOString(), tracks: simulationProTracks || {} } }));
 				          } catch (err) { /* ignore */ }
 				        }
 				      } catch (error) { /* ignore */ }
@@ -5579,6 +5945,13 @@
 				      simulationGuides = true;
 				      simulationCollision = false;
 				      simulationTrajectories = true;
+				      simulationProEnabled = false;
+				      simulationProPlaying = false;
+				      simulationProTimeMs = 0;
+				      simulationProLoop = true;
+				      simulationProTracks = {};
+				      simulationProUpdatedAt = 0;
+				      simulationProCaches = new Map();
 				      try { scheduleDraftSave('simulation-exit'); } catch (error) { /* ignore */ }
 				      setStatus('Simulación finalizada. Volviste al editor.');
 				    };
@@ -5720,16 +6093,222 @@
 			    simPrevBtn?.addEventListener('click', (event) => {
 			      event.preventDefault();
 			      const idx = clamp(simulationActiveIndex - 1, 0, Math.max(0, simulationSteps.length - 1));
-			      void selectSimulationStep(idx);
+			      void selectSimulationStep(idx).then(() => {
+			        if (!simulationProEnabled) return;
+			        const starts = computeSimulationStepStartsMs();
+			        simulationProCaches = new Map();
+			        renderSimulationAtTimeMs(Number(starts?.[idx] || 0));
+			        syncSimProUi();
+			      });
 			    });
 			    simNextBtn?.addEventListener('click', (event) => {
 			      event.preventDefault();
 			      const idx = clamp(simulationActiveIndex + 1, 0, Math.max(0, simulationSteps.length - 1));
-			      void selectSimulationStep(idx);
+			      void selectSimulationStep(idx).then(() => {
+			        if (!simulationProEnabled) return;
+			        const starts = computeSimulationStepStartsMs();
+			        simulationProCaches = new Map();
+			        renderSimulationAtTimeMs(Number(starts?.[idx] || 0));
+			        syncSimProUi();
+			      });
 			    });
 			    simAutoCaptureInput?.addEventListener('change', () => {
 			      simulationAutoCapture = !!simAutoCaptureInput.checked;
 			      setStatus(simulationAutoCapture ? 'Auto-captura activada.' : 'Auto-captura desactivada.');
+			    });
+			    simProEnabledInput?.addEventListener('change', async () => {
+			      if (!isSimulating) return;
+			      stopSimulationPlayback();
+			      simulationProEnabled = !!simProEnabledInput.checked;
+			      if (simulationProEnabled) {
+			        try {
+			          const starts = computeSimulationStepStartsMs();
+			          simulationProTimeMs = clamp(Number(starts?.[simulationActiveIndex] || 0), 0, computeSimulationTotalMs());
+			        } catch (e) { /* ignore */ }
+			        simulationProCaches = new Map();
+			        renderSimulationAtTimeMs(simulationProTimeMs);
+			        syncSimProUi();
+			        persistSimulationProToStorage();
+			        setStatus('Timeline Pro activado.');
+			      } else {
+			        // Volvemos al modo por pasos: recarga el paso activo para restaurar el snapshot exacto.
+			        try { await selectSimulationStep(simulationActiveIndex); } catch (e) { /* ignore */ }
+			        persistSimulationProToStorage();
+			        setStatus('Timeline Pro desactivado.');
+			      }
+			      syncSimUi();
+			    });
+			    simProLoopInput?.addEventListener('change', () => {
+			      simulationProLoop = !!simProLoopInput.checked;
+			      persistSimulationProToStorage();
+			    });
+			    if (simProScrub) {
+			      simProScrub.addEventListener('pointerdown', () => { simProScrub.__dragging = true; });
+			      simProScrub.addEventListener('pointerup', () => { simProScrub.__dragging = false; });
+			      simProScrub.addEventListener('input', () => {
+			        if (!isSimulating || !simulationProEnabled) return;
+			        stopSimulationPlayback();
+			        const totalMs = computeSimulationTotalMs();
+			        const max = Number(simProScrub.max) || 1000;
+			        const frac = clamp((Number(simProScrub.value) || 0) / Math.max(1, max), 0, 1);
+			        const nextMs = Math.round(frac * totalMs);
+			        simulationProCaches = new Map();
+			        renderSimulationAtTimeMs(nextMs);
+			        syncSimProUi();
+			      });
+			    }
+
+			    const selectedUidsForPro = () => {
+			      const objs = getSelectionObjects().filter((obj) => obj && !obj?.data?.base);
+			      const uids = objs.map((obj) => safeText(obj?.data?.layer_uid)).filter(Boolean);
+			      return Array.from(new Set(uids)).slice(0, 12);
+			    };
+
+			    const renderProKeyframesForUid = (uid) => {
+			      if (!simProKfList) return;
+			      const list = proKeyframesForUid(uid);
+			      if (!list.length) {
+			        simProKfList.innerHTML = '<div class="timeline-empty">Sin keyframes para esta selección.</div>';
+			        simProKfList.hidden = false;
+			        return;
+			      }
+			      const rows = list.slice(0, 80).map((kf, index) => {
+			        const label = formatClock((Number(kf.t_ms) || 0) / 1000);
+			        const isNear = Math.abs((Number(kf.t_ms) || 0) - (Number(simulationProTimeMs) || 0)) <= 180;
+			        const easing = safeText(kf.easing, 'ease');
+			        return `
+			          <button type="button" class="sim-step${isNear ? ' is-active' : ''}" data-pro-kf-uid="${uid}" data-pro-kf-index="${index}">
+			            <div>
+			              <strong>${label}</strong>
+			              <span>${easing.toUpperCase()}</span>
+			            </div>
+			            <span>${isNear ? 'Actual' : 'Ir'}</span>
+			          </button>
+			        `;
+			      }).join('');
+			      simProKfList.innerHTML = rows;
+			      simProKfList.hidden = false;
+			    };
+
+			    simProKfList?.addEventListener('click', (event) => {
+			      const btn = event.target.closest('button[data-pro-kf-uid][data-pro-kf-index]');
+			      if (!btn) return;
+			      if (!simulationProEnabled) return;
+			      const uid = safeText(btn.getAttribute('data-pro-kf-uid'));
+			      const idx = Number(btn.getAttribute('data-pro-kf-index') || 0);
+			      const kfs = proKeyframesForUid(uid);
+			      const kf = kfs[idx];
+			      if (!kf) return;
+			      stopSimulationPlayback();
+			      simulationProCaches = new Map();
+			      renderSimulationAtTimeMs(Number(kf.t_ms) || 0);
+			      syncSimProUi();
+			      renderProKeyframesForUid(uid);
+			    });
+
+			    const upsertProKeyframeForUid = (uid, timeMs, props, easing) => {
+			      const t_ms = clamp(Math.round(Number(timeMs) || 0), 0, 3_600_000);
+			      const next = Array.isArray(simulationProTracks?.[uid]) ? simulationProTracks[uid].slice() : [];
+			      const threshold = 140;
+			      const existingIndex = next.findIndex((kf) => Math.abs((Number(kf?.t_ms) || 0) - t_ms) <= threshold);
+			      const entry = { t_ms, easing: normalizeEasing(easing), props };
+			      if (existingIndex >= 0) next.splice(existingIndex, 1, entry);
+			      else next.push(entry);
+			      next.sort((a, b) => (a.t_ms - b.t_ms));
+			      simulationProTracks = simulationProTracks || {};
+			      simulationProTracks[uid] = next.slice(0, 120);
+			    };
+
+			    const deleteNearestProKeyframeForUid = (uid, timeMs) => {
+			      const list = Array.isArray(simulationProTracks?.[uid]) ? simulationProTracks[uid].slice() : [];
+			      if (!list.length) return false;
+			      const t = Number(timeMs) || 0;
+			      let best = -1;
+			      let bestDx = 999999;
+			      list.forEach((kf, idx) => {
+			        const dx = Math.abs((Number(kf?.t_ms) || 0) - t);
+			        if (dx < bestDx) { bestDx = dx; best = idx; }
+			      });
+			      if (best < 0 || bestDx > 220) return false;
+			      list.splice(best, 1);
+			      if (!list.length) {
+			        try { delete simulationProTracks[uid]; } catch (e) { /* ignore */ }
+			      } else {
+			        simulationProTracks[uid] = list;
+			      }
+			      return true;
+			    };
+
+			    simProKfAddBtn?.addEventListener('click', () => {
+			      if (!isSimulating || !simulationProEnabled) return;
+			      stopSimulationPlayback();
+			      const uids = selectedUidsForPro();
+			      if (!uids.length) {
+			        setStatus('Selecciona una o varias fichas para guardar keyframe.', true);
+			        return;
+			      }
+			      const easing = safeText(simProEasingSelect?.value, 'ease');
+			      uids.forEach((uid) => {
+			        const obj = (canvas.getObjects?.() || []).find((o) => safeText(o?.data?.layer_uid) === uid);
+			        if (!obj) return;
+			        const props = {
+			          left: Number(obj.left) || 0,
+			          top: Number(obj.top) || 0,
+			          angle: Number(obj.angle) || 0,
+			          scaleX: clampScale(Number(obj.scaleX) || 1),
+			          scaleY: clampScale(Number(obj.scaleY) || 1),
+			          opacity: obj.opacity == null ? 1 : Number(obj.opacity),
+			        };
+			        upsertProKeyframeForUid(uid, simulationProTimeMs, props, easing);
+			      });
+			      persistSimulationProToStorage();
+			      simulationProUpdatedAt = Date.now();
+			      simulationProCaches = new Map();
+			      syncSimProUi();
+			      if (uids.length === 1) renderProKeyframesForUid(uids[0]);
+			      setStatus('Keyframe guardado.');
+			    });
+
+			    simProKfDelBtn?.addEventListener('click', () => {
+			      if (!isSimulating || !simulationProEnabled) return;
+			      stopSimulationPlayback();
+			      const uids = selectedUidsForPro();
+			      if (!uids.length) {
+			        setStatus('Selecciona una ficha para borrar su keyframe.', true);
+			        return;
+			      }
+			      let removed = 0;
+			      uids.forEach((uid) => {
+			        if (deleteNearestProKeyframeForUid(uid, simulationProTimeMs)) removed += 1;
+			      });
+			      if (!removed) {
+			        setStatus('No hay keyframe cercano a este tiempo.', true);
+			        return;
+			      }
+			      persistSimulationProToStorage();
+			      simulationProUpdatedAt = Date.now();
+			      simulationProCaches = new Map();
+			      renderSimulationAtTimeMs(simulationProTimeMs);
+			      syncSimProUi();
+			      if (uids.length === 1) renderProKeyframesForUid(uids[0]);
+			      setStatus('Keyframe borrado.');
+			    });
+
+			    simProKfClearBtn?.addEventListener('click', () => {
+			      if (!isSimulating || !simulationProEnabled) return;
+			      const ok = window.confirm('¿Borrar TODOS los keyframes (Timeline Pro)?');
+			      if (!ok) return;
+			      simulationProTracks = {};
+			      persistSimulationProToStorage();
+			      simulationProUpdatedAt = Date.now();
+			      simulationProCaches = new Map();
+			      renderSimulationAtTimeMs(simulationProTimeMs);
+			      syncSimProUi();
+			      if (simProKfList) {
+			        simProKfList.innerHTML = '<div class="timeline-empty">Keyframes borrados.</div>';
+			        simProKfList.hidden = false;
+			      }
+			      setStatus('Keyframes borrados.');
 			    });
 			    simMagnetsInput?.addEventListener('change', () => {
 			      simulationMagnets = !!simMagnetsInput.checked;
@@ -5812,6 +6391,11 @@
 			      step.title = safeText(simStepTitleInput?.value, step.title || `Paso ${simulationActiveIndex + 1}`);
 			      step.duration = clamp(Number(simStepDurationInput?.value) || step.duration || 3, 1, 20);
 			      renderSimulationSteps();
+			      if (simulationProEnabled) {
+			        simulationProCaches = new Map();
+			        syncSimProUi();
+			        persistSimulationProToStorage();
+			      }
 			    };
 			    simStepTitleInput?.addEventListener('input', () => {
 			      if (!isSimulating) return;
@@ -5828,7 +6412,13 @@
 			      if (!btn) return;
 			      const idx = Number(btn.dataset.simStepIndex);
 			      if (!Number.isFinite(idx)) return;
-			      void selectSimulationStep(idx);
+			      void selectSimulationStep(idx).then(() => {
+			        if (!simulationProEnabled) return;
+			        const starts = computeSimulationStepStartsMs();
+			        simulationProCaches = new Map();
+			        renderSimulationAtTimeMs(Number(starts?.[idx] || 0));
+			        syncSimProUi();
+			      });
 			    });
 			    simStepsList?.addEventListener('dragstart', (event) => {
 			      const btn = event.target.closest('button[data-sim-step-index]');
@@ -8183,7 +8773,7 @@
 	        parsed = { version: '5.3.0', objects: [] };
 	      }
 		      // Fase 9: rehidrata simulación guardada (si existe) desde el canvas_state.
-		      const normalizeSimulationSteps = (raw) => {
+		    const normalizeSimulationSteps = (raw) => {
 		        if (!Array.isArray(raw)) return [];
 		        return raw
 		          .map((step, index) => {
@@ -8195,6 +8785,8 @@
 		            const width = parseIntSafe(step.canvas_width) || 0;
 		            const height = parseIntSafe(step.canvas_height) || 0;
 		            const moves = Array.isArray(step.moves) ? step.moves.slice(0, 80) : [];
+		            const routes = (step.routes && typeof step.routes === 'object') ? step.routes : {};
+		            const ballFollowUid = safeText(step.ball_follow_uid);
 		            return {
 		              title,
 		              duration,
@@ -8202,6 +8794,8 @@
 		              canvas_width: width,
 		              canvas_height: height,
 		              moves,
+		              routes,
+		              ball_follow_uid: ballFollowUid,
 		            };
 		          })
 		          .filter(Boolean)
@@ -8225,10 +8819,18 @@
 		              const raw = safeText(window.localStorage.getItem(simStorageKey));
 		              const parsedStore = raw ? JSON.parse(raw) : null;
 		              const storedSteps = parsedStore && typeof parsedStore === 'object' ? parsedStore.steps : null;
+		              const storedPro = parsedStore && typeof parsedStore === 'object' ? parsedStore.pro : null;
 		              const restored = normalizeSimulationSteps(storedSteps);
 		              if (restored.length) {
 		                simulationSavedSteps = restored;
 		                simulationSavedUpdatedAt = Date.now();
+		                if (storedPro && typeof storedPro === 'object') {
+		                  try {
+		                    // Reusa la lógica oficial de restore pro.
+		                    window.localStorage.setItem(simStorageKey, JSON.stringify({ ...(parsedStore || {}), pro: storedPro, steps: restored }));
+		                    restoreSimulationProFromStorage();
+		                  } catch (e) { /* ignore */ }
+		                }
 		              }
 		            }
 		          } catch (err) { /* ignore */ }
