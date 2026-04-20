@@ -644,6 +644,9 @@
                   {{ video.get_source_display }} · {{ video.created_at|date:"d/m/Y H:i" }}
                   {% if video.folder %} · Carpeta {{ video.folder.name }}{% endif %}
                 </p>
+                <div class="actions" style="justify-content:flex-start; margin:-0.25rem 0 0.6rem;">
+                  <a class="button ghost" href="{% url 'analysis-video-studio' video.id %}">Video Studio</a>
+                </div>
                 <video controls preload="metadata">
                   <source src="{{ video.video.url }}" />
                 </video>

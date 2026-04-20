@@ -1126,6 +1126,7 @@ class RivalVideo(models.Model):
         (SOURCE_MANUAL, 'Manual'),
     ]
 
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, null=True, blank=True, related_name='analysis_videos')
     rival_team = models.ForeignKey(Team, on_delete=models.SET_NULL, null=True, blank=True, related_name='rival_videos')
     folder = models.ForeignKey(
         AnalystVideoFolder,
@@ -1147,6 +1148,32 @@ class RivalVideo(models.Model):
     def __str__(self):
         team_label = self.rival_team.name if self.rival_team else 'Rival'
         return f'{team_label} · {self.title}'
+
+
+class VideoTelestrationProject(models.Model):
+    """
+    Proyecto de telestración (anotaciones) sobre un vídeo.
+
+    Se guarda por equipo (para multiclub) y opcionalmente vinculado a `RivalVideo`.
+    """
+
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='video_telestration_projects')
+    video = models.ForeignKey(RivalVideo, on_delete=models.CASCADE, related_name='telestration_projects')
+    title = models.CharField(max_length=180, blank=True)
+    payload = models.JSONField(default=dict, blank=True)
+    created_by = models.CharField(max_length=80, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at', '-id']
+        indexes = [
+            models.Index(fields=['team', '-updated_at']),
+            models.Index(fields=['video', '-updated_at']),
+        ]
+
+    def __str__(self):
+        return self.title or f'Proyecto {self.id}'
 
 
 class RivalAnalysisReport(models.Model):

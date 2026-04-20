@@ -1,0 +1,126 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <title>Video Studio · 2J</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      .vs-page { max-width: 1280px; margin: 0 auto; padding: 1.1rem; }
+      .vs-head { display:flex; align-items:center; justify-content:space-between; gap:1rem; margin-bottom:0.9rem; }
+      .vs-head h1 { margin:0; font-size:1.05rem; letter-spacing:0.08em; text-transform:uppercase; }
+      .vs-meta { color: rgba(226,232,240,0.72); font-weight:700; }
+      .vs-grid { display:grid; grid-template-columns: 1.2fr 0.8fr; gap:1rem; align-items:start; }
+      @media (max-width: 980px) { .vs-grid { grid-template-columns: 1fr; } }
+      .card { background: rgba(12, 20, 34, 0.92); border: 1px solid rgba(145, 161, 185, 0.18); border-radius: 22px; box-shadow: 0 22px 52px rgba(0,0,0,0.28); padding: 0.95rem; }
+      .toolbar { display:flex; flex-wrap:wrap; gap:0.45rem; align-items:center; justify-content:space-between; margin-bottom:0.75rem; }
+      .toolbar .left, .toolbar .right { display:flex; flex-wrap:wrap; gap:0.45rem; align-items:center; }
+      .toolbar input[type="color"] { width: 38px; height: 38px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.14); background: transparent; padding: 0; }
+      .toolbar input[type="range"] { width: 120px; }
+      .button { border-radius: 999px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color:#f3f7ff; padding:0.72rem 0.98rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; cursor:pointer; }
+      .button.primary { background: linear-gradient(135deg, #22d3ee, #67e8f9); border:none; color:#03253c; }
+      .button.danger { background: rgba(127,29,29,0.22); border-color: rgba(248,113,113,0.4); color:#fecaca; }
+      .button.ghost { background: rgba(255,255,255,0.02); }
+      .button:disabled { opacity:0.55; cursor:not-allowed; }
+      .stage { position:relative; width:100%; border-radius: 18px; overflow:hidden; border: 1px solid rgba(148,163,184,0.18); background: rgba(0,0,0,0.22); }
+      .stage video { display:block; width:100%; height:auto; }
+      .stage canvas { position:absolute; left:0; top:0; width:100%; height:100%; touch-action:none; }
+      .status { margin-top:0.55rem; color: rgba(226,232,240,0.72); font-weight:800; }
+      .field { display:grid; gap:0.45rem; }
+      label { display:grid; gap:0.25rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; color: rgba(226,232,240,0.78); }
+      input[type="text"], input[type="number"], select, textarea {
+        width:100%; border-radius: 14px; border: 1px solid rgba(148,163,184,0.18); background: rgba(255,255,255,0.04);
+        color:#e7ebf3; padding:0.7rem 0.85rem; font-weight:800;
+      }
+      textarea { min-height: 86px; resize: vertical; }
+      .list { display:grid; gap:0.45rem; margin-top:0.6rem; }
+      .row { display:flex; align-items:center; justify-content:space-between; gap:0.6rem; padding:0.65rem 0.75rem; border-radius: 16px; border:1px solid rgba(148,163,184,0.14); background: rgba(255,255,255,0.03); }
+      .row strong { font-weight:900; }
+      .row small { color: rgba(226,232,240,0.7); font-weight:800; }
+    </style>
+  </head>
+  <body class="prod-commercial">
+    <main class="vs-page">
+      <div class="vs-head">
+        <div style="display:flex; flex-direction:column; gap:0.15rem;">
+          <h1>Video Studio · {{ video.title }}</h1>
+          <div class="vs-meta">{% if team %}{{ team.display_name }}{% endif %} · Telestración y export</div>
+        </div>
+        <div style="display:flex; gap:0.55rem; flex-wrap:wrap;">
+          <a class="button ghost" href="{% url 'analysis' %}?tab=videos">Volver</a>
+        </div>
+      </div>
+
+      <div class="vs-grid">
+        <section class="card">
+          <div class="toolbar">
+            <div class="left">
+              <button type="button" class="button primary" id="vs-play">Play</button>
+              <button type="button" class="button" id="vs-pause" hidden>Pausa</button>
+              <button type="button" class="button" id="vs-mark-in">IN</button>
+              <button type="button" class="button" id="vs-mark-out">OUT</button>
+              <button type="button" class="button" id="vs-export-seg">Export segmento</button>
+              <button type="button" class="button" id="vs-record">Grabar</button>
+              <button type="button" class="button" id="vs-snap">PNG</button>
+            </div>
+            <div class="right">
+              <button type="button" class="button" id="vs-tool-select">Select</button>
+              <button type="button" class="button" id="vs-tool-pen">Pen</button>
+              <button type="button" class="button" id="vs-tool-arrow">Arrow</button>
+              <button type="button" class="button" id="vs-tool-text">Texto</button>
+              <button type="button" class="button" id="vs-undo">Undo</button>
+              <button type="button" class="button danger" id="vs-clear">Limpiar</button>
+              <input type="color" id="vs-color" value="#22d3ee" title="Color" />
+              <input type="range" id="vs-width" min="2" max="22" step="1" value="6" title="Grosor" />
+            </div>
+          </div>
+
+          <div class="stage" id="vs-stage">
+            <video id="vs-video" controls preload="metadata" playsinline crossorigin="anonymous">
+              <source src="{{ video.video.url }}" />
+            </video>
+            <canvas id="vs-canvas"></canvas>
+          </div>
+          <div class="status" id="vs-status">Listo.</div>
+        </section>
+
+        <aside class="card">
+          <div class="field">
+            <label>
+              Proyecto
+              <input type="text" id="vs-project-title" placeholder="Ej: J2 · Presión alta (clips)" />
+            </label>
+            <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
+              <button type="button" class="button" id="vs-project-save">Guardar</button>
+              <button type="button" class="button" id="vs-project-refresh">Actualizar</button>
+            </div>
+            <div class="meta" style="margin-top:0.2rem;">Guarda la capa de dibujo actual para reutilizarla.</div>
+            <div class="list" id="vs-projects"></div>
+
+            <div style="margin-top:0.9rem; display:grid; gap:0.45rem;">
+              <label>
+                Segmento (segundos)
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.45rem;">
+                  <input type="number" id="vs-in" min="0" step="0.1" value="0" />
+                  <input type="number" id="vs-out" min="0" step="0.1" value="0" />
+                </div>
+              </label>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </main>
+
+    <input type="hidden" id="vs-video-id" value="{{ video.id }}" />
+    <input type="hidden" id="vs-projects-url" value="{% url 'analysis-video-studio-projects-api' %}" />
+    <input type="hidden" id="vs-project-save-url" value="{% url 'analysis-video-studio-project-save-api' %}" />
+    <input type="hidden" id="vs-project-delete-url" value="{% url 'analysis-video-studio-project-delete-api' %}" />
+    <form id="vs-csrf" style="display:none;">{% csrf_token %}</form>
+
+    <script src="{% static 'vendor/fabric.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+    <script src="{% static 'football/js/analysis_video_studio.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+  </body>
+</html>

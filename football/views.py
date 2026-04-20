@@ -116,6 +116,7 @@ from football.models import (
     HomeCarouselImage,
     AnalystVideoFolder,
     RivalVideo,
+    VideoTelestrationProject,
     RivalAnalysisReport,
     AnalystMatchReport,
     AppUserRole,
@@ -16963,6 +16964,24 @@ def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
                 'drills': _task_drills_for_pdf(meta),
             }
         )
+    # Orden estándar de sesión: Calentamiento → Activación → Principal 1 → Principal 2 → Vuelta a la calma.
+    section_specs = [
+        {'key': 'warmup', 'label': 'Calentamiento', 'blocks': [SessionTask.BLOCK_CONDITIONING]},
+        {'key': 'activation', 'label': 'Activación', 'blocks': [SessionTask.BLOCK_ACTIVATION]},
+        {'key': 'main_1', 'label': 'Principal 1', 'blocks': [SessionTask.BLOCK_MAIN_1]},
+        # ABP se considera dentro de "Principal 2" para mantener el orden esperado por el entrenador.
+        {'key': 'main_2', 'label': 'Principal 2', 'blocks': [SessionTask.BLOCK_MAIN_2, SessionTask.BLOCK_SET_PIECES]},
+        {'key': 'cooldown', 'label': 'Vuelta a la calma', 'blocks': [SessionTask.BLOCK_RECOVERY]},
+    ]
+    known_blocks = {block for spec in section_specs for block in spec['blocks']}
+    task_sections = []
+    for spec in section_specs:
+        cards = [card for card in task_cards if str(getattr(card['task'], 'block', '') or '') in set(spec['blocks'])]
+        if cards:
+            task_sections.append({'key': spec['key'], 'label': spec['label'], 'cards': cards})
+    other_cards = [card for card in task_cards if str(getattr(card['task'], 'block', '') or '') not in known_blocks]
+    if other_cards:
+        task_sections.append({'key': 'other', 'label': 'Otros', 'cards': other_cards})
     # Sugerencias para plantilla UEFA (no bloqueante).
     session_materials_summary = ', '.join(
         sorted(
@@ -17019,6 +17038,7 @@ def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
         'tasks': tasks,
         'task_sheets': task_sheets,
         'task_cards': task_cards,
+        'task_sections': task_sections,
         'tasks_count': len(tasks),
         'task_minutes_total': total_task_minutes,
         'pdf_style': pdf_style,
@@ -28029,6 +28049,7 @@ def analysis_page(request):
                 video_error = 'Selecciona un vídeo para subir.'
             else:
                 entry = RivalVideo.objects.create(
+                    team=primary_team,
                     rival_team=rival_team,
                     folder=folder,
                     title=video_title,
@@ -28046,31 +28067,57 @@ def analysis_page(request):
                 video_message = 'Vídeo subido correctamente.'
         elif form_action == 'delete_video':
             video_id = _parse_int(request.POST.get('video_id'))
-            entry = RivalVideo.objects.filter(id=video_id).first()
-            if entry:
-                try:
-                    if entry.video:
-                        entry.video.delete(save=False)
-                except Exception:
-                    pass
-                entry.delete()
-                video_message = 'Vídeo eliminado.'
+            if not primary_team:
+                video_error = 'No hay equipo principal configurado.'
+            else:
+                entry = RivalVideo.objects.select_related('folder').filter(id=video_id).first()
+                if not entry:
+                    video_error = 'Vídeo no encontrado.'
+                else:
+                    entry_team_id = int(getattr(entry, 'team_id', 0) or 0)
+                    folder_team_id = int(getattr(getattr(entry, 'folder', None), 'team_id', 0) or 0)
+                    if entry_team_id and entry_team_id != int(primary_team.id):
+                        video_error = 'No autorizado.'
+                    elif folder_team_id and folder_team_id != int(primary_team.id):
+                        video_error = 'No autorizado.'
+                    else:
+                        try:
+                            if entry.video:
+                                entry.video.delete(save=False)
+                        except Exception:
+                            pass
+                        entry.delete()
+                        video_message = 'Vídeo eliminado.'
         elif form_action == 'assign_video_players':
             video_id = _parse_int(request.POST.get('video_id'))
             folder_id = _parse_int(request.POST.get('video_folder_id'))
-            entry = RivalVideo.objects.filter(id=video_id).first()
-            if entry:
-                folder = AnalystVideoFolder.objects.filter(id=folder_id, team=primary_team).first() if folder_id and primary_team else None
-                entry.folder = folder
-                entry.save(update_fields=['folder'])
-                assigned_player_ids = [
-                    player_id
-                    for player_id in (_parse_int(value) for value in request.POST.getlist('assigned_player_ids'))
-                    if player_id
-                ]
-                if primary_team:
+            entry = RivalVideo.objects.select_related('folder').filter(id=video_id).first()
+            if not entry:
+                video_error = 'Vídeo no encontrado.'
+            elif not primary_team:
+                video_error = 'No hay equipo principal configurado.'
+            else:
+                entry_team_id = int(getattr(entry, 'team_id', 0) or 0)
+                folder_team_id = int(getattr(getattr(entry, 'folder', None), 'team_id', 0) or 0)
+                if entry_team_id and entry_team_id != int(primary_team.id):
+                    video_error = 'No autorizado.'
+                elif folder_team_id and folder_team_id != int(primary_team.id):
+                    video_error = 'No autorizado.'
+                else:
+                    folder = AnalystVideoFolder.objects.filter(id=folder_id, team=primary_team).first() if folder_id else None
+                    entry.folder = folder
+                    if not entry_team_id:
+                        entry.team = primary_team
+                        entry.save(update_fields=['folder', 'team'])
+                    else:
+                        entry.save(update_fields=['folder'])
+                    assigned_player_ids = [
+                        player_id
+                        for player_id in (_parse_int(value) for value in request.POST.getlist('assigned_player_ids'))
+                        if player_id
+                    ]
                     entry.assigned_players.set(Player.objects.filter(team=primary_team, id__in=assigned_player_ids))
-                video_message = 'Asignación de vídeo actualizada.'
+                    video_message = 'Asignación de vídeo actualizada.'
         elif form_action == 'save_manual_report':
             selected_team_id = _parse_int(request.POST.get('team_id'))
             selected_team = Team.objects.filter(id=selected_team_id).first() if selected_team_id else None
@@ -28531,6 +28578,9 @@ def analysis_page(request):
         video_folders = list(folders_qs.order_by('name', '-created_at'))
 
     rival_videos_qs = RivalVideo.objects.select_related('rival_team', 'folder').prefetch_related('assigned_players').order_by('-created_at')
+    if primary_team:
+        # Multi-equipo: no mezclar vídeos entre clubs/categorías.
+        rival_videos_qs = rival_videos_qs.filter(Q(team=primary_team) | Q(team__isnull=True, folder__team=primary_team))
     if selected_team:
         rival_videos_qs = rival_videos_qs.filter(rival_team=selected_team)
     else:
@@ -28644,6 +28694,187 @@ def analysis_match_report_file(request, report_id):
     response['Content-Disposition'] = f'inline; filename="{Path(str(report.document.name)).name}"'
     response['Cache-Control'] = 'private, max-age=60'
     return response
+
+
+@login_required
+def analysis_video_studio_page(request, video_id):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return HttpResponse('Equipo principal no configurado.', status=400)
+    video_id = int(video_id)
+    video = RivalVideo.objects.select_related('folder', 'team').filter(id=video_id).first()
+    if not video:
+        raise Http404('Vídeo no disponible')
+    entry_team_id = int(getattr(video, 'team_id', 0) or 0)
+    folder_team_id = int(getattr(getattr(video, 'folder', None), 'team_id', 0) or 0)
+    if entry_team_id and entry_team_id != int(primary_team.id):
+        raise Http404('Vídeo no disponible')
+    if folder_team_id and folder_team_id != int(primary_team.id):
+        raise Http404('Vídeo no disponible')
+    return render(
+        request,
+        'football/analysis_video_studio.html',
+        {
+            'team': primary_team,
+            'video': video,
+        },
+    )
+
+
+@login_required
+def analysis_video_studio_projects_api(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'No hay equipo principal configurado'}, status=400)
+    video_id = _parse_int(request.GET.get('video_id'))
+    if not video_id:
+        return JsonResponse({'ok': False, 'error': 'video_id requerido.'}, status=400)
+    video = RivalVideo.objects.select_related('folder', 'team').filter(id=video_id).first()
+    if not video:
+        return JsonResponse({'ok': False, 'error': 'Vídeo no encontrado.'}, status=404)
+    entry_team_id = int(getattr(video, 'team_id', 0) or 0)
+    folder_team_id = int(getattr(getattr(video, 'folder', None), 'team_id', 0) or 0)
+    if entry_team_id and entry_team_id != int(primary_team.id):
+        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+    if folder_team_id and folder_team_id != int(primary_team.id):
+        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+
+    items = list(
+        VideoTelestrationProject.objects
+        .filter(team=primary_team, video_id=int(video_id))
+        .order_by('-updated_at', '-id')[:60]
+    )
+    payload = []
+    for obj in items:
+        payload.append(
+            {
+                'id': int(obj.id),
+                'title': str(obj.title or '').strip(),
+                'payload': obj.payload if isinstance(obj.payload, dict) else {},
+                'created_by': str(obj.created_by or '').strip(),
+                'created_at': obj.created_at.isoformat() if getattr(obj, 'created_at', None) else None,
+                'updated_at': obj.updated_at.isoformat() if getattr(obj, 'updated_at', None) else None,
+            }
+        )
+    return JsonResponse({'ok': True, 'items': payload})
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def analysis_video_studio_project_save_api(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'No hay equipo principal configurado'}, status=400)
+    try:
+        if request.content_type and 'application/json' in (request.content_type or '').lower():
+            data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+        else:
+            data = request.POST.dict() if hasattr(request, 'POST') else {}
+    except Exception:
+        data = {}
+    project_id = _parse_int(data.get('id'))
+    video_id = _parse_int(data.get('video_id'))
+    title = _sanitize_task_text(str(data.get('title') or '').strip(), multiline=False, max_len=180)
+    payload = data.get('payload')
+    if isinstance(payload, str):
+        try:
+            payload = json.loads(payload)
+        except Exception:
+            payload = {}
+    if not isinstance(payload, dict):
+        payload = {}
+    if not video_id:
+        return JsonResponse({'ok': False, 'error': 'video_id requerido.'}, status=400)
+    video = RivalVideo.objects.select_related('folder', 'team').filter(id=video_id).first()
+    if not video:
+        return JsonResponse({'ok': False, 'error': 'Vídeo no encontrado.'}, status=404)
+    entry_team_id = int(getattr(video, 'team_id', 0) or 0)
+    folder_team_id = int(getattr(getattr(video, 'folder', None), 'team_id', 0) or 0)
+    if entry_team_id and entry_team_id != int(primary_team.id):
+        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+    if folder_team_id and folder_team_id != int(primary_team.id):
+        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+
+    username = str(getattr(request.user, 'username', '') or '').strip()[:80]
+    can_manage = _can_manage_workspace(request.user, _get_active_workspace(request))
+    try:
+        if project_id:
+            obj = VideoTelestrationProject.objects.filter(id=project_id, team=primary_team, video=video).first()
+            if not obj:
+                return JsonResponse({'ok': False, 'error': 'Proyecto no encontrado.'}, status=404)
+            if not bool(getattr(request.user, 'is_superuser', False)) and not can_manage and str(obj.created_by or '').strip() != username:
+                return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+            obj.title = title
+            obj.payload = payload
+            obj.created_by = obj.created_by or username
+            obj.save(update_fields=['title', 'payload', 'updated_at', 'created_by'])
+        else:
+            obj = VideoTelestrationProject.objects.create(
+                team=primary_team,
+                video=video,
+                title=title,
+                payload=payload,
+                created_by=username,
+            )
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'No se pudo guardar.'}, status=500)
+    return JsonResponse({'ok': True, 'id': int(obj.id)})
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def analysis_video_studio_project_delete_api(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'No hay equipo principal configurado'}, status=400)
+    try:
+        if request.content_type and 'application/json' in (request.content_type or '').lower():
+            data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+        else:
+            data = request.POST.dict() if hasattr(request, 'POST') else {}
+    except Exception:
+        data = {}
+    project_id = _parse_int(data.get('id'))
+    if not project_id:
+        return JsonResponse({'ok': False, 'error': 'id requerido.'}, status=400)
+    obj = VideoTelestrationProject.objects.filter(id=project_id, team=primary_team).first()
+    if not obj:
+        return JsonResponse({'ok': False, 'error': 'Proyecto no encontrado.'}, status=404)
+    username = str(getattr(request.user, 'username', '') or '').strip()
+    can_manage = _can_manage_workspace(request.user, _get_active_workspace(request))
+    if not bool(getattr(request.user, 'is_superuser', False)) and not can_manage and str(obj.created_by or '').strip() != username:
+        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+    try:
+        obj.delete()
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'No se pudo borrar.'}, status=500)
+    return JsonResponse({'ok': True})
 
 
 @login_required
