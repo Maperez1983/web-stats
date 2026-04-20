@@ -1,8 +1,10 @@
 import base64
+import io
 import json
 import os
 import shutil
 import tempfile
+import zipfile
 from datetime import date, timedelta
 from pathlib import Path
 from types import SimpleNamespace
@@ -4888,6 +4890,45 @@ class VideoStudioProApiTests(TestCase):
         self.assertEqual(ev_list.status_code, 200)
         items = ev_list.json().get('items') or []
         self.assertTrue(any((row.get('kind') == 'press') for row in items))
+
+    def test_video_studio_export_pdf_and_package(self):
+        png_1x1 = base64.b64decode(
+            b'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQI12P4//8/AwAI/AL+Qxg9WAAAAABJRU5ErkJggg=='
+        )
+        slide_img = 'data:image/png;base64,' + base64.b64encode(png_1x1).decode('ascii')
+        payload = {
+            'video_id': self.video.id,
+            'title': 'Export VS',
+            'source': 'tests',
+            'slides': [
+                {'label': 'S1', 'time_s': 12.3, 'image_data': slide_img},
+                {'label': 'S2', 'time_s': 45.0, 'image_data': slide_img},
+            ],
+        }
+
+        pdf_resp = self.client.post(
+            reverse('analysis-video-studio-export-pdf-api'),
+            data=json.dumps(payload),
+            content_type='application/json',
+        )
+        self.assertEqual(pdf_resp.status_code, 200)
+        self.assertIn('application/pdf', pdf_resp['Content-Type'])
+        self.assertTrue(pdf_resp.content.startswith(b'%PDF'))
+
+        zip_resp = self.client.post(
+            reverse('analysis-video-studio-export-package-api'),
+            data=json.dumps(payload),
+            content_type='application/json',
+        )
+        self.assertEqual(zip_resp.status_code, 200)
+        self.assertIn('application/zip', zip_resp['Content-Type'])
+        zf = zipfile.ZipFile(io.BytesIO(zip_resp.content))
+        names = set(zf.namelist())
+        self.assertIn('cover.html', names)
+        self.assertIn('index.html', names)
+        self.assertIn('export.json', names)
+        self.assertTrue(any(n.startswith('slides/slide-') for n in names))
+        self.assertTrue(any(n.startswith('thumbs/thumb-') for n in names))
 
 
 class SessionsPlanningTests(TestCase):

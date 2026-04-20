@@ -53,6 +53,13 @@
 
     const inInput = document.getElementById('vs-in');
     const outInput = document.getElementById('vs-out');
+    const qualitySelect = document.getElementById('vs-video-quality');
+    const slideAddBtn = document.getElementById('vs-slide-add');
+    const slidesFromTimelineBtn = document.getElementById('vs-slides-from-timeline');
+    const slidesClearBtn = document.getElementById('vs-slides-clear');
+    const slidesList = document.getElementById('vs-slides');
+    const exportPdfBtn = document.getElementById('vs-export-pdf');
+    const exportPackageBtn = document.getElementById('vs-export-package');
 
     const videoId = Number(document.getElementById('vs-video-id')?.value || 0);
     const projectsUrl = safeText(document.getElementById('vs-projects-url')?.value);
@@ -64,6 +71,8 @@
     const timelineUrl = safeText(document.getElementById('vs-timeline-url')?.value);
     const timelineSaveUrl = safeText(document.getElementById('vs-timeline-save-url')?.value);
     const timelineDeleteUrl = safeText(document.getElementById('vs-timeline-delete-url')?.value);
+    const exportPdfUrl = safeText(document.getElementById('vs-export-pdf-url')?.value);
+    const exportPackageUrl = safeText(document.getElementById('vs-export-package-url')?.value);
 
     const projectTitleInput = document.getElementById('vs-project-title');
     const projectSaveBtn = document.getElementById('vs-project-save');
@@ -96,6 +105,32 @@
     const fxLayersList = document.getElementById('vs-fx-layers');
 
     const csrf = document.querySelector('input[name="csrfmiddlewaretoken"]')?.value || '';
+
+    const downloadResponseBlob = async (resp, fallbackName) => {
+      const blob = await resp.blob();
+      let name = fallbackName || 'export.bin';
+      try {
+        const cd = resp.headers.get('content-disposition') || '';
+        const m = /filename=\"([^\"]+)\"/i.exec(cd);
+        if (m && m[1]) name = m[1];
+      } catch (e) { /* ignore */ }
+      downloadBlob(blob, name);
+    };
+
+    const postJsonDownload = async ({ url, payload, fallbackName }) => {
+      if (!url) return;
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify(payload || {}),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err?.error || 'error');
+      }
+      await downloadResponseBlob(resp, fallbackName);
+    };
 
     const fabricCanvas = new fabric.Canvas(canvasEl, { preserveObjectStacking: true, selection: true });
     try { fabricCanvas.freeDrawingBrush.width = 6; } catch (e) { /* ignore */ }
@@ -766,7 +801,10 @@
       recCtx = recCanvas.getContext('2d', { alpha: false });
       if (!recCtx) return;
 
-      const canvasStream = recCanvas.captureStream(30);
+      const q = safeText(qualitySelect?.value, 'med');
+      const fps = q === 'low' ? 24 : 30;
+      const bps = q === 'high' ? 8_000_000 : (q === 'low' ? 2_200_000 : 4_000_000);
+      const canvasStream = recCanvas.captureStream(fps);
       let audioTracks = [];
       try {
         const vStream = typeof video.captureStream === 'function' ? video.captureStream() : null;
@@ -780,7 +818,7 @@
       if (!MediaRecorder.isTypeSupported(mime)) mime = 'video/webm';
 
       try {
-        recMedia = new MediaRecorder(recStream, { mimeType: mime, videoBitsPerSecond: 4_000_000 });
+        recMedia = new MediaRecorder(recStream, { mimeType: mime, videoBitsPerSecond: bps });
       } catch (e) {
         recMedia = new MediaRecorder(recStream);
       }
@@ -1104,8 +1142,10 @@
     refreshClips();
 
     // Timeline (server)
+    let timelineCache = [];
     const renderTimeline = (items) => {
       if (!timelineList) return;
+      timelineCache = Array.isArray(items) ? items.slice() : [];
       const rows = (Array.isArray(items) ? items : []).slice(0, 260).map((ev) => {
         const id = Number(ev?.id) || 0;
         if (!id) return '';
@@ -1208,6 +1248,185 @@
     eventAddBtn?.addEventListener('click', addTimelineEvent);
     eventRefreshBtn?.addEventListener('click', refreshTimeline);
     refreshTimeline();
+
+    // Slides + Export Pro
+    let slides = [];
+
+    const captureFrameDataUrl = () => {
+      const w = fabricCanvas.getWidth();
+      const h = fabricCanvas.getHeight();
+      const off = document.createElement('canvas');
+      off.width = w;
+      off.height = h;
+      const ctx = off.getContext('2d');
+      if (!ctx) return '';
+      try { ctx.drawImage(video, 0, 0, w, h); } catch (e) { /* ignore */ }
+      try { renderFx(ctx, { width: w, height: h, nowS: Number(video.currentTime) || 0, forExport: true }); } catch (e) { /* ignore */ }
+      try { ctx.drawImage(canvasEl, 0, 0, w, h); } catch (e) { /* ignore */ }
+      try { return off.toDataURL('image/jpeg', 0.92); } catch (e) { return ''; }
+    };
+
+    const renderSlides = () => {
+      if (!slidesList) return;
+      const rows = slides.slice(0, 24).map((s, idx) => {
+        const id = safeText(s?.id, String(idx));
+        const label = safeText(s?.label, `Slide ${idx + 1}`);
+        const at = fmtTimeShort(Number(s?.time_s) || 0);
+        const safeLabel = label.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');
+        return `
+          <div class="row">
+            <div style="display:flex; flex-direction:column; gap:0.25rem; min-width:0; flex:1;">
+              <input type="text" value="${safeLabel}" data-vs-slide-label="${id}" />
+              <small>${at}</small>
+            </div>
+            <div style="display:flex; gap:0.35rem; flex-wrap:wrap;">
+              <button type="button" class="button" data-vs-slide-go="${id}">Ir</button>
+              <button type="button" class="button danger" data-vs-slide-del="${id}">X</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+      slidesList.innerHTML = rows || '<div class="meta">Sin slides todavía.</div>';
+
+      Array.from(slidesList.querySelectorAll('[data-vs-slide-label]')).forEach((inp) => {
+        inp.addEventListener('input', () => {
+          const id = inp.getAttribute('data-vs-slide-label');
+          const value = safeText(inp.value, '').slice(0, 140);
+          slides = slides.map((s) => (String(s.id) === String(id) ? { ...s, label: value } : s));
+        });
+      });
+      Array.from(slidesList.querySelectorAll('[data-vs-slide-go]')).forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const id = btn.getAttribute('data-vs-slide-go');
+          const found = slides.find((s) => String(s.id) === String(id));
+          if (!found) return;
+          try { video.currentTime = Number(found.time_s) || 0; } catch (e) { /* ignore */ }
+        });
+      });
+      Array.from(slidesList.querySelectorAll('[data-vs-slide-del]')).forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const id = btn.getAttribute('data-vs-slide-del');
+          slides = slides.filter((s) => String(s.id) !== String(id));
+          renderSlides();
+        });
+      });
+    };
+
+    const addSlideNow = () => {
+      const img = captureFrameDataUrl();
+      if (!img) {
+        setStatus('No se pudo capturar slide.', true);
+        return;
+      }
+      const timeS = Number(video.currentTime) || 0;
+      const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      slides = [...slides, { id, label: `Slide ${slides.length + 1}`, time_s: timeS, image_data: img }].slice(0, 24);
+      renderSlides();
+      setStatus(`Slide capturado en ${fmtTimeShort(timeS)}.`);
+    };
+
+    const seekTo = (t) => new Promise((resolve) => {
+      let done = false;
+      const onSeeked = () => {
+        if (done) return;
+        done = true;
+        try { window.clearTimeout(timeout); } catch (e) { /* ignore */ }
+        try { video.removeEventListener('seeked', onSeeked); } catch (e) { /* ignore */ }
+        resolve(true);
+      };
+      const timeout = window.setTimeout(() => {
+        if (done) return;
+        done = true;
+        try { video.removeEventListener('seeked', onSeeked); } catch (e) { /* ignore */ }
+        resolve(false);
+      }, 1800);
+      video.addEventListener('seeked', onSeeked, { once: true });
+      try { video.currentTime = Math.max(0, Number(t) || 0); } catch (e) { resolve(false); }
+    });
+
+    const slidesFromTimeline = async () => {
+      const items = Array.isArray(timelineCache) ? timelineCache.slice(0, 12) : [];
+      if (!items.length) {
+        setStatus('No hay timeline para generar slides.', true);
+        return;
+      }
+      const wasPlaying = !video.paused;
+      const prevTime = Number(video.currentTime) || 0;
+      try { video.pause(); } catch (e) { /* ignore */ }
+      setStatus('Generando slides desde timeline…');
+      for (const ev of items) {
+        const t = Number(ev?.time_s) || 0;
+        // eslint-disable-next-line no-await-in-loop
+        await seekTo(t);
+        // eslint-disable-next-line no-await-in-loop
+        await sleep(120);
+        const img = captureFrameDataUrl();
+        if (!img) continue;
+        const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        slides = [...slides, { id, label: safeText(ev?.label, safeText(ev?.kind, 'Evento')).slice(0, 140), time_s: t, image_data: img }].slice(0, 24);
+        renderSlides();
+        // eslint-disable-next-line no-await-in-loop
+        await sleep(60);
+      }
+      try { video.currentTime = prevTime; } catch (e) { /* ignore */ }
+      if (wasPlaying) { try { await video.play(); } catch (e) { /* ignore */ } }
+      setStatus('Slides generados.');
+    };
+
+    slideAddBtn?.addEventListener('click', addSlideNow);
+    slidesFromTimelineBtn?.addEventListener('click', slidesFromTimeline);
+    slidesClearBtn?.addEventListener('click', () => { slides = []; renderSlides(); setStatus('Slides limpiados.'); });
+    renderSlides();
+
+    const buildExportTitle = () => {
+      const fromProject = safeText(projectTitleInput?.value, '').slice(0, 160);
+      if (fromProject) return fromProject;
+      const fromHeader = safeText(document.querySelector('.vs-head h1')?.textContent, '').replace(/^Video Studio\s*·\s*/i, '').trim();
+      return safeText(fromHeader, 'Video Studio').slice(0, 160);
+    };
+
+    const exportSlidesPdf = async () => {
+      if (!exportPdfUrl || !videoId) return;
+      if (!slides.length) { setStatus('Añade al menos 1 slide.', true); return; }
+      try {
+        await postJsonDownload({
+          url: exportPdfUrl,
+          payload: {
+            video_id: videoId,
+            title: buildExportTitle(),
+            source: 'studio',
+            slides: slides.map((s) => ({ label: s.label, time_s: s.time_s, image_data: s.image_data })),
+          },
+          fallbackName: 'video-studio-slides.pdf',
+        });
+        setStatus('PDF descargado.');
+      } catch (e) {
+        setStatus(`No se pudo exportar PDF. ${safeText(e?.message, '')}`, true);
+      }
+    };
+
+    const exportSlidesPackage = async () => {
+      if (!exportPackageUrl || !videoId) return;
+      if (!slides.length) { setStatus('Añade al menos 1 slide.', true); return; }
+      try {
+        await postJsonDownload({
+          url: exportPackageUrl,
+          payload: {
+            video_id: videoId,
+            title: buildExportTitle(),
+            source: 'studio',
+            slides: slides.map((s) => ({ label: s.label, time_s: s.time_s, image_data: s.image_data })),
+          },
+          fallbackName: 'video-studio-package.zip',
+        });
+        setStatus('Paquete descargado.');
+      } catch (e) {
+        setStatus(`No se pudo exportar paquete. ${safeText(e?.message, '')}`, true);
+      }
+    };
+
+    exportPdfBtn?.addEventListener('click', exportSlidesPdf);
+    exportPackageBtn?.addEventListener('click', exportSlidesPackage);
 
     const applyTimedLayers = () => {
       const nowS = Number(video.currentTime) || 0;

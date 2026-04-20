@@ -29394,12 +29394,396 @@ def analysis_video_studio_export_pdf_api(request):
 
     pdf_bytes, pdf_error = _render_pdf_bytes_with_error(request, html_doc)
     if not pdf_bytes:
+        # Fallback local/CI: reportlab (no depende de weasyprint/cairo).
+        try:
+            from reportlab.pdfgen import canvas  # noqa: WPS433
+            from reportlab.lib.pagesizes import A4, landscape  # noqa: WPS433
+            from reportlab.lib.utils import ImageReader  # noqa: WPS433
+            from reportlab.lib.units import mm  # noqa: WPS433
+            import urllib.parse  # noqa: WPS433
+
+            def _decode_data_url(data_url: str):
+                raw_url = str(data_url or '')
+                if not raw_url.startswith('data:image/') or ',' not in raw_url:
+                    return None
+                header, payload = raw_url.split(',', 1)
+                if ';base64' in header:
+                    return base64.b64decode(payload.encode('ascii'), validate=False)
+                return urllib.parse.unquote_to_bytes(payload)
+
+            buf = io.BytesIO()
+            page_w, page_h = landscape(A4)
+            c = canvas.Canvas(buf, pagesize=(page_w, page_h))
+            margin = 14 * mm
+            header_h = 18 * mm
+            max_w = page_w - (2 * margin)
+            max_h = page_h - (2 * margin) - header_h
+            for idx, slide in enumerate(cleaned, start=1):
+                c.setFillColorRGB(0.043, 0.071, 0.125)
+                c.setFont('Helvetica-Bold', 14)
+                c.drawString(margin, page_h - margin - 8, '2J · Video Studio · Slides')
+                c.setFont('Helvetica-Bold', 10)
+                c.setFillColorRGB(0.2, 0.25, 0.32)
+                c.drawRightString(page_w - margin, page_h - margin - 8, str(source_label or ''))
+
+                c.setFillColorRGB(0.043, 0.071, 0.125)
+                c.setFont('Helvetica-Bold', 12)
+                label_txt = str(slide.get('label') or '').strip()[:90]
+                c.drawString(margin, page_h - margin - 28, f'{idx:02d} · {label_txt}')
+                c.setFont('Helvetica-Bold', 10)
+                c.setFillColorRGB(0.2, 0.25, 0.32)
+                c.drawRightString(page_w - margin, page_h - margin - 28, _fmt_time(float(slide.get('time_s') or 0)))
+
+                raw = _decode_data_url(slide.get('image') or '')
+                if raw:
+                    ir = ImageReader(io.BytesIO(raw))
+                    iw, ih = ir.getSize()
+                    scale = min(max_w / float(iw or 1), max_h / float(ih or 1))
+                    tw, th = float(iw) * scale, float(ih) * scale
+                    x = margin + (max_w - tw) / 2.0
+                    y = margin
+                    c.drawImage(ir, x, y, width=tw, height=th, preserveAspectRatio=True, mask='auto')
+                c.showPage()
+            c.save()
+            pdf_bytes = buf.getvalue()
+            pdf_error = ''
+        except Exception as exc:
+            pdf_error = (pdf_error or '').strip() or f'reportlab:{exc}'
+
+    if not pdf_bytes:
         detail = (pdf_error or '').strip() or 'unknown'
         return JsonResponse({'ok': False, 'error': f'No se pudo generar el PDF. {detail}'}, status=503)
 
     safe_name = re.sub(r'[^a-zA-Z0-9_-]+', '-', str(title).strip()).strip('-')[:48] or 'video-studio'
     response = HttpResponse(pdf_bytes, content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename="{safe_name}-slides.pdf"'
+    response['Cache-Control'] = 'no-store, max-age=0'
+    response['Pragma'] = 'no-cache'
+    response['Expires'] = '0'
+    try:
+        build_id = (
+            os.getenv('RENDER_GIT_COMMIT')
+            or os.getenv('RENDER_DEPLOY_ID')
+            or os.getenv('SOURCE_VERSION')
+            or os.getenv('GIT_SHA')
+            or ''
+        ).strip()
+        if build_id:
+            response['X-2J-Build'] = build_id
+    except Exception:
+        pass
+    return response
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def analysis_video_studio_export_package_api(request):
+    """
+    Export "paquete" pro: ZIP con portada + índice + miniaturas (+ PDF si se puede).
+    """
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'No hay equipo principal configurado'}, status=400)
+    try:
+        data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+    except Exception:
+        data = {}
+
+    video_id = _parse_int(data.get('video_id'))
+    if not video_id:
+        return JsonResponse({'ok': False, 'error': 'video_id requerido.'}, status=400)
+    video = _video_studio_resolve_video(primary_team, video_id=int(video_id))
+    if not video:
+        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+
+    title = _sanitize_task_text(str(data.get('title') or '').strip(), multiline=False, max_len=160) or f'Video {video_id}'
+    source = str(data.get('source') or '').strip().lower()[:16]
+    slides = data.get('slides')
+    if not isinstance(slides, list):
+        slides = []
+    slides = slides[:24]
+
+    cleaned = []
+    for item in slides:
+        if not isinstance(item, dict):
+            continue
+        label = _sanitize_task_text(str(item.get('label') or '').strip(), multiline=False, max_len=140)
+        time_s = float(item.get('time_s') or 0) if str(item.get('time_s') or '').strip() else 0.0
+        img = str(item.get('image_data') or '').strip()
+        if not img.startswith('data:image/'):
+            continue
+        if len(img) > 2_500_000:
+            continue
+        cleaned.append({'label': label, 'time_s': max(0.0, float(time_s or 0)), 'image': img})
+    if not cleaned:
+        return JsonResponse({'ok': False, 'error': 'No hay slides para exportar.'}, status=400)
+
+    def _esc(text):
+        return html.escape(str(text or ''))
+
+    def _fmt_time(seconds: float) -> str:
+        try:
+            s = max(0.0, float(seconds or 0.0))
+        except Exception:
+            s = 0.0
+        mm = int(s // 60)
+        ss = int(round(s % 60))
+        return f'{mm:02d}:{ss:02d}'
+
+    safe_name = re.sub(r'[^a-zA-Z0-9_-]+', '-', str(title).strip()).strip('-')[:48] or 'video-studio'
+    zip_buf = io.BytesIO()
+
+    try:
+        from PIL import Image  # noqa: WPS433
+    except Exception:
+        Image = None
+
+    def _decode_data_url(data_url: str):
+        if not data_url.startswith('data:image/'):
+            return None, None
+        head, _, b64 = data_url.partition(',')
+        if not b64:
+            return None, None
+        mime = head.split(';', 1)[0].split(':', 1)[-1].strip().lower()
+        try:
+            raw = base64.b64decode(b64.encode('ascii'), validate=False)
+        except Exception:
+            return None, None
+        return mime, raw
+
+    index_items_html = []
+    # Optional PDF inside ZIP (best-effort)
+    pdf_bytes = b''
+    try:
+        slides_sections = []
+        for idx, slide in enumerate(cleaned, start=1):
+            label = _esc(slide.get('label') or '')
+            time_label = _esc(_fmt_time(slide.get('time_s') or 0))
+            img = slide.get('image') or ''
+            slides_sections.append(
+                f"""
+                <section class="slide">
+                  <div class="meta">
+                    <div class="left"><strong>{idx:02d}</strong> {label}</div>
+                    <div class="right">{time_label}</div>
+                  </div>
+                  <div class="frame">
+                    <img src="{img}" alt="slide" />
+                  </div>
+                </section>
+                """
+            )
+        source_label_for_pdf = _esc(source.upper() if source else '')
+        header_title = _esc(title)
+        slides_pdf_html = f"""
+        <!doctype html>
+        <html lang="es">
+          <head>
+            <meta charset="utf-8" />
+            <style>
+              @page {{ size: A4 landscape; margin: 14mm 14mm; }}
+              body {{ font-family: -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif; color:#0b1220; }}
+              header {{ display:flex; justify-content:space-between; align-items:flex-end; gap:12px; margin-bottom: 10mm; }}
+              header .title {{ font-size: 18px; font-weight: 900; }}
+              header .sub {{ font-size: 12px; color: #334155; font-weight: 700; }}
+              .slide {{ page-break-after: always; }}
+              .meta {{ display:flex; justify-content:space-between; gap:12px; font-size: 12px; margin-bottom: 6mm; color:#0f172a; }}
+              .meta .left {{ font-weight: 900; }}
+              .meta .right {{ font-weight: 800; color:#334155; }}
+              .frame {{ border: 1px solid #cbd5e1; border-radius: 12px; padding: 6px; }}
+              img {{ width: 100%; height: auto; display:block; border-radius: 10px; }}
+            </style>
+          </head>
+          <body>
+            <header>
+              <div>
+                <div class="title">2J · Video Studio · Slides</div>
+                <div class="sub">{header_title}</div>
+              </div>
+              <div class="sub">{source_label_for_pdf}</div>
+            </header>
+            {''.join(slides_sections)}
+          </body>
+        </html>
+        """
+        pdf_bytes, _pdf_error = _render_pdf_bytes_with_error(request, slides_pdf_html)
+        pdf_bytes = pdf_bytes or b''
+        if not pdf_bytes:
+            try:
+                from reportlab.pdfgen import canvas  # noqa: WPS433
+                from reportlab.lib.pagesizes import A4, landscape  # noqa: WPS433
+                from reportlab.lib.utils import ImageReader  # noqa: WPS433
+                from reportlab.lib.units import mm  # noqa: WPS433
+                import urllib.parse  # noqa: WPS433
+
+                def _decode_data_url_bytes(data_url: str):
+                    raw_url = str(data_url or '')
+                    if not raw_url.startswith('data:image/') or ',' not in raw_url:
+                        return None
+                    header, payload = raw_url.split(',', 1)
+                    if ';base64' in header:
+                        return base64.b64decode(payload.encode('ascii'), validate=False)
+                    return urllib.parse.unquote_to_bytes(payload)
+
+                buf = io.BytesIO()
+                page_w, page_h = landscape(A4)
+                c = canvas.Canvas(buf, pagesize=(page_w, page_h))
+                margin = 14 * mm
+                header_h = 18 * mm
+                max_w = page_w - (2 * margin)
+                max_h = page_h - (2 * margin) - header_h
+                for idx, slide in enumerate(cleaned, start=1):
+                    c.setFillColorRGB(0.043, 0.071, 0.125)
+                    c.setFont('Helvetica-Bold', 14)
+                    c.drawString(margin, page_h - margin - 8, '2J · Video Studio · Slides')
+                    c.setFont('Helvetica-Bold', 10)
+                    c.setFillColorRGB(0.2, 0.25, 0.32)
+                    c.drawRightString(page_w - margin, page_h - margin - 8, str(source_label_for_pdf or ''))
+
+                    c.setFillColorRGB(0.043, 0.071, 0.125)
+                    c.setFont('Helvetica-Bold', 12)
+                    label_txt = str(slide.get('label') or '').strip()[:90]
+                    c.drawString(margin, page_h - margin - 28, f'{idx:02d} · {label_txt}')
+                    c.setFont('Helvetica-Bold', 10)
+                    c.setFillColorRGB(0.2, 0.25, 0.32)
+                    c.drawRightString(page_w - margin, page_h - margin - 28, _fmt_time(float(slide.get('time_s') or 0)))
+
+                    raw = _decode_data_url_bytes(slide.get('image') or '')
+                    if raw:
+                        ir = ImageReader(io.BytesIO(raw))
+                        iw, ih = ir.getSize()
+                        scale = min(max_w / float(iw or 1), max_h / float(ih or 1))
+                        tw, th = float(iw) * scale, float(ih) * scale
+                        x = margin + (max_w - tw) / 2.0
+                        y = margin
+                        c.drawImage(ir, x, y, width=tw, height=th, preserveAspectRatio=True, mask='auto')
+                    c.showPage()
+                c.save()
+                pdf_bytes = buf.getvalue()
+            except Exception:
+                pass
+    except Exception:
+        pdf_bytes = b''
+
+    with zipfile.ZipFile(zip_buf, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
+        for idx, slide in enumerate(cleaned, start=1):
+            mime, raw = _decode_data_url(slide.get('image') or '')
+            if not raw:
+                continue
+            ext = 'png' if (mime and 'png' in mime) else 'jpg'
+            slide_name = f"slides/slide-{idx:02d}.{ext}"
+            zf.writestr(slide_name, raw)
+
+            thumb_name = f"thumbs/thumb-{idx:02d}.jpg"
+            if Image:
+                try:
+                    with Image.open(io.BytesIO(raw)) as im:
+                        im = im.convert('RGB')
+                        im.thumbnail((720, 420))
+                        out = io.BytesIO()
+                        im.save(out, format='JPEG', quality=82, optimize=True)
+                        zf.writestr(thumb_name, out.getvalue())
+                except Exception:
+                    thumb_name = ''
+            else:
+                thumb_name = ''
+
+            thumb_html = f"<img src='{_esc(thumb_name)}' alt='thumb' />" if thumb_name else ''
+            label = _esc(slide.get('label') or '')
+            time_label = _esc(_fmt_time(slide.get('time_s') or 0))
+            index_items_html.append(
+                f"""
+                <li>
+                  <a href="{_esc(slide_name)}" target="_blank" rel="noopener">
+                    <div class="thumb">{thumb_html}</div>
+                    <div class="meta">
+                      <div class="t"><strong>{idx:02d}</strong> {label}</div>
+                      <div class="s">{time_label}</div>
+                    </div>
+                  </a>
+                </li>
+                """
+            )
+
+        source_label = _esc(source.upper() if source else '')
+        cover_html = f"""<!doctype html>
+<html lang="es"><head><meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>{_esc(title)}</title>
+<style>
+  body{{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;margin:0;background:#0b1220;color:#e2e8f0}}
+  .hero{{padding:48px 40px;background:linear-gradient(135deg,#0ea5e9,#22c55e)}}
+  h1{{margin:0;font-size:34px;letter-spacing:0.04em}}
+  .sub{{margin-top:10px;font-weight:800;opacity:0.92}}
+  .wrap{{padding:26px 40px}}
+  .k{{display:inline-block;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.14);border:1px solid rgba(255,255,255,0.18);font-weight:900}}
+  a{{color:#93c5fd}}
+</style></head>
+<body>
+  <div class="hero">
+    <h1>{_esc(title)}</h1>
+    <div class="sub">{_esc(getattr(primary_team, 'display_name', '') or getattr(primary_team, 'name', '') or '')} · {source_label}</div>
+  </div>
+  <div class="wrap">
+    <p><span class="k">Contenido</span> Slides (telestración), miniaturas e índice.</p>
+    <p><a href="index.html">Abrir índice</a></p>
+  </div>
+</body></html>
+"""
+        index_html = f"""<!doctype html>
+<html lang="es"><head><meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>{_esc(title)} · Índice</title>
+<style>
+  body{{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;margin:0;background:#0b1220;color:#e2e8f0}}
+  header{{padding:18px 22px;border-bottom:1px solid rgba(148,163,184,0.18);display:flex;align-items:center;justify-content:space-between;gap:16px}}
+  h1{{margin:0;font-size:16px;letter-spacing:0.08em;text-transform:uppercase}}
+  .sub{{font-weight:800;opacity:0.8}}
+  ul{{list-style:none;padding:18px 22px;margin:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}}
+  li a{{display:flex;gap:12px;text-decoration:none;color:inherit;border:1px solid rgba(148,163,184,0.16);background:rgba(255,255,255,0.04);border-radius:16px;padding:12px}}
+  .thumb{{width:96px;height:60px;flex:0 0 auto;border-radius:12px;overflow:hidden;background:rgba(2,6,23,0.45);border:1px solid rgba(148,163,184,0.14);display:flex;align-items:center;justify-content:center}}
+  .thumb img{{width:100%;height:100%;object-fit:cover;display:block}}
+  .meta{{display:flex;flex-direction:column;gap:6px;min-width:0}}
+  .t{{font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
+  .s{{font-weight:800;opacity:0.78}}
+</style></head>
+<body>
+  <header>
+    <div>
+      <h1>Video Studio · Paquete</h1>
+      <div class="sub">{_esc(title)} · {source_label}</div>
+    </div>
+  </header>
+  <ul>{''.join(index_items_html)}</ul>
+</body></html>
+"""
+        zf.writestr('cover.html', cover_html)
+        zf.writestr('index.html', index_html)
+
+        meta_json = json.dumps(
+            {
+                'title': title,
+                'source': source,
+                'video_id': int(video_id),
+                'slides': [{'label': x['label'], 'time_s': x['time_s']} for x in cleaned],
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        zf.writestr('export.json', meta_json)
+
+        if pdf_bytes:
+            zf.writestr(f'{safe_name}-slides.pdf', pdf_bytes)
+
+    response = HttpResponse(zip_buf.getvalue(), content_type='application/zip')
+    response['Content-Disposition'] = f'attachment; filename=\"{safe_name}-package.zip\"'
     response['Cache-Control'] = 'no-store, max-age=0'
     response['Pragma'] = 'no-cache'
     response['Expires'] = '0'
