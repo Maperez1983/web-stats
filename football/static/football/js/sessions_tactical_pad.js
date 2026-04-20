@@ -754,8 +754,23 @@
 			    const simMetaPanel = document.getElementById('task-sim-meta');
 			    const simStepTitleInput = document.getElementById('task-sim-step-title');
 			    const simStepDurationInput = document.getElementById('task-sim-step-duration');
-			    const patternPopover = document.getElementById('task-pattern-popover');
-			    const patternCloseBtn = document.getElementById('task-pattern-close');
+				    const patternPopover = document.getElementById('task-pattern-popover');
+				    const patternCloseBtn = document.getElementById('task-pattern-close');
+				    const formationPopover = document.getElementById('task-formation-popover');
+				    const formationCloseBtn = document.getElementById('task-formation-close');
+				    const formationFormatSelect = document.getElementById('task-formation-format');
+				    const formationShapeSelect = document.getElementById('task-formation-shape');
+				    const formationDirectionSelect = document.getElementById('task-formation-direction');
+				    const formationApplyBtn = document.getElementById('task-formation-apply');
+				    const formationApplySelectedBtn = document.getElementById('task-formation-apply-selected');
+				    const overlaysPopover = document.getElementById('task-overlays-popover');
+				    const overlaysCloseBtn = document.getElementById('task-overlays-close');
+				    const overlaySnapInput = document.getElementById('task-overlay-snap');
+				    const overlayLanesInput = document.getElementById('task-overlay-lanes');
+				    const overlaySectorsInput = document.getElementById('task-overlay-sectors');
+				    const overlayPassLinesInput = document.getElementById('task-overlay-passlines');
+				    const overlaySuperioritiesInput = document.getElementById('task-overlay-superiorities');
+				    const overlaysApplyBtn = document.getElementById('task-overlays-apply');
 		    const layersBtn = document.getElementById('task-layers-btn');
 		    const layersPopover = document.getElementById('task-layers-popover');
 		    const layersCloseBtn = document.getElementById('task-layers-close');
@@ -1319,7 +1334,292 @@
 		        urlAssetLoading.delete(key);
 		      }
 		    };
-	    syncGridUi({ silent: true });
+		    syncGridUi({ silent: true });
+
+		    // Overlays tácticos (carriles/sectores, líneas de pase, superioridades) + snap.
+		    const tacticalPrefsKey = 'tpad_tactical_overlays_v1';
+		    const readTacticalPrefs = () => {
+		      if (!canUseStorage) return {};
+		      try { return JSON.parse(window.localStorage.getItem(tacticalPrefsKey) || '{}') || {}; } catch (e) { return {}; }
+		    };
+		    const writeTacticalPrefs = (prefs) => {
+		      if (!canUseStorage) return;
+		      try { window.localStorage.setItem(tacticalPrefsKey, JSON.stringify(prefs || {})); } catch (e) { /* ignore */ }
+		    };
+		    const initialTacticalPrefs = readTacticalPrefs();
+		    let tacticalSnapEnabled = !!initialTacticalPrefs.snap;
+		    let tacticalLanesVisible = !!initialTacticalPrefs.lanes;
+		    let tacticalSectorsVisible = !!initialTacticalPrefs.sectors;
+		    let tacticalPassLinesVisible = !!initialTacticalPrefs.pass_lines;
+		    let tacticalSuperioritiesVisible = !!initialTacticalPrefs.superiorities;
+
+		    let tacticalOverlayObjects = [];
+		    let tacticalOverlayFrame = null;
+		    let tacticalOverlayDirty = false;
+
+		    const syncTacticalOverlaysUi = () => {
+		      if (overlaySnapInput) overlaySnapInput.checked = !!tacticalSnapEnabled;
+		      if (overlayLanesInput) overlayLanesInput.checked = !!tacticalLanesVisible;
+		      if (overlaySectorsInput) overlaySectorsInput.checked = !!tacticalSectorsVisible;
+		      if (overlayPassLinesInput) overlayPassLinesInput.checked = !!tacticalPassLinesVisible;
+		      if (overlaySuperioritiesInput) overlaySuperioritiesInput.checked = !!tacticalSuperioritiesVisible;
+		    };
+		    const persistTacticalPrefs = () => {
+		      writeTacticalPrefs({
+		        snap: !!tacticalSnapEnabled,
+		        lanes: !!tacticalLanesVisible,
+		        sectors: !!tacticalSectorsVisible,
+		        pass_lines: !!tacticalPassLinesVisible,
+		        superiorities: !!tacticalSuperioritiesVisible,
+		      });
+		    };
+		    // Sincroniza el UI inicial con las prefs persistidas.
+		    try { syncTacticalOverlaysUi(); } catch (e) { /* ignore */ }
+
+		    const clearTacticalOverlays = () => {
+		      tacticalOverlayDirty = false;
+		      if (!tacticalOverlayObjects.length) return;
+		      const prevLoading = canvas.__loading;
+		      canvas.__loading = true;
+		      try {
+		        tacticalOverlayObjects.forEach((obj) => {
+		          try { if (obj) canvas.remove(obj); } catch (e) { /* ignore */ }
+		        });
+		      } catch (e) { /* ignore */ }
+		      canvas.__loading = prevLoading;
+		      tacticalOverlayObjects = [];
+		    };
+
+		    const makeOverlayLine = (points, opts = {}) => {
+		      const line = new fabric.Line(points, {
+		        stroke: opts.stroke || 'rgba(226,232,240,0.36)',
+		        strokeWidth: opts.strokeWidth || 2,
+		        strokeDashArray: opts.dash || undefined,
+		        selectable: false,
+		        evented: false,
+		        excludeFromExport: true,
+		        opacity: Number.isFinite(Number(opts.opacity)) ? Number(opts.opacity) : 1,
+		      });
+		      line.data = { base: true, kind: 'tactical-overlay', overlay: safeText(opts.overlay || '') };
+		      try { line.strokeUniform = true; } catch (e) { /* ignore */ }
+		      return line;
+		    };
+
+		    const collectTokensOnCanvas = () => {
+		      const objects = canvas.getObjects?.() || [];
+		      return objects
+		        .filter((obj) => obj && obj.visible !== false && safeText(obj?.data?.kind) === 'token' && !(obj?.data?.base))
+		        .slice(0, 60);
+		    };
+
+		    const isRivalToken = (token) => {
+		      const tk = safeText(token?.data?.token_kind).toLowerCase();
+		      return tk.includes('rival') || tk === 'player_rival';
+		    };
+
+		    const buildLaneSectorOverlays = () => {
+		      const overlays = [];
+		      const { w, h } = worldSize();
+		      if (!w || !h) return overlays;
+		      if (tacticalLanesVisible) {
+		        // 5 carriles => 4 líneas horizontales (y).
+		        for (let i = 1; i <= 4; i += 1) {
+		          const y = (h * i) / 5;
+		          overlays.push(makeOverlayLine([0, y, w, y], { overlay: 'lanes', dash: [10, 10], opacity: 0.75 }));
+		        }
+		      }
+		      if (tacticalSectorsVisible) {
+		        // 3 sectores => 2 líneas verticales (x).
+		        for (let i = 1; i <= 2; i += 1) {
+		          const x = (w * i) / 3;
+		          overlays.push(makeOverlayLine([x, 0, x, h], { overlay: 'sectors', dash: [10, 10], opacity: 0.75 }));
+		        }
+		      }
+		      return overlays;
+		    };
+
+		    const buildPassingLinesOverlays = () => {
+		      if (!tacticalPassLinesVisible) return [];
+		      const tokens = collectTokensOnCanvas();
+		      const locals = tokens.filter((t) => !isRivalToken(t));
+		      if (locals.length < 2) return [];
+		      const overlays = [];
+		      const used = new Set();
+		      const centers = locals.map((t) => ({ t, c: t.getCenterPoint() }));
+		      centers.forEach((a) => {
+		        const neighbors = centers
+		          .filter((b) => b !== a)
+		          .map((b) => ({ b, d: Math.hypot((b.c.x - a.c.x), (b.c.y - a.c.y)) }))
+		          .sort((x, y) => x.d - y.d)
+		          .slice(0, 2);
+		        neighbors.forEach(({ b, d }) => {
+		          if (!Number.isFinite(d) || d < 18 || d > 340) return;
+		          const ua = safeText(a.t?.data?.layer_uid) || safeText(a.t?.data?.playerId) || safeText(a.t?.data?.playerNumber);
+		          const ub = safeText(b.t?.data?.layer_uid) || safeText(b.t?.data?.playerId) || safeText(b.t?.data?.playerNumber);
+		          const key = [ua || String(a.c.x), ub || String(b.c.x)].sort().join('::');
+		          if (used.has(key)) return;
+		          used.add(key);
+		          overlays.push(makeOverlayLine([a.c.x, a.c.y, b.c.x, b.c.y], { overlay: 'pass', stroke: 'rgba(34,211,238,0.65)', strokeWidth: 3, opacity: 0.95 }));
+		        });
+		      });
+		      return overlays.slice(0, 80);
+		    };
+
+		    const buildSuperioritiesOverlays = () => {
+		      if (!tacticalSuperioritiesVisible) return [];
+		      const tokens = collectTokensOnCanvas();
+		      if (!tokens.length) return [];
+		      const overlays = [];
+		      const { w, h } = worldSize();
+		      if (!w || !h) return overlays;
+		      const sectorXs = [0, w / 3, (2 * w) / 3, w];
+		      const laneYs = [0, h / 5, (2 * h) / 5, (3 * h) / 5, (4 * h) / 5, h];
+
+		      const counts = Array.from({ length: 3 }, () => Array.from({ length: 5 }, () => ({ l: 0, r: 0 })));
+		      tokens.forEach((t) => {
+		        const c = t.getCenterPoint();
+		        const sx = clamp(Math.floor((c.x / w) * 3), 0, 2);
+		        const ly = clamp(Math.floor((c.y / h) * 5), 0, 4);
+		        if (isRivalToken(t)) counts[sx][ly].r += 1;
+		        else counts[sx][ly].l += 1;
+		      });
+
+		      const buildBadge = (x, y, text, color, opacity) => {
+		        const rect = new fabric.Rect({
+		          left: x,
+		          top: y,
+		          originX: 'center',
+		          originY: 'center',
+		          width: 72,
+		          height: 26,
+		          rx: 10,
+		          ry: 10,
+		          fill: color,
+		          opacity,
+		          selectable: false,
+		          evented: false,
+		          excludeFromExport: true,
+		        });
+		        rect.data = { base: true, kind: 'tactical-overlay', overlay: 'badge' };
+		        const label = new fabric.Text(text, {
+		          left: x,
+		          top: y,
+		          originX: 'center',
+		          originY: 'center',
+		          fontSize: 12,
+		          fontWeight: '800',
+		          fill: '#0f172a',
+		          selectable: false,
+		          evented: false,
+		          excludeFromExport: true,
+		        });
+		        label.data = { base: true, kind: 'tactical-overlay', overlay: 'badge-text' };
+		        const group = new fabric.Group([rect, label], {
+		          left: x,
+		          top: y,
+		          originX: 'center',
+		          originY: 'center',
+		          selectable: false,
+		          evented: false,
+		          excludeFromExport: true,
+		        });
+		        group.data = { base: true, kind: 'tactical-overlay', overlay: 'badge-group' };
+		        try { group.objectCaching = false; } catch (e) { /* ignore */ }
+		        return group;
+		      };
+
+		      for (let sx = 0; sx < 3; sx += 1) {
+		        for (let ly = 0; ly < 5; ly += 1) {
+		          const cell = counts[sx][ly];
+		          const total = (cell.l || 0) + (cell.r || 0);
+		          if (!total) continue;
+		          const diff = (cell.l || 0) - (cell.r || 0);
+		          const txt = diff === 0 ? `${cell.l}-${cell.r}` : `${diff > 0 ? '+' : ''}${diff}`;
+		          const fill = diff > 0 ? 'rgba(34,197,94,0.90)' : (diff < 0 ? 'rgba(239,68,68,0.90)' : 'rgba(226,232,240,0.85)');
+		          const cx = (sectorXs[sx] + sectorXs[sx + 1]) / 2;
+		          const cy = (laneYs[ly] + laneYs[ly + 1]) / 2;
+		          overlays.push(buildBadge(cx, cy, txt, fill, 0.92));
+		        }
+		      }
+		      return overlays.slice(0, 30);
+		    };
+
+		    const renderTacticalOverlays = () => {
+		      clearTacticalOverlays();
+		      if (!(tacticalLanesVisible || tacticalSectorsVisible || tacticalPassLinesVisible || tacticalSuperioritiesVisible)) {
+		        canvas.requestRenderAll();
+		        return;
+		      }
+		      const overlays = [
+		        ...buildLaneSectorOverlays(),
+		        ...buildPassingLinesOverlays(),
+		        ...buildSuperioritiesOverlays(),
+		      ];
+		      if (!overlays.length) return;
+		      const prevLoading = canvas.__loading;
+		      canvas.__loading = true;
+		      overlays.forEach((obj) => {
+		        try { canvas.add(obj); } catch (e) { /* ignore */ }
+		        tacticalOverlayObjects.push(obj);
+		      });
+		      canvas.__loading = prevLoading;
+		      // Envía líneas al fondo para no tapar chapas.
+		      try {
+		        tacticalOverlayObjects.forEach((obj) => {
+		          if (!obj) return;
+		          const overlay = safeText(obj?.data?.overlay);
+		          if (overlay === 'lanes' || overlay === 'sectors') {
+		            try { canvas.sendToBack(obj); } catch (e) { /* ignore */ }
+		          }
+		        });
+		      } catch (e) { /* ignore */ }
+		      try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+		    };
+
+		    const scheduleTacticalOverlayRefresh = () => {
+		      if (!(tacticalPassLinesVisible || tacticalSuperioritiesVisible || tacticalLanesVisible || tacticalSectorsVisible)) return;
+		      tacticalOverlayDirty = true;
+		      if (tacticalOverlayFrame) return;
+		      tacticalOverlayFrame = window.requestAnimationFrame(() => {
+		        tacticalOverlayFrame = null;
+		        if (!tacticalOverlayDirty) return;
+		        tacticalOverlayDirty = false;
+		        try { renderTacticalOverlays(); } catch (e) { /* ignore */ }
+		      });
+		    };
+
+		    const snapPointToLanesSectors = (point) => {
+		      const { w, h } = worldSize();
+		      if (!w || !h) return { x: point.x, y: point.y, snappedX: false, snappedY: false };
+		      const tolerance = 26;
+		      const baseX = Number(point?.x) || 0;
+		      const baseY = Number(point?.y) || 0;
+		      const laneCenters = [0, 1, 2, 3, 4].map((i) => ((i + 0.5) * h) / 5);
+		      const sectorCenters = [0, 1, 2].map((i) => ((i + 0.5) * w) / 3);
+		      let bestY = baseY;
+		      let bestDy = tolerance + 1;
+		      laneCenters.forEach((y) => {
+		        const dy = Math.abs(y - baseY);
+		        if (dy < bestDy) {
+		          bestDy = dy;
+		          bestY = y;
+		        }
+		      });
+		      let bestX = baseX;
+		      let bestDx = tolerance + 1;
+		      sectorCenters.forEach((x) => {
+		        const dx = Math.abs(x - baseX);
+		        if (dx < bestDx) {
+		          bestDx = dx;
+		          bestX = x;
+		        }
+		      });
+		      const snappedY = bestDy <= tolerance;
+		      const snappedX = bestDx <= tolerance;
+		      const outX = snappedX ? bestX : baseX;
+		      const outY = snappedY ? bestY : baseY;
+		      return { x: clamp(outX, 0, w), y: clamp(outY, 0, h), snappedX, snappedY };
+		    };
 
 			    let history = [];
 		      let historyIndex = -1;
@@ -2645,11 +2945,249 @@
 		    };
 		    let patternMode = 'line';
 		    let patternAxis = 'x';
-		    const setPatternPopoverOpen = (open) => {
-		      if (!patternPopover) return;
-		      patternPopover.hidden = !open;
-		    };
-		    const closePatternPopover = () => setPatternPopoverOpen(false);
+			    const setPatternPopoverOpen = (open) => {
+			      if (!patternPopover) return;
+			      patternPopover.hidden = !open;
+			    };
+			    const closePatternPopover = () => setPatternPopoverOpen(false);
+
+			    const setFormationPopoverOpen = (open) => {
+			      if (!formationPopover) return;
+			      formationPopover.hidden = !open;
+			    };
+			    const closeFormationPopover = () => setFormationPopoverOpen(false);
+
+			    const setOverlaysPopoverOpen = (open) => {
+			      if (!overlaysPopover) return;
+			      overlaysPopover.hidden = !open;
+			    };
+			    const closeOverlaysPopover = () => setOverlaysPopoverOpen(false);
+
+			    const FORMATION_PRESETS = {
+			      f11: [
+			        '4-3-3',
+			        '4-2-3-1',
+			        '4-4-2',
+			        '3-4-3',
+			        '3-5-2',
+			        '5-3-2',
+			      ],
+			      f7: [
+			        '2-3-1',
+			        '3-2-1',
+			        '2-2-2',
+			        '1-3-2',
+			      ],
+			      futsal: [
+			        '1-2-1',
+			        '2-1-1',
+			        '1-1-2',
+			      ],
+			    };
+
+			    const fillSelectOptions = (selectEl, values, selected) => {
+			      if (!selectEl) return;
+			      const wanted = safeText(selected);
+			      const list = Array.isArray(values) ? values : [];
+			      selectEl.innerHTML = list.map((v) => {
+			        const sel = wanted ? (safeText(v) === wanted) : false;
+			        return `<option value="${safeText(v)}"${sel ? ' selected' : ''}>${safeText(v)}</option>`;
+			      }).join('');
+			      if (!wanted && list.length) {
+			        try { selectEl.value = safeText(list[0]); } catch (e) { /* ignore */ }
+			      }
+			    };
+
+			    const syncFormationShapeOptions = () => {
+			      const format = safeText(formationFormatSelect?.value, 'f11');
+			      const shapes = FORMATION_PRESETS[format] || FORMATION_PRESETS.f11;
+			      fillSelectOptions(formationShapeSelect, shapes, safeText(formationShapeSelect?.value) || safeText(shapes[0]));
+			    };
+
+			    const parseFormationLineCounts = (shape) => safeText(shape)
+			      .split('-')
+			      .map((piece) => Number.parseInt(piece, 10))
+			      .filter((n) => Number.isFinite(n) && n > 0)
+			      .slice(0, 6);
+
+			    const formationExpectedCount = (format, lineCounts) => {
+			      const outfield = (Array.isArray(lineCounts) ? lineCounts : []).reduce((acc, n) => acc + (Number(n) || 0), 0);
+			      const normalized = safeText(format, 'f11');
+			      if (normalized === 'futsal') return 1 + outfield; // 5 (1 GK + 4)
+			      return 1 + outfield; // f11/f7 igual: 1 GK + outfield
+			    };
+
+			    const evenRatios = (count, margin = 0.12) => {
+			      const n = clamp(Number(count) || 0, 1, 20);
+			      if (n === 1) return [0.5];
+			      const top = clamp(Number(margin) || 0.12, 0.02, 0.22);
+			      const bottom = 1 - top;
+			      const step = (bottom - top) / Math.max(1, n - 1);
+			      return Array.from({ length: n }, (_, i) => clamp(top + (step * i), 0.02, 0.98));
+			    };
+
+			    const formationLineXRatios = (format, lineCount) => {
+			      const normalized = safeText(format, 'f11');
+			      const n = clamp(Number(lineCount) || 3, 2, 5);
+			      if (normalized === 'f7') {
+			        if (n === 4) return [0.26, 0.46, 0.66, 0.84];
+			        if (n === 2) return [0.34, 0.78];
+			        return [0.30, 0.58, 0.82];
+			      }
+			      if (normalized === 'futsal') {
+			        if (n === 2) return [0.40, 0.80];
+			        return [0.36, 0.64, 0.84];
+			      }
+			      // f11
+			      if (n === 4) return [0.22, 0.42, 0.62, 0.82];
+			      if (n === 2) return [0.34, 0.78];
+			      return [0.23, 0.50, 0.78];
+			    };
+
+			    const buildFormationTargets = (format, shape, direction) => {
+			      const { w, h } = worldSize();
+			      if (!w || !h) return [];
+			      const normalizedFormat = safeText(format, 'f11');
+			      const counts = parseFormationLineCounts(shape);
+			      if (!counts.length) return [];
+			      const lineXs = formationLineXRatios(normalizedFormat, counts.length);
+			      const attackDir = safeText(direction, 'right') === 'left' ? 'left' : 'right';
+			      const xFromOwn = (ratio) => {
+			        const r = clamp(Number(ratio) || 0, 0.02, 0.98);
+			        // "own" está en el lado opuesto a la dirección de ataque.
+			        return attackDir === 'right' ? (w * r) : (w * (1 - r));
+			      };
+			      const yFromRatio = (ratio) => h * clamp(Number(ratio) || 0.5, 0.02, 0.98);
+
+			      const targets = [];
+			      // GK
+			      targets.push({ role: 'gk', kind: 'goalkeeper_local', x: xFromOwn(0.08), y: yFromRatio(0.50) });
+			      counts.forEach((playersInLine, idx) => {
+			        const xRatio = lineXs[idx] || (0.22 + (idx * 0.18));
+			        const margin = playersInLine >= 5 ? 0.08 : (playersInLine === 4 ? 0.10 : 0.12);
+			        evenRatios(playersInLine, margin).forEach((yr) => {
+			          targets.push({ role: 'field', kind: 'player_local', x: xFromOwn(xRatio), y: yFromRatio(yr) });
+			        });
+			      });
+			      return targets;
+			    };
+
+			    const isLocalFormationToken = (obj) => {
+			      if (!obj || safeText(obj?.data?.kind) !== 'token') return false;
+			      if (obj?.data?.base) return false;
+			      return !isRivalToken(obj);
+			    };
+
+			    const tokensForFormation = (onlySelected = false) => {
+			      const selected = getSelectionObjects().filter(isLocalFormationToken);
+			      if (onlySelected) return selected;
+			      return (canvas.getObjects() || []).filter(isLocalFormationToken);
+			    };
+
+			    const applyFormationTargets = (targets, options = {}) => {
+			      if (!Array.isArray(targets) || !targets.length) {
+			        setStatus('Formación no válida.', true);
+			        return;
+			      }
+			      if (isSimulating) {
+			        setStatus('Modo simulación: sal para editar la formación.', true);
+			        return;
+			      }
+			      const onlySelected = !!options.onlySelected;
+			      const tokens = tokensForFormation(onlySelected).filter((t) => t && !t?.data?.locked);
+			      const expected = targets.length;
+			      if (onlySelected && !tokens.length) {
+			        setStatus('Selecciona al menos una chapa para aplicar la formación.', true);
+			        return;
+			      }
+
+			      const gkTokens = tokens.filter((t) => safeText(t?.data?.token_kind) === 'goalkeeper_local');
+			      const fieldTokens = tokens.filter((t) => safeText(t?.data?.token_kind) !== 'goalkeeper_local');
+
+			      const attackDir = safeText(formationDirectionSelect?.value, 'right') === 'left' ? 'left' : 'right';
+			      const sortFactor = attackDir === 'right' ? 1 : -1;
+			      fieldTokens.sort((a, b) => {
+			        const ca = a.getCenterPoint();
+			        const cb = b.getCenterPoint();
+			        const dx = ((ca.x || 0) - (cb.x || 0)) * sortFactor;
+			        if (Math.abs(dx) > 2) return dx;
+			        return (ca.y || 0) - (cb.y || 0);
+			      });
+
+			      const arranged = [];
+			      const created = [];
+
+			      const needsGk = (!gkTokens.length && !onlySelected);
+			      const expectedField = Math.max(0, expected - 1);
+			      const needField = Math.max(0, expectedField - fieldTokens.length);
+			      if (!onlySelected && needField > 0 && typeof playerTokenFactory === 'function') {
+			        for (let i = 0; i < needField; i += 1) {
+			          const factory = playerTokenFactory('player_local', null, { style: normalizeTokenStyle(tokenGlobalStyle) });
+			          if (typeof factory !== 'function') break;
+			          const seed = targets[Math.min(targets.length - 1, 1 + i)];
+			          const fresh = factory(seed.x, seed.y);
+			          if (!fresh) continue;
+			          normalizeEditableObject(fresh);
+			          canvas.add(fresh);
+			          created.push(fresh);
+			        }
+			      }
+
+			      // Recalcula listas con creados.
+			      const allField = fieldTokens.concat(created);
+			      const gk = gkTokens[0] || null;
+			      const fieldIt = allField[Symbol.iterator]();
+
+			      targets.forEach((target) => {
+			        let token = null;
+			        if (target.role === 'gk') {
+			          token = gk;
+			          if (!token && needsGk && typeof playerTokenFactory === 'function') {
+			            const factory = playerTokenFactory('goalkeeper_local', null, { style: normalizeTokenStyle(tokenGlobalStyle) });
+			            if (typeof factory === 'function') {
+			              const fresh = factory(target.x, target.y);
+			              if (fresh) {
+			                normalizeEditableObject(fresh);
+			                canvas.add(fresh);
+			                token = fresh;
+			                created.push(fresh);
+			              }
+			            }
+			          }
+			        } else {
+			          const next = fieldIt.next();
+			          token = next && !next.done ? next.value : null;
+			        }
+			        if (!token) return;
+			        arranged.push(token);
+			        try {
+			          token.setPositionByOrigin(new fabric.Point(target.x, target.y), 'center', 'center');
+			          token.setCoords();
+			        } catch (e) { /* ignore */ }
+			      });
+
+			      if (!arranged.length) {
+			        setStatus('No se pudo aplicar la formación.', true);
+			        return;
+			      }
+
+			      canvas.discardActiveObject();
+			      if (arranged.length === 1) canvas.setActiveObject(arranged[0]);
+			      else canvas.setActiveObject(new fabric.ActiveSelection(arranged, { canvas }));
+			      canvas.requestRenderAll();
+			      try { persistActiveStepSnapshot(); } catch (e) { /* ignore */ }
+			      pushHistory();
+			      syncInspector();
+			      renderLayers();
+			      refreshLivePreview();
+			      schedulePlayerBankUpdate();
+			      scheduleDraftSave('formation');
+			      scheduleTacticalOverlayRefresh();
+
+			      const extras = Math.max(0, tokens.length - expected);
+			      const createdCount = created.length;
+			      setStatus(`Formación aplicada.${createdCount ? ` (+${createdCount} chapas)` : ''}${extras ? ` (sobran ${extras})` : ''}`);
+			    };
 		    const suggestPatternSpacing = (axis) => {
 		      const active = canvas.getActiveObject();
 		      if (!active || typeof active.getBoundingRect !== 'function') return 40;
@@ -2666,15 +3204,17 @@
 		      if (patternInvertXInput?.parentElement) patternInvertXInput.parentElement.hidden = !showXInvert;
 		      if (patternInvertYInput?.parentElement) patternInvertYInput.parentElement.hidden = !showYInvert;
 		    };
-		    const openPatternPopover = (axisOrGrid) => {
-		      const active = canvas.getActiveObject();
-		      if (!active) {
-		        setStatus('Selecciona un elemento para aplicar un patrón.', true);
-		        return;
-		      }
-		      // Evita doble overlay (menú + popover) tapando el campo.
-		      setCommandMenuOpen(false);
-		      if (axisOrGrid === 'grid') {
+			    const openPatternPopover = (axisOrGrid) => {
+			      const active = canvas.getActiveObject();
+			      if (!active) {
+			        setStatus('Selecciona un elemento para aplicar un patrón.', true);
+			        return;
+			      }
+			      // Evita doble overlay (menú + popover) tapando el campo.
+			      setCommandMenuOpen(false);
+			      closeFormationPopover();
+			      closeOverlaysPopover();
+			      if (axisOrGrid === 'grid') {
 		        patternAxis = 'x';
 		        if (patternTitle) patternTitle.textContent = 'Patrón en rejilla';
 		        setPatternUiMode('grid');
@@ -2693,19 +3233,38 @@
 		          target?.focus();
 		          target?.select?.();
 		        } catch (error) { /* ignore */ }
-		      }, 0);
-		    };
+			      }, 0);
+			    };
+
+			    const openFormationPopover = () => {
+			      setCommandMenuOpen(false);
+			      closePatternPopover();
+			      closeOverlaysPopover();
+			      syncFormationShapeOptions();
+			      setFormationPopoverOpen(true);
+			      window.setTimeout(() => {
+			        try { formationShapeSelect?.focus(); } catch (e) { /* ignore */ }
+			      }, 0);
+			    };
+
+			    const openOverlaysPopover = () => {
+			      setCommandMenuOpen(false);
+			      closePatternPopover();
+			      closeFormationPopover();
+			      try { syncTacticalOverlaysUi(); } catch (e) { /* ignore */ }
+			      setOverlaysPopoverOpen(true);
+			    };
 		    commandMoreBtn?.addEventListener('click', (event) => {
 		      event.preventDefault();
 		      event.stopPropagation();
 		      setCommandMenuOpen(commandMenu?.hidden);
 		    });
-		    commandMenu?.addEventListener('click', (event) => {
-		      const button = event.target.closest('button[data-command]');
-		      if (!button) return;
-		      const command = safeText(button.dataset.command);
-		      if (!command) return;
-		      setCommandMenuOpen(false);
+			    commandMenu?.addEventListener('click', (event) => {
+			      const button = event.target.closest('button[data-command]');
+			      if (!button) return;
+			      const command = safeText(button.dataset.command);
+			      if (!command) return;
+			      setCommandMenuOpen(false);
 		      if (command === 'align_x') alignSelection('x');
 		      else if (command === 'align_y') alignSelection('y');
 		      else if (command === 'distribute_x') distributeSelection('x');
@@ -2716,13 +3275,21 @@
 		      else if (command === 'front') setSelectionLayer('front');
 		      else if (command === 'back') setSelectionLayer('back');
 		      else if (command === 'lock') toggleLockSelection();
-		      else if (command === 'grid_toggle') toggleGridVisible();
-		      else if (command === 'grid_snap') toggleGridSnap();
-		      else if (command === 'grid_size') cycleGridSize();
-		      else if (command === 'group') groupSelection();
-		      else if (command === 'ungroup') ungroupSelection();
-		      else if (command === 'clear') handleCanvasAction('clear');
-		    });
+			      else if (command === 'grid_toggle') toggleGridVisible();
+			      else if (command === 'grid_snap') toggleGridSnap();
+			      else if (command === 'grid_size') cycleGridSize();
+			      else if (command === 'formation') openFormationPopover();
+			      else if (command === 'tactical_overlays') openOverlaysPopover();
+			      else if (command === 'lane_snap_toggle') {
+			        tacticalSnapEnabled = !tacticalSnapEnabled;
+			        persistTacticalPrefs();
+			        syncTacticalOverlaysUi();
+			        setStatus(tacticalSnapEnabled ? 'Snap carriles/sectores activado (Shift lo desactiva temporalmente).' : 'Snap carriles/sectores desactivado.');
+			      }
+			      else if (command === 'group') groupSelection();
+			      else if (command === 'ungroup') ungroupSelection();
+			      else if (command === 'clear') handleCanvasAction('clear');
+			    });
 		    patternCancelBtn?.addEventListener('click', (event) => {
 		      event.preventDefault();
 		      closePatternPopover();
@@ -2772,6 +3339,74 @@
 		      if (key === 'enter') {
 		        event.preventDefault();
 		        applyPatternFromUi();
+		      }
+		    });
+
+		    formationCloseBtn?.addEventListener('click', (event) => {
+		      event.preventDefault();
+		      closeFormationPopover();
+		    });
+		    formationFormatSelect?.addEventListener('change', () => {
+		      syncFormationShapeOptions();
+		    });
+		    formationApplyBtn?.addEventListener('click', (event) => {
+		      event.preventDefault();
+		      const format = safeText(formationFormatSelect?.value, 'f11');
+		      const shape = safeText(formationShapeSelect?.value, '');
+		      const direction = safeText(formationDirectionSelect?.value, 'right');
+		      const targets = buildFormationTargets(format, shape, direction);
+		      closeFormationPopover();
+		      applyFormationTargets(targets, { onlySelected: false });
+		    });
+		    formationApplySelectedBtn?.addEventListener('click', (event) => {
+		      event.preventDefault();
+		      const format = safeText(formationFormatSelect?.value, 'f11');
+		      const shape = safeText(formationShapeSelect?.value, '');
+		      const direction = safeText(formationDirectionSelect?.value, 'right');
+		      const targets = buildFormationTargets(format, shape, direction);
+		      closeFormationPopover();
+		      applyFormationTargets(targets, { onlySelected: true });
+		    });
+		    formationPopover?.addEventListener('keydown', (event) => {
+		      const key = String(event.key || '').toLowerCase();
+		      if (key === 'escape') {
+		        event.preventDefault();
+		        closeFormationPopover();
+		        return;
+		      }
+		      if (key === 'enter') {
+		        event.preventDefault();
+		        try { formationApplyBtn?.click(); } catch (e) { /* ignore */ }
+		      }
+		    });
+
+		    overlaysCloseBtn?.addEventListener('click', (event) => {
+		      event.preventDefault();
+		      closeOverlaysPopover();
+		    });
+		    overlaysApplyBtn?.addEventListener('click', (event) => {
+		      event.preventDefault();
+		      tacticalSnapEnabled = !!overlaySnapInput?.checked;
+		      tacticalLanesVisible = !!overlayLanesInput?.checked;
+		      tacticalSectorsVisible = !!overlaySectorsInput?.checked;
+		      tacticalPassLinesVisible = !!overlayPassLinesInput?.checked;
+		      tacticalSuperioritiesVisible = !!overlaySuperioritiesInput?.checked;
+		      persistTacticalPrefs();
+		      syncTacticalOverlaysUi();
+		      closeOverlaysPopover();
+		      renderTacticalOverlays();
+		      setStatus('Overlays actualizados.');
+		    });
+		    overlaysPopover?.addEventListener('keydown', (event) => {
+		      const key = String(event.key || '').toLowerCase();
+		      if (key === 'escape') {
+		        event.preventDefault();
+		        closeOverlaysPopover();
+		        return;
+		      }
+		      if (key === 'enter') {
+		        event.preventDefault();
+		        try { overlaysApplyBtn?.click(); } catch (e) { /* ignore */ }
 		      }
 		    });
 		    const resolveClosest = (node, selector) => {
@@ -3517,6 +4152,14 @@
 		        const inside = resolveClosest(target, '#task-command-bar') || resolveClosest(target, '#task-pattern-popover');
 		        if (!inside) closePatternPopover();
 		      }
+		      if (formationPopover && !formationPopover.hidden) {
+		        const inside = resolveClosest(target, '#task-command-bar') || resolveClosest(target, '#task-formation-popover');
+		        if (!inside) closeFormationPopover();
+		      }
+		      if (overlaysPopover && !overlaysPopover.hidden) {
+		        const inside = resolveClosest(target, '#task-command-bar') || resolveClosest(target, '#task-overlays-popover');
+		        if (!inside) closeOverlaysPopover();
+		      }
 		      if (layersPopover && !layersPopover.hidden) {
 		        const inside = resolveClosest(target, '#task-command-bar') || resolveClosest(target, '#task-layers-popover');
 		        if (!inside) setLayersPopoverOpen(false);
@@ -3540,6 +4183,8 @@
 			      if (key !== 'escape') return;
 			      if (commandMenu && !commandMenu.hidden) setCommandMenuOpen(false);
 			      if (patternPopover && !patternPopover.hidden) closePatternPopover();
+			      if (formationPopover && !formationPopover.hidden) closeFormationPopover();
+			      if (overlaysPopover && !overlaysPopover.hidden) closeOverlaysPopover();
 			      if (layersPopover && !layersPopover.hidden) setLayersPopoverOpen(false);
 			      if (scenariosPopover && !scenariosPopover.hidden) setScenariosPopoverOpen(false);
 			      if (simPopover && !simPopover.hidden) setSimPopoverOpen(false);
@@ -6816,6 +7461,7 @@
 		    initPitchResizer();
 		    setPreset(presetSelect.value || 'full_pitch');
 	    restoreState();
+	    try { scheduleTacticalOverlayRefresh(); } catch (e) { /* ignore */ }
 	    renderLayers();
 	    runWhenIdle(() => renderPlayerBank(), 1100);
     try {
@@ -6989,8 +7635,9 @@
     // El submit real se gestiona al final del fichero (unificado con el sync de campos ocultos + preview HD).
     // Aquí solo mantenemos pingKeepalive para reutilizarlo en ese handler.
 
-			    canvas.on('object:modified', () => {
+			    canvas.on('object:modified', (event) => {
 			      if (canvas.__loading) return;
+			      if (event?.target?.data?.base) return;
 			      if (isSimulating) {
 			        hideSimGuides();
 			        if (simulationAutoCapture && !simulationPlaying) {
@@ -7007,26 +7654,31 @@
 			      syncInspector();
 			      renderLayers();
 			      refreshLivePreview();
+			      scheduleTacticalOverlayRefresh();
 			      schedulePlayerBankUpdate();
 			      scheduleDraftSave('canvas');
 			    });
-		    canvas.on('object:added', () => {
+		    canvas.on('object:added', (event) => {
+		      if (event?.target?.data?.base) return;
 		      if (!canvas.__loading) {
 		        persistActiveStepSnapshot();
 		        pushHistory();
 		        renderLayers();
 		      }
 		      refreshLivePreview();
+		      scheduleTacticalOverlayRefresh();
 		      schedulePlayerBankUpdate();
 		      scheduleDraftSave('canvas');
 		    });
-		    canvas.on('object:removed', () => {
+		    canvas.on('object:removed', (event) => {
+		      if (event?.target?.data?.base) return;
 		      if (!canvas.__loading) {
 		        persistActiveStepSnapshot();
 		        pushHistory();
 		        renderLayers();
 		      }
 		      refreshLivePreview();
+		      scheduleTacticalOverlayRefresh();
 		      schedulePlayerBankUpdate();
 		      scheduleDraftSave('canvas');
 		    });
@@ -7034,10 +7686,14 @@
 			      const target = event?.target;
 			      const rawEvent = event?.e;
 			      if (!target || !rawEvent) return;
+			      if (target?.data?.base) return;
 			      const targetCenter = target.getCenterPoint();
 			      const isMod = !!(rawEvent.ctrlKey || rawEvent.metaKey);
 			      const useMagnets = isMod || (isSimulating && simulationMagnets);
 			      const snapGrid = shouldSnapToGridForEvent(rawEvent);
+			      const allowTacticalSnap = !!(tacticalSnapEnabled && !rawEvent.shiftKey && !useMagnets);
+			      const tokenLike = safeText(target?.data?.kind) === 'token'
+			        || (target?.type === 'activeSelection' && typeof target.getObjects === 'function' && (target.getObjects() || []).some((obj) => safeText(obj?.data?.kind) === 'token'));
 			      let next = { x: targetCenter.x, y: targetCenter.y };
 			      let didMove = false;
 			      let snapInfo = null;
@@ -7051,6 +7707,13 @@
 			      } else if (snapGrid) {
 			        next = snapPointToGrid(next);
 			        didMove = true;
+			      }
+			      if (allowTacticalSnap && tokenLike) {
+			        const snapped = snapPointToLanesSectors(next);
+			        if (snapped.snappedX || snapped.snappedY) {
+			          next = { x: snapped.x, y: snapped.y };
+			          didMove = true;
+			        }
 			      }
 
 			      if (isSimulating) {
@@ -7070,6 +7733,7 @@
 			      if (!didMove) return;
 			      target.setPositionByOrigin(new fabric.Point(next.x, next.y), 'center', 'center');
 			      target.setCoords();
+			      if (tokenLike) scheduleTacticalOverlayRefresh();
 			    });
 
 	    const buildCompositeCanvas = async (options = {}) => {
@@ -7220,6 +7884,13 @@
 		        pointer = snapPointToCenters(base, null, 10);
 		      } else if (snapGrid) {
 		        pointer = snapPointToGrid(base);
+		      } else if (tacticalSnapEnabled && e && !e.shiftKey) {
+		        const kind = safeText(pendingKind).toLowerCase();
+		        const shouldSnap = kind.includes('player') || kind.includes('goalkeeper') || kind.includes('token');
+		        if (shouldSnap) {
+		          const snapped = snapPointToLanesSectors(base);
+		          if (snapped.snappedX || snapped.snappedY) pointer = { x: snapped.x, y: snapped.y };
+		        }
 		      } else if (pendingKind && lastPlacedByKind.has(pendingKind)) {
 		        // Snap suave a la última colocación del mismo tipo (útil para alinear conos/jugadores).
 		        const last = lastPlacedByKind.get(pendingKind);

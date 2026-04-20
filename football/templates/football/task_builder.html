@@ -2538,24 +2538,27 @@
 				                    <button type="button" class="icon-btn" id="task-command-more" title="Más acciones" aria-label="Más acciones">
 				                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 14a2 2 0 1 1 0-4 2 2 0 0 1 0 4Zm6 0a2 2 0 1 1 0-4 2 2 0 0 1 0 4Zm6 0a2 2 0 1 1 0-4 2 2 0 0 1 0 4Z"/></svg>
 				                    </button>
-			                    <div class="command-menu" id="task-command-menu" hidden>
-		                      <button type="button" data-command="align_x">Alinear centro X <span class="shortcut">⌘/Ctrl</span></button>
-		                      <button type="button" data-command="align_y">Alinear centro Y <span class="shortcut">⌘/Ctrl</span></button>
-		                      <button type="button" data-command="distribute_x">Distribuir X <span class="shortcut">⇧</span></button>
-		                      <button type="button" data-command="distribute_y">Distribuir Y <span class="shortcut">⇧</span></button>
-			                      <button type="button" data-command="pattern_row">Patrón en fila <span class="shortcut">↔</span></button>
-			                      <button type="button" data-command="pattern_col">Patrón en columna <span class="shortcut">↕</span></button>
-			                      <button type="button" data-command="pattern_grid">Patrón en rejilla <span class="shortcut">⌗</span></button>
-		                      <button type="button" data-command="front">Traer al frente <span class="shortcut">⌘]</span></button>
-		                      <button type="button" data-command="back">Enviar atrás <span class="shortcut">⌘[</span></button>
-		                      <button type="button" data-command="lock">Bloquear/Desbloquear <span class="shortcut">⌘L</span></button>
-		                      <button type="button" data-command="grid_toggle">Mostrar/Ocultar rejilla <span class="shortcut">G</span></button>
-		                      <button type="button" data-command="grid_snap">Snap a rejilla <span class="shortcut">Alt</span></button>
-		                      <button type="button" data-command="grid_size">Tamaño rejilla <span class="shortcut">S/M/L</span></button>
-		                      <button type="button" data-command="group">Agrupar <span class="shortcut">⌘G</span></button>
-		                      <button type="button" data-command="ungroup">Desagrupar <span class="shortcut">⌘⇧G</span></button>
-		                      <button type="button" data-command="clear">Limpiar pizarra</button>
-			                    </div>
+				                    <div class="command-menu" id="task-command-menu" hidden>
+			                      <button type="button" data-command="align_x">Alinear centro X <span class="shortcut">⌘/Ctrl</span></button>
+			                      <button type="button" data-command="align_y">Alinear centro Y <span class="shortcut">⌘/Ctrl</span></button>
+			                      <button type="button" data-command="distribute_x">Distribuir X <span class="shortcut">⇧</span></button>
+			                      <button type="button" data-command="distribute_y">Distribuir Y <span class="shortcut">⇧</span></button>
+				                      <button type="button" data-command="pattern_row">Patrón en fila <span class="shortcut">↔</span></button>
+				                      <button type="button" data-command="pattern_col">Patrón en columna <span class="shortcut">↕</span></button>
+				                      <button type="button" data-command="pattern_grid">Patrón en rejilla <span class="shortcut">⌗</span></button>
+			                      <button type="button" data-command="front">Traer al frente <span class="shortcut">⌘]</span></button>
+			                      <button type="button" data-command="back">Enviar atrás <span class="shortcut">⌘[</span></button>
+			                      <button type="button" data-command="lock">Bloquear/Desbloquear <span class="shortcut">⌘L</span></button>
+			                      <button type="button" data-command="grid_toggle">Mostrar/Ocultar rejilla <span class="shortcut">G</span></button>
+			                      <button type="button" data-command="grid_snap">Snap a rejilla <span class="shortcut">Alt</span></button>
+			                      <button type="button" data-command="grid_size">Tamaño rejilla <span class="shortcut">S/M/L</span></button>
+			                      <button type="button" data-command="formation">Formación / patrón</button>
+			                      <button type="button" data-command="tactical_overlays">Overlays tácticos</button>
+			                      <button type="button" data-command="lane_snap_toggle">Snap carriles/sectores <span class="shortcut">⇧</span></button>
+			                      <button type="button" data-command="group">Agrupar <span class="shortcut">⌘G</span></button>
+			                      <button type="button" data-command="ungroup">Desagrupar <span class="shortcut">⌘⇧G</span></button>
+			                      <button type="button" data-command="clear">Limpiar pizarra</button>
+				                    </div>
 			                    <div class="layers-popover" id="task-layers-popover" hidden>
 			                      <div class="layers-popover-head">
 			                        <h4>Capas</h4>
@@ -2744,11 +2747,78 @@
 			                          Invertir Y
 			                        </label>
 			                      </div>
-			                      <div class="pattern-actions">
-			                        <button type="button" id="task-pattern-cancel">Cancelar</button>
-			                        <button type="button" class="primary" id="task-pattern-apply">Aplicar</button>
-			                      </div>
-			                    </div>
+				                      <div class="pattern-actions">
+				                        <button type="button" id="task-pattern-cancel">Cancelar</button>
+				                        <button type="button" class="primary" id="task-pattern-apply">Aplicar</button>
+				                      </div>
+				                    </div>
+
+				                    <div class="pattern-popover" id="task-formation-popover" hidden>
+				                      <div class="pattern-head">
+				                        <h4>Formación</h4>
+				                        <button type="button" class="pattern-close" id="task-formation-close" aria-label="Cerrar">×</button>
+				                      </div>
+				                      <div class="pattern-fields">
+				                        <div class="pattern-field" style="grid-column:1 / -1;">
+				                          Formato
+				                          <select id="task-formation-format">
+				                            <option value="f11" selected>Fútbol 11</option>
+				                            <option value="f7">Fútbol 7</option>
+				                            <option value="futsal">Futsal</option>
+				                          </select>
+				                        </div>
+				                        <div class="pattern-field" style="grid-column:1 / -1;">
+				                          Formación
+				                          <select id="task-formation-shape"></select>
+				                        </div>
+				                        <div class="pattern-field" style="grid-column:1 / -1;">
+				                          Dirección ataque
+				                          <select id="task-formation-direction">
+				                            <option value="right" selected>Ataque hacia la derecha</option>
+				                            <option value="left">Ataque hacia la izquierda</option>
+				                          </select>
+				                        </div>
+				                      </div>
+				                      <div class="pattern-actions">
+				                        <button type="button" id="task-formation-apply-selected">Ajustar seleccionados</button>
+				                        <button type="button" class="primary" id="task-formation-apply">Crear/ordenar formación</button>
+				                      </div>
+				                      <div class="meta" style="margin-top:0.5rem; opacity:0.9;">
+				                        Tip: “Ajustar seleccionados” reordena solo las chapas seleccionadas; si faltan, se crean nuevas.
+				                      </div>
+				                    </div>
+
+				                    <div class="pattern-popover" id="task-overlays-popover" hidden>
+				                      <div class="pattern-head">
+				                        <h4>Overlays tácticos</h4>
+				                        <button type="button" class="pattern-close" id="task-overlays-close" aria-label="Cerrar">×</button>
+				                      </div>
+				                      <div class="pattern-fields">
+				                        <label class="pattern-check" style="grid-column:1 / -1;">
+				                          <input type="checkbox" id="task-overlay-snap" />
+				                          Snap a carriles/sectores (Shift: desactiva temporalmente)
+				                        </label>
+				                        <label class="pattern-check" style="grid-column:1 / -1;">
+				                          <input type="checkbox" id="task-overlay-lanes" />
+				                          Mostrar carriles (5)
+				                        </label>
+				                        <label class="pattern-check" style="grid-column:1 / -1;">
+				                          <input type="checkbox" id="task-overlay-sectors" />
+				                          Mostrar sectores (3)
+				                        </label>
+				                        <label class="pattern-check" style="grid-column:1 / -1;">
+				                          <input type="checkbox" id="task-overlay-passlines" />
+				                          Líneas de pase (auto)
+				                        </label>
+				                        <label class="pattern-check" style="grid-column:1 / -1;">
+				                          <input type="checkbox" id="task-overlay-superiorities" />
+				                          Superioridades (auto)
+				                        </label>
+				                      </div>
+				                      <div class="pattern-actions">
+				                        <button type="button" class="primary" id="task-overlays-apply">Aplicar</button>
+				                      </div>
+				                    </div>
 		                  </div>
 		                </div>
                 <p class="resource-helper">Pulsa una pestaña para mostrar los recursos.</p>
