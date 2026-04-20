@@ -36027,13 +36027,37 @@ def task_assistant_knowledge_upload_api(request):
     if not files:
         return JsonResponse({'ok': False, 'error': 'Selecciona al menos un documento.'}, status=400)
 
+    uploads = list(files[:12])
+
+    def _is_image_upload(upload_obj) -> bool:
+        try:
+            name = str(getattr(upload_obj, 'name', '') or '').lower()
+        except Exception:
+            name = ''
+        try:
+            mime_guess = str(getattr(upload_obj, 'content_type', '') or '').lower()
+        except Exception:
+            mime_guess = ''
+        return bool(
+            (mime_guess.startswith('image/'))
+            or name.endswith('.png')
+            or name.endswith('.jpg')
+            or name.endswith('.jpeg')
+            or name.endswith('.webp')
+        )
+
+    # Si se suben varias imágenes de golpe (carrusel RRSS), combinamos el OCR y generamos 1 plantilla unificada
+    # para evitar que salgan varias plantillas parciales (título en una, reglas en otra, etc.).
+    is_carousel_batch = len(uploads) >= 2 and all(_is_image_upload(u) for u in uploads)
+    carousel_docs: list[AssistantKnowledgeDocument] = []
+
     saved = 0
     skipped = 0
     extracted = 0
     blueprints = {'created': 0, 'updated': 0, 'skipped': 0}
     errors = 0
 
-    for upload in files[:12]:
+    for upload in uploads:
         try:
             raw = upload.read() or b''
         except Exception:
@@ -36079,15 +36103,32 @@ def task_assistant_knowledge_upload_api(request):
                 extracted += 1
             obj.save()
             saved += 1
-            try:
-                result = _assistant_create_blueprints_from_document(primary_team, obj)
-                for key in ('created', 'updated', 'skipped'):
-                    blueprints[key] = int(blueprints.get(key, 0) or 0) + int(result.get(key, 0) or 0)
-            except Exception:
-                pass
+            if is_carousel_batch and is_image:
+                carousel_docs.append(obj)
+            else:
+                try:
+                    result = _assistant_create_blueprints_from_document(primary_team, obj)
+                    for key in ('created', 'updated', 'skipped'):
+                        blueprints[key] = int(blueprints.get(key, 0) or 0) + int(result.get(key, 0) or 0)
+                except Exception:
+                    pass
         except Exception:
             errors += 1
             continue
+
+    if is_carousel_batch and carousel_docs:
+        try:
+            combined = '\n\n'.join([str(getattr(d, 'extracted_text', '') or '') for d in carousel_docs if str(getattr(d, 'extracted_text', '') or '').strip()])
+        except Exception:
+            combined = ''
+        if combined.strip():
+            try:
+                # Reutilizamos el primer doc como "origen" para etiquetar doc_id.
+                result = _assistant_create_blueprint_from_task_sheet(primary_team, carousel_docs[0], combined)
+                for key in ('created', 'updated'):
+                    blueprints[key] = int(blueprints.get(key, 0) or 0) + int(result.get(key, 0) or 0)
+            except Exception:
+                pass
 
     return JsonResponse(
         {
