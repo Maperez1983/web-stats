@@ -140,6 +140,8 @@
     const objects = Array.isArray(state?.objects) ? state.objects : [];
     const out = [];
     const baseTf = { tx: 0, ty: 0, angle: 0, sx: 1, sy: 1 };
+    const routes = (extra?.routes && typeof extra.routes === 'object') ? extra.routes : {};
+    const ballFollowUid = safeText(extra?.ball_follow_uid);
 
     const walk = (obj, index, tf) => {
       if (!obj || typeof obj !== 'object') return;
@@ -168,6 +170,9 @@
       // Tokens y objetos clave (dinámicos).
       if (kind === 'token') {
         if (!Number.isFinite(left) || !Number.isFinite(top)) return;
+        const uid = safeText(data.layer_uid);
+        const route = uid ? routes[uid] : null;
+        const routePts = Array.isArray(route?.points) ? route.points.slice(0, 60) : [];
         const xN = clamp(nextTf.tx / (dims.w || 1280), 0, 1);
         const yN = clamp(nextTf.ty / (dims.h || 720), 0, 1);
         out.push({
@@ -176,13 +181,32 @@
           token_kind: safeText(data.token_kind) || 'player_local',
           xN,
           yN,
+          uid,
           label: safeText(data.playerNumber) || safeText(data.playerName),
+          routeN: routePts.length
+            ? routePts.map((p) => ({ xN: clamp((Number(p?.x) || 0) / (dims.w || 1280), 0, 1), yN: clamp((Number(p?.y) || 0) / (dims.h || 720), 0, 1) }))
+            : null,
+          spline: !!route?.spline,
         });
         return;
       }
       if (kind === 'ball') {
         if (!Number.isFinite(left) || !Number.isFinite(top)) return;
-        out.push({ k: keyForObject(obj, index), kind: 'ball', xN: clamp(nextTf.tx / (dims.w || 1280), 0, 1), yN: clamp(nextTf.ty / (dims.h || 720), 0, 1) });
+        const uid = safeText(data.layer_uid);
+        const route = uid ? routes[uid] : null;
+        const routePts = Array.isArray(route?.points) ? route.points.slice(0, 60) : [];
+        out.push({
+          k: keyForObject(obj, index),
+          kind: 'ball',
+          xN: clamp(nextTf.tx / (dims.w || 1280), 0, 1),
+          yN: clamp(nextTf.ty / (dims.h || 720), 0, 1),
+          uid,
+          follow_uid: ballFollowUid,
+          routeN: routePts.length
+            ? routePts.map((p) => ({ xN: clamp((Number(p?.x) || 0) / (dims.w || 1280), 0, 1), yN: clamp((Number(p?.y) || 0) / (dims.h || 720), 0, 1) }))
+            : null,
+          spline: !!route?.spline,
+        });
         return;
       }
       if (kind === 'cone' || kind === 'cone-striped') {
@@ -301,6 +325,32 @@
     };
 
     objects.forEach((obj, index) => walk(obj, index, baseTf));
+
+    // Rutas (si vienen del simulador): render como polilínea "estática".
+    try {
+      const ballUid = (() => {
+        const ball = out.find((it) => it && it.kind === 'ball' && safeText(it.uid));
+        return safeText(ball?.uid);
+      })();
+      Object.entries(routes).slice(0, 40).forEach(([uid, route], idx) => {
+        const pts = Array.isArray(route?.points) ? route.points : [];
+        if (pts.length < 2) return;
+        const pointsN = pts.slice(0, 220).map((p) => ({
+          xN: clamp((Number(p?.x) || 0) / (dims.w || 1280), 0, 1),
+          yN: clamp((Number(p?.y) || 0) / (dims.h || 720), 0, 1),
+        }));
+        out.push({
+          k: `sim-route:${uid || idx}`,
+          kind: 'polyline',
+          pointsN,
+          stroke: uid && ballUid && uid === ballUid ? 'rgba(250,204,21,0.75)' : 'rgba(34,197,94,0.65)',
+          dash: route?.spline ? [6, 6] : [10, 8],
+          strokeWidth: 3,
+        });
+      });
+    } catch (e) {
+      // ignore
+    }
 
     // Trayectorias de simulación: vienen en step.moves (coordenadas de canvas).
     const moves = Array.isArray(extra?.moves) ? extra.moves : [];
@@ -643,6 +693,81 @@
       return { color: fallback, opacity: 1 };
     }
 
+    routePointN(p, fallback) {
+      const xN = Number(p?.xN);
+      const yN = Number(p?.yN);
+      if (Number.isFinite(xN) && Number.isFinite(yN)) return { xN, yN };
+      return fallback || { xN: 0.5, yN: 0.5 };
+    }
+
+    catmullRom(p0, p1, p2, p3, t) {
+      const tt = t * t;
+      const ttt = tt * t;
+      const a0 = (-0.5 * ttt) + (tt) - (0.5 * t);
+      const a1 = (1.5 * ttt) - (2.5 * tt) + 1;
+      const a2 = (-1.5 * ttt) + (2 * tt) + (0.5 * t);
+      const a3 = (0.5 * ttt) - (0.5 * tt);
+      return {
+        x: (p0.x * a0) + (p1.x * a1) + (p2.x * a2) + (p3.x * a3),
+        z: (p0.z * a0) + (p1.z * a1) + (p2.z * a2) + (p3.z * a3),
+      };
+    }
+
+    sampleRoutePolylineWorld(pointsWorld, t) {
+      const pts = Array.isArray(pointsWorld) ? pointsWorld : [];
+      if (pts.length <= 1) return pts[0] || { x: 0, z: 0 };
+      const segs = [];
+      let total = 0;
+      for (let i = 0; i < pts.length - 1; i += 1) {
+        const a = pts[i];
+        const b = pts[i + 1];
+        const len = Math.hypot((b.x - a.x), (b.z - a.z)) || 0;
+        segs.push({ a, b, len });
+        total += len;
+      }
+      if (total <= 0.01) return pts[pts.length - 1];
+      let dist = clamp(Number(t) || 0, 0, 1) * total;
+      for (const seg of segs) {
+        if (dist <= seg.len || seg.len <= 0.01) {
+          const local = seg.len <= 0.01 ? 0 : (dist / seg.len);
+          return { x: seg.a.x + (seg.b.x - seg.a.x) * local, z: seg.a.z + (seg.b.z - seg.a.z) * local };
+        }
+        dist -= seg.len;
+      }
+      return pts[pts.length - 1];
+    }
+
+    sampleRouteSplineWorld(pointsWorld, t) {
+      const pts = Array.isArray(pointsWorld) ? pointsWorld : [];
+      if (pts.length <= 1) return pts[0] || { x: 0, z: 0 };
+      const n = pts.length;
+      const scaled = clamp(Number(t) || 0, 0, 1) * (n - 1);
+      const i = clamp(Math.floor(scaled), 0, n - 2);
+      const localT = scaled - i;
+      const p0 = pts[Math.max(0, i - 1)];
+      const p1 = pts[i];
+      const p2 = pts[i + 1];
+      const p3 = pts[Math.min(n - 1, i + 2)];
+      return this.catmullRom(p0, p1, p2, p3, localT);
+    }
+
+    sampleRouteWorld(startItem, nextItem, t) {
+      const routeN = Array.isArray(nextItem?.routeN) ? nextItem.routeN : [];
+      const spline = !!nextItem?.spline;
+      if (routeN.length < 2) return null;
+      const startN = this.routePointN({ xN: startItem?.xN, yN: startItem?.yN }, { xN: 0.5, yN: 0.5 });
+      const endN = this.routePointN({ xN: nextItem?.xN, yN: nextItem?.yN }, startN);
+      const ptsN = routeN.slice(0, 80).map((p) => this.routePointN(p)).filter(Boolean);
+      const first = ptsN[0];
+      const last = ptsN[ptsN.length - 1];
+      const out = ptsN.slice();
+      const dist = (a, b) => Math.hypot((a.xN - b.xN), (a.yN - b.yN));
+      if (!first || dist(first, startN) > 0.01) out.unshift(startN);
+      if (!last || dist(last, endN) > 0.01) out.push(endN);
+      const ptsWorld = out.map((p) => this.toWorldFromN(p.xN, p.yN));
+      return spline ? this.sampleRouteSplineWorld(ptsWorld, t) : this.sampleRoutePolylineWorld(ptsWorld, t);
+    }
+
     buildLine(points, options = {}) {
       const pts = Array.isArray(points) ? points : [];
       if (pts.length < 2) return null;
@@ -837,10 +962,23 @@
         const kind = safeText(mesh?.userData?.kind);
         const isDynamic = (kind === 'token' || kind === 'ball' || kind === 'cone' || kind === 'goal');
         if (!isDynamic) return;
+        const routed = this.sampleRouteWorld(prevItem, nextItem, ease);
         const a = this.toWorld(prevItem);
         const b = this.toWorld(nextItem);
-        mesh.position.x = a.x + (b.x - a.x) * ease;
-        mesh.position.z = a.z + (b.z - a.z) * ease;
+        mesh.position.x = routed ? routed.x : (a.x + (b.x - a.x) * ease);
+        mesh.position.z = routed ? routed.z : (a.z + (b.z - a.z) * ease);
+        // Balón pegado: si no hay ruta del balón, sigue al objetivo por UID.
+        if (kind === 'ball' && !routed) {
+          const followUid = safeText(nextItem?.follow_uid);
+          if (followUid) {
+            const followKey = `uid:${followUid}`;
+            const followMesh = this.meshByKey.get(followKey);
+            if (followMesh) {
+              mesh.position.x = Number(followMesh.position?.x) || 0;
+              mesh.position.z = Number(followMesh.position?.z) || 0;
+            }
+          }
+        }
       });
       if (progress >= 1) this.transition = null;
     }
@@ -1023,7 +1161,7 @@
           return {
             title: safeText(step?.title, `Paso ${idx + 1}`),
             duration: clamp(Number(step?.duration) || 3, 1, 20),
-            items: extractRenderable(state, dims, { moves: step?.moves }),
+            items: extractRenderable(state, dims, { moves: step?.moves, routes: step?.routes, ball_follow_uid: step?.ball_follow_uid }),
           };
         }).filter((s) => Array.isArray(s.items));
       }

@@ -755,6 +755,13 @@
 			    const simMetaPanel = document.getElementById('task-sim-meta');
 			    const simStepTitleInput = document.getElementById('task-sim-step-title');
 			    const simStepDurationInput = document.getElementById('task-sim-step-duration');
+			    const simRoutesPanel = document.getElementById('task-sim-routes-panel');
+			    const simRouteToggleBtn = document.getElementById('task-sim-route-toggle');
+			    const simRouteUndoBtn = document.getElementById('task-sim-route-undo');
+			    const simRouteClearBtn = document.getElementById('task-sim-route-clear');
+			    const simRouteSplineInput = document.getElementById('task-sim-route-spline');
+			    const simBallFollowBtn = document.getElementById('task-sim-ball-follow');
+			    const simBallPassBtn = document.getElementById('task-sim-ball-pass');
 				    const patternPopover = document.getElementById('task-pattern-popover');
 				    const patternCloseBtn = document.getElementById('task-pattern-close');
 				    const formationPopover = document.getElementById('task-formation-popover');
@@ -3458,6 +3465,7 @@
 						      if (simClipImportBtn) simClipImportBtn.hidden = !isSimulating;
 						      if (simClipsList) simClipsList.hidden = !isSimulating;
 						      if (simMetaPanel) simMetaPanel.hidden = !isSimulating;
+						      if (simRoutesPanel) simRoutesPanel.hidden = !isSimulating;
 					      if (simAutoCaptureInput) simAutoCaptureInput.checked = !!simulationAutoCapture;
 						      if (simTrajectoriesInput) simTrajectoriesInput.checked = !!simulationTrajectories;
 					      if (simMagnetsInput) simMagnetsInput.checked = !!simulationMagnets;
@@ -3467,6 +3475,200 @@
 						      if (simPlayBtn) simPlayBtn.textContent = simulationPlaying ? 'Parar' : 'Reproducir';
 						      if (simRecordBtn) simRecordBtn.disabled = !canRecord2d();
 					    };
+
+				    // Rutas editables por jugador (waypoints) + pase / balón pegado.
+				    let simRouteAddMode = false;
+				    let simRouteOverlays = [];
+				    const clearSimRouteOverlays = () => {
+				      try {
+				        (simRouteOverlays || []).forEach((obj) => {
+				          try { canvas.remove(obj); } catch (e) { /* ignore */ }
+				        });
+				      } catch (e) { /* ignore */ }
+				      simRouteOverlays = [];
+				    };
+				    const activeSimulationStep = () => {
+				      const idx = clamp(simulationActiveIndex, 0, Math.max(0, simulationSteps.length - 1));
+				      return simulationSteps[idx] || null;
+				    };
+				    const ensureStepRoutes = (step) => {
+				      if (!step || typeof step !== 'object') return null;
+				      if (!step.routes || typeof step.routes !== 'object') step.routes = {};
+				      if (typeof step.ball_follow_uid !== 'string') step.ball_follow_uid = safeText(step.ball_follow_uid);
+				      return step.routes;
+				    };
+				    const activeRouteTarget = () => {
+				      const active = canvas.getActiveObject();
+				      if (!active) return null;
+				      const pick = (obj) => {
+				        if (!obj || obj?.data?.base) return null;
+				        const uid = safeText(obj?.data?.layer_uid);
+				        if (!uid) return null;
+				        return { uid, kind: safeText(obj?.data?.kind) };
+				      };
+				      if (active.type === 'activeSelection' && typeof active.getObjects === 'function') {
+				        const objs = active.getObjects() || [];
+				        return pick(objs[0]) || null;
+				      }
+				      return pick(active);
+				    };
+				    const routeColorForObject = (obj) => {
+				      const kind = safeText(obj?.data?.kind);
+				      if (kind === 'ball') return 'rgba(250,204,21,0.92)';
+				      if (safeText(obj?.data?.token_kind).toLowerCase().includes('rival')) return 'rgba(248,113,113,0.88)';
+				      return 'rgba(34,197,94,0.88)';
+				    };
+				    const renderSimRoutesForStep = (step) => {
+				      clearSimRouteOverlays();
+				      if (!isSimulating) return;
+				      const routes = step && typeof step === 'object' ? step.routes : null;
+				      if (!routes || typeof routes !== 'object') return;
+				      const liveByUid = new Map();
+				      (canvas.getObjects?.() || []).forEach((obj) => {
+				        const uid = safeText(obj?.data?.layer_uid);
+				        if (uid && !obj?.data?.base) liveByUid.set(uid, obj);
+				      });
+				      Object.entries(routes).slice(0, 50).forEach(([uid, route]) => {
+				        const points = Array.isArray(route?.points) ? route.points : [];
+				        if (points.length < 2) return;
+				        const obj = liveByUid.get(uid);
+				        const stroke = routeColorForObject(obj);
+				        const poly = new fabric.Polyline(points.map((p) => ({ x: Number(p.x) || 0, y: Number(p.y) || 0 })), {
+				          left: 0,
+				          top: 0,
+				          originX: 'left',
+				          originY: 'top',
+				          stroke,
+				          strokeWidth: 3,
+				          strokeDashArray: route?.spline ? [6, 6] : [10, 8],
+				          fill: '',
+				          selectable: false,
+				          evented: false,
+				          excludeFromExport: true,
+				          opacity: 0.9,
+				          objectCaching: false,
+				          data: { base: true, kind: 'sim-route' },
+				        });
+				        canvas.add(poly);
+				        try { canvas.sendToBack(poly); } catch (e) { /* ignore */ }
+				        simRouteOverlays.push(poly);
+				        points.slice(0, 20).forEach((pt) => {
+				          const dot = new fabric.Circle({
+				            left: Number(pt.x) || 0,
+				            top: Number(pt.y) || 0,
+				            originX: 'center',
+				            originY: 'center',
+				            radius: 4,
+				            fill: stroke,
+				            stroke: 'rgba(15,23,42,0.55)',
+				            strokeWidth: 1,
+				            selectable: false,
+				            evented: false,
+				            excludeFromExport: true,
+				            opacity: 0.95,
+				            data: { base: true, kind: 'sim-route-dot' },
+				          });
+				          canvas.add(dot);
+				          simRouteOverlays.push(dot);
+				        });
+				      });
+				      try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+				    };
+				    const setRouteAddMode = (enabled) => {
+				      simRouteAddMode = !!enabled;
+				      if (simRouteToggleBtn) {
+				        simRouteToggleBtn.textContent = simRouteAddMode ? 'Parar waypoints' : 'Añadir waypoints';
+				        simRouteToggleBtn.classList.toggle('primary', simRouteAddMode);
+				      }
+				      setStatus(simRouteAddMode ? 'Ruta: toca el campo para añadir waypoints (sobre el seleccionado).' : 'Ruta: modo edición desactivado.');
+				    };
+				    const addRoutePointAt = (uid, point) => {
+				      const step = activeSimulationStep();
+				      if (!step) return false;
+				      const routes = ensureStepRoutes(step);
+				      if (!routes) return false;
+				      const list = routes[uid]?.points;
+				      const points = Array.isArray(list) ? list.slice(0, 60) : [];
+				      points.push({ x: clamp(Number(point.x) || 0, 0, worldSize().w || 1280), y: clamp(Number(point.y) || 0, 0, worldSize().h || 720) });
+				      const spline = routes[uid]?.spline === true;
+				      routes[uid] = { points: points.slice(0, 40), spline };
+				      try { renderSimRoutesForStep(step); } catch (e) { /* ignore */ }
+				      try { scheduleDraftSave('sim-route'); } catch (e) { /* ignore */ }
+				      return true;
+				    };
+				    const undoRoutePoint = (uid) => {
+				      const step = activeSimulationStep();
+				      if (!step || !step.routes) return;
+				      const route = step.routes[uid];
+				      const points = Array.isArray(route?.points) ? route.points.slice() : [];
+				      points.pop();
+				      if (points.length < 2) delete step.routes[uid];
+				      else step.routes[uid] = { points, spline: !!route?.spline };
+				      renderSimRoutesForStep(step);
+				      try { scheduleDraftSave('sim-route-undo'); } catch (e) { /* ignore */ }
+				    };
+				    const clearRoute = (uid) => {
+				      const step = activeSimulationStep();
+				      if (!step || !step.routes) return;
+				      delete step.routes[uid];
+				      renderSimRoutesForStep(step);
+				      try { scheduleDraftSave('sim-route-clear'); } catch (e) { /* ignore */ }
+				    };
+				    const setRouteSpline = (uid, spline) => {
+				      const step = activeSimulationStep();
+				      if (!step) return;
+				      const routes = ensureStepRoutes(step);
+				      if (!routes) return;
+				      if (!routes[uid]) routes[uid] = { points: [], spline: !!spline };
+				      routes[uid].spline = !!spline;
+				      renderSimRoutesForStep(step);
+				      try { scheduleDraftSave('sim-route-spline'); } catch (e) { /* ignore */ }
+				    };
+				    const setBallFollow = (followUid) => {
+				      const step = activeSimulationStep();
+				      if (!step) return;
+				      step.ball_follow_uid = safeText(followUid);
+				      if (step.ball_follow_uid) setStatus('Balón pegado activado para este paso.');
+				      else setStatus('Balón pegado desactivado.');
+				      try { scheduleDraftSave('sim-ball-follow'); } catch (e) { /* ignore */ }
+				    };
+				    const findBallUid = () => {
+				      const objects = (canvas.getObjects?.() || []).filter((obj) => obj && !obj?.data?.base);
+				      const ball = objects.find((obj) => safeText(obj?.data?.kind) === 'ball');
+				      return safeText(ball?.data?.layer_uid);
+				    };
+				    const ensureBallRoutePass = (fromUid, toUid) => {
+				      const step = activeSimulationStep();
+				      if (!step) return;
+				      const ballUid = findBallUid();
+				      if (!ballUid) {
+				        setStatus('No hay balón en la pizarra (añade uno).', true);
+				        return;
+				      }
+				      const objByUid = new Map();
+				      (canvas.getObjects?.() || []).forEach((obj) => {
+				        const uid = safeText(obj?.data?.layer_uid);
+				        if (uid && !obj?.data?.base) objByUid.set(uid, obj);
+				      });
+				      const fromObj = objByUid.get(fromUid);
+				      const toObj = objByUid.get(toUid);
+				      if (!fromObj || !toObj) {
+				        setStatus('Selecciona 2 fichas (origen y destino).', true);
+				        return;
+				      }
+				      const from = fromObj.getCenterPoint();
+				      const to = toObj.getCenterPoint();
+				      const mid = {
+				        x: (from.x + to.x) / 2,
+				        y: (from.y + to.y) / 2 - 60,
+				      };
+				      const routes = ensureStepRoutes(step);
+				      routes[ballUid] = { points: [from, mid, to].map((p) => ({ x: Number(p.x) || 0, y: Number(p.y) || 0 })), spline: true };
+				      step.ball_follow_uid = '';
+				      renderSimRoutesForStep(step);
+				      setStatus('Ruta de pase creada (balón).');
+				      try { scheduleDraftSave('sim-ball-pass'); } catch (e) { /* ignore */ }
+				    };
 				    const setSimPopoverOpen = (open) => {
 				      if (!simPopover) return;
 				      simPopover.hidden = !open;
@@ -3767,6 +3969,7 @@
 				        simulationAnimFrame = null;
 				      }
 				      clearSimMoveOverlays();
+				      clearSimRouteOverlays();
 				      syncSimUi();
 				    };
 				    const ensureLayerUidsOnCanvas = () => {
@@ -3986,6 +4189,61 @@
 				      to = from + delta;
 				      return from + (to - from) * t;
 				    };
+				    const routePoint = (p, fallback) => {
+				      const x = Number(p?.x);
+				      const y = Number(p?.y);
+				      if (Number.isFinite(x) && Number.isFinite(y)) return { x, y };
+				      return fallback || { x: 0, y: 0 };
+				    };
+				    const catmullRom = (p0, p1, p2, p3, t) => {
+				      const tt = t * t;
+				      const ttt = tt * t;
+				      const a0 = (-0.5 * ttt) + (tt) - (0.5 * t);
+				      const a1 = (1.5 * ttt) - (2.5 * tt) + 1;
+				      const a2 = (-1.5 * ttt) + (2 * tt) + (0.5 * t);
+				      const a3 = (0.5 * ttt) - (0.5 * tt);
+				      return {
+				        x: (p0.x * a0) + (p1.x * a1) + (p2.x * a2) + (p3.x * a3),
+				        y: (p0.y * a0) + (p1.y * a1) + (p2.y * a2) + (p3.y * a3),
+				      };
+				    };
+				    const sampleRoutePolyline = (points, t) => {
+				      const pts = Array.isArray(points) ? points.map((p) => routePoint(p)).filter(Boolean) : [];
+				      if (pts.length <= 1) return pts[0] || { x: 0, y: 0 };
+				      const segs = [];
+				      let total = 0;
+				      for (let i = 0; i < pts.length - 1; i += 1) {
+				        const a = pts[i];
+				        const b = pts[i + 1];
+				        const len = Math.hypot((b.x - a.x), (b.y - a.y)) || 0;
+				        segs.push({ a, b, len });
+				        total += len;
+				      }
+				      if (total <= 0.01) return pts[pts.length - 1];
+				      let dist = clamp(Number(t) || 0, 0, 1) * total;
+				      for (const seg of segs) {
+				        if (dist <= seg.len || seg.len <= 0.01) {
+				          const local = seg.len <= 0.01 ? 0 : (dist / seg.len);
+				          return { x: lerp(seg.a.x, seg.b.x, local), y: lerp(seg.a.y, seg.b.y, local) };
+				        }
+				        dist -= seg.len;
+				      }
+				      return pts[pts.length - 1];
+				    };
+				    const sampleRouteSpline = (points, t) => {
+				      const pts = Array.isArray(points) ? points.map((p) => routePoint(p)).filter(Boolean) : [];
+				      if (pts.length <= 1) return pts[0] || { x: 0, y: 0 };
+				      const n = pts.length;
+				      const scaled = clamp(Number(t) || 0, 0, 1) * (n - 1);
+				      const i = clamp(Math.floor(scaled), 0, n - 2);
+				      const localT = scaled - i;
+				      const p0 = pts[Math.max(0, i - 1)];
+				      const p1 = pts[i];
+				      const p2 = pts[i + 1];
+				      const p3 = pts[Math.min(n - 1, i + 2)];
+				      return catmullRom(p0, p1, p2, p3, localT);
+				    };
+				    const sampleRoute = (points, t, spline) => (spline ? sampleRouteSpline(points, t) : sampleRoutePolyline(points, t));
 				    const renderSimulationSteps = () => {
 				      if (!simStepsList) return;
 				      simStepsList.innerHTML = '';
@@ -4028,6 +4286,8 @@
 				        canvas_width: Math.round(w || 0),
 				        canvas_height: Math.round(h || 0),
 				        moves: [],
+				        routes: {},
+				        ball_follow_uid: '',
 				      }];
 				      simulationActiveIndex = 0;
 				      renderSimulationSteps();
@@ -4038,6 +4298,7 @@
 				      if (!step) return;
 				      if (!options.keepPlaying) stopSimulationPlayback();
 				      simulationActiveIndex = idx;
+				      ensureStepRoutes(step);
 				      const sourceWidth = parseIntSafe(step.canvas_width) || 0;
 				      const sourceHeight = parseIntSafe(step.canvas_height) || 0;
 				      if (typeof loadCanvasSnapshotAsync === 'function') {
@@ -4049,6 +4310,7 @@
 				      try { syncInspector(); } catch (e) { /* ignore */ }
 				      try { renderLayers(); } catch (e) { /* ignore */ }
 				      clearSimMoveOverlays();
+				      renderSimRoutesForStep(step);
 				      renderSimulationSteps();
 				    };
 				    const transitionToSimulationStep = async (index, options = {}) => {
@@ -4066,12 +4328,21 @@
 				        if (uid) endMap.set(uid, obj);
 				      });
 				      const liveObjects = (canvas.getObjects?.() || []).filter((obj) => obj && !(obj?.data?.base));
+				      const liveByUid = new Map();
+				      liveObjects.forEach((obj) => {
+				        const uid = safeText(obj?.data?.layer_uid);
+				        if (uid) liveByUid.set(uid, obj);
+				      });
+				      const stepRoutes = (step.routes && typeof step.routes === 'object') ? step.routes : {};
 				      const animTargets = [];
 				      liveObjects.forEach((obj) => {
 				        const uid = safeText(obj?.data?.layer_uid);
 				        if (!uid) return;
 				        const endObj = endMap.get(uid);
 				        if (!endObj) return;
+				        const route = stepRoutes?.[uid];
+				        const routePoints = Array.isArray(route?.points) ? route.points.slice(0, 60) : null;
+				        const routeSpline = !!route?.spline;
 				        animTargets.push({
 				          obj,
 				          start: {
@@ -4090,6 +4361,8 @@
 				            scaleY: clampScale(Number(endObj.scaleY) || 1),
 				            opacity: endObj.opacity == null ? 1 : Number(endObj.opacity),
 				          },
+				          routePoints,
+				          routeSpline,
 				        });
 				      });
 
@@ -4111,11 +4384,30 @@
 				          if (options.keepPlaying && !simulationPlaying) return resolve(false);
 				          const t = clamp((now - startTs) / Math.max(1, transitionMs), 0, 1);
 				          const eased = easeInOut(t);
-				          animTargets.forEach(({ obj, start, end }) => {
+				          animTargets.forEach(({ obj, start, end, routePoints, routeSpline }) => {
 				            try {
+				              let left = lerp(start.left, end.left, eased);
+				              let top = lerp(start.top, end.top, eased);
+				              if (routePoints && routePoints.length >= 2) {
+				                const combined = (() => {
+				                  const startPt = { x: start.left, y: start.top };
+				                  const endPt = { x: end.left, y: end.top };
+				                  const pts = routePoints.map((p) => routePoint(p)).filter(Boolean);
+				                  if (!pts.length) return [startPt, endPt];
+				                  const first = pts[0];
+				                  const last = pts[pts.length - 1];
+				                  const out = pts.slice();
+				                  if (Math.hypot((first.x - startPt.x), (first.y - startPt.y)) > 6) out.unshift(startPt);
+				                  if (Math.hypot((last.x - endPt.x), (last.y - endPt.y)) > 6) out.push(endPt);
+				                  return out;
+				                })();
+				                const sampled = sampleRoute(combined, eased, !!routeSpline);
+				                left = Number.isFinite(sampled?.x) ? sampled.x : left;
+				                top = Number.isFinite(sampled?.y) ? sampled.y : top;
+				              }
 				              obj.set({
-				                left: lerp(start.left, end.left, eased),
-				                top: lerp(start.top, end.top, eased),
+				                left,
+				                top,
 				                angle: lerpAngle(start.angle, end.angle, eased),
 				                scaleX: lerp(start.scaleX, end.scaleX, eased),
 				                scaleY: lerp(start.scaleY, end.scaleY, eased),
@@ -4124,6 +4416,20 @@
 				              obj.setCoords();
 				            } catch (error) { /* ignore */ }
 				          });
+				          // Balón pegado: si se configuró para este paso, sigue al objetivo (si no hay ruta propia del balón).
+				          try {
+				            const followUid = safeText(step?.ball_follow_uid);
+				            if (followUid) {
+				              const ballUid = findBallUid();
+				              const ballObj = ballUid ? liveByUid.get(ballUid) : null;
+				              const followObj = liveByUid.get(followUid);
+				              const ballHasRoute = ballUid && stepRoutes?.[ballUid] && Array.isArray(stepRoutes?.[ballUid]?.points) && stepRoutes[ballUid].points.length >= 2;
+				              if (ballObj && followObj && !ballHasRoute) {
+				                ballObj.set({ left: Number(followObj.left) || 0, top: Number(followObj.top) || 0 });
+				                ballObj.setCoords();
+				              }
+				            }
+				          } catch (e) { /* ignore */ }
 				          try { canvas.requestRenderAll(); } catch (error) { /* ignore */ }
 				          if (t < 1) {
 				            simulationAnimFrame = window.requestAnimationFrame(tick);
@@ -4153,6 +4459,8 @@
 				        canvas_width: Math.round(w || 0),
 				        canvas_height: Math.round(h || 0),
 				        moves,
+				        routes: {},
+				        ball_follow_uid: '',
 				      });
 				      simulationActiveIndex = simulationSteps.length - 1;
 				      renderSimulationSteps();
@@ -4180,6 +4488,9 @@
 				      let clonedState = null;
 				      try { clonedState = JSON.parse(JSON.stringify(step.canvas_state)); } catch (e) { clonedState = sanitizeLoadedState(step.canvas_state); }
 				      const moves = Array.isArray(step.moves) ? JSON.parse(JSON.stringify(step.moves)) : [];
+				      const routes = (() => {
+				        try { return step.routes ? JSON.parse(JSON.stringify(step.routes)) : {}; } catch (e) { return {}; }
+				      })();
 				      const clone = {
 				        title: `${safeText(step.title, `Paso ${simulationActiveIndex + 1}`)} copia`,
 				        duration: clamp(Number(step.duration) || 3, 1, 20),
@@ -4187,6 +4498,8 @@
 				        canvas_width: parseIntSafe(step.canvas_width) || 0,
 				        canvas_height: parseIntSafe(step.canvas_height) || 0,
 				        moves,
+				        routes,
+				        ball_follow_uid: safeText(step.ball_follow_uid),
 				      };
 				      const insertAt = clamp(simulationActiveIndex + 1, 0, simulationSteps.length);
 				      simulationSteps.splice(insertAt, 0, clone);
@@ -4225,6 +4538,7 @@
 				      const advance = async () => {
 				        if (!simulationPlaying) return;
 				        try { renderSimMovesForStep(simulationSteps[cursor]); } catch (e) { /* ignore */ }
+				        try { renderSimRoutesForStep(simulationSteps[cursor]); } catch (e) { /* ignore */ }
 				        const duration = clamp(Number(simulationSteps[cursor]?.duration) || 3, 1, 20);
 				        const speed = clamp(Number(simulationSpeed) || 1, 0.25, 3);
 				        const scaledDuration = Math.max(0.25, duration / speed);
@@ -4271,6 +4585,11 @@
 				      clearPendingPlacement();
 				      stopSimulationPlayback();
 				      clearSimGuides();
+				      simRouteAddMode = false;
+				      if (simRouteToggleBtn) {
+				        simRouteToggleBtn.textContent = 'Añadir waypoints';
+				        simRouteToggleBtn.classList.remove('primary');
+				      }
 				      simulationAutoCapture = true;
 				      simulationSpeed = 1.0;
 				      simulationLastAutoCaptureAt = 0;
@@ -4298,6 +4617,11 @@
 				    const exitSimulation = () => {
 				      if (!isSimulating) return;
 				      stopSimulationPlayback();
+				      simRouteAddMode = false;
+				      if (simRouteToggleBtn) {
+				        simRouteToggleBtn.textContent = 'Añadir waypoints';
+				        simRouteToggleBtn.classList.remove('primary');
+				      }
 				      if (simRecordActive) {
 				        try { stopSimRecording(); } catch (e) { /* ignore */ }
 				      }
@@ -4331,6 +4655,11 @@
 						    const resetSimulation = () => {
 						      if (!isSimulating) return;
 						      stopSimulationPlayback();
+						      simRouteAddMode = false;
+						      if (simRouteToggleBtn) {
+						        simRouteToggleBtn.textContent = 'Añadir waypoints';
+						        simRouteToggleBtn.classList.remove('primary');
+						      }
 						      if (simRecordActive) {
 						        try { stopSimRecording(); } catch (e) { /* ignore */ }
 						      }
@@ -4493,6 +4822,54 @@
 			      simulationTrajectories = !!simTrajectoriesInput.checked;
 			      if (!simulationTrajectories) clearSimMoveOverlays();
 			      setStatus(simulationTrajectories ? 'Trayectorias activadas.' : 'Trayectorias desactivadas.');
+			    });
+			    simRouteToggleBtn?.addEventListener('click', (event) => {
+			      event.preventDefault();
+			      if (!isSimulating) return;
+			      setRouteAddMode(!simRouteAddMode);
+			    });
+			    simRouteUndoBtn?.addEventListener('click', (event) => {
+			      event.preventDefault();
+			      if (!isSimulating) return;
+			      const target = activeRouteTarget();
+			      if (!target) return setStatus('Selecciona una ficha (o el balón) para editar su ruta.', true);
+			      undoRoutePoint(target.uid);
+			    });
+			    simRouteClearBtn?.addEventListener('click', (event) => {
+			      event.preventDefault();
+			      if (!isSimulating) return;
+			      const target = activeRouteTarget();
+			      if (!target) return setStatus('Selecciona una ficha (o el balón) para limpiar su ruta.', true);
+			      clearRoute(target.uid);
+			    });
+			    simRouteSplineInput?.addEventListener('change', () => {
+			      if (!isSimulating) return;
+			      const target = activeRouteTarget();
+			      if (!target) return;
+			      setRouteSpline(target.uid, !!simRouteSplineInput.checked);
+			    });
+			    simBallFollowBtn?.addEventListener('click', (event) => {
+			      event.preventDefault();
+			      if (!isSimulating) return;
+			      const target = activeRouteTarget();
+			      if (!target) return setStatus('Selecciona 1 ficha para pegarle el balón.', true);
+			      setBallFollow(target.uid);
+			    });
+			    simBallPassBtn?.addEventListener('click', (event) => {
+			      event.preventDefault();
+			      if (!isSimulating) return;
+			      const objects = getSelectionObjects().filter((obj) => safeText(obj?.data?.kind) === 'token' && !obj?.data?.base);
+			      if (objects.length < 2) {
+			        setStatus('Selecciona 2 fichas (origen y destino) para crear un pase.', true);
+			        return;
+			      }
+			      const u1 = safeText(objects[0]?.data?.layer_uid);
+			      const u2 = safeText(objects[1]?.data?.layer_uid);
+			      if (!u1 || !u2) {
+			        setStatus('No se pudo leer la selección.', true);
+			        return;
+			      }
+			      ensureBallRoutePass(u1, u2);
 			    });
 			    simSpeedSelect?.addEventListener('change', () => {
 			      const val = Number(simSpeedSelect.value);
@@ -8048,6 +8425,22 @@
 	    canvas.on('selection:created', renderLayers);
 	    canvas.on('selection:updated', renderLayers);
 	    canvas.on('selection:cleared', renderLayers);
+	    const syncSimRouteUiForSelection = () => {
+	      if (!isSimulating) return;
+	      const step = activeSimulationStep();
+	      if (!step) return;
+	      ensureStepRoutes(step);
+	      const target = activeRouteTarget();
+	      if (!target) {
+	        if (simRouteSplineInput) simRouteSplineInput.checked = false;
+	        return;
+	      }
+	      const route = step.routes?.[target.uid];
+	      if (simRouteSplineInput) simRouteSplineInput.checked = !!route?.spline;
+	    };
+	    canvas.on('selection:created', syncSimRouteUiForSelection);
+	    canvas.on('selection:updated', syncSimRouteUiForSelection);
+	    canvas.on('selection:cleared', syncSimRouteUiForSelection);
 	    const syncInspectorDock = () => {
 	      const active = activeInspectableObject();
 	      if (!active) return;
@@ -8115,6 +8508,23 @@
 	      if (isSimulating && simulationPlaying) {
 	        stopSimulationPlayback();
 	        setStatus('Reproducción detenida (interacción).');
+	      }
+	      if (isSimulating && simRouteAddMode && e && !pendingFactory) {
+	        const targetObj = event?.target;
+	        // Si el usuario pulsa sobre una ficha, dejamos que seleccione/mueva; si pulsa campo/fondo, añadimos waypoint.
+	        const clickedTokenLike = targetObj && !isBackgroundShape(targetObj) && !targetObj?.data?.base;
+	        if (!clickedTokenLike) {
+	          const target = activeRouteTarget();
+	          if (!target) {
+	            setStatus('Selecciona una ficha (o el balón) para añadir waypoints.', true);
+	            return;
+	          }
+	          const raw = canvas.getPointer(e);
+	          const pointer = { x: Number(raw?.x) || 0, y: Number(raw?.y) || 0 };
+	          const ok = addRoutePointAt(target.uid, pointer);
+	          if (ok) setStatus('Waypoint añadido.');
+	          return;
+	        }
 	      }
 	      if (backgroundPickMode && e && !pendingFactory) {
 	        const candidate = pickBackgroundFromEvent(e);
