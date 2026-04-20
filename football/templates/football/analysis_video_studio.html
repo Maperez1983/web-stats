@@ -26,8 +26,10 @@
       .button.ghost { background: rgba(255,255,255,0.02); }
       .button:disabled { opacity:0.55; cursor:not-allowed; }
       .stage { position:relative; width:100%; border-radius: 18px; overflow:hidden; border: 1px solid rgba(148,163,184,0.18); background: rgba(0,0,0,0.22); }
-      .stage video { display:block; width:100%; height:auto; }
+      .stage video { display:block; width:100%; height:auto; position:relative; z-index: 1; }
       .stage canvas { position:absolute; left:0; top:0; width:100%; height:100%; touch-action:none; }
+      .stage #vs-fx { z-index: 2; pointer-events:none; }
+      .stage #vs-canvas { z-index: 3; }
       .status { margin-top:0.55rem; color: rgba(226,232,240,0.72); font-weight:800; }
       .field { display:grid; gap:0.45rem; }
       label { display:grid; gap:0.25rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; color: rgba(226,232,240,0.78); }
@@ -42,6 +44,7 @@
       .row small { color: rgba(226,232,240,0.7); font-weight:800; }
       .split { margin-top: 1rem; padding-top: 0.95rem; border-top: 1px solid rgba(148,163,184,0.16); }
       .k { display:inline-flex; align-items:center; justify-content:center; min-width: 26px; padding: 0.1rem 0.4rem; border-radius: 10px; border: 1px solid rgba(148,163,184,0.22); background: rgba(2, 6, 23, 0.35); font-weight: 900; font-size: 0.72rem; }
+      .hint { color: rgba(226,232,240,0.72); font-weight:800; font-size:0.85rem; }
     </style>
   </head>
   <body class="prod-commercial">
@@ -73,6 +76,8 @@
               <button type="button" class="button" id="vs-tool-pen">Pen</button>
               <button type="button" class="button" id="vs-tool-arrow">Arrow</button>
               <button type="button" class="button" id="vs-tool-text">Texto</button>
+              <button type="button" class="button" id="vs-tool-callout">Callout</button>
+              <button type="button" class="button" id="vs-tool-spot">Spotlight</button>
               <button type="button" class="button" id="vs-undo">Undo</button>
               <button type="button" class="button danger" id="vs-clear">Limpiar</button>
               <input type="color" id="vs-color" value="#22d3ee" title="Color" />
@@ -84,6 +89,7 @@
             <video id="vs-video" controls preload="metadata" playsinline crossorigin="anonymous">
               <source src="{{ video.video.url }}" />
             </video>
+            <canvas id="vs-fx"></canvas>
             <canvas id="vs-canvas"></canvas>
           </div>
           <div class="status" id="vs-status">Listo.</div>
@@ -110,6 +116,46 @@
                   <input type="number" id="vs-out" min="0" step="0.1" value="0" />
                 </div>
               </label>
+            </div>
+
+            <div class="split">
+              <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem;">Capa seleccionada</div>
+              <div class="hint" id="vs-layer-empty">Selecciona un dibujo o un FX para editar su entrada/salida.</div>
+              <div id="vs-layer-form" style="display:none; gap:0.45rem;">
+                <div class="hint" id="vs-layer-kind"></div>
+                <label>
+                  Entrada / salida (segundos)
+                  <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.45rem;">
+                    <input type="number" id="vs-layer-in" min="0" step="0.1" value="0" />
+                    <input type="number" id="vs-layer-out" min="0" step="0.1" value="0" />
+                  </div>
+                </label>
+                <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
+                  <button type="button" class="button" id="vs-layer-in-now">IN=Ahora</button>
+                  <button type="button" class="button" id="vs-layer-out-now">OUT=Ahora</button>
+                  <button type="button" class="button danger" id="vs-layer-del">Borrar capa</button>
+                </div>
+                <label>
+                  Fade (ms)
+                  <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.45rem;">
+                    <input type="number" id="vs-layer-fade-in" min="0" step="50" value="0" />
+                    <input type="number" id="vs-layer-fade-out" min="0" step="50" value="0" />
+                  </div>
+                </label>
+                <label>
+                  Animación
+                  <select id="vs-layer-anim">
+                    <option value="none">Ninguna</option>
+                    <option value="draw">Trazo progresivo</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+
+            <div class="split">
+              <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem;">FX (Spotlight)</div>
+              <div class="hint">Crea un spotlight con la herramienta <span class="k">Spotlight</span> y edita su timing aquí.</div>
+              <div class="list" id="vs-fx-layers"></div>
             </div>
 
             <div class="split">

@@ -28,8 +28,9 @@
   const init = () => {
     const video = document.getElementById('vs-video');
     const canvasEl = document.getElementById('vs-canvas');
+    const fxEl = document.getElementById('vs-fx');
     const stage = document.getElementById('vs-stage');
-    if (!video || !canvasEl || !stage || !window.fabric) return;
+    if (!video || !canvasEl || !fxEl || !stage || !window.fabric) return;
 
     const btnPlay = document.getElementById('vs-play');
     const btnPause = document.getElementById('vs-pause');
@@ -38,10 +39,13 @@
     const btnExportSeg = document.getElementById('vs-export-seg');
     const btnRecord = document.getElementById('vs-record');
     const btnSnap = document.getElementById('vs-snap');
+
     const btnSelect = document.getElementById('vs-tool-select');
     const btnPen = document.getElementById('vs-tool-pen');
     const btnArrow = document.getElementById('vs-tool-arrow');
     const btnText = document.getElementById('vs-tool-text');
+    const btnCallout = document.getElementById('vs-tool-callout');
+    const btnSpot = document.getElementById('vs-tool-spot');
     const btnUndo = document.getElementById('vs-undo');
     const btnClear = document.getElementById('vs-clear');
     const colorInput = document.getElementById('vs-color');
@@ -60,26 +64,57 @@
     const timelineUrl = safeText(document.getElementById('vs-timeline-url')?.value);
     const timelineSaveUrl = safeText(document.getElementById('vs-timeline-save-url')?.value);
     const timelineDeleteUrl = safeText(document.getElementById('vs-timeline-delete-url')?.value);
+
     const projectTitleInput = document.getElementById('vs-project-title');
     const projectSaveBtn = document.getElementById('vs-project-save');
     const projectRefreshBtn = document.getElementById('vs-project-refresh');
     const projectsList = document.getElementById('vs-projects');
+
     const clipTitleInput = document.getElementById('vs-clip-title');
     const clipCollectionInput = document.getElementById('vs-clip-collection');
     const clipSaveBtn = document.getElementById('vs-clip-save');
     const clipRefreshBtn = document.getElementById('vs-clip-refresh');
     const clipsList = document.getElementById('vs-clips');
+
     const eventKindSelect = document.getElementById('vs-event-kind');
     const eventLabelInput = document.getElementById('vs-event-label');
     const eventAddBtn = document.getElementById('vs-event-add');
     const eventRefreshBtn = document.getElementById('vs-event-refresh');
     const timelineList = document.getElementById('vs-timeline');
 
+    const layerEmpty = document.getElementById('vs-layer-empty');
+    const layerForm = document.getElementById('vs-layer-form');
+    const layerKind = document.getElementById('vs-layer-kind');
+    const layerInInput = document.getElementById('vs-layer-in');
+    const layerOutInput = document.getElementById('vs-layer-out');
+    const layerInNowBtn = document.getElementById('vs-layer-in-now');
+    const layerOutNowBtn = document.getElementById('vs-layer-out-now');
+    const layerFadeInInput = document.getElementById('vs-layer-fade-in');
+    const layerFadeOutInput = document.getElementById('vs-layer-fade-out');
+    const layerAnimSelect = document.getElementById('vs-layer-anim');
+    const layerDelBtn = document.getElementById('vs-layer-del');
+    const fxLayersList = document.getElementById('vs-fx-layers');
+
     const csrf = document.querySelector('input[name="csrfmiddlewaretoken"]')?.value || '';
 
     const fabricCanvas = new fabric.Canvas(canvasEl, { preserveObjectStacking: true, selection: true });
     try { fabricCanvas.freeDrawingBrush.width = 6; } catch (e) { /* ignore */ }
     try { fabricCanvas.freeDrawingBrush.color = '#22d3ee'; } catch (e) { /* ignore */ }
+
+    const fxCtx = fxEl.getContext('2d');
+
+    const fmtTimeShort = (seconds) => {
+      const s = Math.max(0, Number(seconds) || 0);
+      const mm = Math.floor(s / 60);
+      const ss = Math.floor(s % 60);
+      return `${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
+    };
+    const fmtTime = (t) => {
+      const v = Math.max(0, Number(t) || 0);
+      const m = Math.floor(v / 60);
+      const s = v - (m * 60);
+      return `${m}:${String(Math.floor(s)).padStart(2, '0')}.${String(Math.round((s % 1) * 10))}`;
+    };
 
     const history = [];
     const pushHistory = () => {
@@ -89,10 +124,184 @@
         if (history.length > 40) history.shift();
       } catch (e) { /* ignore */ }
     };
+
+    const ensureLayerData = (obj) => {
+      if (!obj) return;
+      if (!obj.data || typeof obj.data !== 'object') obj.data = {};
+      if (obj.data.t_in_s == null) obj.data.t_in_s = 0;
+      if (obj.data.t_out_s == null) obj.data.t_out_s = 0;
+      if (obj.data.fade_in_ms == null) obj.data.fade_in_ms = 0;
+      if (obj.data.fade_out_ms == null) obj.data.fade_out_ms = 0;
+      if (obj.data.anim == null) obj.data.anim = 'none';
+    };
+
+    const seedLayerDataNow = (extra = {}) => ({
+      t_in_s: Number(video.currentTime) || 0,
+      t_out_s: 0,
+      fade_in_ms: 0,
+      fade_out_ms: 0,
+      anim: 'none',
+      ...extra,
+    });
+
+    const computeTimedAlpha = (timing, nowS) => {
+      const tIn = Math.max(0, Number(timing?.t_in_s) || 0);
+      const tOut = Math.max(0, Number(timing?.t_out_s) || 0);
+      const fadeInS = Math.max(0, (Number(timing?.fade_in_ms) || 0) / 1000);
+      const fadeOutS = Math.max(0, (Number(timing?.fade_out_ms) || 0) / 1000);
+
+      if (!tIn && !tOut) return 1;
+      if (nowS < tIn) return 0;
+      if (tOut > 0 && nowS > tOut) return 0;
+
+      let a = 1;
+      if (fadeInS > 0) a = Math.min(a, clamp((nowS - tIn) / fadeInS, 0, 1));
+      if (tOut > 0 && fadeOutS > 0) a = Math.min(a, clamp((tOut - nowS) / fadeOutS, 0, 1));
+      return clamp(a, 0, 1);
+    };
+
+    let fxSeq = 1;
+    const fxState = { layers: [] };
+    let fxPreview = null;
+    let selectedFxId = 0;
+    const getFxById = (id) => (Array.isArray(fxState.layers) ? fxState.layers : []).find((l) => Number(l?.id) === Number(id));
+    const reseedFxSeq = () => {
+      const maxId = Math.max(0, ...((Array.isArray(fxState.layers) ? fxState.layers : []).map((l) => Number(l?.id) || 0)));
+      fxSeq = maxId + 1;
+    };
+
+    const renderFx = (ctx, { width, height, nowS, forExport = false } = {}) => {
+      if (!ctx) return;
+      const w = Math.max(1, Number(width) || fxEl.width || 1);
+      const h = Math.max(1, Number(height) || fxEl.height || 1);
+      const t = Number.isFinite(nowS) ? Number(nowS) : (Number(video.currentTime) || 0);
+
+      try { ctx.clearRect(0, 0, w, h); } catch (e) { /* ignore */ }
+
+      const active = [];
+      for (const layer of (Array.isArray(fxState.layers) ? fxState.layers : [])) {
+        if (safeText(layer?.kind) !== 'spotlight') continue;
+        const alpha = computeTimedAlpha(layer, t);
+        if (alpha <= 0.001) continue;
+        active.push({ layer, alpha });
+      }
+      if (!forExport && fxPreview && safeText(fxPreview?.kind) === 'spotlight') {
+        active.push({ layer: fxPreview, alpha: 1 });
+      }
+      if (!active.length) return;
+
+      const base = Math.max(...active.map((x) => clamp(Number(x.layer?.intensity ?? 0.68), 0, 0.9)));
+      ctx.save();
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = `rgba(0,0,0,${clamp(base, 0, 0.9)})`;
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.globalCompositeOperation = 'destination-out';
+      for (const item of active) {
+        const l = item.layer;
+        const cx = clamp(Number(l?.cx) || 0, 0, w);
+        const cy = clamp(Number(l?.cy) || 0, 0, h);
+        const r = clamp(Number(l?.r) || 0, 0, Math.max(w, h));
+        const feather = clamp(Number(l?.feather ?? 0.18), 0.02, 0.6);
+        const rr0 = Math.max(1, r * (1 - feather));
+        const rr1 = Math.max(rr0 + 1, r);
+        const g = ctx.createRadialGradient(cx, cy, rr0, cx, cy, rr1);
+        g.addColorStop(0, `rgba(0,0,0,${clamp(item.alpha, 0, 1)})`);
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(cx, cy, rr1, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+
+      if (!forExport) {
+        const selected = selectedFxId ? getFxById(selectedFxId) : null;
+        if (selected && selected.kind === 'spotlight') {
+          try {
+            ctx.save();
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.strokeStyle = 'rgba(34,211,238,0.9)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([10, 8]);
+            ctx.beginPath();
+            ctx.arc(Number(selected.cx) || 0, Number(selected.cy) || 0, Number(selected.r) || 0, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+          } catch (e) { /* ignore */ }
+        }
+        if (fxPreview && fxPreview.kind === 'spotlight') {
+          try {
+            ctx.save();
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.strokeStyle = 'rgba(250,204,21,0.95)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([8, 6]);
+            ctx.beginPath();
+            ctx.arc(Number(fxPreview.cx) || 0, Number(fxPreview.cy) || 0, Number(fxPreview.r) || 0, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+          } catch (e) { /* ignore */ }
+        }
+      }
+    };
+
+    const renderFxList = () => {
+      if (!fxLayersList) return;
+      const items = (Array.isArray(fxState.layers) ? fxState.layers : []).filter((l) => safeText(l?.kind) === 'spotlight').slice(0, 60);
+      const rows = items.map((l) => {
+        const id = Number(l?.id) || 0;
+        if (!id) return '';
+        const inS = Number(l?.t_in_s) || 0;
+        const outS = Number(l?.t_out_s) || 0;
+        const label = `${fmtTimeShort(inS)} → ${fmtTimeShort(outS || inS)}`;
+        const isSel = selectedFxId === id;
+        return `
+          <div class="row" style="${isSel ? 'border-color: rgba(34,211,238,0.55); background: rgba(34,211,238,0.07);' : ''}">
+            <div style="display:flex; flex-direction:column; gap:0.05rem;">
+              <strong>Spotlight</strong>
+              <small>${label}</small>
+            </div>
+            <div style="display:flex; gap:0.35rem; flex-wrap:wrap;">
+              <button type="button" class="button" data-vs-fx-edit="${id}">Editar</button>
+              <button type="button" class="button danger" data-vs-fx-del="${id}">Borrar</button>
+            </div>
+          </div>
+        `;
+      }).filter(Boolean).join('');
+      fxLayersList.innerHTML = rows || '<div class="hint">Sin spotlights.</div>';
+
+      Array.from(fxLayersList.querySelectorAll('[data-vs-fx-edit]')).forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const id = Number(btn.getAttribute('data-vs-fx-edit') || 0);
+          if (!id) return;
+          selectedFxId = id;
+          try { fabricCanvas.discardActiveObject(); } catch (e) { /* ignore */ }
+          updateLayerPanel();
+          renderFxList();
+        });
+      });
+      Array.from(fxLayersList.querySelectorAll('[data-vs-fx-del]')).forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const id = Number(btn.getAttribute('data-vs-fx-del') || 0);
+          if (!id) return;
+          const ok = window.confirm('¿Borrar spotlight?');
+          if (!ok) return;
+          fxState.layers = (Array.isArray(fxState.layers) ? fxState.layers : []).filter((x) => Number(x?.id) !== id);
+          if (selectedFxId === id) selectedFxId = 0;
+          reseedFxSeq();
+          renderFxList();
+          updateLayerPanel();
+        });
+      });
+    };
+
     const restoreJson = (json) => {
       if (!json) return;
       fabricCanvas.loadFromJSON(json, () => {
+        try { fabricCanvas.getObjects().forEach((o) => ensureLayerData(o)); } catch (e) { /* ignore */ }
         fabricCanvas.renderAll();
+        updateLayerPanel();
       });
     };
 
@@ -102,6 +311,8 @@
       const h = Math.max(1, Math.round(rect.height));
       canvasEl.width = w;
       canvasEl.height = h;
+      fxEl.width = w;
+      fxEl.height = h;
       fabricCanvas.setWidth(w);
       fabricCanvas.setHeight(h);
       fabricCanvas.renderAll();
@@ -123,30 +334,6 @@
     video.addEventListener('loadeddata', scheduleResize);
     scheduleResize();
 
-    const fmtTime = (seconds) => {
-      const s = Math.max(0, Number(seconds) || 0);
-      const mm = Math.floor(s / 60);
-      const ss = Math.floor(s % 60);
-      return `${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
-    };
-
-    let tool = 'select';
-    let arrowStart = null;
-    const setTool = (next) => {
-      tool = next;
-      const isSelect = tool === 'select';
-      const isPen = tool === 'pen';
-      fabricCanvas.isDrawingMode = isPen;
-      try { fabricCanvas.selection = isSelect; } catch (e) { /* ignore */ }
-      Array.from([btnSelect, btnPen, btnArrow, btnText]).forEach((b) => b?.classList.remove('primary'));
-      if (tool === 'select') btnSelect?.classList.add('primary');
-      if (tool === 'pen') btnPen?.classList.add('primary');
-      if (tool === 'arrow') btnArrow?.classList.add('primary');
-      if (tool === 'text') btnText?.classList.add('primary');
-      setStatus(`Herramienta: ${tool}`);
-    };
-    setTool('select');
-
     const strokeColor = () => safeText(colorInput?.value, '#22d3ee');
     const strokeWidth = () => clamp(Number(widthInput?.value || 6), 1, 26);
     colorInput?.addEventListener('change', () => {
@@ -154,6 +341,153 @@
     });
     widthInput?.addEventListener('input', () => {
       try { fabricCanvas.freeDrawingBrush.width = strokeWidth(); } catch (e) { /* ignore */ }
+    });
+
+    let tool = 'select';
+    let arrowStart = null;
+    let calloutSeq = 1;
+
+    const setTool = (next) => {
+      tool = next;
+      const isSelect = tool === 'select';
+      const isPen = tool === 'pen';
+      fabricCanvas.isDrawingMode = isPen;
+      try { fabricCanvas.selection = isSelect; } catch (e) { /* ignore */ }
+
+      if (tool !== 'spot') fxPreview = null;
+      fxEl.style.pointerEvents = tool === 'spot' ? 'auto' : 'none';
+
+      Array.from([btnSelect, btnPen, btnArrow, btnText, btnCallout, btnSpot]).forEach((b) => b?.classList.remove('primary'));
+      if (tool === 'select') btnSelect?.classList.add('primary');
+      if (tool === 'pen') btnPen?.classList.add('primary');
+      if (tool === 'arrow') btnArrow?.classList.add('primary');
+      if (tool === 'text') btnText?.classList.add('primary');
+      if (tool === 'callout') btnCallout?.classList.add('primary');
+      if (tool === 'spot') btnSpot?.classList.add('primary');
+      setStatus(`Herramienta: ${tool}`);
+    };
+    setTool('select');
+
+    const activeObject = () => {
+      try { return fabricCanvas.getActiveObject(); } catch (e) { return null; }
+    };
+    const currentLayerTarget = () => {
+      const fx = selectedFxId ? getFxById(selectedFxId) : null;
+      if (fx) return { type: 'fx', fx };
+      const obj = activeObject();
+      if (obj) return { type: 'fabric', obj };
+      return null;
+    };
+
+    const updateLayerPanel = () => {
+      if (!layerEmpty || !layerForm) return;
+      const target = currentLayerTarget();
+      if (!target) {
+        layerEmpty.style.display = '';
+        layerForm.style.display = 'none';
+        return;
+      }
+      layerEmpty.style.display = 'none';
+      layerForm.style.display = 'grid';
+
+      if (target.type === 'fx') {
+        const fx = target.fx;
+        if (layerKind) layerKind.textContent = 'FX · Spotlight';
+        if (layerInInput) layerInInput.value = String((Number(fx.t_in_s) || 0).toFixed(1));
+        if (layerOutInput) layerOutInput.value = String((Number(fx.t_out_s) || 0).toFixed(1));
+        if (layerFadeInInput) layerFadeInInput.value = String(Math.max(0, Number(fx.fade_in_ms) || 0));
+        if (layerFadeOutInput) layerFadeOutInput.value = String(Math.max(0, Number(fx.fade_out_ms) || 0));
+        if (layerAnimSelect) layerAnimSelect.value = 'none';
+        if (layerAnimSelect) layerAnimSelect.disabled = true;
+        return;
+      }
+
+      const obj = target.obj;
+      ensureLayerData(obj);
+      if (layerKind) layerKind.textContent = `Dibujo · ${safeText(obj?.type, 'obj')}`;
+      if (layerInInput) layerInInput.value = String((Number(obj.data.t_in_s) || 0).toFixed(1));
+      if (layerOutInput) layerOutInput.value = String((Number(obj.data.t_out_s) || 0).toFixed(1));
+      if (layerFadeInInput) layerFadeInInput.value = String(Math.max(0, Number(obj.data.fade_in_ms) || 0));
+      if (layerFadeOutInput) layerFadeOutInput.value = String(Math.max(0, Number(obj.data.fade_out_ms) || 0));
+      if (layerAnimSelect) layerAnimSelect.value = safeText(obj.data.anim, 'none');
+      if (layerAnimSelect) layerAnimSelect.disabled = false;
+    };
+
+    const applyLayerPanelEdits = () => {
+      const target = currentLayerTarget();
+      if (!target) return;
+      const tIn = Number(layerInInput?.value || 0) || 0;
+      const tOut = Number(layerOutInput?.value || 0) || 0;
+      const fadeIn = Math.max(0, Number(layerFadeInInput?.value || 0) || 0);
+      const fadeOut = Math.max(0, Number(layerFadeOutInput?.value || 0) || 0);
+      const anim = safeText(layerAnimSelect?.value, 'none');
+      if (target.type === 'fx') {
+        target.fx.t_in_s = tIn;
+        target.fx.t_out_s = tOut;
+        target.fx.fade_in_ms = fadeIn;
+        target.fx.fade_out_ms = fadeOut;
+        renderFxList();
+        return;
+      }
+      const obj = target.obj;
+      ensureLayerData(obj);
+      obj.data.t_in_s = tIn;
+      obj.data.t_out_s = tOut;
+      obj.data.fade_in_ms = fadeIn;
+      obj.data.fade_out_ms = fadeOut;
+      obj.data.anim = anim;
+      pushHistory();
+    };
+
+    [layerInInput, layerOutInput, layerFadeInInput, layerFadeOutInput, layerAnimSelect].forEach((el) => {
+      el?.addEventListener('change', () => { applyLayerPanelEdits(); updateLayerPanel(); });
+    });
+    layerInNowBtn?.addEventListener('click', () => {
+      const target = currentLayerTarget();
+      if (!target) return;
+      const now = Number(video.currentTime) || 0;
+      if (target.type === 'fx') {
+        target.fx.t_in_s = now;
+        renderFxList();
+        updateLayerPanel();
+        return;
+      }
+      ensureLayerData(target.obj);
+      target.obj.data.t_in_s = now;
+      pushHistory();
+      updateLayerPanel();
+    });
+    layerOutNowBtn?.addEventListener('click', () => {
+      const target = currentLayerTarget();
+      if (!target) return;
+      const now = Number(video.currentTime) || 0;
+      if (target.type === 'fx') {
+        target.fx.t_out_s = now;
+        renderFxList();
+        updateLayerPanel();
+        return;
+      }
+      ensureLayerData(target.obj);
+      target.obj.data.t_out_s = now;
+      pushHistory();
+      updateLayerPanel();
+    });
+    layerDelBtn?.addEventListener('click', () => {
+      const target = currentLayerTarget();
+      if (!target) return;
+      const ok = window.confirm('¿Borrar capa seleccionada?');
+      if (!ok) return;
+      if (target.type === 'fx') {
+        fxState.layers = (Array.isArray(fxState.layers) ? fxState.layers : []).filter((x) => Number(x?.id) !== Number(target.fx.id));
+        selectedFxId = 0;
+        reseedFxSeq();
+        renderFxList();
+        updateLayerPanel();
+        return;
+      }
+      try { fabricCanvas.remove(target.obj); } catch (e) { /* ignore */ }
+      pushHistory();
+      updateLayerPanel();
     });
 
     fabricCanvas.on('mouse:down', (opt) => {
@@ -172,9 +506,45 @@
           fontWeight: '800',
           shadow: 'rgba(15,23,42,0.65) 0 1px 3px',
         });
+        t.data = seedLayerDataNow();
         fabricCanvas.add(t);
         pushHistory();
         fabricCanvas.setActiveObject(t);
+        selectedFxId = 0;
+        updateLayerPanel();
+        renderFxList();
+      }
+      if (tool === 'callout') {
+        const p = fabricCanvas.getPointer(opt.e);
+        const n = calloutSeq++;
+        const circle = new fabric.Circle({
+          left: p.x,
+          top: p.y,
+          radius: 16 + Math.round(strokeWidth() / 2),
+          fill: 'rgba(2,6,23,0.65)',
+          stroke: strokeColor(),
+          strokeWidth: 3,
+          originX: 'center',
+          originY: 'center',
+        });
+        const text = new fabric.Text(String(n), {
+          left: p.x,
+          top: p.y,
+          fill: '#ffffff',
+          fontSize: 18,
+          fontWeight: '900',
+          originX: 'center',
+          originY: 'center',
+          shadow: 'rgba(0,0,0,0.45) 0 1px 2px',
+        });
+        const group = new fabric.Group([circle, text], { selectable: true });
+        group.data = seedLayerDataNow({ kind: 'callout', callout_n: n });
+        fabricCanvas.add(group);
+        pushHistory();
+        fabricCanvas.setActiveObject(group);
+        selectedFxId = 0;
+        updateLayerPanel();
+        renderFxList();
       }
     });
     fabricCanvas.on('mouse:up', (opt) => {
@@ -185,7 +555,6 @@
         strokeWidth: strokeWidth(),
         selectable: true,
       });
-      // Punta simple.
       const ang = Math.atan2(end.y - arrowStart.y, end.x - arrowStart.x);
       const headLen = 14 + strokeWidth();
       const hx1 = end.x - headLen * Math.cos(ang - Math.PI / 7);
@@ -198,16 +567,90 @@
         { x: hx2, y: hy2 },
       ], { fill: strokeColor(), selectable: true });
       const group = new fabric.Group([line, head], { selectable: true });
+      group.data = seedLayerDataNow({ kind: 'arrow', anim: 'draw', anim_ms: 700 });
       fabricCanvas.add(group);
       pushHistory();
+      fabricCanvas.setActiveObject(group);
+      selectedFxId = 0;
+      updateLayerPanel();
+      renderFxList();
       arrowStart = null;
     });
-    fabricCanvas.on('path:created', () => pushHistory());
+    fabricCanvas.on('path:created', (opt) => {
+      const p = opt?.path;
+      if (p) p.data = seedLayerDataNow();
+      pushHistory();
+      updateLayerPanel();
+    });
+    fabricCanvas.on('selection:created', () => { selectedFxId = 0; updateLayerPanel(); renderFxList(); });
+    fabricCanvas.on('selection:updated', () => { selectedFxId = 0; updateLayerPanel(); renderFxList(); });
+    fabricCanvas.on('selection:cleared', updateLayerPanel);
 
     btnSelect?.addEventListener('click', () => setTool('select'));
     btnPen?.addEventListener('click', () => setTool('pen'));
     btnArrow?.addEventListener('click', () => setTool('arrow'));
     btnText?.addEventListener('click', () => setTool('text'));
+    btnCallout?.addEventListener('click', () => setTool('callout'));
+    btnSpot?.addEventListener('click', () => setTool('spot'));
+
+    // Spotlight tool (FX canvas)
+    let spotDrag = null;
+    const pointerToFx = (ev) => {
+      const rect = fxEl.getBoundingClientRect();
+      const x = clamp(((ev.clientX - rect.left) / rect.width) * fxEl.width, 0, fxEl.width);
+      const y = clamp(((ev.clientY - rect.top) / rect.height) * fxEl.height, 0, fxEl.height);
+      return { x, y };
+    };
+    fxEl.addEventListener('pointerdown', (ev) => {
+      if (tool !== 'spot') return;
+      try { fxEl.setPointerCapture(ev.pointerId); } catch (e) { /* ignore */ }
+      const p = pointerToFx(ev);
+      spotDrag = { start: p };
+      fxPreview = { kind: 'spotlight', cx: p.x, cy: p.y, r: 8, intensity: 0.68, feather: 0.18 };
+      selectedFxId = 0;
+      try { fabricCanvas.discardActiveObject(); } catch (e) { /* ignore */ }
+      updateLayerPanel();
+      renderFxList();
+    });
+    fxEl.addEventListener('pointermove', (ev) => {
+      if (tool !== 'spot' || !spotDrag || !fxPreview) return;
+      const p = pointerToFx(ev);
+      const dx = p.x - spotDrag.start.x;
+      const dy = p.y - spotDrag.start.y;
+      fxPreview.cx = spotDrag.start.x;
+      fxPreview.cy = spotDrag.start.y;
+      fxPreview.r = Math.max(10, Math.hypot(dx, dy));
+    });
+    const endSpot = (ev) => {
+      if (tool !== 'spot' || !spotDrag) return;
+      try { fxEl.releasePointerCapture(ev.pointerId); } catch (e) { /* ignore */ }
+      const now = Number(video.currentTime) || 0;
+      if (fxPreview && Number(fxPreview.r) >= 12) {
+        const layer = {
+          id: fxSeq++,
+          kind: 'spotlight',
+          cx: Number(fxPreview.cx) || 0,
+          cy: Number(fxPreview.cy) || 0,
+          r: Number(fxPreview.r) || 0,
+          intensity: 0.68,
+          feather: 0.18,
+          t_in_s: now,
+          t_out_s: 0,
+          fade_in_ms: 150,
+          fade_out_ms: 150,
+        };
+        fxState.layers.push(layer);
+        reseedFxSeq();
+        selectedFxId = layer.id;
+        renderFxList();
+        updateLayerPanel();
+        setStatus('Spotlight añadido.');
+      }
+      spotDrag = null;
+      fxPreview = null;
+    };
+    fxEl.addEventListener('pointerup', endSpot);
+    fxEl.addEventListener('pointercancel', endSpot);
 
     btnUndo?.addEventListener('click', () => {
       if (history.length <= 1) {
@@ -226,15 +669,9 @@
       fabricCanvas.clear();
       pushHistory();
       fabricCanvas.renderAll();
+      updateLayerPanel();
       setStatus('Lienzo limpio.');
     });
-
-    const fmtTime = (t) => {
-      const v = Math.max(0, Number(t) || 0);
-      const m = Math.floor(v / 60);
-      const s = v - (m * 60);
-      return `${m}:${String(Math.floor(s)).padStart(2, '0')}.${String(Math.round((s % 1) * 10))}`;
-    };
 
     const syncPlayButtons = () => {
       const playing = !video.paused && !video.ended;
@@ -272,6 +709,7 @@
       const ctx = off.getContext('2d');
       if (!ctx) return;
       try { ctx.drawImage(video, 0, 0, w, h); } catch (e) { /* ignore */ }
+      try { renderFx(ctx, { width: w, height: h, nowS: Number(video.currentTime) || 0, forExport: true }); } catch (e) { /* ignore */ }
       try { ctx.drawImage(canvasEl, 0, 0, w, h); } catch (e) { /* ignore */ }
       off.toBlob((blob) => {
         if (!blob) return;
@@ -301,8 +739,8 @@
       recCanvas = null;
       recCtx = null;
       stopAt = null;
-      btnRecord.textContent = 'Grabar';
-      btnExportSeg.disabled = false;
+      if (btnRecord) btnRecord.textContent = 'Grabar';
+      if (btnExportSeg) btnExportSeg.disabled = false;
       setStatus('Grabación finalizada.');
     };
 
@@ -360,6 +798,7 @@
           recCtx.fillStyle = '#000';
           recCtx.fillRect(0, 0, w, h);
           try { recCtx.drawImage(video, 0, 0, w, h); } catch (e) { /* ignore */ }
+          try { renderFx(recCtx, { width: w, height: h, nowS: Number(video.currentTime) || 0, forExport: true }); } catch (e) { /* ignore */ }
           try { recCtx.drawImage(canvasEl, 0, 0, w, h); } catch (e) { /* ignore */ }
         } catch (e) { /* ignore */ }
         if (stopAt != null && (Number(video.currentTime) || 0) >= stopAt) {
@@ -370,8 +809,8 @@
       };
 
       recActive = true;
-      btnRecord.textContent = 'Parar';
-      btnExportSeg.disabled = true;
+      if (btnRecord) btnRecord.textContent = 'Parar';
+      if (btnExportSeg) btnExportSeg.disabled = true;
       try { recMedia.start(250); } catch (e) { setStatus('No se pudo iniciar la grabación.', true); recActive = false; return; }
       try { await video.play(); } catch (e) { /* ignore */ }
       recRaf = window.requestAnimationFrame(draw);
@@ -395,7 +834,7 @@
       return await startRecording({ from: start, to: end });
     });
 
-    // Shortcuts (Video Analysis Pro)
+    // Shortcuts
     document.addEventListener('keydown', (event) => {
       const key = String(event.key || '').toLowerCase();
       const tag = String(event.target?.tagName || '').toLowerCase();
@@ -423,7 +862,7 @@
     let activeProjectId = 0;
     const renderProjects = (items) => {
       if (!projectsList) return;
-      const rows = (Array.isArray(items) ? items : []).slice(0, 60).map((p) => {
+      const rows = (Array.isArray(items) ? items : []).slice(0, 120).map((p) => {
         const id = Number(p?.id) || 0;
         if (!id) return '';
         const title = safeText(p?.title, `Proyecto ${id}`);
@@ -442,6 +881,7 @@
         `;
       }).filter(Boolean).join('');
       projectsList.innerHTML = rows || '<div class="meta">Sin proyectos guardados.</div>';
+
       Array.from(projectsList.querySelectorAll('[data-vs-load]')).forEach((btn) => {
         btn.addEventListener('click', async () => {
           const id = Number(btn.getAttribute('data-vs-load') || 0);
@@ -455,9 +895,17 @@
             const payload = found?.payload || {};
             const canvasJson = payload?.canvas;
             if (canvasJson) restoreJson(canvasJson);
+            const fxPayload = payload?.fx;
+            if (fxPayload && typeof fxPayload === 'object' && Array.isArray(fxPayload?.layers)) {
+              fxState.layers = fxPayload.layers.map((l) => ({ ...l }));
+              selectedFxId = 0;
+              reseedFxSeq();
+              renderFxList();
+            }
             activeProjectId = id;
             if (projectTitleInput) projectTitleInput.value = safeText(found?.title);
             pushHistory();
+            updateLayerPanel();
             setStatus('Proyecto cargado.');
           } catch (e) {
             setStatus('No se pudo cargar.', true);
@@ -500,10 +948,11 @@
         renderProjects([]);
       }
     };
+
     const saveProject = async () => {
       if (!projectSaveUrl || !videoId) return;
       const title = safeText(projectTitleInput?.value, 'Proyecto').slice(0, 180);
-      const payload = { canvas: fabricCanvas.toDatalessJSON(['data']), in: Number(inInput?.value || 0) || 0, out: Number(outInput?.value || 0) || 0 };
+      const payload = { canvas: fabricCanvas.toDatalessJSON(['data']), fx: { layers: fxState.layers }, in: Number(inInput?.value || 0) || 0, out: Number(outInput?.value || 0) || 0 };
       try {
         const resp = await fetch(projectSaveUrl, {
           method: 'POST',
@@ -535,7 +984,7 @@
         const coll = safeText(c?.collection, '');
         const inS = Number(c?.in_s) || 0;
         const outS = Number(c?.out_s) || 0;
-        const label = `${fmtTime(inS)} → ${fmtTime(outS || inS)}`;
+        const label = `${fmtTimeShort(inS)} → ${fmtTimeShort(outS || inS)}`;
         return `
           <div class="row">
             <div style="display:flex; flex-direction:column; gap:0.05rem;">
@@ -570,10 +1019,16 @@
             if (overlay && typeof overlay === 'object' && Array.isArray(overlay?.objects)) {
               restoreJson(overlay);
             }
-            try {
-              video.currentTime = Number(found?.in_s) || 0;
-            } catch (e) { /* ignore */ }
+            const fxPayload = overlay?.fx;
+            if (fxPayload && typeof fxPayload === 'object' && Array.isArray(fxPayload?.layers)) {
+              fxState.layers = fxPayload.layers.map((l) => ({ ...l }));
+              selectedFxId = 0;
+              reseedFxSeq();
+              renderFxList();
+            }
+            try { video.currentTime = Number(found?.in_s) || 0; } catch (e) { /* ignore */ }
             pushHistory();
+            updateLayerPanel();
             setStatus('Clip cargado.');
           } catch (e) {
             setStatus('No se pudo cargar clip.', true);
@@ -604,6 +1059,7 @@
         });
       });
     };
+
     const refreshClips = async () => {
       if (!clipsUrl || !videoId) return;
       try {
@@ -615,6 +1071,7 @@
         renderClips([]);
       }
     };
+
     const saveClip = async () => {
       if (!clipSaveUrl || !videoId) return;
       const title = safeText(clipTitleInput?.value, 'Clip').slice(0, 180);
@@ -625,7 +1082,7 @@
         setStatus('Define IN/OUT para el clip.', true);
         return;
       }
-      const overlay = fabricCanvas.toDatalessJSON(['data']);
+      const overlay = { ...fabricCanvas.toDatalessJSON(['data']), fx: { layers: fxState.layers } };
       try {
         const resp = await fetch(clipSaveUrl, {
           method: 'POST',
@@ -655,7 +1112,7 @@
         const kind = safeText(ev?.kind, 'tag').toUpperCase();
         const label = safeText(ev?.label, '');
         const color = safeText(ev?.color, '');
-        const at = fmtTime(Number(ev?.time_s) || 0);
+        const at = fmtTimeShort(Number(ev?.time_s) || 0);
         return `
           <div class="row">
             <div style="display:flex; flex-direction:column; gap:0.05rem;">
@@ -684,7 +1141,7 @@
             if (!found) return;
             const seek = Number(found?.time_s) || 0;
             video.currentTime = seek;
-            setStatus(`Timeline → ${fmtTime(seek)}`);
+            setStatus(`Timeline → ${fmtTimeShort(seek)}`);
           } catch (e) {
             setStatus('No se pudo ir al evento.', true);
           }
@@ -713,6 +1170,7 @@
         });
       });
     };
+
     const refreshTimeline = async () => {
       if (!timelineUrl || !videoId) return;
       try {
@@ -724,6 +1182,7 @@
         renderTimeline([]);
       }
     };
+
     const addTimelineEvent = async () => {
       if (!timelineSaveUrl || !videoId) return;
       const kind = safeText(eventKindSelect?.value, 'tag');
@@ -741,7 +1200,7 @@
         if (!resp.ok || !data?.ok) throw new Error(data?.error || 'error');
         if (eventLabelInput) eventLabelInput.value = '';
         await refreshTimeline();
-        setStatus(`Evento añadido en ${fmtTime(timeS)}.`);
+        setStatus(`Evento añadido en ${fmtTimeShort(timeS)}.`);
       } catch (e) {
         setStatus('No se pudo añadir evento.', true);
       }
@@ -750,7 +1209,53 @@
     eventRefreshBtn?.addEventListener('click', refreshTimeline);
     refreshTimeline();
 
+    const applyTimedLayers = () => {
+      const nowS = Number(video.currentTime) || 0;
+      let anyAnim = false;
+      for (const obj of fabricCanvas.getObjects()) {
+        ensureLayerData(obj);
+        const alpha = computeTimedAlpha(obj.data, nowS);
+        obj.visible = alpha > 0.001;
+        obj.opacity = clamp(alpha, 0, 1);
+
+        if (safeText(obj.data.anim, 'none') === 'draw') {
+          anyAnim = true;
+          const tIn = Math.max(0, Number(obj.data.t_in_s) || 0);
+          const animMs = Math.max(50, Number(obj.data.anim_ms) || 700);
+          const prog = clamp((nowS - tIn) / (animMs / 1000), 0, 1);
+          if (obj.type === 'group' && Array.isArray(obj._objects)) {
+            const line = obj._objects.find((x) => x?.type === 'line');
+            const head = obj._objects.find((x) => x?.type === 'polygon');
+            if (line && Number.isFinite(line.x1) && Number.isFinite(line.x2)) {
+              const len = Math.max(1, Math.hypot((line.x2 - line.x1), (line.y2 - line.y1)));
+              line.strokeDashArray = [len, len];
+              line.strokeDashOffset = len * (1 - prog);
+              line.dirty = true;
+            }
+            if (head) {
+              head.opacity = prog >= 0.98 ? 1 : 0;
+              head.dirty = true;
+            }
+          }
+        }
+      }
+      if (!video.paused || anyAnim) {
+        try { fabricCanvas.requestRenderAll(); } catch (e) { /* ignore */ }
+      }
+      try { renderFx(fxCtx, { width: fxEl.width, height: fxEl.height, nowS, forExport: false }); } catch (e) { /* ignore */ }
+    };
+
+    const tick = () => {
+      try { applyTimedLayers(); } catch (e) { /* ignore */ }
+      window.requestAnimationFrame(tick);
+    };
+    window.requestAnimationFrame(tick);
+    video.addEventListener('timeupdate', () => { if (video.paused) applyTimedLayers(); });
+
     pushHistory();
+    reseedFxSeq();
+    renderFxList();
+    updateLayerPanel();
     setStatus('Listo.');
   };
 
