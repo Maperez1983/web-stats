@@ -2221,6 +2221,67 @@
 	      .assistant-suggestion-peek .meta {
 	        opacity: 0.92;
 	      }
+
+	      /* Modal Vista 3D (Tactical Board) */
+	      .sim-3d-modal {
+	        position: fixed;
+	        inset: 0;
+	        display: grid;
+	        place-items: center;
+	        background: rgba(2, 6, 23, 0.78);
+	        z-index: 80;
+	        padding: 1.1rem;
+	      }
+	      .sim-3d-modal[hidden] { display: none; }
+	      .sim-3d-card {
+	        width: min(1100px, 96vw);
+	        height: min(720px, 92vh);
+	        border-radius: 18px;
+	        border: 1px solid rgba(255,255,255,0.14);
+	        background: rgba(15, 23, 42, 0.92);
+	        box-shadow: rgba(0,0,0,0.55) 0 18px 60px;
+	        overflow: hidden;
+	        display: grid;
+	        grid-template-rows: auto 1fr auto;
+	      }
+	      .sim-3d-head {
+	        display: flex;
+	        align-items: center;
+	        justify-content: space-between;
+	        gap: 0.75rem;
+	        padding: 0.75rem 0.9rem;
+	        border-bottom: 1px solid rgba(255,255,255,0.10);
+	      }
+	      .sim-3d-head strong { font-size: 1.05rem; }
+	      .sim-3d-close {
+	        appearance: none;
+	        border: 1px solid rgba(255,255,255,0.14);
+	        background: rgba(255,255,255,0.06);
+	        color: rgba(248,250,252,0.92);
+	        border-radius: 12px;
+	        padding: 0.45rem 0.65rem;
+	        cursor: pointer;
+	      }
+	      .sim-3d-body {
+	        position: relative;
+	        background: radial-gradient(circle at 30% 20%, rgba(34,197,94,0.12), rgba(15,23,42,0.92) 55%);
+	      }
+	      .sim-3d-canvas {
+	        width: 100%;
+	        height: 100%;
+	        display: block;
+	      }
+	      .sim-3d-foot {
+	        padding: 0.65rem 0.9rem;
+	        border-top: 1px solid rgba(255,255,255,0.10);
+	        display: flex;
+	        gap: 0.5rem;
+	        align-items: center;
+	        justify-content: space-between;
+	        flex-wrap: wrap;
+	      }
+	      .sim-3d-controls { display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; }
+	      .sim-3d-note { opacity: 0.86; font-size: 0.92rem; }
 	    </style>
   </head>
   <body class="prod-commercial">
@@ -2547,13 +2608,14 @@
 					                          <button type="button" class="button" id="task-sim-prev" hidden>Anterior</button>
 					                          <button type="button" class="button" id="task-sim-next" hidden>Siguiente</button>
 					                          <button type="button" class="button" id="task-sim-to-scenarios" hidden>Crear escenarios</button>
-					                          <button type="button" class="button" id="task-sim-share" hidden>Copiar enlace</button>
-					                          <button type="button" class="button" id="task-sim-export-step" hidden>PNG paso</button>
-					                          <button type="button" class="button" id="task-sim-export-all" hidden>PNG pasos</button>
-					                        </div>
-				                        <div class="sim-options">
-				                          <label class="sim-check">
-				                            <input type="checkbox" id="task-sim-autocapture" />
+						                          <button type="button" class="button" id="task-sim-share" hidden>Copiar enlace</button>
+						                          <button type="button" class="button" id="task-sim-export-step" hidden>PNG paso</button>
+						                          <button type="button" class="button" id="task-sim-export-all" hidden>PNG pasos</button>
+						                          <button type="button" class="button" id="task-sim-view-3d" hidden>Vista 3D</button>
+						                        </div>
+					                        <div class="sim-options">
+					                          <label class="sim-check">
+					                            <input type="checkbox" id="task-sim-autocapture" />
 				                            Auto-capturar al mover
 				                          </label>
 				                          <label class="sim-check">
@@ -2592,8 +2654,42 @@
 				                            Seg
 				                            <input type="number" id="task-sim-step-duration" min="1" max="20" step="1" value="3" />
 				                          </label>
+					                      </div>
+					                    </div>
+
+				                    <div class="sim-3d-modal" id="task-sim-3d-modal" hidden>
+				                      <div class="sim-3d-card" role="dialog" aria-modal="true" aria-label="Vista 3D de la tarea">
+				                        <div class="sim-3d-head">
+				                          <div style="display:flex; flex-direction:column; gap:0.1rem;">
+				                            <strong>Vista 3D · Tactical Board</strong>
+				                            <span class="meta" id="task-sim-3d-step-label" style="opacity:0.9;">Paso —</span>
+				                          </div>
+				                          <button type="button" class="sim-3d-close" id="task-sim-3d-close">Cerrar</button>
+				                        </div>
+				                        <div class="sim-3d-body">
+				                          <canvas class="sim-3d-canvas" id="task-sim-3d-canvas"></canvas>
+				                        </div>
+				                        <div class="sim-3d-foot">
+				                          <div class="sim-3d-controls">
+				                            <button type="button" class="button" id="task-sim-3d-prev">Anterior</button>
+				                            <button type="button" class="button primary" id="task-sim-3d-play">Reproducir</button>
+				                            <button type="button" class="button" id="task-sim-3d-next">Siguiente</button>
+				                            <label style="display:flex; gap:10px; align-items:center;">
+				                              Velocidad
+				                              <select id="task-sim-3d-speed">
+				                                <option value="0.5">0.5×</option>
+				                                <option value="1" selected>1×</option>
+				                                <option value="1.5">1.5×</option>
+				                                <option value="2">2×</option>
+				                              </select>
+				                            </label>
+				                          </div>
+				                          <div class="sim-3d-note">
+				                            Consejo: usa la simulación 2D para capturar pasos y aquí podrás reproducirlos en 3D.
+				                          </div>
 				                        </div>
 				                      </div>
+				                    </div>
 				                    </div>
 				                    <div class="pattern-popover" id="task-pattern-popover" hidden>
 				                      <div class="pattern-head">
@@ -3625,12 +3721,14 @@
       </form>
     </main>
 
-    {{ tactical_player_catalog|json_script:"tpad-players-catalog" }}
-    <script src="{% static 'vendor/fabric.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
-    <script src="{% static 'football/js/sessions_tactical_pad.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
-			    <script>
-			      window.addEventListener('DOMContentLoaded', () => {
-			        // Selector de dispositivo (solo UI): auto/desktop/tablet.
+	    {{ tactical_player_catalog|json_script:"tpad-players-catalog" }}
+	    <script src="{% static 'vendor/fabric.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+	    <script src="{% static 'vendor/three.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+	    <script src="{% static 'football/js/sessions_tactical_pad.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+	    <script src="{% static 'football/js/tpad_sim_3d_viewer.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+				    <script>
+				      window.addEventListener('DOMContentLoaded', () => {
+				        // Selector de dispositivo (solo UI): auto/desktop/tablet.
 			        const deviceKey = 'webstats:tpad:device';
 			        const deviceButtons = Array.from(document.querySelectorAll('[data-device-mode]'));
 		        const normalizeDevice = (value) => {
