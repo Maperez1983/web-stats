@@ -70,6 +70,7 @@
               <button type="button" class="button" id="vs-export-seg">Export segmento</button>
               <button type="button" class="button" id="vs-record">Grabar</button>
               <button type="button" class="button" id="vs-snap">PNG</button>
+              <button type="button" class="button" id="vs-freeze">Freeze</button>
             </div>
             <div class="right">
               <button type="button" class="button" id="vs-tool-select">Select</button>
@@ -78,6 +79,7 @@
               <button type="button" class="button" id="vs-tool-text">Texto</button>
               <button type="button" class="button" id="vs-tool-callout">Callout</button>
               <button type="button" class="button" id="vs-tool-spot">Spotlight</button>
+              <button type="button" class="button" id="vs-tool-blur">Blur</button>
               <button type="button" class="button" id="vs-undo">Undo</button>
               <button type="button" class="button danger" id="vs-clear">Limpiar</button>
               <input type="color" id="vs-color" value="#22d3ee" title="Color" />
@@ -172,14 +174,37 @@
                     <option value="draw">Trazo progresivo</option>
                   </select>
                 </label>
+                <div id="vs-fx-form" style="display:none; gap:0.45rem;">
+                  <div class="hint">Ajustes FX</div>
+                  <label id="vs-fx-spot-controls" style="display:none;">
+                    Intensidad / Feather
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.45rem;">
+                      <input type="number" id="vs-fx-intensity" min="0.2" max="0.9" step="0.02" value="0.68" />
+                      <input type="number" id="vs-fx-feather" min="0.02" max="0.6" step="0.02" value="0.18" />
+                    </div>
+                  </label>
+                  <label id="vs-fx-blur-controls" style="display:none;">
+                    Blur (px) / Opacidad
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.45rem;">
+                      <input type="number" id="vs-fx-blur" min="0" max="40" step="1" value="10" />
+                      <input type="number" id="vs-fx-opacity" min="0" max="1" step="0.05" value="1" />
+                    </div>
+                  </label>
+                </div>
               </div>
             </div>
 
-            <div class="split">
-              <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem;">FX (Spotlight)</div>
-              <div class="hint">Crea un spotlight con la herramienta <span class="k">Spotlight</span> y edita su timing aquí.</div>
-              <div class="list" id="vs-fx-layers"></div>
-            </div>
+	            <div class="split">
+	              <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem;">FX (Spotlight / Blur / Freeze)</div>
+	              <div class="hint">Crea FX con <span class="k">Spotlight</span>, <span class="k">Blur</span> o <span class="k">Freeze</span> y edita su timing aquí.</div>
+	              <div class="list" id="vs-fx-layers"></div>
+	            </div>
+
+              <div class="split">
+                <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem;">Capas (dibujos)</div>
+                <div class="hint">Acceso rápido a dibujos con timing. Útil para telestración por capas.</div>
+                <div class="list" id="vs-draw-layers"></div>
+              </div>
 
             <div class="split">
               <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem;">Clips</div>

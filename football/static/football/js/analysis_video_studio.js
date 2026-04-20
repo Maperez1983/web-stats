@@ -39,6 +39,7 @@
     const btnExportSeg = document.getElementById('vs-export-seg');
     const btnRecord = document.getElementById('vs-record');
     const btnSnap = document.getElementById('vs-snap');
+    const btnFreeze = document.getElementById('vs-freeze');
 
     const btnSelect = document.getElementById('vs-tool-select');
     const btnPen = document.getElementById('vs-tool-pen');
@@ -46,6 +47,7 @@
     const btnText = document.getElementById('vs-tool-text');
     const btnCallout = document.getElementById('vs-tool-callout');
     const btnSpot = document.getElementById('vs-tool-spot');
+    const btnBlur = document.getElementById('vs-tool-blur');
     const btnUndo = document.getElementById('vs-undo');
     const btnClear = document.getElementById('vs-clear');
     const colorInput = document.getElementById('vs-color');
@@ -103,6 +105,15 @@
     const layerAnimSelect = document.getElementById('vs-layer-anim');
     const layerDelBtn = document.getElementById('vs-layer-del');
     const fxLayersList = document.getElementById('vs-fx-layers');
+    const drawLayersList = document.getElementById('vs-draw-layers');
+
+    const fxForm = document.getElementById('vs-fx-form');
+    const fxSpotControls = document.getElementById('vs-fx-spot-controls');
+    const fxBlurControls = document.getElementById('vs-fx-blur-controls');
+    const fxIntensityInput = document.getElementById('vs-fx-intensity');
+    const fxFeatherInput = document.getElementById('vs-fx-feather');
+    const fxBlurInput = document.getElementById('vs-fx-blur');
+    const fxOpacityInput = document.getElementById('vs-fx-opacity');
 
     const csrf = document.querySelector('input[name="csrfmiddlewaretoken"]')?.value || '';
 
@@ -160,9 +171,17 @@
       } catch (e) { /* ignore */ }
     };
 
+    const newUid = () => {
+      try {
+        if (window.crypto && typeof window.crypto.randomUUID === 'function') return window.crypto.randomUUID();
+      } catch (e) { /* ignore */ }
+      return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    };
+
     const ensureLayerData = (obj) => {
       if (!obj) return;
       if (!obj.data || typeof obj.data !== 'object') obj.data = {};
+      if (!safeText(obj.data.uid)) obj.data.uid = newUid();
       if (obj.data.t_in_s == null) obj.data.t_in_s = 0;
       if (obj.data.t_out_s == null) obj.data.t_out_s = 0;
       if (obj.data.fade_in_ms == null) obj.data.fade_in_ms = 0;
@@ -171,6 +190,7 @@
     };
 
     const seedLayerDataNow = (extra = {}) => ({
+      uid: newUid(),
       t_in_s: Number(video.currentTime) || 0,
       t_out_s: 0,
       fade_in_ms: 0,
@@ -213,42 +233,96 @@
 
       try { ctx.clearRect(0, 0, w, h); } catch (e) { /* ignore */ }
 
-      const active = [];
-      for (const layer of (Array.isArray(fxState.layers) ? fxState.layers : [])) {
-        if (safeText(layer?.kind) !== 'spotlight') continue;
+      const layers = Array.isArray(fxState.layers) ? fxState.layers : [];
+      const freezeActive = [];
+      const blurActive = [];
+      const spotActive = [];
+
+      for (const layer of layers) {
+        const kind = safeText(layer?.kind);
         const alpha = computeTimedAlpha(layer, t);
         if (alpha <= 0.001) continue;
-        active.push({ layer, alpha });
+        if (kind === 'freeze') freezeActive.push({ layer, alpha });
+        if (kind === 'blur') blurActive.push({ layer, alpha });
+        if (kind === 'spotlight') spotActive.push({ layer, alpha });
       }
-      if (!forExport && fxPreview && safeText(fxPreview?.kind) === 'spotlight') {
-        active.push({ layer: fxPreview, alpha: 1 });
-      }
-      if (!active.length) return;
 
-      const base = Math.max(...active.map((x) => clamp(Number(x.layer?.intensity ?? 0.68), 0, 0.9)));
-      ctx.save();
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.fillStyle = `rgba(0,0,0,${clamp(base, 0, 0.9)})`;
-      ctx.fillRect(0, 0, w, h);
+      if (!forExport && fxPreview && safeText(fxPreview?.kind) === 'spotlight') spotActive.push({ layer: fxPreview, alpha: 1 });
+      if (!forExport && fxPreview && safeText(fxPreview?.kind) === 'blur') blurActive.push({ layer: fxPreview, alpha: 1 });
 
-      ctx.globalCompositeOperation = 'destination-out';
-      for (const item of active) {
-        const l = item.layer;
-        const cx = clamp(Number(l?.cx) || 0, 0, w);
-        const cy = clamp(Number(l?.cy) || 0, 0, h);
-        const r = clamp(Number(l?.r) || 0, 0, Math.max(w, h));
-        const feather = clamp(Number(l?.feather ?? 0.18), 0.02, 0.6);
-        const rr0 = Math.max(1, r * (1 - feather));
-        const rr1 = Math.max(rr0 + 1, r);
-        const g = ctx.createRadialGradient(cx, cy, rr0, cx, cy, rr1);
-        g.addColorStop(0, `rgba(0,0,0,${clamp(item.alpha, 0, 1)})`);
-        g.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = g;
-        ctx.beginPath();
-        ctx.arc(cx, cy, rr1, 0, Math.PI * 2);
-        ctx.fill();
+      // Freeze (overlay full-frame)
+      const freezeCache = renderFx._freezeCache || (renderFx._freezeCache = new Map());
+      for (const item of freezeActive) {
+        const imgData = safeText(item.layer?.image_data, '');
+        if (!imgData) continue;
+        let img = freezeCache.get(imgData);
+        if (!img) {
+          img = new Image();
+          img.src = imgData;
+          freezeCache.set(imgData, img);
+        }
+        if (!img || !img.complete) continue;
+        try {
+          ctx.save();
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.globalAlpha = clamp(item.alpha, 0, 1);
+          ctx.drawImage(img, 0, 0, w, h);
+          ctx.restore();
+        } catch (e) { /* ignore */ }
       }
-      ctx.restore();
+
+      // Blur (rect overlay)
+      if (!freezeActive.length) {
+        for (const item of blurActive) {
+          const l = item.layer;
+          const x = clamp(Number(l?.x) || 0, 0, w);
+          const y = clamp(Number(l?.y) || 0, 0, h);
+          const bw = clamp(Number(l?.w) || 0, 0, w);
+          const bh = clamp(Number(l?.h) || 0, 0, h);
+          const blurPx = clamp(Number(l?.blur_px ?? 10), 0, 40);
+          const op = clamp(Number(l?.opacity ?? 1), 0, 1);
+          if (bw < 6 || bh < 6 || blurPx <= 0 || op <= 0) continue;
+          try {
+            ctx.save();
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.globalAlpha = clamp(item.alpha * op, 0, 1);
+            ctx.filter = `blur(${blurPx}px)`;
+            ctx.beginPath();
+            ctx.rect(x, y, bw, bh);
+            ctx.clip();
+            ctx.drawImage(video, 0, 0, w, h);
+            ctx.restore();
+          } catch (e) { /* ignore */ }
+        }
+      }
+
+      // Spotlight (darken outside)
+      if (spotActive.length) {
+        const base = Math.max(...spotActive.map((x) => clamp(Number(x.layer?.intensity ?? 0.68), 0, 0.9)));
+        ctx.save();
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.fillStyle = `rgba(0,0,0,${clamp(base, 0, 0.9)})`;
+        ctx.fillRect(0, 0, w, h);
+
+        ctx.globalCompositeOperation = 'destination-out';
+        for (const item of spotActive) {
+          const l = item.layer;
+          const cx = clamp(Number(l?.cx) || 0, 0, w);
+          const cy = clamp(Number(l?.cy) || 0, 0, h);
+          const r = clamp(Number(l?.r) || 0, 0, Math.max(w, h));
+          const feather = clamp(Number(l?.feather ?? 0.18), 0.02, 0.6);
+          const rr0 = Math.max(1, r * (1 - feather));
+          const rr1 = Math.max(rr0 + 1, r);
+          const g = ctx.createRadialGradient(cx, cy, rr0, cx, cy, rr1);
+          g.addColorStop(0, `rgba(0,0,0,${clamp(item.alpha, 0, 1)})`);
+          g.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.fillStyle = g;
+          ctx.beginPath();
+          ctx.arc(cx, cy, rr1, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
 
       if (!forExport) {
         const selected = selectedFxId ? getFxById(selectedFxId) : null;
@@ -265,6 +339,17 @@
             ctx.restore();
           } catch (e) { /* ignore */ }
         }
+        if (selected && selected.kind === 'blur') {
+          try {
+            ctx.save();
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.strokeStyle = 'rgba(34,211,238,0.9)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([10, 8]);
+            ctx.strokeRect(Number(selected.x) || 0, Number(selected.y) || 0, Number(selected.w) || 0, Number(selected.h) || 0);
+            ctx.restore();
+          } catch (e) { /* ignore */ }
+        }
         if (fxPreview && fxPreview.kind === 'spotlight') {
           try {
             ctx.save();
@@ -278,12 +363,23 @@
             ctx.restore();
           } catch (e) { /* ignore */ }
         }
+        if (fxPreview && fxPreview.kind === 'blur') {
+          try {
+            ctx.save();
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.strokeStyle = 'rgba(250,204,21,0.95)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([8, 6]);
+            ctx.strokeRect(Number(fxPreview.x) || 0, Number(fxPreview.y) || 0, Number(fxPreview.w) || 0, Number(fxPreview.h) || 0);
+            ctx.restore();
+          } catch (e) { /* ignore */ }
+        }
       }
     };
 
     const renderFxList = () => {
       if (!fxLayersList) return;
-      const items = (Array.isArray(fxState.layers) ? fxState.layers : []).filter((l) => safeText(l?.kind) === 'spotlight').slice(0, 60);
+      const items = (Array.isArray(fxState.layers) ? fxState.layers : []).slice(0, 80);
       const rows = items.map((l) => {
         const id = Number(l?.id) || 0;
         if (!id) return '';
@@ -291,10 +387,12 @@
         const outS = Number(l?.t_out_s) || 0;
         const label = `${fmtTimeShort(inS)} → ${fmtTimeShort(outS || inS)}`;
         const isSel = selectedFxId === id;
+        const kind = safeText(l?.kind, 'fx');
+        const title = kind === 'spotlight' ? 'Spotlight' : (kind === 'blur' ? 'Blur' : (kind === 'freeze' ? 'Freeze' : kind));
         return `
           <div class="row" style="${isSel ? 'border-color: rgba(34,211,238,0.55); background: rgba(34,211,238,0.07);' : ''}">
             <div style="display:flex; flex-direction:column; gap:0.05rem;">
-              <strong>Spotlight</strong>
+              <strong>${title}</strong>
               <small>${label}</small>
             </div>
             <div style="display:flex; gap:0.35rem; flex-wrap:wrap;">
@@ -304,7 +402,7 @@
           </div>
         `;
       }).filter(Boolean).join('');
-      fxLayersList.innerHTML = rows || '<div class="hint">Sin spotlights.</div>';
+      fxLayersList.innerHTML = rows || '<div class="hint">Sin FX.</div>';
 
       Array.from(fxLayersList.querySelectorAll('[data-vs-fx-edit]')).forEach((btn) => {
         btn.addEventListener('click', () => {
@@ -314,19 +412,21 @@
           try { fabricCanvas.discardActiveObject(); } catch (e) { /* ignore */ }
           updateLayerPanel();
           renderFxList();
+          renderDrawLayers();
         });
       });
       Array.from(fxLayersList.querySelectorAll('[data-vs-fx-del]')).forEach((btn) => {
         btn.addEventListener('click', () => {
           const id = Number(btn.getAttribute('data-vs-fx-del') || 0);
           if (!id) return;
-          const ok = window.confirm('¿Borrar spotlight?');
+          const ok = window.confirm('¿Borrar FX?');
           if (!ok) return;
           fxState.layers = (Array.isArray(fxState.layers) ? fxState.layers : []).filter((x) => Number(x?.id) !== id);
           if (selectedFxId === id) selectedFxId = 0;
           reseedFxSeq();
           renderFxList();
           updateLayerPanel();
+          renderDrawLayers();
         });
       });
     };
@@ -337,6 +437,87 @@
         try { fabricCanvas.getObjects().forEach((o) => ensureLayerData(o)); } catch (e) { /* ignore */ }
         fabricCanvas.renderAll();
         updateLayerPanel();
+        renderDrawLayers();
+      });
+    };
+
+    const kindLabel = (obj) => {
+      const kind = safeText(obj?.data?.kind) || safeText(obj?.type);
+      if (kind === 'arrow') return 'Flecha';
+      if (kind === 'callout') return `Callout ${safeText(obj?.data?.callout_n)}`;
+      if (kind === 'path') return 'Trazo';
+      if (kind === 'text') return 'Texto';
+      if (kind === 'group') return safeText(obj?.data?.kind, 'Grupo');
+      return safeText(kind, 'Capa');
+    };
+
+    const renderDrawLayers = () => {
+      if (!drawLayersList) return;
+      const objs = (fabricCanvas.getObjects?.() || []).slice(0, 160);
+      const rows = objs.slice().reverse().slice(0, 60).map((obj) => {
+        ensureLayerData(obj);
+        const uid = safeText(obj?.data?.uid);
+        if (!uid) return '';
+        const tIn = Number(obj?.data?.t_in_s) || 0;
+        const tOut = Number(obj?.data?.t_out_s) || 0;
+        const label = `${fmtTimeShort(tIn)} → ${fmtTimeShort(tOut || tIn)}`;
+        const isSel = activeObject() === obj;
+        return `
+          <div class="row" style="${isSel ? 'border-color: rgba(34,211,238,0.55); background: rgba(34,211,238,0.07);' : ''}">
+            <div style="display:flex; flex-direction:column; gap:0.05rem;">
+              <strong>${kindLabel(obj)}</strong>
+              <small>${label}</small>
+            </div>
+            <div style="display:flex; gap:0.35rem; flex-wrap:wrap;">
+              <button type="button" class="button" data-vs-draw-select="${uid}">Seleccionar</button>
+              <button type="button" class="button" data-vs-draw-seek="${uid}">Ir</button>
+              <button type="button" class="button danger" data-vs-draw-del="${uid}">Borrar</button>
+            </div>
+          </div>
+        `;
+      }).filter(Boolean).join('');
+      drawLayersList.innerHTML = rows || '<div class="hint">Sin dibujos.</div>';
+
+      const uidMap = new Map();
+      for (const o of objs) {
+        ensureLayerData(o);
+        const uid = safeText(o?.data?.uid);
+        if (uid) uidMap.set(uid, o);
+      }
+
+      Array.from(drawLayersList.querySelectorAll('[data-vs-draw-select]')).forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const uid = safeText(btn.getAttribute('data-vs-draw-select'));
+          const obj = uidMap.get(uid);
+          if (!obj) return;
+          try { fabricCanvas.setActiveObject(obj); } catch (e) { /* ignore */ }
+          selectedFxId = 0;
+          updateLayerPanel();
+          renderFxList();
+          renderDrawLayers();
+        });
+      });
+      Array.from(drawLayersList.querySelectorAll('[data-vs-draw-seek]')).forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const uid = safeText(btn.getAttribute('data-vs-draw-seek'));
+          const obj = uidMap.get(uid);
+          if (!obj) return;
+          const tIn = Number(obj?.data?.t_in_s) || 0;
+          try { video.currentTime = Math.max(0, tIn); } catch (e) { /* ignore */ }
+        });
+      });
+      Array.from(drawLayersList.querySelectorAll('[data-vs-draw-del]')).forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const uid = safeText(btn.getAttribute('data-vs-draw-del'));
+          const obj = uidMap.get(uid);
+          if (!obj) return;
+          const ok = window.confirm('¿Borrar dibujo?');
+          if (!ok) return;
+          try { fabricCanvas.remove(obj); } catch (e) { /* ignore */ }
+          pushHistory();
+          updateLayerPanel();
+          renderDrawLayers();
+        });
       });
     };
 
@@ -389,16 +570,17 @@
       fabricCanvas.isDrawingMode = isPen;
       try { fabricCanvas.selection = isSelect; } catch (e) { /* ignore */ }
 
-      if (tool !== 'spot') fxPreview = null;
-      fxEl.style.pointerEvents = tool === 'spot' ? 'auto' : 'none';
+      if (tool !== 'spot' && tool !== 'blur') fxPreview = null;
+      fxEl.style.pointerEvents = (tool === 'spot' || tool === 'blur') ? 'auto' : 'none';
 
-      Array.from([btnSelect, btnPen, btnArrow, btnText, btnCallout, btnSpot]).forEach((b) => b?.classList.remove('primary'));
+      Array.from([btnSelect, btnPen, btnArrow, btnText, btnCallout, btnSpot, btnBlur]).forEach((b) => b?.classList.remove('primary'));
       if (tool === 'select') btnSelect?.classList.add('primary');
       if (tool === 'pen') btnPen?.classList.add('primary');
       if (tool === 'arrow') btnArrow?.classList.add('primary');
       if (tool === 'text') btnText?.classList.add('primary');
       if (tool === 'callout') btnCallout?.classList.add('primary');
       if (tool === 'spot') btnSpot?.classList.add('primary');
+      if (tool === 'blur') btnBlur?.classList.add('primary');
       setStatus(`Herramienta: ${tool}`);
     };
     setTool('select');
@@ -420,6 +602,7 @@
       if (!target) {
         layerEmpty.style.display = '';
         layerForm.style.display = 'none';
+        if (fxForm) fxForm.style.display = 'none';
         return;
       }
       layerEmpty.style.display = 'none';
@@ -427,13 +610,23 @@
 
       if (target.type === 'fx') {
         const fx = target.fx;
-        if (layerKind) layerKind.textContent = 'FX · Spotlight';
+        const kind = safeText(fx?.kind, 'fx');
+        const title = kind === 'spotlight' ? 'Spotlight' : (kind === 'blur' ? 'Blur' : (kind === 'freeze' ? 'Freeze' : kind));
+        if (layerKind) layerKind.textContent = `FX · ${title}`;
         if (layerInInput) layerInInput.value = String((Number(fx.t_in_s) || 0).toFixed(1));
         if (layerOutInput) layerOutInput.value = String((Number(fx.t_out_s) || 0).toFixed(1));
         if (layerFadeInInput) layerFadeInInput.value = String(Math.max(0, Number(fx.fade_in_ms) || 0));
         if (layerFadeOutInput) layerFadeOutInput.value = String(Math.max(0, Number(fx.fade_out_ms) || 0));
         if (layerAnimSelect) layerAnimSelect.value = 'none';
         if (layerAnimSelect) layerAnimSelect.disabled = true;
+        const showFxControls = kind === 'spotlight' || kind === 'blur';
+        if (fxForm) fxForm.style.display = showFxControls ? '' : 'none';
+        if (fxSpotControls) fxSpotControls.style.display = kind === 'spotlight' ? '' : 'none';
+        if (fxBlurControls) fxBlurControls.style.display = kind === 'blur' ? '' : 'none';
+        if (fxIntensityInput) fxIntensityInput.value = String(clamp(Number(fx.intensity ?? 0.68), 0.2, 0.9));
+        if (fxFeatherInput) fxFeatherInput.value = String(clamp(Number(fx.feather ?? 0.18), 0.02, 0.6));
+        if (fxBlurInput) fxBlurInput.value = String(clamp(Number(fx.blur_px ?? 10), 0, 40));
+        if (fxOpacityInput) fxOpacityInput.value = String(clamp(Number(fx.opacity ?? 1), 0, 1));
         return;
       }
 
@@ -446,6 +639,7 @@
       if (layerFadeOutInput) layerFadeOutInput.value = String(Math.max(0, Number(obj.data.fade_out_ms) || 0));
       if (layerAnimSelect) layerAnimSelect.value = safeText(obj.data.anim, 'none');
       if (layerAnimSelect) layerAnimSelect.disabled = false;
+      if (fxForm) fxForm.style.display = 'none';
     };
 
     const applyLayerPanelEdits = () => {
@@ -474,8 +668,25 @@
       pushHistory();
     };
 
+    const applyFxPanelEdits = () => {
+      const fx = selectedFxId ? getFxById(selectedFxId) : null;
+      if (!fx) return;
+      const kind = safeText(fx?.kind, 'fx');
+      if (kind === 'spotlight') {
+        fx.intensity = clamp(Number(fxIntensityInput?.value ?? fx.intensity ?? 0.68), 0.2, 0.9);
+        fx.feather = clamp(Number(fxFeatherInput?.value ?? fx.feather ?? 0.18), 0.02, 0.6);
+      } else if (kind === 'blur') {
+        fx.blur_px = clamp(Number(fxBlurInput?.value ?? fx.blur_px ?? 10), 0, 40);
+        fx.opacity = clamp(Number(fxOpacityInput?.value ?? fx.opacity ?? 1), 0, 1);
+      }
+      renderFxList();
+    };
+
     [layerInInput, layerOutInput, layerFadeInInput, layerFadeOutInput, layerAnimSelect].forEach((el) => {
       el?.addEventListener('change', () => { applyLayerPanelEdits(); updateLayerPanel(); });
+    });
+    [fxIntensityInput, fxFeatherInput, fxBlurInput, fxOpacityInput].forEach((el) => {
+      el?.addEventListener('change', () => { applyFxPanelEdits(); updateLayerPanel(); });
     });
     layerInNowBtn?.addEventListener('click', () => {
       const target = currentLayerTarget();
@@ -518,11 +729,13 @@
         reseedFxSeq();
         renderFxList();
         updateLayerPanel();
+        renderDrawLayers();
         return;
       }
       try { fabricCanvas.remove(target.obj); } catch (e) { /* ignore */ }
       pushHistory();
       updateLayerPanel();
+      renderDrawLayers();
     });
 
     fabricCanvas.on('mouse:down', (opt) => {
@@ -548,6 +761,7 @@
         selectedFxId = 0;
         updateLayerPanel();
         renderFxList();
+        renderDrawLayers();
       }
       if (tool === 'callout') {
         const p = fabricCanvas.getPointer(opt.e);
@@ -580,6 +794,7 @@
         selectedFxId = 0;
         updateLayerPanel();
         renderFxList();
+        renderDrawLayers();
       }
     });
     fabricCanvas.on('mouse:up', (opt) => {
@@ -609,6 +824,7 @@
       selectedFxId = 0;
       updateLayerPanel();
       renderFxList();
+      renderDrawLayers();
       arrowStart = null;
     });
     fabricCanvas.on('path:created', (opt) => {
@@ -616,10 +832,11 @@
       if (p) p.data = seedLayerDataNow();
       pushHistory();
       updateLayerPanel();
+      renderDrawLayers();
     });
-    fabricCanvas.on('selection:created', () => { selectedFxId = 0; updateLayerPanel(); renderFxList(); });
-    fabricCanvas.on('selection:updated', () => { selectedFxId = 0; updateLayerPanel(); renderFxList(); });
-    fabricCanvas.on('selection:cleared', updateLayerPanel);
+    fabricCanvas.on('selection:created', () => { selectedFxId = 0; updateLayerPanel(); renderFxList(); renderDrawLayers(); });
+    fabricCanvas.on('selection:updated', () => { selectedFxId = 0; updateLayerPanel(); renderFxList(); renderDrawLayers(); });
+    fabricCanvas.on('selection:cleared', () => { updateLayerPanel(); renderDrawLayers(); });
 
     btnSelect?.addEventListener('click', () => setTool('select'));
     btnPen?.addEventListener('click', () => setTool('pen'));
@@ -627,9 +844,11 @@
     btnText?.addEventListener('click', () => setTool('text'));
     btnCallout?.addEventListener('click', () => setTool('callout'));
     btnSpot?.addEventListener('click', () => setTool('spot'));
+    btnBlur?.addEventListener('click', () => setTool('blur'));
 
     // Spotlight tool (FX canvas)
     let spotDrag = null;
+    let blurDrag = null;
     const pointerToFx = (ev) => {
       const rect = fxEl.getBoundingClientRect();
       const x = clamp(((ev.clientX - rect.left) / rect.width) * fxEl.width, 0, fxEl.width);
@@ -637,55 +856,78 @@
       return { x, y };
     };
     fxEl.addEventListener('pointerdown', (ev) => {
-      if (tool !== 'spot') return;
+      if (tool !== 'spot' && tool !== 'blur') return;
       try { fxEl.setPointerCapture(ev.pointerId); } catch (e) { /* ignore */ }
       const p = pointerToFx(ev);
-      spotDrag = { start: p };
-      fxPreview = { kind: 'spotlight', cx: p.x, cy: p.y, r: 8, intensity: 0.68, feather: 0.18 };
+      if (tool === 'spot') {
+        spotDrag = { start: p };
+        blurDrag = null;
+        fxPreview = { kind: 'spotlight', cx: p.x, cy: p.y, r: 8, intensity: 0.68, feather: 0.18 };
+      } else {
+        blurDrag = { start: p };
+        spotDrag = null;
+        fxPreview = { kind: 'blur', x: p.x, y: p.y, w: 1, h: 1, blur_px: 10, opacity: 1 };
+      }
       selectedFxId = 0;
       try { fabricCanvas.discardActiveObject(); } catch (e) { /* ignore */ }
       updateLayerPanel();
       renderFxList();
     });
     fxEl.addEventListener('pointermove', (ev) => {
-      if (tool !== 'spot' || !spotDrag || !fxPreview) return;
-      const p = pointerToFx(ev);
-      const dx = p.x - spotDrag.start.x;
-      const dy = p.y - spotDrag.start.y;
-      fxPreview.cx = spotDrag.start.x;
-      fxPreview.cy = spotDrag.start.y;
-      fxPreview.r = Math.max(10, Math.hypot(dx, dy));
+      if (tool === 'spot' && spotDrag && fxPreview && fxPreview.kind === 'spotlight') {
+        const p = pointerToFx(ev);
+        const dx = p.x - spotDrag.start.x;
+        const dy = p.y - spotDrag.start.y;
+        fxPreview.cx = spotDrag.start.x;
+        fxPreview.cy = spotDrag.start.y;
+        fxPreview.r = Math.max(10, Math.hypot(dx, dy));
+      }
+      if (tool === 'blur' && blurDrag && fxPreview && fxPreview.kind === 'blur') {
+        const p = pointerToFx(ev);
+        const x0 = blurDrag.start.x;
+        const y0 = blurDrag.start.y;
+        const x1 = p.x;
+        const y1 = p.y;
+        fxPreview.x = Math.min(x0, x1);
+        fxPreview.y = Math.min(y0, y1);
+        fxPreview.w = Math.max(1, Math.abs(x1 - x0));
+        fxPreview.h = Math.max(1, Math.abs(y1 - y0));
+      }
     });
-    const endSpot = (ev) => {
-      if (tool !== 'spot' || !spotDrag) return;
+    const endFx = (ev) => {
+      if ((tool === 'spot' && !spotDrag) || (tool === 'blur' && !blurDrag)) return;
       try { fxEl.releasePointerCapture(ev.pointerId); } catch (e) { /* ignore */ }
       const now = Number(video.currentTime) || 0;
-      if (fxPreview && Number(fxPreview.r) >= 12) {
+      if (tool === 'spot' && fxPreview && fxPreview.kind === 'spotlight' && Number(fxPreview.r) >= 12) {
         const layer = {
           id: fxSeq++,
-          kind: 'spotlight',
-          cx: Number(fxPreview.cx) || 0,
-          cy: Number(fxPreview.cy) || 0,
-          r: Number(fxPreview.r) || 0,
-          intensity: 0.68,
-          feather: 0.18,
-          t_in_s: now,
-          t_out_s: 0,
-          fade_in_ms: 150,
-          fade_out_ms: 150,
+          ...seedLayerDataNow({ t_in_s: now, t_out_s: 0, fade_in_ms: 150, fade_out_ms: 150 }),
+          ...fxPreview,
         };
-        fxState.layers.push(layer);
-        reseedFxSeq();
+        fxState.layers = [...(Array.isArray(fxState.layers) ? fxState.layers : []), layer].slice(0, 80);
         selectedFxId = layer.id;
         renderFxList();
         updateLayerPanel();
         setStatus('Spotlight añadido.');
       }
+      if (tool === 'blur' && fxPreview && fxPreview.kind === 'blur' && Number(fxPreview.w) >= 12 && Number(fxPreview.h) >= 12) {
+        const layer = {
+          id: fxSeq++,
+          ...seedLayerDataNow({ t_in_s: now, t_out_s: 0, fade_in_ms: 150, fade_out_ms: 150 }),
+          ...fxPreview,
+        };
+        fxState.layers = [...(Array.isArray(fxState.layers) ? fxState.layers : []), layer].slice(0, 80);
+        selectedFxId = layer.id;
+        renderFxList();
+        updateLayerPanel();
+        setStatus('Blur añadido.');
+      }
       spotDrag = null;
+      blurDrag = null;
       fxPreview = null;
     };
-    fxEl.addEventListener('pointerup', endSpot);
-    fxEl.addEventListener('pointercancel', endSpot);
+    fxEl.addEventListener('pointerup', endFx);
+    fxEl.addEventListener('pointercancel', endFx);
 
     btnUndo?.addEventListener('click', () => {
       if (history.length <= 1) {
@@ -705,6 +947,7 @@
       pushHistory();
       fabricCanvas.renderAll();
       updateLayerPanel();
+      renderDrawLayers();
       setStatus('Lienzo limpio.');
     });
 
@@ -752,6 +995,45 @@
       }, 'image/png');
     };
     btnSnap?.addEventListener('click', snapshotPng);
+
+    const captureVideoFrameDataUrl = () => {
+      try {
+        const w = fabricCanvas.getWidth();
+        const h = fabricCanvas.getHeight();
+        if (!w || !h) return null;
+        const off = document.createElement('canvas');
+        off.width = w;
+        off.height = h;
+        const ctx = off.getContext('2d');
+        if (!ctx) return null;
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(video, 0, 0, w, h);
+        return off.toDataURL('image/png');
+      } catch (e) {
+        return null;
+      }
+    };
+
+    btnFreeze?.addEventListener('click', () => {
+      const img = captureVideoFrameDataUrl();
+      if (!img) {
+        setStatus('No se pudo capturar freeze.', true);
+        return;
+      }
+      const now = Number(video.currentTime) || 0;
+      const layer = {
+        id: fxSeq++,
+        ...seedLayerDataNow({ t_in_s: now, t_out_s: now + 1.2, fade_in_ms: 150, fade_out_ms: 150 }),
+        kind: 'freeze',
+        image_data: img,
+      };
+      fxState.layers = [...(Array.isArray(fxState.layers) ? fxState.layers : []), layer].slice(0, 80);
+      selectedFxId = layer.id;
+      renderFxList();
+      updateLayerPanel();
+      setStatus(`Freeze creado en ${fmtTimeShort(now)}.`);
+    });
 
     let recActive = false;
     let recMedia = null;
@@ -1475,6 +1757,7 @@
     reseedFxSeq();
     renderFxList();
     updateLayerPanel();
+    renderDrawLayers();
     setStatus('Listo.');
   };
 
