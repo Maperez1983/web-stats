@@ -117,6 +117,8 @@ from football.models import (
     AnalystVideoFolder,
     RivalVideo,
     VideoTelestrationProject,
+    VideoTimelineEvent,
+    VideoClip,
     RivalAnalysisReport,
     AnalystMatchReport,
     AppUserRole,
@@ -16891,6 +16893,84 @@ def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
     brand_mark_data_url = _static_data_url('football/images/2j-mark.svg', 'image/svg+xml')
     task_sheets = [_build_session_task_sheet(task) for task in tasks]
 
+    valid_blocks = {choice[0] for choice in SessionTask.BLOCK_CHOICES}
+
+    def _infer_task_block_for_pdf(task, meta: dict) -> str:
+        """
+        Inferir bloque/fase cuando la tarea viene importada desde PDF y el bloque quedó en default.
+
+        Caso real: PDFs "sesión" con varias tareas (calentamiento, activación, principal, vuelta a la calma).
+        Si el usuario sube el PDF sin asignar bloque, todas quedan como Principal 1 y el PDF sale “desordenado”.
+        """
+        stored = str(getattr(task, 'block', '') or '').strip()
+        if stored not in valid_blocks:
+            stored = SessionTask.BLOCK_MAIN_1
+        analysis_meta = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
+        phase_tags = analysis_meta.get('phase_tags') if isinstance(analysis_meta.get('phase_tags'), list) else []
+        phase_tags = [str(tag or '').strip().lower() for tag in phase_tags if str(tag or '').strip()]
+
+        hint_parts = [
+            str(getattr(task, 'title', '') or '').strip(),
+            str(meta.get('pdf_segment_excerpt') or '').strip(),
+            str(analysis_meta.get('summary') or '').strip(),
+        ]
+        try:
+            sheet = analysis_meta.get('task_sheet') if isinstance(analysis_meta.get('task_sheet'), dict) else {}
+            hint_parts.append(str(sheet.get('description') or '').strip())
+        except Exception:
+            pass
+        hint = '\n'.join([p for p in hint_parts if p]).strip()
+        folded = _normalize_folded_text(hint)
+
+        def _has_any(*tokens: str) -> bool:
+            return any(token in folded for token in tokens if token)
+
+        inferred = ''
+
+        # Cooldown / recuperación.
+        if _has_any(
+            'vueltacalma',
+            'vueltaalacalma',
+            'enfriamiento',
+            'cooldown',
+            'cool down',
+            'estiramiento',
+            'compensacion',
+            'compensación',
+            'recuperacion',
+            'recuperación',
+            'bajadapulsaciones',
+            'relajacion',
+            'relajación',
+        ):
+            inferred = SessionTask.BLOCK_RECOVERY
+
+        # ABP.
+        if not inferred and ('abp' in phase_tags or _has_any('abp', 'balonparado', 'balónparado', 'corner', 'saquedeesquina', 'faltalateral')):
+            inferred = SessionTask.BLOCK_SET_PIECES
+
+        # Warmup (Condicionante) vs Activación.
+        if not inferred and _has_any('calentamiento', 'acondicionamiento', 'entradaencalor'):
+            inferred = SessionTask.BLOCK_CONDITIONING
+        if not inferred and ('activacion' in phase_tags or _has_any('activacion', 'activación', 'movilidad')):
+            inferred = SessionTask.BLOCK_ACTIVATION
+
+        # Principal 2 / Principal 1.
+        if not inferred and _has_any('principal2', 'parteprincipal2', 'pp2', 'principal ii', 'principal 2'):
+            inferred = SessionTask.BLOCK_MAIN_2
+        if not inferred and _has_any('principal1', 'parteprincipal1', 'pp1', 'principal i', 'principal 1'):
+            inferred = SessionTask.BLOCK_MAIN_1
+        if not inferred and _has_any('parteprincipal', 'parte principal'):
+            inferred = SessionTask.BLOCK_MAIN_1
+
+        if not inferred and _has_any('video', 'vídeo'):
+            inferred = SessionTask.BLOCK_VIDEO
+
+        if inferred and inferred in valid_blocks:
+            if _is_imported_task(task) and stored == SessionTask.BLOCK_MAIN_1 and inferred != stored:
+                return inferred
+        return stored
+
     def _task_preview_data_url_for_pdf(task):
         def _autocrop_preview_data_url(data_url: str) -> str:
             """
@@ -16929,7 +17009,9 @@ def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
                 rgb = flat.convert('RGB')
                 bg = Image.new('RGB', rgb.size, (255, 255, 255))
                 diff = ImageChops.difference(rgb, bg)
-                bbox = diff.getbbox()
+                # Filtra "casi blanco" para evitar que fondos #f5f5f5 o antialiasing impidan el recorte.
+                diff_l = diff.convert('L').point(lambda p: 255 if p > 12 else 0)
+                bbox = diff_l.getbbox()
                 if not bbox:
                     return data_url
                 pad = 10
@@ -17008,12 +17090,14 @@ def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
                 meta = task.tactical_layout.get('meta') if isinstance(task.tactical_layout.get('meta'), dict) else {}
         except Exception:
             meta = {}
+        effective_block = _infer_task_block_for_pdf(task, meta if isinstance(meta, dict) else {})
         task_cards.append(
             {
                 'task': task,
                 'sheet': sheet,
                 'preview_url': preview_url,
                 'drills': _task_drills_for_pdf(meta),
+                'effective_block': effective_block,
             }
         )
     # Orden estándar de sesión: Calentamiento → Activación → Principal 1 → Principal 2 → Vuelta a la calma.
@@ -17028,11 +17112,11 @@ def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
     known_blocks = {block for spec in section_specs for block in spec['blocks']}
     task_sections = []
     for spec in section_specs:
-        cards = [card for card in task_cards if str(getattr(card['task'], 'block', '') or '') in set(spec['blocks'])]
+        cards = [card for card in task_cards if str(card.get('effective_block') or getattr(card['task'], 'block', '') or '') in set(spec['blocks'])]
         cards.sort(key=lambda c: (int(getattr(c.get('task'), 'order', 0) or 0), int(getattr(c.get('task'), 'id', 0) or 0)))
         if cards:
             task_sections.append({'key': spec['key'], 'label': spec['label'], 'cards': cards})
-    other_cards = [card for card in task_cards if str(getattr(card['task'], 'block', '') or '') not in known_blocks]
+    other_cards = [card for card in task_cards if str(card.get('effective_block') or getattr(card['task'], 'block', '') or '') not in known_blocks]
     other_cards.sort(key=lambda c: (int(getattr(c.get('task'), 'order', 0) or 0), int(getattr(c.get('task'), 'id', 0) or 0)))
     if other_cards:
         task_sections.append({'key': 'other', 'label': 'Otros', 'cards': other_cards})
@@ -28823,6 +28907,377 @@ def analysis_video_studio_projects_api(request):
             }
         )
     return JsonResponse({'ok': True, 'items': payload})
+
+
+def _video_studio_resolve_video(primary_team, *, video_id: int):
+    if not primary_team or not video_id:
+        return None
+    video = RivalVideo.objects.select_related('folder', 'team').filter(id=int(video_id)).first()
+    if not video:
+        return None
+    entry_team_id = int(getattr(video, 'team_id', 0) or 0)
+    folder_team_id = int(getattr(getattr(video, 'folder', None), 'team_id', 0) or 0)
+    if entry_team_id and entry_team_id != int(primary_team.id):
+        return None
+    if folder_team_id and folder_team_id != int(primary_team.id):
+        return None
+    # En el sistema nuevo, el vídeo debería llevar team; si no, lo arreglamos al vuelo.
+    try:
+        if not entry_team_id:
+            video.team = primary_team
+            video.save(update_fields=['team'])
+    except Exception:
+        pass
+    return video
+
+
+def _video_ms_from_seconds(value, *, default=0) -> int:
+    try:
+        if value is None:
+            return int(default)
+        if isinstance(value, (int, float)):
+            return int(max(0, round(float(value) * 1000.0)))
+        raw = str(value).strip()
+        if not raw:
+            return int(default)
+        return int(max(0, round(float(raw) * 1000.0)))
+    except Exception:
+        return int(default)
+
+
+@login_required
+def analysis_video_studio_clips_api(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'No hay equipo principal configurado'}, status=400)
+    video_id = _parse_int(request.GET.get('video_id'))
+    if not video_id:
+        return JsonResponse({'ok': False, 'error': 'video_id requerido.'}, status=400)
+    video = _video_studio_resolve_video(primary_team, video_id=video_id)
+    if not video:
+        return JsonResponse({'ok': False, 'error': 'Vídeo no encontrado.'}, status=404)
+    items = list(
+        VideoClip.objects
+        .filter(team=primary_team, video_id=int(video_id))
+        .order_by('-updated_at', '-id')[:120]
+    )
+    payload = []
+    for obj in items:
+        payload.append(
+            {
+                'id': int(obj.id),
+                'title': str(obj.title or '').strip(),
+                'collection': str(obj.collection or '').strip(),
+                'in_ms': int(obj.in_ms or 0),
+                'out_ms': int(obj.out_ms or 0),
+                'in_s': float(obj.in_seconds),
+                'out_s': float(obj.out_seconds),
+                'tags': obj.tags if isinstance(obj.tags, list) else [],
+                'notes': str(obj.notes or '').strip(),
+                'overlay': obj.overlay if isinstance(obj.overlay, dict) else {},
+                'created_by': str(obj.created_by or '').strip(),
+                'updated_at': obj.updated_at.isoformat() if getattr(obj, 'updated_at', None) else None,
+            }
+        )
+    return JsonResponse({'ok': True, 'items': payload})
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def analysis_video_studio_clip_save_api(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'No hay equipo principal configurado'}, status=400)
+
+    try:
+        if request.content_type and 'application/json' in (request.content_type or '').lower():
+            data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+        else:
+            data = request.POST.dict() if hasattr(request, 'POST') else {}
+    except Exception:
+        data = {}
+
+    clip_id = _parse_int(data.get('id'))
+    video_id = _parse_int(data.get('video_id'))
+    if not video_id:
+        return JsonResponse({'ok': False, 'error': 'video_id requerido.'}, status=400)
+    video = _video_studio_resolve_video(primary_team, video_id=video_id)
+    if not video:
+        return JsonResponse({'ok': False, 'error': 'Vídeo no encontrado.'}, status=404)
+
+    title = _sanitize_task_text(str(data.get('title') or '').strip(), multiline=False, max_len=180)
+    collection = _sanitize_task_text(str(data.get('collection') or '').strip(), multiline=False, max_len=120)
+    in_ms = _video_ms_from_seconds(data.get('in_s'), default=_parse_int(data.get('in_ms')) or 0)
+    out_ms = _video_ms_from_seconds(data.get('out_s'), default=_parse_int(data.get('out_ms')) or 0)
+    if out_ms and in_ms and out_ms < in_ms:
+        in_ms, out_ms = out_ms, in_ms
+    tags = data.get('tags')
+    if isinstance(tags, str):
+        try:
+            tags = json.loads(tags)
+        except Exception:
+            tags = []
+    if not isinstance(tags, list):
+        tags = []
+    tags = [str(t).strip()[:40] for t in tags if str(t).strip()][:24]
+    notes = _sanitize_task_text(str(data.get('notes') or '').strip(), multiline=True, max_len=5000)
+    overlay = data.get('overlay')
+    if isinstance(overlay, str):
+        try:
+            overlay = json.loads(overlay)
+        except Exception:
+            overlay = {}
+    if not isinstance(overlay, dict):
+        overlay = {}
+    # Límite de tamaño razonable.
+    try:
+        raw = json.dumps({'overlay': overlay, 'notes': notes, 'tags': tags}, ensure_ascii=False).encode('utf-8')
+        if len(raw) > 1_600_000:
+            return JsonResponse({'ok': False, 'error': 'Clip demasiado grande.'}, status=400)
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'Payload inválido.'}, status=400)
+
+    username = str(getattr(request.user, 'username', '') or '').strip()[:80]
+    can_manage = _can_manage_workspace(request.user, _get_active_workspace(request))
+    try:
+        if clip_id:
+            obj = VideoClip.objects.filter(id=clip_id, team=primary_team, video_id=int(video_id)).first()
+            if not obj:
+                return JsonResponse({'ok': False, 'error': 'Clip no encontrado.'}, status=404)
+            if not bool(getattr(request.user, 'is_superuser', False)) and not can_manage and str(obj.created_by or '').strip() != username:
+                return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+            obj.title = title
+            obj.collection = collection
+            obj.in_ms = int(in_ms or 0)
+            obj.out_ms = int(out_ms or 0)
+            obj.tags = tags
+            obj.notes = notes
+            obj.overlay = overlay
+            obj.created_by = obj.created_by or username
+            obj.save(update_fields=['title', 'collection', 'in_ms', 'out_ms', 'tags', 'notes', 'overlay', 'updated_at', 'created_by'])
+        else:
+            obj = VideoClip.objects.create(
+                team=primary_team,
+                video_id=int(video_id),
+                title=title,
+                collection=collection,
+                in_ms=int(in_ms or 0),
+                out_ms=int(out_ms or 0),
+                tags=tags,
+                notes=notes,
+                overlay=overlay,
+                created_by=username,
+            )
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'No se pudo guardar.'}, status=500)
+    return JsonResponse({'ok': True, 'id': int(obj.id)})
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def analysis_video_studio_clip_delete_api(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'No hay equipo principal configurado'}, status=400)
+    try:
+        if request.content_type and 'application/json' in (request.content_type or '').lower():
+            data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+        else:
+            data = request.POST.dict() if hasattr(request, 'POST') else {}
+    except Exception:
+        data = {}
+    clip_id = _parse_int(data.get('id'))
+    if not clip_id:
+        return JsonResponse({'ok': False, 'error': 'id requerido.'}, status=400)
+    obj = VideoClip.objects.filter(id=clip_id, team=primary_team).first()
+    if not obj:
+        return JsonResponse({'ok': False, 'error': 'Clip no encontrado.'}, status=404)
+    username = str(getattr(request.user, 'username', '') or '').strip()
+    can_manage = _can_manage_workspace(request.user, _get_active_workspace(request))
+    if not bool(getattr(request.user, 'is_superuser', False)) and not can_manage and str(obj.created_by or '').strip() != username:
+        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+    try:
+        obj.delete()
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'No se pudo borrar.'}, status=500)
+    return JsonResponse({'ok': True})
+
+
+@login_required
+def analysis_video_studio_timeline_api(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'No hay equipo principal configurado'}, status=400)
+    video_id = _parse_int(request.GET.get('video_id'))
+    if not video_id:
+        return JsonResponse({'ok': False, 'error': 'video_id requerido.'}, status=400)
+    video = _video_studio_resolve_video(primary_team, video_id=video_id)
+    if not video:
+        return JsonResponse({'ok': False, 'error': 'Vídeo no encontrado.'}, status=404)
+    items = list(
+        VideoTimelineEvent.objects
+        .filter(team=primary_team, video_id=int(video_id))
+        .order_by('time_ms', 'id')[:260]
+    )
+    payload = []
+    for obj in items:
+        payload.append(
+            {
+                'id': int(obj.id),
+                'time_ms': int(obj.time_ms or 0),
+                'time_s': float(obj.time_seconds),
+                'kind': str(obj.kind or 'tag'),
+                'label': str(obj.label or '').strip(),
+                'color': str(obj.color or '').strip(),
+                'payload': obj.payload if isinstance(obj.payload, dict) else {},
+                'created_by': str(obj.created_by or '').strip(),
+                'updated_at': obj.updated_at.isoformat() if getattr(obj, 'updated_at', None) else None,
+            }
+        )
+    return JsonResponse({'ok': True, 'items': payload})
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def analysis_video_studio_timeline_save_api(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'No hay equipo principal configurado'}, status=400)
+    try:
+        if request.content_type and 'application/json' in (request.content_type or '').lower():
+            data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+        else:
+            data = request.POST.dict() if hasattr(request, 'POST') else {}
+    except Exception:
+        data = {}
+    event_id = _parse_int(data.get('id'))
+    video_id = _parse_int(data.get('video_id'))
+    if not video_id:
+        return JsonResponse({'ok': False, 'error': 'video_id requerido.'}, status=400)
+    video = _video_studio_resolve_video(primary_team, video_id=video_id)
+    if not video:
+        return JsonResponse({'ok': False, 'error': 'Vídeo no encontrado.'}, status=404)
+    time_ms = _video_ms_from_seconds(data.get('time_s'), default=_parse_int(data.get('time_ms')) or 0)
+    kind = str(data.get('kind') or VideoTimelineEvent.KIND_TAG).strip().lower()
+    allowed_kinds = {k for k, _ in VideoTimelineEvent.KIND_CHOICES}
+    if kind not in allowed_kinds:
+        kind = VideoTimelineEvent.KIND_TAG
+    label = _sanitize_task_text(str(data.get('label') or '').strip(), multiline=False, max_len=160)
+    color = str(data.get('color') or '').strip()[:16]
+    payload = data.get('payload')
+    if isinstance(payload, str):
+        try:
+            payload = json.loads(payload)
+        except Exception:
+            payload = {}
+    if not isinstance(payload, dict):
+        payload = {}
+    try:
+        raw = json.dumps({'payload': payload, 'label': label}, ensure_ascii=False).encode('utf-8')
+        if len(raw) > 200_000:
+            return JsonResponse({'ok': False, 'error': 'Evento demasiado grande.'}, status=400)
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'Payload inválido.'}, status=400)
+    username = str(getattr(request.user, 'username', '') or '').strip()[:80]
+    can_manage = _can_manage_workspace(request.user, _get_active_workspace(request))
+    try:
+        if event_id:
+            obj = VideoTimelineEvent.objects.filter(id=event_id, team=primary_team, video_id=int(video_id)).first()
+            if not obj:
+                return JsonResponse({'ok': False, 'error': 'Evento no encontrado.'}, status=404)
+            if not bool(getattr(request.user, 'is_superuser', False)) and not can_manage and str(obj.created_by or '').strip() != username:
+                return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+            obj.time_ms = int(time_ms or 0)
+            obj.kind = kind
+            obj.label = label
+            obj.color = color
+            obj.payload = payload
+            obj.created_by = obj.created_by or username
+            obj.save(update_fields=['time_ms', 'kind', 'label', 'color', 'payload', 'updated_at', 'created_by'])
+        else:
+            obj = VideoTimelineEvent.objects.create(
+                team=primary_team,
+                video_id=int(video_id),
+                time_ms=int(time_ms or 0),
+                kind=kind,
+                label=label,
+                color=color,
+                payload=payload,
+                created_by=username,
+            )
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'No se pudo guardar.'}, status=500)
+    return JsonResponse({'ok': True, 'id': int(obj.id)})
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def analysis_video_studio_timeline_delete_api(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'No hay equipo principal configurado'}, status=400)
+    try:
+        if request.content_type and 'application/json' in (request.content_type or '').lower():
+            data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+        else:
+            data = request.POST.dict() if hasattr(request, 'POST') else {}
+    except Exception:
+        data = {}
+    event_id = _parse_int(data.get('id'))
+    if not event_id:
+        return JsonResponse({'ok': False, 'error': 'id requerido.'}, status=400)
+    obj = VideoTimelineEvent.objects.filter(id=event_id, team=primary_team).first()
+    if not obj:
+        return JsonResponse({'ok': False, 'error': 'Evento no encontrado.'}, status=404)
+    username = str(getattr(request.user, 'username', '') or '').strip()
+    can_manage = _can_manage_workspace(request.user, _get_active_workspace(request))
+    if not bool(getattr(request.user, 'is_superuser', False)) and not can_manage and str(obj.created_by or '').strip() != username:
+        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+    try:
+        obj.delete()
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'No se pudo borrar.'}, status=500)
+    return JsonResponse({'ok': True})
 
 
 @csrf_exempt

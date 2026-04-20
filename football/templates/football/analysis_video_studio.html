@@ -40,6 +40,8 @@
       .row { display:flex; align-items:center; justify-content:space-between; gap:0.6rem; padding:0.65rem 0.75rem; border-radius: 16px; border:1px solid rgba(148,163,184,0.14); background: rgba(255,255,255,0.03); }
       .row strong { font-weight:900; }
       .row small { color: rgba(226,232,240,0.7); font-weight:800; }
+      .split { margin-top: 1rem; padding-top: 0.95rem; border-top: 1px solid rgba(148,163,184,0.16); }
+      .k { display:inline-flex; align-items:center; justify-content:center; min-width: 26px; padding: 0.1rem 0.4rem; border-radius: 10px; border: 1px solid rgba(148,163,184,0.22); background: rgba(2, 6, 23, 0.35); font-weight: 900; font-size: 0.72rem; }
     </style>
   </head>
   <body class="prod-commercial">
@@ -109,6 +111,51 @@
                 </div>
               </label>
             </div>
+
+            <div class="split">
+              <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem;">Clips</div>
+              <label>
+                Título
+                <input type="text" id="vs-clip-title" placeholder="Ej: Presión tras pérdida" />
+              </label>
+              <label>
+                Colección
+                <input type="text" id="vs-clip-collection" placeholder="Ej: J2 · Torremoya" />
+              </label>
+              <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
+                <button type="button" class="button primary" id="vs-clip-save">Guardar clip</button>
+                <button type="button" class="button" id="vs-clip-refresh">Actualizar</button>
+              </div>
+              <div class="meta" style="margin-top:0.2rem;">
+                Atajos: <span class="k">Espacio</span> play/pausa · <span class="k">I</span> IN · <span class="k">O</span> OUT · <span class="k">C</span> guardar clip · <span class="k">T</span> tag.
+              </div>
+              <div class="list" id="vs-clips"></div>
+            </div>
+
+            <div class="split">
+              <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem;">Timeline</div>
+              <label>
+                Tipo
+                <select id="vs-event-kind">
+                  <option value="tag">Tag</option>
+                  <option value="note">Nota</option>
+                  <option value="goal">Gol</option>
+                  <option value="shot">Disparo</option>
+                  <option value="press">Presión</option>
+                  <option value="turnover">Pérdida</option>
+                  <option value="abp">ABP</option>
+                </select>
+              </label>
+              <label>
+                Etiqueta
+                <input type="text" id="vs-event-label" placeholder="Ej: Robo alto + remate" />
+              </label>
+              <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
+                <button type="button" class="button" id="vs-event-add">Añadir en tiempo actual</button>
+                <button type="button" class="button" id="vs-event-refresh">Actualizar</button>
+              </div>
+              <div class="list" id="vs-timeline"></div>
+            </div>
           </div>
         </aside>
       </div>
@@ -118,6 +165,12 @@
     <input type="hidden" id="vs-projects-url" value="{% url 'analysis-video-studio-projects-api' %}" />
     <input type="hidden" id="vs-project-save-url" value="{% url 'analysis-video-studio-project-save-api' %}" />
     <input type="hidden" id="vs-project-delete-url" value="{% url 'analysis-video-studio-project-delete-api' %}" />
+    <input type="hidden" id="vs-clips-url" value="{% url 'analysis-video-studio-clips-api' %}" />
+    <input type="hidden" id="vs-clip-save-url" value="{% url 'analysis-video-studio-clip-save-api' %}" />
+    <input type="hidden" id="vs-clip-delete-url" value="{% url 'analysis-video-studio-clip-delete-api' %}" />
+    <input type="hidden" id="vs-timeline-url" value="{% url 'analysis-video-studio-timeline-api' %}" />
+    <input type="hidden" id="vs-timeline-save-url" value="{% url 'analysis-video-studio-timeline-save-api' %}" />
+    <input type="hidden" id="vs-timeline-delete-url" value="{% url 'analysis-video-studio-timeline-delete-api' %}" />
     <form id="vs-csrf" style="display:none;">{% csrf_token %}</form>
 
     <script src="{% static 'vendor/fabric.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>

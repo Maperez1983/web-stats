@@ -1176,6 +1176,96 @@ class VideoTelestrationProject(models.Model):
         return self.title or f'Proyecto {self.id}'
 
 
+class VideoTimelineEvent(models.Model):
+    """
+    Eventos/etiquetas en la línea de tiempo de un vídeo (para análisis rápido).
+
+    Se guardan por equipo y vídeo para evitar mezclar contextos (Senior vs Prebenjamín).
+    """
+
+    KIND_TAG = 'tag'
+    KIND_NOTE = 'note'
+    KIND_GOAL = 'goal'
+    KIND_SHOT = 'shot'
+    KIND_PRESS = 'press'
+    KIND_TURNOVER = 'turnover'
+    KIND_SET_PIECE = 'abp'
+    KIND_CHOICES = [
+        (KIND_TAG, 'Tag'),
+        (KIND_NOTE, 'Nota'),
+        (KIND_GOAL, 'Gol'),
+        (KIND_SHOT, 'Disparo'),
+        (KIND_PRESS, 'Presión'),
+        (KIND_TURNOVER, 'Pérdida'),
+        (KIND_SET_PIECE, 'ABP'),
+    ]
+
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='video_timeline_events')
+    video = models.ForeignKey(RivalVideo, on_delete=models.CASCADE, related_name='timeline_events')
+    time_ms = models.PositiveIntegerField(default=0, db_index=True)
+    kind = models.CharField(max_length=20, choices=KIND_CHOICES, default=KIND_TAG)
+    label = models.CharField(max_length=160, blank=True)
+    color = models.CharField(max_length=16, blank=True)
+    payload = models.JSONField(default=dict, blank=True)
+    created_by = models.CharField(max_length=80, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['time_ms', 'id']
+        indexes = [
+            models.Index(fields=['team', 'video', 'time_ms']),
+            models.Index(fields=['video', 'time_ms']),
+        ]
+
+    @property
+    def time_seconds(self) -> float:
+        return float(self.time_ms or 0) / 1000.0
+
+    def __str__(self):
+        return f'{self.video_id} · {self.kind} · {self.time_ms}ms'
+
+
+class VideoClip(models.Model):
+    """
+    Clip (segmento IN/OUT) de un vídeo, con anotación opcional.
+
+    Nota: usamos milisegundos para evitar problemas de float al recortar.
+    """
+
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='video_clips')
+    video = models.ForeignKey(RivalVideo, on_delete=models.CASCADE, related_name='clips')
+    title = models.CharField(max_length=180, blank=True)
+    collection = models.CharField(max_length=120, blank=True, help_text='Nombre de la colección/playlist (simple).')
+    in_ms = models.PositiveIntegerField(default=0)
+    out_ms = models.PositiveIntegerField(default=0)
+    tags = models.JSONField(default=list, blank=True)
+    notes = models.TextField(blank=True)
+    overlay = models.JSONField(default=dict, blank=True, help_text='Estado de la pizarra (fabric/canvas) para este clip.')
+    created_by = models.CharField(max_length=80, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at', '-id']
+        indexes = [
+            models.Index(fields=['team', 'video', '-updated_at']),
+            models.Index(fields=['video', 'in_ms']),
+        ]
+
+    @property
+    def in_seconds(self) -> float:
+        return float(self.in_ms or 0) / 1000.0
+
+    @property
+    def out_seconds(self) -> float:
+        return float(self.out_ms or 0) / 1000.0
+
+    def __str__(self):
+        base = self.title or f'Clip {self.id}'
+        return f'{base} · {self.in_ms}-{self.out_ms}ms'
+
+
 class RivalAnalysisReport(models.Model):
     STATUS_DRAFT = 'draft'
     STATUS_READY = 'ready'
