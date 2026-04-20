@@ -29283,6 +29283,144 @@ def analysis_video_studio_timeline_delete_api(request):
 @csrf_exempt
 @login_required
 @require_POST
+def analysis_video_studio_export_pdf_api(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'No hay equipo principal configurado'}, status=400)
+    try:
+        data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+    except Exception:
+        data = {}
+
+    video_id = _parse_int(data.get('video_id'))
+    if not video_id:
+        return JsonResponse({'ok': False, 'error': 'video_id requerido.'}, status=400)
+    video = _video_studio_resolve_video(primary_team, video_id=int(video_id))
+    if not video:
+        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+
+    title = _sanitize_task_text(str(data.get('title') or '').strip(), multiline=False, max_len=160) or f'Video {video_id}'
+    source = str(data.get('source') or '').strip().lower()[:16]
+    slides = data.get('slides')
+    if not isinstance(slides, list):
+        slides = []
+    slides = slides[:24]
+    cleaned = []
+    for item in slides:
+        if not isinstance(item, dict):
+            continue
+        label = _sanitize_task_text(str(item.get('label') or '').strip(), multiline=False, max_len=140)
+        time_s = float(item.get('time_s') or 0) if str(item.get('time_s') or '').strip() else 0.0
+        img = str(item.get('image_data') or '').strip()
+        if not img.startswith('data:image/'):
+            continue
+        if len(img) > 2_500_000:
+            continue
+        cleaned.append({'label': label, 'time_s': max(0.0, float(time_s or 0)), 'image': img})
+    if not cleaned:
+        return JsonResponse({'ok': False, 'error': 'No hay slides para exportar.'}, status=400)
+
+    def _esc(text):
+        return html.escape(str(text or ''))
+
+    slides_html = []
+    def _fmt_time(seconds: float) -> str:
+        try:
+            s = max(0.0, float(seconds or 0.0))
+        except Exception:
+            s = 0.0
+        mm = int(s // 60)
+        ss = int(round(s % 60))
+        return f'{mm:02d}:{ss:02d}'
+
+    for idx, slide in enumerate(cleaned, start=1):
+        label = _esc(slide.get('label') or '')
+        time_s = slide.get('time_s') or 0
+        time_label = _esc(_fmt_time(time_s))
+        img = slide.get('image') or ''
+        slides_html.append(
+            f"""
+            <section class="slide">
+              <div class="meta">
+                <div class="left"><strong>{idx:02d}</strong> {label}</div>
+                <div class="right">{time_label}</div>
+              </div>
+              <div class="frame">
+                <img src="{img}" alt="slide" />
+              </div>
+            </section>
+            """
+        )
+
+    source_label = _esc(source.upper() if source else '')
+    header_title = _esc(title)
+    html_doc = f"""
+    <!doctype html>
+    <html lang="es">
+      <head>
+        <meta charset="utf-8" />
+        <style>
+          @page {{ size: A4 landscape; margin: 14mm 14mm; }}
+          body {{ font-family: -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif; color:#0b1220; }}
+          header {{ display:flex; justify-content:space-between; align-items:flex-end; gap:12px; margin-bottom: 10mm; }}
+          header .title {{ font-size: 18px; font-weight: 900; }}
+          header .sub {{ font-size: 12px; color: #334155; font-weight: 700; }}
+          .slide {{ page-break-after: always; }}
+          .meta {{ display:flex; justify-content:space-between; gap:12px; font-size: 12px; margin-bottom: 6mm; color:#0f172a; }}
+          .meta .left {{ font-weight: 900; }}
+          .meta .right {{ font-weight: 800; color:#334155; }}
+          .frame {{ border: 1px solid #cbd5e1; border-radius: 12px; padding: 6px; }}
+          img {{ width: 100%; height: auto; display:block; border-radius: 10px; }}
+        </style>
+      </head>
+      <body>
+        <header>
+          <div>
+            <div class="title">2J · Video Studio · Slides</div>
+            <div class="sub">{header_title}</div>
+          </div>
+          <div class="sub">{source_label}</div>
+        </header>
+        {''.join(slides_html)}
+      </body>
+    </html>
+    """
+
+    pdf_bytes, pdf_error = _render_pdf_bytes_with_error(request, html_doc)
+    if not pdf_bytes:
+        detail = (pdf_error or '').strip() or 'unknown'
+        return JsonResponse({'ok': False, 'error': f'No se pudo generar el PDF. {detail}'}, status=503)
+
+    safe_name = re.sub(r'[^a-zA-Z0-9_-]+', '-', str(title).strip()).strip('-')[:48] or 'video-studio'
+    response = HttpResponse(pdf_bytes, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="{safe_name}-slides.pdf"'
+    response['Cache-Control'] = 'no-store, max-age=0'
+    response['Pragma'] = 'no-cache'
+    response['Expires'] = '0'
+    try:
+        build_id = (
+            os.getenv('RENDER_GIT_COMMIT')
+            or os.getenv('RENDER_DEPLOY_ID')
+            or os.getenv('SOURCE_VERSION')
+            or os.getenv('GIT_SHA')
+            or ''
+        ).strip()
+        if build_id:
+            response['X-2J-Build'] = build_id
+    except Exception:
+        pass
+    return response
+
+
+@csrf_exempt
+@login_required
+@require_POST
 def analysis_video_studio_project_save_api(request):
     forbidden = _forbid_if_no_coach_access(request.user)
     if forbidden:
@@ -35168,8 +35306,9 @@ def _assistant_extract_bullets(text: str):
         s = re.sub(r'\s+', ' ', s).strip()
         if len(s) < 8 or len(s) > 260:
             continue
-        if re.match(r'^(\-|\•|\*|\–|\—)\s+', s) or re.match(r'^\d+(\.|\))\s+', s):
+        if re.match(r'^(\-|\•|\*|\–|\—|▪|■|▸|▶|✅|✔|☑)\s+', s) or re.match(r'^\d+(\.|\))\s+', s):
             s = re.sub(r'^(\-|\•|\*|\–|\—)\s+', '', s).strip()
+            s = re.sub(r'^(▪|■|▸|▶|✅|✔|☑)\s+', '', s).strip()
             s = re.sub(r'^\d+(\.|\))\s+', '', s).strip()
             if s:
                 lines.append(s)
@@ -35475,11 +35614,16 @@ def _assistant__extract_task_sheet_sections(text: str):
         return {}
 
     headings = {
-        'desc': [('descripcion',), ('reglas',)],
-        'behaviors': [('tipo de comportamientos',), ('comportamientos preferenciados',), ('comportamientos preferenciados',)],
+        # Fichas "libro/temario" (tablas).
+        'desc': [('descripcion',), ('desarrollo',), ('consigna',), ('explicacion',), ('reglas',)],
+        'behaviors': [('tipo de comportamientos',), ('comportamientos preferenciados',), ('objetivos',)],
         'bio': [('caracteristicas',), ('bio',), ('condicionales',)],
-        'considerations': [('consideraciones',)],
+        'considerations': [('consideraciones',), ('variantes',), ('consejos',)],
         'structural': [('condicionantes estructurales',), ('condicionantes', 'estructurales')],
+        # Tarjetas tipo RRSS / "partido condicionado".
+        'provocation': [('reglas de provocacion',), ('reglas provocacion',)],
+        'continuation': [('reglas de continuacion',), ('reglas continuacion',)],
+        'info': [('jugadores',), ('espacio',), ('series',), ('duracion',), ('duracion',)],
     }
     # Índices por sección (la primera ocurrencia).
     idxs = {}
@@ -35493,7 +35637,7 @@ def _assistant__extract_task_sheet_sections(text: str):
             if key in idxs:
                 break
 
-    # Title: primera línea con pinta de "X c Y" o que contenga "portero/porteros" o "mini-partido".
+    # Title: prioriza "XcY" y heurísticas para tarjetas de RRSS (títulos en mayúsculas).
     compact = _assistant__derive_compact_task_title('\n'.join(lines[:60]))
     theme = _assistant__derive_task_theme('\n'.join(lines[:120]))
     if compact and theme:
@@ -35502,11 +35646,29 @@ def _assistant__extract_task_sheet_sections(text: str):
         title = compact
     else:
         title = ''
-        for s in lines[:12]:
+        # 1) Busca un título claramente en mayúsculas (típico de carruseles RRSS).
+        for i, s in enumerate(lines[:18]):
+            letters = [ch for ch in s if ch.isalpha()]
+            if len(letters) < 8:
+                continue
+            upper_ratio = sum(1 for ch in letters if ch.isupper()) / max(1, len(letters))
             low = _assistant__norm_line(s)
-            if re.search(r'\b\d+\s*(c|vs)\s*\d+\b', low) or 'portero' in low or 'mini' in low:
+            if upper_ratio >= 0.78 or any(k in low for k in ('partido condicionado', 'tarea', 'ejercicio')):
                 title = s
+                # Si la siguiente línea parece subtítulo ("para trabajar ..."), la añadimos.
+                if i + 1 < len(lines):
+                    nxt = str(lines[i + 1] or '').strip()
+                    nxt_low = _assistant__norm_line(nxt)
+                    if nxt and len(nxt) <= 90 and (nxt_low.startswith('para ') or nxt_low.startswith('para trabajar') or nxt_low.startswith('objetivo')):
+                        title = f'{title} · {nxt}'
                 break
+        # 2) Fallback: primera línea con pinta de tarea.
+        if not title:
+            for s in lines[:12]:
+                low = _assistant__norm_line(s)
+                if re.search(r'\b\d+\s*(c|vs)\s*\d+\b', low) or 'portero' in low or 'mini' in low:
+                    title = s
+                    break
         if not title:
             title = lines[0]
     title = _sanitize_task_text(title, multiline=False, max_len=90)
@@ -35531,6 +35693,9 @@ def _assistant__extract_task_sheet_sections(text: str):
         'bio': grab('bio', ['considerations', 'structural']),
         'considerations': grab('considerations', ['structural']),
         'structural': grab('structural', []),
+        'provocation': grab('provocation', ['continuation', 'behaviors', 'considerations', 'info', 'structural']),
+        'continuation': grab('continuation', ['behaviors', 'considerations', 'info', 'structural']),
+        'info': grab('info', ['behaviors', 'considerations']),
         'raw_lines': lines[:220],
     }
 
@@ -35556,6 +35721,19 @@ def _assistant_create_blueprint_from_task_sheet(team, doc: AssistantKnowledgeDoc
     """
     Crea 1 blueprint desde una ficha OCR (tablas tipo libros/temarios).
     """
+    def _first_match(patterns: list[str], raw: str) -> str:
+        for pat in patterns:
+            try:
+                m = re.search(pat, raw, flags=re.IGNORECASE)
+            except Exception:
+                m = None
+            if m:
+                try:
+                    return str(m.group(1) or '').strip()
+                except Exception:
+                    return ''
+        return ''
+
     sections = _assistant__extract_task_sheet_sections(text)
     title = str(sections.get('title') or '').strip()
     if not title or len(title) < 6:
@@ -35565,17 +35743,66 @@ def _assistant_create_blueprint_from_task_sheet(team, doc: AssistantKnowledgeDoc
     beh_lines = sections.get('behaviors') or []
     cons_lines = sections.get('considerations') or []
     struct_lines = sections.get('structural') or []
+    prov_lines = sections.get('provocation') or []
+    cont_lines = sections.get('continuation') or []
+    info_lines = sections.get('info') or []
 
-    objective_src = ' '.join(beh_lines[:2]).strip() or ' '.join(desc_lines[:2]).strip() or title
+    raw_all = str(text or '')
+    raw_norm = _assistant__norm_line(raw_all)
+
+    # Campos estructurados (si están en la ficha).
+    players_raw = _first_match(
+        [
+            r'jugadores\s*[:\-]?\s*([0-9]{1,2}\s*\+\s*[0-9]{1,2}\s*[a-z]{0,3})',
+            r'jugadores\s*[:\-]?\s*([0-9]{1,2}\s*\+\s*[0-9]{1,2}\s*p)',
+        ],
+        raw_norm,
+    )
+    space_raw = _first_match([r'espacio\s*[:\-]?\s*([0-9]{1,3}\s*[xX]\s*[0-9]{1,3})'], raw_all)
+    series_raw = _first_match([r'series\s*[:\-]?\s*([0-9]{1,2}\s*[xX]\s*[0-9]{1,2}\s*(\(\s*[0-9]{1,2}\s*\))?)'], raw_all)
+    duration_raw = _first_match([r'duraci[oó]n\s*[:\-]?\s*([0-9]{1,3})'], raw_all)
+
+    # Si OCR separa etiqueta y valor en líneas distintas, fallback sobre `info_lines`.
+    try:
+        joined_info = ' \n'.join([str(v or '') for v in info_lines[:40]])
+    except Exception:
+        joined_info = ''
+    if not players_raw:
+        players_raw = _first_match([r'jugadores\s*([0-9]{1,2}\s*\+\s*[0-9]{1,2}\s*[a-z]{0,3})'], joined_info)
+    if not space_raw:
+        space_raw = _first_match([r'espacio\s*([0-9]{1,3}\s*[xX]\s*[0-9]{1,3})'], joined_info)
+    if not series_raw:
+        series_raw = _first_match([r'series\s*([0-9]{1,2}\s*[xX]\s*[0-9]{1,2}\s*(\(\s*[0-9]{1,2}\s*\))?)'], joined_info)
+    if not duration_raw:
+        duration_raw = _first_match([r'duraci[oó]n\s*([0-9]{1,3})'], joined_info)
+
+    # Normalizaciones suaves.
+    player_count = _sanitize_task_text(players_raw, multiline=False, max_len=40) if players_raw else ''
+    dimensions = _sanitize_task_text(space_raw.replace('X', 'x').replace(' ', ''), multiline=False, max_len=24) if space_raw else ''
+    series = _sanitize_task_text(series_raw.replace('X', 'x').replace(' ', ''), multiline=False, max_len=40) if series_raw else ''
+    try:
+        minutes_val = int(re.sub(r'[^0-9]+', '', duration_raw or '') or 0)
+    except Exception:
+        minutes_val = 0
+    minutes_val = minutes_val if 3 <= minutes_val <= 180 else 12
+
+    # Objetivos / coaching: si hay bullets, priorizamos eso.
+    objective_bullets = _assistant_extract_bullets('\n'.join(beh_lines))
+    if not objective_bullets and 'objetivo' in raw_norm:
+        objective_bullets = _assistant_extract_bullets(raw_all)
+    objective_src = ' · '.join(objective_bullets[:2]).strip() or ' '.join(beh_lines[:2]).strip() or ' '.join(desc_lines[:2]).strip() or title
     objective = _sanitize_task_text(objective_src, multiline=False, max_len=180)
 
     coaching_items = []
-    coaching_items.extend(_assistant__split_sentences(' '.join(cons_lines), limit=6))
+    # Variantes/consejos tienden a ser coaching; objetivos también ayudan.
+    coaching_items.extend(_assistant__split_sentences(' '.join(cons_lines), limit=8))
     coaching_items.extend(_assistant__split_sentences(' '.join(beh_lines), limit=6))
     coaching_items = coaching_items[:10]
 
     rules_items = []
     rules_items.extend(_assistant__split_sentences(' '.join(desc_lines), limit=10))
+    rules_items.extend(_assistant__split_sentences(' '.join(prov_lines), limit=8))
+    rules_items.extend(_assistant__split_sentences(' '.join(cont_lines), limit=6))
     rules_items.extend(_assistant__split_sentences(' '.join(struct_lines), limit=6))
     rules_items = rules_items[:12]
 
@@ -35606,9 +35833,12 @@ def _assistant_create_blueprint_from_task_sheet(team, doc: AssistantKnowledgeDoc
     tpl = {
         'title': title,
         'objective': objective,
-        'minutes': 12,
-        'block': SessionTask.BLOCK_MAIN_1,
+        'minutes': minutes_val,
+        'block': SessionTask.BLOCK_MAIN_2 if category == TaskBlueprint.CATEGORY_FINISH else SessionTask.BLOCK_MAIN_1,
         'training_type': training_type,
+        **({'player_count': player_count} if player_count else {}),
+        **({'dimensions': f'{dimensions} m' if dimensions and not dimensions.lower().endswith('m') else dimensions} if dimensions else {}),
+        **({'series': series} if series else {}),
         'coaching_html': coaching_html,
         'rules_html': rules_html,
         'source_name': 'Foto (OCR)',
