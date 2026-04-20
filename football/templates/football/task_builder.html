@@ -3065,17 +3065,43 @@
 				                                  <option value="9">9</option>
 				                                </select>
 				                              </label>
-				                              <button type="button" class="button" id="task-video-export" disabled>Exportar WebM</button>
-				                              <label>
-				                                Clip
-				                                <select id="task-video-export-len" disabled>
+					                              <button type="button" class="button" id="task-video-export" disabled>Exportar vídeo</button>
+					                              <label>
+					                                Formato
+					                                <select id="task-video-export-format" disabled>
+					                                  <option value="auto" selected>Auto</option>
+					                                  <option value="webm">WebM</option>
+					                                  <option value="mp4">MP4 (si disponible)</option>
+					                                </select>
+					                              </label>
+					                              <label>
+					                                Calidad
+					                                <select id="task-video-export-quality" disabled>
+					                                  <option value="fast" selected>Rápido (720p)</option>
+					                                  <option value="pro">Pro (1080p)</option>
+					                                  <option value="source">Source (máx)</option>
+					                                </select>
+					                              </label>
+					                              <label>
+					                                FPS
+					                                <select id="task-video-export-fps" disabled>
+					                                  <option value="24">24</option>
+					                                  <option value="30" selected>30</option>
+					                                  <option value="60">60</option>
+					                                </select>
+					                              </label>
+					                              <label>
+					                                Clip
+					                                <select id="task-video-export-len" disabled>
 				                                  <option value="10" selected>10s</option>
 				                                  <option value="20">20s</option>
 				                                  <option value="60">60s</option>
 				                                  <option value="full">Full</option>
-				                                </select>
-				                              </label>
-				                            </div>
+					                                </select>
+					                              </label>
+					                              <button type="button" class="button" id="task-video-export-slides" disabled>Slides PDF</button>
+					                              <button type="button" class="button" id="task-video-export-pack" disabled>Paquete</button>
+					                            </div>
 				                          </div>
 				                          <div class="video-studio-timeline">
 				                            <div class="video-studio-scrub">

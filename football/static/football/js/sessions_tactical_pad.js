@@ -804,7 +804,12 @@
 				    const videoColorInput = document.getElementById('task-video-color');
 				    const videoWidthSelect = document.getElementById('task-video-width');
 				    const videoExportBtn = document.getElementById('task-video-export');
+				    const videoExportFormatSelect = document.getElementById('task-video-export-format');
+				    const videoExportQualitySelect = document.getElementById('task-video-export-quality');
+				    const videoExportFpsSelect = document.getElementById('task-video-export-fps');
 				    const videoExportLenSelect = document.getElementById('task-video-export-len');
+				    const videoExportSlidesBtn = document.getElementById('task-video-export-slides');
+				    const videoExportPackBtn = document.getElementById('task-video-export-pack');
 				    const videoScrubInput = document.getElementById('task-video-scrub');
 				    const videoTimeEl = document.getElementById('task-video-time');
 				    const videoDurationEl = document.getElementById('task-video-duration');
@@ -4221,7 +4226,12 @@
 						      if (videoLayerAddBtn) videoLayerAddBtn.disabled = !on;
 						      if (videoLayerFromSelectionBtn) videoLayerFromSelectionBtn.disabled = !on;
 						      if (videoExportBtn) videoExportBtn.disabled = !on || !canRecordVideoStudio();
+						      if (videoExportFormatSelect) videoExportFormatSelect.disabled = !on || !canRecordVideoStudio();
+						      if (videoExportQualitySelect) videoExportQualitySelect.disabled = !on || !canRecordVideoStudio();
+						      if (videoExportFpsSelect) videoExportFpsSelect.disabled = !on || !canRecordVideoStudio();
 						      if (videoExportLenSelect) videoExportLenSelect.disabled = !on || !canRecordVideoStudio();
+						      if (videoExportSlidesBtn) videoExportSlidesBtn.disabled = !on;
+						      if (videoExportPackBtn) videoExportPackBtn.disabled = !on;
 						      if (videoKeyframeDeleteAllBtn) videoKeyframeDeleteAllBtn.disabled = !on || !videoStudioKeyframes.length;
 						      if (videoUndoBtn) videoUndoBtn.disabled = !on || videoStudioHistoryIndex <= 0;
 						    };
@@ -4539,9 +4549,16 @@
 					        clearVideoStudioCanvas();
 					      });
 
-					      videoLoadBtn?.addEventListener('click', () => {
-					        try { videoFileInput?.click?.(); } catch (e) { /* ignore */ }
-					      });
+						      videoLoadBtn?.addEventListener('click', () => {
+						        try { videoFileInput?.click?.(); } catch (e) { /* ignore */ }
+						      });
+						      videoExportFormatSelect?.addEventListener('change', () => {
+						        const fmt = safeText(videoExportFormatSelect.value, 'auto');
+						        const picked = pickVideoStudioMime(fmt);
+						        if (fmt === 'mp4' && !picked) {
+						          window.alert('MP4 no está disponible en este navegador. Se exportará en WebM si es posible.'); // eslint-disable-line no-alert
+						        }
+						      });
 					      videoClearBtn?.addEventListener('click', () => {
 					        const ok = window.confirm('¿Quitar el vídeo? (Los keyframes se mantienen.)'); // eslint-disable-line no-alert
 					        if (!ok) return;
@@ -4872,23 +4889,356 @@
 					        }
 					      });
 
-					      const drawContain = (ctx, video, outW, outH) => {
-					        const vw = Number(video?.videoWidth) || 0;
-					        const vh = Number(video?.videoHeight) || 0;
-					        if (!vw || !vh) return;
-					        const scale = Math.min(outW / vw, outH / vh);
-					        const w = Math.round(vw * scale);
-					        const h = Math.round(vh * scale);
-					        const dx = Math.round((outW - w) / 2);
-					        const dy = Math.round((outH - h) / 2);
-					        try { ctx.drawImage(video, dx, dy, w, h); } catch (e) { /* ignore */ }
-					      };
+						      const drawContain = (ctx, video, outW, outH) => {
+						        const vw = Number(video?.videoWidth) || 0;
+						        const vh = Number(video?.videoHeight) || 0;
+						        if (!vw || !vh) return;
+						        const scale = Math.min(outW / vw, outH / vh);
+						        const w = Math.round(vw * scale);
+						        const h = Math.round(vh * scale);
+						        const dx = Math.round((outW - w) / 2);
+						        const dy = Math.round((outH - h) / 2);
+						        try { ctx.drawImage(video, dx, dy, w, h); } catch (e) { /* ignore */ }
+						      };
 
-					      const exportVideoStudio = async () => {
-					        if (!videoStudioPlayer || !videoStudioCanvas) return;
-					        if (videoStudioExporting) return;
-					        if (!canRecordVideoStudio()) {
-					          window.alert('Tu navegador no soporta exportación de vídeo aquí.'); // eslint-disable-line no-alert
+						      const pickVideoStudioMime = (formatPref) => {
+						        const pref = safeText(formatPref, 'auto').toLowerCase();
+						        const candidates = [];
+						        if (pref === 'mp4') {
+						          candidates.push(
+						            'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+						            'video/mp4;codecs=avc1.4D401E,mp4a.40.2',
+						            'video/mp4'
+						          );
+						        }
+						        if (pref === 'webm') {
+						          candidates.push(
+						            'video/webm;codecs=vp9,opus',
+						            'video/webm;codecs=vp8,opus',
+						            'video/webm'
+						          );
+						        }
+						        if (pref === 'auto') {
+						          candidates.push(
+						            'video/webm;codecs=vp9,opus',
+						            'video/webm;codecs=vp8,opus',
+						            'video/webm',
+						            'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+						            'video/mp4'
+						          );
+						        }
+						        let picked = '';
+						        candidates.some((mt) => {
+						          try {
+						            if (window.MediaRecorder && window.MediaRecorder.isTypeSupported && window.MediaRecorder.isTypeSupported(mt)) {
+						              picked = mt;
+						              return true;
+						            }
+						          } catch (e) { /* ignore */ }
+						          return false;
+						        });
+						        return picked;
+						      };
+
+						      const computeExportSize = (qualityPref) => {
+						        const pref = safeText(qualityPref, 'fast').toLowerCase();
+						        const baseW = Math.max(640, Math.round(videoStudioCanvas?.getWidth?.() || 1280));
+						        const baseH = Math.max(360, Math.round(videoStudioCanvas?.getHeight?.() || 720));
+						        const vw = Math.max(1, Number(videoStudioPlayer?.videoWidth) || baseW);
+						        const vh = Math.max(1, Number(videoStudioPlayer?.videoHeight) || baseH);
+						        if (pref === 'pro') return { w: 1920, h: 1080 };
+						        if (pref === 'source') {
+						          const maxW = 2200;
+						          const maxH = 1400;
+						          const scale = Math.min(maxW / vw, maxH / vh, 1);
+						          return { w: Math.round(vw * scale), h: Math.round(vh * scale) };
+						        }
+						        return { w: baseW, h: baseH };
+						      };
+
+						      const seekVideoStudio = async (t) => {
+						        if (!videoStudioPlayer) return false;
+						        const time = Math.max(0, Number(t) || 0);
+						        try { videoStudioPlayer.pause(); } catch (e) { /* ignore */ }
+						        const done = await new Promise((resolve) => {
+						          let timer = null;
+						          const cleanup = () => {
+						            if (timer) window.clearTimeout(timer);
+						            timer = null;
+						            try { videoStudioPlayer.removeEventListener('seeked', onSeeked); } catch (e) { /* ignore */ }
+						            resolve(true);
+						          };
+						          const onSeeked = () => cleanup();
+						          try { videoStudioPlayer.addEventListener('seeked', onSeeked, { once: true }); } catch (e) { /* ignore */ }
+						          timer = window.setTimeout(() => cleanup(), 900);
+						          try { videoStudioPlayer.currentTime = time; } catch (e) { cleanup(); }
+						        });
+						        return !!done;
+						      };
+
+						      const captureVideoStudioFrame = async (t, size) => {
+						        if (!videoStudioPlayer || !videoStudioCanvas) return null;
+						        const outW = Math.max(640, Math.round(size?.w || 1280));
+						        const outH = Math.max(360, Math.round(size?.h || 720));
+						        const out = document.createElement('canvas');
+						        out.width = outW;
+						        out.height = outH;
+						        const ctx = out.getContext('2d');
+						        if (!ctx) return null;
+						        await seekVideoStudio(t);
+						        applyVideoStudioTimeline(t, { for_export: true });
+						        let fx = null;
+						        try { fx = applyVideoStudioTimeline(t, { for_export: true }) || {}; } catch (e) { fx = {}; }
+						        try {
+						          ctx.fillStyle = 'rgba(2,6,23,1)';
+						          ctx.fillRect(0, 0, outW, outH);
+						          drawContain(ctx, videoStudioPlayer, outW, outH);
+						          // blur/spotlight like export tick
+						          if (fx?.pro && Array.isArray(fx.blurLayers) && fx.blurLayers.length) {
+						            const baseW = Number(fx.w) || (Number(videoStudioCanvas.getWidth?.()) || 1280);
+						            const baseH = Number(fx.h) || (Number(videoStudioCanvas.getHeight?.()) || 720);
+						            const sx = outW / Math.max(1, baseW);
+						            const sy = outH / Math.max(1, baseH);
+						            fx.blurLayers.slice(0, 8).forEach((layer) => {
+						              const st = computeVideoLayerState(layer, t);
+						              if (!st.on || st.opacity <= 0.01) return;
+						              const p = layer.params || {};
+						              const x = clamp(Number(p.x) || 0, 0, baseW);
+						              const y = clamp(Number(p.y) || 0, 0, baseH);
+						              const bw = clamp(Number(p.w) || (baseW * 0.25), 10, baseW);
+						              const bh = clamp(Number(p.h) || (baseH * 0.18), 10, baseH);
+						              const blur = clamp(Number(p.blur) || 12, 1, 40) * st.opacity;
+						              ctx.save();
+						              ctx.globalAlpha = st.opacity;
+						              ctx.filter = `blur(${Math.round(blur)}px)`;
+						              ctx.beginPath();
+						              ctx.rect(x * sx, y * sy, bw * sx, bh * sy);
+						              ctx.clip();
+						              drawContain(ctx, videoStudioPlayer, outW, outH);
+						              ctx.restore();
+						            });
+						          }
+						          if (fx?.pro && fx?.spotlightLayer) {
+						            const st = computeVideoLayerState(fx.spotlightLayer, t);
+						            if (st.on && st.opacity > 0.01) {
+						              const baseW = Number(fx.w) || (Number(videoStudioCanvas.getWidth?.()) || 1280);
+						              const baseH = Number(fx.h) || (Number(videoStudioCanvas.getHeight?.()) || 720);
+						              const sx = outW / Math.max(1, baseW);
+						              const sy = outH / Math.max(1, baseH);
+						              const p = fx.spotlightLayer.params || {};
+						              const cx = clamp(Number(p.x) || (baseW / 2), 0, baseW) * sx;
+						              const cy = clamp(Number(p.y) || (baseH / 2), 0, baseH) * sy;
+						              const r = Math.max(10, Number(p.r) || 160) * Math.min(sx, sy);
+						              const feather = Math.max(0, Number(p.feather) || 40) * Math.min(sx, sy);
+						              const dim = clamp(Number(p.dim) || 0.55, 0, 0.95) * st.opacity;
+						              ctx.save();
+						              ctx.fillStyle = `rgba(2,6,23,${dim})`;
+						              ctx.fillRect(0, 0, outW, outH);
+						              ctx.globalCompositeOperation = 'destination-out';
+						              const g = ctx.createRadialGradient(cx, cy, Math.max(1, r - feather), cx, cy, r + feather);
+						              g.addColorStop(0, 'rgba(0,0,0,1)');
+						              g.addColorStop(0.72, 'rgba(0,0,0,1)');
+						              g.addColorStop(1, 'rgba(0,0,0,0)');
+						              ctx.fillStyle = g;
+						              ctx.beginPath();
+						              ctx.arc(cx, cy, r + feather, 0, Math.PI * 2);
+						              ctx.fill();
+						              ctx.restore();
+						            }
+						          }
+						          ctx.drawImage(videoStudioCanvas.lowerCanvasEl, 0, 0, outW, outH);
+						        } catch (e) { /* ignore */ }
+						        let url = null;
+						        try { url = out.toDataURL('image/png'); } catch (e) { url = null; }
+						        // restore preview
+						        applyVideoStudioTimeline(Number(videoStudioPlayer.currentTime) || 0);
+						        return url;
+						      };
+
+						      const collectVideoStudioSlideTimes = () => {
+						        const times = [];
+						        const add = (t) => {
+						          const v = Math.max(0, Number(t) || 0);
+						          if (!Number.isFinite(v)) return;
+						          times.push(Math.round(v * 1000) / 1000);
+						        };
+						        const usePro = !!videoStudioProEnabled && (videoStudioLayers || []).length;
+						        if (usePro) {
+						          (videoStudioLayers || []).forEach((layer) => {
+						            if (layer?.enabled === false) return;
+						            add(layer.start);
+						            if (safeText(layer.type).toLowerCase() === 'freeze') add(layer.start);
+						          });
+						        } else {
+						          (videoStudioKeyframes || []).forEach((kf) => add(kf.t));
+						        }
+						        add(Number(videoStudioPlayer?.currentTime) || 0);
+						        const uniq = Array.from(new Set(times)).sort((a, b) => a - b);
+						        return uniq.slice(0, 60);
+						      };
+
+						      const buildVideoStudioSlidesHtml = (meta, slides) => {
+						        const title = safeText(meta?.title, 'Telestración');
+						        const subtitle = safeText(meta?.subtitle, '');
+						        const created = safeText(meta?.created, new Date().toISOString());
+						        const cover = safeText(meta?.cover, '');
+						        const rows = slides.map((s, idx) => {
+						          const t = safeText(s?.time_label, '');
+						          const img = safeText(s?.img, '');
+						          const id = `slide_${idx + 1}`;
+						          return `
+						            <section class="slide" id="${id}">
+						              <div class="slide-head">
+						                <div class="badge">#${idx + 1}</div>
+						                <div class="t">${t}</div>
+						              </div>
+						              <img class="frame" src="${img}" alt="frame ${idx + 1}" />
+						            </section>
+						          `;
+						        }).join('\n');
+						        const thumbs = slides.map((s, idx) => {
+						          const t = safeText(s?.time_label, '');
+						          const img = safeText(s?.thumb, s?.img || '');
+						          const id = `slide_${idx + 1}`;
+						          return `
+						            <a class="thumb" href="#${id}">
+						              <img src="${img}" alt="thumb ${idx + 1}" />
+						              <div class="thumb-meta">#${idx + 1} · ${t}</div>
+						            </a>
+						          `;
+						        }).join('\n');
+						        return `<!doctype html>
+						<html lang="es">
+						<head>
+						  <meta charset="utf-8" />
+						  <meta name="viewport" content="width=device-width, initial-scale=1" />
+						  <title>${title}</title>
+						  <style>
+						    :root { color-scheme: light; }
+						    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif; color: #0f172a; background: #f8fafc; }
+						    .wrap { max-width: 980px; margin: 0 auto; padding: 18px 18px 48px; }
+						    .cover { display: grid; grid-template-columns: 1fr; gap: 12px; align-items: start; background: #ffffff; border: 1px solid rgba(15,23,42,0.10); border-radius: 16px; overflow: hidden; }
+						    .cover-top { padding: 18px 18px 0; }
+						    .kicker { font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(2,6,23,0.55); font-size: 12px; }
+						    h1 { margin: 6px 0 0; font-size: 28px; }
+						    .sub { margin: 6px 0 0; color: rgba(15,23,42,0.7); font-weight: 600; }
+						    .meta { margin: 10px 0 16px; color: rgba(15,23,42,0.6); font-size: 13px; }
+						    .cover img { width: 100%; height: auto; display: block; background: #0b1220; }
+						    .index { margin-top: 14px; background: #ffffff; border: 1px solid rgba(15,23,42,0.10); border-radius: 16px; padding: 14px; }
+						    .index h2 { margin: 0 0 10px; font-size: 16px; }
+						    .thumbs { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+						    .thumb { display: grid; gap: 6px; text-decoration: none; color: inherit; padding: 10px; border: 1px solid rgba(15,23,42,0.10); border-radius: 12px; background: rgba(248,250,252,0.9); }
+						    .thumb img { width: 100%; height: auto; border-radius: 10px; background: #0b1220; }
+						    .thumb-meta { font-size: 12px; color: rgba(15,23,42,0.72); font-weight: 700; }
+						    .slide { break-before: page; margin-top: 18px; background: #ffffff; border: 1px solid rgba(15,23,42,0.10); border-radius: 16px; overflow: hidden; }
+						    .slide-head { display:flex; align-items:center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid rgba(15,23,42,0.08); }
+						    .badge { display:inline-flex; align-items:center; justify-content:center; width: 30px; height: 30px; border-radius: 999px; background: #16a34a; color: #ffffff; font-weight: 900; font-size: 13px; }
+						    .t { font-weight: 900; color: rgba(15,23,42,0.75); }
+						    .frame { width: 100%; height: auto; display:block; background: #0b1220; }
+						    @media print {
+						      body { background: #fff; }
+						      .wrap { max-width: none; padding: 0; }
+						      .index { break-before: page; }
+						      .thumb { break-inside: avoid; }
+						      a { color: inherit; text-decoration: none; }
+						    }
+						  </style>
+						</head>
+						<body>
+						  <div class="wrap">
+						    <section class="cover">
+						      <div class="cover-top">
+						        <div class="kicker">2J · Video Studio</div>
+						        <h1>${title}</h1>
+						        ${subtitle ? `<div class="sub">${subtitle}</div>` : ``}
+						        <div class="meta">Generado: ${created}</div>
+						      </div>
+						      ${cover ? `<img src="${cover}" alt="cover" />` : ``}
+						    </section>
+						    <section class="index">
+						      <h2>Índice</h2>
+						      <div class="thumbs">${thumbs}</div>
+						    </section>
+						    ${rows}
+						  </div>
+						</body>
+						</html>`;
+						      };
+
+						      const downloadTextFile = (name, text, mime = 'text/plain') => {
+						        const blob = new Blob([text], { type: mime });
+						        const url = URL.createObjectURL(blob);
+						        const a = document.createElement('a');
+						        a.href = url;
+						        a.download = name;
+						        document.body.appendChild(a);
+						        a.click();
+						        a.remove();
+						        window.setTimeout(() => { try { URL.revokeObjectURL(url); } catch (e) { /* ignore */ } }, 2000);
+						      };
+
+						      const exportVideoStudioSlides = async (mode) => {
+						        if (!videoStudioPlayer || !videoStudioCanvas) return;
+						        const dur = Number(videoStudioPlayer.duration) || 0;
+						        if (!(dur > 0)) return;
+						        const times = collectVideoStudioSlideTimes();
+						        if (!times.length) {
+						          window.alert('No hay tiempos para slides. Crea keyframes o capas.'); // eslint-disable-line no-alert
+						          return;
+						        }
+						        const prevPaused = !!videoStudioPlayer.paused;
+						        const prevTime = Number(videoStudioPlayer.currentTime) || 0;
+						        videoStudioExporting = true;
+						        setVideoStudioStatus('Generando slides…');
+						        const size = computeExportSize('fast');
+						        const slides = [];
+						        for (let i = 0; i < times.length; i += 1) {
+						          const t = clamp(times[i], 0, Math.max(0, dur - 0.001));
+						          const img = await captureVideoStudioFrame(t, size);
+						          if (!img) continue;
+						          slides.push({
+						            t,
+						            time_label: formatClock(t),
+						            img,
+						            thumb: img,
+						          });
+						        }
+						        const cover = slides[0]?.img || '';
+						        const title = 'Telestración · Slides';
+						        const html = buildVideoStudioSlidesHtml({
+						          title,
+						          subtitle: safeText(videoStatusEl?.textContent),
+						          created: new Date().toLocaleString(),
+						          cover,
+						        }, slides);
+						        videoStudioExporting = false;
+						        setVideoStudioStatus('Slides listos.');
+						        try { videoStudioPlayer.currentTime = prevTime; } catch (e) { /* ignore */ }
+						        if (!prevPaused) { try { videoStudioPlayer.play(); } catch (e) { /* ignore */ } }
+						        if (mode === 'pack') {
+						          const stamp = Date.now();
+						          downloadTextFile(`telestracion_pack_${stamp}.html`, html, 'text/html');
+						          downloadTextFile(`telestracion_pack_${stamp}.json`, JSON.stringify({ v: 1, created_at: new Date().toISOString(), slides: slides.map((s) => ({ t: s.t, label: s.time_label })) }, null, 2), 'application/json');
+						          return;
+						        }
+						        const w = window.open('', '_blank');
+						        if (!w) {
+						          window.alert('Tu navegador ha bloqueado la ventana. Permite popups para imprimir el PDF.'); // eslint-disable-line no-alert
+						          return;
+						        }
+						        w.document.open();
+						        w.document.write(html);
+						        w.document.close();
+						        w.focus();
+						        // Espera a que carguen imágenes y lanza print.
+						        window.setTimeout(() => { try { w.print(); } catch (e) { /* ignore */ } }, 600);
+						      };
+
+						      const exportVideoStudio = async () => {
+						        if (!videoStudioPlayer || !videoStudioCanvas) return;
+						        if (videoStudioExporting) return;
+						        if (!canRecordVideoStudio()) {
+						          window.alert('Tu navegador no soporta exportación de vídeo aquí.'); // eslint-disable-line no-alert
 					          return;
 					        }
 					        const dur = Number(videoStudioPlayer.duration) || 0;
@@ -4896,18 +5246,19 @@
 					        const lenRaw = safeText(videoExportLenSelect?.value, '10');
 					        const startTime = clamp(Number(videoStudioPlayer.currentTime) || 0, 0, Math.max(0, dur - 0.1));
 					        const clipLen = (lenRaw === 'full') ? (dur - startTime) : clamp(Number(lenRaw) || 10, 3, 600);
-					        if (clipLen <= 0.25) return;
+						        if (clipLen <= 0.25) return;
 
-					        videoStudioExporting = true;
-					        if (videoExportBtn) videoExportBtn.disabled = true;
-					        setVideoStudioStatus('Exportando…');
+						        videoStudioExporting = true;
+						        if (videoExportBtn) videoExportBtn.disabled = true;
+						        setVideoStudioStatus('Exportando…');
 
-					        const outW = Math.max(640, Math.round(videoStudioCanvas.getWidth() || 1280));
-					        const outH = Math.max(360, Math.round(videoStudioCanvas.getHeight() || 720));
-					        const out = document.createElement('canvas');
-					        out.width = outW;
-					        out.height = outH;
-					        const ctx = out.getContext('2d');
+						        const size = computeExportSize(videoExportQualitySelect?.value);
+						        const outW = Math.max(640, Math.round(size.w || 1280));
+						        const outH = Math.max(360, Math.round(size.h || 720));
+						        const out = document.createElement('canvas');
+						        out.width = outW;
+						        out.height = outH;
+						        const ctx = out.getContext('2d');
 					        if (!ctx) {
 					          videoStudioExporting = false;
 					          setVideoStudioStatus('No se pudo exportar.', true);
@@ -4915,12 +5266,13 @@
 					          return;
 					        }
 
-					        let stream = null;
-					        try { stream = out.captureStream(30); } catch (e) { stream = null; }
-					        if (!stream) {
-					          videoStudioExporting = false;
-					          setVideoStudioStatus('No se pudo exportar.', true);
-					          setVideoStudioLoadedUi(true);
+						        const fps = clamp(Number(videoExportFpsSelect?.value) || 30, 12, 60);
+						        let stream = null;
+						        try { stream = out.captureStream(fps); } catch (e) { stream = null; }
+						        if (!stream) {
+						          videoStudioExporting = false;
+						          setVideoStudioStatus('No se pudo exportar.', true);
+						          setVideoStudioLoadedUi(true);
 					          return;
 					        }
 					        // Audio (si el navegador lo permite).
@@ -4930,25 +5282,11 @@
 					          if (atrack) stream.addTrack(atrack);
 					        } catch (e) { /* ignore */ }
 
-					        const mimeCandidates = [
-					          'video/webm;codecs=vp9,opus',
-					          'video/webm;codecs=vp8,opus',
-					          'video/webm',
-					        ];
-					        let mimeType = '';
-					        mimeCandidates.some((mt) => {
-					          try {
-					            if (window.MediaRecorder.isTypeSupported(mt)) {
-					              mimeType = mt;
-					              return true;
-					            }
-					          } catch (e) { /* ignore */ }
-					          return false;
-					        });
-					        let recorder = null;
-					        try { recorder = new window.MediaRecorder(stream, mimeType ? { mimeType } : undefined); } catch (e) { recorder = null; }
-					        if (!recorder) {
-					          videoStudioExporting = false;
+						        const mimeType = pickVideoStudioMime(videoExportFormatSelect?.value);
+						        let recorder = null;
+						        try { recorder = new window.MediaRecorder(stream, mimeType ? { mimeType } : undefined); } catch (e) { recorder = null; }
+						        if (!recorder) {
+						          videoStudioExporting = false;
 					          setVideoStudioStatus('No se pudo exportar.', true);
 					          setVideoStudioLoadedUi(true);
 					          return;
@@ -4956,15 +5294,16 @@
 
 					        const chunks = [];
 					        recorder.ondataavailable = (ev) => { if (ev?.data && ev.data.size > 0) chunks.push(ev.data); };
-					        recorder.onstop = () => {
-					          const blob = new Blob(chunks, { type: recorder?.mimeType || 'video/webm' });
-					          const url = URL.createObjectURL(blob);
-					          const link = document.createElement('a');
-					          link.href = url;
-					          link.download = `telestracion_${Date.now()}.webm`;
-					          document.body.appendChild(link);
-					          link.click();
-					          link.remove();
+						        recorder.onstop = () => {
+						          const blob = new Blob(chunks, { type: recorder?.mimeType || 'video/webm' });
+						          const url = URL.createObjectURL(blob);
+						          const link = document.createElement('a');
+						          link.href = url;
+						          const ext = (safeText(recorder?.mimeType).includes('mp4')) ? 'mp4' : 'webm';
+						          link.download = `telestracion_${Date.now()}.${ext}`;
+						          document.body.appendChild(link);
+						          link.click();
+						          link.remove();
 					          window.setTimeout(() => {
 					            try { URL.revokeObjectURL(url); } catch (e) { /* ignore */ }
 					          }, 2500);
@@ -5078,8 +5417,10 @@
 					        videoStudioExportFrame = window.requestAnimationFrame(tick);
 					      };
 
-					      videoExportBtn?.addEventListener('click', () => { void exportVideoStudio(); });
-					    };
+						      videoExportBtn?.addEventListener('click', () => { void exportVideoStudio(); });
+						      videoExportSlidesBtn?.addEventListener('click', () => { void exportVideoStudioSlides('pdf'); });
+						      videoExportPackBtn?.addEventListener('click', () => { void exportVideoStudioSlides('pack'); });
+						    };
 
 					    const setVideoStudioOpen = (open) => {
 					      if (!videoStudioModal) return;
