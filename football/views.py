@@ -5673,7 +5673,14 @@ def authenticated_write(view_func):
     @wraps(view_func)
     def _wrapped(request, *args, **kwargs):
         if not request.user.is_authenticated:
-            return JsonResponse({'error': 'Autenticación requerida'}, status=401)
+            payload = {
+                'status': 'error',
+                'message': 'Autenticación requerida',
+                'error': 'Autenticación requerida',
+            }
+            response = JsonResponse(payload, status=401)
+            response['Cache-Control'] = 'no-store'
+            return response
         return view_func(request, *args, **kwargs)
 
     return _wrapped
@@ -9206,6 +9213,13 @@ def club_onboarding_page(request):
     redirect_response = _redirect_to_app_host_if_landing(request, path='/onboarding/')
     if redirect_response:
         return redirect_response
+    # En app.*, el onboarding es parte de la app privada: requiere login.
+    if not request.user.is_authenticated:
+        login_url = reverse('login')
+        next_path = request.get_full_path() or '/onboarding/'
+        if next_path and next_path != '/':
+            return redirect(f'{login_url}?next={quote(next_path)}')
+        return redirect(login_url)
     workspace = _get_active_workspace(request)
     if not workspace:
         # Primer arranque: crear el club desde la app (sin Platform).
