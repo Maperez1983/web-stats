@@ -54,6 +54,35 @@
         background: rgba(7, 16, 30, 0.82);
         backdrop-filter: blur(4px);
       }
+      .topbar-right {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+      .team-switcher {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+      .team-switcher select {
+        max-width: 320px;
+        border-radius: 999px;
+        padding: 0.5rem 0.8rem;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: rgba(255, 255, 255, 0.06);
+        color: rgba(245, 247, 250, 0.92);
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-size: 0.72rem;
+      }
+      .team-switcher select:focus {
+        outline: none;
+        border-color: rgba(70, 211, 255, 0.6);
+      }
 
       .topbar-brand h1 {
         margin: 0;
@@ -662,6 +691,21 @@
 	            <h1>Segunda Jugada · 2J Club</h1>
           </div>
         </div>
+        {% if active_team_options and active_team_options|length > 1 and team_switcher_enabled %}
+        <div class="topbar-right">
+          <form class="team-switcher" method="post" action="{% url 'workspace-active-team' %}">
+            {% csrf_token %}
+            <select name="team_id" aria-label="Cambiar equipo" onchange="this.form.submit()">
+              {% for opt in active_team_options %}
+              <option value="{{ opt.id }}" {% if active_team and opt.id == active_team.id %}selected{% endif %}>
+                {{ opt.label }}
+              </option>
+              {% endfor %}
+            </select>
+            <input type="hidden" name="next" value="{{ active_team_current_path|default:'' }}" />
+          </form>
+        </div>
+        {% endif %}
       </header>
 
       <section class="hero">

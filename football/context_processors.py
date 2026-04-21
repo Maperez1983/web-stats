@@ -107,14 +107,13 @@ def workspace_access(request):
 
     team_switcher_enabled = False
     try:
-        raw_flag = str(os.getenv('ENABLE_TEAM_SWITCHER', '0') or '').strip().lower()
+        raw_flag = str(os.getenv('ENABLE_TEAM_SWITCHER', '') or '').strip().lower()
+        # Compatibilidad: si se define explícitamente, respeta el flag.
+        # Si NO se define, habilitamos el selector cuando el usuario tiene acceso a >1 equipo/categoría
+        # para evitar confusiones (p.ej. iPad/app nueva sesión cayendo al Senior).
         team_switcher_enabled = raw_flag in {'1', 'true', 'yes', 'on'}
     except Exception:
         team_switcher_enabled = False
-    # Producto comercial: por defecto no mostramos selector interno de equipo para no mezclar datos.
-    # Los admins pueden cambiar de club/equipo desde Platform.
-    if is_admin:
-        team_switcher_enabled = bool(team_switcher_enabled)
 
     module_access = {}
     try:
@@ -127,7 +126,7 @@ def workspace_access(request):
 
     team_options = []
     try:
-        if workspace and workspace.kind == Workspace.KIND_CLUB and team_switcher_enabled:
+        if workspace and workspace.kind == Workspace.KIND_CLUB:
             links = _workspace_team_links_for_user(workspace, request.user)
             for link in links:
                 team = getattr(link, 'team', None)
@@ -147,6 +146,9 @@ def workspace_access(request):
                         'is_default': bool(getattr(link, 'is_default', False)),
                     }
                 )
+            if raw_flag == '' and len(team_options) > 1:
+                # Sin flag explícito, habilitar por presencia de múltiples categorías.
+                team_switcher_enabled = True
     except Exception:
         team_options = []
 
