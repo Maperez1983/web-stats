@@ -1373,11 +1373,58 @@
 	        height: 22px;
 	        opacity: 0.9;
 	      }
-      .pitch-status {
-        margin: 0.75rem 0 0;
-        color: var(--muted);
-        font-size: 0.82rem;
-      }
+	      .pitch-status {
+	        margin: 0.75rem 0 0;
+	        color: var(--muted);
+	        font-size: 0.82rem;
+	      }
+	      .pitch-drills-strip {
+	        margin: 0.65rem 0 0;
+	        display: flex;
+	        gap: 0.5rem;
+	        flex-wrap: wrap;
+	        align-items: center;
+	        padding: 0.5rem 0.65rem;
+	        border-radius: 14px;
+	        border: 1px solid rgba(255,255,255,0.14);
+	        background: rgba(2,6,23,0.50);
+	        box-shadow: 0 12px 28px rgba(2,6,23,0.35);
+	        backdrop-filter: blur(10px);
+	      }
+	      .pitch-drills-strip[hidden] { display: none !important; }
+	      .pitch-drills-title {
+	        font-weight: 900;
+	        letter-spacing: 0.08em;
+	        text-transform: uppercase;
+	        color: rgba(226,232,240,0.92);
+	        font-size: 0.78rem;
+	        margin-right: 0.15rem;
+	      }
+	      .pitch-drill-chip {
+	        display: inline-flex;
+	        align-items: center;
+	        gap: 0.4rem;
+	        padding: 0.3rem 0.45rem;
+	        border-radius: 999px;
+	        border: 1px solid rgba(255,255,255,0.12);
+	        background: rgba(15, 23, 42, 0.62);
+	        color: rgba(226,232,240,0.92);
+	        font-weight: 800;
+	        font-size: 0.78rem;
+	        max-width: 220px;
+	      }
+	      .pitch-drill-chip img {
+	        width: 20px;
+	        height: 20px;
+	        object-fit: contain;
+	        filter: drop-shadow(0 6px 10px rgba(2,6,23,0.35));
+	      }
+	      .pitch-drill-chip span {
+	        overflow: hidden;
+	        text-overflow: ellipsis;
+	        white-space: nowrap;
+	        max-width: 170px;
+	      }
 	      .pitch-zoom {
 	        display: flex;
 	        align-items: center;
@@ -3574,17 +3621,18 @@
 	                </div>
 		              </div>
 
-	              <div class="pitch-main">
-	              <div class="pitch-viewport" id="task-pitch-viewport">
-	                <div class="pitch-stage" id="task-pitch-stage">
-	                  <svg id="task-pitch-surface" viewBox="-2 -2 1054 684" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
-	                  <canvas id="create-task-canvas"></canvas>
-	                  <button type="button" class="pitch-resize-handle" id="pitch-resize-handle" aria-label="Redimensionar campo">
-	                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 3v6h-2V6.41l-6.29 6.3-1.42-1.42 6.3-6.29H15V3h6ZM5 21h6v-2H6.41l6.3-6.29-1.42-1.42-6.29 6.3V13H3v8h2Z"/></svg>
-	                  </button>
-	                </div>
-	              </div>
-              <p class="pitch-status" id="task-builder-status">Pizarra lista.</p>
+		              <div class="pitch-main">
+		              <div class="pitch-viewport" id="task-pitch-viewport">
+		                <div class="pitch-stage" id="task-pitch-stage">
+		                  <svg id="task-pitch-surface" viewBox="-2 -2 1054 684" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
+		                  <canvas id="create-task-canvas"></canvas>
+		                  <button type="button" class="pitch-resize-handle" id="pitch-resize-handle" aria-label="Redimensionar campo">
+		                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 3v6h-2V6.41l-6.29 6.3-1.42-1.42 6.3-6.29H15V3h6ZM5 21h6v-2H6.41l6.3-6.29-1.42-1.42-6.29 6.3V13H3v8h2Z"/></svg>
+		                  </button>
+		                </div>
+		              </div>
+		              <div class="pitch-drills-strip" id="task-drills-strip" hidden></div>
+	              <p class="pitch-status" id="task-builder-status">Pizarra lista.</p>
 
 	              <div class="section" style="margin-top:0.9rem;">
 	                <div class="player-bank-head">
@@ -4526,26 +4574,29 @@
 				              return [];
 				            }
 				          };
-				          const writeDrills = (ids) => {
-				            const safe = Array.isArray(ids) ? ids.map((v) => String(v || '').trim()).filter(Boolean) : [];
-				            const deduped = [];
-				            const seen = new Set();
-				            safe.forEach((id) => {
-				              if (!id || seen.has(id)) return;
-				              seen.add(id);
-				              deduped.push(id);
-				            });
-				            try {
-				              if (drillsInput) drillsInput.value = JSON.stringify(deduped);
-				            } catch (err) {}
-				            try {
-				              if (!drillsPicker) return;
-				              Array.from(drillsPicker.querySelectorAll('input[type="checkbox"][data-drill-id]')).forEach((cb) => {
-				                const id = String(cb.getAttribute('data-drill-id') || '').trim();
-				                cb.checked = !!(id && deduped.includes(id));
-				              });
-				            } catch (err) {}
-				          };
+					          const writeDrills = (ids) => {
+					            const safe = Array.isArray(ids) ? ids.map((v) => String(v || '').trim()).filter(Boolean) : [];
+					            const deduped = [];
+					            const seen = new Set();
+					            safe.forEach((id) => {
+					              if (!id || seen.has(id)) return;
+					              seen.add(id);
+					              deduped.push(id);
+					            });
+					            try {
+					              if (drillsInput) {
+					                drillsInput.value = JSON.stringify(deduped);
+					                drillsInput.dispatchEvent(new Event('change', { bubbles: true }));
+					              }
+					            } catch (err) {}
+					            try {
+					              if (!drillsPicker) return;
+					              Array.from(drillsPicker.querySelectorAll('input[type="checkbox"][data-drill-id]')).forEach((cb) => {
+					                const id = String(cb.getAttribute('data-drill-id') || '').trim();
+					                cb.checked = !!(id && deduped.includes(id));
+					              });
+					            } catch (err) {}
+					          };
 				          const readDrills = () => {
 				            const current = parseJsonList(drillsInput?.value);
 				            if (current.length) return current;

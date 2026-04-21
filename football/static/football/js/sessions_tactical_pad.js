@@ -699,14 +699,17 @@
 	    const timelinePreviewsInput = document.getElementById('draw-canvas-timeline-previews');
     const livePreviewImg = document.getElementById('task-live-preview');
     const livePreviewPlaceholder = document.getElementById('task-live-preview-placeholder');
-    const playerCountInput = form.querySelector('[name="draw_task_player_count"]');
-    const legacyPlayersInput = form.querySelector('[name="draw_task_players"]');
-		    const statusEl = document.getElementById('task-builder-status');
-		    const toolStrip = document.getElementById('task-basic-tools');
-		    const playerBank = document.getElementById('task-player-bank');
-		    const hideUsedPlayersToggle = document.getElementById('task-hide-used-players');
-		    const libraryPane = document.querySelector('.side-pane[data-pane="biblioteca"]');
-		    const selectionToolbar = document.getElementById('task-selection-toolbar');
+	    const playerCountInput = form.querySelector('[name="draw_task_player_count"]');
+	    const legacyPlayersInput = form.querySelector('[name="draw_task_players"]');
+			    const statusEl = document.getElementById('task-builder-status');
+			    const drillsStripEl = document.getElementById('task-drills-strip');
+			    const drillsInputEl = document.getElementById('draw-task-drills-json');
+			    const drillsPickerEl = document.getElementById('task-drills-picker');
+			    const toolStrip = document.getElementById('task-basic-tools');
+			    const playerBank = document.getElementById('task-player-bank');
+			    const hideUsedPlayersToggle = document.getElementById('task-hide-used-players');
+			    const libraryPane = document.querySelector('.side-pane[data-pane="biblioteca"]');
+			    const selectionToolbar = document.getElementById('task-selection-toolbar');
     const selectionSummary = document.getElementById('task-selection-summary');
     const scaleXInput = document.getElementById('task-scale-x');
     const scaleYInput = document.getElementById('task-scale-y');
@@ -755,9 +758,61 @@
 			    const simClipsList = document.getElementById('task-sim-clips');
 				    const simToScenariosBtn = document.getElementById('task-sim-to-scenarios');
 				    const simShareUrlInput = document.getElementById('task-sim-share-url');
-			    const simAutoCaptureInput = document.getElementById('task-sim-autocapture');
-			    const simProEnabledInput = document.getElementById('task-sim-pro-enabled');
-			    const simProPanel = document.getElementById('task-sim-pro-panel');
+				    const simAutoCaptureInput = document.getElementById('task-sim-autocapture');
+				    const simProEnabledInput = document.getElementById('task-sim-pro-enabled');
+				    const simProPanel = document.getElementById('task-sim-pro-panel');
+
+			    // Pictogramas (drills): deben verse como "secuencia" para el entrenador,
+			    // pero no forman parte del dibujo del campo. Se renderizan como tira debajo de la pizarra.
+			    const cssEscape = (value) => {
+			      const raw = String(value || '');
+			      if (window.CSS && typeof window.CSS.escape === 'function') return window.CSS.escape(raw);
+			      return raw.replace(/[^a-zA-Z0-9_-]/g, '\\$&');
+			    };
+			    const parseJsonList = (value) => {
+			      const raw = String(value || '').trim();
+			      if (!raw) return [];
+			      if (!(raw.startsWith('[') && raw.endsWith(']'))) return [];
+			      try {
+			        const parsed = JSON.parse(raw);
+			        return Array.isArray(parsed) ? parsed.map((v) => safeText(v)).filter(Boolean) : [];
+			      } catch (e) {
+			        return [];
+			      }
+			    };
+			    const readDrillsIds = () => parseJsonList(drillsInputEl?.value);
+			    const drillCardFromDom = (id) => {
+			      const safeId = safeText(id);
+			      if (!safeId || !drillsPickerEl) return null;
+			      const cb = drillsPickerEl.querySelector(`input[type="checkbox"][data-drill-id="${cssEscape(safeId)}"]`);
+			      const wrapper = cb?.closest('label');
+			      if (!wrapper) return null;
+			      const label = safeText(wrapper.getAttribute('data-drill-label')) || safeText(wrapper.textContent).replace(/\s+/g, ' ').trim();
+			      const icon = wrapper.querySelector('img.drill-icon')?.getAttribute('src') || '';
+			      return { id: safeId, label, icon };
+			    };
+			    const renderDrillsStrip = () => {
+			      if (!drillsStripEl) return;
+			      const ids = readDrillsIds();
+			      const cards = ids.map((id) => drillCardFromDom(id)).filter(Boolean);
+			      if (!cards.length) {
+			        drillsStripEl.innerHTML = '';
+			        drillsStripEl.hidden = true;
+			        return;
+			      }
+			      drillsStripEl.hidden = false;
+			      drillsStripEl.innerHTML = [
+			        '<span class="pitch-drills-title">Secuencia</span>',
+			        ...cards.map((card) => {
+			          const icon = safeText(card.icon);
+			          const label = safeText(card.label, card.id);
+			          return `<div class="pitch-drill-chip" title="${label}">${icon ? `<img src="${icon}" alt="" />` : ''}<span>${label}</span></div>`;
+			        }),
+			      ].join('');
+			    };
+			    try { drillsInputEl?.addEventListener('change', renderDrillsStrip); } catch (e) { /* ignore */ }
+			    try { drillsPickerEl?.addEventListener('change', renderDrillsStrip); } catch (e) { /* ignore */ }
+			    try { renderDrillsStrip(); } catch (e) { /* ignore */ }
 			    const simProScrub = document.getElementById('task-sim-pro-scrub');
 			    const simProTimeLabel = document.getElementById('task-sim-pro-time');
 			    const simProTotalLabel = document.getElementById('task-sim-pro-total');
@@ -8657,35 +8712,17 @@
 		        try { canvas.calcOffset(); } catch (e) { /* ignore */ }
 		      }
 		    };
-		    const applyPitchZoom = (value, options = {}) => {
-		      const next = clamp(Number(value) || 1, 0.8, 1.6);
-		      pitchZoom = next;
-		      if (!options.silent) zoomTouched = true;
-		      syncZoomUi();
-		      if (!options.silent) setStatus(`Zoom: ${Math.round(pitchZoom * 100)}%.`);
-		    };
-
-		    // Pictogramas (drills) se usan como "secuencia" en el PDF de la tarea.
-		    // No deben convertirse en elementos de pizarra (para no ensuciar el diseño gráfico del ejercicio).
-		    const isDrillPictogramUrl = (raw) => {
-		      const url = safeText(raw || '').toLowerCase();
-		      return !!url && url.includes('images/drills/');
-		    };
-		    const isDrillPictogramSerialized = (item) => {
-		      if (!item || typeof item !== 'object') return false;
-		      if (safeText(item?.data?.kind) !== 'url_asset') return false;
-		      return isDrillPictogramUrl(item?.data?.url);
-		    };
-		    const isDrillPictogramObject = (obj) => {
-		      if (!obj || typeof obj !== 'object') return false;
-		      const data = obj.data || {};
-		      if (safeText(data.kind) !== 'url_asset') return false;
-		      return isDrillPictogramUrl(data.url);
-		    };
+			    const applyPitchZoom = (value, options = {}) => {
+			      const next = clamp(Number(value) || 1, 0.8, 1.6);
+			      pitchZoom = next;
+			      if (!options.silent) zoomTouched = true;
+			      syncZoomUi();
+			      if (!options.silent) setStatus(`Zoom: ${Math.round(pitchZoom * 100)}%.`);
+			    };
 
 	    const serializeCanvasOnly = () => {
 	      const json = canvas.toJSON(['data']);
-	      json.objects = (json.objects || []).filter((item) => !(item?.data?.base) && !isDrillPictogramSerialized(item));
+	      json.objects = (json.objects || []).filter((item) => !(item?.data?.base));
 	      return json;
 	    };
     const normalizeTimeline = (raw) => {
@@ -9327,17 +9364,11 @@
       return json;
     };
 
-	    const sanitizeLoadedState = (raw) => {
-	      if (!raw || typeof raw !== 'object') return { version: '5.3.0', objects: [] };
-	      const objects = Array.isArray(raw.objects)
-	        ? raw.objects.filter((item) => (
-	          !(item?.data?.base)
-	          && !(item?.selectable === false && item?.evented === false)
-	          && !isDrillPictogramSerialized(item)
-	        ))
-	        : [];
-	      return { version: raw.version || '5.3.0', objects };
-	    };
+		    const sanitizeLoadedState = (raw) => {
+		      if (!raw || typeof raw !== 'object') return { version: '5.3.0', objects: [] };
+		      const objects = Array.isArray(raw.objects) ? raw.objects.filter((item) => !(item?.data?.base) && !(item?.selectable === false && item?.evented === false)) : [];
+		      return { version: raw.version || '5.3.0', objects };
+		    };
 
 	    const objectAtPointer = (factory, pointer) => {
 	      const { w, h } = worldSize();
@@ -9348,10 +9379,6 @@
 
 				    const addObject = (object) => {
 				      if (!object) return;
-				      if (isDrillPictogramObject(object)) {
-				        setStatus('Pictogramas: se usan como secuencia en el PDF y no se añaden a la pizarra.');
-				        return;
-				      }
 				      // Figuras de fondo: al crearlas queremos permitir edición inmediata (mover/escala).
 				      // Luego se desactiva automáticamente al seleccionar otra cosa o con Escape.
 				      if (isBackgroundShape(object)) {
