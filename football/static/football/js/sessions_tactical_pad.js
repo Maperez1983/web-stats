@@ -8657,19 +8657,37 @@
 		        try { canvas.calcOffset(); } catch (e) { /* ignore */ }
 		      }
 		    };
-	    const applyPitchZoom = (value, options = {}) => {
-	      const next = clamp(Number(value) || 1, 0.8, 1.6);
-	      pitchZoom = next;
-	      if (!options.silent) zoomTouched = true;
-	      syncZoomUi();
-	      if (!options.silent) setStatus(`Zoom: ${Math.round(pitchZoom * 100)}%.`);
-	    };
+		    const applyPitchZoom = (value, options = {}) => {
+		      const next = clamp(Number(value) || 1, 0.8, 1.6);
+		      pitchZoom = next;
+		      if (!options.silent) zoomTouched = true;
+		      syncZoomUi();
+		      if (!options.silent) setStatus(`Zoom: ${Math.round(pitchZoom * 100)}%.`);
+		    };
 
-    const serializeCanvasOnly = () => {
-      const json = canvas.toJSON(['data']);
-      json.objects = (json.objects || []).filter((item) => !(item?.data?.base));
-      return json;
-    };
+		    // Pictogramas (drills) se usan como "secuencia" en el PDF de la tarea.
+		    // No deben convertirse en elementos de pizarra (para no ensuciar el diseño gráfico del ejercicio).
+		    const isDrillPictogramUrl = (raw) => {
+		      const url = safeText(raw || '').toLowerCase();
+		      return !!url && url.includes('images/drills/');
+		    };
+		    const isDrillPictogramSerialized = (item) => {
+		      if (!item || typeof item !== 'object') return false;
+		      if (safeText(item?.data?.kind) !== 'url_asset') return false;
+		      return isDrillPictogramUrl(item?.data?.url);
+		    };
+		    const isDrillPictogramObject = (obj) => {
+		      if (!obj || typeof obj !== 'object') return false;
+		      const data = obj.data || {};
+		      if (safeText(data.kind) !== 'url_asset') return false;
+		      return isDrillPictogramUrl(data.url);
+		    };
+
+	    const serializeCanvasOnly = () => {
+	      const json = canvas.toJSON(['data']);
+	      json.objects = (json.objects || []).filter((item) => !(item?.data?.base) && !isDrillPictogramSerialized(item));
+	      return json;
+	    };
     const normalizeTimeline = (raw) => {
       if (!Array.isArray(raw)) return [];
       return raw
@@ -9309,11 +9327,17 @@
       return json;
     };
 
-    const sanitizeLoadedState = (raw) => {
-      if (!raw || typeof raw !== 'object') return { version: '5.3.0', objects: [] };
-      const objects = Array.isArray(raw.objects) ? raw.objects.filter((item) => !(item?.data?.base) && !(item?.selectable === false && item?.evented === false)) : [];
-      return { version: raw.version || '5.3.0', objects };
-    };
+	    const sanitizeLoadedState = (raw) => {
+	      if (!raw || typeof raw !== 'object') return { version: '5.3.0', objects: [] };
+	      const objects = Array.isArray(raw.objects)
+	        ? raw.objects.filter((item) => (
+	          !(item?.data?.base)
+	          && !(item?.selectable === false && item?.evented === false)
+	          && !isDrillPictogramSerialized(item)
+	        ))
+	        : [];
+	      return { version: raw.version || '5.3.0', objects };
+	    };
 
 	    const objectAtPointer = (factory, pointer) => {
 	      const { w, h } = worldSize();
@@ -9322,12 +9346,16 @@
 	      return factory(left, top);
 	    };
 
-			    const addObject = (object) => {
-			      if (!object) return;
-			      // Figuras de fondo: al crearlas queremos permitir edición inmediata (mover/escala).
-			      // Luego se desactiva automáticamente al seleccionar otra cosa o con Escape.
-			      if (isBackgroundShape(object)) {
-			        object.data = object.data || {};
+				    const addObject = (object) => {
+				      if (!object) return;
+				      if (isDrillPictogramObject(object)) {
+				        setStatus('Pictogramas: se usan como secuencia en el PDF y no se añaden a la pizarra.');
+				        return;
+				      }
+				      // Figuras de fondo: al crearlas queremos permitir edición inmediata (mover/escala).
+				      // Luego se desactiva automáticamente al seleccionar otra cosa o con Escape.
+				      if (isBackgroundShape(object)) {
+				        object.data = object.data || {};
 			        object.data.background_edit = true;
 			      }
 			      normalizeEditableObject(object);
