@@ -1412,6 +1412,27 @@
 	        font-weight: 800;
 	        font-size: 0.78rem;
 	        max-width: 220px;
+	        appearance: none;
+	        -webkit-appearance: none;
+	        outline: none;
+	        cursor: grab;
+	        user-select: none;
+	        transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease, box-shadow 0.12s ease;
+	      }
+	      .pitch-drill-chip:hover {
+	        border-color: rgba(244,180,0,0.42);
+	        box-shadow: 0 10px 22px rgba(2,6,23,0.35);
+	      }
+	      .pitch-drill-chip:active {
+	        cursor: grabbing;
+	        transform: scale(0.98);
+	      }
+	      .pitch-drill-chip.is-active {
+	        border-color: rgba(244,180,0,0.70);
+	        background: rgba(244,180,0,0.14);
+	      }
+	      .pitch-drill-chip.is-dragging {
+	        opacity: 0.72;
 	      }
 	      .pitch-drill-chip img {
 	        width: 20px;

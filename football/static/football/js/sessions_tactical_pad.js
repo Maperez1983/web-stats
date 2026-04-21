@@ -791,6 +791,34 @@
 			      const icon = wrapper.querySelector('img.drill-icon')?.getAttribute('src') || '';
 			      return { id: safeId, label, icon };
 			    };
+			    const DRILLS_DRAG_MIME = 'application/x-webstats-tactical-resource';
+			    const wireDrillsStripDnD = () => {
+			      if (!drillsStripEl) return;
+			      Array.from(drillsStripEl.querySelectorAll('button.pitch-drill-chip[data-add]')).forEach((button) => {
+			        button.draggable = true;
+			        button.addEventListener('dragstart', (event) => {
+			          const add = safeText(button.dataset.add);
+			          if (!add) {
+			            event.preventDefault();
+			            return;
+			          }
+			          const payload = {
+			            kind: add,
+			            title: safeText(button.dataset.title),
+			            desiredSize: 72,
+			          };
+			          try { event.dataTransfer?.setData(DRILLS_DRAG_MIME, JSON.stringify(payload)); } catch (e) { /* ignore */ }
+			          try { event.dataTransfer?.setData('text/plain', JSON.stringify(payload)); } catch (e) { /* ignore */ }
+			          if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
+			          button.classList.add('is-dragging');
+			          setStatus('Suelta el pictograma sobre el campo.');
+			        });
+			        button.addEventListener('dragend', () => {
+			          button.classList.remove('is-dragging');
+			          stage.classList.remove('is-drop-target');
+			        });
+			      });
+			    };
 			    const renderDrillsStrip = () => {
 			      if (!drillsStripEl) return;
 			      const ids = readDrillsIds();
@@ -806,12 +834,27 @@
 			        ...cards.map((card) => {
 			          const icon = safeText(card.icon);
 			          const label = safeText(card.label, card.id);
-			          return `<div class="pitch-drill-chip" title="${label}">${icon ? `<img src="${icon}" alt="" />` : ''}<span>${label}</span></div>`;
+			          const add = icon ? `image_url:${icon}` : '';
+			          return `<button type="button" class="pitch-drill-chip" data-add="${add}" data-title="${label}" title="${label}">${icon ? `<img src="${icon}" alt="" draggable="false" />` : ''}<span>${label}</span></button>`;
 			        }),
 			      ].join('');
+			      wireDrillsStripDnD();
 			    };
 			    try { drillsInputEl?.addEventListener('change', renderDrillsStrip); } catch (e) { /* ignore */ }
 			    try { drillsPickerEl?.addEventListener('change', renderDrillsStrip); } catch (e) { /* ignore */ }
+			    try {
+			      drillsStripEl?.addEventListener('click', (event) => {
+			        const button = event.target.closest('button.pitch-drill-chip[data-add]');
+			        if (!button) return;
+			        const add = safeText(button.dataset.add);
+			        if (!add || !add.startsWith('image_url:')) return;
+			        const url = add.slice('image_url:'.length);
+			        const title = safeText(button.dataset.title) || 'Pictograma';
+			        Array.from(drillsStripEl.querySelectorAll('button.pitch-drill-chip')).forEach((node) => node.classList.remove('is-active'));
+			        button.classList.add('is-active');
+			        activateFactory((left, top) => buildUrlAssetObject(url, left, top, { desiredSize: 72, title }), 'un pictograma', add);
+			      });
+			    } catch (e) { /* ignore */ }
 			    try { renderDrillsStrip(); } catch (e) { /* ignore */ }
 			    const simProScrub = document.getElementById('task-sim-pro-scrub');
 			    const simProTimeLabel = document.getElementById('task-sim-pro-time');
@@ -9653,16 +9696,35 @@
 	        y: clamp(y, 24, h - 24),
 	      };
 	    };
-	    const createFactoryFromPayload = (payload) => {
-	      if (!payload || typeof payload !== 'object') return null;
-	      if (payload.playerId) {
-	        const player = players.find((item) => String(item.id) === String(payload.playerId));
-        if (!player) return null;
-        return {
-          factory: playerTokenFactory(payload.kind || 'player_local', player),
-          label: safeText(player.name, 'el jugador'),
-        };
-      }
+		    const createFactoryFromPayload = (payload) => {
+		      if (!payload || typeof payload !== 'object') return null;
+		      const rawKind = safeText(payload.kind);
+		      if (rawKind.startsWith('image_url:')) {
+		        const url = rawKind.slice('image_url:'.length);
+		        const desired = clamp(Number(payload.desiredSize) || 56, 28, 220);
+		        const title = safeText(payload.title);
+		        return {
+		          factory: (left, top) => buildUrlAssetObject(url, left, top, { desiredSize: desired, title }),
+		          label: title || 'una imagen',
+		        };
+		      }
+		      if (rawKind.startsWith('pdf_asset:')) {
+		        const assetId = rawKind.split(':')[1] || '';
+		        const desired = clamp(Number(payload.desiredSize) || 56, 28, 180);
+		        const title = safeText(payload.title);
+		        return {
+		          factory: (left, top) => buildPdfAssetObject(assetId, left, top, { desiredSize: desired, title }),
+		          label: title || 'un recurso gráfico',
+		        };
+		      }
+		      if (payload.playerId) {
+		        const player = players.find((item) => String(item.id) === String(payload.playerId));
+	        if (!player) return null;
+	        return {
+	          factory: playerTokenFactory(payload.kind || 'player_local', player),
+	          label: safeText(player.name, 'el jugador'),
+	        };
+	      }
       if (payload.kind === 'player_local') return { factory: playerTokenFactory('player_local', null), label: 'un jugador local' };
       if (payload.kind === 'player_rival') return { factory: playerTokenFactory('player_rival', null), label: 'un jugador rival' };
       if (payload.kind === 'player_away') return { factory: playerTokenFactory('player_away', null), label: 'un jugador con segunda equipación' };
