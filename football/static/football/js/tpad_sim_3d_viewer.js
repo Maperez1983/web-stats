@@ -441,6 +441,16 @@
       this.tick = this.tick.bind(this);
     }
 
+    normalizeCameraPreset(preset) {
+      const p = safeText(preset, 'tv').trim().toLowerCase();
+      if (p === 'top') return 'drone';
+      if (p === 'side') return 'lateral';
+      if (p === 'drone') return 'drone';
+      if (p === 'lateral') return 'lateral';
+      if (p === 'tv') return 'tv';
+      return 'tv';
+    }
+
     init() {
       if (!window.THREE) throw new Error('THREE no disponible');
       const rect = this.canvas.getBoundingClientRect();
@@ -896,6 +906,7 @@
       this.overlayFlags = { lanes: false, sectors: false, zones: false };
       if (p === 'lanes') this.overlayFlags.lanes = true;
       if (p === 'sectors') this.overlayFlags.sectors = true;
+      if (p === 'zones') this.overlayFlags.zones = true;
       if (p === 'all') this.overlayFlags = { lanes: true, sectors: true, zones: true };
       this.renderOverlays();
     }
@@ -957,20 +968,21 @@
     }
 
     setCameraPreset(preset) {
-      const p = safeText(preset, 'tv');
+      const p = this.normalizeCameraPreset(preset);
       this.cameraPreset = p;
-      if (p === 'top') {
-        this.cameraState.tilt = 1.2;
-        this.cameraState.zoom = 1.25;
+      if (p === 'drone') {
+        this.cameraState.tilt = 1.22;
+        this.cameraState.zoom = 1.35;
         this.cameraState.yaw = 0.0;
-      } else if (p === 'side') {
-        this.cameraState.tilt = 0.82;
+      } else if (p === 'lateral') {
+        this.cameraState.tilt = 0.78;
         this.cameraState.zoom = 1.05;
         this.cameraState.yaw = Math.PI / 2;
       } else {
-        this.cameraState.tilt = 0.86;
+        // TV: broadcast angle (ligero diagonal para lectura de profundidad).
+        this.cameraState.tilt = 0.90;
         this.cameraState.zoom = 1.0;
-        this.cameraState.yaw = 0.0;
+        this.cameraState.yaw = 0.40;
       }
       this.applyCamera();
     }
@@ -999,7 +1011,7 @@
         .map((kf) => ({
           id: safeText(kf?.id) || `ckf_${Date.now()}_${Math.random().toString(16).slice(2)}`,
           t: Math.max(0, Number(kf?.t) || 0),
-          preset: safeText(kf?.preset, 'tv'),
+          preset: this.normalizeCameraPreset(kf?.preset),
           yaw: Number(kf?.yaw),
           zoom: Number(kf?.zoom),
           tilt: Number(kf?.tilt),
@@ -1015,7 +1027,7 @@
 
     cameraSnapshot() {
       return {
-        preset: this.cameraPreset,
+        preset: this.normalizeCameraPreset(this.cameraPreset),
         yaw: Number(this.cameraState.yaw) || 0,
         zoom: Number(this.cameraState.zoom) || 1,
         tilt: Number(this.cameraState.tilt) || 0.86,
@@ -1026,7 +1038,7 @@
 
     applyCameraSnapshot(snap) {
       const s = (snap && typeof snap === 'object') ? snap : {};
-      this.cameraPreset = safeText(s.preset, this.cameraPreset || 'tv');
+      this.cameraPreset = this.normalizeCameraPreset(s.preset || this.cameraPreset || 'tv');
       if (Number.isFinite(Number(s.yaw))) this.cameraState.yaw = Number(s.yaw);
       if (Number.isFinite(Number(s.zoom))) this.cameraState.zoom = clamp(Number(s.zoom), 0.55, 1.6);
       if (Number.isFinite(Number(s.tilt))) this.cameraState.tilt = clamp(Number(s.tilt), 0.45, 1.25);
@@ -1063,7 +1075,14 @@
       const span = Math.max(0.0001, (Number(b.t) || 0) - (Number(a.t) || 0));
       const local = clamp((t - (Number(a.t) || 0)) / span, 0, 1);
       const lerp = (x0, x1) => (Number(x0) || 0) + (((Number(x1) || 0) - (Number(x0) || 0)) * local);
-      const yaw = lerp(a.yaw, b.yaw);
+      const lerpYaw = (y0, y1) => {
+        const aa = Number(y0) || 0;
+        const bb = Number(y1) || 0;
+        const twoPi = Math.PI * 2;
+        const delta = ((((bb - aa) % twoPi) + twoPi + Math.PI) % twoPi) - Math.PI;
+        return aa + (delta * local);
+      };
+      const yaw = lerpYaw(a.yaw, b.yaw);
       const zoom = lerp(a.zoom, b.zoom);
       const tilt = lerp(a.tilt, b.tilt);
       this.cameraState.yaw = Number.isFinite(yaw) ? yaw : this.cameraState.yaw;
@@ -1071,7 +1090,7 @@
       this.cameraState.tilt = Number.isFinite(tilt) ? clamp(tilt, 0.45, 1.25) : this.cameraState.tilt;
       // Cambios discretos (preset/follow) al cruzar mitad.
       const use = local >= 0.5 ? b : a;
-      this.cameraPreset = safeText(use?.preset, this.cameraPreset || 'tv');
+      this.cameraPreset = this.normalizeCameraPreset(use?.preset || this.cameraPreset || 'tv');
       this.followMode = safeText(use?.follow_mode, this.followMode || 'auto');
       this.followBall = this.followMode === 'ball';
       if (safeText(use?.follow_key)) this.selectedKey = safeText(use.follow_key);
@@ -1177,25 +1196,25 @@
         return;
       }
       this.playing = true;
-      const advance = () => {
+      // Asegura meshes + clock inicial del paso actual (sin transición).
+      this.setStep(this.stepIndex, { transitionMs: 1 });
+
+      const scheduleNext = () => {
         if (!this.playing) return;
         const step = this.steps[this.stepIndex] || {};
         const speed = clamp(Number(this.speedEl?.value) || 1, 0.25, 3);
         const duration = clamp(Number(step.duration) || 3, 1, 20);
         const totalMs = Math.round((duration / speed) * 1000);
         const transMs = clamp(Math.round(totalMs * 0.35), 220, 900);
-        this.proClock.speed = speed;
-        this.proClock.dur = duration;
-        this.proClock.t = 0;
-        this.proClock.startAt = performance.now();
-        this.setStep(this.stepIndex, { transitionMs: transMs });
         this.playTimer = window.setTimeout(() => {
-          this.stepIndex = (this.stepIndex + 1) % this.steps.length;
-          this.updateLabel();
-          advance();
+          if (!this.playing) return;
+          const nextIdx = (this.stepIndex + 1) % this.steps.length;
+          this.setStep(nextIdx, { transitionMs: transMs });
+          scheduleNext();
         }, Math.max(180, totalMs));
       };
-      advance();
+
+      scheduleNext();
     }
 
     // Helpers de render.
@@ -1671,10 +1690,16 @@
       }
       camKfListEl.hidden = false;
       kfs.forEach((kf) => {
+        const presetLabel = (() => {
+          const p = safeText(kf.preset, 'tv').toLowerCase();
+          if (p === 'drone' || p === 'top') return 'Drone';
+          if (p === 'lateral' || p === 'side') return 'Lateral';
+          return 'TV';
+        })();
         const row = document.createElement('div');
         row.className = 'video-layer-item';
         if (safeText(kf.id) && safeText(kf.id) === safeText(activeCamKfId)) row.classList.add('is-active');
-        const label = `${formatClock(kf.t)} · ${safeText(kf.preset, 'tv')} · ${safeText(kf.follow_mode, 'auto')}`;
+        const label = `${formatClock(kf.t)} · ${presetLabel} · ${safeText(kf.follow_mode, 'auto')}`;
         row.innerHTML = `
           <div>
             <strong>🎥 ${label}</strong>
@@ -1976,7 +2001,7 @@
       const kf = {
         id: `ckf_${Date.now()}_${Math.random().toString(16).slice(2)}`,
         t,
-        preset: safeText(cameraSelect?.value, snap.preset || 'tv'),
+        preset: viewer.normalizeCameraPreset(safeText(cameraSelect?.value, snap.preset || 'tv')),
         yaw: Number(snap.yaw) || 0,
         zoom: Number(snap.zoom) || 1,
         tilt: Number(snap.tilt) || 0.86,
