@@ -9229,7 +9229,11 @@ def club_onboarding_page(request):
     if workspace and not _can_manage_workspace(request.user, workspace):
         return HttpResponse('No tienes permisos para configurar este workspace.', status=403)
 
-    primary_team = getattr(workspace, 'primary_team', None) if workspace else None
+    # Multi-categoría: el onboarding debe aplicarse al equipo activo (p.ej. Prebenjamín),
+    # no siempre al `workspace.primary_team` (que suele ser Senior).
+    primary_team = _get_active_team_for_request(request) if workspace else None
+    if not primary_team and workspace:
+        primary_team = getattr(workspace, 'primary_team', None)
     competition_context = None
     if primary_team:
         competition_context = _bootstrap_workspace_competition_context(workspace, primary_team=primary_team)
@@ -9309,7 +9313,7 @@ def club_onboarding_page(request):
                     workspace.save(update_fields=['trial_expires_at', 'subscription_status', 'updated_at'])
                 except Exception:
                     pass
-                primary_team = getattr(workspace, 'primary_team', None)
+                primary_team = _get_active_team_for_request(request) or getattr(workspace, 'primary_team', None)
                 if not primary_team:
                     primary_team = Team.objects.create(
                         name=team_name,
@@ -9333,11 +9337,21 @@ def club_onboarding_page(request):
                     team=primary_team,
                     defaults={'is_default': True},
                 )
+                # No pisar el "equipo por defecto" del usuario si ya existe otro:
+                # evita que al configurar Prebenjamín se cambie el default desde Senior.
+                try:
+                    has_default = WorkspaceTeamAccess.objects.filter(
+                        workspace=workspace,
+                        user=request.user,
+                        is_default=True,
+                    ).exclude(team=primary_team).exists()
+                except Exception:
+                    has_default = False
                 WorkspaceTeamAccess.objects.update_or_create(
                     workspace=workspace,
                     team=primary_team,
                     user=request.user,
-                    defaults={'is_default': True},
+                    defaults={'is_default': False if has_default else True},
                 )
 
                 external_team_key = ''
