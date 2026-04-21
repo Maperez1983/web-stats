@@ -1040,6 +1040,18 @@
           refreshBtn.disabled = true;
           refreshBtn.textContent = 'Actualizando…';
           try {
+            const fetchWithTimeout = async (url, options, timeoutMs) => {
+              const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+              const timeoutId = controller ? window.setTimeout(() => controller.abort(), timeoutMs) : null;
+              try {
+                return await fetch(url, {
+                  ...(options || {}),
+                  ...(controller ? { signal: controller.signal } : {}),
+                });
+              } finally {
+                if (timeoutId) window.clearTimeout(timeoutId);
+              }
+            };
             const readCookie = (name) => {
               const raw = String(document.cookie || '');
               const needle = `${name}=`;
@@ -1052,18 +1064,34 @@
             const csrf =
               readCookie('webstats_csrftoken') ||
               readCookie('csrftoken');
-	            const resp = await fetch(buildDashboardRefreshUrl(), {
-	              method: 'POST',
-	              credentials: 'include',
-	              headers: csrf ? { 'X-CSRFToken': csrf } : {},
-	            });
+	            let resp;
+	            try {
+	              resp = await fetchWithTimeout(
+	                buildDashboardRefreshUrl(),
+	                {
+	                  method: 'POST',
+	                  credentials: 'include',
+	                  headers: csrf ? { 'X-CSRFToken': csrf } : {},
+	                },
+	                45_000,
+	              );
+	            } catch (fetchError) {
+	              if (fetchError && fetchError.name === 'AbortError') {
+	                throw new Error('La actualización está tardando demasiado. Prueba otra vez en 1 minuto.');
+	              }
+	              throw fetchError;
+	            }
             const rawText = await resp.text();
             let data = {};
             try { data = JSON.parse(rawText || '{}'); } catch (error) { data = {}; }
             if (!resp.ok) throw new Error(data.message || rawText || `No se pudo actualizar (HTTP ${resp.status}).`);
 	            // Evita caché en despliegues con múltiples instancias: fuerza recomputar.
 	            try {
-	              const response = await fetch(buildDashboardUrl({ fresh: true }), { credentials: 'include' });
+	              const response = await fetchWithTimeout(
+	                buildDashboardUrl({ fresh: true }),
+	                { credentials: 'include' },
+	                25_000,
+	              );
 	              if (!response.ok) throw new Error('No se pudo recargar la dashboard');
 	              const payload = await response.json();
 	              renderStandings(payload.standings, payload.team);
