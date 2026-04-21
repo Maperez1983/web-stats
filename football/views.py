@@ -31640,10 +31640,9 @@ def serialize_standings(group):
             standings = TeamStanding.objects.filter(group_id=sibling_group['group_id'])
 
     standings = standings.order_by('position')
-    if not standings.exists():
-        fallback = TeamStanding.objects.filter(group__slug__icontains='grupo-2').order_by('position')
-        if fallback.exists():
-            standings = fallback
+    # Importante (multi-categoría): si no hay clasificación para este grupo,
+    # devolvemos vacío. NO hacemos fallback a otros grupos porque mezcla categorías
+    # (ej. Prebenjamín viendo la clasificación del Senior).
     crest_lookup = _build_team_crest_lookup()
     return [
         {
