@@ -219,6 +219,12 @@ from football.task_library import filter_task_library, prepare_task_library
 
 logger = logging.getLogger(__name__)
 
+# Stripe (opcional). No debe romper el sistema si no está configurado.
+try:  # pragma: no cover
+    import stripe  # type: ignore
+except Exception:  # pragma: no cover
+    stripe = None
+
 def _team_standings_last_updated(group):
     if not group:
         return None
@@ -341,8 +347,402 @@ def billing_page(request):
             'subscription_status': status,
             'trial_expires_at': expires_at,
             'trial_days_left': days_left,
+            'stripe_ready': bool(str(os.getenv('STRIPE_SECRET_KEY', '') or '').strip()),
         },
     )
+
+
+def _stripe_secret_key():
+    return str(os.getenv('STRIPE_SECRET_KEY', '') or '').strip()
+
+
+def _stripe_webhook_secret():
+    return str(os.getenv('STRIPE_WEBHOOK_SECRET', '') or '').strip()
+
+
+def _stripe_public_key():
+    return str(os.getenv('STRIPE_PUBLISHABLE_KEY', '') or '').strip()
+
+
+def _stripe_price_map():
+    """
+    Map interno (plan_key, interval) -> Stripe price id.
+    """
+    return {
+        ('pro', 'month'): str(os.getenv('STRIPE_PRICE_PRO_MONTHLY', '') or '').strip(),
+        ('pro', 'year'): str(os.getenv('STRIPE_PRICE_PRO_YEARLY', '') or '').strip(),
+    }
+
+
+def _stripe_enabled() -> bool:
+    return bool(_stripe_secret_key() and stripe is not None)
+
+
+def _stripe_init():
+    if not _stripe_enabled():
+        return False
+    try:
+        stripe.api_key = _stripe_secret_key()
+        return True
+    except Exception:
+        return False
+
+
+def _workspace_from_request_for_billing(request):
+    workspace = _get_active_workspace(request)
+    if not workspace or getattr(workspace, 'kind', None) != Workspace.KIND_CLUB:
+        return None, HttpResponse('Selecciona un club (workspace) para gestionar la suscripción.', status=400)
+    if not _can_manage_workspace(request.user, workspace) and not _can_access_platform(request.user):
+        return None, HttpResponse('No tienes permisos para gestionar la suscripción.', status=403)
+    return workspace, None
+
+
+@login_required
+@require_POST
+def billing_checkout_session_api(request):
+    """
+    Crea una sesión de Stripe Checkout (suscripción) y devuelve URL para redirigir.
+
+    POST:
+    - plan_key: "pro"
+    - interval: "month"|"year"
+    """
+    workspace, error = _workspace_from_request_for_billing(request)
+    if error:
+        return error
+    if not _stripe_init():
+        return JsonResponse({'ok': False, 'error': 'Stripe no está configurado.'}, status=501)
+
+    plan_key = str(request.POST.get('plan_key') or request.GET.get('plan_key') or 'pro').strip().lower()
+    interval = str(request.POST.get('interval') or request.GET.get('interval') or 'month').strip().lower()
+    if interval not in {'month', 'year'}:
+        interval = 'month'
+    price_id = _stripe_price_map().get((plan_key, interval)) or ''
+    if not price_id:
+        return JsonResponse({'ok': False, 'error': 'Plan no disponible (missing price id).'}, status=500)
+
+    # Si ya está activo, ofrecemos portal.
+    if _workspace_is_subscription_active(workspace):
+        return JsonResponse({'ok': True, 'already_active': True})
+
+    # Base URLs.
+    try:
+        origin = request.build_absolute_uri('/').rstrip('/')
+    except Exception:
+        origin = ''
+    success_url = f"{origin}{reverse('billing')}?status=success"
+    cancel_url = f"{origin}{reverse('billing')}?status=cancel"
+
+    customer_id = str(getattr(workspace, 'stripe_customer_id', '') or '').strip()
+    customer_email = str(getattr(request.user, 'email', '') or '').strip().lower()
+    if not customer_email:
+        customer_email = None
+
+    metadata = {
+        'workspace_id': str(int(workspace.id)),
+        'workspace_slug': str(getattr(workspace, 'slug', '') or ''),
+        'plan_key': plan_key,
+        'interval': interval,
+        'user_id': str(int(getattr(request.user, 'id', 0) or 0)),
+    }
+
+    try:
+        params = {
+            'mode': 'subscription',
+            'line_items': [{'price': price_id, 'quantity': 1}],
+            'success_url': success_url,
+            'cancel_url': cancel_url,
+            'allow_promotion_codes': True,
+            'client_reference_id': str(int(workspace.id)),
+            'metadata': metadata,
+            'subscription_data': {'metadata': metadata},
+            # Importante para completar billing sin exigir tarjeta "manual".
+            'billing_address_collection': 'auto',
+            'automatic_tax': {'enabled': False},
+        }
+        if customer_id:
+            params['customer'] = customer_id
+        else:
+            params['customer_creation'] = 'always'
+            if customer_email:
+                params['customer_email'] = customer_email
+
+        session = stripe.checkout.Session.create(**params)
+        url = str(getattr(session, 'url', '') or '').strip()
+        if not url:
+            return JsonResponse({'ok': False, 'error': 'No se pudo crear la sesión de pago.'}, status=500)
+        return JsonResponse({'ok': True, 'url': url})
+    except Exception as exc:
+        return JsonResponse({'ok': False, 'error': str(exc) or 'No se pudo crear la sesión.'}, status=500)
+
+
+@login_required
+@require_POST
+def billing_portal_session_api(request):
+    """
+    Abre Stripe Customer Portal para gestionar/cancelar la suscripción.
+    """
+    workspace, error = _workspace_from_request_for_billing(request)
+    if error:
+        return error
+    if not _stripe_init():
+        return JsonResponse({'ok': False, 'error': 'Stripe no está configurado.'}, status=501)
+    customer_id = str(getattr(workspace, 'stripe_customer_id', '') or '').strip()
+    if not customer_id:
+        return JsonResponse({'ok': False, 'error': 'Este club no tiene cliente Stripe todavía.'}, status=400)
+    try:
+        origin = request.build_absolute_uri('/').rstrip('/')
+    except Exception:
+        origin = ''
+    return_url = f"{origin}{reverse('billing')}"
+    try:
+        portal = stripe.billing_portal.Session.create(customer=customer_id, return_url=return_url)
+        url = str(getattr(portal, 'url', '') or '').strip()
+        if not url:
+            return JsonResponse({'ok': False, 'error': 'No se pudo abrir el portal.'}, status=500)
+        return JsonResponse({'ok': True, 'url': url})
+    except Exception as exc:
+        return JsonResponse({'ok': False, 'error': str(exc) or 'No se pudo abrir el portal.'}, status=500)
+
+
+def _stripe_extract_workspace_id(obj) -> int:
+    # metadata.workspace_id en Checkout Session / Subscription
+    try:
+        meta = getattr(obj, 'metadata', None)
+        if isinstance(meta, dict) and meta.get('workspace_id'):
+            return int(meta.get('workspace_id') or 0)
+    except Exception:
+        pass
+    # client_reference_id en Checkout Session
+    try:
+        ref = getattr(obj, 'client_reference_id', None)
+        if ref:
+            return int(str(ref))
+    except Exception:
+        pass
+    return 0
+
+
+def _stripe_map_status(subscription) -> str:
+    raw = str(getattr(subscription, 'status', '') or '').strip().lower()
+    if raw in {'active', 'trialing'}:
+        return 'active'
+    if raw in {'past_due', 'unpaid'}:
+        return 'past_due'
+    if raw in {'canceled', 'incomplete_expired'}:
+        return 'canceled'
+    return raw or 'trial'
+
+
+def _stripe_sync_workspace_from_subscription(workspace, subscription, *, price_id: str = '') -> None:
+    if not workspace or not subscription:
+        return
+    status = _stripe_map_status(subscription)
+    cancel_at_period_end = bool(getattr(subscription, 'cancel_at_period_end', False))
+    canceled_at = getattr(subscription, 'canceled_at', None)
+    period_end = getattr(subscription, 'current_period_end', None)
+    period_end_dt = None
+    try:
+        if period_end:
+            period_end_dt = timezone.datetime.fromtimestamp(int(period_end), tz=timezone.utc)
+    except Exception:
+        period_end_dt = None
+    canceled_dt = None
+    try:
+        if canceled_at:
+            canceled_dt = timezone.datetime.fromtimestamp(int(canceled_at), tz=timezone.utc)
+    except Exception:
+        canceled_dt = None
+
+    workspace.subscription_status = status if status else (workspace.subscription_status or 'trial')
+    if status == 'active':
+        workspace.plan_key = workspace.plan_key or 'pro'
+    if price_id:
+        workspace.stripe_price_id = price_id
+    workspace.stripe_subscription_id = str(getattr(subscription, 'id', '') or workspace.stripe_subscription_id or '')
+    workspace.subscription_cancel_at_period_end = cancel_at_period_end
+    workspace.subscription_current_period_end = period_end_dt
+    workspace.subscription_canceled_at = canceled_dt
+    workspace.save(
+        update_fields=[
+            'subscription_status',
+            'plan_key',
+            'stripe_subscription_id',
+            'stripe_price_id',
+            'subscription_cancel_at_period_end',
+            'subscription_current_period_end',
+            'subscription_canceled_at',
+            'updated_at',
+        ]
+    )
+
+
+@csrf_exempt
+@require_POST
+def stripe_webhook(request):
+    """
+    Webhook Stripe: activa/actualiza la suscripción del workspace.
+    """
+    if stripe is None:
+        return JsonResponse({'ok': False, 'error': 'Stripe lib not available.'}, status=501)
+    secret = _stripe_webhook_secret()
+    if not secret:
+        return JsonResponse({'ok': False, 'error': 'Webhook secret not configured.'}, status=501)
+    try:
+        payload = request.body or b''
+        sig_header = request.META.get('HTTP_STRIPE_SIGNATURE', '')
+        event = stripe.Webhook.construct_event(payload=payload, sig_header=sig_header, secret=secret)
+    except Exception as exc:
+        return JsonResponse({'ok': False, 'error': f'Invalid signature: {exc.__class__.__name__}'}, status=400)
+
+    event_id = str(getattr(event, 'id', '') or '')
+    event_type = str(getattr(event, 'type', '') or '')
+
+    # Idempotencia.
+    try:
+        from football.models import StripeEventLog  # lazy
+
+        obj, created = StripeEventLog.objects.get_or_create(event_id=event_id, defaults={'event_type': event_type, 'payload': {}})
+        if not created:
+            return JsonResponse({'ok': True, 'duplicate': True})
+    except Exception:
+        obj = None
+
+    _stripe_init()
+    workspace = None
+    workspace_id = 0
+    ok = False
+    try:
+        data_obj = getattr(event, 'data', None)
+        data_obj = getattr(data_obj, 'object', None) if data_obj is not None else None
+
+        if data_obj is not None:
+            workspace_id = _stripe_extract_workspace_id(data_obj)
+
+        if workspace_id:
+            workspace = Workspace.objects.filter(id=workspace_id).first()
+
+        # Eventos principales.
+        if event_type == 'checkout.session.completed':
+            session = data_obj
+            customer = str(getattr(session, 'customer', '') or '').strip()
+            subscription_id = str(getattr(session, 'subscription', '') or '').strip()
+            if workspace and customer:
+                workspace.stripe_customer_id = customer
+                workspace.stripe_subscription_id = subscription_id or workspace.stripe_subscription_id
+                workspace.plan_key = workspace.plan_key or str(getattr(session, 'metadata', {}).get('plan_key') or 'pro')
+                workspace.subscription_status = 'active'
+                workspace.save(update_fields=['stripe_customer_id', 'stripe_subscription_id', 'plan_key', 'subscription_status', 'updated_at'])
+            # Sincroniza desde subscription real para periodo fin, cancel etc.
+            if workspace and subscription_id:
+                try:
+                    sub = stripe.Subscription.retrieve(subscription_id, expand=['items.data.price'])
+                    price_id = ''
+                    try:
+                        price_id = str(sub.items.data[0].price.id) if getattr(sub, 'items', None) and sub.items.data else ''
+                    except Exception:
+                        price_id = ''
+                    _stripe_sync_workspace_from_subscription(workspace, sub, price_id=price_id)
+                except Exception:
+                    pass
+            ok = True
+
+        elif event_type in {'customer.subscription.updated', 'customer.subscription.created'}:
+            sub = data_obj
+            customer = str(getattr(sub, 'customer', '') or '').strip()
+            sub_id = str(getattr(sub, 'id', '') or '').strip()
+            price_id = ''
+            try:
+                # expand no siempre viene: intentamos extraer si existe.
+                if getattr(sub, 'items', None) and getattr(sub.items, 'data', None):
+                    price = getattr(sub.items.data[0], 'price', None)
+                    price_id = str(getattr(price, 'id', '') or '')
+            except Exception:
+                price_id = ''
+            if workspace:
+                if customer:
+                    workspace.stripe_customer_id = customer
+                if sub_id:
+                    workspace.stripe_subscription_id = sub_id
+                _stripe_sync_workspace_from_subscription(workspace, sub, price_id=price_id)
+            ok = True
+
+        elif event_type in {'customer.subscription.deleted'}:
+            sub = data_obj
+            customer = str(getattr(sub, 'customer', '') or '').strip()
+            sub_id = str(getattr(sub, 'id', '') or '').strip()
+            if workspace:
+                if customer:
+                    workspace.stripe_customer_id = customer
+                if sub_id:
+                    workspace.stripe_subscription_id = sub_id
+                workspace.subscription_status = 'canceled'
+                workspace.subscription_cancel_at_period_end = False
+                workspace.subscription_canceled_at = timezone.now()
+                workspace.save(
+                    update_fields=[
+                        'stripe_customer_id',
+                        'stripe_subscription_id',
+                        'subscription_status',
+                        'subscription_cancel_at_period_end',
+                        'subscription_canceled_at',
+                        'updated_at',
+                    ]
+                )
+            ok = True
+
+        elif event_type in {'invoice.payment_failed'}:
+            inv = data_obj
+            customer = str(getattr(inv, 'customer', '') or '').strip()
+            sub_id = str(getattr(inv, 'subscription', '') or '').strip()
+            if not workspace and sub_id:
+                workspace = Workspace.objects.filter(stripe_subscription_id=sub_id).first()
+            if workspace:
+                if customer:
+                    workspace.stripe_customer_id = customer
+                if sub_id:
+                    workspace.stripe_subscription_id = sub_id
+                workspace.subscription_status = 'past_due'
+                workspace.save(update_fields=['stripe_customer_id', 'stripe_subscription_id', 'subscription_status', 'updated_at'])
+            ok = True
+
+        elif event_type in {'invoice.paid', 'invoice.payment_succeeded'}:
+            inv = data_obj
+            customer = str(getattr(inv, 'customer', '') or '').strip()
+            sub_id = str(getattr(inv, 'subscription', '') or '').strip()
+            if not workspace and sub_id:
+                workspace = Workspace.objects.filter(stripe_subscription_id=sub_id).first()
+            if workspace:
+                if customer:
+                    workspace.stripe_customer_id = customer
+                if sub_id:
+                    workspace.stripe_subscription_id = sub_id
+                workspace.subscription_status = 'active'
+                workspace.plan_key = workspace.plan_key or 'pro'
+                workspace.save(update_fields=['stripe_customer_id', 'stripe_subscription_id', 'subscription_status', 'plan_key', 'updated_at'])
+            ok = True
+
+        else:
+            # Ignorar otros eventos.
+            ok = True
+
+    except Exception:
+        logger.exception('stripe_webhook: error procesando evento %s', event_type)
+        ok = False
+
+    # Marca log.
+    try:
+        if obj is not None:
+            obj.event_type = event_type
+            obj.workspace = workspace
+            obj.ok = bool(ok)
+            # Guardamos payload mínimo (no todo request.body) por tamaño.
+            obj.payload = {'type': event_type, 'workspace_id': workspace_id}
+            obj.save(update_fields=['event_type', 'workspace', 'ok', 'payload'])
+    except Exception:
+        pass
+
+    return JsonResponse({'ok': bool(ok)})
 
 
 @login_required

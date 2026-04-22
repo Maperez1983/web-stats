@@ -98,18 +98,104 @@
           {% if trial_expires_at %}
           <div>Trial hasta: <code>{{ trial_expires_at|date:"d/m/Y H:i" }}</code>{% if trial_days_left != None %} · quedan <code>{{ trial_days_left }}</code> días{% endif %}</div>
           {% endif %}
+          {% if workspace.plan_key %}
+          <div>Plan: <code>{{ workspace.plan_key }}</code></div>
+          {% endif %}
         </div>
 
+        {% if stripe_ready %}
+        <div class="panel" style="margin-top:1rem;">
+          <h2 style="margin:0 0 0.35rem; font-size:1rem; letter-spacing:0.08em; text-transform:uppercase;">Plan Pro</h2>
+          <p style="margin:0.35rem 0; color:rgba(148,163,184,0.92);">
+            Acceso completo a 2J Club + 2J Live + 2J Studio. Facturación recurrente.
+          </p>
+          <div class="cta">
+            {% if subscription_status == 'active' %}
+              <button class="btn primary" id="billing-portal-btn" type="button">Gestionar suscripción</button>
+            {% else %}
+              <button class="btn primary" data-plan="pro" data-interval="month" type="button">Activar Pro (mensual)</button>
+              <button class="btn" data-plan="pro" data-interval="year" type="button">Activar Pro (anual)</button>
+            {% endif %}
+            <a class="btn" href="{% url 'dashboard-home' %}">Volver</a>
+          </div>
+          <p id="billing-msg" style="margin-top:0.7rem; color:rgba(148,163,184,0.92);"></p>
+        </div>
+        {% else %}
         <div class="cta">
-          <a class="btn primary" href="{% url 'product-landing' %}">Contratar</a>
+          <a class="btn primary" href="{% url 'support-page' %}">Contactar para activar</a>
           <a class="btn" href="{% url 'dashboard-home' %}">Volver</a>
         </div>
-
         <p style="margin-top:1rem;color:rgba(148,163,184,0.9);">
-          Nota: esta pantalla es el placeholder comercial. Aquí conectaremos Stripe / método de pago y gestión de plan.
+          Stripe no está configurado en este entorno. Contacta con soporte para activar manualmente.
         </p>
+        {% endif %}
       </section>
+      {% if stripe_ready %}
+      <script>
+        (function() {
+          const msg = document.getElementById('billing-msg');
+          const setMsg = (t) => { if (msg) msg.textContent = t || ''; };
+          const csrftoken = (document.cookie || '').split(';').map(s => s.trim()).find(s => s.startsWith('csrftoken='))?.split('=')[1] || '';
+
+          const postJson = async (url, body) => {
+            const res = await fetch(url, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                'X-CSRFToken': csrftoken,
+              },
+              body: new URLSearchParams(body || {}).toString(),
+              credentials: 'same-origin',
+            });
+            const data = await res.json().catch(() => null);
+            if (!res.ok) throw new Error((data && data.error) || `HTTP ${res.status}`);
+            return data;
+          };
+
+          const buttons = Array.from(document.querySelectorAll('button[data-plan][data-interval]'));
+          buttons.forEach((btn) => {
+            btn.addEventListener('click', async () => {
+              const plan = String(btn.dataset.plan || 'pro');
+              const interval = String(btn.dataset.interval || 'month');
+              setMsg('Abriendo pago seguro…');
+              btn.disabled = true;
+              try {
+                const data = await postJson("{% url 'billing-checkout-session' %}", { plan_key: plan, interval });
+                if (data && data.already_active) {
+                  setMsg('La suscripción ya está activa.');
+                  btn.disabled = false;
+                  return;
+                }
+                if (!data || !data.url) throw new Error('No se recibió URL de Checkout.');
+                window.location.href = data.url;
+              } catch (e) {
+                setMsg(`Error: ${e && e.message ? e.message : 'no se pudo iniciar el pago.'}`);
+                btn.disabled = false;
+              }
+            });
+          });
+
+          const portalBtn = document.getElementById('billing-portal-btn');
+          portalBtn?.addEventListener('click', async () => {
+            setMsg('Abriendo portal de suscripción…');
+            portalBtn.disabled = true;
+            try {
+              const data = await postJson("{% url 'billing-portal-session' %}", {});
+              if (!data || !data.url) throw new Error('No se recibió URL del portal.');
+              window.location.href = data.url;
+            } catch (e) {
+              setMsg(`Error: ${e && e.message ? e.message : 'no se pudo abrir el portal.'}`);
+              portalBtn.disabled = false;
+            }
+          });
+
+          const params = new URLSearchParams(window.location.search || '');
+          const status = params.get('status') || '';
+          if (status === 'success') setMsg('Pago completado. En unos segundos se activará el club.');
+          if (status === 'cancel') setMsg('Pago cancelado.');
+        })();
+      </script>
+      {% endif %}
     </main>
   </body>
 </html>
-

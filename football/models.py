@@ -136,6 +136,13 @@ class Workspace(models.Model):
         help_text='trial|active|past_due|canceled|expired',
     )
     plan_key = models.CharField(max_length=40, blank=True, help_text='Identificador interno del plan (ej: basic, pro).')
+    # Stripe billing (opcional). Mantener campos vacíos si Stripe no está configurado.
+    stripe_customer_id = models.CharField(max_length=80, blank=True)
+    stripe_subscription_id = models.CharField(max_length=80, blank=True)
+    stripe_price_id = models.CharField(max_length=80, blank=True)
+    subscription_current_period_end = models.DateTimeField(null=True, blank=True)
+    subscription_cancel_at_period_end = models.BooleanField(default=False)
+    subscription_canceled_at = models.DateTimeField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -171,6 +178,27 @@ class WorkspaceTeam(models.Model):
 
     def __str__(self):
         return f'{self.workspace.name} · {self.team.display_name}'
+
+
+class StripeEventLog(models.Model):
+    """
+    Registro idempotente de eventos Stripe procesados.
+
+    Evita procesar dos veces el mismo webhook cuando Stripe reintenta.
+    """
+
+    event_id = models.CharField(max_length=120, unique=True, db_index=True)
+    event_type = models.CharField(max_length=120, blank=True)
+    workspace = models.ForeignKey(Workspace, null=True, blank=True, on_delete=models.SET_NULL, related_name='stripe_events')
+    ok = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    payload = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+
+    def __str__(self):
+        return f'{self.event_type} · {self.event_id}'
 
 
 class WorkspaceTeamAccess(models.Model):
