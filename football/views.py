@@ -26900,7 +26900,8 @@ def session_task_pdf_preview(request):
     context = _build_task_draft_pdf_context(request, primary_team, pdf_style=pdf_style)
     html = render_to_string('football/session_task_pdf.html', context)
     filename = slugify(f"borrador-{context['task'].title}") or 'borrador-tarea'
-    return _build_pdf_response_or_html_fallback(request, html, filename)
+    # Previsualización: devolver inline para que Safari/iOS WebView lo renderice en pantalla.
+    return _build_pdf_response_or_html_fallback(request, html, filename, inline=True)
 
 
 def _task_studio_identity(request, owner):
@@ -27630,7 +27631,8 @@ def task_studio_task_pdf_preview(request):
     context = _build_task_studio_draft_pdf_context(request, owner, pdf_style=pdf_style)
     html = render_to_string('football/session_task_pdf.html', context)
     filename = slugify(f"task-studio-{context['task'].title}") or 'task-studio-tarea'
-    return _build_pdf_response_or_html_fallback(request, html, filename)
+    # Previsualización: devolver inline para que Safari/iOS WebView lo renderice en pantalla.
+    return _build_pdf_response_or_html_fallback(request, html, filename, inline=True)
 
 
 @login_required
