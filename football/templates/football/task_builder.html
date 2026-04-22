@@ -1601,6 +1601,25 @@
 	        border-radius: 6px;
 	        padding: 2px;
 	      }
+	      .chip-toggle .drill-add-to-board {
+	        appearance: none;
+	        border: 1px solid rgba(255,255,255,0.14);
+	        background: rgba(255,255,255,0.06);
+	        color: rgba(248,250,252,0.88);
+	        width: 22px;
+	        height: 22px;
+	        border-radius: 999px;
+	        font-weight: 900;
+	        line-height: 1;
+	        display: inline-grid;
+	        place-items: center;
+	        cursor: pointer;
+	      }
+	      .chip-toggle .drill-add-to-board:hover {
+	        border-color: rgba(244,180,0,0.30);
+	        background: rgba(244,180,0,0.14);
+	        color: rgba(248,250,252,0.96);
+	      }
 	      .drills-picker {
 	        display: flex;
 	        flex-wrap: wrap;
@@ -2272,14 +2291,36 @@
 	        height: 18px;
 	        box-shadow: rgba(15, 23, 42, 0.30) 0 2px 10px;
 	      }
-	      .assistant-suggestion-item.is-arrow {
-	        width: 18px;
-	        height: 18px;
-	        background: rgba(248, 250, 252, 0.92);
-	        border-radius: 999px;
-	        color: rgba(15, 23, 42, 0.88);
-	        font-size: 14px;
-	      }
+		      .assistant-suggestion-item.is-arrow {
+		        width: 18px;
+		        height: 18px;
+		        background: rgba(248, 250, 252, 0.92);
+		        border-radius: 999px;
+		        color: rgba(15, 23, 42, 0.88);
+		        font-size: 14px;
+		      }
+		      .assistant-suggestion-item.is-asset {
+		        width: 22px;
+		        height: 22px;
+		        background: rgba(248, 250, 252, 0.14);
+		        border: 1px solid rgba(248, 250, 252, 0.32);
+		      }
+		      .assistant-suggestion-item.is-asset img {
+		        width: 16px;
+		        height: 16px;
+		        object-fit: contain;
+		        filter: drop-shadow(0 6px 10px rgba(2,6,23,0.22));
+		      }
+		      .assistant-suggestion-canvasimg {
+		        position: absolute;
+		        inset: 0;
+		        width: 100%;
+		        height: 100%;
+		        object-fit: contain;
+		        pointer-events: none;
+		        user-select: none;
+		        filter: drop-shadow(0 10px 18px rgba(2,6,23,0.25));
+		      }
 	      .assistant-suggestion-peek {
 	        border-top: 1px solid rgba(255, 255, 255, 0.10);
 	        padding-top: 0.6rem;
@@ -3864,15 +3905,16 @@
 	                        <option value="adult">17+</option>
 	                      </select>
 	                    </div>
-	                    <div class="drills-picker" id="task-drills-picker" style="margin-top:0.35rem;">
-	                      {% for drill in drills_catalog %}
-	                      <label class="chip-toggle" title="{{ drill.label }}" data-drill-cat="{{ drill.category }}" data-drill-label="{{ drill.label }}" data-drill-age-min="{{ drill.age_min|default:'' }}" data-drill-age-max="{{ drill.age_max|default:'' }}">
-	                        <input type="checkbox" value="{{ drill.id }}" {% if drill.id in initial.drills_ids %}checked{% endif %} data-drill-id="{{ drill.id }}" />
-	                        <img class="drill-icon" src="{% static drill.icon_static_path %}" alt="" />
-	                        {{ drill.label }}
-	                      </label>
-	                      {% endfor %}
-	                    </div>
+		                    <div class="drills-picker" id="task-drills-picker" style="margin-top:0.35rem;">
+		                      {% for drill in drills_catalog %}
+		                      <label class="chip-toggle" title="{{ drill.label }}" data-drill-cat="{{ drill.category }}" data-drill-label="{{ drill.label }}" data-drill-age-min="{{ drill.age_min|default:'' }}" data-drill-age-max="{{ drill.age_max|default:'' }}">
+		                        <input type="checkbox" value="{{ drill.id }}" {% if drill.id in initial.drills_ids %}checked{% endif %} data-drill-id="{{ drill.id }}" />
+		                        <img class="drill-icon" src="{% static drill.icon_static_path %}" alt="" />
+		                        <button type="button" class="drill-add-to-board" data-drill-add="{{ drill.id }}" title="Añadir pictograma a la pizarra">+</button>
+		                        {{ drill.label }}
+		                      </label>
+		                      {% endfor %}
+		                    </div>
 	                  </label>
 	                </div>
 		              </div>
@@ -4595,15 +4637,15 @@
 				              return [];
 				            }
 				          };
-					          const writeDrills = (ids) => {
-					            const safe = Array.isArray(ids) ? ids.map((v) => String(v || '').trim()).filter(Boolean) : [];
-					            const deduped = [];
-					            const seen = new Set();
-					            safe.forEach((id) => {
-					              if (!id || seen.has(id)) return;
-					              seen.add(id);
-					              deduped.push(id);
-					            });
+						          const writeDrills = (ids) => {
+						            const safe = Array.isArray(ids) ? ids.map((v) => String(v || '').trim()).filter(Boolean) : [];
+						            const deduped = [];
+						            const seen = new Set();
+						            safe.forEach((id) => {
+						              if (!id || seen.has(id)) return;
+						              seen.add(id);
+						              deduped.push(id);
+						            });
 					            try {
 					              if (drillsInput) {
 					                drillsInput.value = JSON.stringify(deduped);
@@ -4631,10 +4673,10 @@
 				            return ids;
 				          };
 
-				          try {
-				            if (drillsPicker && drillsInput) {
-				              // Normaliza valor inicial y engancha eventos.
-				              writeDrills(readDrills());
+					          try {
+					            if (drillsPicker && drillsInput) {
+					              // Normaliza valor inicial y engancha eventos.
+					              writeDrills(readDrills());
 				              Array.from(drillsPicker.querySelectorAll('input[type="checkbox"][data-drill-id]')).forEach((cb) => {
 				                cb.addEventListener('change', () => {
 				                  const id = String(cb.getAttribute('data-drill-id') || '').trim();
@@ -4649,8 +4691,29 @@
 				                  writeDrills(ids);
 				                });
 				              });
-				            }
-				          } catch (err) {}
+					            }
+					          } catch (err) {}
+
+					          // Añadir pictogramas a la pizarra (se pueden mover/arrastrar dentro del campo).
+					          try {
+					            Array.from(drillsPicker?.querySelectorAll('button[data-drill-add]') || []).forEach((btn) => {
+					              btn.addEventListener('click', (event) => {
+					                event.preventDefault();
+					                event.stopPropagation();
+					                const drillId = String(btn.getAttribute('data-drill-add') || '').trim();
+					                const meta = getDrillMeta(drillId);
+					                if (!meta?.icon) return;
+					                try {
+					                  window.dispatchEvent(new CustomEvent('webstats:tpad:assistant-board', {
+					                    detail: {
+					                      clear: false,
+					                      items: buildBoardItemsFromDrills([drillId], { startX: 0.10, maxX: 0.10, y: 0.18, desiredSize: 64 }),
+					                    },
+					                  }));
+					                } catch (e) { /* ignore */ }
+					              });
+					            });
+					          } catch (e) { /* ignore */ }
 				          const applyDrillsFilter = () => {
 				            if (!drillsPicker) return;
 				            const cat = String(drillsFilter?.value || 'all').trim();
@@ -6989,20 +7052,26 @@
 						            if (tpl.progression_html != null) setRichHtml('draw_task_progression', tpl.progression_html);
 						            if (tpl.regression_html != null) setRichHtml('draw_task_regression', tpl.regression_html);
 						            if (tpl.success_criteria_html != null) setRichHtml('draw_task_success_criteria', tpl.success_criteria_html);
-					            if (tpl.drills && Array.isArray(tpl.drills)) {
-					              writeDrills(tpl.drills);
-					            }
+						            if (tpl.drills && Array.isArray(tpl.drills)) {
+						              writeDrills(tpl.drills);
+						            }
 
-					            if (wantsBoard && tpl.board && Array.isArray(tpl.board.items)) {
-					              try {
-					                window.dispatchEvent(new CustomEvent('webstats:tpad:assistant-board', {
-					                  detail: {
-					                    clear: willClearBoard,
-					                    items: tpl.board.items,
-					                  },
-					                }));
-					              } catch (err) {}
-					            }
+						            if (wantsBoard) {
+						              try {
+						                const boardItems = (tpl.board && Array.isArray(tpl.board.items)) ? tpl.board.items : [];
+						                const drillItems = (tpl.drills && Array.isArray(tpl.drills)) ? buildBoardItemsFromDrills(tpl.drills) : [];
+						                const merged = []
+						                  .concat(Array.isArray(boardItems) ? boardItems : [])
+						                  .concat(Array.isArray(drillItems) ? drillItems : []);
+						                if (!merged.length) return;
+						                window.dispatchEvent(new CustomEvent('webstats:tpad:assistant-board', {
+						                  detail: {
+						                    clear: willClearBoard,
+						                    items: merged,
+						                  },
+						                }));
+						              } catch (err) {}
+						            }
 					            if (tpl.canvas_state && typeof tpl.canvas_state === 'object') {
 					              try {
 					                setValue('draw_canvas_state', JSON.stringify(tpl.canvas_state));
@@ -7044,15 +7113,15 @@
 				            writeQueue(q);
 				            updateQueueUi();
 				          };
-						          const renderSmartSuggestions = () => {
-						            if (!smartSuggestionsBox) return;
-						            const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({
-						              '&': '&amp;',
-					              '<': '&lt;',
-					              '>': '&gt;',
-						              '"': '&quot;',
-						              "'": '&#39;',
-						            }[ch] || ch));
+							          const renderSmartSuggestions = () => {
+							            if (!smartSuggestionsBox) return;
+							            const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({
+							              '&': '&amp;',
+						              '<': '&lt;',
+						              '>': '&gt;',
+							              '"': '&quot;',
+							              "'": '&#39;',
+							            }[ch] || ch));
 						            const stripTags = (html) => String(html ?? '')
 						              .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ' ')
 						              .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ' ')
@@ -7064,106 +7133,205 @@
 						              if (!t) return '';
 						              return t.length > maxLen ? `${t.slice(0, Math.max(0, maxLen - 1))}…` : t;
 						            };
-						            const clamp01 = (value) => {
-						              const n = Number(value);
-						              if (!Number.isFinite(n)) return 0.5;
-						              return Math.max(0.02, Math.min(0.98, n));
-						            };
-						            const renderPitchPreview = (pitchEl, tpl) => {
-						              if (!pitchEl) return;
-						              pitchEl.innerHTML = '';
-						              const items = tpl?.board?.items;
-						              if (!Array.isArray(items) || !items.length) {
-						                const msg = document.createElement('div');
-						                msg.className = 'meta';
-						                msg.style.cssText = 'padding:0.55rem; opacity:0.85;';
-						                msg.textContent = tpl?.canvas_state ? 'Pizarra guardada (sin vista previa rápida).' : 'Sin pizarra.';
-						                pitchEl.appendChild(msg);
-						                return;
-						              }
-						              const pickEmoji = (kind) => {
-						                const k = String(kind || '').trim();
-						                const map = {
-						                  emoji_ladder: '🪜',
-						                  emoji_hurdle: '🟧',
-						                  emoji_cones: '🔺',
-						                  emoji_poles: '🟨',
-						                  emoji_mini_goal: '🥅',
-						                  emoji_gates: '🚪',
-						                  emoji_whistle: '🎺',
-						                };
-						                return map[k] || '';
-						              };
-						              const makeItemEl = (kind, angle = 0) => {
-						                const k = String(kind || '').trim();
-						                const el = document.createElement('div');
-						                el.className = 'assistant-suggestion-item';
-						                const rotate = Number.isFinite(Number(angle)) ? Number(angle) : 0;
-						                el.style.transform = `translate(-50%, -50%) rotate(${rotate}deg)`;
-						                const emoji = pickEmoji(k);
-						                if (emoji) {
-						                  el.classList.add('is-circle');
-						                  el.textContent = emoji;
-						                  el.style.fontSize = '14px';
-						                  return el;
-						                }
-						                if (k === 'goal') {
-						                  el.classList.add('is-goal');
-						                  el.textContent = '';
-						                  return el;
-						                }
-						                if (k === 'cone' || k === 'cone_striped') {
-						                  el.classList.add('is-cone');
-						                  el.textContent = '';
-						                  return el;
-						                }
-						                if (k === 'ring') {
-						                  el.classList.add('is-ring', 'is-circle');
-						                  el.textContent = '';
-						                  return el;
-						                }
-						                if (k === 'arrow_solid' || k === 'arrow_dotted' || k === 'arrow_curve') {
-						                  el.classList.add('is-arrow', 'is-circle');
-						                  el.textContent = '➜';
-						                  return el;
-						                }
-						                if (k === 'ball') {
-						                  el.classList.add('is-ball', 'is-circle');
-						                  el.textContent = '⚽';
-						                  el.style.fontSize = '13px';
-						                  return el;
-						                }
-						                if (k === 'player_local') {
-						                  el.classList.add('is-local', 'is-circle');
-						                  el.textContent = 'L';
-						                  return el;
-						                }
-						                if (k === 'player_rival') {
-						                  el.classList.add('is-rival', 'is-circle');
-						                  el.textContent = 'R';
-						                  return el;
-						                }
-						                if (k === 'text') {
-						                  el.classList.add('is-circle');
-						                  el.textContent = 'T';
-						                  return el;
-						                }
-						                el.classList.add('is-circle');
-						                el.textContent = '•';
-						                return el;
-						              };
-						              items.slice(0, 120).forEach((it) => {
-						                const kind = it?.payload?.kind;
-						                const node = makeItemEl(kind, it?.angle || 0);
-						                if (String(kind || '').trim() === 'text') {
-						                  const rawText = String(it?.payload?.text || it?.payload?.value || '').trim();
-						                  if (rawText) node.textContent = rawText.slice(0, 2).toUpperCase();
-						                }
-						                node.style.left = `${clamp01(it?.x) * 100}%`;
-						                node.style.top = `${clamp01(it?.y) * 100}%`;
-						                pitchEl.appendChild(node);
-						              });
-						            };
+							            const clamp01 = (value) => {
+							              const n = Number(value);
+							              if (!Number.isFinite(n)) return 0.5;
+							              return Math.max(0.02, Math.min(0.98, n));
+							            };
+							            const canvasPreviewCache = window.__webstatsSmartPreviewCache || new Map();
+							            window.__webstatsSmartPreviewCache = canvasPreviewCache;
+							            const renderPitchPreviewFromCanvasState = async (pitchEl, tpl, cacheKeyHint = '') => {
+							              if (!pitchEl) return false;
+							              const state = tpl?.canvas_state;
+							              if (!state || typeof state !== 'object') return false;
+							              const fabricLib = window.fabric;
+							              if (!fabricLib || typeof fabricLib.StaticCanvas !== 'function') return false;
+							              const w = Number(tpl?.canvas_width) || 1280;
+							              const h = Number(tpl?.canvas_height) || 720;
+								              const signature = (() => {
+								                try {
+								                  const objects = Array.isArray(state.objects) ? state.objects : [];
+								                  const sample = objects.slice(0, 12).map((obj) => String(obj?.type || obj?.data?.kind || '')).join('|');
+								                  const len = (() => {
+								                    try { return JSON.stringify(objects.slice(0, 25)).length; } catch (e) { return 0; }
+								                  })();
+								                  return `${w}x${h}:${objects.length}:${sample}:${len}`;
+								                } catch (e) {
+								                  return `${w}x${h}:${Number((state.objects || []).length) || 0}`;
+								                }
+								              })();
+								              const keyBase = String(cacheKeyHint || tpl?.source_url || tpl?.source_name || 'cs').trim() || 'cs';
+								              const key = `${keyBase}:${signature}`;
+							              const cached = canvasPreviewCache.get(key);
+							              if (cached) {
+							                pitchEl.innerHTML = `<img class="assistant-suggestion-canvasimg" alt="" src="${cached}" />`;
+							                return true;
+							              }
+							              // Placeholder mientras renderiza.
+							              pitchEl.innerHTML = '<div class="meta" style="padding:0.55rem; opacity:0.85;">Generando vista previa…</div>';
+							              try {
+							                const offscreen = document.createElement('canvas');
+							                offscreen.width = Math.max(240, Math.min(1600, w));
+							                offscreen.height = Math.max(180, Math.min(1200, h));
+							                const sc = new fabricLib.StaticCanvas(offscreen, { renderOnAddRemove: false });
+							                try { sc.backgroundColor = null; } catch (e) {}
+							                const json = {
+							                  version: state.version || '5.3.0',
+							                  objects: Array.isArray(state.objects) ? state.objects : [],
+							                };
+							                await new Promise((resolve) => {
+							                  try {
+							                    sc.loadFromJSON(json, () => {
+							                      try { sc.renderAll(); } catch (e) {}
+							                      resolve(true);
+							                    });
+							                  } catch (e) {
+							                    resolve(false);
+							                  }
+							                });
+							                const multiplier = Math.max(0.18, Math.min(0.38, 420 / Math.max(1, offscreen.width)));
+							                const dataUrl = sc.toDataURL({ format: 'png', multiplier });
+							                try { sc.dispose(); } catch (e) {}
+							                if (dataUrl && typeof dataUrl === 'string' && dataUrl.startsWith('data:image/')) {
+							                  canvasPreviewCache.set(key, dataUrl);
+							                  pitchEl.innerHTML = `<img class="assistant-suggestion-canvasimg" alt="" src="${dataUrl}" />`;
+							                  return true;
+							                }
+							              } catch (e) {
+							                // ignore
+							              }
+							              return false;
+							            };
+								            const renderPitchPreview = (pitchEl, item, idxHint = 0) => {
+								              if (!pitchEl) return;
+								              pitchEl.innerHTML = '';
+								              const tpl = (item && typeof item === 'object' && item.tpl) ? (item.tpl || {}) : (item || {});
+								              const cacheKey = String((item && item.id) || '').trim() || `idx:${Number(idxHint) || 0}`;
+								              const boardItems = (tpl?.board && Array.isArray(tpl.board.items)) ? tpl.board.items : [];
+								              const drillItems = (tpl?.drills && Array.isArray(tpl.drills))
+								                ? buildBoardItemsFromDrills(tpl.drills, { maxIcons: 12, desiredSize: 56 })
+								                : [];
+
+								              const renderNoBoard = () => {
+								                const msg = document.createElement('div');
+								                msg.className = 'meta';
+								                msg.style.cssText = 'padding:0.55rem; opacity:0.85;';
+								                msg.textContent = 'Sin pizarra.';
+								                pitchEl.appendChild(msg);
+								              };
+								              const renderFromItems = (items) => {
+								                if (!Array.isArray(items) || !items.length) return false;
+								                const pickEmoji = (kind) => {
+								                  const k = String(kind || '').trim();
+								                  const map = {
+								                    emoji_ladder: '🪜',
+								                    emoji_hurdle: '🟧',
+								                    emoji_cones: '🔺',
+								                    emoji_poles: '🟨',
+								                    emoji_mini_goal: '🥅',
+								                    emoji_gates: '🚪',
+								                    emoji_whistle: '🎺',
+								                  };
+								                  return map[k] || '';
+								                };
+								                const makeItemEl = (kind, angle = 0) => {
+								                  const k = String(kind || '').trim();
+								                  if (k.startsWith('image_url:')) {
+								                    const el = document.createElement('div');
+								                    el.className = 'assistant-suggestion-item is-circle is-asset';
+								                    const img = document.createElement('img');
+								                    img.src = k.slice('image_url:'.length);
+								                    img.alt = '';
+								                    img.draggable = false;
+								                    el.appendChild(img);
+								                    return el;
+								                  }
+								                  const el = document.createElement('div');
+								                  el.className = 'assistant-suggestion-item';
+								                  const rotate = Number.isFinite(Number(angle)) ? Number(angle) : 0;
+								                  el.style.transform = `translate(-50%, -50%) rotate(${rotate}deg)`;
+								                  const emoji = pickEmoji(k);
+								                  if (emoji) {
+								                    el.classList.add('is-circle');
+								                    el.textContent = emoji;
+								                    el.style.fontSize = '14px';
+								                    return el;
+								                  }
+								                  if (k === 'goal') {
+								                    el.classList.add('is-goal');
+								                    el.textContent = '';
+								                    return el;
+								                  }
+								                  if (k === 'cone' || k === 'cone_striped') {
+								                    el.classList.add('is-cone');
+								                    el.textContent = '';
+								                    return el;
+								                  }
+								                  if (k === 'ring') {
+								                    el.classList.add('is-ring', 'is-circle');
+								                    el.textContent = '';
+								                    return el;
+								                  }
+								                  if (k === 'arrow_solid' || k === 'arrow_dotted' || k === 'arrow_curve') {
+								                    el.classList.add('is-arrow', 'is-circle');
+								                    el.textContent = '➜';
+								                    return el;
+								                  }
+								                  if (k === 'ball') {
+								                    el.classList.add('is-ball', 'is-circle');
+								                    el.textContent = '⚽';
+								                    el.style.fontSize = '13px';
+								                    return el;
+								                  }
+								                  if (k === 'player_local') {
+								                    el.classList.add('is-local', 'is-circle');
+								                    el.textContent = 'L';
+								                    return el;
+								                  }
+								                  if (k === 'player_rival') {
+								                    el.classList.add('is-rival', 'is-circle');
+								                    el.textContent = 'R';
+								                    return el;
+								                  }
+								                  if (k === 'text') {
+								                    el.classList.add('is-circle');
+								                    el.textContent = 'T';
+								                    return el;
+								                  }
+								                  el.classList.add('is-circle');
+								                  el.textContent = '•';
+								                  return el;
+								                };
+								                items.slice(0, 120).forEach((it) => {
+								                  const kind = it?.payload?.kind;
+								                  const node = makeItemEl(kind, it?.angle || 0);
+								                  if (String(kind || '').trim() === 'text') {
+								                    const rawText = String(it?.payload?.text || it?.payload?.value || '').trim();
+								                    if (rawText) node.textContent = rawText.slice(0, 2).toUpperCase();
+								                  }
+								                  node.style.left = `${clamp01(it?.x) * 100}%`;
+								                  node.style.top = `${clamp01(it?.y) * 100}%`;
+								                  pitchEl.appendChild(node);
+								                });
+								                return true;
+								              };
+
+								              // Prioridad: si hay canvas_state, pintamos la miniatura real (usa recursos/pizarra real).
+								              if (tpl?.canvas_state && typeof tpl.canvas_state === 'object') {
+								                renderPitchPreviewFromCanvasState(pitchEl, tpl, cacheKey).then((ok) => {
+								                  if (ok) return;
+								                  pitchEl.innerHTML = '';
+								                  if (renderFromItems(boardItems)) return;
+								                  if (renderFromItems(drillItems)) return;
+								                  renderNoBoard();
+								                });
+								                return;
+								              }
+
+								              if (renderFromItems(boardItems)) return;
+								              if (renderFromItems(drillItems)) return;
+								              renderNoBoard();
+								            };
 						            const templates = buildTemplatesForProgram('smart');
 						            const suggestions = Array.isArray(templates.smart_suggestions) ? templates.smart_suggestions : [];
 						            if (!suggestions.length) {
@@ -7211,15 +7379,15 @@
 						              `;
 						            }).join('');
 					            smartSuggestionsBox.innerHTML = rows;
-					            // Renderiza la vista previa de pizarra en cada sugerencia.
-					            try {
-					              const templates3 = buildTemplatesForProgram('smart');
-					              const list = Array.isArray(templates3.smart_suggestions) ? templates3.smart_suggestions : [];
-					              list.forEach((item, idx) => {
-					                const pitchEl = smartSuggestionsBox.querySelector(`[data-smart-pitch="${idx}"]`);
-					                renderPitchPreview(pitchEl, item?.tpl || {});
-					              });
-					            } catch (e) { /* ignore */ }
+						            // Renderiza la vista previa de pizarra en cada sugerencia.
+						            try {
+						              const templates3 = buildTemplatesForProgram('smart');
+						              const list = Array.isArray(templates3.smart_suggestions) ? templates3.smart_suggestions : [];
+						              list.forEach((item, idx) => {
+						                const pitchEl = smartSuggestionsBox.querySelector(`[data-smart-pitch="${idx}"]`);
+						                renderPitchPreview(pitchEl, item || {}, idx);
+						              });
+						            } catch (e) { /* ignore */ }
 					            // Toggle de vista previa (sin tocar la tarea actual).
 					            Array.from(smartSuggestionsBox.querySelectorAll('[data-smart-peek-toggle]')).forEach((btn) => {
 					              btn.addEventListener('click', () => {
@@ -7291,6 +7459,58 @@
 						            if (g === 'coord' || g === 'warmup') return 'physical';
 						            return 'other';
 						          };
+
+					          // Mapa (id -> {icon, label}) para reutilizar pictogramas en Asistente / previews.
+					          let drillMetaCache = null;
+					          const buildDrillMetaCache = () => {
+					            const map = new Map();
+					            if (!drillsPicker) return map;
+					            try {
+					              Array.from(drillsPicker.querySelectorAll('label.chip-toggle')).forEach((label) => {
+					                const cb = label.querySelector('input[type="checkbox"][data-drill-id]');
+					                const img = label.querySelector('img.drill-icon');
+					                const id = String(cb?.getAttribute('data-drill-id') || '').trim();
+					                if (!id) return;
+					                const icon = String(img?.src || '').trim();
+					                const dLabel = String(label.getAttribute('data-drill-label') || label.title || '').trim();
+					                map.set(id, { icon, label: dLabel });
+					              });
+					            } catch (e) { /* ignore */ }
+					            return map;
+					          };
+					          const getDrillMeta = (id) => {
+					            const key = String(id || '').trim();
+					            if (!key) return null;
+					            if (!drillMetaCache) drillMetaCache = buildDrillMetaCache();
+					            return drillMetaCache.get(key) || null;
+					          };
+					          const buildBoardItemsFromDrills = (ids, opts = {}) => {
+					            const list = Array.isArray(ids) ? ids.map((v) => String(v || '').trim()).filter(Boolean) : [];
+					            if (!list.length) return [];
+					            const maxIcons = Number.isFinite(Number(opts.maxIcons)) ? Number(opts.maxIcons) : 12;
+					            const y = Number.isFinite(Number(opts.y)) ? Number(opts.y) : 0.18;
+					            const startX = Number.isFinite(Number(opts.startX)) ? Number(opts.startX) : 0.10;
+					            const maxX = Number.isFinite(Number(opts.maxX)) ? Number(opts.maxX) : 0.88;
+					            const desiredSize = Number.isFinite(Number(opts.desiredSize)) ? Number(opts.desiredSize) : 58;
+					            const usable = [];
+					            list.slice(0, maxIcons).forEach((drillId) => {
+					              const meta = getDrillMeta(drillId);
+					              if (!meta?.icon) return;
+					              usable.push({ id: drillId, icon: meta.icon, label: meta.label || drillId });
+					            });
+					            if (!usable.length) return [];
+					            const step = usable.length > 1 ? Math.min(0.10, (maxX - startX) / Math.max(1, usable.length - 1)) : 0;
+					            return usable.map((it, index) => ({
+					              x: startX + (step * index),
+					              y,
+					              angle: 0,
+					              payload: {
+					                kind: `image_url:${it.icon}`,
+					                title: it.label,
+					                desiredSize,
+					              },
+					            }));
+					          };
 
 					          const buildBlueprintPayloadFromForm = () => {
 					            const getVal = (name) => {
