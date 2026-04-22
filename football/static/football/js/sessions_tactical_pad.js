@@ -11579,28 +11579,83 @@
         return;
       }
 
-      // Los navegadores bloquean pestañas abiertas tras un await. Abrimos la pestaña de destino
-      // de forma síncrona (gesto del click) y luego enviamos el POST cuando la pizarra esté serializada.
-      const targetName = `tpad_pdf_${Date.now()}`;
-      let previewWin = null;
-      try {
-        previewWin = window.open('about:blank', targetName);
-      } catch (error) {
-        previewWin = null;
-      }
-      if (previewWin && previewWin.document) {
-        previewWin.document.open();
-        previewWin.document.write('<!doctype html><html lang="es"><meta charset="utf-8"><title>Generando PDF…</title><body style="font-family:system-ui,Segoe UI,Arial,sans-serif;padding:24px;"><h1 style="font-size:16px;margin:0 0 8px;">Generando PDF…</h1><p style="margin:0;color:#334155;">En unos segundos aparecerá el documento.</p></body></html>');
-        previewWin.document.close();
-      }
+      const isCapacitor = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+      const ensurePdfOverlay = () => {
+        let overlay = document.getElementById('tpad-pdf-overlay');
+        if (overlay) return overlay;
+        overlay = document.createElement('div');
+        overlay.id = 'tpad-pdf-overlay';
+        overlay.style.cssText = [
+          'position:fixed',
+          'inset:0',
+          'z-index:2147483647',
+          'background:rgba(2,6,23,0.78)',
+          'display:none',
+          'flex-direction:column',
+        ].join(';');
+        overlay.innerHTML = `
+          <div style="display:flex;align-items:center;gap:0.6rem;padding:0.65rem 0.75rem;background:rgba(7,16,30,0.96);border-bottom:1px solid rgba(255,255,255,0.12);">
+            <button type="button" id="tpad-pdf-close" style="appearance:none;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.06);color:rgba(245,247,250,0.92);border-radius:999px;padding:0.5rem 0.9rem;font-weight:900;letter-spacing:0.08em;text-transform:uppercase;font-size:0.72rem;cursor:pointer;">Cerrar</button>
+            <button type="button" id="tpad-pdf-print" style="appearance:none;border:1px solid rgba(244,180,0,0.22);background:rgba(244,180,0,0.10);color:rgba(255,249,232,0.95);border-radius:999px;padding:0.5rem 0.9rem;font-weight:900;letter-spacing:0.08em;text-transform:uppercase;font-size:0.72rem;cursor:pointer;">Imprimir</button>
+            <a id="tpad-pdf-download" href="#" style="margin-left:auto;appearance:none;border:1px solid rgba(70,211,255,0.22);background:rgba(70,211,255,0.10);color:rgba(230,236,255,0.95);border-radius:999px;padding:0.5rem 0.9rem;font-weight:900;letter-spacing:0.08em;text-transform:uppercase;font-size:0.72rem;text-decoration:none;">Descargar</a>
+          </div>
+          <iframe id="tpad-pdf-frame" title="PDF" style="flex:1;border:0;width:100%;background:#ffffff;"></iframe>
+        `;
+        document.body.appendChild(overlay);
+
+        const close = () => {
+          const frame = document.getElementById('tpad-pdf-frame');
+          try {
+            const currentUrl = frame?.dataset?.blobUrl || '';
+            if (currentUrl && currentUrl.startsWith('blob:')) URL.revokeObjectURL(currentUrl);
+          } catch (e) { /* ignore */ }
+          if (frame) {
+            try { frame.removeAttribute('src'); } catch (e) { /* ignore */ }
+            try { frame.removeAttribute('srcdoc'); } catch (e) { /* ignore */ }
+            try { frame.dataset.blobUrl = ''; } catch (e) { /* ignore */ }
+          }
+          overlay.style.display = 'none';
+        };
+        overlay.querySelector('#tpad-pdf-close')?.addEventListener('click', close);
+        overlay.addEventListener('click', (ev) => {
+          if (ev.target === overlay) close();
+        });
+        document.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Escape' && overlay.style.display !== 'none') close();
+        });
+        overlay.querySelector('#tpad-pdf-print')?.addEventListener('click', () => {
+          const frame = document.getElementById('tpad-pdf-frame');
+          try {
+            frame?.contentWindow?.focus?.();
+            frame?.contentWindow?.print?.();
+          } catch (e) {
+            // ignore
+          }
+        });
+        return overlay;
+      };
+      const openPdfOverlay = ({ blobUrl = '', filename = '' } = {}) => {
+        const overlay = ensurePdfOverlay();
+        const frame = overlay.querySelector('#tpad-pdf-frame');
+        const download = overlay.querySelector('#tpad-pdf-download');
+        if (download) {
+          download.setAttribute('href', blobUrl || '#');
+          try {
+            if (filename) download.setAttribute('download', filename);
+          } catch (e) { /* ignore */ }
+        }
+        if (frame) {
+          try { frame.dataset.blobUrl = blobUrl || ''; } catch (e) { /* ignore */ }
+          if (blobUrl) frame.setAttribute('src', blobUrl);
+        }
+        overlay.style.display = 'flex';
+      };
 
 			      await syncHiddenBuilderFields({
 			        // PNG para mantener líneas nítidas y sin artefactos JPEG en el PDF.
 			        previewOptions: { maxWidth: 4096, mime: 'image/png', quality: 0.98 },
 			        applyLivePreview: false,
 			      });
-      const tempForm = document.createElement('form');
-      tempForm.method = 'post';
       // actionUrl puede incluir query (?user=... o ?workspace=...). Si concatenamos "?style="
       // rompemos el query string y el backend no detecta el workspace, devolviendo 403.
       const targetStyle = safeText(style, 'uefa');
@@ -11619,6 +11674,63 @@
       } catch (error) {
         resolvedAction = `${actionUrl}${actionUrl.includes('?') ? '&' : '?'}style=${encodeURIComponent(targetStyle || 'uefa')}`;
       }
+
+      // iOS/Capacitor: `window.open` crea una vista sin navegación ("página en blanco" sin salida).
+      // En ese caso, descargamos el PDF por fetch y lo mostramos en un overlay con botón Cerrar.
+      if (isCapacitor) {
+        const payload = new FormData(form);
+        // Evita enviar ficheros por error.
+        Array.from(payload.entries()).forEach(([key, value]) => {
+          if (value instanceof File) payload.delete(key);
+        });
+        let resp = null;
+        try {
+          resp = await fetch(resolvedAction, { method: 'POST', body: payload, credentials: 'include' });
+        } catch (error) {
+          setStatus('No se pudo conectar para generar el PDF.', true);
+          return;
+        }
+        const ct = String(resp.headers.get('content-type') || '').toLowerCase();
+        if (!resp.ok) {
+          const text = await resp.text();
+          setStatus(text || `No se pudo generar el PDF (HTTP ${resp.status}).`, true);
+          return;
+        }
+        if (ct.includes('application/pdf')) {
+          const blob = await resp.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          const title = fileSafeSlug(form.querySelector('[name="draw_task_title"]')?.value) || 'tarea';
+          const filename = `${title}_${targetStyle}.pdf`;
+          openPdfOverlay({ blobUrl, filename });
+          return;
+        }
+        // Fallback HTML (servidor sin WeasyPrint/pydyf): mostrar en overlay para permitir salir.
+        const html = await resp.text();
+        const overlay = ensurePdfOverlay();
+        const frame = overlay.querySelector('#tpad-pdf-frame');
+        if (frame) {
+          try { frame.removeAttribute('src'); } catch (e) { /* ignore */ }
+          try { frame.srcdoc = html; } catch (e) { /* ignore */ }
+        }
+        overlay.style.display = 'flex';
+        return;
+      }
+
+      // Desktop / navegadores con navegación: abrir una pestaña y enviar POST.
+      const targetName = `tpad_pdf_${Date.now()}`;
+      let previewWin = null;
+      try {
+        previewWin = window.open('about:blank', targetName);
+      } catch (error) {
+        previewWin = null;
+      }
+      if (previewWin && previewWin.document) {
+        previewWin.document.open();
+        previewWin.document.write('<!doctype html><html lang="es"><meta charset="utf-8"><title>Generando PDF…</title><body style="font-family:system-ui,Segoe UI,Arial,sans-serif;padding:24px;"><h1 style="font-size:16px;margin:0 0 8px;">Generando PDF…</h1><p style="margin:0;color:#334155;">En unos segundos aparecerá el documento.</p></body></html>');
+        previewWin.document.close();
+      }
+      const tempForm = document.createElement('form');
+      tempForm.method = 'post';
       tempForm.action = resolvedAction;
       tempForm.target = previewWin ? targetName : '_self';
       const payload = new FormData(form);
