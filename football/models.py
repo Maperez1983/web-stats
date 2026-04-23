@@ -143,6 +143,8 @@ class Workspace(models.Model):
     subscription_current_period_end = models.DateTimeField(null=True, blank=True)
     subscription_cancel_at_period_end = models.BooleanField(default=False)
     subscription_canceled_at = models.DateTimeField(null=True, blank=True)
+    # Entitlements modulares (Core + add-ons). Solo se aplica si STRIPE_MODULAR_BILLING=1.
+    paid_modules = models.JSONField(default=dict, blank=True)
     is_active = models.BooleanField(default=True)
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

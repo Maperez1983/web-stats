@@ -105,19 +105,66 @@
 
         {% if stripe_ready %}
         <div class="panel" style="margin-top:1rem;">
-          <h2 style="margin:0 0 0.35rem; font-size:1rem; letter-spacing:0.08em; text-transform:uppercase;">Plan Pro</h2>
-          <p style="margin:0.35rem 0; color:rgba(148,163,184,0.92);">
-            Acceso completo a 2J Club + 2J Live + 2J Studio. Facturación recurrente.
-          </p>
-          <div class="cta">
-            {% if subscription_status == 'active' %}
-              <button class="btn primary" id="billing-portal-btn" type="button">Gestionar suscripción</button>
+          {% if stripe_modular_ready %}
+            <h2 style="margin:0 0 0.35rem; font-size:1rem; letter-spacing:0.08em; text-transform:uppercase;">Suscripción por módulos</h2>
+            <p style="margin:0.35rem 0; color:rgba(148,163,184,0.92);">
+              Empieza con <strong>Core</strong> y añade módulos: <strong>Live</strong>, <strong>Studio</strong>, <strong>Analysis</strong>.
+            </p>
+            {% if stripe_modular_enabled %}
+              <div style="margin-top:0.65rem; display:grid; gap:0.55rem;">
+                <label style="display:flex; gap:0.6rem; align-items:flex-start;">
+                  <input type="checkbox" id="billing-addon-live" style="margin-top:0.2rem;" />
+                  <div>
+                    <div style="font-weight:800; letter-spacing:0.06em; text-transform:uppercase;">Live</div>
+                    <div style="color:rgba(148,163,184,0.92); font-size:0.92rem;">Registro de acciones + KPIs + PDFs de partido.</div>
+                  </div>
+                </label>
+                <label style="display:flex; gap:0.6rem; align-items:flex-start;">
+                  <input type="checkbox" id="billing-addon-studio" style="margin-top:0.2rem;" />
+                  <div>
+                    <div style="font-weight:800; letter-spacing:0.06em; text-transform:uppercase;">Studio</div>
+                    <div style="color:rgba(148,163,184,0.92); font-size:0.92rem;">Tareas/sesiones + PDFs + biblioteca.</div>
+                  </div>
+                </label>
+                <label style="display:flex; gap:0.6rem; align-items:flex-start;">
+                  <input type="checkbox" id="billing-addon-analysis" style="margin-top:0.2rem;" />
+                  <div>
+                    <div style="font-weight:800; letter-spacing:0.06em; text-transform:uppercase;">Analysis</div>
+                    <div style="color:rgba(148,163,184,0.92); font-size:0.92rem;">Vídeo/estudio y análisis.</div>
+                  </div>
+                </label>
+              </div>
             {% else %}
-              <button class="btn primary" data-plan="pro" data-interval="month" type="button">Activar Pro (mensual)</button>
-              <button class="btn" data-plan="pro" data-interval="year" type="button">Activar Pro (anual)</button>
+              <div style="margin-top:0.65rem; border:1px solid rgba(251,191,36,0.25); background:rgba(251,191,36,0.08); border-radius:14px; padding:0.75rem 0.85rem;">
+                <strong>Nota:</strong> El modo modular está preparado pero no está activo todavía. Activa `STRIPE_MODULAR_BILLING=1` en Render.
+              </div>
             {% endif %}
-            <a class="btn" href="{% url 'dashboard-home' %}">Volver</a>
-          </div>
+
+            <div class="cta" style="margin-top:0.9rem;">
+              {% if subscription_status == 'active' %}
+                <button class="btn primary" id="billing-portal-btn" type="button">Gestionar suscripción</button>
+              {% else %}
+                <button class="btn primary" data-plan="core" data-interval="month" type="button">Activar (mensual)</button>
+                <button class="btn" data-plan="core" data-interval="year" type="button">Activar (anual)</button>
+              {% endif %}
+              <a class="btn" href="{% url 'dashboard-home' %}">Volver</a>
+            </div>
+          {% else %}
+            <h2 style="margin:0 0 0.35rem; font-size:1rem; letter-spacing:0.08em; text-transform:uppercase;">Plan Pro</h2>
+            <p style="margin:0.35rem 0; color:rgba(148,163,184,0.92);">
+              Acceso completo a 2J Club + 2J Live + 2J Studio. Facturación recurrente.
+            </p>
+            <div class="cta">
+              {% if subscription_status == 'active' %}
+                <button class="btn primary" id="billing-portal-btn" type="button">Gestionar suscripción</button>
+              {% else %}
+                <button class="btn primary" data-plan="pro" data-interval="month" type="button">Activar Pro (mensual)</button>
+                <button class="btn" data-plan="pro" data-interval="year" type="button">Activar Pro (anual)</button>
+              {% endif %}
+              <a class="btn" href="{% url 'dashboard-home' %}">Volver</a>
+            </div>
+          {% endif %}
+
           <p id="billing-msg" style="margin-top:0.7rem; color:rgba(148,163,184,0.92);"></p>
         </div>
         {% else %}
@@ -152,6 +199,17 @@
             return data;
           };
 
+          const readAddons = () => {
+            const list = [];
+            const live = document.getElementById('billing-addon-live');
+            const studio = document.getElementById('billing-addon-studio');
+            const analysis = document.getElementById('billing-addon-analysis');
+            if (live && live.checked) list.push('live');
+            if (studio && studio.checked) list.push('studio');
+            if (analysis && analysis.checked) list.push('analysis');
+            return list;
+          };
+
           const buttons = Array.from(document.querySelectorAll('button[data-plan][data-interval]'));
           buttons.forEach((btn) => {
             btn.addEventListener('click', async () => {
@@ -160,7 +218,10 @@
               setMsg('Abriendo pago seguro…');
               btn.disabled = true;
               try {
-                const data = await postJson("{% url 'billing-checkout-session' %}", { plan_key: plan, interval });
+                const addons = readAddons();
+                const body = { plan_key: plan, interval };
+                if (addons.length) body.addons = addons.join(',');
+                const data = await postJson("{% url 'billing-checkout-session' %}", body);
                 if (data && data.already_active) {
                   setMsg('La suscripción ya está activa.');
                   btn.disabled = false;

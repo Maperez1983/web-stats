@@ -348,6 +348,8 @@ def billing_page(request):
             'trial_expires_at': expires_at,
             'trial_days_left': days_left,
             'stripe_ready': bool(str(os.getenv('STRIPE_SECRET_KEY', '') or '').strip()),
+            'stripe_modular_ready': bool((_stripe_price_map().get(('core', 'month')) or '').strip()),
+            'stripe_modular_enabled': _stripe_modular_billing_enabled(),
         },
     )
 
@@ -369,13 +371,27 @@ def _stripe_price_map():
     Map interno (plan_key, interval) -> Stripe price id.
     """
     return {
+        # Bundle legacy: todo incluido.
         ('pro', 'month'): str(os.getenv('STRIPE_PRICE_PRO_MONTHLY', '') or '').strip(),
         ('pro', 'year'): str(os.getenv('STRIPE_PRICE_PRO_YEARLY', '') or '').strip(),
+        # Modular (Core + add-ons).
+        ('core', 'month'): str(os.getenv('STRIPE_PRICE_CORE_MONTHLY', '') or '').strip(),
+        ('core', 'year'): str(os.getenv('STRIPE_PRICE_CORE_YEARLY', '') or '').strip(),
+        ('live', 'month'): str(os.getenv('STRIPE_PRICE_LIVE_MONTHLY', '') or '').strip(),
+        ('live', 'year'): str(os.getenv('STRIPE_PRICE_LIVE_YEARLY', '') or '').strip(),
+        ('studio', 'month'): str(os.getenv('STRIPE_PRICE_STUDIO_MONTHLY', '') or '').strip(),
+        ('studio', 'year'): str(os.getenv('STRIPE_PRICE_STUDIO_YEARLY', '') or '').strip(),
+        ('analysis', 'month'): str(os.getenv('STRIPE_PRICE_ANALYSIS_MONTHLY', '') or '').strip(),
+        ('analysis', 'year'): str(os.getenv('STRIPE_PRICE_ANALYSIS_YEARLY', '') or '').strip(),
     }
 
 
 def _stripe_enabled() -> bool:
     return bool(_stripe_secret_key() and stripe is not None)
+
+
+def _stripe_modular_billing_enabled() -> bool:
+    return str(os.getenv('STRIPE_MODULAR_BILLING', '0') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
 
 
 def _stripe_init():
@@ -417,9 +433,35 @@ def billing_checkout_session_api(request):
     interval = str(request.POST.get('interval') or request.GET.get('interval') or 'month').strip().lower()
     if interval not in {'month', 'year'}:
         interval = 'month'
-    price_id = _stripe_price_map().get((plan_key, interval)) or ''
-    if not price_id:
-        return JsonResponse({'ok': False, 'error': 'Plan no disponible (missing price id).'}, status=500)
+    price_map = _stripe_price_map()
+
+    # Soporte modular: siempre incluye CORE y añade módulos opcionales.
+    raw_addons = str(request.POST.get('addons') or request.GET.get('addons') or '').strip()
+    addons = []
+    if raw_addons:
+        addons = [a.strip().lower() for a in re.split(r'[, ]+', raw_addons) if a.strip()]
+    allowed_addons = {'live', 'studio', 'analysis'}
+    addons = [a for a in addons if a in allowed_addons]
+
+    line_items = []
+    uses_modular = False
+    core_price = (price_map.get(('core', interval)) or '').strip()
+    if core_price:
+        # Activa el modo modular si el usuario pide core o selecciona addons.
+        if plan_key in {'core', 'starter', 'basic'} or addons:
+            uses_modular = True
+            line_items.append({'price': core_price, 'quantity': 1})
+            for addon in addons:
+                pid = (price_map.get((addon, interval)) or '').strip()
+                if not pid:
+                    return JsonResponse({'ok': False, 'error': f'Módulo no disponible: {addon}.'}, status=500)
+                line_items.append({'price': pid, 'quantity': 1})
+
+    if not uses_modular:
+        price_id = (price_map.get((plan_key, interval)) or '').strip()
+        if not price_id:
+            return JsonResponse({'ok': False, 'error': 'Plan no disponible (missing price id).'}, status=500)
+        line_items = [{'price': price_id, 'quantity': 1}]
 
     # Si ya está activo, ofrecemos portal.
     if _workspace_is_subscription_active(workspace):
@@ -443,13 +485,15 @@ def billing_checkout_session_api(request):
         'workspace_slug': str(getattr(workspace, 'slug', '') or ''),
         'plan_key': plan_key,
         'interval': interval,
+        'addons': ','.join(addons) if addons else '',
+        'billing_mode': 'modular' if uses_modular else 'bundle',
         'user_id': str(int(getattr(request.user, 'id', 0) or 0)),
     }
 
     try:
         params = {
             'mode': 'subscription',
-            'line_items': [{'price': price_id, 'quantity': 1}],
+            'line_items': line_items,
             'success_url': success_url,
             'cancel_url': cancel_url,
             'allow_promotion_codes': True,
@@ -555,14 +599,28 @@ def _stripe_sync_workspace_from_subscription(workspace, subscription, *, price_i
         canceled_dt = None
 
     workspace.subscription_status = status if status else (workspace.subscription_status or 'trial')
+    # Detecta modo: bundle pro vs modular core (por items).
+    entitlements = {}
+    try:
+        entitlements = _stripe_entitlements_from_subscription(subscription)
+    except Exception:
+        entitlements = {}
+
     if status == 'active':
-        workspace.plan_key = workspace.plan_key or 'pro'
+        # Si hay entitlements, asumimos core; si no, bundle legacy.
+        if entitlements:
+            workspace.plan_key = workspace.plan_key or 'core'
+        else:
+            workspace.plan_key = workspace.plan_key or 'pro'
+    # Precio "principal" (compatibilidad).
     if price_id:
         workspace.stripe_price_id = price_id
     workspace.stripe_subscription_id = str(getattr(subscription, 'id', '') or workspace.stripe_subscription_id or '')
     workspace.subscription_cancel_at_period_end = cancel_at_period_end
     workspace.subscription_current_period_end = period_end_dt
     workspace.subscription_canceled_at = canceled_dt
+    if entitlements:
+        workspace.paid_modules = entitlements
     workspace.save(
         update_fields=[
             'subscription_status',
@@ -572,9 +630,77 @@ def _stripe_sync_workspace_from_subscription(workspace, subscription, *, price_i
             'subscription_cancel_at_period_end',
             'subscription_current_period_end',
             'subscription_canceled_at',
+            'paid_modules',
             'updated_at',
         ]
     )
+
+
+def _stripe_entitlements_from_subscription(subscription) -> dict:
+    """
+    Devuelve dict módulo->bool según items del subscription.
+
+    - Bundle Pro => todos los módulos.
+    - Modular => Core + add-ons (Live/Studio/Analysis).
+    """
+    if not subscription:
+        return {}
+    try:
+        items = getattr(subscription, 'items', None)
+        data = getattr(items, 'data', None) if items is not None else None
+        data = data if isinstance(data, list) else []
+        price_ids = []
+        for it in data[:30]:
+            price = getattr(it, 'price', None)
+            pid = str(getattr(price, 'id', '') or '').strip()
+            if pid:
+                price_ids.append(pid)
+    except Exception:
+        price_ids = []
+
+    price_map = _stripe_price_map()
+    core_m = str(price_map.get(('core', 'month')) or '').strip()
+    core_y = str(price_map.get(('core', 'year')) or '').strip()
+    live_m = str(price_map.get(('live', 'month')) or '').strip()
+    live_y = str(price_map.get(('live', 'year')) or '').strip()
+    studio_m = str(price_map.get(('studio', 'month')) or '').strip()
+    studio_y = str(price_map.get(('studio', 'year')) or '').strip()
+    analysis_m = str(price_map.get(('analysis', 'month')) or '').strip()
+    analysis_y = str(price_map.get(('analysis', 'year')) or '').strip()
+    pro_m = str(price_map.get(('pro', 'month')) or '').strip()
+    pro_y = str(price_map.get(('pro', 'year')) or '').strip()
+
+    is_bundle = bool(price_ids and ((pro_m and pro_m in price_ids) or (pro_y and pro_y in price_ids)))
+    is_modular = bool(price_ids and ((core_m and core_m in price_ids) or (core_y and core_y in price_ids)))
+
+    ent = {}
+    if is_bundle:
+        ent.update({
+            'dashboard': True,
+            'coach_overview': True,
+            'players': True,
+            'convocation': True,
+            'manual_stats': True,
+            'match_actions': True,
+            'sessions': True,
+            'analysis': True,
+            'abp_board': True,
+        })
+        return ent
+
+    if is_modular:
+        # Core siempre.
+        ent.update({'dashboard': True, 'coach_overview': True, 'players': True, 'convocation': True, 'manual_stats': True})
+        if (live_m and live_m in price_ids) or (live_y and live_y in price_ids):
+            ent['match_actions'] = True
+        if (studio_m and studio_m in price_ids) or (studio_y and studio_y in price_ids):
+            ent['sessions'] = True
+            ent['abp_board'] = True
+        if (analysis_m and analysis_m in price_ids) or (analysis_y and analysis_y in price_ids):
+            ent['analysis'] = True
+        return ent
+
+    return {}
 
 
 @csrf_exempt
@@ -651,11 +777,17 @@ def stripe_webhook(request):
             sub = data_obj
             customer = str(getattr(sub, 'customer', '') or '').strip()
             sub_id = str(getattr(sub, 'id', '') or '').strip()
+            sub_full = sub
+            # Para entitlements modulares, intentamos siempre recuperar con expand.
+            if sub_id:
+                try:
+                    sub_full = stripe.Subscription.retrieve(sub_id, expand=['items.data.price'])
+                except Exception:
+                    sub_full = sub
             price_id = ''
             try:
-                # expand no siempre viene: intentamos extraer si existe.
-                if getattr(sub, 'items', None) and getattr(sub.items, 'data', None):
-                    price = getattr(sub.items.data[0], 'price', None)
+                if getattr(sub_full, 'items', None) and getattr(sub_full.items, 'data', None):
+                    price = getattr(sub_full.items.data[0], 'price', None)
                     price_id = str(getattr(price, 'id', '') or '')
             except Exception:
                 price_id = ''
@@ -664,7 +796,7 @@ def stripe_webhook(request):
                     workspace.stripe_customer_id = customer
                 if sub_id:
                     workspace.stripe_subscription_id = sub_id
-                _stripe_sync_workspace_from_subscription(workspace, sub, price_id=price_id)
+                _stripe_sync_workspace_from_subscription(workspace, sub_full, price_id=price_id)
             ok = True
 
         elif event_type in {'customer.subscription.deleted'}:
@@ -5731,6 +5863,36 @@ def _forbid_if_workspace_module_disabled(request, module_key, label='módulo'):
                 return HttpResponse('El workspace activo no es de tipo club.', status=403)
             return None
         return None
+    # Entitlements modulares (Core + add-ons): si está activado, un club con suscripción activa
+    # sólo puede usar módulos que haya contratado. Guardrail: si aún no hay paid_modules, no bloqueamos.
+    try:
+        if (
+            request
+            and getattr(request, 'user', None)
+            and request.user.is_authenticated
+            and not _can_access_platform(request.user)
+            and module_key not in {'dashboard', 'billing'}
+            and _stripe_modular_billing_enabled()
+        ):
+            status = str(getattr(workspace, 'subscription_status', '') or '').strip().lower()
+            if status == 'active':
+                paid = getattr(workspace, 'paid_modules', None)
+                if isinstance(paid, dict) and paid:
+                    if paid.get(module_key, False) is not True:
+                        # UX: HTML -> redirige a billing.
+                        try:
+                            accept = str(request.META.get('HTTP_ACCEPT') or '')
+                        except Exception:
+                            accept = ''
+                        if request.method == 'GET' and 'text/html' in accept:
+                            try:
+                                billing_url = reverse('billing')
+                                return redirect(f'{billing_url}?need={quote(module_key)}')
+                            except Exception:
+                                return redirect('/billing/')
+                        return HttpResponse('Este módulo no está incluido en tu suscripción. Ve a /billing/ para activarlo.', status=402)
+    except Exception:
+        pass
     # Guardrail producto: un club sin equipo principal no puede navegar módulos "reales".
     # Permitimos dashboard para onboarding, pero bloqueamos el resto hasta que se configure.
     try:
