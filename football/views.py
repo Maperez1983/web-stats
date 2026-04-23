@@ -507,7 +507,8 @@ def billing_checkout_session_api(request):
         if customer_id:
             params['customer'] = customer_id
         else:
-            params['customer_creation'] = 'always'
+            # En modo subscription, Stripe crea el customer automáticamente.
+            # `customer_creation` sólo aplica a `payment` mode.
             if customer_email:
                 params['customer_email'] = customer_email
 
@@ -3517,6 +3518,51 @@ def _static_asset_as_data_uri(static_path: str) -> str:
         return ''
     return _file_as_data_uri(source)
 
+def _normalize_hex_color(value: object, fallback: str = '#0f7a35') -> str:
+    raw = str(value or '').strip()
+    if not raw:
+        return fallback
+    if not raw.startswith('#'):
+        return fallback
+    if len(raw) == 4:
+        raw = '#' + ''.join(ch * 2 for ch in raw[1:])
+    if len(raw) != 7:
+        return fallback
+    try:
+        int(raw[1:], 16)
+    except Exception:
+        return fallback
+    return raw.lower()
+
+def _static_svg_asset_as_recolored_data_uri(static_path: str, stroke_color: str) -> str:
+    static_path = str(static_path or '').lstrip('/').strip()
+    if not static_path:
+        return ''
+    try:
+        source = Path(settings.BASE_DIR) / 'static' / static_path
+    except Exception:
+        return ''
+    if not source.exists() or not source.is_file():
+        return ''
+    try:
+        raw_bytes = source.read_bytes()
+    except Exception:
+        return ''
+    if not stroke_color or not static_path.lower().endswith('.svg'):
+        return _file_as_data_uri(source)
+    try:
+        import re
+
+        svg_text = raw_bytes.decode('utf-8', errors='ignore')
+        color = _normalize_hex_color(stroke_color, '#0f7a35')
+        # Recolorea cualquier stroke/fill hex (los pictogramas del sistema usan #0f7a35).
+        svg_text = re.sub(r'stroke=(["\'])(#[0-9a-fA-F]{3,6})\1', f'stroke="{color}"', svg_text)
+        svg_text = re.sub(r'fill=(["\'])(#[0-9a-fA-F]{3,6})\1', f'fill="{color}"', svg_text)
+        encoded = base64.b64encode(svg_text.encode('utf-8')).decode('ascii')
+        return f'data:image/svg+xml;base64,{encoded}'
+    except Exception:
+        return _file_as_data_uri(source)
+
 
 def _task_drills_for_pdf(meta: dict) -> list:
     if not isinstance(meta, dict):
@@ -3525,8 +3571,12 @@ def _task_drills_for_pdf(meta: dict) -> list:
     if not drill_ids:
         return []
     cards = []
+    drills_color = _normalize_hex_color(meta.get('drills_icon_color') or '', '#0f7a35')
     for card in drill_cards(drill_ids):
-        icon_uri = _static_asset_as_data_uri(card.get('icon_static_path'))
+        icon_path = card.get('icon_static_path')
+        icon_uri = _static_svg_asset_as_recolored_data_uri(icon_path, drills_color)
+        if not icon_uri:
+            icon_uri = _static_asset_as_data_uri(icon_path)
         cards.append(
             {
                 'id': card.get('id'),
@@ -17273,6 +17323,7 @@ def _build_task_draft_pdf_context(request, primary_team, pdf_style='uefa'):
     category_tags_raw = _sanitize_task_text((request.POST.get('draw_task_category_tags') or '').strip(), multiline=False, max_len=240)
     category_tags = [tag.strip() for tag in category_tags_raw.split(',') if tag.strip()]
     drills_ids = normalize_drill_ids((request.POST.get('draw_task_drills_json') or '').strip())
+    drills_icon_color = _normalize_hex_color((request.POST.get('draw_task_drills_icon_color') or '').strip(), '#0f7a35')
     assigned_player_ids = [
         player_id
         for player_id in (_parse_int(value) for value in request.POST.getlist('assigned_player_ids'))
@@ -17329,6 +17380,7 @@ def _build_task_draft_pdf_context(request, primary_team, pdf_style='uefa'):
             'age_group': age_group,
             'training_type': training_type,
             'drills': drills_ids,
+            'drills_icon_color': drills_icon_color,
             'category_tags': category_tags,
             'assigned_player_names': assigned_player_names,
             'progression': progression,
@@ -26281,6 +26333,7 @@ def _task_builder_initial_values(task):
         'canvas_height': int(graphic_editor.get('canvas_height') or 720),
         'drills_ids': drills_ids,
         'drills_json': json.dumps(drills_ids, ensure_ascii=False),
+        'drills_icon_color': str(meta.get('drills_icon_color') or '#0f7a35'),
     }
 
 
@@ -26565,6 +26618,11 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
         drills_ids = normalize_drill_ids(existing_meta.get('drills'))
     else:
         drills_ids = normalize_drill_ids(raw_drills_json)
+    raw_drills_icon_color = request.POST.get('draw_task_drills_icon_color')
+    if raw_drills_icon_color is None:
+        drills_icon_color = _normalize_hex_color(existing_meta.get('drills_icon_color') or '', '#0f7a35')
+    else:
+        drills_icon_color = _normalize_hex_color(str(raw_drills_icon_color).strip(), '#0f7a35')
     if 'assigned_player_ids' in request.POST:
         assigned_player_ids = [
             player_id
@@ -26778,6 +26836,7 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
             'age_group': age_group,
             'training_type': training_type,
             'drills': drills_ids,
+            'drills_icon_color': drills_icon_color,
             'category_tags': category_tags,
             'assigned_player_ids': assigned_player_ids,
             'assigned_player_names': [player.name for player in assigned_players],
