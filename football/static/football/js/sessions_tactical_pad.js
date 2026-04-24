@@ -1470,6 +1470,193 @@
 	    } catch (error) {
 	      // ignore
 	    }
+	    // Apple Pencil: palm rejection en “Pencil Pro” (bloquea touch hacia Fabric cuando está dibujando).
+	    // Además, “Ruta animada” captura el trazo y lo convierte en Timeline Pro.
+	    try {
+	      const upper = canvas.upperCanvasEl;
+	      const isTouch = (ev) => safeText(ev?.pointerType) === 'touch';
+	      const isPen = (ev) => safeText(ev?.pointerType) === 'pen';
+	      const stopEv = (ev) => {
+	        try { ev.preventDefault(); } catch (e) { /* ignore */ }
+	        try { ev.stopPropagation(); } catch (e) { /* ignore */ }
+	        try { ev.stopImmediatePropagation?.(); } catch (e) { /* ignore */ }
+	      };
+	      const dist = (a, b) => Math.hypot((Number(a?.x) || 0) - (Number(b?.x) || 0), (Number(a?.y) || 0) - (Number(b?.y) || 0));
+	      const clearAnimPathOverlay = () => {
+	        if (!animPathOverlay) return;
+	        try { canvas.remove(animPathOverlay); } catch (e) { /* ignore */ }
+	        animPathOverlay = null;
+	      };
+	      const buildAnimPathOverlay = (points) => {
+	        const pts = Array.isArray(points) ? points : [];
+	        if (pts.length < 2) return null;
+	        const poly = new fabric.Polyline(pts, {
+	          fill: 'transparent',
+	          stroke: 'rgba(250,204,21,0.95)',
+	          strokeWidth: 4,
+	          strokeDashArray: [10, 8],
+	          selectable: false,
+	          evented: false,
+	          excludeFromExport: true,
+	          objectCaching: false,
+	          data: { base: true, kind: 'anim-path-preview' },
+	        });
+	        try { poly.strokeUniform = true; } catch (e) { /* ignore */ }
+	        return poly;
+	      };
+	      const samplePolyline = (pts, sampleCount) => {
+	        const points = (Array.isArray(pts) ? pts : []).map((p) => ({ x: Number(p?.x) || 0, y: Number(p?.y) || 0 }));
+	        if (points.length <= 2) return points;
+	        const n = clamp(Number(sampleCount) || 8, 3, 18);
+	        const segs = [];
+	        let total = 0;
+	        for (let i = 0; i < points.length - 1; i += 1) {
+	          const len = dist(points[i], points[i + 1]);
+	          segs.push(len);
+	          total += len;
+	        }
+	        if (total <= 0.001) return [points[0], points[points.length - 1]];
+	        const out = [points[0]];
+	        for (let s = 1; s < n - 1; s += 1) {
+	          const target = (total * s) / (n - 1);
+	          let acc = 0;
+	          let idx = 0;
+	          while (idx < segs.length && acc + segs[idx] < target) {
+	            acc += segs[idx];
+	            idx += 1;
+	          }
+	          const a = points[idx] || points[0];
+	          const b = points[idx + 1] || points[points.length - 1];
+	          const span = Math.max(1e-6, segs[idx] || 1);
+	          const t = clamp((target - acc) / span, 0, 1);
+	          out.push({ x: lerp(a.x, b.x, t), y: lerp(a.y, b.y, t) });
+	        }
+	        out.push(points[points.length - 1]);
+	        return out;
+	      };
+	      const applyAnimPathToSelectedToken = (points) => {
+	        if (!points || points.length < 2) return false;
+	        if (!isSimulating) simulationProEnabled = true;
+	        try { ensureLayerUidsOnCanvas(); } catch (e) { /* ignore */ }
+	        const active = canvas.getActiveObject();
+	        const uid = safeText(active?.data?.layer_uid) || safeText(animPathTargetUid);
+	        if (!uid) return false;
+	        const startMs = clamp(Number(simulationProTimeMs) || 0, 0, 3_600_000);
+	        const durationMs = 2800;
+	        const sampled = samplePolyline(points, 10);
+	        const base = animPathTargetSnapshot || {
+	          angle: Number(active?.angle) || 0,
+	          scaleX: Number(active?.scaleX) || 1,
+	          scaleY: Number(active?.scaleY) || 1,
+	          opacity: active?.opacity == null ? 1 : Number(active?.opacity),
+	        };
+	        const kfs = sampled.map((p, idx) => {
+	          const t = sampled.length <= 1 ? 0 : idx / (sampled.length - 1);
+	          return {
+	            t_ms: Math.round(startMs + (t * durationMs)),
+	            easing: 'linear',
+	            props: {
+	              left: Number(p.x) || 0,
+	              top: Number(p.y) || 0,
+	              angle: Number(base.angle) || 0,
+	              scaleX: clampScale(Number(base.scaleX) || 1),
+	              scaleY: clampScale(Number(base.scaleY) || 1),
+	              opacity: base.opacity == null ? 1 : Number(base.opacity),
+	            },
+	          };
+	        });
+	        simulationProTracks = simulationProTracks || {};
+	        const existing = Array.isArray(simulationProTracks[uid]) ? simulationProTracks[uid] : [];
+	        const endMs = startMs + durationMs;
+	        const kept = existing.filter((kf) => {
+	          const t = Number(kf?.t_ms) || 0;
+	          return t < startMs || t > endMs;
+	        });
+	        const merged = kept.concat(kfs).sort((a, b) => (Number(a?.t_ms) || 0) - (Number(b?.t_ms) || 0)).slice(0, 120);
+	        simulationProTracks[uid] = merged;
+	        simulationProUpdatedAt = Date.now();
+	        simulationProCaches = new Map();
+	        try { persistSimulationProToStorage(); } catch (e) { /* ignore */ }
+	        try { renderSimulationAtTimeMs(startMs); } catch (e) { /* ignore */ }
+	        try { syncSimProUi(); } catch (e) { /* ignore */ }
+	        return true;
+	      };
+
+	      upper?.addEventListener('pointerdown', (ev) => {
+	        if (!ev) return;
+	        if (penOnlyDraw && freeDrawMode && isTouch(ev)) {
+	          stopEv(ev);
+	          return;
+	        }
+	        if (!animPathMode) return;
+	        if (!isPen(ev) && safeText(ev?.pointerType) !== 'mouse') return;
+	        const active = canvas.getActiveObject();
+	        if (!active || active?.data?.base || isBackgroundShape(active)) {
+	          setStatus('Selecciona una ficha para dibujar su ruta animada.', true);
+	          stopEv(ev);
+	          return;
+	        }
+	        animPathCapturing = true;
+	        animPathPointerId = ev.pointerId;
+	        animPathTargetUid = safeText(active?.data?.layer_uid);
+	        animPathTargetSnapshot = {
+	          angle: Number(active?.angle) || 0,
+	          scaleX: Number(active?.scaleX) || 1,
+	          scaleY: Number(active?.scaleY) || 1,
+	          opacity: active?.opacity == null ? 1 : Number(active?.opacity),
+	        };
+	        animPathPoints = [];
+	        clearAnimPathOverlay();
+	        const raw = canvas.getPointer(ev);
+	        const p = { x: Number(raw?.x) || 0, y: Number(raw?.y) || 0 };
+	        animPathPoints.push(p);
+	        animPathOverlay = buildAnimPathOverlay(animPathPoints);
+	        if (animPathOverlay) {
+	          canvas.add(animPathOverlay);
+	          try { canvas.bringToFront(animPathOverlay); } catch (e) { /* ignore */ }
+	          try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+	        }
+	        stopEv(ev);
+	      }, { capture: true, passive: false });
+
+	      upper?.addEventListener('pointermove', (ev) => {
+	        if (!animPathCapturing) return;
+	        if (animPathPointerId != null && ev.pointerId !== animPathPointerId) return;
+	        const raw = canvas.getPointer(ev);
+	        const p = { x: Number(raw?.x) || 0, y: Number(raw?.y) || 0 };
+	        const last = animPathPoints[animPathPoints.length - 1];
+	        if (last && dist(last, p) < 9) {
+	          stopEv(ev);
+	          return;
+	        }
+	        animPathPoints.push(p);
+	        if (animPathOverlay) {
+	          try { animPathOverlay.set({ points: animPathPoints }); } catch (e) { /* ignore */ }
+	          try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+	        }
+	        stopEv(ev);
+	      }, { capture: true, passive: false });
+
+	      const endAnim = (ev) => {
+	        if (!animPathCapturing) return;
+	        if (animPathPointerId != null && ev && ev.pointerId !== animPathPointerId) return;
+	        const ok = applyAnimPathToSelectedToken(animPathPoints);
+	        animPathCapturing = false;
+	        animPathPointerId = null;
+	        animPathTargetUid = '';
+	        animPathTargetSnapshot = null;
+	        animPathPoints = [];
+	        clearAnimPathOverlay();
+	        try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+	        setStatus(ok ? 'Ruta aplicada a Timeline Pro.' : 'No se pudo aplicar la ruta.', !ok);
+	        if (ev) stopEv(ev);
+	      };
+	      upper?.addEventListener('pointerup', endAnim, { capture: true, passive: false });
+	      upper?.addEventListener('pointercancel', endAnim, { capture: true, passive: false });
+	      upper?.addEventListener('lostpointercapture', endAnim, { capture: true, passive: false });
+	    } catch (e) {
+	      // ignore
+	    }
 	    // Si el viewport es scrollable (zoom/orientación), el offset del canvas cambia y Fabric
 	    // necesita recalcularlo para que clicks/drag coincidan con la posición real.
 	    const scheduleCanvasOffset = () => {
@@ -1937,6 +2124,17 @@
 		    let spacePanStart = null;
 		    let backgroundPickMode = false;
 		    let freeDrawMode = false;
+		    // Apple Pencil “Pro”: solo pen dibuja (palma/finger no pintan).
+		    let pencilProMode = false;
+		    let penOnlyDraw = false;
+		    // Ruta dibujada → animación (Timeline Pro).
+		    let animPathMode = false;
+		    let animPathCapturing = false;
+		    let animPathPointerId = null;
+		    let animPathPoints = [];
+		    let animPathOverlay = null;
+		    let animPathTargetUid = '';
+		    let animPathTargetSnapshot = null;
 	    const useViewportMapping = (() => {
 	      const flag = safeText(urlParams?.get('tpad_vpt'));
 	      if (flag === '0') return false;
@@ -9638,7 +9836,9 @@
 		    const sanitizeLoadedState = (raw) => {
 		      if (!raw || typeof raw !== 'object') return { version: '5.3.0', objects: [] };
 		      const objects = Array.isArray(raw.objects) ? raw.objects.filter((item) => !(item?.data?.base) && !(item?.selectable === false && item?.evented === false)) : [];
-		      return { version: raw.version || '5.3.0', objects };
+		      const out = { version: raw.version || '5.3.0', objects };
+		      if (raw.pencilkit && typeof raw.pencilkit === 'object') out.pencilkit = raw.pencilkit;
+		      return out;
 		    };
 
 	    const objectAtPointer = (factory, pointer) => {
@@ -12866,7 +13066,7 @@
 	        } catch (e) { /* ignore */ }
 	        try {
 	          Array.from(document.querySelectorAll('button[data-action="draw_free"]')).forEach((btn) => {
-	            btn.classList.toggle('is-active', freeDrawMode);
+	            btn.classList.toggle('is-active', freeDrawMode && !pencilProMode);
 	          });
 	        } catch (e) { /* ignore */ }
 	        if (freeDrawMode) {
@@ -12879,6 +13079,7 @@
 	            const brush = canvas.freeDrawingBrush || new fabric.PencilBrush(canvas);
 	            brush.color = colorInput?.value || '#22d3ee';
 	            brush.width = clamp(Number(strokeWidthInput?.value) || 4, 1, 26);
+	            try { brush.decimate = penOnlyDraw ? 4 : 2; } catch (e) { /* ignore */ }
 	            canvas.freeDrawingBrush = brush;
 	          } catch (e) { /* ignore */ }
 	          // Muestra un mini-inspector para poder cambiar color/grosor sin seleccionar nada.
@@ -12897,13 +13098,16 @@
 	          } catch (e) { /* ignore */ }
 	          if (strokeWidthRow) strokeWidthRow.hidden = false;
 	          if (strokePresetsRow) strokePresetsRow.hidden = false;
-	          setStatus('Dibujo libre activado. Dibuja sobre el campo (pulsa “Dibujo libre” o Esc para salir).');
+	          setStatus(penOnlyDraw ? 'Pencil Pro activo: dibuja solo con Apple Pencil (el dedo sirve para pan/zoom).' : 'Dibujo libre activado. Dibuja sobre el campo (pulsa “Dibujo libre” o Esc para salir).');
 	        } else {
 	          try { syncInspector(); } catch (e) { /* ignore */ }
 	          setStatus('Dibujo libre desactivado.');
 	        }
 	      };
 	      if (action === 'select') {
+	        animPathMode = false;
+	        pencilProMode = false;
+	        penOnlyDraw = false;
 	        setFreeDrawMode(false);
 	        pendingFactory = null;
 	        Array.from(document.querySelectorAll('.resource-section [data-add]') || []).forEach((item) => item.classList.remove('is-active'));
@@ -12912,7 +13116,46 @@
 	        return true;
 	      }
 	      if (action === 'draw_free') {
+	        // Modo clásico: permite dedo/ratón.
+	        animPathMode = false;
+	        pencilProMode = false;
+	        penOnlyDraw = false;
 	        setFreeDrawMode(!freeDrawMode);
+	        return true;
+	      }
+	      if (action === 'pencil_pro') {
+	        // Pencil Pro: dibuja solo con pen (palm rejection por bloqueo touch).
+	        animPathMode = false;
+	        pencilProMode = !pencilProMode;
+	        penOnlyDraw = pencilProMode;
+	        try {
+	          Array.from(document.querySelectorAll('button[data-action="pencil_pro"]')).forEach((btn) => {
+	            btn.classList.toggle('is-active', pencilProMode);
+	            try { btn.setAttribute('aria-pressed', pencilProMode ? 'true' : 'false'); } catch (e) { /* ignore */ }
+	          });
+	        } catch (e) { /* ignore */ }
+	        setFreeDrawMode(pencilProMode);
+	        return true;
+	      }
+	      if (action === 'draw_anim_path') {
+	        // Ruta animada: captura stroke y lo convierte en Timeline Pro para la ficha seleccionada.
+	        setFreeDrawMode(false);
+	        pencilProMode = true;
+	        penOnlyDraw = true;
+	        animPathMode = !animPathMode;
+	        try {
+	          Array.from(document.querySelectorAll('button[data-action="pencil_pro"]')).forEach((btn) => {
+	            btn.classList.toggle('is-active', pencilProMode);
+	            try { btn.setAttribute('aria-pressed', pencilProMode ? 'true' : 'false'); } catch (e) { /* ignore */ }
+	          });
+	        } catch (e) { /* ignore */ }
+	        try {
+	          Array.from(document.querySelectorAll('button[data-action="draw_anim_path"]')).forEach((btn) => {
+	            btn.classList.toggle('is-active', animPathMode);
+	            try { btn.setAttribute('aria-pressed', animPathMode ? 'true' : 'false'); } catch (e) { /* ignore */ }
+	          });
+	        } catch (e) { /* ignore */ }
+	        setStatus(animPathMode ? 'Ruta animada activa: selecciona una ficha y dibuja su recorrido con el Apple Pencil.' : 'Ruta animada desactivada.');
 	        return true;
 	      }
 	      if (action === 'undo') return performUndo();
