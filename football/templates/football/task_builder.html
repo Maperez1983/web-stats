@@ -9,27 +9,24 @@
 		    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
 		    {% include 'football/pwa_head.html' %}
 		    <style>
-      :root {
-        --bg: #071320;
-        --panel: #0d1b2b;
-        --panel-soft: rgba(255, 255, 255, 0.04);
-        --line: rgba(255, 255, 255, 0.16);
-        --ink: #f8fafc;
-        --muted: rgba(226, 232, 240, 0.84);
-        --accent: #22d3ee;
-        --accent-soft: rgba(34, 211, 238, 0.16);
-      }
+	      :root {
+	        --bg: var(--prod-bg, #071320);
+	        --panel: var(--prod-panel-flat, rgba(14, 23, 39, 0.96));
+	        --panel-soft: rgba(255, 255, 255, 0.04);
+	        --line: var(--prod-line, rgba(144, 161, 185, 0.22));
+	        --ink: var(--prod-text, #f8fafc);
+	        --muted: var(--prod-muted-soft, rgba(226, 232, 240, 0.84));
+	        /* Cian se reserva para herramientas/edición (no como marca). */
+	        --accent: var(--prod-info, #22d3ee);
+	        --accent-soft: rgba(34, 211, 238, 0.16);
+	      }
       * { box-sizing: border-box; }
-      body {
-        margin: 0;
-        /* Fondo algo más claro para que el editor no quede “apagado”. */
-        background:
-          radial-gradient(circle at 10% -10%, rgba(34,211,238,0.14), transparent 44%),
-          radial-gradient(circle at 90% -10%, rgba(244,180,0,0.10), transparent 42%),
-          linear-gradient(180deg, #071c33 0%, #071320 60%, #050a13 100%);
-        color: var(--ink);
-        font-family: "Montserrat", "Avenir Next", "Segoe UI", sans-serif;
-      }
+	      body {
+	        margin: 0;
+	        background: transparent;
+	        color: var(--ink);
+	        font-family: var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", sans-serif);
+	      }
       .page {
         max-width: 1560px;
         margin: 0 auto;
@@ -78,11 +75,11 @@
         letter-spacing: 0.04em;
         cursor: pointer;
       }
-      .device-toggle button.is-active {
-        background: rgba(34, 211, 238, 0.14);
-        border-color: rgba(34, 211, 238, 0.42);
-        color: #cffafe;
-      }
+	      .device-toggle button.is-active {
+	        background: rgba(34, 211, 238, 0.14);
+	        border-color: rgba(34, 211, 238, 0.42);
+	        color: rgba(224, 242, 254, 0.95);
+	      }
       .button, button {
         border: 1px solid var(--line);
         background: rgba(255, 255, 255, 0.05);
@@ -113,11 +110,11 @@
         height: 100%;
         fill: currentColor;
       }
-      button.primary {
-        background: linear-gradient(135deg, #22d3ee, #67e8f9);
-        border: none;
-        color: #03253c;
-      }
+	      button.primary {
+	        background: linear-gradient(135deg, rgba(244, 180, 0, 0.95), rgba(47, 125, 50, 0.86));
+	        border: none;
+	        color: rgba(8, 17, 29, 0.98);
+	      }
       .alert {
         margin-bottom: 0.95rem;
         padding: 0.78rem 0.92rem;
@@ -243,13 +240,13 @@
         opacity: 0.58;
         transform: scale(0.98);
       }
-      .pitch-toolbar button.is-active,
-      .resource-strip button.is-active,
-      .player-bank button.is-active {
-        background: var(--accent-soft);
-        border-color: rgba(34, 211, 238, 0.36);
-        color: #cffafe;
-      }
+	      .pitch-toolbar button.is-active,
+	      .resource-strip button.is-active,
+	      .player-bank button.is-active {
+	        background: var(--accent-soft);
+	        border-color: rgba(34, 211, 238, 0.36);
+	        color: rgba(224, 242, 254, 0.95);
+	      }
       .player-bank button.player-token-bank {
         padding: 0.48rem 0.42rem 0.62rem;
         display: grid;
@@ -1620,7 +1617,7 @@
 	        width: 18px;
 	        height: 18px;
 	        margin: 0;
-	        accent-color: #22d3ee;
+	        accent-color: var(--accent, #22d3ee);
 	      }
 	      .chip-toggle .drill-icon {
 	        width: 18px;
@@ -1699,11 +1696,11 @@
         text-transform: uppercase;
         cursor: pointer;
       }
-      .side-tab.is-active {
-        background: rgba(34,211,238,0.16);
-        border-color: rgba(34,211,238,0.4);
-        color: #cffafe;
-      }
+	      .side-tab.is-active {
+	        background: rgba(34,211,238,0.16);
+	        border-color: rgba(34,211,238,0.4);
+	        color: rgba(224, 242, 254, 0.95);
+	      }
       .side-pane {
         display: none;
       }
