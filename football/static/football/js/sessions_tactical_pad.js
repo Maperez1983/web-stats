@@ -9721,34 +9721,41 @@
 	      Array.from(libraryPane?.querySelectorAll('button[data-add]') || []).forEach((button) => button.classList.remove('is-active'));
 	    };
 		    const pointerFromStageEvent = (event) => {
-		      let x = 0;
-		      let y = 0;
-		      // Preferimos Fabric para que tenga en cuenta offsets, retina scaling y viewportTransform.
-		      try {
-		        const raw = canvas.getPointer(event);
-		        x = Number(raw?.x) || 0;
-		        y = Number(raw?.y) || 0;
-		      } catch (error) {
-		        const rect = stage.getBoundingClientRect();
-		        const screenX = ((event.clientX - rect.left) / rect.width) * canvas.getWidth();
-		        const screenY = ((event.clientY - rect.top) / rect.height) * canvas.getHeight();
-		        x = screenX;
-		        y = screenY;
-		        if (useViewportMapping) {
-		          const vpt = canvas.viewportTransform || [1, 0, 0, 1, 0, 0];
-		          const scale = Number(vpt[0]) || 1;
-		          const offsetX = Number(vpt[4]) || 0;
-		          const offsetY = Number(vpt[5]) || 0;
-		          x = (screenX - offsetX) / scale;
-		          y = (screenY - offsetY) / scale;
-		        }
+		      // DragEvent (HTML5 DnD) no es un evento “nativo” de Fabric y en iOS a veces devuelve punteros 0,0.
+		      // Para drop usamos boundingClientRect + viewportTransform (si aplica) para obtener coordenadas fiables.
+		      let clientX = Number(event?.clientX);
+		      let clientY = Number(event?.clientY);
+		      if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) {
+		        const touch = event?.touches?.[0] || event?.changedTouches?.[0];
+		        clientX = Number(touch?.clientX);
+		        clientY = Number(touch?.clientY);
+		      }
+		      const rectSource = canvas?.upperCanvasEl || canvas?.lowerCanvasEl || stage;
+		      const rect = rectSource?.getBoundingClientRect?.() || stage.getBoundingClientRect();
+		      const safeWidth = Math.max(1, Number(rect?.width) || 1);
+		      const safeHeight = Math.max(1, Number(rect?.height) || 1);
+		      const rawScreenX = ((clientX - rect.left) / safeWidth) * (Number(canvas.getWidth?.()) || 0);
+		      const rawScreenY = ((clientY - rect.top) / safeHeight) * (Number(canvas.getHeight?.()) || 0);
+		      let x = rawScreenX;
+		      let y = rawScreenY;
+		      if (useViewportMapping) {
+		        const vpt = canvas.viewportTransform || [1, 0, 0, 1, 0, 0];
+		        const scale = Number(vpt[0]) || 1;
+		        const offsetX = Number(vpt[4]) || 0;
+		        const offsetY = Number(vpt[5]) || 0;
+		        x = (rawScreenX - offsetX) / scale;
+		        y = (rawScreenY - offsetY) / scale;
 		      }
 		      const { w, h } = worldSize();
+		      if (!Number.isFinite(x) || !Number.isFinite(y)) {
+		        x = (Number(w) || 0) / 2;
+		        y = (Number(h) || 0) / 2;
+		      }
 		      return {
 		        x: clamp(x, 24, w - 24),
 		        y: clamp(y, 24, h - 24),
-	      };
-	    };
+		      };
+		    };
 		    const createFactoryFromPayload = (payload) => {
 		      if (!payload || typeof payload !== 'object') return null;
 		      const rawKind = safeText(payload.kind);
