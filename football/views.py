@@ -27967,13 +27967,14 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             'ppt_icons': ppt_icons,
             'drills_catalog': drills_catalog,
             'initial': initial,
-            'back_url': reverse(_sessions_scope_route_name(scope_key)),
-            'back_label': 'Volver a sesiones',
-            'pdf_preview_url': reverse('sessions-task-pdf-preview'),
-            'task_preview_url': (reverse('session-task-preview-file', args=[task.id]) if task and task.task_preview_image else ''),
-            'show_session_selector': True,
-            'show_dragon_nav': True,
-        },
+	            'back_url': reverse(_sessions_scope_route_name(scope_key)),
+	            'back_label': 'Volver a sesiones',
+	            'pdf_preview_url': reverse('sessions-task-pdf-preview'),
+	            'video_import_url': reverse('sessions-task-video-import'),
+	            'task_preview_url': (reverse('session-task-preview-file', args=[task.id]) if task and task.task_preview_image else ''),
+	            'show_session_selector': True,
+	            'show_dragon_nav': True,
+	        },
     )
 
 
@@ -27997,6 +27998,373 @@ def session_task_pdf_preview(request):
     filename = slugify(f"borrador-{context['task'].title}") or 'borrador-tarea'
     # Previsualización: devolver inline para que Safari/iOS WebView lo renderice en pantalla.
     return _build_pdf_response_or_html_fallback(request, html, filename, inline=True)
+
+
+@login_required
+@require_POST
+def session_task_video_import_api(request):
+    """
+    Importa un vídeo (tipo IG/Reels con campo + chapas) y devuelve:
+    - `clip`: pasos del simulador + Timeline Pro (tracks).
+    - `suggested`: campos de ficha (título, desarrollo, reglas, etc.) vía OCR si es posible.
+    """
+    if not _can_access_sessions_workspace(request.user):
+        return JsonResponse({'ok': False, 'error': 'No tienes permisos para acceder a sesiones.'}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+    if forbidden:
+        return JsonResponse({'ok': False, 'error': 'Módulo de sesiones deshabilitado.'}, status=403)
+
+    uploaded = request.FILES.get('video')
+    if not uploaded:
+        return JsonResponse({'ok': False, 'error': 'No se encontró el vídeo.'}, status=400)
+    try:
+        size = int(getattr(uploaded, 'size', 0) or 0)
+    except Exception:
+        size = 0
+    if size and size > 60 * 1024 * 1024:
+        return JsonResponse({'ok': False, 'error': 'El vídeo es demasiado grande (máx 60MB).'}, status=400)
+
+    name_hint = (request.POST.get('name') or '').strip()
+    clip = None
+    suggested = {}
+    try:
+        with tempfile.TemporaryDirectory(prefix='ig-video-import-') as tmpdir:
+            tmp_path = Path(tmpdir)
+            in_path = tmp_path / 'input.mp4'
+            with open(in_path, 'wb') as f:
+                for chunk in uploaded.chunks():
+                    f.write(chunk)
+
+            clip = _build_ig_clip_from_video_file(str(in_path), name_hint=name_hint)
+            suggested = _extract_ig_task_fields_from_video_file(str(in_path))
+    except ValueError as exc:
+        return JsonResponse({'ok': False, 'error': str(exc)}, status=400)
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'No se pudo procesar el vídeo.'}, status=400)
+
+    if not clip:
+        return JsonResponse({'ok': False, 'error': 'No se pudo generar el clip.'}, status=400)
+    return JsonResponse({'ok': True, 'clip': clip, 'suggested': suggested or {}}, status=200)
+
+
+def _build_ig_clip_from_video_file(video_path: str, name_hint: str = '') -> dict:
+    if not video_path:
+        raise ValueError('Falta el fichero de vídeo.')
+    ffmpeg_bin = shutil.which('ffmpeg')
+    if not ffmpeg_bin:
+        raise ValueError('No se encontró ffmpeg en el servidor.')
+    if Image is None:
+        raise ValueError('Falta dependencia de imagen (Pillow).')
+    module_path = Path(settings.BASE_DIR) / 'scripts' / 'ig_video_to_clip.py'
+    if not module_path.exists():
+        raise ValueError('No se encontró el importador de vídeo.')
+    try:
+        import importlib.util  # noqa: WPS433
+
+        spec = importlib.util.spec_from_file_location('ig_video_to_clip', str(module_path))
+        mod = importlib.util.module_from_spec(spec)
+        loader = spec.loader
+        if loader is None:  # pragma: no cover
+            raise ValueError('No se pudo cargar el importador.')
+        loader.exec_module(mod)
+        # Sampling conservador para no bloquear: 1 fps, max 45 frames.
+        payload = mod.build_clip_from_video(video_path, name_hint or 'Clip importado', fps=1, max_frames=45, scale_w=640)
+    except Exception as exc:
+        raise ValueError('No se pudo generar el clip desde el vídeo.') from exc
+
+    clip_name = _sanitize_task_text(name_hint or payload.get('name') or 'Clip importado', multiline=False, max_len=120)
+    steps = payload.get('steps') if isinstance(payload, dict) else None
+    pro = payload.get('pro') if isinstance(payload, dict) else None
+    if not isinstance(steps, list) or not steps:
+        raise ValueError('No se detectaron pasos en el vídeo.')
+    return {
+        'v': 1,
+        'name': clip_name or 'Clip importado',
+        'created_at': timezone.now().isoformat(),
+        'steps': steps[:80],
+        'pro': pro if isinstance(pro, dict) else None,
+    }
+
+
+def _extract_ig_task_fields_from_video_file(video_path: str) -> dict:
+    """
+    Extrae texto de un vídeo tipo IG (slides + campo) vía OCR.
+    Devuelve valores en el formato del builder (HTML para rich editors).
+    """
+    if not video_path or pytesseract is None or Image is None:
+        return {}
+    ffmpeg_bin = shutil.which('ffmpeg')
+    if not ffmpeg_bin:
+        return {}
+
+    def _norm(s: str) -> str:
+        raw = str(s or '').strip().lower()
+        raw = unicodedata.normalize('NFKD', raw)
+        raw = ''.join(ch for ch in raw if not unicodedata.combining(ch))
+        raw = re.sub(r'\s+', ' ', raw).strip()
+        return raw
+
+    def _white_ratio(img: Image.Image) -> float:
+        try:
+            rgb = img.convert('RGB')
+            w, h = rgb.size
+            if w <= 0 or h <= 0:
+                return 0.0
+            step = max(1, int(round(max(w, h) / 220)))
+            px = rgb.load()
+            total = 0
+            white = 0
+            for y in range(0, h, step):
+                for x in range(0, w, step):
+                    r, g, b = px[x, y]
+                    total += 1
+                    if r >= 232 and g >= 232 and b >= 232:
+                        white += 1
+            return float(white) / float(max(1, total))
+        except Exception:
+            return 0.0
+
+    def _extract_scene_frames(tmp_dir: Path) -> list:
+        out_pat = str(tmp_dir / 'scene_%03d.jpg')
+        try:
+            subprocess.run(
+                [
+                    ffmpeg_bin,
+                    '-hide_banner',
+                    '-loglevel',
+                    'error',
+                    '-i',
+                    video_path,
+                    '-vf',
+                    "select='gt(scene,0.32)',scale=1024:-2",
+                    '-vsync',
+                    'vfr',
+                    '-frames:v',
+                    '10',
+                    '-q:v',
+                    '2',
+                    out_pat,
+                ],
+                check=False,
+                capture_output=True,
+                timeout=45,
+            )
+        except Exception:
+            pass
+        frames = sorted([p for p in tmp_dir.glob('scene_*.jpg') if p.exists()])
+        if frames:
+            return frames[:10]
+        # Fallback: 3 muestras temporales.
+        for idx, t in enumerate([0, 6, 14]):
+            try:
+                subprocess.run(
+                    [
+                        ffmpeg_bin,
+                        '-hide_banner',
+                        '-loglevel',
+                        'error',
+                        '-ss',
+                        str(t),
+                        '-i',
+                        video_path,
+                        '-frames:v',
+                        '1',
+                        '-vf',
+                        'scale=1024:-2',
+                        '-q:v',
+                        '2',
+                        str(tmp_dir / f'sample_{idx}.jpg'),
+                    ],
+                    check=False,
+                    capture_output=True,
+                    timeout=25,
+                )
+            except Exception:
+                continue
+        return sorted([p for p in tmp_dir.glob('sample_*.jpg') if p.exists()])[:6]
+
+    def _ocr_image(img: Image.Image) -> str:
+        # Probamos spa+eng, y caemos a eng para entornos sin `spa.traineddata`.
+        cfg = '--psm 6'
+        for lang in ('spa+eng', 'eng'):
+            try:
+                text = pytesseract.image_to_string(img, lang=lang, config=cfg) or ''
+                text = str(text or '').strip()
+                if text:
+                    return text
+            except Exception:
+                continue
+        return ''
+
+    def _html_paragraphs(text: str) -> str:
+        lines = [ln.strip() for ln in str(text or '').splitlines()]
+        chunks = [ln for ln in lines if ln]
+        if not chunks:
+            return ''
+        safe = [html.escape(ln) for ln in chunks]
+        return '<p>' + '</p><p>'.join(safe) + '</p>'
+
+    def _html_bullets(lines: list) -> str:
+        items = []
+        for ln in lines:
+            raw = str(ln or '').strip()
+            if not raw:
+                continue
+            raw = re.sub(r'^[•·▪▫◦\-–—]+\s*', '', raw).strip()
+            if not raw:
+                continue
+            items.append(f'<li>{html.escape(raw)}</li>')
+        if not items:
+            return ''
+        return '<ul>' + ''.join(items) + '</ul>'
+
+    def _parse_sections(full_text: str) -> dict:
+        text = str(full_text or '').replace('\r', '\n')
+        raw_lines = [ln.strip() for ln in text.splitlines()]
+        lines = [ln for ln in raw_lines if ln]
+        if not lines:
+            return {}
+
+        title = ''
+        # Primera línea “usable” como título (si no es heading de sección).
+        for ln in lines[:6]:
+            n = _norm(ln)
+            if any(k in n for k in ('desarrollo', 'reglas', 'jugadores', 'objetivos', 'variantes', 'consejos')):
+                continue
+            if len(ln) >= 4:
+                title = ln
+                break
+
+        sections = defaultdict(list)
+        current = 'body'
+        heading_map = {
+            'desarrollo': 'desarrollo',
+            'reglas de provocacion': 'reglas_provocacion',
+            'reglas de continuacion': 'reglas_continuacion',
+            'reglas de continuación': 'reglas_continuacion',
+            'reglas': 'reglas',
+            'objetivos': 'objetivos',
+            'variantes y consejos': 'variantes',
+            'variantes': 'variantes',
+            'consejos': 'variantes',
+        }
+
+        for ln in lines:
+            n = _norm(ln)
+            matched = None
+            for key, target in heading_map.items():
+                if n == _norm(key) or n.startswith(_norm(key) + ' '):
+                    matched = target
+                    break
+            if matched:
+                current = matched
+                # Soporta títulos en la misma línea: "REGLAS ...: texto"
+                remainder = ln.split(':', 1)[1].strip() if ':' in ln else ''
+                if remainder:
+                    sections[current].append(remainder)
+                continue
+            sections[current].append(ln)
+
+        joined = ' '.join(lines)
+        player_count = ''
+        dimensions = ''
+        minutes = ''
+        m = re.search(r'(?i)\bjugadores?\b\s*[:\-]?\s*([0-9]{1,2}\s*\+?\s*[0-9]{0,2}\s*[pP]?)', joined)
+        if m:
+            player_count = m.group(1).strip()
+        m = re.search(r'(?i)\bespacio\b\s*[:\-]?\s*([0-9]{2,3}\s*[xX]\s*[0-9]{2,3})', joined)
+        if m:
+            dimensions = m.group(1).strip().replace('X', 'x')
+        m = re.search(r'(?i)\bduraci[oó]n\b\s*[:\-]?\s*([0-9]{1,2})\b', joined)
+        if m:
+            minutes = m.group(1).strip()
+
+        objetivos_html = _html_bullets(sections.get('objetivos') or [])
+        desarrollo_html = _html_paragraphs('\n'.join(sections.get('desarrollo') or sections.get('body') or []))
+
+        reglas_parts = []
+        if sections.get('reglas_provocacion'):
+            reglas_parts.append('<p><strong>Reglas de provocación</strong></p>')
+            reglas_parts.append(_html_paragraphs('\n'.join(sections.get('reglas_provocacion') or [])))
+        if sections.get('reglas_continuacion'):
+            reglas_parts.append('<p><strong>Reglas de continuación</strong></p>')
+            reglas_parts.append(_html_paragraphs('\n'.join(sections.get('reglas_continuacion') or [])))
+        if not reglas_parts and sections.get('reglas'):
+            reglas_parts.append(_html_paragraphs('\n'.join(sections.get('reglas') or [])))
+        reglas_html = ''.join([p for p in reglas_parts if p])
+
+        variantes_html = _html_bullets(sections.get('variantes') or [])
+
+        out = {}
+        if title:
+            out['title'] = title
+        if player_count:
+            out['player_count'] = player_count
+        if dimensions:
+            out['dimensions'] = dimensions
+        if minutes:
+            out['minutes'] = minutes
+        if objetivos_html:
+            out['objective'] = 'Objetivos'
+            out['coaching_html'] = objetivos_html
+        if desarrollo_html:
+            out['description_html'] = desarrollo_html
+        if reglas_html:
+            out['rules_html'] = reglas_html
+        if variantes_html:
+            out['progression_html'] = variantes_html
+        return out
+
+    try:
+        with tempfile.TemporaryDirectory(prefix='ig-video-ocr-') as tmpdir:
+            tmp_path = Path(tmpdir)
+            frames = _extract_scene_frames(tmp_path)
+            if not frames:
+                return {}
+            chunks = []
+            for fp in frames[:8]:
+                try:
+                    with Image.open(fp) as img:
+                        img = img.convert('RGB')
+                        # Si es un "slide" blanco, OCR completo; si es campo, OCR solo zona superior.
+                        wr = _white_ratio(img)
+                        if wr >= 0.55:
+                            target = img
+                        else:
+                            w, h = img.size
+                            target = img.crop((0, 0, w, int(round(h * 0.52))))
+                        txt = _ocr_image(target)
+                        txt = re.sub(r'\n{3,}', '\n\n', txt).strip()
+                        if txt and len(txt) >= 40:
+                            chunks.append(txt)
+                except Exception:
+                    continue
+            merged = '\n\n'.join(chunks).strip()
+            if not merged:
+                return {}
+            parsed = _parse_sections(merged) or {}
+            # Sanea y limita longitudes.
+            out = {}
+            if parsed.get('title'):
+                out['title'] = _sanitize_task_text(parsed.get('title'), multiline=False, max_len=160)
+            if parsed.get('player_count'):
+                out['player_count'] = _sanitize_task_text(parsed.get('player_count'), multiline=False, max_len=100)
+            if parsed.get('dimensions'):
+                out['dimensions'] = _sanitize_task_text(parsed.get('dimensions'), multiline=False, max_len=120)
+            if parsed.get('minutes'):
+                try:
+                    out['minutes'] = max(5, min(int(parsed.get('minutes') or 0), 90))
+                except Exception:
+                    pass
+            for key in ('description_html', 'rules_html', 'coaching_html', 'progression_html'):
+                raw = parsed.get(key)
+                if raw:
+                    out[key] = _sanitize_task_rich_html(str(raw))
+            if parsed.get('objective'):
+                out['objective'] = _sanitize_task_text(parsed.get('objective'), multiline=False, max_len=180)
+            return out
+    except Exception:
+        return {}
 
 
 def _task_studio_identity(request, owner):

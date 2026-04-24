@@ -756,12 +756,14 @@
 				    const simView3dBtn = document.getElementById('task-sim-view-3d');
 				    const simVideoStudioBtn = document.getElementById('task-sim-video-studio');
 				    const simClipSaveBtn = document.getElementById('task-sim-clip-save');
-			    const simClipImportBtn = document.getElementById('task-sim-clip-import');
-			    const simClipDestWrap = document.getElementById('task-sim-clip-dest-wrap');
-			    const simClipDestSelect = document.getElementById('task-sim-clip-dest');
-			    const simPackBtn = document.getElementById('task-sim-pack');
-			    const simClipFileInput = document.getElementById('task-sim-clip-file');
-			    const simClipsList = document.getElementById('task-sim-clips');
+				    const simClipImportBtn = document.getElementById('task-sim-clip-import');
+				    const simVideoImportBtn = document.getElementById('task-sim-video-import');
+				    const simClipDestWrap = document.getElementById('task-sim-clip-dest-wrap');
+				    const simClipDestSelect = document.getElementById('task-sim-clip-dest');
+				    const simPackBtn = document.getElementById('task-sim-pack');
+				    const simClipFileInput = document.getElementById('task-sim-clip-file');
+				    const simVideoFileInput = document.getElementById('task-sim-video-file');
+				    const simClipsList = document.getElementById('task-sim-clips');
 				    const simToScenariosBtn = document.getElementById('task-sim-to-scenarios');
 				    const simShareUrlInput = document.getElementById('task-sim-share-url');
 				    const simAutoCaptureInput = document.getElementById('task-sim-autocapture');
@@ -3716,9 +3718,10 @@
 						      if (simRecordBtn) simRecordBtn.hidden = !isSimulating;
 						      if (simView3dBtn) simView3dBtn.hidden = !isSimulating;
 						      if (simVideoStudioBtn) simVideoStudioBtn.hidden = !isSimulating;
-						      if (simClipSaveBtn) simClipSaveBtn.hidden = !isSimulating;
-						      if (simClipImportBtn) simClipImportBtn.hidden = !isSimulating;
-						      if (simClipDestWrap) simClipDestWrap.hidden = !isSimulating;
+							      if (simClipSaveBtn) simClipSaveBtn.hidden = !isSimulating;
+							      if (simClipImportBtn) simClipImportBtn.hidden = !isSimulating;
+							      if (simVideoImportBtn) simVideoImportBtn.hidden = !isSimulating;
+							      if (simClipDestWrap) simClipDestWrap.hidden = !isSimulating;
 						      if (simPackBtn) simPackBtn.hidden = !isSimulating;
 						      if (simClipsList) simClipsList.hidden = !isSimulating;
 						      if (simMetaPanel) simMetaPanel.hidden = !isSimulating;
@@ -13774,17 +13777,24 @@
 			      renderClipsLibrary();
 			      setStatus('Clip guardado (local).');
 			    });
-			    simClipImportBtn?.addEventListener('click', (event) => {
-			      event.preventDefault();
-			      if (!isSimulating) return;
-			      if (!simClipFileInput) return;
-			      try { simClipFileInput.value = ''; } catch (e) {}
-			      simClipFileInput.click();
-			    });
-			    simClipFileInput?.addEventListener('change', async () => {
-			      if (!isSimulating) return;
-			      const file = simClipFileInput.files?.[0];
-			      if (!file) return;
+				    simClipImportBtn?.addEventListener('click', (event) => {
+				      event.preventDefault();
+				      if (!isSimulating) return;
+				      if (!simClipFileInput) return;
+				      try { simClipFileInput.value = ''; } catch (e) {}
+				      simClipFileInput.click();
+				    });
+				    simVideoImportBtn?.addEventListener('click', (event) => {
+				      event.preventDefault();
+				      if (!isSimulating) return;
+				      if (!simVideoFileInput) return;
+				      try { simVideoFileInput.value = ''; } catch (e) {}
+				      simVideoFileInput.click();
+				    });
+				    simClipFileInput?.addEventListener('change', async () => {
+				      if (!isSimulating) return;
+				      const file = simClipFileInput.files?.[0];
+				      if (!file) return;
 			      let text = '';
 			      try { text = await file.text(); } catch (e) { text = ''; }
 			      if (!text) {
@@ -13804,8 +13814,167 @@
 				      const prev = readClipsLibrary();
 				      writeClipsLibrary([clip, ...prev].slice(0, 40));
 				      renderClipsLibrary();
-			      setStatus('Clip importado (local).');
-			    });
+				      setStatus('Clip importado (local).');
+				    });
+				    simVideoFileInput?.addEventListener('change', async () => {
+				      if (!isSimulating) return;
+				      const file = simVideoFileInput.files?.[0];
+				      if (!file) return;
+				      const actionUrl = safeText(form?.dataset?.videoImportUrl);
+				      if (!actionUrl) {
+				        setStatus('No se encontró la ruta de importación de vídeo.', true);
+				        return;
+				      }
+				      const csrf = form.querySelector('input[name="csrfmiddlewaretoken"]')?.value || '';
+				      if (!csrf) {
+				        setStatus('Falta CSRF. Recarga la página.', true);
+				        return;
+				      }
+				      setStatus('Procesando vídeo… (puede tardar 10–30s)');
+
+				      const setNamedValue = (name, value) => {
+				        const key = safeText(name);
+				        if (!key) return;
+				        const el = form.querySelector(`[name="${CSS.escape(key)}"]`);
+				        if (!el) return;
+				        el.value = value == null ? '' : String(value);
+				      };
+				      const setRichHtmlValue = (plainName, htmlValue) => {
+				        const key = safeText(plainName);
+				        if (!key) return;
+				        const wrapper = form.querySelector(`[data-rich-editor][data-rich-name="${CSS.escape(key)}"]`);
+				        if (!wrapper) return;
+				        const htmlName = safeText(wrapper.dataset.richHtmlName);
+				        const area = wrapper.querySelector('[data-rich-area]');
+				        const plainField = form.querySelector(`[name="${CSS.escape(key)}"]`);
+				        const htmlField = htmlName ? form.querySelector(`[name="${CSS.escape(htmlName)}"]`) : null;
+				        if (!area || !plainField || !htmlField) return;
+				        const rawHtml = String(htmlValue || '').trim();
+				        htmlField.value = rawHtml;
+				        // innerText para campo plano (sin estilos).
+				        try {
+				          const tmp = document.createElement('div');
+				          tmp.innerHTML = rawHtml;
+				          plainField.value = safeText(tmp.innerText || tmp.textContent || '');
+				        } catch (e) {
+				          plainField.value = safeText(rawHtml.replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim();
+				        }
+				        area.innerHTML = rawHtml || '';
+				      };
+
+				      try {
+				        const fd = new FormData();
+				        fd.append('video', file);
+				        fd.append('name', safeText(file.name).replace(/\.[a-z0-9]+$/i, '').slice(0, 120));
+				        const resp = await fetch(actionUrl, {
+				          method: 'POST',
+				          credentials: 'same-origin',
+				          headers: { 'X-CSRFToken': csrf },
+				          body: fd,
+				        });
+				        const data = await resp.json().catch(() => ({}));
+				        if (!resp.ok || !data?.ok) {
+				          setStatus(safeText(data?.error, 'No se pudo importar el vídeo.'), true);
+				          return;
+				        }
+				        const clipData = data?.clip && typeof data.clip === 'object' ? data.clip : null;
+				        const steps = Array.isArray(clipData?.steps) ? clipData.steps : [];
+				        if (!clipData || !steps.length) {
+				          setStatus('El vídeo no generó pasos.', true);
+				          return;
+				        }
+				        const clip = {
+				          name: safeText(clipData?.name, safeText(file.name).replace(/\.[a-z0-9]+$/i, '')).slice(0, 120) || 'Clip importado',
+				          created_at: safeText(clipData?.created_at) || new Date().toISOString(),
+				          steps,
+				          pro: (clipData?.pro && typeof clipData.pro === 'object') ? clipData.pro : null,
+				        };
+
+				        // Guardar en librería local.
+				        const prev = readClipsLibrary();
+				        writeClipsLibrary([clip, ...prev].slice(0, 40));
+				        renderClipsLibrary();
+
+				        // Cargar inmediatamente.
+				        if (simulationPlaying) stopSimulationPlayback();
+				        try { simulationSavedSteps = JSON.parse(JSON.stringify(steps)); } catch (e) { simulationSavedSteps = steps.slice(); }
+				        simulationSavedUpdatedAt = Date.now();
+				        try { simulationSteps = JSON.parse(JSON.stringify(steps)); } catch (e) { simulationSteps = steps.slice(); }
+				        // Aplica Pro (tracks) si vienen en el clip.
+				        try {
+				          simulationProTracks = {};
+				          simulationProEnabled = false;
+				          simulationProLoop = true;
+				          simulationProTimeMs = 0;
+				          simulationProUpdatedAt = Date.now();
+				          simulationProCaches = new Map();
+				          const pro = clip.pro && typeof clip.pro === 'object' ? clip.pro : null;
+				          if (pro) {
+				            simulationProEnabled = pro.enabled !== false;
+				            simulationProLoop = pro.loop !== false;
+				            const tracks = pro.tracks && typeof pro.tracks === 'object' ? pro.tracks : {};
+				            const safeTracks = {};
+				            Object.entries(tracks).slice(0, 240).forEach(([uid, list]) => {
+				              if (!uid) return;
+				              if (!Array.isArray(list)) return;
+				              const cleaned = list
+				                .map((kf) => {
+				                  const t_ms = clamp(Number(kf?.t_ms) || 0, 0, 3_600_000);
+				                  const props = kf?.props && typeof kf.props === 'object' ? kf.props : null;
+				                  if (!props) return null;
+				                  return {
+				                    t_ms,
+				                    easing: normalizeEasing(kf?.easing),
+				                    props: {
+				                      left: Number(props.left) || 0,
+				                      top: Number(props.top) || 0,
+				                      angle: Number(props.angle) || 0,
+				                      scaleX: clampScale(Number(props.scaleX) || 1),
+				                      scaleY: clampScale(Number(props.scaleY) || 1),
+				                      opacity: props.opacity == null ? 1 : Number(props.opacity),
+				                    },
+				                  };
+				                })
+				                .filter(Boolean)
+				                .sort((a, b) => (a.t_ms - b.t_ms))
+				                .slice(0, 240);
+				              if (cleaned.length) safeTracks[uid] = cleaned;
+				            });
+				            simulationProTracks = safeTracks;
+				          }
+				          persistSimulationProToStorage();
+				        } catch (e) { /* ignore */ }
+				        simulationActiveIndex = clamp(0, 0, Math.max(0, simulationSteps.length - 1));
+				        renderSimulationSteps();
+				        void selectSimulationStep(simulationActiveIndex);
+				        try {
+				          if (simulationProEnabled) {
+				            renderSimulationAtTimeMs(0);
+				            syncSimProUi();
+				          }
+				        } catch (e) { /* ignore */ }
+				        syncSimUi();
+
+				        // Aplicar sugerencias a la ficha si vienen.
+				        const suggested = data?.suggested && typeof data.suggested === 'object' ? data.suggested : null;
+				        if (suggested) {
+				          if (suggested.title) setNamedValue('draw_task_title', suggested.title);
+				          if (suggested.objective) setNamedValue('draw_task_objective', suggested.objective);
+				          if (suggested.player_count) setNamedValue('draw_task_player_count', suggested.player_count);
+				          if (suggested.dimensions) setNamedValue('draw_task_dimensions', suggested.dimensions);
+				          if (suggested.minutes) setNamedValue('draw_task_minutes', suggested.minutes);
+				          if (suggested.description_html) setRichHtmlValue('draw_task_description', suggested.description_html);
+				          if (suggested.rules_html) setRichHtmlValue('draw_task_confrontation_rules', suggested.rules_html);
+				          if (suggested.coaching_html) setRichHtmlValue('draw_task_coaching_points', suggested.coaching_html);
+				          if (suggested.progression_html) setRichHtmlValue('draw_task_progression', suggested.progression_html);
+				          try { syncRichEditorsNow(); } catch (e) { /* ignore */ }
+				        }
+
+				        setStatus('Vídeo importado: clip + ficha (si había texto).');
+				      } catch (err) {
+				        setStatus('No se pudo importar el vídeo.', true);
+				      }
+				    });
 				    simShareBtn?.addEventListener('click', (event) => {
 				      event.preventDefault();
 				      void shareSimulationLink();

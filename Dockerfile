@@ -12,6 +12,8 @@ RUN apt-get update \
       libgdk-pixbuf-2.0-0 libffi-dev libjpeg62-turbo libopenjp2-7 \
       libharfbuzz0b libharfbuzz-subset0 shared-mime-info fontconfig fonts-dejavu-core \
       poppler-utils \
+      ffmpeg \
+      tesseract-ocr tesseract-ocr-spa \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt /app/

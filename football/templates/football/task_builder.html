@@ -2778,10 +2778,11 @@
 				        method="post"
 				        id="task-builder-form"
 			        data-scope-key="{{ scope_key }}"
-			        data-task-id="{% if task %}{{ task.id }}{% endif %}"
-			        data-pdf-preview-url="{{ pdf_preview_url|default:'' }}"
-			        data-task-create-url="{% if scope_key == 'goalkeeper' %}{% url 'sessions-goalkeeper-task-create' %}{% elif scope_key == 'fitness' %}{% url 'sessions-fitness-task-create' %}{% else %}{% url 'sessions-task-create' %}{% endif %}"
-			        data-assistant-blueprints-url="{% url 'task-assistant-blueprints-api' %}"
+				        data-task-id="{% if task %}{{ task.id }}{% endif %}"
+				        data-pdf-preview-url="{{ pdf_preview_url|default:'' }}"
+				        data-video-import-url="{{ video_import_url|default:'' }}"
+				        data-task-create-url="{% if scope_key == 'goalkeeper' %}{% url 'sessions-goalkeeper-task-create' %}{% elif scope_key == 'fitness' %}{% url 'sessions-fitness-task-create' %}{% else %}{% url 'sessions-task-create' %}{% endif %}"
+				        data-assistant-blueprints-url="{% url 'task-assistant-blueprints-api' %}"
 			        data-assistant-blueprints-save-url="{% url 'task-assistant-blueprint-save-api' %}"
 			        data-assistant-knowledge-url="{% url 'task-assistant-knowledge-api' %}"
 			        data-assistant-knowledge-upload-url="{% url 'task-assistant-knowledge-upload-api' %}"
@@ -3076,22 +3077,24 @@
 					                          <button type="button" class="button" id="task-sim-record" hidden>Grabar vídeo</button>
 					                          <button type="button" class="button" id="task-sim-view-3d" hidden>Vista 3D</button>
 					                          <button type="button" class="button" id="task-sim-video-studio" hidden>Video Studio</button>
-					                          <button type="button" class="button" id="task-sim-clip-save" hidden>Guardar clip</button>
-					                          <button type="button" class="button" id="task-sim-clip-import" hidden>Importar clip</button>
-					                          <label style="display:flex; gap:10px; align-items:center;" id="task-sim-clip-dest-wrap" hidden>
-					                            Destino
-					                            <select id="task-sim-clip-dest">
-					                              <option value="local" selected>Local</option>
-					                              <option value="team">Playbook equipo</option>
-					                              {% if user.is_superuser %}
-					                              <option value="system">Playbook sistema</option>
-					                              {% endif %}
-					                            </select>
-					                          </label>
+						                          <button type="button" class="button" id="task-sim-clip-save" hidden>Guardar clip</button>
+						                          <button type="button" class="button" id="task-sim-clip-import" hidden>Importar clip</button>
+						                          <button type="button" class="button" id="task-sim-video-import" hidden>Importar vídeo</button>
+						                          <label style="display:flex; gap:10px; align-items:center;" id="task-sim-clip-dest-wrap" hidden>
+						                            Destino
+						                            <select id="task-sim-clip-dest">
+						                              <option value="local" selected>Local</option>
+						                              <option value="team">Playbook equipo</option>
+						                              {% if user.is_superuser %}
+						                              <option value="system">Playbook sistema</option>
+						                              {% endif %}
+						                            </select>
+						                          </label>
 					                          <button type="button" class="button" id="task-sim-pack" hidden>Pack presentación</button>
-					                        </div>
-					                        <input type="file" id="task-sim-clip-file" accept="application/json,.json" hidden />
-					                        <div class="sim-options">
+						                        </div>
+						                        <input type="file" id="task-sim-clip-file" accept="application/json,.json" hidden />
+						                        <input type="file" id="task-sim-video-file" accept="video/*" hidden />
+						                        <div class="sim-options">
 					                          <label class="sim-check">
 					                            <input type="checkbox" id="task-sim-autocapture" />
 					                            Auto-capturar al mover
