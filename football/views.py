@@ -14267,6 +14267,59 @@ def player_dashboard_page(request):
 
 
 @login_required
+def reports_hub_page(request):
+    if not _can_edit_match_actions(request.user):
+        return HttpResponse('Solo el cuerpo técnico puede generar informes.', status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'match_actions', label='informes')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request) or _team_from_request_param(request)
+    if not primary_team:
+        raise Http404('Equipo principal no configurado')
+
+    match_qs = (
+        _team_match_queryset(primary_team)
+        .select_related('home_team', 'away_team')
+        .order_by('-date', '-id')
+    )
+    team_matches = list(match_qs)
+    match_options = []
+    for match in team_matches:
+        opponent = (
+            match.away_team.display_name
+            if match.home_team == primary_team and match.away_team
+            else match.home_team.display_name
+            if match.away_team == primary_team and match.home_team
+            else 'Rival desconocido'
+        )
+        context_label = {
+            Match.CONTEXT_LEAGUE: 'Liga',
+            Match.CONTEXT_TOURNAMENT: 'Torneo',
+            Match.CONTEXT_FRIENDLY: 'Amistoso',
+        }.get(getattr(match, 'context', '') or '', '')
+        label_parts = [match.round or f'Partido {match.id}', opponent]
+        if context_label:
+            label_parts.append(context_label)
+        if match.date:
+            label_parts.append(match.date.strftime('%d/%m/%Y'))
+        match_options.append({'id': match.id, 'label': ' · '.join(label_parts)})
+
+    stats_scope = _get_stats_scope_for_request(request, primary_team)
+    tournament_options = _team_tournament_name_options(primary_team)
+    return render(
+        request,
+        'football/reports_hub.html',
+        {
+            **_build_pdf_nav_urls(request),
+            'team_name': primary_team.display_name,
+            'match_options': match_options,
+            'tournament_options': tournament_options,
+            'stats_scope': stats_scope,
+        },
+    )
+
+
+@login_required
 def coach_overview_page(request):
     forbidden = _forbid_if_no_coach_access(request.user)
     if forbidden:
@@ -25075,12 +25128,13 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 video_file = request.FILES.get('library_task_video')
                 if not video_file:
                     raise ValueError('Selecciona un vídeo.')
+                max_mb = 250
                 try:
                     size = int(getattr(video_file, 'size', 0) or 0)
                 except Exception:
                     size = 0
-                if size and size > 60 * 1024 * 1024:
-                    raise ValueError('El vídeo es demasiado grande (máx 60MB).')
+                if size and size > max_mb * 1024 * 1024:
+                    raise ValueError(f'El vídeo es demasiado grande (máx {max_mb}MB).')
 
                 title_hint = _sanitize_task_text((request.POST.get('video_task_title') or '').strip(), multiline=False, max_len=160)
                 raw_block = (request.POST.get('video_task_block') or SessionTask.BLOCK_MAIN_1).strip()
