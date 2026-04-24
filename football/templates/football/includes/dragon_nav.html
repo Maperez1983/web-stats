@@ -12,47 +12,106 @@
   <button class="logout-btn" type="submit" title="Cerrar sesión">Salir</button>
 </form>
 <div class="help-jump">
-  <button class="help-btn" type="button" id="webstats-global-help" title="Guía rápida (Alt: guía general)">Guía</button>
+  <button class="help-btn" type="button" id="webstats-global-help" title="Guía rápida (Alt: guía general)">
+    <svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16">
+      <path fill="currentColor" d="M12 2a10 10 0 1 0 0 20a10 10 0 0 0 0-20Zm0 17a1.25 1.25 0 1 1 0-2.5A1.25 1.25 0 0 1 12 19Zm1.6-6.9c-.8.5-1.1.9-1.1 1.9v.4h-2v-.6c0-1.6.7-2.5 2-3.3c.8-.5 1.2-.9 1.2-1.7c0-.9-.7-1.6-1.8-1.6c-1.1 0-1.8.7-1.9 1.7H8c.1-2.2 1.8-3.7 4-3.7c2.4 0 3.9 1.4 3.9 3.4c0 1.7-.9 2.6-2.3 3.5Z"/>
+    </svg>
+    <span>Guía</span>
+  </button>
 </div>
 <div class="theme-jump">
-  <button class="theme-btn" type="button" id="webstats-theme-toggle" title="Cambiar tema">Tema</button>
+  <button class="theme-btn" type="button" id="webstats-theme-toggle" title="Cambiar tema (Oscuro/Claro/HC)">
+    <svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16">
+      <path fill="currentColor" d="M12 18a6 6 0 1 1 0-12a6 6 0 0 1 0 12Zm0-14.5a1 1 0 0 1 1 1V6a1 1 0 1 1-2 0V4.5a1 1 0 0 1 1-1ZM12 18a1 1 0 0 1 1 1v1.5a1 1 0 1 1-2 0V19a1 1 0 0 1 1-1ZM3.5 12a1 1 0 0 1 1-1H6a1 1 0 1 1 0 2H4.5a1 1 0 0 1-1-1Zm14.5-1a1 1 0 0 1 0 2H18a1 1 0 1 1 0-2h0Zm-12.2-6a1 1 0 0 1 1.4 0l1.1 1.1a1 1 0 1 1-1.4 1.4L5.8 6.4a1 1 0 0 1 0-1.4Zm10.4 10.4a1 1 0 0 1 1.4 0l1.1 1.1a1 1 0 1 1-1.4 1.4l-1.1-1.1a1 1 0 0 1 0-1.4ZM18.2 5a1 1 0 0 1 0 1.4l-1.1 1.1a1 1 0 1 1-1.4-1.4l1.1-1.1a1 1 0 0 1 1.4 0ZM8.3 15.1a1 1 0 0 1 0 1.4l-1.1 1.1a1 1 0 1 1-1.4-1.4l1.1-1.1a1 1 0 0 1 1.4 0Z"/>
+    </svg>
+    <span>Tema</span>
+  </button>
+</div>
+<div class="theme-jump">
+  <button class="theme-btn" type="button" id="webstats-density-toggle" title="Cambiar densidad (Normal/Compacta)">
+    <svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16">
+      <path fill="currentColor" d="M4 6h16v2H4V6Zm0 5h16v2H4v-2Zm0 5h16v2H4v-2Z"/>
+    </svg>
+    <span>Densidad</span>
+  </button>
 </div>
 <script>
 (() => {
   const storageKey = '2j_theme';
+  const densityKey = '2j_density';
   const root = document.documentElement;
 
   const safeGet = () => {
     try { return window.localStorage.getItem(storageKey); } catch (e) { return null; }
   };
+  const safeGetDensity = () => {
+    try { return window.localStorage.getItem(densityKey); } catch (e) { return null; }
+  };
   const safeSet = (value) => {
     try { window.localStorage.setItem(storageKey, value); } catch (e) {}
   };
+  const safeSetDensity = (value) => {
+    try { window.localStorage.setItem(densityKey, value); } catch (e) {}
+  };
   const apply = (theme) => {
-    if (theme === 'light' || theme === 'dark') {
+    if (theme === 'light' || theme === 'dark' || theme === 'hc') {
       root.setAttribute('data-theme', theme);
     } else {
       root.removeAttribute('data-theme');
     }
   };
+  const applyDensity = (density) => {
+    if (density === 'compact') {
+      root.setAttribute('data-density', 'compact');
+    } else {
+      root.removeAttribute('data-density');
+    }
+  };
 
   const current = safeGet();
   if (current) apply(current);
+  const currentDensity = safeGetDensity();
+  if (currentDensity) applyDensity(currentDensity);
 
   const btn = document.getElementById('webstats-theme-toggle');
-  if (!btn) return;
+  const densBtn = document.getElementById('webstats-density-toggle');
+
+  const themeLabel = (t) => ({ dark: 'Oscuro', light: 'Claro', hc: 'HC' }[t] || 'Oscuro');
   const update = () => {
     const t = root.getAttribute('data-theme') || 'dark';
-    btn.textContent = (t === 'light') ? 'Oscuro' : 'Claro';
+    if (btn) {
+      const labelEl = btn.querySelector('span');
+      if (labelEl) labelEl.textContent = themeLabel(t);
+    }
+    if (densBtn) {
+      const d = root.getAttribute('data-density') || 'normal';
+      const labelEl = densBtn.querySelector('span');
+      if (labelEl) labelEl.textContent = (d === 'compact') ? 'Normal' : 'Compacto';
+    }
   };
   update();
-  btn.addEventListener('click', () => {
-    const t = root.getAttribute('data-theme') || 'dark';
-    const next = (t === 'light') ? 'dark' : 'light';
-    apply(next);
-    safeSet(next);
-    update();
-  });
+
+  if (btn) {
+    btn.addEventListener('click', () => {
+      const order = ['dark', 'light', 'hc'];
+      const t = root.getAttribute('data-theme') || 'dark';
+      const idx = Math.max(0, order.indexOf(t));
+      const next = order[(idx + 1) % order.length];
+      apply(next);
+      safeSet(next);
+      update();
+    });
+  }
+
+  if (densBtn) {
+    densBtn.addEventListener('click', () => {
+      const d = root.getAttribute('data-density') || 'normal';
+      const next = (d === 'compact') ? 'normal' : 'compact';
+      applyDensity(next);
+      safeSetDensity(next === 'compact' ? 'compact' : '');
+      update();
+    });
+  }
 })();
 </script>
 {% if is_admin_user %}
@@ -219,6 +278,10 @@
   letter-spacing:0.14em;
   text-transform:uppercase;
   font-weight:900;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:0.45rem;
 }
 .help-btn:hover{
   border-color:rgba(34,211,238,0.6);
@@ -237,6 +300,10 @@
   letter-spacing:0.14em;
   text-transform:uppercase;
   font-weight:900;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:0.45rem;
 }
 .theme-btn:hover{
   border-color:rgba(148,163,184,0.55);
