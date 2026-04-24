@@ -1,0 +1,154 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <title>2J · UI Kit</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      body { margin: 0; }
+      .page { max-width: 1180px; margin: 0 auto; padding: 1.25rem; }
+      .title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-bottom: 1rem;
+      }
+      .brand { display: inline-flex; align-items: center; gap: 0.9rem; }
+      .brand img { height: 42px; width: auto; }
+      h1 { margin: 0; letter-spacing: 0.12em; text-transform: uppercase; font-size: 1.25rem; }
+      .sub { color: rgba(176, 188, 205, 0.9); margin-top: 0.25rem; }
+      .grid { display: grid; gap: 0.9rem; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+      .section h2 { margin: 0 0 0.65rem; font-size: 0.82rem; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(176, 188, 205, 0.9); }
+      .swatches { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem; }
+      .swatch { border: 1px solid rgba(148, 163, 184, 0.18); border-radius: 16px; overflow: hidden; background: rgba(15, 23, 42, 0.55); }
+      .swatch .chip { height: 42px; }
+      .swatch .meta { padding: 0.6rem 0.75rem; font-size: 0.8rem; color: rgba(226, 232, 240, 0.92); }
+      .row { display: flex; flex-wrap: wrap; gap: 0.55rem; align-items: center; }
+      .field { display: grid; gap: 0.35rem; }
+      label { font-size: 0.74rem; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(176, 188, 205, 0.92); }
+      input, select, textarea { width: 100%; padding: 0.62rem 0.75rem; }
+      textarea { min-height: 110px; resize: vertical; }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 0.85em; }
+      .note { color: rgba(176, 188, 205, 0.9); line-height: 1.45; }
+    </style>
+  </head>
+  <body class="prod-commercial">
+    <div class="page">
+      <div class="title topbar">
+        <div class="brand">
+          <img src="{% static 'football/images/2j-icon.svg' %}" alt="2J" />
+          <div>
+            <h1>UI Kit</h1>
+            <div class="sub">Tokens + componentes (uso interno)</div>
+          </div>
+        </div>
+        <div class="row">
+          <a class="button ghost" href="{% url 'dashboard-home' %}">Volver</a>
+        </div>
+      </div>
+
+      <div class="grid">
+        <section class="section panel">
+          <h2>Colores</h2>
+          <div class="swatches">
+            <div class="swatch">
+              <div class="chip" style="background: var(--prod-bg);"></div>
+              <div class="meta"><strong>--prod-bg</strong><br /><code>#08111d</code></div>
+            </div>
+            <div class="swatch">
+              <div class="chip" style="background: var(--prod-panel-flat);"></div>
+              <div class="meta"><strong>--prod-panel-flat</strong></div>
+            </div>
+            <div class="swatch">
+              <div class="chip" style="background: var(--prod-secondary);"></div>
+              <div class="meta"><strong>--prod-secondary</strong> (marca)</div>
+            </div>
+            <div class="swatch">
+              <div class="chip" style="background: var(--prod-primary);"></div>
+              <div class="meta"><strong>--prod-primary</strong> (marca)</div>
+            </div>
+            <div class="swatch">
+              <div class="chip" style="background: var(--prod-info);"></div>
+              <div class="meta"><strong>--prod-info</strong> (herramientas)</div>
+            </div>
+            <div class="swatch">
+              <div class="chip" style="background: var(--prod-danger);"></div>
+              <div class="meta"><strong>--prod-danger</strong></div>
+            </div>
+          </div>
+          <p class="note" style="margin:0.75rem 0 0;">
+            Objetivo: marca consistente (ámbar/verde) y el cian reservado para herramientas/acciones “info”.
+          </p>
+        </section>
+
+        <section class="section panel">
+          <h2>Botones</h2>
+          <div class="row">
+            <a class="button" href="#">Default</a>
+            <a class="button primary" href="#">Primario</a>
+            <a class="button secondary" href="#">Secundario</a>
+            <a class="button danger" href="#">Peligro</a>
+            <a class="button ghost" href="#">Ghost</a>
+            <button class="button" disabled>Disabled</button>
+          </div>
+          <p class="note" style="margin:0.75rem 0 0;">
+            Preferir <code>.button</code>/<code>.btn</code> + <code>.primary</code>/<code>.secondary</code>/<code>.danger</code>.
+          </p>
+        </section>
+
+        <section class="section panel">
+          <h2>Tabs</h2>
+          <div class="tabs">
+            <a class="tab-link is-active" href="#">Tab activa</a>
+            <a class="tab-link" href="#">Tab</a>
+            <a class="tab-link" href="#">Tab</a>
+          </div>
+          <p class="note" style="margin:0;">
+            Usar <code>.tab-link</code> y <code>.is-active</code>. Evitar redefinir estilos en cada template.
+          </p>
+        </section>
+
+        <section class="section panel">
+          <h2>Forms</h2>
+          <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+            <div class="field">
+              <label>Texto</label>
+              <input placeholder="Ejemplo" />
+            </div>
+            <div class="field">
+              <label>Select</label>
+              <select>
+                <option>Opción 1</option>
+                <option>Opción 2</option>
+              </select>
+            </div>
+            <div class="field" style="grid-column: 1 / -1;">
+              <label>Textarea</label>
+              <textarea placeholder="Notas..."></textarea>
+            </div>
+          </div>
+        </section>
+
+        <section class="section panel">
+          <h2>Tablas</h2>
+          <table>
+            <thead>
+              <tr><th>Campo</th><th>Valor</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Ejemplo</td><td>Dato</td></tr>
+              <tr><td>Ejemplo</td><td>Dato</td></tr>
+            </tbody>
+          </table>
+        </section>
+      </div>
+    </div>
+  </body>
+</html>
+
