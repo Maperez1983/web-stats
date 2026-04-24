@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Informe equipo · {{ team_name }} · {{ scope_label }}</title>
+    {% include 'football/includes/print_tokens_css.html' %}
+    <style>
+      @page { size: A4 portrait; margin: 12mm; }
+      * { box-sizing: border-box; }
+      body { margin: 0; font-family: var(--print-font, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif); background: var(--print-paper, #f1f5f9); color: var(--print-ink, #0b1220); }
+      .top { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; padding:14px 14px 10px; border-bottom:1px solid rgba(148,163,184,.35); background: linear-gradient(135deg,#0b1220 0%, #0f172a 55%, rgba(15,122,53,.78) 100%); color:#fff; break-after: avoid-page; page-break-after: avoid; }
+      .brand{display:flex; align-items:center; gap:10px;}
+      .brand img{display:block; object-fit:contain;}
+      .brand .meta{line-height:1.2;}
+      .brand .meta .app{font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:rgba(226,232,240,.82); font-weight:900;}
+      .brand .meta .team{font-size:12px; color:#fff; font-weight:1000;}
+      .club-meta{ text-align:right; font-size:12px; color:rgba(226,232,240,.88); line-height:1.35;}
+      .club-meta strong{color:#fff;}
+      .content{padding:14px;}
+      .section{margin-top:14px;}
+      .section h2{margin:0 0 8px; font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:#475569;}
+      .grid-4{display:grid; grid-template-columns:repeat(4,1fr); gap:10px;}
+      .card{border:1px solid #e2e8f0; border-radius:14px; padding:10px; background:#fff; box-shadow:0 10px 24px rgba(2,6,23,.06); break-inside: avoid; page-break-inside: avoid;}
+      .kv{display:flex; justify-content:space-between; gap:8px; align-items:baseline;}
+      .kv .k{color:#64748b; font-size:11px; letter-spacing:.10em; text-transform:uppercase; font-weight:900;}
+      .kv .v{font-weight:1000; font-size:18px; color:#0f172a;}
+      .bars{display:grid; grid-template-columns:repeat(2,1fr); gap:10px;}
+      .bar{padding:10px; border:1px solid #e2e8f0; border-radius:14px; background:#fff; box-shadow:0 10px 24px rgba(2,6,23,.06); break-inside: avoid; page-break-inside: avoid;}
+      .bar-row{display:flex; justify-content:space-between; align-items:baseline; gap:10px;}
+      .bar-row .label{font-size:11px; letter-spacing:.10em; text-transform:uppercase; color:#64748b; font-weight:900;}
+      .bar-row .value{font-size:14px; font-weight:1000; color:#0f172a;}
+      .track{margin-top:8px; height:10px; border-radius:999px; background:#e2e8f0; overflow:hidden;}
+      .fill{height:100%; border-radius:999px; background:linear-gradient(90deg,#0f7a35,#22c55e); width:0%;}
+      .fill.gold{background:linear-gradient(90deg,#f59e0b,#fbbf24);}
+      .table{width:100%; border-collapse:collapse;}
+      .table th,.table td{border-bottom:1px solid #e2e8f0; padding:6px 0; font-size:12px;}
+      .table th{text-align:left; color:#64748b; font-size:11px; letter-spacing:.10em; text-transform:uppercase;}
+      .num{width:42px; color:#0f172a; font-weight:1000;}
+      .right{text-align:right;}
+      .muted{color:#64748b;}
+      .foot{margin-top:12px; border-top:1px solid #e2e8f0; padding-top:10px; display:flex; justify-content:space-between; align-items:center;}
+      .foot .muted{color:#64748b; font-size:11px;}
+    </style>
+  </head>
+  <body>
+    <div class="top">
+      <div class="brand">
+        <img src="{{ brand_mark_src }}" alt="2J" style="width:44px;height:auto;" />
+        <img src="{{ crest_src }}" alt="Escudo" style="width:34px;height:34px;border-radius:999px;border:1px solid #e2e8f0;background:#fff;padding:2px;" />
+        <div class="meta">
+          <div class="app">Segunda Jugada · Informe equipo</div>
+          <div class="team">{{ team_name }} · {{ scope_label }}{% if tournament_name %} · {{ tournament_name }}{% endif %}</div>
+        </div>
+      </div>
+      <div class="club-meta">
+        <div><strong>{{ division_label|default:"" }}</strong> · {{ season_label }}</div>
+        <div>Puntos: <strong>{{ team_points|default:0 }}</strong> · Posición: <strong>{% if team_rank %}{{ team_rank }}º{% else %}—{% endif %}</strong></div>
+      </div>
+    </div>
+
+    <div class="content">
+      {% if 'summary' in sections %}
+      <div class="section">
+        <h2>Resumen</h2>
+        <div class="grid-4">
+          {% for card in summary_cards %}
+          <div class="card">
+            <div class="kv"><div class="k">{{ card.label }}</div><div class="v">{{ card.value }}</div></div>
+            {% if card.hint %}<div class="muted" style="margin-top:4px;font-size:10px;">{{ card.hint }}</div>{% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      {% if 'top' in sections %}
+      <div class="section">
+        <h2>Acciones (Top)</h2>
+        <div class="bars">
+          <div class="bar">
+            <div class="bar-row"><div class="label">Tipos</div><div class="value">Top 6</div></div>
+            {% for row in top_event_types %}
+              <div style="margin-top:10px;">
+                <div class="bar-row"><div class="label">{{ row.event }}</div><div class="value">{{ row.count }} · {{ row.pct }}%</div></div>
+                <div class="track"><div class="fill" style="width: {{ row.pct }}%;"></div></div>
+              </div>
+            {% empty %}
+              <div style="margin-top:10px;color:#64748b;font-size:11px;">No hay acciones registradas.</div>
+            {% endfor %}
+          </div>
+          <div class="bar">
+            <div class="bar-row"><div class="label">Resultados</div><div class="value">Top 6</div></div>
+            {% for row in top_results %}
+              <div style="margin-top:10px;">
+                <div class="bar-row"><div class="label">{{ row.result }}</div><div class="value">{{ row.count }} · {{ row.pct }}%</div></div>
+                <div class="track"><div class="fill gold" style="width: {{ row.pct }}%;"></div></div>
+              </div>
+            {% empty %}
+              <div style="margin-top:10px;color:#64748b;font-size:11px;">No hay acciones registradas.</div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      {% if 'players' in sections %}
+      <div class="section">
+        <h2>Jugadores</h2>
+        <div class="card" style="padding:12px;">
+          <table class="table">
+            <thead><tr><th class="num">#</th><th>Jugador</th><th>Perfil</th><th class="right">PJ</th><th class="right">Min</th><th class="right">G</th><th class="right">A</th><th class="right">Acc</th><th class="right">% Éxito</th><th class="right">TA</th><th class="right">TR</th></tr></thead>
+            <tbody>
+              {% for p in players %}
+              <tr>
+                <td class="num">{% if p.number %}{{ p.number }}{% else %}—{% endif %}</td>
+                <td style="font-weight:1000;">{{ p.name }}</td>
+                <td class="muted">{{ p.profile_label|default:"" }}</td>
+                <td class="right">{{ p.pj }}</td>
+                <td class="right">{{ p.minutes }}</td>
+                <td class="right">{{ p.goals }}</td>
+                <td class="right">{{ p.assists }}</td>
+                <td class="right">{{ p.actions }}</td>
+                <td class="right">{{ p.success_rate|floatformat:1 }}%</td>
+                <td class="right">{{ p.yellow }}</td>
+                <td class="right">{{ p.red }}</td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="11" class="muted">Sin datos.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% endif %}
+
+      {% if 'matches' in sections %}
+      <div class="section">
+        <h2>Partidos</h2>
+        <div class="card" style="padding:12px;">
+          <table class="table">
+            <thead><tr><th>Jornada</th><th>Rival</th><th class="right">Fecha</th><th class="right">Marcador</th><th class="right">Acc</th><th class="right">% Éxito</th><th class="right">G</th><th class="right">A</th></tr></thead>
+            <tbody>
+              {% for m in matches %}
+              <tr>
+                <td style="font-weight:1000;">{{ m.round }}</td>
+                <td>{{ m.opponent }}</td>
+                <td class="right muted">{{ m.date }}</td>
+                <td class="right" style="font-weight:1000;">{{ m.score }}</td>
+                <td class="right">{{ m.actions }}</td>
+                <td class="right">{{ m.success_rate }}%</td>
+                <td class="right">{{ m.goals }}</td>
+                <td class="right">{{ m.assists }}</td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="8" class="muted">Sin partidos.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% endif %}
+
+      <div class="foot">
+        <div class="muted">Generado: {{ generated_at|date:"d/m/Y H:i" }}</div>
+        <div class="muted">2J Football Intelligence</div>
+      </div>
+    </div>
+  </body>
+</html>
+

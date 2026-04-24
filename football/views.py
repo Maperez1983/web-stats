@@ -16038,6 +16038,484 @@ def match_report_pdf(request):
         return _build_pdf_response_or_html_fallback(request, pdf_html, filename, inline=True, force_pdf=True)
 
 
+def _resolve_team_season_meta_for_reports(request, primary_team):
+    season_label = 'Temporada actual'
+    division_label = primary_team.group.name if primary_team.group else ''
+    try:
+        season = primary_team.group.season if primary_team.group else None
+        if season:
+            if season.start_date and season.end_date:
+                season_label = f'{season.start_date.year}-{season.end_date.year}'
+            elif season.name:
+                season_label = season.name
+    except Exception:
+        pass
+
+    team_points = 0
+    team_rank = 0
+    try:
+        standings_rows = []
+        try:
+            ws = _get_active_workspace(request)
+            competition_payload = _competition_payload_for_team(ws, primary_team, allow_auto_sync=False) if ws else {}
+            standings_rows = competition_payload.get('standings') if isinstance(competition_payload, dict) else []
+        except Exception:
+            standings_rows = []
+        if not standings_rows:
+            standings_rows = _resolve_standings_for_team(primary_team, snapshot=load_universo_snapshot())
+
+        def _team_keys_for_lookup(team_obj):
+            keys = []
+            for raw in [
+                getattr(team_obj, 'name', ''),
+                getattr(team_obj, 'display_name', ''),
+                getattr(team_obj, 'short_name', ''),
+                getattr(team_obj, 'slug', ''),
+            ]:
+                key = _normalize_team_lookup_key(raw)
+                if key and key not in keys:
+                    keys.append(key)
+            return keys
+
+        team_keys = _team_keys_for_lookup(primary_team)
+        best_row = None
+        best_score = -1
+        for row in standings_rows or []:
+            if not isinstance(row, dict):
+                continue
+            candidate_raw = row.get('full_name') or row.get('team') or row.get('name') or ''
+            candidate_key = _normalize_team_lookup_key(candidate_raw)
+            if not candidate_key:
+                continue
+            for key in team_keys:
+                if not key:
+                    continue
+                if candidate_key == key:
+                    best_row = row
+                    best_score = 10_000
+                    break
+                if key in candidate_key or candidate_key in key:
+                    score = min(len(key), len(candidate_key))
+                    if score > best_score:
+                        best_row = row
+                        best_score = score
+            if best_score >= 10_000:
+                break
+        if best_row:
+            team_points = _parse_int(best_row.get('points')) or 0
+            team_rank = _parse_int(best_row.get('rank')) or 0
+    except Exception:
+        team_points = 0
+        team_rank = 0
+
+    return season_label, division_label, team_points, team_rank
+
+
+def _sections_from_request(request, default):
+    raw = request.GET.getlist('sec')
+    if raw:
+        return {str(value or '').strip() for value in raw if str(value or '').strip()}
+    raw_csv = str(request.GET.get('sections') or '').strip()
+    if raw_csv:
+        return {item.strip() for item in raw_csv.split(',') if item.strip()}
+    return set(default or [])
+
+
+@login_required
+def match_staff_report_pdf(request):
+    if not _can_edit_match_actions(request.user):
+        return HttpResponse('Solo el cuerpo técnico puede descargar el informe del partido.', status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'match_actions', label='registro de acciones')
+    if forbidden:
+        return forbidden
+    match_id = _parse_int(request.GET.get('match_id'))
+    if not match_id:
+        return HttpResponse('Falta match_id.', status=400)
+    match = (
+        Match.objects
+        .select_related('group__season__competition', 'home_team', 'away_team')
+        .filter(id=match_id)
+        .first()
+    )
+    if not match:
+        raise Http404('Partido no encontrado')
+
+    primary_team = _get_primary_team_for_request(request) or _team_from_request_param(request)
+    if not primary_team:
+        for candidate in [match.home_team, match.away_team]:
+            if candidate and _user_can_access_team(request, candidate):
+                primary_team = candidate
+                break
+    if not primary_team:
+        raise Http404('Equipo principal no configurado')
+    if primary_team.id not in {match.home_team_id, match.away_team_id}:
+        return HttpResponse('No tienes acceso a este partido.', status=403)
+
+    opponent_team = match.away_team if match.home_team_id == primary_team.id else match.home_team
+    opponent_name = (opponent_team.display_name if opponent_team else '').strip() or 'Rival'
+    team_name = primary_team.display_name
+
+    is_home = bool(match.home_team_id == primary_team.id)
+    home_score = match.home_score
+    away_score = match.away_score
+
+    preferred_sources = preferred_event_source_by_match(primary_team)
+    events = _filter_stats_events(
+        confirmed_events_queryset()
+        .filter(match=match, player__team=primary_team)
+        .select_related('player')
+        .order_by('minute', 'id'),
+        preferred_sources=preferred_sources,
+    )
+    if home_score is None or away_score is None:
+        goals_for = sum(1 for ev in events if is_goal_event(ev.event_type, ev.result, ev.observation))
+        if is_home:
+            home_score = home_score if home_score is not None else goals_for
+        else:
+            away_score = away_score if away_score is not None else goals_for
+    score_label = f'{home_score if home_score is not None else "—"} - {away_score if away_score is not None else "—"}'
+
+    per_player = {}
+    total_actions = 0
+    total_successes = 0
+    total_goals = 0
+    total_assists = 0
+    total_yellow = 0
+    total_red = 0
+    timeline = []
+    for ev in events:
+        total_actions += 1
+        if result_is_success(ev.result):
+            total_successes += 1
+        is_goal = is_goal_event(ev.event_type, ev.result, ev.observation)
+        is_assist = is_assist_event(ev.event_type, ev.result, ev.observation)
+        is_yellow = is_yellow_card_event(ev.event_type, ev.result, ev.zone)
+        is_red = is_red_card_event(ev.event_type, ev.result, ev.zone)
+        if is_goal:
+            total_goals += 1
+        if is_assist:
+            total_assists += 1
+        if is_yellow:
+            total_yellow += 1
+        if is_red:
+            total_red += 1
+        player = ev.player
+        if player:
+            row = per_player.setdefault(
+                player.id,
+                {
+                    'name': player.name,
+                    'number': player.number or '',
+                    'profile_label': (player.position or '').strip(),
+                    'actions': 0,
+                    'successes': 0,
+                    'goals': 0,
+                    'assists': 0,
+                    'yellow': 0,
+                    'red': 0,
+                },
+            )
+            row['actions'] += 1
+            if result_is_success(ev.result):
+                row['successes'] += 1
+            if is_goal:
+                row['goals'] += 1
+            if is_assist:
+                row['assists'] += 1
+            if is_yellow:
+                row['yellow'] += 1
+            if is_red:
+                row['red'] += 1
+
+        if is_goal or is_yellow or is_red:
+            minute = ev.minute if ev.minute is not None else ''
+            label = 'Gol' if is_goal else 'Tarjeta roja' if is_red else 'Tarjeta amarilla'
+            who = (player.name if player else '').strip() or '—'
+            timeline.append({'minute': minute, 'title': label, 'text': f'{who} · {ev.event_type} {ev.result}'.strip()})
+
+    players = list(per_player.values())
+    for row in players:
+        actions = int(row.get('actions') or 0)
+        successes = int(row.get('successes') or 0)
+        row['success_rate'] = round((successes / actions) * 100, 1) if actions else 0
+    players.sort(key=lambda r: (-int(r.get('actions') or 0), str(r.get('name') or '').lower()))
+
+    event_counter = Counter(ev.event_type for ev in events)
+    result_counter = Counter(ev.result for ev in events)
+    top_event_types = [{'event': k, 'count': v} for k, v in event_counter.most_common(6)]
+    top_results = [{'result': k or '—', 'count': v} for k, v in result_counter.most_common(6)]
+
+    def _with_pct(rows):
+        total = sum(int(r.get('count') or 0) for r in rows) or 0
+        for r in rows:
+            c = int(r.get('count') or 0)
+            r['pct'] = round((c / total) * 100, 1) if total else 0
+        return rows
+
+    top_event_types = _with_pct(top_event_types)
+    top_results = _with_pct(top_results)
+
+    success_rate = round((total_successes / total_actions) * 100, 1) if total_actions else 0
+    summary_cards = [
+        {'label': 'Acciones', 'value': total_actions},
+        {'label': '% éxito', 'value': f'{success_rate}%'},
+        {'label': 'Goles', 'value': total_goals},
+        {'label': 'Asist', 'value': total_assists},
+        {'label': 'Amarillas', 'value': total_yellow},
+        {'label': 'Rojas', 'value': total_red},
+        {'label': 'Jugadores', 'value': len(players)},
+        {'label': 'Marcador', 'value': score_label},
+    ]
+
+    sections = _sections_from_request(request, default={'summary', 'top', 'players', 'timeline'})
+    static_base_dir = Path(settings.BASE_DIR) / 'static'
+    brand_mark_src = _file_as_data_uri(static_base_dir / 'football' / 'images' / '2j-mark.svg') or request.build_absolute_uri(static('football/images/2j-mark.svg'))
+
+    def _team_crest_data_uri(team_obj, fallback_label=''):
+        crest_uri = ''
+        if getattr(team_obj, 'crest_image', None):
+            try:
+                if getattr(team_obj.crest_image, 'path', None):
+                    crest_uri = _image_file_as_small_data_uri(Path(team_obj.crest_image.path), max_width=220, max_height=220, quality=75)
+                else:
+                    with team_obj.crest_image.open('rb') as fp:
+                        raw = fp.read() or b''
+                    crest_uri = _image_bytes_as_small_data_uri(raw, mime_type='image/jpeg', max_width=220, max_height=220, quality=75)
+            except Exception:
+                crest_uri = ''
+        if not crest_uri:
+            crest_uri = resolve_team_crest_url(request, team_obj, sync=True)
+        if not crest_uri:
+            initials = ''.join([c for c in str(fallback_label or '').upper() if c.isalpha()])[:2] or '2J'
+            svg = f"""<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><rect width='100%' height='100%' rx='90' ry='90' fill='#0f172a'/><text x='50%' y='54%' text-anchor='middle' dominant-baseline='middle' font-family='Arial' font-size='72' font-weight='900' fill='#f8fafc'>{initials}</text></svg>"""
+            crest_uri = 'data:image/svg+xml;charset=utf-8,' + urllib.parse.quote(svg)
+        return crest_uri
+
+    crest_src = _team_crest_data_uri(primary_team, fallback_label=primary_team.display_name)
+
+    match_date_label = match.date.strftime('%d/%m/%Y') if match.date else ''
+    location_label = (match.location or '').strip() or 'Campo por confirmar'
+    round_label = (match.round or f'Partido {match.id}').strip()
+    context = {
+        'team_name': team_name,
+        'opponent_name': opponent_name,
+        'brand_mark_src': brand_mark_src,
+        'crest_src': crest_src,
+        'score_label': score_label,
+        'match_date_label': match_date_label,
+        'location_label': location_label,
+        'round_label': round_label,
+        'summary_cards': summary_cards,
+        'top_event_types': top_event_types,
+        'top_results': top_results,
+        'players': players,
+        'timeline': sorted(timeline, key=lambda t: (int(t['minute'] or 0), str(t.get('title') or ''))),
+        'sections': sections,
+        'generated_at': timezone.localtime(),
+    }
+    pdf_html = render_to_string('football/match_staff_report_pdf.html', context)
+    filename = slugify(f'informe-partido-{team_name}-{opponent_name}-{match.date or timezone.localdate()}') or f'informe-partido-{match.id}'
+    return _build_pdf_response_or_html_fallback(request, pdf_html, filename, inline=True, force_pdf=True)
+
+
+@login_required
+def team_season_report_pdf(request):
+    if not _can_edit_match_actions(request.user):
+        return HttpResponse('Solo el cuerpo técnico puede descargar el informe del equipo.', status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'match_actions', label='informes')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request) or _team_from_request_param(request)
+    if not primary_team:
+        raise Http404('Equipo principal no configurado')
+
+    scope = _get_stats_scope_for_request(request, primary_team)
+    tournament_filter = _get_tournament_filter_for_request(request, primary_team, scope=scope)
+    sections = _sections_from_request(request, default={'summary', 'top', 'players', 'matches'})
+
+    dashboard_rows = compute_player_dashboard(primary_team, force_refresh=True, scope=scope, tournament_name=tournament_filter)
+
+    match_qs = (
+        _team_match_queryset(primary_team)
+        .select_related('home_team', 'away_team')
+        .order_by('date', 'id')
+    )
+    if scope != 'all':
+        match_qs = match_qs.filter(context=scope)
+    if scope == Match.CONTEXT_TOURNAMENT and tournament_filter:
+        match_qs = match_qs.filter(tournament_name=tournament_filter)
+    team_matches = list(match_qs)
+    match_ids = [m.id for m in team_matches]
+
+    preferred_sources = preferred_event_source_by_match(primary_team, scope=scope)
+    events = _filter_stats_events(
+        confirmed_events_queryset()
+        .filter(match_id__in=match_ids, player__team=primary_team)
+        .select_related('match')
+        .order_by('match_id', 'minute', 'id'),
+        preferred_sources=preferred_sources,
+    )
+    events_by_match = defaultdict(list)
+    for ev in events:
+        if ev.match_id:
+            events_by_match[int(ev.match_id)].append(ev)
+
+    def _match_opponent_label(match_obj):
+        return (
+            match_obj.away_team.display_name
+            if match_obj.home_team_id == primary_team.id and match_obj.away_team
+            else match_obj.home_team.display_name
+            if match_obj.away_team_id == primary_team.id and match_obj.home_team
+            else 'Rival desconocido'
+        )
+
+    def _match_score_label(match_obj):
+        home = match_obj.home_score
+        away = match_obj.away_score
+        if home is None or away is None:
+            match_events = events_by_match.get(int(match_obj.id), [])
+            goals_for = sum(1 for ev in match_events if is_goal_event(ev.event_type, ev.result, ev.observation))
+            if match_obj.home_team_id == primary_team.id and home is None:
+                home = goals_for
+            if match_obj.away_team_id == primary_team.id and away is None:
+                away = goals_for
+        return f'{home if home is not None else "—"} - {away if away is not None else "—"}'
+
+    match_rows = []
+    total_actions = 0
+    total_successes = 0
+    total_goals = 0
+    total_assists = 0
+    total_measured_matches = 0
+    for match in team_matches:
+        match_events = events_by_match.get(int(match.id), [])
+        actions = len(match_events)
+        successes = sum(1 for ev in match_events if result_is_success(ev.result))
+        goals = sum(1 for ev in match_events if is_goal_event(ev.event_type, ev.result, ev.observation))
+        assists = sum(1 for ev in match_events if is_assist_event(ev.event_type, ev.result, ev.observation))
+        total_actions += actions
+        total_successes += successes
+        total_goals += goals
+        total_assists += assists
+        if actions:
+            total_measured_matches += 1
+        match_rows.append(
+            {
+                'round': match.round or f'Partido {match.id}',
+                'opponent': _match_opponent_label(match),
+                'date': match.date.strftime('%d/%m/%Y') if match.date else '',
+                'score': _match_score_label(match),
+                'actions': actions,
+                'success_rate': round((successes / actions) * 100, 1) if actions else 0,
+                'goals': goals,
+                'assists': assists,
+            }
+        )
+
+    season_label, division_label, team_points, team_rank = _resolve_team_season_meta_for_reports(request, primary_team)
+    scope_label = {
+        Match.CONTEXT_LEAGUE: 'Liga',
+        Match.CONTEXT_TOURNAMENT: 'Torneo',
+        Match.CONTEXT_FRIENDLY: 'Amistoso',
+        'all': 'Globales',
+    }.get(scope, str(scope or '').strip() or 'Liga')
+
+    success_rate = round((total_successes / total_actions) * 100, 1) if total_actions else 0
+    avg_actions = round((total_actions / total_measured_matches), 1) if total_measured_matches else 0
+
+    players = []
+    for row in dashboard_rows or []:
+        players.append(
+            {
+                'name': str(row.get('name') or '').strip(),
+                'number': row.get('number') or '',
+                'profile_label': str(row.get('profile_label') or '').strip(),
+                'pj': int(row.get('pj') or 0),
+                'minutes': int(row.get('minutes') or 0),
+                'goals': int(row.get('goals') or 0),
+                'assists': int(row.get('assists') or 0),
+                'yellow': int(row.get('yellow_cards') or 0),
+                'red': int(row.get('red_cards') or 0),
+                'actions': int(row.get('total_actions') or 0),
+                'success_rate': float(row.get('success_rate') or 0),
+            }
+        )
+    players.sort(key=lambda r: (-int(r.get('minutes') or 0), -int(r.get('actions') or 0), str(r.get('name') or '').lower()))
+
+    event_counter = Counter(ev.event_type for ev in events)
+    result_counter = Counter(ev.result for ev in events)
+    top_event_types = [{'event': k, 'count': v} for k, v in event_counter.most_common(6)]
+    top_results = [{'result': k or '—', 'count': v} for k, v in result_counter.most_common(6)]
+
+    def _with_pct(rows):
+        total = sum(int(r.get('count') or 0) for r in rows) or 0
+        for r in rows:
+            c = int(r.get('count') or 0)
+            r['pct'] = round((c / total) * 100, 1) if total else 0
+        return rows
+
+    top_event_types = _with_pct(top_event_types)
+    top_results = _with_pct(top_results)
+
+    summary_cards = [
+        {'label': 'Partidos (medidos)', 'value': total_measured_matches, 'hint': 'Con acciones registradas'},
+        {'label': 'Acciones', 'value': total_actions, 'hint': f'{avg_actions} acc/partido'},
+        {'label': '% éxito', 'value': f'{success_rate}%'},
+        {'label': 'Goles', 'value': total_goals},
+        {'label': 'Asist', 'value': total_assists},
+        {'label': 'Jugadores', 'value': len(players)},
+        {'label': 'Puntos', 'value': team_points},
+        {'label': 'Posición', 'value': f'{team_rank}º' if team_rank else '—'},
+    ]
+
+    static_base_dir = Path(settings.BASE_DIR) / 'static'
+    brand_mark_src = _file_as_data_uri(static_base_dir / 'football' / 'images' / '2j-mark.svg') or request.build_absolute_uri(static('football/images/2j-mark.svg'))
+
+    def _team_crest_data_uri(team_obj, fallback_label=''):
+        crest_uri = ''
+        if getattr(team_obj, 'crest_image', None):
+            try:
+                if getattr(team_obj.crest_image, 'path', None):
+                    crest_uri = _image_file_as_small_data_uri(Path(team_obj.crest_image.path), max_width=220, max_height=220, quality=75)
+                else:
+                    with team_obj.crest_image.open('rb') as fp:
+                        raw = fp.read() or b''
+                    crest_uri = _image_bytes_as_small_data_uri(raw, mime_type='image/jpeg', max_width=220, max_height=220, quality=75)
+            except Exception:
+                crest_uri = ''
+        if not crest_uri:
+            crest_uri = resolve_team_crest_url(request, team_obj, sync=True)
+        if not crest_uri:
+            initials = ''.join([c for c in str(fallback_label or '').upper() if c.isalpha()])[:2] or '2J'
+            svg = f"""<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><rect width='100%' height='100%' rx='90' ry='90' fill='#0f172a'/><text x='50%' y='54%' text-anchor='middle' dominant-baseline='middle' font-family='Arial' font-size='72' font-weight='900' fill='#f8fafc'>{initials}</text></svg>"""
+            crest_uri = 'data:image/svg+xml;charset=utf-8,' + urllib.parse.quote(svg)
+        return crest_uri
+
+    crest_src = _team_crest_data_uri(primary_team, fallback_label=primary_team.display_name)
+
+    context = {
+        'team_name': primary_team.display_name,
+        'brand_mark_src': brand_mark_src,
+        'crest_src': crest_src,
+        'season_label': season_label,
+        'division_label': division_label,
+        'team_points': team_points,
+        'team_rank': team_rank,
+        'scope_label': scope_label,
+        'tournament_name': tournament_filter if scope == Match.CONTEXT_TOURNAMENT else '',
+        'sections': sections,
+        'summary_cards': summary_cards,
+        'top_event_types': top_event_types,
+        'top_results': top_results,
+        'players': players,
+        'matches': match_rows,
+        'generated_at': timezone.localtime(),
+    }
+    pdf_html = render_to_string('football/team_season_report_pdf.html', context)
+    filename = slugify(f'informe-equipo-{primary_team.display_name}-{scope_label}-{timezone.localdate()}') or f'informe-equipo-{primary_team.id}'
+    return _build_pdf_response_or_html_fallback(request, pdf_html, filename, inline=True, force_pdf=True)
+
+
 @login_required
 @ensure_csrf_cookie
 def convocation_page(request):

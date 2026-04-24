@@ -335,6 +335,7 @@
             </form>
             {% endif %}
             <a class="btn primary" href="{% url 'match-report-pdf' %}{% if active_match_id %}?match_id={{ active_match_id }}&team={{ primary_team_id }}{% endif %}" {% if not active_match_id %}aria-disabled="true"{% endif %}>Acta partido</a>
+            <a class="btn" href="{% url 'match-staff-report-pdf' %}{% if active_match_id %}?match_id={{ active_match_id }}&team={{ primary_team_id }}{% endif %}" {% if not active_match_id %}aria-disabled="true"{% endif %}>Informe staff</a>
             {% if is_admin_user %}
             <a class="btn" href="{% url 'system-healthcheck-api' %}" target="_blank" rel="noreferrer">Healthcheck</a>
             {% endif %}

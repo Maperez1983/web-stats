@@ -1,0 +1,130 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <title>Informes · 2J</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      body{margin:0;min-height:100vh;background:radial-gradient(circle at 10% -10%, rgba(70,211,255,.16), transparent 40%),radial-gradient(circle at 86% 0%, rgba(255,191,69,.14), transparent 35%),linear-gradient(180deg,#03070f 0%,#081120 55%,#0a1427 100%);color:rgba(245,247,250,.92);font-family:"Avenir Next","Segoe UI",sans-serif;}
+      .shell{max-width:1160px;margin:0 auto;padding:1.2rem;}
+      .hero{margin-top:.9rem;border:1px solid rgba(255,255,255,.15);border-radius:18px;padding:1rem 1.1rem;background:rgba(7,16,30,.82);backdrop-filter:blur(4px);}
+      .hero h1{margin:0;font-size:1rem;letter-spacing:.14em;text-transform:uppercase;}
+      .hero p{margin:.45rem 0 0;color:rgba(226,232,240,.74);max-width:72ch;}
+      .grid{margin-top:1rem;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.85rem;}
+      @media (max-width:900px){.grid{grid-template-columns:1fr;}}
+      .card{border-radius:18px;border:1px solid rgba(255,255,255,.14);background:rgba(7,16,30,.72);box-shadow:0 20px 44px rgba(0,0,0,.35);padding:1rem 1rem 1.05rem;}
+      .card h2{margin:0;font-size:.85rem;letter-spacing:.16em;text-transform:uppercase;}
+      .card p{margin:.55rem 0 .8rem;color:rgba(226,232,240,.74);}
+      .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem;}
+      @media (max-width:680px){.form-grid{grid-template-columns:1fr;}}
+      .field label{display:block;font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:rgba(226,232,240,.72);margin-bottom:.3rem;font-weight:800;}
+      .field select,.field input{width:100%;border-radius:12px;border:1px solid rgba(255,255,255,.14);background:rgba(15,23,42,.55);color:rgba(245,247,250,.92);padding:.55rem .65rem;font-weight:800;}
+      .sections{margin-top:.7rem;padding-top:.75rem;border-top:1px solid rgba(255,255,255,.12);}
+      .sections h3{margin:0 0 .55rem;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:rgba(226,232,240,.72);}
+      .checks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.5rem .75rem;}
+      @media (max-width:520px){.checks{grid-template-columns:1fr;}}
+      .check{display:flex;align-items:center;gap:.5rem;font-weight:800;color:rgba(226,232,240,.88);font-size:.85rem;}
+      .actions{margin-top:.9rem;display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;}
+      .btn{appearance:none;cursor:pointer;border:1px solid rgba(244,180,0,.18);border-radius:999px;padding:.55rem .9rem;background:rgba(15,23,42,.62);color:rgba(245,247,250,.92);font-weight:900;letter-spacing:.14em;text-transform:uppercase;font-size:.7rem;text-decoration:none;}
+      .btn.primary{background:linear-gradient(135deg, rgba(244,180,0,.22), rgba(47,125,50,.18));border-color:rgba(244,180,0,.38);}
+      .btn:hover{border-color:rgba(244,180,0,.5);color:#fff9e8;}
+      .hint{font-size:.8rem;color:rgba(226,232,240,.72);}
+    </style>
+  </head>
+  <body class="prod-commercial">
+    <div class="shell">
+      {% include 'football/includes/dragon_nav.html' %}
+      <header class="hero">
+        <h1>Informes · {{ team_name }}</h1>
+        <p>Informes visuales y personalizables para el cuerpo técnico.</p>
+      </header>
+
+      <div class="grid">
+        <section class="card">
+          <h2>Informe de equipo (temporada)</h2>
+          <p>KPIs + top acciones + tablas de jugadores y partidos (por ámbito).</p>
+          <form method="get" action="{% url 'team-season-report-pdf' %}" target="_blank" rel="noreferrer">
+            {% if request.GET.team %}<input type="hidden" name="team" value="{{ request.GET.team|urlencode }}" />{% endif %}
+            <div class="form-grid">
+              <div class="field">
+                <label for="rep-scope">Ámbito</label>
+                <select id="rep-scope" name="scope">
+                  {% with scope=stats_scope|default:"league" %}
+                  <option value="all" {% if scope == 'all' %}selected{% endif %}>Global</option>
+                  <option value="league" {% if scope == 'league' %}selected{% endif %}>Liga</option>
+                  <option value="tournament" {% if scope == 'tournament' %}selected{% endif %}>Torneo</option>
+                  <option value="friendly" {% if scope == 'friendly' %}selected{% endif %}>Amistoso</option>
+                  {% endwith %}
+                </select>
+              </div>
+              <div class="field" id="rep-tournament-field" style="display:none;">
+                <label for="rep-tournament">Torneo</label>
+                <select id="rep-tournament" name="tournament">
+                  <option value="">—</option>
+                  {% for opt in tournament_options %}<option value="{{ opt.value|urlencode }}">{{ opt.label }}</option>{% endfor %}
+                </select>
+              </div>
+            </div>
+            <div class="sections">
+              <h3>Secciones</h3>
+              <div class="checks">
+                <label class="check"><input type="checkbox" name="sec" value="summary" checked /> Resumen</label>
+                <label class="check"><input type="checkbox" name="sec" value="top" checked /> Top acciones</label>
+                <label class="check"><input type="checkbox" name="sec" value="players" checked /> Jugadores</label>
+                <label class="check"><input type="checkbox" name="sec" value="matches" checked /> Partidos</label>
+              </div>
+              <div class="actions">
+                <button class="btn primary" type="submit">Descargar PDF</button>
+                <span class="hint">Secciones activables/desactivables.</span>
+              </div>
+            </div>
+          </form>
+        </section>
+
+        <section class="card">
+          <h2>Informe de partido (staff)</h2>
+          <p>KPIs del partido + jugadores + timeline (goles/tarjetas).</p>
+          <form method="get" action="{% url 'match-staff-report-pdf' %}" target="_blank" rel="noreferrer">
+            {% if request.GET.team %}<input type="hidden" name="team" value="{{ request.GET.team|urlencode }}" />{% endif %}
+            <div class="form-grid">
+              <div class="field" style="grid-column: 1 / -1;">
+                <label for="rep-match">Partido</label>
+                <select id="rep-match" name="match_id" required>
+                  <option value="">Selecciona un partido…</option>
+                  {% for opt in match_options %}<option value="{{ opt.id }}">{{ opt.label }}</option>{% endfor %}
+                </select>
+              </div>
+            </div>
+            <div class="sections">
+              <h3>Secciones</h3>
+              <div class="checks">
+                <label class="check"><input type="checkbox" name="sec" value="summary" checked /> Resumen</label>
+                <label class="check"><input type="checkbox" name="sec" value="top" checked /> Top acciones</label>
+                <label class="check"><input type="checkbox" name="sec" value="players" checked /> Jugadores</label>
+                <label class="check"><input type="checkbox" name="sec" value="timeline" checked /> Timeline</label>
+              </div>
+              <div class="actions">
+                <button class="btn primary" type="submit">Descargar PDF</button>
+              </div>
+            </div>
+          </form>
+        </section>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var scopeSelect = document.getElementById('rep-scope');
+        var tournamentField = document.getElementById('rep-tournament-field');
+        if (!scopeSelect || !tournamentField) return;
+        function refresh() { tournamentField.style.display = scopeSelect.value === 'tournament' ? '' : 'none'; }
+        scopeSelect.addEventListener('change', refresh);
+        refresh();
+      })();
+    </script>
+  </body>
+</html>
+
