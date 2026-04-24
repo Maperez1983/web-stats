@@ -153,6 +153,22 @@
             <button type="button" id="sim-next">Siguiente</button>
             <button type="button" class="danger" id="sim-stop" hidden>Parar</button>
           </div>
+          <div class="buttons" style="gap:0.45rem;">
+            <label style="display:flex; gap:8px; align-items:center; font-weight:800; letter-spacing:0.02em; text-transform:none;">
+              <input type="checkbox" id="sim-trails" checked />
+              Trayectorias
+            </label>
+            <label style="display:flex; gap:10px; align-items:center; font-weight:800; letter-spacing:0.02em; text-transform:none;">
+              Velocidad
+              <select id="sim-speed" style="border-radius:999px; padding:0.55rem 0.75rem; background:rgba(255,255,255,0.06); color:#f3f7ff; border:1px solid rgba(255,255,255,0.18); font-weight:900;">
+                <option value="0.75">0.75×</option>
+                <option value="1" selected>1×</option>
+                <option value="1.25">1.25×</option>
+                <option value="1.5">1.5×</option>
+                <option value="2">2×</option>
+              </select>
+            </label>
+          </div>
           <div class="status" id="sim-status">Listo.</div>
         </div>
         <div class="canvas-wrap">
@@ -167,4 +183,3 @@
     <script src="{% static 'football/js/task_simulation_share.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
   </body>
 </html>
-

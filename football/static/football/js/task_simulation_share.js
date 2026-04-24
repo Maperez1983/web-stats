@@ -32,6 +32,14 @@
   const playBtn = document.getElementById('sim-play');
   const stopBtn = document.getElementById('sim-stop');
   const canvasEl = document.getElementById('sim-share-canvas');
+  const trailsInput = document.getElementById('sim-trails');
+  const speedSelect = document.getElementById('sim-speed');
+
+  const readPlaybackSpeed = () => {
+    const raw = safeText(speedSelect?.value, '1');
+    const val = Number.parseFloat(raw);
+    return clamp(Number.isFinite(val) ? val : 1, 0.5, 2.5);
+  };
 
   const setStatus = (message) => {
     if (!statusEl) return;
@@ -128,14 +136,13 @@
     return { objects: [] };
   };
 
-  const objectKeyForState = (obj, idx) => safeText(obj?.data?.layer_uid) || `idx:${idx}`;
   const mapFromCanvasState = (rawState) => {
     const state = normalizeCanvasState(rawState);
     const objects = Array.isArray(state?.objects) ? state.objects : [];
     const map = new Map();
     objects.forEach((obj, idx) => {
       if (!obj || typeof obj !== 'object') return;
-      const key = objectKeyForState(obj, idx);
+      const key = safeText(obj?.data?.layer_uid);
       if (!key) return;
       map.set(key, {
         left: Number(obj.left) || 0,
@@ -147,6 +154,86 @@
       });
     });
     return map;
+  };
+
+  const clearOverlayObjects = () => {
+    try {
+      const objs = canvas.getObjects() || [];
+      objs.forEach((obj) => {
+        if (!obj) return;
+        const kind = safeText(obj?.data?.kind);
+        if (kind === 'sim-move' || kind === 'sim-move-line' || kind === 'sim-move-head') {
+          try { canvas.remove(obj); } catch (error) {}
+        }
+      });
+    } catch (error) {}
+  };
+
+  const addMoveArrow = (from, to) => {
+    if (!window.fabric) return null;
+    const x1 = Number(from?.x) || 0;
+    const y1 = Number(from?.y) || 0;
+    const x2 = Number(to?.x) || 0;
+    const y2 = Number(to?.y) || 0;
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const len = Math.hypot(dx, dy) || 0;
+    if (len < 10) return null;
+    const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+    const head = 14;
+    const line = new window.fabric.Line([0, 0, Math.max(6, len - head), 0], {
+      stroke: 'rgba(250,204,21,0.92)',
+      strokeWidth: 4,
+      strokeDashArray: [10, 8],
+      strokeLineCap: 'round',
+      selectable: false,
+      evented: false,
+      excludeFromExport: true,
+      data: { base: true, kind: 'sim-move-line', layer_uid: `overlay_move_line_${Date.now()}_${Math.random().toString(16).slice(2)}` },
+    });
+    try { line.strokeUniform = true; } catch (error) {}
+    const tri = new window.fabric.Triangle({
+      width: head,
+      height: head,
+      fill: 'rgba(250,204,21,0.92)',
+      left: Math.max(6, len - head),
+      top: 0,
+      originX: 'center',
+      originY: 'center',
+      angle: 90,
+      selectable: false,
+      evented: false,
+      excludeFromExport: true,
+      data: { base: true, kind: 'sim-move-head', layer_uid: `overlay_move_head_${Date.now()}_${Math.random().toString(16).slice(2)}` },
+    });
+    const group = new window.fabric.Group([line, tri], {
+      left: x1,
+      top: y1,
+      originX: 'left',
+      originY: 'center',
+      angle,
+      selectable: false,
+      evented: false,
+      excludeFromExport: true,
+      opacity: 0.92,
+      data: { base: true, kind: 'sim-move', layer_uid: `overlay_move_${Date.now()}_${Math.random().toString(16).slice(2)}` },
+    });
+    try { group.objectCaching = false; } catch (error) {}
+    try { group.noScaleCache = true; } catch (error) {}
+    canvas.add(group);
+    try { canvas.sendToBack(group); } catch (error) {}
+    return group;
+  };
+
+  const renderMoveOverlaysForStep = (step) => {
+    clearOverlayObjects();
+    const enabled = trailsInput ? !!trailsInput.checked : true;
+    if (!enabled) return;
+    const moves = Array.isArray(step?.moves) ? step.moves : [];
+    if (!moves.length) return;
+    moves.slice(0, 60).forEach((move) => {
+      try { addMoveArrow(move?.from, move?.to); } catch (error) {}
+    });
   };
 
   const setObjectsReadOnly = () => {
@@ -170,6 +257,7 @@
       try {
         canvas.loadFromJSON(state, () => {
           setObjectsReadOnly();
+          try { renderMoveOverlaysForStep(step); } catch (error) {}
           canvas.renderAll();
           renderStepsList();
           setStatus(`Paso ${activeIndex + 1}/${steps.length}: ${safeText(step.title, '—')}`);
@@ -238,21 +326,21 @@
         const eased = easeInOut(t);
         try {
           const objs = canvas.getObjects() || [];
-          objs.forEach((obj, idx) => {
+          const liveByUid = new Map();
+          objs.forEach((obj) => {
+            const uid = safeText(obj?.data?.layer_uid);
+            if (uid) liveByUid.set(uid, obj);
+          });
+          const keys = new Set([...(rafStartMap?.keys?.() || []), ...(rafEndMap?.keys?.() || [])]);
+          keys.forEach((uid) => {
+            const obj = liveByUid.get(uid);
             if (!obj) return;
-            const key = safeText(obj?.data?.layer_uid) || `idx:${idx}`;
-            const a = rafStartMap?.get(key);
-            const b = rafEndMap?.get(key);
+            const a = rafStartMap?.get(uid);
+            const b = rafEndMap?.get(uid);
             if (!a && !b) return;
-            if (!a) {
-              applyPropsToObject(obj, b);
-              return;
-            }
-            if (!b) {
-              applyPropsToObject(obj, a);
-              return;
-            }
-            applyPropsToObject(obj, {
+            if (!a) return applyPropsToObject(obj, b);
+            if (!b) return applyPropsToObject(obj, a);
+            return applyPropsToObject(obj, {
               left: lerp(a.left, b.left, eased),
               top: lerp(a.top, b.top, eased),
               angle: lerp(a.angle, b.angle, eased),
@@ -285,7 +373,8 @@
     setStatus('Reproduciendo (animación)…');
     while (isPlaying) {
       const current = steps[activeIndex];
-      const duration = clamp(Number(current?.duration) || 3, 1, 20);
+      const speed = readPlaybackSpeed();
+      const duration = clamp(Number(current?.duration) || 3, 1, 20) / Math.max(0.2, speed);
       await animateBetweenSteps(activeIndex, (activeIndex + 1) % steps.length, duration);
       if (!isPlaying) return;
       activeIndex = (activeIndex + 1) % steps.length;
@@ -317,6 +406,14 @@
   nextBtn?.addEventListener('click', async () => {
     stop();
     await loadStep(activeIndex + 1);
+  });
+  trailsInput?.addEventListener('change', async () => {
+    if (isPlaying) return;
+    await loadStep(activeIndex);
+  });
+  speedSelect?.addEventListener('change', () => {
+    if (!isPlaying) return;
+    setStatus(`Velocidad: ${readPlaybackSpeed()}×`);
   });
   playBtn?.addEventListener('click', async () => {
     await play();
