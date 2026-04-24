@@ -965,6 +965,34 @@ class SessionTask(models.Model):
         return f'{self.session} · {self.title}'
 
 
+class ImportedSessionDocument(models.Model):
+    REPO_TRADITIONAL = 'traditional'
+    REPO_INTERACTIVE = 'interactive'
+    REPO_CHOICES = [
+        (REPO_TRADITIONAL, 'Clásicas'),
+        (REPO_INTERACTIVE, 'Interactivas'),
+    ]
+
+    team = models.ForeignKey('Team', on_delete=models.CASCADE, related_name='imported_session_documents')
+    repository = models.CharField(max_length=20, choices=REPO_CHOICES, default=REPO_TRADITIONAL)
+    title = models.CharField(max_length=180)
+    session_date = models.DateField(null=True, blank=True)
+    pdf = models.FileField(upload_to='imported-sessions-pdf/')
+    preview_image = models.ImageField(upload_to='imported-sessions-preview/', null=True, blank=True)
+    created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='imported_session_documents')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-session_date', '-created_at', '-id']
+        indexes = [
+            models.Index(fields=['team', 'repository', '-created_at']),
+            models.Index(fields=['team', 'repository', '-session_date']),
+        ]
+
+    def __str__(self):
+        return self.title or f'Sesión importada {self.id}'
+
+
 class PdfGraphicAsset(models.Model):
     """
     Recursos gráficos extraídos de PDFs importados (imágenes embebidas).

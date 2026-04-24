@@ -516,6 +516,36 @@
 	      }
 		      .task-trash:hover { border-color: rgba(248, 113, 113, 0.75); background: rgba(127, 29, 29, 0.7); }
 		      .task-trash svg { width: 18px; height: 18px; fill: currentColor; display: block; }
+      .task-more {
+        position: relative;
+        margin: 0;
+      }
+      .task-more summary::-webkit-details-marker { display: none; }
+      .task-more summary {
+        list-style: none;
+        cursor: pointer;
+        user-select: none;
+      }
+      .task-more-body {
+        position: absolute;
+        top: calc(100% + 10px);
+        right: 0;
+        z-index: 40;
+        width: min(320px, 86vw);
+        padding: 0.65rem;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(8, 18, 30, 0.96);
+        box-shadow: 0 26px 56px rgba(2, 6, 23, 0.42);
+        display: grid;
+        gap: 0.45rem;
+      }
+      .task-more-body form { margin: 0; }
+      .task-more-body .button,
+      .task-more-body button {
+        width: 100%;
+        justify-content: flex-start;
+      }
 	      /* Sesión (bloques): evita desbordes en iPad (las tarjetas se estaban saliendo del bloque). */
 	      #planner-blocks .editor-box { overflow: hidden; }
 	      #planner-blocks .task-list { grid-template-columns: 1fr; gap: 0.6rem; }
@@ -1585,7 +1615,39 @@
 
 		        <section class="panel" id="import-sesiones">
 		          <h2>Importar · Sesiones</h2>
-		          <p class="empty">Próximamente: importar una sesión completa “tal cual” desde PDF, conservando textos y estructura.</p>
+		          <p class="meta" style="margin-top:0;">Se guarda el PDF tal cual. La tarjeta muestra la primera página y al pulsar abre el archivo.</p>
+		          <div class="editor-grid">
+		            <div class="editor-box">
+		              <h3>Sesión (PDF)</h3>
+		              <form method="post" enctype="multipart/form-data" class="grid">
+		                {% csrf_token %}
+		                <input type="hidden" name="planner_action" value="library_upload_session_pdf" />
+		                <input type="hidden" name="planner_tab" value="import" />
+		                <label>
+		                  Repositorio
+		                  <select name="library_repo">
+		                    <option value="traditional" {% if library_repository == 'traditional' %}selected{% endif %}>Clásicas</option>
+		                    <option value="interactive" {% if library_repository == 'interactive' %}selected{% endif %}>Interactivas</option>
+		                  </select>
+		                </label>
+		                <label>
+		                  Fecha (opcional)
+		                  <input type="date" name="session_pdf_date" />
+		                </label>
+		                <label style="grid-column:1/-1;">
+		                  Título (opcional)
+		                  <input type="text" name="session_pdf_title" maxlength="180" placeholder="Ej: Sesión 175 · Martes" />
+		                </label>
+		                <label style="grid-column:1/-1;">
+		                  PDF de sesión
+		                  <input type="file" name="library_session_pdf" accept="application/pdf" multiple required />
+		                </label>
+		                <div style="display:flex; align-items:flex-end;">
+		                  <button type="submit" class="primary">Subir PDFs</button>
+		                </div>
+		              </form>
+		            </div>
+		          </div>
 		        </section>
 
 		        <section class="panel" id="import-microciclos">
@@ -1601,6 +1663,25 @@
 		            <a class="tab-link {% if library_repository == 'traditional' %}is-active{% endif %}" href="?tab=sessions&library_repo=traditional{% if selected_session_id %}&session_id={{ selected_session_id }}{% endif %}">Clásicas</a>
 		            <a class="tab-link {% if library_repository == 'interactive' %}is-active{% endif %}" href="?tab=sessions&library_repo=interactive{% if selected_session_id %}&session_id={{ selected_session_id }}{% endif %}">Interactivas</a>
 		          </div>
+              {% if imported_session_docs %}
+              <h3 style="margin:0 0 0.55rem; font-size:0.76rem; letter-spacing:0.08em; text-transform:uppercase;">Sesiones importadas (PDF)</h3>
+              <div class="task-list" style="margin-bottom:0.8rem;">
+                {% for doc in imported_session_docs %}
+                <article class="task task-clickable" data-detail-url="{% url 'imported-session-file' doc.id %}" tabindex="0" role="link" aria-label="Abrir sesión importada {{ doc.title }}">
+                  <div class="task-media">
+                    <img src="{% url 'imported-session-preview-file' doc.id %}{% if doc.preview_image %}?v={{ doc.preview_image.name|urlencode }}{% endif %}" alt="Sesión importada {{ doc.title }}" loading="lazy" />
+                  </div>
+                  <div class="task-content">
+                    <h3 class="task-title">{{ doc.title }}</h3>
+                    <p class="meta">{% if doc.session_date %}<strong>{{ doc.session_date|date:"d/m/Y" }}</strong>{% else %}<strong>Sin fecha</strong>{% endif %} · PDF original</p>
+                    <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
+                      <a class="button" href="{% url 'imported-session-file' doc.id %}" target="_blank" rel="noopener">Abrir PDF</a>
+                    </div>
+                  </div>
+                </article>
+                {% endfor %}
+              </div>
+              {% endif %}
 			          <div class="editor-grid">
 				            <div class="editor-box" id="planner-create-session">
 				              <h3>Crear sesión</h3>
@@ -2528,13 +2609,13 @@
         {% elif task_library_filtered %}
         <div class="task-list">
           {% for t in task_library_filtered %}
-	          <article
-	            class="task task-clickable"
-	            data-detail-url="{% if t.is_imported %}{% url 'session-task-detail' t.id %}{% else %}{% url task_builder_edit_route_name t.id %}{% endif %}"
-	            tabindex="0"
-	            role="link"
-	            aria-label="Abrir tarea {{ t.title }}"
-	          >
+		          <article
+		            class="task task-clickable"
+		            data-detail-url="{% if t.is_imported %}{% url 'session-task-file' t.id %}{% else %}{% url task_builder_edit_route_name t.id %}{% endif %}"
+		            tabindex="0"
+		            role="link"
+		            aria-label="Abrir tarea {{ t.title }}"
+		          >
               <div class="task-media">
                 {% if t.task_preview_image or t.task_pdf %}
               <img src="{% url 'session-task-preview-file' t.id %}?v={{ t.task_preview_image.name|urlencode }}" alt="Representacion grafica de {{ t.title }}" loading="lazy" />
@@ -2585,52 +2666,57 @@
                     {% endfor %}
                   </select>
                   <button type="submit" class="secondary">Añadir a sesión</button>
-                </form>
-                {% endif %}
-                {% if t.task_pdf %}
-	                <form method="post" style="margin:0;">
-	                  {% csrf_token %}
-	                  <input type="hidden" name="planner_action" value="auto_fix_task_text" />
-	                  <input type="hidden" name="planner_tab" value="library" />
-	                  <input type="hidden" name="library_view" value="{{ library_view }}" />
-	                  <input type="hidden" name="library_key" value="{{ library_key }}" />
-	                  <input type="hidden" name="library_repo" value="{{ library_repository }}" />
-	                  <input type="hidden" name="task_id" value="{{ t.id }}" />
-	                  <button type="submit" class="secondary">Autocorregir</button>
 	                </form>
-                {% if t.is_imported %}
-	                <form method="post" style="margin:0;">
-	                  {% csrf_token %}
-	                  <input type="hidden" name="planner_action" value="pdf_board_background" />
-	                  <input type="hidden" name="planner_tab" value="library" />
-	                  <input type="hidden" name="library_view" value="{{ library_view }}" />
-	                  <input type="hidden" name="library_key" value="{{ library_key }}" />
-	                  <input type="hidden" name="library_repo" value="{{ library_repository }}" />
-	                  <input type="hidden" name="task_id" value="{{ t.id }}" />
-	                  <button type="submit" class="secondary">Usar gráfico PDF</button>
-	                </form>
-                {% endif %}
 	                {% endif %}
-		                <form method="post" style="margin:0;">
-		                  {% csrf_token %}
-		                  <input type="hidden" name="planner_action" value="duplicate_library_task" />
-		                  <input type="hidden" name="planner_tab" value="library" />
-		                  <input type="hidden" name="library_view" value="{{ library_view }}" />
-		                  <input type="hidden" name="library_key" value="{{ library_key }}" />
-		                  <input type="hidden" name="library_repo" value="{{ library_repository }}" />
-		                  <input type="hidden" name="task_id" value="{{ t.id }}" />
-		                  <button type="submit" class="secondary">Duplicar</button>
-		                </form>
-		                <form method="post" style="margin:0;" onsubmit="return confirm('¿Enviar esta tarea a la papelera? (Se puede restaurar)');">
-		                  {% csrf_token %}
-		                  <input type="hidden" name="planner_action" value="delete_library_task" />
-		                  <input type="hidden" name="planner_tab" value="library" />
-	                  <input type="hidden" name="library_view" value="{{ library_view }}" />
-	                  <input type="hidden" name="library_key" value="{{ library_key }}" />
-	                  <input type="hidden" name="library_repo" value="{{ library_repository }}" />
-	                  <input type="hidden" name="task_id" value="{{ t.id }}" />
-	                  <button type="submit" class="danger">Papelera</button>
-	                </form>
+                <details class="task-more">
+                  <summary class="button secondary">Más</summary>
+                  <div class="task-more-body" role="menu">
+                    {% if t.task_pdf %}
+	                  <form method="post">
+	                    {% csrf_token %}
+	                    <input type="hidden" name="planner_action" value="auto_fix_task_text" />
+	                    <input type="hidden" name="planner_tab" value="library" />
+	                    <input type="hidden" name="library_view" value="{{ library_view }}" />
+	                    <input type="hidden" name="library_key" value="{{ library_key }}" />
+	                    <input type="hidden" name="library_repo" value="{{ library_repository }}" />
+	                    <input type="hidden" name="task_id" value="{{ t.id }}" />
+	                    <button type="submit" class="secondary">Autocorregir</button>
+	                  </form>
+                    {% if t.is_imported %}
+	                  <form method="post">
+	                    {% csrf_token %}
+	                    <input type="hidden" name="planner_action" value="pdf_board_background" />
+	                    <input type="hidden" name="planner_tab" value="library" />
+	                    <input type="hidden" name="library_view" value="{{ library_view }}" />
+	                    <input type="hidden" name="library_key" value="{{ library_key }}" />
+	                    <input type="hidden" name="library_repo" value="{{ library_repository }}" />
+	                    <input type="hidden" name="task_id" value="{{ t.id }}" />
+	                    <button type="submit" class="secondary">Usar gráfico PDF</button>
+	                  </form>
+                    {% endif %}
+                    {% endif %}
+	                  <form method="post">
+	                    {% csrf_token %}
+	                    <input type="hidden" name="planner_action" value="duplicate_library_task" />
+	                    <input type="hidden" name="planner_tab" value="library" />
+	                    <input type="hidden" name="library_view" value="{{ library_view }}" />
+	                    <input type="hidden" name="library_key" value="{{ library_key }}" />
+	                    <input type="hidden" name="library_repo" value="{{ library_repository }}" />
+	                    <input type="hidden" name="task_id" value="{{ t.id }}" />
+	                    <button type="submit" class="secondary">Duplicar</button>
+	                  </form>
+	                  <form method="post" onsubmit="return confirm('¿Enviar esta tarea a la papelera? (Se puede restaurar)');">
+	                    {% csrf_token %}
+	                    <input type="hidden" name="planner_action" value="delete_library_task" />
+	                    <input type="hidden" name="planner_tab" value="library" />
+	                    <input type="hidden" name="library_view" value="{{ library_view }}" />
+	                    <input type="hidden" name="library_key" value="{{ library_key }}" />
+	                    <input type="hidden" name="library_repo" value="{{ library_repository }}" />
+	                    <input type="hidden" name="task_id" value="{{ t.id }}" />
+	                    <button type="submit" class="danger">Papelera</button>
+	                  </form>
+                  </div>
+                </details>
                 {% if t.is_imported %}
                 <span class="badge">Importada · Solo lectura</span>
                 {% endif %}

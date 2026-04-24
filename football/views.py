@@ -99,6 +99,7 @@ from football.models import (
     PlayerPhysicalMetric,
     PlayerStatistic,
     SessionTask,
+    ImportedSessionDocument,
     PdfGraphicAsset,
     ScrapeSource,
     Season,
@@ -22732,6 +22733,28 @@ def _ensure_library_task_preview(task, force=False, prefer_render=False):
         return False
 
 
+def _ensure_imported_session_preview(doc, force=False, prefer_render=True):
+    if not doc:
+        return False
+    current_name = str(getattr(doc, 'preview_image', '') or '').strip()
+    if current_name and not force:
+        try:
+            if default_storage.exists(current_name):
+                return True
+        except Exception:
+            pass
+    if getattr(doc, 'pdf', None):
+        payload = _extract_preview_image_from_pdf(doc.pdf, prefer_render=prefer_render)
+        if payload:
+            preview_name, preview_content = payload
+            try:
+                doc.preview_image.save(preview_name, preview_content, save=True)
+                return bool(doc.preview_image)
+            except Exception:
+                return False
+    return False
+
+
 TASK_CONTEXT_KEYWORDS = {
     'presion_alta': ['presion alta', 'presión alta', 'repliegue tras perdida', 'robo alto'],
     'salida_balon': ['salida de balon', 'salida de balón', 'inicio juego', 'construccion'],
@@ -25629,6 +25652,46 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     else f'Se procesaron {processed_pdfs} PDFs y se crearon {created_count} tareas.'
                 )
 
+            elif planner_action == 'library_upload_session_pdf':
+                repository = _normalize_library_repository(request.POST.get('library_repo') or LIBRARY_REPOSITORY_TRADITIONAL)
+                pdf_files = request.FILES.getlist('library_session_pdf') or []
+                if not pdf_files:
+                    raise ValueError('Selecciona al menos un PDF de sesión.')
+                title_hint = _sanitize_task_text((request.POST.get('session_pdf_title') or '').strip(), multiline=False, max_len=180)
+                date_raw = str(request.POST.get('session_pdf_date') or '').strip()
+                session_date = None
+                if date_raw:
+                    try:
+                        session_date = datetime.strptime(date_raw, '%Y-%m-%d').date()
+                    except ValueError:
+                        raise ValueError('Fecha de sesión no válida.')
+                created_docs = 0
+                for upload in pdf_files:
+                    raw_name = str(getattr(upload, 'name', '') or '').strip()
+                    stem = Path(raw_name).stem if raw_name else ''
+                    resolved_title = title_hint
+                    if not resolved_title or len(pdf_files) > 1:
+                        resolved_title = stem or resolved_title or 'Sesión importada'
+                    resolved_title = str(resolved_title).strip()[:180] or 'Sesión importada'
+                    doc = ImportedSessionDocument.objects.create(
+                        team=primary_team,
+                        repository=repository,
+                        title=resolved_title,
+                        session_date=session_date,
+                        pdf=upload,
+                        created_by=request.user,
+                    )
+                    try:
+                        _ensure_imported_session_preview(doc, force=True, prefer_render=True)
+                    except Exception:
+                        pass
+                    created_docs += 1
+                feedback = (
+                    'Se importó 1 sesión (PDF).'
+                    if created_docs == 1
+                    else f'Se importaron {created_docs} sesiones (PDF).'
+                )
+
             elif planner_action == 'library_upload_video':
                 repository = _normalize_library_repository(request.POST.get('library_repo') or LIBRARY_REPOSITORY_INTERACTIVE)
                 if repository != LIBRARY_REPOSITORY_INTERACTIVE:
@@ -27546,6 +27609,16 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
 
     prefill_microcycle_id = _parse_int(request.GET.get('microcycle_id') or request.POST.get('microcycle_id'))
 
+    imported_session_docs = []
+    try:
+        imported_session_docs = list(
+            ImportedSessionDocument.objects
+            .filter(team=primary_team, repository=library_repository)
+            .order_by('-session_date', '-created_at', '-id')[:40]
+        )
+    except Exception:
+        imported_session_docs = []
+
     return render(
         request,
         'football/sessions_planner.html',
@@ -27599,6 +27672,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             'task_pitch_choices': TASK_PITCH_FORMAT_CHOICES,
             'tactical_player_catalog': tactical_player_catalog,
             'prefill_microcycle_id': prefill_microcycle_id,
+            'imported_session_docs': imported_session_docs,
         },
     )
 
@@ -30487,6 +30561,66 @@ def session_task_file(request, task_id):
     except Exception:
         return HttpResponse('No se pudo abrir el archivo PDF.', status=500)
     filename = (Path(file_field.name).name or f'tarea-{task.id}.pdf').replace('"', '')
+    response = FileResponse(file_field, content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="{filename}"'
+    return response
+
+
+@login_required
+def imported_session_preview_file(request, doc_id):
+    if not _can_access_sessions_workspace(request.user):
+        return HttpResponse('No tienes permisos para acceder a sesiones.', status=403)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        raise Http404('Equipo principal no configurado')
+    doc = ImportedSessionDocument.objects.filter(id=doc_id, team=primary_team).first()
+    if not doc:
+        raise Http404('Imagen de sesión no disponible')
+    if not doc.preview_image:
+        if not _ensure_imported_session_preview(doc, force=True, prefer_render=True):
+            raise Http404('Imagen de sesión no disponible')
+    file_field = doc.preview_image
+    try:
+        file_field.open('rb')
+    except Exception:
+        if _ensure_imported_session_preview(doc, force=True, prefer_render=True):
+            file_field = doc.preview_image
+            try:
+                file_field.open('rb')
+            except Exception:
+                return HttpResponse('No se pudo abrir la imagen de la sesión.', status=500)
+        else:
+            return HttpResponse('No se pudo abrir la imagen de la sesión.', status=500)
+    extension = Path(file_field.name).suffix.lower()
+    content_type = {
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.webp': 'image/webp',
+        '.gif': 'image/gif',
+    }.get(extension, 'application/octet-stream')
+    response = FileResponse(file_field, content_type=content_type)
+    response['Content-Disposition'] = f'inline; filename="{Path(file_field.name).name}"'
+    response['Cache-Control'] = 'private, max-age=0, must-revalidate'
+    return response
+
+
+@login_required
+def imported_session_file(request, doc_id):
+    if not _can_access_sessions_workspace(request.user):
+        return HttpResponse('No tienes permisos para acceder a sesiones.', status=403)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        raise Http404('Equipo principal no configurado')
+    doc = ImportedSessionDocument.objects.filter(id=doc_id, team=primary_team).first()
+    if not doc or not doc.pdf:
+        raise Http404('Archivo de sesión no disponible')
+    file_field = doc.pdf
+    try:
+        file_field.open('rb')
+    except Exception:
+        return HttpResponse('No se pudo abrir el archivo PDF.', status=500)
+    filename = (Path(file_field.name).name or f'sesion-{doc.id}.pdf').replace('"', '')
     response = FileResponse(file_field, content_type='application/pdf')
     response['Content-Disposition'] = f'inline; filename="{filename}"'
     return response

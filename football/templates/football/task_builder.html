@@ -56,6 +56,70 @@
         gap: 0.55rem;
         flex-wrap: wrap;
       }
+      .action-menu {
+        position: relative;
+      }
+      .action-menu summary {
+        list-style: none;
+      }
+      .action-menu summary::-webkit-details-marker { display: none; }
+      .action-menu summary.action-summary {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.45rem;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--ink);
+        border-radius: 999px;
+        padding: 0.62rem 0.92rem;
+        font: inherit;
+        font-size: 0.73rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        cursor: pointer;
+        user-select: none;
+      }
+      .action-menu[open] summary.action-summary {
+        border-color: rgba(34, 211, 238, 0.42);
+        background: rgba(34, 211, 238, 0.12);
+      }
+      .action-menu-body {
+        position: absolute;
+        top: calc(100% + 10px);
+        right: 0;
+        z-index: 90;
+        width: min(540px, 92vw);
+        padding: 0.75rem;
+        border-radius: 18px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(8, 18, 30, 0.96);
+        box-shadow: 0 26px 56px rgba(2, 6, 23, 0.42);
+        display: grid;
+        gap: 0.75rem;
+      }
+      .action-menu-group {
+        border: 1px solid rgba(255,255,255,0.10);
+        background: rgba(255,255,255,0.03);
+        border-radius: 16px;
+        padding: 0.7rem;
+        display: grid;
+        gap: 0.55rem;
+      }
+      .action-menu-title {
+        font-size: 0.7rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(226,232,240,0.78);
+        font-weight: 900;
+      }
+      .action-menu-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: center;
+      }
       .device-toggle {
         display: inline-flex;
         gap: 0.35rem;
@@ -183,6 +247,34 @@
         flex-wrap: wrap;
         margin-bottom: 0.85rem;
         position: relative;
+      }
+      .pitch-view-menu {
+        position: relative;
+      }
+      .pitch-view-menu summary::-webkit-details-marker { display: none; }
+      .pitch-view-menu summary.surface-trigger {
+        cursor: pointer;
+        user-select: none;
+      }
+      .pitch-view-menu[open] summary.surface-trigger {
+        background: rgba(34, 211, 238, 0.12);
+        border-color: rgba(34, 211, 238, 0.42);
+      }
+      .pitch-view-menu-body {
+        position: absolute;
+        top: calc(100% + 10px);
+        left: 0;
+        z-index: 85;
+        width: min(720px, 92vw);
+        padding: 0.75rem;
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(8, 18, 30, 0.96);
+        box-shadow: 0 26px 56px rgba(2, 6, 23, 0.42);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem;
+        align-items: center;
       }
       .pitch-toolbar button,
       .resource-strip button,
@@ -430,6 +522,8 @@
         gap: 0.45rem;
         margin-left: auto;
       }
+      /* Reducimos ruido: el selector rápido es redundante con las pestañas desplegables. */
+      .resource-select { display: none; }
       .resource-select label {
         display: inline-flex;
         align-items: center;
@@ -2743,25 +2837,45 @@
 		        <div class="actions">
 		          <a href="{{ back_url|default:'#' }}" class="button">{{ back_label|default:'Volver a sesiones' }}</a>
 		          <button type="button" class="button" id="task-builder-help" title="Ver tutorial rápido">Ayuda</button>
-	            {% if task and can_restore_original %}
-	            <form method="post" style="display:inline-flex; margin:0;">
-	              {% csrf_token %}
-	              <input type="hidden" name="builder_action" value="restore_original_version" />
-              <button type="submit" class="button danger" title="Restaura el contenido anterior si algo se borró por error">Restaurar versión</button>
-            </form>
-            {% endif %}
-	          <div class="device-toggle" role="group" aria-label="Modo de edición">
-	            <button type="button" data-device-mode="desktop">Ordenador</button>
-	            <button type="button" data-device-mode="tablet">iPad</button>
-	            <button type="button" data-device-mode="auto" class="is-active">Auto</button>
-	          </div>
 	          <button type="button" class="button" id="task-builder-compact-toggle" aria-pressed="false">Vista compacta</button>
-	          <button type="button" class="button" data-print-style="uefa">Imprimir UEFA</button>
-	          <button type="button" class="button" data-print-style="club">Imprimir Club</button>
-	          {% if task %}
-          <button type="button" class="button" id="share-pdf-uefa">Compartir PDF UEFA</button>
-          <button type="button" class="button" id="share-pdf-club">Compartir PDF Club</button>
-          {% endif %}
+            <details class="action-menu" id="task-builder-actions-menu">
+              <summary class="action-summary" aria-label="Abrir opciones">Opciones</summary>
+              <div class="action-menu-body" role="menu">
+                <div class="action-menu-group">
+                  <div class="action-menu-title">Modo de edición</div>
+                  <div class="action-menu-row">
+	                  <div class="device-toggle" role="group" aria-label="Modo de edición">
+	                    <button type="button" data-device-mode="desktop">Ordenador</button>
+	                    <button type="button" data-device-mode="tablet">iPad</button>
+	                    <button type="button" data-device-mode="auto" class="is-active">Auto</button>
+	                  </div>
+                  </div>
+                </div>
+                <div class="action-menu-group">
+                  <div class="action-menu-title">PDF</div>
+                  <div class="action-menu-row">
+	                  <button type="button" class="button" data-print-style="uefa">Imprimir UEFA</button>
+	                  <button type="button" class="button" data-print-style="club">Imprimir Club</button>
+	                  {% if task %}
+	                  <button type="button" class="button" id="share-pdf-uefa">Compartir PDF UEFA</button>
+	                  <button type="button" class="button" id="share-pdf-club">Compartir PDF Club</button>
+	                  {% endif %}
+                  </div>
+                </div>
+                {% if task and can_restore_original %}
+                <div class="action-menu-group">
+                  <div class="action-menu-title">Seguridad</div>
+                  <div class="action-menu-row">
+	                  <form method="post" style="display:inline-flex; margin:0;">
+	                    {% csrf_token %}
+	                    <input type="hidden" name="builder_action" value="restore_original_version" />
+	                    <button type="submit" class="button danger" title="Restaura el contenido anterior si algo se borró por error">Restaurar versión</button>
+	                  </form>
+                  </div>
+                </div>
+                {% endif %}
+              </div>
+            </details>
 	        </div>
 	      </div>
 
@@ -2889,26 +3003,34 @@
                       </button>
                     </div>
                   </div>
-	                  <button type="button" class="surface-trigger" id="pitch-orientation-toggle">
-	                    <span>Orientación</span>
-	                    <span class="current" id="pitch-orientation-label">{% if initial.pitch_orientation == 'portrait' %}Vertical{% else %}Horizontal{% endif %}</span>
-	                  </button>
-	                  <button type="button" class="surface-trigger" id="pitch-grass-toggle">
-	                    <span>Césped</span>
-	                    <span class="current" id="pitch-grass-label">{% if initial.pitch_grass_style == 'realistic' %}Realista{% else %}Clásico{% endif %}</span>
-	                  </button>
-		                  <div class="pitch-zoom">
-		                    <button type="button" id="pitch-zoom-out" title="Alejar">-</button>
-		                    <span class="zoom-readout" id="pitch-zoom-label">100%</span>
-		                    <button type="button" id="pitch-zoom-in" title="Acercar">+</button>
-		                    <button type="button" id="pitch-zoom-reset" title="Reset">↺</button>
-		                  </div>
-	                  <div class="pitch-size" title="Tamaño del campo en pantalla">
-	                    <button type="button" id="pitch-size-down" title="Campo más pequeño">-</button>
-	                    <span class="zoom-readout" id="pitch-size-label">Campo</span>
-	                    <button type="button" id="pitch-size-up" title="Campo más grande">+</button>
-	                    <button type="button" id="pitch-size-fit" title="Ajustar a pantalla">⤢</button>
-	                  </div>
+                  <details class="pitch-view-menu" id="pitch-view-menu">
+                    <summary class="surface-trigger button" aria-label="Opciones de vista">
+                      <span>Vista</span>
+                      <span class="current">Zoom / césped</span>
+                    </summary>
+                    <div class="pitch-view-menu-body">
+	                    <button type="button" class="surface-trigger" id="pitch-orientation-toggle">
+	                      <span>Orientación</span>
+	                      <span class="current" id="pitch-orientation-label">{% if initial.pitch_orientation == 'portrait' %}Vertical{% else %}Horizontal{% endif %}</span>
+	                    </button>
+	                    <button type="button" class="surface-trigger" id="pitch-grass-toggle">
+	                      <span>Césped</span>
+	                      <span class="current" id="pitch-grass-label">{% if initial.pitch_grass_style == 'realistic' %}Realista{% else %}Clásico{% endif %}</span>
+	                    </button>
+		                    <div class="pitch-zoom">
+		                      <button type="button" id="pitch-zoom-out" title="Alejar">-</button>
+		                      <span class="zoom-readout" id="pitch-zoom-label">100%</span>
+		                      <button type="button" id="pitch-zoom-in" title="Acercar">+</button>
+		                      <button type="button" id="pitch-zoom-reset" title="Reset">↺</button>
+		                    </div>
+	                    <div class="pitch-size" title="Tamaño del campo en pantalla">
+	                      <button type="button" id="pitch-size-down" title="Campo más pequeño">-</button>
+	                      <span class="zoom-readout" id="pitch-size-label">Campo</span>
+	                      <button type="button" id="pitch-size-up" title="Campo más grande">+</button>
+	                      <button type="button" id="pitch-size-fit" title="Ajustar a pantalla">⤢</button>
+	                    </div>
+                    </div>
+                  </details>
 	                  <div class="pitch-quick" id="task-pitch-quick-tools" aria-label="Acciones rápidas">
 	                    <button type="button" class="surface-trigger" data-action="undo" title="Deshacer">↶</button>
 	                    <button type="button" class="surface-trigger" data-action="redo" title="Rehacer">↷</button>
@@ -4600,7 +4722,7 @@
 		            {
 		              anchor: '.topbar .actions',
 		              title: '1) Acciones rápidas',
-		              body: 'Aquí cambias el modo (Ordenador/iPad), activas vista compacta y generas el PDF (Imprimir UEFA/Club).',
+		              body: 'Arriba tienes lo esencial (Volver, Ayuda y Vista compacta). En “Opciones” está el modo (Ordenador/iPad/Auto) y la generación/compartición de PDF (UEFA/Club).',
 		            },
 		            {
 		              anchor: '#task-pitch-stage',
