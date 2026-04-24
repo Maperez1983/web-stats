@@ -18606,7 +18606,10 @@ def coach_role_trainer_page(request):
     ]
     duels = [item for item in duel_classifications if item.get('is_duel')]
     duel_won = [item for item in duels if item.get('won')]
+    aerial_duels = [item for item in duels if item.get('aerial')]
+    aerial_duels_won = [item for item in aerial_duels if item.get('won')]
     duel_rate = round((len(duel_won) / len(duels)) * 100, 1) if duels else 0.0
+    aerial_duel_rate = round((len(aerial_duels_won) / len(aerial_duels)) * 100, 1) if aerial_duels else 0.0
     success_actions = [event for event in events if result_is_success(event.result)]
     success_rate = round((len(success_actions) / total_actions) * 100, 1) if total_actions else 0.0
     avg_actions = round(total_actions / measured_matches, 1) if measured_matches else 0.0
@@ -18634,6 +18637,8 @@ def coach_role_trainer_page(request):
         ]
         duels_local = [item for item in duel_local_classifications if item.get('is_duel')]
         duels_won_local = [item for item in duels_local if item.get('won')]
+        aerial_duels_local = [item for item in duels_local if item.get('aerial')]
+        aerial_duels_won_local = [item for item in aerial_duels_local if item.get('won')]
         shots_attempts = 0
         shots_on_target = 0
         passes_attempts = 0
@@ -18668,6 +18673,8 @@ def coach_role_trainer_page(request):
             'success_rate': round((successes_local / total) * 100, 1) if total else 0.0,
             'duels_total': len(duels_local),
             'duel_rate': round((len(duels_won_local) / len(duels_local)) * 100, 1) if duels_local else 0.0,
+            'aerial_duels_total': len(aerial_duels_local),
+            'aerial_duel_rate': round((len(aerial_duels_won_local) / len(aerial_duels_local)) * 100, 1) if aerial_duels_local else 0.0,
             'yellow_cards': yellow_local,
             'red_cards': red_local,
             'goals': goals_local,
@@ -18742,6 +18749,7 @@ def coach_role_trainer_page(request):
         {'label': 'Partidos medidos', 'value': measured_matches},
         {'label': 'Goles totales', 'value': goals_for},
         {'label': 'Goles medidos', 'value': event_goals_for},
+        {'label': 'Duelos aéreos (medidos)', 'value': len(aerial_duels)},
         {'label': 'Goles por partido', 'value': goals_per_match},
         {'label': 'Goles medidos/partido', 'value': measured_goals_per_match},
         {'label': 'GC por partido', 'value': goals_conceded_per_match},
@@ -18784,21 +18792,23 @@ def coach_role_trainer_page(request):
     ]
 
     kpis = [
-        {'label': 'Clasificación', 'value': rank or '-', 'pct': min(100, max(0, 100 - (rank * 4 if rank else 0))), 'suffix': ''},
-        {'label': 'Puntos', 'value': points, 'pct': min(100, round((points / 75) * 100, 1) if points else 0), 'suffix': ''},
-        {'label': 'Goles a favor', 'value': goals_for, 'pct': min(100, round((goals_for / 60) * 100, 1) if goals_for else 0), 'suffix': ''},
-        {'label': 'Goles en contra', 'value': goals_against, 'pct': min(100, round((goals_against / 60) * 100, 1) if goals_against else 0), 'suffix': ''},
-        {'label': 'Amarillas', 'value': yellows, 'pct': min(100, round((yellows / 75) * 100, 1) if yellows else 0), 'suffix': ''},
-        {'label': 'Rojas', 'value': reds, 'pct': min(100, round((reds / 20) * 100, 1) if reds else 0), 'suffix': ''},
-        {'label': 'Posesión*', 'value': f'{min(80, max(35, 45 + (success_rate / 4))):.1f}%', 'pct': min(100, max(0, min(80, max(35, 45 + (success_rate / 4))))), 'suffix': ''},
-        {'label': 'Duelos', 'value': len(duels), 'pct': min(100, round((len(duels) / 240) * 100, 1) if duels else 0), 'suffix': ''},
-        {'label': '% Acierto', 'value': f'{success_rate:.1f}%', 'pct': min(100, max(0, success_rate)), 'suffix': ''},
-        {'label': 'Disparos/Gol', 'value': '-' if team_shots_per_goal is None else team_shots_per_goal, 'pct': 0 if team_shots_per_goal is None else max(0, min(100, round(100 - (min(team_shots_per_goal, 12) / 12) * 100, 1))), 'suffix': ''},
-        {'label': 'Acciones totales', 'value': total_actions, 'pct': min(100, round((total_actions / 1200) * 100, 1) if total_actions else 0), 'suffix': ''},
-        {'label': 'Acciones/partido', 'value': avg_actions, 'pct': min(100, round((avg_actions / 80) * 100, 1) if avg_actions else 0), 'suffix': ''},
-        {'label': 'Duelos/partido', 'value': avg_duels, 'pct': min(100, round((avg_duels / 20) * 100, 1) if avg_duels else 0), 'suffix': ''},
-        {'label': 'Amarillas/partido', 'value': avg_yellows, 'pct': min(100, round((avg_yellows / 4) * 100, 1) if avg_yellows else 0), 'suffix': ''},
-        {'label': '% Duelo ganado', 'value': f'{duel_rate:.1f}%', 'pct': min(100, max(0, duel_rate)), 'suffix': ''},
+        {'key': 'rank', 'label': 'Clasificación', 'value': rank or '-', 'pct': min(100, max(0, 100 - (rank * 4 if rank else 0))), 'suffix': ''},
+        {'key': 'points', 'label': 'Puntos', 'value': points, 'pct': min(100, round((points / 75) * 100, 1) if points else 0), 'suffix': ''},
+        {'key': 'goals_for', 'label': 'Goles a favor', 'value': goals_for, 'pct': min(100, round((goals_for / 60) * 100, 1) if goals_for else 0), 'suffix': ''},
+        {'key': 'goals_against', 'label': 'Goles en contra', 'value': goals_against, 'pct': min(100, round((goals_against / 60) * 100, 1) if goals_against else 0), 'suffix': ''},
+        {'key': 'yellows', 'label': 'Amarillas', 'value': yellows, 'pct': min(100, round((yellows / 75) * 100, 1) if yellows else 0), 'suffix': ''},
+        {'key': 'reds', 'label': 'Rojas', 'value': reds, 'pct': min(100, round((reds / 20) * 100, 1) if reds else 0), 'suffix': ''},
+        {'key': 'possession', 'label': 'Posesión*', 'value': f'{min(80, max(35, 45 + (success_rate / 4))):.1f}%', 'pct': min(100, max(0, min(80, max(35, 45 + (success_rate / 4))))), 'suffix': ''},
+        {'key': 'duels_total', 'label': 'Duelos', 'value': len(duels), 'pct': min(100, round((len(duels) / 240) * 100, 1) if duels else 0), 'suffix': ''},
+        {'key': 'aerial_duels_total', 'label': 'Duelos aéreos', 'value': len(aerial_duels), 'pct': min(100, round((len(aerial_duels) / 120) * 100, 1) if aerial_duels else 0), 'suffix': ''},
+        {'key': 'success_rate', 'label': '% Acierto', 'value': f'{success_rate:.1f}%', 'pct': min(100, max(0, success_rate)), 'suffix': ''},
+        {'key': 'shots_per_goal', 'label': 'Disparos/Gol', 'value': '-' if team_shots_per_goal is None else team_shots_per_goal, 'pct': 0 if team_shots_per_goal is None else max(0, min(100, round(100 - (min(team_shots_per_goal, 12) / 12) * 100, 1))), 'suffix': ''},
+        {'key': 'total_actions', 'label': 'Acciones totales', 'value': total_actions, 'pct': min(100, round((total_actions / 1200) * 100, 1) if total_actions else 0), 'suffix': ''},
+        {'key': 'avg_actions', 'label': 'Acciones/partido', 'value': avg_actions, 'pct': min(100, round((avg_actions / 80) * 100, 1) if avg_actions else 0), 'suffix': ''},
+        {'key': 'avg_duels', 'label': 'Duelos/partido', 'value': avg_duels, 'pct': min(100, round((avg_duels / 20) * 100, 1) if avg_duels else 0), 'suffix': ''},
+        {'key': 'avg_yellows', 'label': 'Amarillas/partido', 'value': avg_yellows, 'pct': min(100, round((avg_yellows / 4) * 100, 1) if avg_yellows else 0), 'suffix': ''},
+        {'key': 'duel_rate', 'label': '% Duelo ganado', 'value': f'{duel_rate:.1f}%', 'pct': min(100, max(0, duel_rate)), 'suffix': ''},
+        {'key': 'aerial_duel_rate', 'label': '% Duelo aéreo', 'value': f'{aerial_duel_rate:.1f}%', 'pct': min(100, max(0, aerial_duel_rate)), 'suffix': ''},
     ]
 
     team_events = list(events)
@@ -19111,6 +19121,7 @@ def coach_role_trainer_page(request):
                 'summary': [
                     {'label': 'Acciones', 'value': selected_match_metrics['total_actions']},
                     {'label': 'Goles', 'value': selected_match_metrics['goals']},
+                    {'label': 'Duelos aéreos', 'value': selected_match_metrics.get('aerial_duels_total', 0)},
                     {
                         'label': 'Pases',
                         'value': f"{selected_match_metrics['passes_completed']}/{selected_match_metrics['passes_attempts']}",
@@ -32249,6 +32260,8 @@ def _build_player_match_stats_payload(primary_team, player, match):
         'tercio_totals': {label: 0 for label in STANDARD_TERCIO_LABELS},
         'duels_total': 0,
         'duels_won': 0,
+        'aerial_duels_total': 0,
+        'aerial_duels_won': 0,
         'shot_attempts': 0,
         'shots_on_target': 0,
         'pass_attempts': 0,
@@ -32273,6 +32286,10 @@ def _build_player_match_stats_payload(primary_team, player, match):
             stats['duels_total'] += 1
             if duel_event.get('won'):
                 stats['duels_won'] += 1
+            if duel_event.get('aerial'):
+                stats['aerial_duels_total'] += 1
+                if duel_event.get('won'):
+                    stats['aerial_duels_won'] += 1
         zone_label = _resolve_zone_label(event, match_zone_profiles, player_zone_profiles)
         if zone_label:
             stats['zone_counts'][zone_label] += 1
@@ -32311,6 +32328,9 @@ def _build_player_match_stats_payload(primary_team, player, match):
     stats['duel_rate'] = round(
         (stats['duels_won'] / stats['duels_total']) * 100, 1
     ) if stats['duels_total'] else 0
+    stats['aerial_duel_rate'] = round(
+        (stats['aerial_duels_won'] / stats['aerial_duels_total']) * 100, 1
+    ) if stats['aerial_duels_total'] else 0
     stats['zone_heatmap'] = sorted(
         [
             {'zone': zone, 'count': count}
@@ -32354,20 +32374,22 @@ def _build_player_match_stats_payload(primary_team, player, match):
         else 0,
     }
     stats['kpi_summary'] = [
-        {'label': 'Acciones', 'value': stats['total_actions']},
-        {'label': 'Éxitos', 'value': stats['successes']},
-        {'label': 'Tasa de éxito', 'value': f"{stats['success_rate']:.1f}%"},
-        {'label': 'Duelos', 'value': f"{stats['duels_won']}/{stats['duels_total']}"},
-        {'label': 'Duelos %', 'value': f"{stats['duel_rate']:.1f}%"},
-        {'label': 'Pases', 'value': f"{stats['passes_completed']}/{stats['pass_attempts']}"},
-        {'label': 'Pases clave', 'value': stats['key_passes_completed']},
-        {'label': 'Pase %', 'value': f"{stats['passes']['accuracy']:.1f}%"},
-        {'label': 'Disparos', 'value': f"{stats['shots_on_target']}/{stats['shot_attempts']}"},
-        {'label': 'Tiro a puerta', 'value': f"{stats['shots']['accuracy']:.1f}%"},
-        {'label': 'Disparos/Gol', 'value': '-' if stats['shots']['per_goal'] is None else stats['shots']['per_goal']},
-        {'label': 'Goles', 'value': stats['goals']},
-        {'label': 'Asistencias', 'value': stats['assists']},
-        {'label': 'Paradas', 'value': stats['goalkeeper_saves']},
+        {'key': 'total_actions', 'label': 'Acciones', 'value': stats['total_actions']},
+        {'key': 'successes', 'label': 'Éxitos', 'value': stats['successes']},
+        {'key': 'success_rate', 'label': 'Tasa de éxito', 'value': f"{stats['success_rate']:.1f}%"},
+        {'key': 'duels', 'label': 'Duelos', 'value': f"{stats['duels_won']}/{stats['duels_total']}"},
+        {'key': 'duel_rate', 'label': 'Duelos %', 'value': f"{stats['duel_rate']:.1f}%"},
+        {'key': 'aerial_duels_total', 'label': 'Duelos aéreos (totales)', 'value': stats['aerial_duels_total']},
+        {'key': 'aerial_duel_rate', 'label': 'Duelos aéreos %', 'value': f"{stats['aerial_duel_rate']:.1f}%"},
+        {'key': 'passes', 'label': 'Pases', 'value': f"{stats['passes_completed']}/{stats['pass_attempts']}"},
+        {'key': 'key_passes_completed', 'label': 'Pases clave', 'value': stats['key_passes_completed']},
+        {'key': 'passes_accuracy', 'label': 'Pase %', 'value': f"{stats['passes']['accuracy']:.1f}%"},
+        {'key': 'shots', 'label': 'Disparos', 'value': f"{stats['shots_on_target']}/{stats['shot_attempts']}"},
+        {'key': 'shots_accuracy', 'label': 'Tiro a puerta', 'value': f"{stats['shots']['accuracy']:.1f}%"},
+        {'key': 'shots_per_goal', 'label': 'Disparos/Gol', 'value': '-' if stats['shots']['per_goal'] is None else stats['shots']['per_goal']},
+        {'key': 'goals', 'label': 'Goles', 'value': stats['goals']},
+        {'key': 'assists', 'label': 'Asistencias', 'value': stats['assists']},
+        {'key': 'goalkeeper_saves', 'label': 'Paradas', 'value': stats['goalkeeper_saves']},
     ]
     total_zone_actions = sum(int(count or 0) for count in stats['zone_counts'].values())
     stats['field_zones'] = [
@@ -34319,6 +34341,8 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
                 'tercio_totals': {label: 0 for label in STANDARD_TERCIO_LABELS},
                 'duels_total': 0,
                 'duels_won': 0,
+                'aerial_duels_total': 0,
+                'aerial_duels_won': 0,
                 'shot_attempts': 0,
                 'shots_on_target': 0,
                 'pass_attempts': 0,
@@ -34351,6 +34375,10 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
             stats['duels_total'] += 1
             if duel_event.get('won'):
                 stats['duels_won'] += 1
+            if duel_event.get('aerial'):
+                stats['aerial_duels_total'] += 1
+                if duel_event.get('won'):
+                    stats['aerial_duels_won'] += 1
         zone_label = _resolve_zone_label(event, match_zone_profiles, player_zone_profiles)
         if zone_label:
             stats['zone_counts'][zone_label] += 1
@@ -34941,6 +34969,16 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
                 (stats['duels_won'] / stats['duels_total']) * 100, 1
             )
             if stats['duels_total']
+            else 0,
+            'aerial_duel_summary': {
+                'won': int(stats.get('aerial_duels_won', 0) or 0),
+                'total': int(stats.get('aerial_duels_total', 0) or 0),
+            },
+            'aerial_duel_rate': round(
+                (int(stats.get('aerial_duels_won', 0) or 0) / int(stats.get('aerial_duels_total', 0) or 0)) * 100,
+                1,
+            )
+            if int(stats.get('aerial_duels_total', 0) or 0)
             else 0,
             'zone_heatmap': sorted(
                 [

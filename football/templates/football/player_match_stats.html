@@ -195,28 +195,32 @@
         <a href="{% url 'player-detail' player.id %}">← Volver al jugador</a>
       </header>
 
-      <section class="card overview">
+      <section class="card overview" data-kpi-container>
         <h2 class="overview-title">KPI de rendimiento</h2>
+        <details class="kpi-customizer" data-kpi-pref-key="player_match_stats">
+          <summary>Personalizar KPIs</summary>
+          <div class="kpi-customizer-body"></div>
+        </details>
         <div class="rings">
-          <article class="ring">
+          <article class="ring" data-kpi-key="success_rate" data-kpi-label="Tasa de éxito">
             <div class="ring-chart" style="--pct: {{ stats.success_rate|default:0 }};">
               <span class="ring-value">{{ stats.success_rate|default:0|floatformat:-1 }}%</span>
             </div>
             <div class="ring-label">Tasa de éxito</div>
           </article>
-          <article class="ring">
+          <article class="ring" data-kpi-key="duel_rate" data-kpi-label="Duelos ganados">
             <div class="ring-chart" style="--pct: {{ stats.duel_rate|default:0 }};">
               <span class="ring-value">{{ stats.duel_rate|default:0|floatformat:-1 }}%</span>
             </div>
             <div class="ring-label">Duelos ganados</div>
           </article>
-          <article class="ring">
+          <article class="ring" data-kpi-key="passes_accuracy" data-kpi-label="Precisión de pase">
             <div class="ring-chart" style="--pct: {{ stats.passes.accuracy|default:0 }};">
               <span class="ring-value">{{ stats.passes.accuracy|default:0|floatformat:-1 }}%</span>
             </div>
             <div class="ring-label">Precisión de pase</div>
           </article>
-          <article class="ring">
+          <article class="ring" data-kpi-key="shots_accuracy" data-kpi-label="Tiro a puerta">
             <div class="ring-chart" style="--pct: {{ stats.shots.accuracy|default:0 }};">
               <span class="ring-value">{{ stats.shots.accuracy|default:0|floatformat:-1 }}%</span>
             </div>
@@ -225,7 +229,7 @@
         </div>
         <div class="summary-grid">
           {% for item in stats.kpi_summary %}
-          <article class="summary-item">
+          <article class="summary-item" data-kpi-key="{{ item.key|default:'' }}" data-kpi-label="{{ item.label|default:'' }}">
             <div class="label">{{ item.label }}</div>
             <div class="value">{{ item.value }}</div>
           </article>
@@ -254,5 +258,6 @@
         </div>
       </section>
     </div>
+    <script src="{% static 'football/js/kpi_customizer.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"></script>
   </body>
 </html>

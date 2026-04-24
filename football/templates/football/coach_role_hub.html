@@ -1044,9 +1044,13 @@
       </section>
       {% endif %}
       {% if kpis and not coach_overview_stats %}
-      <section class="kpis">
+      <section class="kpis" data-kpi-container>
+        <details class="kpi-customizer" data-kpi-pref-key="coach_trainer_kpis">
+          <summary>Personalizar KPIs</summary>
+          <div class="kpi-customizer-body"></div>
+        </details>
         {% for kpi in kpis %}
-        <article class="kpi">
+        <article class="kpi" data-kpi-key="{{ kpi.key|default:'' }}" data-kpi-label="{{ kpi.label|default:'' }}">
           <div class="kpi-ring" style="--pct: {{ kpi.pct|default:0 }};">
             <div class="kpi-value">{{ kpi.value }}</div>
           </div>
@@ -1826,5 +1830,6 @@
       })();
     </script>
     {% endif %}
+    <script src="{% static 'football/js/kpi_customizer.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"></script>
   </body>
 </html>

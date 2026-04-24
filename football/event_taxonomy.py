@@ -55,6 +55,21 @@ DUEL_OFFENSIVE_SUCCESS_KEYWORDS = {"ok", "ganado", "superado", "exitoso", "compl
 DUEL_OFFENSIVE_FAIL_KEYWORDS = {"perdido", "fallado", "fallida", "falta", "error", "interceptado", "robado"}
 DUEL_DEFENSIVE_SUCCESS_KEYWORDS = {"ok", "ganado", "favorable", "robo", "recuper", "intercep", "entrada", "despeje"}
 DUEL_DEFENSIVE_FAIL_KEYWORDS = {"perdido", "fallado", "fallida", "falta", "error", "superado", "regateado", "driblado"}
+DUEL_AERIAL_KEYWORDS = {
+    "aereo",
+    "aéreo",
+    "balon aereo",
+    "balón aéreo",
+    "juego aereo",
+    "juego aéreo",
+    "duelo aereo",
+    "duelo aéreo",
+    "disputa aerea",
+    "disputa aérea",
+    "cabeza",
+    "cabezazo",
+    "remate de cabeza",
+}
 
 ZONE_MAP = {
     "porteria": "Portería",
@@ -356,6 +371,13 @@ def classify_duel_event(event_type, result=None, observation=None, zone=None):
 
     is_duel = bool(subtype)
     won = False
+    is_aerial = False
+    if is_duel:
+        # “Aéreo” es una dimensión transversal (puede ser ofensivo/defensivo/genérico).
+        # Lo inferimos por texto del evento/observación/zona.
+        is_aerial = any(keyword in context_text for keyword in DUEL_AERIAL_KEYWORDS) or any(
+            keyword in zone_normalized for keyword in DUEL_AERIAL_KEYWORDS
+        )
     if is_duel:
         if subtype == "offensive":
             success = any(keyword in result_text for keyword in DUEL_OFFENSIVE_SUCCESS_KEYWORDS) or result_is_success(result)
@@ -374,6 +396,7 @@ def classify_duel_event(event_type, result=None, observation=None, zone=None):
         "is_duel": is_duel,
         "won": won,
         "subtype": subtype,
+        "aerial": is_aerial,
     }
 
 

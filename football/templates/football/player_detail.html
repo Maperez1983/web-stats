@@ -772,28 +772,32 @@
       <section class="card tab-pane" data-pane="performance">
         <h2 style="margin-top:0;">Rendimiento, KPI y mapa de calor</h2>
         {% if stats %}
-          <div class="performance-overview">
+          <div class="performance-overview" data-kpi-container>
             <h3>KPI de rendimiento</h3>
+            <details class="kpi-customizer" data-kpi-pref-key="player_detail">
+              <summary>Personalizar KPIs</summary>
+              <div class="kpi-customizer-body"></div>
+            </details>
             <div class="performance-rings">
-              <article class="kpi-ring">
+              <article class="kpi-ring" data-kpi-key="success_rate" data-kpi-label="Tasa de éxito">
                 <div class="kpi-ring-chart" style="--pct: {{ stats.success_rate|default:0 }};">
                   <span class="kpi-ring-value">{{ stats.success_rate|default:0|floatformat:-1 }}%</span>
                 </div>
                 <div class="kpi-ring-label">Tasa de éxito</div>
               </article>
-              <article class="kpi-ring">
+              <article class="kpi-ring" data-kpi-key="duel_rate" data-kpi-label="Duelos ganados">
                 <div class="kpi-ring-chart" style="--pct: {{ stats.duel_rate|default:0 }};">
                   <span class="kpi-ring-value">{{ stats.duel_rate|default:0|floatformat:-1 }}%</span>
                 </div>
                 <div class="kpi-ring-label">Duelos ganados</div>
               </article>
-              <article class="kpi-ring">
+              <article class="kpi-ring" data-kpi-key="passes_accuracy" data-kpi-label="Precisión de pase">
                 <div class="kpi-ring-chart" style="--pct: {{ stats.passes.accuracy|default:0 }};">
                   <span class="kpi-ring-value">{{ stats.passes.accuracy|default:0|floatformat:-1 }}%</span>
                 </div>
                 <div class="kpi-ring-label">Precisión de pase</div>
               </article>
-              <article class="kpi-ring">
+              <article class="kpi-ring" data-kpi-key="shots_accuracy" data-kpi-label="Tiro a puerta">
                 <div class="kpi-ring-chart" style="--pct: {{ stats.shots.accuracy|default:0 }};">
                   <span class="kpi-ring-value">{{ stats.shots.accuracy|default:0|floatformat:-1 }}%</span>
                 </div>
@@ -801,15 +805,16 @@
               </article>
             </div>
             <div class="performance-blocks">
-              <div class="performance-block"><span class="label">Acciones</span><span class="value">{{ stats.total_actions|default:0 }}</span></div>
-              <div class="performance-block"><span class="label">Duelos</span><span class="value">{{ stats.duel_summary.won|default:0 }}/{{ stats.duel_summary.total|default:0 }}</span></div>
-              <div class="performance-block"><span class="label">Pases</span><span class="value">{{ stats.passes.completed|default:0 }}/{{ stats.passes.attempts|default:0 }}</span></div>
-              <div class="performance-block"><span class="label">Disparos</span><span class="value">{{ stats.shots.on_target|default:0 }}/{{ stats.shots.attempts|default:0 }}</span></div>
-              <div class="performance-block"><span class="label">Disparos/Gol</span><span class="value">{{ stats.shots.per_goal|default:"-" }}</span></div>
-              <div class="performance-block"><span class="label">Goles</span><span class="value">{{ stats.goals|default:0 }}</span></div>
-              <div class="performance-block"><span class="label">Asistencias</span><span class="value">{{ stats.assists|default:0 }}</span></div>
+              <div class="performance-block" data-kpi-key="total_actions" data-kpi-label="Acciones"><span class="label">Acciones</span><span class="value">{{ stats.total_actions|default:0 }}</span></div>
+              <div class="performance-block" data-kpi-key="duels" data-kpi-label="Duelos"><span class="label">Duelos</span><span class="value">{{ stats.duel_summary.won|default:0 }}/{{ stats.duel_summary.total|default:0 }}</span></div>
+              <div class="performance-block" data-kpi-key="aerial_duels_total" data-kpi-label="Duelos aéreos"><span class="label">Duelos aéreos</span><span class="value">{{ stats.aerial_duel_summary.won|default:0 }}/{{ stats.aerial_duel_summary.total|default:0 }}</span></div>
+              <div class="performance-block" data-kpi-key="passes" data-kpi-label="Pases"><span class="label">Pases</span><span class="value">{{ stats.passes.completed|default:0 }}/{{ stats.passes.attempts|default:0 }}</span></div>
+              <div class="performance-block" data-kpi-key="shots" data-kpi-label="Disparos"><span class="label">Disparos</span><span class="value">{{ stats.shots.on_target|default:0 }}/{{ stats.shots.attempts|default:0 }}</span></div>
+              <div class="performance-block" data-kpi-key="shots_per_goal" data-kpi-label="Disparos/Gol"><span class="label">Disparos/Gol</span><span class="value">{{ stats.shots.per_goal|default:"-" }}</span></div>
+              <div class="performance-block" data-kpi-key="goals" data-kpi-label="Goles"><span class="label">Goles</span><span class="value">{{ stats.goals|default:0 }}</span></div>
+              <div class="performance-block" data-kpi-key="assists" data-kpi-label="Asistencias"><span class="label">Asistencias</span><span class="value">{{ stats.assists|default:0 }}</span></div>
               {% if stats.profile == 'goalkeeper' or stats.goalkeeper_saves %}
-              <div class="performance-block"><span class="label">Paradas</span><span class="value">{{ stats.goalkeeper_saves|default:0 }}</span></div>
+              <div class="performance-block" data-kpi-key="goalkeeper_saves" data-kpi-label="Paradas"><span class="label">Paradas</span><span class="value">{{ stats.goalkeeper_saves|default:0 }}</span></div>
               {% endif %}
             </div>
           </div>
@@ -1114,5 +1119,6 @@
         activate(buttons.some((b) => b.dataset.tab === fallbackTab) ? fallbackTab : 'general');
       })();
     </script>
+    <script src="{% static 'football/js/kpi_customizer.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"></script>
   </body>
 </html>
