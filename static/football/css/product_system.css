@@ -2,15 +2,16 @@
 :root {
   --prod-font-ui: "Avenir Next", "Inter", "Segoe UI", sans-serif;
   --prod-font-display: "Avenir Next Condensed", "Avenir Next", "Inter", "Segoe UI", sans-serif;
-  --prod-bg: #08111d;
-  --prod-bg-soft: #0d1728;
-  --prod-panel: linear-gradient(180deg, rgba(17, 27, 45, 0.94), rgba(11, 19, 33, 0.92));
-  --prod-panel-flat: rgba(14, 23, 39, 0.96);
-  --prod-line: rgba(144, 161, 185, 0.22);
-  --prod-line-strong: rgba(244, 180, 0, 0.22);
+  /* Dark (default): ligeramente más claro para mejorar legibilidad. */
+  --prod-bg: #0b1626;
+  --prod-bg-soft: #101f33;
+  --prod-panel: linear-gradient(180deg, rgba(24, 38, 62, 0.92), rgba(14, 26, 45, 0.9));
+  --prod-panel-flat: rgba(18, 30, 50, 0.94);
+  --prod-line: rgba(144, 161, 185, 0.28);
+  --prod-line-strong: rgba(244, 180, 0, 0.3);
   --prod-text: #f5f7fa;
-  --prod-muted: #91a1b9;
-  --prod-muted-soft: #b0bccd;
+  --prod-muted: #a7b6cf;
+  --prod-muted-soft: #c3cee0;
   --prod-info: #22d3ee;
   --prod-success: #22c55e;
   --prod-primary: #2f7d32;
@@ -37,10 +38,27 @@
   --prod-shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.34);
   --prod-shadow-md: 0 16px 36px rgba(0, 0, 0, 0.24);
   --prod-ice: #f5f7fa;
-  --prod-midnight: #08111d;
+  --prod-midnight: #0b1626;
   --prod-pitch: #2f7d32;
   --prod-amber: #f4b400;
-  --prod-slate: #91a1b9;
+  --prod-slate: #a7b6cf;
+}
+
+/* Light theme (optional): activado con <html data-theme="light">. */
+:root[data-theme="light"] {
+  --prod-bg: #f4f7fb;
+  --prod-bg-soft: #edf2f8;
+  --prod-panel: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.96));
+  --prod-panel-flat: rgba(255, 255, 255, 0.98);
+  --prod-line: rgba(15, 23, 42, 0.14);
+  --prod-line-strong: rgba(244, 180, 0, 0.32);
+  --prod-text: #0b1220;
+  --prod-muted: #475569;
+  --prod-muted-soft: #334155;
+  --prod-shadow-lg: 0 18px 44px rgba(2, 6, 23, 0.12);
+  --prod-shadow-md: 0 12px 28px rgba(2, 6, 23, 0.1);
+  --prod-midnight: #0b1220;
+  --prod-slate: #475569;
 }
 
 html {

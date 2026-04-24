@@ -25,11 +25,22 @@ body.prod-commercial {
   text-rendering: geometricPrecision;
 
   background:
-    radial-gradient(circle at 14% -12%, rgba(47, 125, 50, 0.22), transparent 52%),
-    radial-gradient(circle at 88% -6%, rgba(244, 180, 0, 0.18), transparent 46%),
-    radial-gradient(circle at 70% 120%, rgba(144, 161, 185, 0.14), transparent 52%),
-    linear-gradient(180deg, #02060d 0%, #08111d 58%, #050a13 100%) !important;
+    radial-gradient(circle at 14% -12%, rgba(47, 125, 50, 0.2), transparent 52%),
+    radial-gradient(circle at 88% -6%, rgba(244, 180, 0, 0.16), transparent 46%),
+    radial-gradient(circle at 70% 120%, rgba(144, 161, 185, 0.12), transparent 52%),
+    linear-gradient(180deg, #050b14 0%, var(--prod-bg, #0b1626) 58%, #040912 100%) !important;
   background-attachment: fixed;
+}
+
+/* Light theme: superficies claras y acentos de marca. */
+:root[data-theme="light"] body.prod-commercial {
+  --panel-soft: rgba(248, 250, 252, 0.92);
+
+  background:
+    radial-gradient(circle at 12% -16%, rgba(47, 125, 50, 0.1), transparent 54%),
+    radial-gradient(circle at 86% -10%, rgba(244, 180, 0, 0.12), transparent 50%),
+    radial-gradient(circle at 72% 120%, rgba(15, 23, 42, 0.08), transparent 58%),
+    linear-gradient(180deg, #ffffff 0%, var(--prod-bg, #f4f7fb) 55%, #eef2f7 100%) !important;
 }
 
 /* Mobile/performance:
@@ -123,9 +134,18 @@ body.prod-commercial a:hover {
   color: rgba(255, 242, 199, 0.96);
 }
 
+/* En claro, el hover no debe volverse amarillo pálido. */
+:root[data-theme="light"] body.prod-commercial a:hover {
+  color: rgba(15, 122, 53, 0.92);
+}
+
 /* Legacy `.link` (muchas plantillas lo pintan en azul/cian). Lo alineamos a marca. */
 body.prod-commercial .link {
   color: rgba(255, 242, 199, 0.96) !important;
+}
+
+:root[data-theme="light"] body.prod-commercial .link {
+  color: rgba(15, 122, 53, 0.92) !important;
 }
 
 body.prod-commercial .link:hover {
@@ -160,6 +180,16 @@ body.prod-commercial a.btn {
   box-shadow: 0 0 0 1px rgba(2, 6, 23, 0.18) inset;
   cursor: pointer;
   user-select: none;
+}
+
+:root[data-theme="light"] body.prod-commercial .button,
+:root[data-theme="light"] body.prod-commercial .btn,
+:root[data-theme="light"] body.prod-commercial button.button,
+:root[data-theme="light"] body.prod-commercial button.btn,
+:root[data-theme="light"] body.prod-commercial a.button,
+:root[data-theme="light"] body.prod-commercial a.btn {
+  background: rgba(2, 6, 23, 0.04) !important;
+  box-shadow: 0 0 0 1px rgba(2, 6, 23, 0.06) inset;
 }
 
 body.prod-commercial .button:hover,

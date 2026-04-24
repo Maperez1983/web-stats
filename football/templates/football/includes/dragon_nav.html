@@ -14,6 +14,47 @@
 <div class="help-jump">
   <button class="help-btn" type="button" id="webstats-global-help" title="Guía rápida (Alt: guía general)">Guía</button>
 </div>
+<div class="theme-jump">
+  <button class="theme-btn" type="button" id="webstats-theme-toggle" title="Cambiar tema">Tema</button>
+</div>
+<script>
+(() => {
+  const storageKey = '2j_theme';
+  const root = document.documentElement;
+
+  const safeGet = () => {
+    try { return window.localStorage.getItem(storageKey); } catch (e) { return null; }
+  };
+  const safeSet = (value) => {
+    try { window.localStorage.setItem(storageKey, value); } catch (e) {}
+  };
+  const apply = (theme) => {
+    if (theme === 'light' || theme === 'dark') {
+      root.setAttribute('data-theme', theme);
+    } else {
+      root.removeAttribute('data-theme');
+    }
+  };
+
+  const current = safeGet();
+  if (current) apply(current);
+
+  const btn = document.getElementById('webstats-theme-toggle');
+  if (!btn) return;
+  const update = () => {
+    const t = root.getAttribute('data-theme') || 'dark';
+    btn.textContent = (t === 'light') ? 'Oscuro' : 'Claro';
+  };
+  update();
+  btn.addEventListener('click', () => {
+    const t = root.getAttribute('data-theme') || 'dark';
+    const next = (t === 'light') ? 'dark' : 'light';
+    apply(next);
+    safeSet(next);
+    update();
+  });
+})();
+</script>
 {% if is_admin_user %}
 <div class="platform-jump">
   <a class="platform-btn" href="{% url 'platform-overview' %}" title="Volver a Platform">Platform</a>
@@ -160,6 +201,11 @@
   display:flex;
   justify-content:center;
 }
+.theme-jump{
+  margin-top:0.35rem;
+  display:flex;
+  justify-content:center;
+}
 .help-btn{
   appearance:none;
   cursor:pointer;
@@ -176,6 +222,24 @@
 }
 .help-btn:hover{
   border-color:rgba(34,211,238,0.6);
+  color:#ffffff;
+}
+.theme-btn{
+  appearance:none;
+  cursor:pointer;
+  border:1px solid rgba(148,163,184,0.18);
+  border-radius:999px;
+  padding:0.32rem 0.8rem;
+  background:rgba(2,6,23,0.28);
+  color:rgba(226,232,240,0.92);
+  font-size:0.7rem;
+  line-height:1.15;
+  letter-spacing:0.14em;
+  text-transform:uppercase;
+  font-weight:900;
+}
+.theme-btn:hover{
+  border-color:rgba(148,163,184,0.55);
   color:#ffffff;
 }
 .platform-btn {
