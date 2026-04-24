@@ -61,6 +61,23 @@
   --prod-slate: #475569;
 }
 
+/* High contrast: maximiza legibilidad (iPad exterior / baja visión). */
+:root[data-theme="hc"] {
+  --prod-bg: #000000;
+  --prod-bg-soft: #050505;
+  --prod-panel: linear-gradient(180deg, rgba(18, 18, 18, 0.98), rgba(8, 8, 8, 0.98));
+  --prod-panel-flat: rgba(12, 12, 12, 0.98);
+  --prod-line: rgba(255, 255, 255, 0.34);
+  --prod-line-strong: rgba(255, 255, 255, 0.5);
+  --prod-text: #ffffff;
+  --prod-muted: rgba(255, 255, 255, 0.82);
+  --prod-muted-soft: rgba(255, 255, 255, 0.9);
+  --prod-shadow-lg: 0 0 0 rgba(0, 0, 0, 0);
+  --prod-shadow-md: 0 0 0 rgba(0, 0, 0, 0);
+  --prod-midnight: #000000;
+  --prod-slate: rgba(255, 255, 255, 0.82);
+}
+
 html {
   -webkit-text-size-adjust: 100%;
   overflow-x: hidden;

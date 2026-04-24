@@ -43,6 +43,12 @@ body.prod-commercial {
     linear-gradient(180deg, #ffffff 0%, var(--prod-bg, #f4f7fb) 55%, #eef2f7 100%) !important;
 }
 
+/* High contrast: elimina fondos complejos y aumenta contraste. */
+:root[data-theme="hc"] body.prod-commercial {
+  --panel-soft: rgba(255, 255, 255, 0.06);
+  background: #000000 !important;
+}
+
 /* Mobile/performance:
    - `background-attachment: fixed` y `backdrop-filter` pueden ir a tirones en iOS/Android.
    - En pantallas táctiles priorizamos fluidez y batería. */
@@ -124,6 +130,23 @@ body.prod-commercial {
   --ui-info: var(--prod-info, #22d3ee);
   --ui-success: var(--prod-success, #22c55e);
   --ui-danger: var(--prod-danger, #d64545);
+
+  /* Density + typography tokens */
+  --ui-btn-pad-y: 0.62rem;
+  --ui-btn-pad-x: 0.95rem;
+  --ui-btn-fs: 0.78rem;
+  --ui-btn-letter: 0.06em;
+  --ui-chip-pad-y: 0.34rem;
+  --ui-chip-pad-x: 0.7rem;
+}
+
+:root[data-density="compact"] body.prod-commercial {
+  --ui-btn-pad-y: 0.5rem;
+  --ui-btn-pad-x: 0.82rem;
+  --ui-btn-fs: 0.72rem;
+  --ui-btn-letter: 0.05em;
+  --ui-chip-pad-y: 0.26rem;
+  --ui-chip-pad-x: 0.62rem;
 }
 
 body.prod-commercial a {
@@ -137,6 +160,11 @@ body.prod-commercial a:hover {
 /* En claro, el hover no debe volverse amarillo pálido. */
 :root[data-theme="light"] body.prod-commercial a:hover {
   color: rgba(15, 122, 53, 0.92);
+}
+
+:root[data-theme="hc"] body.prod-commercial a:hover {
+  color: #ffffff;
+  text-decoration: underline;
 }
 
 /* Legacy `.link` (muchas plantillas lo pintan en azul/cian). Lo alineamos a marca. */
@@ -153,6 +181,70 @@ body.prod-commercial .link:hover {
   text-decoration: underline;
 }
 
+/* Typography: jerarquía consistente sin tocar templates (solo overrides suaves). */
+body.prod-commercial h1,
+body.prod-commercial h2,
+body.prod-commercial h3 {
+  font-family: var(--prod-font-display, var(--prod-font-ui, system-ui));
+  letter-spacing: -0.01em;
+}
+
+body.prod-commercial h1 {
+  font-weight: 1000;
+}
+
+body.prod-commercial h2,
+body.prod-commercial h3 {
+  font-weight: 900;
+}
+
+/* Global states: badges/alerts/toasts (reusable). */
+body.prod-commercial .ui-badge,
+body.prod-commercial .badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  padding: var(--ui-chip-pad-y, 0.34rem) var(--ui-chip-pad-x, 0.7rem);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ui-text);
+  font-size: 0.7rem;
+  line-height: 1.1;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 900;
+}
+
+body.prod-commercial .ui-badge.is-ok,
+body.prod-commercial .badge.ok {
+  border-color: rgba(34, 197, 94, 0.42);
+  background: rgba(34, 197, 94, 0.14);
+  color: rgba(214, 255, 224, 0.98);
+}
+
+body.prod-commercial .ui-badge.is-warn,
+body.prod-commercial .badge.warn {
+  border-color: rgba(244, 180, 0, 0.42);
+  background: rgba(244, 180, 0, 0.16);
+  color: rgba(255, 243, 207, 0.98);
+}
+
+body.prod-commercial .ui-badge.is-err,
+body.prod-commercial .badge.danger,
+body.prod-commercial .badge.err {
+  border-color: rgba(248, 113, 113, 0.5);
+  background: rgba(220, 38, 38, 0.18);
+  color: rgba(254, 226, 226, 0.95);
+}
+
+body.prod-commercial .ui-badge.is-info,
+body.prod-commercial .badge.info {
+  border-color: rgba(34, 211, 238, 0.38);
+  background: rgba(34, 211, 238, 0.12);
+  color: rgba(226, 245, 255, 0.96);
+}
+
 /* Buttons (supports `.button` and `.btn`). */
 body.prod-commercial .button,
 body.prod-commercial .btn,
@@ -166,16 +258,16 @@ body.prod-commercial a.btn {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  padding: 0.62rem 0.95rem;
+  padding: var(--ui-btn-pad-y, 0.62rem) var(--ui-btn-pad-x, 0.95rem);
   border-radius: 999px;
   border: 1px solid var(--ui-line) !important;
   background: rgba(255, 255, 255, 0.05) !important;
   color: var(--ui-text) !important;
   text-decoration: none;
   font: inherit;
-  font-size: 0.78rem;
+  font-size: var(--ui-btn-fs, 0.78rem);
   font-weight: 800;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--ui-btn-letter, 0.06em);
   text-transform: uppercase;
   box-shadow: 0 0 0 1px rgba(2, 6, 23, 0.18) inset;
   cursor: pointer;
