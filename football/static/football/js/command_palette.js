@@ -38,9 +38,10 @@
           .map((it) => ({
             label: String((it && it.label) || '').trim(),
             url: normalizeUrl((it && it.url) || ''),
+            action: String((it && it.action) || '').trim(),
             keywords: String((it && it.keywords) || '').toLowerCase(),
           }))
-          .filter((it) => it.label && it.url)
+          .filter((it) => it.label && (it.url || it.action))
       : [];
   };
 
@@ -106,7 +107,11 @@
     serverReqId: 0,
   };
 
-  const isFav = (url) => loadFavs().includes(normalizeUrl(url));
+  const isFav = (url) => {
+    const norm = normalizeUrl(url);
+    if (!norm) return false;
+    return loadFavs().includes(norm);
+  };
 
   const toggleFav = (url) => {
     const norm = normalizeUrl(url);
@@ -210,7 +215,10 @@
     const favUrls = loadFavs();
 
     const byUrl = new Map();
-    for (const it of staticItems) byUrl.set(normalizeUrl(it.url), it);
+    for (const it of staticItems) {
+      const key = normalizeUrl(it.url);
+      if (key) byUrl.set(key, it);
+    }
 
     const favItems = favUrls
       .map((url) => byUrl.get(normalizeUrl(url)))
@@ -248,13 +256,17 @@
     }
 
     const base = q
-      ? [...serverItems, ...staticItems.map((it) => ({ ...it, section: 'Ir a' }))]
-      : [...favItems, ...recentItems, ...staticItems.map((it) => ({ ...it, section: 'Ir a' }))];
+      ? [...serverItems, ...staticItems.map((it) => ({ ...it, section: it.action ? 'Acciones' : 'Ir a' }))]
+      : [
+          ...favItems,
+          ...recentItems,
+          ...staticItems.map((it) => ({ ...it, section: it.action ? 'Acciones' : 'Ir a' })),
+        ];
 
     const seen = new Set();
     const filtered = [];
     for (const it of base) {
-      const key = normalizeUrl(it.url);
+      const key = it && it.url ? normalizeUrl(it.url) : `action:${String((it && it.action) || '').trim()}`;
       if (!key || seen.has(key)) continue;
       seen.add(key);
       const s = tokens.length ? scoreItem(it, tokens) : 10;
@@ -281,15 +293,20 @@
         html += `<div class="cmdk-section">${escapeHtml(currentSection)}</div>`;
       }
       const selected = idx === state.selectedIndex;
-      const fav = isFav(it.url);
-      const subtitle = it.subtitle || it.keywords || it.url;
+      const canFav = !!(it && it.url);
+      const fav = canFav ? isFav(it.url) : false;
+      const subtitle = it.subtitle || it.keywords || it.url || it.action || '';
       html += `
-        <div class="cmdk-item" role="option" aria-selected="${selected ? 'true' : 'false'}" data-cmdk-index="${idx}" data-cmdk-url="${escapeAttr(it.url)}">
+        <div class="cmdk-item" role="option" aria-selected="${selected ? 'true' : 'false'}" data-cmdk-index="${idx}" data-cmdk-url="${escapeAttr(it.url || '')}" data-cmdk-action="${escapeAttr(it.action || '')}">
           <div class="cmdk-main">
             <div class="cmdk-title">${escapeHtml(it.label)}</div>
             <div class="cmdk-sub">${escapeHtml(String(subtitle || '').slice(0, 80))}</div>
           </div>
-          <button type="button" class="cmdk-star ${fav ? 'is-fav' : ''}" data-cmdk-fav="${escapeAttr(it.url)}" title="${fav ? 'Quitar favorito' : 'Añadir favorito'}">★</button>
+          ${
+            canFav
+              ? `<button type="button" class="cmdk-star ${fav ? 'is-fav' : ''}" data-cmdk-fav="${escapeAttr(it.url)}" title="${fav ? 'Quitar favorito' : 'Añadir favorito'}">★</button>`
+              : `<span class="cmdk-star" aria-hidden="true" style="opacity:0.25; pointer-events:none;">★</span>`
+          }
         </div>
       `;
     });
@@ -320,7 +337,26 @@
     CMDK_EL.setAttribute('aria-hidden', 'true');
   };
 
-  const go = (url) => {
+  const execAction = (action, item) => {
+    const key = String(action || '').trim();
+    if (!key) return;
+    try {
+      if (window.WebstatsCmdkActions && typeof window.WebstatsCmdkActions[key] === 'function') {
+        window.WebstatsCmdkActions[key](item);
+        return;
+      }
+    } catch {}
+    try {
+      window.dispatchEvent(new CustomEvent('webstats:cmdk:action', { detail: { action: key, item } }));
+    } catch {}
+  };
+
+  const go = (url, action, item) => {
+    if (action) {
+      close();
+      execAction(action, item);
+      return;
+    }
     const target = normalizeUrl(url);
     if (!target) return;
     close();
@@ -367,7 +403,7 @@
       ev.preventDefault();
       const results = buildResults();
       const it = results[state.selectedIndex];
-      if (it && it.url) go(it.url);
+      if (it && (it.action || it.url)) go(it.url, it.action, it);
       return;
     }
   });
@@ -406,8 +442,10 @@
     }
     const item = target.closest('.cmdk-item');
     if (!item) return;
+    const action = item.getAttribute('data-cmdk-action');
     const url = item.getAttribute('data-cmdk-url');
-    if (url) go(url);
+    if (action) go('', action, { action, url });
+    else if (url) go(url);
   });
 
   // Registra la página actual como reciente (sin tocar backend).

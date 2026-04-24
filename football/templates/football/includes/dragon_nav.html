@@ -129,6 +129,20 @@
     <span class="nav-context-sep">·</span>
     <span class="nav-context-subtitle">{{ active_workspace.subtitle }}</span>
     {% endif %}
+    {% if active_team %}
+    <span class="nav-context-sep">·</span>
+    <span class="nav-context-team">{{ active_team.name }}</span>
+    {% endif %}
+    {% if 'coach/sesiones' in request.path|default:'' %}
+    <span class="nav-context-sep">·</span>
+    <span class="nav-context-section">Entrenos</span>
+    {% elif 'registro-acciones' in request.path|default:'' or 'convocatoria' in request.path|default:'' or '11-inicial' in request.path|default:'' or request.path|slice:":9" == '/partido/' or request.path|slice:":7" == '/match/' or request.path|slice:":12" == '/incidencias/' %}
+    <span class="nav-context-sep">·</span>
+    <span class="nav-context-section">Partido</span>
+    {% elif request.path == '/' or request.resolver_match.url_name == 'dashboard-home' %}
+    <span class="nav-context-sep">·</span>
+    <span class="nav-context-section">Portada</span>
+    {% endif %}
   </div>
   {% endif %}
   {% with nav_path=request.path|default:'' nav_url_name=request.resolver_match.url_name|default:'' %}
@@ -146,6 +160,8 @@
     <summary>Menú</summary>
     <div class="nav-more-panel">
       <button type="button" class="nav-command-btn nav-command-btn--panel" data-command-palette>Buscar / Ir a…</button>
+      <button type="button" class="nav-command-btn nav-command-btn--panel" data-webstats-shortcuts>Atajos</button>
+      <button type="button" class="nav-command-btn nav-command-btn--panel" data-webstats-presentation-toggle>Presentación</button>
       <a href="{% url 'search-page' %}">Buscar</a>
       {% if is_admin_user and active_workspace_options and active_workspace_options|length > 1 %}
       <div class="nav-more-subtitle">Clientes</div>
@@ -392,6 +408,18 @@
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
+.nav-context-team {
+  font-weight: 850;
+  color: rgba(226, 232, 240, 0.92);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.nav-context-section {
+  font-weight: 900;
+  color: rgba(148, 163, 184, 0.92);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
 .product-nav-shortcuts a {
   text-decoration: none;
   color: #f5f7fa;
@@ -598,6 +626,8 @@
   {"label":"Crear tarea (editor)","url":"{% url 'sessions-task-create' %}{% if active_team %}?team={{ active_team.id }}{% endif %}","keywords":"crear tarea pizarra editor"},
   {"label":"Calendario (ICS)","url":"{% url 'team-calendar-ics' %}{% if active_team %}?team={{ active_team.id }}{% endif %}","keywords":"calendario ics exportar google apple"},
   {"label":"Buscar (página)","url":"{% url 'search-page' %}","keywords":"buscar search"},
+  {"label":"Atajos de teclado","action":"shortcuts.open","keywords":"atajos teclado shortcuts ayuda"},
+  {"label":"Modo presentación","action":"presentation.toggle","keywords":"presentacion focus pantalla completa"},
   {"label":"Jugadores · estadísticas","url":"{% url 'coach-roster' %}?tab=stats{% if active_team %}&team={{ active_team.id }}{% endif %}","keywords":"jugadores stats kpi"},
   {"label":"Alta jugador","url":"{% url 'coach-roster' %}?tab=manage{% if active_team %}&team={{ active_team.id }}{% endif %}","keywords":"alta jugador crear"},
   {"label":"Staff","url":"{% url 'staff-directory' %}{% if active_team %}?team={{ active_team.id }}{% endif %}","keywords":"staff cuerpo tecnico"},
@@ -617,6 +647,30 @@
   {% endif %}
 ]
 </script>
+<div class="ws-modal" id="ws-shortcuts" hidden aria-hidden="true">
+  <div class="ws-modal-backdrop" data-ws-modal-close></div>
+  <div class="ws-modal-panel" role="dialog" aria-modal="true" aria-label="Atajos de teclado">
+    <div class="ws-modal-head">
+      <strong>Atajos</strong>
+      <button type="button" class="ws-modal-close" data-ws-modal-close aria-label="Cerrar">Esc</button>
+    </div>
+    <div class="ws-modal-body">
+      <div class="ws-shortcuts-grid">
+        <div class="ws-shortcut"><span>Buscar / Ir a…</span><span class="ws-kbd">Ctrl/Cmd · K</span></div>
+        <div class="ws-shortcut"><span>Guía rápida</span><span class="ws-kbd">Guía</span></div>
+        <div class="ws-shortcut"><span>Atajos</span><span class="ws-kbd">?</span></div>
+        <div class="ws-shortcut"><span>Modo presentación</span><span class="ws-kbd">Ctrl/Cmd · Alt · P</span></div>
+        <div class="ws-shortcut"><span>Cerrar (diálogos)</span><span class="ws-kbd">Esc</span></div>
+      </div>
+      <div style="margin-top: 0.75rem; opacity: 0.85; font-weight: 700; line-height: 1.35;">
+        Consejo: en iPad, usa “Modo presentación” para ocultar navegación y ganar espacio al trabajar con jugadores/partidos.
+      </div>
+    </div>
+  </div>
+</div>
+<div class="ws-presentation-exit" aria-live="polite">
+  <button type="button" data-webstats-presentation-toggle>Salir presentación</button>
+</div>
 <style>
 .cmdk { position: fixed; inset: 0; z-index: 1200; }
 .cmdk[hidden] { display: none; }
@@ -700,6 +754,113 @@
 }
 </style>
 <script src="{% static 'football/js/command_palette.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+<script>
+(function () {
+  const root = document.documentElement;
+  const presentationKey = '2j_presentation';
+
+  const safeGet = () => {
+    try { return window.localStorage.getItem(presentationKey); } catch (e) { return null; }
+  };
+  const safeSet = (value) => {
+    try { window.localStorage.setItem(presentationKey, value); } catch (e) {}
+  };
+
+  const applyPresentation = (on) => {
+    if (on) root.setAttribute('data-presentation', '1');
+    else root.removeAttribute('data-presentation');
+  };
+
+  const togglePresentation = () => {
+    const on = root.getAttribute('data-presentation') === '1';
+    applyPresentation(!on);
+    safeSet(!on ? '1' : '');
+  };
+
+  const shortcutsEl = document.getElementById('ws-shortcuts');
+  const openShortcuts = () => {
+    if (!shortcutsEl) return;
+    shortcutsEl.hidden = false;
+    shortcutsEl.setAttribute('aria-hidden', 'false');
+  };
+  const closeShortcuts = () => {
+    if (!shortcutsEl) return;
+    shortcutsEl.hidden = true;
+    shortcutsEl.setAttribute('aria-hidden', 'true');
+  };
+
+  // Inicializa estado persistido.
+  try {
+    const raw = safeGet();
+    if (raw === '1') applyPresentation(true);
+  } catch (e) {}
+
+  // Botones UI.
+  document.querySelectorAll('[data-webstats-presentation-toggle]').forEach((btn) => {
+    btn.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      togglePresentation();
+      try {
+        const details = btn.closest('details');
+        if (details) details.removeAttribute('open');
+      } catch {}
+    });
+  });
+
+  document.querySelectorAll('[data-webstats-shortcuts]').forEach((btn) => {
+    btn.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      openShortcuts();
+      try {
+        const details = btn.closest('details');
+        if (details) details.removeAttribute('open');
+      } catch {}
+    });
+  });
+
+  if (shortcutsEl) {
+    shortcutsEl.querySelectorAll('[data-ws-modal-close]').forEach((el) =>
+      el.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        closeShortcuts();
+      }),
+    );
+  }
+
+  // Atajos globales: ? abre atajos, Ctrl/Cmd+Alt+P presentación.
+  document.addEventListener('keydown', (ev) => {
+    const tag = String((ev.target && ev.target.tagName) || '').toLowerCase();
+    const isTyping = tag === 'input' || tag === 'textarea' || tag === 'select' || (ev.target && ev.target.isContentEditable);
+    const key = String(ev.key || '');
+
+    if (!isTyping && (key === '?' || (key === '/' && ev.shiftKey))) {
+      ev.preventDefault();
+      shortcutsEl && shortcutsEl.hidden ? openShortcuts() : closeShortcuts();
+      return;
+    }
+
+    const k = key.toLowerCase();
+    if ((ev.ctrlKey || ev.metaKey) && ev.altKey && k === 'p') {
+      ev.preventDefault();
+      togglePresentation();
+      return;
+    }
+
+    if (k === 'escape') {
+      // Cierra modal si está abierto.
+      if (shortcutsEl && shortcutsEl.hidden === false) {
+        ev.preventDefault();
+        closeShortcuts();
+      }
+    }
+  });
+
+  // Acciones desde la command palette (si existen).
+  window.WebstatsCmdkActions = window.WebstatsCmdkActions || {};
+  window.WebstatsCmdkActions['shortcuts.open'] = () => openShortcuts();
+  window.WebstatsCmdkActions['presentation.toggle'] = () => togglePresentation();
+})();
+</script>
 <script>
 (function () {
   const url = "{% url 'session-keepalive' %}";
