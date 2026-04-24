@@ -6740,9 +6740,52 @@
 				        window.localStorage.setItem(clipsStorageKey, JSON.stringify({ v: 1, updated_at: new Date().toISOString(), items: safeItems }));
 				      } catch (e) { /* ignore */ }
 				    };
-				    const renderClipsLibrary = () => {
-				      if (!simClipsList) return;
-				      const clips = readClipsLibrary();
+					    const renderClipsLibrary = () => {
+					      if (!simClipsList) return;
+					      const clips = readClipsLibrary();
+					      const applyClipPro = (clip) => {
+					        simulationProTracks = {};
+					        simulationProEnabled = false;
+					        simulationProLoop = true;
+					        simulationProTimeMs = 0;
+					        simulationProUpdatedAt = Date.now();
+					        simulationProCaches = new Map();
+					        const pro = clip?.pro && typeof clip.pro === 'object' ? clip.pro : null;
+					        if (pro) {
+					          simulationProEnabled = pro.enabled !== false;
+					          simulationProLoop = pro.loop !== false;
+					          const tracks = pro.tracks && typeof pro.tracks === 'object' ? pro.tracks : {};
+					          const safeTracks = {};
+					          Object.entries(tracks).slice(0, 240).forEach(([uid, list]) => {
+					            if (!uid) return;
+					            if (!Array.isArray(list)) return;
+					            const cleaned = list
+					              .map((kf) => {
+					                const t_ms = clamp(Number(kf?.t_ms) || 0, 0, 3_600_000);
+					                const props = kf?.props && typeof kf.props === 'object' ? kf.props : null;
+					                if (!props) return null;
+					                return {
+					                  t_ms,
+					                  easing: normalizeEasing(kf?.easing),
+					                  props: {
+					                    left: Number(props.left) || 0,
+					                    top: Number(props.top) || 0,
+					                    angle: Number(props.angle) || 0,
+					                    scaleX: clampScale(Number(props.scaleX) || 1),
+					                    scaleY: clampScale(Number(props.scaleY) || 1),
+					                    opacity: props.opacity == null ? 1 : Number(props.opacity),
+					                  },
+					                };
+					              })
+					              .filter(Boolean)
+					              .sort((a, b) => (a.t_ms - b.t_ms))
+					              .slice(0, 240);
+					            if (cleaned.length) safeTracks[uid] = cleaned;
+					          });
+					          simulationProTracks = safeTracks;
+					        }
+					        try { persistSimulationProToStorage(); } catch (e) { /* ignore */ }
+					      };
 				      const templatesSection = (() => {
 				        const groups = templateGroups();
 				        if (!groups.length) return '';
@@ -6912,15 +6955,22 @@
 				          const clip = clips[idx];
 				          const steps = Array.isArray(clip?.steps) ? clip.steps : [];
 				          if (!steps.length) return;
-				          if (simulationPlaying) stopSimulationPlayback();
-				          try { simulationSavedSteps = JSON.parse(JSON.stringify(steps)); } catch (e) { simulationSavedSteps = steps.slice(); }
-				          simulationSavedUpdatedAt = Date.now();
-				          try { simulationSteps = JSON.parse(JSON.stringify(steps)); } catch (e) { simulationSteps = steps.slice(); }
-				          simulationActiveIndex = clamp(0, 0, Math.max(0, simulationSteps.length - 1));
-				          renderSimulationSteps();
-				          void selectSimulationStep(simulationActiveIndex);
-				          syncSimUi();
-				          setStatus(`Clip cargado: ${safeText(clip?.name, '')}`);
+					          if (simulationPlaying) stopSimulationPlayback();
+					          try { simulationSavedSteps = JSON.parse(JSON.stringify(steps)); } catch (e) { simulationSavedSteps = steps.slice(); }
+					          simulationSavedUpdatedAt = Date.now();
+					          try { simulationSteps = JSON.parse(JSON.stringify(steps)); } catch (e) { simulationSteps = steps.slice(); }
+					          try { applyClipPro(clip); } catch (e) { /* ignore */ }
+					          simulationActiveIndex = clamp(0, 0, Math.max(0, simulationSteps.length - 1));
+					          renderSimulationSteps();
+					          void selectSimulationStep(simulationActiveIndex);
+					          try {
+					            if (simulationProEnabled) {
+					              renderSimulationAtTimeMs(0);
+					              syncSimProUi();
+					            }
+					          } catch (e) { /* ignore */ }
+					          syncSimUi();
+					          setStatus(`Clip cargado: ${safeText(clip?.name, '')}`);
 				        });
 				      });
 				      Array.from(simClipsList.querySelectorAll('[data-clip-delete]')).forEach((btn) => {
@@ -6937,11 +6987,11 @@
 				      });
 				      Array.from(simClipsList.querySelectorAll('[data-clip-export]')).forEach((btn) => {
 				        btn.addEventListener('click', () => {
-				          const idx = clamp(Number(btn.getAttribute('data-clip-export') || 0), 0, Math.max(0, clips.length - 1));
-				          const clip = clips[idx];
-				          const payload = { v: 1, name: safeText(clip?.name), created_at: safeText(clip?.created_at), steps: clip?.steps || [] };
-				          const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
-				          downloadBlob(blob, `${fileSafeSlug(payload.name || 'clip')}.json`);
+					          const idx = clamp(Number(btn.getAttribute('data-clip-export') || 0), 0, Math.max(0, clips.length - 1));
+					          const clip = clips[idx];
+					          const payload = { v: 1, name: safeText(clip?.name), created_at: safeText(clip?.created_at), steps: clip?.steps || [], pro: clip?.pro || null };
+					          const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
+					          downloadBlob(blob, `${fileSafeSlug(payload.name || 'clip')}.json`);
 				        });
 				      });
 
@@ -13689,9 +13739,9 @@
 			      let steps = [];
 			      try { steps = JSON.parse(JSON.stringify(simulationSteps)); } catch (e) { steps = simulationSteps.slice(); }
 			      const dest = safeText(simClipDestSelect?.value, 'local');
-			      if (dest !== 'local') {
-			        const scope = dest === 'system' ? 'system' : 'team';
-			        (async () => {
+				      if (dest !== 'local') {
+				        const scope = dest === 'system' ? 'system' : 'team';
+				        (async () => {
 			          try {
 			            const res = await savePlaybookClip({ scope, name: name.slice(0, 160), folder, tags, steps });
 			            if (res?.canceled) return;
@@ -13702,12 +13752,25 @@
 			            setStatus(e?.message || 'No se pudo guardar en Playbook.', true);
 			          }
 			        })();
-			        return;
-			      }
-			      const clip = { name: name.slice(0, 120), created_at: new Date().toISOString(), steps };
-			      const prev = readClipsLibrary();
-			      const next = [clip, ...prev].slice(0, 40);
-			      writeClipsLibrary(next);
+				        return;
+				      }
+				      let pro = null;
+				      try {
+				        const hasTracks = simulationProTracks && typeof simulationProTracks === 'object' && Object.keys(simulationProTracks).length >= 1;
+				        if (hasTracks || simulationProEnabled) {
+				          pro = {
+				            v: 1,
+				            enabled: !!simulationProEnabled,
+				            loop: !!simulationProLoop,
+				            updated_at: new Date().toISOString(),
+				            tracks: simulationProTracks || {},
+				          };
+				        }
+				      } catch (e) { /* ignore */ }
+				      const clip = { name: name.slice(0, 120), created_at: new Date().toISOString(), steps, pro };
+				      const prev = readClipsLibrary();
+				      const next = [clip, ...prev].slice(0, 40);
+				      writeClipsLibrary(next);
 			      renderClipsLibrary();
 			      setStatus('Clip guardado (local).');
 			    });
@@ -13735,11 +13798,12 @@
 			        setStatus('El JSON no contiene pasos.', true);
 			        return;
 			      }
-			      const name = safeText(parsed?.name, file.name.replace(/\\.json$/i, '')).slice(0, 120) || 'Clip importado';
-			      const clip = { name, created_at: new Date().toISOString(), steps };
-			      const prev = readClipsLibrary();
-			      writeClipsLibrary([clip, ...prev].slice(0, 40));
-			      renderClipsLibrary();
+				      const name = safeText(parsed?.name, file.name.replace(/\\.json$/i, '')).slice(0, 120) || 'Clip importado';
+				      const pro = (parsed?.pro && typeof parsed.pro === 'object') ? parsed.pro : null;
+				      const clip = { name, created_at: new Date().toISOString(), steps, pro };
+				      const prev = readClipsLibrary();
+				      writeClipsLibrary([clip, ...prev].slice(0, 40));
+				      renderClipsLibrary();
 			      setStatus('Clip importado (local).');
 			    });
 				    simShareBtn?.addEventListener('click', (event) => {
