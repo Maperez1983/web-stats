@@ -4148,14 +4148,19 @@
 		                            <option value="mixed">Mixta</option>
 		                          </select>
 		                        </label>
-		                        <label style="grid-column:1 / -1;">
-		                          Material (opcional)
-		                          <input type="text" id="task-assistant-smart-materials" placeholder="Ej: 12 conos, 8 petos, 6 balones, mini porterías…" />
-		                        </label>
-		                        <label style="grid-column:1 / -1;">
-		                          Guardar como plantilla (equipo)
-		                          <input type="text" id="task-assistant-blueprint-name" placeholder="Nombre de plantilla (ej: Salida 3+2 · atraer y cambiar)" />
-		                        </label>
+			                        <label style="grid-column:1 / -1;">
+			                          Material (opcional)
+			                          <input type="text" id="task-assistant-smart-materials" placeholder="Ej: 12 conos, 8 petos, 6 balones, mini porterías…" />
+			                        </label>
+			                        <label style="grid-column:1 / -1;">
+			                          Descripción libre (opcional)
+			                          <textarea id="task-assistant-smart-prompt" rows="3" placeholder="Escribe lo que quieres (ej: partido condicionado 7v7 para finalizar desde banda; provocar centros + rupturas; 2 comodines interiores; 4x4'…)."></textarea>
+			                          <div class="meta" style="margin-top:0.25rem; opacity:0.9;">Se usa para priorizar y adaptar tus plantillas (opción recomendada).</div>
+			                        </label>
+			                        <label style="grid-column:1 / -1;">
+			                          Guardar como plantilla (equipo)
+			                          <input type="text" id="task-assistant-blueprint-name" placeholder="Nombre de plantilla (ej: Salida 3+2 · atraer y cambiar)" />
+			                        </label>
 		                        <label style="grid-column:1 / -1;">
 		                          Base de conocimiento (docs)
 		                          <input type="file" id="task-assistant-knowledge-files" accept="application/pdf,text/plain,text/markdown,image/*,.pdf,.txt,.md,.png,.jpg,.jpeg,.webp" multiple />
@@ -5542,19 +5547,20 @@
 			            };
 			          };
 
-				          const buildSmartTemplates = () => {
-				            const age = String((document.getElementById('task-assistant-ageband')?.value) || 'u12').trim();
-				            const rawGoal = String((document.getElementById('task-assistant-goal')?.value) || 'progression').trim();
-				            const smartSubphase = String((smartSubphaseEl?.value) || 'auto').trim();
-				            const smartSubphaseLabel = String((smartSubphaseEl?.selectedOptions && smartSubphaseEl.selectedOptions[0]?.textContent) || '').trim();
-				            const principle = String((document.getElementById('task-assistant-smart-principle')?.value) || 'auto').trim();
-				            const blockPref = String((document.getElementById('task-assistant-smart-block')?.value) || 'auto').trim();
-				            const approachPref = String((document.getElementById('task-assistant-smart-approach')?.value) || 'auto').trim();
-				            const playersCount = toInt((document.getElementById('task-assistant-smart-players')?.value) || '', 0);
-				            const materialsHint = String((document.getElementById('task-assistant-smart-materials')?.value) || '').trim();
-			            const minutes = Math.max(5, Math.min(30, toInt(minutesEl.value, 12)));
-			            const level = String(levelEl.value || '1').trim();
-			            const levelLabel = level === '3' ? 'Nivel 3' : (level === '2' ? 'Nivel 2' : 'Nivel 1');
+					          const buildSmartTemplates = () => {
+					            const age = String((document.getElementById('task-assistant-ageband')?.value) || 'u12').trim();
+					            const rawGoal = String((document.getElementById('task-assistant-goal')?.value) || 'progression').trim();
+					            const smartSubphase = String((smartSubphaseEl?.value) || 'auto').trim();
+					            const smartSubphaseLabel = String((smartSubphaseEl?.selectedOptions && smartSubphaseEl.selectedOptions[0]?.textContent) || '').trim();
+					            const principle = String((document.getElementById('task-assistant-smart-principle')?.value) || 'auto').trim();
+					            const blockPref = String((document.getElementById('task-assistant-smart-block')?.value) || 'auto').trim();
+					            const approachPref = String((document.getElementById('task-assistant-smart-approach')?.value) || 'auto').trim();
+					            const playersCount = toInt((document.getElementById('task-assistant-smart-players')?.value) || '', 0);
+					            const materialsHint = String((document.getElementById('task-assistant-smart-materials')?.value) || '').trim();
+					            const smartPrompt = String((document.getElementById('task-assistant-smart-prompt')?.value) || '').trim();
+				            const minutes = Math.max(5, Math.min(30, toInt(minutesEl.value, 12)));
+				            const level = String(levelEl.value || '1').trim();
+				            const levelLabel = level === '3' ? 'Nivel 3' : (level === '2' ? 'Nivel 2' : 'Nivel 1');
 
 			            const isYoung = age === 'u8';
 			            const isSenior = age === 'u19';
@@ -7166,10 +7172,10 @@
 				              });
 				            } catch (e) {}
 
-					            const scoreCandidate = (item) => {
-					              const tpl = item?.tpl || {};
-					              const meta = item?.meta || {};
-					              let score = 0;
+						            const scoreCandidate = (item) => {
+						              const tpl = item?.tpl || {};
+						              const meta = item?.meta || {};
+						              let score = 0;
 					              if (String(meta.goal || '') === goal) score += 50;
 				              if (smartSubphase !== 'auto') {
 				                const sp = String(meta.subphase || 'auto').trim();
@@ -7183,7 +7189,7 @@
 				              if (allowedFormatsForApproach && !allowedFormatsForApproach.has(String(meta.format || ''))) score -= 6;
 			              const tMin = Number(tpl.minutes) || 0;
 			              if (tMin) score += Math.max(0, 12 - Math.abs(tMin - minutes));
-				              if (playersCount > 0) {
+					              if (playersCount > 0) {
 				                // Si no tenemos rango, no penalizamos.
 				                const lo = Number(meta.players_min) || 0;
 				                const hi = Number(meta.players_max) || 0;
@@ -7197,10 +7203,33 @@
 				                };
 				                if (lo && playersCount < lo) score -= penalty(lo - playersCount);
 				                if (hi && playersCount > hi) score -= penalty(playersCount - hi);
-				              }
-					              // Bonus por ficha "completa": hace que la recomendación sea más útil sin tocar el modelo.
-					              if (tpl.description_html) score += 2;
-					              if (tpl.coaching_html) score += 1;
+					              }
+					              // Prompt libre: prioriza tareas cuyo texto/objetivo coincide con lo que pide el entrenador.
+					              if (promptTokens.length) {
+					                try {
+					                  const corpusRaw = [
+					                    tpl.title,
+					                    tpl.objective,
+					                    tpl.space,
+					                    tpl.dimensions,
+					                    tpl.materials,
+					                    stripHtml(tpl.description_html),
+					                    stripHtml(tpl.coaching_html),
+					                    stripHtml(tpl.rules_html),
+					                    stripHtml(tpl.progression_html),
+					                    stripHtml(tpl.success_criteria_html),
+					                  ].join(' ');
+					                  const corpusTokens = tokenize(corpusRaw);
+					                  const corpusSet = new Set(corpusTokens);
+					                  let matches = 0;
+					                  promptTokens.forEach((tok) => { if (corpusSet.has(tok)) matches += 1; });
+					                  score += Math.min(28, matches * 4);
+					                  if (!matches) score -= 2;
+					                } catch (e) {}
+					              }
+						              // Bonus por ficha "completa": hace que la recomendación sea más útil sin tocar el modelo.
+						              if (tpl.description_html) score += 2;
+						              if (tpl.coaching_html) score += 1;
 					              if (tpl.rules_html) score += 1;
 					              if (tpl.progression_html) score += 1;
 					              if (tpl.success_criteria_html) score += 1;
@@ -7216,15 +7245,51 @@
 				              return score;
 				            };
 
-					            const normalizeKey = (value) => String(value || '')
-					              .toLowerCase()
-					              .replace(/\s+/g, ' ')
-					              .replace(/[^a-z0-9áéíóúüñ ]+/gi, '')
-					              .trim()
-					              .slice(0, 140);
-					            const scoredCandidates = catalog
-					              .filter((item) => {
-					                if (!item?.tpl) return false;
+						            const normalizeKey = (value) => String(value || '')
+						              .toLowerCase()
+						              .replace(/\s+/g, ' ')
+						              .replace(/[^a-z0-9áéíóúüñ ]+/gi, '')
+						              .trim()
+						              .slice(0, 140);
+						            const escapeHtml = (value) => String(value == null ? '' : value)
+						              .replace(/&/g, '&amp;')
+						              .replace(/</g, '&lt;')
+						              .replace(/>/g, '&gt;')
+						              .replace(/"/g, '&quot;')
+						              .replace(/'/g, '&#039;');
+						            const stripHtml = (html) => String(html || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+						            const STOPWORDS = new Set([
+						              'de','del','la','el','los','las','un','una','unos','unas','y','o','u','a','en','por','para','con','sin','sobre','entre',
+						              'al','se','que','como','más','mas','muy','ya','si','no','lo','su','sus','mi','mis','tu','tus','nuestro','nuestra','vuestro',
+						              'cada','todos','todas','todo','toda','este','esta','estos','estas','eso','esa','aquí','ahi','allí','hoy',
+						              'hacer','trabajar','provocar','buscar','mejorar','evitar','crear','generar','realizar','aplicar',
+						              'juego','partido','tarea','ejercicio','situación','situacion','zona','campo','balón','balon','portería','porteria',
+						              'jugador','jugadores','equipo','rival','comodín','comodin',
+						            ]);
+						            const tokenize = (text) => {
+						              const norm = normalizeKey(text);
+						              if (!norm) return [];
+						              return norm.split(' ').map((t) => String(t || '').trim()).filter((t) => t.length >= 3 && !STOPWORDS.has(t)).slice(0, 64);
+						            };
+						            const promptTokens = tokenize(smartPrompt).slice(0, 18);
+						            const applyPromptToTpl = (tpl) => {
+						              if (!smartPrompt) return tpl;
+						              if (!tpl || typeof tpl !== 'object') return tpl;
+						              const note = `<li><strong>Adaptación (descripción):</strong> ${escapeHtml(smartPrompt)}</li>`;
+						              const next = { ...tpl };
+						              next.description_html = (next.description_html || '').includes('<ul>')
+						                ? String(next.description_html || '').replace('</ul>', `${note}</ul>`)
+						                : `<ul>${note}</ul>${ensureListHtml(next.description_html || '')}`;
+						              if (materialsHint) {
+						                next.materials = String(next.materials || '').trim()
+						                  ? String(next.materials || '').trim()
+						                  : materialsHint;
+						              }
+						              return next;
+						            };
+						            const scoredCandidates = catalog
+						              .filter((item) => {
+						                if (!item?.tpl) return false;
 					                const itemGoal = String(item.meta?.goal || '').trim();
 					                if (goal === 'warmup') {
 					                  if (itemGoal !== 'warmup') return false;
@@ -7320,15 +7385,16 @@
 					              }
 					              return picked.slice(0, limit);
 					            };
-					            const suggestions = diversifySuggestions(sorted, 6);
+						            const suggestions = diversifySuggestions(sorted, 6)
+						              .map((item) => (item && item.tpl ? ({ ...item, tpl: applyPromptToTpl(item.tpl) }) : item));
 
-				            const best = suggestions[0]?.tpl || pickWithSubphase;
+					            const best = suggestions[0]?.tpl || applyPromptToTpl(pickWithSubphase);
 
-			            return {
-			              smart_generate: best,
-			              smart_suggestions: suggestions,
-			              smart_block_1: warmup,
-			              smart_block_2: best,
+				            return {
+				              smart_generate: best,
+				              smart_suggestions: suggestions,
+				              smart_block_1: warmup,
+				              smart_block_2: best,
 			              smart_block_3: cooldown,
 			            };
 			          };
@@ -7341,15 +7407,49 @@
 				            return {};
 				          };
 
-				          const queueRow = document.getElementById('task-assistant-queue');
-				          const queueText = document.getElementById('task-assistant-queue-text');
-				          const queueNextBtn = document.getElementById('task-assistant-queue-next');
-				          const queueClearBtn = document.getElementById('task-assistant-queue-clear');
-				          const scopeKey = String(form.dataset.scopeKey || 'coach').trim() || 'coach';
-				          const queueKey = `webstats:task_assistant:queue_v1:${scopeKey}`;
-				          const readQueue = () => {
-				            try {
-				              const raw = window.localStorage?.getItem(queueKey) || '';
+					          const queueRow = document.getElementById('task-assistant-queue');
+					          const queueText = document.getElementById('task-assistant-queue-text');
+					          const queueNextBtn = document.getElementById('task-assistant-queue-next');
+					          const queueClearBtn = document.getElementById('task-assistant-queue-clear');
+					          const scopeKey = String(form.dataset.scopeKey || 'coach').trim() || 'coach';
+					          const queueKey = `webstats:task_assistant:queue_v1:${scopeKey}`;
+					          const smartPromptEl = document.getElementById('task-assistant-smart-prompt');
+					          const smartPromptKey = `webstats:task_assistant:smart_prompt_v1:${scopeKey}`;
+					          const readSmartPrompt = () => {
+					            if (!smartPromptEl) return '';
+					            try {
+					              const raw = window.localStorage?.getItem(smartPromptKey) || '';
+					              return String(raw || '').trim().slice(0, 600);
+					            } catch (e) {
+					              return '';
+					            }
+					          };
+					          const writeSmartPrompt = (value) => {
+					            if (!smartPromptEl) return;
+					            try { window.localStorage?.setItem(smartPromptKey, String(value || '').trim().slice(0, 600)); } catch (e) { /* ignore */ }
+					          };
+					          try {
+					            if (smartPromptEl && !String(smartPromptEl.value || '').trim()) {
+					              smartPromptEl.value = readSmartPrompt();
+					            }
+					          } catch (e) { /* ignore */ }
+					          let smartPromptTimer = null;
+					          smartPromptEl?.addEventListener('input', () => {
+					            const value = String(smartPromptEl.value || '').trim().slice(0, 600);
+					            writeSmartPrompt(value);
+					            // Si ya hay sugerencias en pantalla y estamos en Smart, refresca.
+					            if (String(programEl.value || '') !== 'smart') return;
+					            if (smartPromptTimer) window.clearTimeout(smartPromptTimer);
+					            smartPromptTimer = window.setTimeout(() => {
+					              try {
+					                const hasContent = smartSuggestionsBox && String(smartSuggestionsBox.innerHTML || '').trim().length > 0;
+					                if (hasContent) renderSmartSuggestions();
+					              } catch (e) {}
+					            }, 220);
+					          });
+					          const readQueue = () => {
+					            try {
+					              const raw = window.localStorage?.getItem(queueKey) || '';
 				              const parsed = raw ? JSON.parse(raw) : null;
 				              const items = Array.isArray(parsed?.items) ? parsed.items : [];
 				              return { v: 1, created_at: parsed?.created_at || null, items };
