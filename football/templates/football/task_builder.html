@@ -1378,28 +1378,55 @@
 	        color: var(--muted);
 	        font-size: 0.82rem;
 	      }
-	      .pitch-drills-strip {
-	        margin: 0.65rem 0 0;
-	        display: flex;
-	        gap: 0.5rem;
-	        flex-wrap: wrap;
-	        align-items: center;
-	        padding: 0.5rem 0.65rem;
-	        border-radius: 14px;
-	        border: 1px solid rgba(255,255,255,0.14);
-	        background: rgba(2,6,23,0.50);
-	        box-shadow: 0 12px 28px rgba(2,6,23,0.35);
-	        backdrop-filter: blur(10px);
-	      }
+		      .pitch-drills-strip {
+		        margin: 0.65rem 0 0;
+		        display: flex;
+		        gap: 0.5rem;
+		        flex-wrap: wrap;
+		        align-items: center;
+		        padding: 0.5rem 0.65rem;
+		        border-radius: 14px;
+		        border: 1px solid rgba(255,255,255,0.14);
+		        background: rgba(2,6,23,0.50);
+		        box-shadow: 0 12px 28px rgba(2,6,23,0.35);
+		        backdrop-filter: blur(10px);
+		        --drill-icon-color: #0f7a35;
+		      }
 	      .pitch-drills-strip[hidden] { display: none !important; }
-	      .pitch-drills-title {
-	        font-weight: 900;
-	        letter-spacing: 0.08em;
-	        text-transform: uppercase;
-	        color: rgba(226,232,240,0.92);
-	        font-size: 0.78rem;
-	        margin-right: 0.15rem;
-	      }
+		      .pitch-drills-title {
+		        font-weight: 900;
+		        letter-spacing: 0.08em;
+		        text-transform: uppercase;
+		        color: rgba(226,232,240,0.92);
+		        font-size: 0.78rem;
+		        margin-right: 0.15rem;
+		      }
+		      .pitch-drills-color {
+		        appearance: none;
+		        -webkit-appearance: none;
+		        border: 1px solid rgba(255,255,255,0.12);
+		        background: rgba(15, 23, 42, 0.62);
+		        border-radius: 999px;
+		        height: 30px;
+		        padding: 0 0.55rem;
+		        display: inline-flex;
+		        align-items: center;
+		        gap: 0.4rem;
+		        color: rgba(226,232,240,0.9);
+		        font-weight: 900;
+		        letter-spacing: 0.08em;
+		        text-transform: uppercase;
+		        font-size: 0.68rem;
+		        cursor: pointer;
+		      }
+		      .pitch-drills-color:hover { border-color: rgba(244,180,0,0.42); }
+		      .pitch-drills-swatch {
+		        width: 14px;
+		        height: 14px;
+		        border-radius: 6px;
+		        background: var(--drill-icon-color);
+		        box-shadow: 0 0 0 2px rgba(255,255,255,0.14) inset;
+		      }
 	      .pitch-drill-chip {
 	        display: inline-flex;
 	        align-items: center;
@@ -1434,12 +1461,15 @@
 	      .pitch-drill-chip.is-dragging {
 	        opacity: 0.72;
 	      }
-	      .pitch-drill-chip img {
-	        width: 20px;
-	        height: 20px;
-	        object-fit: contain;
-	        filter: drop-shadow(0 6px 10px rgba(2,6,23,0.35));
-	      }
+		      .pitch-drill-icon {
+		        width: 20px;
+		        height: 20px;
+		        flex: 0 0 auto;
+		        background: var(--drill-icon-color);
+		        -webkit-mask: var(--drill-mask) no-repeat center / contain;
+		        mask: var(--drill-mask) no-repeat center / contain;
+		        filter: drop-shadow(0 6px 10px rgba(2,6,23,0.35));
+		      }
 	      .pitch-drill-chip span {
 	        overflow: hidden;
 	        text-overflow: ellipsis;
@@ -2233,6 +2263,7 @@
 	        height: 140px;
 	        border-radius: 14px;
 	        background:
+	          url("{% static 'football/images/surfaces/references/football_pitch_metric_reference.svg' %}") center / contain no-repeat,
 	          linear-gradient(90deg, rgba(34, 197, 94, 0.18) 0%, rgba(34, 197, 94, 0.10) 50%, rgba(34, 197, 94, 0.18) 100%),
 	          repeating-linear-gradient(90deg, rgba(34, 197, 94, 0.10) 0, rgba(34, 197, 94, 0.10) 22px, rgba(34, 197, 94, 0.14) 22px, rgba(34, 197, 94, 0.14) 44px);
 	      }
@@ -2244,6 +2275,7 @@
 	        left: 50%;
 	        top: 50%;
 	        transform: translate(-50%, -50%);
+	        z-index: 2;
 	        width: 20px;
 	        height: 20px;
 	        display: grid;
@@ -2267,6 +2299,8 @@
 	      }
 	      .assistant-suggestion-item.is-local { background: rgba(34, 197, 94, 0.92); color: rgba(15, 23, 42, 0.95); }
 	      .assistant-suggestion-item.is-rival { background: rgba(239, 68, 68, 0.92); color: rgba(15, 23, 42, 0.95); }
+	      .assistant-suggestion-item.is-keeper { background: rgba(59, 130, 246, 0.92); color: rgba(15, 23, 42, 0.95); }
+	      .assistant-suggestion-item.is-keeper.is-rival { background: rgba(251, 113, 133, 0.92); }
 	      .assistant-suggestion-item.is-ball { background: rgba(248, 250, 252, 0.96); }
 	      .assistant-suggestion-item.is-cone {
 	        width: 0;
@@ -2305,12 +2339,30 @@
 		        background: rgba(248, 250, 252, 0.14);
 		        border: 1px solid rgba(248, 250, 252, 0.32);
 		      }
-		      .assistant-suggestion-item.is-asset img {
-		        width: 16px;
-		        height: 16px;
-		        object-fit: contain;
-		        filter: drop-shadow(0 6px 10px rgba(2,6,23,0.22));
-		      }
+	      .assistant-suggestion-item.is-asset img {
+	        width: 16px;
+	        height: 16px;
+	        object-fit: contain;
+	        filter: drop-shadow(0 6px 10px rgba(2,6,23,0.22));
+	      }
+	      .assistant-suggestion-shape {
+	        position: absolute;
+	        left: 50%;
+	        top: 50%;
+	        transform: translate(-50%, -50%);
+	        z-index: 1;
+	        border: 2px dashed rgba(248, 250, 252, 0.55);
+	        background: rgba(248, 250, 252, 0.04);
+	        border-radius: 12px;
+	        box-shadow: rgba(2, 6, 23, 0.25) 0 8px 18px;
+	        pointer-events: none;
+	        user-select: none;
+	      }
+	      .assistant-suggestion-shape.is-lane {
+	        border-style: solid;
+	        border-color: rgba(244, 180, 0, 0.55);
+	        background: rgba(244, 180, 0, 0.10);
+	      }
 		      .assistant-suggestion-canvasimg {
 		        position: absolute;
 		        inset: 0;
@@ -2321,12 +2373,59 @@
 		        user-select: none;
 		        filter: drop-shadow(0 10px 18px rgba(2,6,23,0.25));
 		      }
-	      .assistant-suggestion-peek {
-	        border-top: 1px solid rgba(255, 255, 255, 0.10);
-	        padding-top: 0.6rem;
-	        display: grid;
-	        gap: 0.45rem;
-	      }
+		      .assistant-suggestion-peek {
+		        border-top: 1px solid rgba(255, 255, 255, 0.10);
+		        padding-top: 0.6rem;
+		        display: grid;
+		        gap: 0.45rem;
+		      }
+		      .assistant-suggestion-section-title {
+		        font-weight: 900;
+		        letter-spacing: 0.08em;
+		        text-transform: uppercase;
+		        color: rgba(226, 232, 240, 0.92);
+		        font-size: 0.78rem;
+		      }
+		      .assistant-suggestion-table {
+		        width: 100%;
+		        border-collapse: collapse;
+		        border: 1px solid rgba(255, 255, 255, 0.10);
+		        border-radius: 12px;
+		        overflow: hidden;
+		        background: rgba(15, 23, 42, 0.22);
+		      }
+		      .assistant-suggestion-table td {
+		        border: 1px solid rgba(255, 255, 255, 0.08);
+		        padding: 0.45rem 0.5rem;
+		        vertical-align: top;
+		        font-size: 0.92rem;
+		        line-height: 1.2;
+		      }
+		      .assistant-suggestion-table td.label {
+		        width: 18%;
+		        font-weight: 800;
+		        color: rgba(226, 232, 240, 0.88);
+		        background: rgba(255, 255, 255, 0.03);
+		      }
+		      .assistant-suggestion-table td.value {
+		        color: rgba(241, 245, 249, 0.96);
+		      }
+		      .assistant-suggestion-copy {
+		        border: 1px solid rgba(255, 255, 255, 0.10);
+		        border-radius: 12px;
+		        padding: 0.6rem 0.65rem;
+		        background: rgba(15, 23, 42, 0.22);
+		        display: grid;
+		        gap: 0.45rem;
+		      }
+		      .assistant-suggestion-copy strong {
+		        color: rgba(226, 232, 240, 0.92);
+		      }
+		      .assistant-suggestion-copy ul,
+		      .assistant-suggestion-copy ol {
+		        margin: 0.25rem 0 0.2rem 1.1rem;
+		      }
+		      .assistant-suggestion-copy li { margin: 0.1rem 0; }
 	      .assistant-suggestion-peek .meta {
 	        opacity: 0.92;
 	      }
@@ -2644,12 +2743,13 @@
           <h1>{% if task %}Editar tarea{% else %}Crear tarea{% endif %} · Editor visual dedicado</h1>
           <p class="meta">Superficie real de juego, recursos básicos y ficha corta para que la pizarra sea lo principal.</p>
         </div>
-	        <div class="actions">
-	          <a href="{{ back_url|default:'#' }}" class="button">{{ back_label|default:'Volver a sesiones' }}</a>
-            {% if task and can_restore_original %}
-            <form method="post" style="display:inline-flex; margin:0;">
-              {% csrf_token %}
-              <input type="hidden" name="builder_action" value="restore_original_version" />
+		        <div class="actions">
+		          <a href="{{ back_url|default:'#' }}" class="button">{{ back_label|default:'Volver a sesiones' }}</a>
+		          <button type="button" class="button" id="task-builder-help" title="Ver tutorial rápido">Ayuda</button>
+	            {% if task and can_restore_original %}
+	            <form method="post" style="display:inline-flex; margin:0;">
+	              {% csrf_token %}
+	              <input type="hidden" name="builder_action" value="restore_original_version" />
               <button type="submit" class="button danger" title="Restaura el contenido anterior si algo se borró por error">Restaurar versión</button>
             </form>
             {% endif %}
@@ -3878,15 +3978,16 @@
 	                    Espacio
 	                    <input type="text" name="draw_task_space" value="{{ initial.space }}" placeholder="Ej: zona central + 2 carriles" />
 	                  </label>
-	                  <label style="grid-column:1 / -1;">
-	                    Pictogramas (opcional)
-	                    <div class="meta" style="margin-top:0.25rem; margin-bottom:0.45rem; opacity:0.86;">
-	                      Útil para calentamientos (técnica de carrera / movilidad). Se imprimen en el PDF como secuencia visual.
-	                    </div>
-	                    <input type="hidden" name="draw_task_drills_json" id="draw-task-drills-json" value="{{ initial.drills_json|default:'[]'|escape }}" />
-	                    <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; margin-bottom:0.45rem;">
-	                      <input type="text" id="task-drills-search" placeholder="Buscar…" style="flex:1 1 140px; min-width:140px;" />
-	                      <select id="task-drills-filter" style="flex:0 0 auto;">
+		                  <label style="grid-column:1 / -1;">
+		                    Pictogramas (opcional)
+		                    <div class="meta" style="margin-top:0.25rem; margin-bottom:0.45rem; opacity:0.86;">
+		                      Útil para calentamientos (técnica de carrera / movilidad). Se imprimen en el PDF como secuencia visual.
+		                    </div>
+		                    <input type="hidden" name="draw_task_drills_json" id="draw-task-drills-json" value="{{ initial.drills_json|default:'[]'|escape }}" />
+		                    <input type="hidden" name="draw_task_drills_icon_color" id="draw-task-drills-icon-color" value="{{ initial.drills_icon_color|default:'#0f7a35'|escape }}" />
+		                    <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; margin-bottom:0.45rem;">
+		                      <input type="text" id="task-drills-search" placeholder="Buscar…" style="flex:1 1 140px; min-width:140px;" />
+		                      <select id="task-drills-filter" style="flex:0 0 auto;">
 	                        <option value="all">Todos</option>
 	                        <option value="running">Carrera</option>
 	                        <option value="running_technique">Técnica carrera</option>
@@ -4429,13 +4530,14 @@
       </form>
     </main>
 
-	    {{ tactical_player_catalog|json_script:"tpad-players-catalog" }}
-	    <script src="{% static 'vendor/fabric.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
-	    <script src="{% static 'vendor/three.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
-	    <script src="{% static 'football/js/sessions_tactical_pad.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
-	    <script src="{% static 'football/js/tpad_sim_3d_viewer.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
-				    <script>
-				      window.addEventListener('DOMContentLoaded', () => {
+		    {{ tactical_player_catalog|json_script:"tpad-players-catalog" }}
+		    <script src="{% static 'vendor/fabric.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+		    <script src="{% static 'vendor/three.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+		    <script src="{% static 'football/js/ui_tour.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+		    <script src="{% static 'football/js/sessions_tactical_pad.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+		    <script src="{% static 'football/js/tpad_sim_3d_viewer.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+					    <script>
+					      window.addEventListener('DOMContentLoaded', () => {
 				        // Selector de dispositivo (solo UI): auto/desktop/tablet.
 			        const deviceKey = 'webstats:tpad:device';
 			        const deviceButtons = Array.from(document.querySelectorAll('[data-device-mode]'));
@@ -4462,17 +4564,70 @@
 	          initialDevice = 'auto';
 	        }
 	        applyDevice(initialDevice);
-	        deviceButtons.forEach((btn) => {
-	          btn.addEventListener('click', () => {
-	            const mode = normalizeDevice(btn.dataset.deviceMode);
-	            try { window.localStorage?.setItem(deviceKey, mode); } catch (error) {}
-	            applyDevice(mode);
-	          });
-	        });
+		        deviceButtons.forEach((btn) => {
+		          btn.addEventListener('click', () => {
+		            const mode = normalizeDevice(btn.dataset.deviceMode);
+		            try { window.localStorage?.setItem(deviceKey, mode); } catch (error) {}
+		            applyDevice(mode);
+		          });
+		        });
 
-	        const compactKey = 'webstats:tpad:compact';
-	        const toggleBtn = document.getElementById('task-builder-compact-toggle');
-	        const playerBank = document.getElementById('task-player-bank');
+		        // Tutorial rápido (nuevos usuarios).
+		        try {
+		          const tour = window.WebstatsTour;
+		          const tourId = 'task_builder_v1';
+		          const steps = [
+		            {
+		              anchor: '.topbar .actions',
+		              title: '1) Acciones rápidas',
+		              body: 'Aquí cambias el modo (Ordenador/iPad), activas vista compacta y generas el PDF (Imprimir UEFA/Club).',
+		            },
+		            {
+		              anchor: '#task-pitch-stage',
+		              title: '2) Pizarra',
+		              body: 'Pulsa un recurso (jugador, cono, línea…) y haz clic en el campo para colocarlo. Arrastra para mover y usa Deshacer si te equivocas.',
+		            },
+		            {
+		              anchor: '#task-player-bank',
+		              title: '3) Jugadores',
+		              body: 'Desde “Plantilla disponible” puedes añadir jugadores a la pizarra. “Ocultar usados” evita duplicados.',
+		            },
+		            {
+		              anchor: '#task-side-tabs',
+		              title: '4) Panel lateral',
+		              body: 'Aquí están Ficha, Asistente, Escenarios, Biblioteca, Capas, Exportar y Vista previa.',
+		            },
+		            {
+		              anchor: 'button.side-tab[data-pane=\"preview\"]',
+		              title: '5) Vista previa y PDF',
+		              body: 'En “Vista previa” verás cómo quedará. El PDF se genera con “Imprimir UEFA/Club”.',
+		            },
+		            {
+		              anchor: '.submit-row .primary',
+		              title: '6) Guardar',
+		              body: 'Cuando termines, pulsa “Guardar/Crear tarea”.',
+		            },
+		          ];
+
+		          const helpBtn = document.getElementById('task-builder-help');
+		          if (helpBtn && tour) {
+		            helpBtn.addEventListener('click', () => tour.start(tourId, steps, { force: true }));
+		          }
+
+		          // Permite que la guía global (barra superior) lance el tutorial específico de esta pantalla.
+		          window.__WEBSTATS_PAGE_TOUR_ID = tourId;
+		          window.__WEBSTATS_PAGE_TOUR_STEPS = steps;
+
+		          const isNew = !String(document.getElementById('task-builder-form')?.dataset?.taskId || '').trim();
+		          const urlForce = (() => {
+		            try { return new URLSearchParams(window.location.search).get('tour') === '1'; } catch (e) { return false; }
+		          })();
+		          if (tour) tour.startIfNeeded(tourId, steps, { force: urlForce || isNew });
+		        } catch (e) { /* ignore */ }
+
+		        const compactKey = 'webstats:tpad:compact';
+		        const toggleBtn = document.getElementById('task-builder-compact-toggle');
+		        const playerBank = document.getElementById('task-player-bank');
 	        const playerPrev = document.getElementById('player-bank-prev');
 	        const playerNext = document.getElementById('player-bank-next');
         const applyCompact = (enabled) => {
@@ -6500,24 +6655,143 @@
 					                return g === goal;
 					              });
 					            };
-			            // Catálogo de candidatos (mínimo viable).
-				            const catalog = [];
-				            const addCandidate = (id, tpl, meta = {}) => {
-				              if (!tpl) return;
-				              catalog.push({
-				                id: String(id || '').trim(),
-				                tpl,
-				                meta: {
-				                  goal: meta.goal || goal,
-				                  age,
-				                  subphase: meta.subphase || 'auto',
-				                  format: meta.format || 'auto',
-				                  intensity: meta.intensity || 'auto',
-				                  players_min: meta.players_min || 0,
-				                  players_max: meta.players_max || 0,
-				                },
-				              });
-				            };
+				            // Catálogo de candidatos (mínimo viable).
+					            const catalog = [];
+					            const inferComplexity = () => {
+					              const lvl = String(level || '1').trim();
+					              if (lvl === '3') return 'high';
+					              if (lvl === '2') return 'medium';
+					              return 'low';
+					            };
+					            const DEFAULT_SYSTEM_META = {
+					              warmup: { strategy: 'circuit', dynamics: 'extensive', structure: 'complete', coordination: 'player', coordination_skills: 'movements', tactical_intent: 'maintain' },
+					              coord: { strategy: 'circuit', dynamics: 'speed', structure: 'sectorial', coordination: 'player', coordination_skills: 'direction_change', tactical_intent: 'maintain' },
+					              physical_field: { strategy: 'circuit', dynamics: 'endurance', structure: 'sectorial', coordination: 'player', coordination_skills: 'start_stop', tactical_intent: 'maintain' },
+					              physical_gym: { strategy: 'circuit', dynamics: 'strength', structure: 'sectorial', coordination: 'player', coordination_skills: 'balance', tactical_intent: 'maintain' },
+					              build_up: { strategy: 'positional', dynamics: 'intense_interaction', structure: 'intersectorial', coordination: 'team', coordination_skills: 'pass', tactical_intent: 'build' },
+					              progression: { strategy: 'positional', dynamics: 'intense_interaction', structure: 'intersectorial', coordination: 'team', coordination_skills: 'pass', tactical_intent: 'progress' },
+					              final_third: { strategy: 'reduced_games', dynamics: 'intense_interaction', structure: 'complete', coordination: 'team', coordination_skills: 'shots', tactical_intent: 'finish' },
+					              pressing: { strategy: 'reduced_games', dynamics: 'intense_interaction', structure: 'complete', coordination: 'team', coordination_skills: 'interceptions', tactical_intent: 'press' },
+					              counterpress: { strategy: 'reduced_games', dynamics: 'intense_interaction', structure: 'complete', coordination: 'team', coordination_skills: 'interceptions', tactical_intent: 'press' },
+					              defending: { strategy: 'lines_work', dynamics: 'intense_interaction', structure: 'complete', coordination: 'team', coordination_skills: 'tackles', tactical_intent: 'def_organized' },
+					              transition_atd: { strategy: 'waves', dynamics: 'intense_action', structure: 'intersectorial', coordination: 'team', coordination_skills: 'start_stop', tactical_intent: 'counter' },
+					              transition_dta: { strategy: 'waves', dynamics: 'intense_action', structure: 'intersectorial', coordination: 'team', coordination_skills: 'start_stop', tactical_intent: 'counter' },
+					              duels: { strategy: 'reduced_games', dynamics: 'intense_action', structure: 'sectorial', coordination: 'players', coordination_skills: 'balance', tactical_intent: '1v1' },
+					              set_pieces: { strategy: 'abp', dynamics: 'adm', structure: 'sectorial', coordination: 'team', coordination_skills: 'pass', tactical_intent: 'abp_att' },
+					            };
+					            const inferPlayersMinMaxFromText = (value) => {
+					              const text = String(value || '').toLowerCase().trim();
+					              if (!text) return { min: 0, max: 0 };
+
+					              const keeperMatch = text.match(/(\d+)\s*(?:p|porteros|portero)\b/);
+					              const keeperCount = keeperMatch
+					                ? (Number.parseInt(keeperMatch[1], 10) || 0)
+					                : (text.includes('porteros') ? 2 : (text.includes('portero') ? 1 : 0));
+
+					              const totals = [];
+					              try {
+					                const rx = /(\d+)\s*v\s*(\d+)(?:\s*\+\s*(\d+))?/g;
+					                let match;
+					                // eslint-disable-next-line no-cond-assign
+					                while ((match = rx.exec(text)) !== null) {
+					                  const a = Number.parseInt(match[1], 10) || 0;
+					                  const b = Number.parseInt(match[2], 10) || 0;
+					                  const c = Number.parseInt(match[3] || '0', 10) || 0;
+					                  if (a || b || c) totals.push(a + b + c);
+					                }
+					              } catch (e) {}
+
+					              // Ej: "14+2P"
+					              const plusP = text.match(/(\d+)\s*\+\s*(\d+)\s*p\b/);
+					              if (plusP) {
+					                const a = Number.parseInt(plusP[1], 10) || 0;
+					                const b = Number.parseInt(plusP[2], 10) || 0;
+					                if (a || b) totals.push(a + b);
+					              }
+
+					              // Rangos (ej: 5-8 por lado).
+					              const range = text.match(/(\d+)\s*[–-]\s*(\d+)/);
+					              if (!totals.length && range) {
+					                const lo = Number.parseInt(range[1], 10) || 0;
+					                const hi = Number.parseInt(range[2], 10) || 0;
+					                if (lo && hi) {
+					                  const isPerSide = text.includes('por lado') || text.includes('por equipo') || text.includes('por lado');
+					                  totals.push((isPerSide ? (2 * lo) : lo));
+					                  totals.push((isPerSide ? (2 * hi) : hi));
+					                }
+					              }
+
+					              if (!totals.length) return { min: 0, max: 0 };
+					              let min = Math.min(...totals);
+					              let max = Math.max(...totals);
+					              if (keeperCount) {
+					                min += keeperCount;
+					                max += keeperCount;
+					              }
+					              return { min: Math.max(0, min), max: Math.max(0, max) };
+					            };
+					            const applySystemMeta = (goalKey, tpl, meta = {}) => {
+					              if (!tpl || typeof tpl !== 'object') return tpl;
+					              const g = String(goalKey || '').trim() || String(meta.goal || '').trim();
+					              const base = DEFAULT_SYSTEM_META[g] || DEFAULT_SYSTEM_META[String(meta.goal || '').trim()] || null;
+					              const out = { ...(tpl || {}) };
+					              const format = String(meta.format || '').trim();
+					              const subphase = String(meta.subphase || '').trim();
+
+					              const setIfEmpty = (key, value) => {
+					                if (!value) return;
+					                const cur = out[key];
+					                if (cur == null || String(cur).trim() === '') out[key] = value;
+					              };
+
+					              const complexity = inferComplexity();
+					              if (subphase === 'cooldown' || String(out.block || '') === 'recovery') {
+					                setIfEmpty('dynamics', 'recovery');
+					                setIfEmpty('coordination', 'player');
+					                setIfEmpty('coordination_skills', 'movements');
+					                setIfEmpty('tactical_intent', 'maintain');
+					                setIfEmpty('complexity', 'low');
+					              } else {
+					                setIfEmpty('complexity', complexity);
+					              }
+
+					              if (base) {
+					                setIfEmpty('strategy', base.strategy);
+					                setIfEmpty('dynamics', base.dynamics);
+					                setIfEmpty('structure', base.structure);
+					                setIfEmpty('coordination', base.coordination);
+					                setIfEmpty('coordination_skills', base.coordination_skills);
+					                setIfEmpty('tactical_intent', base.tactical_intent);
+					              }
+
+					              // Ajustes por formato si viene definido.
+					              if (format === 'circuit') setIfEmpty('strategy', 'circuit');
+					              if (format === 'ssg' || format === 'game') setIfEmpty('strategy', 'reduced_games');
+					              if (format === 'analytic') setIfEmpty('strategy', 'combined');
+
+					              return out;
+					            };
+					            const addCandidate = (id, tpl, meta = {}) => {
+					              if (!tpl) return;
+					              const goalKey = meta.goal || goal;
+					              const enrichedTpl = applySystemMeta(goalKey, tpl, meta);
+					              const inferred = inferPlayersMinMaxFromText(enrichedTpl?.player_count);
+					              const playersMin = (meta.players_min != null && Number(meta.players_min)) ? Number(meta.players_min) : (Number(inferred.min) || 0);
+					              const playersMax = (meta.players_max != null && Number(meta.players_max)) ? Number(meta.players_max) : (Number(inferred.max) || 0);
+					              catalog.push({
+					                id: String(id || '').trim(),
+					                tpl: enrichedTpl,
+					                meta: {
+					                  goal: meta.goal || goal,
+					                  age,
+					                  subphase: meta.subphase || 'auto',
+					                  format: meta.format || 'auto',
+					                  intensity: meta.intensity || 'auto',
+					                  players_min: playersMin,
+					                  players_max: playersMax,
+					                },
+					              });
+					            };
 					            addCandidate(
 					              'smart_warmup',
 					              (goal === 'warmup' ? applySubphase(mapping.warmup, 'warmup', smartSubphase) : mapping.warmup),
@@ -6892,11 +7166,11 @@
 				              });
 				            } catch (e) {}
 
-				            const scoreCandidate = (item) => {
-				              const tpl = item?.tpl || {};
-				              const meta = item?.meta || {};
-				              let score = 0;
-				              if (String(meta.goal || '') === goal) score += 50;
+					            const scoreCandidate = (item) => {
+					              const tpl = item?.tpl || {};
+					              const meta = item?.meta || {};
+					              let score = 0;
+					              if (String(meta.goal || '') === goal) score += 50;
 				              if (smartSubphase !== 'auto') {
 				                const sp = String(meta.subphase || 'auto').trim();
 				                if (sp === smartSubphase) score += 20;
@@ -6909,37 +7183,144 @@
 				              if (allowedFormatsForApproach && !allowedFormatsForApproach.has(String(meta.format || ''))) score -= 6;
 			              const tMin = Number(tpl.minutes) || 0;
 			              if (tMin) score += Math.max(0, 12 - Math.abs(tMin - minutes));
-			              if (playersCount > 0) {
-			                // Si no tenemos rango, no penalizamos.
-			                const lo = Number(meta.players_min) || 0;
-			                const hi = Number(meta.players_max) || 0;
-			                if (lo && playersCount < lo) score -= 6;
-			                if (hi && playersCount > hi) score -= 6;
-			              }
-			              return score;
-			            };
+				              if (playersCount > 0) {
+				                // Si no tenemos rango, no penalizamos.
+				                const lo = Number(meta.players_min) || 0;
+				                const hi = Number(meta.players_max) || 0;
+				                // Tolerancia: el entrenador introduce nº TOTAL (aprox). Si se sale por 1–2 jugadores, penaliza poco.
+				                const penalty = (diff) => {
+				                  const d = Math.max(0, Number(diff) || 0);
+				                  if (d <= 0) return 0;
+				                  if (d <= 1) return 1;
+				                  if (d <= 2) return 3;
+				                  return Math.min(12, 4 + (d - 2) * 2);
+				                };
+				                if (lo && playersCount < lo) score -= penalty(lo - playersCount);
+				                if (hi && playersCount > hi) score -= penalty(playersCount - hi);
+				              }
+					              // Bonus por ficha "completa": hace que la recomendación sea más útil sin tocar el modelo.
+					              if (tpl.description_html) score += 2;
+					              if (tpl.coaching_html) score += 1;
+					              if (tpl.rules_html) score += 1;
+					              if (tpl.progression_html) score += 1;
+					              if (tpl.success_criteria_html) score += 1;
+					              if (tpl.board && Array.isArray(tpl.board.items) && tpl.board.items.length) score += 1;
+					              if (tpl.canvas_state && typeof tpl.canvas_state === 'object') score += 1;
 
-				            const suggestions = catalog
-				              .filter((item) => {
-				                if (!item?.tpl) return false;
-				                const itemGoal = String(item.meta?.goal || '').trim();
-				                if (goal === 'warmup') {
-				                  if (itemGoal !== 'warmup') return false;
-				                } else {
-				                  if (itemGoal !== goal) return false;
-				                }
+					              // Preferencia ligera por plantillas del equipo (si existen).
+					              const id = String(item?.id || '');
+					              const src = String(tpl.source_name || '').toLowerCase();
+					              // Si hay plantillas del equipo, deben dominar el ranking.
+					              if (id.startsWith('bp_')) score += 16;
+					              if (src.includes('equipo')) score += 4;
+				              return score;
+				            };
+
+					            const normalizeKey = (value) => String(value || '')
+					              .toLowerCase()
+					              .replace(/\s+/g, ' ')
+					              .replace(/[^a-z0-9áéíóúüñ ]+/gi, '')
+					              .trim()
+					              .slice(0, 140);
+					            const scoredCandidates = catalog
+					              .filter((item) => {
+					                if (!item?.tpl) return false;
+					                const itemGoal = String(item.meta?.goal || '').trim();
+					                if (goal === 'warmup') {
+					                  if (itemGoal !== 'warmup') return false;
+					                } else {
+					                  if (itemGoal !== goal) return false;
+					                }
 				                if (blockPref !== 'auto' && String(item.tpl.block || '') !== blockPref) return false;
 				                if (allowedFormatsForApproach && !allowedFormatsForApproach.has(String(item.meta?.format || ''))) return false;
 				                if (smartSubphase !== 'auto') {
 				                  const sp = String(item.meta?.subphase || 'auto').trim();
 				                  // Permite variantes específicas y, si no hay, la base (auto).
 				                  if (sp !== smartSubphase && sp !== 'auto') return false;
-				                }
-				                return true;
-				              })
-				              .map((item) => ({ ...item, score: scoreCandidate(item) }))
-				              .sort((a, b) => (b.score || 0) - (a.score || 0))
-				              .slice(0, 6);
+					                }
+					                return true;
+					              })
+					              .map((item) => ({ ...item, score: scoreCandidate(item) }));
+
+					            // Dedup: evita sugerir la misma tarea varias veces si entran duplicados por sub-fase/plantillas.
+					            const byKey = new Map();
+					            scoredCandidates.forEach((item) => {
+					              const tpl = item?.tpl || {};
+					              const keyParts = [
+					                String(item?.meta?.goal || goal),
+					                normalizeKey(tpl.title || ''),
+					                normalizeKey(tpl.objective || ''),
+					                normalizeKey(tpl.dimensions || ''),
+					              ].filter(Boolean);
+					              const key = keyParts.join('|') || String(item?.id || '');
+					              const prev = byKey.get(key);
+					              if (!prev || (Number(item.score) || 0) > (Number(prev.score) || 0)) byKey.set(key, item);
+					            });
+					            const sorted = Array.from(byKey.values()).sort((a, b) => (b.score || 0) - (a.score || 0));
+					            const diversifySuggestions = (items, limit = 6) => {
+					              const maxPerStrategy = 2;
+					              const maxPerTrainingType = 2;
+					              const maxPerFormat = 3;
+					              const strategyCount = new Map();
+					              const trainingCount = new Map();
+					              const formatCount = new Map();
+					              const picked = [];
+					              const canPick = (map, key, max) => (map.get(key) || 0) < max;
+					              const inc = (map, key) => map.set(key, (map.get(key) || 0) + 1);
+					              const isBlueprint = (it) => String(it?.id || '').startsWith('bp_');
+					              const blueprintItems = items.filter((it) => isBlueprint(it));
+					              const systemItems = items.filter((it) => !isBlueprint(it));
+					              const tryPick = (pool) => {
+					                pool.forEach((it) => {
+					                  if (picked.length >= limit) return;
+					                  const tpl = it?.tpl || {};
+					                  const strat = String(tpl.strategy || '').trim() || 'other';
+					                  const training = String(tpl.training_type || '').trim() || 'other';
+					                  const fmt = String(it?.meta?.format || '').trim() || 'other';
+					                  if (!canPick(strategyCount, strat, maxPerStrategy)) return;
+					                  if (!canPick(trainingCount, training, maxPerTrainingType)) return;
+					                  if (!canPick(formatCount, fmt, maxPerFormat)) return;
+					                  picked.push(it);
+					                  inc(strategyCount, strat);
+					                  inc(trainingCount, training);
+					                  inc(formatCount, fmt);
+					                });
+					              };
+
+					              // Prioriza "tus plantillas" si existen: mete hasta 4 (o deja al menos 2 huecos para sistema).
+					              const targetBlueprints = Math.min(
+					                blueprintItems.length,
+					                Math.max(0, limit - 2),
+					                4,
+					              );
+					              if (targetBlueprints > 0) {
+					                blueprintItems.slice(0, targetBlueprints).forEach((it) => {
+					                  if (picked.length >= limit) return;
+					                  if (picked.includes(it)) return;
+					                  const tpl = it?.tpl || {};
+					                  const strat = String(tpl.strategy || '').trim() || 'other';
+					                  const training = String(tpl.training_type || '').trim() || 'other';
+					                  const fmt = String(it?.meta?.format || '').trim() || 'other';
+					                  picked.push(it);
+					                  // Actualiza contadores para que el resto mantenga algo de variedad.
+					                  inc(strategyCount, strat);
+					                  inc(trainingCount, training);
+					                  inc(formatCount, fmt);
+					                });
+					              }
+
+					              // Completa con sistema aplicando diversidad.
+					              tryPick(systemItems);
+					              if (picked.length < limit) {
+					                items.forEach((it) => {
+					                  if (picked.length >= limit) return;
+					                  if (picked.includes(it)) return;
+					                  picked.push(it);
+					                });
+					              }
+					              return picked.slice(0, limit);
+					            };
+					            const suggestions = diversifySuggestions(sorted, 6);
 
 				            const best = suggestions[0]?.tpl || pickWithSubphase;
 
@@ -7037,14 +7418,21 @@
 				            if (tpl.block != null) setValue('draw_task_block', tpl.block);
 				            if (tpl.minutes != null) setValue('draw_task_minutes', tpl.minutes);
 				            if (tpl.player_count != null) setValue('draw_task_player_count', tpl.player_count);
-				            if (tpl.dimensions != null) setValue('draw_task_dimensions', tpl.dimensions);
-				            if (tpl.materials != null) setValue('draw_task_materials', tpl.materials);
-				            if (tpl.space != null) setValue('draw_task_space', tpl.space);
-					            if (tpl.training_type) setValue('draw_task_training_type', tpl.training_type);
-						            if (tpl.age_group) setValue('draw_task_age_group', tpl.age_group);
-					            if (tpl.series != null) setValue('draw_task_series', tpl.series);
-					            if (tpl.repetitions != null) setValue('draw_task_repetitions', tpl.repetitions);
-					            if (tpl.work_rest != null) setValue('draw_task_work_rest', tpl.work_rest);
+					            if (tpl.dimensions != null) setValue('draw_task_dimensions', tpl.dimensions);
+					            if (tpl.materials != null) setValue('draw_task_materials', tpl.materials);
+					            if (tpl.space != null) setValue('draw_task_space', tpl.space);
+						            if (tpl.training_type) setValue('draw_task_training_type', tpl.training_type);
+						            if (tpl.strategy != null) setValue('draw_task_strategy', tpl.strategy);
+						            if (tpl.dynamics != null) setValue('draw_task_dynamics', tpl.dynamics);
+						            if (tpl.structure != null) setValue('draw_task_structure', tpl.structure);
+						            if (tpl.coordination != null) setValue('draw_task_coordination', tpl.coordination);
+						            if (tpl.coordination_skills != null) setValue('draw_task_coordination_skills', tpl.coordination_skills);
+						            if (tpl.tactical_intent != null) setValue('draw_task_tactical_intent', tpl.tactical_intent);
+						            if (tpl.complexity != null) setValue('draw_task_complexity', tpl.complexity);
+							            if (tpl.age_group) setValue('draw_task_age_group', tpl.age_group);
+						            if (tpl.series != null) setValue('draw_task_series', tpl.series);
+						            if (tpl.repetitions != null) setValue('draw_task_repetitions', tpl.repetitions);
+						            if (tpl.work_rest != null) setValue('draw_task_work_rest', tpl.work_rest);
 					            if (tpl.load_target != null) setValue('draw_task_load_target', tpl.load_target);
 						            if (tpl.description_html != null) setRichHtml('draw_task_description', tpl.description_html);
 						            if (tpl.coaching_html != null) setRichHtml('draw_task_coaching_points', tpl.coaching_html);
@@ -7113,20 +7501,75 @@
 				            writeQueue(q);
 				            updateQueueUi();
 				          };
-							          const renderSmartSuggestions = () => {
-							            if (!smartSuggestionsBox) return;
-							            const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({
-							              '&': '&amp;',
-						              '<': '&lt;',
-						              '>': '&gt;',
-							              '"': '&quot;',
-							              "'": '&#39;',
-							            }[ch] || ch));
-						            const stripTags = (html) => String(html ?? '')
-						              .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ' ')
-						              .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ' ')
-						              .replace(/<[^>]+>/g, ' ')
-						              .replace(/\s+/g, ' ')
+								          const renderSmartSuggestions = () => {
+								            if (!smartSuggestionsBox) return;
+								            const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({
+								              '&': '&amp;',
+							              '<': '&lt;',
+							              '>': '&gt;',
+								              '"': '&quot;',
+								              "'": '&#39;',
+								            }[ch] || ch));
+							            const selectLabelFor = (fieldName, rawValue) => {
+							              const value = String(rawValue ?? '').trim();
+							              if (!value) return '';
+							              try {
+							                const sel = form?.querySelector?.(`[name="${String(fieldName || '').trim()}"]`);
+							                if (sel && String(sel.tagName || '').toUpperCase() === 'SELECT') {
+							                  const opt = Array.from(sel.options || []).find((o) => String(o.value || '') === value);
+							                  const label = String(opt?.textContent || '').trim();
+							                  return label || value;
+							                }
+							              } catch (e) { /* ignore */ }
+							              return value;
+							            };
+							            const safeTplHtml = (html) => {
+							              const raw = String(html ?? '').trim();
+							              if (!raw) return '';
+							              try {
+							                const parser = new DOMParser();
+							                const doc = parser.parseFromString(raw, 'text/html');
+							                const allowed = new Set(['UL', 'OL', 'LI', 'BR', 'B', 'STRONG', 'I', 'EM', 'U', 'P', 'DIV', 'SPAN']);
+							                const walk = (node) => {
+							                  if (!node) return;
+							                  const kids = Array.from(node.childNodes || []);
+							                  kids.forEach((child) => {
+							                    if (child.nodeType === 1) {
+							                      const tag = String(child.tagName || '').toUpperCase();
+							                      if (tag === 'SCRIPT' || tag === 'STYLE') {
+							                        try { child.remove(); } catch (e) {}
+							                        return;
+							                      }
+							                      if (!allowed.has(tag)) {
+							                        // Reemplaza el nodo por su texto.
+							                        const txt = doc.createTextNode(child.textContent || '');
+							                        try { child.replaceWith(txt); } catch (e) {}
+							                        return;
+							                      }
+							                      // Limpia atributos peligrosos.
+							                      try {
+							                        Array.from(child.attributes || []).forEach((attr) => {
+							                          const name = String(attr?.name || '').toLowerCase();
+							                          if (name.startsWith('on') || name === 'style' || name === 'href' || name === 'src') {
+							                            try { child.removeAttribute(attr.name); } catch (e) {}
+							                          }
+							                        });
+							                      } catch (e) {}
+							                      walk(child);
+							                    }
+							                  });
+							                };
+							                walk(doc.body);
+							                return String(doc.body.innerHTML || '').trim();
+							              } catch (e) {
+							                return escapeHtml(raw);
+							              }
+							            };
+							            const stripTags = (html) => String(html ?? '')
+							              .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ' ')
+							              .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ' ')
+							              .replace(/<[^>]+>/g, ' ')
+							              .replace(/\s+/g, ' ')
 						              .trim();
 						            const clipText = (text, maxLen = 220) => {
 						              const t = String(text || '').trim();
@@ -7234,65 +7677,99 @@
 								                  };
 								                  return map[k] || '';
 								                };
-								                const makeItemEl = (kind, angle = 0) => {
-								                  const k = String(kind || '').trim();
-								                  if (k.startsWith('image_url:')) {
-								                    const el = document.createElement('div');
-								                    el.className = 'assistant-suggestion-item is-circle is-asset';
-								                    const img = document.createElement('img');
-								                    img.src = k.slice('image_url:'.length);
-								                    img.alt = '';
-								                    img.draggable = false;
-								                    el.appendChild(img);
-								                    return el;
-								                  }
-								                  const el = document.createElement('div');
-								                  el.className = 'assistant-suggestion-item';
-								                  const rotate = Number.isFinite(Number(angle)) ? Number(angle) : 0;
-								                  el.style.transform = `translate(-50%, -50%) rotate(${rotate}deg)`;
-								                  const emoji = pickEmoji(k);
+									                const makeItemEl = (kind, angle = 0, item = null) => {
+									                  const k = String(kind || '').trim();
+									                  if (k.startsWith('image_url:')) {
+									                    const el = document.createElement('div');
+									                    el.className = 'assistant-suggestion-item is-circle is-asset';
+									                    const img = document.createElement('img');
+									                    img.src = k.slice('image_url:'.length);
+									                    img.alt = '';
+									                    img.draggable = false;
+									                    el.appendChild(img);
+									                    return el;
+									                  }
+									                  if (k.startsWith('shape_')) {
+									                    const shape = document.createElement('div');
+									                    shape.className = 'assistant-suggestion-shape';
+									                    const rotate = Number.isFinite(Number(angle)) ? Number(angle) : 0;
+									                    shape.style.transform = `translate(-50%, -50%) rotate(${rotate}deg)`;
+									                    const rawScale = Number(item?.scale || item?.payload?.scale || 1) || 1;
+									                    const s = Math.max(0.55, Math.min(3.0, rawScale));
+									                    let baseW = 76;
+									                    let baseH = 52;
+									                    if (k === 'shape_rect_long') { baseW = 110; baseH = 44; }
+									                    if (k === 'shape_lane_3') { baseW = 64; baseH = 150; shape.classList.add('is-lane'); }
+									                    shape.style.width = `${Math.round(baseW * s)}px`;
+									                    shape.style.height = `${Math.round(baseH * s)}px`;
+									                    return shape;
+									                  }
+									                  const el = document.createElement('div');
+									                  el.className = 'assistant-suggestion-item';
+									                  const rotate = Number.isFinite(Number(angle)) ? Number(angle) : 0;
+									                  el.style.transform = `translate(-50%, -50%) rotate(${rotate}deg)`;
+									                  const emoji = pickEmoji(k);
 								                  if (emoji) {
 								                    el.classList.add('is-circle');
 								                    el.textContent = emoji;
 								                    el.style.fontSize = '14px';
 								                    return el;
 								                  }
-								                  if (k === 'goal') {
-								                    el.classList.add('is-goal');
-								                    el.textContent = '';
-								                    return el;
-								                  }
-								                  if (k === 'cone' || k === 'cone_striped') {
-								                    el.classList.add('is-cone');
-								                    el.textContent = '';
-								                    return el;
-								                  }
+									                  if (k === 'goal') {
+									                    el.classList.add('is-goal');
+									                    el.textContent = '';
+									                    return el;
+									                  }
+									                  if (k === 'goal_mini') {
+									                    el.classList.add('is-goal');
+									                    el.style.width = '18px';
+									                    el.style.height = '10px';
+									                    el.style.borderWidth = '2px';
+									                    return el;
+									                  }
+									                  if (k === 'cone' || k === 'cone_striped') {
+									                    el.classList.add('is-cone');
+									                    el.textContent = '';
+									                    return el;
+									                  }
 								                  if (k === 'ring') {
 								                    el.classList.add('is-ring', 'is-circle');
 								                    el.textContent = '';
 								                    return el;
 								                  }
-								                  if (k === 'arrow_solid' || k === 'arrow_dotted' || k === 'arrow_curve') {
-								                    el.classList.add('is-arrow', 'is-circle');
-								                    el.textContent = '➜';
-								                    return el;
-								                  }
-								                  if (k === 'ball') {
-								                    el.classList.add('is-ball', 'is-circle');
-								                    el.textContent = '⚽';
-								                    el.style.fontSize = '13px';
-								                    return el;
-								                  }
-								                  if (k === 'player_local') {
-								                    el.classList.add('is-local', 'is-circle');
-								                    el.textContent = 'L';
-								                    return el;
-								                  }
-								                  if (k === 'player_rival') {
-								                    el.classList.add('is-rival', 'is-circle');
-								                    el.textContent = 'R';
-								                    return el;
-								                  }
+									                  if (k === 'arrow_solid' || k === 'arrow_dotted' || k === 'arrow_curve' || k === 'arrow_thick') {
+									                    el.classList.add('is-arrow', 'is-circle');
+									                    el.textContent = '➜';
+									                    return el;
+									                  }
+									                  if (k === 'ball') {
+									                    el.classList.add('is-ball', 'is-circle');
+									                    el.textContent = '⚽';
+									                    el.style.fontSize = '13px';
+									                    return el;
+									                  }
+									                  if (k === 'goalkeeper_local' || k === 'goalkeeper_rival') {
+									                    el.classList.add('is-circle', 'is-keeper');
+									                    if (k === 'goalkeeper_rival') el.classList.add('is-rival');
+									                    el.textContent = 'PT';
+									                    el.style.fontSize = '10px';
+									                    return el;
+									                  }
+									                  if (k === 'player_local') {
+									                    el.classList.add('is-local', 'is-circle');
+									                    el.textContent = 'L';
+									                    return el;
+									                  }
+									                  if (k === 'player_away') {
+									                    el.classList.add('is-rival', 'is-circle');
+									                    el.textContent = 'A';
+									                    return el;
+									                  }
+									                  if (k === 'player_rival') {
+									                    el.classList.add('is-rival', 'is-circle');
+									                    el.textContent = 'R';
+									                    return el;
+									                  }
 								                  if (k === 'text') {
 								                    el.classList.add('is-circle');
 								                    el.textContent = 'T';
@@ -7302,17 +7779,17 @@
 								                  el.textContent = '•';
 								                  return el;
 								                };
-								                items.slice(0, 120).forEach((it) => {
-								                  const kind = it?.payload?.kind;
-								                  const node = makeItemEl(kind, it?.angle || 0);
-								                  if (String(kind || '').trim() === 'text') {
-								                    const rawText = String(it?.payload?.text || it?.payload?.value || '').trim();
-								                    if (rawText) node.textContent = rawText.slice(0, 2).toUpperCase();
-								                  }
-								                  node.style.left = `${clamp01(it?.x) * 100}%`;
-								                  node.style.top = `${clamp01(it?.y) * 100}%`;
-								                  pitchEl.appendChild(node);
-								                });
+									                items.slice(0, 120).forEach((it) => {
+									                  const kind = it?.payload?.kind;
+									                  const node = makeItemEl(kind, it?.angle || 0, it || null);
+									                  if (String(kind || '').trim() === 'text') {
+									                    const rawText = String(it?.payload?.text || it?.payload?.value || '').trim();
+									                    if (rawText) node.textContent = rawText.slice(0, 2).toUpperCase();
+									                  }
+									                  node.style.left = `${clamp01(it?.x) * 100}%`;
+									                  node.style.top = `${clamp01(it?.y) * 100}%`;
+									                  pitchEl.appendChild(node);
+									                });
 								                return true;
 								              };
 
@@ -7338,46 +7815,112 @@
 						              smartSuggestionsBox.innerHTML = '<div class="meta" style="opacity:0.85;">No hay sugerencias todavía. Pulsa “Sugerir tareas”.</div>';
 					              return;
 						            }
-						            const rows = suggestions.map((item, index) => {
-						              const tpl = item?.tpl || {};
-						              const title = String(tpl.title || '').trim() || `Sugerencia ${index + 1}`;
-						              const minutes = String(tpl.minutes || '').trim();
-					              const players = String(tpl.player_count || '').trim();
-					              const block = String(tpl.block || '').trim();
-					              const meta = [minutes ? `${minutes}’` : '', players || '', block || ''].filter(Boolean).join(' · ');
-						              const sourceName = String(tpl.source_name || '').trim();
-						              const sourceUrl = String(tpl.source_url || '').trim();
-						              const sourceHtml = sourceUrl
-						                ? `<a class="meta" style="opacity:0.9;" href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener noreferrer">Fuente: ${escapeHtml(sourceName || 'Referencia')}</a>`
-						                : (sourceName ? `<span class="meta" style="opacity:0.9;">Fuente: ${escapeHtml(sourceName)}</span>` : '');
-						              const objective = clipText(stripTags(tpl.objective || ''), 220);
-						              const desc = clipText(stripTags(tpl.description_html || ''), 320);
-						              const dims = String(tpl.dimensions || '').trim();
-						              const mats = String(tpl.materials || '').trim();
-						              return `
-						                <div class="assistant-suggestion-card" data-smart-card="${index}">
-						                  <div style="display:flex; align-items:baseline; justify-content:space-between; gap:0.75rem; flex-wrap:wrap;">
-						                    <strong>${escapeHtml(`${index + 1}. ${title}`)}</strong>
-						                    <span class="meta" style="opacity:0.85;">${escapeHtml(meta)}</span>
-						                  </div>
-						                  ${sourceHtml ? `<div style="display:flex; justify-content:flex-end;">${sourceHtml}</div>` : ''}
-						                  <div class="assistant-suggestion-preview" title="Vista previa de la pizarra (orientativa)">
-						                    <div class="assistant-suggestion-pitch" data-smart-pitch="${index}"></div>
-						                  </div>
-						                  <div class="assistant-suggestion-peek" data-smart-peek="${index}" hidden>
-						                    ${objective ? `<div class="meta"><strong>Objetivo:</strong> ${escapeHtml(objective)}</div>` : ''}
-						                    ${dims ? `<div class="meta"><strong>Dimensiones:</strong> ${escapeHtml(dims)}</div>` : ''}
-						                    ${mats ? `<div class="meta"><strong>Material:</strong> ${escapeHtml(mats)}</div>` : ''}
-						                    ${desc ? `<div class="meta"><strong>Descripción:</strong> ${escapeHtml(desc)}</div>` : ''}
-						                  </div>
-						                  <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-						                    <button type="button" class="button" data-smart-peek-toggle="${index}">Vista previa</button>
-						                    <button type="button" class="button" data-smart-apply="${index}">Aplicar</button>
-						                    <button type="button" class="button" data-smart-queue="${index}">Añadir a cola</button>
-						                  </div>
-						                </div>
-						              `;
-						            }).join('');
+							            const rows = suggestions.map((item, index) => {
+							              const tpl = item?.tpl || {};
+							              const title = String(tpl.title || '').trim() || `Sugerencia ${index + 1}`;
+							              const minutes = String(tpl.minutes || '').trim();
+							              const players = String(tpl.player_count || '').trim();
+							              const block = String(tpl.block || '').trim();
+							              const meta = [minutes ? `${minutes}’` : '', players || '', block || ''].filter(Boolean).join(' · ');
+							              const sourceName = String(tpl.source_name || '').trim();
+							              const sourceUrl = String(tpl.source_url || '').trim();
+							              const sourceHtml = sourceUrl
+							                ? `<a class="meta" style="opacity:0.9;" href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener noreferrer">Fuente: ${escapeHtml(sourceName || 'Referencia')}</a>`
+							                : (sourceName ? `<span class="meta" style="opacity:0.9;">Fuente: ${escapeHtml(sourceName)}</span>` : '');
+							              const objective = clipText(stripTags(tpl.objective || ''), 280);
+							              const descriptionHtml = safeTplHtml(tpl.description_html || '');
+							              const rulesHtml = safeTplHtml(tpl.rules_html || '');
+							              const coachingHtml = safeTplHtml(tpl.coaching_html || '');
+							              const progressionHtml = safeTplHtml(tpl.progression_html || '');
+							              const regressionHtml = safeTplHtml(tpl.regression_html || '');
+							              const successHtml = safeTplHtml(tpl.success_criteria_html || '');
+							              const dims = String(tpl.dimensions || '').trim();
+							              const mats = String(tpl.materials || '').trim();
+							              const space = String(tpl.space || '').trim();
+							              const durationLabel = minutes ? `${escapeHtml(minutes)} min` : '-';
+							              const spaceLabel = escapeHtml(dims || space || '-');
+							              const blockLabel = escapeHtml(selectLabelFor('draw_task_block', tpl.block) || '-');
+							              const playersLabel = escapeHtml(players || '-');
+							              const strategyLabel = escapeHtml(selectLabelFor('draw_task_strategy', tpl.strategy) || '-');
+							              const dynamicsLabel = escapeHtml(selectLabelFor('draw_task_dynamics', tpl.dynamics) || '-');
+							              const complexityLabel = escapeHtml(selectLabelFor('draw_task_complexity', tpl.complexity) || '-');
+							              const structureLabel = escapeHtml(selectLabelFor('draw_task_structure', tpl.structure) || '-');
+							              const coordinationLabel = escapeHtml(selectLabelFor('draw_task_coordination', tpl.coordination) || '-');
+							              const coordSkillsLabel = escapeHtml(selectLabelFor('draw_task_coordination_skills', tpl.coordination_skills) || '-');
+							              const tacticalIntentLabel = escapeHtml(selectLabelFor('draw_task_tactical_intent', tpl.tactical_intent) || '-');
+							              return `
+							                <div class="assistant-suggestion-card" data-smart-card="${index}">
+							                  <div style="display:flex; align-items:baseline; justify-content:space-between; gap:0.75rem; flex-wrap:wrap;">
+							                    <strong>${escapeHtml(`${index + 1}. ${title}`)}</strong>
+							                    <span class="meta" style="opacity:0.85;">${escapeHtml(meta)}</span>
+							                  </div>
+							                  ${sourceHtml ? `<div style="display:flex; justify-content:flex-end;">${sourceHtml}</div>` : ''}
+							                  <div class="assistant-suggestion-preview" title="Vista previa de la pizarra (orientativa)">
+							                    <div class="assistant-suggestion-pitch" data-smart-pitch="${index}"></div>
+							                  </div>
+							                  <div class="assistant-suggestion-peek" data-smart-peek="${index}" hidden>
+							                    <div class="assistant-suggestion-section-title">Detalles del ejercicio</div>
+							                    <table class="assistant-suggestion-table" aria-label="Detalles del ejercicio">
+							                      <tr>
+							                        <td class="label">Título</td>
+							                        <td class="value" colspan="3">${escapeHtml(title)}</td>
+							                      </tr>
+							                      <tr>
+							                        <td class="label">Estrategia</td>
+							                        <td class="value">${strategyLabel}</td>
+							                        <td class="label">Objetivos</td>
+							                        <td class="value">${escapeHtml(objective || '-')}</td>
+							                      </tr>
+							                      <tr>
+							                        <td class="label">Espacio</td>
+							                        <td class="value">${spaceLabel}</td>
+							                        <td class="label">Tiempo</td>
+							                        <td class="value">${durationLabel}</td>
+							                      </tr>
+							                      <tr>
+							                        <td class="label">Jugadores</td>
+							                        <td class="value">${playersLabel}</td>
+							                        <td class="label">Bloque</td>
+							                        <td class="value">${blockLabel}</td>
+							                      </tr>
+							                      <tr>
+							                        <td class="label">Dinámica</td>
+							                        <td class="value">${dynamicsLabel}</td>
+							                        <td class="label">Complejidad</td>
+							                        <td class="value">${complexityLabel}</td>
+							                      </tr>
+							                      <tr>
+							                        <td class="label">Situación de Juego</td>
+							                        <td class="value">${structureLabel}</td>
+							                        <td class="label">Coordinación</td>
+							                        <td class="value">${coordinationLabel}</td>
+							                      </tr>
+							                      <tr>
+							                        <td class="label">Habilidades Coordinativas</td>
+							                        <td class="value">${coordSkillsLabel}</td>
+							                        <td class="label">Intención / Acción Táctica</td>
+							                        <td class="value">${tacticalIntentLabel}</td>
+							                      </tr>
+							                    </table>
+							                    <div class="assistant-suggestion-section-title">Consigna / Explicación</div>
+							                    <div class="assistant-suggestion-copy">
+							                      <div><strong>Descripción:</strong> ${descriptionHtml ? `<div>${descriptionHtml}</div>` : '<span>-</span>'}</div>
+							                      ${coachingHtml ? `<div><strong>Consignas:</strong><div>${coachingHtml}</div></div>` : ''}
+							                      ${rulesHtml ? `<div><strong>Normas de confrontación:</strong><div>${rulesHtml}</div></div>` : ''}
+							                      ${progressionHtml ? `<div><strong>Progresión:</strong><div>${progressionHtml}</div></div>` : ''}
+							                      ${regressionHtml ? `<div><strong>Regresión:</strong><div>${regressionHtml}</div></div>` : ''}
+							                      ${successHtml ? `<div><strong>Criterio de éxito:</strong><div>${successHtml}</div></div>` : ''}
+							                      ${mats ? `<div><strong>Material:</strong> <span>${escapeHtml(mats)}</span></div>` : ''}
+							                    </div>
+							                  </div>
+							                  <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+							                    <button type="button" class="button" data-smart-peek-toggle="${index}">Vista previa</button>
+							                    <button type="button" class="button" data-smart-apply="${index}">Aplicar</button>
+							                    <button type="button" class="button" data-smart-queue="${index}">Añadir a cola</button>
+							                  </div>
+							                </div>
+							              `;
+							            }).join('');
 					            smartSuggestionsBox.innerHTML = rows;
 						            // Renderiza la vista previa de pizarra en cada sugerencia.
 						            try {

@@ -190,7 +190,7 @@
         <div>
           <p class="meta">Resumen individual del partido</p>
           <h1>{{ player.name }} · {{ match.opponent }}</h1>
-          <p class="meta">{{ match.date }} · {{ match.location }} · Jornada {{ match.round }}</p>
+	          <p class="meta">{{ match.date }} · {{ match.location }} · Jornada {{ match.round }} · ID {{ match.match_id }}</p>
         </div>
         <a href="{% url 'player-detail' player.id %}">← Volver al jugador</a>
       </header>

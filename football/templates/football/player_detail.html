@@ -840,6 +840,7 @@
                   <td>
                     {% if match.match_id %}
                       <a href="{% url 'player-match-stats' player.id match.match_id %}" style="color:#0e7490;text-decoration:none;">{{ match.opponent }}</a>
+                      <div class="subtle" style="font-size:0.75rem;">ID {{ match.match_id }}</div>
                     {% else %}
                       {{ match.opponent }}
                     {% endif %}

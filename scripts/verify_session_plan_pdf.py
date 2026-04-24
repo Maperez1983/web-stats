@@ -130,7 +130,13 @@ def main() -> int:
 
     from football.models import Team, TrainingMicrocycle, TrainingSession, SessionTask
     from football.views import _build_session_pdf_context, _render_pdf_bytes_with_error
-    from football.views import _extract_pdf_text, _extract_tasks_from_pdf_text, _extract_preview_images_from_pdf, _apply_analysis_to_task
+    from football.views import (
+        _extract_pdf_text,
+        _extract_tasks_from_pdf_text,
+        _extract_preview_images_from_pdf,
+        _apply_analysis_to_task,
+        _suggest_blocks_for_session_pdf_segments,
+    )
     from django.utils import timezone
     from datetime import timedelta
 
@@ -184,6 +190,7 @@ def main() -> int:
                     "segment_total": 1,
                 }
             ]
+        suggested_blocks = _suggest_blocks_for_session_pdf_segments(parsed_tasks, SessionTask.BLOCK_MAIN_1) or []
         preview_payloads = []
         try:
             preview_payloads = _extract_preview_images_from_pdf(
@@ -198,10 +205,11 @@ def main() -> int:
             analysis = chunk.get("analysis") or {}
             title = str(analysis.get("title") or f"{pdf_path.stem} · Tarea {idx}")[:160]
             minutes = int(analysis.get("minutes") or 15)
+            block = suggested_blocks[idx - 1] if idx - 1 < len(suggested_blocks) else SessionTask.BLOCK_MAIN_1
             task = SessionTask.objects.create(
                 session=created_session,
                 title=title,
-                block=SessionTask.BLOCK_MAIN_1,
+                block=block,
                 duration_minutes=max(5, min(minutes, 90)),
                 objective=str(analysis.get("objective") or "")[:180],
                 coaching_points=str(analysis.get("coaching_points") or ""),

@@ -244,24 +244,27 @@
 	    }
 	  };
 
-	  const buildPitchSvg = (presetKey, orientationKey = 'landscape', grassStyleKey = 'classic') => {
-	    const preset = String(presetKey || 'full_pitch').trim();
-	    const orientation = safeText(orientationKey, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
-	    const grassStyle = safeText(grassStyleKey, 'classic') === 'realistic' ? 'realistic' : 'classic';
-	    // Lienzo con proporción real 105x68 (escalado) y un pequeño "bleed" para que el trazo
-	    // del borde no se recorte incluso con overflow hidden.
-	    const stageW = orientation === 'portrait' ? 680 : 1050;
-	    const stageH = orientation === 'portrait' ? 1050 : 680;
-	    // Bleed suficiente para que:
-	    // - el borde del campo (stroke) no se recorte
-	    // - la "parte posterior" de las porterías (que va fuera de la línea de fondo) se vea
-	    // En campo completo, el goalDepth típico ronda ~22px; dejamos margen generoso.
-	    const bleed = preset === 'full_pitch' ? 30 : 12;
-    const drawW = 1100;
-    const drawH = 748;
-    const doc = document.implementation.createDocument('http://www.w3.org/2000/svg', 'svg', null);
-    const root = doc.documentElement;
-    root.setAttribute('viewBox', `${-bleed} ${-bleed} ${stageW + (bleed * 2)} ${stageH + (bleed * 2)}`);
+		  const buildPitchSvg = (presetKey, orientationKey = 'landscape', grassStyleKey = 'classic') => {
+		    const preset = String(presetKey || 'full_pitch').trim();
+		    const orientation = safeText(orientationKey, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
+		    const grassStyle = safeText(grassStyleKey, 'classic') === 'realistic' ? 'realistic' : 'classic';
+		    // Lienzo con proporción real 105x68 (escalado) y un pequeño "bleed" para que el trazo
+		    // del borde no se recorte incluso con overflow hidden.
+		    const stageW = orientation === 'portrait' ? 680 : 1050;
+		    const stageH = orientation === 'portrait' ? 1050 : 680;
+		    // Bleed suficiente para que:
+		    // - el borde del campo (stroke) no se recorte
+		    // - la "parte posterior" de las porterías (que va fuera de la línea de fondo) se vea
+		    // Importante: el editor usa `worldWidth/worldHeight` para mapear punteros y viewportTransform.
+		    // Si el viewBox cambia entre presets (por bleed diferente) se desincroniza el mapeo y parece
+		    // que "no deja colocar jugadores" en ciertas zonas. Mantenemos bleed constante.
+		    // En campo completo, el goalDepth típico ronda ~22px; dejamos margen generoso.
+		    const bleed = 30;
+	    const drawW = 1100;
+	    const drawH = 748;
+	    const doc = document.implementation.createDocument('http://www.w3.org/2000/svg', 'svg', null);
+	    const root = doc.documentElement;
+	    root.setAttribute('viewBox', `${-bleed} ${-bleed} ${stageW + (bleed * 2)} ${stageH + (bleed * 2)}`);
     // En vertical, algunos contenedores (y navegadores) pueden acabar con una ligera
     // desincronización de ratio, generando "barras" arriba/abajo. Usamos `slice` para
     // priorizar llenar el viewport y minimizar esos márgenes.
@@ -701,12 +704,13 @@
     const livePreviewPlaceholder = document.getElementById('task-live-preview-placeholder');
 	    const playerCountInput = form.querySelector('[name="draw_task_player_count"]');
 	    const legacyPlayersInput = form.querySelector('[name="draw_task_players"]');
-			    const statusEl = document.getElementById('task-builder-status');
-			    const drillsStripEl = document.getElementById('task-drills-strip');
-			    const drillsInputEl = document.getElementById('draw-task-drills-json');
-			    const drillsPickerEl = document.getElementById('task-drills-picker');
-			    const toolStrip = document.getElementById('task-basic-tools');
-			    const playerBank = document.getElementById('task-player-bank');
+				    const statusEl = document.getElementById('task-builder-status');
+				    const drillsStripEl = document.getElementById('task-drills-strip');
+				    const drillsInputEl = document.getElementById('draw-task-drills-json');
+				    const drillsIconColorInput = document.getElementById('draw-task-drills-icon-color');
+				    const drillsPickerEl = document.getElementById('task-drills-picker');
+				    const toolStrip = document.getElementById('task-basic-tools');
+				    const playerBank = document.getElementById('task-player-bank');
 			    const hideUsedPlayersToggle = document.getElementById('task-hide-used-players');
 			    const libraryPane = document.querySelector('.side-pane[data-pane="biblioteca"]');
 			    const selectionToolbar = document.getElementById('task-selection-toolbar');
@@ -769,18 +773,25 @@
 			      if (window.CSS && typeof window.CSS.escape === 'function') return window.CSS.escape(raw);
 			      return raw.replace(/[^a-zA-Z0-9_-]/g, '\\$&');
 			    };
-			    const parseJsonList = (value) => {
-			      const raw = String(value || '').trim();
-			      if (!raw) return [];
-			      if (!(raw.startsWith('[') && raw.endsWith(']'))) return [];
+				    const parseJsonList = (value) => {
+				      const raw = String(value || '').trim();
+				      if (!raw) return [];
+				      if (!(raw.startsWith('[') && raw.endsWith(']'))) return [];
 			      try {
 			        const parsed = JSON.parse(raw);
 			        return Array.isArray(parsed) ? parsed.map((v) => safeText(v)).filter(Boolean) : [];
 			      } catch (e) {
 			        return [];
 			      }
-			    };
-			    const readDrillsIds = () => parseJsonList(drillsInputEl?.value);
+				    };
+				    // Color de los pictogramas (secuencia calentamiento). Se persiste en hidden input para PDF.
+				    let drillsIconColor = (() => {
+				      const raw = safeText(drillsIconColorInput?.value);
+				      const parsed = parseColorToHex(raw, '#0f7a35');
+				      return parsed || '#0f7a35';
+				    })();
+				    if (drillsIconColorInput) drillsIconColorInput.value = drillsIconColor;
+				    const readDrillsIds = () => parseJsonList(drillsInputEl?.value);
 			    const drillCardFromDom = (id) => {
 			      const safeId = safeText(id);
 			      if (!safeId || !drillsPickerEl) return null;
@@ -819,42 +830,75 @@
 			        });
 			      });
 			    };
-			    const renderDrillsStrip = () => {
-			      if (!drillsStripEl) return;
-			      const ids = readDrillsIds();
-			      const cards = ids.map((id) => drillCardFromDom(id)).filter(Boolean);
-			      if (!cards.length) {
-			        drillsStripEl.innerHTML = '';
-			        drillsStripEl.hidden = true;
-			        return;
-			      }
-			      drillsStripEl.hidden = false;
-			      drillsStripEl.innerHTML = [
-			        '<span class="pitch-drills-title">Secuencia</span>',
-			        ...cards.map((card) => {
-			          const icon = safeText(card.icon);
-			          const label = safeText(card.label, card.id);
-			          const add = icon ? `image_url:${icon}` : '';
-			          return `<button type="button" class="pitch-drill-chip" data-add="${add}" data-title="${label}" title="${label}">${icon ? `<img src="${icon}" alt="" draggable="false" />` : ''}<span>${label}</span></button>`;
-			        }),
-			      ].join('');
-			      wireDrillsStripDnD();
-			    };
-			    try { drillsInputEl?.addEventListener('change', renderDrillsStrip); } catch (e) { /* ignore */ }
-			    try { drillsPickerEl?.addEventListener('change', renderDrillsStrip); } catch (e) { /* ignore */ }
-			    try {
-			      drillsStripEl?.addEventListener('click', (event) => {
-			        const button = event.target.closest('button.pitch-drill-chip[data-add]');
-			        if (!button) return;
-			        const add = safeText(button.dataset.add);
-			        if (!add || !add.startsWith('image_url:')) return;
+				    const renderDrillsStrip = () => {
+				      if (!drillsStripEl) return;
+				      const ids = readDrillsIds();
+				      const cards = ids.map((id) => drillCardFromDom(id)).filter(Boolean);
+				      if (!cards.length) {
+				        drillsStripEl.innerHTML = '';
+				        drillsStripEl.hidden = true;
+				        return;
+				      }
+				      drillsStripEl.hidden = false;
+				      try { drillsStripEl.style.setProperty('--drill-icon-color', drillsIconColor); } catch (e) { /* ignore */ }
+				      drillsStripEl.innerHTML = [
+				        '<span class="pitch-drills-title">Secuencia</span>',
+				        '<button type="button" class="pitch-drills-color" data-drills-color title="Cambiar color de pictogramas"><span class="pitch-drills-swatch" aria-hidden="true"></span>Color</button>',
+				        ...cards.map((card) => {
+				          const icon = safeText(card.icon);
+				          const label = safeText(card.label, card.id);
+				          const add = icon ? `image_url:${icon}` : '';
+				          const safeIcon = icon ? icon.replace(/"/g, '&quot;') : '';
+				          return `<button type="button" class="pitch-drill-chip" data-add="${add}" data-title="${label}" title="${label}">${icon ? `<span class="pitch-drill-icon" style="--drill-mask:url(&quot;${safeIcon}&quot;)" aria-hidden="true"></span>` : ''}<span>${label}</span></button>`;
+				        }),
+				      ].join('');
+				      wireDrillsStripDnD();
+				    };
+				    try { drillsInputEl?.addEventListener('change', renderDrillsStrip); } catch (e) { /* ignore */ }
+				    try { drillsPickerEl?.addEventListener('change', renderDrillsStrip); } catch (e) { /* ignore */ }
+				    try {
+				      const ensureDrillsColorPicker = () => {
+				        let picker = document.getElementById('task-drills-color-picker');
+				        if (picker) return picker;
+				        picker = document.createElement('input');
+				        picker.type = 'color';
+				        picker.id = 'task-drills-color-picker';
+				        picker.style.position = 'fixed';
+				        picker.style.left = '-9999px';
+				        picker.style.top = '0';
+				        picker.style.opacity = '0';
+				        document.body.appendChild(picker);
+				        return picker;
+				      };
+				      const setDrillsIconColor = (value) => {
+				        const parsed = parseColorToHex(value, '#0f7a35') || '#0f7a35';
+				        drillsIconColor = parsed;
+				        if (drillsIconColorInput) drillsIconColorInput.value = drillsIconColor;
+				        try { drillsStripEl?.style?.setProperty('--drill-icon-color', drillsIconColor); } catch (e) { /* ignore */ }
+				      };
+				      drillsStripEl?.addEventListener('click', (event) => {
+				        const colorBtn = event.target.closest('button[data-drills-color]');
+				        if (colorBtn) {
+				          event.preventDefault();
+				          event.stopPropagation();
+				          const picker = ensureDrillsColorPicker();
+				          try { picker.value = drillsIconColor; } catch (e) { /* ignore */ }
+				          picker.oninput = () => setDrillsIconColor(picker.value);
+				          picker.onchange = () => setDrillsIconColor(picker.value);
+				          try { picker.click(); } catch (e) { /* ignore */ }
+				          return;
+				        }
+				        const button = event.target.closest('button.pitch-drill-chip[data-add]');
+				        if (!button) return;
+				        const add = safeText(button.dataset.add);
+				        if (!add || !add.startsWith('image_url:')) return;
 			        const url = add.slice('image_url:'.length);
 			        const title = safeText(button.dataset.title) || 'Pictograma';
-			        Array.from(drillsStripEl.querySelectorAll('button.pitch-drill-chip')).forEach((node) => node.classList.remove('is-active'));
-			        button.classList.add('is-active');
-			        activateFactory((left, top) => buildUrlAssetObject(url, left, top, { desiredSize: 72, title }), 'un pictograma', add);
-			      });
-			    } catch (e) { /* ignore */ }
+				        Array.from(drillsStripEl.querySelectorAll('button.pitch-drill-chip')).forEach((node) => node.classList.remove('is-active'));
+				        button.classList.add('is-active');
+				        activateFactory((left, top) => buildUrlAssetObject(url, left, top, { desiredSize: 72, title }), 'un pictograma', add);
+				      });
+				    } catch (e) { /* ignore */ }
 			    try { renderDrillsStrip(); } catch (e) { /* ignore */ }
 			    const simProScrub = document.getElementById('task-sim-pro-scrub');
 			    const simProTimeLabel = document.getElementById('task-sim-pro-time');
@@ -9676,24 +9720,33 @@
 	      Array.from(playerBank?.querySelectorAll('button') || []).forEach((button) => button.classList.remove('is-active'));
 	      Array.from(libraryPane?.querySelectorAll('button[data-add]') || []).forEach((button) => button.classList.remove('is-active'));
 	    };
-	    const pointerFromStageEvent = (event) => {
-	      const rect = stage.getBoundingClientRect();
-	      const screenX = ((event.clientX - rect.left) / rect.width) * canvas.getWidth();
-	      const screenY = ((event.clientY - rect.top) / rect.height) * canvas.getHeight();
-	      let x = screenX;
-	      let y = screenY;
-	      if (useViewportMapping) {
-	        const vpt = canvas.viewportTransform || [1, 0, 0, 1, 0, 0];
-	        const scale = Number(vpt[0]) || 1;
-	        const offsetX = Number(vpt[4]) || 0;
-	        const offsetY = Number(vpt[5]) || 0;
-	        x = (screenX - offsetX) / scale;
-	        y = (screenY - offsetY) / scale;
-	      }
-	      const { w, h } = worldSize();
-	      return {
-	        x: clamp(x, 24, w - 24),
-	        y: clamp(y, 24, h - 24),
+		    const pointerFromStageEvent = (event) => {
+		      let x = 0;
+		      let y = 0;
+		      // Preferimos Fabric para que tenga en cuenta offsets, retina scaling y viewportTransform.
+		      try {
+		        const raw = canvas.getPointer(event);
+		        x = Number(raw?.x) || 0;
+		        y = Number(raw?.y) || 0;
+		      } catch (error) {
+		        const rect = stage.getBoundingClientRect();
+		        const screenX = ((event.clientX - rect.left) / rect.width) * canvas.getWidth();
+		        const screenY = ((event.clientY - rect.top) / rect.height) * canvas.getHeight();
+		        x = screenX;
+		        y = screenY;
+		        if (useViewportMapping) {
+		          const vpt = canvas.viewportTransform || [1, 0, 0, 1, 0, 0];
+		          const scale = Number(vpt[0]) || 1;
+		          const offsetX = Number(vpt[4]) || 0;
+		          const offsetY = Number(vpt[5]) || 0;
+		          x = (screenX - offsetX) / scale;
+		          y = (screenY - offsetY) / scale;
+		        }
+		      }
+		      const { w, h } = worldSize();
+		      return {
+		        x: clamp(x, 24, w - 24),
+		        y: clamp(y, 24, h - 24),
 	      };
 	    };
 		    const createFactoryFromPayload = (payload) => {
@@ -11579,7 +11632,28 @@
         return;
       }
 
-      const isCapacitor = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+	      const isCapacitor = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+	      const isStandalone = (() => {
+	        try {
+	          if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return true;
+	          if (window.matchMedia && window.matchMedia('(display-mode: fullscreen)').matches) return true;
+	        } catch (e) { /* ignore */ }
+	        try {
+	          if (typeof navigator !== 'undefined' && navigator && navigator.standalone) return true;
+	        } catch (e) { /* ignore */ }
+	        return false;
+	      })();
+	      const isMobileLike = (() => {
+	        try {
+	          if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) return true;
+	        } catch (e) { /* ignore */ }
+	        try {
+	          return Math.min(window.innerWidth || 9999, window.innerHeight || 9999) < 820;
+	        } catch (e) {
+	          return false;
+	        }
+	      })();
+	      const shouldUseOverlay = isCapacitor || isStandalone || isMobileLike;
       const ensurePdfOverlay = () => {
         let overlay = document.getElementById('tpad-pdf-overlay');
         if (overlay) return overlay;
@@ -11677,7 +11751,7 @@
 
       // iOS/Capacitor: `window.open` crea una vista sin navegación ("página en blanco" sin salida).
       // En ese caso, descargamos el PDF por fetch y lo mostramos en un overlay con botón Cerrar.
-      if (isCapacitor) {
+	      if (shouldUseOverlay) {
         const payload = new FormData(form);
         // Evita enviar ficheros por error.
         Array.from(payload.entries()).forEach(([key, value]) => {
@@ -11747,16 +11821,56 @@
       tempForm.remove();
     };
 
-		    syncOrientationUi();
-		    syncZoomUi();
-		    applyStageSizeUi({ noFit: true });
-		    fitCanvas();
-		    initPitchResizer();
-		    setPreset(presetSelect.value || 'full_pitch');
-	    restoreState();
-	    try { scheduleTacticalOverlayRefresh(); } catch (e) { /* ignore */ }
-	    renderLayers();
-	    runWhenIdle(() => renderPlayerBank(), 1100);
+			    syncOrientationUi();
+			    syncZoomUi();
+			    applyStageSizeUi({ noFit: true });
+			    fitCanvas();
+			    initPitchResizer();
+			    setPreset(presetSelect.value || 'full_pitch');
+		    // Si la tarea es nueva (sin objetos guardados), aseguramos que el "mundo" (canvas_width/height)
+		    // coincide con el viewBox del SVG. Si no, el viewportTransform crea barras/offsets y los punteros
+		    // quedan desincronizados: parece que no se pueden colocar chapas en todo el campo.
+		    try {
+		      const shouldNormalizeWorld = (() => {
+		        if (!useViewportMapping) return false;
+		        const rawState = safeText(stateInput?.value);
+		        if (!rawState) return true;
+		        try {
+		          const parsed = JSON.parse(rawState);
+		          const objects = Array.isArray(parsed?.objects) ? parsed.objects : [];
+		          const hasObjects = objects.some((obj) => obj && typeof obj === 'object' && !(obj?.data?.base));
+		          const tl = Array.isArray(parsed?.timeline) ? parsed.timeline : [];
+		          const hasTimelineObjects = tl.some((step) => {
+		            const st = step?.canvas_state;
+		            const stepObjects = Array.isArray(st?.objects) ? st.objects : [];
+		            return stepObjects.some((obj) => obj && typeof obj === 'object' && !(obj?.data?.base));
+		          });
+		          return !(hasObjects || hasTimelineObjects);
+		        } catch (e) {
+		          return true;
+		        }
+		      })();
+		      if (shouldNormalizeWorld && widthInput && heightInput) {
+		        const vbRaw = safeText(svgSurface?.getAttribute('viewBox'));
+		        const parts = vbRaw.split(/\s+/).map((v) => Number(v)).filter((n) => Number.isFinite(n));
+		        if (parts.length >= 4) {
+		          const vbW = Math.round(parts[2]);
+		          const vbH = Math.round(parts[3]);
+		          const curW = parseIntSafe(widthInput.value) || 0;
+		          const curH = parseIntSafe(heightInput.value) || 0;
+		          if (vbW > 0 && vbH > 0 && (Math.abs(curW - vbW) > 6 || Math.abs(curH - vbH) > 6)) {
+		            widthInput.value = String(vbW);
+		            heightInput.value = String(vbH);
+		            worldWidth = vbW;
+		            worldHeight = vbH;
+		          }
+		        }
+		      }
+		    } catch (e) { /* ignore */ }
+		    restoreState();
+		    try { scheduleTacticalOverlayRefresh(); } catch (e) { /* ignore */ }
+		    renderLayers();
+		    runWhenIdle(() => renderPlayerBank(), 1100);
     try {
       syncAssignedPlayersHidden(serializeState());
     } catch (error) {

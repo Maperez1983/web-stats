@@ -1,6 +1,7 @@
 import UIKit
 import Capacitor
 import WebKit
+import Security
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -68,8 +69,163 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
 @objc(MainViewController)
 class MainViewController: CAPBridgeViewController {
+    private let cookieHostSuffix = "segundajugada.es"
+    private let persistedCookiesKeychainAccount = "persistedCookies.v1"
+    private let cookieNamesToPersist: Set<String> = ["webstats_sessionid", "csrftoken", "access_token"]
+
+    private func keychainService() -> String {
+        return (Bundle.main.bundleIdentifier ?? "es.segundajugada.app").trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func keychainRead(account: String) -> Data? {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: keychainService(),
+            kSecAttrAccount as String: account,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne,
+        ]
+        var item: CFTypeRef?
+        let status = SecItemCopyMatching(query as CFDictionary, &item)
+        guard status == errSecSuccess else { return nil }
+        return item as? Data
+    }
+
+    @discardableResult
+    private func keychainWrite(_ data: Data, account: String) -> Bool {
+        let baseQuery: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: keychainService(),
+            kSecAttrAccount as String: account,
+        ]
+
+        let updateStatus = SecItemUpdate(baseQuery as CFDictionary, [kSecValueData as String: data] as CFDictionary)
+        if updateStatus == errSecSuccess {
+            return true
+        }
+
+        var addQuery = baseQuery
+        addQuery[kSecValueData as String] = data
+        let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
+        return addStatus == errSecSuccess
+    }
+
+    private func shouldPersistCookie(_ cookie: HTTPCookie) -> Bool {
+        let name = cookie.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !cookieNamesToPersist.contains(name) { return false }
+        let domain = cookie.domain.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if domain == cookieHostSuffix { return true }
+        if domain.hasSuffix("." + cookieHostSuffix) { return true }
+        return false
+    }
+
+    private func serializeCookie(_ cookie: HTTPCookie) -> [String: Any] {
+        var payload: [String: Any] = [
+            "name": cookie.name,
+            "value": cookie.value,
+            "domain": cookie.domain,
+            "path": cookie.path,
+            "secure": cookie.isSecure,
+        ]
+        if let expires = cookie.expiresDate {
+            payload["expires"] = expires.timeIntervalSince1970
+        }
+        if let sameSite = cookie.properties?[.sameSitePolicy] as? String, !sameSite.isEmpty {
+            payload["sameSite"] = sameSite
+        }
+        return payload
+    }
+
+    private func deserializeCookie(_ payload: [String: Any]) -> HTTPCookie? {
+        let name = String(payload["name"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let value = String(payload["value"] as? String ?? "")
+        let domain = String(payload["domain"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let path = String(payload["path"] as? String ?? "/").trimmingCharacters(in: .whitespacesAndNewlines)
+        if name.isEmpty || domain.isEmpty {
+            return nil
+        }
+
+        var properties: [HTTPCookiePropertyKey: Any] = [
+            .name: name,
+            .value: value,
+            .domain: domain,
+            .path: path.isEmpty ? "/" : path,
+        ]
+        if let expires = payload["expires"] as? Double, expires > 0 {
+            properties[.expires] = Date(timeIntervalSince1970: expires)
+        }
+        if let secure = payload["secure"] as? Bool, secure {
+            properties[.secure] = "TRUE"
+        }
+        if let sameSite = payload["sameSite"] as? String, !sameSite.isEmpty {
+            properties[.sameSitePolicy] = sameSite
+        }
+        return HTTPCookie(properties: properties)
+    }
+
+    private func restorePersistedCookies(_ completion: @escaping (Bool) -> Void) {
+        guard let webView = webView else { completion(false); return }
+        guard let data = keychainRead(account: persistedCookiesKeychainAccount) else { completion(false); return }
+        guard
+            let decoded = try? JSONSerialization.jsonObject(with: data),
+            let cookiesPayload = decoded as? [[String: Any]]
+        else {
+            completion(false)
+            return
+        }
+
+        let cookieStore = webView.configuration.websiteDataStore.httpCookieStore
+        let group = DispatchGroup()
+        var restoredAny = false
+
+        for payload in cookiesPayload {
+            guard let cookie = deserializeCookie(payload) else { continue }
+            if !shouldPersistCookie(cookie) { continue }
+            restoredAny = true
+            group.enter()
+            cookieStore.setCookie(cookie) {
+                group.leave()
+            }
+        }
+
+        group.notify(queue: .main) {
+            completion(restoredAny)
+        }
+    }
+
+    private func persistCookiesNow() {
+        guard let webView = webView else { return }
+        let cookieStore = webView.configuration.websiteDataStore.httpCookieStore
+        cookieStore.getAllCookies { [weak self] cookies in
+            guard let self = self else { return }
+            let payload = cookies.filter { self.shouldPersistCookie($0) }.map { self.serializeCookie($0) }
+            guard let data = try? JSONSerialization.data(withJSONObject: payload, options: []) else { return }
+            _ = self.keychainWrite(data, account: self.persistedCookiesKeychainAccount)
+        }
+    }
+
+    @objc private func appDidEnterBackground() {
+        persistCookiesNow()
+    }
+
+    @objc private func appWillTerminate() {
+        persistCookiesNow()
+    }
+
     override func capacitorDidLoad() {
         super.capacitorDidLoad()
+
+        NotificationCenter.default.addObserver(self, selector: #selector(appDidEnterBackground), name: UIApplication.didEnterBackgroundNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(appWillTerminate), name: UIApplication.willTerminateNotification, object: nil)
+
+        restorePersistedCookies { [weak self] restored in
+            guard let self = self else { return }
+            guard restored else { return }
+            // Evita quedarse en /login/ si la cookie existe pero WKWebView la "pierde" al arrancar.
+            if let urlString = self.webView?.url?.absoluteString, urlString.contains("/login") {
+                self.webView?.reload()
+            }
+        }
 
         // Algunas webs remotas incluyen `@capacitor/core` (web) y pisan `window.Capacitor`.
         // En iOS nativo, Capacitor añade `triggerEvent` desde `native-bridge.js`; si se pierde,

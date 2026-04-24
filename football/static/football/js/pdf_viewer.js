@@ -1,7 +1,38 @@
 (function () {
   const isCapacitor =
     !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
-  if (!isCapacitor) return;
+  const isStandalone = (() => {
+    try {
+      if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return true;
+      if (window.matchMedia && window.matchMedia('(display-mode: fullscreen)').matches) return true;
+    } catch (e) {
+      // ignore
+    }
+    try {
+      // iOS Safari PWA legacy flag.
+      if (typeof navigator !== 'undefined' && navigator && navigator.standalone) return true;
+    } catch (e) {
+      // ignore
+    }
+    return false;
+  })();
+  const isMobileLike = (() => {
+    try {
+      if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) return true;
+    } catch (e) {
+      // ignore
+    }
+    try {
+      return Math.min(window.innerWidth || 9999, window.innerHeight || 9999) < 820;
+    } catch (e) {
+      return false;
+    }
+  })();
+
+  // En la app (Capacitor) no existe "barra" de navegación del navegador: si abrimos un PDF en la misma WebView,
+  // el usuario se queda sin forma de volver. Por eso interceptamos también en modo móvil/PWA.
+  const shouldEnable = isCapacitor || isStandalone || isMobileLike;
+  if (!shouldEnable) return;
 
   const safeText = (value) => String(value ?? '').trim();
   const isSameOrigin = (url) => {
@@ -239,4 +270,3 @@
     true,
   );
 })();
-

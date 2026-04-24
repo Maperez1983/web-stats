@@ -11,6 +11,9 @@
   {% csrf_token %}
   <button class="logout-btn" type="submit" title="Cerrar sesión">Salir</button>
 </form>
+<div class="help-jump">
+  <button class="help-btn" type="button" id="webstats-global-help" title="Guía rápida (Alt: guía general)">Guía</button>
+</div>
 {% if is_admin_user %}
 <div class="platform-jump">
   <a class="platform-btn" href="{% url 'platform-overview' %}" title="Volver a Platform">Platform</a>
@@ -148,6 +151,29 @@
   margin-top: 0.35rem;
   display: flex;
   justify-content: center;
+}
+.help-jump{
+  margin-top:0.35rem;
+  display:flex;
+  justify-content:center;
+}
+.help-btn{
+  appearance:none;
+  cursor:pointer;
+  border:1px solid rgba(34,211,238,0.26);
+  border-radius:999px;
+  padding:0.32rem 0.8rem;
+  background:rgba(34,211,238,0.10);
+  color:rgba(226,232,240,0.92);
+  font-size:0.7rem;
+  line-height:1.15;
+  letter-spacing:0.14em;
+  text-transform:uppercase;
+  font-weight:900;
+}
+.help-btn:hover{
+  border-color:rgba(34,211,238,0.6);
+  color:#ffffff;
 }
 .platform-btn {
   display: inline-flex;
@@ -412,6 +438,10 @@
   }
 }
 </style>
+
+{# Guía/tours (carga ligera y sin dependencias externas) #}
+<script src="{% static 'football/js/ui_tour.js' %}" defer></script>
+<script src="{% static 'football/js/global_help.js' %}" defer></script>
 <div class="cmdk" id="cmdk" hidden aria-hidden="true">
   <div class="cmdk-backdrop" data-cmdk-close></div>
   <div class="cmdk-panel" role="dialog" aria-modal="true" aria-label="Buscar / Ir a">

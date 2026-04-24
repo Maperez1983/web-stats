@@ -16012,6 +16012,23 @@ def save_convocation(request):
 
     target_match = _resolve_active_match_for_flow(request, primary_team)
     if not target_match:
+        # Evita crear duplicados: si ya existe un Match para esa fecha (y, si se indicó, rival/jornada),
+        # reutilízalo en vez de crear un placeholder.
+        if parsed_match_date:
+            try:
+                qs = _team_match_queryset(primary_team).filter(date=parsed_match_date)
+                if round_value:
+                    qs = qs.filter(round=round_value)
+                if opponent_value:
+                    qs = qs.filter(
+                        Q(home_team__name__iexact=opponent_value)
+                        | Q(away_team__name__iexact=opponent_value)
+                        | Q(home_team__short_name__iexact=opponent_value)
+                        | Q(away_team__short_name__iexact=opponent_value)
+                    )
+                target_match = qs.order_by('-id').first()
+            except Exception:
+                target_match = None
         season = None
         if primary_team.group and primary_team.group.season:
             season = primary_team.group.season
@@ -20292,6 +20309,29 @@ def _extract_pdf_text(pdf_file, max_chars=12000):
                 joined_hits += 1
         return len(str(parsed_text or '')) < 500 or joined_hits >= 2
 
+    def _looks_like_broken_table_layout(parsed_text):
+        """
+        Heurística: algunos `pdftotext -layout` devuelven tablas como "letras sueltas" en líneas.
+        Si detectamos demasiadas líneas muy cortas, preferimos `pypdf.extract_text()`.
+        """
+        try:
+            lines = [ln.strip() for ln in str(parsed_text or '').splitlines() if ln.strip()]
+        except Exception:
+            return False
+        if len(lines) < 8:
+            return False
+        weird_lines = 0
+        for ln in lines[:220]:
+            alpha_tokens = re.findall(r'[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+', ln)
+            if len(alpha_tokens) < 4:
+                continue
+            one_letter = sum(1 for t in alpha_tokens if len(t) == 1)
+            avg_len = sum(len(t) for t in alpha_tokens) / float(max(1, len(alpha_tokens)))
+            # Señal típica: líneas con muchas letras sueltas (tablas/celdas rotas).
+            if one_letter >= 3 and avg_len < 2.3:
+                weird_lines += 1
+        return weird_lines >= 2
+
     def _ocr_pdf_pages_with_pdftoppm(local_pdf_file, max_pages=4):
         if pytesseract is None or Image is None:
             return ''
@@ -20344,13 +20384,24 @@ def _extract_pdf_text(pdf_file, max_chars=12000):
     try:
         if hasattr(pdf_file, 'seek'):
             pdf_file.seek(0)
-        reader = PdfReader(pdf_file)
-        chunks = []
-        for page in reader.pages:
-            chunks.append((page.extract_text() or '').strip())
-        text = '\n'.join([item for item in chunks if item]).strip()
+        pdf_bytes = pdf_file.read() if hasattr(pdf_file, 'read') else b''
+        if not pdf_bytes:
+            raise ValueError('PDF vacío.')
+
+        # Preferimos `pdftotext -layout` (Poppler) si está disponible: suele dar texto más "limpio"
+        # en plantillas tipo sesión con tablas/celdas.
+        text = _extract_pdf_text_via_pdftotext(pdf_bytes) if '_extract_pdf_text_via_pdftotext' in globals() else ''
+        text = str(text or '').strip()
+        if _looks_like_broken_table_layout(text):
+            reader = PdfReader(io.BytesIO(pdf_bytes))
+            chunks = []
+            for page in reader.pages:
+                chunks.append((page.extract_text() or '').strip())
+            text = '\n'.join([item for item in chunks if item]).strip()
         text = re.sub(r'\n{3,}', '\n\n', text)
+        # Si el texto viene muy pobre, intentamos rescatar OCR desde imágenes embebidas.
         if len(text) < 180:
+            reader = PdfReader(io.BytesIO(pdf_bytes))
             ocr_chunks = []
             for page in reader.pages[:5]:
                 images = getattr(page, 'images', []) or []
@@ -20365,7 +20416,7 @@ def _extract_pdf_text(pdf_file, max_chars=12000):
                 text = '\n'.join([text, '\n'.join(ocr_chunks)]).strip() if text else '\n'.join(ocr_chunks)
                 text = re.sub(r'\n{3,}', '\n\n', text)
         if _needs_ocr_boost(text):
-            ocr_rendered = _ocr_pdf_pages_with_pdftoppm(pdf_file, max_pages=5)
+            ocr_rendered = _ocr_pdf_pages_with_pdftoppm(io.BytesIO(pdf_bytes), max_pages=5)
             if ocr_rendered:
                 merged = '\n'.join([text, ocr_rendered]).strip() if text else ocr_rendered
                 text = re.sub(r'\n{3,}', '\n\n', merged)
@@ -20459,13 +20510,20 @@ def _is_preview_quality_low(raw_bytes):
 def _extract_preview_images_from_pdf(pdf_file, max_images=8, prefer_render=False):
     if pdf_file is None:
         return []
-    if prefer_render:
+    # Para PDFs multi-tarea, es muy frecuente que las imágenes embebidas vengan recortadas o con baja resolución.
+    # Si podemos renderizar, lo preferimos cuando hay más de una imagen solicitada.
+    try:
+        max_images_int = max(1, int(max_images or 1))
+    except Exception:
+        max_images_int = 1
+    should_render_first = bool(prefer_render) or (max_images_int > 1)
+    if should_render_first:
         # Render via pdftoppm tends to be much sharper than embedded images
         # (many PDFs embed ~800px thumbnails). Also support multi-task PDFs by
         # returning up to `max_images`.
         rendered_payloads = _render_pdf_previews_with_pdftoppm(
             pdf_file,
-            max_images=max_images,
+            max_images=max_images_int,
             max_pages=10,
             scale_to=2400,
         )
@@ -20503,7 +20561,7 @@ def _extract_preview_images_from_pdf(pdf_file, max_images=8, prefer_render=False
         except Exception:
             candidates = []
     if candidates:
-        max_count = max(1, int(max_images or 1))
+        max_count = max(1, int(max_images_int or 1))
         good_candidates = [item for item in candidates if float(item.get('score') or 0.0) >= 12.0]
         if good_candidates:
             # Keep original document order for multi-task PDFs once quality threshold is met.
@@ -20521,7 +20579,7 @@ def _extract_preview_images_from_pdf(pdf_file, max_images=8, prefer_render=False
         return payloads
 
     # Fallback: render first page when PDF uses vector drawings (no embedded images).
-    fallback_payloads = _render_pdf_previews_with_pdftoppm(pdf_file, max_images=max_images)
+    fallback_payloads = _render_pdf_previews_with_pdftoppm(pdf_file, max_images=max_images_int)
     if fallback_payloads:
         return fallback_payloads
 
@@ -21576,7 +21634,11 @@ def _split_board_page_image_bytes(raw_bytes, max_images=3):
                         continue
                     components.append({'minx': minx, 'miny': miny, 'maxx': maxx, 'maxy': maxy, 'area': area})
 
-            if len(components) < 2:
+            if not components:
+                return []
+            # Si pedimos varias imágenes, solo "dividimos" cuando haya varias componentes.
+            # Si pedimos 1, usamos la componente encontrada como auto-crop (mejora previews).
+            if len(components) < 2 and max_images > 1:
                 return []
             # Orden visual: arriba->abajo, izquierda->derecha
             components.sort(key=lambda c: (int(c['miny']), int(c['minx'])))
@@ -21584,7 +21646,7 @@ def _split_board_page_image_bytes(raw_bytes, max_images=3):
             components = sorted(components, key=lambda c: int(c['area']), reverse=True)[: max_images * 2]
             components.sort(key=lambda c: (int(c['miny']), int(c['minx'])))
 
-            pad = int(round(0.03 * float(max(w, h))))
+            pad = int(round(0.02 * float(max(w, h))))
             sx = 1.0 / probe_scale
             crops = []
             for comp in components[:max_images]:
@@ -21685,7 +21747,7 @@ def _render_pdf_previews_with_pdftoppm(pdf_file, max_images=1, max_pages=10, sca
             board_pages = [
                 item
                 for item in rendered
-                if float(item.get('green_ratio') or 0.0) >= 0.08
+                if float(item.get('green_ratio') or 0.0) >= 0.06
                 and float(item.get('white_ratio') or 0.0) <= 0.82
                 and float(item.get('score') or 0.0) >= 16.0
             ]
@@ -21700,11 +21762,30 @@ def _render_pdf_previews_with_pdftoppm(pdf_file, max_images=1, max_pages=10, sca
                 else:
                     selected = sorted(rendered, key=lambda item: float(item.get('score') or 0.0), reverse=True)
 
-            # Si solo hay una página de campo pero se pidieron varias imágenes, intentamos dividirla en varios campos.
-            if max_images > 1 and len(selected) == 1:
-                split = _split_board_page_image_bytes(selected[0].get('raw') or b'', max_images=max_images)
-                if split:
-                    selected = [{'page_idx': int(selected[0].get('page_idx') or 1), 'raw': chunk, 'score': 0.0} for chunk in split]
+            # Si se pidieron varias imágenes pero no tenemos suficientes páginas "de campo",
+            # intentamos recortar/dividir páginas con varios campos en múltiples previews.
+            if max_images > 1 and selected:
+                expanded = []
+                for item in selected:
+                    remaining = max_images - len(expanded)
+                    if remaining <= 0:
+                        break
+                    raw = item.get('raw') or b''
+                    page_idx = int(item.get('page_idx') or 1)
+                    # Si nos faltan previews, intenta dividir esta página en varias zonas verdes.
+                    if remaining > 1:
+                        split = _split_board_page_image_bytes(raw, max_images=min(remaining, 6))
+                        if split and len(split) > 1:
+                            for chunk in split[:remaining]:
+                                expanded.append({'page_idx': page_idx, 'raw': chunk, 'score': 0.0})
+                            continue
+                    # Caso normal: recorta al campo si se puede (mejora miniaturas y reconstrucción de pizarra).
+                    crop = _split_board_page_image_bytes(raw, max_images=1)
+                    if crop:
+                        raw = crop[0]
+                    expanded.append({'page_idx': page_idx, 'raw': raw, 'score': float(item.get('score') or 0.0)})
+                if expanded:
+                    selected = expanded
 
             payloads = []
             for item in selected[:max_images]:
@@ -21884,6 +21965,10 @@ TASK_JOINED_WORD_VOCAB = [
     'DESCRIPCION', 'OBJETIVO', 'CONSIGNAS', 'REGLAS', 'DOSIFICACION',
     'TIEMPO', 'TOTAL', 'TRABAJO', 'PAUSA', 'SERIE', 'SERIES', 'REPETICIONES',
     'JUGADORES', 'COMODIN', 'COMODINES', 'MATERIAL', 'MATERIALES',
+    # Materiales típicos (PDFs de sesión suelen venir "pegados" por tablas).
+    'PETO', 'PETOS', 'ROJO', 'ROJOS', 'AMARILLO', 'AMARILLOS', 'AZUL', 'AZULES', 'VERDE', 'VERDES',
+    'BANDA', 'BANDAS', 'BANDASFIT', 'FIT', 'VALLA', 'VALLAS', 'PICA', 'PICAS', 'ARO', 'AROS',
+    'ESCALERA', 'ESCALERAS', 'MINIPORTERIA', 'MINIPORTERIAS', 'PESA', 'PESAS',
     'PORTERIA', 'PORTERIAS', 'PORTERO', 'PORTEROS', 'PORTERIA', 'MOVIL',
     'BALON', 'CONO', 'ARCO', 'PRECISION', 'FINALIZACION', 'DUEL', 'DUELO', 'DUELOS',
     'AEREOS', 'AEREO', 'TRANSICION', 'DEFENSA', 'ATAQUE', 'OFENSIVA', 'DEFENSIVA',
@@ -22039,11 +22124,51 @@ def _repair_joined_words_text(value):
     if not text:
         return ''
     cleaned = text.replace('\r\n', '\n').replace('\r', '\n')
+    # PDFs: a veces parten una palabra en varias líneas dentro de una tabla ("Sesi\nÓn", "Pet\no").
+    # Solo unimos líneas MUY cortas (1-3 letras) cuando parecen ser la continuación de la línea anterior.
+    try:
+        raw_lines = cleaned.split('\n')
+        repaired_lines = []
+        short_piece = re.compile(r'^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]{1,3}$')
+        for raw in raw_lines:
+            piece = str(raw or '').strip()
+            if repaired_lines and piece and short_piece.match(piece):
+                prev = repaired_lines[-1]
+                prev_stripped = str(prev or '').rstrip()
+                # Solo pegamos si la línea anterior parece un "fragmento" de palabra (una sola palabra corta),
+                # no un texto normal con espacios (evita "Entrenamiento" + "Pet" -> "EntrenamientoPet").
+                allow_join = False
+                if prev_stripped and prev_stripped[-1:].isalpha():
+                    # Caso común: el último carácter cae solo en la siguiente línea ("Escalera" + "s").
+                    if len(piece) == 1:
+                        allow_join = True
+                    elif (' ' not in prev_stripped) and (len(prev_stripped) <= 14):
+                        allow_join = True
+                    else:
+                        try:
+                            tail = prev_stripped.split()[-1]
+                        except Exception:
+                            tail = ''
+                        if tail and tail.isalpha() and len(tail) <= 6:
+                            allow_join = True
+                if allow_join:
+                    repaired_lines[-1] = prev_stripped + piece
+                    continue
+            repaired_lines.append(raw)
+        cleaned = '\n'.join(repaired_lines)
+    except Exception:
+        pass
+    # Normaliza mayúsculas internas en palabras (p.ej. "SesiÓn" -> "Sesión", "PetO" -> "Peto").
+    cleaned = re.sub(
+        r'(?<=[a-záéíóúüñ])([A-ZÁÉÍÓÚÜÑ])(?=[a-záéíóúüñ])',
+        lambda m: m.group(1).lower(),
+        cleaned,
+    )
     cleaned = re.sub(r'(?<=\d)(?=[A-Za-zÁÉÍÓÚÜÑ])', ' ', cleaned)
     cleaned = re.sub(r'(?<=[A-Za-zÁÉÍÓÚÜÑ])(?=\d)', ' ', cleaned)
     cleaned = re.sub(r'(?<=\d)\s*[xX×]\s*(?=\d)', ' x ', cleaned)
     cleaned = re.sub(r'([,:;])(?=\S)', r'\1 ', cleaned)
-    cleaned = re.sub(r'\s{2,}', ' ', cleaned)
+    cleaned = re.sub(r'[ \t]{2,}', ' ', cleaned)
     cleaned = re.sub(r' *\n *', '\n', cleaned)
 
     def _replace_upper_token(match):
@@ -22057,7 +22182,7 @@ def _repair_joined_words_text(value):
     cleaned = re.sub(r'\b[A-ZÁÉÍÓÚÜÑ]{10,}\b', _replace_upper_token, cleaned)
     cleaned = re.sub(r'\b[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]{8,}\b', _replace_alpha_token, cleaned)
     cleaned = re.sub(r'([\.!?])(?=[A-Za-zÁÉÍÓÚÜÑáéíóúüñ])', r'\1 ', cleaned)
-    cleaned = re.sub(r'\s{2,}', ' ', cleaned)
+    cleaned = re.sub(r'[ \t]{2,}', ' ', cleaned)
     cleaned = re.sub(r' *\n *', '\n', cleaned)
     return cleaned.strip()
 
@@ -22073,7 +22198,7 @@ def _polish_spanish_text(value, multiline=True, max_len=None):
     text = re.sub(r'([,.;:!?])(?=[^\s\n])', r'\1 ', text)
     text = re.sub(r'\(\s+', '(', text)
     text = re.sub(r'\s+\)', ')', text)
-    text = re.sub(r'\s{2,}', ' ', text)
+    text = re.sub(r'[ \t]{2,}', ' ', text)
     text = re.sub(r' *\n *', '\n', text)
     if not multiline:
         text = text.replace('\n', ' ')
@@ -22768,6 +22893,10 @@ def _extract_players_text(text):
     pattern = re.search(r'(?i)\b(\d{1,2}\s*v\s*\d{1,2}(?:\s*\+\s*\d{1,2})?)\b', raw)
     if pattern:
         return str(pattern.group(1)).replace(' ', '')
+    # "8x8", "8 x 8", "8×8" también es habitual en PDFs.
+    pattern = re.search(r'(?i)\b(\d{1,2}\s*[xX×]\s*\d{1,2}(?:\s*\+\s*\d{1,2})?)\b', raw)
+    if pattern:
+        return re.sub(r'\s+', '', str(pattern.group(1)))
     total = re.search(r'(?i)\b(\d{1,2})\s*(?:jugadores?|participantes?)\b', raw)
     if total:
         return f'{total.group(1)} jugadores'
@@ -22973,6 +23102,8 @@ def _suggest_task_from_pdf(pdf_text):
 
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     title = ''
+    title_idx = None
+    title_from_marker = False
     skip_title_tokens = [
         'parteprincipal',
         'materialdeentrenamiento',
@@ -22985,7 +23116,7 @@ def _suggest_task_from_pdf(pdf_text):
     ]
     if template_key == 'sesion_sheet_compact':
         skip_title_tokens.extend(['tiempototaldetrabajo', 'dosificacion', 'hidratacion'])
-    for line in lines[:24]:
+    for idx_line, line in enumerate(lines[:24]):
         # Permite títulos largos (a veces el PDF concatena el nombre completo en una sola línea).
         if len(line) > 260 or re.search(r'^\d+$', line):
             continue
@@ -23015,9 +23146,53 @@ def _suggest_task_from_pdf(pdf_text):
                 title = candidate_title
             else:
                 title = line
+            title_from_marker = True
         else:
             title = line
+        title_idx = idx_line
         break
+
+    # En PDFs tipo "sesión" es común: "Tarea 1: TRABAJO DE" (línea) + "SALIDA DE BALÓN" (línea siguiente).
+    # Si el título desde marcador queda muy corto, concatenamos 1-2 líneas siguientes si parecen continuación.
+    if title and title_from_marker:
+        try:
+            idx = title_idx if isinstance(title_idx, int) else None
+            if idx is None:
+                # fallback: intenta localizar el título actual
+                idx = next((i for i, ln in enumerate(lines[:24]) if title in ln), None)
+        except Exception:
+            idx = None
+        if isinstance(idx, int) and 0 <= idx < len(lines):
+            tail = title.strip().lower()
+            wants_more = (len(title.strip()) < 22) or tail.endswith((' de', ' del', ' la', ' el', ' los', ' las', ' con', ' sin', ' para', ' por'))
+            if wants_more:
+                extras = []
+                for nxt in lines[idx + 1: idx + 4]:
+                    folded = _normalize_folded_text(nxt)
+                    if not folded:
+                        continue
+                    if any(token in folded for token in skip_title_tokens):
+                        break
+                    if re.match(r'^(?:dosificacion|tiempo|parteprincipal|parte\s+principal)\b', folded):
+                        break
+                    if len(nxt) > 90:
+                        break
+                    # Continuación típica: mayúsculas o frase corta.
+                    if nxt.isupper() or len(nxt.split()) <= 6:
+                        extras.append(nxt)
+                    else:
+                        break
+                    # Tras la 1ª línea de continuación, normalmente ya tenemos el título completo.
+                    combined = f"{title} {' '.join(extras)}".strip()
+                    combined_tail = combined.lower().strip()
+                    if len(extras) >= 1 and not combined_tail.endswith((' de', ' del', ' la', ' el', ' los', ' las', ' con', ' sin', ' para', ' por')):
+                        break
+                    if len(extras) >= 2:
+                        break
+                    if len(' '.join([title] + extras)) >= 90:
+                        break
+                if extras:
+                    title = f"{title} {' '.join(extras)}".strip()
     # Fallback: si no encontramos título por límites de línea (PDFs con textos concatenados),
     # toma la primera línea útil, incluso si es larga (se truncará a max_len más tarde).
     if not title:
@@ -23302,7 +23477,8 @@ def _split_pdf_into_task_sections(pdf_text):
             for idx, line in enumerate(prefix_lines):
                 folded = _normalize_folded_text(line)
                 if any(token in folded for token in ('acondicionamiento', 'calentamiento', 'activacion', 'activación', 'partepreparatoria', 'parte preparatoria')):
-                    start_idx = idx
+                    if start_idx is None:
+                        start_idx = idx
             if start_idx is not None:
                 candidate = '\n'.join(prefix_lines[start_idx:]).strip()
                 # Si el PDF venía con cabecera en la misma línea, recorta desde el inicio del bloque preparatorio.
@@ -23315,7 +23491,58 @@ def _split_pdf_into_task_sections(pdf_text):
                     and ('tiempodetrabajo' in cand_folded or re.search(r'\b\d{1,3}\s*[\'’`´]\b', candidate))
                     and 'tiempototaldesesion' not in cand_folded
                 ):
-                    sections.insert(0, candidate)
+                    # En PDFs de sesión, a veces el "pre" incluye 2 tareas: físico + activación (a menudo "con balón").
+                    # Si detectamos un encabezado de Activación dentro del bloque preparatorio, lo separamos en dos secciones.
+                    try:
+                        activation_match = re.search(
+                            r'(?i)(?:^|\n)\s*activaci[oó]n(?:\s+con\s+bal[oó]n)?\b',
+                            candidate,
+                        )
+                    except Exception:
+                        activation_match = None
+                    if activation_match:
+                        act_start = activation_match.start()
+                        pre_folded = _normalize_folded_text(candidate[:act_start])
+                        has_pre_conditioning = any(
+                            token in pre_folded
+                            for token in (
+                                'acondicionamiento',
+                                'calentamiento',
+                                'movilidad',
+                                'circuito',
+                                'fuerza',
+                                'elongacion',
+                                'elongación',
+                            )
+                        )
+                    else:
+                        act_start = 0
+                        has_pre_conditioning = False
+                    if activation_match and has_pre_conditioning and act_start >= 80:
+                        act_end = len(candidate)
+                        try:
+                            tail = candidate[act_start:]
+                            cut_points = []
+                            for pat in (r'(?i)\bparte\s+principal\b', r'(?i)\btrabajo\s+f[ií]sic'):
+                                m = re.search(pat, tail)
+                                if m and m.start() >= 40:
+                                    cut_points.append(m.start())
+                            # En algunos formatos la siguiente sección ya empieza como "Tarea 1".
+                            m = re.search(r'(?i)\btarea\s*1\b', tail)
+                            if m and m.start() >= 40:
+                                cut_points.append(m.start())
+                            if cut_points:
+                                act_end = act_start + min(cut_points)
+                        except Exception:
+                            act_end = len(candidate)
+                        activation_text = candidate[act_start:act_end].strip()
+                        conditioning_text = (candidate[:act_start].strip() + '\n' + candidate[act_end:].strip()).strip()
+                        if len(conditioning_text) >= 160 and len(activation_text) >= 120:
+                            sections[0:0] = [conditioning_text, activation_text]
+                        else:
+                            sections.insert(0, candidate)
+                    else:
+                        sections.insert(0, candidate)
 
     # Heuristic for session sheets where "Tarea 1" is implicit and first explicit marker is Tarea 2.
     if sections:
@@ -23374,6 +23601,68 @@ def _extract_tasks_from_pdf_text(pdf_text, fallback_title='Tarea desde PDF'):
             }
         )
     return analyses
+
+
+def _suggest_blocks_for_session_pdf_segments(parsed_tasks, fallback_block):
+    """
+    PDFs de "sesión" suelen contener varios bloques (condicionante/activación/principal 1/principal 2).
+    Cuando detectamos ese patrón, devolvemos un listado de bloques por segmento para crear 1 tarea por bloque.
+    """
+    if not isinstance(parsed_tasks, list) or len(parsed_tasks) < 2:
+        return None
+    try:
+        segments = []
+        for item in parsed_tasks:
+            if not isinstance(item, dict):
+                continue
+            analysis = item.get('analysis') if isinstance(item.get('analysis'), dict) else {}
+            raw_text = str(item.get('raw_text') or '')
+            joined = ' '.join(
+                part for part in [
+                    raw_text,
+                    str(analysis.get('title') or ''),
+                    str(analysis.get('objective') or ''),
+                    str(analysis.get('summary') or ''),
+                ] if part
+            )
+            segments.append(_normalize_folded_text(joined))
+    except Exception:
+        return None
+    if len(segments) < 2:
+        return None
+
+    # Heurística: solo activamos "auto-bloques" si hay señales claras de sesión.
+    is_sessionish = any('microciclo' in seg or 'mesociclo' in seg or 'materialdeentrenamiento' in seg for seg in segments[:2])
+    has_activation_ball = any(('activacion' in seg and 'balon' in seg) for seg in segments[:3])
+    has_conditioning = any(any(tok in seg for tok in ('acondicionamiento', 'trabajofisico', 'fuerza', 'metabol')) for seg in segments[:3])
+    if not (is_sessionish or (has_activation_ball and has_conditioning)):
+        return None
+
+    blocks = []
+    main_blocks = [SessionTask.BLOCK_MAIN_1, SessionTask.BLOCK_MAIN_2]
+    next_main = 0
+    for seg in segments:
+        if any(tok in seg for tok in ('estiramientos', 'vueltaalacalma', 'partefinal', 'parte final', 'recuperacion', 'recuperación')):
+            blocks.append(SessionTask.BLOCK_RECOVERY)
+            continue
+        if any(tok in seg for tok in ('acondicionamiento', 'trabajofisico', 'circuitofuerza', 'intermitente', 'metabol')):
+            blocks.append(SessionTask.BLOCK_CONDITIONING)
+            continue
+        if 'activacion' in seg and ('balon' in seg or 'pases' in seg or 'rueda' in seg):
+            blocks.append(SessionTask.BLOCK_ACTIVATION)
+            continue
+        if 'abp' in seg or 'balonparado' in seg or 'balónparado' in seg or 'corner' in seg or 'córner' in seg:
+            blocks.append(SessionTask.BLOCK_SET_PIECES)
+            continue
+        if next_main < len(main_blocks):
+            blocks.append(main_blocks[next_main])
+            next_main += 1
+            continue
+        blocks.append(fallback_block)
+
+    if len(set(blocks)) < 2:
+        return None
+    return blocks
 
 
 def _parse_bulk_tasks_text(raw_text, default_block, default_minutes):
@@ -24313,6 +24602,8 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                             }
                         ]
 
+                    segment_blocks = _suggest_blocks_for_session_pdf_segments(parsed_tasks, block)
+
                     if hasattr(pdf_file, 'seek'):
                         pdf_file.seek(0)
                     preview_payloads = _extract_preview_images_from_pdf(
@@ -24339,7 +24630,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     first_task = SessionTask.objects.create(
                         session=target_session,
                         title=first_title,
-                        block=block,
+                        block=(segment_blocks[0] if segment_blocks else block),
                         duration_minutes=max(5, min((_parse_int(first_analysis.get('minutes')) or minutes), 90)),
                         objective=((first_analysis.get('objective') or objective or '')[:180]),
                         coaching_points=(first_analysis.get('coaching_points') or ''),
@@ -24389,10 +24680,15 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     for extra in parsed_tasks[1:]:
                         extra_analysis = extra.get('analysis') or {}
                         extra_title = (extra_analysis.get('title') or f'{task_title} · Tarea {extra.get("segment_index") or 0}')[:160]
+                        segment_index = max(1, int(extra.get('segment_index') or 1))
                         extra_task = SessionTask.objects.create(
                             session=target_session,
                             title=extra_title,
-                            block=block,
+                            block=(
+                                segment_blocks[min(segment_index - 1, len(segment_blocks) - 1)]
+                                if segment_blocks
+                                else block
+                            ),
                             duration_minutes=max(5, min((_parse_int(extra_analysis.get('minutes')) or minutes), 90)),
                             objective=((extra_analysis.get('objective') or objective or '')[:180]),
                             coaching_points=(extra_analysis.get('coaching_points') or ''),
@@ -24413,7 +24709,6 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                             order=base_order + created_count + 1,
                             notes='Extraída automáticamente desde PDF multi-tarea',
                         )
-                        segment_index = max(1, int(extra.get('segment_index') or 1))
                         extra_preview_bytes = b''
                         extra_preview_payload = None
                         if preview_payloads:
@@ -32086,6 +32381,7 @@ def _build_player_match_stats_payload(primary_team, player, match):
         for zone in FIELD_ZONES
     ]
     match_payload = {
+        'match_id': int(getattr(match, 'id', 0) or 0),
         'round': match.round or 'Partido sin jornada',
         'date': match.date.strftime('%d/%m/%Y') if match.date else 'Fecha por definir',
         'location': match.location or 'Campo por confirmar',
@@ -33156,6 +33452,13 @@ def _filter_stats_events(rows, preferred_sources=None):
         if not _event_matches_stats_source(event, preferred_sources):
             continue
         signature = _event_signature(event)
+        # Si el Match está duplicado (mismo fixture con IDs distintos), normalizamos la firma
+        # al Match canónico para evitar que acciones importadas se cuenten por duplicado.
+        try:
+            if isinstance(signature, tuple) and signature and isinstance(signature[0], int):
+                signature = (_canonical_match_id(signature[0]), *signature[1:])
+        except Exception:
+            pass
         if signature in seen_signatures:
             continue
         seen_signatures.add(signature)
@@ -33657,6 +33960,9 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
     stats_events = (
         MatchEvent.objects
         .filter(player__team=primary_team)
+        # Data sucia puede asociar eventos de un jugador a un Match de otra categoría/equipo.
+        # Aseguramos que el Match pertenece realmente al equipo para no mezclar KPIs.
+        .filter(Q(match__home_team=primary_team) | Q(match__away_team=primary_team))
         .filter(
             Q(system='touch-field', source_file='registro-acciones')
             | ~Q(system='touch-field')
@@ -33674,17 +33980,209 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
     inferred_zone_events = _filter_stats_events(events, preferred_sources=preferred_sources)
     match_zone_profiles, player_zone_profiles = _build_zone_inference_profiles(inferred_zone_events)
     allowed_match_ids = set()
+    event_match_ids = set()
     try:
-        allowed_match_ids = set(
+        event_match_ids = set(
             stats_events.exclude(match_id__isnull=True).values_list('match_id', flat=True).distinct()
         )
     except Exception:
-        allowed_match_ids = set()
+        event_match_ids = set()
+    allowed_match_ids = set(event_match_ids)
     if lineup_by_match:
         try:
             allowed_match_ids.update(int(mid) for mid in lineup_by_match.keys() if mid)
         except Exception:
             pass
+
+    # KPI sanity: colapsa duplicados de Match (mismo partido con IDs distintos) en un único "fixture".
+    # Motivo: en flujos como Convocatoria/11 inicial se puede crear un Match placeholder (away_team=None)
+    # y más tarde crear otro Match para el mismo día/rival; en el dashboard se veía el partido repetido.
+    canonical_match_id_by_id = {}
+    canonical_match_obj_by_id = {}
+    try:
+        candidate_ids = set()
+        candidate_ids |= {int(mid) for mid in (allowed_match_ids or set()) if mid}
+        candidate_ids |= {int(mid) for mid in (convocation_seed_by_match_id or {}).keys() if mid}
+        candidate_ids |= {int(mid) for mid in (lineup_by_match or {}).keys() if mid}
+        if candidate_ids:
+            match_rows = list(
+                Match.objects.filter(id__in=list(candidate_ids)).select_related('home_team', 'away_team', 'season')
+            )
+            match_by_id = {int(match.id): match for match in match_rows if match and getattr(match, 'id', None)}
+
+            def _fixture_opponent_signature(match_obj, conv_seed):
+                # Prioridad: el Match (home/away) es la fuente de verdad; la Convocatoria puede tener rival mal guardado.
+                opponent_label = ''
+                if match_obj:
+                    try:
+                        if match_obj.home_team_id == int(primary_team.id) and match_obj.away_team:
+                            opponent_label = str(getattr(match_obj.away_team, 'display_name', '') or match_obj.away_team.name or '').strip()
+                        elif match_obj.away_team_id == int(primary_team.id) and match_obj.home_team:
+                            opponent_label = str(getattr(match_obj.home_team, 'display_name', '') or match_obj.home_team.name or '').strip()
+                    except Exception:
+                        opponent_label = ''
+                if not opponent_label:
+                    try:
+                        if conv_seed and getattr(conv_seed, 'opponent_name', None):
+                            opponent_label = str(conv_seed.opponent_name or '').strip()
+                    except Exception:
+                        opponent_label = ''
+                if opponent_label:
+                    return normalize_label(opponent_label)
+                # Último fallback: si hay dos equipos definidos, usa el par de IDs.
+                if match_obj and match_obj.home_team_id and match_obj.away_team_id:
+                    try:
+                        pair = tuple(sorted([int(match_obj.home_team_id), int(match_obj.away_team_id)]))
+                        return f'idpair:{pair[0]}:{pair[1]}'
+                    except Exception:
+                        return ''
+                return ''
+
+            def _fixture_date(match_obj, conv_seed):
+                try:
+                    if conv_seed and getattr(conv_seed, 'match_date', None):
+                        return conv_seed.match_date
+                except Exception:
+                    pass
+                return getattr(match_obj, 'date', None) if match_obj else None
+
+            def _fixture_key(mid):
+                match_obj = match_by_id.get(int(mid))
+                conv_seed = convocation_seed_by_match_id.get(int(mid)) if convocation_seed_by_match_id else None
+                fixture_date = _fixture_date(match_obj, conv_seed)
+                # Algunos partidos del flujo (placeholders / import legacy) pueden venir sin `date`.
+                # En ese caso, caemos a la jornada/ronda para poder colapsar duplicados visibles en KPI.
+                round_label = ''
+                try:
+                    round_label = str(getattr(conv_seed, 'round', '') or '').strip() if conv_seed else ''
+                except Exception:
+                    round_label = ''
+                if not round_label and match_obj:
+                    round_label = str(getattr(match_obj, 'round', '') or '').strip()
+                round_num = extract_round_number(round_label) if round_label else None
+                round_sig = str(round_num) if round_num is not None else (normalize_label(round_label) if round_label else '')
+                if not fixture_date and not round_sig:
+                    return None
+                context_value = str(getattr(match_obj, 'context', '') or '').strip().lower() or scope_value or Match.CONTEXT_LEAGUE
+                if context_value not in {Match.CONTEXT_LEAGUE, Match.CONTEXT_TOURNAMENT, Match.CONTEXT_FRIENDLY}:
+                    context_value = Match.CONTEXT_LEAGUE
+                tournament_sig = ''
+                if context_value == Match.CONTEXT_TOURNAMENT:
+                    tournament_sig = normalize_label(getattr(match_obj, 'tournament_name', '') or '')
+                opponent_sig = _fixture_opponent_signature(match_obj, conv_seed)
+                if not opponent_sig:
+                    return None
+                season_id = int(getattr(match_obj, 'season_id', 0) or 0) if match_obj else 0
+                group_id = int(getattr(match_obj, 'group_id', 0) or 0) if match_obj else 0
+                return (
+                    season_id,
+                    group_id,
+                    context_value,
+                    tournament_sig,
+                    fixture_date.isoformat() if fixture_date else '',
+                    round_sig,
+                    opponent_sig,
+                )
+
+            def _fixture_score(mid):
+                match_obj = match_by_id.get(int(mid))
+                score = 0
+                if int(mid) in event_match_ids:
+                    score += 30
+                if int(mid) in lineup_by_match:
+                    score += 10
+                if int(mid) in convocation_seed_by_match_id:
+                    score += 6
+                if match_obj:
+                    try:
+                        if getattr(match_obj, 'date', None):
+                            score += 3
+                        if match_obj.home_team_id and match_obj.away_team_id:
+                            score += 8
+                        if match_obj.home_score is not None and match_obj.away_score is not None:
+                            score += 12
+                        if str(getattr(match_obj, 'result', '') or '').strip():
+                            score += 4
+                        if getattr(match_obj, 'kickoff_time', None):
+                            score += 2
+                        if str(getattr(match_obj, 'location', '') or '').strip():
+                            score += 1
+                        round_value = str(getattr(match_obj, 'round', '') or '').strip()
+                        if extract_round_number(round_value) is not None:
+                            score += 1
+                    except Exception:
+                        pass
+                return score
+
+            fixtures = defaultdict(list)
+            for mid in candidate_ids:
+                key = _fixture_key(mid)
+                if not key:
+                    continue
+                fixtures[key].append(int(mid))
+            for key, mids in fixtures.items():
+                if len(mids) < 2:
+                    continue
+                # Canonical: el que tenga más señales (eventos/lineup/marcador) y en empate el más nuevo.
+                canonical_id = max(mids, key=lambda value: (_fixture_score(value), int(value)))
+                for mid in mids:
+                    canonical_match_id_by_id[int(mid)] = int(canonical_id)
+                canonical_match_obj_by_id[int(canonical_id)] = match_by_id.get(int(canonical_id))
+            # Identidad: cualquier match no mapeado es su propio canonical.
+            for mid in candidate_ids:
+                canonical_match_id_by_id.setdefault(int(mid), int(mid))
+                if int(mid) not in canonical_match_obj_by_id:
+                    canonical_match_obj_by_id[int(mid)] = match_by_id.get(int(mid))
+
+            # Remapea seeds/lineups/starter ids para evitar duplicados en el dashboard.
+            if canonical_match_id_by_id:
+                remapped_conv = {}
+                for mid, record in (convocation_seed_by_match_id or {}).items():
+                    cmid = canonical_match_id_by_id.get(int(mid), int(mid))
+                    current = remapped_conv.get(int(cmid))
+                    if not current:
+                        remapped_conv[int(cmid)] = record
+                        continue
+                    try:
+                        if getattr(record, 'created_at', None) and getattr(current, 'created_at', None):
+                            if record.created_at > current.created_at:
+                                remapped_conv[int(cmid)] = record
+                    except Exception:
+                        pass
+                convocation_seed_by_match_id = remapped_conv
+
+                remapped_lineups = {}
+                for mid, seed in (lineup_by_match or {}).items():
+                    cmid = canonical_match_id_by_id.get(int(mid), int(mid))
+                    current = remapped_lineups.get(int(cmid))
+                    if not current:
+                        remapped_lineups[int(cmid)] = seed
+                        continue
+                    try:
+                        current_starters = current.get('starters') if isinstance(current, dict) else []
+                        seed_starters = seed.get('starters') if isinstance(seed, dict) else []
+                        if len(seed_starters or []) > len(current_starters or []):
+                            remapped_lineups[int(cmid)] = seed
+                    except Exception:
+                        pass
+                lineup_by_match = remapped_lineups
+
+                remapped_starters = defaultdict(set)
+                for pid, mids in (starter_match_ids_by_player or {}).items():
+                    for mid in mids:
+                        cmid = canonical_match_id_by_id.get(int(mid), int(mid))
+                        remapped_starters[int(pid)].add(int(cmid))
+                starter_match_ids_by_player = remapped_starters
+                starter_match_ids = {canonical_match_id_by_id.get(int(mid), int(mid)) for mid in (starter_match_ids or set()) if mid}
+    except Exception:
+        canonical_match_id_by_id = {}
+        canonical_match_obj_by_id = {}
+
+    def _canonical_match_id(mid):
+        try:
+            return int(canonical_match_id_by_id.get(int(mid), int(mid)))
+        except Exception:
+            return int(mid or 0) if mid else 0
     # Seed de titulares: cuenta PJ/minutos aunque no haya acciones registradas.
     if starter_match_ids_by_player:
         for pid, match_ids in starter_match_ids_by_player.items():
@@ -33893,31 +34391,33 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
                 stats['dribbles_completed'] += 1
         if not match:
             continue
-        match_key = match.id
+        match_key = _canonical_match_id(match.id)
+        match_obj = canonical_match_obj_by_id.get(int(match_key)) if canonical_match_obj_by_id else None
+        if not match_obj:
+            match_obj = match
         conv_seed = convocation_seed_by_match_id.get(int(match_key)) if convocation_seed_by_match_id else None
         conv_round = str(getattr(conv_seed, 'round', '') or '').strip() if conv_seed else ''
         conv_date = getattr(conv_seed, 'match_date', None) if conv_seed else None
         conv_opponent = str(getattr(conv_seed, 'opponent_name', '') or '').strip() if conv_seed else ''
+        opponent_from_match = ''
+        try:
+            if match_obj and match_obj.home_team_id == primary_team.id and match_obj.away_team:
+                opponent_from_match = match_obj.away_team.display_name or match_obj.away_team.name or ''
+            elif match_obj and match_obj.away_team_id == primary_team.id and match_obj.home_team:
+                opponent_from_match = match_obj.home_team.display_name or match_obj.home_team.name or ''
+        except Exception:
+            opponent_from_match = ''
         match_entry = stats['matches'].setdefault(
             match_key,
             {
-                'match_id': match.id,
-                'round': conv_round or match.round or 'Partido sin jornada',
-                'date': (conv_date.isoformat() if conv_date else (match.date.isoformat() if match.date else None)),
-                'home': match.home_team == primary_team,
-                'opponent': (
-                    conv_opponent
-                    or (
-                        match.away_team.display_name
-                        if match.home_team == primary_team and match.away_team
-                        else match.home_team.display_name
-                        if match.away_team == primary_team and match.home_team
-                        else 'Rival desconocido'
-                    )
-                ),
-                'home_score': match.home_score,
-                'away_score': match.away_score,
-                'result': (match.result or '').strip(),
+                'match_id': int(match_key),
+                'round': (match_obj.round if match_obj else '') or conv_round or 'Partido sin jornada',
+                'date': (match_obj.date.isoformat() if match_obj and match_obj.date else (conv_date.isoformat() if conv_date else None)),
+                'home': bool(match_obj and match_obj.home_team_id == primary_team.id),
+                'opponent': (opponent_from_match or conv_opponent or 'Rival desconocido'),
+                'home_score': (match_obj.home_score if match_obj else None),
+                'away_score': (match_obj.away_score if match_obj else None),
+                'result': ((match_obj.result or '').strip() if match_obj else ''),
                 'played': False,
                 'goals': 0,
                 'assists': 0,
@@ -33958,16 +34458,18 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
                 conv_date = getattr(conv_seed, 'match_date', None) if conv_seed else None
                 conv_opponent = str(getattr(conv_seed, 'opponent_name', '') or '').strip() if conv_seed else ''
                 home_flag = bool(match_obj and match_obj.home_team_id == primary_team.id)
-                opponent_label = conv_opponent
-                if not opponent_label and match_obj:
+                opponent_label = ''
+                if match_obj:
                     if match_obj.home_team_id == primary_team.id and match_obj.away_team:
                         opponent_label = match_obj.away_team.display_name
                     elif match_obj.away_team_id == primary_team.id and match_obj.home_team:
                         opponent_label = match_obj.home_team.display_name
+                if not opponent_label:
+                    opponent_label = conv_opponent
                 stats['matches'][int(mid)] = {
                     'match_id': int(mid),
-                    'round': conv_round or (match_obj.round if match_obj else '') or 'Partido sin jornada',
-                    'date': (conv_date.isoformat() if conv_date else (match_obj.date.isoformat() if match_obj and match_obj.date else None)),
+                    'round': (match_obj.round if match_obj else '') or conv_round or 'Partido sin jornada',
+                    'date': (match_obj.date.isoformat() if match_obj and match_obj.date else (conv_date.isoformat() if conv_date else None)),
                     'home': home_flag,
                     'opponent': opponent_label or 'Rival desconocido',
                     'home_score': (match_obj.home_score if match_obj else None),
@@ -33992,22 +34494,24 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
                 # y el timeline (minutos/PJ/PT).
                 continue
         if match and event.minute is not None:
-            match_end_minutes[match.id] = max(match_end_minutes.get(match.id, 0), event.minute)
+            match_id = _canonical_match_id(match.id)
+            match_end_minutes[match_id] = max(match_end_minutes.get(match_id, 0), event.minute)
             normalized_type = normalize_label(event.event_type)
             # Si existe un marcador explícito de fin de partido, respétalo incluso si es < reglamentario
             # (abandono/suspensión). Si no hay fin explícito, evitamos inferir el fin por "última acción",
             # porque los registros pueden estar incompletos.
             if normalized_type in {'fin', 'final'} or normalized_type.startswith('fin '):
-                match_end_marker_minutes[match.id] = max(
-                    match_end_marker_minutes.get(match.id, 0),
+                match_end_marker_minutes[match_id] = max(
+                    match_end_marker_minutes.get(match_id, 0),
                     int(event.minute or 0),
                 )
         player = event.player
         if not player:
             continue
         if match:
+            match_id = _canonical_match_id(match.id)
             timeline = player_match_timeline.setdefault(player.id, {}).setdefault(
-                match.id,
+                match_id,
                 {'entry': None, 'exit': None, 'has_event': False},
             )
             timeline['has_event'] = True
@@ -34187,19 +34691,28 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
     )
     for row in player_stat_matches:
         player_id = _parse_int(row.get('player_id'))
-        match_id = _parse_int(row.get('match_id'))
+        match_id = _canonical_match_id(_parse_int(row.get('match_id')))
         if not player_id or not match_id:
             continue
         stats = player_stats.get(player_id)
         if not stats:
             continue
-        home_team_id = _parse_int(row.get('match__home_team_id'))
-        away_team_id = _parse_int(row.get('match__away_team_id'))
+        match_obj = canonical_match_obj_by_id.get(int(match_id)) if canonical_match_obj_by_id else None
+        home_team_id = int(getattr(match_obj, 'home_team_id', 0) or 0) if match_obj else _parse_int(row.get('match__home_team_id'))
+        away_team_id = int(getattr(match_obj, 'away_team_id', 0) or 0) if match_obj else _parse_int(row.get('match__away_team_id'))
         if home_team_id == int(primary_team.id):
-            opponent = str(row.get('match__away_team__name') or '').strip() or 'Rival desconocido'
+            opponent = (
+                str(getattr(getattr(match_obj, 'away_team', None), 'name', '') or '').strip()
+                if match_obj and getattr(match_obj, 'away_team', None)
+                else str(row.get('match__away_team__name') or '').strip()
+            ) or 'Rival desconocido'
             is_home = True
         elif away_team_id == int(primary_team.id):
-            opponent = str(row.get('match__home_team__name') or '').strip() or 'Rival desconocido'
+            opponent = (
+                str(getattr(getattr(match_obj, 'home_team', None), 'name', '') or '').strip()
+                if match_obj and getattr(match_obj, 'home_team', None)
+                else str(row.get('match__home_team__name') or '').strip()
+            ) or 'Rival desconocido'
             is_home = False
         else:
             # Imported fixtures may be detached from primary team FK.
@@ -34212,9 +34725,19 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
         stats['matches'].setdefault(
             match_id,
             {
-                'match_id': match_id,
-                'round': str(row.get('match__round') or '').strip() or 'Partido sin jornada',
-                'date': row.get('match__date').isoformat() if row.get('match__date') else None,
+                'match_id': int(match_id),
+                'round': (
+                    str(getattr(match_obj, 'round', '') or '').strip()
+                    if match_obj
+                    else str(row.get('match__round') or '').strip()
+                ) or 'Partido sin jornada',
+                'date': (
+                    match_obj.date.isoformat()
+                    if match_obj and getattr(match_obj, 'date', None)
+                    else row.get('match__date').isoformat()
+                    if row.get('match__date')
+                    else None
+                ),
                 'home': is_home,
                 'opponent': opponent,
                 'home_score': None,
@@ -34740,19 +35263,55 @@ def match_hub_create_match(request):
         return HttpResponse('No hay temporada activa para asignar el partido.', status=400)
     home_team = primary_team if home_away == 'home' else rival_team
     away_team = rival_team if home_away == 'home' else primary_team
-    match_obj = Match.objects.create(
-        season=season_obj,
-        group=primary_team.group,
-        home_team=home_team,
-        away_team=away_team,
-        date=match_date,
-        kickoff_time=match_time,
-        round=round_value,
-        context=context_value,
-        tournament_name=(tournament_name_value if context_value == Match.CONTEXT_TOURNAMENT else ''),
-        tournament_stage=(tournament_stage_value if context_value == Match.CONTEXT_TOURNAMENT else ''),
-        location=location_value,
-    )
+    match_obj = None
+    try:
+        if match_date and home_team and away_team:
+            qs = (
+                Match.objects
+                .filter(season=season_obj)
+                .filter(context=context_value)
+                .filter(date=match_date)
+                .filter(home_team=home_team, away_team=away_team)
+            )
+            if context_value == Match.CONTEXT_TOURNAMENT and tournament_name_value:
+                qs = qs.filter(tournament_name=tournament_name_value)
+            match_obj = qs.order_by('-id').first()
+    except Exception:
+        match_obj = None
+    if not match_obj:
+        match_obj = Match.objects.create(
+            season=season_obj,
+            group=primary_team.group,
+            home_team=home_team,
+            away_team=away_team,
+            date=match_date,
+            kickoff_time=match_time,
+            round=round_value,
+            context=context_value,
+            tournament_name=(tournament_name_value if context_value == Match.CONTEXT_TOURNAMENT else ''),
+            tournament_stage=(tournament_stage_value if context_value == Match.CONTEXT_TOURNAMENT else ''),
+            location=location_value,
+        )
+    else:
+        update_fields = []
+        if round_value and match_obj.round != round_value:
+            match_obj.round = round_value
+            update_fields.append('round')
+        if match_time and match_obj.kickoff_time != match_time:
+            match_obj.kickoff_time = match_time
+            update_fields.append('kickoff_time')
+        if location_value and match_obj.location != location_value:
+            match_obj.location = location_value
+            update_fields.append('location')
+        if context_value == Match.CONTEXT_TOURNAMENT:
+            if tournament_name_value and match_obj.tournament_name != tournament_name_value:
+                match_obj.tournament_name = tournament_name_value
+                update_fields.append('tournament_name')
+            if tournament_stage_value and match_obj.tournament_stage != tournament_stage_value:
+                match_obj.tournament_stage = tournament_stage_value
+                update_fields.append('tournament_stage')
+        if update_fields:
+            match_obj.save(update_fields=update_fields)
     # Guardar como match activo del flujo para este equipo.
     if hasattr(request, 'session'):
         try:

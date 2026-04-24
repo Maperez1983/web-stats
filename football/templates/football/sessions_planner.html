@@ -150,12 +150,13 @@
         gap: 0.8rem;
         grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
       }
-      .editor-box {
-        border: 1px solid rgba(255, 255, 255, 0.16);
-        border-radius: 12px;
-        padding: 0.68rem;
-        background: rgba(2, 10, 22, 0.45);
-      }
+	      .editor-box {
+	        border: 1px solid rgba(255, 255, 255, 0.16);
+	        border-radius: 12px;
+	        padding: 0.68rem;
+	        background: rgba(2, 10, 22, 0.45);
+	        min-width: 0;
+	      }
       .editor-box h3 {
         margin: 0 0 0.55rem;
         font-size: 0.72rem;
@@ -191,19 +192,21 @@
         font-size: 0.7rem;
         cursor: pointer;
       }
-      .task-list { display: grid; gap: 0.6rem; }
-      .task-list {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-        gap: 0.85rem;
-      }
-	      .task {
-	        border-radius: 14px;
-	        border: 1px solid rgba(255, 255, 255, 0.14);
-	        background: rgba(255, 255, 255, 0.04);
-	        overflow: hidden;
-	        position: relative;
+	      .task-list {
+	        display: grid;
+	        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+	        gap: 0.85rem;
 	      }
+		      .task {
+		        border-radius: 14px;
+		        border: 1px solid rgba(255, 255, 255, 0.14);
+		        background: rgba(255, 255, 255, 0.04);
+		        overflow: hidden;
+		        position: relative;
+		        display: block;
+		        text-decoration: none;
+		        color: inherit;
+		      }
       .task.task-clickable { cursor: pointer; transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease; }
       .task.task-clickable:hover {
         border-color: rgba(34, 211, 238, 0.62);
@@ -214,7 +217,10 @@
         outline: 2px solid rgba(34, 211, 238, 0.9);
         outline-offset: 2px;
       }
-      .task h3 { margin: 0; font-size: 0.92rem; }
+	      .task h3 { margin: 0; font-size: 0.92rem; }
+	      .task-body { padding: 0.75rem; }
+	      .task-body h3 { margin: 0; font-size: 0.88rem; letter-spacing: 0.01em; }
+	      .task-body .meta { margin: 0.25rem 0 0; }
       .session-stack {
         display: grid;
         gap: 0.65rem;
@@ -508,8 +514,15 @@
 	        padding: 0;
 	        cursor: pointer;
 	      }
-	      .task-trash:hover { border-color: rgba(248, 113, 113, 0.75); background: rgba(127, 29, 29, 0.7); }
-	      .task-trash svg { width: 18px; height: 18px; fill: currentColor; display: block; }
+		      .task-trash:hover { border-color: rgba(248, 113, 113, 0.75); background: rgba(127, 29, 29, 0.7); }
+		      .task-trash svg { width: 18px; height: 18px; fill: currentColor; display: block; }
+	      /* Sesión (bloques): evita desbordes en iPad (las tarjetas se estaban saliendo del bloque). */
+	      #planner-blocks .editor-box { overflow: hidden; }
+	      #planner-blocks .task-list { grid-template-columns: 1fr; gap: 0.6rem; }
+	      #planner-blocks .task-media { height: 140px; }
+	      @media (min-width: 1100px) {
+	        #planner-blocks .editor-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+	      }
       .editor-box.is-drop-target {
         outline: 2px dashed rgba(34, 211, 238, 0.7);
         outline-offset: 4px;
@@ -1286,10 +1299,10 @@
   <body class="prod-commercial">
     <main class="page product-shell">
       {% include 'football/includes/dragon_nav.html' %}
-	      <div class="top">
-	        <h1>{{ scope_title|default:"Sesiones" }} · Planificación</h1>
-	        <a href="{% url 'coach-detail' %}" class="button">Volver</a>
-	      </div>
+		      <div class="top" id="planner-top">
+		        <h1>{{ scope_title|default:"Sesiones" }} · Planificación</h1>
+		        <a href="{% url 'coach-detail' %}" class="button">Volver</a>
+		      </div>
 	      <p class="meta" style="margin-top:-0.35rem; margin-bottom:0.9rem;">Espacio activo: <strong>{{ scope_title|default:"Sesiones" }}</strong> <span class="product-chip role">Sesiones · Microciclos · Biblioteca · Crear tarea</span></p>
 
       {% if feedback %}<div class="alert ok">{{ feedback }}</div>{% endif %}
@@ -1304,20 +1317,20 @@
 	        <p class="meta" style="margin-top:0;">Menos ruido: separa edición de sesión, microciclo semanal y biblioteca reutilizable.</p>
 	      </section>
 
-		      <div class="tabs">
-		        <a class="tab-link {% if active_tab == 'sessions' %}is-active{% endif %}" href="?tab=sessions">Sesiones</a>
-		        <a class="tab-link {% if active_tab == 'microcycles' %}is-active{% endif %}" href="?tab=microcycles">Microciclos</a>
-		        <a class="tab-link {% if active_tab == 'library' %}is-active{% endif %}" href="?tab=library">Biblioteca</a>
-		        <a class="tab-link" href="{% url task_builder_route_name %}">Crear tarea</a>
-		      </div>
+			      <div class="tabs" id="planner-tabs">
+			        <a class="tab-link {% if active_tab == 'sessions' %}is-active{% endif %}" href="?tab=sessions">Sesiones</a>
+			        <a class="tab-link {% if active_tab == 'microcycles' %}is-active{% endif %}" href="?tab=microcycles">Microciclos</a>
+			        <a class="tab-link {% if active_tab == 'library' %}is-active{% endif %}" href="?tab=library">Biblioteca</a>
+			        <a class="tab-link" href="{% url task_builder_route_name %}">Crear tarea</a>
+			      </div>
 
 		      <div class="tab-panel {% if active_tab == 'sessions' %}is-active{% endif %}" data-tab="sessions">
 		        <section class="panel">
 		          <h2>Sesiones · Estructura por bloques</h2>
-		          <div class="editor-grid">
-			            <div class="editor-box">
-			              <h3>Crear sesión</h3>
-			              <form method="post" class="grid">
+			          <div class="editor-grid">
+				            <div class="editor-box" id="planner-create-session">
+				              <h3>Crear sesión</h3>
+				              <form method="post" class="grid">
 			                {% csrf_token %}
 			                <input type="hidden" name="planner_action" value="create_session_plan" />
 			                <input type="hidden" name="planner_tab" value="sessions" />
@@ -1381,9 +1394,9 @@
 			              </p>
 			            </div>
 
-		            <div class="editor-box">
-		              <h3>Sesión activa</h3>
-		              <form method="get" class="grid">
+			            <div class="editor-box" id="planner-active-session">
+			              <h3>Sesión activa</h3>
+			              <form method="get" class="grid">
 		                <label style="grid-column:1/-1;">
 	                  Seleccionar sesión
 	                  <select name="session_id">
@@ -1454,8 +1467,8 @@
 	        </section>
 
 		        {% if selected_session %}
-		        <section class="panel">
-		          <h2>Tareas por bloque</h2>
+			        <section class="panel" id="planner-blocks">
+			          <h2>Tareas por bloque</h2>
 		          <form id="drag-move-task-form" method="post" style="display:none;">
 		            {% csrf_token %}
 		            <input type="hidden" name="planner_action" value="move_task_to_block" />
@@ -2640,6 +2653,46 @@
 		            }
 		          });
 		        });
+		      })();
+
+		      // Guía de esta pantalla (Sesiones / Planificación).
+		      (() => {
+		        try {
+		          const steps = [
+		            {
+		              anchor: '#planner-tabs',
+		              title: '1) Pestañas',
+		              body: 'Aquí alternas entre Sesiones, Microciclos y Biblioteca. “Crear tarea” abre el editor visual.',
+		            },
+		            {
+		              anchor: '#planner-create-session',
+		              title: '2) Crear sesión',
+		              body: 'Define fecha, notas, número de jugadores y material. Pulsa “Crear sesión”.',
+		            },
+		            {
+		              anchor: '#planner-active-session',
+		              title: '3) Cargar sesión + PDFs',
+		              body: 'Selecciona la sesión activa. Desde aquí puedes generar el PDF (UEFA/Club).',
+		            },
+		            {
+		              anchor: '#planner-blocks',
+		              title: '4) Tareas por bloque',
+		              body: 'La sesión se organiza en Calentamiento, Activación, Principal 1, Principal 2 y Vuelta a la calma.',
+		            },
+		            {
+		              anchor: '#planner-blocks .editor-grid',
+		              title: '5) Asignar o crear tareas',
+		              body: 'En cada bloque puedes “Asignar” una tarea desde Biblioteca o “Crear tarea” para diseñarla desde cero.',
+		            },
+		            {
+		              anchor: '#planner-blocks .task-list',
+		              title: '6) Ordenar y editar',
+		              body: 'Arrastra tareas entre bloques. Toca una tarea para editarla. Usa la papelera para quitarla de la sesión.',
+		            },
+		          ];
+		          window.__WEBSTATS_PAGE_TOUR_ID = 'sessions_planner_v1';
+		          window.__WEBSTATS_PAGE_TOUR_STEPS = steps;
+		        } catch (e) { /* ignore */ }
 		      })();
 		    </script>
 		  </body>

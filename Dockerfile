@@ -11,6 +11,7 @@ RUN apt-get update \
       libcairo2 libpango-1.0-0 libpangocairo-1.0-0 libpangoft2-1.0-0 \
       libgdk-pixbuf-2.0-0 libffi-dev libjpeg62-turbo libopenjp2-7 \
       libharfbuzz0b libharfbuzz-subset0 shared-mime-info fontconfig fonts-dejavu-core \
+      poppler-utils \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt /app/

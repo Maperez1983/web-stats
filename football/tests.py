@@ -431,6 +431,149 @@ class TeamMatchQuerysetIsolationTests(TestCase):
         self.assertIn(self.match_pre.id, match_ids)
         self.assertNotIn(self.match_senior.id, match_ids)
 
+    def test_compute_player_dashboard_collapses_duplicate_match_fixtures(self):
+        player = Player.objects.create(team=self.team_pre, name='Jugador Duplicado', number=10)
+        fixture_date = timezone.localdate() - timedelta(days=2)
+        match_placeholder = Match.objects.create(
+            season=self.season,
+            group=self.group,
+            round='5',
+            date=fixture_date,
+            home_team=self.team_pre,
+            away_team=None,
+        )
+        match_real = Match.objects.create(
+            season=self.season,
+            group=self.group,
+            round='5',
+            date=fixture_date,
+            home_team=self.team_pre,
+            away_team=self.rival_a,
+        )
+        record = ConvocationRecord.objects.create(
+            team=self.team_pre,
+            match=match_placeholder,
+            round='5',
+            match_date=fixture_date,
+            opponent_name='Rival A',
+            lineup_data={'starters': [{'id': player.id}], 'bench': []},
+        )
+        record.players.set([player])
+        MatchEvent.objects.create(
+            match=match_real,
+            player=player,
+            minute=7,
+            event_type='pase',
+            zone='Z1',
+            result='ok',
+            system='touch-field',
+            source_file='registro-acciones',
+        )
+
+        rows = football_views.compute_player_dashboard(self.team_pre, force_refresh=True)
+        detail = next((row for row in rows if row.get('player_id') == player.id), {})
+        matches_payload = detail.get('matches') or []
+        self.assertEqual(len(matches_payload), 1)
+        self.assertEqual(int(matches_payload[0].get('match_id') or 0), match_real.id)
+
+    def test_compute_player_dashboard_collapses_undated_duplicate_match_fixtures(self):
+        player = Player.objects.create(team=self.team_pre, name='Jugador Sin Fecha', number=11)
+        match_placeholder = Match.objects.create(
+            season=self.season,
+            group=self.group,
+            round='20',
+            date=None,
+            home_team=self.team_pre,
+            away_team=None,
+        )
+        match_real = Match.objects.create(
+            season=self.season,
+            group=self.group,
+            round='20',
+            date=None,
+            home_team=self.team_pre,
+            away_team=self.rival_a,
+        )
+        record = ConvocationRecord.objects.create(
+            team=self.team_pre,
+            match=match_placeholder,
+            round='20',
+            match_date=None,
+            opponent_name='Rival A',
+            lineup_data={'starters': [{'id': player.id}], 'bench': []},
+        )
+        record.players.set([player])
+        MatchEvent.objects.create(
+            match=match_real,
+            player=player,
+            minute=12,
+            event_type='pase',
+            zone='Z1',
+            result='ok',
+            system='touch-field',
+            source_file='registro-acciones',
+        )
+
+        rows = football_views.compute_player_dashboard(self.team_pre, force_refresh=True)
+        detail = next((row for row in rows if row.get('player_id') == player.id), {})
+        matches_payload = detail.get('matches') or []
+        self.assertEqual(len(matches_payload), 1)
+        self.assertEqual(int(matches_payload[0].get('match_id') or 0), match_real.id)
+
+    def test_compute_player_dashboard_prefers_match_opponent_over_convocation_label(self):
+        player = Player.objects.create(team=self.team_pre, name='Jugador Rival', number=12)
+        fixture_date = timezone.localdate() - timedelta(days=3)
+        match_real = Match.objects.create(
+            season=self.season,
+            group=self.group,
+            round='16',
+            date=fixture_date,
+            home_team=self.team_pre,
+            away_team=self.rival_b,
+        )
+        record = ConvocationRecord.objects.create(
+            team=self.team_pre,
+            match=match_real,
+            round='16',
+            match_date=fixture_date,
+            opponent_name='LOJA C.D.',
+            lineup_data={'starters': [{'id': player.id}], 'bench': []},
+        )
+        record.players.set([player])
+        MatchEvent.objects.create(
+            match=match_real,
+            player=player,
+            minute=9,
+            event_type='pase',
+            zone='Z1',
+            result='ok',
+            system='touch-field',
+            source_file='registro-acciones',
+        )
+        rows = football_views.compute_player_dashboard(self.team_pre, force_refresh=True)
+        detail = next((row for row in rows if row.get('player_id') == player.id), {})
+        matches_payload = detail.get('matches') or []
+        self.assertEqual(len(matches_payload), 1)
+        self.assertEqual(matches_payload[0].get('opponent'), 'Rival B')
+
+    def test_player_match_stats_payload_includes_match_id(self):
+        user = get_user_model().objects.create_user(username='viewer', password='pass-1234')
+        AppUserRole.objects.create(user=user, role=AppUserRole.ROLE_COACH)
+        player = Player.objects.create(team=self.team_pre, name='Jugador Vista', number=13)
+        match_real = Match.objects.create(
+            season=self.season,
+            group=self.group,
+            round='9',
+            date=timezone.localdate() - timedelta(days=1),
+            home_team=self.team_pre,
+            away_team=self.rival_a,
+        )
+        self.client.force_login(user)
+        resp = self.client.get(reverse('player-match-stats', args=[player.id, match_real.id]), secure=True)
+        self.assertEqual(resp.status_code, 200)
+        # El template ahora muestra "ID <match_id>" en la línea meta.
+        self.assertIn(f'ID {match_real.id}'.encode('utf-8'), resp.content)
+
 
 class WorkspaceOwnerPermissionTests(TestCase):
     def test_owner_user_can_manage_workspace_without_membership_row(self):
