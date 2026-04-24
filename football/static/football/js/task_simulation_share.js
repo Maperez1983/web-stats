@@ -14,6 +14,11 @@
   };
 
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+  const lerp = (a, b, t) => (Number(a) || 0) + ((Number(b) || 0) - (Number(a) || 0)) * t;
+  const easeInOut = (t) => {
+    const x = clamp(Number(t) || 0, 0, 1);
+    return x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
+  };
 
   const payloadEl = document.getElementById('sim-share-payload');
   const payload = payloadEl ? safeJsonParse(payloadEl.textContent, {}) : {};
@@ -46,6 +51,12 @@
   let activeIndex = 0;
   let isPlaying = false;
   let timer = null;
+  let rafId = 0;
+  let rafStartedAt = 0;
+  let rafDurationMs = 0;
+  let rafResolve = null;
+  let rafStartMap = null;
+  let rafEndMap = null;
   let pitchBackgroundImg = null;
 
   const readStepSize = (step) => {
@@ -117,6 +128,27 @@
     return { objects: [] };
   };
 
+  const objectKeyForState = (obj, idx) => safeText(obj?.data?.layer_uid) || `idx:${idx}`;
+  const mapFromCanvasState = (rawState) => {
+    const state = normalizeCanvasState(rawState);
+    const objects = Array.isArray(state?.objects) ? state.objects : [];
+    const map = new Map();
+    objects.forEach((obj, idx) => {
+      if (!obj || typeof obj !== 'object') return;
+      const key = objectKeyForState(obj, idx);
+      if (!key) return;
+      map.set(key, {
+        left: Number(obj.left) || 0,
+        top: Number(obj.top) || 0,
+        angle: Number(obj.angle) || 0,
+        scaleX: Number(obj.scaleX) || 1,
+        scaleY: Number(obj.scaleY) || 1,
+        opacity: obj.opacity == null ? 1 : Number(obj.opacity),
+      });
+    });
+    return map;
+  };
+
   const setObjectsReadOnly = () => {
     try {
       canvas.getObjects().forEach((obj) => {
@@ -153,9 +185,96 @@
     isPlaying = false;
     if (timer) window.clearTimeout(timer);
     timer = null;
+    if (rafId) {
+      try { window.cancelAnimationFrame(rafId); } catch (error) {}
+    }
+    rafId = 0;
+    rafResolve = null;
+    rafStartMap = null;
+    rafEndMap = null;
     if (stopBtn) stopBtn.hidden = true;
     if (playBtn) playBtn.hidden = false;
     setStatus('Reproducción detenida.');
+  };
+
+  const applyPropsToObject = (obj, props) => {
+    if (!obj || !props) return;
+    try {
+      obj.set({
+        left: Number(props.left) || 0,
+        top: Number(props.top) || 0,
+        angle: Number(props.angle) || 0,
+        scaleX: Number(props.scaleX) || 1,
+        scaleY: Number(props.scaleY) || 1,
+        opacity: props.opacity == null ? 1 : Number(props.opacity),
+      });
+      obj.setCoords?.();
+    } catch (error) {
+      // ignore
+    }
+  };
+
+  const animateBetweenSteps = async (fromIndex, toIndex, durationSeconds) => {
+    const startStep = steps[clamp(Number(fromIndex) || 0, 0, steps.length - 1)];
+    const endStep = steps[clamp(Number(toIndex) || 0, 0, steps.length - 1)];
+    if (!startStep || !endStep) return;
+    const durationMs = clamp(Number(durationSeconds) || 0, 0.2, 20) * 1000;
+    // Carga el estado inicial para que el canvas tenga objetos.
+    await loadStep(fromIndex);
+    rafStartMap = mapFromCanvasState(startStep.canvas_state);
+    rafEndMap = mapFromCanvasState(endStep.canvas_state);
+    rafStartedAt = performance.now();
+    rafDurationMs = durationMs;
+    return await new Promise((resolve) => {
+      rafResolve = resolve;
+      const tick = () => {
+        if (!isPlaying) {
+          rafResolve?.();
+          rafResolve = null;
+          return;
+        }
+        const now = performance.now();
+        const t = clamp((now - rafStartedAt) / Math.max(1, rafDurationMs), 0, 1);
+        const eased = easeInOut(t);
+        try {
+          const objs = canvas.getObjects() || [];
+          objs.forEach((obj, idx) => {
+            if (!obj) return;
+            const key = safeText(obj?.data?.layer_uid) || `idx:${idx}`;
+            const a = rafStartMap?.get(key);
+            const b = rafEndMap?.get(key);
+            if (!a && !b) return;
+            if (!a) {
+              applyPropsToObject(obj, b);
+              return;
+            }
+            if (!b) {
+              applyPropsToObject(obj, a);
+              return;
+            }
+            applyPropsToObject(obj, {
+              left: lerp(a.left, b.left, eased),
+              top: lerp(a.top, b.top, eased),
+              angle: lerp(a.angle, b.angle, eased),
+              scaleX: lerp(a.scaleX, b.scaleX, eased),
+              scaleY: lerp(a.scaleY, b.scaleY, eased),
+              opacity: lerp(a.opacity, b.opacity, eased),
+            });
+          });
+          canvas.renderAll();
+        } catch (error) {
+          // ignore
+        }
+        if (t >= 1) {
+          const done = rafResolve;
+          rafResolve = null;
+          done?.();
+          return;
+        }
+        rafId = window.requestAnimationFrame(tick);
+      };
+      rafId = window.requestAnimationFrame(tick);
+    });
   };
 
   const play = async () => {
@@ -163,19 +282,16 @@
     isPlaying = true;
     if (playBtn) playBtn.hidden = true;
     if (stopBtn) stopBtn.hidden = false;
-    const run = async () => {
+    setStatus('Reproduciendo (animación)…');
+    while (isPlaying) {
+      const current = steps[activeIndex];
+      const duration = clamp(Number(current?.duration) || 3, 1, 20);
+      await animateBetweenSteps(activeIndex, (activeIndex + 1) % steps.length, duration);
       if (!isPlaying) return;
-      const step = steps[activeIndex];
-      const duration = clamp(Number(step?.duration) || 3, 1, 20);
+      activeIndex = (activeIndex + 1) % steps.length;
+      // Snap exacto al estado final (incluye objetos nuevos/borrados).
       await loadStep(activeIndex);
-      if (!isPlaying) return;
-      timer = window.setTimeout(async () => {
-        activeIndex = (activeIndex + 1) % steps.length;
-        await run();
-      }, duration * 1000);
-    };
-    setStatus('Reproduciendo…');
-    await run();
+    }
   };
 
   const renderStepsList = () => {
@@ -236,4 +352,3 @@
     setStatus(`Paso 1/${steps.length}: ${safeText(steps[0]?.title, '—')}`);
   })();
 })();
-
