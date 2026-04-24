@@ -10272,6 +10272,126 @@
 		    const registerDraggableButton = (button, payloadBuilder) => {
 		      if (!button) return;
 		      button.draggable = true;
+      // iPad/iOS: HTML5 drag & drop es poco fiable. Añadimos “drag” por pointer events
+      // para poder arrastrar recursos desde la biblioteca al campo.
+      let touchDrag = null;
+      let touchDragConsumedClick = false;
+      const isTouchLikePointer = (event) => {
+        const pt = safeText(event?.pointerType);
+        if (pt === 'touch' || pt === 'pen') return true;
+        try { return (Number(navigator.maxTouchPoints) || 0) > 0; } catch (e) { return false; }
+      };
+      let dragIndicator = null;
+      const ensureDragIndicator = () => {
+        if (dragIndicator) return dragIndicator;
+        try {
+          dragIndicator = document.createElement('div');
+          dragIndicator.className = 'tpad-drag-indicator';
+          dragIndicator.style.position = 'absolute';
+          dragIndicator.style.left = '0';
+          dragIndicator.style.top = '0';
+          dragIndicator.style.width = '18px';
+          dragIndicator.style.height = '18px';
+          dragIndicator.style.borderRadius = '999px';
+          dragIndicator.style.border = '2px solid rgba(244, 180, 0, 0.95)';
+          dragIndicator.style.background = 'rgba(244, 180, 0, 0.18)';
+          dragIndicator.style.boxShadow = '0 14px 26px rgba(2, 6, 23, 0.32)';
+          dragIndicator.style.transform = 'translate(-50%, -50%)';
+          dragIndicator.style.pointerEvents = 'none';
+          dragIndicator.style.zIndex = '120';
+          dragIndicator.hidden = true;
+          stage?.appendChild?.(dragIndicator);
+        } catch (e) {
+          dragIndicator = null;
+        }
+        return dragIndicator;
+      };
+      const setIndicatorAt = (clientX, clientY, visible) => {
+        const el = ensureDragIndicator();
+        if (!el) return;
+        if (!visible) {
+          el.hidden = true;
+          return;
+        }
+        const rect = stage?.getBoundingClientRect?.();
+        if (!rect) return;
+        const x = clamp((Number(clientX) || 0) - rect.left, 0, rect.width || 0);
+        const y = clamp((Number(clientY) || 0) - rect.top, 0, rect.height || 0);
+        el.style.left = `${x}px`;
+        el.style.top = `${y}px`;
+        el.hidden = false;
+      };
+      const clearTouchDrag = () => {
+        touchDrag = null;
+        try { button.classList.remove('is-dragging'); } catch (e) { /* ignore */ }
+        try { stage.classList.remove('is-drop-target'); } catch (e) { /* ignore */ }
+        try { setIndicatorAt(0, 0, false); } catch (e) { /* ignore */ }
+        try { window.removeEventListener('pointermove', onTouchDragMove, true); } catch (e) { /* ignore */ }
+        try { window.removeEventListener('pointerup', onTouchDragEnd, true); } catch (e) { /* ignore */ }
+        try { window.removeEventListener('pointercancel', onTouchDragEnd, true); } catch (e) { /* ignore */ }
+      };
+      const onTouchDragMove = (event) => {
+        if (!touchDrag || (touchDrag.pointerId != null && event.pointerId !== touchDrag.pointerId)) return;
+        if (!event) return;
+        const dx = (Number(event.clientX) || 0) - (Number(touchDrag.startX) || 0);
+        const dy = (Number(event.clientY) || 0) - (Number(touchDrag.startY) || 0);
+        const dist = Math.sqrt((dx * dx) + (dy * dy));
+        if (!touchDrag.active) {
+          if (dist < 10) return;
+          touchDrag.active = true;
+          touchDragConsumedClick = true;
+          try { button.classList.add('is-dragging'); } catch (e) { /* ignore */ }
+          setStatus('Suelta el recurso sobre el campo.');
+        }
+        try {
+          const rect = stage?.getBoundingClientRect?.();
+          const inside = rect
+            && (Number(event.clientX) >= rect.left)
+            && (Number(event.clientX) <= rect.right)
+            && (Number(event.clientY) >= rect.top)
+            && (Number(event.clientY) <= rect.bottom);
+          stage.classList.toggle('is-drop-target', !!inside);
+          setIndicatorAt(event.clientX, event.clientY, !!inside);
+        } catch (e) { /* ignore */ }
+        try {
+          // Mientras arrastras, evitamos que el navegador haga scroll/zoom.
+          event.preventDefault();
+          event.stopPropagation();
+        } catch (e) { /* ignore */ }
+      };
+      const onTouchDragEnd = (event) => {
+        if (!touchDrag) return;
+        const active = !!touchDrag.active;
+        const payload = touchDrag.payload;
+        clearTouchDrag();
+        if (!active || !payload) return;
+        try {
+          const rect = stage?.getBoundingClientRect?.();
+          const inside = rect
+            && (Number(event?.clientX) >= rect.left)
+            && (Number(event?.clientX) <= rect.right)
+            && (Number(event?.clientY) >= rect.top)
+            && (Number(event?.clientY) <= rect.bottom);
+          if (!inside) return;
+        } catch (e) { /* ignore */ }
+        try {
+          addPayloadAtPointer(payload, pointerFromStageEvent(event));
+        } catch (e) { /* ignore */ }
+        try {
+          event?.preventDefault?.();
+          event?.stopPropagation?.();
+        } catch (e) { /* ignore */ }
+      };
+      // Si se ha hecho un drag por pointer, anulamos el click (si no, se activaría la colocación “por click”).
+      button.addEventListener('click', (event) => {
+        if (!touchDragConsumedClick) return;
+        touchDragConsumedClick = false;
+        try {
+          event.preventDefault();
+          event.stopPropagation();
+        } catch (e) { /* ignore */ }
+      }, true);
+
       button.addEventListener('dragstart', (event) => {
         const payload = payloadBuilder();
         if (!payload) {
@@ -10288,6 +10408,25 @@
         button.classList.remove('is-dragging');
         stage.classList.remove('is-drop-target');
       });
+
+      button.addEventListener('pointerdown', (event) => {
+        // Solo activamos el drag por pointer en touch/pen (en desktop ya tenemos HTML5 DnD).
+        if (!isTouchLikePointer(event)) return;
+        if (!event || (event.button != null && event.button !== 0)) return;
+        const payload = payloadBuilder();
+        if (!payload) return;
+        touchDrag = {
+          payload,
+          startX: Number(event.clientX) || 0,
+          startY: Number(event.clientY) || 0,
+          pointerId: event.pointerId,
+          active: false,
+        };
+        try { button.setPointerCapture(event.pointerId); } catch (e) { /* ignore */ }
+        try { window.addEventListener('pointermove', onTouchDragMove, { capture: true, passive: false }); } catch (e) { /* ignore */ }
+        try { window.addEventListener('pointerup', onTouchDragEnd, { capture: true, passive: false }); } catch (e) { /* ignore */ }
+        try { window.addEventListener('pointercancel', onTouchDragEnd, { capture: true, passive: false }); } catch (e) { /* ignore */ }
+      }, { passive: true });
     };
 
 		    // Acciones rápidas (ideal iPad): deshacer/rehacer/duplicar/borrar siempre arriba.
