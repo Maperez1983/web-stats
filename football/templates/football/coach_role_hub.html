@@ -7,14 +7,23 @@
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
     <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
-    {% include 'football/pwa_head.html' %}
-    <style>
-      body {
-        margin: 0;
-        font-family: 'Inter', system-ui, sans-serif;
-        background: linear-gradient(180deg, #020617 0%, #050f1f 100%);
-        color: #f8fafc;
-      }
+	    {% include 'football/pwa_head.html' %}
+	    <style>
+	      :root {
+	        --bg: var(--prod-bg, #08111d);
+	        --panel: var(--prod-panel-flat, rgba(14, 23, 39, 0.96));
+	        --line: var(--prod-line, rgba(144, 161, 185, 0.22));
+	        --text: var(--prod-text, #f5f7fa);
+	        --muted: var(--prod-muted, #91a1b9);
+	        --brand: var(--prod-secondary, #f4b400);
+	        --pitch: var(--prod-primary, #2f7d32);
+	      }
+	      body {
+	        margin: 0;
+	        font-family: var(--prod-font-ui, 'Inter', system-ui, sans-serif);
+	        background: transparent;
+	        color: var(--text);
+	      }
       .page {
         max-width: 1100px;
         margin: 0 auto;
@@ -41,42 +50,42 @@
         flex-wrap: wrap;
         gap: 0.65rem;
       }
-      .section-nav a {
+	      .section-nav a {
         text-decoration: none;
-        border-radius: 999px;
-        padding: 0.55rem 0.85rem;
-        border: 1px solid rgba(125, 211, 252, 0.24);
-        background: rgba(8, 47, 73, 0.55);
-        color: #dbeafe;
-        font-size: 0.78rem;
-        font-weight: 700;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-      }
+	        border-radius: 999px;
+	        padding: 0.55rem 0.85rem;
+	        border: 1px solid rgba(244, 180, 0, 0.22);
+	        background: rgba(244, 180, 0, 0.08);
+	        color: rgba(255, 242, 199, 0.96);
+	        font-size: 0.78rem;
+	        font-weight: 700;
+	        letter-spacing: 0.08em;
+	        text-transform: uppercase;
+	      }
       .workspace-tabs {
         margin-top: 1rem;
         display: flex;
         flex-wrap: wrap;
         gap: 0.65rem;
       }
-      .workspace-tab {
+	      .workspace-tab {
         appearance: none;
-        border: 1px solid rgba(125, 211, 252, 0.24);
-        background: rgba(8, 47, 73, 0.55);
-        color: #dbeafe;
-        border-radius: 999px;
-        padding: 0.6rem 0.95rem;
+	        border: 1px solid rgba(244, 180, 0, 0.22);
+	        background: rgba(244, 180, 0, 0.08);
+	        color: rgba(255, 242, 199, 0.96);
+	        border-radius: 999px;
+	        padding: 0.6rem 0.95rem;
         font-size: 0.78rem;
         font-weight: 800;
         letter-spacing: 0.08em;
         text-transform: uppercase;
         cursor: pointer;
       }
-      .workspace-tab.is-active {
-        background: rgba(34, 211, 238, 0.16);
-        border-color: rgba(34, 211, 238, 0.55);
-        color: #f8fafc;
-      }
+	      .workspace-tab.is-active {
+	        background: rgba(244, 180, 0, 0.92);
+	        border-color: rgba(244, 180, 0, 0.7);
+	        color: #0a1520;
+	      }
       .workspace-panel {
         display: none;
         margin-top: 1rem;
@@ -298,7 +307,7 @@
         place-items: center;
         background:
           radial-gradient(circle at center, rgba(248, 250, 252, 0.98) 58%, transparent 59%),
-          conic-gradient(#0f7c93 calc(var(--pct, 0) * 1%), rgba(148, 163, 184, 0.22) 0);
+          conic-gradient(var(--pitch) calc(var(--pct, 0) * 1%), rgba(148, 163, 184, 0.22) 0);
       }
       .kpi-value {
         font-size: 1rem;
@@ -328,7 +337,7 @@
       .overview-title {
         margin: 0 0 1rem;
         text-align: center;
-        color: #0f7c93;
+        color: var(--pitch);
         letter-spacing: 0.08em;
         text-transform: uppercase;
       }
@@ -354,7 +363,7 @@
         place-items: center;
         background:
           radial-gradient(circle at center, rgba(255,255,255,0.96) 0 50px, transparent 51px),
-          conic-gradient(#0f7c93 calc(var(--pct, 0) * 1%), #d8dee9 0);
+          conic-gradient(var(--pitch) calc(var(--pct, 0) * 1%), #d8dee9 0);
       }
       .overview-ring-value {
         font-size: 1.2rem;
@@ -558,7 +567,7 @@
         color: rgba(186, 230, 253, 0.9);
       }
       .coach-map-wrap.is-light h3 {
-        color: #0f7c93;
+        color: var(--pitch);
       }
       .field-diagram {
         position: relative;
@@ -626,7 +635,7 @@
       }
       .field-zone .zone-count {
         margin-top: 0.15rem;
-        color: #facc15;
+        color: var(--brand);
         font-size: 0.95rem;
       }
       .field-diagram.is-heatmap .field-zone {
@@ -685,7 +694,7 @@
         background: rgba(14, 116, 144, 0.18);
       }
       .coach-match-table a {
-        color: #7dd3fc;
+        color: rgba(255, 242, 199, 0.96);
         text-decoration: none;
       }
       .analysis-section {
@@ -1357,7 +1366,7 @@
                 {% endfor %}
               </div>
             </section>
-            <section class="coach-map-wrap" style="margin-top:0;background:#0b1b12;">
+            <section class="coach-map-wrap" style="margin-top:0;background:var(--prod-primary-soft,#183f26);">
               <h3 style="color:#f8fafc;">Mapa de calor del partido</h3>
               <div class="field-diagram">
                 <img src="{% static 'football/campo-futbol.jpg' %}" alt="Campo de fútbol" />
