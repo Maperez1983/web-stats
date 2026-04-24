@@ -34031,6 +34031,8 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
                 Match.objects.filter(id__in=list(candidate_ids)).select_related('home_team', 'away_team', 'season')
             )
             match_by_id = {int(match.id): match for match in match_rows if match and getattr(match, 'id', None)}
+            fallback_group_id = int(getattr(primary_team, 'group_id', 0) or 0)
+            fallback_season_id = int(getattr(getattr(getattr(primary_team, 'group', None), 'season', None), 'id', 0) or 0)
 
             def _fixture_opponent_signature(match_obj, conv_seed):
                 # Prioridad: el Match (home/away) es la fuente de verdad; la Convocatoria puede tener rival mal guardado.
@@ -34096,12 +34098,19 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
                     return None
                 season_id = int(getattr(match_obj, 'season_id', 0) or 0) if match_obj else 0
                 group_id = int(getattr(match_obj, 'group_id', 0) or 0) if match_obj else 0
+                # Si el match viene "huérfano" (placeholders/import legacy), usa el contexto del equipo.
+                if not season_id and fallback_season_id:
+                    season_id = fallback_season_id
+                if not group_id and fallback_group_id:
+                    group_id = fallback_group_id
                 return (
                     season_id,
                     group_id,
                     context_value,
                     tournament_sig,
-                    fixture_date.isoformat() if fixture_date else '',
+                    normalize_label(getattr(match_obj, 'tournament_stage', '') or '') if context_value == Match.CONTEXT_TOURNAMENT else '',
+                    # Si hay jornada numérica, ignoramos la fecha para poder colapsar duplicados aunque falte `date`.
+                    '' if round_num is not None else (fixture_date.isoformat() if fixture_date else ''),
                     round_sig,
                     opponent_sig,
                 )
