@@ -134,6 +134,53 @@
         color: rgba(148, 163, 184, 0.95);
         font-size: 0.85rem;
       }
+
+      body.is-present .page {
+        max-width: none;
+        height: 100vh;
+        padding: 0;
+      }
+      body.is-present header,
+      body.is-present .steps {
+        display: none;
+      }
+      body.is-present .card {
+        height: 100vh;
+        border-radius: 0;
+        padding: 0;
+        position: relative;
+      }
+      body.is-present .controls {
+        position: absolute;
+        left: 14px;
+        right: 14px;
+        top: 14px;
+        z-index: 5;
+        margin: 0;
+        padding: 0.65rem 0.75rem;
+        border-radius: 18px;
+        border: 1px solid rgba(148, 163, 184, 0.20);
+        background: rgba(2, 6, 23, 0.58);
+        backdrop-filter: blur(10px);
+        box-shadow: 0 18px 42px rgba(0,0,0,0.35);
+      }
+      body.is-present.is-controls-hidden .controls {
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(-8px);
+        transition: opacity 200ms ease, transform 220ms ease;
+      }
+      body.is-present .canvas-wrap {
+        height: 100vh;
+        border-radius: 0;
+        border: none;
+      }
+      body.is-present .canvas-wrap canvas {
+        width: 100%;
+        height: auto;
+        max-width: 100%;
+        max-height: 100%;
+      }
     </style>
   </head>
   <body class="prod-commercial">
@@ -145,37 +192,47 @@
         <div class="meta">Caduca: {{ expires_at|date:"d/m/Y H:i" }}</div>
         {% endif %}
       </header>
-      <section class="card">
-        <div class="controls">
-          <div class="buttons">
-            <button type="button" id="sim-prev">Anterior</button>
-            <button type="button" class="primary" id="sim-play">Reproducir</button>
-            <button type="button" id="sim-next">Siguiente</button>
-            <button type="button" class="danger" id="sim-stop" hidden>Parar</button>
-          </div>
-          <div class="buttons" style="gap:0.45rem;">
-            <label style="display:flex; gap:8px; align-items:center; font-weight:800; letter-spacing:0.02em; text-transform:none;">
-              <input type="checkbox" id="sim-trails" checked />
-              Trayectorias
-            </label>
-            <label style="display:flex; gap:10px; align-items:center; font-weight:800; letter-spacing:0.02em; text-transform:none;">
-              Velocidad
-              <select id="sim-speed" style="border-radius:999px; padding:0.55rem 0.75rem; background:rgba(255,255,255,0.06); color:#f3f7ff; border:1px solid rgba(255,255,255,0.18); font-weight:900;">
-                <option value="0.75">0.75×</option>
-                <option value="1" selected>1×</option>
-                <option value="1.25">1.25×</option>
-                <option value="1.5">1.5×</option>
-                <option value="2">2×</option>
-              </select>
-            </label>
-          </div>
-          <div class="status" id="sim-status">Listo.</div>
-        </div>
-        <div class="canvas-wrap">
-          <canvas id="sim-share-canvas"></canvas>
-        </div>
-        <div class="steps" id="sim-steps"></div>
-      </section>
+	      <section class="card">
+	        <div class="controls">
+	          <div class="buttons">
+	            <button type="button" id="sim-prev">Anterior</button>
+	            <button type="button" class="primary" id="sim-play">Reproducir</button>
+	            <button type="button" id="sim-next">Siguiente</button>
+	            <button type="button" class="danger" id="sim-stop" hidden>Parar</button>
+	            <button type="button" id="sim-present">Presentación</button>
+	          </div>
+	          <div class="buttons" style="gap:0.45rem; align-items:center;">
+	            <input id="sim-scrub" type="range" min="0" max="0" value="0" step="1" aria-label="Paso" style="width:min(520px, 46vw); accent-color:#22d3ee;" />
+	            <label style="display:flex; gap:8px; align-items:center; font-weight:800; letter-spacing:0.02em; text-transform:none;">
+	              <input type="checkbox" id="sim-trails" checked />
+	              Trayectorias
+	            </label>
+	            <label style="display:flex; gap:8px; align-items:center; font-weight:800; letter-spacing:0.02em; text-transform:none;">
+	              <input type="checkbox" id="sim-labels" />
+	              Etiquetas
+	            </label>
+	            <label style="display:flex; gap:8px; align-items:center; font-weight:800; letter-spacing:0.02em; text-transform:none;">
+	              <input type="checkbox" id="sim-camera" checked />
+	              Cámara
+	            </label>
+	            <label style="display:flex; gap:10px; align-items:center; font-weight:800; letter-spacing:0.02em; text-transform:none;">
+	              Velocidad
+	              <select id="sim-speed" style="border-radius:999px; padding:0.55rem 0.75rem; background:rgba(255,255,255,0.06); color:#f3f7ff; border:1px solid rgba(255,255,255,0.18); font-weight:900;">
+	                <option value="0.75">0.75×</option>
+	                <option value="1" selected>1×</option>
+	                <option value="1.25">1.25×</option>
+	                <option value="1.5">1.5×</option>
+	                <option value="2">2×</option>
+	              </select>
+	            </label>
+	          </div>
+	          <div class="status" id="sim-status">Listo.</div>
+	        </div>
+	        <div class="canvas-wrap" id="sim-canvas-wrap">
+	          <canvas id="sim-share-canvas"></canvas>
+	        </div>
+	        <div class="steps" id="sim-steps"></div>
+	      </section>
     </main>
 
     {{ payload|json_script:"sim-share-payload" }}

@@ -13365,6 +13365,39 @@ def share_task_simulation_create(request):
         state = step.get('canvas_state')
         if not isinstance(state, dict):
             continue
+        raw_routes = step.get('routes')
+        cleaned_routes = {}
+        if isinstance(raw_routes, dict):
+            for raw_uid, raw_route in list(raw_routes.items())[:120]:
+                uid = str(raw_uid or '').strip()[:80]
+                if not uid or not isinstance(raw_route, dict):
+                    continue
+                raw_points = raw_route.get('points')
+                if not isinstance(raw_points, list):
+                    continue
+                points = []
+                for raw_point in raw_points[:60]:
+                    if not isinstance(raw_point, dict):
+                        continue
+                    try:
+                        x = float(raw_point.get('x'))
+                        y = float(raw_point.get('y'))
+                    except Exception:
+                        continue
+                    if not (math.isfinite(x) and math.isfinite(y)):
+                        continue
+                    points.append({'x': x, 'y': y})
+                    if len(points) >= 40:
+                        break
+                if len(points) < 2:
+                    continue
+                cleaned_routes[uid] = {
+                    'points': points,
+                    'spline': bool(raw_route.get('spline')),
+                }
+                if len(cleaned_routes) >= 80:
+                    break
+        ball_follow_uid = str(step.get('ball_follow_uid') or '').strip()[:80]
         duration = _parse_int(step.get('duration')) or 3
         cleaned_steps.append({
             'title': str(step.get('title') or f'Paso {index + 1}')[:120],
@@ -13373,6 +13406,8 @@ def share_task_simulation_create(request):
             'canvas_width': _parse_int(step.get('canvas_width')) or 0,
             'canvas_height': _parse_int(step.get('canvas_height')) or 0,
             'moves': step.get('moves') if isinstance(step.get('moves'), list) else [],
+            'routes': cleaned_routes,
+            'ball_follow_uid': ball_follow_uid,
         })
     if not cleaned_steps:
         return JsonResponse({'error': 'No se pudieron leer los pasos de simulación.'}, status=400)
@@ -36464,6 +36499,39 @@ def tactical_playbook_clip_share_create(request):
         state = step.get('canvas_state')
         if not isinstance(state, dict):
             continue
+        raw_routes = step.get('routes')
+        cleaned_routes = {}
+        if isinstance(raw_routes, dict):
+            for raw_uid, raw_route in list(raw_routes.items())[:120]:
+                uid = str(raw_uid or '').strip()[:80]
+                if not uid or not isinstance(raw_route, dict):
+                    continue
+                raw_points = raw_route.get('points')
+                if not isinstance(raw_points, list):
+                    continue
+                points = []
+                for raw_point in raw_points[:60]:
+                    if not isinstance(raw_point, dict):
+                        continue
+                    try:
+                        x = float(raw_point.get('x'))
+                        y = float(raw_point.get('y'))
+                    except Exception:
+                        continue
+                    if not (math.isfinite(x) and math.isfinite(y)):
+                        continue
+                    points.append({'x': x, 'y': y})
+                    if len(points) >= 40:
+                        break
+                if len(points) < 2:
+                    continue
+                cleaned_routes[uid] = {
+                    'points': points,
+                    'spline': bool(raw_route.get('spline')),
+                }
+                if len(cleaned_routes) >= 80:
+                    break
+        ball_follow_uid = str(step.get('ball_follow_uid') or '').strip()[:80]
         duration = _parse_int(step.get('duration')) or 3
         cleaned_steps.append({
             'title': str(step.get('title') or f'Paso {index + 1}')[:120],
@@ -36472,6 +36540,8 @@ def tactical_playbook_clip_share_create(request):
             'canvas_width': _parse_int(step.get('canvas_width')) or 0,
             'canvas_height': _parse_int(step.get('canvas_height')) or 0,
             'moves': step.get('moves') if isinstance(step.get('moves'), list) else [],
+            'routes': cleaned_routes,
+            'ball_follow_uid': ball_follow_uid,
         })
     if not cleaned_steps:
         return JsonResponse({'error': 'No se pudieron leer los pasos.'}, status=400)
