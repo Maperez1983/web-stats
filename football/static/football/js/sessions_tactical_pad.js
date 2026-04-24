@@ -748,12 +748,14 @@
 			    const simNextBtn = document.getElementById('task-sim-next');
 			    const simDuplicateBtn = document.getElementById('task-sim-duplicate');
 			    const simShareBtn = document.getElementById('task-sim-share');
-			    const simExportStepBtn = document.getElementById('task-sim-export-step');
-			    const simExportAllBtn = document.getElementById('task-sim-export-all');
-			    const simRecordBtn = document.getElementById('task-sim-record');
-			    const simView3dBtn = document.getElementById('task-sim-view-3d');
-			    const simVideoStudioBtn = document.getElementById('task-sim-video-studio');
-			    const simClipSaveBtn = document.getElementById('task-sim-clip-save');
+				    const simExportStepBtn = document.getElementById('task-sim-export-step');
+				    const simExportAllBtn = document.getElementById('task-sim-export-all');
+				    const simRecordBtn = document.getElementById('task-sim-record');
+				    const simRecordFormatSelect = document.getElementById('task-sim-record-format');
+				    const simRecordTitleInput = document.getElementById('task-sim-record-title');
+				    const simView3dBtn = document.getElementById('task-sim-view-3d');
+				    const simVideoStudioBtn = document.getElementById('task-sim-video-studio');
+				    const simClipSaveBtn = document.getElementById('task-sim-clip-save');
 			    const simClipImportBtn = document.getElementById('task-sim-clip-import');
 			    const simClipDestWrap = document.getElementById('task-sim-clip-dest-wrap');
 			    const simClipDestSelect = document.getElementById('task-sim-clip-dest');
@@ -5818,9 +5820,12 @@
 				    let simRecordCtx = null;
 				    let simRecordBgImg = null;
 				    let simRecordStream = null;
-				    let simRecordMedia = null;
-				    let simRecordChunks = [];
-				    let simRecordFrame = null;
+					    let simRecordMedia = null;
+					    let simRecordChunks = [];
+					    let simRecordFrame = null;
+					    let simRecordLayout = null;
+					    let simRecordShowTitle = true;
+					    let simRecordTitleText = '';
 
 				    const canRecord2d = () => {
 				      try {
@@ -5829,15 +5834,75 @@
 				          && typeof HTMLCanvasElement !== 'undefined';
 				      } catch (e) { return false; }
 				    };
-				    const simFileSafeSlug = (value) => safeText(value || '')
-				      .toLowerCase()
-				      .replace(/[^a-z0-9]+/g, '-')
-				      .replace(/^-+|-+$/g, '')
-				      .slice(0, 60) || 'tactica';
-				    const simDownloadBlob = (blob, filename) => {
-				      if (!blob) return;
-				      const url = URL.createObjectURL(blob);
-				      const link = document.createElement('a');
+					    const simFileSafeSlug = (value) => safeText(value || '')
+					      .toLowerCase()
+					      .replace(/[^a-z0-9]+/g, '-')
+					      .replace(/^-+|-+$/g, '')
+					      .slice(0, 60) || 'tactica';
+					    const simFitContainRect = (srcW, srcH, dstW, dstH) => {
+					      const sw = Math.max(1, Number(srcW) || 1);
+					      const sh = Math.max(1, Number(srcH) || 1);
+					      const dw = Math.max(1, Number(dstW) || 1);
+					      const dh = Math.max(1, Number(dstH) || 1);
+					      const scale = Math.min(dw / sw, dh / sh);
+					      const w = Math.max(1, Math.round(sw * scale));
+					      const h = Math.max(1, Math.round(sh * scale));
+					      return { x: Math.round((dw - w) / 2), y: Math.round((dh - h) / 2), w, h };
+					    };
+					    const simComputeRecordFormat = () => {
+					      const raw = safeText(simRecordFormatSelect?.value);
+					      if (raw === 'ig_4_5' || raw === 'ig_9_16' || raw === 'match') return raw;
+					      return 'match';
+					    };
+					    const simComputeOutputSize = (format, sourceW, sourceH) => {
+					      if (format === 'ig_4_5') return { w: 1080, h: 1350 };
+					      if (format === 'ig_9_16') return { w: 1080, h: 1920 };
+					      return { w: Math.max(1, Math.round(sourceW)), h: Math.max(1, Math.round(sourceH)) };
+					    };
+
+					    const simRecordPrefsKey = (() => {
+					      const scope = safeText(form?.dataset?.scopeKey) || 'coach';
+					      return `webstats:tpad:simrecord_prefs_v1:${scope}`;
+					    })();
+					    const simReadRecordPrefs = () => {
+					      if (!canUseStorage) return null;
+					      try {
+					        const raw = safeText(window.localStorage.getItem(simRecordPrefsKey));
+					        if (!raw) return null;
+					        const parsed = JSON.parse(raw);
+					        if (!parsed || typeof parsed !== 'object') return null;
+					        return parsed;
+					      } catch (e) {
+					        return null;
+					      }
+					    };
+					    const simWriteRecordPrefs = (prefs) => {
+					      if (!canUseStorage) return;
+					      try { window.localStorage.setItem(simRecordPrefsKey, JSON.stringify(prefs || {})); } catch (e) { /* ignore */ }
+					    };
+					    const simApplyRecordPrefsToUi = () => {
+					      const stored = simReadRecordPrefs() || {};
+					      const format = safeText(stored?.format) || '';
+					      const showTitle = stored?.title !== false;
+					      if (simRecordFormatSelect && (format === 'ig_4_5' || format === 'ig_9_16' || format === 'match')) {
+					        simRecordFormatSelect.value = format;
+					      }
+					      if (simRecordTitleInput) simRecordTitleInput.checked = !!showTitle;
+					    };
+					    const simPersistRecordPrefsFromUi = () => {
+					      const prefs = {
+					        v: 1,
+					        updated_at: new Date().toISOString(),
+					        format: simComputeRecordFormat(),
+					        title: simRecordTitleInput ? !!simRecordTitleInput.checked : true,
+					      };
+					      simWriteRecordPrefs(prefs);
+					    };
+					    simApplyRecordPrefsToUi();
+					    const simDownloadBlob = (blob, filename) => {
+					      if (!blob) return;
+					      const url = URL.createObjectURL(blob);
+					      const link = document.createElement('a');
 				      link.href = url;
 				      link.download = filename || `tactical_${Date.now()}.webm`;
 				      document.body.appendChild(link);
@@ -5890,12 +5955,36 @@
 				      }
 				      if (!simRecordBtn) return;
 				      const base = canvas?.lowerCanvasEl;
-				      if (!base) {
-				        window.alert('No se pudo iniciar la grabación.');
-				        return;
-				      }
-				      const w = Math.max(1, Math.round(base.width || canvas.getWidth() || 1280));
-				      const h = Math.max(1, Math.round(base.height || canvas.getHeight() || 720));
+					      if (!base) {
+					        window.alert('No se pudo iniciar la grabación.');
+					        return;
+					      }
+					      const sourceW = Math.max(1, Math.round(base.width || canvas.getWidth() || 1280));
+					      const sourceH = Math.max(1, Math.round(base.height || canvas.getHeight() || 720));
+					      const format = simComputeRecordFormat();
+					      const out = simComputeOutputSize(format, sourceW, sourceH);
+					      const w = out.w;
+					      const h = out.h;
+					      simRecordShowTitle = simRecordTitleInput ? !!simRecordTitleInput.checked : true;
+					      simRecordTitleText = safeText(document.querySelector('[name="draw_task_title"]')?.value || '').replace(/\s+/g, ' ').trim();
+					      if (simRecordTitleText.length > 64) simRecordTitleText = `${simRecordTitleText.slice(0, 61)}…`;
+					      simRecordLayout = null;
+					      if (format === 'ig_4_5' || format === 'ig_9_16') {
+					        const margin = Math.round(w * 0.06);
+					        const titleH = simRecordShowTitle ? Math.min(260, Math.max(140, Math.round(h * 0.11))) : 0;
+					        const availW = Math.max(1, w - margin * 2);
+					        const availH = Math.max(1, h - margin * 2 - titleH);
+					        const rect = simFitContainRect(sourceW, sourceH, availW, availH);
+					        simRecordLayout = {
+					          format,
+					          margin,
+					          titleH,
+					          pitchX: margin + rect.x,
+					          pitchY: margin + titleH + rect.y,
+					          pitchW: rect.w,
+					          pitchH: rect.h,
+					        };
+					      }
 				      simRecordCanvas = document.createElement('canvas');
 				      simRecordCanvas.width = w;
 				      simRecordCanvas.height = h;
@@ -5921,11 +6010,13 @@
 				        return;
 				      }
 
-				      const mimeCandidates = [
-				        'video/webm;codecs=vp9,opus',
-				        'video/webm;codecs=vp8,opus',
-				        'video/webm',
-				      ];
+					      const mimeCandidates = [
+					        'video/mp4;codecs=h264,aac',
+					        'video/mp4',
+					        'video/webm;codecs=vp9,opus',
+					        'video/webm;codecs=vp8,opus',
+					        'video/webm',
+					      ];
 				      let mimeType = '';
 				      mimeCandidates.some((mt) => {
 				        try {
@@ -5955,13 +6046,14 @@
 				      simRecordMedia.ondataavailable = (ev) => {
 				        if (ev?.data && ev.data.size > 0) simRecordChunks.push(ev.data);
 				      };
-				      simRecordMedia.onstop = () => {
-				        const blob = new Blob(simRecordChunks, { type: simRecordMedia?.mimeType || 'video/webm' });
-				        const title = simFileSafeSlug(document.querySelector('[name=\"draw_task_title\"]')?.value || 'tactica');
-				        simDownloadBlob(blob, `${title}-2d.webm`);
-				        try { simRecordStream?.getTracks?.().forEach((t) => t.stop()); } catch (e) { /* ignore */ }
-				        simRecordStream = null;
-				        simRecordMedia = null;
+					      simRecordMedia.onstop = () => {
+					        const blob = new Blob(simRecordChunks, { type: simRecordMedia?.mimeType || 'video/webm' });
+					        const title = simFileSafeSlug(document.querySelector('[name=\"draw_task_title\"]')?.value || 'tactica');
+					        const ext = String(simRecordMedia?.mimeType || '').includes('mp4') ? 'mp4' : 'webm';
+					        simDownloadBlob(blob, `${title}-2d.${ext}`);
+					        try { simRecordStream?.getTracks?.().forEach((t) => t.stop()); } catch (e) { /* ignore */ }
+					        simRecordStream = null;
+					        simRecordMedia = null;
 				        simRecordChunks = [];
 				        simRecordCanvas = null;
 				        simRecordCtx = null;
@@ -5969,34 +6061,65 @@
 				        setSimRecordUi(false);
 				      };
 
-				      const drawFrame = () => {
-				        if (!simRecordActive || !simRecordCtx || !simRecordCanvas) return;
-				        try {
-				          simRecordCtx.clearRect(0, 0, simRecordCanvas.width, simRecordCanvas.height);
-				          if (simRecordBgImg) {
-				            simRecordCtx.drawImage(simRecordBgImg, 0, 0, simRecordCanvas.width, simRecordCanvas.height);
-				          } else {
-				            simRecordCtx.fillStyle = '#14532d';
-				            simRecordCtx.fillRect(0, 0, simRecordCanvas.width, simRecordCanvas.height);
-				          }
-				          simRecordCtx.drawImage(base, 0, 0, simRecordCanvas.width, simRecordCanvas.height);
-				        } catch (e) { /* ignore */ }
-				        simRecordFrame = window.requestAnimationFrame(drawFrame);
-				      };
+					      const drawFrame = () => {
+					        if (!simRecordActive || !simRecordCtx || !simRecordCanvas) return;
+					        try {
+					          const cw = simRecordCanvas.width;
+					          const ch = simRecordCanvas.height;
+					          simRecordCtx.clearRect(0, 0, cw, ch);
+					          // Fondo negro para formatos verticales (estilo IG / presentaciones).
+					          simRecordCtx.fillStyle = simRecordLayout ? '#000000' : '#14532d';
+					          simRecordCtx.fillRect(0, 0, cw, ch);
+					          const drawPitch = (dx, dy, dw, dh) => {
+					            if (simRecordBgImg) {
+					              simRecordCtx.drawImage(simRecordBgImg, dx, dy, dw, dh);
+					            } else {
+					              simRecordCtx.fillStyle = '#14532d';
+					              simRecordCtx.fillRect(dx, dy, dw, dh);
+					            }
+					            simRecordCtx.drawImage(base, dx, dy, dw, dh);
+					          };
+					          if (simRecordLayout) {
+					            if (simRecordShowTitle && simRecordTitleText) {
+					              const titleY = simRecordLayout.margin + Math.round(simRecordLayout.titleH * 0.62);
+					              const maxW = Math.max(1, cw - simRecordLayout.margin * 2);
+					              simRecordCtx.save();
+					              simRecordCtx.textAlign = 'center';
+					              simRecordCtx.textBaseline = 'middle';
+					              simRecordCtx.fillStyle = '#ffffff';
+					              const baseSize = Math.min(56, Math.max(34, Math.round(ch * 0.038)));
+					              let fontSize = baseSize;
+					              const measure = () => {
+					                simRecordCtx.font = `700 ${fontSize}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
+					                return simRecordCtx.measureText(simRecordTitleText).width;
+					              };
+					              while (fontSize > 22 && measure() > maxW) fontSize -= 2;
+					              simRecordCtx.font = `700 ${fontSize}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
+					              simRecordCtx.fillText(simRecordTitleText, Math.round(cw / 2), titleY, maxW);
+					              simRecordCtx.restore();
+					            }
+					            drawPitch(simRecordLayout.pitchX, simRecordLayout.pitchY, simRecordLayout.pitchW, simRecordLayout.pitchH);
+					          } else {
+					            drawPitch(0, 0, cw, ch);
+					          }
+					        } catch (e) { /* ignore */ }
+					        simRecordFrame = window.requestAnimationFrame(drawFrame);
+					      };
 
-				      try { simRecordMedia.start(250); } catch (e) {
-				        window.alert('No se pudo iniciar la grabación.');
+					      try { simRecordMedia.start(250); } catch (e) {
+					        window.alert('No se pudo iniciar la grabación.');
 				        try { simRecordStream?.getTracks?.().forEach((t) => t.stop()); } catch (err) { /* ignore */ }
 				        simRecordStream = null;
 				        simRecordMedia = null;
 				        simRecordCanvas = null;
 				        simRecordCtx = null;
 				        simRecordBgImg = null;
-				        return;
-				      }
-				      setSimRecordUi(true);
-				      simRecordFrame = window.requestAnimationFrame(drawFrame);
-				    };
+					        return;
+					      }
+					      try { simPersistRecordPrefsFromUi(); } catch (e) { /* ignore */ }
+					      setSimRecordUi(true);
+					      simRecordFrame = window.requestAnimationFrame(drawFrame);
+					    };
 
 				    const toggleSimRecording = async () => {
 				      if (simRecordActive) return stopSimRecording();
@@ -8205,13 +8328,21 @@
 			        syncSimProUi();
 			      });
 			    });
-			    simAutoCaptureInput?.addEventListener('change', () => {
-			      simulationAutoCapture = !!simAutoCaptureInput.checked;
-			      setStatus(simulationAutoCapture ? 'Auto-captura activada.' : 'Auto-captura desactivada.');
-			    });
-			    simProEnabledInput?.addEventListener('change', async () => {
-			      if (!isSimulating) return;
-			      stopSimulationPlayback();
+				    simAutoCaptureInput?.addEventListener('change', () => {
+				      simulationAutoCapture = !!simAutoCaptureInput.checked;
+				      setStatus(simulationAutoCapture ? 'Auto-captura activada.' : 'Auto-captura desactivada.');
+				    });
+				    simRecordFormatSelect?.addEventListener('change', () => {
+				      try { simPersistRecordPrefsFromUi(); } catch (e) { /* ignore */ }
+				      setStatus('Formato de vídeo guardado.');
+				    });
+				    simRecordTitleInput?.addEventListener('change', () => {
+				      try { simPersistRecordPrefsFromUi(); } catch (e) { /* ignore */ }
+				      setStatus(simRecordTitleInput?.checked ? 'Título en vídeo activado.' : 'Título en vídeo desactivado.');
+				    });
+				    simProEnabledInput?.addEventListener('change', async () => {
+				      if (!isSimulating) return;
+				      stopSimulationPlayback();
 			      simulationProEnabled = !!simProEnabledInput.checked;
 			      if (simulationProEnabled) {
 			        try {

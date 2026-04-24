@@ -3116,16 +3116,28 @@
 				                            <input type="checkbox" id="task-sim-collision" />
 				                            Colisión suave
 				                          </label>
+						                          <label>
+						                            Velocidad
+						                            <select id="task-sim-speed">
+						                              <option value="0.5">0.5×</option>
+						                              <option value="1" selected>1×</option>
+						                              <option value="1.5">1.5×</option>
+						                              <option value="2">2×</option>
+						                            </select>
+						                          </label>
 					                          <label>
-					                            Velocidad
-					                            <select id="task-sim-speed">
-					                              <option value="0.5">0.5×</option>
-					                              <option value="1" selected>1×</option>
-					                              <option value="1.5">1.5×</option>
-					                              <option value="2">2×</option>
+					                            Formato vídeo
+					                            <select id="task-sim-record-format">
+					                              <option value="match" selected>Tal cual (pizarra)</option>
+					                              <option value="ig_4_5">Instagram 4:5 (1080×1350)</option>
+					                              <option value="ig_9_16">Instagram 9:16 (1080×1920)</option>
 					                            </select>
 					                          </label>
-					                        </div>
+					                          <label class="sim-check" title="Muestra el título de la tarea en el vídeo exportado.">
+					                            <input type="checkbox" id="task-sim-record-title" checked />
+					                            Título en vídeo
+					                          </label>
+						                        </div>
 					                        <div class="sim-options" id="task-sim-pro-panel" hidden style="margin-top:0.75rem;">
 					                          <div class="meta" style="grid-column:1/-1;">Timeline Pro: scrub continuo + keyframes por objeto (posición/rotación/escala/opacidad).</div>
 					                          <div style="grid-column:1/-1; display:flex; gap:0.55rem; flex-wrap:wrap; align-items:center; justify-content:space-between;">
