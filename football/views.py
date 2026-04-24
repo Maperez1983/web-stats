@@ -2292,6 +2292,13 @@ def account_page(request):
 
 
 @login_required
+def ui_kit_page(request):
+    if not _is_admin_user(request.user):
+        return HttpResponse('No autorizado', status=403)
+    return render(request, 'football/ui_kit.html', {})
+
+
+@login_required
 @require_POST
 def account_delete(request):
     user = request.user
@@ -27228,6 +27235,132 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
             order=SessionTask.objects.filter(session=target_session).count() + 1,
             notes='Tarea creada en editor visual',
         )
+    # Aprendizaje automático (mínimo): cada vez que guardas una tarea, actualizamos/creamos
+    # una plantilla del equipo (TaskBlueprint) con el mismo título. Esto alimenta el recomendador
+    # Smart con "tus tareas" reales sin depender de que el usuario pulse "Guardar plantilla".
+    try:
+        def _safe_text(val, max_len=160):
+            return _sanitize_task_text(str(val or '').strip(), multiline=False, max_len=max_len)
+
+        def _infer_blueprint_goal(meta):
+            if not isinstance(meta, dict):
+                meta = {}
+            phase = str(meta.get('game_phase') or '').strip().lower()
+            intent = str(meta.get('tactical_intent') or '').strip().lower()
+            methodology = str(meta.get('methodology') or '').strip().lower()
+            block = str(getattr(task, 'block', '') or '').strip().lower()
+
+            if block in {'activation', 'recovery'}:
+                return 'warmup'
+            if phase == 'set_pieces' or block == 'set_pieces':
+                return 'set_pieces'
+            if phase == 'offensive_transition':
+                return 'transition_atd'
+            if phase == 'defensive_transition':
+                return 'transition_dta'
+            if intent in {'build'}:
+                return 'build_up'
+            if intent in {'finish'}:
+                return 'final_third'
+            if intent in {'counter'}:
+                return 'transition_atd'
+            if intent in {'avoid_progress'}:
+                return 'pressing'
+            if intent in {'def_build', 'def_direct', 'def_organized', 'phase_def', 'cover'}:
+                return 'defending'
+            if intent in {'1v1', '2v1', '2v2', '3v3', '4v4'}:
+                return 'duels'
+            if phase == 'organization_defense':
+                return 'defending'
+            if phase == 'organization_attack':
+                return 'progression'
+            # Si metodología es analítica y no tenemos otra señal, solemos estar en duelos/finalización.
+            if methodology == 'analytical':
+                return 'duels'
+            return 'progression'
+
+        def _infer_blueprint_approach(meta):
+            if not isinstance(meta, dict):
+                meta = {}
+            methodology = str(meta.get('methodology') or '').strip().lower()
+            if methodology == 'analytical':
+                return 'analytic'
+            if methodology in {'integrated', 'global', 'competition'}:
+                return 'systemic'
+            return 'auto'
+
+        def _infer_blueprint_category(block_key, scope_key_local):
+            if scope_key_local == 'goalkeeper':
+                return TaskBlueprint.CATEGORY_GK
+            if block_key == SessionTask.BLOCK_SET_PIECES:
+                return TaskBlueprint.CATEGORY_ABP
+            if block_key == SessionTask.BLOCK_CONDITIONING:
+                return TaskBlueprint.CATEGORY_PHYSICAL
+            return TaskBlueprint.CATEGORY_OTHER
+
+        # payload = { meta, tpl } (formato esperado por el Asistente Smart).
+        layout_meta = tactical_layout.get('meta') if isinstance(tactical_layout.get('meta'), dict) else {}
+        analysis_meta = layout_meta.get('analysis') if isinstance(layout_meta.get('analysis'), dict) else {}
+        sheet = analysis_meta.get('task_sheet') if isinstance(analysis_meta.get('task_sheet'), dict) else {}
+        graphic = layout_meta.get('graphic_editor') if isinstance(layout_meta.get('graphic_editor'), dict) else {}
+        tpl = {
+            'title': _safe_text(getattr(task, 'title', '') or '', max_len=160),
+            'objective': _safe_text(getattr(task, 'objective', '') or '', max_len=180),
+            'minutes': int(getattr(task, 'duration_minutes', 15) or 15),
+            'block': str(getattr(task, 'block', '') or SessionTask.BLOCK_MAIN_1),
+            'player_count': _safe_text(layout_meta.get('player_count') or sheet.get('players') or '', max_len=120),
+            'dimensions': _safe_text(sheet.get('dimensions') or layout_meta.get('dimensions') or '', max_len=120),
+            'materials': _safe_text(sheet.get('materials') or layout_meta.get('materials') or '', max_len=180),
+            'space': _safe_text(layout_meta.get('space') or sheet.get('space') or '', max_len=120),
+            'training_type': _safe_text(layout_meta.get('training_type') or '', max_len=120),
+            'strategy': _safe_text(layout_meta.get('strategy') or '', max_len=80),
+            'dynamics': _safe_text(layout_meta.get('dynamics') or '', max_len=80),
+            'structure': _safe_text(layout_meta.get('structure') or '', max_len=80),
+            'coordination': _safe_text(layout_meta.get('coordination') or '', max_len=80),
+            'coordination_skills': _safe_text(layout_meta.get('coordination_skills') or '', max_len=80),
+            'tactical_intent': _safe_text(layout_meta.get('tactical_intent') or '', max_len=80),
+            'complexity': _safe_text(layout_meta.get('complexity') or '', max_len=80),
+            'age_group': _safe_text(layout_meta.get('age_group') or '', max_len=100),
+            'series': _safe_text(layout_meta.get('series') or '', max_len=100),
+            'repetitions': _safe_text(layout_meta.get('repetitions') or '', max_len=100),
+            'work_rest': _safe_text(layout_meta.get('work_rest') or '', max_len=180),
+            'load_target': _safe_text(layout_meta.get('load_target') or '', max_len=180),
+            'players_distribution': _safe_text(layout_meta.get('players_distribution') or '', max_len=180),
+            'organization_html': str(layout_meta.get('organization_html') or ''),
+            'description_html': str(sheet.get('description_html') or ''),
+            'coaching_html': str(sheet.get('coaching_html') or ''),
+            'rules_html': str(sheet.get('rules_html') or ''),
+            'progression_html': str(layout_meta.get('progression_html') or ''),
+            'regression_html': str(layout_meta.get('regression_html') or ''),
+            'success_criteria_html': str(layout_meta.get('success_criteria_html') or ''),
+            'drills': layout_meta.get('drills') if isinstance(layout_meta.get('drills'), list) else [],
+            'canvas_state': graphic.get('canvas_state') if isinstance(graphic.get('canvas_state'), dict) else {},
+            'canvas_width': int(graphic.get('canvas_width') or 0),
+            'canvas_height': int(graphic.get('canvas_height') or 0),
+            'source_name': 'Plantilla del equipo (auto)',
+        }
+        # Meta para filtrar y priorizar sugerencias.
+        bp_meta = {
+            'goal': _infer_blueprint_goal(layout_meta),
+            'subphase': 'auto',
+            'approach': _infer_blueprint_approach(layout_meta),
+        }
+
+        bp_name = tpl.get('title') or ''
+        if bp_name:
+            TaskBlueprint.objects.update_or_create(
+                team=primary_team,
+                name=bp_name[:160],
+                defaults={
+                    'category': _infer_blueprint_category(str(getattr(task, 'block', '') or ''), scope_key),
+                    'description': _safe_text(tpl.get('objective') or '', max_len=220),
+                    'payload': {'meta': bp_meta, 'tpl': tpl},
+                    'created_by': str(getattr(request.user, 'username', '') or '').strip()[:80],
+                },
+            )
+    except Exception:
+        # Nunca bloqueamos el guardado de la tarea por el aprendizaje.
+        pass
     preview_data = request.POST.get('draw_canvas_preview_data')
     if preview_data:
         raw_bytes, extension = _decode_canvas_data_url(preview_data)
