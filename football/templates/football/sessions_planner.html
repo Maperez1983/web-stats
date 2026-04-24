@@ -1318,15 +1318,289 @@
 	      </section>
 
 			      <div class="tabs" id="planner-tabs">
-			        <a class="tab-link {% if active_tab == 'sessions' %}is-active{% endif %}" href="?tab=sessions">Sesiones</a>
-			        <a class="tab-link {% if active_tab == 'microcycles' %}is-active{% endif %}" href="?tab=microcycles">Microciclos</a>
-			        <a class="tab-link {% if active_tab == 'library' %}is-active{% endif %}" href="?tab=library">Biblioteca</a>
-			        <a class="tab-link" href="{% url task_builder_route_name %}">Crear tarea</a>
+			        <a class="tab-link {% if main_tab == 'create' %}is-active{% endif %}" href="?tab=create">Crear</a>
+			        <a class="tab-link {% if main_tab == 'library' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}">Biblioteca</a>
+			        <a class="tab-link {% if main_tab == 'import' %}is-active{% endif %}" href="?tab=import&library_repo={{ library_repository }}">Importar</a>
 			      </div>
 
-		      <div class="tab-panel {% if active_tab == 'sessions' %}is-active{% endif %}" data-tab="sessions">
+			      {% if main_tab == 'library' %}
+			      <div class="tabs" style="margin-top:-0.15rem;">
+			        <a class="tab-link {% if active_tab == 'library' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}">Tareas</a>
+			        <a class="tab-link {% if active_tab == 'sessions' %}is-active{% endif %}" href="?tab=sessions&library_repo={{ library_repository }}">Sesiones</a>
+			        <a class="tab-link {% if active_tab == 'microcycles' %}is-active{% endif %}" href="?tab=microcycles&library_repo={{ library_repository }}">Microciclos</a>
+			      </div>
+			      {% endif %}
+
+		      <div class="tab-panel {% if main_tab == 'create' %}is-active{% endif %}" data-tab="create">
+		        <section class="panel">
+		          <h2>Crear</h2>
+		          <p class="meta" style="margin-top:0;">Crea tareas, sesiones o microciclos. Para reutilizar y mantener orden, la Biblioteca te lo separa por tipo.</p>
+		          <div class="folder-grid" style="margin-top:0.75rem;">
+		            <a class="folder-card" href="{% url task_builder_route_name %}?repo=traditional">
+		              <strong>Crear tarea (Clásica)</strong>
+		              <span>Repositorio Tradicionales</span>
+		            </a>
+		            <a class="folder-card" href="{% url task_builder_route_name %}?repo=interactive">
+		              <strong>Crear tarea (Interactiva)</strong>
+		              <span>Repositorio Interactivas</span>
+		            </a>
+		            <a class="folder-card" href="?tab=sessions&library_repo={{ library_repository }}">
+		              <strong>Crear sesión</strong>
+		              <span>Sesión diaria por bloques</span>
+		            </a>
+		            <a class="folder-card" href="?tab=microcycles&library_repo={{ library_repository }}">
+		              <strong>Crear microciclo</strong>
+		              <span>Semana, sesiones y mapa</span>
+		            </a>
+		          </div>
+		          <div class="grid" style="margin-top:0.85rem;">
+		            <div class="editor-box" id="create-session-box">
+		              <h3>Crear sesión</h3>
+		              <form method="post" class="grid">
+		                {% csrf_token %}
+		                <input type="hidden" name="planner_action" value="create_session_plan" />
+		                <input type="hidden" name="planner_tab" value="create" />
+		                <label>
+		                  Microciclo
+		                  <select name="plan_microcycle_id">
+		                    <option value="">Sin microciclo (sesión suelta)</option>
+		                    {% for item in planning_microcycles %}
+		                    <option value="{{ item.id }}" {% if prefill_microcycle_id and item.id == prefill_microcycle_id %}selected{% endif %}>{{ item.week_start|date:"d/m" }}-{{ item.week_end|date:"d/m" }} · {{ item.title }}</option>
+		                    {% endfor %}
+		                  </select>
+		                </label>
+		                <label>
+		                  Fecha
+		                  <input type="date" name="plan_session_date" required />
+		                </label>
+		                <label style="grid-column:1/-1;">
+		                  Nombre de la sesión
+		                  <input type="text" name="plan_session_focus" maxlength="140" placeholder="Ej: Transición + finalización" required />
+		                </label>
+		                <label>
+		                  Duración (min)
+		                  <input type="number" name="plan_session_minutes" min="30" max="180" value="90" />
+		                </label>
+		                <label>
+		                  Intensidad
+		                  <select name="plan_session_intensity">
+		                    {% for value, label in session_intensity_choices %}
+		                    <option value="{{ value }}">{{ label }}</option>
+		                    {% endfor %}
+		                  </select>
+		                </label>
+		                <label>
+		                  Estado
+		                  <select name="plan_session_status">
+		                    {% for value, label in session_status_choices %}
+		                    <option value="{{ value }}">{{ label }}</option>
+		                    {% endfor %}
+		                  </select>
+		                </label>
+		                <label>
+		                  N jugadores
+		                  <input type="text" name="plan_session_player_count" maxlength="40" placeholder="Ej: 18 / 16 disponibles" />
+		                </label>
+		                <label style="grid-column:1/-1;">
+		                  Materiales
+		                  <input type="text" name="plan_session_materials" maxlength="300" placeholder="Conos, petos, porterías..." />
+		                </label>
+		                <label style="grid-column:1/-1;">
+		                  Lesionados / ausencias
+		                  <textarea name="plan_session_absences" placeholder="Bajas, molestias, precauciones..."></textarea>
+		                </label>
+		                <label style="grid-column:1/-1;">
+		                  Notas (opcional)
+		                  <textarea name="plan_session_content" placeholder="Notas generales de la sesión (sin pizarra)"></textarea>
+		                </label>
+		                <div><button type="submit" class="primary">Crear sesión</button></div>
+		              </form>
+		            </div>
+		            <div class="editor-box" id="create-microcycle-box">
+		              <h3>Crear microciclo</h3>
+		              <form method="post" class="grid">
+		                {% csrf_token %}
+		                <input type="hidden" name="planner_action" value="create_microcycle_plan" />
+		                <input type="hidden" name="planner_tab" value="create" />
+		                <label>
+		                  Título
+		                  <input type="text" name="plan_microcycle_title" maxlength="140" placeholder="Ej: MD-4 a MD+1" required />
+		                </label>
+		                <label>
+		                  Objetivo
+		                  <input type="text" name="plan_microcycle_objective" maxlength="200" placeholder="Objetivo semanal" />
+		                </label>
+		                <label>
+		                  Inicio
+		                  <input type="date" name="plan_week_start" required />
+		                </label>
+		                <label>
+		                  Fin
+		                  <input type="date" name="plan_week_end" required />
+		                </label>
+		                <label>
+		                  Estado
+		                  <select name="plan_microcycle_status">
+		                    {% for value, label in microcycle_status_choices %}
+		                    <option value="{{ value }}">{{ label }}</option>
+		                    {% endfor %}
+		                  </select>
+		                </label>
+		                <label style="grid-column:1/-1;">
+		                  Objetivos ataque
+		                  <textarea name="plan_microcycle_attack" placeholder="Principios, subprincipios y focos ofensivos"></textarea>
+		                </label>
+		                <label style="grid-column:1/-1;">
+		                  Objetivos defensa
+		                  <textarea name="plan_microcycle_defense" placeholder="Principios defensivos y ajustes de comportamiento"></textarea>
+		                </label>
+		                <label style="grid-column:1/-1;">
+		                  Objetivos ABP
+		                  <textarea name="plan_microcycle_set_pieces" placeholder="ABP ofensiva/defensiva a reforzar en la semana"></textarea>
+		                </label>
+		                <label style="grid-column:1/-1;">
+		                  Observaciones rival
+		                  <textarea name="plan_microcycle_rival_notes" placeholder="Patrones del rival, alertas y contexto competitivo"></textarea>
+		                </label>
+		                <label style="grid-column:1/-1;">
+		                  Notas generales
+		                  <textarea name="plan_microcycle_notes" placeholder="Observaciones internas, carga y mensajes para el staff"></textarea>
+		                </label>
+		                <div><button type="submit" class="primary">Guardar microciclo</button></div>
+		              </form>
+		            </div>
+		          </div>
+		        </section>
+		      </div>
+
+		      <div class="tab-panel {% if main_tab == 'import' %}is-active{% endif %}" data-tab="import">
+		        <section class="panel">
+		          <h2>Importar</h2>
+		          <p class="meta" style="margin-top:0;">Importa contenido al sistema sin cambiar el formato. Lo verás organizado en Biblioteca.</p>
+		          <div class="folder-grid" style="margin-top:0.75rem;">
+		            <a class="folder-card" href="#import-tareas">
+		              <strong>Importar tareas</strong>
+		              <span>PDF (Clásicas) y Vídeo (Interactivas)</span>
+		            </a>
+		            <a class="folder-card" href="#import-sesiones">
+		              <strong>Importar sesiones</strong>
+		              <span>Próximamente</span>
+		            </a>
+		            <a class="folder-card" href="#import-microciclos">
+		              <strong>Importar microciclos</strong>
+		              <span>Próximamente</span>
+		            </a>
+		          </div>
+		        </section>
+
+		        <section class="panel" id="import-tareas">
+		          <h2>Importar · Tareas</h2>
+		          <div class="editor-grid">
+		            <div class="editor-box">
+		              <h3>Clásicas (PDF)</h3>
+		              <form method="post" enctype="multipart/form-data" class="grid">
+		                {% csrf_token %}
+		                <input type="hidden" name="planner_action" value="library_upload_pdf" />
+		                <input type="hidden" name="planner_tab" value="import" />
+		                <input type="hidden" name="library_repo" value="traditional" />
+		                <label>
+		                  Nombre tarea
+		                  <input type="text" name="pdf_task_title" maxlength="160" placeholder="Ej: Activación coordinativa" required />
+		                </label>
+		                <label>
+		                  Bloque
+		                  <select name="pdf_task_block">
+		                    {% for value, label in task_blocks %}
+		                    <option value="{{ value }}">{{ label }}</option>
+		                    {% endfor %}
+		                  </select>
+		                </label>
+		                <label>
+		                  Minutos
+		                  <input type="number" name="pdf_task_minutes" min="5" max="90" value="15" />
+		                </label>
+		                <label>
+		                  Objetivo (opcional)
+		                  <input type="text" name="pdf_task_objective" maxlength="180" placeholder="Objetivo breve" />
+		                </label>
+		                <label style="grid-column:1/-1;">
+		                  Archivos PDF
+		                  <input type="file" name="library_task_pdf" accept="application/pdf" multiple required />
+		                </label>
+		                <label style="display:flex; gap:10px; align-items:center; margin-top:6px; grid-column:1/-1;">
+		                  <input type="checkbox" name="pdf_recreate_board" value="1" checked />
+		                  <span>Usar el gráfico del PDF como fondo editable (recomendado)</span>
+		                </label>
+		                <div style="display:flex; align-items:flex-end;">
+		                  <button type="submit" class="primary">Subir PDFs</button>
+		                </div>
+		              </form>
+		            </div>
+
+		            <div class="editor-box">
+		              <h3>Interactivas (Vídeo)</h3>
+		              <form method="post" enctype="multipart/form-data" class="grid">
+		                {% csrf_token %}
+		                <input type="hidden" name="planner_action" value="library_upload_video" />
+		                <input type="hidden" name="planner_tab" value="import" />
+		                <input type="hidden" name="library_repo" value="interactive" />
+		                <label>
+		                  Título (opcional)
+		                  <input type="text" name="video_task_title" maxlength="160" placeholder="Ej: Partido condicionado (centros)" />
+		                </label>
+		                <label>
+		                  Bloque
+		                  <select name="video_task_block">
+		                    {% for value, label in task_blocks %}
+		                    <option value="{{ value }}">{{ label }}</option>
+		                    {% endfor %}
+		                  </select>
+		                </label>
+		                <label>
+		                  Minutos (opcional)
+		                  <input type="number" name="video_task_minutes" min="5" max="90" value="15" />
+		                </label>
+		                <label style="grid-column:1/-1;">
+		                  Texto/Descripción (opcional)
+		                  <textarea name="video_task_caption" rows="5" maxlength="12000" placeholder="Pega aquí la descripción del post (si existe). Si no, sube capturas abajo."></textarea>
+		                </label>
+		                <label style="grid-column:1/-1;">
+		                  Capturas de descripción (opcional)
+		                  <input type="file" name="library_task_caption_images" accept="image/*" multiple />
+		                </label>
+		                <label style="grid-column:1/-1;">
+		                  Vídeo
+		                  <input type="file" name="library_task_video" accept="video/*" required />
+		                  <span class="meta" style="text-transform:none; letter-spacing:0; font-size:0.78rem; color:rgba(226,232,240,0.68);">
+		                    Recomendado &lt; 60MB. Máximo 250MB (puede tardar en subir).
+		                  </span>
+		                </label>
+		                <div style="display:flex; align-items:flex-end;">
+		                  <button type="submit" class="primary">Crear tarea interactiva</button>
+		                </div>
+		              </form>
+		            </div>
+		          </div>
+		        </section>
+
+		        <section class="panel" id="import-sesiones">
+		          <h2>Importar · Sesiones</h2>
+		          <p class="empty">Próximamente: importar una sesión completa “tal cual” desde PDF, conservando textos y estructura.</p>
+		        </section>
+
+		        <section class="panel" id="import-microciclos">
+		          <h2>Importar · Microciclos</h2>
+		          <p class="empty">Próximamente: importar microciclos (semana + sesiones) desde plantilla/archivo.</p>
+		        </section>
+		      </div>
+
+		      <div class="tab-panel {% if main_tab == 'library' and active_tab == 'sessions' %}is-active{% endif %}" data-tab="sessions">
 		        <section class="panel">
 		          <h2>Sesiones · Estructura por bloques</h2>
+		          <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin:0.35rem 0 0.6rem;">
+		            <a class="tab-link {% if library_repository == 'traditional' %}is-active{% endif %}" href="?tab=sessions&library_repo=traditional{% if selected_session_id %}&session_id={{ selected_session_id }}{% endif %}">Clásicas</a>
+		            <a class="tab-link {% if library_repository == 'interactive' %}is-active{% endif %}" href="?tab=sessions&library_repo=interactive{% if selected_session_id %}&session_id={{ selected_session_id }}{% endif %}">Interactivas</a>
+		          </div>
 			          <div class="editor-grid">
 				            <div class="editor-box" id="planner-create-session">
 				              <h3>Crear sesión</h3>
@@ -1623,9 +1897,13 @@
 		        {% endif %}
 		      </div>
 
-	      <div class="tab-panel {% if active_tab == 'microcycles' %}is-active{% endif %}" data-tab="microcycles">
+	      <div class="tab-panel {% if main_tab == 'library' and active_tab == 'microcycles' %}is-active{% endif %}" data-tab="microcycles">
 	        <section class="panel">
 	          <h2>Planificación · Microciclos y Sesiones</h2>
+	          <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin:0.35rem 0 0.6rem;">
+	            <a class="tab-link {% if library_repository == 'traditional' %}is-active{% endif %}" href="?tab=microcycles&library_repo=traditional">Clásicas</a>
+	            <a class="tab-link {% if library_repository == 'interactive' %}is-active{% endif %}" href="?tab=microcycles&library_repo=interactive">Interactivas</a>
+	          </div>
 	          <div class="grid">
 	            <div class="editor-box">
 	              <h3>Crear / actualizar microciclo</h3>
@@ -2127,7 +2405,7 @@
         </section>
       </div>
 
-	      <div class="tab-panel {% if active_tab == 'library' %}is-active{% endif %}" data-tab="library">
+	      <div class="tab-panel {% if main_tab == 'library' and active_tab == 'library' %}is-active{% endif %}" data-tab="library">
 	      <section class="panel">
 	        <h2>Acciones rápidas</h2>
 		        <div class="folder-grid" style="margin-top:0.75rem;">
@@ -2147,49 +2425,11 @@
 			            <strong>Crear tarea (Interactiva)</strong>
 			            <span>Se guarda en Interactivas</span>
 			          </a>
+			          <a class="folder-card" href="?tab=import&library_repo={{ library_repository }}">
+			            <strong>Importar</strong>
+			            <span>PDF, vídeo y (próximamente) sesiones</span>
+			          </a>
 			        </div>
-		        <details style="margin-top:0.85rem;">
-		          <summary>Importar tareas desde PDF</summary>
-		          <div style="margin-top:0.75rem;">
-		            <form method="post" enctype="multipart/form-data" class="grid">
-		              {% csrf_token %}
-		              <input type="hidden" name="planner_action" value="library_upload_pdf" />
-		              <input type="hidden" name="planner_tab" value="library" />
-		              <input type="hidden" name="library_repo" value="traditional" />
-		              <label>
-		                Nombre tarea
-		                <input type="text" name="pdf_task_title" maxlength="160" placeholder="Ej: Activación coordinativa" required />
-		              </label>
-	              <label>
-	                Bloque
-	                <select name="pdf_task_block">
-	                  {% for value, label in task_blocks %}
-	                  <option value="{{ value }}">{{ label }}</option>
-	                  {% endfor %}
-	                </select>
-	              </label>
-	              <label>
-	                Minutos
-	                <input type="number" name="pdf_task_minutes" min="5" max="90" value="15" />
-	              </label>
-	              <label>
-	                Objetivo (opcional)
-	                <input type="text" name="pdf_task_objective" maxlength="180" placeholder="Objetivo breve" />
-	              </label>
-	              <label>
-	                Archivos PDF
-	                <input type="file" name="library_task_pdf" accept="application/pdf" multiple required />
-	              </label>
-	              <label style="display:flex; gap:10px; align-items:center; margin-top:6px;">
-	                <input type="checkbox" name="pdf_recreate_board" value="1" checked />
-	                <span>Usar el gráfico del PDF como fondo editable (recomendado)</span>
-	              </label>
-	              <div style="display:flex; align-items:flex-end;">
-	                <button type="submit" class="primary">Subir PDFs</button>
-	              </div>
-	            </form>
-	          </div>
-	        </details>
 	      </section>
 		      <section class="panel">
 		        <h2>Biblioteca de tareas</h2>
@@ -2198,53 +2438,6 @@
           <a class="tab-link {% if library_repository == 'traditional' %}is-active{% endif %}" href="?tab=library&library_repo=traditional&library_view={{ library_view }}&library_key={{ library_key }}">Tradicionales</a>
           <a class="tab-link {% if library_repository == 'interactive' %}is-active{% endif %}" href="?tab=library&library_repo=interactive&library_view={{ library_view }}&library_key={{ library_key }}">Interactivas</a>
         </div>
-        {% if library_repository == 'interactive' %}
-        <details style="margin:-0.1rem 0 0.7rem;">
-          <summary>Importar tarea desde vídeo (Interactivas)</summary>
-          <div style="margin-top:0.75rem;">
-            <form method="post" enctype="multipart/form-data" class="grid">
-              {% csrf_token %}
-              <input type="hidden" name="planner_action" value="library_upload_video" />
-              <input type="hidden" name="planner_tab" value="library" />
-              <input type="hidden" name="library_repo" value="interactive" />
-              <label>
-                Título (opcional)
-                <input type="text" name="video_task_title" maxlength="160" placeholder="Ej: Partido condicionado (centros)" />
-              </label>
-              <label>
-                Bloque
-                <select name="video_task_block">
-                  {% for value, label in task_blocks %}
-                  <option value="{{ value }}">{{ label }}</option>
-                  {% endfor %}
-                </select>
-              </label>
-              <label>
-                Minutos (opcional)
-                <input type="number" name="video_task_minutes" min="5" max="90" value="15" />
-              </label>
-              <label style="grid-column:1/-1;">
-                Texto/Descripción (opcional)
-                <textarea name="video_task_caption" rows="5" maxlength="12000" placeholder="Pega aquí la descripción del post (si existe). Si no, sube capturas abajo."></textarea>
-              </label>
-              <label style="grid-column:1/-1;">
-                Capturas de descripción (opcional)
-                <input type="file" name="library_task_caption_images" accept="image/*" multiple />
-              </label>
-              <label style="grid-column:1/-1;">
-                Vídeo
-                <input type="file" name="library_task_video" accept="video/*" required />
-                <span class="meta" style="text-transform:none; letter-spacing:0; font-size:0.78rem; color:rgba(226,232,240,0.68);">
-                  Recomendado &lt; 60MB. Máximo 250MB (puede tardar en subir).
-                </span>
-              </label>
-              <div style="display:flex; align-items:flex-end;">
-                <button type="submit" class="primary">Crear tarea interactiva</button>
-              </div>
-            </form>
-          </div>
-        </details>
-        {% endif %}
         <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin-bottom:0.6rem;">
           <a class="tab-link {% if library_view == 'overview' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=overview">Todas</a>
           <a class="tab-link {% if library_view == 'phase' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=phase">Por fase</a>

@@ -24881,8 +24881,11 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     error = ''
     analysis = None
     analysis_task = None
-    active_tab = 'sessions'
-    allowed_tabs = {'sessions', 'microcycles', 'library'}
+    main_tab = 'create'
+    # Sub-tab dentro de Biblioteca (para reutilizar lógica existente)
+    active_tab = 'library'  # library (tareas) / sessions / microcycles
+    allowed_subtabs = {'sessions', 'microcycles', 'library'}
+    allowed_main_tabs = {'create', 'library', 'import'}
     allowed_library_views = {'overview', 'phase', 'type', 'players', 'duration', 'quality', 'date'}
     library_view = str(request.GET.get('library_view') or request.POST.get('library_view') or 'overview').strip().lower()
     if library_view not in allowed_library_views:
@@ -24903,15 +24906,38 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     all_sessions = []
     auto_selected_session_id = None
 
-    def _normalize_tab(value):
-        tab = str(value or '').strip().lower()
-        if tab in allowed_tabs:
-            return tab
-        if tab in {'planning', 'planificacion', 'planificación'}:
-            return 'microcycles'
-        if tab in {'import', 'create'}:
-            return 'library'
-        return ''
+    def _normalize_nav(value):
+        raw = str(value or '').strip().lower()
+        if raw in allowed_main_tabs:
+            # create/import son pestañas principales (no subtabs).
+            return raw, 'library'
+        if raw in allowed_subtabs:
+            return 'library', raw
+        if raw in {'planning', 'planificacion', 'planificación'}:
+            return 'library', 'microcycles'
+        return 'create', 'library'
+
+    def _nav_from_action(action, fallback_main, fallback_sub):
+        action_key = str(action or '').strip()
+        if action_key in {'create_microcycle_plan', 'update_microcycle_plan', 'attach_session_to_microcycle', 'detach_session_from_microcycle', 'clone_microcycle_plan'}:
+            return 'library', 'microcycles'
+        if action_key in {
+            'create_session_plan',
+            'update_session_plan',
+            'update_session_sections',
+            'delete_session_plan',
+            'duplicate_session_plan',
+            'move_session_task',
+            'duplicate_session_task',
+            'delete_session_task',
+            'restore_session_task',
+            'purge_session_task',
+        }:
+            return 'library', 'sessions'
+        return fallback_main, fallback_sub
+
+    # Navegación inicial (GET).
+    main_tab, active_tab = _normalize_nav(request.GET.get('tab') or '')
 
     if request.method == 'POST' and planner_tables_ready:
         planner_action = (request.POST.get('planner_action') or '').strip()
@@ -24919,8 +24945,12 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             str(request.headers.get('X-Requested-With') or '').lower() == 'xmlhttprequest'
             or str(request.POST.get('ajax') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
         )
-        posted_tab = _normalize_tab(request.POST.get('planner_tab') or '')
-        active_tab = posted_tab or _sessions_tab_from_action(planner_action) or active_tab
+        posted_main, posted_sub = _normalize_nav(request.POST.get('planner_tab') or '')
+        # Si el formulario envía un tab principal, lo respetamos.
+        main_tab = posted_main or main_tab
+        active_tab = posted_sub or active_tab
+        # Algunas acciones deben aterrizar en su sección natural.
+        main_tab, active_tab = _nav_from_action(planner_action, main_tab, active_tab)
         try:
             if planner_action == 'library_upload_pdf':
                 title = _sanitize_task_text((request.POST.get('pdf_task_title') or '').strip(), multiline=False, max_len=160)
@@ -26725,7 +26755,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     planning_sessions = []
     inbox_microcycle = None
     standalone_sessions = []
-    if planner_tables_ready and active_tab in {'microcycles', 'sessions'}:
+    if planner_tables_ready:
         inbox_microcycle = _get_or_create_inbox_microcycle(primary_team)
         planning_microcycles_qs = (
             TrainingMicrocycle.objects
@@ -26779,6 +26809,14 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             )
             if scope_key != 'coach':
                 selected_session_tasks = [item for item in selected_session_tasks if _task_scope_for_item(item) == scope_key]
+            # Filtro: Biblioteca (Clásicas/Interactivas) aplicado también a la vista de sesiones.
+            try:
+                selected_session_tasks = [
+                    item for item in selected_session_tasks
+                    if _library_repository_for_task(item) == library_repository
+                ]
+            except Exception:
+                pass
 
             selected_task_sheets = [_build_session_task_sheet(task_obj) for task_obj in selected_session_tasks]
             selected_session_task_sections = [
@@ -26864,24 +26902,43 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         task_minutes_by_microcycle = defaultdict(int)
         intensity_by_microcycle = defaultdict(Counter)
         sessions_by_microcycle = defaultdict(list)
+        # Filtro de tareas por repositorio (Clásicas/Interactivas).
+        filtered_tasks_by_session = {}
+        for session_id, session_tasks in planning_tasks_by_session.items():
+            try:
+                filtered_tasks_by_session[int(session_id)] = [
+                    t for t in (session_tasks or [])
+                    if _library_repository_for_task(t) == library_repository
+                ]
+            except Exception:
+                filtered_tasks_by_session[int(session_id)] = list(session_tasks or [])
+        filtered_deleted_by_session = {}
+        for session_id, deleted_list in planning_deleted_tasks_by_session.items():
+            try:
+                filtered_deleted_by_session[int(session_id)] = [
+                    t for t in (deleted_list or [])
+                    if _library_repository_for_task(t) == library_repository
+                ]
+            except Exception:
+                filtered_deleted_by_session[int(session_id)] = list(deleted_list or [])
         for session_item in planning_sessions:
             sessions_count_map[int(session_item.microcycle_id)] += 1
             session_minutes_by_microcycle[int(session_item.microcycle_id)] += int(session_item.duration_minutes or 0)
             intensity_by_microcycle[int(session_item.microcycle_id)][str(session_item.intensity or '')] += 1
             sessions_by_microcycle[int(session_item.microcycle_id)].append(session_item)
-        for session_id, session_tasks in planning_tasks_by_session.items():
-            tasks_count_by_session[int(session_id)] = len(session_tasks)
+        for session_id, session_tasks in filtered_tasks_by_session.items():
+            tasks_count_by_session[int(session_id)] = len(session_tasks or [])
         for micro_id, session_items in sessions_by_microcycle.items():
             total = 0
             for session_item in session_items:
-                total += len(planning_tasks_by_session.get(int(session_item.id), []))
+                total += len(filtered_tasks_by_session.get(int(session_item.id), []) or [])
             tasks_count_map[int(micro_id)] = total
         for micro in planning_microcycles:
             plan_fields = _parse_microcycle_plan_fields(getattr(micro, 'notes', ''))
             session_rows = []
             for session_item in sessions_by_microcycle.get(int(micro.id), []):
-                session_tasks = planning_tasks_by_session.get(int(session_item.id), [])
-                deleted_session_tasks = planning_deleted_tasks_by_session.get(int(session_item.id), [])
+                session_tasks = filtered_tasks_by_session.get(int(session_item.id), []) or []
+                deleted_session_tasks = filtered_deleted_by_session.get(int(session_item.id), []) or []
                 task_minutes_total = sum(int(getattr(task_obj, 'duration_minutes', 0) or 0) for task_obj in session_tasks)
                 task_sheets = [_build_session_task_sheet(task_obj) for task_obj in session_tasks]
                 task_rows = []
@@ -26899,7 +26956,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     {
                         'obj': session_item,
                         'plan_fields': _parse_session_plan_fields(getattr(session_item, 'content', '')),
-                        'tasks_count': tasks_count_by_session.get(int(session_item.id), 0),
+                        'tasks_count': len(session_tasks),
                         'task_minutes_total': task_minutes_total,
                         'tasks': session_tasks,
                         'task_sheets': task_sheets,
@@ -26951,7 +27008,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         ]
 
     planning_task_source_options = []
-    if planner_tables_ready and active_tab in {'microcycles', 'sessions'}:
+    if planner_tables_ready:
         source_task_candidates = list(
             SessionTask.objects
             .select_related('session__microcycle')
@@ -27043,6 +27100,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             'library_view': library_view,
             'library_key': library_key,
             'library_repository': library_repository,
+            'main_tab': main_tab,
             'planning_microcycle_rows': microcycle_rows,
             'planning_sessions': planning_sessions,
             'planning_session_items': planning_session_items,
