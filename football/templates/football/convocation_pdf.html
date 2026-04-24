@@ -3,14 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <title>Convocatoria {{ team_name }}</title>
+    {% include 'football/includes/print_tokens_css.html' %}
     <style>
       @page { size: A4; margin: 10mm; }
       * { box-sizing: border-box; }
       body {
         margin: 0;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-        color: #0b1220;
-        background: #ffffff;
+        font-family: var(--print-font, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif);
+        color: var(--print-ink, #0b1220);
+        background: var(--print-paper, #ffffff);
       }
       .page {
         width: 190mm; /* A4 (210mm) - margins (10mm * 2) */

@@ -4,11 +4,13 @@
   <head>
     <meta charset="utf-8" />
     <title>Ficha staff · {{ member.name }}</title>
+    {% include 'football/includes/print_tokens_css.html' %}
     <style>
       @page { size: A4; margin: 14mm 14mm; }
       body {
-        font-family: "Inter", system-ui, -apple-system, Segoe UI, sans-serif;
-        color: #0b1220;
+        font-family: var(--print-font, "Inter", system-ui, -apple-system, Segoe UI, sans-serif);
+        color: var(--print-ink, #0b1220);
+        background: var(--print-paper, #ffffff);
         margin: 0;
       }
       .header {
@@ -213,4 +215,3 @@
     </div>
   </body>
 </html>
-

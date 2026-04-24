@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <title>Tarea UEFA · {{ task.title }}</title>
+    {% include 'football/includes/print_tokens_css.html' %}
     <style>
       @page {
         size: A4;
@@ -10,10 +11,10 @@
       }
       body {
         margin: 0;
-        font-family: "Segoe UI", Arial, sans-serif;
+        font-family: var(--print-font, "Segoe UI", Arial, sans-serif);
         font-size: 10.5px;
-        color: {{ pdf_palette.ink }};
-        background: {{ pdf_palette.sheet }};
+        color: var(--print-ink, {{ pdf_palette.ink }});
+        background: var(--print-paper, {{ pdf_palette.sheet }});
       }
       .sheet {
         width: 210mm;

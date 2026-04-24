@@ -11,6 +11,12 @@ body.prod-commercial {
   --muted: var(--prod-muted, #91a1b9);
   --accent: var(--prod-secondary, #f4b400);
   --pitch: var(--prod-primary, #2f7d32);
+  /* Aliases legacy usados en templates antiguos (evita paletas paralelas). */
+  --brand: var(--prod-secondary, #f4b400);
+  --amber: var(--prod-secondary, #f4b400);
+  --cyan: var(--prod-primary, #2f7d32);
+  --ok: var(--prod-success, #22c55e);
+  --err: var(--prod-danger, #d64545);
 
   color: var(--ink);
   font-family: var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", sans-serif);
@@ -21,7 +27,7 @@ body.prod-commercial {
   background:
     radial-gradient(circle at 14% -12%, rgba(47, 125, 50, 0.22), transparent 52%),
     radial-gradient(circle at 88% -6%, rgba(244, 180, 0, 0.18), transparent 46%),
-    radial-gradient(circle at 70% 120%, rgba(34, 211, 238, 0.12), transparent 52%),
+    radial-gradient(circle at 70% 120%, rgba(144, 161, 185, 0.14), transparent 52%),
     linear-gradient(180deg, #02060d 0%, #08111d 58%, #050a13 100%) !important;
   background-attachment: fixed;
 }
@@ -115,6 +121,16 @@ body.prod-commercial a {
 
 body.prod-commercial a:hover {
   color: rgba(255, 242, 199, 0.96);
+}
+
+/* Legacy `.link` (muchas plantillas lo pintan en azul/cian). Lo alineamos a marca. */
+body.prod-commercial .link {
+  color: rgba(255, 242, 199, 0.96) !important;
+}
+
+body.prod-commercial .link:hover {
+  color: #fff7dd !important;
+  text-decoration: underline;
 }
 
 /* Buttons (supports `.button` and `.btn`). */

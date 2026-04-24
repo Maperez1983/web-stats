@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <title>Sesión · {{ session_display_name|default:session.focus }}</title>
+    {% include 'football/includes/print_tokens_css.html' %}
 	    <style>
       :root {
         --border: {% if pdf_style == 'club' %}#d5dde7{% else %}#6b7280{% endif %};
@@ -14,10 +15,10 @@
         margin: 12mm;
       }
       body {
-        font-family: "Segoe UI", Arial, sans-serif;
+        font-family: var(--print-font, "Segoe UI", Arial, sans-serif);
         font-size: 10.5px;
-        color: {{ pdf_palette.ink }};
-        background: {{ pdf_palette.sheet }};
+        color: var(--print-ink, {{ pdf_palette.ink }});
+        background: var(--print-paper, {{ pdf_palette.sheet }});
       }
       .sheet {
         border: 1px solid #d5dde7;

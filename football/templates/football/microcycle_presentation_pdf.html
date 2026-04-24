@@ -3,16 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <title>Microciclo · {{ microcycle.title }}</title>
+    {% include 'football/includes/print_tokens_css.html' %}
     <style>
       @page {
         size: A4 landscape;
         margin: 10mm;
       }
       body {
-        font-family: "Segoe UI", Arial, sans-serif;
+        font-family: var(--print-font, "Segoe UI", Arial, sans-serif);
         font-size: 10.5px;
-        color: #0f172a;
-        background: #ffffff;
+        color: var(--print-ink, #0f172a);
+        background: var(--print-paper, #ffffff);
       }
       .sheet {
         border: 1px solid #6b7280;
