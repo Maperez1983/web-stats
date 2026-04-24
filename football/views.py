@@ -25097,6 +25097,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 caption_images_suggested = (
                     _extract_ig_task_fields_from_caption_images(caption_images) if caption_images else {}
                 )
+                has_caption_inputs = bool(caption_suggested) or bool(caption_images_suggested)
 
                 target_session = _get_or_create_library_session_with_repository(primary_team, scope_key, repository=LIBRARY_REPOSITORY_INTERACTIVE)
                 base_order = SessionTask.objects.filter(session=target_session).count()
@@ -25112,8 +25113,13 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                         for chunk in video_file.chunks():
                             f.write(chunk)
 
-                    clip = _build_ig_clip_from_video_file(str(in_path), name_hint=title_hint)
-                    suggested = _extract_ig_task_fields_from_video_file(str(in_path))
+                    # El clip (movimiento/chapas) siempre lo generamos.
+                    # En biblioteca usamos `fast=True` porque el usuario suele querer rapidez.
+                    clip = _build_ig_clip_from_video_file(str(in_path), name_hint=title_hint, fast=True)
+
+                    # OCR del vídeo (slides) es lo más lento: si tenemos caption pegado o capturas,
+                    # lo saltamos y usamos esos campos como fuente de texto.
+                    suggested = {} if has_caption_inputs else _extract_ig_task_fields_from_video_file(str(in_path))
 
                     # Preview rápida: 1 frame (tarjeta de biblioteca).
                     ffmpeg_bin = shutil.which('ffmpeg')
@@ -28542,7 +28548,7 @@ def session_task_video_import_api(request):
     return JsonResponse({'ok': True, 'clip': clip, 'suggested': suggested or {}}, status=200)
 
 
-def _build_ig_clip_from_video_file(video_path: str, name_hint: str = '') -> dict:
+def _build_ig_clip_from_video_file(video_path: str, name_hint: str = '', *, fast: bool = False) -> dict:
     if not video_path:
         raise ValueError('Falta el fichero de vídeo.')
     ffmpeg_bin = shutil.which('ffmpeg')
@@ -28562,8 +28568,27 @@ def _build_ig_clip_from_video_file(video_path: str, name_hint: str = '') -> dict
         if loader is None:  # pragma: no cover
             raise ValueError('No se pudo cargar el importador.')
         loader.exec_module(mod)
-        # Sampling conservador para no bloquear: 1 fps, max 45 frames.
-        payload = mod.build_clip_from_video(video_path, name_hint or 'Clip importado', fps=1, max_frames=45, scale_w=640)
+        # Sampling conservador para no bloquear: 1 fps y max frames.
+        # Modo fast se usa en importación de biblioteca para mejorar tiempos.
+        max_frames = 45
+        scale_w = 640
+        if fast:
+            max_frames = 24
+            scale_w = 560
+            try:
+                size = int(os.path.getsize(video_path) or 0)
+            except Exception:
+                size = 0
+            if size and size >= 25 * 1024 * 1024:
+                max_frames = 18
+                scale_w = 480
+        payload = mod.build_clip_from_video(
+            video_path,
+            name_hint or 'Clip importado',
+            fps=1,
+            max_frames=max_frames,
+            scale_w=scale_w,
+        )
     except Exception as exc:
         raise ValueError('No se pudo generar el clip desde el vídeo.') from exc
 
