@@ -2224,6 +2224,14 @@
                 <input type="number" name="video_task_minutes" min="5" max="90" value="15" />
               </label>
               <label style="grid-column:1/-1;">
+                Texto/Descripción (opcional)
+                <textarea name="video_task_caption" rows="5" maxlength="12000" placeholder="Pega aquí la descripción del post (si existe). Si no, sube capturas abajo."></textarea>
+              </label>
+              <label style="grid-column:1/-1;">
+                Capturas de descripción (opcional)
+                <input type="file" name="library_task_caption_images" accept="image/*" multiple />
+              </label>
+              <label style="grid-column:1/-1;">
                 Vídeo
                 <input type="file" name="library_task_video" accept="video/*" required />
               </label>

@@ -1423,6 +1423,221 @@ def _library_repository_for_task(task):
     return _library_repository_for_session(getattr(task, 'session', None))
 
 
+def _extract_ig_task_fields_from_text(full_text: str) -> dict:
+    """
+    Extrae campos desde texto libre (caption, OCR de capturas, OCR de slides, etc.).
+    Devuelve valores en el formato del builder (HTML para rich editors).
+    """
+    text = str(full_text or '').replace('\r', '\n').strip()
+    if not text:
+        return {}
+
+    def _norm(s: str) -> str:
+        raw = str(s or '').strip().lower()
+        raw = unicodedata.normalize('NFKD', raw)
+        raw = ''.join(ch for ch in raw if not unicodedata.combining(ch))
+        raw = re.sub(r'\s+', ' ', raw).strip()
+        return raw
+
+    def _html_paragraphs(value: str) -> str:
+        lines = [ln.strip() for ln in str(value or '').splitlines()]
+        chunks = [ln for ln in lines if ln]
+        if not chunks:
+            return ''
+        safe = [html.escape(ln) for ln in chunks]
+        return '<p>' + '</p><p>'.join(safe) + '</p>'
+
+    def _html_bullets(lines: list) -> str:
+        items = []
+        for ln in (lines or []):
+            raw = str(ln or '').strip()
+            if not raw:
+                continue
+            raw = re.sub(r'^[•·▪▫◦\\-–—]+\\s*', '', raw).strip()
+            if not raw:
+                continue
+            items.append(f'<li>{html.escape(raw)}</li>')
+        if not items:
+            return ''
+        return '<ul>' + ''.join(items) + '</ul>'
+
+    raw_lines = [ln.strip() for ln in text.splitlines()]
+    lines = [ln for ln in raw_lines if ln]
+    if not lines:
+        return {}
+
+    title = ''
+    for ln in lines[:8]:
+        n = _norm(ln)
+        if any(k in n for k in ('desarrollo', 'reglas', 'jugadores', 'objetivos', 'variantes', 'consejos')):
+            continue
+        if len(ln) >= 4:
+            title = ln
+            break
+
+    sections = defaultdict(list)
+    current = 'body'
+    heading_map = {
+        'desarrollo': 'desarrollo',
+        'reglas de provocacion': 'reglas_provocacion',
+        'reglas de continuación': 'reglas_continuacion',
+        'reglas de continuacion': 'reglas_continuacion',
+        'reglas': 'reglas',
+        'objetivos': 'objetivos',
+        'variantes y consejos': 'variantes',
+        'variantes': 'variantes',
+        'consejos': 'variantes',
+    }
+
+    for ln in lines:
+        n = _norm(ln)
+        matched = None
+        for key, target in heading_map.items():
+            if n == _norm(key) or n.startswith(_norm(key) + ' '):
+                matched = target
+                break
+        if matched:
+            current = matched
+            remainder = ln.split(':', 1)[1].strip() if ':' in ln else ''
+            if remainder:
+                sections[current].append(remainder)
+            continue
+        sections[current].append(ln)
+
+    joined = ' '.join(lines)
+    player_count = ''
+    dimensions = ''
+    minutes = ''
+    m = re.search(r'(?i)\\bjugadores?\\b\\s*[:\\-]?\\s*([0-9]{1,2}\\s*\\+?\\s*[0-9]{0,2}\\s*[pP]?)', joined)
+    if m:
+        player_count = m.group(1).strip()
+    m = re.search(r'(?i)\\bespacio\\b\\s*[:\\-]?\\s*([0-9]{2,3}\\s*[xX]\\s*[0-9]{2,3})', joined)
+    if m:
+        dimensions = m.group(1).strip().replace('X', 'x')
+    m = re.search(r'(?i)\\bduraci[oó]n\\b\\s*[:\\-]?\\s*([0-9]{1,2})\\b', joined)
+    if m:
+        minutes = m.group(1).strip()
+
+    objetivos_html = _html_bullets(sections.get('objetivos') or [])
+    body_lines = sections.get('desarrollo') or sections.get('body') or []
+    desarrollo_html = _html_paragraphs('\n'.join(body_lines or []))
+    description_plain = ''
+    if body_lines:
+        description_plain = re.sub(r'\s+', ' ', ' '.join(body_lines)).strip()
+        description_plain = description_plain[:600]
+
+    reglas_parts = []
+    if sections.get('reglas_provocacion'):
+        reglas_parts.append('<p><strong>Reglas de provocación</strong></p>')
+        reglas_parts.append(_html_paragraphs('\n'.join(sections.get('reglas_provocacion') or [])))
+    if sections.get('reglas_continuacion'):
+        reglas_parts.append('<p><strong>Reglas de continuación</strong></p>')
+        reglas_parts.append(_html_paragraphs('\n'.join(sections.get('reglas_continuacion') or [])))
+    if not reglas_parts and sections.get('reglas'):
+        reglas_parts.append(_html_paragraphs('\n'.join(sections.get('reglas') or [])))
+    reglas_html = ''.join([p for p in reglas_parts if p])
+
+    variantes_html = _html_bullets(sections.get('variantes') or [])
+
+    parsed = {}
+    if title:
+        parsed['title'] = title
+    if player_count:
+        parsed['player_count'] = player_count
+    if dimensions:
+        parsed['dimensions'] = dimensions
+    if minutes:
+        parsed['minutes'] = minutes
+    if description_plain:
+        parsed['description'] = description_plain
+    if objetivos_html:
+        parsed['objective'] = 'Objetivos'
+        parsed['coaching_html'] = objetivos_html
+    if desarrollo_html:
+        parsed['description_html'] = desarrollo_html
+    if reglas_html:
+        parsed['rules_html'] = reglas_html
+    if variantes_html:
+        parsed['progression_html'] = variantes_html
+
+    out = {}
+    if parsed.get('title'):
+        out['title'] = _sanitize_task_text(parsed.get('title'), multiline=False, max_len=160)
+    if parsed.get('player_count'):
+        out['player_count'] = _sanitize_task_text(parsed.get('player_count'), multiline=False, max_len=100)
+    if parsed.get('dimensions'):
+        out['dimensions'] = _sanitize_task_text(parsed.get('dimensions'), multiline=False, max_len=120)
+    if parsed.get('minutes'):
+        try:
+            out['minutes'] = max(5, min(int(parsed.get('minutes') or 0), 90))
+        except Exception:
+            pass
+    if parsed.get('description'):
+        out['description'] = _sanitize_task_text(parsed.get('description'), multiline=True, max_len=1200)
+    for key in ('description_html', 'rules_html', 'coaching_html', 'progression_html'):
+        raw = parsed.get(key)
+        if raw:
+            out[key] = _sanitize_task_rich_html(str(raw))
+    if parsed.get('objective'):
+        out['objective'] = _sanitize_task_text(parsed.get('objective'), multiline=False, max_len=180)
+    return out
+
+
+def _extract_ig_task_fields_from_caption_images(uploaded_images) -> dict:
+    """
+    OCR sobre capturas del caption/descripción (Instagram, PDF “story”, etc.).
+    Devuelve campos en el mismo formato que `_extract_ig_task_fields_from_text`.
+    """
+    if not uploaded_images or pytesseract is None or Image is None:
+        return {}
+
+    def _ocr_image(img: Image.Image) -> str:
+        cfg = '--psm 6'
+        for lang in ('spa+eng', 'eng'):
+            try:
+                text = pytesseract.image_to_string(img, lang=lang, config=cfg) or ''
+                text = str(text or '').strip()
+                if text:
+                    return text
+            except Exception:
+                continue
+        return ''
+
+    chunks = []
+    for uploaded in list(uploaded_images)[:6]:
+        if not uploaded:
+            continue
+        try:
+            if hasattr(uploaded, 'seek'):
+                uploaded.seek(0)
+            with Image.open(uploaded) as img:
+                img = img.convert('RGB')
+                if ImageOps is not None:
+                    try:
+                        img = ImageOps.exif_transpose(img)
+                    except Exception:
+                        pass
+                # Si es una captura pequeña, ampliamos un poco (mejora OCR sin complicar).
+                try:
+                    w, h = img.size
+                    if max(w, h) < 1200:
+                        scale = 2
+                        img = img.resize((w * scale, h * scale))
+                except Exception:
+                    pass
+                txt = _ocr_image(img)
+                txt = re.sub(r'\n{3,}', '\n\n', txt).strip()
+                if txt and len(txt) >= 25:
+                    chunks.append(txt)
+        except Exception:
+            continue
+
+    merged = '\n\n'.join(chunks).strip()
+    if not merged:
+        return {}
+    return _extract_ig_task_fields_from_text(merged) or {}
+
+
 def _get_or_create_inbox_microcycle(team):
     if not team:
         return None
@@ -24872,6 +25087,16 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 block = raw_block if raw_block in {choice[0] for choice in SessionTask.BLOCK_CHOICES} else SessionTask.BLOCK_MAIN_1
                 minutes_hint = _parse_int(request.POST.get('video_task_minutes')) or 15
                 minutes_hint = max(5, min(minutes_hint, 90))
+                caption_text = _sanitize_task_text(
+                    (request.POST.get('video_task_caption') or '').strip(),
+                    multiline=True,
+                    max_len=12000,
+                )
+                caption_images = request.FILES.getlist('library_task_caption_images') or []
+                caption_suggested = _extract_ig_task_fields_from_text(caption_text) if caption_text else {}
+                caption_images_suggested = (
+                    _extract_ig_task_fields_from_caption_images(caption_images) if caption_images else {}
+                )
 
                 target_session = _get_or_create_library_session_with_repository(primary_team, scope_key, repository=LIBRARY_REPOSITORY_INTERACTIVE)
                 base_order = SessionTask.objects.filter(session=target_session).count()
@@ -24930,8 +25155,15 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     raise ValueError('No se pudo generar la tarea desde el vídeo.')
 
                 suggested = suggested if isinstance(suggested, dict) else {}
+                # Prioridad: caption pegado > OCR capturas caption > OCR vídeo (slides).
+                for extra in (caption_images_suggested, caption_suggested):
+                    if not isinstance(extra, dict):
+                        continue
+                    for key, value in extra.items():
+                        if value:
+                            suggested[key] = value
                 task_title = (
-                    _sanitize_task_text(str(suggested.get('title') or title_hint or '').strip(), multiline=False, max_len=160)
+                    _sanitize_task_text(str(title_hint or suggested.get('title') or '').strip(), multiline=False, max_len=160)
                     or 'Tarea interactiva'
                 )
                 task_minutes = _parse_int(suggested.get('minutes')) or minutes_hint
@@ -24939,6 +25171,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 task_objective = _sanitize_task_text(str(suggested.get('objective') or '').strip(), multiline=False, max_len=180)
                 player_count = _sanitize_task_text(str(suggested.get('player_count') or '').strip(), multiline=False, max_len=100)
                 dimensions = _sanitize_task_text(str(suggested.get('dimensions') or '').strip(), multiline=False, max_len=120)
+                description_plain = _sanitize_task_text(str(suggested.get('description') or '').strip(), multiline=True, max_len=1200)
 
                 description_html = _sanitize_task_rich_html(str(suggested.get('description_html') or '').strip())
                 rules_html = _sanitize_task_rich_html(str(suggested.get('rules_html') or '').strip())
@@ -24988,7 +25221,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                         },
                         'analysis': {
                             'task_sheet': {
-                                'description': '',
+                                'description': description_plain,
                                 'description_html': description_html,
                                 'coaching_html': coaching_html,
                                 'rules_html': rules_html,
@@ -24997,6 +25230,10 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                                 'dimensions': dimensions,
                                 'materials': '',
                             },
+                        },
+                        'caption': {
+                            'text': caption_text[:4000] if caption_text else '',
+                            'has_caption_images': bool(caption_images),
                         },
                     },
                 }
@@ -28355,13 +28592,6 @@ def _extract_ig_task_fields_from_video_file(video_path: str) -> dict:
     if not ffmpeg_bin:
         return {}
 
-    def _norm(s: str) -> str:
-        raw = str(s or '').strip().lower()
-        raw = unicodedata.normalize('NFKD', raw)
-        raw = ''.join(ch for ch in raw if not unicodedata.combining(ch))
-        raw = re.sub(r'\s+', ' ', raw).strip()
-        return raw
-
     def _white_ratio(img: Image.Image) -> float:
         try:
             rgb = img.convert('RGB')
@@ -28454,125 +28684,6 @@ def _extract_ig_task_fields_from_video_file(video_path: str) -> dict:
                 continue
         return ''
 
-    def _html_paragraphs(text: str) -> str:
-        lines = [ln.strip() for ln in str(text or '').splitlines()]
-        chunks = [ln for ln in lines if ln]
-        if not chunks:
-            return ''
-        safe = [html.escape(ln) for ln in chunks]
-        return '<p>' + '</p><p>'.join(safe) + '</p>'
-
-    def _html_bullets(lines: list) -> str:
-        items = []
-        for ln in lines:
-            raw = str(ln or '').strip()
-            if not raw:
-                continue
-            raw = re.sub(r'^[•·▪▫◦\-–—]+\s*', '', raw).strip()
-            if not raw:
-                continue
-            items.append(f'<li>{html.escape(raw)}</li>')
-        if not items:
-            return ''
-        return '<ul>' + ''.join(items) + '</ul>'
-
-    def _parse_sections(full_text: str) -> dict:
-        text = str(full_text or '').replace('\r', '\n')
-        raw_lines = [ln.strip() for ln in text.splitlines()]
-        lines = [ln for ln in raw_lines if ln]
-        if not lines:
-            return {}
-
-        title = ''
-        # Primera línea “usable” como título (si no es heading de sección).
-        for ln in lines[:6]:
-            n = _norm(ln)
-            if any(k in n for k in ('desarrollo', 'reglas', 'jugadores', 'objetivos', 'variantes', 'consejos')):
-                continue
-            if len(ln) >= 4:
-                title = ln
-                break
-
-        sections = defaultdict(list)
-        current = 'body'
-        heading_map = {
-            'desarrollo': 'desarrollo',
-            'reglas de provocacion': 'reglas_provocacion',
-            'reglas de continuacion': 'reglas_continuacion',
-            'reglas de continuación': 'reglas_continuacion',
-            'reglas': 'reglas',
-            'objetivos': 'objetivos',
-            'variantes y consejos': 'variantes',
-            'variantes': 'variantes',
-            'consejos': 'variantes',
-        }
-
-        for ln in lines:
-            n = _norm(ln)
-            matched = None
-            for key, target in heading_map.items():
-                if n == _norm(key) or n.startswith(_norm(key) + ' '):
-                    matched = target
-                    break
-            if matched:
-                current = matched
-                # Soporta títulos en la misma línea: "REGLAS ...: texto"
-                remainder = ln.split(':', 1)[1].strip() if ':' in ln else ''
-                if remainder:
-                    sections[current].append(remainder)
-                continue
-            sections[current].append(ln)
-
-        joined = ' '.join(lines)
-        player_count = ''
-        dimensions = ''
-        minutes = ''
-        m = re.search(r'(?i)\bjugadores?\b\s*[:\-]?\s*([0-9]{1,2}\s*\+?\s*[0-9]{0,2}\s*[pP]?)', joined)
-        if m:
-            player_count = m.group(1).strip()
-        m = re.search(r'(?i)\bespacio\b\s*[:\-]?\s*([0-9]{2,3}\s*[xX]\s*[0-9]{2,3})', joined)
-        if m:
-            dimensions = m.group(1).strip().replace('X', 'x')
-        m = re.search(r'(?i)\bduraci[oó]n\b\s*[:\-]?\s*([0-9]{1,2})\b', joined)
-        if m:
-            minutes = m.group(1).strip()
-
-        objetivos_html = _html_bullets(sections.get('objetivos') or [])
-        desarrollo_html = _html_paragraphs('\n'.join(sections.get('desarrollo') or sections.get('body') or []))
-
-        reglas_parts = []
-        if sections.get('reglas_provocacion'):
-            reglas_parts.append('<p><strong>Reglas de provocación</strong></p>')
-            reglas_parts.append(_html_paragraphs('\n'.join(sections.get('reglas_provocacion') or [])))
-        if sections.get('reglas_continuacion'):
-            reglas_parts.append('<p><strong>Reglas de continuación</strong></p>')
-            reglas_parts.append(_html_paragraphs('\n'.join(sections.get('reglas_continuacion') or [])))
-        if not reglas_parts and sections.get('reglas'):
-            reglas_parts.append(_html_paragraphs('\n'.join(sections.get('reglas') or [])))
-        reglas_html = ''.join([p for p in reglas_parts if p])
-
-        variantes_html = _html_bullets(sections.get('variantes') or [])
-
-        out = {}
-        if title:
-            out['title'] = title
-        if player_count:
-            out['player_count'] = player_count
-        if dimensions:
-            out['dimensions'] = dimensions
-        if minutes:
-            out['minutes'] = minutes
-        if objetivos_html:
-            out['objective'] = 'Objetivos'
-            out['coaching_html'] = objetivos_html
-        if desarrollo_html:
-            out['description_html'] = desarrollo_html
-        if reglas_html:
-            out['rules_html'] = reglas_html
-        if variantes_html:
-            out['progression_html'] = variantes_html
-        return out
-
     try:
         with tempfile.TemporaryDirectory(prefix='ig-video-ocr-') as tmpdir:
             tmp_path = Path(tmpdir)
@@ -28600,27 +28711,7 @@ def _extract_ig_task_fields_from_video_file(video_path: str) -> dict:
             merged = '\n\n'.join(chunks).strip()
             if not merged:
                 return {}
-            parsed = _parse_sections(merged) or {}
-            # Sanea y limita longitudes.
-            out = {}
-            if parsed.get('title'):
-                out['title'] = _sanitize_task_text(parsed.get('title'), multiline=False, max_len=160)
-            if parsed.get('player_count'):
-                out['player_count'] = _sanitize_task_text(parsed.get('player_count'), multiline=False, max_len=100)
-            if parsed.get('dimensions'):
-                out['dimensions'] = _sanitize_task_text(parsed.get('dimensions'), multiline=False, max_len=120)
-            if parsed.get('minutes'):
-                try:
-                    out['minutes'] = max(5, min(int(parsed.get('minutes') or 0), 90))
-                except Exception:
-                    pass
-            for key in ('description_html', 'rules_html', 'coaching_html', 'progression_html'):
-                raw = parsed.get(key)
-                if raw:
-                    out[key] = _sanitize_task_rich_html(str(raw))
-            if parsed.get('objective'):
-                out['objective'] = _sanitize_task_text(parsed.get('objective'), multiline=False, max_len=180)
-            return out
+            return _extract_ig_task_fields_from_text(merged) or {}
     except Exception:
         return {}
 
