@@ -2799,6 +2799,7 @@
 	        <input type="hidden" id="task-playbook-versions-url" value="{% url 'tactical-playbook-versions-api' %}" />
 	        <input type="hidden" id="task-playbook-share-url" value="{% url 'share-tactical-playbook-clip-create' %}" />
 	        <input type="hidden" name="planner_action" value="create_draw_task" />
+	        <input type="hidden" name="draw_library_repository" value="{{ library_repository|default:'traditional' }}" />
 	        <input type="hidden" name="draw_canvas_state" id="draw-canvas-state" value="{{ initial.canvas_state|escape }}" />
 	        <input type="hidden" name="draw_canvas_width" id="draw-canvas-width" value="{{ initial.canvas_width }}" />
 	        <input type="hidden" name="draw_canvas_height" id="draw-canvas-height" value="{{ initial.canvas_height }}" />

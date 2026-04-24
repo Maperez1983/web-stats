@@ -11117,14 +11117,20 @@
 		        const saved = parsed && typeof parsed === 'object' ? parsed.simulation : null;
 		        const steps = saved && typeof saved === 'object' ? saved.steps : null;
 		        const normalized = normalizeSimulationSteps(steps);
-		        if (normalized.length) {
-		          simulationSavedSteps = normalized;
-		          simulationSavedUpdatedAt = Date.now();
-		          // Espejo local (por si el usuario todavía no guarda la tarea).
-		          try {
-		            if (canUseStorage) window.localStorage.setItem(simStorageKey, JSON.stringify({ v: 1, updated_at: new Date().toISOString(), steps: normalized }));
-		          } catch (err) { /* ignore */ }
-		        } else {
+			        if (normalized.length) {
+			          simulationSavedSteps = normalized;
+			          simulationSavedUpdatedAt = Date.now();
+			          // Espejo local (por si el usuario todavía no guarda la tarea).
+			          try {
+			            if (canUseStorage) {
+			              const proFromCanvas = (saved && typeof saved === 'object' && saved.pro && typeof saved.pro === 'object') ? saved.pro : null;
+			              const payload = { v: 1, updated_at: new Date().toISOString(), steps: normalized };
+			              if (proFromCanvas) payload.pro = proFromCanvas;
+			              window.localStorage.setItem(simStorageKey, JSON.stringify(payload));
+			              if (proFromCanvas) restoreSimulationProFromStorage();
+			            }
+			          } catch (err) { /* ignore */ }
+			        } else {
 		          // Fallback: si no viene en canvas_state, intenta restaurar desde localStorage.
 		          try {
 		            if (canUseStorage) {
@@ -11790,6 +11796,18 @@
 			              updated_at: simulationSavedUpdatedAt ? new Date(simulationSavedUpdatedAt).toISOString() : '',
 			              steps: simulationSavedSteps,
 			            };
+			            try {
+			              const hasTracks = simulationProTracks && typeof simulationProTracks === 'object' && Object.keys(simulationProTracks || {}).length >= 1;
+			              if (hasTracks || simulationProEnabled) {
+			                state.simulation.pro = {
+			                  v: 1,
+			                  enabled: !!simulationProEnabled,
+			                  loop: !!simulationProLoop,
+			                  updated_at: new Date().toISOString(),
+			                  tracks: simulationProTracks || {},
+			                };
+			              }
+			            } catch (err) { /* ignore */ }
 			          } else {
 			            delete state.simulation;
 			          }

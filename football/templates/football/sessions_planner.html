@@ -2135,26 +2135,31 @@
 		            <strong>Ir a microciclos</strong>
 		            <span>Semana, sesiones y distribución de tareas</span>
 		          </a>
-		          <a class="folder-card" href="?tab=sessions">
-		            <strong>Editar sesión</strong>
-		            <span>Textos por bloques y tareas del día</span>
-		          </a>
-		          <a class="folder-card" href="{% url 'sessions-task-create' %}">
-		            <strong>Crear tarea</strong>
-		            <span>Editor visual dedicado</span>
-		          </a>
-		        </div>
-	        <details style="margin-top:0.85rem;">
-	          <summary>Importar tareas desde PDF</summary>
-	          <div style="margin-top:0.75rem;">
-	            <form method="post" enctype="multipart/form-data" class="grid">
-	              {% csrf_token %}
-	              <input type="hidden" name="planner_action" value="library_upload_pdf" />
-	              <input type="hidden" name="planner_tab" value="library" />
-	              <label>
-	                Nombre tarea
-	                <input type="text" name="pdf_task_title" maxlength="160" placeholder="Ej: Activación coordinativa" required />
-	              </label>
+			          <a class="folder-card" href="?tab=sessions">
+			            <strong>Editar sesión</strong>
+			            <span>Textos por bloques y tareas del día</span>
+			          </a>
+			          <a class="folder-card" href="{% url task_builder_route_name %}?repo=traditional">
+			            <strong>Crear tarea (Tradicional)</strong>
+			            <span>Se guarda en Tradicionales</span>
+			          </a>
+			          <a class="folder-card" href="{% url task_builder_route_name %}?repo=interactive">
+			            <strong>Crear tarea (Interactiva)</strong>
+			            <span>Se guarda en Interactivas</span>
+			          </a>
+			        </div>
+		        <details style="margin-top:0.85rem;">
+		          <summary>Importar tareas desde PDF</summary>
+		          <div style="margin-top:0.75rem;">
+		            <form method="post" enctype="multipart/form-data" class="grid">
+		              {% csrf_token %}
+		              <input type="hidden" name="planner_action" value="library_upload_pdf" />
+		              <input type="hidden" name="planner_tab" value="library" />
+		              <input type="hidden" name="library_repo" value="traditional" />
+		              <label>
+		                Nombre tarea
+		                <input type="text" name="pdf_task_title" maxlength="160" placeholder="Ej: Activación coordinativa" required />
+		              </label>
 	              <label>
 	                Bloque
 	                <select name="pdf_task_block">
@@ -2186,17 +2191,57 @@
 	          </div>
 	        </details>
 	      </section>
-	      <section class="panel">
-	        <h2>Biblioteca de tareas</h2>
-	        <p class="meta" style="margin-top:0;">Vista de resultados del importador PDF con el máximo de información detectada automáticamente.</p>
+		      <section class="panel">
+		        <h2>Biblioteca de tareas</h2>
+		        <p class="meta" style="margin-top:0;">Vista de resultados del importador PDF con el máximo de información detectada automáticamente.</p>
+        <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin:0.2rem 0 0.6rem;">
+          <a class="tab-link {% if library_repository == 'traditional' %}is-active{% endif %}" href="?tab=library&library_repo=traditional&library_view={{ library_view }}&library_key={{ library_key }}">Tradicionales</a>
+          <a class="tab-link {% if library_repository == 'interactive' %}is-active{% endif %}" href="?tab=library&library_repo=interactive&library_view={{ library_view }}&library_key={{ library_key }}">Interactivas</a>
+        </div>
+        {% if library_repository == 'interactive' %}
+        <details style="margin:-0.1rem 0 0.7rem;">
+          <summary>Importar tarea desde vídeo (Interactivas)</summary>
+          <div style="margin-top:0.75rem;">
+            <form method="post" enctype="multipart/form-data" class="grid">
+              {% csrf_token %}
+              <input type="hidden" name="planner_action" value="library_upload_video" />
+              <input type="hidden" name="planner_tab" value="library" />
+              <input type="hidden" name="library_repo" value="interactive" />
+              <label>
+                Título (opcional)
+                <input type="text" name="video_task_title" maxlength="160" placeholder="Ej: Partido condicionado (centros)" />
+              </label>
+              <label>
+                Bloque
+                <select name="video_task_block">
+                  {% for value, label in task_blocks %}
+                  <option value="{{ value }}">{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label>
+                Minutos (opcional)
+                <input type="number" name="video_task_minutes" min="5" max="90" value="15" />
+              </label>
+              <label style="grid-column:1/-1;">
+                Vídeo
+                <input type="file" name="library_task_video" accept="video/*" required />
+              </label>
+              <div style="display:flex; align-items:flex-end;">
+                <button type="submit" class="primary">Crear tarea interactiva</button>
+              </div>
+            </form>
+          </div>
+        </details>
+        {% endif %}
         <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin-bottom:0.6rem;">
-          <a class="tab-link {% if library_view == 'overview' %}is-active{% endif %}" href="?tab=library&library_view=overview">Todas</a>
-          <a class="tab-link {% if library_view == 'phase' %}is-active{% endif %}" href="?tab=library&library_view=phase">Por fase</a>
-          <a class="tab-link {% if library_view == 'type' %}is-active{% endif %}" href="?tab=library&library_view=type">Por tipo</a>
-          <a class="tab-link {% if library_view == 'players' %}is-active{% endif %}" href="?tab=library&library_view=players">Por jugadores</a>
-          <a class="tab-link {% if library_view == 'duration' %}is-active{% endif %}" href="?tab=library&library_view=duration">Por duración</a>
-          <a class="tab-link {% if library_view == 'date' %}is-active{% endif %}" href="?tab=library&library_view=date">Por fecha</a>
-          <a class="tab-link {% if library_view == 'quality' %}is-active{% endif %}" href="?tab=library&library_view=quality">Por calidad</a>
+          <a class="tab-link {% if library_view == 'overview' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=overview">Todas</a>
+          <a class="tab-link {% if library_view == 'phase' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=phase">Por fase</a>
+          <a class="tab-link {% if library_view == 'type' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=type">Por tipo</a>
+          <a class="tab-link {% if library_view == 'players' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=players">Por jugadores</a>
+          <a class="tab-link {% if library_view == 'duration' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=duration">Por duración</a>
+          <a class="tab-link {% if library_view == 'date' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=date">Por fecha</a>
+          <a class="tab-link {% if library_view == 'quality' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=quality">Por calidad</a>
         </div>
         {% if library_deleted_tasks %}
         <details style="margin:-0.25rem 0 0.7rem;">
@@ -2210,69 +2255,71 @@
                 · {{ trash_task.duration_minutes }}'
                 {% if trash_task.deleted_at %}· {{ trash_task.deleted_at|date:"d/m H:i" }}{% endif %}
               </div>
-              <form method="post" style="margin:0;">
-                {% csrf_token %}
-                <input type="hidden" name="planner_action" value="restore_library_task" />
-                <input type="hidden" name="planner_tab" value="library" />
-                <input type="hidden" name="library_view" value="{{ library_view }}" />
-                <input type="hidden" name="library_key" value="{{ library_key }}" />
-                <input type="hidden" name="task_id" value="{{ trash_task.id }}" />
-                <button type="submit" class="secondary">Restaurar</button>
-              </form>
-              <form method="post" style="margin:0;" onsubmit="return confirm('Se eliminará definitivamente (no se puede deshacer). ¿Continuar?');">
-                {% csrf_token %}
-                <input type="hidden" name="planner_action" value="purge_library_task" />
-                <input type="hidden" name="planner_tab" value="library" />
-                <input type="hidden" name="library_view" value="{{ library_view }}" />
-                <input type="hidden" name="library_key" value="{{ library_key }}" />
-                <input type="hidden" name="task_id" value="{{ trash_task.id }}" />
-                <button type="submit" class="danger">Eliminar definitivo</button>
-              </form>
+	              <form method="post" style="margin:0;">
+	                {% csrf_token %}
+	                <input type="hidden" name="planner_action" value="restore_library_task" />
+	                <input type="hidden" name="planner_tab" value="library" />
+	                <input type="hidden" name="library_view" value="{{ library_view }}" />
+	                <input type="hidden" name="library_key" value="{{ library_key }}" />
+	                <input type="hidden" name="library_repo" value="{{ library_repository }}" />
+	                <input type="hidden" name="task_id" value="{{ trash_task.id }}" />
+	                <button type="submit" class="secondary">Restaurar</button>
+	              </form>
+	              <form method="post" style="margin:0;" onsubmit="return confirm('Se eliminará definitivamente (no se puede deshacer). ¿Continuar?');">
+	                {% csrf_token %}
+	                <input type="hidden" name="planner_action" value="purge_library_task" />
+	                <input type="hidden" name="planner_tab" value="library" />
+	                <input type="hidden" name="library_view" value="{{ library_view }}" />
+	                <input type="hidden" name="library_key" value="{{ library_key }}" />
+	                <input type="hidden" name="library_repo" value="{{ library_repository }}" />
+	                <input type="hidden" name="task_id" value="{{ trash_task.id }}" />
+	                <button type="submit" class="danger">Eliminar definitivo</button>
+	              </form>
             </div>
             {% endfor %}
           </div>
         </details>
         {% endif %}
-        {% if library_view == 'phase' and phase_group_rows %}
-        <p class="meta" style="margin-top:-0.1rem;">
-          {% for item in phase_group_rows %}<a class="badge" href="?tab=library&library_view=phase&library_key={{ item.key }}">{{ item.label|default:item.key }} · {{ item.count }}</a>{% endfor %}
-        </p>
-        {% elif library_view == 'type' and type_group_rows %}
-        <p class="meta" style="margin-top:-0.1rem;">
-          {% for item in type_group_rows %}<a class="badge" href="?tab=library&library_view=type&library_key={{ item.key }}">{{ item.key }} · {{ item.count }}</a>{% endfor %}
-        </p>
-        {% elif library_view == 'players' and players_band_group_rows %}
-        <p class="meta" style="margin-top:-0.1rem;">
-          {% for item in players_band_group_rows %}<a class="badge" href="?tab=library&library_view=players&library_key={{ item.key }}">{{ item.key }} · {{ item.count }}</a>{% endfor %}
-        </p>
-        {% elif library_view == 'duration' and duration_band_group_rows %}
-        <p class="meta" style="margin-top:-0.1rem;">
-          {% for item in duration_band_group_rows %}<a class="badge" href="?tab=library&library_view=duration&library_key={{ item.key }}">{{ item.key }} · {{ item.count }}</a>{% endfor %}
-        </p>
-        {% elif library_view == 'date' and date_group_rows %}
-        <p class="meta" style="margin-top:-0.1rem;">
-          {% for item in date_group_rows %}<a class="badge" href="?tab=library&library_view=date&library_key={{ item.key }}">{{ item.label }} · {{ item.count }}</a>{% endfor %}
-        </p>
-        {% elif library_view == 'quality' and quality_group_rows %}
-        <p class="meta" style="margin-top:-0.1rem;">
-          {% for item in quality_group_rows %}<a class="badge" href="?tab=library&library_view=quality&library_key={{ item.key }}">{{ item.label }} · {{ item.count }}</a>{% endfor %}
-        </p>
-        {% endif %}
-        {% if library_view == 'phase' and not library_key %}
-        <div class="folder-grid">
-          {% for item in phase_group_rows %}
-          <a class="folder-card" href="?tab=library&library_view=phase&library_key={{ item.key }}">
-            <strong>{{ item.label|default:item.key }}</strong>
-            <span>{{ item.count }} tareas</span>
-          </a>
-          {% endfor %}
-        </div>
+	        {% if library_view == 'phase' and phase_group_rows %}
+	        <p class="meta" style="margin-top:-0.1rem;">
+	          {% for item in phase_group_rows %}<a class="badge" href="?tab=library&library_repo={{ library_repository }}&library_view=phase&library_key={{ item.key }}">{{ item.label|default:item.key }} · {{ item.count }}</a>{% endfor %}
+	        </p>
+	        {% elif library_view == 'type' and type_group_rows %}
+	        <p class="meta" style="margin-top:-0.1rem;">
+	          {% for item in type_group_rows %}<a class="badge" href="?tab=library&library_repo={{ library_repository }}&library_view=type&library_key={{ item.key }}">{{ item.key }} · {{ item.count }}</a>{% endfor %}
+	        </p>
+	        {% elif library_view == 'players' and players_band_group_rows %}
+	        <p class="meta" style="margin-top:-0.1rem;">
+	          {% for item in players_band_group_rows %}<a class="badge" href="?tab=library&library_repo={{ library_repository }}&library_view=players&library_key={{ item.key }}">{{ item.key }} · {{ item.count }}</a>{% endfor %}
+	        </p>
+	        {% elif library_view == 'duration' and duration_band_group_rows %}
+	        <p class="meta" style="margin-top:-0.1rem;">
+	          {% for item in duration_band_group_rows %}<a class="badge" href="?tab=library&library_repo={{ library_repository }}&library_view=duration&library_key={{ item.key }}">{{ item.key }} · {{ item.count }}</a>{% endfor %}
+	        </p>
+	        {% elif library_view == 'date' and date_group_rows %}
+	        <p class="meta" style="margin-top:-0.1rem;">
+	          {% for item in date_group_rows %}<a class="badge" href="?tab=library&library_repo={{ library_repository }}&library_view=date&library_key={{ item.key }}">{{ item.label }} · {{ item.count }}</a>{% endfor %}
+	        </p>
+	        {% elif library_view == 'quality' and quality_group_rows %}
+	        <p class="meta" style="margin-top:-0.1rem;">
+	          {% for item in quality_group_rows %}<a class="badge" href="?tab=library&library_repo={{ library_repository }}&library_view=quality&library_key={{ item.key }}">{{ item.label }} · {{ item.count }}</a>{% endfor %}
+	        </p>
+	        {% endif %}
+	        {% if library_view == 'phase' and not library_key %}
+	        <div class="folder-grid">
+	          {% for item in phase_group_rows %}
+	          <a class="folder-card" href="?tab=library&library_repo={{ library_repository }}&library_view=phase&library_key={{ item.key }}">
+	            <strong>{{ item.label|default:item.key }}</strong>
+	            <span>{{ item.count }} tareas</span>
+	          </a>
+	          {% endfor %}
+	        </div>
         <p class="meta">Selecciona una carpeta para ver sus tareas.</p>
-        {% elif library_view == 'phase' and library_key %}
-        <p class="meta">
-          <a class="badge" href="?tab=library&library_view=phase">← Volver a carpetas</a>
-        </p>
-        {% endif %}
+	        {% elif library_view == 'phase' and library_key %}
+	        <p class="meta">
+	          <a class="badge" href="?tab=library&library_repo={{ library_repository }}&library_view=phase">← Volver a carpetas</a>
+	        </p>
+	        {% endif %}
         {% if library_view == 'phase' and not library_key %}
         {% elif task_library_filtered %}
         <div class="task-list">
@@ -2320,14 +2367,15 @@
 	                <a class="button" href="{% url task_builder_edit_route_name t.id %}">Editar</a>
 	                {% endif %}
 	                {% if planning_session_items %}
-	                <form method="post" style="margin:0; display:flex; gap:0.35rem; flex-wrap:wrap; align-items:center;">
-	                  {% csrf_token %}
-	                  <input type="hidden" name="planner_action" value="copy_library_task_to_session" />
-                  <input type="hidden" name="planner_tab" value="library" />
-                  <input type="hidden" name="library_view" value="{{ library_view }}" />
-                  <input type="hidden" name="library_key" value="{{ library_key }}" />
-                  <input type="hidden" name="source_task_id" value="{{ t.id }}" />
-                  <select name="target_session_id" style="min-width:230px;">
+		                <form method="post" style="margin:0; display:flex; gap:0.35rem; flex-wrap:wrap; align-items:center;">
+		                  {% csrf_token %}
+		                  <input type="hidden" name="planner_action" value="copy_library_task_to_session" />
+	                  <input type="hidden" name="planner_tab" value="library" />
+	                  <input type="hidden" name="library_view" value="{{ library_view }}" />
+	                  <input type="hidden" name="library_key" value="{{ library_key }}" />
+	                  <input type="hidden" name="library_repo" value="{{ library_repository }}" />
+	                  <input type="hidden" name="source_task_id" value="{{ t.id }}" />
+	                  <select name="target_session_id" style="min-width:230px;">
                     {% for session_item in planning_session_items %}
                     <option value="{{ session_item.id }}">{{ session_item.label }}</option>
                     {% endfor %}
@@ -2336,45 +2384,49 @@
                 </form>
                 {% endif %}
                 {% if t.task_pdf %}
-                <form method="post" style="margin:0;">
-                  {% csrf_token %}
-                  <input type="hidden" name="planner_action" value="auto_fix_task_text" />
-                  <input type="hidden" name="planner_tab" value="library" />
-                  <input type="hidden" name="library_view" value="{{ library_view }}" />
-                  <input type="hidden" name="library_key" value="{{ library_key }}" />
-                  <input type="hidden" name="task_id" value="{{ t.id }}" />
-                  <button type="submit" class="secondary">Autocorregir</button>
-                </form>
-                {% if t.is_imported %}
-                <form method="post" style="margin:0;">
-                  {% csrf_token %}
-                  <input type="hidden" name="planner_action" value="pdf_board_background" />
-                  <input type="hidden" name="planner_tab" value="library" />
-                  <input type="hidden" name="library_view" value="{{ library_view }}" />
-                  <input type="hidden" name="library_key" value="{{ library_key }}" />
-                  <input type="hidden" name="task_id" value="{{ t.id }}" />
-                  <button type="submit" class="secondary">Usar gráfico PDF</button>
-                </form>
-                {% endif %}
-	                {% endif %}
 	                <form method="post" style="margin:0;">
 	                  {% csrf_token %}
-	                  <input type="hidden" name="planner_action" value="duplicate_library_task" />
+	                  <input type="hidden" name="planner_action" value="auto_fix_task_text" />
 	                  <input type="hidden" name="planner_tab" value="library" />
 	                  <input type="hidden" name="library_view" value="{{ library_view }}" />
 	                  <input type="hidden" name="library_key" value="{{ library_key }}" />
+	                  <input type="hidden" name="library_repo" value="{{ library_repository }}" />
 	                  <input type="hidden" name="task_id" value="{{ t.id }}" />
-	                  <button type="submit" class="secondary">Duplicar</button>
+	                  <button type="submit" class="secondary">Autocorregir</button>
 	                </form>
-	                <form method="post" style="margin:0;" onsubmit="return confirm('¿Enviar esta tarea a la papelera? (Se puede restaurar)');">
+                {% if t.is_imported %}
+	                <form method="post" style="margin:0;">
 	                  {% csrf_token %}
-	                  <input type="hidden" name="planner_action" value="delete_library_task" />
+	                  <input type="hidden" name="planner_action" value="pdf_board_background" />
 	                  <input type="hidden" name="planner_tab" value="library" />
-                  <input type="hidden" name="library_view" value="{{ library_view }}" />
-                  <input type="hidden" name="library_key" value="{{ library_key }}" />
-                  <input type="hidden" name="task_id" value="{{ t.id }}" />
-                  <button type="submit" class="danger">Papelera</button>
-                </form>
+	                  <input type="hidden" name="library_view" value="{{ library_view }}" />
+	                  <input type="hidden" name="library_key" value="{{ library_key }}" />
+	                  <input type="hidden" name="library_repo" value="{{ library_repository }}" />
+	                  <input type="hidden" name="task_id" value="{{ t.id }}" />
+	                  <button type="submit" class="secondary">Usar gráfico PDF</button>
+	                </form>
+                {% endif %}
+	                {% endif %}
+		                <form method="post" style="margin:0;">
+		                  {% csrf_token %}
+		                  <input type="hidden" name="planner_action" value="duplicate_library_task" />
+		                  <input type="hidden" name="planner_tab" value="library" />
+		                  <input type="hidden" name="library_view" value="{{ library_view }}" />
+		                  <input type="hidden" name="library_key" value="{{ library_key }}" />
+		                  <input type="hidden" name="library_repo" value="{{ library_repository }}" />
+		                  <input type="hidden" name="task_id" value="{{ t.id }}" />
+		                  <button type="submit" class="secondary">Duplicar</button>
+		                </form>
+		                <form method="post" style="margin:0;" onsubmit="return confirm('¿Enviar esta tarea a la papelera? (Se puede restaurar)');">
+		                  {% csrf_token %}
+		                  <input type="hidden" name="planner_action" value="delete_library_task" />
+		                  <input type="hidden" name="planner_tab" value="library" />
+	                  <input type="hidden" name="library_view" value="{{ library_view }}" />
+	                  <input type="hidden" name="library_key" value="{{ library_key }}" />
+	                  <input type="hidden" name="library_repo" value="{{ library_repository }}" />
+	                  <input type="hidden" name="task_id" value="{{ t.id }}" />
+	                  <button type="submit" class="danger">Papelera</button>
+	                </form>
                 {% if t.is_imported %}
                 <span class="badge">Importada · Solo lectura</span>
                 {% endif %}

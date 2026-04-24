@@ -1383,6 +1383,46 @@ def _is_library_session(session):
         return False
 
 
+LIBRARY_REPOSITORY_TRADITIONAL = 'traditional'
+LIBRARY_REPOSITORY_INTERACTIVE = 'interactive'
+LIBRARY_REPOSITORY_CHOICES = {LIBRARY_REPOSITORY_TRADITIONAL, LIBRARY_REPOSITORY_INTERACTIVE}
+
+
+def _normalize_library_repository(value, *, fallback=LIBRARY_REPOSITORY_TRADITIONAL):
+    raw = str(value or '').strip().lower()
+    if raw in {'tradicional', 'tradicionales', 'pdf'}:
+        return LIBRARY_REPOSITORY_TRADITIONAL
+    if raw in {'interactiva', 'interactivas'}:
+        return LIBRARY_REPOSITORY_INTERACTIVE
+    if raw in LIBRARY_REPOSITORY_CHOICES:
+        return raw
+    return fallback
+
+
+def _library_repository_for_session(session):
+    if not session:
+        return LIBRARY_REPOSITORY_TRADITIONAL
+    focus = str(getattr(session, 'focus', '') or '').strip().lower()
+    if 'biblioteca interactiva' in focus:
+        return LIBRARY_REPOSITORY_INTERACTIVE
+    return LIBRARY_REPOSITORY_TRADITIONAL
+
+
+def _library_repository_for_task(task):
+    if not task:
+        return LIBRARY_REPOSITORY_TRADITIONAL
+    try:
+        layout = task.tactical_layout if isinstance(getattr(task, 'tactical_layout', None), dict) else {}
+        meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+        raw_repo = meta.get('repository') or meta.get('library_repo') or meta.get('library_repository')
+        repo = _normalize_library_repository(raw_repo, fallback='')
+        if repo in LIBRARY_REPOSITORY_CHOICES:
+            return repo
+    except Exception:
+        pass
+    return _library_repository_for_session(getattr(task, 'session', None))
+
+
 def _get_or_create_inbox_microcycle(team):
     if not team:
         return None
@@ -23895,6 +23935,10 @@ def _task_scope_for_item(task):
 
 
 def _get_or_create_library_session(team, scope_key):
+    return _get_or_create_library_session_with_repository(team, scope_key, repository=LIBRARY_REPOSITORY_TRADITIONAL)
+
+
+def _get_or_create_library_session_with_repository(team, scope_key, *, repository=LIBRARY_REPOSITORY_TRADITIONAL):
     today = timezone.localdate()
     week_start = today - timedelta(days=today.weekday())
     week_end = week_start + timedelta(days=6)
@@ -23903,13 +23947,16 @@ def _get_or_create_library_session(team, scope_key):
         'goalkeeper': 'Porteros',
         'fitness': 'Preparacion fisica',
     }.get(scope_key, 'Staff')
+    repository = _normalize_library_repository(repository, fallback=LIBRARY_REPOSITORY_TRADITIONAL)
+    repo_label = 'Interactiva' if repository == LIBRARY_REPOSITORY_INTERACTIVE else 'PDF'
+
     microcycle, _ = TrainingMicrocycle.objects.get_or_create(
         team=team,
         week_start=week_start,
         defaults={
             'week_end': week_end,
             'title': f'Biblioteca {scope_label}',
-            'objective': 'Repositorio de tareas en PDF',
+            'objective': 'Repositorio de tareas (tradicionales e interactivas)',
             'status': TrainingMicrocycle.STATUS_DRAFT,
             'notes': f'{LIBRARY_MICROCYCLE_MARKER} Microciclo tecnico generado automaticamente para biblioteca.',
         },
@@ -23922,10 +23969,18 @@ def _get_or_create_library_session(team, scope_key):
             microcycle.save(update_fields=['notes'])
     except Exception:
         pass
+    # Legacy: si existe la sesión antigua "Biblioteca PDF", úsala como Tradicional.
+    if repository == LIBRARY_REPOSITORY_TRADITIONAL:
+        legacy_focus = f'Biblioteca PDF · {scope_label}'
+        legacy = TrainingSession.objects.filter(microcycle=microcycle, focus__iexact=legacy_focus).order_by('-session_date', '-id').first()
+        if legacy:
+            return legacy
+
+    focus = f'Biblioteca {repo_label} · {scope_label}'
     session, _ = TrainingSession.objects.get_or_create(
         microcycle=microcycle,
         session_date=today,
-        focus=f'Biblioteca PDF · {scope_label}',
+        focus=focus,
         defaults={
             'duration_minutes': 90,
             'intensity': TrainingSession.INTENSITY_LOW,
@@ -24565,6 +24620,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     if library_view not in allowed_library_views:
         library_view = 'overview'
     library_key = str(request.GET.get('library_key') or request.POST.get('library_key') or '').strip()
+    library_repository = _normalize_library_repository(request.GET.get('library_repo') or request.POST.get('library_repo') or LIBRARY_REPOSITORY_TRADITIONAL)
 
     planner_tables_ready = True
     try:
@@ -24796,6 +24852,177 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     if created_count == 1 and processed_pdfs == 1
                     else f'Se procesaron {processed_pdfs} PDFs y se crearon {created_count} tareas.'
                 )
+
+            elif planner_action == 'library_upload_video':
+                repository = _normalize_library_repository(request.POST.get('library_repo') or LIBRARY_REPOSITORY_INTERACTIVE)
+                if repository != LIBRARY_REPOSITORY_INTERACTIVE:
+                    raise ValueError('La importación de vídeo solo está disponible en Interactivas.')
+                video_file = request.FILES.get('library_task_video')
+                if not video_file:
+                    raise ValueError('Selecciona un vídeo.')
+                try:
+                    size = int(getattr(video_file, 'size', 0) or 0)
+                except Exception:
+                    size = 0
+                if size and size > 60 * 1024 * 1024:
+                    raise ValueError('El vídeo es demasiado grande (máx 60MB).')
+
+                title_hint = _sanitize_task_text((request.POST.get('video_task_title') or '').strip(), multiline=False, max_len=160)
+                raw_block = (request.POST.get('video_task_block') or SessionTask.BLOCK_MAIN_1).strip()
+                block = raw_block if raw_block in {choice[0] for choice in SessionTask.BLOCK_CHOICES} else SessionTask.BLOCK_MAIN_1
+                minutes_hint = _parse_int(request.POST.get('video_task_minutes')) or 15
+                minutes_hint = max(5, min(minutes_hint, 90))
+
+                target_session = _get_or_create_library_session_with_repository(primary_team, scope_key, repository=LIBRARY_REPOSITORY_INTERACTIVE)
+                base_order = SessionTask.objects.filter(session=target_session).count()
+
+                clip = None
+                suggested = {}
+                preview_bytes = b''
+                preview_ext = '.jpg'
+                with tempfile.TemporaryDirectory(prefix='library-video-import-') as tmpdir:
+                    tmp_path = Path(tmpdir)
+                    in_path = tmp_path / 'input.mp4'
+                    with open(in_path, 'wb') as f:
+                        for chunk in video_file.chunks():
+                            f.write(chunk)
+
+                    clip = _build_ig_clip_from_video_file(str(in_path), name_hint=title_hint)
+                    suggested = _extract_ig_task_fields_from_video_file(str(in_path))
+
+                    # Preview rápida: 1 frame (tarjeta de biblioteca).
+                    ffmpeg_bin = shutil.which('ffmpeg')
+                    if ffmpeg_bin:
+                        out_path = tmp_path / 'preview.jpg'
+                        try:
+                            subprocess.run(
+                                [
+                                    ffmpeg_bin,
+                                    '-hide_banner',
+                                    '-loglevel',
+                                    'error',
+                                    '-ss',
+                                    '0.5',
+                                    '-i',
+                                    str(in_path),
+                                    '-frames:v',
+                                    '1',
+                                    '-vf',
+                                    'scale=1280:-2',
+                                    '-q:v',
+                                    '2',
+                                    str(out_path),
+                                ],
+                                check=False,
+                                capture_output=True,
+                                timeout=25,
+                            )
+                        except Exception:
+                            pass
+                        if out_path.exists():
+                            try:
+                                preview_bytes = out_path.read_bytes() or b''
+                                preview_ext = '.jpg'
+                            except Exception:
+                                preview_bytes = b''
+
+                if not clip or not isinstance(clip, dict) or not isinstance(clip.get('steps'), list) or not clip.get('steps'):
+                    raise ValueError('No se pudo generar la tarea desde el vídeo.')
+
+                suggested = suggested if isinstance(suggested, dict) else {}
+                task_title = (
+                    _sanitize_task_text(str(suggested.get('title') or title_hint or '').strip(), multiline=False, max_len=160)
+                    or 'Tarea interactiva'
+                )
+                task_minutes = _parse_int(suggested.get('minutes')) or minutes_hint
+                task_minutes = max(5, min(task_minutes, 90))
+                task_objective = _sanitize_task_text(str(suggested.get('objective') or '').strip(), multiline=False, max_len=180)
+                player_count = _sanitize_task_text(str(suggested.get('player_count') or '').strip(), multiline=False, max_len=100)
+                dimensions = _sanitize_task_text(str(suggested.get('dimensions') or '').strip(), multiline=False, max_len=120)
+
+                description_html = _sanitize_task_rich_html(str(suggested.get('description_html') or '').strip())
+                rules_html = _sanitize_task_rich_html(str(suggested.get('rules_html') or '').strip())
+                coaching_html = _sanitize_task_rich_html(str(suggested.get('coaching_html') or '').strip())
+                progression_html = _sanitize_task_rich_html(str(suggested.get('progression_html') or '').strip())
+
+                clip_steps = clip.get('steps') if isinstance(clip.get('steps'), list) else []
+                clip_steps = clip_steps[:24]
+                first_step = clip_steps[0] if clip_steps else {}
+                base_canvas_state = first_step.get('canvas_state') if isinstance(first_step, dict) else None
+                if not isinstance(base_canvas_state, dict):
+                    base_canvas_state = _starter_canvas_state('full_pitch')
+                else:
+                    base_canvas_state = dict(base_canvas_state)
+                canvas_width = _parse_int(first_step.get('canvas_width')) or 1054
+                canvas_height = _parse_int(first_step.get('canvas_height')) or 684
+                canvas_width = max(320, min(canvas_width, 3840))
+                canvas_height = max(180, min(canvas_height, 2160))
+
+                base_canvas_state['simulation'] = {
+                    'v': 1,
+                    'updated_at': timezone.now().isoformat(),
+                    'steps': clip_steps,
+                    'pro': clip.get('pro') if isinstance(clip.get('pro'), dict) else None,
+                }
+
+                timeline = _normalize_animation_timeline(clip_steps)
+
+                tactical_layout = {
+                    'tokens': base_canvas_state.get('objects') if isinstance(base_canvas_state.get('objects'), list) else [],
+                    'timeline': timeline,
+                    'meta': {
+                        'scope': scope_key,
+                        'source': 'video-import',
+                        'repository': LIBRARY_REPOSITORY_INTERACTIVE,
+                        'pitch_preset': 'full_pitch',
+                        'pitch_orientation': 'landscape',
+                        'pitch_grass_style': 'classic',
+                        'pitch_zoom': 1.0,
+                        'multi_board': bool(len(timeline) >= 2),
+                        'player_count': player_count,
+                        'progression_html': progression_html,
+                        'graphic_editor': {
+                            'canvas_state': base_canvas_state,
+                            'canvas_width': canvas_width,
+                            'canvas_height': canvas_height,
+                        },
+                        'analysis': {
+                            'task_sheet': {
+                                'description': '',
+                                'description_html': description_html,
+                                'coaching_html': coaching_html,
+                                'rules_html': rules_html,
+                                'players': player_count,
+                                'space': '',
+                                'dimensions': dimensions,
+                                'materials': '',
+                            },
+                        },
+                    },
+                }
+
+                created_task = SessionTask.objects.create(
+                    session=target_session,
+                    title=task_title,
+                    block=block,
+                    duration_minutes=task_minutes,
+                    objective=task_objective,
+                    coaching_points='',
+                    confrontation_rules='',
+                    tactical_layout=tactical_layout,
+                    status=SessionTask.STATUS_PLANNED,
+                    order=base_order + 1,
+                    notes='Importada desde vídeo (Interactivas).',
+                )
+                if preview_bytes:
+                    try:
+                        filename = f'task-{created_task.id}-video-preview-{uuid.uuid4().hex[:10]}{preview_ext}'
+                        created_task.task_preview_image.save(filename, ContentFile(preview_bytes), save=True)
+                    except Exception:
+                        pass
+
+                edit_route = _task_builder_edit_route_name(scope_key)
+                return redirect(f"{reverse(edit_route, args=[created_task.id])}?repo=interactive&created_from=video")
 
             elif planner_action == 'create_microcycle_plan':
                 title = str(request.POST.get('plan_microcycle_title') or 'Microciclo semanal').strip()[:140]
@@ -26125,16 +26352,34 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             SessionTask.objects
             .select_related('session__microcycle')
             .filter(session__microcycle__team=primary_team, deleted_at__isnull=True)
-            .order_by('-id')[:300]
+            .filter(
+                Q(session__microcycle__notes__icontains=LIBRARY_MICROCYCLE_MARKER)
+                | Q(session__microcycle__title__istartswith='Biblioteca ')
+            )
+            .order_by('-id')[:600]
         )
-        task_library = [item for item in task_library_raw if _task_scope_for_item(item) == scope_key]
+        task_library = [
+            item for item in task_library_raw
+            if _task_scope_for_item(item) == scope_key
+            and _is_library_session(getattr(item, 'session', None))
+            and _library_repository_for_task(item) == library_repository
+        ]
         deleted_candidates = list(
             SessionTask.objects
             .select_related('session__microcycle')
             .filter(session__microcycle__team=primary_team, deleted_at__isnull=False)
-            .order_by('-deleted_at', '-id')[:80]
+            .filter(
+                Q(session__microcycle__notes__icontains=LIBRARY_MICROCYCLE_MARKER)
+                | Q(session__microcycle__title__istartswith='Biblioteca ')
+            )
+            .order_by('-deleted_at', '-id')[:160]
         )
-        library_deleted_tasks = [item for item in deleted_candidates if _task_scope_for_item(item) == scope_key]
+        library_deleted_tasks = [
+            item for item in deleted_candidates
+            if _task_scope_for_item(item) == scope_key
+            and _is_library_session(getattr(item, 'session', None))
+            and _library_repository_for_task(item) == library_repository
+        ]
 
     # IMPORTANTE (rendimiento): no hagas mantenimiento pesado (parseo PDF / render previews)
     # dentro de la petición de la vista. En Render esto puede bloquear varios minutos el primer acceso
@@ -26500,6 +26745,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             'active_tab': active_tab,
             'library_view': library_view,
             'library_key': library_key,
+            'library_repository': library_repository,
             'planning_microcycle_rows': microcycle_rows,
             'planning_sessions': planning_sessions,
             'planning_session_items': planning_session_items,
@@ -26727,6 +26973,9 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
     except Exception:
         pass
     target_session_id = _parse_int(request.POST.get('draw_target_session_id'))
+    library_repository = _normalize_library_repository(
+        request.POST.get('draw_library_repository') or request.POST.get('library_repo') or LIBRARY_REPOSITORY_TRADITIONAL
+    )
     raw_title = request.POST.get('draw_task_title')
     title = (
         _sanitize_task_text((raw_title or '').strip(), multiline=False, max_len=160)
@@ -27074,7 +27323,8 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
             .first()
         )
     if not target_session:
-        target_session = _get_or_create_library_session(primary_team, scope_key)
+        target_session = _get_or_create_library_session_with_repository(primary_team, scope_key, repository=library_repository)
+    is_target_library = _is_library_session(target_session)
 
     canvas_state = None
     raw_canvas_state_value = request.POST.get('draw_canvas_state')
@@ -27148,6 +27398,7 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
         'meta': {
             'scope': scope_key,
             'source': 'manual-studio',
+            **({'repository': library_repository} if is_target_library else {}),
             'template_key': template_key,
             'surface': selected_surface,
             'pitch_format': selected_pitch_format,
@@ -27938,6 +28189,12 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
         }
         for item in DRILL_CATALOG
     ]
+    library_repository = _normalize_library_repository(request.GET.get('repo') or request.GET.get('library_repo') or LIBRARY_REPOSITORY_TRADITIONAL)
+    try:
+        if task and _is_library_session(getattr(task, 'session', None)):
+            library_repository = _library_repository_for_task(task)
+    except Exception:
+        pass
     return render(
         request,
         'football/task_builder.html',
@@ -27967,6 +28224,7 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             'ppt_icons': ppt_icons,
             'drills_catalog': drills_catalog,
             'initial': initial,
+            'library_repository': library_repository,
 	            'back_url': reverse(_sessions_scope_route_name(scope_key)),
 	            'back_label': 'Volver a sesiones',
 	            'pdf_preview_url': reverse('sessions-task-pdf-preview'),
